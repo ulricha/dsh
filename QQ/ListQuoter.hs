@@ -40,11 +40,13 @@ variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 variablesFrom :: QualStmt -> Pat
 variablesFrom (QualStmt (Generator loc p e)) = p
 variablesFrom (QualStmt (Qualifier e)) = PApp (Special UnitCon) []
+variablesFrom (QualStmt (LetStmt (BDecls [PatBind s p t r b]))) = p
+variablesFrom (QualStmt e)  = error $ "Not supported yet: " ++ show e
 
 patToExp :: Pat -> Exp
 patToExp (PVar x)    = var x
 patToExp (PTuple xs) = Tuple $ map patToExp xs
-patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon
+patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon    
 patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 
 translateListCompr :: Exp -> Exp
@@ -74,6 +76,8 @@ combine p pv q qv = let qLambda = makeLambda qv undefined $ Tuple [patToExp qv, 
 normaliseQual :: QualStmt -> Exp
 normaliseQual (QualStmt (Generator l p e)) = e
 normaliseQual (QualStmt (Qualifier e)) = If e (listE [Con $ Special UnitCon]) eList
+normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind s p t r b]))) = listE [letE bi (patToExp p)] 
+normaliseQual (QualStmt e) = error $ "Not supported (yet): " ++ show e
 
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
 makeLambda p s b = Lambda s [p] b
