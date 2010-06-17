@@ -37,10 +37,11 @@ fh = ferryHaskell
 
 
 variablesFromLst :: [QualStmt] -> Pat
-variablesFromLst [x]    = variablesFrom x
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
 variablesFromLst ((ThenBy _ _):xs) = variablesFromLst xs
+variablesFromLst [x]    = variablesFrom x
 variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
+variablesFromLst []     = PWildCard
 
 variablesFrom :: QualStmt -> Pat
 variablesFrom (QualStmt (Generator loc p e)) = p
@@ -66,11 +67,12 @@ normaliseQuals = normaliseQuals' . reverse
 The list of qualifiers is provided in reverse order
 -}
 normaliseQuals' :: [QualStmt] -> Exp
-normaliseQuals' [q]    = normaliseQual q
 normaliseQuals' ((ThenTrans e):ps) = app e $ normaliseQuals' ps
 normaliseQuals' ((ThenBy ef ek):ps) = let pv = variablesFromLst ps
                                           ks = makeLambda pv undefined ek
                                        in app (app ef ks) $ normaliseQuals' ps
+normaliseQuals' [q]    = normaliseQual q
+normaliseQuals' []     = listE [Con $ Special UnitCon]
 normaliseQuals' (q:ps) = let qn = normaliseQual q
                              qv = variablesFrom q
                              pn = normaliseQuals' ps
