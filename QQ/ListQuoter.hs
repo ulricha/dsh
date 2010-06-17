@@ -39,10 +39,12 @@ variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 
 variablesFrom :: QualStmt -> Pat
 variablesFrom (QualStmt (Generator loc p e)) = p
+variablesFrom (QualStmt (Qualifier e)) = PApp (Special UnitCon) []
 
 patToExp :: Pat -> Exp
 patToExp (PVar x)    = var x
 patToExp (PTuple xs) = Tuple $ map patToExp xs
+patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon
 patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 
 translateListCompr :: Exp -> Exp
@@ -58,13 +60,20 @@ The list of qualifiers is provided in reverse order
 -}
 normaliseQuals' :: [QualStmt] -> Exp
 normaliseQuals' [q]    = normaliseQual q
-normaliseQuals' ((QualStmt (Generator s p e)):ps) = let pPat = variablesFromLst ps
-                                                        qLambda = makeLambda p s $ Tuple [patToExp p, patToExp pPat]
-                                                        pLambda = makeLambda pPat s $ mapF qLambda e
-                                                     in concatF (mapF pLambda $ normaliseQuals' ps) 
+normaliseQuals' (q:ps) = let qn = normaliseQual q
+                             qv = variablesFrom q
+                             pn = normaliseQuals' ps
+                             pv = variablesFromLst ps
+                          in combine pn pv qn qv
+
+combine :: Exp -> Pat -> Exp -> Pat -> Exp
+combine p pv q qv = let qLambda = makeLambda qv undefined $ Tuple [patToExp qv, patToExp pv]
+                        pLambda = makeLambda pv undefined $ mapF qLambda q
+                     in concatF (mapF pLambda p)
 
 normaliseQual :: QualStmt -> Exp
 normaliseQual (QualStmt (Generator l p e)) = e
+normaliseQual (QualStmt (Qualifier e)) = If e (listE [Con $ Special UnitCon]) eList
 
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
 makeLambda p s b = Lambda s [p] b
