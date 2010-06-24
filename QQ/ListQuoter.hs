@@ -1,7 +1,7 @@
 module QQ.ListQuoter where
 
-import Prelude hiding (unzip)
-import Data.Generics
+import Prelude
+import Data.Generics 
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Exts.Parser
@@ -11,6 +11,7 @@ import Language.Haskell.Exts.Extension
 import Language.Haskell.Exts.Build
 import GHC.Exts
 
+import qualified Data.Set as S
 
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
@@ -39,6 +40,7 @@ fh = ferryHaskell
 variablesFromLst :: [QualStmt] -> Pat
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
 variablesFromLst ((ThenBy _ _):xs) = variablesFromLst xs
+variablesFromLst ((GroupUsing _):xs) = variablesFromLst xs
 variablesFromLst [x]    = variablesFrom x
 variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 variablesFromLst []     = PWildCard
@@ -71,6 +73,8 @@ normaliseQuals' ((ThenTrans e):ps) = app e $ normaliseQuals' ps
 normaliseQuals' ((ThenBy ef ek):ps) = let pv = variablesFromLst ps
                                           ks = makeLambda pv undefined ek
                                        in app (app ef ks) $ normaliseQuals' ps
+normaliseQuals' ((GroupUsing e):ps) = let pVar = variablesFromLst ps
+                                       in mapF (unzipB pVar) (app e (normaliseQuals' ps))
 normaliseQuals' [q]    = normaliseQual q
 normaliseQuals' []     = listE [Con $ Special UnitCon]
 normaliseQuals' (q:ps) = let qn = normaliseQual q
@@ -93,11 +97,26 @@ normaliseQual (QualStmt e) = error $ "Not supported (yet): " ++ show e
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
 makeLambda p s b = Lambda s [p] b
 
+patV :: String -> Pat
+patV = PVar . name
+
+varV :: String -> Exp
+varV = var . name
+
+-- patF :: String -> Exp
+-- patF = 
+
 mapV :: Exp
 mapV = var $ name "map"
 
 concatV :: Exp
 concatV = var $ name "concat"
+
+fstV :: Exp
+fstV = var $ name "fst"
+
+sndV :: Exp
+sndV = var $ name "snd"
 
 mapF :: Exp -> Exp -> Exp
 mapF f l = flip app l $ app mapV f
@@ -105,8 +124,46 @@ mapF f l = flip app l $ app mapV f
 concatF :: Exp -> Exp
 concatF = app concatV
 
+unzipV :: Exp
+unzipV = var $ name "unzip"
+
+unzipF :: Exp -> Exp
+unzipF = app unzipV
+
+fstF :: Exp -> Exp
+fstF = app fstV
+
+sndF :: Exp -> Exp
+sndF = app sndV
+
 sortWithF :: Exp
 sortWithF = var $ name "sortWith"
 
 groupWithF :: Exp
 groupWithF = var $ name "groupWith"
+
+unzipB :: Pat -> Exp
+unzipB PWildCard   = makeLambda PWildCard (SrcLoc "" 0 0) $ Con $ Special UnitCon
+unzipB p@(PVar x)  = makeLambda p (SrcLoc "" 0 0) $ var x
+unzipB p@(PTuple [xp, yp]) = let (e:x:y:xs) = freshVar $ freeInPat p
+                                 ePat = patV e
+                                 xUnfold = unzipB xp
+                                 yUnfold = unzipB yp
+                                 lamPat = PTuple[patV x, patV y]
+                                 xBody = varV x
+                                 yBody = varV y
+                                 eArg = varV e
+                                 xLambda = makeLambda lamPat (SrcLoc "" 0 0) xBody
+                                 yLambda = makeLambda lamPat (SrcLoc "" 0 0) yBody
+                              in makeLambda ePat (SrcLoc "" 0 0) $ 
+                                        Tuple [ app xUnfold $ mapF xLambda eArg
+                                              , app yUnfold $ mapF yLambda eArg ]
+
+                               
+freeInPat :: Pat -> S.Set String
+freeInPat PWildCard = S.empty
+freeInPat (PVar (Ident x))  = S.singleton x
+freeInPat (PTuple x) = S.unions $ map freeInPat x
+
+freshVar :: S.Set String -> [String]
+freshVar s = ["__v" ++ show c | c <- [1..], S.member ("__v" ++ show c) s]
