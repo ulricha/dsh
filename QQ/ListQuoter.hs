@@ -40,6 +40,11 @@ fh = ferryHaskell
 fp :: QuasiQuoter
 fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
 
+variablesFromLsts :: [[QualStmt]] -> Pat
+variablesFromLsts [x]    = variablesFromLst $ reverse x 
+variablesFromLsts (x:xs) = PTuple [variablesFromLst $ reverse x, variablesFromLsts xs]
+ 
+
 variablesFromLst :: [QualStmt] -> Pat
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
 variablesFromLst ((ThenBy _ _):xs) = variablesFromLst xs
@@ -65,7 +70,13 @@ patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 translateListCompr :: Exp -> Exp
 translateListCompr (ListComp e q) = let lambda = makeLambda (variablesFromLst $ reverse q) (SrcLoc "" 0 0) e
                                      in mapF lambda (normaliseQuals q)
+translateListCompr (ParComp e qs) = let lambda = makeLambda (variablesFromLsts qs) (SrcLoc "" 0 0) e
+                                     in mapF lambda (normParallelCompr qs)
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
+
+normParallelCompr :: [[QualStmt]] -> Exp
+normParallelCompr [x] = normaliseQuals x
+normParallelCompr (x:xs) = zipF (normaliseQuals x) (normParallelCompr xs)
 
 normaliseQuals :: [QualStmt] -> Exp
 normaliseQuals = normaliseQuals' . reverse
@@ -138,6 +149,12 @@ unzipV = var $ name "unzip"
 
 unzipF :: Exp -> Exp
 unzipF = app unzipV
+
+zipV :: Exp
+zipV = var $ name "zip"
+
+zipF :: Exp -> Exp -> Exp
+zipF x y = app (app zipV x) y
 
 fstF :: Exp -> Exp
 fstF = app fstV
