@@ -30,17 +30,22 @@ exprParser = parseExpWithMode (defaultParseMode {extensions = [TransformListComp
 
 expand :: String -> String
 expand e = '[':(e ++ "]")
+
 ferryHaskell :: QuasiQuoter
 ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat 
 
 fh :: QuasiQuoter
 fh = ferryHaskell
 
+fp :: QuasiQuoter
+fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
 
 variablesFromLst :: [QualStmt] -> Pat
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
 variablesFromLst ((ThenBy _ _):xs) = variablesFromLst xs
+variablesFromLst ((GroupBy _):xs) = variablesFromLst xs
 variablesFromLst ((GroupUsing _):xs) = variablesFromLst xs
+variablesFromLst ((GroupByUsing _ _):xs) = variablesFromLst xs
 variablesFromLst [x]    = variablesFrom x
 variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 variablesFromLst []     = PWildCard
@@ -73,6 +78,10 @@ normaliseQuals' ((ThenTrans e):ps) = app e $ normaliseQuals' ps
 normaliseQuals' ((ThenBy ef ek):ps) = let pv = variablesFromLst ps
                                           ks = makeLambda pv undefined ek
                                        in app (app ef ks) $ normaliseQuals' ps
+normaliseQuals' ((GroupBy e):ps)    = normaliseQuals' ((GroupByUsing e groupWithF):ps)
+normaliseQuals' ((GroupByUsing e f):ps) = let pVar = variablesFromLst ps
+                                              lambda = makeLambda pVar (SrcLoc "" 0 0) e
+                                           in mapF (unzipB pVar) (app (app f lambda) $ normaliseQuals' ps)
 normaliseQuals' ((GroupUsing e):ps) = let pVar = variablesFromLst ps
                                        in mapF (unzipB pVar) (app e (normaliseQuals' ps))
 normaliseQuals' [q]    = normaliseQual q
