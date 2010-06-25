@@ -1,28 +1,25 @@
 {-# LANGUAGE GADTs, FlexibleInstances #-}
 
 module Ferry
-  -- (
+  (
+    Q
+  , QA
+  , toQ
+  , fromQ
 
-  --   Q
-  -- , QA
-  -- , toQ
-  -- , fromQ
-
-  -- , nilQ
-  -- , consQ
-  -- , headQ
-  -- , tailQ
-  -- , takeQ
-  -- , dropQ
-  -- , mapQ
-  -- , foldrQ
-  -- , zipQ
-  -- , unzipQ
-  -- , groupWithQ
-  -- , sortWithQ
-  -- , theQ
-  -- , appendQ
-  -- )
+  , nilQ
+  , consQ
+  , headQ
+  , tailQ
+  , takeQ
+  , dropQ
+  , mapQ
+  , zipQ
+  , unzipQ
+  , groupWithQ
+  , sortWithQ
+  , theQ
+  )
   where
 
 import GHC.Exts (groupWith, sortWith, the)
