@@ -1,4 +1,4 @@
-module QQ.ListQuoter where
+module QQ.ListQuoter (qc) where
 
 import Prelude
 import Data.Generics 
@@ -34,8 +34,8 @@ expand e = '[':(e ++ "]")
 ferryHaskell :: QuasiQuoter
 ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat 
 
-fh :: QuasiQuoter
-fh = ferryHaskell
+qc :: QuasiQuoter
+qc = ferryHaskell
 
 fp :: QuasiQuoter
 fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
