@@ -9,24 +9,53 @@ module Ferry
 
   , nilQ
   , consQ
-  , headQ
   , tailQ
-  , takeQ
-  , dropQ
-  , mapQ
-  , appendQ
-  , filterQ
-  , zipQ
-  , unzipQ
   , groupWithQ
   , sortWithQ
   , theQ
+
+    -- * List operations
+  , mapQ
+  , appendQ
+  , filterQ
+  , headQ
   , lastQ
   , initQ
   , nullQ
   , lengthQ
   , indexQ
   , reverseQ
+  , replicateQ
+
+    -- * Special folds
+  , andQ
+  , orQ
+  , anyQ
+  , allQ
+  , sumQ
+  , productQ
+  , concatQ
+  , concatMapQ
+  , maximumQ
+  , minimumQ
+
+    -- * Sublists
+  , takeQ
+  , dropQ
+  , splitAtQ
+  , takeWhileQ
+  , dropWhileQ
+  , spanQ
+  , breakQ
+
+    -- * Searching lists
+  , elemQ
+  , notElemQ
+
+    -- * Zipping and unzipping lists
+  , zipQ
+  , zipWithQ
+  , unzipQ
   )
   where
 
@@ -62,12 +91,35 @@ data Q a where
   Map       :: (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
   Append    :: (QA a) => Q [a] -> Q [a] -> Q [a]
   Filter    :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-  Zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-  Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a],[b])
   GroupWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
   SortWith  :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
 
+  And       :: Q [Bool] -> Q Bool
+  Or        :: Q [Bool] -> Q Bool
+  Any       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
+  All       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
+  Sum       :: (QA a, Num a) => Q [a] -> Q a
+  Product   :: (QA a, Num a) => Q [a] -> Q a
+  Concat    :: (QA a) => Q [[a]] -> Q [a]
+  ConcatMap :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
+  Maximum   :: (QA a, Ord a) => Q [a] -> Q a
+  Minimum   :: (QA a, Ord a) => Q [a] -> Q a
 
+  Replicate :: (QA a) => Q Int -> Q a -> Q [a]
+
+  SplitAt   :: (QA a) => Q Int -> Q [a] -> Q ([a], [a])
+  TakeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+  DropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+
+  Span      :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+  Break     :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+
+  Elem      :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
+  NotElem   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
+
+  Zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
+  ZipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
+  Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 
 nilQ :: (QA a) => Q [a]
 nilQ = Nil
@@ -96,12 +148,6 @@ appendQ = Append
 filterQ :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
 filterQ = Filter
 
-zipQ :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-zipQ = Zip
-
-unzipQ :: (QA a, QA b) => Q [(a,b)] -> Q ([a],[b])
-unzipQ = Unzip
-
 groupWithQ :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
 groupWithQ = GroupWith
 
@@ -129,6 +175,70 @@ indexQ = Index
 reverseQ :: (QA a) => Q [a] -> Q [a]
 reverseQ = Reverse
 
+
+-- Special folds
+
+andQ       :: Q [Bool] -> Q Bool
+andQ = And
+
+orQ        :: Q [Bool] -> Q Bool
+orQ = Or
+
+anyQ       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
+anyQ = Any
+
+allQ       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
+allQ = All
+
+sumQ       :: (QA a, Num a) => Q [a] -> Q a
+sumQ = Sum
+
+productQ   :: (QA a, Num a) => Q [a] -> Q a
+productQ = Product
+
+concatQ    :: (QA a) => Q [[a]] -> Q [a]
+concatQ = Concat
+
+concatMapQ :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
+concatMapQ = ConcatMap
+
+maximumQ   :: (QA a, Ord a) => Q [a] -> Q a
+maximumQ = Maximum
+
+minimumQ   :: (QA a, Ord a) => Q [a] -> Q a
+minimumQ = Minimum
+
+replicateQ :: (QA a) => Q Int -> Q a -> Q [a]
+replicateQ = Replicate
+
+
+-- Sublists
+
+splitAtQ   :: (QA a) => Q Int -> Q [a] -> Q ([a], [a])
+splitAtQ = SplitAt
+takeWhileQ :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+takeWhileQ = TakeWhile
+dropWhileQ :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+dropWhileQ = DropWhile
+
+spanQ      :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+spanQ = Span
+breakQ     :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+breakQ = Break
+
+elemQ      :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
+elemQ = Elem
+notElemQ   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
+notElemQ = NotElem
+
+zipQ       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
+zipQ = Zip
+zipWithQ   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
+zipWithQ = ZipWith
+unzipQ     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
+unzipQ = Unzip
+
+
 class QA a where
   toQ :: a -> Q a
   toQ = ToQ
@@ -145,6 +255,16 @@ instance QA Bool where
              Last as -> last (fromQ as)
              Null as -> null (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
+             And as -> and (fromQ as)
+             Or as -> or (fromQ as)
+             Any f as -> any (fromQ . f . toQ) (fromQ as)
+             All f as -> all (fromQ . f . toQ) (fromQ as)
+             Sum as -> sum (fromQ as)
+             Product as -> product (fromQ as)
+             Maximum as -> maximum (fromQ as)
+             Minimum as -> minimum (fromQ as)
+             Elem a as -> elem (fromQ a) (fromQ as)
+             NotElem a as -> notElem (fromQ a) (fromQ as)
 
 instance QA Int where
   fromQ q = case q of
@@ -159,6 +279,10 @@ instance QA Int where
              Last as -> last (fromQ as)
              Length as -> length (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
+             Sum as -> sum (fromQ as)
+             Product as -> product (fromQ as)
+             Maximum as -> maximum (fromQ as)
+             Minimum as -> minimum (fromQ as)
 
 
 instance QA Char where
@@ -168,6 +292,10 @@ instance QA Char where
              The as -> the (fromQ as)
              Last as -> last (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
+             Sum as -> sum (fromQ as)
+             Product as -> product (fromQ as)
+             Maximum as -> maximum (fromQ as)
+             Minimum as -> minimum (fromQ as)
 
 instance QA a => QA [a] where
   fromQ q = case q of
@@ -189,7 +317,16 @@ instance QA a => QA [a] where
              Init as -> init (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
              Reverse as -> reverse (fromQ as)
-
+             Sum as -> sum (fromQ as)
+             Product as -> product (fromQ as)
+             Maximum as -> maximum (fromQ as)
+             Minimum as -> minimum (fromQ as)
+             Concat ass -> concat (fromQ ass)
+             ConcatMap f as -> concatMap (fromQ . f . toQ) (fromQ as)
+             Replicate i a -> replicate (fromQ i) (fromQ a)
+             TakeWhile f as -> takeWhile (fromQ . f . toQ) (fromQ as)
+             DropWhile f as -> dropWhile (fromQ . f . toQ) (fromQ as)
+             ZipWith f as bs -> zipWith (\a b -> fromQ $ f (toQ a) (toQ b)) (fromQ as) (fromQ bs)
 
 instance (QA a,QA b) => QA (a,b) where
   fromQ q = case q of
@@ -199,6 +336,13 @@ instance (QA a,QA b) => QA (a,b) where
              Last as -> last (fromQ as)
              Unzip as -> unzip (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
+             Sum as -> sum (fromQ as)
+             Product as -> product (fromQ as)
+             Maximum as -> maximum (fromQ as)
+             Minimum as -> minimum (fromQ as)
+             SplitAt i as -> splitAt (fromQ i) (fromQ as)
+             Span f as -> span (fromQ . f . toQ) (fromQ as)
+             Break f as -> break (fromQ . f . toQ) (fromQ as)
 
 instance Show (Q a) where
 
