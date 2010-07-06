@@ -3,9 +3,7 @@
 module Ferry
   (
     Q
-  , QA
-  , toQ
-  , fromQ
+  , QA (toQ, fromQ)
 
   , nilQ
   , consQ
