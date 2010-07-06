@@ -9,7 +9,6 @@ module Ferry
 
   , nilQ
   , consQ
-  , tailQ
   , groupWithQ
   , sortWithQ
   , theQ
@@ -20,6 +19,7 @@ module Ferry
   , filterQ
   , headQ
   , lastQ
+  , tailQ
   , initQ
   , nullQ
   , lengthQ
@@ -56,6 +56,9 @@ module Ferry
   , zipQ
   , zipWithQ
   , unzipQ
+
+    -- * Missing functions
+    -- $missing
   )
   where
 
@@ -142,6 +145,7 @@ dropQ = Drop
 mapQ :: (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
 mapQ = Map
 
+-- | Corresponds to @(++)@.
 appendQ :: (QA a) => Q [a] -> Q [a] -> Q [a]
 appendQ = Append
 
@@ -169,6 +173,7 @@ nullQ = Null
 lengthQ :: (QA a) => Q [a] -> Q Int
 lengthQ = Length
 
+-- | Corresponds to @(!!)@.
 indexQ :: (QA a) => Q [a] -> Q Int -> Q a
 indexQ = Index
 
@@ -266,6 +271,7 @@ instance QA Bool where
              Elem a as -> elem (fromQ a) (fromQ as)
              NotElem a as -> notElem (fromQ a) (fromQ as)
 
+
 instance QA Int where
   fromQ q = case q of
              ToQ a -> a
@@ -296,6 +302,7 @@ instance QA Char where
              Product as -> product (fromQ as)
              Maximum as -> maximum (fromQ as)
              Minimum as -> minimum (fromQ as)
+
 
 instance QA a => QA [a] where
   fromQ q = case q of
@@ -328,6 +335,7 @@ instance QA a => QA [a] where
              DropWhile f as -> dropWhile (fromQ . f . toQ) (fromQ as)
              ZipWith f as bs -> zipWith (\a b -> fromQ $ f (toQ a) (toQ b)) (fromQ as) (fromQ bs)
 
+
 instance (QA a,QA b) => QA (a,b) where
   fromQ q = case q of
              ToQ a -> a
@@ -344,6 +352,7 @@ instance (QA a,QA b) => QA (a,b) where
              Span f as -> span (fromQ . f . toQ) (fromQ as)
              Break f as -> break (fromQ . f . toQ) (fromQ as)
 
+
 instance Show (Q a) where
 
 instance Eq (Q Int) where
@@ -355,3 +364,45 @@ instance Num (Q Int) where
   negate e1 = Neg e1
   fromInteger i = ToQ (fromIntegral i)
   signum = Sgn
+
+
+{- $missing
+
+This module offers most of the functions on lists for the 'Q' type. Missing
+functions are:
+
+General folds:
+
+> foldl
+> foldl1
+> scanl
+> scanl1
+> foldr
+> foldr1
+> scanr
+> scanr1
+
+Infinit lists:
+
+> iterate
+> repeat
+> cycle
+
+String functions:
+
+> lines
+> words
+> unlines
+> unwords
+
+Searching lists:
+
+> lookup
+
+Zipping and unzipping lists:
+
+> zip3
+> zipWith3
+> unzip3
+
+-}
