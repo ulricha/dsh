@@ -1,7 +1,9 @@
-module QQ.ListQuoter (qc) where
+{-# LANGUAGE TemplateHaskell #-}
 
-import Prelude
-import Data.Generics 
+module Ferry.Internals.QQ (qc) where
+
+import Ferry.Internals.Impossible
+
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Exts.Parser
@@ -9,7 +11,6 @@ import Language.Haskell.Exts.Syntax
 import Language.Haskell.SyntaxTrees.ExtsToTH
 import Language.Haskell.Exts.Extension
 import Language.Haskell.Exts.Build
-import GHC.Exts
 
 import qualified Data.Set as S
 
@@ -19,13 +20,15 @@ quoteListCompr = transform . parseCompr
 quoteListComprPat :: String -> TH.PatQ
 quoteListComprPat = undefined
 
+transform :: Exp -> TH.ExpQ
 transform e = case translateExtsToTH $ translateListCompr e of
                 Left err -> error $ show err
-                Right e -> return e
+                Right e1 -> return e1
 
 parseCompr :: String -> Exp
 parseCompr = fromParseResult . exprParser 
 
+exprParser :: String -> ParseResult Exp
 exprParser = parseExpWithMode (defaultParseMode {extensions = [TransformListComp]}) . expand 
 
 expand :: String -> String
@@ -37,10 +40,11 @@ ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat
 qc :: QuasiQuoter
 qc = ferryHaskell
 
-fp :: QuasiQuoter
-fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
+-- fp :: QuasiQuoter
+-- fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
 
 variablesFromLsts :: [[QualStmt]] -> Pat
+variablesFromLsts [] = $impossible
 variablesFromLsts [x]    = variablesFromLst $ reverse x 
 variablesFromLsts (x:xs) = PTuple [variablesFromLst $ reverse x, variablesFromLsts xs]
  
@@ -56,10 +60,11 @@ variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 variablesFromLst []     = PWildCard
 
 variablesFrom :: QualStmt -> Pat
-variablesFrom (QualStmt (Generator loc p e)) = p
-variablesFrom (QualStmt (Qualifier e)) = PApp (Special UnitCon) []
-variablesFrom (QualStmt (LetStmt (BDecls [PatBind s p t r b]))) = p
+variablesFrom (QualStmt (Generator _ p _)) = p
+variablesFrom (QualStmt (Qualifier _)) = PApp (Special UnitCon) []
+variablesFrom (QualStmt (LetStmt (BDecls [PatBind _ p _ _ _]))) = p
 variablesFrom (QualStmt e)  = error $ "Not supported yet: " ++ show e
+variablesFrom _ = $impossible
 
 patToExp :: Pat -> Exp
 patToExp (PVar x)    = var x
@@ -75,6 +80,7 @@ translateListCompr (ParComp e qs) = let lambda = makeLambda (variablesFromLsts q
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
 
 normParallelCompr :: [[QualStmt]] -> Exp
+normParallelCompr [] = $impossible 
 normParallelCompr [x] = normaliseQuals x
 normParallelCompr (x:xs) = zipF (normaliseQuals x) (normParallelCompr xs)
 
@@ -109,10 +115,11 @@ combine p pv q qv = let qLambda = makeLambda qv (SrcLoc "" 0 0) $ Tuple [patToEx
                      in concatF (mapF pLambda p)
 
 normaliseQual :: QualStmt -> Exp
-normaliseQual (QualStmt (Generator l p e)) = e
+normaliseQual (QualStmt (Generator _ _ e)) = e
 normaliseQual (QualStmt (Qualifier e)) = If e (listE [Con $ Special UnitCon]) eList
-normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind s p t r b]))) = listE [letE bi (patToExp p)] 
+normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = listE [letE bi (patToExp p)] 
 normaliseQual (QualStmt e) = error $ "Not supported (yet): " ++ show e
+normaliseQual _ = $impossible
 
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
 makeLambda p s b = Lambda s [p] b
@@ -171,7 +178,7 @@ groupWithF = var $ name "groupWith"
 unzipB :: Pat -> Exp
 unzipB PWildCard   = makeLambda PWildCard (SrcLoc "" 0 0) $ Con $ Special UnitCon
 unzipB p@(PVar x)  = makeLambda p (SrcLoc "" 0 0) $ var x
-unzipB p@(PTuple [xp, yp]) = let (e:x:y:xs) = freshVar $ freeInPat p
+unzipB p@(PTuple [xp, yp]) = let (e:x:y:_) = freshVar $ freeInPat p
                                  ePat = patV e
                                  xUnfold = unzipB xp
                                  yUnfold = unzipB yp
@@ -184,12 +191,14 @@ unzipB p@(PTuple [xp, yp]) = let (e:x:y:xs) = freshVar $ freeInPat p
                               in makeLambda ePat (SrcLoc "" 0 0) $ 
                                         Tuple [ app xUnfold $ mapF xLambda eArg
                                               , app yUnfold $ mapF yLambda eArg ]
+unzipB _ = $impossible
 
                                
 freeInPat :: Pat -> S.Set String
 freeInPat PWildCard = S.empty
 freeInPat (PVar (Ident x))  = S.singleton x
 freeInPat (PTuple x) = S.unions $ map freeInPat x
+freeInPat _ = $impossible
 
 freshVar :: S.Set String -> [String]
-freshVar s = ["__v" ++ show c | c <- [1..], S.member ("__v" ++ show c) s]
+freshVar s = ["__v" ++ show c | c <- [1::Int ..], S.member ("__v" ++ show c) s]
