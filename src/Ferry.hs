@@ -13,6 +13,10 @@ module Ferry
     Q
   , QA (toQ, fromQ)
 
+    -- * Projections
+  , fst
+  , snd
+
   , nil
   , cons
   , groupWith
@@ -65,8 +69,12 @@ module Ferry
 
     -- * Missing functions
     -- $missing
+
+  , module Ferry.Internals.QQ
   )
   where
+
+import Ferry.Internals.QQ
 
 import qualified GHC.Exts as P (groupWith, sortWith, the)
 import qualified Prelude as P
@@ -88,6 +96,9 @@ data Q a where
   Neg :: Q Int -> Q Int
   Abs :: Q Int -> Q Int
   Sgn :: Q Int -> Q Int
+
+  Fst :: (QA a,QA b) => Q (a,b) -> Q a
+  Snd :: (QA a,QA b) => Q (a,b) -> Q b
 
   Nil       :: (QA a) => Q [a]
   Cons      :: (QA a) => Q a -> Q [a] -> Q [a]
@@ -136,6 +147,13 @@ data Q a where
   Zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
   ZipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
   Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
+
+
+fst :: (QA a,QA b) => Q (a,b) -> Q a
+fst = Fst
+
+snd :: (QA a,QA b) => Q (a,b) -> Q b
+snd = Snd
 
 nil :: (QA a) => Q [a]
 nil = Nil
@@ -273,6 +291,8 @@ class QA a where
 instance QA Bool where
   fromQ q = case q of
              ToQ a -> a
+             Fst a -> P.fst (fromQ a)
+             Snd a -> P.snd (fromQ a)
              Head as -> P.head (fromQ as)
              The as -> P.the (fromQ as)
              Eq b1 b2 -> (fromQ b1) == (fromQ b2)
@@ -294,6 +314,8 @@ instance QA Bool where
 instance QA Int where
   fromQ q = case q of
              ToQ a -> a
+             Fst a -> P.fst (fromQ a)
+             Snd a -> P.snd (fromQ a)
              Head as -> P.head (fromQ as)
              The as -> P.the (fromQ as)
              Add i1 i2 -> (fromQ i1) + (fromQ i2)
@@ -313,6 +335,8 @@ instance QA Int where
 instance QA Char where
   fromQ q = case q of
              ToQ a -> a
+             Fst a -> P.fst (fromQ a)
+             Snd a -> P.snd (fromQ a)
              Head as -> P.head (fromQ as)
              The as -> P.the (fromQ as)
              Last as -> P.last (fromQ as)
@@ -326,6 +350,8 @@ instance QA Char where
 instance QA a => QA [a] where
   fromQ q = case q of
              ToQ a -> a
+             Fst a -> P.fst (fromQ a)
+             Snd a -> P.snd (fromQ a)
              Nil   -> []
              Cons a as -> (fromQ a) : (fromQ as)
              Head as -> P.head (fromQ as)
@@ -358,6 +384,8 @@ instance QA a => QA [a] where
 instance (QA a,QA b) => QA (a,b) where
   fromQ q = case q of
              ToQ a -> a
+             Fst a -> P.fst (fromQ a)
+             Snd a -> P.snd (fromQ a)
              Head as -> P.head (fromQ as)
              The as -> P.the (fromQ as)
              Last as -> P.last (fromQ as)
@@ -370,7 +398,6 @@ instance (QA a,QA b) => QA (a,b) where
              SplitAt i as -> P.splitAt (fromQ i) (fromQ as)
              Span f as -> P.span (fromQ . f . toQ) (fromQ as)
              Break f as -> P.break (fromQ . f . toQ) (fromQ as)
-
 
 instance Show (Q a) where
 

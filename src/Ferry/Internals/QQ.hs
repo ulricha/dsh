@@ -134,16 +134,16 @@ varV = var . name
 -- patF = 
 
 mapV :: Exp
-mapV = var $ name "map"
+mapV = var $ name "Ferry.map"
 
 concatV :: Exp
-concatV = var $ name "concat"
+concatV = var $ name "Ferry.concat"
 
 fstV :: Exp
-fstV = var $ name "fst"
+fstV = var $ name "Ferry.fst"
 
 sndV :: Exp
-sndV = var $ name "snd"
+sndV = var $ name "Ferry.snd"
 
 mapF :: Exp -> Exp -> Exp
 mapF f l = flip app l $ app mapV f
@@ -152,13 +152,13 @@ concatF :: Exp -> Exp
 concatF = app concatV
 
 unzipV :: Exp
-unzipV = var $ name "unzip"
+unzipV = var $ name "Ferry.unzip"
 
 unzipF :: Exp -> Exp
 unzipF = app unzipV
 
 zipV :: Exp
-zipV = var $ name "zip"
+zipV = var $ name "Ferry.zip"
 
 zipF :: Exp -> Exp -> Exp
 zipF x y = app (app zipV x) y
@@ -170,10 +170,10 @@ sndF :: Exp -> Exp
 sndF = app sndV
 
 sortWithF :: Exp
-sortWithF = var $ name "sortWith"
+sortWithF = var $ name "Ferry.sortWith"
 
 groupWithF :: Exp
-groupWithF = var $ name "groupWith"
+groupWithF = var $ name "Ferry.groupWith"
 
 unzipB :: Pat -> Exp
 unzipB PWildCard   = makeLambda PWildCard (SrcLoc "" 0 0) $ Con $ Special UnitCon
