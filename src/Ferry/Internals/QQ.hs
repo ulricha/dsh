@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Ferry.Internals.QQ (qc) where
+module Ferry.Internals.QQ (qc, fp, rw) where
 
 import Ferry.Internals.Impossible
 
@@ -11,8 +11,14 @@ import Language.Haskell.Exts.Syntax
 import Language.Haskell.SyntaxTrees.ExtsToTH
 import Language.Haskell.Exts.Extension
 import Language.Haskell.Exts.Build
+import Language.Haskell.Exts.Pretty
+
+import Data.Generics
 
 import qualified Data.Set as S
+import qualified Data.List as L
+
+import System.IO.Unsafe
 
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
@@ -40,8 +46,11 @@ ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat
 qc :: QuasiQuoter
 qc = ferryHaskell
 
--- fp :: QuasiQuoter
--- fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
+fp :: QuasiQuoter
+fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
+
+rw :: QuasiQuoter
+rw = QuasiQuoter (return . TH.LitE . TH.StringL . prettyPrint . translateListCompr . parseCompr) undefined
 
 variablesFromLsts :: [[QualStmt]] -> Pat
 variablesFromLsts [] = $impossible
@@ -73,7 +82,11 @@ patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon
 patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 
 translateListCompr :: Exp -> Exp
-translateListCompr (ListComp e q) = let lambda = makeLambda (variablesFromLst $ reverse q) (SrcLoc "" 0 0) e
+translateListCompr (ListComp e q) = let pat = variablesFromLst $ reverse q
+                                        (x:_) = (unsafePerformIO $ putStrLn $ prettyPrint pat) `seq` (freshVar $ freeInPat pat)
+                                        
+                                        e' = (unsafePerformIO $ putStrLn $ x) `seq` (insertProjections (makeProjections pat x) e )
+                                        lambda = makeLambda (patV x) (SrcLoc "" 0 0) e'
                                      in mapF lambda (normaliseQuals q)
 translateListCompr (ParComp e qs) = let lambda = makeLambda (variablesFromLsts qs) (SrcLoc "" 0 0) e
                                      in mapF lambda (normParallelCompr qs)
@@ -178,22 +191,16 @@ groupWithF = var $ name "Ferry.groupWith"
 unzipB :: Pat -> Exp
 unzipB PWildCard   = makeLambda PWildCard (SrcLoc "" 0 0) $ Con $ Special UnitCon
 unzipB p@(PVar x)  = makeLambda p (SrcLoc "" 0 0) $ var x
-unzipB p@(PTuple [xp, yp]) = let (e:x:y:_) = freshVar $ freeInPat p
+unzipB p@(PTuple [xp, yp]) = let (e:_) = freshVar $ freeInPat p
                                  ePat = patV e
                                  xUnfold = unzipB xp
                                  yUnfold = unzipB yp
-                                 lamPat = PTuple[patV x, patV y]
-                                 xBody = varV x
-                                 yBody = varV y
                                  eArg = varV e
-                                 xLambda = makeLambda lamPat (SrcLoc "" 0 0) xBody
-                                 yLambda = makeLambda lamPat (SrcLoc "" 0 0) yBody
                               in makeLambda ePat (SrcLoc "" 0 0) $ 
-                                        Tuple [ app xUnfold $ mapF xLambda eArg
-                                              , app yUnfold $ mapF yLambda eArg ]
+                                        Tuple [ app xUnfold $ mapF fstV eArg
+                                              , app yUnfold $ mapF sndV eArg ]
 unzipB _ = $impossible
 
-                               
 freeInPat :: Pat -> S.Set String
 freeInPat PWildCard = S.empty
 freeInPat (PVar (Ident x))  = S.singleton x
@@ -201,4 +208,19 @@ freeInPat (PTuple x) = S.unions $ map freeInPat x
 freeInPat _ = $impossible
 
 freshVar :: S.Set String -> [String]
-freshVar s = ["__v" ++ show c | c <- [1::Int ..], S.member ("__v" ++ show c) s]
+freshVar s = ["__v" ++ show c | c <- [1::Int ..], not (S.member ("__v" ++ show c) s)]
+
+makeProjections :: Pat -> String-> [(String, Exp)]
+makeProjections PWildCard _ = []
+makeProjections (PVar (Ident x)) e = [(x, varV e)]
+makeProjections (PTuple [x,y]) v = (map (\(v, e) -> (v, app fstV e)) $ makeProjections x v) ++ (map (\(v, e) -> (v, app sndV e)) $ makeProjections y v)
+makeProjections _ _ = $impossible 
+
+insertProjections :: [(String, Exp)] -> Exp -> Exp
+insertProjections p = everywhere (mkT (insert' p))
+ where
+    insert' :: [(String, Exp)] -> Exp -> Exp
+    insert' assocs v@(Var (UnQual (Ident n))) = case L.lookup n assocs of
+                                                Nothing -> v
+                                                (Just e) -> e 
+    insert' _ e                               = e
