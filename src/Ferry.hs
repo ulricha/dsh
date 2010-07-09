@@ -14,6 +14,7 @@ module Ferry
   , QA (toQ, fromQ)
 
     -- * Projections
+--  , unit
   , pair
   , fst
   , snd
@@ -98,6 +99,7 @@ data Q a where
   Abs :: Q Int -> Q Int
   Sgn :: Q Int -> Q Int
 
+  Unit :: Q ()
   Pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
   
   Fst :: (QA a,QA b) => Q (a,b) -> Q a
@@ -151,6 +153,9 @@ data Q a where
   ZipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
   Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 
+
+unit :: Q ()
+unit = Unit
 
 pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
 pair = Pair
@@ -309,10 +314,10 @@ instance QA Bool where
              Or as -> P.or (fromQ as)
              Any f as -> P.any (fromQ . f . toQ) (fromQ as)
              All f as -> P.all (fromQ . f . toQ) (fromQ as)
-             Sum as -> P.sum (fromQ as)
-             Product as -> P.product (fromQ as)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
+             -- Sum as -> P.sum (fromQ as)
+             -- Product as -> P.product (fromQ as)
+             -- Maximum as -> P.maximum (fromQ as)
+             -- Minimum as -> P.minimum (fromQ as)
              Elem a as -> P.elem (fromQ a) (fromQ as)
              NotElem a as -> P.notElem (fromQ a) (fromQ as)
 
@@ -347,11 +352,20 @@ instance QA Char where
              The as -> P.the (fromQ as)
              Last as -> P.last (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
-             Sum as -> P.sum (fromQ as)
-             Product as -> P.product (fromQ as)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
-
+             -- Product as -> P.product (fromQ as)
+             -- Maximum as -> P.maximum (fromQ as)
+             -- Minimum as -> P.minimum (fromQ as)
+             
+instance QA () where
+    fromQ q = case q of
+                ToQ a -> a
+                Fst a -> P.fst $ fromQ a
+                Snd a -> P.snd $ fromQ a
+                Head as -> P.head (fromQ as)
+                The as -> P.the (fromQ as)
+                Last as -> P.last (fromQ as)
+                Index as i -> (fromQ as) !! (fromQ i)
+                Unit -> ()
 
 instance QA a => QA [a] where
   fromQ q = case q of
@@ -375,10 +389,10 @@ instance QA a => QA [a] where
              Init as -> P.init (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
              Reverse as -> P.reverse (fromQ as)
-             Sum as -> P.sum (fromQ as)
-             Product as -> P.product (fromQ as)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
+             -- Sum as -> P.sum (fromQ as)
+             -- Product as -> P.product (fromQ as)
+             -- Maximum as -> P.maximum (fromQ as)
+             -- Minimum as -> P.minimum (fromQ as)
              Concat ass -> P.concat (fromQ ass)
              ConcatMap f as -> P.concatMap (fromQ . f . toQ) (fromQ as)
              Replicate i a -> P.replicate (fromQ i) (fromQ a)
@@ -398,13 +412,14 @@ instance (QA a,QA b) => QA (a,b) where
              Last as -> P.last (fromQ as)
              Unzip as -> P.unzip (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
-             Sum as -> P.sum (fromQ as)
-             Product as -> P.product (fromQ as)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
+             --Sum as -> P.sum (fromQ as)
+             --Product as -> P.product (fromQ as)
+             --Maximum as -> P.maximum (fromQ as)
+             --Minimum as -> P.minimum (fromQ as)
              SplitAt i as -> P.splitAt (fromQ i) (fromQ as)
              Span f as -> P.span (fromQ . f . toQ) (fromQ as)
              Break f as -> P.break (fromQ . f . toQ) (fromQ as)
+             
 
 instance Show (Q a) where
 
