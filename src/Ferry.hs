@@ -14,6 +14,7 @@ module Ferry
   , QA (toQ, fromQ)
 
     -- * Projections
+  , pair
   , fst
   , snd
 
@@ -97,6 +98,8 @@ data Q a where
   Abs :: Q Int -> Q Int
   Sgn :: Q Int -> Q Int
 
+  Pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+  
   Fst :: (QA a,QA b) => Q (a,b) -> Q a
   Snd :: (QA a,QA b) => Q (a,b) -> Q b
 
@@ -148,6 +151,9 @@ data Q a where
   ZipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
   Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 
+
+pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+pair = Pair
 
 fst :: (QA a,QA b) => Q (a,b) -> Q a
 fst = Fst
@@ -384,6 +390,7 @@ instance QA a => QA [a] where
 instance (QA a,QA b) => QA (a,b) where
   fromQ q = case q of
              ToQ a -> a
+             Pair a b -> (fromQ a, fromQ b)
              Fst a -> P.fst (fromQ a)
              Snd a -> P.snd (fromQ a)
              Head as -> P.head (fromQ as)

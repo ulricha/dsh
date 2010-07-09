@@ -18,8 +18,6 @@ import Data.Generics
 import qualified Data.Set as S
 import qualified Data.List as L
 
-import System.IO.Unsafe
-
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
 
@@ -77,18 +75,20 @@ variablesFrom _ = $impossible
 
 patToExp :: Pat -> Exp
 patToExp (PVar x)    = var x
-patToExp (PTuple xs) = Tuple $ map patToExp xs
+patToExp (PTuple [x, y]) = pairF (patToExp x) $ patToExp y
 patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon    
 patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 
 translateListCompr :: Exp -> Exp
 translateListCompr (ListComp e q) = let pat = variablesFromLst $ reverse q
-                                        (x:_) = (unsafePerformIO $ putStrLn $ prettyPrint pat) `seq` (freshVar $ freeInPat pat)
-                                        
-                                        e' = (unsafePerformIO $ putStrLn $ x) `seq` (insertProjections (makeProjections pat x) e )
+                                        (x:_) = freshVar $ freeInPat pat
+                                        e' = insertProjections (makeProjections pat x) e 
                                         lambda = makeLambda (patV x) (SrcLoc "" 0 0) e'
                                      in mapF lambda (normaliseQuals q)
-translateListCompr (ParComp e qs) = let lambda = makeLambda (variablesFromLsts qs) (SrcLoc "" 0 0) e
+translateListCompr (ParComp e qs) = let pat = variablesFromLsts qs
+                                        (x:_) = freshVar $ freeInPat pat
+                                        e' = insertProjections (makeProjections pat x) e 
+                                        lambda = makeLambda (patV x) (SrcLoc "" 0 0) e'
                                      in mapF lambda (normParallelCompr qs)
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
 
@@ -123,7 +123,7 @@ normaliseQuals' (q:ps) = let qn = normaliseQual q
                           in combine pn pv qn qv
 
 combine :: Exp -> Pat -> Exp -> Pat -> Exp
-combine p pv q qv = let qLambda = makeLambda qv (SrcLoc "" 0 0) $ Tuple [patToExp qv, patToExp pv]
+combine p pv q qv = let qLambda = makeLambda qv (SrcLoc "" 0 0) $ pairF (patToExp qv) $ patToExp pv
                         pLambda = makeLambda pv (SrcLoc "" 0 0) $ mapF qLambda q
                      in concatF (mapF pLambda p)
 
@@ -157,6 +157,12 @@ fstV = var $ name "Ferry.fst"
 
 sndV :: Exp
 sndV = var $ name "Ferry.snd"
+
+pairV :: Exp
+pairV = var $ name "Ferry.pair"
+
+pairF :: Exp -> Exp -> Exp
+pairF e1 e2 = flip app e2 $ app pairV e1
 
 mapF :: Exp -> Exp -> Exp
 mapF f l = flip app l $ app mapV f
