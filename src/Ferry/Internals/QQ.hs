@@ -18,6 +18,8 @@ import Data.Generics
 import qualified Data.Set as S
 import qualified Data.List as L
 
+--REMOVE!!!
+import Debug.Trace
 import System.IO.Unsafe
 
 quoteListCompr :: String -> TH.ExpQ
@@ -212,23 +214,22 @@ groupWithF :: Exp
 groupWithF = var $ name "Ferry.groupWith"
 
 unzipB :: Pat -> Exp
-unzipB PWildCard   = makeLambda PWildCard (SrcLoc "" 0 0) $ Con $ Special UnitCon
-unzipB p@(PVar x)  = makeLambda p (SrcLoc "" 0 0) $ var x
-unzipB p@(PTuple [xp, yp]) = let (e:_) = freshVar $ freeInPat p
+unzipB PWildCard   = paren $ makeLambda PWildCard (SrcLoc "" 0 0) $ unit
+unzipB p@(PVar x)  = paren $ makeLambda p (SrcLoc "" 0 0) $ var x
+unzipB p@(PTuple [xp, yp]) = let (e:x:y:_) = freshVar $ freeInPat p
                                  ePat = patV e
-                                 xUnfold = unzipB xp
-                                 yUnfold = unzipB yp
                                  eArg = varV e
-                              in makeLambda ePat (SrcLoc "" 0 0) $ 
-                                        Tuple [ app xUnfold $ mapF fstV eArg
-                                              , app yUnfold $ mapF sndV eArg ]
+                                 xUnfold = unzipB xp
+                                 yUnfold = unzipB yp                                 
+                              in paren $ makeLambda ePat (SrcLoc "" 0 0) $ 
+                                          pairF (app xUnfold $ paren $ mapF fstV eArg) (app yUnfold $ mapF sndV eArg)
 unzipB _ = $impossible
 
 freeInPat :: Pat -> S.Set String
 freeInPat PWildCard = S.empty
 freeInPat (PVar (Ident x))  = S.singleton x
 freeInPat (PTuple x) = S.unions $ map freeInPat x
-freeInPat p = (unsafePerformIO $ putStrLn $ prettyPrint p) `seq` $impossible
+freeInPat _ = $impossible
 
 freshVar :: S.Set String -> [String]
 freshVar s = ["__v" ++ show c | c <- [1::Int ..], not (S.member ("__v" ++ show c) s)]
