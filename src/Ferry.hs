@@ -81,7 +81,7 @@ import Ferry.Internals.QQ
 import qualified GHC.Exts as P (groupWith, sortWith, the)
 import qualified Prelude as P
 import Prelude ( Eq(..), Ord(..), Num(..),Show(..),
-                 Bool, Int, Char,
+                 Bool(..), Int, Char,
                  (.), ($), (!!), (++),
                  fromIntegral,
                )

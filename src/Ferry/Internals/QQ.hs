@@ -18,6 +18,8 @@ import Data.Generics
 import qualified Data.Set as S
 import qualified Data.List as L
 
+import System.IO.Unsafe
+
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
 
@@ -68,7 +70,7 @@ variablesFromLst []     = PWildCard
 
 variablesFrom :: QualStmt -> Pat
 variablesFrom (QualStmt (Generator _ p _)) = p
-variablesFrom (QualStmt (Qualifier _)) = PApp (Special UnitCon) []
+variablesFrom (QualStmt (Qualifier _)) = PWildCard
 variablesFrom (QualStmt (LetStmt (BDecls [PatBind _ p _ _ _]))) = p
 variablesFrom (QualStmt e)  = error $ "Not supported yet: " ++ show e
 variablesFrom _ = $impossible
@@ -115,7 +117,7 @@ normaliseQuals' ((GroupByUsing e f):ps) = let pVar = variablesFromLst ps
 normaliseQuals' ((GroupUsing e):ps) = let pVar = variablesFromLst ps
                                        in mapF (unzipB pVar) (app e (normaliseQuals' ps))
 normaliseQuals' [q]    = normaliseQual q
-normaliseQuals' []     = listE [Con $ Special UnitCon]
+normaliseQuals' []     = consF unit nilF
 normaliseQuals' (q:ps) = let qn = normaliseQual q
                              qv = variablesFrom q
                              pn = normaliseQuals' ps
@@ -129,8 +131,8 @@ combine p pv q qv = let qLambda = makeLambda qv (SrcLoc "" 0 0) $ pairF (patToEx
 
 normaliseQual :: QualStmt -> Exp
 normaliseQual (QualStmt (Generator _ _ e)) = e
-normaliseQual (QualStmt (Qualifier e)) = If e (listE [Con $ Special UnitCon]) eList
-normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = listE [letE bi (patToExp p)] 
+normaliseQual (QualStmt (Qualifier e)) = If e (consF unit nilF) nilF
+normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = flip consF nilF $ letE bi $ patToExp p
 normaliseQual (QualStmt e) = error $ "Not supported (yet): " ++ show e
 normaliseQual _ = $impossible
 
@@ -152,6 +154,9 @@ mapV = var $ name "Ferry.map"
 concatV :: Exp
 concatV = var $ name "Ferry.concat"
 
+unit :: Exp
+unit = var $ name "Ferry.unit"
+
 fstV :: Exp
 fstV = var $ name "Ferry.fst"
 
@@ -167,8 +172,20 @@ pairF e1 e2 = flip app e2 $ app pairV e1
 mapF :: Exp -> Exp -> Exp
 mapF f l = flip app l $ app mapV f
 
+consF :: Exp -> Exp -> Exp
+consF hd tl = flip app tl $ app consV hd
+
+nilF :: Exp
+nilF = nilV
+
 concatF :: Exp -> Exp
 concatF = app concatV
+
+nilV :: Exp
+nilV = var $ name "Ferry.nil"
+
+consV :: Exp
+consV = var $ name "Ferry.cons"
 
 unzipV :: Exp
 unzipV = var $ name "Ferry.unzip"
@@ -211,7 +228,7 @@ freeInPat :: Pat -> S.Set String
 freeInPat PWildCard = S.empty
 freeInPat (PVar (Ident x))  = S.singleton x
 freeInPat (PTuple x) = S.unions $ map freeInPat x
-freeInPat _ = $impossible
+freeInPat p = (unsafePerformIO $ putStrLn $ prettyPrint p) `seq` $impossible
 
 freshVar :: S.Set String -> [String]
 freshVar s = ["__v" ++ show c | c <- [1::Int ..], not (S.member ("__v" ++ show c) s)]
