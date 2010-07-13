@@ -139,7 +139,12 @@ normaliseQual (QualStmt e) = error $ "Not supported (yet): " ++ show e
 normaliseQual _ = $impossible
 
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
-makeLambda p s b = Lambda s [p] b
+makeLambda p s b = let proj = makeProjections' p
+                       var = case proj of
+                                [] -> p
+                                ((x,_):_) -> patV x
+                       lambda = Lambda s [var] b
+                    in insertProjections proj lambda
 
 patV :: String -> Pat
 patV = PVar . name
@@ -233,6 +238,24 @@ freeInPat _ = $impossible
 
 freshVar :: S.Set String -> [String]
 freshVar s = ["__v" ++ show c | c <- [1::Int ..], not (S.member ("__v" ++ show c) s)]
+
+makeProjections' :: Pat -> [(String, Exp)]
+makeProjections' PWildCard = []
+makeProjections' (PVar (Ident x)) = [(x, varV x)]
+makeProjections' (PTuple [x, y]) = let xProj = map (\(v, e) -> (v, app fstV e)) $ makeProjections' x
+                                       yProj = map (\(v, e) -> (v, app sndV e)) $ makeProjections' y
+                                    in case xProj of
+                                         [] -> case yProj of
+                                                ((v, p):_) -> altProj yProj v
+                                                [] -> []
+                                         ((v, p):_) -> altProj xProj v ++ altProj yProj v
+    where
+     altProj :: [(String, Exp)] -> String -> [(String, Exp)]
+     altProj proj v = map (\(y, pr) -> (y, everywhere (mkT (repl y v)) pr)) proj
+     repl :: String -> String -> Exp -> Exp
+     repl v n' r@(Var (UnQual (Ident n))) | n == v    = Var $ UnQual $ Ident n'
+                                          | otherwise = r
+     repl _ _ e                                       = e
 
 makeProjections :: Pat -> String-> [(String, Exp)]
 makeProjections PWildCard _ = []
