@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, FlexibleInstances #-}
+{-# LANGUAGE GADTs, FlexibleInstances, TemplateHaskell #-}
 
 -- |
 -- This module is intended to be imported @qualified@, to avoid name clashes
@@ -13,18 +13,16 @@ module Ferry
     Q
   , QA (toQ, fromQ)
 
-    -- * Projections
---  , unit
+    -- * Tuple constraction and projection
+  , unit
   , pair
   , fst
   , snd
 
+    -- * List constraction
   , nil
   , cons
-  , groupWith
-  , sortWith
-  , the
-
+  
     -- * List operations
   , map
   , append
@@ -69,6 +67,11 @@ module Ferry
   , zipWith
   , unzip
 
+    -- * Grouping and ordering lists
+  , groupWith
+  , sortWith
+  , the
+
     -- * Missing functions
     -- $missing
 
@@ -77,13 +80,14 @@ module Ferry
   where
 
 import Ferry.Internals.QQ
+import Ferry.Internals.Impossible
 
 import qualified GHC.Exts as P (groupWith, sortWith, the)
 import qualified Prelude as P
 import Prelude ( Eq(..), Ord(..), Num(..),Show(..),
                  Bool(..), Int, Char,
                  (.), ($), (!!), (++),
-                 fromIntegral,
+                 fromIntegral, error
                )
 
 
@@ -300,26 +304,26 @@ class QA a where
 
 instance QA Bool where
   fromQ q = case q of
-             ToQ a -> a
-             Fst a -> P.fst (fromQ a)
-             Snd a -> P.snd (fromQ a)
-             Head as -> P.head (fromQ as)
-             The as -> P.the (fromQ as)
-             Eq b1 b2 -> (fromQ b1) == (fromQ b2)
-             Last as -> P.last (fromQ as)
-             Null as -> P.null (fromQ as)
-             Index as i -> (fromQ as) !! (fromQ i)
-             And as -> P.and (fromQ as)
-             Or as -> P.or (fromQ as)
-             Any f as -> P.any (fromQ . f . toQ) (fromQ as)
-             All f as -> P.all (fromQ . f . toQ) (fromQ as)
-             -- Sum as -> P.sum (fromQ as)
-             -- Product as -> P.product (fromQ as)
-             -- Maximum as -> P.maximum (fromQ as)
-             -- Minimum as -> P.minimum (fromQ as)
-             Elem a as -> P.elem (fromQ a) (fromQ as)
-             NotElem a as -> P.notElem (fromQ a) (fromQ as)
-
+              ToQ a -> a
+              Fst a -> P.fst (fromQ a)
+              Snd a -> P.snd (fromQ a)
+              Head as -> P.head (fromQ as)
+              The as -> P.the (fromQ as)
+              Eq b1 b2 -> (fromQ b1) == (fromQ b2)
+              Last as -> P.last (fromQ as)
+              Null as -> P.null (fromQ as)
+              Index as i -> (fromQ as) !! (fromQ i)
+              And as -> P.and (fromQ as)
+              Or as -> P.or (fromQ as)
+              Any f as -> P.any (fromQ . f . toQ) (fromQ as)
+              All f as -> P.all (fromQ . f . toQ) (fromQ as)
+              Maximum as -> P.maximum (fromQ as)
+              Minimum as -> P.minimum (fromQ as)
+              Elem a as -> P.elem (fromQ a) (fromQ as)
+              NotElem a as -> P.notElem (fromQ a) (fromQ as)
+              -- The following is only needed because of GHC bug
+              Sum _ -> $impossible
+              Product _ -> $impossible
 
 instance QA Int where
   fromQ q = case q of
@@ -344,16 +348,19 @@ instance QA Int where
 
 instance QA Char where
   fromQ q = case q of
-             ToQ a -> a
-             Fst a -> P.fst (fromQ a)
-             Snd a -> P.snd (fromQ a)
-             Head as -> P.head (fromQ as)
-             The as -> P.the (fromQ as)
-             Last as -> P.last (fromQ as)
-             Index as i -> (fromQ as) !! (fromQ i)
-             -- Product as -> P.product (fromQ as)
-             -- Maximum as -> P.maximum (fromQ as)
-             -- Minimum as -> P.minimum (fromQ as)
+              ToQ a -> a
+              Fst a -> P.fst (fromQ a)
+              Snd a -> P.snd (fromQ a)
+              Head as -> P.head (fromQ as)
+              The as -> P.the (fromQ as)
+              Last as -> P.last (fromQ as)
+              Index as i -> (fromQ as) !! (fromQ i)
+              Maximum as -> P.maximum (fromQ as)
+              Minimum as -> P.minimum (fromQ as)
+              -- The following is only needed because of GHC bug
+              Sum _ -> $impossible
+              Product _ -> $impossible
+             
              
 instance QA () where
     fromQ q = case q of
@@ -364,41 +371,47 @@ instance QA () where
                 The as -> P.the (fromQ as)
                 Last as -> P.last (fromQ as)
                 Index as i -> (fromQ as) !! (fromQ i)
+                Maximum as -> P.maximum (fromQ as)
+                Minimum as -> P.minimum (fromQ as)
                 Unit -> ()
+                -- The following is only needed because of GHC bug
+                Sum _ -> $impossible
+                Product _ -> $impossible
+                
 
 instance QA a => QA [a] where
   fromQ q = case q of
-             ToQ a -> a
-             Fst a -> P.fst (fromQ a)
-             Snd a -> P.snd (fromQ a)
-             Nil   -> []
-             Cons a as -> (fromQ a) : (fromQ as)
-             Head as -> P.head (fromQ as)
-             Tail as -> P.tail (fromQ as)
-             Take i as -> P.take (fromQ i) (fromQ as)
-             Drop i as -> P.drop (fromQ i) (fromQ as)
-             Map f as -> P.map (fromQ . f . toQ) (fromQ as)
-             Append as bs -> (fromQ as) ++ (fromQ bs)
-             Filter f as -> P.filter (fromQ . f . toQ) (fromQ as)
-             Zip as bs -> P.zip (fromQ as) (fromQ bs)
-             GroupWith f as -> P.groupWith (fromQ . f . toQ) (fromQ as)
-             SortWith f as -> P.sortWith (fromQ . f . toQ) (fromQ as)
-             The as -> P.the (fromQ as)
-             Last as -> P.last (fromQ as)
-             Init as -> P.init (fromQ as)
-             Index as i -> (fromQ as) !! (fromQ i)
-             Reverse as -> P.reverse (fromQ as)
-             -- Sum as -> P.sum (fromQ as)
-             -- Product as -> P.product (fromQ as)
-             -- Maximum as -> P.maximum (fromQ as)
-             -- Minimum as -> P.minimum (fromQ as)
-             Concat ass -> P.concat (fromQ ass)
-             ConcatMap f as -> P.concatMap (fromQ . f . toQ) (fromQ as)
-             Replicate i a -> P.replicate (fromQ i) (fromQ a)
-             TakeWhile f as -> P.takeWhile (fromQ . f . toQ) (fromQ as)
-             DropWhile f as -> P.dropWhile (fromQ . f . toQ) (fromQ as)
-             ZipWith f as bs -> P.zipWith (\a b -> fromQ $ f (toQ a) (toQ b)) (fromQ as) (fromQ bs)
-
+              ToQ a -> a
+              Fst a -> P.fst (fromQ a)
+              Snd a -> P.snd (fromQ a)
+              Nil   -> []
+              Cons a as -> (fromQ a) : (fromQ as)
+              Head as -> P.head (fromQ as)
+              Tail as -> P.tail (fromQ as)
+              Take i as -> P.take (fromQ i) (fromQ as)
+              Drop i as -> P.drop (fromQ i) (fromQ as)
+              Map f as -> P.map (fromQ . f . toQ) (fromQ as)
+              Append as bs -> (fromQ as) ++ (fromQ bs)
+              Filter f as -> P.filter (fromQ . f . toQ) (fromQ as)
+              Zip as bs -> P.zip (fromQ as) (fromQ bs)
+              GroupWith f as -> P.groupWith (fromQ . f . toQ) (fromQ as)
+              SortWith f as -> P.sortWith (fromQ . f . toQ) (fromQ as)
+              The as -> P.the (fromQ as)
+              Last as -> P.last (fromQ as)
+              Init as -> P.init (fromQ as)
+              Index as i -> (fromQ as) !! (fromQ i)
+              Reverse as -> P.reverse (fromQ as)
+              Maximum as -> P.maximum (fromQ as)
+              Minimum as -> P.minimum (fromQ as)
+              Concat ass -> P.concat (fromQ ass)
+              ConcatMap f as -> P.concatMap (fromQ . f . toQ) (fromQ as)
+              Replicate i a -> P.replicate (fromQ i) (fromQ a)
+              TakeWhile f as -> P.takeWhile (fromQ . f . toQ) (fromQ as)
+              DropWhile f as -> P.dropWhile (fromQ . f . toQ) (fromQ as)
+              ZipWith f as bs -> P.zipWith (\a b -> fromQ $ f (toQ a) (toQ b)) (fromQ as) (fromQ bs)
+              -- The following is only needed because of GHC bug
+              Sum _ -> $impossible
+              Product _ -> $impossible
 
 instance (QA a,QA b) => QA (a,b) where
   fromQ q = case q of
@@ -411,14 +424,14 @@ instance (QA a,QA b) => QA (a,b) where
              Last as -> P.last (fromQ as)
              Unzip as -> P.unzip (fromQ as)
              Index as i -> (fromQ as) !! (fromQ i)
-             --Sum as -> P.sum (fromQ as)
-             --Product as -> P.product (fromQ as)
-             --Maximum as -> P.maximum (fromQ as)
-             --Minimum as -> P.minimum (fromQ as)
+             Maximum as -> P.maximum (fromQ as)
+             Minimum as -> P.minimum (fromQ as)
              SplitAt i as -> P.splitAt (fromQ i) (fromQ as)
              Span f as -> P.span (fromQ . f . toQ) (fromQ as)
              Break f as -> P.break (fromQ . f . toQ) (fromQ as)
-             
+             -- The following is only needed because of GHC bug
+             Sum _ -> $impossible
+             Product _ -> $impossible
 
 instance Show (Q a) where
 
