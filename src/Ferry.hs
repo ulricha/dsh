@@ -125,7 +125,6 @@ data Q a where
   Filter    :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
   GroupWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
   SortWith  :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-
   And       :: Q [Bool] -> Q Bool
   Or        :: Q [Bool] -> Q Bool
   Any       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
@@ -433,6 +432,42 @@ instance Num (Q Int) where
   fromInteger i = ToQ (fromIntegral i)
   signum = Sgn
 
+
+proj_2_1 :: Q (a,b) -> Q a
+proj_2_1 = fst
+
+proj_2_2 :: Q (a,b) -> Q b
+proj_2_2 = snd
+
+proj_3_1 :: Q (a, b, c) -> Q a
+proj_3_1 = undefined
+
+proj_3_2 :: Q (a, b, c) -> Q b
+proj_3_2 = undefined
+
+proj_3_3 :: Q (a, b, c) -> Q c
+proj_3_3 = undefined
+
+proj_4_1 :: Q (a, b, c, d) -> Q a
+proj_4_1 = undefined
+
+proj_4_2 :: Q (a, b, c, d) -> Q b
+proj_4_2 = undefined
+
+proj_4_3 :: Q (a, b, c, d) -> Q c
+proj_4_3 = undefined
+
+proj_4_4 :: Q (a, b, c, d) -> Q d
+proj_4_4 = undefined
+
+tuple_2 :: Q a -> Q b -> Q (a, b)
+tuple_2 = pair
+
+tuple_3 :: Q a -> Q b -> Q c -> Q (a, b, c)
+tuple_3 = undefined
+
+tuple_4 :: Q a -> Q b -> Q c -> Q d -> Q (a, b, c, d)
+tuple_4 = undefined 
 
 {- $missing
 
