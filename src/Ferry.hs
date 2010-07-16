@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, FlexibleInstances, TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies #-}
 
 -- |
 -- This module is intended to be imported @qualified@, to avoid name clashes
@@ -12,13 +12,17 @@ module Ferry
   (
     Q
   , QA (toQ, fromQ)
-
+  , View (view)
+  
     -- * Tuple constraction and projection
   , unit
   , pair
   , fst
   , snd
-
+  
+  , tuple_3
+  , tuple_4
+  
     -- * List constraction
   , nil
   , cons
@@ -36,7 +40,7 @@ module Ferry
   , index
   , reverse
   , replicate
-
+  
     -- * Special folds
   , and
   , or
@@ -48,7 +52,7 @@ module Ferry
   , concatMap
   , maximum
   , minimum
-
+  
     -- * Sublists
   , take
   , drop
@@ -57,24 +61,24 @@ module Ferry
   , dropWhile
   , span
   , break
-
+  
     -- * Searching lists
   , elem
   , notElem
-
+  
     -- * Zipping and unzipping lists
   , zip
   , zipWith
   , unzip
-
+  
     -- * Grouping and ordering lists
   , groupWith
   , sortWith
   , the
-
+  
     -- * Missing functions
     -- $missing
-
+  
   , module Ferry.Internals.QQ
   )
   where
@@ -82,405 +86,324 @@ module Ferry
 import Ferry.Internals.QQ
 import Ferry.Internals.Impossible
 
-import qualified GHC.Exts as P (groupWith, sortWith, the)
 import qualified Prelude as P
 import Prelude ( Eq(..), Ord(..), Num(..),Show(..),
-                 Bool(..), Int, Char,
-                 (.), ($), (!!), (++),
-                 fromIntegral, error
+                 Bool(..), Int, Char, String, IO,
+                 (.), undefined, return, fromIntegral, error
                )
 
+data Exp =
+    VarE String
+  | UnitE
+  | IntE Int
+  | BoolE Bool
+  | CharE Char
+  | TupleE [Exp]
+  | ListE [Exp]
+  | FuncE (Exp -> Exp)
+  | AppE Exp Exp
+  | TableE String Type
 
- 
-data Q a where
-  ToQ :: (QA a) => a -> Q a
-
-  Eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-
-  Add :: Q Int -> Q Int -> Q Int
-  Mul :: Q Int -> Q Int -> Q Int
-  Neg :: Q Int -> Q Int
-  Abs :: Q Int -> Q Int
-  Sgn :: Q Int -> Q Int
-
-  Unit :: Q ()
-  Pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+data Type =
+    UnitT
+  | IntT
+  | BoolT
+  | CharT
+  | TupleT [Type]
   
-  Fst :: (QA a,QA b) => Q (a,b) -> Q a
-  Snd :: (QA a,QA b) => Q (a,b) -> Q b
+data Q a = Q Exp
 
-  Nil       :: (QA a) => Q [a]
-  Cons      :: (QA a) => Q a -> Q [a] -> Q [a]
-
-  Head      :: (QA a) => Q [a] -> Q a
-  Tail      :: (QA a) => Q [a] -> Q [a]
-  The       :: (Eq a, QA a) => Q [a] -> Q a
-  Last      :: (QA a) => Q [a] -> Q a
-  Init      :: (QA a) => Q [a] -> Q [a]
-  Null      :: (QA a) => Q [a] -> Q Bool
-  Length    :: (QA a) => Q [a] -> Q Int
-  Index     :: (QA a) => Q [a] -> Q Int -> Q a
-  Reverse   :: (QA a) => Q [a] -> Q [a]
-
-  Take      :: (QA a) => Q Int -> Q [a] -> Q [a]
-  Drop      :: (QA a) => Q Int -> Q [a] -> Q [a]
-  Map       :: (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-  Append    :: (QA a) => Q [a] -> Q [a] -> Q [a]
-  Filter    :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-  GroupWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
-  SortWith  :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-  And       :: Q [Bool] -> Q Bool
-  Or        :: Q [Bool] -> Q Bool
-  Any       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-  All       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-  Sum       :: (QA a, Num a) => Q [a] -> Q a
-  Product   :: (QA a, Num a) => Q [a] -> Q a
-  Concat    :: (QA a) => Q [[a]] -> Q [a]
-  ConcatMap :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
-  Maximum   :: (QA a, Ord a) => Q [a] -> Q a
-  Minimum   :: (QA a, Ord a) => Q [a] -> Q a
-
-  Replicate :: (QA a) => Q Int -> Q a -> Q [a]
-
-  SplitAt   :: (QA a) => Q Int -> Q [a] -> Q ([a], [a])
-  TakeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-  DropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-
-  Span      :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-  Break     :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-
-  Elem      :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-  NotElem   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-
-  Zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-  ZipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
-  Unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
-
+forget :: Q a -> Exp
+forget (Q a) = a
 
 unit :: Q ()
-unit = Unit
-
-pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
-pair = Pair
-
-fst :: (QA a,QA b) => Q (a,b) -> Q a
-fst = Fst
-
-snd :: (QA a,QA b) => Q (a,b) -> Q b
-snd = Snd
+unit = Q UnitE
 
 nil :: (QA a) => Q [a]
-nil = Nil
+nil = Q (ListE [])
 
 cons :: (QA a) => Q a -> Q [a] -> Q [a]
-cons = Cons
+cons (Q a) (Q as) = Q (AppE (AppE (VarE "cons") a) as)
 
 head :: (QA a) => Q [a] -> Q a
-head = Head
+head (Q as) = Q (AppE (VarE "head") as)
 
 tail :: (QA a) => Q [a] -> Q [a]
-tail = Tail
+tail (Q as) = Q (AppE (VarE "tail") as)
 
 take :: (QA a) => Q Int -> Q [a] -> Q [a]
-take = Take
+take (Q i) (Q as) = Q (AppE (AppE (VarE "take") i) as)
 
 drop :: (QA a) => Q Int -> Q [a] -> Q [a]
-drop = Drop
+drop (Q i) (Q as) = Q (AppE (AppE (VarE "drop") i) as)
 
 map :: (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-map = Map
+map f (Q as) = Q (AppE (AppE (VarE "map") (FuncE (forget . f . Q))) as)
 
 -- | Corresponds to @(++)@.
 append :: (QA a) => Q [a] -> Q [a] -> Q [a]
-append = Append
+append (Q as) (Q bs) = Q (AppE (AppE (VarE "append") as) bs)
 
 filter :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-filter = Filter
+filter f (Q as) = Q (AppE (AppE (VarE "filter") (FuncE (forget . f . Q))) as)
 
 groupWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
-groupWith = GroupWith
+groupWith f (Q as) = Q (AppE (AppE (VarE "groupWith") (FuncE (forget . f . Q))) as)
 
 sortWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-sortWith = SortWith
+sortWith f (Q as) = Q (AppE (AppE (VarE "sortWith") (FuncE (forget . f . Q))) as)
 
 the :: (Eq a, QA a) => Q [a] -> Q a
-the = The
+the (Q as) = Q (AppE (VarE "the") as)
 
 last :: (QA a) => Q [a] -> Q a
-last = Last
+last (Q as) = Q (AppE (VarE "last") as)
 
 init :: (QA a) => Q [a] -> Q [a]
-init = Init
+init (Q as) = Q (AppE (VarE "init") as)
 
 null :: (QA a) => Q [a] -> Q Bool
-null = Null
+null (Q as) = Q (AppE (VarE "null") as)
 
 length :: (QA a) => Q [a] -> Q Int
-length = Length
+length (Q as) = Q (AppE (VarE "length") as)
 
 -- | Corresponds to @(!!)@.
 index :: (QA a) => Q [a] -> Q Int -> Q a
-index = Index
+index (Q as) (Q i) = Q (AppE (AppE (VarE "index") as) i)
 
 reverse :: (QA a) => Q [a] -> Q [a]
-reverse = Reverse
+reverse (Q as) = Q (AppE (VarE "reverse") as)
 
 
 -- Special folds
 
 and       :: Q [Bool] -> Q Bool
-and = And
+and (Q as) = Q (AppE (VarE "and") as)
 
 or        :: Q [Bool] -> Q Bool
-or = Or
+or (Q as) = Q (AppE (VarE "or") as)
 
 any       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-any = Any
+any f (Q as) = Q (AppE (AppE (VarE "any") (FuncE (forget . f . Q))) as)
 
 all       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-all = All
+all f (Q as) = Q (AppE (AppE (VarE "all") (FuncE (forget . f . Q))) as)
 
 sum       :: (QA a, Num a) => Q [a] -> Q a
-sum = Sum
+sum (Q as) = Q (AppE (VarE "sum") as)
 
 product   :: (QA a, Num a) => Q [a] -> Q a
-product = Product
+product (Q as) = Q (AppE (VarE "product") as)
 
 concat    :: (QA a) => Q [[a]] -> Q [a]
-concat = Concat
+concat (Q as) = Q (AppE (VarE "concat") as)
 
 concatMap :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
-concatMap = ConcatMap
+concatMap f (Q as) = Q (AppE (AppE (VarE "concatMap") (FuncE (forget . f . Q))) as)
 
 maximum   :: (QA a, Ord a) => Q [a] -> Q a
-maximum = Maximum
+maximum (Q as) = Q (AppE (VarE "maximum") as)
 
 minimum   :: (QA a, Ord a) => Q [a] -> Q a
-minimum = Minimum
+minimum (Q as) = Q (AppE (VarE "minimum") as)
 
 replicate :: (QA a) => Q Int -> Q a -> Q [a]
-replicate = Replicate
+replicate (Q i) (Q as) = Q (AppE (AppE (VarE "replicate") i) as)
 
 
 -- Sublists
 
 splitAt   :: (QA a) => Q Int -> Q [a] -> Q ([a], [a])
-splitAt = SplitAt
+splitAt (Q i) (Q as) = Q (AppE (AppE (VarE "splitAt") i) as)
 
 takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile = TakeWhile
+takeWhile f (Q as) = Q (AppE (AppE (VarE "takeWhile") (FuncE (forget . f . Q))) as)
 
 dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile = DropWhile
+dropWhile f (Q as) = Q (AppE (AppE (VarE "droptWhile") (FuncE (forget . f . Q))) as)
 
 span      :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-span = Span
+span f (Q as) = Q (AppE (AppE (VarE "span") (FuncE (forget . f . Q))) as)
 
 break     :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-break = Break
+break f (Q as) = Q (AppE (AppE (VarE "break") (FuncE (forget . f . Q))) as)
 
 elem      :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-elem = Elem
+elem (Q a) (Q as) = Q (AppE (AppE (VarE "elem") a) as)
 
 notElem   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-notElem = NotElem
+notElem (Q a) (Q as) = Q (AppE (AppE (VarE "notElem") a) as)
 
 zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-zip = Zip
+zip (Q as) (Q bs) = Q (AppE (AppE (VarE "zip") as) bs)
 
 zipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
-zipWith = ZipWith
+zipWith f (Q as) (Q bs) =
+  let f1 = \a b -> forget (f (Q a) (Q b))
+      f2 = \a -> FuncE (\b -> f1 a b)
+  in  Q (AppE (AppE (AppE (VarE "zipWith") (FuncE f2)) as) bs)
 
 unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
-unzip = Unzip
+unzip (Q as) = Q (AppE (VarE "unzip") as)
 
 
 class QA a where
-  toQ :: a -> Q a
-  toQ = ToQ
+  toQ   :: a -> Q a
+  fromQ :: Conn -> Q a -> IO a
 
-  fromQ :: Q a -> a
-
-
+class QA a => TA a where
+  table :: String -> Q [a]
+  table s = Q (TableE s (reify (undefined :: a)))
+  reify :: a -> Type
+  
 instance QA Bool where
-  fromQ q = case q of
-              ToQ a -> a
-              Fst a -> P.fst (fromQ a)
-              Snd a -> P.snd (fromQ a)
-              Head as -> P.head (fromQ as)
-              The as -> P.the (fromQ as)
-              Eq b1 b2 -> (fromQ b1) == (fromQ b2)
-              Last as -> P.last (fromQ as)
-              Null as -> P.null (fromQ as)
-              Index as i -> (fromQ as) !! (fromQ i)
-              And as -> P.and (fromQ as)
-              Or as -> P.or (fromQ as)
-              Any f as -> P.any (fromQ . f . toQ) (fromQ as)
-              All f as -> P.all (fromQ . f . toQ) (fromQ as)
-              Maximum as -> P.maximum (fromQ as)
-              Minimum as -> P.minimum (fromQ as)
-              Elem a as -> P.elem (fromQ a) (fromQ as)
-              NotElem a as -> P.notElem (fromQ a) (fromQ as)
-              -- The following is only needed because of GHC bug
-              Sum _ -> $impossible
-              Product _ -> $impossible
+  toQ a = Q (BoolE a)
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case e of
+      BoolE b -> return b
+      _ -> $impossible
 
+instance TA Bool where
+  reify _ = BoolT
+  
 instance QA Int where
-  fromQ q = case q of
-             ToQ a -> a
-             Fst a -> P.fst (fromQ a)
-             Snd a -> P.snd (fromQ a)
-             Head as -> P.head (fromQ as)
-             The as -> P.the (fromQ as)
-             Add i1 i2 -> (fromQ i1) + (fromQ i2)
-             Mul i1 i2 -> (fromQ i1) + (fromQ i2)
-             Neg i1 -> P.negate (fromQ i1)
-             Abs i1 -> P.abs (fromQ i1)
-             Sgn i1 -> P.signum (fromQ i1)
-             Last as -> P.last (fromQ as)
-             Length as -> P.length (fromQ as)
-             Index as i -> (fromQ as) !! (fromQ i)
-             Sum as -> P.sum (fromQ as)
-             Product as -> P.product (fromQ as)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
-
+  toQ a = Q (IntE a)
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case e of
+      IntE i -> return i
+      _ -> $impossible
+  
+instance TA Int where
+  reify _ = IntT
 
 instance QA Char where
-  fromQ q = case q of
-              ToQ a -> a
-              Fst a -> P.fst (fromQ a)
-              Snd a -> P.snd (fromQ a)
-              Head as -> P.head (fromQ as)
-              The as -> P.the (fromQ as)
-              Last as -> P.last (fromQ as)
-              Index as i -> (fromQ as) !! (fromQ i)
-              Maximum as -> P.maximum (fromQ as)
-              Minimum as -> P.minimum (fromQ as)
-              -- The following is only needed because of GHC bug
-              Sum _ -> $impossible
-              Product _ -> $impossible
-             
-             
-instance QA () where
-    fromQ q = case q of
-                ToQ a -> a
-                Fst a -> P.fst $ fromQ a
-                Snd a -> P.snd $ fromQ a
-                Head as -> P.head (fromQ as)
-                The as -> P.the (fromQ as)
-                Last as -> P.last (fromQ as)
-                Index as i -> (fromQ as) !! (fromQ i)
-                Maximum as -> P.maximum (fromQ as)
-                Minimum as -> P.minimum (fromQ as)
-                Unit -> ()
-                -- The following is only needed because of GHC bug
-                Sum _ -> $impossible
-                Product _ -> $impossible
-                
+  toQ a = Q (CharE a)
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case e of
+      CharE c -> return c
+      _ -> $impossible
+  
+instance TA Char where
+  reify _ = CharT
 
 instance QA a => QA [a] where
-  fromQ q = case q of
-              ToQ a -> a
-              Fst a -> P.fst (fromQ a)
-              Snd a -> P.snd (fromQ a)
-              Nil   -> []
-              Cons a as -> (fromQ a) : (fromQ as)
-              Head as -> P.head (fromQ as)
-              Tail as -> P.tail (fromQ as)
-              Take i as -> P.take (fromQ i) (fromQ as)
-              Drop i as -> P.drop (fromQ i) (fromQ as)
-              Map f as -> P.map (fromQ . f . toQ) (fromQ as)
-              Append as bs -> (fromQ as) ++ (fromQ bs)
-              Filter f as -> P.filter (fromQ . f . toQ) (fromQ as)
-              Zip as bs -> P.zip (fromQ as) (fromQ bs)
-              GroupWith f as -> P.groupWith (fromQ . f . toQ) (fromQ as)
-              SortWith f as -> P.sortWith (fromQ . f . toQ) (fromQ as)
-              The as -> P.the (fromQ as)
-              Last as -> P.last (fromQ as)
-              Init as -> P.init (fromQ as)
-              Index as i -> (fromQ as) !! (fromQ i)
-              Reverse as -> P.reverse (fromQ as)
-              Maximum as -> P.maximum (fromQ as)
-              Minimum as -> P.minimum (fromQ as)
-              Concat ass -> P.concat (fromQ ass)
-              ConcatMap f as -> P.concatMap (fromQ . f . toQ) (fromQ as)
-              Replicate i a -> P.replicate (fromQ i) (fromQ a)
-              TakeWhile f as -> P.takeWhile (fromQ . f . toQ) (fromQ as)
-              DropWhile f as -> P.dropWhile (fromQ . f . toQ) (fromQ as)
-              ZipWith f as bs -> P.zipWith (\a b -> fromQ $ f (toQ a) (toQ b)) (fromQ as) (fromQ bs)
-              -- The following is only needed because of GHC bug
-              Sum _ -> $impossible
-              Product _ -> $impossible
+  toQ as = Q (ListE (P.map (forget . toQ) as))
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case r of
+      ListE as -> P.mapM (fromQ conn) (P.map Q as)
+      _ -> $impossible
 
 instance (QA a,QA b) => QA (a,b) where
-  fromQ q = case q of
-             ToQ a -> a
-             Pair a b -> (fromQ a, fromQ b)
-             Fst a -> P.fst (fromQ a)
-             Snd a -> P.snd (fromQ a)
-             Head as -> P.head (fromQ as)
-             The as -> P.the (fromQ as)
-             Last as -> P.last (fromQ as)
-             Unzip as -> P.unzip (fromQ as)
-             Index as i -> (fromQ as) !! (fromQ i)
-             Maximum as -> P.maximum (fromQ as)
-             Minimum as -> P.minimum (fromQ as)
-             SplitAt i as -> P.splitAt (fromQ i) (fromQ as)
-             Span f as -> P.span (fromQ . f . toQ) (fromQ as)
-             Break f as -> P.break (fromQ . f . toQ) (fromQ as)
-             -- The following is only needed because of GHC bug
-             Sum _ -> $impossible
-             Product _ -> $impossible
+  toQ (a,b) = Q (TupleE [(forget . toQ) a,(forget . toQ) b])
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case r of
+      TupleE [a,b] -> do
+        r1 <- fromQ conn (Q a)
+        r2 <- fromQ conn (Q b)
+        return (r1,r2)
+      _ -> $impossible
+
+instance (QA a,QA b,QA c) => QA (a,b,c) where
+  toQ (a,b,c) = Q (TupleE [(forget . toQ) a,(forget . toQ) b,(forget . toQ) c])
+  fromQ conn (Q e) = do
+    r <- evaluate conn e
+    case r of
+      TupleE [a,b,c] -> do
+        r1 <- fromQ conn (Q a)
+        r2 <- fromQ conn (Q b)
+        r3 <- fromQ conn (Q c)
+        return (r1,r2,r3)
+      _ -> $impossible
+
+
+instance (TA a,TA b) => TA (a,b) where
+  reify _ = TupleT [reify (undefined :: a),reify (undefined :: b)]
+
 
 instance Show (Q a) where
+  show _ = "Query"
 
 instance Eq (Q Int) where
+  (==) _ _ = undefined
 
 instance Num (Q Int) where
-  (+) e1 e2 = Add e1 e2
-  (*) e1 e2 = Mul e1 e2
-  abs e1 = Abs e1
-  negate e1 = Neg e1
-  fromInteger i = ToQ (fromIntegral i)
-  signum = Sgn
+  (+) (Q e1) (Q e2) = Q (AppE (AppE (VarE "(+)") e1) e2)
+  (*) (Q e1) (Q e2) = Q (AppE (AppE (VarE "(*)") e1) e2)
+  abs (Q e1) = Q (AppE (VarE "abs") e1)
+  negate (Q e1) = Q (AppE (VarE "negate") e1)
+  fromInteger i = toQ (fromIntegral i)
+  signum (Q e1) = Q (AppE (VarE "signum") e1)
+
+fst :: (QA a, QA b) => Q (a,b) -> Q a
+fst = proj_2_1
+
+snd :: (QA a, QA b) => Q (a,b) -> Q b 
+snd = proj_2_2
+  
+proj_2_1 :: (QA a, QA b) => Q (a,b) -> Q a
+proj_2_1 (Q a) = Q (AppE (VarE "proj_2_1") a)
+
+proj_2_2 :: (QA a, QA b) => Q (a,b) -> Q b
+proj_2_2 (Q a) = Q (AppE (VarE "proj_2_2") a)
+
+proj_3_1 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q a
+proj_3_1 (Q a) = Q (AppE (VarE "proj_3_1") a)
+
+proj_3_2 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q b
+proj_3_2 (Q a) = Q (AppE (VarE "proj_3_1") a)
+
+proj_3_3 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q c
+proj_3_3 (Q a) = Q (AppE (VarE "proj_3_3") a)
+
+proj_4_1 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q a
+proj_4_1 (Q a) = Q (AppE (VarE "proj_4_1") a)
+
+proj_4_2 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q b
+proj_4_2 (Q a) = Q (AppE (VarE "proj_4_2") a)
+
+proj_4_3 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q c
+proj_4_3 (Q a) = Q (AppE (VarE "proj_4_3") a)
+
+proj_4_4 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q d
+proj_4_4 (Q a) = Q (AppE (VarE "proj_4_4") a)
+
+pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+pair = tuple_2
+
+tuple_2 :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+tuple_2 (Q a) (Q b) = Q (TupleE [a,b])
+
+tuple_3 :: (QA a, QA b, QA c) => Q a -> Q b -> Q c -> Q (a, b, c)
+tuple_3 (Q a) (Q b) (Q c) = Q (TupleE [a,b,c])
+
+tuple_4 :: (QA a, QA b, QA c, QA d) => Q a -> Q b -> Q c -> Q d -> Q (a, b, c, d)
+tuple_4 (Q a) (Q b) (Q c) (Q d) = Q (TupleE [a,b,c,d])
 
 
-proj_2_1 :: Q (a,b) -> Q a
-proj_2_1 = fst
+type Conn = ()
 
-proj_2_2 :: Q (a,b) -> Q b
-proj_2_2 = snd
+evaluate :: Conn -> Exp -> IO Exp
+evaluate = undefined
 
-proj_3_1 :: Q (a, b, c) -> Q a
-proj_3_1 = undefined
 
-proj_3_2 :: Q (a, b, c) -> Q b
-proj_3_2 = undefined
+class View a b | a -> b where
+  view :: a -> b
+    
+instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
+  view q = (proj_2_1 q, proj_2_2 q)
 
-proj_3_3 :: Q (a, b, c) -> Q c
-proj_3_3 = undefined
+instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a, Q b, Q c) where
+  view q = (proj_3_1 q, proj_3_2 q, proj_3_3 q)
 
-proj_4_1 :: Q (a, b, c, d) -> Q a
-proj_4_1 = undefined
+instance (QA a,QA b,QA c,QA d) => View (Q (a,b,c,d)) (Q a, Q b, Q c, Q d) where
+  view q = (proj_4_1 q, proj_4_2 q, proj_4_3 q, proj_4_4 q)
 
-proj_4_2 :: Q (a, b, c, d) -> Q b
-proj_4_2 = undefined
-
-proj_4_3 :: Q (a, b, c, d) -> Q c
-proj_4_3 = undefined
-
-proj_4_4 :: Q (a, b, c, d) -> Q d
-proj_4_4 = undefined
-
-tuple_2 :: Q a -> Q b -> Q (a, b)
-tuple_2 = pair
-
-tuple_3 :: Q a -> Q b -> Q c -> Q (a, b, c)
-tuple_3 = undefined
-
-tuple_4 :: Q a -> Q b -> Q c -> Q d -> Q (a, b, c, d)
-tuple_4 = undefined 
 
 {- $missing
 
