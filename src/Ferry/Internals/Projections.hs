@@ -1,9 +1,14 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Ferry.Internals.Projections where
 
 import Language.Haskell.Exts.Syntax
 import Language.Haskell.Exts.Extension
 import Language.Haskell.Exts.Build
 import Language.Haskell.Exts.Pretty
+import Language.Haskell.Exts.Parser
+
+import Language.Haskell.TH.Quote
+import qualified Language.Haskell.TH as TH
     
 type Size = Int
 type Index = Int
@@ -21,3 +26,17 @@ tupleF xs = foldl app constr xs
     where
       size = length xs
       constr = var . name $ baseMod ++ ".tuple_" ++ show size
+      
+
+ql :: QuasiQuoter
+ql = QuasiQuoter (return . TH.LitE . TH.StringL . prettyPrint .normTuple . normLambda . parseLambda ) undefined
+
+parseLambda :: String -> Exp
+parseLambda = fromParseResult. exprParser .parenthesize
+    
+parenthesize :: String -> String
+parenthesize = ('(':) . (++ ")")
+
+normLambda = undefined
+
+normTuple = undefined
