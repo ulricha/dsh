@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Ferry.Internals.QQ (qc, fp, rw) where
+module Ferry.QQ (qc, fp, rw) where
 
-import Ferry.Internals.Impossible
+import Ferry.Impossible
 
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
@@ -18,9 +18,9 @@ import Data.Generics
 import qualified Data.Set as S
 import qualified Data.List as L
 
---REMOVE!!!
-import Debug.Trace
-import System.IO.Unsafe
+-- --REMOVE!!!
+-- import Debug.Trace
+-- import System.IO.Unsafe
 
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
@@ -140,10 +140,10 @@ normaliseQual _ = $impossible
 
 makeLambda :: Pat -> SrcLoc -> Exp -> Exp
 makeLambda p s b = let proj = makeProjections' p
-                       var = case proj of
-                                [] -> p
-                                ((x,_):_) -> patV x
-                       lambda = Lambda s [var] b
+                       var1 = case proj of
+                                 [] -> p
+                                 ((x,_):_) -> patV x
+                       lambda = Lambda s [var1] b
                     in insertProjections proj lambda
 
 patV :: String -> Pat
@@ -221,7 +221,7 @@ groupWithF = var $ name "Ferry.groupWith"
 unzipB :: Pat -> Exp
 unzipB PWildCard   = paren $ makeLambda PWildCard (SrcLoc "" 0 0) $ unit
 unzipB p@(PVar x)  = paren $ makeLambda p (SrcLoc "" 0 0) $ var x
-unzipB p@(PTuple [xp, yp]) = let (e:x:y:_) = freshVar $ freeInPat p
+unzipB p@(PTuple [xp, yp]) = let (e:_x:_y:_) = freshVar $ freeInPat p
                                  ePat = patV e
                                  eArg = varV e
                                  xUnfold = unzipB xp
@@ -246,21 +246,23 @@ makeProjections' (PTuple [x, y]) = let xProj = map (\(v, e) -> (v, app fstV e)) 
                                        yProj = map (\(v, e) -> (v, app sndV e)) $ makeProjections' y
                                     in case xProj of
                                          [] -> case yProj of
-                                                ((v, p):_) -> altProj yProj v
+                                                ((v, _p):_) -> altProj yProj v
                                                 [] -> []
-                                         ((v, p):_) -> altProj xProj v ++ altProj yProj v
+                                         ((v, _p):_) -> altProj xProj v ++ altProj yProj v
     where
      altProj :: [(String, Exp)] -> String -> [(String, Exp)]
-     altProj proj v = map (\(y, pr) -> (y, everywhere (mkT (repl y v)) pr)) proj
+     altProj proj v = map (\(y1, pr) -> (y1, everywhere (mkT (repl y1 v)) pr)) proj
      repl :: String -> String -> Exp -> Exp
      repl v n' r@(Var (UnQual (Ident n))) | n == v    = Var $ UnQual $ Ident n'
                                           | otherwise = r
      repl _ _ e                                       = e
+makeProjections' _ = $impossible
+
 
 makeProjections :: Pat -> String-> [(String, Exp)]
 makeProjections PWildCard _ = []
 makeProjections (PVar (Ident x)) e = [(x, varV e)]
-makeProjections (PTuple [x,y]) v = (map (\(v, e) -> (v, app fstV e)) $ makeProjections x v) ++ (map (\(v, e) -> (v, app sndV e)) $ makeProjections y v)
+makeProjections (PTuple [x,y]) v = (map (\(v1, e) -> (v1, app fstV e)) $ makeProjections x v) ++ (map (\(v1, e) -> (v1, app sndV e)) $ makeProjections y v)
 makeProjections _ _ = $impossible 
 
 insertProjections :: [(String, Exp)] -> Exp -> Exp

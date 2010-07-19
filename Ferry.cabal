@@ -4,7 +4,7 @@ Synopsis:            Ferry-powered Haskell
 Description:         Ferry-powered Haskell
 License:             BSD3
 License-file:        LICENSE
-Author:              George Giorgidze, Tom Schreiber and Jeroen Weijers
+Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
 Maintainer:          george.giorgidze@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
@@ -18,7 +18,10 @@ Cabal-version:       >=1.2
 Library
   Build-depends:     base >= 4, containers, template-haskell, haskell-src-exts, syntax-trees, syb >=0.1.0.2
   Hs-Source-Dirs:    src
-  GHC-Options:       -Wall
+  GHC-Options:       -Wall -fno-warn-orphans
   Exposed-modules:   Ferry
-  Other-modules:     Ferry.Internals.QQ
-                     Ferry.Internals.Impossible
+  Other-modules:     Ferry.QQ
+                     Ferry.Impossible
+                     Ferry.Combinators
+                     Ferry.Data
+                     Ferry.Evaluate

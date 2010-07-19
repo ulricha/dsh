@@ -1,4 +1,4 @@
-module Ferry.Internals.Impossible (impossible) where
+module Ferry.Impossible (impossible) where
 
 import qualified Language.Haskell.TH as TH
 
