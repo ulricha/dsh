@@ -8,9 +8,14 @@
 module Ferry
   (
     module Ferry.Combinators
-  , qc
+  , Q
+  , QA , toQ, fromQ
+  , View, view
+  , qc  
   )
   where
 
 import Ferry.Combinators
+import Ferry.Data (Q)
+import Ferry.Class (QA,toQ,fromQ,View,view)
 import Ferry.QQ (qc)

@@ -18,10 +18,11 @@ Cabal-version:       >=1.2
 Library
   Build-depends:     base >= 4, containers, template-haskell, haskell-src-exts, syntax-trees, syb >=0.1.0.2
   Hs-Source-Dirs:    src
-  GHC-Options:       -Wall -fno-warn-orphans
+  GHC-Options:       -Wall
   Exposed-modules:   Ferry
   Other-modules:     Ferry.QQ
                      Ferry.Impossible
                      Ferry.Combinators
                      Ferry.Data
                      Ferry.Evaluate
+                     Ferry.Class
