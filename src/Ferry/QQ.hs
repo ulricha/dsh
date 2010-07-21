@@ -3,6 +3,7 @@
 module Ferry.QQ (qc, fp, rw) where
 
 import Ferry.Impossible
+-- import qualified Ferry.Combinators as Q
 
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
@@ -156,7 +157,7 @@ varV = var . name
 -- patF = 
 
 mapV :: Exp
-mapV = var $ name "Ferry.map"
+mapV = qvar (ModuleName "Ferry.Combinators") (name "map")  -- var $ name "Ferry.map"
 
 concatV :: Exp
 concatV = var $ name "Ferry.concat"
