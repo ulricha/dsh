@@ -48,7 +48,7 @@ type OutputString = String
 type OptArgs = String
 
 
-foreign import ccall "PFcompile_ferry"
+foreign import ccall unsafe "PFcompile_ferry"
     c'PFcompile_ferry :: Ptr CString -> CString -> CString -> CInt -> IO CInt
 
 -- | Accept a logical query plan bundle in XML format and transform it into one
@@ -69,7 +69,7 @@ compileFerry xml output = do
            else Left  `fmap` peekCString c'err
 
 
-foreign import ccall "PFcompile_ferry_opt"
+foreign import ccall unsafe "PFcompile_ferry_opt"
     c'PFcompile_ferry_opt :: Ptr CString -> CString -> CString -> CInt -> CString -> IO CInt
 
 -- | Accept a logical query plan bundle in XML format, optimize it based on the
