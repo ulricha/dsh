@@ -42,4 +42,3 @@ normToExp n = case n of
   IntN i -> IntE i
   TupleN n1 n2 ns -> TupleE (normToExp n1) (normToExp n2) (map normToExp ns)
   ListN ns -> ListE (map normToExp ns)
-  

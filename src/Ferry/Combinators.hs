@@ -1,7 +1,10 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Ferry.Combinators where
 
 import Ferry.Data
 import Ferry.Class
+import Ferry.Combinators.Tuples
 
 import Prelude (Eq, Ord, Num, Bool, Int, (.))
 
@@ -153,32 +156,13 @@ fst = proj_2_1
 
 snd :: (QA a, QA b) => Q (a,b) -> Q b 
 snd = proj_2_2
-  
-proj_2_1 :: (QA a, QA b) => Q (a,b) -> Q a
-proj_2_1 (Q a) = Q (AppE (VarE "proj_2_1") a)
 
-proj_2_2 :: (QA a, QA b) => Q (a,b) -> Q b
-proj_2_2 (Q a) = Q (AppE (VarE "proj_2_2") a)
-
-proj_3_1 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q a
-proj_3_1 (Q a) = Q (AppE (VarE "proj_3_1") a)
-
-proj_3_2 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q b
-proj_3_2 (Q a) = Q (AppE (VarE "proj_3_1") a)
-
-proj_3_3 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q c
-proj_3_3 (Q a) = Q (AppE (VarE "proj_3_3") a)
 
 -- * Tuple Construction
 
 pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
 pair = tuple_2
 
-tuple_2 :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
-tuple_2 (Q a) (Q b) = Q (TupleE a b [])
-
-tuple_3 :: (QA a, QA b, QA c) => Q a -> Q b -> Q c -> Q (a, b, c)
-tuple_3 (Q a) (Q b) (Q c) = Q (TupleE a b [c])
 
 {- $missing
 
