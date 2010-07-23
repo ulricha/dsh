@@ -1,16 +1,9 @@
-{-# Language TemplateHaskell, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, ScopedTypeVariables #-}
-
 module Ferry.Combinators where
 
 import Ferry.Data
-import Ferry.Evaluate
-import Ferry.Impossible
+import Ferry.Class
 
-import qualified Prelude as P
-import Prelude ( Eq(..), Ord(..), Num(..),Show(..),
-                 Bool(..), Int, Char, String, IO,
-                 (.), undefined, return, fromIntegral, error
-               )
+import Prelude (Eq, Ord, Num, Bool, Int, (.))
 
 -- * Unit
 
@@ -111,7 +104,7 @@ minimum   :: (QA a, Ord a) => Q [a] -> Q a
 minimum (Q as) = Q (AppE (VarE "minimum") as)
 
 replicate :: (QA a) => Q Int -> Q a -> Q [a]
-replicate (Q i) (Q as) = Q (AppE (AppE (VarE "replicate") i) as)
+replicate (Q i) (Q a) = Q (AppE (AppE (VarE "replicate") i) a)
 
 
 -- * Sublists
@@ -176,137 +169,16 @@ proj_3_2 (Q a) = Q (AppE (VarE "proj_3_1") a)
 proj_3_3 :: (QA a, QA b, QA c) => Q (a, b, c) -> Q c
 proj_3_3 (Q a) = Q (AppE (VarE "proj_3_3") a)
 
-proj_4_1 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q a
-proj_4_1 (Q a) = Q (AppE (VarE "proj_4_1") a)
-
-proj_4_2 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q b
-proj_4_2 (Q a) = Q (AppE (VarE "proj_4_2") a)
-
-proj_4_3 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q c
-proj_4_3 (Q a) = Q (AppE (VarE "proj_4_3") a)
-
-proj_4_4 :: (QA a, QA b, QA c, QA d) => Q (a, b, c, d) -> Q d
-proj_4_4 (Q a) = Q (AppE (VarE "proj_4_4") a)
-
 -- * Tuple Construction
 
 pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
 pair = tuple_2
 
 tuple_2 :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
-tuple_2 (Q a) (Q b) = Q (TupleE [a,b])
+tuple_2 (Q a) (Q b) = Q (TupleE a b [])
 
 tuple_3 :: (QA a, QA b, QA c) => Q a -> Q b -> Q c -> Q (a, b, c)
-tuple_3 (Q a) (Q b) (Q c) = Q (TupleE [a,b,c])
-
-tuple_4 :: (QA a, QA b, QA c, QA d) => Q a -> Q b -> Q c -> Q d -> Q (a, b, c, d)
-tuple_4 (Q a) (Q b) (Q c) (Q d) = Q (TupleE [a,b,c,d])
-
-
--- Converting Haskell Values to Database Queries and Back
-
-class (Reify a) => QA a where
-  toQ   :: a -> Q a
-  fromQ :: Conn -> Q a -> IO a
-
-instance QA Bool where
-  toQ a = Q (BoolE a)
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case e of
-      BoolE b -> return b
-      _ -> $impossible
-  
-instance QA Int where
-  toQ a = Q (IntE a)
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case e of
-      IntE i -> return i
-      _ -> $impossible
-
-instance QA Char where
-  toQ a = Q (CharE a)
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case e of
-      CharE c -> return c
-      _ -> $impossible
-  
-instance QA a => QA [a] where
-  toQ as = Q (ListE (P.map (forget . toQ) as))
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case r of
-      ListE as -> P.mapM (fromQ conn) (P.map Q as)
-      _ -> $impossible
-
-instance (QA a,QA b) => QA (a,b) where
-  toQ (a,b) = Q (TupleE [(forget . toQ) a,(forget . toQ) b])
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case r of
-      TupleE [a,b] -> do
-        r1 <- fromQ conn (Q a)
-        r2 <- fromQ conn (Q b)
-        return (r1,r2)
-      _ -> $impossible
-
-instance (QA a,QA b,QA c) => QA (a,b,c) where
-  toQ (a,b,c) = Q (TupleE [(forget . toQ) a,(forget . toQ) b,(forget . toQ) c])
-  fromQ conn (Q e) = do
-    r <- evaluate conn e
-    case r of
-      TupleE [a,b,c] -> do
-        r1 <- fromQ conn (Q a)
-        r2 <- fromQ conn (Q b)
-        r3 <- fromQ conn (Q c)
-        return (r1,r2,r3)
-      _ -> $impossible
-
--- * Refering to Real Database Tables
-
-class (Reify a) => TA a where
-  table :: String -> Q [a]
-  table s = Q (TableE s (reify (undefined :: a)))
-  
-instance TA () where
-instance TA Int where
-instance TA Bool where
-instance TA Char where
-instance (BasicType a, BasicType b, Reify a, Reify b) => TA (a,b) where
-instance (BasicType a, BasicType b, BasicType c, Reify a, Reify b, Reify c) => TA (a,b,c) where  
-
--- * Eq, Ord, Show and Num Instances for Databse Queries
-
-instance Show (Q a) where
-  show _ = "Query"
-
-instance Eq (Q Int) where
-  (==) _ _ = undefined
-
-instance Num (Q Int) where
-  (+) (Q e1) (Q e2) = Q (AppE (AppE (VarE "(+)") e1) e2)
-  (*) (Q e1) (Q e2) = Q (AppE (AppE (VarE "(*)") e1) e2)
-  abs (Q e1) = Q (AppE (VarE "abs") e1)
-  negate (Q e1) = Q (AppE (VarE "negate") e1)
-  fromInteger i = toQ (fromIntegral i)
-  signum (Q e1) = Q (AppE (VarE "signum") e1)
-
--- * Support for View Patterns
-
-class View a b | a -> b where
-  view :: a -> b
-    
-instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view q = (proj_2_1 q, proj_2_2 q)
-
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a, Q b, Q c) where
-  view q = (proj_3_1 q, proj_3_2 q, proj_3_3 q)
-
-instance (QA a,QA b,QA c,QA d) => View (Q (a,b,c,d)) (Q a, Q b, Q c, Q d) where
-  view q = (proj_4_1 q, proj_4_2 q, proj_4_3 q, proj_4_4 q)
-
+tuple_3 (Q a) (Q b) (Q c) = Q (TupleE a b [c])
 
 {- $missing
 
