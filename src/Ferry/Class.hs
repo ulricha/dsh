@@ -3,6 +3,8 @@
 
 module Ferry.Class where
   
+import Database.HDBC
+
 import Ferry.Data
 import Ferry.Evaluate
 
@@ -11,7 +13,7 @@ class QA a where
   fromN :: Norm -> a
   toQ   :: a -> Q a
 
-  fromQ :: Conn -> Q a -> IO a
+  fromQ :: IConnection conn => conn -> Q a -> IO a
   fromQ c (Q a) = evaluate c a >>= (return . fromN)
   
 

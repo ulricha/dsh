@@ -28,6 +28,7 @@ data Type =
   | CharT
   | TupleT [Type]
   | ListT Type
+  deriving (Eq, Show)
 
 data Q a = Q Exp
 

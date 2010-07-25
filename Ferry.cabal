@@ -17,7 +17,7 @@ Cabal-version:       >=1.2
 
 Library
   Build-depends:     base >= 4, containers, template-haskell, haskell-src-exts,
-                     syntax-trees, syb >=0.1.0.2
+                     syntax-trees, syb >=0.1.0.2, HDBC >= 2.2
 
   Hs-Source-Dirs:    src
   GHC-Options:       -Wall

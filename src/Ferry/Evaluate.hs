@@ -1,14 +1,19 @@
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
 {-# Options -fno-warn-incomplete-patterns #-}
 
 module Ferry.Evaluate where
 
-import Ferry.Data
-
 import GHC.Exts
 
-type Conn = ()
+import Database.HDBC
 
-evaluate :: Conn -> Exp -> IO Norm
+import Ferry.Data
+
+
+evaluate :: IConnection conn
+         => conn                -- ^ The HDBC connection
+         -> Exp
+         -> IO Norm
 evaluate c e = case e of
   UnitE -> return UnitN
   BoolE b -> return (BoolN b)
@@ -161,7 +166,75 @@ evaluate c e = case e of
     (TupleN a1 b1 as) <- evaluate c a
     return $ (a1 : b1 : as) !! (read $ snd $ break ('_' ==) is)
 
-  TableE _s _t -> error "ferry: table combinator is not supported yet"
+  TableE tName tType -> do
+
+      -- escape tName/raise error if invalid table name?
+      fmap (sqlToNormWithType tName tType)
+           (quickQuery' c ("SELECT * from " ++ tName) [])
+
+
   
 evalF :: (Exp -> Exp) -> (Norm -> Exp)
 evalF f n = f (normToExp n)
+
+
+-- | Read SQL values into 'Norm' values
+sqlToNormWithType :: String             -- ^ Table name, used to generate more
+                                        -- informative error messages
+                  -> Type
+                  -> [[SqlValue]]
+                  -> Norm
+sqlToNormWithType tName ty = ListN . map (toNorm ty)
+
+  where
+    toNorm :: Type -> [SqlValue] -> Norm
+
+    -- On a single value, just compare the 'Type' and convert the 'SqlValue' to
+    -- a Norm value on match
+    toNorm t [s] = if t `typeMatch` s
+                      then sqlToNorm s
+                      else typeError t [s]
+
+    -- On more than one value we need a 'TupleT' type of the exact same length
+    toNorm (TupleT t@(_:_:_)) s
+        | length t == length s =
+            let (a:b:rest) = zipWith f t s
+                f t' s' = if t' `typeMatch` s'
+                             then sqlToNorm s'
+                             else typeError (TupleT t) s
+            in TupleN a b rest
+
+    -- Everything else will raise an error
+    toNorm t s = typeError t s
+
+    typeError :: Type -> [SqlValue] -> a
+    typeError t s = error $
+        "ferry: Type mismatch on table \"" ++ tName ++ "\":"
+        ++ "\n\tExpected table type: " ++ show t
+        ++ "\n\tTable entry: " ++ show s
+
+
+-- | Turn one single SqlValue into a Norm value
+sqlToNorm :: SqlValue -> Norm
+sqlToNorm sql =
+    case sql of
+         SqlNull        -> UnitN
+         SqlInt32 i     -> IntN $ fromIntegral i
+         SqlBool b      -> BoolN b
+         SqlChar c      -> CharN c
+         SqlString s    -> stringN s
+         _              -> error $ "ferry: Unsupported SqlValue: " ++ show sql
+
+  where stringN s = ListN $ map CharN s
+
+
+-- | Check if a 'SqlValue' matches a 'Type'
+typeMatch :: Type -> SqlValue -> Bool
+typeMatch t s =
+    case (t,s) of
+         (UnitT         , SqlNull)      -> True
+         (IntT          , SqlInt32 _)   -> True
+         (BoolT         , SqlBool _)    -> True
+         (CharT         , SqlChar _)    -> True
+         (ListT CharT   , SqlString _)  -> True
+         _                              -> False
