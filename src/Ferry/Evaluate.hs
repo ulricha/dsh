@@ -5,6 +5,7 @@ module Ferry.Evaluate where
 
 import Ferry.Data
 
+import Data.Convertible
 import Database.HDBC
 import GHC.Exts
 
@@ -254,7 +255,7 @@ sqlToNormWithType tName ty = ListN . map (toNorm ty)
     -- On a single value, just compare the 'Type' and convert the 'SqlValue' to
     -- a Norm value on match
     toNorm t [s] = if t `typeMatch` s
-                      then sqlToNorm s
+                      then convert s
                       else typeError t [s]
 
     -- On more than one value we need a 'TupleT' type of the exact same length
@@ -262,7 +263,7 @@ sqlToNormWithType tName ty = ListN . map (toNorm ty)
         | length t == length s =
             let (a:b:rest) = zipWith f t s
                 f t' s' = if t' `typeMatch` s'
-                             then sqlToNorm s'
+                             then convert s'
                              else typeError (TupleT t) s
             in TupleN a b rest
 
@@ -274,20 +275,6 @@ sqlToNormWithType tName ty = ListN . map (toNorm ty)
         "ferry: Type mismatch on table \"" ++ tName ++ "\":"
         ++ "\n\tExpected table type: " ++ show t
         ++ "\n\tTable entry: " ++ show s
-
-
--- | Turn one single SqlValue into a Norm value
-sqlToNorm :: SqlValue -> Norm
-sqlToNorm sql =
-    case sql of
-         SqlNull        -> UnitN
-         SqlInt32 i     -> IntN $ fromIntegral i
-         SqlBool b      -> BoolN b
-         SqlChar c      -> CharN c
-         SqlString s    -> stringN s
-         _              -> error $ "ferry: Unsupported SqlValue: " ++ show sql
-
-  where stringN s = ListN $ map CharN s
 
 
 -- | Check if a 'SqlValue' matches a 'Type'
