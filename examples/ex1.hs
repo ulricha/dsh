@@ -20,6 +20,7 @@ q1 = Q.map (\(view->(n,_,s)) -> Q.pair s n) employees
 q2 = Q.sortWith id q1
 q3 = Q.append q1 q2
 q4 = Q.groupWith Q.fst q1
+q5 = Q.map (+ 42) (toQ [1 .. 10 :: Int])
 
 -- output1 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
@@ -44,3 +45,4 @@ main = do
   fromQ conn q2 >>= print
   fromQ conn q3 >>= print
   fromQ conn q4 >>= print
+  fromQ conn q5 >>= print  

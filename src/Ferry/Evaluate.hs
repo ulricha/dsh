@@ -206,6 +206,28 @@ evaluate c e = case e of
     let i = read $ tail $ snd $ break ('_' ==) is
     return $ (a1 : b1 : as) !! (i - 1)
 
+  AppE (AppE (VarE "add") e1) e2 -> do
+    (IntN i1) <- evaluate c e1
+    (IntN i2) <- evaluate c e2
+    return $ IntN $ i1 + i2
+
+  AppE (AppE (VarE "mul") e1) e2 -> do
+    (IntN i1) <- evaluate c e1
+    (IntN i2) <- evaluate c e2
+    return $ IntN $ i1 * i2
+
+  AppE (VarE "abs") e1 -> do
+    (IntN i1) <- evaluate c e1
+    return $ IntN $ abs i1 
+
+  AppE (VarE "negate") e1 -> do
+    (IntN i1) <- evaluate c e1
+    return $ IntN $ negate i1 
+
+  AppE (VarE "signum") e1 -> do
+    (IntN i1) <- evaluate c e1
+    return $ IntN $ signum i1 
+
   TableE tName tType -> do
 
       -- escape tName/raise error if invalid table name?

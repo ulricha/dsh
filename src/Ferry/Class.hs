@@ -68,7 +68,7 @@ instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 
 -- * Eq, Ord, Show and Num Instances for Databse Queries
 
-instance Show (Q a) where
+instance Show (Q Int) where
   show _ = "Query"
 
 instance Eq (Q Int) where
