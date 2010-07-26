@@ -6,12 +6,12 @@ module Ferry.TH
     , generateProjRange
     , tuple
     , generateTupleRange
-    , deriveQA
-    , generateDeriveQARange
-    , deriveTA
-    , generateDeriveTARange
-    , deriveView
-    , generateDeriveViewRange
+    , deriveTupleQA
+    , generateDeriveTupleQARange
+    , deriveTupleTA
+    , generateDeriveTupleTARange
+    , deriveTupleView
+    , generateDeriveTupleViewRange
     ) where
 
 import Control.Applicative
@@ -156,8 +156,8 @@ generateTupleRange from to =
 -- * QA instances
 --
 
-deriveQA :: Int -> TH.Q [Dec]
-deriveQA l
+deriveTupleQA :: Int -> TH.Q [Dec]
+deriveTupleQA l
     | l < 2     = $impossible
     | otherwise = pure `fmap` instanceD qaCxts
                                         qaType
@@ -199,9 +199,9 @@ deriveQA l
                          []
 
 -- | Generate all 'QA' instances for tuples within range.
-generateDeriveQARange :: Int -> Int -> TH.Q [Dec]
-generateDeriveQARange from to =
-    concat `fmap` sequenceQ [ deriveQA n | n <- reverse [from..to] ]
+generateDeriveTupleQARange :: Int -> Int -> TH.Q [Dec]
+generateDeriveTupleQARange from to =
+    concat `fmap` sequenceQ [ deriveTupleQA n | n <- reverse [from..to] ]
 
 
 --
@@ -211,8 +211,8 @@ generateDeriveQARange from to =
 -- Original code:
 -- instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 
-deriveTA :: Int -> TH.Q [Dec]
-deriveTA l
+deriveTupleTA :: Int -> TH.Q [Dec]
+deriveTupleTA l
     | l < 2     = $impossible
     | otherwise = pure `fmap` instanceD taCxts
                                         taType
@@ -226,9 +226,9 @@ deriveTA l
     taDecs = []
 
 -- | Generate all 'TA' instances for tuples within range.
-generateDeriveTARange :: Int -> Int -> TH.Q [Dec]
-generateDeriveTARange from to =
-    concat `fmap` sequenceQ [ deriveTA n | n <- reverse [from..to] ]
+generateDeriveTupleTARange :: Int -> Int -> TH.Q [Dec]
+generateDeriveTupleTARange from to =
+    concat `fmap` sequenceQ [ deriveTupleTA n | n <- reverse [from..to] ]
 
 
 --
@@ -240,8 +240,8 @@ generateDeriveTARange from to =
 -- instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
 --   view (Q a) = (Q (AppE (VarE "proj_2_1") a), Q (AppE (VarE "proj_2_1") a))
 
-deriveView :: Int -> TH.Q [Dec]
-deriveView l
+deriveTupleView :: Int -> TH.Q [Dec]
+deriveTupleView l
     | l < 2     = $impossible
     | otherwise = pure `fmap` instanceD viewCxts
                                         viewType
@@ -265,6 +265,6 @@ deriveView l
     a = mkName "a"
 
 -- | Generate all 'View' instances for tuples within range.
-generateDeriveViewRange :: Int -> Int -> TH.Q [Dec]
-generateDeriveViewRange from to =
-    concat `fmap` sequenceQ [ deriveView n | n <- reverse [from..to] ]
+generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
+generateDeriveTupleViewRange from to =
+    concat `fmap` sequenceQ [ deriveTupleView n | n <- reverse [from..to] ]

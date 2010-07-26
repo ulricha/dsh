@@ -25,9 +25,9 @@ defined length.
 
 -}
 
-$(generateDeriveQARange   3 N)
-$(generateDeriveTARange   3 N)
-$(generateDeriveViewRange 3 N)
+$(generateDeriveTupleQARange   3 N)
+$(generateDeriveTupleTARange   3 N)
+$(generateDeriveTupleViewRange 3 N)
 
 -- * Tuple Projection Functions
 
