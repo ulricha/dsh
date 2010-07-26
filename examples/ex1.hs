@@ -16,9 +16,11 @@ employees = toQ [
   , ("Paul",   "Yale", 60)
   ]
 
+q1 = Q.map (\(view->(n,_,s)) -> Q.pair s n) employees
+q2 = Q.sortWith id q1
+q3 = Q.append q1 q2
+q4 = Q.groupWith Q.fst q1
 
-
-q1 = Q.map (\(view->(n,_,s)) -> Q.pair n s) employees 
 -- output1 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
 -- output2 = [$qc| (the dept, sum salary)
@@ -39,3 +41,6 @@ conn = undefined
 main :: IO ()
 main = do
   fromQ conn q1 >>= print
+  fromQ conn q2 >>= print
+  fromQ conn q3 >>= print
+  fromQ conn q4 >>= print
