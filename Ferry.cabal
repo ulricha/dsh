@@ -20,14 +20,14 @@ Library
                      syntax-trees, syb >=0.1.0.2, HDBC >= 2.2
 
   Hs-Source-Dirs:    src
-  GHC-Options:       -Wall
+  GHC-Options:       -Wall -O3
   Exposed-modules:   Ferry
-                     Ferry.Combinators.Tuples
 
   Other-modules:     Ferry.QQ
                      Ferry.Impossible
                      Ferry.Combinators
-                     Ferry.Combinators.TH
+                     Ferry.TH
+                     Ferry.Tuples
                      Ferry.Data
                      Ferry.Evaluate
                      Ferry.Class

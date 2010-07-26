@@ -4,7 +4,6 @@ module Ferry.Combinators where
 
 import Ferry.Data
 import Ferry.Class
-import Ferry.Combinators.Tuples
 
 import Prelude (Eq, Ord, Num, Bool, Int, (.))
 
@@ -148,21 +147,6 @@ zipWith f (Q as) (Q bs) =
 
 unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 unzip (Q as) = Q (AppE (VarE "unzip") as)
-
--- * Tuple Projection Functions
-
-fst :: (QA a, QA b) => Q (a,b) -> Q a
-fst = proj_2_1
-
-snd :: (QA a, QA b) => Q (a,b) -> Q b 
-snd = proj_2_2
-
-
--- * Tuple Construction
-
-pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
-pair = tuple_2
-
 
 {- $missing
 

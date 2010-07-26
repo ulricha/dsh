@@ -42,11 +42,6 @@ instance (QA a,QA b) => QA (a,b) where
   fromN (TupleN a b []) = (fromN a,fromN b)
   toQ (a,b) = Q (TupleE (forget $ toQ $ a) (forget $ toQ $ b) [])
 
-instance (QA a,QA b,QA c) => QA (a,b,c) where
-  reify _ = TupleT [reify (undefined :: a), reify (undefined :: b), reify (undefined :: b)]
-  fromN (TupleN a b [c]) = (fromN a,fromN b,fromN c)
-  toQ (a,b,c) = Q (TupleE (forget $ toQ $ a) (forget $ toQ $ b) [forget $ toQ $ c])
-
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
   fromN (ListN as) = map fromN as
@@ -70,7 +65,6 @@ instance TA Int where
 instance TA Bool where
 instance TA Char where
 instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
-instance (BasicType a, BasicType b, BasicType c, QA a, QA b, QA c) => TA (a,b,c) where  
 
 -- * Eq, Ord, Show and Num Instances for Databse Queries
 
@@ -95,6 +89,3 @@ class View a b | a -> b where
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
   view (Q a) = (Q (AppE (VarE "proj_2_1") a), Q (AppE (VarE "proj_2_2") a))
-
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a, Q b, Q c) where
-  view (Q a) = (Q (AppE (VarE "proj_3_1") a), Q (AppE (VarE "proj_3_2") a), Q (AppE (VarE "proj_3_3") a))

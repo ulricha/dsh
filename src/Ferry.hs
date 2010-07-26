@@ -8,6 +8,7 @@
 module Ferry
   (
     module Ferry.Combinators
+  , module Ferry.Tuples
   , Q
   , QA , toQ, fromQ
   , View, view
@@ -16,6 +17,7 @@ module Ferry
   where
 
 import Ferry.Combinators
+import Ferry.Tuples
 import Ferry.Data (Q)
 import Ferry.Class (QA,toQ,fromQ,View,view)
 import Ferry.QQ (qc)
