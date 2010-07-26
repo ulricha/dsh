@@ -148,6 +148,9 @@ zipWith f (Q as) (Q bs) =
 unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 unzip (Q as) = Q (AppE (VarE "unzip") as)
 
+-- * Missing Combinators
+-- $missing
+
 {- $missing
 
 This module offers most of the functions on lists given in PreludeList for the
