@@ -98,4 +98,4 @@ class View a b | a -> b where
   view :: a -> b
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE (VarE "proj_2_1") a), Q (AppE (VarE "proj_2_2") a))
+  view (Q a) = (Q (AppE (VarE "fst") a), Q (AppE (VarE "snd") a))
