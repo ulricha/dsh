@@ -7,13 +7,13 @@ import Data.Typeable
 import Database.HDBC
 
 data Exp =
-    VarE String
-  | UnitE
+    UnitE
   | BoolE Bool
   | CharE Char
   | IntE Int  
-  | TupleE Exp Exp [Exp]
+  | TupleE Exp Exp
   | ListE [Exp]
+  | VarE String
   | FuncE (Exp -> Exp)
   | AppE Exp Exp
   | TableE String Type
@@ -23,7 +23,7 @@ data Norm =
   | BoolN Bool
   | CharN Char
   | IntN Int
-  | TupleN Norm Norm [Norm]
+  | TupleN Norm Norm
   | ListN [Norm]
   deriving (Eq,Ord,Show, Typeable)
 
@@ -32,7 +32,7 @@ data Type =
   | IntT
   | BoolT
   | CharT
-  | TupleT [Type]
+  | TupleT Type Type
   | ListT Type
   deriving (Eq, Show)
 
@@ -44,12 +44,12 @@ forget (Q a) = a
 instance Convertible Norm Exp where
     safeConvert n = Right $
         case n of
-             UnitN              -> UnitE
-             BoolN  b           -> BoolE b 
-             CharN c            -> CharE c
-             IntN i             -> IntE i
-             TupleN n1 n2 ns    -> TupleE (normToExp n1) (normToExp n2) (map normToExp ns)
-             ListN ns           -> ListE (map normToExp ns)
+             UnitN          -> UnitE
+             BoolN  b       -> BoolE b 
+             CharN c        -> CharE c
+             IntN i         -> IntE i
+             TupleN n1 n2   -> TupleE (normToExp n1) (normToExp n2)
+             ListN ns       -> ListE (map normToExp ns)
 
 normToExp :: Norm -> Exp
 normToExp = convert
@@ -76,3 +76,7 @@ instance Convertible Norm SqlValue where
                                             Right (SqlString s') -> Right (SqlString $ c : s')
                                             _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
              _                      -> convError "Cannot convert Norm to SqlValue" n
+  
+unfoldType :: Type -> [Type]
+unfoldType (TupleT t1 t2) = t1 : unfoldType t2
+unfoldType t = [t]

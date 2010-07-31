@@ -10,42 +10,45 @@ import Ferry.Evaluate
 
 class QA a where
   reify :: a -> Type
-  fromN :: Norm -> a
-  toQ   :: a -> Q a
+  toNorm :: a -> Norm
+  fromNorm :: Norm -> a
 
-  fromQ :: IConnection conn => conn -> Q a -> IO a
-  fromQ c (Q a) = evaluate c a >>= (return . fromN)
+toQ   :: (QA a) => a -> Q a
+toQ = Q . normToExp . toNorm
+
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
   
 
 instance QA () where
   reify _ = UnitT
-  fromN (UnitN) = ()
-  toQ _ = Q UnitE
-  
+  toNorm _ = UnitN
+  fromNorm (UnitN) = ()
+
 instance QA Bool where
   reify _ = BoolT
-  fromN (BoolN b) = b
-  toQ a = Q (BoolE a)
+  toNorm b = BoolN b
+  fromNorm (BoolN b) = b
   
 instance QA Char where
   reify _ = CharT
-  fromN (CharN c) = c
-  toQ a = Q (CharE a)
+  toNorm c = CharN c  
+  fromNorm (CharN c) = c
 
 instance QA Int where
   reify _ = IntT
-  fromN (IntN i) = i
-  toQ a = Q (IntE a)
+  toNorm i = IntN i
+  fromNorm (IntN i) = i
 
 instance (QA a,QA b) => QA (a,b) where
-  reify _ = TupleT [reify (undefined :: a), reify (undefined :: b)]
-  fromN (TupleN a b []) = (fromN a,fromN b)
-  toQ (a,b) = Q (TupleE (forget $ toQ $ a) (forget $ toQ $ b) [])
+  reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
+  toNorm (a,b) = TupleN (toNorm a) (toNorm b)
+  fromNorm (TupleN a b) = (fromNorm a,fromNorm b)
 
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
-  fromN (ListN as) = map fromN as
-  toQ as = Q (ListE (map (forget . toQ) as))  
+  toNorm as = ListN (map toNorm as)
+  fromNorm (ListN as) = map fromNorm as
   
 class BasicType a where
   

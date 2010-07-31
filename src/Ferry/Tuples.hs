@@ -31,13 +31,11 @@ $(generateDeriveTupleViewRange 3 N)
 
 -- * Tuple Projection Functions
 
-$(generateProjRange 2 N)
-
 fst :: (QA a, QA b) => Q (a,b) -> Q a
-fst = proj_2_1
+fst (Q a) = Q (AppE (VarE "fst") a)
 
 snd :: (QA a, QA b) => Q (a,b) -> Q b 
-snd = proj_2_2
+snd (Q a) = Q (AppE (VarE "snd") a)
 
 -- * Tuple Construction
 

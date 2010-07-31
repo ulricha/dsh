@@ -20,11 +20,10 @@ evaluate c e = case e of
   CharE ch -> return (CharN ch)
   IntE i   -> return (IntN i)
 
-  TupleE e1 e2 es1 -> do
+  TupleE e1 e2 -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    es2 <- mapM (evaluate c) es1
-    return (TupleN e3 e4 es2)
+    return (TupleN e3 e4)
 
   ListE es -> mapM (evaluate c) es >>= (return . ListN)
   
@@ -156,7 +155,7 @@ evaluate c e = case e of
     (IntN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
     let t = splitAt i1 as1 
-    return $ TupleN (ListN $ fst t) (ListN $ snd t) []
+    return $ TupleN (ListN $ fst t) (ListN $ snd t)
 
   AppE (AppE (VarE "takeWhile") (FuncE f)) as -> do
     (ListN as1) <- evaluate c as
@@ -171,12 +170,12 @@ evaluate c e = case e of
   AppE (AppE (VarE "span") (FuncE f)) as -> do
     (ListN as1) <- evaluate c as
     (ListN as2) <- evaluate c (ListE $ map (evalF f) as1)
-    return $ (\(a,b) -> TupleN a b []) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ span (\(_,BoolN b) -> b) $ zip as1 as2
+    return $ (\(a,b) -> TupleN a b) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ span (\(_,BoolN b) -> b) $ zip as1 as2
 
   AppE (AppE (VarE "break") (FuncE f)) as -> do
     (ListN as1) <- evaluate c as
     (ListN as2) <- evaluate c (ListE $ map (evalF f) as1)
-    return $ (\(a,b) -> TupleN a b []) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ break (\(_,BoolN b) -> b) $ zip as1 as2
+    return $ (\(a,b) -> TupleN a b) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ break (\(_,BoolN b) -> b) $ zip as1 as2
 
   AppE (AppE (VarE "elem") a) as -> do
     a1 <- evaluate c a
@@ -191,21 +190,29 @@ evaluate c e = case e of
   AppE (AppE (VarE "zip") as) bs -> do
     (ListN as1) <- evaluate c as
     (ListN bs1) <- evaluate c bs
-    return $ ListN $ zipWith (\a b -> TupleN a b []) as1 bs1
+    return $ ListN $ zipWith (\a b -> TupleN a b) as1 bs1
 
   AppE (VarE "unzip") as -> do
     (ListN as1) <- evaluate c as
-    return $ TupleN (ListN $ map (\(TupleN a _ _) -> a) as1) (ListN $ map (\(TupleN _ b _) -> b) as1) []
+    return $ TupleN (ListN $ map (\(TupleN a _) -> a) as1) (ListN $ map (\(TupleN _ b) -> b) as1)
 
   AppE (AppE (AppE (VarE "zipWith") (FuncE f)) as) bs -> do
     (ListN as1) <- evaluate c as
     (ListN bs1) <- evaluate c bs
     evaluate c $ ListE $ zipWith (\a b -> let (FuncE f1) = ((evalF f) a) in (evalF f1) b) as1 bs1
 
-  AppE (VarE ('p' : 'r' : 'o' : 'j' : '_' : is)) a -> do
-    (TupleN a1 b1 as) <- evaluate c a
-    let i = read $ tail $ snd $ break ('_' ==) is
-    return $ (a1 : b1 : as) !! (i - 1)
+  -- AppE (VarE ('p' : 'r' : 'o' : 'j' : '_' : is)) a -> do
+  --   (TupleN a1 b1 as) <- evaluate c a
+  --   let i = read $ tail $ snd $ break ('_' ==) is
+  --   return $ (a1 : b1 : as) !! (i - 1)
+
+  AppE (VarE "fst") a -> do
+    (TupleN a1 _) <- evaluate c a
+    return a1
+
+  AppE (VarE "snd") a -> do
+    (TupleN _ a1) <- evaluate c a
+    return a1
 
   AppE (AppE (VarE "add") e1) e2 -> do
     (IntN i1) <- evaluate c e1
@@ -259,13 +266,11 @@ sqlToNormWithType tName ty = ListN . map (toNorm ty)
                       else typeError t [s]
 
     -- On more than one value we need a 'TupleT' type of the exact same length
-    toNorm (TupleT t@(_:_:_)) s
-        | length t == length s =
-            let (a:b:rest) = zipWith f t s
-                f t' s' = if t' `typeMatch` s'
+    toNorm t s | length (unfoldType t) == length s =
+            let f t' s' = if t' `typeMatch` s'
                              then convert s'
-                             else typeError (TupleT t) s
-            in TupleN a b rest
+                             else typeError t s
+            in foldr1 TupleN (zipWith f (unfoldType t) s)
 
     -- Everything else will raise an error
     toNorm t s = typeError t s
