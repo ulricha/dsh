@@ -18,6 +18,7 @@ module Ferry
 
     -- * Template Haskell: Deriving Record Instances
   , deriveRecordInstances
+  , createTableRepresentation
   )
   where
 
@@ -26,4 +27,4 @@ import Ferry.Tuples
 import Ferry.Data (Q)
 import Ferry.Class (QA,toQ,fromQ,View,view)
 import Ferry.QQ (qc)
-import Ferry.TH (deriveRecordInstances)
+import Ferry.TH (deriveRecordInstances, createTableRepresentation)

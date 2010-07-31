@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes, RelaxedPolyRec #-}
 
 module Ferry.TH
     (
@@ -18,15 +18,18 @@ module Ferry.TH
     , deriveViewForRecord
     , deriveViewForRecord'
     , deriveRecordInstances
+    , createTableRepresentation
     ) where
 
 import Control.Applicative
+import Data.Convertible
 import Data.List
+import Database.HDBC
 
 import Ferry.Data
 import Ferry.Class
 import Ferry.Impossible
-import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify)
+import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify, Type, ListT)
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Syntax (sequenceQ)
 
@@ -417,3 +420,52 @@ deriveRecordInstances q = do
     qa <- deriveQAForRecord' q
     v  <- deriveViewForRecord' q
     return $ d ++ qa ++ v
+
+
+-- | Lookup a table and create its data type representation
+--
+-- Example usage:
+--
+-- > $(createTableRepresentation myConnection "t_user" "User" [''Show, ''Eq])
+--
+-- Note that this representation is created on compile time, not on run time!
+createTableRepresentation :: (IConnection conn)
+                          => (IO conn)  -- ^ Database connection
+                          -> String     -- ^ Table name
+                          -> String     -- ^ Data type name for each row of the table
+                          -> [Name]     -- ^ Default deriving instances
+                          -> TH.Q [Dec]
+createTableRepresentation conn t dname dnames = do
+    tdesc <- runIO $ do
+        c <- conn
+        describeTable c t
+    deriveRecordInstances $ createDataType tdesc
+
+  where
+    createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
+    createDataType [] = error "ferry: Empty table description"
+    createDataType ds = pure `fmap` dataD dCxt
+                                          dName
+                                          []
+                                          [dCon ds]
+                                          dNames
+
+    dName     = mkName dname
+    dNames    = dnames
+
+    dCxt      = return []
+    dCon desc = recC dName (map toVarStrictType desc)
+
+    toVarStrictType (n,SqlColDesc { colType = ty, colNullable = na }) =
+        let hsType = case convert ty of
+                          IntT        -> ConT ''Int
+                          BoolT       -> ConT ''Bool
+                          CharT       -> ConT ''Char
+                          ListT CharT -> ConT ''String
+                          _           -> $impossible
+
+            t' = case na of
+                      Just True -> ConT ''Maybe `AppT` hsType
+                      _         -> hsType
+
+        in return (mkName n, NotStrict, t')
