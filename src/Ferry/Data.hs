@@ -54,6 +54,11 @@ instance Convertible Norm Exp where
 normToExp :: Norm -> Exp
 normToExp = convert
 
+unfoldType :: Type -> [Type]
+unfoldType (TupleT t1 t2) = t1 : unfoldType t2
+unfoldType t = [t]
+
+
 instance Convertible SqlValue Norm where
     safeConvert sql =
         case sql of
@@ -76,7 +81,3 @@ instance Convertible Norm SqlValue where
                                             Right (SqlString s') -> Right (SqlString $ c : s')
                                             _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
              _                      -> convError "Cannot convert Norm to SqlValue" n
-  
-unfoldType :: Type -> [Type]
-unfoldType (TupleT t1 t2) = t1 : unfoldType t2
-unfoldType t = [t]

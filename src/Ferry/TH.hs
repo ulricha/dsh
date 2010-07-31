@@ -12,9 +12,16 @@ module Ferry.TH
     , generateDeriveTupleTARange
     , deriveTupleView
     , generateDeriveTupleViewRange
+
+    , deriveQAForRecord
+    , deriveQAForRecord'
+    , deriveViewForRecord
+    , deriveViewForRecord'
+    , deriveRecordInstances
     ) where
 
 import Control.Applicative
+import Data.List
 
 import Ferry.Data
 import Ferry.Class
@@ -25,17 +32,17 @@ import Language.Haskell.TH.Syntax (sequenceQ)
 
 
 -- Create a "a -> b -> ..." type
-arrowChain :: [TypeQ] -> TypeQ
-arrowChain []     = $impossible
-arrowChain [a]    = a
-arrowChain (a:as) = arrowT `appT` a `appT` arrowChain as
+arrowChainT :: [TypeQ] -> TypeQ
+arrowChainT [] = $impossible
+arrowChainT as = foldr1 (\a b -> arrowT `appT` a `appT` b) as
 
 -- Apply a list of 'TypeQ's to a type constructor
-applyChain :: TypeQ -> [TypeQ] -> TypeQ
-applyChain t []     = t
-applyChain t [n]    = t `appT` n
-applyChain t (n:ns) = applyChain (t `appT` n) ns
+applyChainT :: TypeQ -> [TypeQ] -> TypeQ
+applyChainT t ts = foldl' appT t ts
 
+-- Apply a list of 'Exp's to a some 'Exp'
+applyChainE :: ExpQ -> [ExpQ] -> ExpQ
+applyChainE e es = foldl' appE e es
 
 --
 -- * Tuple projection
@@ -66,9 +73,9 @@ projT name l pos = sigD name $
   where
     names   = [ mkName $ "a" ++ show i | i <- [1..l] ]
     qaCxt   = return [ ClassP ''QA [VarT n] | n <- names ]
-    theType = arrowChain [ conT ''Q `appT` (applyChain (TH.tupleT l) $ map varT names)
-                         , conT ''Q `appT` (map varT names !! (pos-1))
-                         ]
+    theType = arrowChainT [ conT ''Q `appT` (applyChainT (TH.tupleT l) $ map varT names)
+                          , conT ''Q `appT` (map varT names !! (pos-1))
+                          ]
 
 -- Function definition for 'proj'
 projF :: Name -> Int -> Int -> DecQ
@@ -137,12 +144,12 @@ tupleT name l = sigD name $
     qaCxt = return [ ClassP ''QA [VarT n] | n <- names ]
 
     theType :: TypeQ
-    theType = arrowChain $ [ conT ''Q `appT` varT n | n <- names ]
-                        ++ [ conT ''Q `appT` finalTuple ]
+    theType = arrowChainT $ [ conT ''Q `appT` varT n | n <- names ]
+                         ++ [ conT ''Q `appT` finalTuple ]
 
     -- Put all the variable names into one tuple
     finalTuple :: TypeQ
-    finalTuple  = applyChain (TH.tupleT l) $ map varT names
+    finalTuple  = applyChainT (TH.tupleT l) $ map varT names
 
 -- | Generate "tuple_X" functions in a given range
 generateTupleRange :: Int           -- ^ From
@@ -167,7 +174,7 @@ deriveTupleQA l
     names@(a:b:rest) = [ mkName $ "a" ++ show i | i <- [1..l] ]
 
     qaCxts = return [ ClassP ''QA [VarT n] | n <- names ]
-    qaType = conT ''QA `appT` applyChain (TH.tupleT l) (map varT names)
+    qaType = conT ''QA `appT` applyChainT (TH.tupleT l) (map varT names)
     qaDecs = [ reifyDec
              , fromNormDec
              , toNormDec
@@ -178,10 +185,8 @@ deriveTupleQA l
     reifyDec    = funD 'reify [reifyClause]
     reifyClause = clause [ wildP ]
                          ( normalB [| foldr1 TupleT $(listE [ [| reify (undefined :: $_n) |]
-                                                            | _n <- map varT names  -- using _n here since
-                                                                             -- -Wall will complain
-                                                                             -- otherwise
-                                                            ])
+                                                            | _n <- map varT names
+                                                            ] )
                                     |] )
                          [ ]
 
@@ -190,11 +195,11 @@ deriveTupleQA l
                             (normalB $ TH.tupE [ [| fromNorm $(varE n) |] | n <- names ])
                             []
 
-    toNormDec      = funD 'toNorm [toNormClause]
-    toNormClause   = clause [ tupP [ varP n | n <- names ] ]
-                         ( normalB [|  (foldr1 TupleN $(listE [ [|toNorm $(varE n) |] | n <- names ]))
-                                   |] )
-                         []
+    toNormDec    = funD 'toNorm [toNormClause]
+    toNormClause = clause [ tupP [ varP n | n <- names ] ]
+                          ( normalB [|  (foldr1 TupleN $(listE [ [|toNorm $(varE n) |] | n <- names ]))
+                                    |] )
+                          []
 
 -- | Generate all 'QA' instances for tuples within range.
 generateDeriveTupleQARange :: Int -> Int -> TH.Q [Dec]
@@ -220,7 +225,7 @@ deriveTupleTA l
     names = [ mkName $ "a" ++ show i | i <- [1..l] ]
 
     taCxts = return $ concat [ [ClassP ''QA [VarT n], ClassP ''BasicType [VarT n]] | n <- names ]
-    taType = conT ''TA `appT` applyChain (TH.tupleT l) (map varT names)
+    taType = conT ''TA `appT` applyChainT (TH.tupleT l) (map varT names)
     taDecs = []
 
 -- | Generate all 'TA' instances for tuples within range.
@@ -253,8 +258,8 @@ deriveTupleView l
     second p = [| AppE (VarE "snd") $p |]
 
     viewCxts = return [ ClassP ''QA [VarT n] | n <- names ]
-    viewType = conT ''View `appT` (conT ''Q `appT` applyChain (TH.tupleT l) (map varT names))
-                           `appT` applyChain (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
+    viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
+                           `appT` applyChainT (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
 
     viewDecs = [ viewDec ]
     
@@ -270,3 +275,145 @@ deriveTupleView l
 generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
 generateDeriveTupleViewRange from to =
     concat `fmap` sequenceQ [ deriveTupleView n | n <- reverse [from..to] ]
+
+
+
+
+--------------------------------------------------------------------------------
+-- * Deriving Instances for Records
+--
+
+-- | Derive the 'QA' instance for a record definition.
+deriveQAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
+deriveQAForRecord q = do
+    d <- q
+    i <- deriveQAForRecord' q
+    return $ d ++ i
+
+-- | Add 'QA' instance to a record without adding the actual data definition.
+-- Usefull in combination with 'deriveQAForRecord''
+deriveQAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
+deriveQAForRecord' q = do
+    d <- q
+    mapM addInst d
+  where
+    addInst d@(DataD [] dName [] [RecC rName rVar@(_:_)] _) | dName == rName = do
+
+         let rCxt  = return []
+             rType = conT ''QA `appT` conT dName
+             rDec  = [ reifyDec
+                     , toNormDec
+                     , fromNormDec
+                     ]
+
+             reifyDec    = funD 'reify [reifyClause]
+             reifyClause = clause [ recP rName [] ]
+                                  ( normalB $ [| foldr1 TupleT $(listE [ [| reify (undefined :: $(return _t)) |]
+                                                                       | (_,_,_t) <- rVar
+                                                                       ])
+                                              |])
+                                  []
+
+             names = [ mkName $ "a" ++ show i | i <- [1..length rVar] ]
+
+             fromNormDec    = funD 'fromNorm [fromNormClause]
+             fromNormClause = clause [ foldr1 (\p1 p2 -> conP 'TupleN [p1,p2]) (map varP names) ]
+                                     ( normalB $ (conE dName) `applyChainE` [ [| fromNorm $(varE n) |]
+                                                                            | n <- names
+                                                                            ]
+                                     )
+                                     []
+
+             toNormDec    = funD 'toNorm [toNormClause]
+             toNormClause = clause [ conP dName (map varP names) ]
+                                   ( normalB [| foldr1 TupleN $(listE [ [| toNorm $(varE n) |]
+                                                                      | n <- names ])
+                                             |] )
+                                   []
+
+         instanceD rCxt
+                   rType
+                   rDec
+
+    addInst _ = error "ferry: Invalid record definition"
+
+-- | Derive the 'View' instance for a record definition. See
+-- 'deriveQAForRecord' for an example.
+deriveViewForRecord :: TH.Q [Dec] -> TH.Q [Dec]
+deriveViewForRecord q = do
+    d <- q
+    i <- deriveViewForRecord' q
+    return $ d ++ i
+
+-- | Add 'View' instance to a record without adding the actual data definition.
+-- Usefull in combination with 'deriveQAForRecord''
+deriveViewForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
+deriveViewForRecord' q = do
+    d <- q
+    concat `fmap` mapM addView d
+  where
+    addView (DataD [] dName [] [RecC rName rVar@(_:_)] dNames) | dName == rName = do
+
+        -- The "View" record definition
+
+        let vName  = mkName $ nameBase dName ++ "V"
+            vRec   = recC vName [ return (prefixQ n, s, makeQ t) | (n,s,t) <- rVar ]
+              where prefixQ :: Name -> Name
+                    prefixQ n = mkName $ "q_" ++ nameBase n
+
+                    makeQ :: TH.Type -> TH.Type
+                    makeQ t = ConT ''Q `AppT` t
+
+            vNames = dNames
+
+        v <- dataD (return [])
+                   vName
+                   []
+                   [vRec]
+                   vNames
+
+        -- The instance definition
+
+        let rCxt  = return []
+            rType = conT ''View `appT` (conT ''Q `appT` conT dName)
+                                `appT` (conT vName)
+            rDec  = [ viewDec ]
+
+            a      = mkName "a"
+
+            viewDec    = funD 'view [viewClause]
+            viewClause = clause [ conP 'Q [varP a] ]
+                                ( normalB $ applyChainE (conE vName)
+                                                        [ [| Q (AppE (VarE n) $(varE a)) |]
+                                                        | n <- map (\(n,_,_) -> nameBase n) rVar
+                                                        ]
+                                )
+                                []
+
+        i <- instanceD rCxt
+                       rType
+                       rDec
+
+        return [v,i]
+
+    addView _ = error "ferry: Invalid record definition"
+
+
+-- | Derive 'QA' and 'View' instances for record definitions
+--
+-- Example usage:
+--
+-- > $(deriveRecordInstances [d|
+-- >
+-- >     data User = User
+-- >         { user_id    :: Int
+-- >         , user_name  :: String
+-- >         }
+-- >
+-- >   |])
+deriveRecordInstances :: TH.Q [Dec] -> TH.Q [Dec]
+deriveRecordInstances q = do
+    d  <- q
+    qa <- deriveQAForRecord' q
+    v  <- deriveViewForRecord' q
+    return $ d ++ qa ++ v

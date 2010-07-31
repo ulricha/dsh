@@ -9,10 +9,15 @@ module Ferry
   (
     module Ferry.Combinators
   , module Ferry.Tuples
+
+    -- * Type Classes
   , Q
   , QA , toQ, fromQ
   , View, view
-  , qc  
+  , qc
+
+    -- * Template Haskell: Deriving Record Instances
+  , deriveRecordInstances
   )
   where
 
@@ -21,3 +26,4 @@ import Ferry.Tuples
 import Ferry.Data (Q)
 import Ferry.Class (QA,toQ,fromQ,View,view)
 import Ferry.QQ (qc)
+import Ferry.TH (deriveRecordInstances)
