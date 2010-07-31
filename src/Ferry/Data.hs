@@ -1,13 +1,13 @@
 module Ferry.Data where
 
 data Exp =
-    VarE String
-  | UnitE
+    UnitE
   | BoolE Bool
   | CharE Char
   | IntE Int  
-  | TupleE Exp Exp [Exp]
+  | TupleE Exp Exp
   | ListE [Exp]
+  | VarE String
   | FuncE (Exp -> Exp)
   | AppE Exp Exp
   | TableE String Type
@@ -17,7 +17,7 @@ data Norm =
   | BoolN Bool
   | CharN Char
   | IntN Int
-  | TupleN Norm Norm [Norm]
+  | TupleN Norm Norm
   | ListN [Norm]
   deriving (Eq,Ord,Show)
 
@@ -26,7 +26,7 @@ data Type =
   | IntT
   | BoolT
   | CharT
-  | TupleT [Type]
+  | TupleT Type Type
   | ListT Type
   deriving (Eq, Show)
 
@@ -41,5 +41,9 @@ normToExp n = case n of
   BoolN  b -> BoolE b 
   CharN c -> CharE c
   IntN i -> IntE i
-  TupleN n1 n2 ns -> TupleE (normToExp n1) (normToExp n2) (map normToExp ns)
+  TupleN n1 n2 -> TupleE (normToExp n1) (normToExp n2)
   ListN ns -> ListE (map normToExp ns)
+  
+unfoldType :: Type -> [Type]
+unfoldType (TupleT t1 t2) = t1 : unfoldType t2
+unfoldType t = [t]

@@ -116,7 +116,7 @@ tuple l = do
 tupleF :: Name -> Int -> DecQ
 tupleF name l = funD name . pure $
     clause [ conP 'Q [varP n] | n <- names ]
-           (normalB [| Q (TupleE $a $b $(listE rest)) |])
+           (normalB [| Q (foldr1 TupleE $(listE (a : b : rest))) |])
            []
 
   where
@@ -169,33 +169,31 @@ deriveQA l
     qaCxts = return [ ClassP ''QA [VarT n] | n <- names ]
     qaType = conT ''QA `appT` applyChain (TH.tupleT l) (map varT names)
     qaDecs = [ reifyDec
-             , fromNDec
-             , toQDec
+             , fromNormDec
+             , toNormDec
              ]
 
     -- The class functions:
 
     reifyDec    = funD 'reify [reifyClause]
     reifyClause = clause [ wildP ]
-                         ( normalB [| TupleT $(listE [ [| reify (undefined :: $_n) |]
-                                                     | _n <- map varT names  -- using _n here since
+                         ( normalB [| foldr1 TupleT $(listE [ [| reify (undefined :: $_n) |]
+                                                            | _n <- map varT names  -- using _n here since
                                                                              -- -Wall will complain
                                                                              -- otherwise
-                                                     ])
+                                                            ])
                                     |] )
                          [ ]
 
-    fromNDec    = funD 'fromN [fromNClause]
-    fromNClause = clause [ conP 'TupleN $ [varP a,varP b, listP (map varP rest) ] ]
-                         ( normalB $ TH.tupE [ [| fromN $(varE n) |] | n <- names ] )
-                         [ ]
+    fromNormDec    = funD 'fromNorm [fromNormClause]
+    fromNormClause = clause [foldr1 (\p1 p2 -> conP 'TupleN [p1,p2]) (map varP names)]
+                            (normalB $ TH.tupE [ [| fromNorm $(varE n) |] | n <- names ])
+                            []
 
-    toQDec      = funD 'toQ [toQClause]
-    toQClause   = clause [ tupP [ varP n | n <- names ] ]
-                         ( normalB [| Q (TupleE (forget $ toQ $(varE a))
-                                                (forget $ toQ $(varE b))
-                                                $(listE [ [| forget $ toQ $(varE n) |] | n <- rest ]) )
-                                    |] )
+    toNormDec      = funD 'toNorm [toNormClause]
+    toNormClause   = clause [ tupP [ varP n | n <- names ] ]
+                         ( normalB [|  (foldr1 TupleN $(listE [ [|toNorm $(varE n) |] | n <- names ]))
+                                   |] )
                          []
 
 -- | Generate all 'QA' instances for tuples within range.
@@ -249,20 +247,24 @@ deriveView l
 
   where
     names = [ mkName $ "a" ++ show i | i <- [1..l] ]
+    a = mkName "a"    
+
+    first  p = [| AppE (VarE "fst") $p |]
+    second p = [| AppE (VarE "snd") $p |]
 
     viewCxts = return [ ClassP ''QA [VarT n] | n <- names ]
     viewType = conT ''View `appT` (conT ''Q `appT` applyChain (TH.tupleT l) (map varT names))
                            `appT` applyChain (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
-    viewDecs = [ viewDec ]
 
+    viewDecs = [ viewDec ]
+    
     viewDec    = funD 'view [viewClause]
     viewClause = clause [ conP 'Q [varP a] ]
-                        ( normalB $ TH.tupE [ [| Q (AppE (VarE $ "proj_" ++ show (l :: Int) ++ "_" ++ show (pos :: Int)) $(varE a)) |]
+                        ( normalB $ TH.tupE [ if pos == l then [| Q $(f (varE a)) |] else [| Q $(first (f (varE a))) |]
                                             | pos <- [1..l]
-                                            ] )
+                                            , let f = foldr (.) id (replicate (pos - 1) second)
+                                            ])
                         []
-
-    a = mkName "a"
 
 -- | Generate all 'View' instances for tuples within range.
 generateDeriveViewRange :: Int -> Int -> TH.Q [Dec]
