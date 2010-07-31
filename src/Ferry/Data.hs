@@ -1,4 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, DeriveDataTypeable #-}
+{-# LANGUAGE ScopedTypeVariables
+           , MultiParamTypeClasses
+           , DeriveDataTypeable
+           , FlexibleInstances #-}
 
 module Ferry.Data where
 
@@ -34,7 +37,7 @@ data Type =
   | CharT
   | TupleT Type Type
   | ListT Type
-  deriving (Eq, Show)
+  deriving (Eq, Show, Typeable)
 
 data Q a = Q Exp
 
@@ -59,6 +62,27 @@ unfoldType (TupleT t1 t2) = t1 : unfoldType t2
 unfoldType t = [t]
 
 
+instance Convertible Type SqlTypeId where
+    safeConvert n =
+        case n of
+             IntT           -> Right SqlNumericT
+             BoolT          -> Right SqlBitT
+             CharT          -> Right SqlCharT
+             ListT CharT    -> Right SqlVarCharT
+             UnitT          -> convError "No `UnitT' representation" n
+             TupleT {}      -> convError "No `TupleT' representation" n
+             ListT {}       -> convError "No `ListT' representation" n
+
+instance Convertible SqlTypeId Type where
+    safeConvert n =
+        case n of
+             SqlNumericT        -> Right IntT
+             SqlBitT            -> Right BoolT
+             SqlCharT           -> Right CharT
+             SqlVarCharT        -> Right (ListT CharT)
+             _                  -> convError "Unsupported `SqlTypeId'" n
+
+
 instance Convertible SqlValue Norm where
     safeConvert sql =
         case sql of
@@ -81,3 +105,14 @@ instance Convertible Norm SqlValue where
                                             Right (SqlString s') -> Right (SqlString $ c : s')
                                             _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
              _                      -> convError "Cannot convert Norm to SqlValue" n
+
+
+instance Convertible (Maybe Norm) SqlValue where
+    safeConvert Nothing  = Right SqlNull
+    safeConvert (Just n) = safeConvert n
+
+instance Convertible SqlValue (Maybe Norm) where
+    safeConvert SqlNull = Right Nothing
+    safeConvert s       = case (safeConvert s :: ConvertResult Norm) of
+                               Right s'  -> Right $ Just s'
+                               Left  err -> Left err
