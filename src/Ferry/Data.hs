@@ -13,7 +13,7 @@ data Exp =
     UnitE
   | BoolE Bool
   | CharE Char
-  | IntE Int  
+  | IntE Int
   | TupleE Exp Exp
   | ListE [Exp]
   | VarE String
@@ -48,7 +48,7 @@ instance Convertible Norm Exp where
     safeConvert n = Right $
         case n of
              UnitN          -> UnitE
-             BoolN  b       -> BoolE b 
+             BoolN  b       -> BoolE b
              CharN c        -> CharE c
              IntN i         -> IntE i
              TupleN n1 n2   -> TupleE (normToExp n1) (normToExp n2)

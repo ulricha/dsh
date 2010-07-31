@@ -255,7 +255,7 @@ deriveTupleView l
 
   where
     names = [ mkName $ "a" ++ show i | i <- [1..l] ]
-    a = mkName "a"    
+    a = mkName "a"
 
     first  p = [| AppE (VarE "fst") $p |]
     second p = [| AppE (VarE "snd") $p |]
@@ -265,7 +265,7 @@ deriveTupleView l
                            `appT` applyChainT (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
 
     viewDecs = [ viewDec ]
-    
+
     viewDec    = funD 'view [viewClause]
     viewClause = clause [ conP 'Q [varP a] ]
                         ( normalB $ TH.tupE [ if pos == l then [| Q $(f (varE a)) |] else [| Q $(first (f (varE a))) |]

@@ -2,7 +2,7 @@
 {-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
 
 module Ferry.Class where
-  
+
 import Database.HDBC
 
 import Ferry.Data
@@ -18,7 +18,7 @@ toQ = Q . normToExp . toNorm
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
-  
+
 
 instance QA () where
   reify _ = UnitT
@@ -29,10 +29,10 @@ instance QA Bool where
   reify _ = BoolT
   toNorm b = BoolN b
   fromNorm (BoolN b) = b
-  
+
 instance QA Char where
   reify _ = CharT
-  toNorm c = CharN c  
+  toNorm c = CharN c
   fromNorm (CharN c) = c
 
 instance QA Int where
@@ -56,9 +56,9 @@ instance (QA a) => QA (Maybe a) where
   toNorm Nothing  = UnitN
   fromNorm UnitN = Nothing
   fromNorm n     = Just $ fromNorm n
-  
+
 class BasicType a where
-  
+
 instance BasicType () where
 instance BasicType Int where
 instance BasicType Bool where

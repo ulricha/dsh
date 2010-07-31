@@ -1,9 +1,11 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# Language TemplateHaskell, CPP, ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses #-}
+{-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
 
 module Ferry.Combinators where
 
 import Ferry.Data
 import Ferry.Class
+import Ferry.TH
 
 import Prelude (Eq, Ord, Num, Bool, Int, (.))
 
@@ -147,6 +149,30 @@ zipWith f (Q as) (Q bs) =
 
 unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 unzip (Q as) = Q (AppE (VarE "unzip") as)
+
+-- * Tuple Projection Functions
+
+fst :: (QA a, QA b) => Q (a,b) -> Q a
+fst (Q a) = Q (AppE (VarE "fst") a)
+
+snd :: (QA a, QA b) => Q (a,b) -> Q b
+snd (Q a) = Q (AppE (VarE "snd") a)
+
+-- * Tuple Construction
+
+#define N 16
+
+$(generateTupleRange 2 N)
+
+pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+pair = tuple_2
+
+-- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
+
+$(generateDeriveTupleQARange   3 N)
+$(generateDeriveTupleTARange   3 N)
+$(generateDeriveTupleViewRange 3 N)
+
 
 -- * Missing Combinators
 -- $missing

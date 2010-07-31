@@ -2,4 +2,3 @@ Current tasks:
 
 - Escape the table name (String) in the evaluation function
 - "Convertible" instances for "SqlValue"/"SqlTypeId" ?
-

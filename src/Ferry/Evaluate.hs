@@ -26,7 +26,7 @@ evaluate c e = case e of
     return (TupleN e3 e4)
 
   ListE es -> mapM (evaluate c) es >>= (return . ListN)
-  
+
   AppE (AppE (VarE "cons") a) as -> do
     a1 <- evaluate c a
     (ListN as1) <- evaluate c as
@@ -154,13 +154,13 @@ evaluate c e = case e of
   AppE (AppE (VarE "splitAt") i) as -> do
     (IntN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
-    let t = splitAt i1 as1 
+    let t = splitAt i1 as1
     return $ TupleN (ListN $ fst t) (ListN $ snd t)
 
   AppE (AppE (VarE "takeWhile") (FuncE f)) as -> do
     (ListN as1) <- evaluate c as
     (ListN as2) <- evaluate c (ListE $ map (evalF f) as1)
-    return $ ListN $ map fst $ takeWhile (\(_,BoolN b) -> b) $ zip as1 as2 
+    return $ ListN $ map fst $ takeWhile (\(_,BoolN b) -> b) $ zip as1 as2
 
   AppE (AppE (VarE "dropWhile") (FuncE f)) as -> do
     (ListN as1) <- evaluate c as
@@ -226,15 +226,15 @@ evaluate c e = case e of
 
   AppE (VarE "abs") e1 -> do
     (IntN i1) <- evaluate c e1
-    return $ IntN $ abs i1 
+    return $ IntN $ abs i1
 
   AppE (VarE "negate") e1 -> do
     (IntN i1) <- evaluate c e1
-    return $ IntN $ negate i1 
+    return $ IntN $ negate i1
 
   AppE (VarE "signum") e1 -> do
     (IntN i1) <- evaluate c e1
-    return $ IntN $ signum i1 
+    return $ IntN $ signum i1
 
   TableE tName tType -> do
 
@@ -243,7 +243,7 @@ evaluate c e = case e of
            (quickQuery' c ("SELECT * from " ++ tName) [])
 
 
-  
+
 evalF :: (Exp -> Exp) -> (Norm -> Exp)
 evalF f n = f (normToExp n)
 

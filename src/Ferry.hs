@@ -8,12 +8,16 @@
 module Ferry
   (
     module Ferry.Combinators
-  , module Ferry.Tuples
+
+    -- * Data Types
+  , Q
 
     -- * Type Classes
-  , Q
   , QA , toQ, fromQ
+  , TA, table, BasicType
   , View, view
+
+    -- * Quasiquoter
   , qc
 
     -- * Template Haskell: Deriving Record Instances
@@ -23,8 +27,7 @@ module Ferry
   where
 
 import Ferry.Combinators
-import Ferry.Tuples
 import Ferry.Data (Q)
-import Ferry.Class (QA,toQ,fromQ,View,view)
+import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view)
 import Ferry.QQ (qc)
 import Ferry.TH (deriveRecordInstances, createTableRepresentation)

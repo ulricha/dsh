@@ -45,4 +45,4 @@ main = do
   fromQ conn q2 >>= print
   fromQ conn q3 >>= print
   fromQ conn q4 >>= print
-  fromQ conn q5 >>= print  
+  fromQ conn q5 >>= print

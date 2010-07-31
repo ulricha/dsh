@@ -27,7 +27,6 @@ Library
                      Ferry.Impossible
                      Ferry.Combinators
                      Ferry.TH
-                     Ferry.Tuples
                      Ferry.Data
                      Ferry.Evaluate
                      Ferry.Class
