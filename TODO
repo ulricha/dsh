@@ -1,4 +1,4 @@
 Current tasks:
 
 - Escape the table name (String) in the evaluation function
-- "Convertible" instances for "SqlValue"/"SqlTypeId" ?
+- General mapping of SQL types to our haskell types
