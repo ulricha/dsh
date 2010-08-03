@@ -96,18 +96,24 @@ instance Num (Q Int) where
 
 class View a b | a -> b where
   view :: a -> b
+  fromView :: b -> a
 
 instance View (Q ()) (Q ()) where
   view = id
+  fromView = id
 
 instance View (Q Bool) (Q Bool) where
   view = id
+  fromView = id
 
 instance View (Q Char) (Q Char) where
   view = id
+  fromView = id
 
 instance View (Q Int) (Q Int) where
   view = id
+  fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
   view (Q a) = (Q (AppE (VarE "fst") a), Q (AppE (VarE "snd") a))
+  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2)
