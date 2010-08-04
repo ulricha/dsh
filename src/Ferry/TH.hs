@@ -264,7 +264,7 @@ deriveTupleView l
     viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
                            `appT` applyChainT (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
 
-    viewDecs = [ viewDec ]
+    viewDecs = [ viewDec, fromViewDec ]
 
     viewDec    = funD 'view [viewClause]
     viewClause = clause [ conP 'Q [varP a] ]
@@ -273,6 +273,11 @@ deriveTupleView l
                                             , let f = foldr (.) id (replicate (pos - 1) second)
                                             ])
                         []
+
+    fromViewDec = funD 'fromView [fromViewClause]
+    fromViewClause = clause [ tupP (map (\n -> conP 'Q [varP n]) names) ]
+                            ( normalB [| Q  $(foldr1 (\e1 e2 -> appE (appE (conE 'TupleE) e1) e2) (map varE names)) |] )
+                            []
 
 -- | Generate all 'View' instances for tuples within range.
 generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
