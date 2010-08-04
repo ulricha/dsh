@@ -50,12 +50,6 @@ instance (QA a) => QA [a] where
   toNorm as = ListN (map toNorm as)
   fromNorm (ListN as) = map fromNorm as
 
-instance (QA a) => QA (Maybe a) where
-  reify _ = reify (undefined :: a)
-  toNorm (Just a) = toNorm a
-  toNorm Nothing  = UnitN
-  fromNorm UnitN = Nothing
-  fromNorm n     = Just $ fromNorm n
 
 class BasicType a where
 

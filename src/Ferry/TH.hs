@@ -464,8 +464,4 @@ createTableRepresentation conn t dname dnames = do
                           ListT CharT -> ConT ''String
                           _           -> $impossible
 
-            t' = case na of
-                      Just True -> ConT ''Maybe `AppT` hsType
-                      _         -> hsType
-
-        in return (mkName n, NotStrict, t')
+        in return (mkName n, NotStrict, hsType)
