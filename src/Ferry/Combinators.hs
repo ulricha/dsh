@@ -158,14 +158,7 @@ fst (Q a) = Q (AppE (VarE "fst") a)
 snd :: (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE (VarE "snd") a)
 
--- * Tuple Construction
-
 #define N 16
-
-$(generateTupleRange 2 N)
-
-pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
-pair = tuple_2
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
