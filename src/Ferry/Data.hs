@@ -104,17 +104,5 @@ instance Convertible Norm SqlValue where
              ListN [CharN c]        -> Right $ SqlString [c]
              ListN (CharN c : s)    -> case safeConvert (ListN s) of
                                             Right (SqlString s') -> Right (SqlString $ c : s')
-                                            _                    ->
-                                                convError "Only lists of `CharN' can be converted to `SqlString'" n
+                                            _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
              _                      -> convError "Cannot convert `Norm' to `SqlValue'" n
-
-
-instance Convertible (Maybe Norm) SqlValue where
-    safeConvert Nothing  = Right SqlNull
-    safeConvert (Just n) = safeConvert n
-
-instance Convertible SqlValue (Maybe Norm) where
-    safeConvert SqlNull = Right Nothing
-    safeConvert s       = case (safeConvert s :: ConvertResult Norm) of
-                               Right s'  -> Right $ Just s'
-                               Left  err -> Left err

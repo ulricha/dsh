@@ -3,11 +3,7 @@
 
 module Ferry.TH
     (
-      proj
-    , generateProjRange
-    , tuple
-    , generateTupleRange
-    , deriveTupleQA
+      deriveTupleQA
     , generateDeriveTupleQARange
     , deriveTupleTA
     , generateDeriveTupleTARange
@@ -56,121 +52,6 @@ applyChainE e es = foldl' appE e es
 instance Applicative TH.Q where
     pure  = return
     (<*>) = ap
-
---
--- * Tuple projection
---
-
-proj' :: Int -> Int -> TH.Q [Dec]
-proj' l pos
-    | l < 2 || pos < 1 || pos > l = $impossible
-    | otherwise = do
-        let name = mkName $ "proj_" ++ show l ++ "_" ++ show pos
-        t <- projT name l pos
-        f <- projF name l pos
-        return [t,f]
-
-proj :: Int -> Int -> ExpQ
-proj l pos = do
-    p <- proj' l pos
-    letE (map return p)
-         (varE . mkName $ "proj_" ++ show l ++ "_" ++ show pos)
-
--- Type definition for 'proj'
-projT :: Name -> Int -> Int -> DecQ
-projT name l pos = sigD name $
-    forallT [ PlainTV n | n <- names ]
-            qaCxt
-            theType
-
-  where
-    names   = [ mkName $ "a" ++ show i | i <- [1..l] ]
-    qaCxt   = return [ ClassP ''QA [VarT n] | n <- names ]
-    theType = arrowChainT [ conT ''Q `appT` (applyChainT (TH.tupleT l) $ map varT names)
-                          , conT ''Q `appT` (map varT names !! (pos-1))
-                          ]
-
--- Function definition for 'proj'
-projF :: Name -> Int -> Int -> DecQ
-projF name l pos = funD name . pure $
-    clause [ conP 'Q [varP a] ]
-           (normalB [| Q (AppE (VarE $ "proj_" ++ show (l :: Int) ++ "_" ++ show (pos :: Int))
-                               $(varE a))
-                     |])
-           []
-
-  where
-    a = mkName "a"
-
-
--- | Generate "proj_X_p" functions in a given range. Only the length of the
--- tuples are necessary, all \"selectors\" are generated automatically
-generateProjRange :: Int -> Int -> TH.Q [Dec]
-generateProjRange from to =
-    concat `fmap` sequenceQ [ proj' n p | n <- reverse [from..to]
-                                        , p <- reverse [1..n]
-                                        ]
-
-
---
--- * Tuple creation
---
-
--- | Create a function to generate 'Q (a,b,c,...)' tuples of a given length
-tuple' :: Int -> TH.Q [Dec]
-tuple' l
-    | l < 2     = $impossible
-    | otherwise = do
-        let name = mkName $ "tuple_" ++ show l
-        t    <- tupleT name l
-        f    <- tupleF name l
-        return [t, f]
-
-tuple :: Int -> ExpQ
-tuple l = do
-    t <- tuple' l
-    letE (map return t)
-         (varE . mkName $ "tuple_" ++ show l)
-
--- Function definition: Create a \"Q (a,b,c,...)\" tuple
-tupleF :: Name -> Int -> DecQ
-tupleF name l = funD name . pure $
-    clause [ conP 'Q [varP n] | n <- names ]
-           (normalB [| Q (foldr1 TupleE $(listE (a : b : rest))) |])
-           []
-
-  where
-    names       = [ mkName $ "a" ++ show i | i <- [1..l] ]
-    (a:b:rest)  = map varE names
-
--- Type definition for the 'tupleF' function
-tupleT :: Name -> Int -> DecQ
-tupleT name l = sigD name $
-    forallT [ PlainTV n | n <- names ]
-            qaCxt
-            theType
-
-  where
-    names = [ mkName $ "a" ++ show i | i <- [1..l] ]
-
-    qaCxt :: CxtQ
-    qaCxt = return [ ClassP ''QA [VarT n] | n <- names ]
-
-    theType :: TypeQ
-    theType = arrowChainT $ [ conT ''Q `appT` varT n | n <- names ]
-                         ++ [ conT ''Q `appT` finalTuple ]
-
-    -- Put all the variable names into one tuple
-    finalTuple :: TypeQ
-    finalTuple  = applyChainT (TH.tupleT l) $ map varT names
-
--- | Generate "tuple_X" functions in a given range
-generateTupleRange :: Int           -- ^ From
-                   -> Int           -- ^ To
-                   -> TH.Q [Dec]
-generateTupleRange from to =
-    concat `fmap` sequenceQ [ tuple' n | n <- reverse [from..to] ]
-
 
 --
 -- * QA instances
@@ -274,7 +155,7 @@ deriveTupleView l
     viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
                            `appT` applyChainT (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
 
-    viewDecs = [ viewDec ]
+    viewDecs = [ viewDec, fromViewDec ]
 
     viewDec    = funD 'view [viewClause]
     viewClause = clause [ conP 'Q [varP a] ]
@@ -283,6 +164,11 @@ deriveTupleView l
                                             , let f = foldr (.) id (replicate (pos - 1) second)
                                             ])
                         []
+
+    fromViewDec = funD 'fromView [fromViewClause]
+    fromViewClause = clause [ tupP (map (\n -> conP 'Q [varP n]) names) ]
+                            ( normalB [| Q  $(foldr1 (\e1 e2 -> appE (appE (conE 'TupleE) e1) e2) (map varE names)) |] )
+                            []
 
 -- | Generate all 'View' instances for tuples within range.
 generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]

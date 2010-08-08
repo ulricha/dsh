@@ -52,6 +52,7 @@ instance (QA a) => QA [a] where
   toNorm as = ListN (map toNorm as)
   fromNorm (ListN as) = map fromNorm as
 
+
 class BasicType a where
 
 instance BasicType () where

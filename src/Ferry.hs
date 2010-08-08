@@ -15,7 +15,7 @@ module Ferry
     -- * Type Classes
   , QA , toQ, fromQ
   , TA, table, BasicType
-  , View, view
+  , View, view,fromView
 
     -- * Quasiquoter
   , qc
@@ -28,6 +28,6 @@ module Ferry
 
 import Ferry.Combinators
 import Ferry.Data (Q)
-import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view)
+import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view,fromView)
 import Ferry.QQ (qc)
 import Ferry.TH (deriveRecordInstances, createTableRepresentation)
