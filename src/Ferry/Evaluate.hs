@@ -9,7 +9,6 @@ import Data.Convertible
 import Database.HDBC
 import GHC.Exts
 
-
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
          -> Exp
@@ -240,7 +239,7 @@ evaluate c e = case e of
 
       -- escape tName/raise error if invalid table name?
       fmap (sqlToNormWithType tName tType)
-           (quickQuery' c ("SELECT * from " ++ tName) [])
+           (quickQuery' c ("SELECT * FROM " ++ tName) [])
 
 
 
@@ -286,9 +285,10 @@ sqlToNormWithType tName ty = ListN . map (toNorm ty)
 typeMatch :: Type -> SqlValue -> Bool
 typeMatch t s =
     case (t,s) of
-         (UnitT         , SqlNull)      -> True
-         (IntT          , SqlInt32 _)   -> True
-         (BoolT         , SqlBool _)    -> True
-         (CharT         , SqlChar _)    -> True
-         (ListT CharT   , SqlString _)  -> True
-         _                              -> False
+         (UnitT         , SqlNull)          -> True
+         (IntT          , SqlInteger _)     -> True
+         (BoolT         , SqlBool _)        -> True
+         (CharT         , SqlChar _)        -> True
+         (ListT CharT   , SqlString _)      -> True
+         (ListT CharT   , SqlByteString _)  -> True
+         _                                  -> False

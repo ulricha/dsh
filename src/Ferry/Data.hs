@@ -8,6 +8,7 @@ module Ferry.Data where
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
+import Data.ByteString.Char8 (unpack)
 
 data Exp =
     UnitE
@@ -65,7 +66,7 @@ unfoldType t = [t]
 instance Convertible Type SqlTypeId where
     safeConvert n =
         case n of
-             IntT           -> Right SqlNumericT
+             IntT           -> Right SqlBigIntT
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
              ListT CharT    -> Right SqlVarCharT
@@ -76,7 +77,7 @@ instance Convertible Type SqlTypeId where
 instance Convertible SqlTypeId Type where
     safeConvert n =
         case n of
-             SqlNumericT        -> Right IntT
+             SqlBigIntT         -> Right IntT
              SqlBitT            -> Right BoolT
              SqlCharT           -> Right CharT
              SqlVarCharT        -> Right (ListT CharT)
@@ -86,25 +87,26 @@ instance Convertible SqlTypeId Type where
 instance Convertible SqlValue Norm where
     safeConvert sql =
         case sql of
-             SqlNull        -> Right $ UnitN
-             SqlInt32 i     -> Right $ IntN (fromIntegral i)
-             SqlBool b      -> Right $ BoolN b
-             SqlChar c      -> Right $ CharN c
-             SqlString s    -> Right $ ListN (map CharN s)
-             _              -> convError "Unsupported SqlValue" sql
+             SqlNull            -> Right $ UnitN
+             SqlInteger i       -> Right $ IntN (fromIntegral i)
+             SqlBool b          -> Right $ BoolN b
+             SqlChar c          -> Right $ CharN c
+             SqlByteString s    -> Right $ ListN (map CharN $ unpack s)
+             _                  -> convError "Unsupported `SqlValue'" sql
 
 instance Convertible Norm SqlValue where
     safeConvert n =
         case n of
              UnitN                  -> Right $ SqlNull
-             IntN i                 -> Right $ SqlInt32 (fromIntegral i)
+             IntN i                 -> Right $ SqlInteger (fromIntegral i)
              BoolN b                -> Right $ SqlBool b
              CharN c                -> Right $ SqlChar c
              ListN [CharN c]        -> Right $ SqlString [c]
              ListN (CharN c : s)    -> case safeConvert (ListN s) of
                                             Right (SqlString s') -> Right (SqlString $ c : s')
-                                            _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
-             _                      -> convError "Cannot convert Norm to SqlValue" n
+                                            _                    ->
+                                                convError "Only lists of `CharN' can be converted to `SqlString'" n
+             _                      -> convError "Cannot convert `Norm' to `SqlValue'" n
 
 
 instance Convertible (Maybe Norm) SqlValue where
