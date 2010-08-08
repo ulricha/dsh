@@ -16,8 +16,9 @@ module Ferry.TH
     , deriveViewForRecord'
     , deriveTAForRecord
     , deriveTAForRecord'
-    , deriveRecordInstances
+
     , createTableRepresentation
+    , createTableRepresentation'
     ) where
 
 import Control.Applicative
@@ -53,7 +54,8 @@ instance Applicative TH.Q where
     pure  = return
     (<*>) = ap
 
---
+
+--------------------------------------------------------------------------------
 -- * QA instances
 --
 
@@ -101,7 +103,7 @@ generateDeriveTupleQARange from to =
     concat `fmap` sequenceQ [ deriveTupleQA n | n <- reverse [from..to] ]
 
 
---
+--------------------------------------------------------------------------------
 -- * TA instances
 --
 
@@ -128,10 +130,9 @@ generateDeriveTupleTARange from to =
     concat `fmap` sequenceQ [ deriveTupleTA n | n <- reverse [from..to] ]
 
 
---
+--------------------------------------------------------------------------------
 -- * View pattern
 --
-
 
 -- Original code:
 -- instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
@@ -174,8 +175,6 @@ deriveTupleView l
 generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
 generateDeriveTupleViewRange from to =
     concat `fmap` sequenceQ [ deriveTupleView n | n <- reverse [from..to] ]
-
-
 
 
 --------------------------------------------------------------------------------
@@ -344,26 +343,9 @@ deriveTAForRecord' q = do
     addTA _ = error "ferry: Failed to derive 'TA' - Invalid record definition"
 
 
--- | Derive all necessary instances for record definitions
+--------------------------------------------------------------------------------
+-- * Exported enduser functions
 --
--- Example usage:
---
--- > $(deriveRecordInstances [d|
--- >
--- >     data User = User
--- >         { user_id    :: Int
--- >         , user_name  :: String
--- >         }
--- >
--- >   |])
-deriveRecordInstances :: TH.Q [Dec] -> TH.Q [Dec]
-deriveRecordInstances q = do
-    d  <- q
-    qa <- deriveQAForRecord' q
-    v  <- deriveViewForRecord' q
-    ta <- deriveTAForRecord' q
-    return $ d ++ qa ++ v ++ ta
-
 
 -- | Lookup a table and create its data type representation
 --
@@ -382,7 +364,7 @@ createTableRepresentation conn t dname dnames = do
     tdesc <- runIO $ do
         c <- conn
         describeTable c t
-    deriveRecordInstances $ createDataType tdesc
+    createTableRepresentation' $ createDataType tdesc
 
   where
     createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
@@ -409,3 +391,25 @@ createTableRepresentation conn t dname dnames = do
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')
+
+
+-- | Derive all necessary instances for record definitions to represent table
+-- values.
+--
+-- Example usage:
+--
+-- > $(createTableRepresentation' [d|
+-- >
+-- >     data User = User
+-- >         { user_id    :: Int
+-- >         , user_name  :: String
+-- >         }
+-- >
+-- >   |])
+createTableRepresentation' :: TH.Q [Dec] -> TH.Q [Dec]
+createTableRepresentation' q = do
+    d  <- q
+    qa <- deriveQAForRecord' q
+    v  <- deriveViewForRecord' q
+    ta <- deriveTAForRecord' q
+    return $ d ++ qa ++ v ++ ta
