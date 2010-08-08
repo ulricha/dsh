@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, RankNTypes, RelaxedPolyRec #-}
+{-# OPTIONS -fno-warn-orphans #-}
 
 module Ferry.TH
     (
@@ -17,11 +18,14 @@ module Ferry.TH
     , deriveQAForRecord'
     , deriveViewForRecord
     , deriveViewForRecord'
+    , deriveTAForRecord
+    , deriveTAForRecord'
     , deriveRecordInstances
     , createTableRepresentation
     ) where
 
 import Control.Applicative
+import Control.Monad
 import Data.Convertible
 import Data.List
 import Database.HDBC
@@ -46,6 +50,12 @@ applyChainT t ts = foldl' appT t ts
 -- Apply a list of 'Exp's to a some 'Exp'
 applyChainE :: ExpQ -> [ExpQ] -> ExpQ
 applyChainE e es = foldl' appE e es
+
+
+-- Some Applicative magic :)
+instance Applicative TH.Q where
+    pure  = return
+    (<*>) = ap
 
 --
 -- * Tuple projection
@@ -288,10 +298,8 @@ generateDeriveTupleViewRange from to =
 
 -- | Derive the 'QA' instance for a record definition.
 deriveQAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveQAForRecord q = do
-    d <- q
-    i <- deriveQAForRecord' q
-    return $ d ++ i
+deriveQAForRecord q = (++) <$> q
+                           <*> deriveQAForRecord' q
 
 -- | Add 'QA' instance to a record without adding the actual data definition.
 -- Usefull in combination with 'deriveQAForRecord''
@@ -319,13 +327,21 @@ deriveQAForRecord' q = do
 
              names = [ mkName $ "a" ++ show i | i <- [1..length rVar] ]
 
-             fromNormDec    = funD 'fromNorm [fromNormClause]
+             fromNormDec    = funD 'fromNorm [fromNormClause, failClause]
              fromNormClause = clause [ foldr1 (\p1 p2 -> conP 'TupleN [p1,p2]) (map varP names) ]
                                      ( normalB $ (conE dName) `applyChainE` [ [| fromNorm $(varE n) |]
                                                                             | n <- names
                                                                             ]
                                      )
                                      []
+
+             -- Fail with a verbose message where this happened
+             failClause = clause [ wildP ]
+                                 ( do loc <- location
+                                      let pos = show (TH.loc_filename loc, fst (TH.loc_start loc), snd (TH.loc_start loc))
+                                      normalB [| error $ "ferry: Impossible `fromNorm' at location " ++ pos |]
+                                 )
+                                 []
 
              toNormDec    = funD 'toNorm [toNormClause]
              toNormClause = clause [ conP dName (map varP names) ]
@@ -338,15 +354,13 @@ deriveQAForRecord' q = do
                    rType
                    rDec
 
-    addInst _ = error "ferry: Invalid record definition"
+    addInst _ = error "ferry: Failed to derive 'QA' - Invalid record definition"
 
 -- | Derive the 'View' instance for a record definition. See
 -- 'deriveQAForRecord' for an example.
 deriveViewForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveViewForRecord q = do
-    d <- q
-    i <- deriveViewForRecord' q
-    return $ d ++ i
+deriveViewForRecord q = (++) <$> q
+                             <*> deriveViewForRecord' q
 
 -- | Add 'View' instance to a record without adding the actual data definition.
 -- Usefull in combination with 'deriveQAForRecord''
@@ -360,12 +374,13 @@ deriveViewForRecord' q = do
         -- The "View" record definition
 
         let vName  = mkName $ nameBase dName ++ "V"
-            vRec   = recC vName [ return (prefixQ n, s, makeQ t) | (n,s,t) <- rVar ]
-              where prefixQ :: Name -> Name
-                    prefixQ n = mkName $ "q_" ++ nameBase n
+            vRec   = recC vName [ return (prefixV n, s, makeQ t) | (n,s,t) <- rVar ]
 
-                    makeQ :: TH.Type -> TH.Type
-                    makeQ t = ConT ''Q `AppT` t
+            prefixV :: Name -> Name
+            prefixV n = mkName $ "v_" ++ nameBase n
+
+            makeQ :: TH.Type -> TH.Type
+            makeQ t = ConT ''Q `AppT` t
 
             vNames = dNames
 
@@ -380,9 +395,11 @@ deriveViewForRecord' q = do
         let rCxt  = return []
             rType = conT ''View `appT` (conT ''Q `appT` conT dName)
                                 `appT` (conT vName)
-            rDec  = [ viewDec ]
+            rDec  = [ viewDec
+                    , fromViewDec
+                    ]
 
-            a      = mkName "a"
+            a = mkName "a"
 
             viewDec    = funD 'view [viewClause]
             viewClause = clause [ conP 'Q [varP a] ]
@@ -393,16 +410,55 @@ deriveViewForRecord' q = do
                                 )
                                 []
 
+            -- names for variables used in the `fromView' function
+            fvNames@(_:qs) = [ mkName $ "q" ++ show i | i <- [1.. length rVar] ]
+
+            fromViewDec    = funD 'fromView [fromViewClause, failClause]
+            fromViewClause = clause [ conP vName $  (conP 'Q [conP 'AppE [wildP, varP a]]) : [ wildP | _ <- qs ] ]
+                                    ( normalB [| Q $(varE a) |] )
+                                    []
+
+            -- Fail with a verbose message where this happened
+            failClause = clause [ wildP ]
+                                ( do loc <- location
+                                     let pos = show (TH.loc_filename loc, fst (TH.loc_start loc), snd (TH.loc_start loc))
+                                     normalB [| error $ "ferry: Impossible `fromView' at location " ++ pos |]
+                                )
+                                []
+
         i <- instanceD rCxt
                        rType
                        rDec
 
         return [v,i]
 
-    addView _ = error "ferry: Invalid record definition"
+    addView _ = error "ferry: Failed to derive 'View' - Invalid record definition"
 
 
--- | Derive 'QA' and 'View' instances for record definitions
+-- | Derive 'TA' instances
+deriveTAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
+deriveTAForRecord q = (++) <$> q
+                           <*> deriveTAForRecord' q
+
+deriveTAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
+deriveTAForRecord' q = do
+    d <- q
+    mapM addTA d
+  where
+    addTA (DataD [] dName [] [RecC rName (_:_)] _) | dName == rName =
+
+        let taCxt  = return []
+            taType = conT ''TA `appT` conT dName
+            taDec  = [ ]
+
+        in instanceD taCxt
+                     taType
+                     taDec
+
+    addTA _ = error "ferry: Failed to derive 'TA' - Invalid record definition"
+
+
+-- | Derive all necessary instances for record definitions
 --
 -- Example usage:
 --
@@ -419,7 +475,8 @@ deriveRecordInstances q = do
     d  <- q
     qa <- deriveQAForRecord' q
     v  <- deriveViewForRecord' q
-    return $ d ++ qa ++ v
+    ta <- deriveTAForRecord' q
+    return $ d ++ qa ++ v ++ ta
 
 
 -- | Lookup a table and create its data type representation
@@ -456,16 +513,13 @@ createTableRepresentation conn t dname dnames = do
     dCxt      = return []
     dCon desc = recC dName (map toVarStrictType desc)
 
-    toVarStrictType (n,SqlColDesc { colType = ty, colNullable = na }) =
-        let hsType = case convert ty of
-                          IntT        -> ConT ''Int
-                          BoolT       -> ConT ''Bool
-                          CharT       -> ConT ''Char
-                          ListT CharT -> ConT ''String
-                          _           -> $impossible
-
-            t' = case na of
-                      Just True -> ConT ''Maybe `AppT` hsType
-                      _         -> hsType
+    -- no support for nullable columns yet:
+    toVarStrictType (n,SqlColDesc { colType = ty, colNullable = _ }) =
+        let t' = case convert ty of
+                      IntT        -> ConT ''Int
+                      BoolT       -> ConT ''Bool
+                      CharT       -> ConT ''Char
+                      ListT CharT -> ConT ''String
+                      _           -> $impossible
 
         in return (mkName n, NotStrict, t')
