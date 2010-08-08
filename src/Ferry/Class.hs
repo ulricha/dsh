@@ -1,4 +1,6 @@
-{-# Language ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# Language ScopedTypeVariables, MultiParamTypeClasses,
+  FunctionalDependencies, FlexibleInstances, TypeSynonymInstances
+  #-}
 {-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
 
 module Ferry.Class where
@@ -56,6 +58,7 @@ instance BasicType () where
 instance BasicType Int where
 instance BasicType Bool where
 instance BasicType Char where
+instance BasicType String where
 
 -- * Refering to Real Database Tables
 
@@ -71,7 +74,7 @@ instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 
 -- * Eq, Ord, Show and Num Instances for Databse Queries
 
-instance Show (Q Int) where
+instance Show (Q a) where
   show _ = "Query"
 
 instance Eq (Q Int) where
