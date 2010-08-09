@@ -8,7 +8,7 @@ import Database.HDBC.PostgreSQL
 import Ferry hiding (map)
 
 $(createTableRepresentation
-    (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname='ferry'")
+    (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'postgres'")
     "users"     -- table name
     "User"      -- data name
     [''Show]
@@ -18,7 +18,7 @@ main :: IO ()
 main = do
 
     -- Get the PostgreSQL connection
-    c <- connectPostgreSQL "user = 'postgres' host = 'localhost' dbname='ferry'"
+    c <- connectPostgreSQL "user = 'postgres' host = 'localhost' dbname='postgres'"
 
     -- Just get the whole table content here to see if everything works correct:
     u  <- fromQ c (table "users" :: Q [(Int,String)])

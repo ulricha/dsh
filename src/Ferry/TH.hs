@@ -203,7 +203,7 @@ deriveQAForRecord' q = do
                      ]
 
              reifyDec    = funD 'reify [reifyClause]
-             reifyClause = clause [ recP rName [] ]
+             reifyClause = clause [ wildP ]
                                   ( normalB $ [| foldr1 TupleT $(listE [ [| reify (undefined :: $(return _t)) |]
                                                                        | (_,_,_t) <- rVar
                                                                        ])
