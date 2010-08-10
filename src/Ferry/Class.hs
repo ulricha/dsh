@@ -1,61 +1,65 @@
-{-# Language ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# Language ScopedTypeVariables, MultiParamTypeClasses,
+  FunctionalDependencies, FlexibleInstances, TypeSynonymInstances
+  #-}
 {-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
 
 module Ferry.Class where
-  
+
+import Database.HDBC
+
 import Ferry.Data
 import Ferry.Evaluate
 
 class QA a where
   reify :: a -> Type
-  fromN :: Norm -> a
-  toQ   :: a -> Q a
+  toNorm :: a -> Norm
+  fromNorm :: Norm -> a
 
-  fromQ :: Conn -> Q a -> IO a
-  fromQ c (Q a) = evaluate c a >>= (return . fromN)
-  
+toQ   :: (QA a) => a -> Q a
+toQ = Q . normToExp . toNorm
+
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
+
 
 instance QA () where
   reify _ = UnitT
-  fromN (UnitN) = ()
-  toQ _ = Q UnitE
-  
+  toNorm _ = UnitN
+  fromNorm (UnitN) = ()
+
 instance QA Bool where
   reify _ = BoolT
-  fromN (BoolN b) = b
-  toQ a = Q (BoolE a)
-  
+  toNorm b = BoolN b
+  fromNorm (BoolN b) = b
+
 instance QA Char where
   reify _ = CharT
-  fromN (CharN c) = c
-  toQ a = Q (CharE a)
+  toNorm c = CharN c
+  fromNorm (CharN c) = c
 
 instance QA Int where
   reify _ = IntT
-  fromN (IntN i) = i
-  toQ a = Q (IntE a)
+  toNorm i = IntN i
+  fromNorm (IntN i) = i
 
 instance (QA a,QA b) => QA (a,b) where
-  reify _ = TupleT [reify (undefined :: a), reify (undefined :: b)]
-  fromN (TupleN a b []) = (fromN a,fromN b)
-  toQ (a,b) = Q (TupleE (forget $ toQ $ a) (forget $ toQ $ b) [])
-
-instance (QA a,QA b,QA c) => QA (a,b,c) where
-  reify _ = TupleT [reify (undefined :: a), reify (undefined :: b), reify (undefined :: b)]
-  fromN (TupleN a b [c]) = (fromN a,fromN b,fromN c)
-  toQ (a,b,c) = Q (TupleE (forget $ toQ $ a) (forget $ toQ $ b) [forget $ toQ $ c])
+  reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
+  toNorm (a,b) = TupleN (toNorm a) (toNorm b)
+  fromNorm (TupleN a b) = (fromNorm a,fromNorm b)
 
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
-  fromN (ListN as) = map fromN as
-  toQ as = Q (ListE (map (forget . toQ) as))  
-  
+  toNorm as = ListN (map toNorm as)
+  fromNorm (ListN as) = map fromNorm as
+
+
 class BasicType a where
-  
+
 instance BasicType () where
 instance BasicType Int where
 instance BasicType Bool where
 instance BasicType Char where
+instance BasicType String where
 
 -- * Refering to Real Database Tables
 
@@ -68,7 +72,6 @@ instance TA Int where
 instance TA Bool where
 instance TA Char where
 instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
-instance (BasicType a, BasicType b, BasicType c, QA a, QA b, QA c) => TA (a,b,c) where  
 
 -- * Eq, Ord, Show and Num Instances for Databse Queries
 
@@ -90,9 +93,24 @@ instance Num (Q Int) where
 
 class View a b | a -> b where
   view :: a -> b
+  fromView :: b -> a
+
+instance View (Q ()) (Q ()) where
+  view = id
+  fromView = id
+
+instance View (Q Bool) (Q Bool) where
+  view = id
+  fromView = id
+
+instance View (Q Char) (Q Char) where
+  view = id
+  fromView = id
+
+instance View (Q Int) (Q Int) where
+  view = id
+  fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE (VarE "proj_2_1") a), Q (AppE (VarE "proj_2_1") a))
-
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a, Q b, Q c) where
-  view (Q a) = (Q (AppE (VarE "proj_3_1") a), Q (AppE (VarE "proj_3_2") a), Q (AppE (VarE "proj_3_3") a))
+  view (Q a) = (Q (AppE (VarE "fst") a), Q (AppE (VarE "snd") a))
+  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2)

@@ -8,14 +8,26 @@
 module Ferry
   (
     module Ferry.Combinators
+
+    -- * Data Types
   , Q
+
+    -- * Type Classes
   , QA , toQ, fromQ
-  , View, view
-  , qc  
+  , TA, table, BasicType
+  , View, view,fromView
+
+    -- * Quasiquoter
+  , qc
+
+    -- * Template Haskell: Creating Table Representations
+  , createTableRepresentation
+  , createTableRepresentation'
   )
   where
 
 import Ferry.Combinators
 import Ferry.Data (Q)
-import Ferry.Class (QA,toQ,fromQ,View,view)
+import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view,fromView)
 import Ferry.QQ (qc)
+import Ferry.TH (createTableRepresentation, createTableRepresentation')

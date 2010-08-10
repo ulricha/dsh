@@ -16,13 +16,18 @@ Cabal-version:       >=1.2
 
 
 Library
-  Build-depends:     base >= 4, containers, template-haskell, haskell-src-exts, syntax-trees, syb >=0.1.0.2
+  Build-depends:     base >= 4, containers, template-haskell, haskell-src-exts,
+                     syntax-trees, syb >=0.1.0.2, HDBC >= 2.2,
+                     convertible >= 0.1, bytestring >= 0.9
+
   Hs-Source-Dirs:    src
-  GHC-Options:       -Wall
+  GHC-Options:       -Wall -O3
   Exposed-modules:   Ferry
+
   Other-modules:     Ferry.QQ
                      Ferry.Impossible
                      Ferry.Combinators
+                     Ferry.TH
                      Ferry.Data
                      Ferry.Evaluate
                      Ferry.Class

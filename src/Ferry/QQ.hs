@@ -35,16 +35,16 @@ transform e = case translateExtsToTH $ translateListCompr e of
                 Right e1 -> return e1
 
 parseCompr :: String -> Exp
-parseCompr = fromParseResult . exprParser 
+parseCompr = fromParseResult . exprParser
 
 exprParser :: String -> ParseResult Exp
-exprParser = parseExpWithMode (defaultParseMode {extensions = [TransformListComp]}) . expand 
+exprParser = parseExpWithMode (defaultParseMode {extensions = [TransformListComp]}) . expand
 
 expand :: String -> String
 expand e = '[':(e ++ "]")
 
 ferryHaskell :: QuasiQuoter
-ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat 
+ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat
 
 qc :: QuasiQuoter
 qc = ferryHaskell
@@ -57,9 +57,9 @@ rw = QuasiQuoter (return . TH.LitE . TH.StringL . prettyPrint . translateListCom
 
 variablesFromLsts :: [[QualStmt]] -> Pat
 variablesFromLsts [] = $impossible
-variablesFromLsts [x]    = variablesFromLst $ reverse x 
+variablesFromLsts [x]    = variablesFromLst $ reverse x
 variablesFromLsts (x:xs) = PTuple [variablesFromLst $ reverse x, variablesFromLsts xs]
- 
+
 
 variablesFromLst :: [QualStmt] -> Pat
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
@@ -81,24 +81,24 @@ variablesFrom _ = $impossible
 patToExp :: Pat -> Exp
 patToExp (PVar x)    = var x
 patToExp (PTuple [x, y]) = pairF (patToExp x) $ patToExp y
-patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon    
+patToExp (PApp (Special UnitCon) []) = Con $ Special UnitCon
 patToExp p           = error $ "Pattern not suppoted by ferry: " ++ show p
 
 translateListCompr :: Exp -> Exp
 translateListCompr (ListComp e q) = let pat = variablesFromLst $ reverse q
                                         (x:_) = freshVar $ freeInPat pat
-                                        e' = insertProjections (makeProjections pat x) e 
+                                        e' = insertProjections (makeProjections pat x) e
                                         lambda = makeLambda (patV x) (SrcLoc "" 0 0) e'
                                      in mapF lambda (normaliseQuals q)
 translateListCompr (ParComp e qs) = let pat = variablesFromLsts qs
                                         (x:_) = freshVar $ freeInPat pat
-                                        e' = insertProjections (makeProjections pat x) e 
+                                        e' = insertProjections (makeProjections pat x) e
                                         lambda = makeLambda (patV x) (SrcLoc "" 0 0) e'
                                      in mapF lambda (normParallelCompr qs)
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
 
 normParallelCompr :: [[QualStmt]] -> Exp
-normParallelCompr [] = $impossible 
+normParallelCompr [] = $impossible
 normParallelCompr [x] = normaliseQuals x
 normParallelCompr (x:xs) = zipF (normaliseQuals x) (normParallelCompr xs)
 
@@ -154,7 +154,7 @@ varV :: String -> Exp
 varV = var . name
 
 -- patF :: String -> Exp
--- patF = 
+-- patF =
 
 mapV :: Exp
 mapV = qvar (ModuleName "Ferry.Combinators") (name "map")  -- var $ name "Ferry.map"
@@ -226,8 +226,8 @@ unzipB p@(PTuple [xp, yp]) = let (e:_x:_y:_) = freshVar $ freeInPat p
                                  ePat = patV e
                                  eArg = varV e
                                  xUnfold = unzipB xp
-                                 yUnfold = unzipB yp                                 
-                              in paren $ makeLambda ePat (SrcLoc "" 0 0) $ 
+                                 yUnfold = unzipB yp
+                              in paren $ makeLambda ePat (SrcLoc "" 0 0) $
                                           pairF (app xUnfold $ paren $ mapF fstV eArg) (app yUnfold $ mapF sndV eArg)
 unzipB _ = $impossible
 
@@ -264,7 +264,7 @@ makeProjections :: Pat -> String-> [(String, Exp)]
 makeProjections PWildCard _ = []
 makeProjections (PVar (Ident x)) e = [(x, varV e)]
 makeProjections (PTuple [x,y]) v = (map (\(v1, e) -> (v1, app fstV e)) $ makeProjections x v) ++ (map (\(v1, e) -> (v1, app sndV e)) $ makeProjections y v)
-makeProjections _ _ = $impossible 
+makeProjections _ _ = $impossible
 
 insertProjections :: [(String, Exp)] -> Exp -> Exp
 insertProjections p = everywhere (mkT (insert' p))
@@ -272,5 +272,5 @@ insertProjections p = everywhere (mkT (insert' p))
     insert' :: [(String, Exp)] -> Exp -> Exp
     insert' assocs v@(Var (UnQual (Ident n))) = case L.lookup n assocs of
                                                 Nothing -> v
-                                                (Just e) -> e 
+                                                (Just e) -> e
     insert' _ e                               = e
