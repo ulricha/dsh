@@ -211,7 +211,7 @@ deriveQAForRecord' q = do
 
              names = [ mkName $ "a" ++ show i | i <- [1..length rVar] ]
 
-             fromNormDec    = funD 'fromNorm [fromNormClause] -- , failClause]
+             fromNormDec    = funD 'fromNorm [fromNormClause, failClause]
              fromNormClause = clause [ applyChainTupleP (map varP names) ]
                                      ( normalB $ (conE dName) `applyChainE` [ [| fromNorm $(varE n) |]
                                                                             | n <- names
@@ -255,11 +255,11 @@ deriveViewForRecord' q = do
 
         -- The "View" record definition
 
-        let vName  = mkName $ nameBase dName ++ "V"
+        let vName  = mkName $ "V'" ++ nameBase dName
             vRec   = recC vName [ return (prefixV n, s, makeQ t) | (n,s,t) <- rVar ]
 
             prefixV :: Name -> Name
-            prefixV n = mkName $ "v_" ++ nameBase n
+            prefixV n = mkName $ "v'" ++ nameBase n
 
             makeQ :: TH.Type -> TH.Type
             makeQ t = ConT ''Q `AppT` t
@@ -289,7 +289,7 @@ deriveViewForRecord' q = do
             viewDec    = funD 'view [viewClause]
             viewClause = clause [ conP 'Q [varP a] ]
                                 ( normalB $ applyChainE (conE vName)
-                                          $ map (appE (varE 'Q))
+                                          $ map (appE (conE 'Q))
                                           $ [ if pos == length rVar then (f (varE a)) else (first (f (varE a)))
                                             | pos <- [1 .. length rVar]
                                             , let f = foldr (.) id (replicate (pos - 1) second)
@@ -301,7 +301,7 @@ deriveViewForRecord' q = do
 
             fromViewDec    = funD 'fromView [fromViewClause] --, failClause]
             fromViewClause = clause [ conP vName [ conP 'Q [varP q1] | q1 <- qs ] ]
-                                    ( normalB $ appE (varE 'Q) $ applyChainTupleE 'TupleE $ map varE qs )
+                                    ( normalB $ appE (conE 'Q) $ applyChainTupleE 'TupleE $ map varE qs )
                                     []
 
             -- Fail with a verbose message where this happened
@@ -327,9 +327,7 @@ deriveTAForRecord q = (++) <$> q
                            <*> deriveTAForRecord' q
 
 deriveTAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
-deriveTAForRecord' q = do
-    d <- q
-    mapM addTA d
+deriveTAForRecord' q = q >>= mapM addTA
   where
     addTA (DataD [] dName [] [RecC rName (_:_)] _) | dName == rName =
 
@@ -342,6 +340,40 @@ deriveTAForRecord' q = do
                      taDec
 
     addTA _ = error "ferry: Failed to derive 'TA' - Invalid record definition"
+
+
+-- | Create lifted record selectors
+recordQSelectors :: TH.Q [Dec] -> TH.Q [Dec]
+recordQSelectors q = (++) <$> q
+                          <*> recordQSelectors' q
+
+recordQSelectors' :: TH.Q [Dec] -> TH.Q [Dec]
+recordQSelectors' q = q >>= fmap join . mapM addSel
+  where
+    addSel :: Dec -> TH.Q [Dec]
+    addSel (DataD [] dName [] [RecC rName vst] _) | dName == rName && not (null vst) =
+
+        let namesAndTypes = [ (n, t')
+                            | (n, _, t) <- vst
+                            , let t' = arrowChainT [ conT ''Q `appT` conT dName
+                                                   , conT ''Q `appT` return t
+                                                   ]
+                            ]
+
+            addFunD (n,t) = let qn = mkName $ "q'" ++ nameBase n
+                                vn = mkName $ "v'" ++ nameBase n
+                             in sequenceQ [ sigD qn t
+                                          , funD qn [ clause []
+                                                             (normalB [| $(varE vn) . view |])
+                                                             []
+                                                    ]
+                                          ]
+
+         in if null namesAndTypes
+               then error "woot?"
+               else concat `fmap` mapM addFunD namesAndTypes
+
+    addSel _ = error "ferry: Failed to create record selectors - Invalid record definition"
 
 
 --------------------------------------------------------------------------------
@@ -407,10 +439,25 @@ createTableRepresentation conn t dname dnames = do
 -- >         }
 -- >
 -- >   |])
+-- 
+-- This creates the following record type, which can be used with the
+-- \"ViewPatterns\" pragma:
+--
+-- > data V'User = V'User
+-- >     { v'user_id    :: Q Int
+-- >     , v'user_name  :: Q String
+-- >     }
+-- >  -- deriving View (Q User) V'User
+-- 
+-- And the lifted record selectors:
+--
+-- > q'user_id      :: Q User -> Q Int
+-- > q'user_name    :: Q User -> Q String
 createTableRepresentation' :: TH.Q [Dec] -> TH.Q [Dec]
 createTableRepresentation' q = do
     d  <- q
     qa <- deriveQAForRecord' q
     v  <- deriveViewForRecord' q
     ta <- deriveTAForRecord' q
-    return $ d ++ qa ++ v ++ ta
+    rs <- recordQSelectors' q
+    return $ d ++ qa ++ v ++ ta ++ rs
