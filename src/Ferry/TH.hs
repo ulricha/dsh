@@ -48,6 +48,12 @@ applyChainT t ts = foldl' appT t ts
 applyChainE :: ExpQ -> [ExpQ] -> ExpQ
 applyChainE e es = foldl' appE e es
 
+applyChainTupleP :: [PatQ] -> PatQ
+applyChainTupleP = foldr1 (\p1 p2 -> conP 'TupleN [p1,p2])
+
+applyChainTupleE :: Name -> [ExpQ] -> ExpQ
+applyChainTupleE n = foldr1 (\e1 e2 -> appE (appE (conE n) e1) e2)
+
 
 -- Some Applicative magic :)
 instance Applicative TH.Q where
@@ -80,21 +86,17 @@ deriveTupleQA l
 
     reifyDec    = funD 'reify [reifyClause]
     reifyClause = clause [ wildP ]
-                         ( normalB [| foldr1 TupleT $(listE [ [| reify (undefined :: $_n) |]
-                                                            | _n <- map varT names
-                                                            ] )
-                                    |] )
-                         [ ]
+                         ( normalB $ applyChainTupleE 'TupleT [ [| reify (undefined :: $_n) |] | _n <- map varT names ] )
+                         []
 
     fromNormDec    = funD 'fromNorm [fromNormClause]
-    fromNormClause = clause [foldr1 (\p1 p2 -> conP 'TupleN [p1,p2]) (map varP names)]
+    fromNormClause = clause [applyChainTupleP (map varP names)]
                             (normalB $ TH.tupE [ [| fromNorm $(varE n) |] | n <- names ])
                             []
 
     toNormDec    = funD 'toNorm [toNormClause]
     toNormClause = clause [ tupP [ varP n | n <- names ] ]
-                          ( normalB [|  (foldr1 TupleN $(listE [ [|toNorm $(varE n) |] | n <- names ]))
-                                    |] )
+                          ( normalB $ applyChainTupleE 'TupleN [ [|toNorm $(varE n) |] | n <- names ] )
                           []
 
 -- | Generate all 'QA' instances for tuples within range.
@@ -168,7 +170,7 @@ deriveTupleView l
 
     fromViewDec = funD 'fromView [fromViewClause]
     fromViewClause = clause [ tupP (map (\n -> conP 'Q [varP n]) names) ]
-                            ( normalB [| Q  $(foldr1 (\e1 e2 -> appE (appE (conE 'TupleE) e1) e2) (map varE names)) |] )
+                            ( normalB [| Q  $(applyChainTupleE 'TupleE (map varE names)) |] )
                             []
 
 -- | Generate all 'View' instances for tuples within range.
@@ -204,16 +206,13 @@ deriveQAForRecord' q = do
 
              reifyDec    = funD 'reify [reifyClause]
              reifyClause = clause [ wildP ]
-                                  ( normalB $ [| foldr1 TupleT $(listE [ [| reify (undefined :: $(return _t)) |]
-                                                                       | (_,_,_t) <- rVar
-                                                                       ])
-                                              |])
+                                  ( normalB $ applyChainTupleE 'TupleT [ [| reify (undefined :: $(return _t)) |] | (_,_,_t) <- rVar] )
                                   []
 
              names = [ mkName $ "a" ++ show i | i <- [1..length rVar] ]
 
-             fromNormDec    = funD 'fromNorm [fromNormClause, failClause]
-             fromNormClause = clause [ foldr1 (\p1 p2 -> conP 'TupleN [p1,p2]) (map varP names) ]
+             fromNormDec    = funD 'fromNorm [fromNormClause] -- , failClause]
+             fromNormClause = clause [ applyChainTupleP (map varP names) ]
                                      ( normalB $ (conE dName) `applyChainE` [ [| fromNorm $(varE n) |]
                                                                             | n <- names
                                                                             ]
@@ -230,9 +229,7 @@ deriveQAForRecord' q = do
 
              toNormDec    = funD 'toNorm [toNormClause]
              toNormClause = clause [ conP dName (map varP names) ]
-                                   ( normalB [| foldr1 TupleN $(listE [ [| toNorm $(varE n) |]
-                                                                      | n <- names ])
-                                             |] )
+                                   ( normalB $ applyChainTupleE 'TupleN [ [| toNorm $(varE n) |] | n <- names ] )
                                    []
 
          instanceD rCxt
@@ -286,21 +283,25 @@ deriveViewForRecord' q = do
 
             a = mkName "a"
 
+            first  p = [| AppE (VarE "fst") $p |]
+            second p = [| AppE (VarE "snd") $p |]
+
             viewDec    = funD 'view [viewClause]
             viewClause = clause [ conP 'Q [varP a] ]
                                 ( normalB $ applyChainE (conE vName)
-                                                        [ [| Q (AppE (VarE n) $(varE a)) |]
-                                                        | n <- map (\(n,_,_) -> nameBase n) rVar
-                                                        ]
-                                )
+                                          $ map (appE (varE 'Q))
+                                          $ [ if pos == length rVar then (f (varE a)) else (first (f (varE a)))
+                                            | pos <- [1 .. length rVar]
+                                            , let f = foldr (.) id (replicate (pos - 1) second)
+                                            ] )
                                 []
 
             -- names for variables used in the `fromView' function
-            fvNames@(_:qs) = [ mkName $ "q" ++ show i | i <- [1.. length rVar] ]
+            qs = [ mkName $ "q" ++ show i | i <- [1.. length rVar] ]
 
-            fromViewDec    = funD 'fromView [fromViewClause, failClause]
-            fromViewClause = clause [ conP vName $  (conP 'Q [conP 'AppE [wildP, varP a]]) : [ wildP | _ <- qs ] ]
-                                    ( normalB [| Q $(varE a) |] )
+            fromViewDec    = funD 'fromView [fromViewClause] --, failClause]
+            fromViewClause = clause [ conP vName [ conP 'Q [varP q1] | q1 <- qs ] ]
+                                    ( normalB $ appE (varE 'Q) $ applyChainTupleE 'TupleE $ map varE qs )
                                     []
 
             -- Fail with a verbose message where this happened
