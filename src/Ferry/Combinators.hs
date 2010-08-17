@@ -9,6 +9,11 @@ import Ferry.TH
 
 import Prelude (Eq, Ord, Num, Bool, Int, (.))
 
+-- * If then else
+    
+bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
+bool (Q a) (Q b) (Q c) = Q (AppE (AppE (AppE (VarE "bool") a) b) c)
+
 -- * Unit
 
 unit :: Q ()

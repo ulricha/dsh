@@ -25,7 +25,11 @@ evaluate c e = case e of
     return (TupleN e3 e4)
 
   ListE es -> mapM (evaluate c) es >>= (return . ListN)
-
+  
+  AppE (AppE (AppE (VarE "bool") a) b) cond -> do
+      (BoolN c1) <- evaluate c cond
+      if c1 then evaluate c a else evaluate c b 
+  
   AppE (AppE (VarE "cons") a) as -> do
     a1 <- evaluate c a
     (ListN as1) <- evaluate c as
