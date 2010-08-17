@@ -1,10 +1,11 @@
-{-# LANGUAGE TemplateHaskell #-}
-module Ferry.QQ2 (qc, fp, rw, module Ferry.Combinators) where
+{-# LANGUAGE TemplateHaskell, ViewPatterns #-}
+module Ferry.QQ2 (qc, fp, rw) where
 
+import Paths_Ferry as Ferry
 import Ferry.Impossible
 
-import qualified Ferry.Combinators
 import qualified Language.Haskell.TH as TH
+import qualified Language.Haskell.TH.Syntax as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Exts.Parser
 import Language.Haskell.Exts.Syntax
@@ -15,8 +16,10 @@ import Language.Haskell.Exts.Pretty
 
 import Data.Generics
 
+
 import qualified Data.Set as S
 import qualified Data.List as L
+import Data.Version (showVersion)
 
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
@@ -146,3 +149,16 @@ concatF = app concatV
 
 concatV :: Exp
 concatV = var $ name "Ferry.Combinators.concat"
+
+
+-- Generate proper global names from pseudo qualified variables
+toNameG :: TH.Name -> TH.Name
+toNameG n@(TH.Name (TH.occString -> s) TH.NameS) =
+  case L.findIndices (== '.') s of
+    [] -> n
+    is -> let pkgN = "Ferry-" ++ showVersion (Ferry.version)
+              (init->modN,occN) = splitAt (last is) s
+          in  TH.mkNameG_v pkgN modN occN 
+
+toNameG n = n
+
