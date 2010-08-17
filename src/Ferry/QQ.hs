@@ -1,10 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Ferry.QQ (qc, fp, rw) where
+module Ferry.QQ (qc, fp, rw, module Ferry.Combinators) where
 
 import Ferry.Impossible
--- import qualified Ferry.Combinators as Q
 
+import qualified Ferry.Combinators
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Exts.Parser
@@ -157,22 +157,22 @@ varV = var . name
 -- patF =
 
 mapV :: Exp
-mapV = qvar (ModuleName "Ferry.Combinators") (name "map")  -- var $ name "Ferry.map"
+mapV = var $ name "Ferry.Combinators.map"  -- var $ name "Ferry.map"
 
 concatV :: Exp
-concatV = var $ name "Ferry.concat"
+concatV = var $ name "Ferry.Combinators.concat"
 
 unit :: Exp
-unit = var $ name "Ferry.unit"
+unit = var $ name "Ferry.Combinators.unit"
 
 fstV :: Exp
-fstV = var $ name "Ferry.fst"
+fstV = var $ name "Ferry.Combinators.fst"
 
 sndV :: Exp
-sndV = var $ name "Ferry.snd"
+sndV = var $ name "Ferry.Combinators.snd"
 
 pairV :: Exp
-pairV = var $ name "Ferry.pair"
+pairV = var $ name "Ferry.Combinators.pair"
 
 pairF :: Exp -> Exp -> Exp
 pairF e1 e2 = flip app e2 $ app pairV e1
@@ -190,19 +190,19 @@ concatF :: Exp -> Exp
 concatF = app concatV
 
 nilV :: Exp
-nilV = var $ name "Ferry.nil"
+nilV = var $ name "Ferry.Combinators.nil"
 
 consV :: Exp
-consV = var $ name "Ferry.cons"
+consV = var $ name "Ferry.Combinators.cons"
 
 unzipV :: Exp
-unzipV = var $ name "Ferry.unzip"
+unzipV = var $ name "Ferry.Combinators.unzip"
 
 unzipF :: Exp -> Exp
 unzipF = app unzipV
 
 zipV :: Exp
-zipV = var $ name "Ferry.zip"
+zipV = var $ name "Ferry.Combinators.zip"
 
 zipF :: Exp -> Exp -> Exp
 zipF x y = app (app zipV x) y
@@ -214,10 +214,10 @@ sndF :: Exp -> Exp
 sndF = app sndV
 
 sortWithF :: Exp
-sortWithF = var $ name "Ferry.sortWith"
+sortWithF = var $ name "Ferry.Combinators.sortWith"
 
 groupWithF :: Exp
-groupWithF = var $ name "Ferry.groupWith"
+groupWithF = var $ name "Ferry.Combinators.groupWith"
 
 unzipB :: Pat -> Exp
 unzipB PWildCard   = paren $ makeLambda PWildCard (SrcLoc "" 0 0) $ unit
@@ -263,7 +263,7 @@ makeProjections' _ = $impossible
 makeProjections :: Pat -> String-> [(String, Exp)]
 makeProjections PWildCard _ = []
 makeProjections (PVar (Ident x)) e = [(x, varV e)]
-makeProjections (PTuple [x,y]) v = (map (\(v1, e) -> (v1, app fstV e)) $ makeProjections x v) ++ (map (\(v1, e) -> (v1, app sndV e)) $ makeProjections y v)
+makeProjections (PTuple [x,y]) v = (L.map (\(v1, e) -> (v1, app fstV e)) $ makeProjections x v) ++ (L.map (\(v1, e) -> (v1, app sndV e)) $ makeProjections y v)
 makeProjections _ _ = $impossible
 
 insertProjections :: [(String, Exp)] -> Exp -> Exp
