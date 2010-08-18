@@ -18,7 +18,7 @@ module Ferry
   , View, view,fromView
 
     -- * Quasiquoter
-  , qc
+  , qc, rw
 
     -- * Template Haskell: Creating Table Representations
   , createTableRepresentation
@@ -29,5 +29,5 @@ module Ferry
 import Ferry.Combinators
 import Ferry.Data (Q)
 import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view,fromView)
-import Ferry.QQ (qc)
+import Ferry.QQ2 (qc, rw)
 import Ferry.TH (createTableRepresentation, createTableRepresentation')

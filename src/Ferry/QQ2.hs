@@ -32,7 +32,7 @@ freshVar :: N String
 freshVar = do
              i <- get
              put (i + 1)
-             return $ "Ferry.FreshNames.v" ++ show i
+             return $ "ferryFreshNamesV" ++ show i
      
 runN :: N a -> a
 runN = fst . flip runState 1
@@ -72,8 +72,7 @@ rw = QuasiQuoter (return . TH.LitE . TH.StringL . prettyPrint . runN . translate
 translateListCompr :: Exp -> N Exp
 translateListCompr (ListComp e q) = do
                                      let pat = variablesFromLst $ reverse q
-                                     pat' <- mkViewPat pat 
-                                     lambda <- makeLambda pat' (SrcLoc "" 0 0) e
+                                     lambda <- makeLambda pat (SrcLoc "" 0 0) e
                                      (mapF lambda) <$> normaliseQuals q
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
 
@@ -98,14 +97,11 @@ normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
 
 combine :: Exp -> Pat -> Exp -> Pat -> N Exp
 combine p pv q qv = do
-                     qv' <- mkViewPat qv
-                     pv' <- mkViewPat pv
-                     qLambda <- makeLambda qv' (SrcLoc "" 0 0) $ pairF (patToExp qv) $ patToExp pv
-                     pLambda <- makeLambda pv' (SrcLoc "" 0 0) $ mapF qLambda q
+                     qLambda <- makeLambda qv (SrcLoc "" 0 0) $ pairF (patToExp qv) $ patToExp pv
+                     pLambda <- makeLambda pv (SrcLoc "" 0 0) $ mapF qLambda q
                      pure $ concatF (mapF pLambda p)
                      
-makeLambda :: Pat -> SrcLoc -> Exp -> N Exp
-makeLambda p s b = pure $ Lambda s [p] b
+
 
 -- Building and converting patterns
 
@@ -121,13 +117,44 @@ variablesFrom (QualStmt (LetStmt (BDecls [PatBind _ p _ _ _]))) = p
 variablesFrom (QualStmt e)  = error $ "Not supported yet: " ++ show e
 variablesFrom _ = $impossible
 
-mkViewPat :: Pat -> N Pat
-mkViewPat p@(PVar _)  = return $ p
-mkViewPat PWildCard   = return $ PWildCard
-mkViewPat (PTuple ps) = (\x -> PViewPat viewV $ PTuple x) <$> mapM mkViewPat ps
-mkViewPat (PList ps)  = (\x -> PViewPat viewV $ PList x) <$> mapM mkViewPat ps
-mkViewPat (PParen p)  = PParen <$> mkViewPat p
-mkViewPat p           = pure $ PViewPat viewV p 
+makeLambda :: Pat -> SrcLoc -> Exp -> N Exp
+makeLambda p s b = do
+                     (p', e') <- mkViewPat p b
+                     pure $ Lambda s [p'] e'
+
+
+mkViewPat :: Pat -> Exp -> N (Pat, Exp)
+mkViewPat p@(PVar _)  e = return $ (p, e)
+mkViewPat PWildCard   e = return $ (PWildCard, e)
+mkViewPat (PTuple ps) e = do
+                               x <- freshVar
+                               (pr, e') <- foldl viewTup (pure $ ([], e)) ps
+                               let px = PVar $ name x
+                               let vx = var $ name x
+                               let er = caseE (app viewV vx) [alt (SrcLoc "" 0 0) (PTuple $ reverse pr) e']
+                               return (px, er) 
+                           
+mkViewPat (PList ps)  e = do
+                            x <- freshVar
+                            let px = PVar $ name x
+                            let vx = var $ name x
+                            let er = caseE (app viewV vx) [alt (SrcLoc "" 0 0) (PList ps) e]
+                            return (px, er)
+mkViewPat (PParen p)  e = do
+                            (p', e') <- mkViewPat p e
+                            return (PParen p', e')
+mkViewPat p           e = do
+                            x <- freshVar
+                            let px = PVar $ name x
+                            let vx = var $ name x
+                            let er = caseE (app viewV vx) [alt (SrcLoc "" 0 0) p e]
+                            return (px, er)
+
+viewTup :: N ([Pat], Exp) -> Pat -> N ([Pat], Exp)
+viewTup r p = do
+                    (rp, re) <- r
+                    (p', e') <- mkViewPat p re
+                    return (p':rp, e')
 
 viewV :: Exp
 viewV = var $ name $ "view"
@@ -166,7 +193,7 @@ consV :: Exp
 consV = var $ name "Ferry.Combinators.cons"
 
 pairV :: Exp
-pairV = var $ name "Ferry.Combinators.pair"
+pairV = var $ name "Ferry.Class.fromView"
 
 pairF :: Exp -> Exp -> Exp
 pairF e1 e2 = flip app e2 $ app pairV e1

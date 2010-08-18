@@ -27,16 +27,3 @@ tupleF xs = foldl app constr xs
       size = length xs
       constr = var . name $ baseMod ++ ".tuple_" ++ show size
       
-
-ql :: QuasiQuoter
-ql = QuasiQuoter (return . TH.LitE . TH.StringL . prettyPrint .normTuple . normLambda . parseLambda ) undefined
-
-parseLambda :: String -> Exp
-parseLambda = fromParseResult. exprParser .parenthesize
-    
-parenthesize :: String -> String
-parenthesize = ('(':) . (++ ")")
-
-normLambda = undefined
-
-normTuple = undefined
