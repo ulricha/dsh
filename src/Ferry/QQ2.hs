@@ -100,7 +100,7 @@ normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
 
 combine :: Exp -> Pat -> Exp -> Pat -> N Exp
 combine p pv q qv = do
-                     qLambda <- makeLambda qv (SrcLoc "" 0 0) $ pairF (patToExp qv) $ patToExp pv
+                     qLambda <- makeLambda qv (SrcLoc "" 0 0) $ fromViewF (tuple [patToExp qv, patToExp pv])
                      pLambda <- makeLambda pv (SrcLoc "" 0 0) $ mapF qLambda q
                      pure $ concatF (mapF pLambda p)
                      
@@ -167,7 +167,7 @@ viewF p e = Lambda Case
 -}
 patToExp :: Pat -> Exp
 patToExp (PVar x)                    = var x
-patToExp (PTuple [x, y])             = pairF (patToExp x) $ patToExp y
+patToExp (PTuple [x, y])             = fromViewF $ tuple [patToExp x, patToExp y]
 patToExp (PApp (Special UnitCon) []) = unit
 patToExp PWildCard                   = unit
 patToExp p                           = error $ "Pattern not suppoted by ferry: " ++ show p
@@ -195,11 +195,11 @@ nilV = var $ name "Ferry.Combinators.nil"
 consV :: Exp
 consV = var $ name "Ferry.Combinators.cons"
 
-pairV :: Exp
-pairV = var $ name "Ferry.Class.fromView"
+fromViewV :: Exp
+fromViewV = var $ name "Ferry.Class.fromView"
 
-pairF :: Exp -> Exp -> Exp
-pairF e1 e2 = flip app e2 $ app pairV e1
+fromViewF :: Exp -> Exp
+fromViewF e1 =  app fromViewV e1
 
 concatF :: Exp -> Exp
 concatF = app concatV

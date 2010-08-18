@@ -18,4 +18,4 @@ ints :: Q [Int]
 ints = toQ [1,2,3]
 
 --test2 :: Q [Int]
-test2 = [$rw| x | x <- ints, x == x |]
+test2 = [$qc| x | x <- ints, x == x |]
