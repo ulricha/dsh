@@ -91,7 +91,7 @@ instance Num (Q Int) where
 
 -- * Support for View Patterns
 
-class View a b | a -> b where
+class View a b | a -> b, b -> a where
   view :: a -> b
   fromView :: b -> a
 
