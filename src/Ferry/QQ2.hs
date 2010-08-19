@@ -25,6 +25,9 @@ import qualified Data.Set as S
 import qualified Data.List as L
 import Data.Version (showVersion)
 
+{-
+N monad, version of the state monad that can provide fresh variable names.
+-}
 type N = State Int
 
 instance Applicative (State s) where
@@ -39,6 +42,7 @@ freshVar = do
      
 runN :: N a -> a
 runN = fst . flip runState 1
+
 
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
@@ -97,6 +101,7 @@ normaliseQuals' (q:ps) = do
 normaliseQual :: QualStmt -> N Exp
 normaliseQual (QualStmt (Generator _ _ e)) = pure $ e
 normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
+normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = pure $ flip consF nilF $ letE bi $ patToExp p
 
 combine :: Exp -> Pat -> Exp -> Pat -> N Exp
 combine p pv q qv = do
@@ -161,10 +166,7 @@ viewTup r p = do
 
 viewV :: Exp
 viewV = var $ name $ "view"
-{-
-viewF :: Pat -> Exp -> Exp
-viewF p e = Lambda Case 
--}
+
 patToExp :: Pat -> Exp
 patToExp (PVar x)                    = var x
 patToExp (PTuple [x, y])             = fromViewF $ tuple [patToExp x, patToExp y]
