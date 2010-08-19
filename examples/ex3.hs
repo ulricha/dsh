@@ -1,11 +1,10 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell #-}
 module Test where
     
-import Ferry (toQ, fromQ, Q (..), view, qc, rw)
+import Ferry (toQ, fromQ, Q (..), view, qc)
 import qualified Ferry as Q
 import Database.HDBC.Sqlite3
-import qualified Ferry.Combinators
-import qualified Ferry.Class
+-- import qualified Ferry.Combinators
 
 conn :: Connection
 conn = undefined
@@ -18,4 +17,6 @@ ints :: Q [Int]
 ints = toQ [1,2,3]
 
 --test2 :: Q [Int]
-test2 = [$qc| x | x <- ints, x == x |]
+--test2 = [$qc| x +y | x <- ints, toQ True, let y = 5 |]
+
+test4 = [$qc| x | x <- ints, then Q.tail |]
