@@ -82,12 +82,12 @@ instance Eq (Q Int) where
   (==) _ _ = undefined
 
 instance Num (Q Int) where
-  (+) (Q e1) (Q e2) = Q (AppE (AppE (VarE "add") e1) e2)
-  (*) (Q e1) (Q e2) = Q (AppE (AppE (VarE "mul") e1) e2)
-  abs (Q e1) = Q (AppE (VarE "abs") e1)
-  negate (Q e1) = Q (AppE (VarE "negate") e1)
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2)
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2)
+  abs (Q e1) = Q (AppE1 Abs e1)
+  negate (Q e1) = Q (AppE1 Negate e1)
   fromInteger i = toQ (fromIntegral i)
-  signum (Q e1) = Q (AppE (VarE "signum") e1)
+  signum (Q e1) = Q (AppE1 Signum e1)
 
 -- * Support for View Patterns
 
@@ -112,5 +112,5 @@ instance View (Q Int) (Q Int) where
   fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE (VarE "fst") a), Q (AppE (VarE "snd") a))
+  view (Q a) = (Q (AppE1 Fst a), Q (AppE1 Snd a))
   fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2)

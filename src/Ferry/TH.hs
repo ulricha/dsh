@@ -151,8 +151,8 @@ deriveTupleView l
     names = [ mkName $ "a" ++ show i | i <- [1..l] ]
     a = mkName "a"
 
-    first  p = [| AppE (VarE "fst") $p |]
-    second p = [| AppE (VarE "snd") $p |]
+    first  p = [| AppE1 Fst $p |]
+    second p = [| AppE1 Snd $p |]
 
     viewCxts = return [ ClassP ''QA [VarT n] | n <- names ]
     viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
@@ -283,8 +283,8 @@ deriveViewForRecord' q = do
 
             a = mkName "a"
 
-            first  p = [| AppE (VarE "fst") $p |]
-            second p = [| AppE (VarE "snd") $p |]
+            first  p = [| AppE1 Fst $p |]
+            second p = [| AppE1 Snd $p |]
 
             viewDec    = funD 'view [viewClause]
             viewClause = clause [ conP 'Q [varP a] ]
