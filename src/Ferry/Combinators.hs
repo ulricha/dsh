@@ -30,8 +30,12 @@ not (Q b) = Q (AppE1 Not b)
 
 -- * Equality test
 
+eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+eq (Q a) (Q b) = Q (AppE2 Equ a b)
+
+
 (.==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-(.==) (Q a) (Q b) = Q (AppE2 Equ a b)
+(.==) = eq
 
 
 -- * If then else
