@@ -16,19 +16,19 @@ employees = toQ [
   , ("Paul",   "Yale", 60)
   ]
 
-q1 = Q.map (\(view->(n,_,s)) -> Q.pair s n) employees
+q1 = Q.map (\(view->(n,_,s)) -> Q.fromView (s,n)) employees
 q2 = Q.sortWith id q1
 q3 = Q.append q1 q2
 q4 = Q.groupWith Q.fst q1
 q5 = Q.map (+ 42) (toQ [1 .. 10 :: Int])
 
--- output1 = [$qc| e | e <- (toQ "foo"), let a = e |]
+q6 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
--- output2 = [$qc| (the dept, sum salary)
---   | (name, dept, salary) <- employees
---   , then group by dept
---   , then sortWith by (sum salary)
---   , then take 5 |]
+q7 = [$qc| (Q.the dept, Q.sum salary)
+  | (name, dept, salary) <- employees
+  , then group by dept
+  , then Q.sortWith by (sum salary)
+  , then Q.take 5 |]
 
 -- output2 = [$qc| (snd (fst (the e)), (sum (snd (snd e))))
 --   | e <- employees
@@ -46,3 +46,5 @@ main = do
   fromQ conn q3 >>= print
   fromQ conn q4 >>= print
   fromQ conn q5 >>= print
+  fromQ conn q6 >>= print
+  fromQ conn q7 >>= print

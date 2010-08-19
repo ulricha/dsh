@@ -20,3 +20,7 @@ ints = toQ [1,2,3]
 --test2 = [$qc| x +y | x <- ints, toQ True, let y = 5 |]
 
 test4 = [$qc| x | x <- ints, then Q.tail |]
+
+main :: IO ()
+main = do
+  fromQ conn test4 >>= print
