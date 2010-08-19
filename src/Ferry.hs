@@ -13,7 +13,7 @@ module Ferry
   , Q
 
     -- * Type Classes
-  , QA , toQ, fromQ
+  , QA
   , TA, table, BasicType
   , View, view,fromView
 
@@ -28,6 +28,6 @@ module Ferry
 
 import Ferry.Combinators
 import Ferry.Data (Q)
-import Ferry.Class (QA,toQ,fromQ,TA,table,BasicType,View,view,fromView)
-import Ferry.QQ2 (qc, rw)
+import Ferry.Class (QA,TA,table,BasicType,View,view,fromView)
+import Ferry.QQ (qc, rw)
 import Ferry.TH (createTableRepresentation, createTableRepresentation')

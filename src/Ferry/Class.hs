@@ -5,22 +5,12 @@
 
 module Ferry.Class where
 
-import Database.HDBC
-
 import Ferry.Data
-import Ferry.Evaluate
 
 class QA a where
   reify :: a -> Type
   toNorm :: a -> Norm
   fromNorm :: Norm -> a
-
-toQ   :: (QA a) => a -> Q a
-toQ = Q . normToExp . toNorm
-
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
-
 
 instance QA () where
   reify _ = UnitT
@@ -86,7 +76,7 @@ instance Num (Q Int) where
   (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2)
   abs (Q e1) = Q (AppE1 Abs e1)
   negate (Q e1) = Q (AppE1 Negate e1)
-  fromInteger i = toQ (fromIntegral i)
+  fromInteger i = Q (IntE (fromIntegral i))
   signum (Q e1) = Q (AppE1 Signum e1)
 
 -- * Support for View Patterns

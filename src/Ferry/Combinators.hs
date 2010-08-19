@@ -6,8 +6,11 @@ module Ferry.Combinators where
 import Ferry.Data
 import Ferry.Class
 import Ferry.TH
+import Ferry.Evaluate
 
-import Prelude (Eq, Ord, Num, Bool, Int, (.))
+import Database.HDBC
+
+import Prelude (Eq, Ord, Num, Bool, Int, IO, return , (>>=), (.))
 
 -- * Unit
 
@@ -53,10 +56,10 @@ cons (Q a) (Q as) = Q (AppE2 Cons a as)
 (<|) :: (QA a) => Q a -> Q [a] -> Q [a]
 (<|) = cons
 
-snoc :: (QA a) => Q a -> Q [a] -> Q [a]
-snoc (Q a) (Q as) = Q (AppE2 Snoc a as)
+snoc :: (QA a) => Q [a] -> Q a -> Q [a]
+snoc (Q as) (Q a) = Q (AppE2 Snoc as a)
 
-(|>) :: (QA a) => Q a -> Q [a] -> Q [a]
+(|>) :: (QA a) => Q [a] -> Q a -> Q [a]
 (|>) = snoc
 
 singleton :: (QA a) => Q a -> Q [a]
@@ -201,6 +204,14 @@ fst (Q a) = Q (AppE1 Fst a)
 
 snd :: (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE1 Snd a)
+
+-- * Convert Haskell values into DB queries and back
+
+toQ   :: (QA a) => a -> Q a
+toQ = Q . normToExp . toNorm
+
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 
 #define N 16
 

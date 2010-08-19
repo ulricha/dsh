@@ -1,10 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Ferry.QQ (qc, fp, rw, module Ferry.Combinators) where
+module Ferry.QQ (qc, fp, rw) where
 
 import Ferry.Impossible
 
-import qualified Ferry.Combinators
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.Exts.Parser
