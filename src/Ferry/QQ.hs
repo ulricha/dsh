@@ -32,20 +32,30 @@ classMod = ModuleName "ferry.Class"
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-type N = State Int
+newtype N a = N (State Int a)
 
-instance Applicative (State s) where
+unwrapN :: N a -> State Int a
+unwrapN (N s) = s
+
+instance Functor N where
+    fmap f a = N $ fmap f $ unwrapN a
+
+instance Monad N where
+    s >>= m = N (unwrapN s >>= unwrapN . m)
+    return = N . return
+    
+instance Applicative N where
   pure  = return
   (<*>) = ap
 
 freshVar :: N String
-freshVar = do
-             i <- get
-             put (i + 1)
-             return $ "ferryFreshNamesV" ++ show i
+freshVar = N $ do
+                i <- get
+                put (i + 1)
+                return $ "ferryFreshNamesV" ++ show i
      
 runN :: N a -> a
-runN = fst . flip runState 1
+runN = fst . (flip runState 1) . unwrapN
 
 
 quoteListCompr :: String -> TH.ExpQ
@@ -130,7 +140,7 @@ combine p pv q qv = do
 unzipB :: Pat -> N Exp
 unzipB PWildCard   = paren <$> makeLambda PWildCard (SrcLoc "" 0 0) unit
 unzipB p@(PVar x)  = paren <$> makeLambda p (SrcLoc "" 0 0) (var x)
-unzipB p@(PTuple [xp, yp]) = do
+unzipB (PTuple [xp, yp]) = do
                               e <- freshVar
                               let ePat = patV e
                               let eArg = varV e
