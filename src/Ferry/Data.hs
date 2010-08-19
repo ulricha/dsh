@@ -18,9 +18,30 @@ data Exp =
   | TupleE Exp Exp
   | ListE [Exp]
   | VarE String
-  | FuncE (Exp -> Exp)
-  | AppE Exp Exp
+  | LamE (Exp -> Exp)
+  | AppE (Exp -> Exp) Exp
+  | AppE1 Func1 Exp
+  | AppE2 Func2 Exp Exp
+  | AppE3 Func3 Exp Exp Exp
   | TableE String Type
+
+data Func1 =
+    Fst | Snd | Not | Abs | Signum
+  | Negate | Head | Tail | Unzip | Minimum
+  | Maximum | Concat | Product | Sum | And
+  | Or | Reverse | Length | Null | Init
+  | Last | The
+  
+data Func2 =
+    Add | Mul | All | Any | Index
+  | SortWith | Cons | Snoc | Take | Drop
+  | Map | Append | Filter | GroupWith | Zip
+  | Elem | Break | Span | DropWhile | TakeWhile
+  | SplitAt | Replicate | Equ | Conj | Disj
+  
+
+data Func3 = Cond | ZipWith
+
 
 data Norm =
     UnitN
