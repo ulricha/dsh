@@ -239,6 +239,26 @@ evaluate c e = case e of
     e4 <- evaluate c e2
     return $ BoolN $ e3 == e4
 
+  AppE2 Lt e1 e2 -> do
+    e3 <- evaluate c e1
+    e4 <- evaluate c e2
+    return $ BoolN $ e3 < e4
+
+  AppE2 Lte e1 e2 -> do
+    e3 <- evaluate c e1
+    e4 <- evaluate c e2
+    return $ BoolN $ e3 <= e4
+
+  AppE2 Gte e1 e2 -> do
+    e3 <- evaluate c e1
+    e4 <- evaluate c e2
+    return $ BoolN $ e3 >= e4
+
+  AppE2 Gt e1 e2 -> do
+    e3 <- evaluate c e1
+    e4 <- evaluate c e2
+    return $ BoolN $ e3 > e4
+
   AppE1 Not e1 -> do
     (BoolN b1) <- evaluate c e1
     return $ BoolN $ not b1 

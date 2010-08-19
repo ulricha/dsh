@@ -28,14 +28,37 @@ not (Q b) = Q (AppE1 Not b)
 (.||) :: Q Bool -> Q Bool -> Q Bool
 (.||) (Q a) (Q b) = Q (AppE2 Disj a b)
 
--- * Equality test
+-- * Equality and Ordering
 
 eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
 eq (Q a) (Q b) = Q (AppE2 Equ a b)
 
-
 (.==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
 (.==) = eq
+
+lt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+lt (Q a) (Q b) = Q (AppE2 Lt a b)
+
+(.<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(.<) = lt
+
+lte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+lte (Q a) (Q b) = Q (AppE2 Lte a b)
+
+(.<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(.<=) = lte
+
+gte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+gte (Q a) (Q b) = Q (AppE2 Gte a b)
+
+(.>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(.>=) = gte
+
+gt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+gt (Q a) (Q b) = Q (AppE2 Gt a b)
+
+(.>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(.>) = gt
 
 
 -- * If then else
