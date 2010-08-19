@@ -89,6 +89,19 @@ normaliseQuals :: [QualStmt] -> N Exp
 normaliseQuals = normaliseQuals' . reverse
 
 normaliseQuals' :: [QualStmt] -> N Exp
+normaliseQuals' ((ThenTrans e):ps) = app e <$> normaliseQuals' ps
+normaliseQuals' ((ThenBy ef ek):ps) = do
+                                        let pv = variablesFromLst ps
+                                        ks <- makeLambda pv (SrcLoc "" 0 0) ek
+                                        app (app ef ks) <$> normaliseQuals' ps
+normaliseQuals' ((GroupBy e):ps)    = normaliseQuals' ((GroupByUsing e groupWithF):ps)
+normaliseQuals' ((GroupByUsing e f):ps) = do 
+                                            let pVar = variablesFromLst ps
+                                            lambda <- makeLambda pVar (SrcLoc "" 0 0) e
+                                            unzipped <- unzipB pVar
+                                            (\x -> mapF unzipped (app (app f lambda) x)) <$> normaliseQuals' ps
+normaliseQuals' ((GroupUsing e):ps) = let pVar = variablesFromLst ps
+                                       in mapF <$> unzipB pVar <*> (app e <$> normaliseQuals' ps)
 normaliseQuals' [q]    = normaliseQual q
 normaliseQuals' []     = pure $ consF unit nilF
 normaliseQuals' (q:ps) = do
@@ -102,6 +115,7 @@ normaliseQual :: QualStmt -> N Exp
 normaliseQual (QualStmt (Generator _ _ e)) = pure $ e
 normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
 normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = pure $ flip consF nilF $ letE bi $ patToExp p
+normaliseQual _ = $impossible
 
 combine :: Exp -> Pat -> Exp -> Pat -> N Exp
 combine p pv q qv = do
@@ -109,11 +123,34 @@ combine p pv q qv = do
                      pLambda <- makeLambda pv (SrcLoc "" 0 0) $ mapF qLambda q
                      pure $ concatF (mapF pLambda p)
                      
+unzipB :: Pat -> N Exp
+unzipB PWildCard   = paren <$> makeLambda PWildCard (SrcLoc "" 0 0) unit
+unzipB p@(PVar x)  = paren <$> makeLambda p (SrcLoc "" 0 0) (var x)
+unzipB p@(PTuple [xp, yp]) = do
+                              e <- freshVar
+                              let ePat = patV e
+                              let eArg = varV e
+                              xUnfold <- unzipB xp
+                              yUnfold <- unzipB yp
+                              (<$>) paren $ makeLambda ePat (SrcLoc "" 0 0) $
+                                             fromViewF $ tuple [app xUnfold $ paren $ mapF fstV eArg, app yUnfold $ mapF sndV eArg]
+unzipB _ = $impossible
 
+
+patV :: String -> Pat
+patV = PVar . name
+
+varV :: String -> Exp
+varV = var . name
 
 -- Building and converting patterns
 
 variablesFromLst :: [QualStmt] -> Pat
+variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
+variablesFromLst ((ThenBy _ _):xs) = variablesFromLst xs
+variablesFromLst ((GroupBy _):xs) = variablesFromLst xs
+variablesFromLst ((GroupUsing _):xs) = variablesFromLst xs
+variablesFromLst ((GroupByUsing _ _):xs) = variablesFromLst xs
 variablesFromLst [x]    = variablesFrom x
 variablesFromLst (x:xs) = PTuple [variablesFrom x, variablesFromLst xs]
 variablesFromLst []     = PWildCard
@@ -176,6 +213,12 @@ patToExp p                           = error $ "Pattern not suppoted by ferry: "
 
 -- Ferry Combinators
 
+fstV :: Exp
+fstV = var $ name "Ferry.Combinators.fst"
+
+sndV :: Exp
+sndV = var $ name "Ferry.Combinators.snd"
+
 mapV :: Exp
 mapV = var $ name "Ferry.Combinators.map"
 
@@ -211,6 +254,9 @@ concatV = var $ name "Ferry.Combinators.concat"
 
 boolF :: Exp -> Exp -> Exp -> Exp
 boolF t e c = app (app ( app (var $ name "Ferry.Combinators.bool") t) e) c 
+
+groupWithF :: Exp
+groupWithF = var $ name "Ferry.Combinators.groupWith"
 
 -- Generate proper global names from pseudo qualified variables
 toNameG :: TH.Name -> TH.Name
