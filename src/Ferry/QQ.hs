@@ -95,9 +95,21 @@ translateListCompr (ListComp e q) = do
                                      let pat = variablesFromLst $ reverse q
                                      lambda <- makeLambda pat (SrcLoc "" 0 0) e
                                      (mapF lambda) <$> normaliseQuals q
+translateListCompr (ParComp e qs) = do
+                                     let pat = variablesFromLsts qs
+                                     lambda <- makeLambda pat (SrcLoc "" 0 0) e
+                                     (mapF lambda) <$> normParallelCompr qs
 translateListCompr l              = error $ "Expr not supported by Ferry: " ++ show l
 
 -- Transforming qualifiers
+
+
+
+normParallelCompr :: [[QualStmt]] -> N Exp
+normParallelCompr [] = $impossible
+normParallelCompr [x] = normaliseQuals x
+normParallelCompr (x:xs) = zipF <$> (normaliseQuals x) <*> (normParallelCompr xs)
+
 
 normaliseQuals :: [QualStmt] -> N Exp
 normaliseQuals = normaliseQuals' . reverse
@@ -174,6 +186,12 @@ varV :: String -> Exp
 varV = var . name
 
 -- Building and converting patterns
+
+
+variablesFromLsts :: [[QualStmt]] -> Pat
+variablesFromLsts [] = $impossible
+variablesFromLsts [x]    = variablesFromLst $ reverse x
+variablesFromLsts (x:xs) = PTuple [variablesFromLst $ reverse x, variablesFromLsts xs]
 
 variablesFromLst :: [QualStmt] -> Pat
 variablesFromLst ((ThenTrans _):xs) = variablesFromLst xs
@@ -287,6 +305,13 @@ boolF t e c = app (app ( app (qvar combinatorMod $ name "bool") t) e) c
 
 groupWithF :: Exp
 groupWithF = qvar combinatorMod $ name "groupWith"
+
+zipV :: Exp
+zipV = qvar combinatorMod $ name "zip"
+
+zipF :: Exp -> Exp -> Exp
+zipF x y = app (app zipV x) y
+
 
 -- Generate proper global names from pseudo qualified variables
 toNameG :: TH.Name -> TH.Name
