@@ -10,6 +10,8 @@ import Data.Convertible
 import Database.HDBC
 import GHC.Exts
 
+import Data.List
+
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
          -> Exp
@@ -203,6 +205,10 @@ evaluate c e = case e of
     (ListN as1) <- evaluate c as
     (ListN bs1) <- evaluate c bs
     evaluate c $ ListE $ zipWith (\a b -> let lam1 = ((evalLam lam) a) in (evalLam lam1) b) as1 bs1
+
+  AppE1 Nub as -> do
+    (ListN as1) <- evaluate c as
+    return $ ListN $ nub as1
 
   AppE1 Fst a -> do
     (TupleN a1 _) <- evaluate c a

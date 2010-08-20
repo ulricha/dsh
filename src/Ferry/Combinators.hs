@@ -224,6 +224,12 @@ zipWith f (Q as) (Q bs) =
 unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
 unzip (Q as) = Q (AppE1 Unzip as)
 
+-- * "Set" operations
+
+nub :: Eq a => Q [a] -> Q [a]
+nub (Q as) = Q (AppE1 Nub as) 
+
+
 -- * Tuple Projection Functions
 
 fst :: (QA a, QA b) => Q (a,b) -> Q a

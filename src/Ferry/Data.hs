@@ -30,7 +30,7 @@ data Fun1 =
   | Negate | Head | Tail | Unzip | Minimum
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init
-  | Last | The
+  | Last | The | Nub
   
 data Fun2 =
     Add | Mul | All | Any | Index

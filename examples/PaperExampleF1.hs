@@ -73,5 +73,8 @@ means f = Q.head [$qc| mean | (feat,mean) <- meanings, Q.eq feat f |]
 
 -- Only need Q.nub combinator
 query :: IO [(String , [String ])] 
-query = fromQ conn [$qc| Q.fromView (Q.the cat, Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
+query = fromQ conn [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
         | (fac, cat) <- facilities, then group by cat |]
+        
+main :: IO ()
+main = query >>= print
