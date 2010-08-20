@@ -148,8 +148,24 @@ unzipB (PTuple [xp, yp]) = do
                               yUnfold <- unzipB yp
                               (<$>) paren $ makeLambda ePat (SrcLoc "" 0 0) $
                                              fromViewF $ tuple [app xUnfold $ paren $ mapF fstV eArg, app yUnfold $ mapF sndV eArg]
+unzipB (PTuple ps) = do
+                        let pl = length ps
+                        e <- freshVar
+                        let ePat = patV e
+                        let eArg = varV e
+                        ps' <- mapM (\_ -> freshVar) ps
+                        ups <- mapM unzipB ps
+                        views <- mapM (viewN ps') [0..(pl-1)]
+                        
+                        (<$>) paren $ makeLambda ePat (SrcLoc "" 0 0) $
+                                            fromViewF $ tuple [app unf $ paren $ mapF proj eArg | (unf, proj) <- zip ups views]
+                        
 unzipB _ = $impossible
 
+viewN :: [String] -> Int -> N Exp
+viewN ps i = let e = varV $ ps !! i
+                 pat = PTuple $ map patV ps
+              in makeLambda pat (SrcLoc "" 0 0) e
 
 patV :: String -> Pat
 patV = PVar . name

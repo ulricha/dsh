@@ -24,11 +24,12 @@ q5 = Q.map (+ 42) (toQ [1 .. 10 :: Int])
 
 q6 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
-q7 = [$qc| (Q.the dept, Q.sum salary)
-  | (name, dept, salary) <- employees
-  , then group by dept
-  , then Q.sortWith by (sum salary)
-  , then Q.take 5 |]
+q7 :: Q [(String, Int)]
+q7 = [$qc| Q.fromView (Q.the dept, Q.sum salary)
+         | (name, dept, salary) <- employees
+         , then group by dept
+         , then Q.sortWith by (Q.sum salary)
+         , then Q.take (toQ 5) |]
 
 -- output2 = [$qc| (snd (fst (the e)), (sum (snd (snd e))))
 --   | e <- employees
