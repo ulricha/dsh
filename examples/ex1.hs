@@ -29,7 +29,7 @@ q7 = [$qc| Q.fromView (Q.the dept, Q.sum salary)
          | (name, dept, salary) <- employees
          , then group by dept
          , then Q.sortWith by (Q.sum salary)
-         , then Q.take (toQ 5) |]
+         , then Q.take 5 |]
 
 conn :: Connection
 conn = undefined

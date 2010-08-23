@@ -22,46 +22,52 @@ unit = Q UnitE
 not :: Q Bool -> Q Bool
 not (Q b) = Q (AppE1 Not b)
 
-(.&&) :: Q Bool -> Q Bool -> Q Bool
-(.&&) (Q a) (Q b) = Q (AppE2 Conj a b)
+(&&) :: Q Bool -> Q Bool -> Q Bool
+(&&) (Q a) (Q b) = Q (AppE2 Conj a b)
 
-(.||) :: Q Bool -> Q Bool -> Q Bool
-(.||) (Q a) (Q b) = Q (AppE2 Disj a b)
+(||) :: Q Bool -> Q Bool -> Q Bool
+(||) (Q a) (Q b) = Q (AppE2 Disj a b)
 
 -- * Equality and Ordering
 
 eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
 eq (Q a) (Q b) = Q (AppE2 Equ a b)
 
-(.==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-(.==) = eq
+(==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+(==) = eq
+
+neq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+neq a b = not (eq a b)
+
+(/=) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+(/=) = neq
 
 lt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 lt (Q a) (Q b) = Q (AppE2 Lt a b)
 
-(.<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-(.<) = lt
+(<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(<) = lt
 
 lte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 lte (Q a) (Q b) = Q (AppE2 Lte a b)
 
-(.<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-(.<=) = lte
+(<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(<=) = lte
 
 gte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 gte (Q a) (Q b) = Q (AppE2 Gte a b)
 
-(.>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-(.>=) = gte
+(>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(>=) = gte
 
 gt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 gt (Q a) (Q b) = Q (AppE2 Gt a b)
 
-(.>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-(.>) = gt
+(>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(>) = gt
 
 
--- * If then else
+-- * Conditionals
     
 bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
 bool a b c = c ? (a,b)
@@ -142,8 +148,8 @@ length (Q as) = Q (AppE1 Length as)
 index :: (QA a) => Q [a] -> Q Int -> Q a
 index (Q as) (Q i) = Q (AppE2 Index as i)
 
-(!!) :: (QA a) => Q [a] -> Q Int -> Q a
-(!!) = index
+(!) :: (QA a) => Q [a] -> Q Int -> Q a
+(!) = index
 
 reverse :: (QA a) => Q [a] -> Q [a]
 reverse (Q as) = Q (AppE1 Reverse as)
@@ -245,6 +251,13 @@ toQ = Q . normToExp . toNorm
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
+
+infixl 9 !
+infixr 5 ><, <|, |>
+infix  4  ==, /=, <, <=, >=, >
+infixr 3  &&
+infixr 2  ||
+infix  0 ?
 
 #define N 16
 
