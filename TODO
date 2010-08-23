@@ -1,4 +1,1 @@
 Current tasks:
-
-- Escape the table name (String) in the evaluation function
-- General mapping of SQL types to our haskell types
