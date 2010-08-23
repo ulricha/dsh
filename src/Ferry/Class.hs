@@ -1,7 +1,4 @@
-{-# Language ScopedTypeVariables, MultiParamTypeClasses,
-  FunctionalDependencies, FlexibleInstances, TypeSynonymInstances
-  #-}
-{-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
+{-# Options -fno-warn-incomplete-patterns #-}
 
 module Ferry.Class where
 

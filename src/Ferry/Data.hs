@@ -1,8 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables
-           , MultiParamTypeClasses
-           , DeriveDataTypeable
-           , FlexibleInstances #-}
-
 module Ferry.Data where
 
 import Data.Convertible

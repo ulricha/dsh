@@ -1,5 +1,4 @@
-{-# Language TemplateHaskell, CPP, ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses #-}
-{-# Options -fno-warn-incomplete-patterns -fno-warn-orphans #-}
+{-# Options -fno-warn-incomplete-patterns #-}
 
 module Ferry.Combinators where
 
@@ -259,13 +258,11 @@ infixr 3  &&
 infixr 2  ||
 infix  0 ?
 
-#define N 16
-
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
-$(generateDeriveTupleQARange   3 N)
-$(generateDeriveTupleTARange   3 N)
-$(generateDeriveTupleViewRange 3 N)
+$(generateDeriveTupleQARange   3 16)
+$(generateDeriveTupleTARange   3 16)
+$(generateDeriveTupleViewRange 3 16)
 
 
 -- * Missing Combinators

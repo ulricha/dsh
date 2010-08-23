@@ -21,7 +21,9 @@ Library
                      convertible >= 0.1, bytestring >= 0.9, mtl
 
   Hs-Source-Dirs:    src
-  GHC-Options:       -Wall -O3
+  Extensions:        TemplateHaskell, ViewPatterns, MultiParamTypeClasses, DeriveDataTypeable,
+                     FunctionalDependencies, FlexibleInstances, TypeSynonymInstances, ScopedTypeVariables
+  GHC-Options:       -Wall -fno-warn-orphans -O3
   Exposed-modules:   Ferry
 
   Other-modules:     Ferry.QQ

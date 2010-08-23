@@ -1,6 +1,3 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
--- {-# Options -fno-warn-incomplete-patterns #-}
-
 module Ferry.Evaluate (evaluate) where
 
 import Ferry.Data

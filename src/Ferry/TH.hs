@@ -1,6 +1,3 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes, RelaxedPolyRec #-}
-{-# OPTIONS -fno-warn-orphans #-}
-
 module Ferry.TH
     (
       deriveTupleQA
