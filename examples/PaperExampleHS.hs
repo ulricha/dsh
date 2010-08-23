@@ -74,4 +74,7 @@ means f = head [mean | (feat,mean) <- meanings, feat == f ]
 query :: [(String , [String ])] 
 query = [(the cat, nub $ concat $ map (map means . hasFeatures) fac) 
         | (fac, cat) <- facilities, then group by cat]
+
+main :: IO ()
+main = print query
               

@@ -17,11 +17,11 @@ ints :: Q [Int]
 ints = toQ [1,2,3]
 
 test2 :: Q [Int]
-test2 = [$qc| x +y | x <- ints, toQ True, let y = 5 |]
+test2 = [$qc| x + y | x <- ints, toQ True, let y = 5 |]
 
 test4 = [$qc| x | x <- ints, then Q.tail |]
 
-test5 = [$qc| Q.fromView (x,y,z) | x <- ints | y <- ints, z <- ints, Q.eq y z |]
+test5 = [$qc| Q.fromView (x,y,z) | x <- ints | y <- ints, z <- ints, y Q.== z Q.&& y `Q.eq` z |]
 
 main :: IO ()
 main = do

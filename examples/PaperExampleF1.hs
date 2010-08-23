@@ -66,10 +66,10 @@ meanings = toQ [("maps","admits user-defined object mappings"),
 -- Haskell version:
 
 hasFeatures :: Q String -> Q [String] 
-hasFeatures f = [$qc|feat | (fac,feat) <- features, Q.eq fac f|]
+hasFeatures f = [$qc|feat | (fac,feat) <- features, fac Q.== f|]
 
 means :: Q String -> Q String
-means f = Q.head [$qc| mean | (feat,mean) <- meanings, Q.eq feat f |]
+means f = Q.head [$qc| mean | (feat,mean) <- meanings, feat `Q.eq` f |]
 
 -- Only need Q.nub combinator
 query :: IO [(String , [String ])] 
