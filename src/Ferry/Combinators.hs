@@ -147,8 +147,8 @@ length (Q as) = Q (AppE1 Length as)
 index :: (QA a) => Q [a] -> Q Int -> Q a
 index (Q as) (Q i) = Q (AppE2 Index as i)
 
-(!) :: (QA a) => Q [a] -> Q Int -> Q a
-(!) = index
+(!!) :: (QA a) => Q [a] -> Q Int -> Q a
+(!!) = index
 
 reverse :: (QA a) => Q [a] -> Q [a]
 reverse (Q as) = Q (AppE1 Reverse as)
@@ -251,12 +251,12 @@ toQ = Q . normToExp . toNorm
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 
-infixl 9 !
+infixl 9 !!
 infixr 5 ><, <|, |>
 infix  4  ==, /=, <, <=, >=, >
 infixr 3  &&
 infixr 2  ||
-infix  0 ?
+infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 

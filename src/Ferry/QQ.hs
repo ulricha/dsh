@@ -3,15 +3,13 @@ module Ferry.QQ (qc) where
 import Paths_Ferry as Ferry
 import Ferry.Impossible
 
+import Language.Haskell.SyntaxTrees.ExtsToTH (translateExtsToTH)
+
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as TH
-import Language.Haskell.TH.Quote
-import Language.Haskell.Exts.Parser
-import Language.Haskell.Exts.Syntax
-import Language.Haskell.SyntaxTrees.ExtsToTH
-import Language.Haskell.Exts.Extension
-import Language.Haskell.Exts.Build
--- import Language.Haskell.Exts.Pretty
+import qualified Language.Haskell.TH.Quote as TH
+
+import Language.Haskell.Exts
 
 import Control.Monad
 import Control.Monad.State 
@@ -71,23 +69,29 @@ transform e = case translateExtsToTH . runN $ translateListCompr e of
 parseCompr :: String -> Exp
 parseCompr = fromParseResult . exprParser
 
+ferryParseMode :: ParseMode
+ferryParseMode = defaultParseMode {
+    extensions = [TransformListComp, ViewPatterns]
+  , fixities = fixities defaultParseMode ++ infix_ 0 ["?"] ++ infixr_ 5 ["><", "<|", "|>"]
+  }
+
 exprParser :: String -> ParseResult Exp
-exprParser = parseExpWithMode (defaultParseMode {extensions = [TransformListComp, ViewPatterns]}) . expand
+exprParser = parseExpWithMode ferryParseMode . expand
 
 expand :: String -> String
 expand e = '[':(e ++ "]")
 
-ferryHaskell :: QuasiQuoter
-ferryHaskell = QuasiQuoter quoteListCompr quoteListComprPat
+ferryHaskell :: TH.QuasiQuoter
+ferryHaskell = TH.QuasiQuoter quoteListCompr quoteListComprPat
 
-qc :: QuasiQuoter
+qc :: TH.QuasiQuoter
 qc = ferryHaskell
 
-fp :: QuasiQuoter
-fp = QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
+fp :: TH.QuasiQuoter
+fp = TH.QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
 
-rw :: QuasiQuoter
-rw = QuasiQuoter (return . TH.LitE . TH.StringL . show . translateExtsToTH . runN . translateListCompr . parseCompr) undefined
+rw :: TH.QuasiQuoter
+rw = TH.QuasiQuoter (return . TH.LitE . TH.StringL . show . translateExtsToTH . runN . translateListCompr . parseCompr) undefined
 
 translateListCompr :: Exp -> N Exp
 translateListCompr (ListComp e q) = do
