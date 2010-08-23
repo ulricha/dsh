@@ -283,12 +283,17 @@ evaluate c e = case e of
 
       -- escape tName/raise error if invalid table name?
       fmap (sqlToNormWithType tName tType)
-           (quickQuery' c ("SELECT * FROM " ++ tName) [])
+           (quickQuery' c ("SELECT * FROM \"" ++ escape tName ++ "\"") [])
 
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]
 snoc (b : bs) a = b : snoc bs a
+
+escape :: String -> String
+escape []                  = []
+escape (c : cs) | c == '"' = '\\' : '"' : escape cs
+escape (c : cs)            =          c : escape cs
 
 evalLam :: Exp -> (Norm -> Exp)
 evalLam (LamE f) n = f (normToExp n)

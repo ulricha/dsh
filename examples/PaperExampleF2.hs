@@ -16,13 +16,13 @@ type Feature  = String
 type Meaning  = String
 
 facilities :: Q [(Facility, Cat)]
-facilities = Q.table "\"Facilities\""
+facilities = Q.table "Facilities"
                
 features :: Q [(Facility, Feature)]
-features = Q.table "\"Features\""
+features = Q.table "Features"
           
 meanings :: Q [(Feature, Meaning)]
-meanings = Q.table "\"Meanings\""
+meanings = Q.table "Meanings"
             
 -- Haskell version:
 
@@ -38,3 +38,6 @@ query = do
          conn <- conn
          fromQ conn [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
                         | (fac, cat) <- facilities, then group by cat |]
+
+main :: IO ()
+main = query >>= print

@@ -31,12 +31,6 @@ q7 = [$qc| Q.fromView (Q.the dept, Q.sum salary)
          , then Q.sortWith by (Q.sum salary)
          , then Q.take (toQ 5) |]
 
--- output2 = [$qc| (snd (fst (the e)), (sum (snd (snd e))))
---   | e <- employees
---   , then group by (snd (fst e))
---   , then sortWith by (sum (snd (snd e)))
---   , then take 5 |]
-
 conn :: Connection
 conn = undefined
 
