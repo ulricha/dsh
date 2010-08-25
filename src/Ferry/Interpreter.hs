@@ -18,7 +18,6 @@ evaluate :: IConnection conn
          -> Exp
          -> IO Norm
 evaluate c e = case e of
-  e1 ::: _ -> evaluate c e1 
   UnitE    -> return UnitN
   BoolE b  -> return (BoolN b)
   CharE ch -> return (CharN ch)
@@ -281,12 +280,13 @@ evaluate c e = case e of
     (BoolN b2) <- evaluate c e2
     return $ BoolN $ b1 || b2 
 
-  TableE tName tType -> do
+  TableE tName ::: (ListT tType) -> do
 
       -- escape tName/raise error if invalid table name?
       fmap (sqlToNormWithType tName tType)
            (quickQuery' c ("SELECT * FROM \"" ++ escape tName ++ "\"") [])
-
+  TableE _ -> $impossible
+  e1 ::: _ -> evaluate c e1 
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]

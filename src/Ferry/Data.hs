@@ -23,7 +23,7 @@ data Exp =
   | AppE1 Fun1 Exp
   | AppE2 Fun2 Exp Exp
   | AppE3 Fun3 Exp Exp Exp
-  | TableE String Type
+  | TableE String
   | VarE Int
   | Exp ::: Type
 
@@ -118,7 +118,7 @@ instance BasicType String where
 
 class (QA a) => TA a where
   table :: String -> Q [a]
-  table s = Q (TableE s (reify (undefined :: a)))
+  table s = Q (TableE s ::: (reify (undefined :: [a])))
 
 instance TA () where
 instance TA Int where
