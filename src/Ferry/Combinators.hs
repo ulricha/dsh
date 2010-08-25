@@ -5,11 +5,7 @@ module Ferry.Combinators where
 import Ferry.Data
 import Ferry.TH
 
-import Ferry.Interpreter
-
-import Database.HDBC
-
-import Prelude (Eq, Ord, Num, Bool, Int, IO, return , undefined , (>>=), (.))
+import Prelude (Eq, Ord, Num, Bool, Int, undefined)
 
 -- * Unit
 
@@ -240,13 +236,10 @@ fst (Q a) = Q (AppE1 Fst a ::: reify (undefined :: a))
 snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE1 Snd a ::: reify (undefined :: b))
 
--- * Convert Haskell values into DB queries and back
+-- * Convert Haskell values into DB queries
 
 toQ   :: forall a. (QA a) => a -> Q a
 toQ c = Q (normToExp (toNorm c) ::: reify (undefined :: a))
-
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 
 infixl 9 !!
 infixr 5 ><, <|, |>

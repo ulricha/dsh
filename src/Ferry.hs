@@ -8,6 +8,7 @@
 module Ferry
   (
     module Ferry.Combinators
+  , module Ferry.Interpreter
 
     -- * Data Types
   , Q
@@ -30,3 +31,4 @@ import Ferry.Combinators
 import Ferry.Data (Q,QA,TA,table,BasicType,View,view,fromView)
 import Ferry.QQ (qc)
 import Ferry.TH (createTableRepresentation, createTableRepresentation')
+import Ferry.Interpreter
