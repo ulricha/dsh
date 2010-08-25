@@ -32,6 +32,7 @@ Library
                      Ferry.Combinators
                      Ferry.TH
                      Ferry.Data
-                     Ferry.Evaluate
+                     Ferry.Interpreter
+                     Ferry.Compiler                     
                      Ferry.Class
                      Paths_Ferry

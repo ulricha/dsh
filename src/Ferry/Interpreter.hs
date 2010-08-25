@@ -1,4 +1,4 @@
-module Ferry.Evaluate (evaluate) where
+module Ferry.Interpreter (evaluate) where
 
 import Ferry.Data
 import Ferry.Impossible

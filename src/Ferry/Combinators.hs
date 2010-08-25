@@ -5,7 +5,8 @@ module Ferry.Combinators where
 import Ferry.Data
 import Ferry.Class
 import Ferry.TH
-import Ferry.Evaluate
+
+import Ferry.Interpreter
 
 import Database.HDBC
 
