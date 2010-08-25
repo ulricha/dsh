@@ -7,7 +7,7 @@ import Ferry.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool, Int, undefined)
+import Prelude (Eq, Ord, Num, Bool, Integer, undefined)
 
 -- * Unit
 
@@ -103,10 +103,10 @@ head (Q as) = Q (AppE1 Head as ::: reify (undefined :: a))
 tail :: forall a. (QA a) => Q [a] -> Q [a]
 tail (Q as) = Q (AppE1 Tail as ::: reify (undefined :: [a]))
 
-take :: forall a. (QA a) => Q Int -> Q [a] -> Q [a]
+take :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
 take (Q i) (Q as) = Q (AppE2 Take i as ::: reify (undefined :: [a]))
 
-drop :: forall a. (QA a) => Q Int -> Q [a] -> Q [a]
+drop :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
 drop (Q i) (Q as) = Q (AppE2 Drop i as ::: reify (undefined :: [a]))
 
 map :: forall a b. (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
@@ -139,13 +139,13 @@ init (Q as) = Q (AppE1 Init as ::: reify (undefined :: [a]))
 null :: (QA a) => Q [a] -> Q Bool
 null (Q as) = Q (AppE1 Null as ::: reify (undefined :: Bool))
 
-length :: (QA a) => Q [a] -> Q Int
-length (Q as) = Q (AppE1 Length as ::: reify (undefined :: Int))
+length :: (QA a) => Q [a] -> Q Integer
+length (Q as) = Q (AppE1 Length as ::: reify (undefined :: Integer))
 
-index :: forall a. (QA a) => Q [a] -> Q Int -> Q a
+index :: forall a. (QA a) => Q [a] -> Q Integer -> Q a
 index (Q as) (Q i) = Q (AppE2 Index as i ::: reify (undefined :: a))
 
-(!!) :: (QA a) => Q [a] -> Q Int -> Q a
+(!!) :: (QA a) => Q [a] -> Q Integer -> Q a
 (!!) = index
 
 reverse :: forall a. (QA a) => Q [a] -> Q [a]
@@ -184,13 +184,13 @@ maximum (Q as) = Q (AppE1 Maximum as ::: reify (undefined :: a))
 minimum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
 minimum (Q as) = Q (AppE1 Minimum as ::: reify (undefined :: a))
 
-replicate :: forall a. (QA a) => Q Int -> Q a -> Q [a]
+replicate :: forall a. (QA a) => Q Integer -> Q a -> Q [a]
 replicate (Q i) (Q a) = Q (AppE2 Replicate i a ::: reify (undefined :: [a]))
 
 
 -- * Sublists
 
-splitAt   :: forall a. (QA a) => Q Int -> Q [a] -> Q ([a], [a])
+splitAt   :: forall a. (QA a) => Q Integer -> Q [a] -> Q ([a], [a])
 splitAt (Q i) (Q as) = Q (AppE2 SplitAt i as ::: reify (undefined :: ([a],[a])))
 
 takeWhile :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]

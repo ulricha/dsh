@@ -413,7 +413,7 @@ createTableRepresentation conn t dname dnames = do
     -- no support for nullable columns yet:
     toVarStrictType (n,SqlColDesc { colType = ty, colNullable = _ }) =
         let t' = case convert ty of
-                      IntT        -> ConT ''Int
+                      IntegerT    -> ConT ''Integer
                       BoolT       -> ConT ''Bool
                       CharT       -> ConT ''Char
                       ListT CharT -> ConT ''String

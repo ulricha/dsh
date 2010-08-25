@@ -11,7 +11,7 @@ data Exp =
     UnitE
   | BoolE Bool
   | CharE Char
-  | IntE Int
+  | IntegerE Integer
   | DoubleE Double
   | TupleE Exp Exp
   | ListE [Exp]
@@ -50,7 +50,7 @@ data Norm =
     UnitN
   | BoolN Bool
   | CharN Char
-  | IntN Int
+  | IntegerN Integer
   | DoubleN Double
   | TupleN Norm Norm
   | ListN [Norm]
@@ -60,7 +60,7 @@ data Type =
     UnitT
   | BoolT
   | CharT
-  | IntT
+  | IntegerT
   | DoubleT
   | TupleT Type Type
   | ListT Type
@@ -92,10 +92,10 @@ instance QA Char where
   fromNorm (CharN c) = c
   fromNorm _ = $impossible
 
-instance QA Int where
-  reify _ = IntT
-  toNorm i = IntN i
-  fromNorm (IntN i) = i
+instance QA Integer where
+  reify _ = IntegerT
+  toNorm i = IntegerN i
+  fromNorm (IntegerN i) = i
   fromNorm _ = $impossible
 
 instance QA Double where
@@ -119,7 +119,7 @@ instance (QA a) => QA [a] where
 class BasicType a where
 
 instance BasicType () where
-instance BasicType Int where
+instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Bool where
 instance BasicType Char where
@@ -132,10 +132,10 @@ class (QA a) => TA a where
   table s = Q (TableE s ::: (reify (undefined :: [a])))
 
 instance TA () where
-instance TA Int where
-instance TA Double where
 instance TA Bool where
 instance TA Char where
+instance TA Integer where
+instance TA Double where
 instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 
 -- * Eq, Ord, Show and Num Instances for Databse Queries
@@ -143,19 +143,19 @@ instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 instance Show (Q a) where
   show _ = "Query"
 
-instance Eq (Q Int) where
+instance Eq (Q Integer) where
   (==) _ _ = undefined
 
 instance Eq (Q Double) where
   (==) _ _ = undefined
 
-instance Num (Q Int) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2       ::: reify (undefined :: Int))
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2       ::: reify (undefined :: Int))
-  abs (Q e1)        = Q (AppE1 Abs e1          ::: reify (undefined :: Int))
-  negate (Q e1)     = Q (AppE1 Negate e1       ::: reify (undefined :: Int))
-  fromInteger i     = Q (IntE (fromIntegral i) ::: reify (undefined :: Int))
-  signum (Q e1)     = Q (AppE1 Signum e1       ::: reify (undefined :: Int))
+instance Num (Q Integer) where
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2       ::: reify (undefined :: Integer))
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2       ::: reify (undefined :: Integer))
+  abs (Q e1)        = Q (AppE1 Abs e1          ::: reify (undefined :: Integer))
+  negate (Q e1)     = Q (AppE1 Negate e1       ::: reify (undefined :: Integer))
+  fromInteger i     = Q (IntegerE i            ::: reify (undefined :: Integer))
+  signum (Q e1)     = Q (AppE1 Signum e1       ::: reify (undefined :: Integer))
 
 instance Num (Q Double) where
   (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2          ::: reify (undefined :: Double))
@@ -185,7 +185,7 @@ instance View (Q Char) (Q Char) where
   view = id
   fromView = id
 
-instance View (Q Int) (Q Int) where
+instance View (Q Integer) (Q Integer) where
   view = id
   fromView = id
 
@@ -203,7 +203,7 @@ instance Convertible Norm Exp where
              UnitN          -> UnitE
              BoolN  b       -> BoolE b
              CharN c        -> CharE c
-             IntN i         -> IntE i
+             IntegerN i     -> IntegerE i
              DoubleN d      -> DoubleE d
              TupleN n1 n2   -> TupleE (convert n1) (convert n2)
              ListN ns       -> ListE (map convert ns)
@@ -229,7 +229,7 @@ unfoldType t = [t]
 instance Convertible Type SqlTypeId where
     safeConvert n =
         case n of
-             IntT           -> Right SqlBigIntT
+             IntegerT       -> Right SqlBigIntT
              DoubleT        -> Right SqlDoubleT
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
@@ -242,7 +242,7 @@ instance Convertible Type SqlTypeId where
 instance Convertible SqlTypeId Type where
     safeConvert n =
         case n of
-             SqlBigIntT         -> Right IntT
+             SqlBigIntT         -> Right IntegerT
              SqlDoubleT         -> Right DoubleT
              SqlBitT            -> Right BoolT
              SqlCharT           -> Right CharT
@@ -254,7 +254,7 @@ instance Convertible SqlValue Norm where
     safeConvert sql =
         case sql of
              SqlNull            -> Right $ UnitN
-             SqlInteger i       -> Right $ IntN (fromIntegral i)
+             SqlInteger i       -> Right $ IntegerN i
              SqlDouble d        -> Right $ DoubleN d
              SqlBool b          -> Right $ BoolN b
              SqlChar c          -> Right $ CharN c
@@ -265,7 +265,7 @@ instance Convertible Norm SqlValue where
     safeConvert n =
         case n of
              UnitN                  -> Right $ SqlNull
-             IntN i                 -> Right $ SqlInteger (fromIntegral i)
+             IntegerN i             -> Right $ SqlInteger i
              DoubleN d              -> Right $ SqlDouble d
              BoolN b                -> Right $ SqlBool b
              CharN c                -> Right $ SqlChar c

@@ -18,11 +18,11 @@ evaluate :: IConnection conn
          -> Exp
          -> IO Norm
 evaluate c e = case e of
-  UnitE     -> return UnitN
-  BoolE b   -> return (BoolN b)
-  CharE ch  -> return (CharN ch)
-  IntE i    -> return (IntN i)
-  DoubleE d -> return (DoubleN d)
+  UnitE      -> return UnitN
+  BoolE b    -> return (BoolN b)
+  CharE ch   -> return (CharN ch)
+  IntegerE i -> return (IntegerN i)
+  DoubleE d  -> return (DoubleN d)
   
   VarE _ -> $impossible
   LamE _ -> $impossible
@@ -58,14 +58,14 @@ evaluate c e = case e of
     return $ ListN $ tail as1
 
   AppE2 Take i as -> do
-    (IntN i1) <- evaluate c i
+    (IntegerN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
-    return $ ListN $ take i1 as1
+    return $ ListN $ take (fromIntegral i1) as1
 
   AppE2 Drop i as -> do
-    (IntN i1) <- evaluate c i
+    (IntegerN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
-    return $ ListN $ drop i1 as1
+    return $ ListN $ drop (fromIntegral i1) as1
 
   AppE2 Map lam as -> do
     (ListN as1) <- evaluate c as
@@ -109,12 +109,12 @@ evaluate c e = case e of
 
   AppE1 Length as -> do
     (ListN as1) <- evaluate c as
-    return $ IntN $ length as1
+    return $ IntegerN $ fromIntegral $ length as1
 
   AppE2 Index as i -> do
-    (IntN i1) <- evaluate c i
+    (IntegerN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
-    return $ as1 !! i1
+    return $ as1 !! (fromIntegral i1)
 
   AppE1 Reverse as -> do
     (ListN as1) <- evaluate c as
@@ -140,11 +140,11 @@ evaluate c e = case e of
 
   AppE1 Sum as -> do
     (ListN as1) <- evaluate c as
-    return $ IntN $ sum $ map (\(IntN i) -> i) as1
+    return $ IntegerN $ sum $ map (\(IntegerN i) -> i) as1
 
   AppE1 Product as -> do
     (ListN as1) <- evaluate c as
-    return $ IntN $ product $ map (\(IntN i) -> i) as1
+    return $ IntegerN $ product $ map (\(IntegerN i) -> i) as1
 
   AppE1 Concat as -> do
     (ListN as1) <- evaluate c as
@@ -159,14 +159,14 @@ evaluate c e = case e of
     return $ minimum as1
 
   AppE2 Replicate i a -> do
-    (IntN i1) <- evaluate c i
+    (IntegerN i1) <- evaluate c i
     a1 <- evaluate c a
-    return $ ListN $ replicate i1 a1
+    return $ ListN $ replicate (fromIntegral i1) a1
 
   AppE2 SplitAt i as -> do
-    (IntN i1) <- evaluate c i
+    (IntegerN i1) <- evaluate c i
     (ListN as1) <- evaluate c as
-    let t = splitAt i1 as1
+    let t = splitAt (fromIntegral i1) as1
     return $ TupleN (ListN $ fst t) (ListN $ snd t)
 
   AppE2 TakeWhile lam as -> do
@@ -220,45 +220,45 @@ evaluate c e = case e of
     (TupleN _ a1) <- evaluate c a
     return a1
 
-  AppE2 Add e1 e2 ::: IntT -> do
-    (IntN i1) <- evaluate c e1
-    (IntN i2) <- evaluate c e2
-    return $ IntN $ i1 + i2
+  AppE2 Add e1 e2 ::: IntegerT -> do
+    (IntegerN i1) <- evaluate c e1
+    (IntegerN i2) <- evaluate c e2
+    return $ IntegerN $ i1 + i2
   AppE2 Add e1 e2 ::: DoubleT -> do
     (DoubleN i1) <- evaluate c e1
     (DoubleN i2) <- evaluate c e2
     return $ DoubleN $ i1 + i2
   AppE2 Add _ _ -> $impossible
 
-  AppE2 Mul e1 e2 ::: IntT -> do
-    (IntN i1) <- evaluate c e1
-    (IntN i2) <- evaluate c e2
-    return $ IntN $ i1 * i2
+  AppE2 Mul e1 e2 ::: IntegerT -> do
+    (IntegerN i1) <- evaluate c e1
+    (IntegerN i2) <- evaluate c e2
+    return $ IntegerN $ i1 * i2
   AppE2 Mul e1 e2 ::: DoubleT -> do
     (DoubleN i1) <- evaluate c e1
     (DoubleN i2) <- evaluate c e2
     return $ DoubleN $ i1 * i2
   AppE2 Mul _ _ -> $impossible
 
-  AppE1 Abs e1 ::: IntT -> do
-    (IntN i1) <- evaluate c e1
-    return $ IntN $ abs i1
+  AppE1 Abs e1 ::: IntegerT -> do
+    (IntegerN i1) <- evaluate c e1
+    return $ IntegerN $ abs i1
   AppE1 Abs e1 ::: DoubleT -> do
     (DoubleN i1) <- evaluate c e1
     return $ DoubleN $ abs i1
   AppE1 Abs _ -> $impossible
 
-  AppE1 Negate e1 ::: IntT -> do
-    (IntN i1) <- evaluate c e1
-    return $ IntN $ negate i1
+  AppE1 Negate e1 ::: IntegerT -> do
+    (IntegerN i1) <- evaluate c e1
+    return $ IntegerN $ negate i1
   AppE1 Negate e1 ::: DoubleT -> do
     (DoubleN i1) <- evaluate c e1
     return $ DoubleN $ negate i1
   AppE1 Negate _ -> $impossible
 
-  AppE1 Signum e1 ::: IntT -> do
-    (IntN i1) <- evaluate c e1
-    return $ IntN $ signum i1
+  AppE1 Signum e1 ::: IntegerT -> do
+    (IntegerN i1) <- evaluate c e1
+    return $ IntegerN $ signum i1
   AppE1 Signum e1 ::: DoubleT -> do
     (DoubleN i1) <- evaluate c e1
     return $ DoubleN $ signum i1
@@ -362,7 +362,7 @@ typeMatch :: Type -> SqlValue -> Bool
 typeMatch t s =
     case (t,s) of
          (UnitT         , SqlNull)          -> True
-         (IntT          , SqlInteger _)     -> True
+         (IntegerT          , SqlInteger _)     -> True
          (BoolT         , SqlBool _)        -> True
          (CharT         , SqlChar _)        -> True
          (ListT CharT   , SqlString _)      -> True
