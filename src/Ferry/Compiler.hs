@@ -8,6 +8,7 @@ import Ferry.Compiler.Transform
 -- import Data.Convertible
 import Database.HDBC
 
+import Control.Monad.State
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
