@@ -12,13 +12,14 @@ data Exp =
   | IntE Int
   | TupleE Exp Exp
   | ListE [Exp]
-  | VarE String
   | LamE (Exp -> Exp)
   | AppE (Exp -> Exp) Exp
   | AppE1 Fun1 Exp
   | AppE2 Fun2 Exp Exp
   | AppE3 Fun3 Exp Exp Exp
   | TableE String Type
+  | VarE Int
+
 
 data Fun1 =
     Fst | Snd | Not | Abs | Signum
@@ -26,6 +27,7 @@ data Fun1 =
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init
   | Last | The | Nub
+
   
 data Fun2 =
     Add | Mul | All | Any | Index
