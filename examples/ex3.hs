@@ -9,14 +9,14 @@ import Database.HDBC.Sqlite3
 conn :: Connection
 conn = undefined
 
-test :: IO [Int]
+test :: IO [Integer]
 test = fromQ conn $ Q.map (\(view -> (e,t)) -> e) $ toQ [(1,True), (3,False)]
 
 
-ints :: Q [Int]
+ints :: Q [Integer]
 ints = toQ [1,2,3]
 
-test2 :: Q [Int]
+test2 :: Q [Integer]
 test2 = [$qc| x + y | x <- ints, toQ True, let y = 5 |]
 
 test4 = [$qc| x | x <- ints, then Q.tail |]

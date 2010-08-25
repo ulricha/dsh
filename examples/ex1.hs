@@ -7,7 +7,7 @@ import Ferry (Q,toQ,fromQ,qc,view)
 
 import Database.HDBC.Sqlite3
 
-employees :: Q [([Char], [Char], Int)]
+employees :: Q [([Char], [Char], Integer)]
 employees = toQ [
     ("Simon",  "MS",   80)
   , ("Erik",   "MS",   90)
@@ -20,11 +20,11 @@ q1 = Q.map (\(view->(n,_,s)) -> Q.fromView (s,n)) employees
 q2 = Q.sortWith id q1
 q3 = Q.append q1 q2
 q4 = Q.groupWith Q.fst q1
-q5 = Q.map (+ 42) (toQ [1 .. 10 :: Int])
+q5 = Q.map (+ 42) (toQ [1 .. 10 :: Integer])
 
 q6 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
-q7 :: Q [(String, Int)]
+q7 :: Q [(String, Integer)]
 q7 = [$qc| Q.fromView (Q.the dept, Q.sum salary)
          | (name, dept, salary) <- employees
          , then group by dept

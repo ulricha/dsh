@@ -23,8 +23,8 @@ import Data.Version (showVersion)
 combinatorMod :: ModuleName
 combinatorMod = ModuleName "ferry.Combinators"
 
-classMod :: ModuleName
-classMod = ModuleName "ferry.Class"
+dataMod :: ModuleName
+dataMod = ModuleName "ferry.Data"
 
 {-
 N monad, version of the state monad that can provide fresh variable names.
@@ -292,7 +292,7 @@ consV :: Exp
 consV = qvar combinatorMod $ name "cons"
 
 fromViewV :: Exp
-fromViewV = qvar classMod $ name "fromView"
+fromViewV = qvar dataMod $ name "fromView"
 
 fromViewF :: Exp -> Exp
 fromViewF e1 =  app fromViewV e1

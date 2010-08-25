@@ -319,7 +319,7 @@ escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
 evalLam :: Exp -> (Norm -> Exp)
-evalLam (LamE f) n = f (convert n)
+evalLam (LamE f ::: _) n = f (convert n)
 evalLam _ _ = $impossible
 
 

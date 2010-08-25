@@ -119,10 +119,10 @@ instance (QA a) => QA [a] where
 class BasicType a where
 
 instance BasicType () where
-instance BasicType Integer where
-instance BasicType Double where
 instance BasicType Bool where
 instance BasicType Char where
+instance BasicType Integer where
+instance BasicType Double where
 instance BasicType String where
 
 -- * Refering to Real Database Tables
