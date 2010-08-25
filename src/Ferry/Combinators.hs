@@ -5,6 +5,8 @@ module Ferry.Combinators where
 import Ferry.Data
 import Ferry.TH
 
+import Data.Convertible
+
 import Prelude (Eq, Ord, Num, Bool, Int, undefined)
 
 -- * Unit
@@ -239,7 +241,7 @@ snd (Q a) = Q (AppE1 Snd a ::: reify (undefined :: b))
 -- * Convert Haskell values into DB queries
 
 toQ   :: forall a. (QA a) => a -> Q a
-toQ c = Q (normToExp (toNorm c) ::: reify (undefined :: a))
+toQ c = Q (convert (toNorm c) ::: reify (undefined :: a))
 
 infixl 9 !!
 infixr 5 ><, <|, |>

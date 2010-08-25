@@ -18,10 +18,11 @@ evaluate :: IConnection conn
          -> Exp
          -> IO Norm
 evaluate c e = case e of
-  UnitE    -> return UnitN
-  BoolE b  -> return (BoolN b)
-  CharE ch -> return (CharN ch)
-  IntE i   -> return (IntN i)
+  UnitE     -> return UnitN
+  BoolE b   -> return (BoolN b)
+  CharE ch  -> return (CharN ch)
+  IntE i    -> return (IntN i)
+  DoubleE d -> return (DoubleN d)
   
   VarE _ -> $impossible
   LamE _ -> $impossible
@@ -219,27 +220,49 @@ evaluate c e = case e of
     (TupleN _ a1) <- evaluate c a
     return a1
 
-  AppE2 Add e1 e2 -> do
+  AppE2 Add e1 e2 ::: IntT -> do
     (IntN i1) <- evaluate c e1
     (IntN i2) <- evaluate c e2
     return $ IntN $ i1 + i2
+  AppE2 Add e1 e2 ::: DoubleT -> do
+    (DoubleN i1) <- evaluate c e1
+    (DoubleN i2) <- evaluate c e2
+    return $ DoubleN $ i1 + i2
+  AppE2 Add _ _ -> $impossible
 
-  AppE2 Mul e1 e2 -> do
+  AppE2 Mul e1 e2 ::: IntT -> do
     (IntN i1) <- evaluate c e1
     (IntN i2) <- evaluate c e2
     return $ IntN $ i1 * i2
+  AppE2 Mul e1 e2 ::: DoubleT -> do
+    (DoubleN i1) <- evaluate c e1
+    (DoubleN i2) <- evaluate c e2
+    return $ DoubleN $ i1 * i2
+  AppE2 Mul _ _ -> $impossible
 
-  AppE1 Abs e1 -> do
+  AppE1 Abs e1 ::: IntT -> do
     (IntN i1) <- evaluate c e1
     return $ IntN $ abs i1
+  AppE1 Abs e1 ::: DoubleT -> do
+    (DoubleN i1) <- evaluate c e1
+    return $ DoubleN $ abs i1
+  AppE1 Abs _ -> $impossible
 
-  AppE1 Negate e1 -> do
+  AppE1 Negate e1 ::: IntT -> do
     (IntN i1) <- evaluate c e1
     return $ IntN $ negate i1
+  AppE1 Negate e1 ::: DoubleT -> do
+    (DoubleN i1) <- evaluate c e1
+    return $ DoubleN $ negate i1
+  AppE1 Negate _ -> $impossible
 
-  AppE1 Signum e1 -> do
+  AppE1 Signum e1 ::: IntT -> do
     (IntN i1) <- evaluate c e1
     return $ IntN $ signum i1
+  AppE1 Signum e1 ::: DoubleT -> do
+    (DoubleN i1) <- evaluate c e1
+    return $ DoubleN $ signum i1
+  AppE1 Signum _ -> $impossible
 
   AppE2 Equ e1 e2 -> do
     e3 <- evaluate c e1
@@ -281,8 +304,6 @@ evaluate c e = case e of
     return $ BoolN $ b1 || b2 
 
   TableE tName ::: (ListT tType) -> do
-
-      -- escape tName/raise error if invalid table name?
       fmap (sqlToNormWithType tName tType)
            (quickQuery' c ("SELECT * FROM \"" ++ escape tName ++ "\"") [])
   TableE _ -> $impossible
@@ -298,7 +319,7 @@ escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
 evalLam :: Exp -> (Norm -> Exp)
-evalLam (LamE f) n = f (normToExp n)
+evalLam (LamE f) n = f (convert n)
 evalLam _ _ = $impossible
 
 

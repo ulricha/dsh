@@ -1,21 +1,18 @@
-{-# Options -fno-warn-incomplete-patterns #-}
 module Ferry.Data where
+
+import Ferry.Impossible
 
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
 import Data.ByteString.Char8 (unpack)
 
-
--- Native String
--- Double
--- Types
-
 data Exp =
     UnitE
   | BoolE Bool
   | CharE Char
   | IntE Int
+  | DoubleE Double
   | TupleE Exp Exp
   | ListE [Exp]
   | LamE (Exp -> Exp)
@@ -35,7 +32,7 @@ data Fun1 =
   | Last | The | Nub
   deriving (Eq,Show)
 
-  
+
 data Fun2 =
     Add | Mul | All | Any | Index
   | SortWith | Cons | Snoc | Take | Drop
@@ -44,7 +41,7 @@ data Fun2 =
   | SplitAt | Replicate | Equ | Conj | Disj
   | Lt | Lte | Gte | Gt
   deriving (Eq,Show)
-  
+
 data Fun3 = Cond | ZipWith
   deriving (Eq,Show)
 
@@ -54,15 +51,17 @@ data Norm =
   | BoolN Bool
   | CharN Char
   | IntN Int
+  | DoubleN Double
   | TupleN Norm Norm
   | ListN [Norm]
   deriving (Eq,Ord,Show, Typeable)
 
 data Type =
     UnitT
-  | IntT
   | BoolT
   | CharT
+  | IntT
+  | DoubleT
   | TupleT Type Type
   | ListT Type
   | ArrowT Type Type
@@ -79,37 +78,49 @@ instance QA () where
   reify _ = UnitT
   toNorm _ = UnitN
   fromNorm (UnitN) = ()
+  fromNorm _ = $impossible
 
 instance QA Bool where
   reify _ = BoolT
   toNorm b = BoolN b
   fromNorm (BoolN b) = b
+  fromNorm _ = $impossible
 
 instance QA Char where
   reify _ = CharT
   toNorm c = CharN c
   fromNorm (CharN c) = c
+  fromNorm _ = $impossible
 
 instance QA Int where
   reify _ = IntT
   toNorm i = IntN i
   fromNorm (IntN i) = i
+  fromNorm _ = $impossible
+
+instance QA Double where
+  reify _ = DoubleT
+  toNorm d = DoubleN d
+  fromNorm (DoubleN i) = i
+  fromNorm _ = $impossible
 
 instance (QA a,QA b) => QA (a,b) where
   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
   toNorm (a,b) = TupleN (toNorm a) (toNorm b)
   fromNorm (TupleN a b) = (fromNorm a,fromNorm b)
+  fromNorm _ = $impossible
 
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
   toNorm as = ListN (map toNorm as)
   fromNorm (ListN as) = map fromNorm as
-
+  fromNorm _ = $impossible
 
 class BasicType a where
 
 instance BasicType () where
 instance BasicType Int where
+instance BasicType Double where
 instance BasicType Bool where
 instance BasicType Char where
 instance BasicType String where
@@ -122,6 +133,7 @@ class (QA a) => TA a where
 
 instance TA () where
 instance TA Int where
+instance TA Double where
 instance TA Bool where
 instance TA Char where
 instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
@@ -134,13 +146,26 @@ instance Show (Q a) where
 instance Eq (Q Int) where
   (==) _ _ = undefined
 
+instance Eq (Q Double) where
+  (==) _ _ = undefined
+
 instance Num (Q Int) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 ::: reify (undefined :: Int))
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 ::: reify (undefined :: Int))
-  abs (Q e1) = Q (AppE1 Abs e1 ::: reify (undefined :: Int))
-  negate (Q e1) = Q (AppE1 Negate e1 ::: reify (undefined :: Int))
-  fromInteger i = Q (IntE (fromIntegral i) ::: reify (undefined :: Int))
-  signum (Q e1) = Q (AppE1 Signum e1 ::: reify (undefined :: Int))
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2       ::: reify (undefined :: Int))
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2       ::: reify (undefined :: Int))
+  abs (Q e1)        = Q (AppE1 Abs e1          ::: reify (undefined :: Int))
+  negate (Q e1)     = Q (AppE1 Negate e1       ::: reify (undefined :: Int))
+  fromInteger i     = Q (IntE (fromIntegral i) ::: reify (undefined :: Int))
+  signum (Q e1)     = Q (AppE1 Signum e1       ::: reify (undefined :: Int))
+
+instance Num (Q Double) where
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2          ::: reify (undefined :: Double))
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2          ::: reify (undefined :: Double))
+  abs (Q e1)        = Q (AppE1 Abs e1             ::: reify (undefined :: Double))
+  negate (Q e1)     = Q (AppE1 Negate e1          ::: reify (undefined :: Double))
+  fromInteger d     = Q (DoubleE (fromIntegral d) ::: reify (undefined :: Double))
+  signum (Q e1)     = Q (AppE1 Signum e1          ::: reify (undefined :: Double))
+
+
 
 -- * Support for View Patterns
 
@@ -164,6 +189,10 @@ instance View (Q Int) (Q Int) where
   view = id
   fromView = id
 
+instance View (Q Double) (Q Double) where
+  view = id
+  fromView = id
+
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
   view (Q a) = (Q (AppE1 Fst a), Q (AppE1 Snd a))
   fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2)
@@ -175,8 +204,9 @@ instance Convertible Norm Exp where
              BoolN  b       -> BoolE b
              CharN c        -> CharE c
              IntN i         -> IntE i
-             TupleN n1 n2   -> TupleE (normToExp n1) (normToExp n2)
-             ListN ns       -> ListE (map normToExp ns)
+             DoubleN d      -> DoubleE d
+             TupleN n1 n2   -> TupleE (convert n1) (convert n2)
+             ListN ns       -> ListE (map convert ns)
 
 forget :: (QA a) => Q a -> Exp
 forget (Q a) = a
@@ -192,18 +222,15 @@ toLam2 f =
       t2 = ArrowT (reify (undefined :: a)) t2
   in  LamE f2 ::: t2
 
-normToExp :: Norm -> Exp
-normToExp = convert
-
 unfoldType :: Type -> [Type]
 unfoldType (TupleT t1 t2) = t1 : unfoldType t2
 unfoldType t = [t]
-
 
 instance Convertible Type SqlTypeId where
     safeConvert n =
         case n of
              IntT           -> Right SqlBigIntT
+             DoubleT        -> Right SqlDoubleT
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
              ListT CharT    -> Right SqlVarCharT
@@ -216,6 +243,7 @@ instance Convertible SqlTypeId Type where
     safeConvert n =
         case n of
              SqlBigIntT         -> Right IntT
+             SqlDoubleT         -> Right DoubleT
              SqlBitT            -> Right BoolT
              SqlCharT           -> Right CharT
              SqlVarCharT        -> Right (ListT CharT)
@@ -227,6 +255,7 @@ instance Convertible SqlValue Norm where
         case sql of
              SqlNull            -> Right $ UnitN
              SqlInteger i       -> Right $ IntN (fromIntegral i)
+             SqlDouble d        -> Right $ DoubleN d
              SqlBool b          -> Right $ BoolN b
              SqlChar c          -> Right $ CharN c
              SqlByteString s    -> Right $ ListN (map CharN $ unpack s)
@@ -237,10 +266,12 @@ instance Convertible Norm SqlValue where
         case n of
              UnitN                  -> Right $ SqlNull
              IntN i                 -> Right $ SqlInteger (fromIntegral i)
+             DoubleN d              -> Right $ SqlDouble d
              BoolN b                -> Right $ SqlBool b
              CharN c                -> Right $ SqlChar c
-             ListN [CharN c]        -> Right $ SqlString [c]
+             ListN []               -> Right $ SqlString []
              ListN (CharN c : s)    -> case safeConvert (ListN s) of
                                             Right (SqlString s') -> Right (SqlString $ c : s')
                                             _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n
-             _                      -> convError "Cannot convert `Norm' to `SqlValue'" n
+             ListN _                -> convError "Cannot convert `Norm' to `SqlValue'" n
+             TupleN _ _             -> convError "Cannot convert `Norm' to `SqlValue'" n
