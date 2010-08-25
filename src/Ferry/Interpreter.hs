@@ -14,6 +14,7 @@ evaluate :: IConnection conn
          -> Exp
          -> IO Norm
 evaluate c e = case e of
+  e1 ::: _ -> evaluate c e1 
   UnitE    -> return UnitN
   BoolE b  -> return (BoolN b)
   CharE ch -> return (CharN ch)
@@ -303,26 +304,26 @@ sqlToNormWithType :: String             -- ^ Table name, used to generate more
                   -> Type
                   -> [[SqlValue]]
                   -> Norm
-sqlToNormWithType tName ty = ListN . map (toNorm ty)
+sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
 
   where
-    toNorm :: Type -> [SqlValue] -> Norm
+    sqlValueToNorm :: Type -> [SqlValue] -> Norm
 
     -- On a single value, just compare the 'Type' and convert the 'SqlValue' to
     -- a Norm value on match
-    toNorm t [s] = if t `typeMatch` s
+    sqlValueToNorm t [s] = if t `typeMatch` s
                       then convert s
                       else typeError t [s]
 
     -- On more than one value we need a 'TupleT' type of the exact same length
-    toNorm t s | length (unfoldType t) == length s =
+    sqlValueToNorm t s | length (unfoldType t) == length s =
             let f t' s' = if t' `typeMatch` s'
                              then convert s'
                              else typeError t s
             in foldr1 TupleN (zipWith f (unfoldType t) s)
 
     -- Everything else will raise an error
-    toNorm t s = typeError t s
+    sqlValueToNorm t s = typeError t s
 
     typeError :: Type -> [SqlValue] -> a
     typeError t s = error $

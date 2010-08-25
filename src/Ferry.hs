@@ -27,7 +27,6 @@ module Ferry
   where
 
 import Ferry.Combinators
-import Ferry.Data (Q)
-import Ferry.Class (QA,TA,table,BasicType,View,view,fromView)
+import Ferry.Data (Q,QA,TA,table,BasicType,View,view,fromView)
 import Ferry.QQ (qc)
 import Ferry.TH (createTableRepresentation, createTableRepresentation')

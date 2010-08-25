@@ -3,35 +3,34 @@
 module Ferry.Combinators where
 
 import Ferry.Data
-import Ferry.Class
 import Ferry.TH
 
 import Ferry.Interpreter
 
 import Database.HDBC
 
-import Prelude (Eq, Ord, Num, Bool, Int, IO, return , (>>=), (.))
+import Prelude (Eq, Ord, Num, Bool, Int, IO, return , undefined , (>>=), (.))
 
 -- * Unit
 
 unit :: Q ()
-unit = Q UnitE
+unit = Q (UnitE ::: reify (undefined :: ()))
 
 -- * Boolean logic
 
 not :: Q Bool -> Q Bool
-not (Q b) = Q (AppE1 Not b)
+not (Q b) = Q (AppE1 Not b ::: reify (undefined :: Bool))
 
 (&&) :: Q Bool -> Q Bool -> Q Bool
-(&&) (Q a) (Q b) = Q (AppE2 Conj a b)
+(&&) (Q a) (Q b) = Q (AppE2 Conj a b ::: reify (undefined :: Bool))
 
 (||) :: Q Bool -> Q Bool -> Q Bool
-(||) (Q a) (Q b) = Q (AppE2 Disj a b)
+(||) (Q a) (Q b) = Q (AppE2 Disj a b ::: reify (undefined :: Bool))
 
 -- * Equality and Ordering
 
 eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-eq (Q a) (Q b) = Q (AppE2 Equ a b)
+eq (Q a) (Q b) = Q (AppE2 Equ a b ::: reify (undefined :: Bool))
 
 (==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
 (==) = eq
@@ -43,25 +42,25 @@ neq a b = not (eq a b)
 (/=) = neq
 
 lt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lt (Q a) (Q b) = Q (AppE2 Lt a b)
+lt (Q a) (Q b) = Q (AppE2 Lt a b ::: reify (undefined :: Bool))
 
 (<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (<) = lt
 
 lte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lte (Q a) (Q b) = Q (AppE2 Lte a b)
+lte (Q a) (Q b) = Q (AppE2 Lte a b ::: reify (undefined :: Bool))
 
 (<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (<=) = lte
 
 gte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gte (Q a) (Q b) = Q (AppE2 Gte a b)
+gte (Q a) (Q b) = Q (AppE2 Gte a b ::: reify (undefined :: Bool))
 
 (>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (>=) = gte
 
 gt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gt (Q a) (Q b) = Q (AppE2 Gt a b)
+gt (Q a) (Q b) = Q (AppE2 Gt a b ::: reify (undefined :: Bool))
 
 (>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (>) = gt
@@ -72,25 +71,25 @@ gt (Q a) (Q b) = Q (AppE2 Gt a b)
 bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
 bool a b c = c ? (a,b)
 
-(?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
-(?) (Q c) (Q a,Q b) = Q (AppE3 Cond c a b)
+(?) :: forall a. (QA a) => Q Bool -> (Q a,Q a) -> Q a
+(?) (Q c) (Q a,Q b) = Q (AppE3 Cond c a b ::: reify (undefined :: a))
 
 -- * List Constraction
 
-nil :: (QA a) => Q [a]
-nil = Q (ListE [])
+nil :: forall a. (QA a) => Q [a]
+nil = Q (ListE [] ::: reify (undefined :: [a]))
 
 empty :: (QA a) => Q [a]
 empty = nil
 
-cons :: (QA a) => Q a -> Q [a] -> Q [a]
-cons (Q a) (Q as) = Q (AppE2 Cons a as)
+cons :: forall a. (QA a) => Q a -> Q [a] -> Q [a]
+cons (Q a) (Q as) = Q (AppE2 Cons a as ::: reify (undefined :: [a]))
 
 (<|) :: (QA a) => Q a -> Q [a] -> Q [a]
 (<|) = cons
 
-snoc :: (QA a) => Q [a] -> Q a -> Q [a]
-snoc (Q as) (Q a) = Q (AppE2 Snoc as a)
+snoc :: forall a. (QA a) => Q [a] -> Q a -> Q [a]
+snoc (Q as) (Q a) = Q (AppE2 Snoc as a ::: reify (undefined :: [a]))
 
 (|>) :: (QA a) => Q [a] -> Q a -> Q [a]
 (|>) = snoc
@@ -100,154 +99,151 @@ singleton a = cons a nil
 
 -- * List Operations
 
-head :: (QA a) => Q [a] -> Q a
-head (Q as) = Q (AppE1 Head as)
+head :: forall a. (QA a) => Q [a] -> Q a
+head (Q as) = Q (AppE1 Head as ::: reify (undefined :: a))
 
-tail :: (QA a) => Q [a] -> Q [a]
-tail (Q as) = Q (AppE1 Tail as)
+tail :: forall a. (QA a) => Q [a] -> Q [a]
+tail (Q as) = Q (AppE1 Tail as ::: reify (undefined :: [a]))
 
-take :: (QA a) => Q Int -> Q [a] -> Q [a]
-take (Q i) (Q as) = Q (AppE2 Take i as)
+take :: forall a. (QA a) => Q Int -> Q [a] -> Q [a]
+take (Q i) (Q as) = Q (AppE2 Take i as ::: reify (undefined :: [a]))
 
-drop :: (QA a) => Q Int -> Q [a] -> Q [a]
-drop (Q i) (Q as) = Q (AppE2 Drop i as)
+drop :: forall a. (QA a) => Q Int -> Q [a] -> Q [a]
+drop (Q i) (Q as) = Q (AppE2 Drop i as ::: reify (undefined :: [a]))
 
-map :: (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-map f (Q as) = Q (AppE2 Map (LamE (forget . f . Q)) as)
+map :: forall a b. (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
+map f (Q as) = Q (AppE2 Map (toLam1 f) as ::: reify (undefined :: [b]))
 
-append :: (QA a) => Q [a] -> Q [a] -> Q [a]
-append (Q as) (Q bs) = Q (AppE2 Append as bs)
+append :: forall a. (QA a) => Q [a] -> Q [a] -> Q [a]
+append (Q as) (Q bs) = Q (AppE2 Append as bs ::: reify (undefined :: [a]))
 
 (><) :: (QA a) => Q [a] -> Q [a] -> Q [a]
 (><) = append
 
-filter :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-filter f (Q as) = Q (AppE2 Filter (LamE (forget . f . Q)) as)
+filter :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+filter f (Q as) = Q (AppE2 Filter (toLam1 f) as ::: reify (undefined :: [a]))
 
-groupWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
-groupWith f (Q as) = Q (AppE2 GroupWith (LamE (forget . f . Q)) as)
+groupWith :: forall a b. (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
+groupWith f (Q as) = Q (AppE2 GroupWith (toLam1 f) as ::: reify (undefined :: [[a]]))
 
-sortWith :: (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-sortWith f (Q as) = Q (AppE2 SortWith (LamE (forget . f . Q)) as)
+sortWith :: forall a b. (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
+sortWith f (Q as) = Q (AppE2 SortWith (toLam1 f) as ::: reify (undefined :: [a]))
 
-the :: (Eq a, QA a) => Q [a] -> Q a
-the (Q as) = Q (AppE1 The as)
+the :: forall a. (Eq a, QA a) => Q [a] -> Q a
+the (Q as) = Q (AppE1 The as ::: reify (undefined :: a))
 
-last :: (QA a) => Q [a] -> Q a
-last (Q as) = Q (AppE1 Last as)
+last :: forall a. (QA a) => Q [a] -> Q a
+last (Q as) = Q (AppE1 Last as ::: reify (undefined :: a))
 
-init :: (QA a) => Q [a] -> Q [a]
-init (Q as) = Q (AppE1 Init as)
+init :: forall a. (QA a) => Q [a] -> Q [a]
+init (Q as) = Q (AppE1 Init as ::: reify (undefined :: [a]))
 
 null :: (QA a) => Q [a] -> Q Bool
-null (Q as) = Q (AppE1 Null as)
+null (Q as) = Q (AppE1 Null as ::: reify (undefined :: Bool))
 
 length :: (QA a) => Q [a] -> Q Int
-length (Q as) = Q (AppE1 Length as)
+length (Q as) = Q (AppE1 Length as ::: reify (undefined :: Int))
 
-index :: (QA a) => Q [a] -> Q Int -> Q a
-index (Q as) (Q i) = Q (AppE2 Index as i)
+index :: forall a. (QA a) => Q [a] -> Q Int -> Q a
+index (Q as) (Q i) = Q (AppE2 Index as i ::: reify (undefined :: a))
 
 (!!) :: (QA a) => Q [a] -> Q Int -> Q a
 (!!) = index
 
-reverse :: (QA a) => Q [a] -> Q [a]
-reverse (Q as) = Q (AppE1 Reverse as)
+reverse :: forall a. (QA a) => Q [a] -> Q [a]
+reverse (Q as) = Q (AppE1 Reverse as ::: reify (undefined :: [a]))
 
 
 -- * Special folds
 
 and       :: Q [Bool] -> Q Bool
-and (Q as) = Q (AppE1 And as)
+and (Q as) = Q (AppE1 And as ::: reify (undefined :: Bool))
 
 or        :: Q [Bool] -> Q Bool
-or (Q as) = Q (AppE1 Or as)
+or (Q as) = Q (AppE1 Or as ::: reify (undefined :: Bool))
 
 any       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-any f (Q as) = Q (AppE2 Any (LamE (forget . f . Q)) as)
+any f (Q as) = Q (AppE2 Any (toLam1 f) as ::: reify (undefined :: Bool))
 
 all       :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-all f (Q as) = Q (AppE2 All (LamE (forget . f . Q)) as)
+all f (Q as) = Q (AppE2 All (toLam1 f) as ::: reify (undefined :: Bool))
 
-sum       :: (QA a, Num a) => Q [a] -> Q a
-sum (Q as) = Q (AppE1 Sum as)
+sum       :: forall a. (QA a, Num a) => Q [a] -> Q a
+sum (Q as) = Q (AppE1 Sum as ::: reify (undefined :: a))
 
-product   :: (QA a, Num a) => Q [a] -> Q a
-product (Q as) = Q (AppE1 Product as)
+product   :: forall a. (QA a, Num a) => Q [a] -> Q a
+product (Q as) = Q (AppE1 Product as ::: reify (undefined :: a))
 
-concat    :: (QA a) => Q [[a]] -> Q [a]
-concat (Q as) = Q (AppE1 Concat as)
+concat    :: forall a. (QA a) => Q [[a]] -> Q [a]
+concat (Q as) = Q (AppE1 Concat as ::: reify (undefined :: [a]))
 
 concatMap :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
 concatMap f as = concat (map f as)
 
-maximum   :: (QA a, Ord a) => Q [a] -> Q a
-maximum (Q as) = Q (AppE1 Maximum as)
+maximum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
+maximum (Q as) = Q (AppE1 Maximum as ::: reify (undefined :: a))
 
-minimum   :: (QA a, Ord a) => Q [a] -> Q a
-minimum (Q as) = Q (AppE1 Minimum as)
+minimum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
+minimum (Q as) = Q (AppE1 Minimum as ::: reify (undefined :: a))
 
-replicate :: (QA a) => Q Int -> Q a -> Q [a]
-replicate (Q i) (Q a) = Q (AppE2 Replicate i a)
+replicate :: forall a. (QA a) => Q Int -> Q a -> Q [a]
+replicate (Q i) (Q a) = Q (AppE2 Replicate i a ::: reify (undefined :: [a]))
 
 
 -- * Sublists
 
-splitAt   :: (QA a) => Q Int -> Q [a] -> Q ([a], [a])
-splitAt (Q i) (Q as) = Q (AppE2 SplitAt i as)
+splitAt   :: forall a. (QA a) => Q Int -> Q [a] -> Q ([a], [a])
+splitAt (Q i) (Q as) = Q (AppE2 SplitAt i as ::: reify (undefined :: ([a],[a])))
 
-takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile f (Q as) = Q (AppE2 TakeWhile (LamE (forget . f . Q)) as)
+takeWhile :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+takeWhile f (Q as) = Q (AppE2 TakeWhile (toLam1 f) as ::: reify (undefined :: [a]))
 
-dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile f (Q as) = Q (AppE2 DropWhile (LamE (forget . f . Q)) as)
+dropWhile :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
+dropWhile f (Q as) = Q (AppE2 DropWhile (toLam1 f) as ::: reify (undefined :: [a]))
 
-span      :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-span f (Q as) = Q (AppE2 Span (LamE (forget . f . Q)) as)
+span      :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+span f (Q as) = Q (AppE2 Span (toLam1 f) as ::: reify (undefined :: ([a],[a])))
 
-break     :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-break f (Q as) = Q (AppE2 Break (LamE (forget . f . Q)) as)
+break     :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
+break f (Q as) = Q (AppE2 Break (toLam1 f) as ::: reify (undefined :: ([a],[a])))
 
 -- * Searching Lists
 
-elem      :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-elem (Q a) (Q as) = Q (AppE2 Elem a as)
+elem      :: forall a. (QA a, Eq a) => Q a -> Q [a] -> Q Bool
+elem (Q a) (Q as) = Q (AppE2 Elem a as ::: reify (undefined :: Bool))
 
 notElem   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
 notElem a as = not (elem a as)
 
 -- * Zipping and Unzipping Lists
 
-zip       :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-zip (Q as) (Q bs) = Q (AppE2 Zip as bs)
+zip       :: forall a b. (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
+zip (Q as) (Q bs) = Q (AppE2 Zip as bs ::: reify (undefined :: [(a,b)]))
 
-zipWith   :: (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
-zipWith f (Q as) (Q bs) =
-  let f1 = \a b -> forget (f (Q a) (Q b))
-      f2 = \a -> LamE (\b -> f1 a b)
-  in  Q (AppE3 ZipWith (LamE f2) as bs)
+zipWith   :: forall a b c. (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
+zipWith f (Q as) (Q bs) = Q (AppE3 ZipWith (toLam2 f) as bs ::: reify (undefined :: [c]))
 
-unzip     :: (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
-unzip (Q as) = Q (AppE1 Unzip as)
+unzip     :: forall a b. (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
+unzip (Q as) = Q (AppE1 Unzip as  ::: reify (undefined :: ([a],[b])))
 
 -- * "Set" operations
 
-nub :: Eq a => Q [a] -> Q [a]
-nub (Q as) = Q (AppE1 Nub as) 
+nub :: forall a. (Eq a,QA a) => Q [a] -> Q [a]
+nub (Q as) = Q (AppE1 Nub as ::: reify (undefined :: [a])) 
 
 
 -- * Tuple Projection Functions
 
-fst :: (QA a, QA b) => Q (a,b) -> Q a
-fst (Q a) = Q (AppE1 Fst a)
+fst :: forall a b. (QA a, QA b) => Q (a,b) -> Q a
+fst (Q a) = Q (AppE1 Fst a ::: reify (undefined :: a))
 
-snd :: (QA a, QA b) => Q (a,b) -> Q b
-snd (Q a) = Q (AppE1 Snd a)
+snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
+snd (Q a) = Q (AppE1 Snd a ::: reify (undefined :: b))
 
 -- * Convert Haskell values into DB queries and back
 
-toQ   :: (QA a) => a -> Q a
-toQ = Q . normToExp . toNorm
+toQ   :: forall a. (QA a) => a -> Q a
+toQ c = Q (normToExp (toNorm c) ::: reify (undefined :: a))
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)

@@ -25,7 +25,6 @@ import Data.List
 import Database.HDBC
 
 import Ferry.Data
-import Ferry.Class
 import Ferry.Impossible
 import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify, Type, ListT)
 import qualified Language.Haskell.TH as TH

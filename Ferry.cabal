@@ -16,9 +16,9 @@ Cabal-version:       >=1.2
 
 
 Library
-  Build-depends:     base >= 4, containers >= 0.3.0.0, template-haskell >= 2.4.0.0, 
-                     haskell-src-exts >= 1.9.0, syntax-trees >= 0.1.2, 
-                     syb >=0.1.0.2, HDBC >= 2.2, convertible >= 0.1, 
+  Build-depends:     base >= 4, containers >= 0.3.0.0, template-haskell >= 2.4.0.0,
+                     haskell-src-exts >= 1.9.0, syntax-trees >= 0.1.2,
+                     syb >=0.1.0.2, HDBC >= 2.2, convertible >= 0.1,
                      bytestring >= 0.9, mtl >= 1.1.0.0, Ferryc >= 0.2
 
   Hs-Source-Dirs:    src
@@ -33,6 +33,5 @@ Library
                      Ferry.TH
                      Ferry.Data
                      Ferry.Interpreter
-                     Ferry.Compiler                     
-                     Ferry.Class
+--                     Ferry.Compiler
                      Paths_Ferry
