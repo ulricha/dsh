@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses, DeriveDataTypeable #-}
 module Ferry.Data where
 
 import Data.Convertible

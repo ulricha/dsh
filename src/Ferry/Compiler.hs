@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Ferry.Compiler (evaluate) where
 
 import Ferry.Data
@@ -9,6 +10,7 @@ import Ferry.Compiler.Transform
 import Database.HDBC
 
 import Control.Monad.State
+import Control.Applicative
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
