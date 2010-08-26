@@ -90,6 +90,24 @@ transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                                              e2')
                                                         e3'
 transformE ((VarE i) ::: ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
+transformE ((TableE n) ::: ty) = let colsNr = sizeOfTy ty 
+                                     tTy@(FList (FRec ts)) = flatFTy ty
+                                     cols = [Column ('a':i) t | (RLabel i, t) <- ts]
+                                     keys = [Key $ map (\(Column n _) -> n) cols]
+                                     table = Table ([] :=> tTy) n cols keys
+                                     pattern = (\(Key s) -> Pattern s) $ head keys
+                                     nameType = map (\(Column n t) -> (n, t)) cols
+                                     body = foldr (\(n, t) b -> 
+                                                    let (_ :=> bt) = typeOf b
+                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (Var ([] :=> t) n), RecElem ([] :=> bt) "2" b])
+                                                  ((\(n,t) -> Var ([] :=> t) n) $ last nameType)
+                                                  (init nameType)
+                                     ([] :=> rt) = typeOf body
+                                     lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
+                                  in return $ App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
+                                                                    (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
+                                                                    lambda)
+                                                                   (ParExpr (typeOf table) table)
                                  
 
 transformArg :: Exp -> N Param                                 
@@ -104,10 +122,20 @@ transformArg _ = $impossible
                                   
 parExpr :: CoreExpr -> Param
 parExpr c = ParExpr (typeOf c) c
+
+flatFTy :: Type -> FType
+flatFTy = FList . FRec . flatFTy' 1
+ where
+     flatFTy' i (TupleT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
+     flatFTy' i t              = [(RLabel $ show i, transformTy t)]
+
+sizeOfTy :: Type -> Int
+sizeOfTy (TupleT t1 t2) = 1 + sizeOfTy t2
+sizeOfTy _              = 1 
+
 {-
 data Exp =
   | TableE String
-  | VarE Int
   | Exp ::: Type
 -}
 transformTy :: Type -> FType
