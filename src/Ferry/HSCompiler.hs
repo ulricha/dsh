@@ -1,9 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Ferry.Compiler (evaluate) where
+module Ferry.HSCompiler (evaluate, doCompile) where
 
 import Ferry.Data
 import Ferry.Syntax as F
-import Ferry.Compiler.Transform
+import Ferry.Compiler
 import Ferry.Impossible
 
 import Data.Char
@@ -49,12 +49,15 @@ evaluate :: IConnection conn
          -> IO Norm
 evaluate = undefined
 
+doCompile :: Q a -> String
+doCompile (Q a) = typedCoreToAlgebra $ runN $ transformE a
+
 transformE :: Exp -> N CoreExpr
-transformE UnitE = return undefined
-transformE (BoolE b) = return $ Constant ([] :=> bool) $ CBool b
-transformE (CharE c) = return $ Constant ([] :=> string) $ CString [c] 
-transformE (IntegerE i) = return $ Constant ([] :=> int) $ CInt i
-transformE (DoubleE d) = return $ Constant ([] :=> float) $ CFloat d
+transformE (UnitE ::: _) = return undefined
+transformE ((BoolE b) ::: _) = return $ Constant ([] :=> bool) $ CBool b
+transformE ((CharE c) ::: _) = return $ Constant ([] :=> string) $ CString [c] 
+transformE ((IntegerE i) ::: _) = return $ Constant ([] :=> int) $ CInt i
+transformE ((DoubleE d) ::: _) = return $ Constant ([] :=> float) $ CFloat d
 transformE ((TupleE e1 e2) ::: ty) = do
                                         c1 <- transformE e1
                                         c2 <- transformE e2
@@ -90,34 +93,33 @@ transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                                              e2')
                                                         e3'
 transformE ((VarE i) ::: ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE ((TableE n) ::: ty) = let colsNr = sizeOfTy ty 
-                                     tTy@(FList (FRec ts)) = flatFTy ty
+transformE ((TableE n) ::: ty) = let tTy@(FList (FRec ts)) = flatFTy ty
                                      cols = [Column ('a':i) t | (RLabel i, t) <- ts]
-                                     keys = [Key $ map (\(Column n _) -> n) cols]
-                                     table = Table ([] :=> tTy) n cols keys
+                                     keys = [Key $ map (\(Column n' _) -> n') cols]
+                                     table' = Table ([] :=> tTy) n cols keys
                                      pattern = (\(Key s) -> Pattern s) $ head keys
-                                     nameType = map (\(Column n t) -> (n, t)) cols
-                                     body = foldr (\(n, t) b -> 
+                                     nameType = map (\(Column name t) -> (name, t)) cols
+                                     body = foldr (\(name, t) b -> 
                                                     let (_ :=> bt) = typeOf b
-                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (Var ([] :=> t) n), RecElem ([] :=> bt) "2" b])
-                                                  ((\(n,t) -> Var ([] :=> t) n) $ last nameType)
+                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (Var ([] :=> t) name), RecElem ([] :=> bt) "2" b])
+                                                  ((\(name,t) -> Var ([] :=> t) name) $ last nameType)
                                                   (init nameType)
                                      ([] :=> rt) = typeOf body
                                      lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
                                   in return $ App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
-                                                                   (ParExpr (typeOf table) table)
-                                 
+                                                                   (ParExpr (typeOf table') table')
+transformE _ = $impossible       
 
 transformArg :: Exp -> N Param                                 
 transformArg ((LamE f) ::: ty) = do
                                   n <- freshVar
-                                  let (ArrowT t1 t2) = ty
+                                  let (ArrowT t1 _) = ty
                                   let fty = transformTy ty
                                   let e1 = f $ (VarE n) ::: t1
                                   ParAbstr ([] :=> fty) (PVar $ prefixVar n) <$> transformE e1
-transformArg e@(_ ::: _) = (\e -> ParExpr (typeOf e) e) <$> transformE e 
+transformArg e@(_ ::: _) = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
 transformArg _ = $impossible
                                   
 parExpr :: CoreExpr -> Param
@@ -126,18 +128,14 @@ parExpr c = ParExpr (typeOf c) c
 flatFTy :: Type -> FType
 flatFTy = FList . FRec . flatFTy' 1
  where
+     flatFTy' :: Int -> Type -> [(RLabel, FType)]
      flatFTy' i (TupleT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
      flatFTy' i t              = [(RLabel $ show i, transformTy t)]
 
 sizeOfTy :: Type -> Int
-sizeOfTy (TupleT t1 t2) = 1 + sizeOfTy t2
+sizeOfTy (TupleT _ t2) = 1 + sizeOfTy t2
 sizeOfTy _              = 1 
 
-{-
-data Exp =
-  | TableE String
-  | Exp ::: Type
--}
 transformTy :: Type -> FType
 transformTy UnitT = undefined
 transformTy BoolT = bool

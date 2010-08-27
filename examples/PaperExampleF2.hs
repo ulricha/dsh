@@ -6,6 +6,7 @@ import qualified Ferry as Q
 import Database.HDBC.PostgreSQL
 import GHC.Exts (the)
 import Data.List (nub)
+import Ferry.Compiler
 
 conn :: IO Connection
 conn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferryDB'"
@@ -31,6 +32,11 @@ hasFeatures f = [$qc|feat | (fac,feat) <- features, fac Q.== f|]
 
 means :: Q String -> Q String
 means f = Q.head [$qc| mean | (feat,mean) <- meanings, feat `Q.eq` f |]
+
+-- Only need Q.nub combinator
+q2 :: Q [(String , [String ])] 
+q2 = [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
+                        | (fac, cat) <- facilities, then group by cat |]
 
 -- Only need Q.nub combinator
 query :: IO [(String , [String ])] 
