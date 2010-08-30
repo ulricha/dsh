@@ -200,14 +200,12 @@ instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
 instance Convertible Norm Exp where
     safeConvert n = Right $
         case n of
-             UnitN          -> UnitE ::: UnitT
-             BoolN  b       -> (BoolE b) ::: BoolT
-             CharN c        -> (CharE c) ::: CharT
-             IntegerN i     -> (IntegerE i) ::: IntegerT
-             DoubleN d      -> (DoubleE d) ::: DoubleT
-             TupleN n1 n2   -> let e1@(_ ::: t1) = convert n1
-                                   e2@(_ ::: t2) = convert n2
-                                in (TupleE e1 e2) ::: (TupleT t1 t2 )
+             UnitN          -> UnitE 
+             BoolN  b       -> BoolE b 
+             CharN c        -> CharE c 
+             IntegerN i     -> IntegerE i 
+             DoubleN d      -> DoubleE d 
+             TupleN n1 n2   -> TupleE (convert n1) (convert n2)
              ListN ns       -> ListE (map convert ns)
 
 forget :: (QA a) => Q a -> Exp

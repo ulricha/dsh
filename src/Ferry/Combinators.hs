@@ -7,7 +7,8 @@ import Ferry.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool, Integer, undefined)
+import Prelude (Eq, Ord, Num, Bool, Integer, undefined, ($))
+import qualified Prelude as P
 
 -- * Unit
 
@@ -241,7 +242,13 @@ snd (Q a) = Q (AppE1 Snd a ::: reify (undefined :: b))
 -- * Convert Haskell values into DB queries
 
 toQ   :: forall a. (QA a) => a -> Q a
-toQ c = Q (convert (toNorm c) ::: reify (undefined :: a))
+-- toQ c = Q (convert (toNorm c) ::: reify (undefined :: a))
+toQ c = Q $ annotate (reify (undefined :: a)) $ convert $ toNorm c
+
+annotate :: Type -> Exp -> Exp
+annotate ty@(ListT t) (ListE es) = (ListE $ P.map (annotate t) es) ::: ty
+annotate ty@(TupleT t1 t2) (TupleE e1 e2) = (TupleE (annotate t1 e1) (annotate t2 e2)) ::: ty
+annotate ty e = e ::: ty
 
 infixl 9 !!
 infixr 5 ><, <|, |>

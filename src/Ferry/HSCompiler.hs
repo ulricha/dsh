@@ -93,20 +93,24 @@ transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                                              e2')
                                                         e3'
 transformE ((VarE i) ::: ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE ((TableE n) ::: ty) = let tTy@(FList (FRec ts)) = flatFTy ty
-                                     cols = [Column ('a':i) t | (RLabel i, t) <- ts]
-                                     keys = [Key $ map (\(Column n' _) -> n') cols]
-                                     table' = Table ([] :=> tTy) n cols keys
-                                     pattern = (\(Key s) -> Pattern s) $ head keys
-                                     nameType = map (\(Column name t) -> (name, t)) cols
-                                     body = foldr (\(name, t) b -> 
+transformE ((TableE n) ::: ty) = do
+                                    fv <- freshVar
+                                    let tTy@(FList (FRec ts)) = flatFTy ty
+                                    let varB = Var ([] :=> FRec ts) $ prefixVar fv
+                                    let cols = [Column ('a':i) t | (RLabel i, t) <- ts]
+                                    let keys = [Key $ map (\(Column n' _) -> n') cols]
+                                    let table' = Table ([] :=> tTy) n cols keys
+                                    let pattern = PVar $ prefixVar fv
+                                    -- pattern = (\(Key s) -> Pattern s) $ head keys
+                                    let nameType = map (\((Column name t), nr) -> (nr, t)) $ zip cols [1..]
+                                    let body = foldr (\(nr, t) b -> 
                                                     let (_ :=> bt) = typeOf b
-                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (Var ([] :=> t) name), RecElem ([] :=> bt) "2" b])
-                                                  ((\(name,t) -> Var ([] :=> t) name) $ last nameType)
+                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (F.Elem ([] :=> t) varB (show nr)), RecElem ([] :=> bt) "2" b])
+                                                  ((\(nr,t) -> F.Elem ([] :=> t) varB (show nr)) $ last nameType)
                                                   (init nameType)
-                                     ([] :=> rt) = typeOf body
-                                     lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
-                                  in return $ App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
+                                    let ([] :=> rt) = typeOf body
+                                    let lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
+                                    return $ App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
                                                                    (ParExpr (typeOf table') table')
