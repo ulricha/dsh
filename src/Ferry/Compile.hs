@@ -1,8 +1,9 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
 module Ferry.Compile where
     
 import Ferry.Pathfinder
 import Ferry.Data
+import Ferry.Impossible
 
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -39,7 +40,9 @@ extractSQL :: SQLXML a -> QueryBundle a
 extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
                       in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r undefined)
     where
-        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = fromJust $ fmap attrToInt $ lookup "id" attrs
+        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup "id" attrs of
+                                                                    Just x -> x
+                                                                    Nothing -> $impossible
                                                            rId = fmap attrToInt $ lookup "idref" attrs
                                                            cId = fmap ((1+) . attrToInt) $ lookup "colref" attrs
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c

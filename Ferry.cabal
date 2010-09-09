@@ -27,13 +27,13 @@ Library
                      FunctionalDependencies, FlexibleInstances, TypeSynonymInstances, ScopedTypeVariables
   GHC-Options:       -Wall -fno-warn-orphans -O3
   Exposed-modules:   Ferry
-                     Ferry.HSCompiler
-
   Other-modules:     Ferry.QQ
                      Ferry.Impossible
                      Ferry.Combinators
                      Ferry.TH
                      Ferry.Data
                      Ferry.Interpreter
+                     Ferry.Compile
+                     Ferry.HSCompiler
 --                     Ferry.Compiler
                      Paths_Ferry
