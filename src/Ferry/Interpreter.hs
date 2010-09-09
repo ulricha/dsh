@@ -1,4 +1,4 @@
-module Ferry.Interpreter (fromQ) where
+module Ferry.Interpreter (fromQRef) where
 
 import Ferry.Data
 import Ferry.Impossible
@@ -10,8 +10,8 @@ import GHC.Exts
 import Data.List
 
 -- * Convert DB queries into Haskell values
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
+fromQRef :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQRef c (Q a) = evaluate c a >>= (return . fromNorm)
 
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection

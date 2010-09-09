@@ -24,6 +24,7 @@ module Ferry
     -- * Template Haskell: Creating Table Representations
   , createTableRepresentation
   , createTableRepresentation'
+  , fromQ
   )
   where
 
@@ -33,3 +34,5 @@ import Ferry.TH (createTableRepresentation, createTableRepresentation')
 
 import Ferry.Combinators
 import Ferry.Interpreter
+import Ferry.HSCompiler
+import Ferry.Compile

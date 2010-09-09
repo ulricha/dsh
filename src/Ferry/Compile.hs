@@ -19,6 +19,12 @@ newtype SQLXML a = SQL String
  deriving Show
  
 newtype QueryBundle a = Bundle [(Int, (String, [(String, Maybe Int)], Maybe Int, Maybe Int))]
+
+executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
+executePlan c p = do 
+                        sql <- algToSQL p
+                        let plan = extractSQL sql
+                        runSQL c plan
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
@@ -97,9 +103,10 @@ processResults' q c vals (TupleT t1 t2) = mapM (\(val1:vs) -> do
                                                                 v1 <- processResults' q c [[val1]] t1
                                                                 v2 <- processResults' q (c + 1) [vs] t2
                                                                 return $ TupleN (head v1) (head v2)) vals
-processResults' q c vals (ListT t) = undefined {- do
-                                        nestQ <- undefined
-                                        list <- processResults nestQ t -}
+processResults' q c vals (ListT t) = do
+                                        nestQ <- findQuery (q, c)
+                                        list <- processResults nestQ t
+                                        return undefined
                                         
                             
 partByIter :: [[SqlValue]] -> [(Int, [[SqlValue]])]

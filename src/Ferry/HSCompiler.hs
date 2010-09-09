@@ -1,10 +1,11 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-module Ferry.HSCompiler (evaluate, doCompile) where
+{-# LANGUAGE MultiParamTypeClasses, ScopedTypeVariables #-}
+module Ferry.HSCompiler (fromQ) where
 
 import Ferry.Data
 import Ferry.Syntax as F
 import Ferry.Compiler
 import Ferry.Impossible
+import Ferry.Compile as C
 
 import Data.Char
 -- import Data.Convertible
@@ -43,12 +44,17 @@ prefixVar = ((++) "__fv_") . show
 runN :: N a -> a
 runN = fst . (flip runState 1) . unwrapN
 
-evaluate :: IConnection conn
+-- * Convert DB queries into Haskell values
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c a = evaluate c a >>= (return . fromNorm)
+
+evaluate :: forall a. forall conn. (QA a, IConnection conn)
          => conn                -- ^ The HDBC connection
          -> Q a
          -> IO Norm
-evaluate = undefined
-
+evaluate c q = let algPlan = ((C.Algebra (doCompile q))::AlgebraXML a)
+                in executePlan c algPlan
+                   
 doCompile :: Q a -> String
 doCompile (Q a) = typedCoreToAlgebra $ runN $ transformE a
 
