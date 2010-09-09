@@ -13,6 +13,11 @@ import Database.HDBC
 
 import Control.Monad.State
 import Control.Applicative
+
+import Data.List (nub)
+import qualified Data.List as L
+
+import Data.Generics (listify)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
@@ -159,4 +164,9 @@ transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
-
+getTables :: Exp -> [String]
+getTables e = nub $ map (\(TableE n) -> n) $ listify isTable e
+    where 
+        isTable :: Exp -> Bool
+        isTable (TableE _) = True
+        isTable _         = False

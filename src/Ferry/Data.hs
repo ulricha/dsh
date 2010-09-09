@@ -6,6 +6,7 @@ import Data.Convertible
 import Data.Typeable
 import Database.HDBC
 import Data.ByteString.Char8 (unpack)
+import Data.Generics
 
 data Exp =
     UnitE
@@ -23,6 +24,7 @@ data Exp =
   | TableE String
   | VarE Int
   | Exp ::: Type
+  deriving (Data, Typeable)
 
 data Fun1 =
     Fst | Snd | Not | Abs | Signum
@@ -30,7 +32,7 @@ data Fun1 =
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init
   | Last | The | Nub
-  deriving (Eq,Show)
+  deriving (Eq,Show, Data, Typeable)
 
 
 data Fun2 =
@@ -40,10 +42,10 @@ data Fun2 =
   | Elem | Break | Span | DropWhile | TakeWhile
   | SplitAt | Replicate | Equ | Conj | Disj
   | Lt | Lte | Gte | Gt
-  deriving (Eq,Show)
+  deriving (Eq,Show, Data, Typeable)
 
 data Fun3 = Cond | ZipWith
-  deriving (Eq,Show)
+  deriving (Eq,Show, Data, Typeable)
 
 
 data Norm =
@@ -65,7 +67,7 @@ data Type =
   | TupleT Type Type
   | ListT Type
   | ArrowT Type Type
-  deriving (Eq, Show, Typeable)
+  deriving (Eq, Show, Data, Typeable)
 
 data Q a = Q Exp
 
