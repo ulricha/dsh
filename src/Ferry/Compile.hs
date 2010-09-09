@@ -34,7 +34,7 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
     where
         extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = fromJust $ fmap attrToInt $ lookup "id" attrs
                                                            rId = fmap attrToInt $ lookup "idref" attrs
-                                                           cId = fmap attrToInt $ lookup "colref" attrs
+                                                           cId = fmap ((1+) . attrToInt) $ lookup "colref" attrs
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
                                                            schema = map process $ concatMap children $ deep (tag "schema") c
                                                         in (qId, (query, schema, rId, cId))
@@ -52,24 +52,57 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
 runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
-                             let refMap = foldr buildRefMap M.empty results
+                             let refMap = M.toList $ foldr buildRefMap M.empty results
                              let ty = reify (undefined :: a)
-                             return undefined
+                             let queryMap = foldr (\(k, (q, _, _)) -> (k, q)) refMap
+                             let valueMap = foldr (\(_, (q, v, _)) -> (q, v)) refMap
+                             results = runReader (processResults 0 ty) (queryMap, valueMap) 
+                             return $ snd $ head results
                              
-type QueryR = Reader [(Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int))]
+type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
 
-getResults :: Int -> QueryR ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int)
+findRefTable :: (Int, Int) -> Int
+findRefTable v = undefined
+
+getResults :: Int -> QueryR [[SqlValue]]
 getResults i = do
                 env <- ask
-                return $ fromJust $ lookup i env 
+                return $ fromJust $ lookup i $ snd env 
+                
+findQuery :: (Int, Int) -> QueryR Int
+findQuery i = do
+                env <- ask
+                return $ fromJust lookup i $ fst env
 
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
-processResults i BoolT = do
-                            (v, schema, t, c) <- getResults i
-                            let partedVals = partByIter v
-                            return undefined
+processResults i (ListT t1) = do
+                                v <- getResults i
+                                let partedVals = partByIter v
+                                mapM (\(it, vals) -> do
+                                                      v1 <- processResults' i 1 vals t1
+                                                      return (it, ListN vals)) partedVals
+processResults i t = do
+                        (v, schema, t, c) <- getResults i
+                        let partedVals = partByIter v
+                        mapM (\(it, vals) -> do
+                                              v1 <- processResults' i 1 vals t1
+                                              return (it, head v1)) partedVals
+
                             
-    
+processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
+processResults' _ _ vals BoolT = return $ map (\[val1] -> BoolN $ convert val1) vals
+processResults' _ _ vals UnitT = return $ map (\[_] -> UnitN) vals
+processResults' _ _ vals IntegerT = return $ map (\[val1] -> IntegerN $ convert val1) vals
+processResults' _ _ vals DoubleT = return $ map (\[val1] -> DoubleN $ convert val1) vals
+processResults' q c vals (TupleT t1 t2) = mapM (\(val1:vs) -> do
+                                                                v1 <- processResults' q c val1
+                                                                v2 <- processResults' q (c + 1) vs
+                                                                return $ TupleN v1 v2) vals
+processResults' q c vals (ListT t) = undefined {- do
+                                        nestQ <- undefined
+                                        list <- processResults nestQ t -}
+                                        
+                            
 partByIter :: [[SqlValue]] -> [(Int, [[SqlValue]])]
 partByIter v = M.toList $ foldr iterMap M.empty v
 
@@ -80,7 +113,15 @@ iterMap (x:xs) m = let iter = ((fromSql x)::Int)
                                     Nothing -> []
                     in M.insert iter (xs:vals) m
                     
-                          
+{-
+  UnitN
+| BoolN Bool
+| CharN Char
+| IntegerN Integer
+| DoubleN Double
+| TupleN Norm Norm
+| ListN [Norm]
+-}                         
 
 {-
   UnitT

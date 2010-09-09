@@ -45,7 +45,7 @@ runN = fst . (flip runState 1) . unwrapN
 
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
-         -> Exp
+         -> Q a
          -> IO Norm
 evaluate = undefined
 
