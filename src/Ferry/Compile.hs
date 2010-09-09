@@ -11,6 +11,7 @@ import Control.Monad.Reader
 import Text.XML.HaXml as X
 
 import Database.HDBC
+import Data.Convertible.Base
 
 newtype AlgebraXML a = Algebra String
 
@@ -54,15 +55,13 @@ runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let refMap = M.toList $ foldr buildRefMap M.empty results
                              let ty = reify (undefined :: a)
-                             let queryMap = foldr (\(k, (q, _, _)) -> (k, q)) refMap
-                             let valueMap = foldr (\(_, (q, v, _)) -> (q, v)) refMap
-                             results = runReader (processResults 0 ty) (queryMap, valueMap) 
+                             let queryMap = foldr (\(k, (q, _, _)) l -> (k, q):l) [] refMap
+                             let valueMap = foldr (\(_, (q, v, _)) l -> (q, v):l) [] refMap
+                             let results = runReader (processResults 0 ty) (queryMap, valueMap) 
                              return $ snd $ head results
                              
 type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
 
-findRefTable :: (Int, Int) -> Int
-findRefTable v = undefined
 
 getResults :: Int -> QueryR [[SqlValue]]
 getResults i = do
@@ -72,7 +71,7 @@ getResults i = do
 findQuery :: (Int, Int) -> QueryR Int
 findQuery i = do
                 env <- ask
-                return $ fromJust lookup i $ fst env
+                return $ fromJust $ lookup i $ fst env
 
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i (ListT t1) = do
@@ -80,12 +79,12 @@ processResults i (ListT t1) = do
                                 let partedVals = partByIter v
                                 mapM (\(it, vals) -> do
                                                       v1 <- processResults' i 1 vals t1
-                                                      return (it, ListN vals)) partedVals
+                                                      return (it, ListN v1)) partedVals
 processResults i t = do
-                        (v, schema, t, c) <- getResults i
+                        v <- getResults i
                         let partedVals = partByIter v
                         mapM (\(it, vals) -> do
-                                              v1 <- processResults' i 1 vals t1
+                                              v1 <- processResults' i 1 vals t
                                               return (it, head v1)) partedVals
 
                             
@@ -95,9 +94,9 @@ processResults' _ _ vals UnitT = return $ map (\[_] -> UnitN) vals
 processResults' _ _ vals IntegerT = return $ map (\[val1] -> IntegerN $ convert val1) vals
 processResults' _ _ vals DoubleT = return $ map (\[val1] -> DoubleN $ convert val1) vals
 processResults' q c vals (TupleT t1 t2) = mapM (\(val1:vs) -> do
-                                                                v1 <- processResults' q c val1
-                                                                v2 <- processResults' q (c + 1) vs
-                                                                return $ TupleN v1 v2) vals
+                                                                v1 <- processResults' q c [[val1]] t1
+                                                                v2 <- processResults' q (c + 1) [vs] t2
+                                                                return $ TupleN (head v1) (head v2)) vals
 processResults' q c vals (ListT t) = undefined {- do
                                         nestQ <- undefined
                                         list <- processResults nestQ t -}
