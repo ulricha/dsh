@@ -55,17 +55,17 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
         extractCData :: Content i -> String
         extractCData (CString _ d _) = d
         process :: Content i -> (String, Maybe Int)
-        process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup "name" attrs
+        process (CElem (X.Elem _ attrs _) _) = let name = case fmap attrToString $ lookup "name" attrs of
+                                                                    Just x -> x
+                                                                    Nothing -> $impossible
                                                    pos = fmap attrToInt $ lookup "position" attrs
                                                 in (name, pos)
         
 runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
-                             let refMap = M.toList $ foldr buildRefMap M.empty results
+                             let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
                              let ty = reify (undefined :: a)
-                             let queryMap = foldr (\(k, (q, _, _)) l -> (k, q):l) [] refMap
-                             let valueMap = foldr (\(_, (q, v, _)) l -> (q, v):l) [] refMap
                              let results = runReader (processResults 0 ty) (queryMap, valueMap) 
                              return $ snd $ head results
                              
@@ -75,7 +75,9 @@ type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
 getResults :: Int -> QueryR [[SqlValue]]
 getResults i = do
                 env <- ask
-                return $ fromJust $ lookup i $ snd env 
+                return $ case lookup i $ snd env of
+                              Just x -> x
+                              Nothing -> $impossible
                 
 findQuery :: (Int, Int) -> QueryR Int
 findQuery i = do
@@ -147,8 +149,12 @@ runQuery :: IConnection conn => conn -> (Int, (String, [(String, Maybe Int)], Ma
 runQuery c (qId, (query, schema, rId, cId)) = do
                                                 res <- quickQuery' c query []
                                                 return (qId, (res, schema, rId, cId))
-
-buildRefMap :: (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int)) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)]) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)])
+{-
+buildRefMap :: (Int, ([[SqlValue]], Maybe Int, Maybe Int)) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)]) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)])
 buildRefMap (q, (r, s, (Just t), (Just c))) m = M.insert (t, c) (q, r, s) m
 buildRefMap _ m = m
+-}
+buildRefMap :: (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int)) -> ([((Int, Int), Int)] ,[(Int, [[SqlValue]])]) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
+buildRefMap (q, (r, _, (Just t), (Just c))) (qm, rm) = (((t, c), q):qm, (q, r):rm)
+buildRefMap (q, (r, _, _, _)) (qm, rm) = (qm, (q,r):rm)
 
