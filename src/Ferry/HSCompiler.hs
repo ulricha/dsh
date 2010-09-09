@@ -57,8 +57,10 @@ evaluate :: forall a. forall conn. (QA a, IConnection conn)
          => conn                -- ^ The HDBC connection
          -> Q a
          -> IO Norm
-evaluate c q = let algPlan = ((C.Algebra (doCompile q))::AlgebraXML a)
-                in executePlan c algPlan
+evaluate c q@(Q e) = do
+                let algPlan = ((C.Algebra (doCompile q))::AlgebraXML a)
+                tables <- mapM (getTableInfo c) $ getTableNames e
+                executePlan c algPlan
                    
 doCompile :: Q a -> String
 doCompile (Q a) = typedCoreToAlgebra $ runN $ transformE a
@@ -164,9 +166,28 @@ transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
-getTables :: Exp -> [String]
-getTables e = nub $ map (\(TableE n) -> n) $ listify isTable e
+getTableNames :: Exp -> [String]
+getTableNames e = nub $ map (\(TableE n) -> n) $ listify isTable e
     where 
         isTable :: Exp -> Bool
         isTable (TableE _) = True
         isTable _         = False
+        
+getTableInfo :: IConnection conn => conn -> String -> IO (String, [(String, (Type -> Bool))])
+getTableInfo c n = do
+                    info <- describeTable c n
+                    return $ (n, toTableDescr info)
+                    
+        where
+          toTableDescr :: [(String, SqlColDesc)] -> [(String, (Type -> Bool))]
+          toTableDescr = map (\(n, props) -> (n, compatibleType (colType props)))
+          compatibleType :: SqlTypeId -> Type -> Bool
+          compatibleType dbT hsT = case hsT of
+                                        UnitT -> True
+                                        BoolT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                        CharT -> L.elem dbT [SqlCharT, SqlWCharT]
+                                        IntegerT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                        DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                        _       -> error $ "You can't store this kind of data in a table..."
+
+                    
