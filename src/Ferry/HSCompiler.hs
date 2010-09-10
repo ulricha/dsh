@@ -7,11 +7,13 @@ import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
 
+import Data.Maybe (fromJust)
 import Data.Char
 -- import Data.Convertible
 import Database.HDBC
 
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Applicative
 
 import Data.List (nub)
@@ -21,9 +23,9 @@ import Data.Generics (listify)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-newtype N a = N (State Int a)
+newtype N a = N (ReaderT [(String, [(String, (Type -> Bool))])] (State Int) a)
 
-unwrapN :: N a -> State Int a
+unwrapN :: N a -> ReaderT [(String, [(String, (Type -> Bool))])] (State Int) a
 unwrapN (N s) = s
 
 instance Functor N where
@@ -42,12 +44,17 @@ freshVar = N $ do
                 i <- get
                 put (i + 1)
                 return i
+
+tableInfo :: String -> N [(String, (Type -> Bool))]
+tableInfo t = N $ do
+                    env <- ask
+                    return $ fromJust $ lookup t env
                 
 prefixVar :: Int -> String
 prefixVar = ((++) "__fv_") . show
      
-runN :: N a -> a
-runN = fst . (flip runState 1) . unwrapN
+runN :: [(String, [(String, (Type -> Bool))])] -> N a -> a
+runN env = fst . flip runState 1 . flip runReaderT env . unwrapN
 
 -- * Convert DB queries into Haskell values
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
@@ -58,12 +65,12 @@ evaluate :: forall a. forall conn. (QA a, IConnection conn)
          -> Q a
          -> IO Norm
 evaluate c q@(Q e) = do
-                let algPlan = ((C.Algebra (doCompile q))::AlgebraXML a)
                 tables <- mapM (getTableInfo c) $ getTableNames e
+                let algPlan = ((C.Algebra (doCompile tables q))::AlgebraXML a)
                 executePlan c algPlan
                    
-doCompile :: Q a -> String
-doCompile (Q a) = typedCoreToAlgebra $ runN $ transformE a
+doCompile :: [(String, [(String, (Type -> Bool))])] -> Q a -> String
+doCompile env (Q a) = typedCoreToAlgebra $ runN env $ transformE a
 
 transformE :: Exp -> N CoreExpr
 transformE (UnitE ::: _) = return undefined
@@ -180,7 +187,7 @@ getTableInfo c n = do
                     
         where
           toTableDescr :: [(String, SqlColDesc)] -> [(String, (Type -> Bool))]
-          toTableDescr = map (\(n, props) -> (n, compatibleType (colType props)))
+          toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(n, props) -> (n, compatibleType (colType props)))
           compatibleType :: SqlTypeId -> Type -> Bool
           compatibleType dbT hsT = case hsT of
                                         UnitT -> True
