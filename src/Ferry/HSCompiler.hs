@@ -22,6 +22,9 @@ import Data.List (nub)
 import qualified Data.List as L
 
 import Data.Generics (listify)
+
+import System.IO.Unsafe
+
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
@@ -57,7 +60,7 @@ prefixVar = ((++) "__fv_") . show
      
 runN :: [(String, [(String, (FType -> Bool))])] -> N a -> a
 runN env = fst . flip runState 1 . flip runReaderT env . unwrapN
-
+            
 -- * Convert DB queries into Haskell values
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c a = evaluate c a >>= (return . fromNorm)
@@ -94,13 +97,19 @@ transformE ((AppE1 f1 e1) ::: ty) = do
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
 transformE ((AppE2 f2 e1 e2) ::: ty) = do
                                         let tr = transformTy ty
-                                        e1' <- transformArg e1
-                                        e2' <- transformArg e2
-                                        let (_ :=> ta1) = typeOf e1'
-                                        let (_ :=> ta2) = typeOf e2'
-                                        return $ App ([] :=> tr) 
-                                                    (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
-                                                    e2'
+                                        case elem f2 [Add, Mul, Equ, Lt, Lte, Gte, Gt] of
+                                            True  -> do
+                                                      e1' <- transformE e1
+                                                      e2' <- transformE e2
+                                                      return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
+                                            False -> do
+                                                      e1' <- transformArg e1
+                                                      e2' <- transformArg e2
+                                                      let (_ :=> ta1) = typeOf e1'
+                                                      let (_ :=> ta2) = typeOf e2'
+                                                      return $ App ([] :=> tr) 
+                                                                (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
+                                                                e2'
 transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                            let tr = transformTy ty
                                            e1' <- transformArg e1
@@ -136,10 +145,11 @@ transformE ((TableE n) ::: ty) = do
                                                   (init nameType)
                                     let ([] :=> rt) = typeOf body
                                     let lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
-                                    return $ App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
+                                    let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
                                                                    (ParExpr (typeOf table') table')
+                                    (unsafePerformIO (putStrLn $ show expr)) `seq` return expr
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
         legalType tn cn nr ty f = case f ty of
@@ -183,6 +193,16 @@ transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", tr
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 
+transformOp :: Fun2 -> Op
+transformOp Add = Op "+"
+transformOp Mul = Op "*"
+transformOp Equ = Op "=="
+transformOp Lt = Op "<"
+transformOp Lte = Op "<="
+transformOp Gte = Op ">="
+transformOp Gt = Op ">"
+transformOp _ = $impossible
+
 transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
@@ -209,3 +229,7 @@ getTableInfo c n = do
                                         FInt -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
                                         FFloat -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                         _       -> error $ "You can't store this kind of data in a table..."
+{-
+ast = 
+  App (App (Var "map") (\__fv_1 -> {__fv_1."1", __fv_1."2" })) (Table "someints") -}
+-- map (\x -> (x.columna2, x.columnb1)) (table someints (columna2 Int, columnb1 Float) with keys ((columna2)))

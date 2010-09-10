@@ -14,6 +14,8 @@ import Text.XML.HaXml as X
 import Database.HDBC
 import Data.Convertible.Base
 
+import System.IO.Unsafe
+
 newtype AlgebraXML a = Algebra String
 
 newtype SQLXML a = SQL String
@@ -29,7 +31,7 @@ executePlan c p = do
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
-                         r <- compileFerryOpt s OutputSql Nothing 
+                         r <- (unsafePerformIO $ putStrLn s) `seq` compileFerryOpt s OutputSql Nothing 
                          case r of
                             (Right sql) -> return $ SQL sql
                             (Left err) -> error $ "Pathfinder compilation for input: \n"
@@ -89,8 +91,8 @@ processResults i (ListT t1) = do
                                 v <- getResults i
                                 let partedVals = partByIter v
                                 mapM (\(it, vals) -> do
-                                                      v1 <- processResults' i 1 vals t1
-                                                      return (it, ListN v1)) partedVals
+                                                        v1 <- processResults' i 1 vals t1
+                                                        return (it, ListN v1)) partedVals
 processResults i t = do
                         v <- getResults i
                         let partedVals = partByIter v
