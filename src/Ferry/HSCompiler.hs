@@ -123,7 +123,7 @@ transformE ((TableE n) ::: ty) = do
                                     let tyDescr = case length tableDescr == length ts of
                                                     True -> zip tableDescr ts
                                                     False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
-                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ "." 
+                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty 
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keys = [Key $ map (\(Column n' _) -> n') cols]
                                     let table' = Table ([] :=> tTy) n cols keys
@@ -162,11 +162,12 @@ parExpr :: CoreExpr -> Param
 parExpr c = ParExpr (typeOf c) c
 
 flatFTy :: Type -> FType
-flatFTy = FList . FRec . flatFTy' 1
+flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
  where
      flatFTy' :: Int -> Type -> [(RLabel, FType)]
      flatFTy' i (TupleT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
      flatFTy' i t              = [(RLabel $ show i, transformTy t)]
+flatFTy _         = $impossible
 
 sizeOfTy :: Type -> Int
 sizeOfTy (TupleT _ t2) = 1 + sizeOfTy t2
