@@ -124,36 +124,11 @@ iterMap (x:xs) m = let iter = ((fromSql x)::Int)
                                     Nothing -> []
                     in M.insert iter (xs:vals) m
                     
-{-
-  UnitN
-| BoolN Bool
-| CharN Char
-| IntegerN Integer
-| DoubleN Double
-| TupleN Norm Norm
-| ListN [Norm]
--}                         
-
-{-
-  UnitT
-| BoolT
-| CharT
-| IntegerT
-| DoubleT
-| TupleT Type Type
-| ListT Type
-| ArrowT Type Type
--} 
-    
 runQuery :: IConnection conn => conn -> (Int, (String, [(String, Maybe Int)], Maybe Int, Maybe Int)) -> IO (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int))
 runQuery c (qId, (query, schema, rId, cId)) = do
                                                 res <- quickQuery' c query []
                                                 return (qId, (res, schema, rId, cId))
-{-
-buildRefMap :: (Int, ([[SqlValue]], Maybe Int, Maybe Int)) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)]) -> M.Map (Int, Int) (Int, [[SqlValue]], [(String, Maybe Int)])
-buildRefMap (q, (r, s, (Just t), (Just c))) m = M.insert (t, c) (q, r, s) m
-buildRefMap _ m = m
--}
+
 buildRefMap :: (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int)) -> ([((Int, Int), Int)] ,[(Int, [[SqlValue]])]) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
 buildRefMap (q, (r, _, (Just t), (Just c))) (qm, rm) = (((t, c), q):qm, (q, r):rm)
 buildRefMap (q, (r, _, _, _)) (qm, rm) = (qm, (q,r):rm)

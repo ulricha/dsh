@@ -7,6 +7,8 @@ import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
 
+import Ferry.Syntax (FType (..))
+
 import Data.Maybe (fromJust)
 import Data.Char
 -- import Data.Convertible
@@ -23,9 +25,9 @@ import Data.Generics (listify)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-newtype N a = N (ReaderT [(String, [(String, (Type -> Bool))])] (State Int) a)
+newtype N a = N (ReaderT [(String, [(String, (FType -> Bool))])] (State Int) a)
 
-unwrapN :: N a -> ReaderT [(String, [(String, (Type -> Bool))])] (State Int) a
+unwrapN :: N a -> ReaderT [(String, [(String, (FType -> Bool))])] (State Int) a
 unwrapN (N s) = s
 
 instance Functor N where
@@ -45,7 +47,7 @@ freshVar = N $ do
                 put (i + 1)
                 return i
 
-tableInfo :: String -> N [(String, (Type -> Bool))]
+tableInfo :: String -> N [(String, (FType -> Bool))]
 tableInfo t = N $ do
                     env <- ask
                     return $ fromJust $ lookup t env
@@ -53,7 +55,7 @@ tableInfo t = N $ do
 prefixVar :: Int -> String
 prefixVar = ((++) "__fv_") . show
      
-runN :: [(String, [(String, (Type -> Bool))])] -> N a -> a
+runN :: [(String, [(String, (FType -> Bool))])] -> N a -> a
 runN env = fst . flip runState 1 . flip runReaderT env . unwrapN
 
 -- * Convert DB queries into Haskell values
@@ -69,7 +71,7 @@ evaluate c q@(Q e) = do
                 let algPlan = ((C.Algebra (doCompile tables q))::AlgebraXML a)
                 executePlan c algPlan
                    
-doCompile :: [(String, [(String, (Type -> Bool))])] -> Q a -> String
+doCompile :: [(String, [(String, (FType -> Bool))])] -> Q a -> String
 doCompile env (Q a) = typedCoreToAlgebra $ runN env $ transformE a
 
 transformE :: Exp -> N CoreExpr
@@ -117,11 +119,15 @@ transformE ((TableE n) ::: ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
-                                    let cols = [Column ('a':i) t | (RLabel i, t) <- ts]
+                                    tableDescr <- tableInfo n
+                                    let tyDescr = case length tableDescr == length ts of
+                                                    True -> zip tableDescr ts
+                                                    False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
+                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ "." 
+                                    let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keys = [Key $ map (\(Column n' _) -> n') cols]
                                     let table' = Table ([] :=> tTy) n cols keys
                                     let pattern = PVar $ prefixVar fv
-                                    -- pattern = (\(Key s) -> Pattern s) $ head keys
                                     let nameType = map (\((Column name t), nr) -> (nr, t)) $ zip cols [1..]
                                     let body = foldr (\(nr, t) b -> 
                                                     let (_ :=> bt) = typeOf b
@@ -134,7 +140,13 @@ transformE ((TableE n) ::: ty) = do
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
                                                                    (ParExpr (typeOf table') table')
-transformE _ = $impossible       
+    where
+        legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
+        legalType tn cn nr ty f = case f ty of
+                                True -> True
+                                False -> error $ "The type: " ++ show ty ++ "\nis not compatible with the type of column nr: " ++ nr
+                                                    ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
+transformE _ = $impossible
 
 transformArg :: Exp -> N Param                                 
 transformArg ((LamE f) ::: ty) = do
@@ -180,21 +192,19 @@ getTableNames e = nub $ map (\(TableE n) -> n) $ listify isTable e
         isTable (TableE _) = True
         isTable _         = False
         
-getTableInfo :: IConnection conn => conn -> String -> IO (String, [(String, (Type -> Bool))])
+getTableInfo :: IConnection conn => conn -> String -> IO (String, [(String, (FType -> Bool))])
 getTableInfo c n = do
                     info <- describeTable c n
                     return $ (n, toTableDescr info)
                     
         where
-          toTableDescr :: [(String, SqlColDesc)] -> [(String, (Type -> Bool))]
+          toTableDescr :: [(String, SqlColDesc)] -> [(String, (FType -> Bool))]
           toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(n, props) -> (n, compatibleType (colType props)))
-          compatibleType :: SqlTypeId -> Type -> Bool
+          compatibleType :: SqlTypeId -> FType -> Bool
           compatibleType dbT hsT = case hsT of
-                                        UnitT -> True
-                                        BoolT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                        CharT -> L.elem dbT [SqlCharT, SqlWCharT]
-                                        IntegerT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                        DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                        FUnit -> True
+                                        FBool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                        FString -> L.elem dbT [SqlCharT, SqlWCharT]
+                                        FInt -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                        FFloat -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                         _       -> error $ "You can't store this kind of data in a table..."
-
-                    
