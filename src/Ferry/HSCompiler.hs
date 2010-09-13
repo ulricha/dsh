@@ -136,7 +136,7 @@ transformE ((TableE n) ::: ty) = do
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keys = [Key $ map (\(Column n' _) -> n') cols]
                                     let table' = Table ([] :=> tTy) n cols keys
-                                    let pattern = PVar $ prefixVar fv
+                                    {- let pattern = PVar $ prefixVar fv
                                     let nameType = map (\((Column name t), nr) -> (nr, t)) $ zip cols [1..]
                                     let body = foldr (\(nr, t) b -> 
                                                     let (_ :=> bt) = typeOf b
@@ -148,8 +148,8 @@ transformE ((TableE n) ::: ty) = do
                                     let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
-                                                                   (ParExpr (typeOf table') table')
-                                    (unsafePerformIO (putStrLn $ show expr)) `seq` return expr
+                                                                   (ParExpr (typeOf table') table') -}
+                                    return table'
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
         legalType tn cn nr ty f = case f ty of

@@ -6,7 +6,8 @@ import Ferry.Data
 import Ferry.Impossible
 
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing, isJust)
+import Data.List (sortBy)
 import Control.Monad.Reader
 
 import Text.XML.HaXml as X
@@ -21,17 +22,21 @@ newtype AlgebraXML a = Algebra String
 newtype SQLXML a = SQL String
  deriving Show
  
-newtype QueryBundle a = Bundle [(Int, (String, [(String, Maybe Int)], Maybe Int, Maybe Int))]
+newtype QueryBundle a = Bundle [(Int, (String, SchemaInfo, Maybe Int, Maybe Int))]
+
+data SchemaInfo = SchemaInfo {iter :: String, items :: [(String, Int)]}
+
+data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 
 executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
-executePlan c p = do 
-                        sql <- algToSQL p
-                        let plan = extractSQL sql
+executePlan c p@(Algebra plan) = do 
+                        sql@(SQL sqlll) <- (unsafePerformIO $ putStrLn plan) `seq` algToSQL p
+                        let plan = (unsafePerformIO $ putStrLn sqlll) `seq` extractSQL sql
                         runSQL c plan
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
-                         r <- (unsafePerformIO $ putStrLn s) `seq` compileFerryOpt s OutputSql Nothing 
+                         r <- compileFerryOpt s OutputSql Nothing 
                          case r of
                             (Right sql) -> return $ SQL sql
                             (Left err) -> error $ "Pathfinder compilation for input: \n"
@@ -48,7 +53,7 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
                                                            rId = fmap attrToInt $ lookup "idref" attrs
                                                            cId = fmap ((1+) . attrToInt) $ lookup "colref" attrs
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
-                                                           schema = map process $ concatMap children $ deep (tag "schema") c
+                                                           schema = toSchemeInf $ map process $ concatMap children $ deep (tag "schema") c
                                                         in (qId, (query, schema, rId, cId))
         attrToInt :: AttValue -> Int
         attrToInt (AttValue [(Left i)]) = read i
@@ -56,6 +61,10 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
         attrToString (AttValue [(Left i)]) = i
         extractCData :: Content i -> String
         extractCData (CString _ d _) = d
+        toSchemeInf :: [(String, Maybe Int)] -> SchemaInfo
+        toSchemeInf results = let iterN = fst $ head $ filter (\(_, p) -> isNothing p) results
+                                  cols = map (\(n, v) -> (n, fromJust v)) $ filter (\(_, p) -> isJust p) results
+                               in SchemaInfo iterN cols
         process :: Content i -> (String, Maybe Int)
         process (CElem (X.Elem _ attrs _) _) = let name = case fmap attrToString $ lookup "name" attrs of
                                                                     Just x -> x
@@ -71,15 +80,22 @@ runSQL c (Bundle queries) = do
                              let results = runReader (processResults 0 ty) (queryMap, valueMap) 
                              return $ snd $ head results
                              
-type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
+type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))])
 
 
-getResults :: Int -> QueryR [[SqlValue]]
+getResults :: Int -> QueryR [[SqlValue]] 
 getResults i = do
                 env <- ask
                 return $ case lookup i $ snd env of
-                              Just x -> x
+                              Just x -> fst x
                               Nothing -> $impossible
+
+getIterCol :: Int -> QueryR Int
+getIterCol i = do
+                env <- ask
+                return $ case lookup i $ snd env of
+                            Just x -> iterR $ snd x
+                            Nothing -> $impossible
                 
 findQuery :: (Int, Int) -> QueryR Int
 findQuery i = do
@@ -89,13 +105,15 @@ findQuery i = do
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i (ListT t1) = do
                                 v <- getResults i
-                                let partedVals = partByIter v
+                                itC <- getIterCol i
+                                let partedVals = partByIter itC v
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 1 vals t1
                                                         return (it, ListN v1)) partedVals
 processResults i t = do
                         v <- getResults i
-                        let partedVals = partByIter v
+                        itC <- getIterCol i
+                        let partedVals = partByIter itC v
                         mapM (\(it, vals) -> do
                                               v1 <- processResults' i 1 vals t
                                               return (it, head v1)) partedVals
@@ -116,22 +134,35 @@ processResults' q c vals (ListT t) = do
                                         return undefined
                                         
                             
-partByIter :: [[SqlValue]] -> [(Int, [[SqlValue]])]
-partByIter v = M.toList $ foldr iterMap M.empty v
+partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
+partByIter n v = M.toList $ foldr (iterMap n) M.empty v
 
-iterMap :: [SqlValue] -> M.Map Int [[SqlValue]] -> M.Map Int [[SqlValue]]
-iterMap (x:xs) m = let iter = ((fromSql x)::Int)
-                       vals = case M.lookup iter m of
-                                    Just x  -> x
+iterMap :: Int -> [SqlValue] -> M.Map Int [[SqlValue]] -> M.Map Int [[SqlValue]]
+iterMap n xs m = let x = xs !! n
+                     iter = ((fromSql x)::Int)
+                     vals = case M.lookup iter m of
+                                    Just vs  -> vs
                                     Nothing -> []
-                    in M.insert iter (xs:vals) m
-                    
-runQuery :: IConnection conn => conn -> (Int, (String, [(String, Maybe Int)], Maybe Int, Maybe Int)) -> IO (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int))
-runQuery c (qId, (query, schema, rId, cId)) = do
-                                                res <- quickQuery' c query []
-                                                return (qId, (res, schema, rId, cId))
+                  in M.insert iter (xs:vals) m
 
-buildRefMap :: (Int, ([[SqlValue]], [(String, Maybe Int)], Maybe Int, Maybe Int)) -> ([((Int, Int), Int)] ,[(Int, [[SqlValue]])]) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]]))])
-buildRefMap (q, (r, _, (Just t), (Just c))) (qm, rm) = (((t, c), q):qm, (q, r):rm)
-buildRefMap (q, (r, _, _, _)) (qm, rm) = (qm, (q,r):rm)
+runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe Int, Maybe Int)) -> IO (Int, ([[SqlValue]], ResultInfo, Maybe Int, Maybe Int))
+runQuery c (qId, (query, schema, rId, cId)) = do
+                                                sth <- prepare c query
+                                                _ <- execute sth []
+                                                res <- fetchAllRows' sth
+                                                resDescr <- describeResult sth
+                                                return $ (unsafePerformIO $ do
+                                                                             putStrLn query
+                                                                             putStrLn $ show resDescr
+                                                                             putStrLn $ show res) `seq` (qId, (res, schemeToResult schema resDescr, rId, cId))
+
+schemeToResult :: SchemaInfo -> [(String, SqlColDesc)] -> ResultInfo 
+schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (_, c2) -> compare c1 c2) cols
+                                                    resCols = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
+                                                    itC = fromJust $ lookup itN resCols
+                                                 in ResultInfo itC $ map (\(n, _) -> (n, fromJust $ lookup n resCols)) ordCols
+
+buildRefMap :: (Int, ([[SqlValue]], ResultInfo, Maybe Int, Maybe Int)) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))])
+buildRefMap (q, (r, ri, (Just t), (Just c))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
+buildRefMap (q, (r, ri, _, _)) (qm, rm) = (qm, (q, (r, ri)):rm)
 
