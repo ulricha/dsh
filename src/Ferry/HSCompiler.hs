@@ -23,8 +23,6 @@ import qualified Data.List as L
 
 import Data.Generics (listify)
 
-import System.IO.Unsafe
-
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
@@ -229,7 +227,3 @@ getTableInfo c n = do
                                         FInt -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
                                         FFloat -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                         _       -> error $ "You can't store this kind of data in a table..."
-{-
-ast = 
-  App (App (Var "map") (\__fv_1 -> {__fv_1."1", __fv_1."2" })) (Table "someints") -}
--- map (\x -> (x.columna2, x.columnb1)) (table someints (columna2 Int, columnb1 Float) with keys ((columna2)))

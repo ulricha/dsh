@@ -30,8 +30,8 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 
 executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
 executePlan c p@(Algebra plan) = do 
-                        sql@(SQL sqlll) <- (unsafePerformIO $ putStrLn plan) `seq` algToSQL p
-                        let plan = (unsafePerformIO $ putStrLn sqlll) `seq` extractSQL sql
+                        sql@(SQL sqlll) <- algToSQL p
+                        let plan = extractSQL sql
                         runSQL c plan
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
@@ -51,7 +51,7 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
                                                                     Just x -> x
                                                                     Nothing -> $impossible
                                                            rId = fmap attrToInt $ lookup "idref" attrs
-                                                           cId = fmap ((1+) . attrToInt) $ lookup "colref" attrs
+                                                           cId = fmap attrToInt $ lookup "colref" attrs
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
                                                            schema = toSchemeInf $ map process $ concatMap (\x -> deep (tag "column") x) $ deep (tag "schema") c
                                                         in (qId, (query, schema, rId, cId))
@@ -105,9 +105,11 @@ getColResPos q i = do
                                 Nothing -> $impossible
                 
 findQuery :: (Int, Int) -> QueryR Int
-findQuery i = do
-                env <- ask
-                return $ fromJust $ lookup i $ fst env
+findQuery (q, c) = do
+                    env <- ask
+                    return $ (\x -> case x of
+                                  Just x' -> x'
+                                  Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i (ListT t1) = do
@@ -141,14 +143,15 @@ processResults' q c vals (TupleT t1 t2) = do
                                             v1s <- processResults' q c vals t1 
                                             v2s <- processResults' q (c + 1) vals t2
                                             return $ [TupleN v1 v2 | v1 <- v1s | v2 <- v2s]
-                                      {-      mapM (\(val1:vs) -> do
-                                                                v1 <- processResults' q c [[val1]] t1
-                                                                v2 <- processResults' q (c + 1) [vs] t2
-                                                                return $ TupleN (head v1) (head v2)) vals -}
-processResults' q c vals (ListT t) = do
+processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
-                                        return undefined
+                                        i <- getColResPos q c
+                                        let sur = map (\val -> (convert $ val !! i)::Int) vals 
+                                        return $ map (\i -> case lookup i list of
+                                                                Just x -> x
+                                                                Nothing -> ListN []) sur 
+
                                         
                             
 partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
@@ -168,10 +171,7 @@ runQuery c (qId, (query, schema, rId, cId)) = do
                                                 _ <- execute sth []
                                                 res <- fetchAllRows' sth
                                                 resDescr <- describeResult sth
-                                                return $ (unsafePerformIO $ do
-                                                                             putStrLn query
-                                                                             putStrLn $ show resDescr
-                                                                             putStrLn $ show res) `seq` (qId, (res, schemeToResult schema resDescr, rId, cId))
+                                                return (qId, (res, schemeToResult schema resDescr, rId, cId))
 
 schemeToResult :: SchemaInfo -> [(String, SqlColDesc)] -> ResultInfo 
 schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (_, c2) -> compare c1 c2) cols
