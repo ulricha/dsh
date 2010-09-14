@@ -7,11 +7,8 @@ import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
 
-import Ferry.Syntax (FType (..))
-
 import Data.Maybe (fromJust)
 import Data.Char
--- import Data.Convertible
 import Database.HDBC
 
 import Control.Monad.State
@@ -150,9 +147,9 @@ transformE ((TableE n) ::: ty) = do
                                     return expr
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
-        legalType tn cn nr ty f = case f ty of
+        legalType tn cn nr t f = case f t of
                                 True -> True
-                                False -> error $ "The type: " ++ show ty ++ "\nis not compatible with the type of column nr: " ++ nr
+                                False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE _ = $impossible
 
@@ -174,7 +171,7 @@ flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
  where
      flatFTy' :: Int -> Type -> [(RLabel, FType)]
      flatFTy' i (TupleT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
-     flatFTy' i t              = [(RLabel $ show i, transformTy t)]
+     flatFTy' i ty              = [(RLabel $ show i, transformTy ty)]
 flatFTy _         = $impossible
 
 sizeOfTy :: Type -> Int
@@ -218,7 +215,7 @@ getTableInfo c n = do
                     
         where
           toTableDescr :: [(String, SqlColDesc)] -> [(String, (FType -> Bool))]
-          toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(n, props) -> (n, compatibleType (colType props)))
+          toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
           compatibleType :: SqlTypeId -> FType -> Bool
           compatibleType dbT hsT = case hsT of
                                         FUnit -> True
