@@ -136,20 +136,20 @@ transformE ((TableE n) ::: ty) = do
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keys = [Key $ map (\(Column n' _) -> n') cols]
                                     let table' = Table ([] :=> tTy) n cols keys
-                                    {- let pattern = PVar $ prefixVar fv
-                                    let nameType = map (\((Column name t), nr) -> (nr, t)) $ zip cols [1..]
+                                    let pattern = PVar $ prefixVar fv
+                                    let nameType = map (\(Column name t) -> (name, t)) cols 
                                     let body = foldr (\(nr, t) b -> 
                                                     let (_ :=> bt) = typeOf b
-                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (F.Elem ([] :=> t) varB (show nr)), RecElem ([] :=> bt) "2" b])
-                                                  ((\(nr,t) -> F.Elem ([] :=> t) varB (show nr)) $ last nameType)
+                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (F.Elem ([] :=> t) varB nr), RecElem ([] :=> bt) "2" b])
+                                                  ((\(nr,t) -> F.Elem ([] :=> t) varB nr) $ last nameType)
                                                   (init nameType)
                                     let ([] :=> rt) = typeOf body
                                     let lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
                                     let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
                                                                     (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
                                                                     lambda)
-                                                                   (ParExpr (typeOf table') table') -}
-                                    return table'
+                                                                   (ParExpr (typeOf table') table') 
+                                    return expr
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
         legalType tn cn nr ty f = case f ty of
