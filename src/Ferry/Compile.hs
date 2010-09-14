@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp #-}
 module Ferry.Compile where
     
 import Ferry.Pathfinder
@@ -53,7 +53,7 @@ extractSQL (SQL x) = let (Document _ _ r _) = xmlParse "query" x
                                                            rId = fmap attrToInt $ lookup "idref" attrs
                                                            cId = fmap ((1+) . attrToInt) $ lookup "colref" attrs
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
-                                                           schema = toSchemeInf $ map process $ concatMap children $ deep (tag "schema") c
+                                                           schema = toSchemeInf $ map process $ concatMap (\x -> deep (tag "column") x) $ deep (tag "schema") c
                                                         in (qId, (query, schema, rId, cId))
         attrToInt :: AttValue -> Int
         attrToInt (AttValue [(Left i)]) = read i
@@ -96,6 +96,13 @@ getIterCol i = do
                 return $ case lookup i $ snd env of
                             Just x -> iterR $ snd x
                             Nothing -> $impossible
+                            
+getColResPos :: Int -> Int -> QueryR Int
+getColResPos q i = do
+                    env <- ask
+                    return $ case lookup q $ snd env of
+                                Just (_, ResultInfo _ x) -> snd (x !! i)
+                                Nothing -> $impossible
                 
 findQuery :: (Int, Int) -> QueryR Int
 findQuery i = do
@@ -108,7 +115,7 @@ processResults i (ListT t1) = do
                                 itC <- getIterCol i
                                 let partedVals = partByIter itC v
                                 mapM (\(it, vals) -> do
-                                                        v1 <- processResults' i 1 vals t1
+                                                        v1 <- processResults' i 0 vals t1
                                                         return (it, ListN v1)) partedVals
 processResults i t = do
                         v <- getResults i
@@ -120,14 +127,24 @@ processResults i t = do
 
                             
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
-processResults' _ _ vals BoolT = return $ map (\[val1] -> BoolN $ convert val1) vals
-processResults' _ _ vals UnitT = return $ map (\[_] -> UnitN) vals
-processResults' _ _ vals IntegerT = return $ map (\[val1] -> IntegerN $ convert val1) vals
-processResults' _ _ vals DoubleT = return $ map (\[val1] -> DoubleN $ convert val1) vals
-processResults' q c vals (TupleT t1 t2) = mapM (\(val1:vs) -> do
+processResults' q c vals BoolT = do
+                                    i <- getColResPos q c
+                                    return $ map (\val -> BoolN $ convert $ val !! i) vals
+processResults' q c vals UnitT = return $ map (\_ -> UnitN) vals
+processResults' q c vals IntegerT = do
+                                     i <- getColResPos q c
+                                     return $ map (\val -> IntegerN $ convert $ val !! i) vals
+processResults' q c vals DoubleT = do
+                                    i <- getColResPos q c
+                                    return $ map (\val -> DoubleN $ convert $ val !! i) vals
+processResults' q c vals (TupleT t1 t2) = do
+                                            v1s <- processResults' q c vals t1 
+                                            v2s <- processResults' q (c + 1) vals t2
+                                            return $ [TupleN v1 v2 | v1 <- v1s | v2 <- v2s]
+                                      {-      mapM (\(val1:vs) -> do
                                                                 v1 <- processResults' q c [[val1]] t1
                                                                 v2 <- processResults' q (c + 1) [vs] t2
-                                                                return $ TupleN (head v1) (head v2)) vals
+                                                                return $ TupleN (head v1) (head v2)) vals -}
 processResults' q c vals (ListT t) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
