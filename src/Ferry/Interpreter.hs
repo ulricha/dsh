@@ -23,7 +23,8 @@ evaluate c e = case e of
   CharE ch   -> return (CharN ch)
   IntegerE i -> return (IntegerN i)
   DoubleE d  -> return (DoubleN d)
-  
+  TextE t    -> return (TextN t)
+    
   VarE _ -> $impossible
   LamE _ -> $impossible
   AppE f1 e1 -> evaluate c (f1 e1)

@@ -15,6 +15,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
 
+import Data.Text (unpack, pack)
+
 import Data.List (nub)
 import qualified Data.List as L
 
@@ -78,6 +80,7 @@ transformE ((BoolE b) ::: _) = return $ Constant ([] :=> bool) $ CBool b
 transformE ((CharE c) ::: _) = return $ Constant ([] :=> string) $ CString [c] 
 transformE ((IntegerE i) ::: _) = return $ Constant ([] :=> int) $ CInt i
 transformE ((DoubleE d) ::: _) = return $ Constant ([] :=> float) $ CFloat d
+transformE ((TextE t) ::: _) = return $ Constant ([] :=> string) $ CString $ unpack t
 transformE ((TupleE e1 e2) ::: ty) = do
                                         c1 <- transformE e1
                                         c2 <- transformE e2
@@ -151,7 +154,8 @@ transformE ((TableE n) ::: ty) = do
                                 True -> True
                                 False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
-transformE _ = $impossible
+-- transformE (e@(_ ::: _) ::: _) = transformE e
+-- transformE _ = $impossible
 
 transformArg :: Exp -> N Param                                 
 transformArg ((LamE f) ::: ty) = do
@@ -182,6 +186,7 @@ transformTy :: Type -> FType
 transformTy UnitT = undefined
 transformTy BoolT = bool
 transformTy CharT = string
+transformTy TextT = string
 transformTy IntegerT = int
 transformTy DoubleT = float
 transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
@@ -220,7 +225,7 @@ getTableInfo c n = do
           compatibleType dbT hsT = case hsT of
                                         FUnit -> True
                                         FBool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                        FString -> L.elem dbT [SqlCharT, SqlWCharT]
+                                        FString -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
                                         FInt -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
                                         FFloat -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
-                                        _       -> error $ "You can't store this kind of data in a table..."
+                                        t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n

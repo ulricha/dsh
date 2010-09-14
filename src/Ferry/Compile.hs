@@ -135,6 +135,9 @@ processResults' q c vals BoolT = do
                                     return $ map (\val -> BoolN $ convert $ val !! i) vals
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN) vals
 processResults' _ _ _    CharT = $impossible
+processResults' q c vals TextT = do
+                                    i <- getColResPos q c
+                                    return $ map (\val -> TextN $ convert $ val !! i) vals
 processResults' q c vals IntegerT = do
                                      i <- getColResPos q c
                                      return $ map (\val -> IntegerN $ convert $ val !! i) vals

@@ -20,7 +20,7 @@ Library
                      haskell-src-exts >= 1.9.0, syntax-trees >= 0.1.2,
                      syb >=0.1.0.2, HDBC >= 2.2, convertible >= 0.1,
                      bytestring >= 0.9, mtl >= 1.1.0.0, Ferryc >= 0.2.1, HaXml >= 1.20.2,
-                     Pathfinder >= 0.1
+                     Pathfinder >= 0.1, text >= 0.8.1.0
 
   Hs-Source-Dirs:    src
   Extensions:        TemplateHaskell, ViewPatterns, MultiParamTypeClasses, DeriveDataTypeable,
