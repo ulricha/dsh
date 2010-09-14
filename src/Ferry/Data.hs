@@ -24,7 +24,7 @@ data Exp =
   | TableE String
   | VarE Int
   | Exp ::: Type
-  deriving (Data, Typeable)
+   deriving (Data, Typeable)
 
 data Fun1 =
     Fst | Snd | Not | Abs | Signum
@@ -197,19 +197,28 @@ instance View (Q Double) (Q Double) where
   fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE1 Fst a), Q (AppE1 Snd a))
-  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2)
+  view (Q a) = (Q (AppE1 Fst a ::: reify (undefined :: a)), Q (AppE1 Snd a ::: reify (undefined :: b)))
+  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2 ::: reify (undefined :: (a, b)))
 
 instance Convertible Norm Exp where
     safeConvert n = Right $
         case n of
-             UnitN          -> UnitE 
-             BoolN  b       -> BoolE b 
-             CharN c        -> CharE c 
-             IntegerN i     -> IntegerE i 
-             DoubleN d      -> DoubleE d 
-             TupleN n1 n2   -> TupleE (convert n1) (convert n2)
-             ListN ns       -> ListE (map convert ns)
+             UnitN          -> UnitE ::: UnitT
+             BoolN  b       -> BoolE b ::: BoolT
+             CharN c        -> CharE c  ::: CharT
+             IntegerN i     -> IntegerE i ::: IntegerT
+             DoubleN d      -> DoubleE d ::: DoubleT
+             TupleN n1 n2   -> let c1@(_ ::: t1) = convert n1 
+                                   c2@(_ ::: t2) = convert n2
+                                in TupleE c1 c2 ::: TupleT t1 t2
+             ListN ns       -> let nss = map convert ns
+                                   t = case nss of
+                                        ((_ ::: ty):_) -> ty
+                                        []             -> UnitT  
+                                in ListE nss ::: (ListT UnitT)
+{-
+Shouldn't norm data also carry type information (so that this translation can actually be made...)
+-}
 
 forget :: (QA a) => Q a -> Exp
 forget (Q a) = a
