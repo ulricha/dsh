@@ -1,8 +1,10 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
 module PaperExampleF2 where
-    
-import Ferry (toQ, fromQ, Q (..), view, qc)
-import qualified Ferry as Q
+
+import qualified Ferry as Q    
+import Ferry (Q, toQ, view, qc)
+import Ferry.Interpreter (fromQ)
+
 import Database.HDBC.PostgreSQL
 import GHC.Exts (the)
 import Data.List (nub)
@@ -18,13 +20,13 @@ type Feature  = Text
 type Meaning  = Text
 
 facilities :: Q [(Facility, Cat)]
-facilities = Q.table "facilities"
+facilities = Q.table "Facilities"
                
 features :: Q [(Facility, Feature)]
-features = Q.table "features"
+features = Q.table "Features"
           
 meanings :: Q [(Feature, Meaning)]
-meanings = Q.table "meanings"
+meanings = Q.table "Meanings"
             
 -- Haskell version:
 

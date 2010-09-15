@@ -86,8 +86,8 @@ evaluate c e = case e of
     return $ ListN (filter (\(BoolN b BoolT) -> b) as2) t
 
   AppE2 GroupWith lam as t -> do
-    (ListN as1 (ListT t1)) <- evaluate c as
-    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
+    (ListN as1 t1) <- evaluate c as
+    (ListN as2 _ ) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
     return $ ListN (map ((flip ListN) t1 . (map fst)) $ groupWith snd $ zip as1 as2) t
 
   AppE2 SortWith lam as t -> do
@@ -386,9 +386,9 @@ typeMatch :: Type -> SqlValue -> Bool
 typeMatch t s =
     case (t,s) of
          (UnitT         , SqlNull)          -> True
-         (IntegerT          , SqlInteger _)     -> True
+         (IntegerT      , SqlInteger _)     -> True
          (BoolT         , SqlBool _)        -> True
          (CharT         , SqlChar _)        -> True
-         (ListT CharT   , SqlString _)      -> True
-         (ListT CharT   , SqlByteString _)  -> True
+         (TextT         , SqlString _)      -> True
+         (TextT         , SqlByteString _)  -> True
          _                                  -> False

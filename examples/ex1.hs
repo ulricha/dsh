@@ -6,7 +6,7 @@ import qualified Ferry as Q
 import Ferry (Q,toQ,qc,view,table)
 import Ferry.Interpreter (fromQ)
 
-import Database.HDBC.Sqlite3
+import Database.HDBC.PostgreSQL
 
 employees :: Q [([Char], [Char], Integer)]
 employees = toQ [
@@ -16,9 +16,6 @@ employees = toQ [
   , ("Gordon", "Ed",   45)
   , ("Paul",   "Yale", 60)
   ]
-
-employees2 :: Q [(Integer,Integer,Integer,Double)]
-employees2 = table "table"
 
 q1 = Q.map (\(view->(n,_,s)) -> Q.fromView (s,n)) employees
 q2 = Q.sortWith id q1

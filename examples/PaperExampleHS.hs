@@ -1,14 +1,8 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
 module PaperExampleHS where
     
-import Ferry (toQ, fromQ, Q (..), view, qc)
-import qualified Ferry as Q
-import Database.HDBC.Sqlite3
 import GHC.Exts (the)
 import Data.List (nub)
-
-conn :: Connection
-conn = undefined
 
 type Facility = String
 type Cat      = String
