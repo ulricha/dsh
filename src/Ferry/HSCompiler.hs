@@ -15,7 +15,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
 
-import Data.Text (unpack, pack)
+import Data.Text (unpack)
 
 import Data.List (nub)
 import qualified Data.List as L
@@ -87,16 +87,16 @@ transformE (TupleE e1 e2 ty) = do
                                         return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
 transformE (ListE es ty) = let qt = ([] :=> transformTy ty) 
                                   in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
-transformE (AppE f a ty) = transformE $ f a 
+transformE (AppE f a _) = transformE $ f a 
 transformE (AppE1 f1 e1 ty) = do
                                       let tr = transformTy ty
                                       e1' <- transformArg e1
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
 -- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
-transformE (AppE2 GroupWith fn e ty@(ListT (ListT tel))) = do
+transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
-                                                fn' <- transformArg fn
+                                                fn' <- transformArg gfn
                                                 e' <- transformArg e
                                                 let (_ :=> te) = typeOf e'
                                                 fv <- transformArg (LamE id $ ArrowT tel tel)
@@ -108,7 +108,7 @@ transformE (AppE2 GroupWith fn e ty@(ListT (ListT tel))) = do
                                                                 fv
                                                             )
                                                             e' 
-transformE (AppE2 D.Cons e1 e2 ty) = do
+transformE (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
                                             let (_ :=> t) = typeOf e1'
@@ -128,7 +128,7 @@ transformE (AppE2 f2 e1 e2 ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2'
-transformE (AppE3 Cond e1 e2 e3 ty) = do
+transformE (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- transformE e1
                                              e2' <- transformE e2
                                              e3' <- transformE e3
@@ -180,8 +180,7 @@ transformE (TableE n ty) = do
                                 True -> True
                                 False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
--- transformE (e@(_ ::: _) ::: _) = transformE e
--- transformE _ = $impossible
+transformE (LamE _ _) = $impossible
 
 transformArg :: Exp -> N Param                                 
 transformArg (LamE f ty) = do
@@ -191,7 +190,6 @@ transformArg (LamE f ty) = do
                                   let e1 = f $ VarE n t1
                                   ParAbstr ([] :=> fty) (PVar $ prefixVar n) <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
-transformArg _ = $impossible
                                   
 parExpr :: CoreExpr -> Param
 parExpr c = ParExpr (typeOf c) c
