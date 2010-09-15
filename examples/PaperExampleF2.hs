@@ -45,6 +45,13 @@ query = do
          conn <- conn
          fromQ conn [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
                         | (fac, cat) <- facilities, then group by cat |]
+squery :: IO [Text]
+squery = do
+            conn <- conn
+            fromQ conn $ Q.tail [$qc| feat | (fac, feat) <- features|]
+
+main2 :: IO ()
+main2 = squery >>= print
 
 main :: IO ()
 main = query >>= print

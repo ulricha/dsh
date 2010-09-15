@@ -75,31 +75,31 @@ doCompile :: [(String, [(String, (FType -> Bool))])] -> Q a -> String
 doCompile env (Q a) = typedCoreToAlgebra $ runN env $ transformE a
 
 transformE :: Exp -> N CoreExpr
-transformE (UnitE ::: _) = return $ Constant ([] :=> int) $ CInt 1
-transformE ((BoolE b) ::: _) = return $ Constant ([] :=> bool) $ CBool b
-transformE ((CharE c) ::: _) = return $ Constant ([] :=> string) $ CString [c] 
-transformE ((IntegerE i) ::: _) = return $ Constant ([] :=> int) $ CInt i
-transformE ((DoubleE d) ::: _) = return $ Constant ([] :=> float) $ CFloat d
-transformE ((TextE t) ::: _) = return $ Constant ([] :=> string) $ CString $ unpack t
-transformE ((TupleE e1 e2) ::: ty) = do
+transformE (UnitE _) = return $ Constant ([] :=> int) $ CInt 1
+transformE (BoolE b _) = return $ Constant ([] :=> bool) $ CBool b
+transformE (CharE c _) = return $ Constant ([] :=> string) $ CString [c] 
+transformE (IntegerE i _) = return $ Constant ([] :=> int) $ CInt i
+transformE (DoubleE d _) = return $ Constant ([] :=> float) $ CFloat d
+transformE (TextE t _) = return $ Constant ([] :=> string) $ CString $ unpack t
+transformE (TupleE e1 e2 ty) = do
                                         c1 <- transformE e1
                                         c2 <- transformE e2
                                         return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
-transformE ((ListE es) ::: ty) = let qt = ([] :=> transformTy ty) 
+transformE (ListE es ty) = let qt = ([] :=> transformTy ty) 
                                   in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
-transformE ((AppE f a) ::: ty) = transformE $ f a ::: ty
-transformE ((AppE1 f1 e1) ::: ty) = do
+transformE (AppE f a ty) = transformE $ f a 
+transformE (AppE1 f1 e1 ty) = do
                                       let tr = transformTy ty
                                       e1' <- transformArg e1
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
 -- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
-transformE ((AppE2 GroupWith fn e) ::: ty@(ListT (ListT tel))) = do
+transformE (AppE2 GroupWith fn e ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
                                                 fn' <- transformArg fn
                                                 e' <- transformArg e
                                                 let (_ :=> te) = typeOf e'
-                                                fv <- transformArg (LamE id ::: ArrowT tel tel)
+                                                fv <- transformArg (LamE id $ ArrowT tel tel)
                                                 let (_ :=> tfn) = typeOf fn'
                                                 let (_ :=> tfv) = typeOf fv
                                                 return $ App ([] :=> tr)
@@ -108,12 +108,12 @@ transformE ((AppE2 GroupWith fn e) ::: ty@(ListT (ListT tel))) = do
                                                                 fv
                                                             )
                                                             e' 
-transformE ((AppE2 D.Cons e1 e2) ::: ty) = do
+transformE (AppE2 D.Cons e1 e2 ty) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
                                             let (_ :=> t) = typeOf e1'
                                             return $ F.Cons ([] :=> list t) e1' e2'
-transformE ((AppE2 f2 e1 e2) ::: ty) = do
+transformE (AppE2 f2 e1 e2 ty) = do
                                         let tr = transformTy ty
                                         case elem f2 [Add, Mul, Equ, Lt, Lte, Gte, Gt] of
                                             True  -> do
@@ -128,13 +128,13 @@ transformE ((AppE2 f2 e1 e2) ::: ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2'
-transformE ((AppE3 Cond e1 e2 e3) ::: ty) = do
+transformE (AppE3 Cond e1 e2 e3 ty) = do
                                              e1' <- transformE e1
                                              e2' <- transformE e2
                                              e3' <- transformE e3
                                              let (_ :=> t) = typeOf e2'
                                              return $ If ([] :=> t) e1' e2' e3'
-transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
+transformE (AppE3 f3 e1 e2 e3 ty) = do
                                            let tr = transformTy ty
                                            e1' <- transformArg e1
                                            e2' <- transformArg e2
@@ -147,8 +147,8 @@ transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                                              (App ([] :=> ta2 .-> ta3 .-> tr) (transformF f3 (ta1 .-> ta2 .-> ta3 .-> tr)) e1')
                                                              e2')
                                                         e3'
-transformE ((VarE i) ::: ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE ((TableE n) ::: ty) = do
+transformE (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
+transformE (TableE n ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
@@ -184,13 +184,13 @@ transformE ((TableE n) ::: ty) = do
 -- transformE _ = $impossible
 
 transformArg :: Exp -> N Param                                 
-transformArg ((LamE f) ::: ty) = do
+transformArg (LamE f ty) = do
                                   n <- freshVar
                                   let (ArrowT t1 _) = ty
                                   let fty = transformTy ty
-                                  let e1 = f $ (VarE n) ::: t1
+                                  let e1 = f $ VarE n t1
                                   ParAbstr ([] :=> fty) (PVar $ prefixVar n) <$> transformE e1
-transformArg e@(_ ::: _) = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
+transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
 transformArg _ = $impossible
                                   
 parExpr :: CoreExpr -> Param
@@ -233,11 +233,11 @@ transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
 getTableNames :: Exp -> [String]
-getTableNames e = nub $ map (\(TableE n) -> n) $ listify isTable e
+getTableNames e = nub $ map (\(TableE n _) -> n) $ listify isTable e
     where 
         isTable :: Exp -> Bool
-        isTable (TableE _) = True
-        isTable _         = False
+        isTable (TableE _ _) = True
+        isTable _            = False
         
 getTableInfo :: IConnection conn => conn -> String -> IO (String, [(String, (FType -> Bool))])
 getTableInfo c n = do

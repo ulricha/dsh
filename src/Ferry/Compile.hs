@@ -113,13 +113,13 @@ findQuery (q, c) = do
                                   Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
-processResults i (ListT t1) = do
+processResults i ty@(ListT t1) = do
                                 v <- getResults i
                                 itC <- getIterCol i
                                 let partedVals = partByIter itC v
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1)) partedVals
+                                                        return (it, ListN v1 ty)) partedVals
 processResults i t = do
                         v <- getResults i
                         itC <- getIterCol i
@@ -132,22 +132,22 @@ processResults i t = do
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
 processResults' q c vals BoolT = do
                                     i <- getColResPos q c
-                                    return $ map (\val -> BoolN $ convert $ val !! i) vals
-processResults' _ _ vals UnitT = return $ map (\_ -> UnitN) vals
+                                    return $ map (\val -> flip BoolN BoolT $ convert $ val !! i) vals
+processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
 processResults' _ _ _    CharT = $impossible
 processResults' q c vals TextT = do
                                     i <- getColResPos q c
-                                    return $ map (\val -> TextN $ convert $ val !! i) vals
+                                    return $ map (\val -> flip TextN TextT $ convert $ val !! i) vals
 processResults' q c vals IntegerT = do
                                      i <- getColResPos q c
-                                     return $ map (\val -> IntegerN $ convert $ val !! i) vals
+                                     return $ map (\val -> flip IntegerN IntegerT $ convert $ val !! i) vals
 processResults' q c vals DoubleT = do
                                     i <- getColResPos q c
-                                    return $ map (\val -> DoubleN $ convert $ val !! i) vals
-processResults' q c vals (TupleT t1 t2) = do
+                                    return $ map (\val -> flip DoubleN DoubleT $ convert $ val !! i) vals
+processResults' q c vals t@(TupleT t1 t2) = do
                                             v1s <- processResults' q c vals t1 
                                             v2s <- processResults' q (c + 1) vals t2
-                                            return $ [TupleN v1 v2 | v1 <- v1s | v2 <- v2s]
+                                            return $ [TupleN v1 v2 t | v1 <- v1s | v2 <- v2s]
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
@@ -155,7 +155,7 @@ processResults' q c vals t@(ListT _) = do
                                         let sur = map (\val -> (convert $ val !! i)::Int) vals 
                                         return $ map (\it' -> case lookup it' list of
                                                                 Just x -> x
-                                                                Nothing -> ListN []) sur
+                                                                Nothing -> ListN [] t) sur
 processResults' _ _ _ (ArrowT _ _) = $impossible 
 
                                         

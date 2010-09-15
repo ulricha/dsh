@@ -8,7 +8,6 @@
 module Ferry
   (
     module Ferry.Combinators
-  , module Ferry.Interpreter
 
     -- * Data Types
   , Q
