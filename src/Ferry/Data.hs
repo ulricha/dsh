@@ -94,6 +94,14 @@ typeArrowResult :: Type -> Type
 typeArrowResult (ArrowT _ t) = t
 typeArrowResult _ = $impossible
 
+typeTupleFst :: Type -> Type
+typeTupleFst (TupleT a _) = a
+typeTupleFst _ = $impossible
+
+typeTupleSnd :: Type -> Type
+typeTupleSnd (TupleT _ b) = b
+typeTupleSnd _ = $impossible
+
 typeNorm :: Norm -> Type
 typeNorm = typeExp . convert
 

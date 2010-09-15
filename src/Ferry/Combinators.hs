@@ -8,7 +8,6 @@ import Ferry.TH
 import Data.Convertible
 
 import Prelude (Eq, Ord, Num, Bool, Integer, undefined, ($))
-import qualified Prelude as P
 
 -- * Unit
 
@@ -254,9 +253,9 @@ infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
--- $(generateDeriveTupleQARange   3 16)
--- $(generateDeriveTupleTARange   3 16)
--- $(generateDeriveTupleViewRange 3 16)
+$(generateDeriveTupleQARange   3 8)
+$(generateDeriveTupleTARange   3 8)
+$(generateDeriveTupleViewRange 3 8)
 
 
 -- * Missing Combinators

@@ -45,7 +45,7 @@ applyChainE :: ExpQ -> [ExpQ] -> ExpQ
 applyChainE e es = foldl' appE e es
 
 applyChainTupleP :: [PatQ] -> PatQ
-applyChainTupleP = foldr1 (\p1 p2 -> conP 'TupleN [p1,p2])
+applyChainTupleP = foldr1 (\p1 p2 -> conP 'TupleN [p1,p2,wildP])
 
 applyChainTupleE :: Name -> [ExpQ] -> ExpQ
 applyChainTupleE n = foldr1 (\e1 e2 -> appE (appE (conE n) e1) e2)
@@ -60,6 +60,13 @@ instance Applicative TH.Q where
 --------------------------------------------------------------------------------
 -- * QA instances
 --
+
+-- Original Code
+-- instance (QA a,QA b) => QA (a,b) where
+--   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
+--   toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
+--   fromNorm (TupleN a b (TupleT _ _)) = (fromNorm a,fromNorm b)
+--   fromNorm _ = $impossible
 
 deriveTupleQA :: Int -> TH.Q [Dec]
 deriveTupleQA l
@@ -91,9 +98,21 @@ deriveTupleQA l
                             []
 
     toNormDec    = funD 'toNorm [toNormClause]
-    toNormClause = clause [ tupP [ varP n | n <- names ] ]
-                          ( normalB $ applyChainTupleE 'TupleN [ [|toNorm $(varE n) |] | n <- names ] )
-                          []
+    toNormClause = clause [ toNormClausePattern ] (normalB $ fst $ toNormClauseBody $ [ varE n | n <- names ]) []
+
+    toNormClausePattern = tupP [ varP n | n <- names ]
+
+    toNormClauseBody [a1,b1] =
+      let t1 = [| TupleT (reify $a1) (reify $b1) |]
+          e1 = [| TupleN (toNorm $a1) (toNorm $b1) ($t1) |]
+      in  (e1,t1)
+    toNormClauseBody (a1 : as1) =
+      let (e1,t1) = toNormClauseBody as1
+          t2 = [| TupleT (reify $a1) ($t1) |]
+          e2 = [| TupleN (toNorm $a1) ($e1) ($t2) |]
+      in  (e2,t2)
+    toNormClauseBody _ = $impossible
+
 
 -- | Generate all 'QA' instances for tuples within range.
 generateDeriveTupleQARange :: Int -> Int -> TH.Q [Dec]
@@ -147,8 +166,8 @@ deriveTupleView l
     names = [ mkName $ "a" ++ show i | i <- [1..l] ]
     a = mkName "a"
 
-    first  p = [| AppE1 Fst $p |]
-    second p = [| AppE1 Snd $p |]
+    first  p = [| AppE1 Fst $p (typeTupleFst (typeExp $p)) |]
+    second p = [| AppE1 Snd $p (typeTupleSnd (typeExp $p)) |]
 
     viewCxts = return [ ClassP ''QA [VarT n] | n <- names ]
     viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
@@ -165,9 +184,23 @@ deriveTupleView l
                         []
 
     fromViewDec = funD 'fromView [fromViewClause]
-    fromViewClause = clause [ tupP (map (\n -> conP 'Q [varP n]) names) ]
-                            ( normalB [| Q  $(applyChainTupleE 'TupleE (map varE names)) |] )
+    fromViewClause = clause [ fromViewClausePattern ]
+                            ( normalB [| Q  $(fst $ fromViewClauseBody (map varE names)) |] )
                             []
+
+    fromViewClausePattern = tupP (map (\n -> conP 'Q [varP n]) names)
+
+    fromViewClauseBody [a1,b1] =
+      let t1 = [| TupleT (typeExp $a1) (typeExp $b1) |]
+          e1 = [| TupleE ($a1) ($b1) ($t1) |]
+      in  (e1,t1)
+    fromViewClauseBody (a1 : as1) =
+      let (e1,t1) = fromViewClauseBody as1
+          t2 = [| TupleT (typeExp $a1) ($t1) |]
+          e2 = [| TupleE ($a1) ($e1) ($t2) |]
+      in  (e2,t2)
+    fromViewClauseBody _ = $impossible 
+
 
 -- | Generate all 'View' instances for tuples within range.
 generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
