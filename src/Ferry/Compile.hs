@@ -43,7 +43,7 @@ algToSQL (Algebra s) = do
 
 extractSQL :: SQLXML a -> QueryBundle a 
 extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
-                      in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r undefined)
+                      in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r $impossible)
     where
         extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup "id" attrs of
                                                                     Just x -> x

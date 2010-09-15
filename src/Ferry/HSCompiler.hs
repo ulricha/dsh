@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses, ScopedTypeVariables #-}
 module Ferry.HSCompiler (fromQ) where
 
-import Ferry.Data
+import Ferry.Data as D
 import Ferry.Syntax as F
 import Ferry.Compiler
 import Ferry.Impossible
@@ -75,7 +75,7 @@ doCompile :: [(String, [(String, (FType -> Bool))])] -> Q a -> String
 doCompile env (Q a) = typedCoreToAlgebra $ runN env $ transformE a
 
 transformE :: Exp -> N CoreExpr
-transformE (UnitE ::: _) = return undefined
+transformE (UnitE ::: _) = return $ Constant ([] :=> int) $ CInt 1
 transformE ((BoolE b) ::: _) = return $ Constant ([] :=> bool) $ CBool b
 transformE ((CharE c) ::: _) = return $ Constant ([] :=> string) $ CString [c] 
 transformE ((IntegerE i) ::: _) = return $ Constant ([] :=> int) $ CInt i
@@ -93,6 +93,25 @@ transformE ((AppE1 f1 e1) ::: ty) = do
                                       e1' <- transformArg e1
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
+transformE ((AppE2 GroupWith fn e) ::: ty@(ListT (ListT tel))) = do
+                                                let tr = transformTy ty
+                                                fn' <- transformArg fn
+                                                e' <- transformArg e
+                                                let (_ :=> te) = typeOf e'
+                                                fv <- transformArg (LamE id ::: ArrowT tel tel)
+                                                let (_ :=> tfn) = typeOf fn'
+                                                let (_ :=> tfv) = typeOf fv
+                                                return $ App ([] :=> tr)
+                                                            (App ([] :=> te .-> tr)
+                                                                (App ([] :=> tfv .-> te .-> tr) (Var ([] :=> tfn .-> tfv .-> te .-> tr) "groupBy'") fn')
+                                                                fv
+                                                            )
+                                                            e'
+transformE ((AppE2 D.Cons e1 e2) ::: ty) = do
+                                            e1' <- transformE e1
+                                            e2' <- transformE e2
+                                            let (_ :=> t) = typeOf e1'
+                                            return $ F.Cons ([] :=> list t) e1' e2'
 transformE ((AppE2 f2 e1 e2) ::: ty) = do
                                         let tr = transformTy ty
                                         case elem f2 [Add, Mul, Equ, Lt, Lte, Gte, Gt] of
@@ -108,6 +127,12 @@ transformE ((AppE2 f2 e1 e2) ::: ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2'
+transformE ((AppE3 Cond e1 e2 e3) ::: ty) = do
+                                             e1' <- transformE e1
+                                             e2' <- transformE e2
+                                             e3' <- transformE e3
+                                             let (_ :=> t) = typeOf e2'
+                                             return $ If ([] :=> t) e1' e2' e3'
 transformE ((AppE3 f3 e1 e2 e3) ::: ty) = do
                                            let tr = transformTy ty
                                            e1' <- transformArg e1
@@ -183,7 +208,7 @@ sizeOfTy (TupleT _ t2) = 1 + sizeOfTy t2
 sizeOfTy _              = 1 
 
 transformTy :: Type -> FType
-transformTy UnitT = undefined
+transformTy UnitT = int
 transformTy BoolT = bool
 transformTy CharT = string
 transformTy TextT = string
