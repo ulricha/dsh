@@ -93,6 +93,7 @@ transformE ((AppE1 f1 e1) ::: ty) = do
                                       e1' <- transformArg e1
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
+-- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
 transformE ((AppE2 GroupWith fn e) ::: ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
                                                 fn' <- transformArg fn
@@ -106,7 +107,7 @@ transformE ((AppE2 GroupWith fn e) ::: ty@(ListT (ListT tel))) = do
                                                                 (App ([] :=> tfv .-> te .-> tr) (Var ([] :=> tfn .-> tfv .-> te .-> tr) "groupBy'") fn')
                                                                 fv
                                                             )
-                                                            e'
+                                                            e' 
 transformE ((AppE2 D.Cons e1 e2) ::: ty) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
