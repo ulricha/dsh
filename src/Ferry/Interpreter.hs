@@ -1,4 +1,4 @@
-module Ferry.Interpreter (fromQRef) where
+module Ferry.Interpreter (fromQ) where
 
 import Ferry.Data
 import Ferry.Impossible
@@ -10,305 +10,327 @@ import GHC.Exts
 import Data.List
 
 -- * Convert DB queries into Haskell values
-fromQRef :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQRef c (Q a) = evaluate c a >>= (return . fromNorm)
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
          -> Exp
          -> IO Norm
 evaluate c e = case e of
-  UnitE      -> return UnitN
-  BoolE b    -> return (BoolN b)
-  CharE ch   -> return (CharN ch)
-  IntegerE i -> return (IntegerN i)
-  DoubleE d  -> return (DoubleN d)
-  TextE t    -> return (TextN t)
+  UnitE t      -> return (UnitN t)
+  BoolE b t    -> return (BoolN b t)
+  CharE ch t   -> return (CharN ch t)
+  IntegerE i t -> return (IntegerN i t)
+  DoubleE d t  -> return (DoubleN d t)
+  TextE s t    -> return (TextN s t)
     
-  VarE _ -> $impossible
-  LamE _ -> $impossible
-  AppE f1 e1 -> evaluate c (f1 e1)
+  VarE _ _ -> $impossible
+  LamE _ _ -> $impossible
 
-  TupleE e1 e2 -> do
+  AppE f1 e1 _ -> evaluate c (f1 e1)
+
+  TupleE e1 e2 t -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return (TupleN e3 e4)
+    return (TupleN e3 e4 t)
 
-  ListE es -> mapM (evaluate c) es >>= (return . ListN)
+  ListE es t -> do 
+      es1 <- mapM (evaluate c) es
+      return (ListN es1 t)
   
-  AppE3 Cond cond a b -> do
-      (BoolN c1) <- evaluate c cond
+  AppE3 Cond cond a b _ -> do
+      (BoolN c1 _) <- evaluate c cond
       if c1 then evaluate c a else evaluate c b 
   
-  AppE2 Cons a as -> do
+  AppE2 Cons a as t -> do
     a1 <- evaluate c a
-    (ListN as1) <- evaluate c as
-    return $ ListN $ a1 : as1
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (a1 : as1) t
 
-  AppE2 Snoc as a -> do
+  AppE2 Snoc as a t -> do
     a1 <- evaluate c a
-    (ListN as1) <- evaluate c as
-    return $ ListN $ snoc as1 a1
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (snoc as1 a1) t
 
-  AppE1 Head as -> do
-    (ListN as1) <- evaluate c as
+  AppE1 Head as _ -> do
+    (ListN as1 _) <- evaluate c as
     return $ head as1
 
-  AppE1 Tail as -> do
-    (ListN as1) <- evaluate c as
-    return $ ListN $ tail as1
+  AppE1 Tail as t -> do
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (tail as1) t
 
-  AppE2 Take i as -> do
-    (IntegerN i1) <- evaluate c i
-    (ListN as1) <- evaluate c as
-    return $ ListN $ take (fromIntegral i1) as1
+  AppE2 Take i as t -> do
+    (IntegerN i1 _) <- evaluate c i
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (take (fromIntegral i1) as1) t
 
-  AppE2 Drop i as -> do
-    (IntegerN i1) <- evaluate c i
-    (ListN as1) <- evaluate c as
-    return $ ListN $ drop (fromIntegral i1) as1
+  AppE2 Drop i as t -> do
+    (IntegerN i1 _) <- evaluate c i
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (drop (fromIntegral i1) as1) t
 
-  AppE2 Map lam as -> do
-    (ListN as1) <- evaluate c as
-    evaluate c $ ListE $ map (evalLam lam) as1
+  AppE2 Map lam as t -> do
+    (ListN as1 _) <- evaluate c as
+    evaluate c $ ListE (map (evalLam lam) as1) t
 
-  AppE2 Append as bs -> do
-    (ListN as1) <- evaluate c as
-    (ListN bs1) <- evaluate c bs
-    return $ ListN $ as1 ++ bs1
+  AppE2 Append as bs t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN bs1 _) <- evaluate c bs
+    return $ ListN (as1 ++ bs1) t
 
-  AppE2 Filter lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ ListN $ filter (\(BoolN b) -> b) as2
+  AppE2 Filter lam as t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT BoolT))
+    return $ ListN (filter (\(BoolN b BoolT) -> b) as2) t
 
-  AppE2 GroupWith lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ ListN $ map (ListN . (map fst)) $ groupWith snd $ zip as1 as2
+  AppE2 GroupWith lam as t -> do
+    (ListN as1 (ListT t1)) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
+    return $ ListN (map ((flip ListN) t1 . (map fst)) $ groupWith snd $ zip as1 as2) t
 
-  AppE2 SortWith lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ ListN $ map fst $ sortWith snd $ zip as1 as2
+  AppE2 SortWith lam as t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
+    return $ ListN (map fst $ sortWith snd $ zip as1 as2) t
 
-  AppE1 The as -> do
-    (ListN as1) <- evaluate c as
+  AppE1 The as _ -> do
+    (ListN as1 _) <- evaluate c as
     return $ the as1
 
-  AppE1 Last as -> do
-    (ListN as1) <- evaluate c as
+  AppE1 Last as _ -> do
+    (ListN as1 _) <- evaluate c as
     return $ last as1
 
-  AppE1 Init as -> do
-    (ListN as1) <- evaluate c as
-    return $ ListN $ init as1
+  AppE1 Init as t -> do
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (init as1) t
 
-  AppE1 Null as -> do
-    (ListN as1) <- evaluate c as
-    return $ BoolN $ null as1
+  AppE1 Null as _ -> do
+    (ListN as1 _) <- evaluate c as
+    return $ BoolN (null as1) BoolT
 
-  AppE1 Length as -> do
-    (ListN as1) <- evaluate c as
-    return $ IntegerN $ fromIntegral $ length as1
+  AppE1 Length as _ -> do
+    (ListN as1 _) <- evaluate c as
+    return $ IntegerN (fromIntegral $ length as1) IntegerT
 
-  AppE2 Index as i -> do
-    (IntegerN i1) <- evaluate c i
-    (ListN as1) <- evaluate c as
+  AppE2 Index as i _ -> do
+    (IntegerN i1 _) <- evaluate c i
+    (ListN as1 _) <- evaluate c as
     return $ as1 !! (fromIntegral i1)
 
-  AppE1 Reverse as -> do
-    (ListN as1) <- evaluate c as
-    return $ ListN $ reverse as1
+  AppE1 Reverse as t -> do
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (reverse as1) t
 
-  AppE1 And as -> do
-    (ListN as1) <- evaluate c as
-    return $ BoolN $ and $ map (\(BoolN b) -> b) as1
+  AppE1 And as _ -> do
+    (ListN as1 _) <- evaluate c as
+    return $ BoolN (and $ map (\(BoolN b BoolT) -> b) as1) BoolT
 
-  AppE1 Or as -> do
-    (ListN as1) <- evaluate c as
-    return $ BoolN $ or $ map (\(BoolN b) -> b) as1
+  AppE1 Or as _ -> do
+    (ListN as1 _) <- evaluate c as
+    return $ BoolN (or $ map (\(BoolN b BoolT) -> b) as1) BoolT
 
-  AppE2 Any lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ BoolN $ any id $ map (\(BoolN b) -> b) as2
+  AppE2 Any lam as _ -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ BoolN (any id $ map (\(BoolN b BoolT) -> b) as2) BoolT
 
-  AppE2 All lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ BoolN $ all id $ map (\(BoolN b) -> b) as2
+  AppE2 All lam as _ -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ BoolN (all id $ map (\(BoolN b BoolT) -> b) as2) BoolT
 
-  AppE1 Sum as -> do
-    (ListN as1) <- evaluate c as
-    return $ IntegerN $ sum $ map (\(IntegerN i) -> i) as1
+  AppE1 Sum as IntegerT -> do
+    (ListN as1 _) <- evaluate c as
+    return $ IntegerN (sum $ map (\(IntegerN i IntegerT) -> i) as1) IntegerT
 
-  AppE1 Product as -> do
-    (ListN as1) <- evaluate c as
-    return $ IntegerN $ product $ map (\(IntegerN i) -> i) as1
+  AppE1 Sum as DoubleT -> do
+    (ListN as1 _) <- evaluate c as
+    return $ DoubleN (sum $ map (\(DoubleN d DoubleT) -> d) as1) DoubleT
 
-  AppE1 Concat as -> do
-    (ListN as1) <- evaluate c as
-    return $ ListN $ concat $ map (\(ListN as2) -> as2) as1
+  AppE1 Sum _ _ -> $impossible
+  
+  AppE1 Product as IntegerT -> do
+    (ListN as1 _) <- evaluate c as
+    return $ IntegerN (product $ map (\(IntegerN i IntegerT) -> i) as1) IntegerT
 
-  AppE1 Maximum as -> do
-    (ListN as1) <- evaluate c as
+  AppE1 Product as DoubleT -> do
+    (ListN as1 _) <- evaluate c as
+    return $ DoubleN (product $ map (\(DoubleN d DoubleT) -> d) as1) DoubleT
+
+  AppE1 Product _ _ -> $impossible
+
+  AppE1 Concat as t -> do
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (concat $ map (\(ListN as2 _) -> as2) as1) t
+
+  AppE1 Maximum as _ -> do
+    (ListN as1 _) <- evaluate c as
     return $ maximum as1
 
-  AppE1 Minimum as -> do
-    (ListN as1) <- evaluate c as
+  AppE1 Minimum as _ -> do
+    (ListN as1 _) <- evaluate c as
     return $ minimum as1
 
-  AppE2 Replicate i a -> do
-    (IntegerN i1) <- evaluate c i
+  AppE2 Replicate i a t -> do
+    (IntegerN i1 _) <- evaluate c i
     a1 <- evaluate c a
-    return $ ListN $ replicate (fromIntegral i1) a1
+    return $ ListN (replicate (fromIntegral i1) a1) t
 
-  AppE2 SplitAt i as -> do
-    (IntegerN i1) <- evaluate c i
-    (ListN as1) <- evaluate c as
-    let t = splitAt (fromIntegral i1) as1
-    return $ TupleN (ListN $ fst t) (ListN $ snd t)
+  AppE2 SplitAt i as t -> do
+    (IntegerN i1 _) <- evaluate c i
+    (ListN as1 t1) <- evaluate c as
+    let r = splitAt (fromIntegral i1) as1
+    return $ TupleN (ListN (fst r) t1) (ListN (snd r) t1) t
 
-  AppE2 TakeWhile lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ ListN $ map fst $ takeWhile (\(_,BoolN b) -> b) $ zip as1 as2
+  AppE2 TakeWhile lam as t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ ListN (map fst $ takeWhile (\(_,BoolN b BoolT) -> b) $ zip as1 as2) t
 
-  AppE2 DropWhile lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ ListN $ map fst $ dropWhile (\(_,BoolN b) -> b) $ zip as1 as2
+  AppE2 DropWhile lam as t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ ListN (map fst $ dropWhile (\(_,BoolN b BoolT) -> b) $ zip as1 as2) t
 
-  AppE2 Span lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ (\(a,b) -> TupleN a b) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ span (\(_,BoolN b) -> b) $ zip as1 as2
+  AppE2 Span lam as t -> do
+    (ListN as1 t1) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ (\(a,b) -> TupleN a b t)
+           $ (\(a,b) -> (ListN (map fst a) t1, ListN (map fst b) t1))
+           $ span (\(_,BoolN b BoolT) -> b)
+           $ zip as1 as2
 
-  AppE2 Break lam as -> do
-    (ListN as1) <- evaluate c as
-    (ListN as2) <- evaluate c (ListE $ map (evalLam lam) as1)
-    return $ (\(a,b) -> TupleN a b) $ (\(a,b) -> (ListN $ map fst a, ListN $ map fst b)) $ break (\(_,BoolN b) -> b) $ zip as1 as2
+  AppE2 Break lam as t -> do
+    (ListN as1 t1) <- evaluate c as
+    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (typeArrowResult (typeExp lam)))
+    return $ (\(a,b) -> TupleN a b t)
+           $ (\(a,b) -> (ListN (map fst a) t1, ListN (map fst b) t1))
+           $ break (\(_,BoolN b BoolT) -> b)
+           $ zip as1 as2
 
-  AppE2 Elem a as -> do
+  AppE2 Elem a as _ -> do
     a1 <- evaluate c a
-    (ListN as1) <- evaluate c as
-    return $ BoolN $ elem a1 as1
+    (ListN as1 _) <- evaluate c as
+    return $ BoolN (elem a1 as1) BoolT
 
-  AppE2 Zip as bs -> do
-    (ListN as1) <- evaluate c as
-    (ListN bs1) <- evaluate c bs
-    return $ ListN $ zipWith (\a b -> TupleN a b) as1 bs1
+  AppE2 Zip as bs t -> do
+    (ListN as1 (ListT t1)) <- evaluate c as
+    (ListN bs1 (ListT t2)) <- evaluate c bs
+    return $ ListN (zipWith (\a b -> TupleN a b (TupleT t1 t2)) as1 bs1) t
 
-  AppE1 Unzip as -> do
-    (ListN as1) <- evaluate c as
-    return $ TupleN (ListN $ map (\(TupleN a _) -> a) as1) (ListN $ map (\(TupleN _ b) -> b) as1)
+  AppE1 Unzip as t -> do
+    (ListN as1 (ListT (TupleT t1 t2))) <- evaluate c as
+    return $ TupleN (ListN (map (\(TupleN a _ _) -> a) as1) (ListT t1))
+                    (ListN (map (\(TupleN _ b _) -> b) as1) (ListT t2))
+                    t
 
-  AppE3 ZipWith lam as bs -> do
-    (ListN as1) <- evaluate c as
-    (ListN bs1) <- evaluate c bs
-    evaluate c $ ListE $ zipWith (\a b -> let lam1 = ((evalLam lam) a) in (evalLam lam1) b) as1 bs1
+  AppE3 ZipWith lam as bs t -> do
+    (ListN as1 _) <- evaluate c as
+    (ListN bs1 _) <- evaluate c bs
+    evaluate c $ ListE (zipWith (\a b -> let lam1 = ((evalLam lam) a) in (evalLam lam1) b) as1 bs1) t
 
-  AppE1 Nub as -> do
-    (ListN as1) <- evaluate c as
-    return $ ListN $ nub as1
+  AppE1 Nub as t -> do
+    (ListN as1 _) <- evaluate c as
+    return $ ListN (nub as1) t
 
-  AppE1 Fst a -> do
-    (TupleN a1 _) <- evaluate c a
+  AppE1 Fst a _ -> do
+    (TupleN a1 _ _) <- evaluate c a
     return a1
 
-  AppE1 Snd a -> do
-    (TupleN _ a1) <- evaluate c a
+  AppE1 Snd a _ -> do
+    (TupleN _ a1 _) <- evaluate c a
     return a1
 
-  AppE2 Add e1 e2 ::: IntegerT -> do
-    (IntegerN i1) <- evaluate c e1
-    (IntegerN i2) <- evaluate c e2
-    return $ IntegerN $ i1 + i2
-  AppE2 Add e1 e2 ::: DoubleT -> do
-    (DoubleN i1) <- evaluate c e1
-    (DoubleN i2) <- evaluate c e2
-    return $ DoubleN $ i1 + i2
-  AppE2 Add _ _ -> $impossible
+  AppE2 Add e1 e2 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    (IntegerN i2 _) <- evaluate c e2
+    return $ IntegerN (i1 + i2) IntegerT
+  AppE2 Add e1 e2 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    (DoubleN i2 _) <- evaluate c e2
+    return $ DoubleN (i1 + i2) DoubleT
+  AppE2 Add _ _ _ -> $impossible
 
-  AppE2 Mul e1 e2 ::: IntegerT -> do
-    (IntegerN i1) <- evaluate c e1
-    (IntegerN i2) <- evaluate c e2
-    return $ IntegerN $ i1 * i2
-  AppE2 Mul e1 e2 ::: DoubleT -> do
-    (DoubleN i1) <- evaluate c e1
-    (DoubleN i2) <- evaluate c e2
-    return $ DoubleN $ i1 * i2
-  AppE2 Mul _ _ -> $impossible
+  AppE2 Mul e1 e2 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    (IntegerN i2 _) <- evaluate c e2
+    return $ IntegerN (i1 * i2) IntegerT
+  AppE2 Mul e1 e2 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    (DoubleN i2 _) <- evaluate c e2
+    return $ DoubleN (i1 * i2) DoubleT
+  AppE2 Mul _ _ _ -> $impossible
 
-  AppE1 Abs e1 ::: IntegerT -> do
-    (IntegerN i1) <- evaluate c e1
-    return $ IntegerN $ abs i1
-  AppE1 Abs e1 ::: DoubleT -> do
-    (DoubleN i1) <- evaluate c e1
-    return $ DoubleN $ abs i1
-  AppE1 Abs _ -> $impossible
+  AppE1 Abs e1 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    return $ IntegerN (abs i1) IntegerT
+  AppE1 Abs e1 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    return $ DoubleN (abs i1) DoubleT
+  AppE1 Abs _ _ -> $impossible
 
-  AppE1 Negate e1 ::: IntegerT -> do
-    (IntegerN i1) <- evaluate c e1
-    return $ IntegerN $ negate i1
-  AppE1 Negate e1 ::: DoubleT -> do
-    (DoubleN i1) <- evaluate c e1
-    return $ DoubleN $ negate i1
-  AppE1 Negate _ -> $impossible
+  AppE1 Negate e1 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    return $ IntegerN (negate i1) IntegerT
+  AppE1 Negate e1 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    return $ DoubleN (negate i1) DoubleT
+  AppE1 Negate _ _ -> $impossible
 
-  AppE1 Signum e1 ::: IntegerT -> do
-    (IntegerN i1) <- evaluate c e1
-    return $ IntegerN $ signum i1
-  AppE1 Signum e1 ::: DoubleT -> do
-    (DoubleN i1) <- evaluate c e1
-    return $ DoubleN $ signum i1
-  AppE1 Signum _ -> $impossible
+  AppE1 Signum e1 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    return $ IntegerN (signum i1) IntegerT
+  AppE1 Signum e1 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    return $ DoubleN (signum i1) DoubleT
+  AppE1 Signum _ _ -> $impossible
 
-  AppE2 Equ e1 e2 -> do
+  AppE2 Equ e1 e2 _ -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return $ BoolN $ e3 == e4
+    return $ BoolN (e3 == e4) BoolT
 
-  AppE2 Lt e1 e2 -> do
+  AppE2 Lt e1 e2 _ -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return $ BoolN $ e3 < e4
+    return $ BoolN (e3 < e4) BoolT
 
-  AppE2 Lte e1 e2 -> do
+  AppE2 Lte e1 e2 _ -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return $ BoolN $ e3 <= e4
+    return $ BoolN (e3 <= e4) BoolT
 
-  AppE2 Gte e1 e2 -> do
+  AppE2 Gte e1 e2 _ -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return $ BoolN $ e3 >= e4
+    return $ BoolN (e3 >= e4) BoolT
 
-  AppE2 Gt e1 e2 -> do
+  AppE2 Gt e1 e2 _ -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2
-    return $ BoolN $ e3 > e4
+    return $ BoolN (e3 > e4) BoolT
 
-  AppE1 Not e1 -> do
-    (BoolN b1) <- evaluate c e1
-    return $ BoolN $ not b1 
+  AppE1 Not e1 _ -> do
+    (BoolN b1 _) <- evaluate c e1
+    return $ BoolN (not b1) BoolT
 
-  AppE2 Conj e1 e2 -> do
-    (BoolN b1) <- evaluate c e1
-    (BoolN b2) <- evaluate c e2
-    return $ BoolN $ b1 && b2 
+  AppE2 Conj e1 e2 _ -> do
+    (BoolN b1 _) <- evaluate c e1
+    (BoolN b2 _) <- evaluate c e2
+    return $ BoolN (b1 && b2) BoolT
 
-  AppE2 Disj e1 e2 -> do
-    (BoolN b1) <- evaluate c e1
-    (BoolN b2) <- evaluate c e2
-    return $ BoolN $ b1 || b2 
+  AppE2 Disj e1 e2 _ -> do
+    (BoolN b1 _) <- evaluate c e1
+    (BoolN b2 _) <- evaluate c e2
+    return $ BoolN (b1 || b2) BoolT
 
-  TableE tName ::: (ListT tType) -> do
+  TableE tName (ListT tType) -> do
       fmap (sqlToNormWithType tName tType)
            (quickQuery' c ("SELECT * FROM \"" ++ escape tName ++ "\"") [])
-  TableE _ -> $impossible
-  e1 ::: _ -> evaluate c e1 
+  TableE _ _ -> $impossible
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]
@@ -320,7 +342,7 @@ escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
 evalLam :: Exp -> (Norm -> Exp)
-evalLam (LamE f ::: _) n = f (convert n)
+evalLam (LamE f _) n = f (convert n)
 evalLam _ _ = $impossible
 
 
@@ -330,7 +352,7 @@ sqlToNormWithType :: String             -- ^ Table name, used to generate more
                   -> Type
                   -> [[SqlValue]]
                   -> Norm
-sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
+sqlToNormWithType tName ty = (flip ListN) (ListT ty) . map (sqlValueToNorm ty)
 
   where
     sqlValueToNorm :: Type -> [SqlValue] -> Norm
@@ -346,7 +368,8 @@ sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
             let f t' s' = if t' `typeMatch` s'
                              then convert s'
                              else typeError t s
-            in foldr1 TupleN (zipWith f (unfoldType t) s)
+            in foldr1 (\a b -> TupleN a b (TupleT (typeNorm a) (typeNorm b)))
+                      (zipWith f (unfoldType t) s)
 
     -- Everything else will raise an error
     sqlValueToNorm t s = typeError t s

@@ -10,22 +10,21 @@ import Data.Generics
 import Data.Text as T (Text(), pack, unpack) 
 
 data Exp =
-    UnitE
-  | BoolE Bool
-  | CharE Char
-  | IntegerE Integer
-  | DoubleE Double
-  | TextE Text
-  | TupleE Exp Exp
-  | ListE [Exp]
-  | LamE (Exp -> Exp)
-  | AppE (Exp -> Exp) Exp
-  | AppE1 Fun1 Exp
-  | AppE2 Fun2 Exp Exp
-  | AppE3 Fun3 Exp Exp Exp
-  | TableE String
-  | VarE Int
-  | Exp ::: Type
+    UnitE Type
+  | BoolE Bool Type
+  | CharE Char Type
+  | IntegerE Integer Type
+  | DoubleE Double Type
+  | TextE Text Type
+  | TupleE Exp Exp Type
+  | ListE [Exp] Type
+  | LamE (Exp -> Exp) Type
+  | AppE (Exp -> Exp) Exp Type
+  | AppE1 Fun1 Exp Type
+  | AppE2 Fun2 Exp Exp Type
+  | AppE3 Fun3 Exp Exp Exp Type
+  | TableE String Type
+  | VarE Int Type
    deriving (Data, Typeable)
 
 data Fun1 =
@@ -51,14 +50,14 @@ data Fun3 = Cond | ZipWith
 
 
 data Norm =
-    UnitN
-  | BoolN Bool
-  | CharN Char
-  | IntegerN Integer
-  | DoubleN Double
-  | TextN Text
-  | TupleN Norm Norm
-  | ListN [Norm]
+    UnitN Type
+  | BoolN Bool Type
+  | CharN Char Type
+  | IntegerN Integer Type
+  | DoubleN Double Type
+  | TextN Text Type
+  | TupleN Norm Norm Type
+  | ListN [Norm] Type
   deriving (Eq,Ord,Show, Typeable)
 
 data Type =
@@ -71,7 +70,32 @@ data Type =
   | TupleT Type Type
   | ListT Type
   | ArrowT Type Type
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable)
+
+typeExp :: Exp -> Type
+typeExp e = case e of
+  UnitE t -> t
+  BoolE _ t -> t
+  CharE _ t -> t
+  IntegerE _ t -> t
+  DoubleE _ t -> t
+  TextE _ t -> t
+  TupleE _ _ t -> t
+  ListE _ t -> t
+  LamE _ t -> t
+  AppE _ _ t -> t
+  AppE1 _ _ t -> t
+  AppE2 _ _ _ t -> t
+  AppE3 _ _ _ _ t -> t
+  TableE _ t -> t
+  VarE _ t -> t
+
+typeArrowResult :: Type -> Type
+typeArrowResult (ArrowT _ t) = t
+typeArrowResult _ = $impossible
+
+typeNorm :: Norm -> Type
+typeNorm = typeExp . convert
 
 data Q a = Q Exp
 
@@ -82,50 +106,50 @@ class QA a where
 
 instance QA () where
   reify _ = UnitT
-  toNorm _ = UnitN
-  fromNorm (UnitN) = ()
+  toNorm _ = UnitN UnitT
+  fromNorm (UnitN UnitT) = ()
   fromNorm _ = $impossible
 
 instance QA Bool where
   reify _ = BoolT
-  toNorm b = BoolN b
-  fromNorm (BoolN b) = b
+  toNorm b = BoolN b BoolT
+  fromNorm (BoolN b BoolT) = b
   fromNorm _ = $impossible
 
 instance QA Char where
   reify _ = CharT
-  toNorm c = CharN c
-  fromNorm (CharN c) = c
+  toNorm c = CharN c CharT
+  fromNorm (CharN c CharT) = c
   fromNorm _ = $impossible
 
 instance QA Integer where
   reify _ = IntegerT
-  toNorm i = IntegerN i
-  fromNorm (IntegerN i) = i
+  toNorm i = IntegerN i IntegerT
+  fromNorm (IntegerN i IntegerT) = i
   fromNorm _ = $impossible
 
 instance QA Double where
   reify _ = DoubleT
-  toNorm d = DoubleN d
-  fromNorm (DoubleN i) = i
+  toNorm d = DoubleN d DoubleT
+  fromNorm (DoubleN i DoubleT) = i
   fromNorm _ = $impossible
   
 instance QA Text where
     reify _ = TextT
-    toNorm t = TextN t
-    fromNorm (TextN t) = t
+    toNorm t = TextN t TextT
+    fromNorm (TextN t TextT) = t
     fromNorm _ = $impossible
 
 instance (QA a,QA b) => QA (a,b) where
   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
-  toNorm (a,b) = TupleN (toNorm a) (toNorm b)
-  fromNorm (TupleN a b) = (fromNorm a,fromNorm b)
+  toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
+  fromNorm (TupleN a b (TupleT _ _)) = (fromNorm a,fromNorm b)
   fromNorm _ = $impossible
 
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
-  toNorm as = ListN (map toNorm as)
-  fromNorm (ListN as) = map fromNorm as
+  toNorm as = ListN (map toNorm as) (reify as)
+  fromNorm (ListN as (ListT _)) = map fromNorm as
   fromNorm _ = $impossible
 
 class BasicType a where
@@ -143,7 +167,7 @@ instance (BasicType a, BasicType b) => BasicType (a, b) where
 
 class (QA a) => TA a where
   table :: String -> Q [a]
-  table s = Q (TableE s ::: (reify (undefined :: [a])))
+  table s = Q (TableE s (reify (undefined :: [a])))
 
 instance TA () where
 instance TA Bool where
@@ -165,21 +189,20 @@ instance Eq (Q Double) where
   (==) _ _ = undefined
 
 instance Num (Q Integer) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2       ::: reify (undefined :: Integer))
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2       ::: reify (undefined :: Integer))
-  abs (Q e1)        = Q (AppE1 Abs e1          ::: reify (undefined :: Integer))
-  negate (Q e1)     = Q (AppE1 Negate e1       ::: reify (undefined :: Integer))
-  fromInteger i     = Q (IntegerE i            ::: reify (undefined :: Integer))
-  signum (Q e1)     = Q (AppE1 Signum e1       ::: reify (undefined :: Integer))
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 IntegerT)
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 IntegerT)
+  abs (Q e1)        = Q (AppE1 Abs e1    IntegerT)
+  negate (Q e1)     = Q (AppE1 Negate e1 IntegerT)
+  fromInteger i     = Q (IntegerE i      IntegerT)
+  signum (Q e1)     = Q (AppE1 Signum e1 IntegerT)
 
 instance Num (Q Double) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2          ::: reify (undefined :: Double))
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2          ::: reify (undefined :: Double))
-  abs (Q e1)        = Q (AppE1 Abs e1             ::: reify (undefined :: Double))
-  negate (Q e1)     = Q (AppE1 Negate e1          ::: reify (undefined :: Double))
-  fromInteger d     = Q (DoubleE (fromIntegral d) ::: reify (undefined :: Double))
-  signum (Q e1)     = Q (AppE1 Signum e1          ::: reify (undefined :: Double))
-
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2          DoubleT)
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2          DoubleT)
+  abs (Q e1)        = Q (AppE1 Abs e1             DoubleT)
+  negate (Q e1)     = Q (AppE1 Negate e1          DoubleT)
+  fromInteger d     = Q (DoubleE (fromIntegral d) DoubleT)
+  signum (Q e1)     = Q (AppE1 Signum e1          DoubleT)
 
 
 -- * Support for View Patterns
@@ -209,44 +232,34 @@ instance View (Q Double) (Q Double) where
   fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE1 Fst a ::: reify (undefined :: a)), Q (AppE1 Snd a ::: reify (undefined :: b)))
-  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2 ::: reify (undefined :: (a, b)))
+  view (Q a) = (Q (AppE1 Fst a (reify (undefined :: a))), Q (AppE1 Snd a (reify (undefined :: b))))
+  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2 (reify (undefined :: (a, b))))
 
 instance Convertible Norm Exp where
     safeConvert n = Right $
         case n of
-             UnitN          -> UnitE ::: UnitT
-             BoolN  b       -> BoolE b ::: BoolT
-             CharN c        -> CharE c  ::: CharT
-             TextN t        -> TextE t ::: TextT
-             IntegerN i     -> IntegerE i ::: IntegerT
-             DoubleN d      -> DoubleE d ::: DoubleT
-             TupleN n1 n2   -> let c1@(_ ::: t1) = convert n1 
-                                   c2@(_ ::: t2) = convert n2
-                                in TupleE c1 c2 ::: TupleT t1 t2
-             ListN ns       -> let nss = map convert ns
-                                   t = case nss of
-                                        ((_ ::: ty):_) -> ty
-                                        []             -> UnitT
-                                        _              -> $impossible  
-                                in ListE nss ::: (ListT t)
-{-
-Shouldn't norm data also carry type information (so that this translation can actually be made...)
--}
+             UnitN t        -> UnitE t
+             BoolN b t      -> BoolE b t
+             CharN c t      -> CharE c t
+             TextN s t      -> TextE s t
+             IntegerN i t   -> IntegerE i t
+             DoubleN d t    -> DoubleE d t
+             TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
+             ListN ns t     -> ListE (map convert ns) t
 
 forget :: (QA a) => Q a -> Exp
 forget (Q a) = a
 
 toLam1 :: forall a b. (QA a,QA b) => (Q a -> Q b) -> Exp
-toLam1 f = LamE (forget . f . Q) ::: ArrowT (reify (undefined :: a)) (reify (undefined :: b))
+toLam1 f = LamE (forget . f . Q) (ArrowT (reify (undefined :: a)) (reify (undefined :: b)))
 
 toLam2 :: forall a b c. (QA a,QA b,QA c) => (Q a -> Q b -> Q c) -> Exp
 toLam2 f =
   let f1 = \a b -> forget (f (Q a) (Q b))
       t1 = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
-      f2 = \a -> LamE (\b -> f1 a b) ::: t1
+      f2 = \a -> LamE (\b -> f1 a b) t1
       t2 = ArrowT (reify (undefined :: a)) t2
-  in  LamE f2 ::: t2
+  in  LamE f2 t2
 
 unfoldType :: Type -> [Type]
 unfoldType (TupleT t1 t2) = t1 : unfoldType t2
@@ -280,30 +293,26 @@ instance Convertible SqlTypeId Type where
 instance Convertible SqlValue Norm where
     safeConvert sql =
         case sql of
-             SqlNull            -> Right $ UnitN
-             SqlInteger i       -> Right $ IntegerN i
-             SqlDouble d        -> Right $ DoubleN d
-             SqlBool b          -> Right $ BoolN b
-             SqlChar c          -> Right $ CharN c
-             SqlString t        -> Right $ TextN $ pack t 
-             SqlByteString s    -> Right $ TextN $ pack $ B.unpack s
+             SqlNull            -> Right $ UnitN UnitT
+             SqlInteger i       -> Right $ IntegerN i IntegerT
+             SqlDouble d        -> Right $ DoubleN d DoubleT
+             SqlBool b          -> Right $ BoolN b BoolT
+             SqlChar c          -> Right $ CharN c CharT
+             SqlString t        -> Right $ TextN (pack t) TextT
+             SqlByteString s    -> Right $ TextN (pack (B.unpack s)) TextT
              _                  -> convError "Unsupported `SqlValue'" sql
 
 instance Convertible Norm SqlValue where
     safeConvert n =
         case n of
-             UnitN                  -> Right $ SqlNull
-             IntegerN i             -> Right $ SqlInteger i
-             DoubleN d              -> Right $ SqlDouble d
-             BoolN b                -> Right $ SqlBool b
-             CharN c                -> Right $ SqlChar c
-             TextN t                -> Right $ SqlString $ T.unpack t 
-            {- ListN []               -> Right $ SqlString []
-             ListN (CharN c : s)    -> case safeConvert (ListN s) of
-                                            Right (SqlString s') -> Right (SqlString $ c : s')
-                                            _                    -> convError "Only lists of `CharN' can be converted to `SqlString'" n -}
-             ListN _                -> convError "Cannot convert `Norm' to `SqlValue'" n
-             TupleN _ _             -> convError "Cannot convert `Norm' to `SqlValue'" n
+             UnitN _             -> Right $ SqlNull
+             IntegerN i _        -> Right $ SqlInteger i
+             DoubleN d _         -> Right $ SqlDouble d
+             BoolN b _           -> Right $ SqlBool b
+             CharN c _           -> Right $ SqlChar c
+             TextN t _           -> Right $ SqlString $ T.unpack t 
+             ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
+             TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
 
 instance Convertible SqlValue Text where
     safeConvert n = case safeConvert n of
