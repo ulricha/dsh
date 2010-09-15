@@ -169,7 +169,6 @@ instance BasicType Text where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType String where
-instance (BasicType a, BasicType b) => BasicType (a, b) where
 
 -- * Refering to Real Database Tables
 
