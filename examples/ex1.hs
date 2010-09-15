@@ -3,7 +3,7 @@
 module Main where
 
 import qualified Ferry as Q
-import Ferry (Q,toQ,qc,view,table)
+import Ferry (Q,toQ,view,fromView,table,qc)
 import Ferry.Interpreter (fromQ)
 
 import Database.HDBC.PostgreSQL

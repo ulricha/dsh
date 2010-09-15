@@ -92,7 +92,7 @@ deriveTupleQA l
                          ( normalB $ applyChainTupleE 'TupleT [ [| reify (undefined :: $_n) |] | _n <- map varT names ] )
                          []
 
-    fromNormDec    = funD 'fromNorm [fromNormClause]
+    fromNormDec    = funD 'fromNorm [fromNormClause, clause [TH.wildP] (normalB [| $impossible |]) [] ]
     fromNormClause = clause [applyChainTupleP (map varP names)]
                             (normalB $ TH.tupE [ [| fromNorm $(varE n) |] | n <- names ])
                             []
@@ -199,7 +199,7 @@ deriveTupleView l
           t2 = [| TupleT (typeExp $a1) ($t1) |]
           e2 = [| TupleE ($a1) ($e1) ($t2) |]
       in  (e2,t2)
-    fromViewClauseBody _ = $impossible 
+    fromViewClauseBody _ = $impossible
 
 
 -- | Generate all 'View' instances for tuples within range.
@@ -468,7 +468,7 @@ createTableRepresentation conn t dname dnames = do
 -- >         }
 -- >
 -- >   |])
--- 
+--
 -- This creates the following record type, which can be used with the
 -- \"ViewPatterns\" pragma:
 --
@@ -477,7 +477,7 @@ createTableRepresentation conn t dname dnames = do
 -- >     , v'user_name  :: Q String
 -- >     }
 -- >  -- deriving View (Q User) V'User
--- 
+--
 -- And the lifted record selectors:
 --
 -- > q'user_id      :: Q User -> Q Int

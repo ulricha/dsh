@@ -12,7 +12,7 @@ import qualified Language.Haskell.TH.Quote as TH
 import Language.Haskell.Exts
 
 import Control.Monad
-import Control.Monad.State 
+import Control.Monad.State
 import Control.Applicative
 
 import Data.Generics
@@ -40,7 +40,7 @@ instance Functor N where
 instance Monad N where
     s >>= m = N (unwrapN s >>= unwrapN . m)
     return = N . return
-    
+
 instance Applicative N where
   pure  = return
   (<*>) = ap
@@ -50,7 +50,7 @@ freshVar = N $ do
                 i <- get
                 put (i + 1)
                 return $ "ferryFreshNamesV" ++ show i
-     
+
 runN :: N a -> a
 runN = fst . (flip runState 1) . unwrapN
 
@@ -124,7 +124,7 @@ normaliseQuals' ((ThenBy ef ek):ps) = do
                                         ks <- makeLambda pv (SrcLoc "" 0 0) ek
                                         app (app ef ks) <$> normaliseQuals' ps
 normaliseQuals' ((GroupBy e):ps)    = normaliseQuals' ((GroupByUsing e groupWithF):ps)
-normaliseQuals' ((GroupByUsing e f):ps) = do 
+normaliseQuals' ((GroupByUsing e f):ps) = do
                                             let pVar = variablesFromLst ps
                                             lambda <- makeLambda pVar (SrcLoc "" 0 0) e
                                             unzipped <- unzipB pVar
@@ -139,7 +139,7 @@ normaliseQuals' (q:ps) = do
                           pn <- normaliseQuals' ps
                           let pv = variablesFromLst ps
                           combine pn pv qn qv
-                          
+
 normaliseQual :: QualStmt -> N Exp
 normaliseQual (QualStmt (Generator _ _ e)) = pure $ e
 normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
@@ -151,7 +151,7 @@ combine p pv q qv = do
                      qLambda <- makeLambda qv (SrcLoc "" 0 0) $ fromViewF (tuple [patToExp qv, patToExp pv])
                      pLambda <- makeLambda pv (SrcLoc "" 0 0) $ mapF qLambda q
                      pure $ concatF (mapF pLambda p)
-                     
+
 unzipB :: Pat -> N Exp
 unzipB PWildCard   = paren <$> makeLambda PWildCard (SrcLoc "" 0 0) unit
 unzipB p@(PVar x)  = paren <$> makeLambda p (SrcLoc "" 0 0) (var x)
@@ -171,10 +171,10 @@ unzipB (PTuple ps) = do
                         ps' <- mapM (\_ -> freshVar) ps
                         ups <- mapM unzipB ps
                         views <- mapM (viewN ps') [0..(pl-1)]
-                        
+
                         (<$>) paren $ makeLambda ePat (SrcLoc "" 0 0) $
                                             fromViewF $ tuple [app unf $ paren $ mapF proj eArg | (unf, proj) <- zip ups views]
-                        
+
 unzipB _ = $impossible
 
 viewN :: [String] -> Int -> N Exp
@@ -228,8 +228,8 @@ mkViewPat (PTuple ps) e = do
                                let px = PVar $ name x
                                let vx = var $ name x
                                let er = caseE (app viewV vx) [alt (SrcLoc "" 0 0) (PTuple $ reverse pr) e']
-                               return (px, er) 
-                           
+                               return (px, er)
+
 mkViewPat (PList ps)  e = do
                             x <- freshVar
                             let px = PVar $ name x
@@ -304,7 +304,7 @@ concatV :: Exp
 concatV = qvar combinatorMod $ name "concat"
 
 boolF :: Exp -> Exp -> Exp -> Exp
-boolF t e c = app (app ( app (qvar combinatorMod $ name "bool") t) e) c 
+boolF t e c = app (app ( app (qvar combinatorMod $ name "bool") t) e) c
 
 groupWithF :: Exp
 groupWithF = qvar combinatorMod $ name "groupWith"
@@ -319,7 +319,7 @@ zipF x y = app (app zipV x) y
 -- Generate proper global names from pseudo qualified variables
 toNameG :: TH.Name -> TH.Name
 toNameG n@(TH.Name (TH.occString -> occN) (TH.NameQ (TH.modString -> m))) =
-  if "ferry" `L.isPrefixOf` m 
+  if "ferry" `L.isPrefixOf` m
       then let pkgN = "Ferry-" ++ showVersion (Ferry.version)
                modN =  (:) 'F' $ tail m
             in TH.mkNameG_v pkgN modN occN

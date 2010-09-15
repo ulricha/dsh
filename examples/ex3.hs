@@ -2,7 +2,7 @@
 module Test where
 
 import qualified Ferry as Q    
-import Ferry (toQ, Q (..), view, qc)
+import Ferry (Q,toQ,view,fromView,table,qc)
 import Ferry.Interpreter (fromQ)
 
 import Database.HDBC.PostgreSQL

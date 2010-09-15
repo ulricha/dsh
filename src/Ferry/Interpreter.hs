@@ -24,7 +24,7 @@ evaluate c e = case e of
   IntegerE i t -> return (IntegerN i t)
   DoubleE d t  -> return (DoubleN d t)
   TextE s t    -> return (TextN s t)
-    
+
   VarE _ _ -> $impossible
   LamE _ _ -> $impossible
 
@@ -35,14 +35,14 @@ evaluate c e = case e of
     e4 <- evaluate c e2
     return (TupleN e3 e4 t)
 
-  ListE es t -> do 
+  ListE es t -> do
       es1 <- mapM (evaluate c) es
       return (ListN es1 t)
-  
+
   AppE3 Cond cond a b _ -> do
       (BoolN c1 _) <- evaluate c cond
-      if c1 then evaluate c a else evaluate c b 
-  
+      if c1 then evaluate c a else evaluate c b
+
   AppE2 Cons a as t -> do
     a1 <- evaluate c a
     (ListN as1 _) <- evaluate c as
@@ -151,7 +151,7 @@ evaluate c e = case e of
     return $ DoubleN (sum $ map (\(DoubleN d DoubleT) -> d) as1) DoubleT
 
   AppE1 Sum _ _ -> $impossible
-  
+
   AppE1 Product as IntegerT -> do
     (ListN as1 _) <- evaluate c as
     return $ IntegerN (product $ map (\(IntegerN i IntegerT) -> i) as1) IntegerT
