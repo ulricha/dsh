@@ -26,6 +26,7 @@ newtype QueryBundle a = Bundle [(Int, (String, SchemaInfo, Maybe Int, Maybe Int)
 data SchemaInfo = SchemaInfo {iterN :: String, items :: [(String, Int)]}
 
 data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
+ deriving Show
 
 executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
 executePlan c p = do 
@@ -125,7 +126,7 @@ processResults i t = do
                         itC <- getIterCol i
                         let partedVals = partByIter itC v
                         mapM (\(it, vals) -> do
-                                              v1 <- processResults' i 1 vals t
+                                              v1 <- processResults' i 0 vals t
                                               return (it, head v1)) partedVals
 
                             
