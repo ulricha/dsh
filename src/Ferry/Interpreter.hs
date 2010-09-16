@@ -24,7 +24,7 @@ evaluate c e = case e of
   IntegerE i t -> return (IntegerN i t)
   DoubleE d t  -> return (DoubleN d t)
   TextE s t    -> return (TextN s t)
-    
+
   VarE _ _ -> $impossible
   LamE _ _ -> $impossible
 
@@ -35,14 +35,14 @@ evaluate c e = case e of
     e4 <- evaluate c e2
     return (TupleN e3 e4 t)
 
-  ListE es t -> do 
+  ListE es t -> do
       es1 <- mapM (evaluate c) es
       return (ListN es1 t)
-  
+
   AppE3 Cond cond a b _ -> do
       (BoolN c1 _) <- evaluate c cond
-      if c1 then evaluate c a else evaluate c b 
-  
+      if c1 then evaluate c a else evaluate c b
+
   AppE2 Cons a as t -> do
     a1 <- evaluate c a
     (ListN as1 _) <- evaluate c as
@@ -86,8 +86,8 @@ evaluate c e = case e of
     return $ ListN (filter (\(BoolN b BoolT) -> b) as2) t
 
   AppE2 GroupWith lam as t -> do
-    (ListN as1 (ListT t1)) <- evaluate c as
-    (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
+    (ListN as1 t1) <- evaluate c as
+    (ListN as2 _ ) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
     return $ ListN (map ((flip ListN) t1 . (map fst)) $ groupWith snd $ zip as1 as2) t
 
   AppE2 SortWith lam as t -> do
@@ -151,7 +151,7 @@ evaluate c e = case e of
     return $ DoubleN (sum $ map (\(DoubleN d DoubleT) -> d) as1) DoubleT
 
   AppE1 Sum _ _ -> $impossible
-  
+
   AppE1 Product as IntegerT -> do
     (ListN as1 _) <- evaluate c as
     return $ IntegerN (product $ map (\(IntegerN i IntegerT) -> i) as1) IntegerT
@@ -386,9 +386,9 @@ typeMatch :: Type -> SqlValue -> Bool
 typeMatch t s =
     case (t,s) of
          (UnitT         , SqlNull)          -> True
-         (IntegerT          , SqlInteger _)     -> True
+         (IntegerT      , SqlInteger _)     -> True
          (BoolT         , SqlBool _)        -> True
          (CharT         , SqlChar _)        -> True
-         (ListT CharT   , SqlString _)      -> True
-         (ListT CharT   , SqlByteString _)  -> True
+         (TextT         , SqlString _)      -> True
+         (TextT         , SqlByteString _)  -> True
          _                                  -> False

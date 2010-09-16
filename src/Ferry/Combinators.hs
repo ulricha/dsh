@@ -1,5 +1,3 @@
-{-# Options -fno-warn-incomplete-patterns #-}
-
 module Ferry.Combinators where
 
 import Ferry.Data
@@ -7,7 +5,7 @@ import Ferry.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool, Integer, undefined, ($))
+import Prelude (Eq, Ord, Num, Bool, Integer, undefined, error, ($))
 
 -- * Unit
 

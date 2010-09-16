@@ -1,10 +1,12 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell #-}
 module Test where
-    
-import Ferry (toQ, fromQ, Q (..), view, qc)
-import qualified Ferry as Q
-import Database.HDBC.Sqlite3
--- import qualified Ferry.Combinators
+
+import qualified Ferry as Q    
+import Ferry (Q,toQ,view,fromView,table,qc)
+import Ferry.Interpreter (fromQ)
+
+import Database.HDBC.PostgreSQL
+
 
 conn :: Connection
 conn = undefined

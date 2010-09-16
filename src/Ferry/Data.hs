@@ -5,9 +5,9 @@ import Ferry.Impossible
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
-import Data.ByteString.Char8 as B (unpack) 
+import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
-import Data.Text as T (Text(), pack, unpack) 
+import Data.Text as T (Text(), pack, unpack)
 
 data Exp =
     UnitE Type
@@ -33,7 +33,7 @@ data Fun1 =
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init
   | Last | The | Nub
-  deriving (Eq,Show, Data, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
 
 data Fun2 =
@@ -43,10 +43,10 @@ data Fun2 =
   | Elem | Break | Span | DropWhile | TakeWhile
   | SplitAt | Replicate | Equ | Conj | Disj
   | Lt | Lte | Gte | Gt
-  deriving (Eq,Show, Data, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
 data Fun3 = Cond | ZipWith
-  deriving (Eq,Show, Data, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
 
 data Norm =
@@ -58,7 +58,7 @@ data Norm =
   | TextN Text Type
   | TupleN Norm Norm Type
   | ListN [Norm] Type
-  deriving (Eq,Ord,Show, Typeable)
+  deriving (Eq, Ord, Show, Typeable)
 
 data Type =
     UnitT
@@ -141,7 +141,7 @@ instance QA Double where
   toNorm d = DoubleN d DoubleT
   fromNorm (DoubleN i DoubleT) = i
   fromNorm _ = $impossible
-  
+
 instance QA Text where
     reify _ = TextT
     toNorm t = TextN t TextT
@@ -165,10 +165,9 @@ class BasicType a where
 instance BasicType () where
 instance BasicType Bool where
 instance BasicType Char where
-instance BasicType Text where
 instance BasicType Integer where
 instance BasicType Double where
-instance BasicType String where
+instance BasicType Text where
 
 -- * Refering to Real Database Tables
 
@@ -190,10 +189,10 @@ instance Show (Q a) where
   show _ = "Query"
 
 instance Eq (Q Integer) where
-  (==) _ _ = undefined
+  (==) _ _ = error "Eq instance for (Q Integer) must not be used."
 
 instance Eq (Q Double) where
-  (==) _ _ = undefined
+  (==) _ _ = error "Eq instance for (Q Double) must not be used."
 
 instance Num (Q Integer) where
   (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 IntegerT)
@@ -280,7 +279,6 @@ instance Convertible Type SqlTypeId where
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
              TextT          -> Right SqlVarCharT
-             ListT CharT    -> Right SqlVarCharT
              UnitT          -> convError "No `UnitT' representation" n
              TupleT {}      -> convError "No `TupleT' representation" n
              ListT {}       -> convError "No `ListT' representation" n
@@ -317,7 +315,7 @@ instance Convertible Norm SqlValue where
              DoubleN d _         -> Right $ SqlDouble d
              BoolN b _           -> Right $ SqlBool b
              CharN c _           -> Right $ SqlChar c
-             TextN t _           -> Right $ SqlString $ T.unpack t 
+             TextN t _           -> Right $ SqlString $ T.unpack t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
 
