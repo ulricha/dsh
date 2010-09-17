@@ -3,7 +3,7 @@ module PaperExampleF2 where
 
 import qualified Ferry as Q    
 import Ferry (Q, toQ, view, qc)
-import Ferry.Interpreter (fromQ)
+import Ferry.HSCompiler (fromQ)
 
 import Database.HDBC
 import Database.HDBC.PostgreSQL
@@ -20,7 +20,7 @@ type Cat      = Text
 type Feature  = Text
 type Meaning  = Text
 
-facilities :: Q [(Facility, Cat)]
+facilities :: Q [(Cat, Facility)]
 facilities = Q.table "Facilities"
                
 features :: Q [(Facility, Feature)]
@@ -37,7 +37,7 @@ means f = Q.head [$qc| mean | (feat,mean) <- meanings, feat `Q.eq` f |]
 
 query :: Q [(Text , [Text ])] 
 query = [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
-                        | (fac, cat) <- facilities, then group by cat |]
+                        | (cat, fac) <- facilities, then group by cat |]
 main :: IO ()
 main = do
   conn <- getConn
