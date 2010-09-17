@@ -7,12 +7,11 @@ import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
 
-import Data.Maybe (fromJust)
+import qualified Data.Map as M
 import Data.Char
 import Database.HDBC
 
 import Control.Monad.State
-import Control.Monad.Reader
 import Control.Applicative
 
 import Data.Text (unpack)
@@ -25,38 +24,34 @@ import Data.Generics (listify)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-newtype N a = N (ReaderT [(String, [(String, (FType -> Bool))])] (State Int) a)
+type N conn = StateT (conn, Int, M.Map String [(String, (FType -> Bool))]) IO
 
-unwrapN :: N a -> ReaderT [(String, [(String, (FType -> Bool))])] (State Int) a
-unwrapN (N s) = s
-
-instance Functor N where
-    fmap f a = N $ fmap f $ unwrapN a
-
-instance Monad N where
-    s >>= m = N (unwrapN s >>= unwrapN . m)
-    return = N . return
-    
-instance Applicative N where
-  pure  = return
-  (<*>) = ap
-
-freshVar :: N Int
-freshVar = N $ do
-                i <- get
-                put (i + 1)
-                return i
-
-tableInfo :: String -> N [(String, (FType -> Bool))]
-tableInfo t = N $ do
-                    env <- ask
-                    return $ fromJust $ lookup t env
+freshVar :: N conn Int
+freshVar = do
+             (c, i, env) <- get
+             put (c, i + 1, env)
+             return i
                 
+getConnection :: IConnection conn => N conn conn
+getConnection = do
+                 (c, _, _) <- get
+                 return c
+
+tableInfo :: IConnection conn => String -> N conn [(String, (FType -> Bool))]
+tableInfo t = do
+               (c, i, env) <- get
+               case M.lookup t env of
+                     Nothing -> do
+                                 inf <- lift $ getTableInfo c t
+                                 put (c, i, M.insert t inf env)
+                                 return inf                                      
+                     Just v -> return v
+                    
 prefixVar :: Int -> String
 prefixVar = ((++) "__fv_") . show
      
-runN :: [(String, [(String, (FType -> Bool))])] -> N a -> a
-runN env = fst . flip runState 1 . flip runReaderT env . unwrapN
+runN :: IConnection conn => conn -> N conn a -> IO a
+runN c  = liftM fst . flip runStateT (c, 1, M.empty)
             
 -- * Convert DB queries into Haskell values
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
@@ -66,15 +61,18 @@ evaluate :: forall a. forall conn. (QA a, IConnection conn)
          => conn                -- ^ The HDBC connection
          -> Q a
          -> IO Norm
-evaluate c q@(Q e) = do
-                tables <- mapM (getTableInfo c) $ getTableNames e
-                let algPlan = ((C.Algebra (doCompile tables q))::AlgebraXML a)
-                executePlan c algPlan
+evaluate c q = do
+                do
+                  algPlan' <- doCompile c q
+                  let algPlan = ((C.Algebra algPlan')::AlgebraXML a)
+                  executePlan c algPlan
                    
-doCompile :: [(String, [(String, (FType -> Bool))])] -> Q a -> String
-doCompile env (Q a) = typedCoreToAlgebra $ runN env $ transformE a
+doCompile :: IConnection conn => conn -> Q a -> IO String
+doCompile c (Q a) = do 
+                        core <- runN c $ transformE a
+                        return $ typedCoreToAlgebra core
 
-transformE :: Exp -> N CoreExpr
+transformE :: IConnection conn => Exp -> N conn CoreExpr
 transformE (UnitE _) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b _) = return $ Constant ([] :=> bool) $ CBool b
 transformE (CharE c _) = return $ Constant ([] :=> string) $ CString [c] 
@@ -182,7 +180,7 @@ transformE (TableE n ty) = do
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE (LamE _ _) = $impossible
 
-transformArg :: Exp -> N Param                                 
+transformArg :: IConnection conn => Exp -> N conn Param                                 
 transformArg (LamE f ty) = do
                                   n <- freshVar
                                   let (ArrowT t1 _) = ty
@@ -231,16 +229,17 @@ transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
 getTableNames :: Exp -> [String]
-getTableNames e = nub $ map (\(TableE n _) -> n) $ listify isTable e
+getTableNames e = let tables = map (\(TableE n _) -> n) $ listify isTable e
+                   in nub tables
     where 
         isTable :: Exp -> Bool
         isTable (TableE _ _) = True
         isTable _            = False
         
-getTableInfo :: IConnection conn => conn -> String -> IO (String, [(String, (FType -> Bool))])
+getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]
 getTableInfo c n = do
                     info <- describeTable c n
-                    return $ (n, toTableDescr info)
+                    return $ toTableDescr info
                     
         where
           toTableDescr :: [(String, SqlColDesc)] -> [(String, (FType -> Bool))]
