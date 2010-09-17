@@ -327,9 +327,11 @@ evaluate c e = case e of
     (BoolN b2 _) <- evaluate c e2
     return $ BoolN (b1 || b2) BoolT
 
-  TableE tName (ListT tType) -> do
-      fmap (sqlToNormWithType tName tType)
-           (quickQuery' c ("SELECT * FROM \"" ++ escape tName ++ "\"") [])
+  TableE (escape -> tName) (ListT tType) -> do
+      tDesc <- describeTable c tName
+      let columnNames = concat $ intersperse " , " $ sort $ map fst tDesc
+      let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
+      fmap (sqlToNormWithType tName tType) (quickQuery' c query [])
   TableE _ _ -> $impossible
 
 snoc :: [a] -> a -> [a]
