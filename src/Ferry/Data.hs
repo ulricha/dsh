@@ -8,6 +8,7 @@ import Database.HDBC
 import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
 import Data.Text as T (Text(), pack, unpack)
+import Data.Time
 
 data Exp =
     UnitE Type
@@ -16,6 +17,7 @@ data Exp =
   | IntegerE Integer Type
   | DoubleE Double Type
   | TextE Text Type
+  | TimeE UTCTime Type
   | TupleE Exp Exp Type
   | ListE [Exp] Type
   | LamE (Exp -> Exp) Type
@@ -56,6 +58,7 @@ data Norm =
   | IntegerN Integer Type
   | DoubleN Double Type
   | TextN Text Type
+  | TimeN UTCTime Type
   | TupleN Norm Norm Type
   | ListN [Norm] Type
   deriving (Eq, Ord, Show, Typeable)
@@ -67,6 +70,7 @@ data Type =
   | IntegerT
   | DoubleT
   | TextT
+  | TimeT
   | TupleT Type Type
   | ListT Type
   | ArrowT Type Type
@@ -80,6 +84,7 @@ typeExp e = case e of
   IntegerE _ t -> t
   DoubleE _ t -> t
   TextE _ t -> t
+  TimeE _ t -> t
   TupleE _ _ t -> t
   ListE _ t -> t
   LamE _ t -> t
@@ -248,6 +253,7 @@ instance Convertible Norm Exp where
              BoolN b t      -> BoolE b t
              CharN c t      -> CharE c t
              TextN s t      -> TextE s t
+             TimeN u t      -> TimeE u t
              IntegerN i t   -> IntegerE i t
              DoubleN d t    -> DoubleE d t
              TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
@@ -279,6 +285,7 @@ instance Convertible Type SqlTypeId where
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
              TextT          -> Right SqlVarCharT
+             TimeT          -> Right SqlTimestampT
              UnitT          -> convError "No `UnitT' representation" n
              TupleT {}      -> convError "No `TupleT' representation" n
              ListT {}       -> convError "No `ListT' representation" n
@@ -289,6 +296,7 @@ instance Convertible SqlTypeId Type where
         case n of
              SqlBigIntT         -> Right IntegerT
              SqlDoubleT         -> Right DoubleT
+             SqlRealT           -> Right DoubleT
              SqlBitT            -> Right BoolT
              SqlCharT           -> Right CharT
              SqlVarCharT        -> Right TextT
@@ -316,6 +324,7 @@ instance Convertible Norm SqlValue where
              BoolN b _           -> Right $ SqlBool b
              CharN c _           -> Right $ SqlChar c
              TextN t _           -> Right $ SqlString $ T.unpack t
+             TimeN t _           -> Right $ SqlUTCTime t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
 

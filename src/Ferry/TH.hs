@@ -23,6 +23,7 @@ import Control.Monad
 import Data.Convertible
 import Data.List
 import Database.HDBC
+import Data.Text (Text)
 
 import Ferry.Data
 import Ferry.Impossible
@@ -449,7 +450,8 @@ createTableRepresentation conn t dname dnames = do
                       IntegerT    -> ConT ''Integer
                       BoolT       -> ConT ''Bool
                       CharT       -> ConT ''Char
-                      ListT CharT -> ConT ''String
+                      DoubleT     -> ConT ''Double
+                      TextT       -> ConT ''Text
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')

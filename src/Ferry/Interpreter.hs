@@ -24,6 +24,7 @@ evaluate c e = case e of
   IntegerE i t -> return (IntegerN i t)
   DoubleE d t  -> return (DoubleN d t)
   TextE s t    -> return (TextN s t)
+  TimeE u t    -> return (TimeN u t)
 
   VarE _ _ -> $impossible
   LamE _ _ -> $impossible
