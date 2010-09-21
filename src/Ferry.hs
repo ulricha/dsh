@@ -23,6 +23,12 @@ module Ferry
     -- * Template Haskell: Creating Table Representations
   , createTableRepresentation
   , createTableRepresentation'
+  
+  , module Data.Text
+  , module Data.Time
+  , module Database.HDBC
+  , module Prelude
+  , Time
   )
   where
 
@@ -31,3 +37,12 @@ import Ferry.QQ (qc)
 import Ferry.TH (createTableRepresentation, createTableRepresentation')
 
 import Ferry.Combinators
+
+import Data.Text (Text)
+import Data.Time (UTCTime)
+import Database.HDBC
+import Prelude(Eq,Ord,Show,Bool,Char,Integer,Double,IO)
+
+type Time = UTCTime
+
+

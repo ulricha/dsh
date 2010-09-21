@@ -24,6 +24,8 @@ import Data.Convertible
 import Data.List
 import Database.HDBC
 import Data.Text (Text)
+import Data.Time (UTCTime)
+import GHC.Exts
 
 import Ferry.Data
 import Ferry.Impossible
@@ -259,8 +261,20 @@ deriveQAForRecord' q = do
 
              toNormDec    = funD 'toNorm [toNormClause]
              toNormClause = clause [ conP dName (map varP names) ]
-                                   ( normalB $ applyChainTupleE 'TupleN [ [| toNorm $(varE n) |] | n <- names ] )
+                                   ( normalB $ fst $ toNormClauseBody $ [ varE n | n <- names ] )
                                    []
+                                   
+             toNormClauseBody [a1,b1] =
+                let t1 = [| TupleT (reify $a1) (reify $b1) |]
+                    e1 = [| TupleN (toNorm $a1) (toNorm $b1) ($t1) |]
+                in  (e1,t1)
+             toNormClauseBody (a1 : as1) =
+                let (e1,t1) = toNormClauseBody as1
+                    t2 = [| TupleT (reify $a1) ($t1) |]
+                    e2 = [| TupleN (toNorm $a1) ($e1) ($t2) |]
+                in  (e2,t2)
+             toNormClauseBody _ = $impossible
+
 
          instanceD rCxt
                    rType
@@ -285,16 +299,16 @@ deriveViewForRecord' q = do
 
         -- The "View" record definition
 
-        let vName  = mkName $ "V'" ++ nameBase dName
+        let vName  = mkName $ nameBase dName ++ "V"
             vRec   = recC vName [ return (prefixV n, s, makeQ t) | (n,s,t) <- rVar ]
 
             prefixV :: Name -> Name
-            prefixV n = mkName $ "v'" ++ nameBase n
+            prefixV n = mkName $ nameBase n ++ "V"
 
             makeQ :: TH.Type -> TH.Type
             makeQ t = ConT ''Q `AppT` t
 
-            vNames = dNames
+            vNames = [] --dNames
 
         v <- dataD (return [])
                    vName
@@ -313,8 +327,8 @@ deriveViewForRecord' q = do
 
             a = mkName "a"
 
-            first  p = [| AppE1 Fst $p |]
-            second p = [| AppE1 Snd $p |]
+            first  p = [| AppE1 Fst $p (typeTupleFst (typeExp $p)) |]
+            second p = [| AppE1 Snd $p (typeTupleSnd (typeExp $p)) |]
 
             viewDec    = funD 'view [viewClause]
             viewClause = clause [ conP 'Q [varP a] ]
@@ -331,8 +345,21 @@ deriveViewForRecord' q = do
 
             fromViewDec    = funD 'fromView [fromViewClause] --, failClause]
             fromViewClause = clause [ conP vName [ conP 'Q [varP q1] | q1 <- qs ] ]
-                                    ( normalB $ appE (conE 'Q) $ applyChainTupleE 'TupleE $ map varE qs )
+                                    ( normalB [| Q  $(fst $ fromViewClauseBody (map varE qs)) |] )
                                     []
+
+            fromViewClauseBody [a1,b1] =
+              let t1 = [| TupleT (typeExp $a1) (typeExp $b1) |]
+                  e1 = [| TupleE ($a1) ($b1) ($t1) |]
+              in  (e1,t1)
+            fromViewClauseBody (a1 : as1) =
+              let (e1,t1) = fromViewClauseBody as1
+                  t2 = [| TupleT (typeExp $a1) ($t1) |]
+                  e2 = [| TupleE ($a1) ($e1) ($t2) |]
+              in  (e2,t2)
+            fromViewClauseBody _ = $impossible
+
+
 
             -- Fail with a verbose message where this happened
             failClause = clause [ wildP ]
@@ -390,8 +417,8 @@ recordQSelectors' q = q >>= fmap join . mapM addSel
                                                    ]
                             ]
 
-            addFunD (n,t) = let qn = mkName $ "q'" ++ nameBase n
-                                vn = mkName $ "v'" ++ nameBase n
+            addFunD (n,t) = let qn = mkName $ nameBase n ++ "Q"
+                                vn = mkName $ nameBase n ++ "V"
                              in sequenceQ [ sigD qn t
                                           , funD qn [ clause []
                                                              (normalB [| $(varE vn) . view |])
@@ -427,7 +454,7 @@ createTableRepresentation conn t dname dnames = do
     tdesc <- runIO $ do
         c <- conn
         describeTable c t
-    createTableRepresentation' $ createDataType tdesc
+    createTableRepresentation' $ createDataType (sortWith fst tdesc)
 
   where
     createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
@@ -452,6 +479,7 @@ createTableRepresentation conn t dname dnames = do
                       CharT       -> ConT ''Char
                       DoubleT     -> ConT ''Double
                       TextT       -> ConT ''Text
+                      TimeT       -> ConT ''UTCTime
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')

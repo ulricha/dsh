@@ -9,6 +9,7 @@ import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
 import Data.Text as T (Text(), pack, unpack)
 import Data.Time
+import GHC.Exts
 
 data Exp =
     UnitE Type
@@ -153,6 +154,13 @@ instance QA Text where
     fromNorm (TextN t TextT) = t
     fromNorm _ = $impossible
 
+instance QA UTCTime where
+    reify _ = TimeT
+    toNorm t = TimeN t TimeT
+    fromNorm (TimeN t TimeT) = t
+    fromNorm _ = $impossible
+
+
 instance (QA a,QA b) => QA (a,b) where
   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
   toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
@@ -173,6 +181,7 @@ instance BasicType Char where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
+instance BasicType UTCTime where
 
 -- * Refering to Real Database Tables
 
@@ -300,6 +309,8 @@ instance Convertible SqlTypeId Type where
              SqlBitT            -> Right BoolT
              SqlCharT           -> Right CharT
              SqlVarCharT        -> Right TextT
+             SqlDateT           -> Right TimeT
+             SqlTimestampT      -> Right TimeT
              _                  -> convError "Unsupported `SqlTypeId'" n
 
 
@@ -313,6 +324,8 @@ instance Convertible SqlValue Norm where
              SqlChar c          -> Right $ CharN c CharT
              SqlString t        -> Right $ TextN (pack t) TextT
              SqlByteString s    -> Right $ TextN (pack (B.unpack s)) TextT
+             SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
+             SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
              _                  -> convError "Unsupported `SqlValue'" sql
 
 instance Convertible Norm SqlValue where
@@ -332,3 +345,7 @@ instance Convertible SqlValue Text where
     safeConvert n = case safeConvert n of
                         Right (s::String) -> Right $ T.pack s
                         _ -> convError "Cannot convert `SqlValue' to `Text'" n
+                        
+                        
+instance IsString (Q Text) where
+  fromString s = Q (TextE (pack s) TextT)

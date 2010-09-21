@@ -330,9 +330,9 @@ evaluate c e = case e of
 
   TableE (escape -> tName) (ListT tType) -> do
       tDesc <- describeTable c tName
-      let columnNames = concat $ intersperse " , " $ sort $ map fst tDesc
+      let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
       let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
-      fmap (sqlToNormWithType tName tType) (quickQuery' c query [])
+      fmap (sqlToNormWithType tName tType) (quickQuery c query [])
   TableE _ _ -> $impossible
 
 snoc :: [a] -> a -> [a]
@@ -390,8 +390,11 @@ typeMatch t s =
     case (t,s) of
          (UnitT         , SqlNull)          -> True
          (IntegerT      , SqlInteger _)     -> True
+         (DoubleT       , SqlDouble _)      -> True
          (BoolT         , SqlBool _)        -> True
          (CharT         , SqlChar _)        -> True
          (TextT         , SqlString _)      -> True
          (TextT         , SqlByteString _)  -> True
+         (TimeT         , SqlLocalTime _)   -> True
+         (TimeT         , SqlLocalDate _)   -> True
          _                                  -> False
