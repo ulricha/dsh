@@ -6,6 +6,7 @@ import Ferry.Syntax as F
 import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
+import qualified Ferry.Combinators as Q
 
 import qualified Data.Map as M
 import Data.Char
@@ -70,6 +71,7 @@ evaluate c q = do
 doCompile :: IConnection conn => conn -> Q a -> IO String
 doCompile c (Q a) = do 
                         core <- runN c $ transformE a
+                        --putStrLn $ dotify' core
                         return $ typedCoreToAlgebra core
 
 transformE :: IConnection conn => Exp -> N conn CoreExpr
@@ -95,17 +97,22 @@ transformE (AppE1 f1 e1 ty) = do
 transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
                                                 fn' <- transformArg gfn
+                                                let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
+                                                let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
                                                 e' <- transformArg e
                                                 let (_ :=> te) = typeOf e'
                                                 fv <- transformArg (LamE id $ ArrowT tel tel)
-                                                let (_ :=> tfn) = typeOf fn'
+                                                snd' <- transformArg (LamE (\x -> AppE1 Snd x $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel)) $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel))
+                                                let (_ :=> sndTy) = typeOf snd'
                                                 let (_ :=> tfv) = typeOf fv
                                                 return $ App ([] :=> tr)
-                                                            (App ([] :=> te .-> tr)
-                                                                (App ([] :=> tfv .-> te .-> tr) (Var ([] :=> tfn .-> tfv .-> te .-> tr) "groupBy'") fn')
-                                                                fv
-                                                            )
-                                                            e' 
+                                                            (App ([] :=> gtr .-> tr) (Var ([] :=> sndTy .-> gtr .-> tr) "map") snd') 
+                                                            (ParExpr ([] :=> gtr) $ App ([] :=> gtr)
+                                                                (App ([] :=> te .-> gtr)
+                                                                    (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
+                                                                    fn'
+                                                                )
+                                                                e')
 transformE (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
@@ -214,6 +221,17 @@ transformTy DoubleT = float
 transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
+
+transformTy' :: FType -> Type
+transformTy' FUnit = UnitT
+transformTy' FInt  = IntegerT
+transformTy' FFloat = DoubleT
+transformTy' FString = TextT
+transformTy' FBool = BoolT
+transformTy' (FList t) = ListT $ transformTy' t
+transformTy' (FRec [(RLabel "1", t1), (RLabel "2", t2)]) = TupleT (transformTy' t1) (transformTy' t2)
+transformTy' (FFn t1 t2) = ArrowT (transformTy' t1) (transformTy' t2)
+transformTy' _ = $impossible
 
 transformOp :: Fun2 -> Op
 transformOp Add = Op "+"

@@ -30,7 +30,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 
 executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
 executePlan c p = do 
-                        sql <- algToSQL p
+                        sql@(SQL s) <- algToSQL p
                         runSQL c $ extractSQL sql
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
