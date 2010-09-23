@@ -35,7 +35,7 @@ executePlan c p = do
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
-                         r <- compileFerryOpt s OutputSql Nothing 
+                         r <- compileFerryOpt s OutputSql Nothing
                          case r of
                             (Right sql) -> return $ SQL sql
                             (Left err) -> error $ "Pathfinder compilation for input: \n"
@@ -135,7 +135,9 @@ processResults' q c vals BoolT = do
                                     i <- getColResPos q c
                                     return $ map (\val -> flip BoolN BoolT $ convert $ val !! i) vals
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
-processResults' _ _ _    CharT = $impossible
+processResults' q c vals CharT = do
+                                    i <- getColResPos q c
+                                    return $ map (\val -> flip CharN CharT $ convert $ val !! i) vals
 processResults' q c vals TextT = do
                                     i <- getColResPos q c
                                     return $ map (\val -> flip TextN TextT $ convert $ val !! i) vals

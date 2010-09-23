@@ -74,6 +74,7 @@ doCompile c (Q a) = do
                         --putStrLn $ dotify' core
                         return $ typedCoreToAlgebra core
 
+
 transformE :: IConnection conn => Exp -> N conn CoreExpr
 transformE (UnitE _) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b _) = return $ Constant ([] :=> bool) $ CBool b
