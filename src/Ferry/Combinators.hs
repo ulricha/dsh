@@ -70,7 +70,7 @@ bool a b c = c ? (a,b)
 (?) :: forall a. (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) (Q c) (Q a,Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))
 
--- * List Constraction
+-- * List Construction
 
 nil :: forall a. (QA a) => Q [a]
 nil = Q (ListE [] $ reify (undefined :: [a]))
