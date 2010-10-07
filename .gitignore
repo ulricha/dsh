@@ -1,2 +1,7 @@
 dist/
 *.swp
+tests/tmp/
+tests/*.hpc
+tests/*.html
+tests/*.tix
+tests/Main
