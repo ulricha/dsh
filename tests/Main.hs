@@ -20,12 +20,18 @@ main :: IO ()
 main = do
     putStrLn "Running DSH prelude tests"
     putStrLn "-------------------------"
-    putStr "not:            "
-    quickCheck prop_not
+    putStr "unit:           "
+    quickCheck prop_unit
 
     putStrLn ""
     putStrLn "Equality & Ordering"
     putStrLn "-------------------------"
+    putStr "&&:             "
+    quickCheck prop_infix_and
+    putStr "||:             "
+    quickCheck prop_infix_or
+    putStr "not:            "
+    quickCheck prop_not
     putStr "eq:             "
     quickCheck prop_eq_int
     putStr "neq:            "
@@ -177,12 +183,21 @@ testNotNull q f arg = not (null arg) ==> runTest q f arg
 uncurry_Q :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurry_Q q = uncurry q . Q.view
 
-
-prop_not :: Bool -> Property
-prop_not = runTest Q.not not
+-- Kinda pointless, but meh... :)
+prop_unit :: () -> Property
+prop_unit = runTest (const $ Q.unit) id
 
 --------------------------------------------------------------------------------
 -- Equality & Ordering
+
+prop_infix_and :: (Bool,Bool) -> Property
+prop_infix_and = runTest (uncurry_Q (Q.&&)) (uncurry (&&))
+
+prop_infix_or :: (Bool,Bool) -> Property
+prop_infix_or = runTest (uncurry_Q (Q.||)) (uncurry (||))
+
+prop_not :: Bool -> Property
+prop_not = runTest Q.not not
 
 prop_eq :: (Eq a, Q.QA a) => (a,a) -> Property
 prop_eq = runTest (\q -> Q.fst q Q.== Q.snd q) (\(a,b) -> a == b)
@@ -191,7 +206,7 @@ prop_eq_int :: (Integer,Integer) -> Property
 prop_eq_int = prop_eq
 
 prop_neq :: (Eq a, Q.QA a) => (a,a) -> Property
-prop_neq = runTest (\q -> Q.fst q Q./= Q.snd q) (\(a,b) -> a /= b)
+prop_neq = runTest (uncurry_Q (Q./=)) (\(a,b) -> a /= b)
 
 prop_neq_int :: (Integer,Integer) -> Property
 prop_neq_int = prop_eq
