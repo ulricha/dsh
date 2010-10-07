@@ -84,7 +84,7 @@ evaluate c e = case e of
   AppE2 Filter lam as t -> do
     (ListN as1 _) <- evaluate c as
     (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT BoolT))
-    return $ ListN (filter (\(BoolN b BoolT) -> b) as2) t
+    return $ ListN (map fst (filter (\(_,(BoolN b BoolT)) -> b) (zip as1 as2))) t
 
   AppE2 GroupWith lam as t -> do
     (ListN as1 t1) <- evaluate c as
