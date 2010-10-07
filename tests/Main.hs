@@ -157,6 +157,12 @@ main = do
     putStr "snd:            "
     quickCheck prop_snd
 
+    putStrLn ""
+    putStrLn "Conditionals:"
+    putStrLn "-------------------------"
+    putStr "bool:           "
+    quickCheck prop_bool
+
 
 runTest :: (Eq b, Q.QA a, Q.QA b)
         => (Q.Q a -> Q.Q b)
@@ -278,7 +284,7 @@ prop_map_id :: [Integer] -> Property
 prop_map_id = runTest (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
-prop_append = runTest (uncurry_Q Q.append) (\(a,b) -> a ++ b)
+prop_append = runTest (uncurry_Q (Q.><)) (\(a,b) -> a ++ b)
 
 -- | filter "const True"
 prop_filter_True :: [Integer] -> Property
@@ -402,3 +408,11 @@ prop_fst = runTest Q.fst fst
 
 prop_snd :: (Integer, Integer) -> Property
 prop_snd = runTest Q.snd snd
+
+
+--------------------------------------------------------------------------------
+-- Conditionals
+
+prop_bool :: Bool -> Property
+prop_bool = runTest (Q.bool Q.empty (Q.toQ [0 :: Integer]))
+                    (\b -> if b then [] else [0])
