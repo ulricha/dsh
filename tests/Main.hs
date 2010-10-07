@@ -72,7 +72,12 @@ main = do
     quickCheck prop_index
     putStr "reverse:        "
     quickCheck prop_reverse
-
+    putStr "append:         "
+    quickCheck prop_append
+    putStr "groupWith_id:   "
+    quickCheck prop_groupWith_id
+    putStr "sortWith_id:    "
+    quickCheck prop_sortWith_id
 
     putStrLn ""
     putStrLn "Special folds"
@@ -113,7 +118,6 @@ main = do
     quickCheck prop_span
     putStr "break:          "
     quickCheck prop_break
-
 
     putStrLn ""
     putStrLn "Searching lists"
@@ -265,7 +269,11 @@ prop_append = runTest (uncurry_Q Q.append) (\(a,b) -> a ++ b)
 prop_filter_True :: [Integer] -> Property
 prop_filter_True = runTest (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
--- prop_groupWith ::
+prop_groupWith_id :: [Integer] -> Property
+prop_groupWith_id = runTest (Q.groupWith id) (groupWith id)
+
+prop_sortWith_id  :: [Integer] -> Property
+prop_sortWith_id = runTest (Q.sortWith id) (sortWith id)
 
 prop_null :: [Integer] -> Property
 prop_null = runTest Q.null null
