@@ -1,4 +1,5 @@
-{-# LANGUAGE MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
+
 module Ferry.HSCompiler (fromQ) where
 
 import Ferry.Data as D

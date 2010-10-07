@@ -1,10 +1,10 @@
-module PreludeTest where
+module Main where
 
 import qualified Ferry as Q
 -- import qualified Ferry.HSCompiler as C
 import qualified Ferry.Interpreter as I
 
-import Database.HDBC (IConnection, disconnect)
+-- import Database.HDBC (IConnection, disconnect)
 import Database.HDBC.PostgreSQL
 
 import Test.QuickCheck
@@ -13,8 +13,8 @@ import Test.QuickCheck.Monadic
 import Data.List
 import GHC.Exts
 
-getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
+-- getConn :: IO Connection
+-- getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
 main :: IO ()
 main = do
@@ -154,10 +154,10 @@ runTest :: (Eq b, Q.QA a, Q.QA b)
         -> a
         -> Property
 runTest q f arg = monadicIO $ do
-    c <- run $ getConn
+    -- c <- run $ getConn
     -- db <- run $ C.fromQ c $ q (Q.toQ arg) 
-    it <- run $ I.fromQ c $ q (Q.toQ arg)
-    run $ disconnect c
+    it <- run $ I.fromQ (undefined :: Connection) $ q (Q.toQ arg)
+    -- run $ disconnect c
     let hs = f arg
     assert (it == hs) -- (db == hs && it == hs)
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+
 module Ferry.TH
     (
       deriveTupleQA

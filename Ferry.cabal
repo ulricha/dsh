@@ -23,8 +23,6 @@ Library
                      Pathfinder >= 0.1, text >= 0.8.1.0, time >= 1.2
 
   Hs-Source-Dirs:    src
-  Extensions:        TemplateHaskell, ViewPatterns, MultiParamTypeClasses, DeriveDataTypeable,
-                     FunctionalDependencies, FlexibleInstances, TypeSynonymInstances, ScopedTypeVariables
 
   GHC-Options:       -Wall -fno-warn-orphans -O3
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
+
 module Ferry.Interpreter (fromQ) where
 
 import Ferry.Data

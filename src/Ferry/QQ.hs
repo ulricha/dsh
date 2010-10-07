@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, ViewPatterns #-}
+
 module Ferry.QQ (qc) where
 
 import Paths_Ferry as Ferry

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances #-}
+
 module Ferry.Combinators where
 
 import Ferry.Data

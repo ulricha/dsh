@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
+
 module Ferry.Data where
 
 import Ferry.Impossible
