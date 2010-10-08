@@ -28,7 +28,6 @@ module Ferry
   , module Data.Time
   , module Database.HDBC
   , module Prelude
-  , Time
   )
   where
 
@@ -42,7 +41,5 @@ import Data.Text (Text)
 import Data.Time (UTCTime)
 import Database.HDBC
 import Prelude(Eq,Ord,Show,Bool,Char,Integer,Double,IO)
-
-type Time = UTCTime
 
 

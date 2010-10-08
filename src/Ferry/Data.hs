@@ -13,6 +13,9 @@ import Data.Text as T (Text(), pack, unpack)
 import Data.Time
 import GHC.Exts
 
+type Time = UTCTime
+type Real = Double
+
 data Exp =
     UnitE Type
   | BoolE Bool Type
@@ -20,7 +23,7 @@ data Exp =
   | IntegerE Integer Type
   | DoubleE Double Type
   | TextE Text Type
-  | TimeE UTCTime Type
+  | TimeE Time Type
   | TupleE Exp Exp Type
   | ListE [Exp] Type
   | LamE (Exp -> Exp) Type
@@ -253,6 +256,14 @@ instance View (Q Integer) (Q Integer) where
   fromView = id
 
 instance View (Q Double) (Q Double) where
+  view = id
+  fromView = id
+
+instance View (Q Text) (Q Text) where
+  view = id
+  fromView = id
+
+instance View (Q Time) (Q Time) where
   view = id
   fromView = id
 
