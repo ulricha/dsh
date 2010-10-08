@@ -7,7 +7,6 @@ import Ferry.Syntax as F
 import Ferry.Compiler
 import Ferry.Impossible
 import Ferry.Compile as C
-import qualified Ferry.Combinators as Q
 
 import qualified Data.Map as M
 import Data.Char
@@ -83,6 +82,7 @@ transformE (CharE c _) = return $ Constant ([] :=> string) $ CString [c]
 transformE (IntegerE i _) = return $ Constant ([] :=> int) $ CInt i
 transformE (DoubleE d _) = return $ Constant ([] :=> float) $ CFloat d
 transformE (TextE t _) = return $ Constant ([] :=> string) $ CString $ unpack t
+transformE (TimeE _ _) = error "transformation of time values has not been implemented yet."
 transformE (TupleE e1 e2 ty) = do
                                         c1 <- transformE e1
                                         c2 <- transformE e2
@@ -220,6 +220,7 @@ transformTy CharT = string
 transformTy TextT = string
 transformTy IntegerT = int
 transformTy DoubleT = float
+transformTy TimeT = error "transformation of time types has not been implemented yet."
 transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)

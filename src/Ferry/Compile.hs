@@ -30,7 +30,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 
 executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
 executePlan c p = do 
-                        sql@(SQL s) <- algToSQL p
+                        sql@(SQL _) <- algToSQL p
                         runSQL c $ extractSQL sql
  
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
@@ -159,6 +159,7 @@ processResults' q c vals t@(ListT _) = do
                                         return $ map (\it' -> case lookup it' list of
                                                                 Just x -> x
                                                                 Nothing -> ListN [] t) sur
+processResults' _ _ _ (TimeT) = error "Results processing for time has not been implemented."
 processResults' _ _ _ (ArrowT _ _) = $impossible 
 
                                         
