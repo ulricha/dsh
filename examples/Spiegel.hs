@@ -17,9 +17,9 @@ $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
       "spiegelPosts" "Post" [''Show,''Eq,''Ord])
       
-$(createTableRepresentation
-      (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
-      "spiegelUsers" "User" [''Show,''Eq,''Ord])
+-- $(createTableRepresentation
+--       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
+--       "spiegelUsers" "User" [''Show,''Eq,''Ord])
 
 $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")

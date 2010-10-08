@@ -273,6 +273,11 @@ evaluate c e = case e of
     return $ DoubleN (i1 / i2) DoubleT
   AppE2 Div _ _ _ -> $impossible
   
+  -- AppE1 IntegerToDouble e1 DoubleT -> do
+  --   (Doube
+  -- AppE1 IntegerToDouble _ _ -> $impossible
+    
+  
   AppE1 Abs e1 IntegerT -> do
     (IntegerN i1 _) <- evaluate c e1
     return $ IntegerN (abs i1) IntegerT

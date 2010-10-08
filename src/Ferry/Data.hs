@@ -33,7 +33,7 @@ data Exp =
    deriving (Data, Typeable)
 
 data Fun1 =
-    Fst | Snd | Not | Abs | Signum
+    Fst | Snd | Not | Abs | Signum | IntegerToDouble
   | Negate | Head | Tail | Unzip | Minimum
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init

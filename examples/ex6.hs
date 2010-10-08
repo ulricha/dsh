@@ -10,7 +10,8 @@ import Prelude ()
 import qualified Prelude as P
 
 import Ferry
-import Ferry.Interpreter (fromQ)
+-- import Ferry.Interpreter (fromQ)
+import Ferry.HSCompiler (fromQ)
 
 import Database.HDBC.PostgreSQL
 
@@ -24,8 +25,8 @@ threads = table "spiegelThreads"
 posts :: Q [Post]
 posts = table "spiegelPosts"
 
-users :: Q [User]
-users = table "spiegelUsers"
+-- users :: Q [User]
+-- users = table "spiegelUsers"
 
 quotes :: Q [Quote]
 quotes = table "spiegelQuotes"
@@ -61,7 +62,7 @@ threadInteractivityAndRatings :: Q [(Double,Double)]
 threadInteractivityAndRatings =
   [$qc| fromView (interactivity , rating)
       | (thread,posts) <- threadsAndPosts
-      , let interactivity = sum (map containsQuotes posts) -- P.* P.fromIntegral (length posts)
+      , let interactivity = sum (map containsQuotes posts) P./ integerToDouble (length posts)
       , let rating        = spiegelThreadRatingQ thread
   |]
 
@@ -72,5 +73,5 @@ main = do
   fromQ conn (length threads) P.>>= P.print
   fromQ conn (length posts)   P.>>= P.print
   fromQ conn (length quotes)  P.>>= P.print
-  
+
   fromQ conn (threadInteractivityAndRatings) P.>>= P.print

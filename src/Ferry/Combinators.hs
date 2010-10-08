@@ -7,7 +7,7 @@ import Ferry.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool, Integer, undefined, error, ($))
+import Prelude (Eq, Ord, Num, Bool, Integer, Double, undefined, error, ($))
 
 -- * Unit
 
@@ -237,6 +237,12 @@ fst (Q a) = Q (AppE1 Fst a $ reify (undefined :: a))
 
 snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE1 Snd a $ reify (undefined :: b))
+
+
+-- * Conversions between numeric types
+
+integerToDouble :: Q Integer -> Q Double
+integerToDouble (Q a) = Q (AppE1 IntegerToDouble a DoubleT)
 
 -- * Convert Haskell values into DB queries
 
