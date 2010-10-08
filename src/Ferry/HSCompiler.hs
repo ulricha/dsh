@@ -122,7 +122,7 @@ transformE (AppE2 D.Cons e1 e2 _) = do
                                             return $ F.Cons ([] :=> list t) e1' e2'
 transformE (AppE2 f2 e1 e2 ty) = do
                                         let tr = transformTy ty
-                                        case elem f2 [Add, Mul, Equ, Lt, Lte, Gte, Gt] of
+                                        case elem f2 [Add, Mul, Div, Equ, Lt, Lte, Gte, Gt] of
                                             True  -> do
                                                       e1' <- transformE e1
                                                       e2' <- transformE e2
@@ -238,6 +238,7 @@ transformTy' _ = $impossible
 transformOp :: Fun2 -> Op
 transformOp Add = Op "+"
 transformOp Mul = Op "*"
+transformOp Div = Op "/"
 transformOp Equ = Op "=="
 transformOp Lt = Op "<"
 transformOp Lte = Op "<="
