@@ -42,7 +42,7 @@ data Fun1 =
 
 
 data Fun2 =
-    Add | Mul | All | Any | Index
+    Add | Mul | Div | All | Any | Index
   | SortWith | Cons | Snoc | Take | Drop
   | Map | Append | Filter | GroupWith | Zip
   | Elem | Break | Span | DropWhile | TakeWhile
@@ -226,6 +226,9 @@ instance Num (Q Double) where
   fromInteger d     = Q (DoubleE (fromIntegral d) DoubleT)
   signum (Q e1)     = Q (AppE1 Signum e1          DoubleT)
 
+instance Fractional (Q Double) where
+  (/) (Q e1) (Q e2) = Q (AppE2 Div e1 e2          DoubleT)
+  fromRational r    = Q (DoubleE (fromRational r) DoubleT)
 
 -- * Support for View Patterns
 

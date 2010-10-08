@@ -266,7 +266,13 @@ evaluate c e = case e of
     (DoubleN i2 _) <- evaluate c e2
     return $ DoubleN (i1 * i2) DoubleT
   AppE2 Mul _ _ _ -> $impossible
-
+  
+  AppE2 Div e1 e2 DoubleT -> do
+    (DoubleN i1 _) <- evaluate c e1
+    (DoubleN i2 _) <- evaluate c e2
+    return $ DoubleN (i1 / i2) DoubleT
+  AppE2 Div _ _ _ -> $impossible
+  
   AppE1 Abs e1 IntegerT -> do
     (IntegerN i1 _) <- evaluate c e1
     return $ IntegerN (abs i1) IntegerT
@@ -334,6 +340,7 @@ evaluate c e = case e of
       tDesc <- describeTable c tName
       let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
       let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
+      print query
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
   TableE _ _ -> $impossible
 
