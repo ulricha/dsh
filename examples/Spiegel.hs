@@ -9,12 +9,18 @@ import Database.HDBC.PostgreSQL
 getConnection :: IO Connection
 getConnection = connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'"
 
+$(createTableRepresentation
+      (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
+      "spiegelThreads" "Thread" [''Show,''Eq,''Ord])
 
 $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
-      "spiegelUsers" "User" [''Show,''Eq])
-
+      "spiegelPosts" "Post" [''Show,''Eq,''Ord])
+      
+$(createTableRepresentation
+      (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
+      "spiegelUsers" "User" [''Show,''Eq,''Ord])
 
 $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
-      "spiegelPosts" "Post" [''Show,''Eq])
+      "spiegelQuotes" "Quote" [''Show,''Eq,''Ord])
