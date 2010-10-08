@@ -1,9 +1,9 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances #-}
 
-module Ferry.Combinators where
+module Database.DSH.Combinators where
 
-import Ferry.Data
-import Ferry.TH
+import Database.DSH.Data
+import Database.DSH.TH
 
 import Data.Convertible
 

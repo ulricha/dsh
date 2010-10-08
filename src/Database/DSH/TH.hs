@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
 
-module Ferry.TH
+module Database.DSH.TH
     (
       deriveTupleQA
     , generateDeriveTupleQARange
@@ -20,6 +20,10 @@ module Ferry.TH
     , createTableRepresentation'
     ) where
 
+
+import Database.DSH.Data
+import Database.DSH.Impossible
+
 import Control.Applicative
 import Control.Monad
 import Data.Convertible
@@ -29,8 +33,6 @@ import Data.Text (Text)
 import Data.Time (UTCTime)
 import GHC.Exts
 
-import Ferry.Data
-import Ferry.Impossible
 import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify, Type, ListT)
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Syntax (sequenceQ)

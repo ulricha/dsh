@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, QuasiQuotes, OverloadedStrings #-}
 
-module Spiegel where
+module Records where
 
-import Ferry
+import Database.DSH
 import Database.HDBC.PostgreSQL
 
 
@@ -17,9 +17,9 @@ $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
       "spiegelPosts" "Post" [''Show,''Eq,''Ord])
       
--- $(createTableRepresentation
---       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
---       "spiegelUsers" "User" [''Show,''Eq,''Ord])
+$(createTableRepresentation
+      (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
+      "spiegelUsers" "User" [''Show,''Eq,''Ord])
 
 $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")

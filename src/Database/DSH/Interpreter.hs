@@ -1,9 +1,9 @@
 {-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
 
-module Ferry.Interpreter (fromQ) where
+module Database.DSH.Interpreter (fromQ) where
 
-import Ferry.Data
-import Ferry.Impossible
+import Database.DSH.Data
+import Database.DSH.Impossible
 
 import Data.Convertible
 import Database.HDBC

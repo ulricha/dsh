@@ -1,12 +1,13 @@
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
 
-module Ferry.HSCompiler (fromQ) where
+module Database.DSH.Compiler (fromQ) where
 
-import Ferry.Data as D
+import Database.DSH.Data as D
+import Database.DSH.Impossible
+import Database.DSH.Compile as C
+
 import Ferry.Syntax as F
 import Ferry.Compiler
-import Ferry.Impossible
-import Ferry.Compile as C
 
 import qualified Data.Map as M
 import Data.Char

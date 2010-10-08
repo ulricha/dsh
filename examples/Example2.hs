@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell #-}
 module Test where
 
-import qualified Ferry as Q    
-import Ferry (Q,toQ,view,fromView,table,qc)
-import Ferry.Interpreter (fromQ)
+import qualified Database.DSH as Q    
+import Database.DSH (Q,toQ,view,fromView,table,qc)
+import Database.DSH.Interpreter (fromQ)
 
 import Database.HDBC.PostgreSQL
 

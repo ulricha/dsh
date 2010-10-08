@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
 
-module Ferry.Data where
+module Database.DSH.Data where
 
-import Ferry.Impossible
+import Database.DSH.Impossible
 
 import Data.Convertible
 import Data.Typeable
