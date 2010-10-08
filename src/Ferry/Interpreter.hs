@@ -268,16 +268,17 @@ evaluate c e = case e of
   AppE2 Mul _ _ _ -> $impossible
   
   AppE2 Div e1 e2 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    (DoubleN i2 _) <- evaluate c e2
-    return $ DoubleN (i1 / i2) DoubleT
+    (DoubleN d1 _) <- evaluate c e1
+    (DoubleN d2 _) <- evaluate c e2
+    return $ DoubleN (d1 / d2) DoubleT
   AppE2 Div _ _ _ -> $impossible
   
-  -- AppE1 IntegerToDouble e1 DoubleT -> do
-  --   (Doube
-  -- AppE1 IntegerToDouble _ _ -> $impossible
+  AppE1 IntegerToDouble e1 DoubleT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    return $ DoubleN (fromInteger i1) DoubleT
     
-  
+  AppE1 IntegerToDouble _ _ -> $impossible
+      
   AppE1 Abs e1 IntegerT -> do
     (IntegerN i1 _) <- evaluate c e1
     return $ IntegerN (abs i1) IntegerT
