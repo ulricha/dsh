@@ -19,7 +19,7 @@ module Database.DSH
 
     -- * Type Classes
   , QA
-  , TA, table, BasicType
+  , TA, table, tableWithKeys, BasicType
   , View, view,fromView
 
     -- * Quasiquoter
@@ -35,7 +35,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q,QA,TA,Time,table,BasicType,View,view,fromView)
+import Database.DSH.Data (Q,QA,TA,Time,table,tableWithKeys,BasicType,View,view,fromView)
 import Database.DSH.QQ (qc)
 import Database.DSH.TH (createTableRepresentation, createTableRepresentation')
 

@@ -21,20 +21,20 @@ import System.Cmd
 import qualified Data.List as L
 
 threads :: Q [Thread]
-threads = table "spiegelThreads"
+threads = tableWithKeys "spiegelThreads" [["spiegelThreadUrl"]]
 
 posts :: Q [Post]
-posts = table "spiegelPosts"
+posts = tableWithKeys "spiegelPosts" [["spiegelPostUrl"]]
 
 quotes :: Q [Quote]
 quotes = table "spiegelQuotes"
 
--- threadsWithRating :: Q [Thread]
--- threadsWithRating =
---   [$qc| t
---       | t <- threads
---       , (spiegelThreadRatingQ t) > 0
---   |]
+threadsWithRating :: Q [Thread]
+threadsWithRating =
+  [$qc| t
+      | t <- threads
+      , (spiegelThreadRatingQ t) > 0
+  |]
 
 postQuotes :: Q Post -> Q [Quote]
 postQuotes post =
@@ -50,7 +50,7 @@ containsQuotes post =
 threadsAndPosts :: Q [ (Thread , [Post]) ]
 threadsAndPosts = 
   [$qc| fromView (the thread, post)
-      | thread <- threads -- threadsWithRating
+      | thread <- threadsWithRating
       , post   <- posts
       , spiegelThreadUrlQ thread == spiegelPostThreadUrlQ post
       , then group by thread
@@ -62,7 +62,6 @@ threadInteractivityAndRatings =
       | (thread,posts) <- threadsAndPosts
       , let interactivity = sum (map containsQuotes posts) P./ integerToDouble (length posts)
       , let rating        = spiegelThreadRatingQ thread
-      , rating > 0
   |]
 
 main :: IO ()
