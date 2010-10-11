@@ -28,7 +28,7 @@ data Exp =
   | AppE1 Fun1 Exp Type
   | AppE2 Fun2 Exp Exp Type
   | AppE3 Fun3 Exp Exp Exp Type
-  | TableE String Type
+  | TableE String [[String]] Type
   | VarE Int Type
    deriving (Data, Typeable)
 
@@ -95,7 +95,7 @@ typeExp e = case e of
   AppE1 _ _ t -> t
   AppE2 _ _ _ t -> t
   AppE3 _ _ _ _ t -> t
-  TableE _ t -> t
+  TableE _ _ t -> t
   VarE _ t -> t
 
 typeArrowResult :: Type -> Type
@@ -189,7 +189,9 @@ instance BasicType UTCTime where
 
 class (QA a) => TA a where
   table :: String -> Q [a]
-  table s = Q (TableE s (reify (undefined :: [a])))
+  table s = Q (TableE s [] (reify (undefined :: [a])))
+  tableWithKeys :: String -> [[String]] -> Q [a]
+  tableWithKeys s ks = Q (TableE s ks (reify (undefined :: [a])))
 
 instance TA () where
 instance TA Bool where

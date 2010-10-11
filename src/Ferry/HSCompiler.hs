@@ -155,7 +155,7 @@ transformE (AppE3 f3 e1 e2 e3 ty) = do
                                                              e2')
                                                         e3'
 transformE (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE (TableE n ty) = do
+transformE (TableE n ks ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
@@ -165,7 +165,10 @@ transformE (TableE n ty) = do
                                                     False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
                                                                         ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty 
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
-                                    let keys = [Key $ map (\(Column n' _) -> n') cols]
+                                    let keyCols = (nub $ concat ks) L.\\ (map fst tableDescr)
+                                    let keys = if (keyCols == [])
+                                                    then map Key ks
+                                                    else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
                                     let table' = Table ([] :=> tTy) n cols keys
                                     let pattern = PVar $ prefixVar fv
                                     let nameType = map (\(Column name t) -> (name, t)) cols 
@@ -250,12 +253,12 @@ transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
 
 getTableNames :: Exp -> [String]
-getTableNames e = let tables = map (\(TableE n _) -> n) $ listify isTable e
+getTableNames e = let tables = map (\(TableE n _ _) -> n) $ listify isTable e
                    in nub tables
     where 
         isTable :: Exp -> Bool
-        isTable (TableE _ _) = True
-        isTable _            = False
+        isTable (TableE _ _ _) = True
+        isTable _              = False
         
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]
 getTableInfo c n = do

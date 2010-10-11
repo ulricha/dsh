@@ -342,13 +342,13 @@ evaluate c e = case e of
     (BoolN b2 _) <- evaluate c e2
     return $ BoolN (b1 || b2) BoolT
 
-  TableE (escape -> tName) (ListT tType) -> do
+  TableE (escape -> tName) _ (ListT tType) -> do
       tDesc <- describeTable c tName
       let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
       let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
       print query
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
-  TableE _ _ -> $impossible
+  TableE _ _ _ -> $impossible
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]
