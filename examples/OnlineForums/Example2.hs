@@ -15,7 +15,7 @@ import Database.DSH.Compiler (fromQ)
 import Database.HDBC.PostgreSQL
 
 import Math.Statistics
-import Graphics.Gnuplot.Simple
+-- import Graphics.Gnuplot.Simple
 
 import System.Cmd
 import qualified Data.List as L
@@ -27,54 +27,76 @@ posts :: Q [Post]
 posts = tableWithKeys "spiegelPosts" [["spiegelPostUrl"]]
 
 quotes :: Q [Quote]
-quotes = table "spiegelQuotes"
+quotes = tableWithKeys "spiegelQuotes" [["spiegelQuoteUrl","spiegelQuotePostUrl"]]
 
-threadsWithRating :: Q [Thread]
-threadsWithRating =
-  [$qc| t
-      | t <- threads
-      , (spiegelThreadRatingQ t) > 0
+postsAndQuotes :: Q [(Post , Double)]
+postsAndQuotes = [$qc|
+    fromView (the p, (length q > 0) ? (1,0)) 
+  | p <- posts
+  , q <- quotes
+  , spiegelPostUrlQ p == spiegelQuotePostUrlQ q
+  , then group by (spiegelPostUrlQ p)
   |]
 
-postQuotes :: Q Post -> Q [Quote]
-postQuotes post =
-  [$qc| q
-      | q <- quotes
-      , spiegelPostUrlQ post == spiegelQuotePostUrlQ q
-  |]
+-- threadInteractivityAndRatings :: Q [(Double,Double)]  
+-- threadInteractivityAndRatings = [$qc|
+--     fromView (sum q P./ integerToDouble (length p), the r)
+--   | t <- threads
+--   , (p,q) <- postsAndQuotes
+--   , let r = spiegelThreadRatingQ t
+--   , r > 0
+--   , spiegelThreadUrlQ t == spiegelPostThreadUrlQ p
+--   , then group by t
+--   |]
 
-containsQuotes :: Q Post -> Q Double
-containsQuotes post =
-  (length (postQuotes post) > 0) ? (1,0)
-
-threadsAndPosts :: Q [ (Thread , [Post]) ]
-threadsAndPosts = 
-  [$qc| fromView (the thread, post)
-      | thread <- threadsWithRating
-      , post   <- posts
-      , spiegelThreadUrlQ thread == spiegelPostThreadUrlQ post
-      , then group by thread
-  |]
-
-threadInteractivityAndRatings :: Q [(Double,Double)]
-threadInteractivityAndRatings =
-  [$qc| fromView (interactivity , rating)
-      | (thread,posts) <- threadsAndPosts
-      , let interactivity = sum (map containsQuotes posts) P./ integerToDouble (length posts)
-      , let rating        = spiegelThreadRatingQ thread
-  |]
+-- threadsWithRating :: Q [Thread]
+-- threadsWithRating =
+--   [$qc| t
+--       | t <- threads
+--       , (spiegelThreadRatingQ t) > 0
+--   |]
+-- 
+-- postQuotes :: Q Post -> Q [Quote]
+-- postQuotes post =
+--   [$qc| q
+--       | q <- quotes
+--       , spiegelPostUrlQ post == spiegelQuotePostUrlQ q
+--   |]
+-- 
+-- containsQuotes :: Q Post -> Q Double
+-- containsQuotes post =
+--   (length (postQuotes post) > 0) ? (1,0)
+-- 
+-- threadsAndPosts :: Q [ (Thread , [Post]) ]
+-- threadsAndPosts = 
+--   [$qc| fromView (the thread, post)
+--       | thread <- threadsWithRating
+--       , post   <- posts
+--       , spiegelThreadUrlQ thread == spiegelPostThreadUrlQ post
+--       , then group by thread
+--   |]
+-- 
+-- threadInteractivityAndRatings :: Q [(Double,Double)]
+-- threadInteractivityAndRatings =
+--   [$qc| fromView (interactivity , rating)
+--       | (thread,posts) <- threadsAndPosts
+--       , let interactivity = sum (map containsQuotes posts) P./ integerToDouble (length posts)
+--       , let rating        = spiegelThreadRatingQ thread
+--   |]
 
 main :: IO ()
 main = do
   conn <- getConnection
-  
-  irs <- fromQ conn (threadInteractivityAndRatings)
 
-  P.putStr "Pearson Correlation = "
-  P.print ((P.uncurry pearson) (P.unzip (L.sort irs)))
+  fromQ conn (length postsAndQuotes) P.>>= P.print
+  
+  -- irs <- fromQ conn (threadInteractivityAndRatings)
+  -- 
+  -- P.putStr "Pearson Correlation = "
+  -- P.print ((P.uncurry pearson) (P.unzip (L.sort irs)))
   
   -- plotPath [] (L.sort irs)
-  -- 
-  -- P.return ()
+  
+  P.return ()
   
   
