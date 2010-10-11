@@ -168,7 +168,7 @@ transformE (TableE n ks ty) = do
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keyCols = (nub $ concat ks) L.\\ (map fst tableDescr)
                                     let keys = if (keyCols == [])
-                                                    then map Key ks
+                                                    then if (ks /= []) then map Key ks else [Key $ map (\(Column n' _) -> n') cols]
                                                     else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
                                     let table' = Table ([] :=> tTy) n cols keys
                                     let pattern = PVar $ prefixVar fv
