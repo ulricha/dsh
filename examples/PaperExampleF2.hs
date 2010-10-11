@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
 module PaperExampleF2 where
 
-import qualified Ferry as Q    
-import Ferry (Q, toQ, view, qc)
-import Ferry.HSCompiler (fromQ)
+import qualified Database.DSH as Q    
+import Database.DSH (Q, toQ, view, qc)
+import Database.DSH.Compiler (fromQ)
 
 import Database.HDBC
 import Database.HDBC.PostgreSQL

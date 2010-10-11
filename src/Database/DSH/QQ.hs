@@ -1,9 +1,9 @@
 {-# LANGUAGE TemplateHaskell, ViewPatterns #-}
 
-module Ferry.QQ (qc) where
+module Database.DSH.QQ (qc) where
 
-import Paths_Ferry as Ferry
-import Ferry.Impossible
+import Paths_DSH as DSH
+import Database.DSH.Impossible
 
 import Language.Haskell.SyntaxTrees.ExtsToTH (translateExtsToTH)
 
@@ -23,10 +23,10 @@ import qualified Data.List as L
 import Data.Version (showVersion)
 
 combinatorMod :: ModuleName
-combinatorMod = ModuleName "ferry.Combinators"
+combinatorMod = ModuleName "database.DSH.Combinators"
 
 dataMod :: ModuleName
-dataMod = ModuleName "ferry.Data"
+dataMod = ModuleName "database.DSH.Data"
 
 {-
 N monad, version of the state monad that can provide fresh variable names.
@@ -321,9 +321,9 @@ zipF x y = app (app zipV x) y
 -- Generate proper global names from pseudo qualified variables
 toNameG :: TH.Name -> TH.Name
 toNameG n@(TH.Name (TH.occString -> occN) (TH.NameQ (TH.modString -> m))) =
-  if "ferry" `L.isPrefixOf` m
-      then let pkgN = "Ferry-" ++ showVersion (Ferry.version)
-               modN =  (:) 'F' $ tail m
+  if "database" `L.isPrefixOf` m
+      then let pkgN = "DSH-" ++ showVersion (DSH.version)
+               modN = "Database"  ++ (drop 8 m)
             in TH.mkNameG_v pkgN modN occN
       else n
 toNameG n = n

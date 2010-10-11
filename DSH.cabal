@@ -1,0 +1,50 @@
+Name:                DSH
+Version:             0.1
+Synopsis:            Database Supported Haskell
+Description:         Database Supported Haskell
+License:             BSD3
+License-file:        LICENSE
+Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
+Maintainer:          giorgidze@gmail.com
+Stability:           Experimental
+Category:            Database
+Build-type:          Simple
+
+-- Extra-source-files:
+
+Cabal-version:       >=1.2
+
+Library
+  Build-depends:     base >= 4,
+                     time >= 1.2,
+                     containers >= 0.3.0.0,
+                     template-haskell >= 2.4.0.0,
+                     mtl >= 1.1.0.0,
+                     syb >=0.1.0.2,
+                     bytestring >= 0.9,
+                     
+                     haskell-src-exts >= 1.9.0,
+                     syntax-trees >= 0.1.2,
+                     HDBC >= 2.2,
+                     convertible >= 0.1,
+                     HaXml >= 1.20.2,
+                     text >= 0.8.1.0,
+
+                     Ferryc >= 0.2.2,
+                     Pathfinder >= 0.2
+
+  Hs-Source-Dirs:    src
+
+  GHC-Options:       -Wall -fno-warn-orphans -O3
+
+  Exposed-modules:   Database.DSH
+                     Database.DSH.Compiler
+                     Database.DSH.Interpreter
+
+  Other-modules:     Database.DSH.QQ
+                     Database.DSH.Impossible
+                     Database.DSH.Combinators
+                     Database.DSH.TH
+                     Database.DSH.Data
+                     Database.DSH.Compile
+                     Paths_DSH

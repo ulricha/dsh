@@ -2,15 +2,20 @@
 -- This module is intended to be imported @qualified@, to avoid name clashes
 -- with "Prelude" functions. For example:
 --
--- > import qualified Ferry as Q
--- > import Ferry (Q)
+-- > import qualified Database.DSH as Q
+-- > import Database.DSH (Q)
+--
+-- Alternatively you can hide "Prelude" and import this module like this:
+-- > import Prelude ()
+-- > import Database.DSH
 
-module Ferry
+module Database.DSH
   (
-    module Ferry.Combinators
+    module Database.DSH.Combinators
 
     -- * Data Types
   , Q
+  , Time
 
     -- * Type Classes
   , QA
@@ -25,24 +30,19 @@ module Ferry
   , createTableRepresentation'
   
   , module Data.Text
-  , module Data.Time
   , module Database.HDBC
   , module Prelude
-  , Time
   )
   where
 
-import Ferry.Data (Q,QA,TA,table,BasicType,View,view,fromView)
-import Ferry.QQ (qc)
-import Ferry.TH (createTableRepresentation, createTableRepresentation')
+import Database.DSH.Data (Q,QA,TA,Time,table,BasicType,View,view,fromView)
+import Database.DSH.QQ (qc)
+import Database.DSH.TH (createTableRepresentation, createTableRepresentation')
 
-import Ferry.Combinators
+import Database.DSH.Combinators
 
 import Data.Text (Text)
-import Data.Time (UTCTime)
 import Database.HDBC
 import Prelude(Eq,Ord,Show,Bool,Char,Integer,Double,IO)
-
-type Time = UTCTime
 
 
