@@ -30,7 +30,7 @@ import Data.Convertible
 import Data.List
 import Database.HDBC
 import Data.Text (Text)
-import Data.Time (UTCTime)
+-- import Data.Time (UTCTime)
 import GHC.Exts
 
 import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify, Type, ListT)
@@ -483,7 +483,7 @@ createTableRepresentation conn t dname dnames = do
                       CharT       -> ConT ''Char
                       DoubleT     -> ConT ''Double
                       TextT       -> ConT ''Text
-                      TimeT       -> ConT ''UTCTime
+                      TimeT       -> ConT ''Time
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')

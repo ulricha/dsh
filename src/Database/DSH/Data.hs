@@ -10,10 +10,10 @@ import Database.HDBC
 import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
 import Data.Text as T (Text(), pack, unpack)
-import Data.Time
+-- import Data.Time
 import GHC.Exts
 
-type Time = UTCTime
+type Time = Integer
 type Real = Double
 
 data Exp =
@@ -64,7 +64,7 @@ data Norm =
   | IntegerN Integer Type
   | DoubleN Double Type
   | TextN Text Type
-  | TimeN UTCTime Type
+  | TimeN Time Type
   | TupleN Norm Norm Type
   | ListN [Norm] Type
   deriving (Eq, Ord, Show, Typeable)
@@ -159,11 +159,11 @@ instance QA Text where
     fromNorm (TextN t TextT) = t
     fromNorm _ = $impossible
 
-instance QA UTCTime where
-    reify _ = TimeT
-    toNorm t = TimeN t TimeT
-    fromNorm (TimeN t TimeT) = t
-    fromNorm _ = $impossible
+-- instance QA Time where
+--     reify _ = TimeT
+--     toNorm t = TimeN t TimeT
+--     fromNorm (TimeN t TimeT) = t
+--     fromNorm _ = $impossible
 
 
 instance (QA a,QA b) => QA (a,b) where
@@ -186,7 +186,7 @@ instance BasicType Char where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
-instance BasicType UTCTime where
+-- instance BasicType Time where
 
 -- * Refering to Real Database Tables
 
@@ -265,9 +265,9 @@ instance View (Q Text) (Q Text) where
   view = id
   fromView = id
 
-instance View (Q Time) (Q Time) where
-  view = id
-  fromView = id
+-- instance View (Q Time) (Q Time) where
+--   view = id
+--   fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
   view (Q a) = (Q (AppE1 Fst a (reify (undefined :: a))), Q (AppE1 Snd a (reify (undefined :: b))))
@@ -342,8 +342,8 @@ instance Convertible SqlValue Norm where
              SqlChar c          -> Right $ CharN c CharT
              SqlString t        -> Right $ TextN (pack t) TextT
              SqlByteString s    -> Right $ TextN (pack (B.unpack s)) TextT
-             SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
-             SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
+             -- SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
+             -- SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
              _                  -> convError "Unsupported `SqlValue'" sql
 
 instance Convertible Norm SqlValue where
@@ -355,7 +355,7 @@ instance Convertible Norm SqlValue where
              BoolN b _           -> Right $ SqlBool b
              CharN c _           -> Right $ SqlChar c
              TextN t _           -> Right $ SqlString $ T.unpack t
-             TimeN t _           -> Right $ SqlUTCTime t
+             TimeN _t _          -> convError "Cannot convert `Norm' to `SqlValue'" n -- Right $ SqlUTCTime t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
 
