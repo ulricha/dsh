@@ -8,7 +8,7 @@ import Prelude ()
 import qualified Prelude as P
 
 import Database.DSH
-import Database.DSH.Compiler (fromQ)
+import Database.DSH.Compiler (fromQ,debugFromQ)
 
 import Math.Statistics
 import qualified Data.List as L
@@ -57,7 +57,7 @@ threadInteractivityAndRatings =
 main = do
   conn <- getConnection
   
-  irs <- fromQ conn (threadInteractivityAndRatings)
+  irs <- debugFromQ conn (threadInteractivityAndRatings)
   
   P.putStr "Correlation Coefficient = "
   P.print ((P.uncurry pearson) (P.unzip (L.sort irs)))

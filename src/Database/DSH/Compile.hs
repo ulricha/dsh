@@ -29,9 +29,10 @@ data SchemaInfo = SchemaInfo {iterN :: String, items :: [(String, Int)]}
 data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
  deriving Show
 
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
-executePlan c p = do
-                        sql@(SQL _) <- algToSQL p
+executePlan :: forall a. forall conn. (QA a, IConnection conn) => Bool -> conn -> AlgebraXML a -> IO Norm
+executePlan debug c p = do
+                        sql@(SQL s) <- algToSQL p
+                        when debug (writeFile "query.sql" s)
                         runSQL c $ extractSQL sql
 
 algToSQL :: AlgebraXML a -> IO (SQLXML a)

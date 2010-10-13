@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
 
-module Database.DSH.Compiler (fromQ) where
+module Database.DSH.Compiler (debugFromQ, fromQ) where
 
 import Database.DSH.Data as D
 import Database.DSH.Impossible
@@ -56,18 +56,25 @@ runN :: IConnection conn => conn -> N conn a -> IO a
 runN c  = liftM fst . flip runStateT (c, 1, M.empty)
             
 -- * Convert DB queries into Haskell values
+fromQ' :: (QA a, IConnection conn) => Bool -> conn -> Q a -> IO a
+fromQ' d c a = evaluate d c a >>= (return . fromNorm)
+
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c a = evaluate c a >>= (return . fromNorm)
+fromQ = fromQ' False 
+
+debugFromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+debugFromQ = fromQ' True
 
 evaluate :: forall a. forall conn. (QA a, IConnection conn)
-         => conn                -- ^ The HDBC connection
+         => Bool
+         -> conn
          -> Q a
          -> IO Norm
-evaluate c q = do
-                do
+evaluate d c q = do
                   algPlan' <- doCompile c q
+                  when d (writeFile "plan.xml" algPlan')
                   let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
-                  executePlan c algPlan
+                  executePlan d c algPlan
                    
 doCompile :: IConnection conn => conn -> Q a -> IO String
 doCompile c (Q a) = do 
