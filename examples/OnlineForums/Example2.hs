@@ -14,10 +14,12 @@ import Math.Statistics
 import qualified Data.List as L
 
 threads :: Q [Thread]
-threads = table "spiegelThreads"
+-- threads = table "spiegelThreads"
+threads = tableWithKeys "spiegelThreads" [["spiegelThreadUrl"]]
 
 posts :: Q [Post]
-posts = table "spiegelPosts"
+-- posts = table "spiegelPosts"
+posts = tableWithKeys "spiegelPosts" [["spiegelPostUrl"]]
 
 quotes :: Q [Quote]
 quotes = table "spiegelQuotes"
@@ -42,7 +44,7 @@ threadsAndPosts =
       | thread <- threadsWithRating
       , post   <- posts
       , spiegelThreadUrlQ thread == spiegelPostThreadUrlQ post
-      , then group by thread
+      , then group by (spiegelThreadUrlQ thread) -- thread
   |]
 
 threadInteractivityAndRatings =
