@@ -48,7 +48,7 @@ threadsAndPosts =
 threadInteractivityAndRatings =
   [$qc| fromView (interactivity , rating)
       | (thread,posts) <- threadsAndPosts
-      , let interactivity = sum (map containsQuotes posts) P./ integerToDouble (length posts)
+      , let interactivity = sum (map containsQuotes posts) / integerToDouble (length posts)
       , let rating        = spiegelThreadRatingQ thread
   |]
 

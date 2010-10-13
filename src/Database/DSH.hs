@@ -43,6 +43,6 @@ import Database.DSH.Combinators
 
 import Data.Text (Text)
 import Database.HDBC
-import Prelude(Eq,Ord,Show,Bool,Char,Integer,Double,IO)
+import Prelude(Eq,Ord,Show(..),Num(..),Fractional(..),Bool,Char,Integer,Double,IO)
 
 
