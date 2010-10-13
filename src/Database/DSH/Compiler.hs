@@ -66,7 +66,7 @@ evaluate :: forall a. forall conn. (QA a, IConnection conn)
 evaluate c q = do
                 do
                   algPlan' <- doCompile c q
-                  let algPlan = ((C.Algebra algPlan')::AlgebraXML a)
+                  let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
                   executePlan c algPlan
                    
 doCompile :: IConnection conn => conn -> Q a -> IO String

@@ -191,10 +191,11 @@ instance BasicType Text where
 -- * Refering to Real Database Tables
 
 class (QA a) => TA a where
-  table :: String -> Q [a]
-  table s = Q (TableE s [] (reify (undefined :: [a])))
   tableWithKeys :: String -> [[String]] -> Q [a]
   tableWithKeys s ks = Q (TableE s ks (reify (undefined :: [a])))
+
+table :: (TA a) => String -> Q [a]
+table s = tableWithKeys s []
 
 instance TA () where
 instance TA Bool where
