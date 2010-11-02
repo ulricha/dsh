@@ -1,0 +1,20 @@
+Name:                DSH-Pathfinder
+Version:             0.2
+Synopsis:            Pathfinder FFI bindings
+Description:         Pathfinder FFI bindings
+License:             BSD3
+License-file:        LICENSE
+Author:              Nils Schweinsberg and George Giorgidze
+Maintainer:          giorgidze@gmail.com
+Stability:           Experimental
+Category:            Database
+Build-type:          Simple
+
+Cabal-version:       == 1.8.*
+
+Library
+  Build-depends:     base == 4.2.*, text == 0.10.*, bytestring == 0.9.*
+  Hs-Source-Dirs:    src
+  GHC-Options:       -Wall -O3
+  Extra-libraries:   pf_ferry
+  Exposed-modules:   Database.DSH.Pathfinder
