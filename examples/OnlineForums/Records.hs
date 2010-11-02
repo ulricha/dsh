@@ -1,6 +1,11 @@
-{-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, QuasiQuotes, OverloadedStrings, NoMonomorphismRestriction #-}
 
 module Records where
+
+import Prelude ((.))
+import qualified Prelude as P
+
+import Database.DSH
 
 import Database.DSH
 import Database.HDBC.PostgreSQL
@@ -24,3 +29,8 @@ $(createTableRepresentation
 $(createTableRepresentation
       (connectPostgreSQL "user = 'postgres' host = 'localhost' dbname = 'onlineForums'")
       "spiegelQuotes" "Quote" [''Show,''Eq,''Ord])
+      
+      
+count  = integerToDouble . length
+tuple = fromView
+

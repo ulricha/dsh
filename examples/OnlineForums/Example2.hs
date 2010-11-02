@@ -16,7 +16,23 @@ import qualified Data.List as L
 
 
 -- Relation between interactivity and rating
--- 
+
+
+threads :: Q [Thread]
+threads = table "spiegelThreads"
+
+posts :: Q [Post]
+posts = table "spiegelPosts"
+
+quotes :: Q [Quote]
+quotes = table "spiegelQuotes"
+
+
+-- We would need a Pearson correlation coefficient (plus significance).
+-- This would allow us to see whether interactivity [spiegelThreadInteractivity]
+-- is positively correlated with the average rating of the thread
+-- [spiegelThreadRating].
+--
 -- For instance, when readers rate a thread positively, they could do it because
 -- of the topic (it’s a fascinating or important topic), but they could also do
 -- it because of the quality of the discussion itself. A potential marker of a
@@ -33,29 +49,11 @@ import qualified Data.List as L
 -- 
 -- For the analysis of this research question we would further have to
 -- exclude all threads that did not receive a rating [spiegelThreadRating].
--- 
--- Finally, we would need a Pearson correlation coefficient (plus significance).
--- This would allow us to see whether interactivity [spiegelThreadInteractivity]
--- is positively correlated with the average rating of the thread
--- [spiegelThreadRating].
 
-threads :: Q [Thread]
--- threads = table "spiegelThreads"
-threads = tableWithKeys "spiegelThreads" [["spiegelThreadUrl"]]
-
-posts :: Q [Post]
--- posts = table "spiegelPosts"
-posts = tableWithKeys "spiegelPosts" [["spiegelPostUrl"]]
-
-quotes :: Q [Quote]
-quotes = table "spiegelQuotes"
 
 threadsWithRating =
-  [$qc| t
-      | t <- threads
-      , (spiegelThreadRatingQ t) > 0
-  |]
-
+  [$qc|  t | t <- threads , spiegelThreadRatingQ t > 0  |]
+  
 postQuotes post =
   [$qc| q
       | q <- quotes
@@ -66,17 +64,17 @@ containsQuotes post =
   (length (postQuotes post) > 0) ? (1,0)
 
 threadsAndPosts = 
-  [$qc| fromView (the thread, post)
+  [$qc| tuple (the thread, post)
       | thread <- threadsWithRating
       , post   <- posts
       , spiegelThreadUrlQ thread == spiegelPostThreadUrlQ post
-      , then group by (spiegelThreadUrlQ thread) -- thread
+      , then group by thread
   |]
 
 threadInteractivityAndRatings =
-  [$qc| fromView (interactivity , rating)
+  [$qc| tuple (interactivity, rating)
       | (thread,posts) <- threadsAndPosts
-      , let interactivity = sum (map containsQuotes posts) / integerToDouble (length posts)
+      , let interactivity = sum (map containsQuotes posts) / count posts
       , let rating        = spiegelThreadRatingQ thread
   |]
 
