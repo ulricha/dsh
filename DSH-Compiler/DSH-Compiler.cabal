@@ -1,0 +1,36 @@
+Name:                DSH-Compiler
+Version:             0.2
+Synopsis:            Database Supported Haskell (Compiler)
+Description:         Database Supported Haskell (Compiler)
+License:             BSD3
+License-file:        LICENSE
+Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
+Maintainer:          giorgidze@gmail.com
+Stability:           Experimental
+Category:            Database
+Build-type:          Simple
+
+-- Extra-source-files:
+
+Cabal-version:       == 1.8.*
+
+Library
+  Build-depends:     base == 4.2.*,
+                     containers == 0.3.*,
+                     syb == 0.1.*,
+                     mtl == 1.1.*,
+                     text == 0.10.*,
+                     HDBC == 2.2.*,
+                     convertible == 1.0.*,
+                     HaXml == 1.20.*,
+                     Ferryc == 0.2.*,
+                     Pathfinder == 0.2.*,
+                     DSH == 0.2.*
+
+  Hs-Source-Dirs:    src
+
+  GHC-Options:       -Wall -fno-warn-orphans -O3
+
+  Exposed-modules:   Database.DSH.Compiler
+
+  Other-modules:     Database.DSH.Compile
