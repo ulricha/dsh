@@ -4,7 +4,7 @@ module Database.DSH.Compile where
 import Database.DSH.Data
 import Database.DSH.Impossible
 
-import Database.Pathfinder
+import Database.DSH.Pathfinder
 
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing, isJust)
