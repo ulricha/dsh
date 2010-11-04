@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell #-}
 module Test where
 
-import qualified Database.DSH as Q    
-import Database.DSH (Q,toQ,view,fromView,table,qc)
-import Database.DSH.Interpreter (fromQ)
+import Prelude ()
+import Database.DSH
+import Database.DSH.Interpreter
 
 import Database.HDBC.PostgreSQL
 
@@ -12,7 +12,7 @@ conn :: Connection
 conn = undefined
 
 test :: IO [Integer]
-test = fromQ conn $ Q.map (\(view -> (e,t)) -> e) $ toQ [(1,True), (3,False)]
+test = fromQ conn $ map (\(view -> (e,t)) -> e) $ toQ [(1,True), (3,False)]
 
 
 ints :: Q [Integer]
@@ -21,9 +21,9 @@ ints = toQ [1,2,3]
 test2 :: Q [Integer]
 test2 = [$qc| x + y | x <- ints, toQ True, let y = 5 |]
 
-test4 = [$qc| x | x <- ints, then Q.tail |]
+test4 = [$qc| x | x <- ints, then tail |]
 
-test5 = [$qc| Q.fromView (x,y,z) | x <- ints | y <- ints, z <- ints, y Q.== z Q.&& y `Q.eq` z |]
+test5 = [$qc| fromView (x,y,z) | x <- ints | y <- ints, z <- ints, y == z && y `eq` z |]
 
 main :: IO ()
 main = do

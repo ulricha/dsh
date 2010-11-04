@@ -1,13 +1,12 @@
-{-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
+{-# LANGUAGE QuasiQuotes #-}
+
 module PaperExampleF1 where
 
-import qualified Database.DSH as Q    
-import Database.DSH (Q, toQ, view, qc)
-import Database.DSH.Interpreter (fromQ)
+import Prelude ()
+import Database.DSH
+import Database.DSH.Interpreter
 
 import Database.HDBC.PostgreSQL
-import GHC.Exts (the)
-import Data.List (nub)
 
 conn :: Connection
 conn = undefined
@@ -64,18 +63,15 @@ meanings = toQ [("maps","admits user-defined object mappings"),
             ("aval","avoids query avalanches"),
             ("type","is statically type-checked"),
             ("SQL","guarantees translation to SQL")]
-            
--- Haskell version:
 
 hasFeatures :: Q String -> Q [String] 
-hasFeatures f = [$qc|feat | (fac,feat) <- features, fac Q.== f|]
+hasFeatures f = [$qc| feat | (fac,feat) <- features, fac == f |]
 
 means :: Q String -> Q String
-means f = Q.head [$qc| mean | (feat,mean) <- meanings, feat `Q.eq` f |]
+means f = head [$qc| mean | (feat,mean) <- meanings, feat == f |]
 
--- Only need Q.nub combinator
 query :: IO [(String , [String ])] 
-query = fromQ conn [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
+query = fromQ conn [$qc| fromView (the cat, nub $ concat $ map (map means . hasFeatures) fac)
         | (fac, cat) <- facilities, then group by cat |]
         
 main :: IO ()

@@ -1,16 +1,11 @@
-{-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
+{-# LANGUAGE QuasiQuotes #-}
 module PaperExampleF2 where
 
-import qualified Database.DSH as Q    
-import Database.DSH (Q, toQ, view, qc)
-import Database.DSH.Compiler (fromQ)
+import Prelude ()
+import Database.DSH
+import Database.DSH.Compiler
 
-import Database.HDBC
 import Database.HDBC.PostgreSQL
-import GHC.Exts (the)
-import Data.List (nub)
-import Ferry.Compiler
-import Data.Text
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
@@ -21,23 +16,23 @@ type Feature  = Text
 type Meaning  = Text
 
 facilities :: Q [(Cat, Facility)]
-facilities = Q.table "Facilities"
+facilities = table "Facilities"
                
 features :: Q [(Facility, Feature)]
-features = Q.table "Features"
+features = table "Features"
           
 meanings :: Q [(Feature, Meaning)]
-meanings = Q.table "Meanings"
+meanings = table "Meanings"
             
 hasFeatures :: Q Text -> Q [Text] 
-hasFeatures f = [$qc|feat | (fac,feat) <- features, fac Q.== f|]
+hasFeatures f = [$qc| feat | (fac,feat) <- features, fac == f |]
 
 means :: Q Text -> Q Text
-means f = Q.head [$qc| mean | (feat,mean) <- meanings, feat `Q.eq` f |]
+means f = head [$qc| mean | (feat,mean) <- meanings, feat == f |]
 
 query :: Q [(Text , [Text ])] 
-query = [$qc| Q.fromView (Q.the cat, Q.nub $ Q.concat $ Q.map (Q.map means . hasFeatures) fac) 
-                        | (cat, fac) <- facilities, then group by cat |]
+query = [$qc| fromView (the cat, nub $ concat $ map (map means . hasFeatures) fac) 
+                       | (cat, fac) <- facilities, then group by cat |]
 main :: IO ()
 main = do
   conn <- getConn

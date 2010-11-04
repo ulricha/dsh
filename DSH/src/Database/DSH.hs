@@ -6,8 +6,12 @@
 -- > import Database.DSH (Q)
 --
 -- Alternatively you can hide "Prelude" and import this module like this:
+--
 -- > import Prelude ()
 -- > import Database.DSH
+--
+-- In this case you still get Prelude definitions that are not provided
+-- by Database.DSH.
 
 module Database.DSH
   (
@@ -28,7 +32,7 @@ module Database.DSH
     -- * Template Haskell: Creating Table Representations
   , createTableRepresentation
   , createTableRepresentation'
-  
+
   , module Data.Text
   , module Database.HDBC
   , module Prelude
@@ -43,6 +47,50 @@ import Database.DSH.Combinators
 
 import Data.Text (Text)
 import Database.HDBC
-import Prelude(Eq,Ord,Show(..),Num(..),Fractional(..),Bool,Char,Integer,Double,IO)
 
-
+import Prelude hiding (
+    not
+  , (&&)
+  , (||)
+  , (==)
+  , (/=)
+  , (<)
+  , (<=)
+  , (>=)
+  , (>)
+  , head
+  , tail
+  , take
+  , drop
+  , map
+  , filter
+  , last
+  , init
+  , null
+  , length
+  , (!!)
+  , reverse
+  , and
+  , or
+  , any
+  , all
+  , sum
+  , product
+  , concat
+  , concatMap
+  , maximum
+  , minimum
+  , replicate
+  , splitAt
+  , takeWhile
+  , dropWhile
+  , span
+  , break
+  , elem
+  , notElem
+  , zip
+  , zipWith
+  , unzip
+  , fst
+  , snd
+  )

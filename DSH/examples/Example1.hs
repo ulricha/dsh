@@ -2,9 +2,10 @@
 
 module Main where
 
-import qualified Database.DSH as Q
-import Database.DSH (Q,toQ,view,fromView,table,qc)
-import Database.DSH.Interpreter (fromQ)
+import Prelude ()
+
+import Database.DSH
+import Database.DSH.Interpreter
 
 import Database.HDBC.PostgreSQL
 
@@ -17,20 +18,20 @@ employees = toQ [
   , ("Paul",   "Yale", 60)
   ]
 
-q1 = Q.map (\(view->(n,_,s)) -> Q.fromView (s,n)) employees
-q2 = Q.sortWith id q1
-q3 = Q.append q1 q2
-q4 = Q.groupWith Q.fst q1
-q5 = Q.map (+ 42) (toQ [1 .. 10 :: Integer])
+q1 = map (\(view->(n,_,s)) -> fromView (s,n)) employees
+q2 = sortWith id q1
+q3 = append q1 q2
+q4 = groupWith fst q1
+q5 = map (+ 42) (toQ [1 .. 10 :: Integer])
 
 q6 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
 q7 :: Q [(String, Integer)]
-q7 = [$qc| Q.fromView (Q.the dept, Q.sum salary)
+q7 = [$qc| fromView (the dept, sum salary)
          | (name, dept, salary) <- employees
          , then group by dept
-         , then Q.sortWith by (Q.sum salary)
-         , then Q.take 5 |]
+         , then sortWith by (sum salary)
+         , then take 5 |]
 
 conn :: Connection
 conn = undefined

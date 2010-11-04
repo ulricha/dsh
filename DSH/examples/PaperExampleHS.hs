@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, QuasiQuotes, TemplateHaskell, TransformListComp #-}
+{-# LANGUAGE TransformListComp #-}
 module PaperExampleHS where
     
 import GHC.Exts (the)
@@ -56,8 +56,6 @@ meanings = [("maps","admits user-defined object mappings"),
             ("aval","avoids query avalanches"),
             ("type","is statically type-checked"),
             ("SQL","guarantees translation to SQL")]
-            
--- Haskell version:
 
 hasFeatures :: String -> [String] 
 hasFeatures f = [feat | (fac,feat) <- features, fac == f]
