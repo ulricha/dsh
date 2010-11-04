@@ -18,7 +18,7 @@ employees = toQ [
   , ("Paul",   "Yale", 60)
   ]
 
-q1 = map (\(view->(n,_,s)) -> fromView (s,n)) employees
+q1 = map (\(view->(n,_,s)) -> tuple (s,n)) employees
 q2 = sortWith id q1
 q3 = append q1 q2
 q4 = groupWith fst q1
@@ -27,7 +27,7 @@ q5 = map (+ 42) (toQ [1 .. 10 :: Integer])
 q6 = [$qc| e | e <- (toQ "foo"), let a = e |]
 
 q7 :: Q [(String, Integer)]
-q7 = [$qc| fromView (the dept, sum salary)
+q7 = [$qc| tuple (the dept, sum salary)
          | (name, dept, salary) <- employees
          , then group by dept
          , then sortWith by (sum salary)

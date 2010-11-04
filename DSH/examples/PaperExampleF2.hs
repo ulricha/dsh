@@ -31,8 +31,9 @@ means :: Q Text -> Q Text
 means f = head [$qc| mean | (feat,mean) <- meanings, feat == f |]
 
 query :: Q [(Text , [Text ])] 
-query = [$qc| fromView (the cat, nub $ concat $ map (map means . hasFeatures) fac) 
-                       | (cat, fac) <- facilities, then group by cat |]
+query = [$qc| tuple (the cat, nub $ concat $ map (map means . hasFeatures) fac) 
+            | (cat, fac) <- facilities, then group by cat |]
+
 main :: IO ()
 main = do
   conn <- getConn

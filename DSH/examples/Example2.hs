@@ -23,7 +23,7 @@ test2 = [$qc| x + y | x <- ints, toQ True, let y = 5 |]
 
 test4 = [$qc| x | x <- ints, then tail |]
 
-test5 = [$qc| fromView (x,y,z) | x <- ints | y <- ints, z <- ints, y == z && y `eq` z |]
+test5 = [$qc| tuple (x,y,z) | x <- ints | y <- ints, z <- ints, y == z && y `eq` z |]
 
 main :: IO ()
 main = do

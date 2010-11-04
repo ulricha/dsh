@@ -71,7 +71,7 @@ means :: Q String -> Q String
 means f = head [$qc| mean | (feat,mean) <- meanings, feat == f |]
 
 query :: IO [(String , [String ])] 
-query = fromQ conn [$qc| fromView (the cat, nub $ concat $ map (map means . hasFeatures) fac)
+query = fromQ conn [$qc| tuple (the cat, nub $ concat $ map (map means . hasFeatures) fac)
         | (fac, cat) <- facilities, then group by cat |]
         
 main :: IO ()

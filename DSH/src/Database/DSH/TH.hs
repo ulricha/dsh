@@ -16,8 +16,8 @@ module Database.DSH.TH
     , deriveTAForRecord
     , deriveTAForRecord'
 
-    , createTableRepresentation
-    , createTableRepresentation'
+    , generateRecords
+    , generateInstances
     ) where
 
 
@@ -441,24 +441,25 @@ recordQSelectors' q = q >>= fmap join . mapM addSel
 -- * Exported enduser functions
 --
 
--- | Lookup a table and create its data type representation
+-- | Lookup a database table, create corresponding Haskell record data types
+-- and generate QA and View instances
 --
 -- Example usage:
 --
--- > $(createTableRepresentation myConnection "t_user" "User" [''Show, ''Eq])
+-- > $(generateRecords myConnection "users" "User" [''Show,''Eq])
 --
--- Note that this representation is created on compile time, not on run time!
-createTableRepresentation :: (IConnection conn)
-                          => (IO conn)  -- ^ Database connection
-                          -> String     -- ^ Table name
-                          -> String     -- ^ Data type name for each row of the table
-                          -> [Name]     -- ^ Default deriving instances
-                          -> TH.Q [Dec]
-createTableRepresentation conn t dname dnames = do
+-- Note that the da is created at compile time, not at run time!
+generateRecords :: (IConnection conn)
+                    => (IO conn)  -- ^ Database connection
+                    -> String     -- ^ Table name
+                    -> String     -- ^ Data type name for each row of the table
+                    -> [Name]     -- ^ Default deriving instances
+                    -> TH.Q [Dec]
+generateRecords conn t dname dnames = do
     tdesc <- runIO $ do
         c <- conn
         describeTable c t
-    createTableRepresentation' $ createDataType (sortWith fst tdesc)
+    generateInstances (createDataType (sortWith fst tdesc))
 
   where
     createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
@@ -489,35 +490,34 @@ createTableRepresentation conn t dname dnames = do
         in return (mkName n, NotStrict, t')
 
 
--- | Derive all necessary instances for record definitions to represent table
--- values.
+-- | Derive QA and View instances for record definitions
 --
 -- Example usage:
 --
--- > $(createTableRepresentation' [d|
+-- > $(generateInstances [d|
 -- >
 -- >     data User = User
--- >         { user_id    :: Int
--- >         , user_name  :: String
+-- >         { userId    :: Int
+-- >         , userName  :: String
 -- >         }
 -- >
 -- >   |])
 --
--- This creates the following record type, which can be used with the
--- \"ViewPatterns\" pragma:
+-- This generates the following record type, which can be used in view patterns
 --
--- > data V'User = V'User
--- >     { v'user_id    :: Q Int
--- >     , v'user_name  :: Q String
+-- > data UserV = UserV
+-- >     { userIdV    :: Q Int
+-- >     , userNameV  :: Q String
 -- >     }
--- >  -- deriving View (Q User) V'User
 --
--- And the lifted record selectors:
+-- > instance View (Q User) UserV
 --
--- > q'user_id      :: Q User -> Q Int
--- > q'user_name    :: Q User -> Q String
-createTableRepresentation' :: TH.Q [Dec] -> TH.Q [Dec]
-createTableRepresentation' q = do
+-- and the liftet record selectors:
+--
+-- > userIdQ      :: Q User -> Q Int
+-- > userNameQ    :: Q User -> Q String
+generateInstances :: TH.Q [Dec] -> TH.Q [Dec]
+generateInstances q = do
     d  <- q
     qa <- deriveQAForRecord' q
     v  <- deriveViewForRecord' q

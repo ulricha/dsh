@@ -24,14 +24,14 @@ module Database.DSH
     -- * Type Classes
   , QA
   , TA, table, tableWithKeys, BasicType
-  , View, view,fromView
+  , View, view, fromView, tuple, record
 
     -- * Quasiquoter
   , qc
 
     -- * Template Haskell: Creating Table Representations
-  , createTableRepresentation
-  , createTableRepresentation'
+  , generateRecords
+  , generateInstances
 
   , module Data.Text
   , module Database.HDBC
@@ -39,9 +39,9 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q,QA,TA,Time,table,tableWithKeys,BasicType,View,view,fromView)
+import Database.DSH.Data (Q, QA, TA, Time, table, tableWithKeys, BasicType, View, view, fromView, tuple, record)
 import Database.DSH.QQ (qc)
-import Database.DSH.TH (createTableRepresentation, createTableRepresentation')
+import Database.DSH.TH (generateRecords, generateInstances)
 
 import Database.DSH.Combinators
 

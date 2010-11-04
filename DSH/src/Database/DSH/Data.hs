@@ -242,6 +242,12 @@ class View a b | a -> b, b -> a where
   view :: a -> b
   fromView :: b -> a
 
+tuple :: (View a b) => b -> a
+tuple = fromView
+
+record :: (View a b) => b -> a
+record = fromView
+
 instance View (Q ()) (Q ()) where
   view = id
   fromView = id
