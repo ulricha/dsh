@@ -32,10 +32,10 @@ Library
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
-                     Database.DSH.Impossible
                      Database.DSH.Data
 
   Other-modules:     Database.DSH.QQ
                      Database.DSH.TH
                      Database.DSH.Combinators
+                     Database.DSH.Impossible
                      Paths_DSH

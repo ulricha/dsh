@@ -19,6 +19,7 @@ Library
                      containers == 0.3.*,
                      syb == 0.1.*,
                      mtl == 1.1.*,
+                     template-haskell == 2.4.*,                     
                      text == 0.10.*,
                      HDBC == 2.2.*,
                      convertible == 1.0.*,
@@ -34,3 +35,4 @@ Library
   Exposed-modules:   Database.DSH.Compiler
 
   Other-modules:     Database.DSH.Compile
+                     Database.DSH.Impossible
