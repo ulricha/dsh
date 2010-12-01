@@ -24,7 +24,8 @@ Library
                      convertible == 1.0.*,
                      template-haskell == 2.4.*,
                      haskell-src-exts == 1.9.*,
-                     syntax-trees == 0.1.2
+                     syntax-trees == 0.1.2,
+                     bytestring-csv == 0.1.*
 
   Hs-Source-Dirs:    src
 

@@ -7,6 +7,10 @@ import Database.DSH.Impossible
 
 import Data.Convertible
 import Database.HDBC
+import qualified Data.ByteString.Char8 as BS
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.Text as Text
+import Text.CSV.ByteString
 import GHC.Exts
 
 import Data.List
@@ -342,13 +346,45 @@ evaluate c e = case e of
     (BoolN b2 _) <- evaluate c e2
     return $ BoolN (b1 || b2) BoolT
 
-  TableE (escape -> tName) _ (ListT tType) -> do
+  TableE (TableDB (escape -> tName) _) (ListT tType) -> do
       tDesc <- describeTable c tName
       let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
       let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
       print query
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
-  TableE _ _ _ -> $impossible
+  TableE (TableCSV filename) (ListT tType) -> do
+    contents <- BS.readFile filename 
+    csv  <- case parseCSV contents of
+      Nothing -> fail $ "Can not parse: " ++ filename
+      Just r  -> return r
+    
+    return $ ListN (fmap (csvRecordToNorm tType) csv) (ListT tType)
+    
+  TableE _ _ -> $impossible
+
+
+csvError :: a
+csvError = error "Column type mismatch in CSV file."
+
+csvRecordToNorm :: Type -> [ByteString] -> Norm
+csvRecordToNorm UnitT           []          = UnitN UnitT
+csvRecordToNorm _               []          = csvError
+csvRecordToNorm t               [bs]        = csvFieldToNorm t bs
+csvRecordToNorm (TupleT t1 t2)  (bs : bss)  = TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
+csvRecordToNorm _               _           = csvError
+
+csvFieldToNorm :: Type -> ByteString -> Norm
+csvFieldToNorm t (BS.unpack -> s) = case t of
+  UnitT      -> UnitN             UnitT
+  BoolT      -> BoolN    (read s) BoolT
+  CharT      -> CharN    (head s) CharT
+  IntegerT   -> IntegerN (read s) IntegerT
+  DoubleT    -> DoubleN  (read s) DoubleT
+  TextT      -> TextN    (Text.pack s) TextT 
+  TimeT      -> csvError
+  TupleT _ _ -> csvError
+  ListT _    -> csvError
+  ArrowT _ _ -> csvError
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]

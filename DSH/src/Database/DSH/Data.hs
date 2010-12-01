@@ -31,7 +31,7 @@ data Exp =
   | AppE1 Fun1 Exp Type
   | AppE2 Fun2 Exp Exp Type
   | AppE3 Fun3 Exp Exp Exp Type
-  | TableE String [[String]] Type
+  | TableE Table Type
   | VarE Int Type
    deriving (Data, Typeable)
 
@@ -67,7 +67,7 @@ data Norm =
   | TimeN Time Type
   | TupleN Norm Norm Type
   | ListN [Norm] Type
-  deriving (Eq, Ord, Show, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
 data Type =
     UnitT
@@ -82,6 +82,13 @@ data Type =
   | ArrowT Type Type
   deriving (Eq, Ord, Show, Data, Typeable)
 
+
+data Table =
+    TableDB   String [[String]]
+  | TableCSV  String
+  deriving (Eq, Ord, Show, Data, Typeable)
+  
+  
 typeExp :: Exp -> Type
 typeExp e = case e of
   UnitE t -> t
@@ -98,7 +105,7 @@ typeExp e = case e of
   AppE1 _ _ t -> t
   AppE2 _ _ _ t -> t
   AppE3 _ _ _ _ t -> t
-  TableE _ _ t -> t
+  TableE _ t -> t
   VarE _ t -> t
 
 typeArrowResult :: Type -> Type
@@ -191,11 +198,22 @@ instance BasicType Text where
 -- * Refering to Real Database Tables
 
 class (QA a) => TA a where
-  tableWithKeys :: String -> [[String]] -> Q [a]
-  tableWithKeys s ks = Q (TableE s ks (reify (undefined :: [a])))
+  tablePersistence :: Table -> Q [a]
+  tablePersistence t = Q (TableE t (reify (undefined :: [a])))
+
 
 table :: (TA a) => String -> Q [a]
-table s = tableWithKeys s []
+table = tableDB
+
+tableDB :: (TA a) => String -> Q [a]
+tableDB name = tablePersistence (TableDB name [])
+
+tableWithKeys :: (TA a) => String -> [[String]] -> Q [a]
+tableWithKeys name keys = tablePersistence (TableDB name keys)
+
+tableCSV :: (TA a) => String -> Q [a]
+tableCSV filename = tablePersistence (TableCSV filename)
+
 
 instance TA () where
 instance TA Bool where
