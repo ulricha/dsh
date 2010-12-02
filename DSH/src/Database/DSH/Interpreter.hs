@@ -7,10 +7,8 @@ import Database.DSH.Impossible
 
 import Data.Convertible
 import Database.HDBC
-import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Char8 (ByteString)
 import qualified Data.Text as Text
-import Text.CSV.ByteString
+import Text.CSV (parseCSV)
 import GHC.Exts
 
 import Data.List
@@ -353,34 +351,35 @@ evaluate c e = case e of
       print query
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
   TableE (TableCSV filename) (ListT tType) -> do
-    contents <- BS.readFile filename 
-    csv  <- case parseCSV contents of
-      Nothing -> fail $ "Can not parse: " ++ filename
-      Just r  -> return r
-    
-    return $ ListN (fmap (csvRecordToNorm tType) csv) (ListT tType)
+    contents <- readFile filename 
+    csv  <- case parseCSV filename contents of
+      Left er -> fail (show er)
+      Right r -> return r
+    let csv1 = filter (\l -> not (all null l) || length l > 1) (tail csv)
+    return $ ListN (fmap (csvRecordToNorm tType) csv1) (ListT tType)
     
   TableE _ _ -> $impossible
 
 
 csvError :: a
-csvError = error "Column type mismatch in CSV file."
+csvError = error "Column type mismatch in the CSV file."
 
-csvRecordToNorm :: Type -> [ByteString] -> Norm
+csvRecordToNorm :: Type -> [String] -> Norm
 csvRecordToNorm UnitT           []          = UnitN UnitT
 csvRecordToNorm _               []          = csvError
 csvRecordToNorm t               [bs]        = csvFieldToNorm t bs
-csvRecordToNorm (TupleT t1 t2)  (bs : bss)  = TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
+csvRecordToNorm (TupleT t1 t2)  (bs : bss)  =
+  TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
 csvRecordToNorm _               _           = csvError
 
-csvFieldToNorm :: Type -> ByteString -> Norm
-csvFieldToNorm t (BS.unpack -> s) = case t of
+csvFieldToNorm :: Type -> String -> Norm
+csvFieldToNorm t s = case t of
   UnitT      -> UnitN             UnitT
   BoolT      -> BoolN    (read s) BoolT
   CharT      -> CharN    (head s) CharT
   IntegerT   -> IntegerN (read s) IntegerT
   DoubleT    -> DoubleN  (read s) DoubleT
-  TextT      -> TextN    (Text.pack s) TextT 
+  TextT      -> TextN    (Text.pack s) TextT
   TimeT      -> csvError
   TupleT _ _ -> csvError
   ListT _    -> csvError

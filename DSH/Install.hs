@@ -7,6 +7,7 @@ install = main
 main = do
   _ <- rawSystem "cabal" ["clean"]
   _ <- rawSystem "cabal" ["update"]
+  _ <- rawSystem "cabal" ["install","HDBC-odbc"]
   _ <- rawSystem "cabal" ["install"]
   _ <- rawSystem "cabal" ["clean"]
   return ()
