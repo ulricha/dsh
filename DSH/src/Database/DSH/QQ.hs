@@ -60,9 +60,6 @@ runN = fst . (flip runState 1) . unwrapN
 quoteListCompr :: String -> TH.ExpQ
 quoteListCompr = transform . parseCompr
 
-quoteListComprPat :: String -> TH.PatQ
-quoteListComprPat = undefined
-
 transform :: Exp -> TH.ExpQ
 transform e = case translateExtsToTH . runN $ translateListCompr e of
                 Left err -> error $ show err
@@ -84,16 +81,16 @@ expand :: String -> String
 expand e = '[':(e ++ "]")
 
 ferryHaskell :: TH.QuasiQuoter
-ferryHaskell = TH.QuasiQuoter quoteListCompr quoteListComprPat
+ferryHaskell = TH.QuasiQuoter {TH.quoteExp = quoteListCompr}
 
 qc :: TH.QuasiQuoter
 qc = ferryHaskell
 
 fp :: TH.QuasiQuoter
-fp = TH.QuasiQuoter (return . TH.LitE . TH.StringL . show . parseCompr) undefined
+fp = TH.QuasiQuoter {TH.quoteExp = (return . TH.LitE . TH.StringL . show . parseCompr)}
 
 rw :: TH.QuasiQuoter
-rw = TH.QuasiQuoter (return . TH.LitE . TH.StringL . show . translateExtsToTH . runN . translateListCompr . parseCompr) undefined
+rw = TH.QuasiQuoter {TH.quoteExp = (return . TH.LitE . TH.StringL . show . translateExtsToTH . runN . translateListCompr . parseCompr)}
 
 translateListCompr :: Exp -> N Exp
 translateListCompr (ListComp e q) = do

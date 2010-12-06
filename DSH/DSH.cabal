@@ -12,24 +12,24 @@ Build-type:          Simple
 
 -- Extra-source-files:
 
-Cabal-version:       == 1.8.*
+Cabal-version:       >= 1.2
 
 Library
-  Build-depends:     base == 4.2.*,
-                     syb == 0.1.*,
-                     mtl == 1.1.*,
-                     bytestring == 0.9.*,
-                     text == 0.10.*,
-                     HDBC == 2.2.*,
-                     convertible == 1.0.*,
-                     template-haskell == 2.4.*,
-                     haskell-src-exts == 1.9.*,
-                     syntax-trees == 0.1.2,
-                     csv == 0.1.*
+  Build-depends:     base == 4.*,
+                     syb,
+                     mtl,
+                     bytestring,
+                     text,
+                     HDBC,
+                     convertible,
+                     template-haskell,
+                     haskell-src-exts,
+                     syntax-trees,
+                     csv
 
   Hs-Source-Dirs:    src
 
-  GHC-Options:       -Wall -fno-warn-orphans -O3
+  GHC-Options:       -O3 -Wall 
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
