@@ -1,0 +1,22 @@
+Name:                DSH-Interpreter
+Version:             0.1
+Synopsis:            Interpreted (reference) implementation of DSH
+Description:         Interpreted (reference) implementation of DSH
+License:             BSD3
+License-file:        LICENSE
+Author:              George Giorgidze
+Maintainer:          giorgidze@gmail.com
+Category:            Database
+Build-type:          Simple
+
+-- Extra-source-files:
+
+Cabal-version:       >=1.2
+
+
+Library
+  Build-depends:       base >4 && <5, csv, text, HDBC, convertible, DSH-Core 
+  Hs-Source-Dirs:      src
+
+  Exposed-modules:     Database.DSH.Interpreter
+  -- Other-modules:
