@@ -3,8 +3,7 @@
 
 module Database.DSH.Interpreter (fromQ) where
 
-import Database.DSH.Data
-import Database.DSH.Impossible
+import Database.DSH.Internals
 
 import Data.Convertible
 import Database.HDBC
@@ -351,40 +350,9 @@ evaluate c e = case e of
       let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
       print query
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
-  TableE (TableCSV filename) (ListT tType) -> do
-    contents <- readFile filename 
-    csv  <- case parseCSV filename contents of
-      Left er -> fail (show er)
-      Right r -> return r
-    let csv1 = filter (\l -> not (all null l) || length l > 1) (tail csv)
-    return $ ListN (fmap (csvRecordToNorm tType) csv1) (ListT tType)
-    
+  TableE (TableCSV filename) t -> csvImport filename t
   TableE _ _ -> $impossible
 
-
-csvError :: a
-csvError = error "Column type mismatch in the CSV file."
-
-csvRecordToNorm :: Type -> [String] -> Norm
-csvRecordToNorm UnitT           []          = UnitN UnitT
-csvRecordToNorm _               []          = csvError
-csvRecordToNorm t               [bs]        = csvFieldToNorm t bs
-csvRecordToNorm (TupleT t1 t2)  (bs : bss)  =
-  TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
-csvRecordToNorm _               _           = csvError
-
-csvFieldToNorm :: Type -> String -> Norm
-csvFieldToNorm t s = case t of
-  UnitT      -> UnitN             UnitT
-  BoolT      -> BoolN    (read s) BoolT
-  CharT      -> CharN    (head s) CharT
-  IntegerT   -> IntegerN (read s) IntegerT
-  DoubleT    -> DoubleN  (read s) DoubleT
-  TextT      -> TextN    (Text.pack s) TextT
-  TimeT      -> csvError
-  TupleT _ _ -> csvError
-  ListT _    -> csvError
-  ArrowT _ _ -> csvError
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]
