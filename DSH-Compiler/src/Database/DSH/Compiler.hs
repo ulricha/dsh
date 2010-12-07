@@ -2,8 +2,7 @@
 
 module Database.DSH.Compiler (debugFromQ, fromQ) where
 
-import Database.DSH.Data as D
-import Database.DSH.Impossible
+import Database.DSH.Internals as D
 import Database.DSH.Compile as C
 
 import Ferry.SyntaxTyped  as F
@@ -12,6 +11,7 @@ import Ferry.Compiler
 import qualified Data.Map as M
 import Data.Char
 import Database.HDBC
+import Data.Convertible
 
 import Control.Monad.State
 import Control.Applicative
@@ -163,7 +163,9 @@ transformE (AppE3 f3 e1 e2 e3 ty) = do
                                                              e2')
                                                         e3'
 transformE (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE (TableE (TableCSV _) _) = error $ "Work for George in Database.DSH.Compiler at line 166"
+transformE (TableE (TableCSV filepath) ty) = do
+  norm1 <- lift (csvImport filepath ty)
+  transformE (convert norm1)
 transformE (TableE (TableDB n ks) ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty

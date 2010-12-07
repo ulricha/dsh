@@ -35,4 +35,3 @@ Library
   Exposed-modules:   Database.DSH.Compiler
 
   Other-modules:     Database.DSH.Compile
-                     Database.DSH.Impossible

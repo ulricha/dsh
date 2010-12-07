@@ -1,8 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp #-}
 module Database.DSH.Compile where
 
-import Database.DSH.Data
-import Database.DSH.Impossible
+import Database.DSH.Internals
 
 import Database.DSH.Pathfinder
 
@@ -15,7 +14,7 @@ import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
-import Data.Convertible.Base
+import Data.Convertible
 
 newtype AlgebraXML a = Algebra String
 
