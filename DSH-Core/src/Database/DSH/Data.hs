@@ -383,11 +383,6 @@ instance Convertible Norm SqlValue where
              TimeN _t _          -> convError "Cannot convert `Norm' to `SqlValue'" n -- Right $ SqlUTCTime t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
-
-instance Convertible SqlValue Text where
-    safeConvert n = case safeConvert n of
-                        Right (s::String) -> Right $ T.pack s
-                        _ -> convError "Cannot convert `SqlValue' to `Text'" n
                         
                         
 instance IsString (Q Text) where

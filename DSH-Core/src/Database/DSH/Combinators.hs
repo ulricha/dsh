@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Database.DSH.Combinators where
 

@@ -1,8 +1,9 @@
 {-# LANGUAGE TemplateHaskell, ViewPatterns #-}
+{-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
 module Database.DSH.QQ (qc) where
 
-import Paths_DSH as DSH
+import Paths_DSH_Core as DSH
 import Database.DSH.Impossible
 
 import Language.Haskell.SyntaxTrees.ExtsToTH (translateExtsToTH)
@@ -319,7 +320,7 @@ zipF x y = app (app zipV x) y
 toNameG :: TH.Name -> TH.Name
 toNameG n@(TH.Name (TH.occString -> occN) (TH.NameQ (TH.modString -> m))) =
   if "database" `L.isPrefixOf` m
-      then let pkgN = "DSH-" ++ showVersion (DSH.version)
+      then let pkgN = "DSH-Core" ++ showVersion (DSH.version)
                modN = "Database"  ++ (drop 8 m)
             in TH.mkNameG_v pkgN modN occN
       else n

@@ -1,5 +1,5 @@
-Name:                DSH
-Version:             0.2.1
+Name:                DSH-Core
+Version:             0.2.2
 Synopsis:            Database Supported Haskell
 Description:         Database Supported Haskell
 License:             BSD3
@@ -29,7 +29,7 @@ Library
 
   Hs-Source-Dirs:    src
 
-  GHC-Options:       -O3 -Wall 
+  GHC-Options:       -O3 -Wall
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -39,4 +39,4 @@ Library
                      Database.DSH.TH
                      Database.DSH.Combinators
                      Database.DSH.Impossible
-                     Paths_DSH
+                     Paths_DSH_Core
