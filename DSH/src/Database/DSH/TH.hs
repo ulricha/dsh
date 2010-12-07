@@ -58,12 +58,6 @@ applyChainTupleE :: Name -> [ExpQ] -> ExpQ
 applyChainTupleE n = foldr1 (\e1 e2 -> appE (appE (conE n) e1) e2)
 
 
--- Some Applicative magic :)
-instance Applicative TH.Q where
-    pure  = return
-    (<*>) = ap
-
-
 --------------------------------------------------------------------------------
 -- * QA instances
 --
@@ -221,8 +215,10 @@ generateDeriveTupleViewRange from to =
 
 -- | Derive the 'QA' instance for a record definition.
 deriveQAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveQAForRecord q = (++) <$> q
-                           <*> deriveQAForRecord' q
+deriveQAForRecord q = do 
+  records <- q
+  instances <- deriveQAForRecord' q
+  return (records ++ instances)
 
 -- | Add 'QA' instance to a record without adding the actual data definition.
 -- Usefull in combination with 'deriveQAForRecord''
@@ -289,8 +285,10 @@ deriveQAForRecord' q = do
 -- | Derive the 'View' instance for a record definition. See
 -- 'deriveQAForRecord' for an example.
 deriveViewForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveViewForRecord q = (++) <$> q
-                             <*> deriveViewForRecord' q
+deriveViewForRecord q = do
+  recrods <- q
+  instances <- deriveViewForRecord' q
+  return (recrods ++ instances)
 
 -- | Add 'View' instance to a record without adding the actual data definition.
 -- Usefull in combination with 'deriveQAForRecord''
@@ -384,8 +382,10 @@ deriveViewForRecord' q = do
 
 -- | Derive 'TA' instances
 deriveTAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveTAForRecord q = (++) <$> q
-                           <*> deriveTAForRecord' q
+deriveTAForRecord q = do
+  records <- q
+  instances <- deriveTAForRecord' q
+  return (records ++ instances)
 
 deriveTAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
 deriveTAForRecord' q = q >>= mapM addTA
@@ -405,8 +405,10 @@ deriveTAForRecord' q = q >>= mapM addTA
 
 -- | Create lifted record selectors
 recordQSelectors :: TH.Q [Dec] -> TH.Q [Dec]
-recordQSelectors q = (++) <$> q
-                          <*> recordQSelectors' q
+recordQSelectors q = do
+  recrods <- q
+  selectors <- recordQSelectors' q
+  return (recrods ++ selectors)
 
 recordQSelectors' :: TH.Q [Dec] -> TH.Q [Dec]
 recordQSelectors' q = q >>= fmap join . mapM addSel

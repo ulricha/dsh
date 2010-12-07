@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, ViewPatterns #-}
+{-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
 module Database.DSH.QQ (qc) where
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
 module Database.DSH.Interpreter (fromQ) where
 

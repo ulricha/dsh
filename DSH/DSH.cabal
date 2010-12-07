@@ -29,7 +29,7 @@ Library
 
   Hs-Source-Dirs:    src
 
-  GHC-Options:       -O3 -Wall 
+  GHC-Options:       -O3 -Wall
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
