@@ -6,7 +6,7 @@ import Database.DSH.Data as D
 import Database.DSH.Impossible
 import Database.DSH.Compile as C
 
-import Ferry.Syntax as F
+import Ferry.SyntaxTyped  as F
 import Ferry.Compiler
 
 import qualified Data.Map as M
@@ -163,7 +163,8 @@ transformE (AppE3 f3 e1 e2 e3 ty) = do
                                                              e2')
                                                         e3'
 transformE (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
-transformE (TableE n ks ty) = do
+transformE (TableE (TableCSV _) _) = error $ "Work for George in Database.DSH.Compiler at line 166"
+transformE (TableE (TableDB n ks) ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
@@ -259,15 +260,19 @@ transformOp Gt = Op ">"
 transformOp _ = $impossible
 
 transformF :: (Show f) => f -> FType -> CoreExpr
-transformF f t = Var ([] :=> t) $ (\(x:xs) -> toLower x : xs) $ show f
+transformF f t = Var ([] :=> t) $ (\txt -> case txt of
+                                            (x:xs) -> toLower x : xs
+                                            _      -> $impossible) $ show f
 
 getTableNames :: Exp -> [String]
-getTableNames e = let tables = map (\(TableE n _ _) -> n) $ listify isTable e
+getTableNames e = let tables = map (\t -> case t of
+                                        (TableE (TableDB n _) _) -> n
+                                        _                        -> $impossible) $ listify isTable e
                    in nub tables
     where 
         isTable :: Exp -> Bool
-        isTable (TableE _ _ _) = True
-        isTable _              = False
+        isTable (TableE (TableDB _ _) _) = True
+        isTable _                        = False
         
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]
 getTableInfo c n = do
