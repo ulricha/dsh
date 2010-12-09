@@ -24,7 +24,6 @@ dshPreConf args flags = do
   _ <- requireProgram verbose (simpleProgram "sh")   db
   _ <- requireProgram verbose (simpleProgram "rm")   db
   _ <- requireProgram verbose (simpleProgram "tar")  db
-  _ <- requireProgram verbose (simpleProgram "cd")   db
   _ <- requireProgram verbose (simpleProgram "pwd")  db  
   _ <- requireProgram verbose (simpleProgram "make") db
   _ <- requireProgram verbose (simpleProgram "ar")   db
