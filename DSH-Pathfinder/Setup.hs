@@ -23,6 +23,7 @@ dshPreConf args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
   _ <- requireProgram verbose (simpleProgram "sh")   db
   _ <- requireProgram verbose (simpleProgram "rm")   db
+  _ <- requireProgram verbose (simpleProgram "cp")   db  
   _ <- requireProgram verbose (simpleProgram "tar")  db
   _ <- requireProgram verbose (simpleProgram "pwd")  db  
   _ <- requireProgram verbose (simpleProgram "make") db
@@ -63,7 +64,7 @@ dshPreBuild args flags = do
                , "make install"
                , "cd lib"
                , "ar x libpf_ferry.a"
-               , "ld -r *.o -o C_Pathfinder.o"
+               , "ld -r *.o -o CC_Pathfinder.o"
                ]
   
   writeFile "pathfinder_pre_build.sh" (unlines script)
@@ -84,11 +85,14 @@ dshPostBuild args flsgs desc info = do
 
   let script = [  "ar -r -s "
                   ++ dshBuildDir ++ "/libHSDSH-Pathfinder-" ++ dshVersion ++ ".a "
-                  ++ "pathfinder/lib/C_Pathfinder.o"
+                  ++ " pathfinder/lib/CC_Pathfinder.o "
+               ,  "cp "
+                  ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
+                  ++ "pathfinder/lib/HS_Pathfinder.o"
                ,  "ld -x -r -o "
                   ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
-                  ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
-                  ++ "pathfinder/lib/C_Pathfinder.o"
+                  ++ " pathfinder/lib/HS_Pathfinder.o "
+                  ++ " pathfinder/lib/CC_Pathfinder.o "
                ]
   
   writeFile "pathfinder_post_build.sh" (unlines script)
