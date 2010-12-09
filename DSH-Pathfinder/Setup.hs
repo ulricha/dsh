@@ -37,12 +37,28 @@ dshPreBuild args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
   (sh,_) <- requireProgram verbose (simpleProgram "sh") db
 
-  let dshArch = display buildArch
+  let cflags = case buildArch of
+                  I386   -> "-m32"
+                  X86_64 -> "-m64"
+                  PPC	   -> "-m32"
+                  PPC64	 -> "-m64"
+                  Sparc	 -> "-m64"
+                  Arm	   -> "-m32"
+                  Mips	 -> "-m64"
+                  SH	   -> "-m32"
+                  IA64	 -> "-m64"
+                  S390	 -> "-m32"
+                  Alpha  -> "-m64"
+                  Hppa	 -> "-m64"
+                  Rs6000 -> "-m64"
+                  M68k	 -> "-m32"
+                  Vax    -> "-m32"
+                  _      -> ""
 
   let script = [ "rm -r -f pathfinder"
                , "tar xzf pathfinder.tar.gz"
                , "cd pathfinder"
-               , "export CFLAGS='-arch " ++ dshArch ++ "'"
+               , "export CFLAGS=' " ++ cflags ++ " '"
                , "sh configure --prefix=`pwd` --enable-static --disable-shared"
                , "make"
                , "make install"
