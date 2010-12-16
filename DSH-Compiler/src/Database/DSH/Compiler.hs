@@ -1,5 +1,9 @@
+{- | DSH compiler module exposes the function fromQ that can be used
+to execute DSH programs on a database. It transform the DSH program into
+FerryCore which is then translated into SQL (through a table algebra). 
+The SQL code is executed on the database and then processed to form
+a Haskell value. -}
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
-
 module Database.DSH.Compiler (debugFromQ, fromQ) where
 
 import Database.DSH.Internals as D
@@ -28,17 +32,22 @@ N monad, version of the state monad that can provide fresh variable names.
 -}
 type N conn = StateT (conn, Int, M.Map String [(String, (FType -> Bool))]) IO
 
+-- | Provide a fresh identifier name during compilation
 freshVar :: N conn Int
 freshVar = do
              (c, i, env) <- get
              put (c, i + 1, env)
              return i
-                
+
+-- | Get from the state the connection to the database                
 getConnection :: IConnection conn => N conn conn
 getConnection = do
                  (c, _, _) <- get
                  return c
 
+-- | Lookup information that describes a table. If the information is 
+-- not present in the state then the connection is used to retrieve the
+-- table information from the Database.
 tableInfo :: IConnection conn => String -> N conn [(String, (FType -> Bool))]
 tableInfo t = do
                (c, i, env) <- get
@@ -48,23 +57,36 @@ tableInfo t = do
                                  put (c, i, M.insert t inf env)
                                  return inf                                      
                      Just v -> return v
-                    
+
+-- | Turn a given integer into a variable beginning with prefix "__fv_"                    
 prefixVar :: Int -> String
 prefixVar = ((++) "__fv_") . show
      
+-- | Execute the transformation computation. During
+-- compilation table information can be retrieved from
+-- the database, therefor the result is wrapped in the IO
+-- Monad.      
 runN :: IConnection conn => conn -> N conn a -> IO a
 runN c  = liftM fst . flip runStateT (c, 1, M.empty)
             
 -- * Convert DB queries into Haskell values
+
+-- | Similar to fromQ, gets as an extra argument a boolean determining whether 
+-- debugging is switched on
 fromQ' :: (QA a, IConnection conn) => Bool -> conn -> Q a -> IO a
 fromQ' d c a = evaluate d c a >>= (return . fromNorm)
 
+-- | Execute the Q expression using the given database connection
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ = fromQ' False 
 
+-- | Special debugging version of fromQ that outputs the algebraic plan to a file "plan.xml"
 debugFromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 debugFromQ = fromQ' True
 
+-- | evaluate compiles the given Q query into an executable plan, executes this and returns 
+-- the result as norm. For execution it uses the given connection. If the boolean flag is set
+-- to true it outputs the intermediate algebraic plan to disk.
 evaluate :: forall a. forall conn. (QA a, IConnection conn)
          => Bool
          -> conn
@@ -75,14 +97,14 @@ evaluate d c q = do
                   when d (writeFile "plan.xml" algPlan')
                   let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
                   executePlan d c algPlan
-                   
+
+-- | Transform a query into an algebraic plan.                   
 doCompile :: IConnection conn => conn -> Q a -> IO String
 doCompile c (Q a) = do 
                         core <- runN c $ transformE a
-                        --putStrLn $ dotify' core
                         return $ typedCoreToAlgebra core
 
-
+-- | Transform the Query into a ferry core program.
 transformE :: IConnection conn => Exp -> N conn CoreExpr
 transformE (UnitE _) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b _) = return $ Constant ([] :=> bool) $ CBool b
@@ -164,8 +186,10 @@ transformE (AppE3 f3 e1 e2 e3 ty) = do
                                                         e3'
 transformE (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
 transformE (TableE (TableCSV filepath) ty) = do
-  norm1 <- lift (csvImport filepath ty)
-  transformE (convert norm1)
+                                              norm1 <- lift (csvImport filepath ty)
+                                              transformE (convert norm1)
+-- When a table node is encountered check that the given description
+-- matches the actual table information in the database.
 transformE (TableE (TableDB n ks) ty) = do
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
@@ -203,6 +227,7 @@ transformE (TableE (TableDB n ks) ty) = do
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE (LamE _ _) = $impossible
 
+-- | Transform a function argument
 transformArg :: IConnection conn => Exp -> N conn Param                                 
 transformArg (LamE f ty) = do
                                   n <- freshVar
@@ -211,10 +236,10 @@ transformArg (LamE f ty) = do
                                   let e1 = f $ VarE n t1
                                   ParAbstr ([] :=> fty) (PVar $ prefixVar n) <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
-                                  
-parExpr :: CoreExpr -> Param
-parExpr c = ParExpr (typeOf c) c
 
+-- | Construct a flat-FerryCore type out of a DSH type
+-- A flat type consists out of two tuples, a record is translated as:
+-- {r1 :: t1, r2 :: t2, r3 :: t3, r4 :: t4} (t1, (t2, (t3, t4)))
 flatFTy :: Type -> FType
 flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
  where
@@ -223,10 +248,12 @@ flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
      flatFTy' i ty              = [(RLabel $ show i, transformTy ty)]
 flatFTy _         = $impossible
 
+-- Determine the size of a flat type
 sizeOfTy :: Type -> Int
 sizeOfTy (TupleT _ t2) = 1 + sizeOfTy t2
 sizeOfTy _              = 1 
 
+-- | Transform an arbitrary DSH-type into a ferry core type 
 transformTy :: Type -> FType
 transformTy UnitT = int
 transformTy BoolT = bool
@@ -239,6 +266,7 @@ transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", tr
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 
+-- | Transform a ferry-core type into a DSH-type
 transformTy' :: FType -> Type
 transformTy' FUnit = UnitT
 transformTy' FInt  = IntegerT
@@ -250,6 +278,7 @@ transformTy' (FRec [(RLabel "1", t1), (RLabel "2", t2)]) = TupleT (transformTy' 
 transformTy' (FFn t1 t2) = ArrowT (transformTy' t1) (transformTy' t2)
 transformTy' _ = $impossible
 
+-- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> Op
 transformOp Add = Op "+"
 transformOp Mul = Op "*"
@@ -261,11 +290,14 @@ transformOp Gte = Op ">="
 transformOp Gt = Op ">"
 transformOp _ = $impossible
 
+-- | Transform a DSH-primitive-function (f) with an instantiated typed into a FerryCore
+-- expression
 transformF :: (Show f) => f -> FType -> CoreExpr
 transformF f t = Var ([] :=> t) $ (\txt -> case txt of
                                             (x:xs) -> toLower x : xs
                                             _      -> $impossible) $ show f
 
+-- | Retrieve all DB-table names from a DSH program
 getTableNames :: Exp -> [String]
 getTableNames e = let tables = map (\t -> case t of
                                         (TableE (TableDB n _) _) -> n
@@ -275,7 +307,9 @@ getTableNames e = let tables = map (\t -> case t of
         isTable :: Exp -> Bool
         isTable (TableE (TableDB _ _) _) = True
         isTable _                        = False
-        
+
+-- | Retrieve through the given database connection information on the table (columns with their types)
+-- which name is given as the second argument.        
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]
 getTableInfo c n = do
                     info <- describeTable c n
