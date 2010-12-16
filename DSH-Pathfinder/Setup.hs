@@ -23,8 +23,8 @@ dshPreConf args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
   _ <- requireProgram verbose (simpleProgram "sh")   db
   _ <- requireProgram verbose (simpleProgram "rm")   db
+  _ <- requireProgram verbose (simpleProgram "cp")   db  
   _ <- requireProgram verbose (simpleProgram "tar")  db
-  _ <- requireProgram verbose (simpleProgram "cd")   db
   _ <- requireProgram verbose (simpleProgram "pwd")  db  
   _ <- requireProgram verbose (simpleProgram "make") db
   _ <- requireProgram verbose (simpleProgram "ar")   db
@@ -37,18 +37,34 @@ dshPreBuild args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
   (sh,_) <- requireProgram verbose (simpleProgram "sh") db
 
-  let dshArch = display buildArch
+  let cflags = case buildArch of
+                  I386   -> "-m32"
+                  X86_64 -> "-m64"
+                  PPC	   -> "-m32"
+                  PPC64	 -> "-m64"
+                  Sparc	 -> "-m64"
+                  Arm	   -> "-m32"
+                  Mips	 -> "-m64"
+                  SH	   -> "-m32"
+                  IA64	 -> "-m64"
+                  S390	 -> "-m32"
+                  Alpha  -> "-m64"
+                  Hppa	 -> "-m64"
+                  Rs6000 -> "-m64"
+                  M68k	 -> "-m32"
+                  Vax    -> "-m32"
+                  _      -> ""
 
   let script = [ "rm -r -f pathfinder"
                , "tar xzf pathfinder.tar.gz"
                , "cd pathfinder"
-               , "export CFLAGS='-arch " ++ dshArch ++ "'"
+               , "export CFLAGS=' " ++ cflags ++ " '"
                , "sh configure --prefix=`pwd` --enable-static --disable-shared"
                , "make"
                , "make install"
                , "cd lib"
                , "ar x libpf_ferry.a"
-               , "ld -r *.o -o C_Pathfinder.o"
+               , "ld -r *.o -o CC_Pathfinder.o"
                ]
   
   writeFile "pathfinder_pre_build.sh" (unlines script)
@@ -69,11 +85,14 @@ dshPostBuild args flsgs desc info = do
 
   let script = [  "ar -r -s "
                   ++ dshBuildDir ++ "/libHSDSH-Pathfinder-" ++ dshVersion ++ ".a "
-                  ++ "pathfinder/lib/C_Pathfinder.o"
+                  ++ " pathfinder/lib/CC_Pathfinder.o "
+               ,  "cp "
+                  ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
+                  ++ "pathfinder/lib/HS_Pathfinder.o"
                ,  "ld -x -r -o "
                   ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
-                  ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
-                  ++ "pathfinder/lib/C_Pathfinder.o"
+                  ++ " pathfinder/lib/HS_Pathfinder.o "
+                  ++ " pathfinder/lib/CC_Pathfinder.o "
                ]
   
   writeFile "pathfinder_post_build.sh" (unlines script)
