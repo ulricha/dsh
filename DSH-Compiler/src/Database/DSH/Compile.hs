@@ -161,22 +161,7 @@ processResults i t = do
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
-processResults' q c vals BoolT = do
-                                    i <- getColResPos q c
-                                    return $ map (\val -> convert $ val !! i) vals
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
-processResults' q c vals CharT = do
-                                    i <- getColResPos q c
-                                    return $ map (\val -> convert $ val !! i) vals
-processResults' q c vals TextT = do
-                                    i <- getColResPos q c
-                                    return $ map (\val -> convert $ val !! i) vals
-processResults' q c vals IntegerT = do
-                                     i <- getColResPos q c
-                                     return $ map (\val -> convert $ val !! i) vals
-processResults' q c vals DoubleT = do
-                                    i <- getColResPos q c
-                                    return $ map (\val -> convert $ val !! i) vals
 processResults' q c vals t@(TupleT t1 t2) = do
                                             v1s <- processResults' q c vals t1
                                             v2s <- processResults' q (c + 1) vals t2
@@ -191,6 +176,9 @@ processResults' q c vals t@(ListT _) = do
                                                                 Nothing -> ListN [] t) sur
 processResults' _ _ _ (TimeT) = error "Results processing for time has not been implemented."
 processResults' _ _ _ (ArrowT _ _) = $impossible
+processResults' q c vals t = do
+                                    i <- getColResPos q c
+                                    return $ map (\val -> convert $ (val !! i, t)) vals
 
 
 -- | Partition by iter column
