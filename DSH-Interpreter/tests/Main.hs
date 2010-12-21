@@ -118,10 +118,14 @@ main = do
     quickCheck prop_any_zero
     putStr "all_zero:       "
     quickCheck prop_all_zero
-    putStr "sum:            "
-    quickCheck prop_sum
-    putStr "product:        "
-    quickCheck prop_product
+    putStr "sum_integer:    "
+    quickCheck prop_sum_integer
+    putStr "sum_double:     "
+    quickCheck prop_sum_double
+    putStr "product_integer:"
+    quickCheck prop_product_integer
+    putStr "product_double: "
+    quickCheck prop_product_double
     putStr "concat:         "
     quickCheck prop_concat
     putStr "concatMap:      "
@@ -184,6 +188,36 @@ main = do
     putStrLn "-------------------------"
     putStr "cond:           "
     quickCheck prop_cond
+
+    putStrLn ""
+    putStrLn "Numerical operations:"
+    putStrLn "-------------------------"
+    putStr "add_integer:    "
+    quickCheck prop_add_integer
+    putStr "add_double:     "
+    quickCheck prop_add_double
+    putStr "mul_integer:    "
+    quickCheck prop_mul_integer
+    putStr "mul_double:     "
+    quickCheck prop_mul_double
+    putStr "div_double:     "
+    quickCheck prop_div_double
+    putStr "integer_to_double: "
+    quickCheck prop_integer_to_double    
+    putStr "abs_integer:    "
+    quickCheck prop_abs_integer
+    putStr "abs_double:     "
+    quickCheck prop_abs_double
+    putStr "signum_integer: "
+    quickCheck prop_signum_integer
+    putStr "signum_double:  "
+    quickCheck prop_signum_double
+    putStr "negate_integer: "
+    quickCheck prop_negate_integer
+    putStr "negate_double:  "
+    quickCheck prop_negate_double
+
+
 
 
 runTest :: (Eq b, QA a, QA b)
@@ -370,11 +404,17 @@ prop_any_zero = runTest (Q.any (Q.== 0)) (any (== 0))
 prop_all_zero :: [Integer] -> Property
 prop_all_zero = runTest (Q.all (Q.== 0)) (all (== 0))
 
-prop_sum :: [Integer] -> Property
-prop_sum = runTest Q.sum sum
+prop_sum_integer :: [Integer] -> Property
+prop_sum_integer = runTest Q.sum sum
 
-prop_product :: [Integer] -> Property
-prop_product = runTest Q.product product
+prop_sum_double :: [Double] -> Property
+prop_sum_double = runTest Q.sum sum
+
+prop_product_integer :: [Integer] -> Property
+prop_product_integer = runTest Q.product product
+
+prop_product_double :: [Double] -> Property
+prop_product_double = runTest Q.product product
 
 prop_concat :: [[Integer]] -> Property
 prop_concat = runTest Q.concat concat
@@ -464,6 +504,46 @@ prop_cond :: Bool -> Property
 prop_cond = runTest (Q.cond Q.empty (Q.toQ [0 :: Integer]))
                     (\b -> if b then [] else [0])
 
+--------------------------------------------------------------------------------
+-- Numerical Operations
+
+prop_add_integer :: (Integer,Integer) -> Property
+prop_add_integer = runTest (uncurry_Q (+)) (uncurry (+))
+
+prop_add_double :: (Double,Double) -> Property
+prop_add_double = runTest (uncurry_Q (+)) (uncurry (+))
+
+prop_mul_integer :: (Integer,Integer) -> Property
+prop_mul_integer = runTest (uncurry_Q (*)) (uncurry (*))
+
+prop_mul_double :: (Double,Double) -> Property
+prop_mul_double = runTest (uncurry_Q (*)) (uncurry (*))
+
+prop_div_double :: (Double,Double) -> Property
+prop_div_double (x,y) =
+      y /= 0
+  ==> runTest (uncurry_Q (/)) (uncurry (/)) (x,y)
+
+prop_integer_to_double :: Integer -> Property
+prop_integer_to_double = runTest Q.integerToDouble fromInteger
+
+prop_abs_integer :: Integer -> Property
+prop_abs_integer = runTest Q.abs abs
+
+prop_abs_double :: Double -> Property
+prop_abs_double = runTest Q.abs abs
+
+prop_signum_integer :: Integer -> Property
+prop_signum_integer = runTest Q.signum signum
+
+prop_signum_double :: Double -> Property
+prop_signum_double = runTest Q.signum signum
+
+prop_negate_integer :: Integer -> Property
+prop_negate_integer = runTest Q.negate negate
+
+prop_negate_double :: Double -> Property
+prop_negate_double = runTest Q.negate negate
 
 
 
