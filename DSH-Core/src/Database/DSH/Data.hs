@@ -140,7 +140,7 @@ instance QA Bool where
   reify _ = BoolT
   toNorm b = BoolN b BoolT
   fromNorm (BoolN b BoolT) = b
-  fromNorm _ = $impossible
+  fromNorm v = $impossible
 
 instance QA Char where
   reify _ = CharT
@@ -370,6 +370,28 @@ instance Convertible SqlValue Norm where
              -- SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
              -- SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
              _                  -> convError "Unsupported `SqlValue'" sql
+
+instance Convertible (SqlValue, Type) Norm where
+    safeConvert sql =
+        case sql of
+          (SqlNull, UnitT)         -> Right $ UnitN UnitT
+          (SqlInteger i, IntegerT) -> Right $ IntegerN i IntegerT
+          (SqlInt32 i, IntegerT)   -> Right $ flip IntegerN IntegerT $ convert i
+          (SqlInt64 i, IntegerT)   -> Right $ flip IntegerN IntegerT $ convert i
+          (SqlWord32 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
+          (SqlWord64 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
+          (SqlDouble d, DoubleT)   -> Right $ DoubleN d DoubleT
+          (SqlBool b, BoolT)       -> Right $ BoolN b BoolT
+          (SqlInteger i, BoolT)    -> Right $ BoolN (i == 1) BoolT
+          (SqlInt32 i, BoolT)      -> Right $ BoolN (i == 1) BoolT
+          (SqlInt64 i, BoolT)      -> Right $ BoolN (i == 1) BoolT
+          (SqlWord32 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
+          (SqlWord64 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
+          (SqlString s, TextT)     -> Right $ TextN (pack s) TextT
+          (SqlByteString s, TextT) -> Right $ TextN (pack (B.unpack s)) TextT
+          (SqlChar c, CharT)       -> Right $ CharN c CharT
+          _                        -> $impossible
+        
 
 instance Convertible Norm SqlValue where
     safeConvert n =
