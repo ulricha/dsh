@@ -100,6 +100,26 @@ evaluate c e = case e of
     (ListN as2 _) <- evaluate c (ListE (map (evalLam lam) as1) (ListT (typeArrowResult (typeExp lam))))
     return $ ListN (map fst $ sortWith snd $ zip as1 as2) t
 
+  AppE2 Max e1 e2 IntegerT -> do
+     (IntegerN v1 _) <- evaluate c e1
+     (IntegerN v2 _) <- evaluate c e2
+     return $ IntegerN (max v1 v2) IntegerT
+
+  AppE2 Max e1 e2 DoubleT -> do
+     (DoubleN v1 _) <- evaluate c e1
+     (DoubleN v2 _) <- evaluate c e2
+     return $ DoubleN (max v1 v2) DoubleT
+
+  AppE2 Min e1 e2 IntegerT -> do
+     (IntegerN v1 _) <- evaluate c e1
+     (IntegerN v2 _) <- evaluate c e2
+     return $ IntegerN (min v1 v2) IntegerT
+
+  AppE2 Min e1 e2 DoubleT -> do
+     (DoubleN v1 _) <- evaluate c e1
+     (DoubleN v2 _) <- evaluate c e2
+     return $ DoubleN (min v1 v2) DoubleT
+
   AppE1 The as _ -> do
     (ListN as1 _) <- evaluate c as
     return $ the as1

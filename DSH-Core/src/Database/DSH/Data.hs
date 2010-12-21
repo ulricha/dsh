@@ -50,7 +50,7 @@ data Fun2 =
   | Map | Append | Filter | GroupWith | Zip
   | Elem | Break | Span | DropWhile | TakeWhile
   | SplitAt | Replicate | Equ | Conj | Disj
-  | Lt | Lte | Gte | Gt
+  | Lt | Lte | Gte | Gt | Max | Min
   deriving (Eq, Ord, Show, Data, Typeable)
 
 data Fun3 = Cond | ZipWith

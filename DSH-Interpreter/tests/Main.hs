@@ -1,8 +1,8 @@
 module Main where
 
-import qualified Ferry as Q
+import qualified Database.DSH as Q
 -- import qualified Ferry.HSCompiler as C
-import qualified Ferry.Interpreter as I
+import qualified Database.DSH.Interpreter as I
 
 -- import Database.HDBC (IConnection, disconnect)
 import Database.HDBC.PostgreSQL
