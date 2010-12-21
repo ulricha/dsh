@@ -64,11 +64,20 @@ gt (Q a) (Q b) = Q (AppE2 Gt a b $ reify (undefined :: Bool))
 (>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (>) = gt
 
+min :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
+min (Q a) (Q b) = Q (AppE2 Min a b $ reify (undefined :: a))
+
+max :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
+max (Q a) (Q b) = Q (AppE2 Max a b $ reify (undefined :: a))
+
 
 -- * Conditionals
-    
+
+cond :: (QA a) => Q a -> Q a -> Q Bool -> Q a
+cond a b c = c ? (a,b)
+
 bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
-bool a b c = c ? (a,b)
+bool = cond
 
 (?) :: forall a. (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) (Q c) (Q a,Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))

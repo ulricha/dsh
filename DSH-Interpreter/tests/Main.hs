@@ -1,10 +1,9 @@
 module Main where
 
 import qualified Database.DSH as Q
--- import qualified Ferry.HSCompiler as C
+import Database.DSH (Q, QA)
 import qualified Database.DSH.Interpreter as I
 
--- import Database.HDBC (IConnection, disconnect)
 import Database.HDBC.PostgreSQL
 
 import Test.QuickCheck
@@ -12,6 +11,9 @@ import Test.QuickCheck.Monadic
 
 import Data.List
 import GHC.Exts
+
+import qualified Data.Text as Text
+import Data.Text (Text)
 
 -- getConn :: IO Connection
 -- getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
@@ -22,6 +24,16 @@ main = do
     putStrLn "-------------------------"
     putStr "unit:           "
     quickCheck prop_unit
+    putStr "Bool:           "
+    quickCheck prop_bool
+    putStr "Char:           "
+    quickCheck prop_char
+    putStr "Integer:        "
+    quickCheck prop_integer
+    putStr "Double:         "
+    quickCheck prop_double
+    putStr "Text:           "
+    quickCheck prop_text
 
     putStrLn ""
     putStrLn "Equality & Ordering"
@@ -44,6 +56,16 @@ main = do
     quickCheck prop_gt
     putStr "gte:            "
     quickCheck prop_gte
+    putStr "min_integer:    "
+    quickCheck prop_min_integer
+    putStr "min_double:     "
+    quickCheck prop_min_double
+    putStr "max_integer:    "
+    quickCheck prop_max_integer
+    putStr "max_double:     "
+    quickCheck prop_max_double
+
+
 
     putStrLn ""
     putStrLn "Lists"
@@ -160,17 +182,17 @@ main = do
     putStrLn ""
     putStrLn "Conditionals:"
     putStrLn "-------------------------"
-    putStr "bool:           "
-    quickCheck prop_bool
+    putStr "cond:           "
+    quickCheck prop_cond
 
 
-runTest :: (Eq b, Q.QA a, Q.QA b)
-        => (Q.Q a -> Q.Q b)
+runTest :: (Eq b, QA a, QA b)
+        => (Q a -> Q b)
         -> (a -> b)
         -> a
         -> Property
 runTest q f arg = monadicIO $ do
-    -- c <- run $ getConn
+    -- c  <- run $ getConn
     -- db <- run $ C.fromQ c $ q (Q.toQ arg) 
     it <- run $ I.fromQ (undefined :: Connection) $ q (Q.toQ arg)
     -- run $ disconnect c
@@ -189,9 +211,25 @@ testNotNull q f arg = not (null arg) ==> runTest q f arg
 uncurry_Q :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurry_Q q = uncurry q . Q.view
 
--- Kinda pointless, but meh... :)
 prop_unit :: () -> Property
-prop_unit = runTest (const $ Q.unit) id
+prop_unit = runTest id id
+
+prop_bool :: Bool -> Property
+prop_bool = runTest id id
+
+prop_char :: Char -> Property
+prop_char = runTest id id
+
+prop_integer :: Integer -> Property
+prop_integer = runTest id id
+
+prop_double :: Double -> Property
+prop_double = runTest id id
+
+prop_text :: Text -> Property
+prop_text = runTest id id
+
+
 
 --------------------------------------------------------------------------------
 -- Equality & Ordering
@@ -229,6 +267,17 @@ prop_gt = runTest (uncurry_Q (Q.>)) (uncurry (>))
 prop_gte :: (Integer, Integer) -> Property
 prop_gte = runTest (uncurry_Q (Q.>=)) (uncurry (>=))
 
+prop_min_integer :: (Integer,Integer) -> Property
+prop_min_integer = runTest (uncurry_Q Q.min) (uncurry min)
+
+prop_max_integer :: (Integer,Integer) -> Property
+prop_max_integer = runTest (uncurry_Q Q.max) (uncurry max)
+
+prop_min_double :: (Double,Double) -> Property
+prop_min_double = runTest (uncurry_Q Q.min) (uncurry min)
+
+prop_max_double :: (Double,Double) -> Property
+prop_max_double = runTest (uncurry_Q Q.max) (uncurry max)
 
 --------------------------------------------------------------------------------
 -- Lists
@@ -334,8 +383,6 @@ prop_concatMap :: [Integer] -> Property
 prop_concatMap = runTest (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
 
 
--- maximum & minimum can fail:
-
 prop_maximum :: [Integer] -> Property
 prop_maximum = testNotNull Q.maximum maximum
 
@@ -413,6 +460,12 @@ prop_snd = runTest Q.snd snd
 --------------------------------------------------------------------------------
 -- Conditionals
 
-prop_bool :: Bool -> Property
-prop_bool = runTest (Q.bool Q.empty (Q.toQ [0 :: Integer]))
+prop_cond :: Bool -> Property
+prop_cond = runTest (Q.cond Q.empty (Q.toQ [0 :: Integer]))
                     (\b -> if b then [] else [0])
+
+
+
+
+instance Arbitrary Text where
+  arbitrary = fmap Text.pack arbitrary

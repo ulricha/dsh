@@ -58,6 +58,8 @@ import Prelude hiding (
   , (<=)
   , (>=)
   , (>)
+  , min
+  , max
   , head
   , tail
   , take
