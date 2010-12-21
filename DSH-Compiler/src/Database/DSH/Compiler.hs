@@ -96,7 +96,9 @@ evaluate d c q = do
                   algPlan' <- doCompile c q
                   when d (writeFile "plan.xml" algPlan')
                   let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
-                  executePlan d c algPlan
+                  n <- executePlan d c algPlan
+                  disconnect c
+                  return n
 
 -- | Transform a query into an algebraic plan.                   
 doCompile :: IConnection conn => conn -> Q a -> IO String
