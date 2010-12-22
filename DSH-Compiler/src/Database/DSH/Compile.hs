@@ -102,7 +102,9 @@ runSQL c (Bundle queries) = do
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
                              let ty = reify (undefined :: a)
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
-                             return $ snd $ head results'
+                             return $ case lookup 1 results' of
+                                         Just x -> x 
+                                         Nothing -> ListN [] ty
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
 -- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
@@ -146,7 +148,7 @@ findQuery (q, c) = do
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i ty@(ListT t1) = do
                                 v <- getResults i
-                                itC <- getIterCol i
+                                itC <-  getIterCol i
                                 let partedVals = partByIter itC v
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
