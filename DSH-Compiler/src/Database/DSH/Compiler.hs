@@ -152,6 +152,8 @@ transformE (AppE2 D.Cons e1 e2 _) = do
                                             e2' <- transformE e2
                                             let (_ :=> t) = typeOf e1'
                                             return $ F.Cons ([] :=> list t) e1' e2'
+transformE (AppE2 Append e1 e2 t) = transformE (AppE1 Concat (ListE [e1, e2] (ListT t)) t)
+transformE (AppE2 Snoc e1 e2 t) = transformE (AppE2 Append e1 (ListE [e2] t) t)
 transformE (AppE2 f2 e1 e2 ty) = do
                                         let tr = transformTy ty
                                         case elem f2 [Add, Mul, Div, Equ, Lt, Lte, Gte, Gt, Conj, Disj] of
