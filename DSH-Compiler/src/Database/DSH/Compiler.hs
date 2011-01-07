@@ -153,6 +153,8 @@ transformE (AppE2 D.Cons e1 e2 _) = do
                                             let (_ :=> t) = typeOf e1'
                                             return $ F.Cons ([] :=> list t) e1' e2'
 transformE (AppE2 Append e1 e2 t) = transformE (AppE1 Concat (ListE [e1, e2] (ListT t)) t)
+transformE (AppE2 Any f e _) = transformE $ AppE1 Or (AppE2 Map f e $ ListT BoolT) BoolT
+transformE (AppE2 All f e _) = transformE $ AppE1 And (AppE2 Map f e $ ListT BoolT) BoolT
 transformE (AppE2 Snoc e1 e2 t) = transformE (AppE2 Append e1 (ListE [e2] t) t)
 transformE (AppE2 f2 e1 e2 ty) = do
                                         let tr = transformTy ty
