@@ -17,7 +17,7 @@ Cabal-version:       >= 1.2
 Library
   Build-depends:     base >= 4 && <5,
                      syb,
-                     mtl,
+                     mtl >= 2.0,
                      bytestring,
                      text,
                      HDBC,
