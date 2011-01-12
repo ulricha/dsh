@@ -320,7 +320,7 @@ zipF x y = app (app zipV x) y
 toNameG :: TH.Name -> TH.Name
 toNameG n@(TH.Name (TH.occString -> occN) (TH.NameQ (TH.modString -> m))) =
   if "database" `L.isPrefixOf` m
-      then let pkgN = "DSH-Core" ++ showVersion (DSH.version)
+      then let pkgN = "DSH-Core-" ++ showVersion (DSH.version)
                modN = "Database"  ++ (drop 8 m)
             in TH.mkNameG_v pkgN modN occN
       else n
