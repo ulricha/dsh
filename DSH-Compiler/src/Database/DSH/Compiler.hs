@@ -128,6 +128,9 @@ transformE (AppE1 f1 e1 ty) = do
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
 -- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
+transformE (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
+transformE (AppE2 Break (LamE f _) e t@(TupleT t1 t2)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
+                                                 in transformE $ AppE2 Span notF e t
 transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
                                                 fn' <- transformArg gfn
