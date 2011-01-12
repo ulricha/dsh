@@ -25,7 +25,7 @@ Library
                      convertible >= 1.0,
                      HaXml >= 1.20,
                      FerryCore >= 0.4.5,
-                     DSH-Pathfinder == 0.2,
+                     DSH-Pathfinder == 0.3,
                      DSH-Core >= 0.2.2
 
   Hs-Source-Dirs:    src
