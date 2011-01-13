@@ -16,7 +16,7 @@ Extra-Source-Files:   pathfinder.tar.gz
 Extra-Tmp-Files:      pathfinder, pathfinder_pre_build.sh, pathfinder_post_build.sh
 
 Library
-  Build-depends:      base >= 4.2 && < 5, text, bytestring
+  Build-depends:      base >= 4.2 && < 5, text >= 0.10, bytestring >= 0.9.1.7
   Hs-Source-Dirs:     src
   GHC-Options:        -Wall -O3 -static
   Include-Dirs:       pathfinder/include
