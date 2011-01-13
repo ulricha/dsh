@@ -243,7 +243,11 @@ transformArg (LamE f ty) = do
                                   let (ArrowT t1 _) = ty
                                   let fty = transformTy ty
                                   let e1 = f $ VarE n t1
-                                  ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
+                                  case e1 of
+                                    l@(LamE _ _) -> do
+                                                     (ParAbstr _ vs e') <- transformArg l
+                                                     return $ ParAbstr ([] :=> fty) ((prefixVar n):vs) e'
+                                    _           -> ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
 
 -- | Construct a flat-FerryCore type out of a DSH type

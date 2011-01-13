@@ -322,7 +322,7 @@ toLam2 f =
   let f1 = \a b -> forget (f (Q a) (Q b))
       t1 = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
       f2 = \a -> LamE (\b -> f1 a b) t1
-      t2 = ArrowT (reify (undefined :: a)) t2
+      t2 = ArrowT (reify (undefined :: a)) t1
   in  LamE f2 t2
 
 unfoldType :: Type -> [Type]
