@@ -129,7 +129,7 @@ transformE (AppE1 f1 e1 ty) = do
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
 -- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
 transformE (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
-transformE (AppE2 Break (LamE f _) e t@(TupleT t1 t2)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
+transformE (AppE2 Break (LamE f _) e t@(TupleT t1 _)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
                                                  in transformE $ AppE2 Span notF e t
 transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                 let tr = transformTy ty
@@ -214,7 +214,7 @@ transformE (TableE (TableDB n ks) ty) = do
                                                     then if (ks /= []) then map Key ks else [Key $ map (\(Column n' _) -> n') cols]
                                                     else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
                                     let table' = Table ([] :=> tTy) n cols keys
-                                    let pattern = PVar $ prefixVar fv
+                                    let pattern = [prefixVar fv]
                                     let nameType = map (\(Column name t) -> (name, t)) cols 
                                     let body = foldr (\(nr, t) b -> 
                                                     let (_ :=> bt) = typeOf b
@@ -243,7 +243,7 @@ transformArg (LamE f ty) = do
                                   let (ArrowT t1 _) = ty
                                   let fty = transformTy ty
                                   let e1 = f $ VarE n t1
-                                  ParAbstr ([] :=> fty) (PVar $ prefixVar n) <$> transformE e1
+                                  ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
 
 -- | Construct a flat-FerryCore type out of a DSH type
