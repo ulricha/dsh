@@ -209,7 +209,7 @@ runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe (Int, I
 runQuery c (qId, (query, schema, ref)) = do
                                                 sth <- prepare c query
                                                 _ <- execute sth []
-                                                res <- fetchAllRows' sth
+                                                res <- fetchAllRows sth
                                                 resDescr <- describeResult sth
                                                 return (qId, (res, schemeToResult schema resDescr, ref))
 
