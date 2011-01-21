@@ -9,6 +9,7 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing, isJust)
 import Data.List (sortBy)
 import Control.Monad.Reader
+import Control.Exception (evaluate)
 
 import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
@@ -209,9 +210,19 @@ runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe (Int, I
 runQuery c (qId, (query, schema, ref)) = do
                                                 sth <- prepare c query
                                                 _ <- execute sth []
-                                                res <- fetchAllRows sth
+                                                res <- dshFetchAllRowsStrict sth
                                                 resDescr <- describeResult sth
                                                 return (qId, (res, schemeToResult schema resDescr, ref))
+
+dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
+dshFetchAllRowsStrict stmt = go []
+  where
+  go :: [[SqlValue]] -> IO [[SqlValue]]
+  go acc = do  mRow <- fetchRow stmt
+               case mRow of
+                 Nothing   -> return (reverse acc)
+                 Just row  -> do mapM_ evaluate row
+                                 go (row : acc)
 
 -- | Transform algebraic plan scheme info into resultinfo
 schemeToResult :: SchemaInfo -> [(String, SqlColDesc)] -> ResultInfo
