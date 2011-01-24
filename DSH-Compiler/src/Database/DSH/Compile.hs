@@ -178,7 +178,7 @@ processResults' q c vals t@(ListT _) = do
                                                                 Just x -> x
                                                                 Nothing -> ListN [] t) sur
 processResults' _ _ _ (TimeT) = error "Results processing for time has not been implemented."
-processResults' _ _ _ (ArrowT _ _) = $impossible
+processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
 processResults' q c vals t = do
                                     i <- getColResPos q c
                                     return $ map (\val -> convert $ (val !! i, t)) vals
@@ -189,14 +189,14 @@ processResults' q c vals t = do
 -- The second argument the raw data
 -- It returns a list of pairs (iterVal, rawdata within iter) 
 partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
-partByIter n v = M.toList $ foldr (iterMap n) M.empty v
+partByIter n v = M.toList $ foldl (iterMap n) M.empty v
 
 -- Add the raw data to the correct partition
 -- The first argument represents the position of the iter column
 -- The second argument is one row of raw data. 
 -- The third argument is a map from partition number to raw data. 
-iterMap :: Int -> [SqlValue] -> M.Map Int [[SqlValue]] -> M.Map Int [[SqlValue]]
-iterMap n xs m = let x = xs !! n
+iterMap :: Int -> M.Map Int [[SqlValue]] -> [SqlValue] -> M.Map Int [[SqlValue]]
+iterMap n m xs = let x = xs !! n
                      iter = ((fromSql x)::Int)
                      vals = case M.lookup iter m of
                                     Just vs  -> vs
