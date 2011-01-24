@@ -7,6 +7,9 @@ import Distribution.PackageDescription
 import Distribution.Text
 import Distribution.System
 
+import System.Directory (doesFileExist)
+
+
 
 main :: IO ()
 main = defaultMainWithHooks dshHooks
@@ -83,9 +86,16 @@ dshPostBuild args flsgs desc info = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
   (sh,_) <- requireProgram verbose (simpleProgram "sh") db
 
+  pb <- doesFileExist (dshBuildDir ++ "/libHSDSH-Pathfinder-" ++ dshVersion ++ "_p.a")
+
   let script = [  "ar -r -s "
                   ++ dshBuildDir ++ "/libHSDSH-Pathfinder-" ++ dshVersion ++ ".a "
                   ++ " pathfinder/lib/CC_Pathfinder.o "
+               ,  if pb
+                     then "ar -r -s "
+                          ++ dshBuildDir ++ "/libHSDSH-Pathfinder-" ++ dshVersion ++ "_p.a "
+                          ++ " pathfinder/lib/CC_Pathfinder.o "
+                     else []
                ,  "cp "
                   ++ dshBuildDir ++ "/HSDSH-Pathfinder-" ++ dshVersion ++ ".o "
                   ++ "pathfinder/lib/HS_Pathfinder.o"
