@@ -19,10 +19,8 @@ import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse,
 import Database.HDBC
 import Data.Convertible
 
+
 instance NFData SqlValue where
-instance NFData Norm where
-instance NFData Type where
-instance NFData ResultInfo where
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -228,7 +226,3 @@ schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (
 buildRefMap :: (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
 buildRefMap (q, (r, ri, (Just (t, c)))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)
-
-
-force :: NFData a => a -> a
-force a = a `deepseq` a
