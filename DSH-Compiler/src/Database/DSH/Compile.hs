@@ -7,7 +7,6 @@ import Database.DSH.Pathfinder
 
 import qualified Data.Array as A
 import qualified Data.List as L
-import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing, isJust)
 import Data.List (sortBy)
 import Control.Monad.Reader
@@ -108,9 +107,9 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
 runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
-                             let (queryMap, valueMap) = force $! foldr buildRefMap ([],[]) $! force $! results
-                             let ty = force $! reify (undefined :: a)
-                             let results' = force $! runReader (processResults 0 ty) (queryMap, valueMap)
+                             let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
+                             let ty = reify (undefined :: a)
+                             let results' = runReader (processResults 0 ty) (queryMap, valueMap)
                              return $ case lookup 1 results' of
                                          Just x -> x 
                                          Nothing -> ListN [] ty
@@ -149,14 +148,14 @@ findQuery (q, c) = do
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i ty@(ListT t1) = do
                                 v <- getResults i
-                                (mapM $! (\(it, vals) -> do
+                                mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1 ty))) $! v
+                                                        return (it, ListN v1 ty)) v
 processResults i t = do
                         v <- getResults i
-                        (mapM $! (\(it, vals) -> do
+                        mapM (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
-                                              return (it, head v1))) $! v
+                                              return (it, head v1)) v
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
@@ -191,7 +190,7 @@ partByIter n (v:vs) = let i = getIter n v
                        in (i, v:vi) : partByIter n vr
        where
            getIter :: Int -> [SqlValue] -> Int
-           getIter n vals = ((fromSql (vals !! n))::Int)
+           getIter n' vals = ((fromSql (vals !! n'))::Int)
 partByIter _ [] = []
 
 
