@@ -114,24 +114,16 @@ runSQL c (Bundle queries) = do
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
 -- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
 -- the number of a nested query. The second component is a tuple consisting of query number associated
--- with a pair of the raw result data, and a description of this result data.
-type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))])
+-- with a pair of the raw result data partitioned by iter, and a description of this result data.
+type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
 
 -- | Retrieve the data asociated with query i.
-getResults :: Int -> QueryR [[SqlValue]]
+getResults :: Int -> QueryR [(Int, [[SqlValue]])]
 getResults i = do
                 env <- ask
                 return $ case lookup i $ snd env of
                               Just x -> fst x
                               Nothing -> $impossible
-
--- | Retrieve the position of the iter column in the result of query i.
-getIterCol :: Int -> QueryR Int
-getIterCol i = do
-                env <- ask
-                return $ case lookup i $ snd env of
-                            Just x -> iterR $ snd x
-                            Nothing -> $impossible
 
 -- | Get the position of item i of query q
 getColResPos :: Int -> Int -> QueryR Int
@@ -153,18 +145,14 @@ findQuery (q, c) = do
 processResults :: Int -> Type -> QueryR [(Int, Norm)]
 processResults i ty@(ListT t1) = do
                                 v <- getResults i
-                                itC <-  getIterCol i
-                                let partedVals = partByIter itC v
                                 (mapM $! (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1 ty))) $! partedVals
+                                                        return (it, ListN v1 ty))) $! v
 processResults i t = do
                         v <- getResults i
-                        itC <- getIterCol i
-                        let partedVals = partByIter itC v
                         (mapM $! (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
-                                              return (it, head v1))) $! partedVals
+                                              return (it, head v1))) $! v
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
@@ -193,31 +181,27 @@ processResults' q c vals t = do
 -- The second argument the raw data
 -- It returns a list of pairs (iterVal, rawdata within iter) 
 partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
-partByIter n v = let r = (M.toList $! L.foldl' (iterMap n) M.empty v)
-                  in deepseq r r
+partByIter n (v:vs) = let i = getIter n v
+                          (vi, vr) = span (\v' -> i == getIter n v') vs
+                       in (i, v:vi) : partByIter n vr
+       where
+           getIter :: Int -> [SqlValue] -> Int
+           getIter n vals = ((fromSql (vals !! n))::Int)
+partByIter _ [] = []
 
--- Add the raw data to the correct partition
--- The first argument represents the position of the iter column
--- The second argument is one row of raw data. 
--- The third argument is a map from partition number to raw data. 
-iterMap :: Int -> M.Map Int [[SqlValue]] -> [SqlValue] -> M.Map Int [[SqlValue]]
-iterMap n m xs = let x = xs !! n
-                     iter = ((fromSql x)::Int)
-                     vals = case M.lookup iter m of
-                                    Just vs  -> vs
-                                    Nothing -> []
-                  in M.insert iter (xs:vals) m
 
 -- | Execute the given query plan bundle, over the provided connection.
 -- It returns the raw data for each query along with a description on how to reconstruct 
 -- ordinary haskell data
-runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe (Int, Int))) -> IO (Int, ([[SqlValue]], ResultInfo, Maybe (Int, Int)))
+runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe (Int, Int))) -> IO (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int)))
 runQuery c (qId, (query, schema, ref)) = do
                                                 sth <- prepare c query
                                                 _ <- execute sth []
                                                 res <- dshFetchAllRowsStrict sth
                                                 resDescr <- describeResult sth
-                                                return (qId, (res, schemeToResult schema resDescr, ref))
+                                                let ri = schemeToResult schema resDescr
+                                                let res' = partByIter (iterR ri) res 
+                                                res' `deepseq` return (qId, (res', ri, ref))
 
 dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
 dshFetchAllRowsStrict stmt = go []
@@ -237,7 +221,8 @@ schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (
                                                  in ResultInfo itC $ map (\(n, _) -> (n, fromJust $ lookup n resColumns)) ordCols
 
 -- | 
-buildRefMap :: (Int, ([[SqlValue]], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([[SqlValue]], ResultInfo))])
+buildRefMap :: (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
 buildRefMap (q, (r, ri, (Just (t, c)))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)
+
 
