@@ -11,16 +11,12 @@ import Data.Maybe (fromJust, isNothing, isJust)
 import Data.List (sortBy)
 import Control.Monad.Reader
 import Control.Exception (evaluate)
-import Control.DeepSeq
 
 import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
 import Data.Convertible
-
-
-instance NFData SqlValue where
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -203,7 +199,7 @@ runQuery c (qId, (query, schema, ref)) = do
                                                 resDescr <- describeResult sth
                                                 let ri = schemeToResult schema resDescr
                                                 let res' = partByIter (iterR ri) res 
-                                                res' `deepseq` return (qId, (res', ri, ref))
+                                                return (qId, (res', ri, ref))
 
 dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
 dshFetchAllRowsStrict stmt = go []

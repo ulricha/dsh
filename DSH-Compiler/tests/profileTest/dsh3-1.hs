@@ -78,7 +78,7 @@ myQuery = do
              conn <- getConn
              result <- fromQ conn query
              --result <- debugFromQ conn query
-             print result
+             print $ P.length result
              return result
 
 -- main :: IO ()
