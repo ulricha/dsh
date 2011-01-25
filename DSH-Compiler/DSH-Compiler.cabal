@@ -27,7 +27,8 @@ Library
                      FerryCore >= 0.4.5,
                      DSH-Pathfinder >= 0.3,
                      DSH-Core >= 0.2.3,
-                     deepseq >= 1.1
+                     deepseq >= 1.1,
+                     array >= 0.3
 
   Hs-Source-Dirs:    src
 

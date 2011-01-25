@@ -11,7 +11,7 @@ import Database.DSH.Compiler
 import Database.HDBC.PostgreSQL
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferryMedium'"
+getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferryBig'"
 
 type Facility = Text
 type Cat      = Text
@@ -78,7 +78,7 @@ myQuery = do
              conn <- getConn
              result <- fromQ conn query
              --result <- debugFromQ conn query
-             print result
+             print $ P.map (P.length . P.snd) result
              return result
 
 -- main :: IO ()

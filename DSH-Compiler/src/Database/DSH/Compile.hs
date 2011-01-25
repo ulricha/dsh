@@ -5,6 +5,7 @@ import Database.DSH.Internals
 
 import Database.DSH.Pathfinder
 
+import qualified Data.Array as A
 import qualified Data.List as L
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing, isJust)
@@ -20,6 +21,9 @@ import Database.HDBC
 import Data.Convertible
 
 instance NFData SqlValue where
+instance NFData Norm where
+instance NFData Type where
+instance NFData ResultInfo where
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -104,9 +108,9 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
 runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
-                             let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
-                             let ty = reify (undefined :: a)
-                             let results' = runReader (processResults 0 ty) (queryMap, valueMap)
+                             let (queryMap, valueMap) = force $! foldr buildRefMap ([],[]) $! force $! results
+                             let ty = force $! reify (undefined :: a)
+                             let results' = force $! runReader (processResults 0 ty) (queryMap, valueMap)
                              return $ case lookup 1 results' of
                                          Just x -> x 
                                          Nothing -> ListN [] ty
@@ -164,11 +168,12 @@ processResults' q c vals t@(TupleT t1 t2) = do
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
+                                        let maxI = fst $ L.maximumBy (\x y -> fst x `compare` fst y) list
+                                        let lA = (A.accumArray ($impossible) Nothing (1,maxI) []) A.// map (\(x,y) -> (x, Just y)) list
                                         i <- getColResPos q c
-                                        let sur = map (\val -> (convert $ val !! i)::Int) vals
-                                        return $ map (\it' -> case lookup it' list of
+                                        return $ map (\val -> case lA A.! ((convert $ val !! i)::Int) of
                                                                 Just x -> x
-                                                                Nothing -> ListN [] t) sur
+                                                                Nothing -> ListN [] t) vals
 processResults' _ _ _ (TimeT) = error "Results processing for time has not been implemented."
 processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
 processResults' q c vals t = do
@@ -226,3 +231,5 @@ buildRefMap (q, (r, ri, (Just (t, c)))) (qm, rm) = (((t, c), q):qm, (q, (r, ri))
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)
 
 
+force :: NFData a => a -> a
+force a = a `deepseq` a
