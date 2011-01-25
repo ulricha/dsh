@@ -26,7 +26,8 @@ Library
                      HaXml >= 1.20.2,
                      FerryCore >= 0.4.5,
                      DSH-Pathfinder >= 0.3,
-                     DSH-Core >= 0.2.3
+                     DSH-Core >= 0.2.3,
+                     deepseq >= 1.1
 
   Hs-Source-Dirs:    src
 

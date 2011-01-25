@@ -5,17 +5,21 @@ import Database.DSH.Internals
 
 import Database.DSH.Pathfinder
 
+import qualified Data.List as L
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing, isJust)
 import Data.List (sortBy)
 import Control.Monad.Reader
 import Control.Exception (evaluate)
+import Control.DeepSeq
 
 import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
 import Data.Convertible
+
+instance NFData SqlValue where
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -151,16 +155,16 @@ processResults i ty@(ListT t1) = do
                                 v <- getResults i
                                 itC <-  getIterCol i
                                 let partedVals = partByIter itC v
-                                mapM (\(it, vals) -> do
+                                (mapM $! (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1 ty)) partedVals
+                                                        return (it, ListN v1 ty))) $! partedVals
 processResults i t = do
                         v <- getResults i
                         itC <- getIterCol i
                         let partedVals = partByIter itC v
-                        mapM (\(it, vals) -> do
+                        (mapM $! (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
-                                              return (it, head v1)) partedVals
+                                              return (it, head v1))) $! partedVals
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
@@ -189,7 +193,8 @@ processResults' q c vals t = do
 -- The second argument the raw data
 -- It returns a list of pairs (iterVal, rawdata within iter) 
 partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
-partByIter n v = M.toList $ foldl (iterMap n) M.empty v
+partByIter n v = let r = (M.toList $! L.foldl' (iterMap n) M.empty v)
+                  in deepseq r r
 
 -- Add the raw data to the correct partition
 -- The first argument represents the position of the iter column
