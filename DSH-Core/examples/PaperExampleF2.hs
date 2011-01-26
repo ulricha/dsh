@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
-module PaperExampleF2 where
+module Main where
 
 import Prelude ()
 import Database.DSH
@@ -16,13 +16,13 @@ type Feature  = Text
 type Meaning  = Text
 
 facilities :: Q [(Cat, Facility)]
-facilities = table "Facilities"
+facilities = table "facilities"
                
 features :: Q [(Facility, Feature)]
-features = table "Features"
+features = table "features"
           
 meanings :: Q [(Feature, Meaning)]
-meanings = table "Meanings"
+meanings = table "meanings"
             
 hasFeatures :: Q Text -> Q [Text] 
 hasFeatures f = [$qc| feat | (fac,feat) <- features, fac == f |]
