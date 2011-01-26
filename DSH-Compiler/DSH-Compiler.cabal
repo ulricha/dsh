@@ -2,6 +2,11 @@ Name:                DSH-Compiler
 Version:             0.3.1
 Synopsis:            Database Supported Haskell (Compiler)
 Description:         Database Supported Haskell (Compiler)
+                     This package provides a query facility for Haskell, called DSH [1]. Queries can
+                     be written using list comprehensions (with modest syntax change due to quasiquoting) 
+                     and list combinators with the same syntax and semantics as the combinators as those
+                     in the Prelude. 
+                     [1]: http://www-db.informatik.uni-tuebingen.de/files/publications/ferryhaskell.pdf
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
