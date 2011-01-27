@@ -53,6 +53,15 @@ executePlan debug c p = do
                         when debug (writeFile "query.sql" s)
                         runSQL c $ extractSQL sql
 
+algToAlg :: AlgebraXML a -> IO (AlgebraXML a)
+algToAlg (Algebra s) = do
+                        r <- compileFerryOpt s OutputXml Nothing
+                        case r of
+                           (Right sql) -> return $ Algebra sql
+                           (Left err) -> error $ "Pathfinder compilation for input: \n"
+                                                   ++ s ++ "\n failed with error: \n"
+                                                   ++ err
+
 -- | Translate an algebraic plan into SQL code using Pathfinder
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
