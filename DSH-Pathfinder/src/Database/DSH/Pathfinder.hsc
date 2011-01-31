@@ -52,7 +52,7 @@ type OutputString = String
 type OptArgs = String
 
 
-foreign import ccall unsafe "PFcompile_ferry"
+foreign import ccall safe "PFcompile_ferry"
     c'PFcompile_ferry :: Ptr CString -> CString -> CString -> CInt -> IO CInt
 
 -- | Accept a logical query plan bundle in XML format and transform it into one
@@ -72,7 +72,7 @@ compileFerry xml output = do
              else Left  `fmap` (B.packCString c'err >>= (return . T.unpack . T.decodeUtf8))
 
 
-foreign import ccall unsafe "PFcompile_ferry_opt"
+foreign import ccall safe "PFcompile_ferry_opt"
     c'PFcompile_ferry_opt :: Ptr CString -> CString -> CString -> CInt -> CString -> IO CInt
 
 -- | Accept a logical query plan bundle in XML format, optimize it based on the
@@ -83,7 +83,6 @@ compileFerryOpt :: XmlString
                 -> Maybe OptArgs                        -- ^ Optimization arguments (see pf option -o)
                 -> IO (Either ErrorString OutputString)
 compileFerryOpt xml output optimization = do
-
     B.useAsCString (T.encodeUtf8 (T.pack xml)) $ \c'xml ->
       alloca $ \ptr -> alloca $ \c'err -> do
 
@@ -94,7 +93,6 @@ compileFerryOpt xml output optimization = do
 
           -- run PFcompile_ferry_opt
           ci <- c'PFcompile_ferry_opt ptr c'err c'xml (outputFormatToCInt output) opt
-
           if ci == 0
              then Right `fmap` (peek ptr >>= B.packCString >>= (return . T.unpack . T.decodeUtf8))
              else Left  `fmap` (B.packCString c'err >>= (return . T.unpack . T.decodeUtf8))
