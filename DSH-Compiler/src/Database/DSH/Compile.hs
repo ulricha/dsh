@@ -47,11 +47,19 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => Bool -> conn -> AlgebraXML a -> IO Norm
-executePlan debug c p = do
+executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
+executePlan c p = do
                         sql@(SQL s) <- algToSQL p
-                        when debug (writeFile "query.sql" s)
                         runSQL c $ extractSQL sql
+
+algToAlg :: AlgebraXML a -> IO (AlgebraXML a)
+algToAlg (Algebra s) = do
+                        r <- compileFerryOpt s OutputXml Nothing
+                        case r of
+                           (Right sql) -> return $ Algebra sql
+                           (Left err) -> error $ "Pathfinder compilation for input: \n"
+                                                   ++ s ++ "\n failed with error: \n"
+                                                   ++ err
 
 -- | Translate an algebraic plan into SQL code using Pathfinder
 algToSQL :: AlgebraXML a -> IO (SQLXML a)

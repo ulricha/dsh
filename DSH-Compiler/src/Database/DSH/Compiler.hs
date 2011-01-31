@@ -4,7 +4,7 @@ FerryCore which is then translated into SQL (through a table algebra).
 The SQL code is executed on the database and then processed to form
 a Haskell value. -}
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
-module Database.DSH.Compiler (debugFromQ, fromQ) where
+module Database.DSH.Compiler (fromQ, debugPlan, debugPlanOpt, debugSQL) where
 
 import Database.DSH.Internals as D
 import Database.DSH.Compile as C
@@ -73,30 +73,39 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 
 -- | Similar to fromQ, gets as an extra argument a boolean determining whether 
 -- debugging is switched on
-fromQ' :: (QA a, IConnection conn) => Bool -> conn -> Q a -> IO a
-fromQ' d c a = evaluate d c a >>= (return . fromNorm)
-
--- | Execute the Q expression using the given database connection
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ = fromQ' False 
+fromQ c a = evaluate c a >>= (return . fromNorm)
 
--- | Special debugging version of fromQ that outputs the algebraic plan to a file "plan.xml"
-debugFromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-debugFromQ = fromQ' True
+
+-- | Convert the query in an unoptimized algebraic plan.
+debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlan = doCompile
+
+-- | Convert the query in an optimized algebraic plan
+debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlanOpt q c = do
+                    p <- doCompile q c
+                    (C.Algebra r) <- algToAlg ((C.Algebra p)::AlgebraXML a)
+                    return r
+                    
+-- | Convert the query into SQL
+debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugSQL q c = do
+                p <- doCompile q c
+                (C.SQL r) <- algToSQL ((C.Algebra p)::AlgebraXML a)
+                return r
 
 -- | evaluate compiles the given Q query into an executable plan, executes this and returns 
 -- the result as norm. For execution it uses the given connection. If the boolean flag is set
 -- to true it outputs the intermediate algebraic plan to disk.
 evaluate :: forall a. forall conn. (QA a, IConnection conn)
-         => Bool
-         -> conn
+         =>  conn
          -> Q a
          -> IO Norm
-evaluate d c q = do
+evaluate c q = do
                   algPlan' <- doCompile c q
-                  when d (writeFile "plan.xml" algPlan')
                   let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
-                  n <- executePlan d c algPlan
+                  n <- executePlan c algPlan
                   disconnect c
                   return n
 
