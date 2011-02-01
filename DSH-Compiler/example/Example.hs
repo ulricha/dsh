@@ -25,7 +25,7 @@ import Database.HDBC.PostgreSQL
 -- Setup the connection string.
 -- In order for this to work you must provide a username, password, host and database name.
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferryDB'"
+getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
 -- DSH uses Text instead of string for strings, as a string will be treated as a list of characters.
 type Facility = Text
