@@ -1,0 +1,26 @@
+Name:                 Pathfinder
+Version:              0.4
+Synopsis:             Pathfinder FFI bindings
+Description:          Pathfinder FFI bindings
+License:              BSD3
+License-file:         LICENSE
+Author:               George Giorgidze and Nils Schweinsberg
+Maintainer:           giorgidze@gmail.com
+Stability:            Experimental
+Category:             Database
+Build-type:           Custom
+
+Cabal-version:        >= 1.8
+
+Extra-Source-Files:   pathfinder.tar.gz
+Extra-Tmp-Files:      pathfinder, pathfinder_pre_build.sh, pathfinder_post_build.sh
+
+Library
+  Build-depends:      base        >= 4.2 && < 5,
+                      text        >= 0.10,
+                      bytestring  >= 0.9.1.7
+  Hs-Source-Dirs:     src
+  GHC-Options:        -Wall -O3
+  Include-Dirs:       pathfinder/include
+  Extra-Libraries:    xml2
+  Exposed-Modules:    Database.Pathfinder
