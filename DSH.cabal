@@ -10,7 +10,11 @@ Stability:           Experimental
 Category:            Database
 Build-type:          Simple
 
--- Extra-source-files:
+Extra-source-files:  examples/Example1.hs
+                     examples/Example1_data.sql
+                     examples/Example2.hs
+                     tests/Main.hs
+                     tests/Makefile
 
 Cabal-version:       >= 1.2
 
