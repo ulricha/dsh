@@ -36,8 +36,8 @@ data Exp =
    deriving (Data, Typeable)
 
 data Fun1 =
-    Fst | Snd | Not | Abs | Signum | IntegerToDouble
-  | Negate | Head | Tail | Unzip | Minimum
+    Fst | Snd | Not | IntegerToDouble
+  | Head | Tail | Unzip | Minimum
   | Maximum | Concat | Product | Sum | And
   | Or | Reverse | Length | Null | Init
   | Last | The | Nub
@@ -45,7 +45,7 @@ data Fun1 =
 
 
 data Fun2 =
-    Add | Mul | Div | All | Any | Index
+    Add | Mul | Sub | Div | All | Any | Index
   | SortWith | Cons | Snoc | Take | Drop
   | Map | Append | Filter | GroupWith | Zip
   | Elem | Break | Span | DropWhile | TakeWhile
@@ -237,18 +237,45 @@ instance Eq (Q Double) where
 instance Num (Q Integer) where
   (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 IntegerT)
   (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 IntegerT)
-  abs (Q e1)        = Q (AppE1 Abs e1    IntegerT)
-  negate (Q e1)     = Q (AppE1 Negate e1 IntegerT)
-  fromInteger i     = Q (IntegerE i      IntegerT)
-  signum (Q e1)     = Q (AppE1 Signum e1 IntegerT)
+  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 IntegerT)
+
+  fromInteger i = Q (IntegerE i      IntegerT)
+
+  abs (Q e1) =
+    let zero      = IntegerE 0 IntegerT
+        e1Negated = AppE2 Sub zero e1 IntegerT
+    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT) e1Negated e1 IntegerT)
+
+  signum (Q e1) =
+    let zero     = IntegerE 0 IntegerT
+        one      = IntegerE 1 IntegerT
+        minusOne = IntegerE (negate 1) IntegerT
+    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT)
+                     (minusOne)
+                     (AppE3 Cond (AppE2 Equ e1 zero BoolT) zero one IntegerT)
+                     IntegerT)
 
 instance Num (Q Double) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2          DoubleT)
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2          DoubleT)
-  abs (Q e1)        = Q (AppE1 Abs e1             DoubleT)
-  negate (Q e1)     = Q (AppE1 Negate e1          DoubleT)
+  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 DoubleT)
+  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 DoubleT)
+  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 IntegerT)
+
   fromInteger d     = Q (DoubleE (fromIntegral d) DoubleT)
-  signum (Q e1)     = Q (AppE1 Signum e1          DoubleT)
+
+  abs (Q e1) =
+    let zero      = DoubleE 0.0 DoubleT
+        e1Negated = AppE2 Sub zero e1 DoubleT
+    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT) e1Negated e1 DoubleT)
+
+  signum (Q e1) =
+    let zero     = DoubleE 0.0 DoubleT
+        one      = DoubleE 1.0 DoubleT
+        minusOne = DoubleE (negate 1.0) DoubleT
+    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT)
+                     (minusOne)
+                     (AppE3 Cond (AppE2 Equ e1 zero BoolT) zero one DoubleT)
+                     DoubleT)
+
 
 instance Fractional (Q Double) where
   (/) (Q e1) (Q e2) = Q (AppE2 Div e1 e2          DoubleT)

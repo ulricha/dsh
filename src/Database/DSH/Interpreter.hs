@@ -273,19 +273,29 @@ evaluate c e = case e of
     (IntegerN i2 _) <- evaluate c e2
     return $ IntegerN (i1 + i2) IntegerT
   AppE2 Add e1 e2 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    (DoubleN i2 _) <- evaluate c e2
-    return $ DoubleN (i1 + i2) DoubleT
+    (DoubleN d1 _) <- evaluate c e1
+    (DoubleN d2 _) <- evaluate c e2
+    return $ DoubleN (d1 + d2) DoubleT
   AppE2 Add _ _ _ -> $impossible
+
+  AppE2 Sub e1 e2 IntegerT -> do
+    (IntegerN i1 _) <- evaluate c e1
+    (IntegerN i2 _) <- evaluate c e2
+    return $ IntegerN (i1 - i2) IntegerT
+  AppE2 Sub e1 e2 DoubleT -> do
+    (DoubleN d1 _) <- evaluate c e1
+    (DoubleN d2 _) <- evaluate c e2
+    return $ DoubleN (d1 - d2) DoubleT
+  AppE2 Sub _ _ _ -> $impossible
 
   AppE2 Mul e1 e2 IntegerT -> do
     (IntegerN i1 _) <- evaluate c e1
     (IntegerN i2 _) <- evaluate c e2
     return $ IntegerN (i1 * i2) IntegerT
   AppE2 Mul e1 e2 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    (DoubleN i2 _) <- evaluate c e2
-    return $ DoubleN (i1 * i2) DoubleT
+    (DoubleN d1 _) <- evaluate c e1
+    (DoubleN d2 _) <- evaluate c e2
+    return $ DoubleN (d1 * d2) DoubleT
   AppE2 Mul _ _ _ -> $impossible
   
   AppE2 Div e1 e2 DoubleT -> do
@@ -299,30 +309,6 @@ evaluate c e = case e of
     return $ DoubleN (fromInteger i1) DoubleT
     
   AppE1 IntegerToDouble _ _ -> $impossible
-      
-  AppE1 Abs e1 IntegerT -> do
-    (IntegerN i1 _) <- evaluate c e1
-    return $ IntegerN (abs i1) IntegerT
-  AppE1 Abs e1 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    return $ DoubleN (abs i1) DoubleT
-  AppE1 Abs _ _ -> $impossible
-
-  AppE1 Negate e1 IntegerT -> do
-    (IntegerN i1 _) <- evaluate c e1
-    return $ IntegerN (negate i1) IntegerT
-  AppE1 Negate e1 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    return $ DoubleN (negate i1) DoubleT
-  AppE1 Negate _ _ -> $impossible
-
-  AppE1 Signum e1 IntegerT -> do
-    (IntegerN i1 _) <- evaluate c e1
-    return $ IntegerN (signum i1) IntegerT
-  AppE1 Signum e1 DoubleT -> do
-    (DoubleN i1 _) <- evaluate c e1
-    return $ DoubleN (signum i1) DoubleT
-  AppE1 Signum _ _ -> $impossible
 
   AppE2 Equ e1 e2 _ -> do
     e3 <- evaluate c e1

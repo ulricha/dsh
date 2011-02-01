@@ -220,17 +220,16 @@ main = do
     -- quickCheck prop_div_double
     -- putStr "integer_to_double: "
     -- quickCheck prop_integer_to_double    
-    -- Implement in Haskell G
-    -- putStr "abs_integer:    "
-    -- quickCheck prop_abs_integer
+    putStr "abs_integer:    "
+    quickCheck prop_abs_integer
     -- putStr "abs_double:     "
     -- quickCheck prop_abs_double
-    -- putStr "signum_integer: "
-    -- quickCheck prop_signum_integer
+    putStr "signum_integer: "
+    quickCheck prop_signum_integer
     -- putStr "signum_double:  "
     -- quickCheck prop_signum_double
-    -- putStr "negate_integer: "
-    -- quickCheck prop_negate_integer
+    putStr "negate_integer: "
+    quickCheck prop_negate_integer
     -- putStr "negate_double:  "
     -- quickCheck prop_negate_double
 

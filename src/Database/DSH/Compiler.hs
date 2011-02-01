@@ -175,7 +175,7 @@ transformE (AppE2 All f e _) = transformE $ AppE1 And (AppE2 Map f e $ ListT Boo
 transformE (AppE2 Snoc e1 e2 t) = transformE (AppE2 Append e1 (ListE [e2] t) t)
 transformE (AppE2 f2 e1 e2 ty) = do
                                         let tr = transformTy ty
-                                        case elem f2 [Add, Mul, Div, Equ, Lt, Lte, Gte, Gt, Conj, Disj] of
+                                        case elem f2 [Add, Sub, Mul, Div, Equ, Lt, Lte, Gte, Gt, Conj, Disj] of
                                             True  -> do
                                                       e1' <- transformE e1
                                                       e2' <- transformE e2
@@ -308,6 +308,7 @@ transformTy' _ = $impossible
 -- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> Op
 transformOp Add = Op "+"
+transformOp Sub = Op "-"
 transformOp Mul = Op "*"
 transformOp Div = Op "/"
 transformOp Equ = Op "=="
