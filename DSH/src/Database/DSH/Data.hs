@@ -7,9 +7,9 @@ import Database.DSH.Impossible
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
-import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
-import Data.Text as T (Text(), pack, unpack)
+import Data.Text(Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- import Data.Time
@@ -394,8 +394,8 @@ instance Convertible SqlValue Norm where
              SqlDouble d        -> Right $ DoubleN d DoubleT
              SqlBool b          -> Right $ BoolN b BoolT
              SqlChar c          -> Right $ CharN c CharT
-             SqlString t        -> Right $ TextN (pack t) TextT
-             SqlByteString s    -> Right $ TextN (pack (B.unpack s)) TextT
+             SqlString t        -> Right $ TextN (T.pack t) TextT
+             SqlByteString s    -> Right $ TextN (T.decodeUtf8 s) TextT
              -- SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
              -- SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
              _                  -> convError "Unsupported `SqlValue'" sql
@@ -426,8 +426,8 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlWord32 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
           (SqlWord64 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
 
-          (SqlString s, TextT)     -> Right $ TextN (pack s) TextT
-          (SqlByteString s, TextT) -> Right $ TextN (pack (B.unpack s)) TextT
+          (SqlString s, TextT)     -> Right $ TextN (T.pack s) TextT
+          (SqlByteString s, TextT) -> Right $ TextN (T.decodeUtf8 s) TextT
 
           (SqlChar c, CharT) -> Right $ CharN c CharT
           (SqlString (c : _), CharT) -> Right $ CharN c CharT
@@ -450,4 +450,4 @@ instance Convertible Norm SqlValue where
                         
                         
 instance IsString (Q Text) where
-  fromString s = Q (TextE (pack s) TextT)
+  fromString s = Q (TextE (T.pack s) TextT)
