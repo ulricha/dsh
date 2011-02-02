@@ -64,15 +64,14 @@ main = do
     quickCheck prop_gt
     putStr "gte:            "
     quickCheck prop_gte
-    -- Ferry Issue J
     putStr "min_integer:    "
-    --quickCheck prop_min_integer
-    -- putStr "min_double:     "
-    -- quickCheck prop_min_double
+    quickCheck prop_min_integer
+    putStr "min_double:     "
+    quickCheck prop_min_double
     putStr "max_integer:    "
-    --quickCheck prop_max_integer
-    -- putStr "max_double:     "
-    -- quickCheck prop_max_double
+    quickCheck prop_max_integer
+    putStr "max_double:     "
+    quickCheck prop_max_double
 
 
 
