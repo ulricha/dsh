@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
 import qualified Database.DSH as Q
@@ -17,8 +19,6 @@ import GHC.Exts
 
 import Data.Text (Text)
 import qualified Data.Text as Text
-
-import Data.Char
 
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
@@ -259,11 +259,19 @@ prop_integer = runTest id id
 prop_double :: Double -> Property
 prop_double = runTestDouble id id
 
+isValidXmlChar :: Char -> Bool
+isValidXmlChar c =
+     '\x0009' <= c && c <= '\x000A'
+  || '\x000D' <= c && c <= '\x000D'
+  || '\x0020' <= c && c <= '\xD7FF'
+  || '\xE000' <= c && c <= '\xFFFD'
+  || '\x10000'<= c && c <= '\x10FFFF'
+
 prop_char :: Char -> Property
-prop_char c = isPrint c ==> runTest id id c
+prop_char c = isValidXmlChar c ==> runTest id id c
 
 prop_text :: Text -> Property
-prop_text t = Text.all isPrint t ==> runTest id id t
+prop_text t = Text.all isValidXmlChar t ==> runTest id id t
 
 
 
