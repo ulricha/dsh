@@ -258,7 +258,7 @@ instance Num (Q Integer) where
 instance Num (Q Double) where
   (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 DoubleT)
   (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 DoubleT)
-  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 IntegerT)
+  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 DoubleT)
 
   fromInteger d     = Q (DoubleE (fromIntegral d) DoubleT)
 
@@ -402,20 +402,31 @@ instance Convertible (SqlValue, Type) Norm where
     safeConvert sql =
         case sql of
           (SqlNull, UnitT)         -> Right $ UnitN UnitT
+
           (SqlInteger i, IntegerT) -> Right $ IntegerN i IntegerT
           (SqlInt32 i, IntegerT)   -> Right $ flip IntegerN IntegerT $ convert i
           (SqlInt64 i, IntegerT)   -> Right $ flip IntegerN IntegerT $ convert i
           (SqlWord32 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
           (SqlWord64 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
+
           (SqlDouble d, DoubleT)   -> Right $ DoubleN d DoubleT
+          (SqlRational r, DoubleT) -> Right $ flip DoubleN DoubleT $ convert r
+          (SqlInteger i, DoubleT)  -> Right $ flip DoubleN DoubleT $ convert i
+          (SqlInt32 i, DoubleT)    -> Right $ flip DoubleN DoubleT $ convert i
+          (SqlInt64 i, DoubleT)    -> Right $ flip DoubleN DoubleT $ convert i
+          (SqlWord32 i, DoubleT)   -> Right $ flip DoubleN DoubleT $ convert i
+          (SqlWord64 i, DoubleT)   -> Right $ flip DoubleN DoubleT $ convert i
+
           (SqlBool b, BoolT)       -> Right $ BoolN b BoolT
           (SqlInteger i, BoolT)    -> Right $ BoolN (i == 1) BoolT
           (SqlInt32 i, BoolT)      -> Right $ BoolN (i == 1) BoolT
           (SqlInt64 i, BoolT)      -> Right $ BoolN (i == 1) BoolT
           (SqlWord32 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
           (SqlWord64 i, BoolT)     -> Right $ BoolN (i == 1) BoolT
+
           (SqlString s, TextT)     -> Right $ TextN (pack s) TextT
           (SqlByteString s, TextT) -> Right $ TextN (pack (B.unpack s)) TextT
+
           (SqlChar c, CharT)       -> Right $ CharN c CharT
           _                        -> $impossible
         
