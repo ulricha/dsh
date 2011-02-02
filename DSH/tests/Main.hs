@@ -15,8 +15,10 @@ import Test.QuickCheck.Monadic
 import Data.List
 import GHC.Exts
 
-import qualified Data.Text as Text
 import Data.Text (Text)
+import qualified Data.Text as Text
+
+import Data.Char
 
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
@@ -32,16 +34,14 @@ main = do
     quickCheck prop_unit
     putStr "Bool:           "
     quickCheck prop_bool
-    -- Encoding Issues G
-    -- putStr "Char:           "
-    -- quickCheck prop_char
+    putStr "Char:           "
+    quickCheck prop_char
     putStr "Integer:        "
     quickCheck prop_integer
     putStr "Double:         "
     quickCheck prop_double
-    -- Encoding Issues G
-    -- putStr "Text:           "
-    -- quickCheck prop_text
+    putStr "Text:           "
+    quickCheck prop_text
 
     putStrLn ""
     putStrLn "Equality & Ordering"
@@ -269,17 +269,18 @@ prop_unit = runTest id id
 prop_bool :: Bool -> Property
 prop_bool = runTest id id
 
-prop_char :: Char -> Property
-prop_char = runTest id id
-
 prop_integer :: Integer -> Property
 prop_integer = runTest id id
 
 prop_double :: Double -> Property
 prop_double = runTestDouble id id
 
+-- Check what goes wrong when the new line character is used
+prop_char :: Char -> Property
+prop_char c = (isAlphaNum c) ==> runTest id id c
+
 prop_text :: Text -> Property
-prop_text = runTest id id
+prop_text t = Text.all isAlphaNum t ==> runTest id id t
 
 
 
