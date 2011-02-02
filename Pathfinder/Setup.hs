@@ -10,9 +10,9 @@ import Distribution.System
 import System.Directory (doesFileExist)
 
 
-
 main :: IO ()
 main = defaultMainWithHooks dshHooks
+
 
 dshHooks :: UserHooks
 dshHooks = simpleUserHooks {
@@ -21,20 +21,22 @@ dshHooks = simpleUserHooks {
   , postBuild = dshPostBuild
   }
   
+
 dshPreConf ::  Args -> ConfigFlags -> IO HookedBuildInfo
 dshPreConf args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
-  _ <- requireProgram verbose (simpleProgram "sh")   db
-  _ <- requireProgram verbose (simpleProgram "rm")   db
-  _ <- requireProgram verbose (simpleProgram "cp")   db  
-  _ <- requireProgram verbose (simpleProgram "tar")  db
-  _ <- requireProgram verbose (simpleProgram "pwd")  db  
-  _ <- requireProgram verbose (simpleProgram "make") db
-  _ <- requireProgram verbose (simpleProgram "ar")   db
-  _ <- requireProgram verbose (simpleProgram "ld")   db
+  _ <- requireProgram verbose (simpleProgram "sh")    db
+  _ <- requireProgram verbose (simpleProgram "rm")    db
+  _ <- requireProgram verbose (simpleProgram "cp")    db  
+  _ <- requireProgram verbose (simpleProgram "tar")   db
+  _ <- requireProgram verbose (simpleProgram "pwd")   db  
+  _ <- requireProgram verbose (simpleProgram "make")  db
+  _ <- requireProgram verbose (simpleProgram "ar")    db
+  _ <- requireProgram verbose (simpleProgram "ld")    db
 
   (preConf  simpleUserHooks) args flags
   
+
 dshPreBuild :: Args -> BuildFlags -> IO HookedBuildInfo
 dshPreBuild args flags = do
   db <- configureAllKnownPrograms silent defaultProgramConfiguration
@@ -73,12 +75,12 @@ dshPreBuild args flags = do
   writeFile "pathfinder_pre_build.sh" (unlines script)
   runProgramInvocation verbose (programInvocation sh ["pathfinder_pre_build.sh"])
 
-
   (preBuild  simpleUserHooks) args flags
 
+
 dshPostBuild :: Args -> BuildFlags -> PackageDescription -> LocalBuildInfo -> IO ()
-dshPostBuild args flsgs desc info = do
-  (postBuild simpleUserHooks) args flsgs desc info
+dshPostBuild args flags desc info = do
+  (postBuild simpleUserHooks) args flags desc info
 
   let dshBuildDir = buildDir info
   let dshVersion = display (pkgVersion (package desc))

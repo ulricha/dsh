@@ -1,26 +1,40 @@
 Name:                 Pathfinder
 Version:              0.4
-Synopsis:             Pathfinder FFI bindings
-Description:          Pathfinder FFI bindings
+Synopsis:             Relational optimiser and code generator
+Description:
+  The library provides FFI bindings to the Pathfinder relational optimiser and
+  code generator. Specifically, the provided functions allow for
+  .
+  * optimisation of table algebra (a variant of relational algebra) expressions
+  .
+  * and compilation of table algebra expressions into SQL:1999 queries
+  .
+  More information about Pathfinder is available from the following web page:
+  .
+  * <http://www-db.informatik.uni-tuebingen.de/research/pathfinder>
 License:              BSD3
 License-file:         LICENSE
 Author:               George Giorgidze and Nils Schweinsberg
 Maintainer:           giorgidze@gmail.com
 Stability:            Experimental
-Category:             Database
+Category:             Database, FFI
 Build-type:           Custom
 
 Cabal-version:        >= 1.8
 
-Extra-Source-Files:   pathfinder.tar.gz
-Extra-Tmp-Files:      pathfinder, pathfinder_pre_build.sh, pathfinder_post_build.sh
+Extra-source-files:   pathfinder.tar.gz,
+                      include/pathfinder.h
+
+Extra-tmp-files:      pathfinder,
+                      pathfinder_pre_build.sh,
+                      pathfinder_post_build.sh
 
 Library
   Build-depends:      base        >= 4.2 && < 5,
                       text        >= 0.10,
                       bytestring  >= 0.9.1.7
-  Hs-Source-Dirs:     src
-  GHC-Options:        -Wall -O3
-  Include-Dirs:       pathfinder/include
-  Extra-Libraries:    xml2
-  Exposed-Modules:    Database.Pathfinder
+  Hs-source-dirs:     src
+  GHC-options:        -Wall -O3
+  Include-dirs:       include
+  Extra-libraries:    xml2
+  Exposed-modules:    Database.Pathfinder
