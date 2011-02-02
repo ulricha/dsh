@@ -179,9 +179,6 @@ all f (Q as) = Q (AppE2 All (toLam1 f) as $ reify (undefined :: Bool))
 sum       :: forall a. (QA a, Num a) => Q [a] -> Q a
 sum (Q as) = Q (AppE1 Sum as $ reify (undefined :: a))
 
-product   :: forall a. (QA a, Num a) => Q [a] -> Q a
-product (Q as) = Q (AppE1 Product as $ reify (undefined :: a))
-
 concat    :: forall a. (QA a) => Q [[a]] -> Q [a]
 concat (Q as) = Q (AppE1 Concat as $ reify (undefined :: [a]))
 
@@ -193,10 +190,6 @@ maximum (Q as) = Q (AppE1 Maximum as $ reify (undefined :: a))
 
 minimum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
 minimum (Q as) = Q (AppE1 Minimum as $ reify (undefined :: a))
-
-replicate :: forall a. (QA a) => Q Integer -> Q a -> Q [a]
-replicate (Q i) (Q a) = Q (AppE2 Replicate i a $ reify (undefined :: [a]))
-
 
 -- * Sublists
 

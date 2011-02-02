@@ -176,16 +176,6 @@ evaluate c e = case e of
 
   AppE1 Sum _ _ -> $impossible
 
-  AppE1 Product as IntegerT -> do
-    (ListN as1 _) <- evaluate c as
-    return $ IntegerN (product $ map (\(IntegerN i IntegerT) -> i) as1) IntegerT
-
-  AppE1 Product as DoubleT -> do
-    (ListN as1 _) <- evaluate c as
-    return $ DoubleN (product $ map (\(DoubleN d DoubleT) -> d) as1) DoubleT
-
-  AppE1 Product _ _ -> $impossible
-
   AppE1 Concat as t -> do
     (ListN as1 _) <- evaluate c as
     return $ ListN (concat $ map (\(ListN as2 _) -> as2) as1) t
@@ -197,11 +187,6 @@ evaluate c e = case e of
   AppE1 Minimum as _ -> do
     (ListN as1 _) <- evaluate c as
     return $ minimum as1
-
-  AppE2 Replicate i a t -> do
-    (IntegerN i1 _) <- evaluate c i
-    a1 <- evaluate c a
-    return $ ListN (replicate (fromIntegral i1) a1) t
 
   AppE2 SplitAt i as t -> do
     (IntegerN i1 _) <- evaluate c i

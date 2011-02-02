@@ -38,7 +38,7 @@ data Exp =
 data Fun1 =
     Fst | Snd | Not | IntegerToDouble
   | Head | Tail | Unzip | Minimum
-  | Maximum | Concat | Product | Sum | And
+  | Maximum | Concat | Sum | And
   | Or | Reverse | Length | Null | Init
   | Last | The | Nub
   deriving (Eq, Ord, Show, Data, Typeable)
@@ -49,7 +49,7 @@ data Fun2 =
   | SortWith | Cons | Snoc | Take | Drop
   | Map | Append | Filter | GroupWith | Zip
   | Elem | Break | Span | DropWhile | TakeWhile
-  | SplitAt | Replicate | Equ | Conj | Disj
+  | SplitAt | Equ | Conj | Disj
   | Lt | Lte | Gte | Gt | Max | Min
   deriving (Eq, Ord, Show, Data, Typeable)
 

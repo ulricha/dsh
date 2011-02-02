@@ -131,22 +131,14 @@ main = do
     quickCheck prop_sum_integer
     putStr "sum_double:     "
     quickCheck prop_sum_double
-    -- Remove G
-    -- putStr "product_integer:"
-    -- quickCheck prop_product_integer
-    -- putStr "product_double: "
-    -- quickCheck prop_product_double
-    -- putStr "concat:         "
-    -- quickCheck prop_concat
+    putStr "concat:         "
+    quickCheck prop_concat
     putStr "concatMap:      "
     quickCheck prop_concatMap
     putStr "maximum:        "
     quickCheck prop_maximum
     putStr "minimum:        "
     quickCheck prop_minimum
-    -- Remove G
-    -- putStr "replicate:      "
-    -- quickCheck prop_replicate
 
     putStrLn ""
     putStrLn "Sublists"
@@ -436,12 +428,6 @@ prop_sum_integer = runTest Q.sum sum
 prop_sum_double :: [Double] -> Property
 prop_sum_double = runTestDouble Q.sum sum
 
-prop_product_integer :: [Integer] -> Property
-prop_product_integer = runTest Q.product product
-
-prop_product_double :: [Double] -> Property
-prop_product_double = runTest Q.product product
-
 prop_concat :: [[Integer]] -> Property
 prop_concat = runTest Q.concat concat
 
@@ -454,11 +440,6 @@ prop_maximum = testNotNull Q.maximum maximum
 
 prop_minimum :: [Integer] -> Property
 prop_minimum = testNotNull Q.minimum minimum
-
-
-prop_replicate :: (Integer, [Integer]) -> Property
-prop_replicate = runTest (uncurry_Q Q.replicate) (\(a,b) -> replicate (fromIntegral a) b)
-
 
 --------------------------------------------------------------------------------
 -- Sublists

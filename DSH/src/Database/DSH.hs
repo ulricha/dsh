@@ -77,12 +77,10 @@ import Prelude hiding (
   , any
   , all
   , sum
-  , product
   , concat
   , concatMap
   , maximum
   , minimum
-  , replicate
   , splitAt
   , takeWhile
   , dropWhile
