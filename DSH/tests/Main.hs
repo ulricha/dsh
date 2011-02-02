@@ -20,194 +20,199 @@ import GHC.Exts
 import Data.Text (Text)
 import qualified Data.Text as Text
 
+import Data.Char
+
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
+qc:: Testable prop => prop -> IO ()
+qc = quickCheckWith stdArgs{maxSuccess = 20, maxSize = 10}
+
 main :: IO ()
 main = do
     putStrLn "Running DSH prelude tests"
     putStrLn "-------------------------"
     putStr "unit:           "
-    quickCheck prop_unit
+    qc prop_unit
     putStr "Bool:           "
-    quickCheck prop_bool
+    qc prop_bool
     putStr "Char:           "
-    quickCheck prop_char
+    qc prop_char
     putStr "Text:           "
-    quickCheck prop_text
+    qc prop_text
     putStr "Integer:        "
-    quickCheck prop_integer
+    qc prop_integer
     putStr "Double:         "
-    quickCheck prop_double
+    qc prop_double
 
     putStrLn ""
     putStrLn "Equality & Ordering"
     putStrLn "-------------------------"
     putStr "&&:             "
-    quickCheck prop_infix_and
+    qc prop_infix_and
     putStr "||:             "
-    quickCheck prop_infix_or
+    qc prop_infix_or
     putStr "not:            "
-    quickCheck prop_not
+    qc prop_not
     putStr "eq:             "
-    quickCheck prop_eq_int
+    qc prop_eq_int
     putStr "neq:            "
-    quickCheck prop_neq_int
+    qc prop_neq_int
     putStr "lt:             "
-    quickCheck prop_lt
+    qc prop_lt
     putStr "lte:            "
-    quickCheck prop_lte
+    qc prop_lte
     putStr "gt:             "
-    quickCheck prop_gt
+    qc prop_gt
     putStr "gte:            "
-    quickCheck prop_gte
+    qc prop_gte
     putStr "min_integer:    "
-    quickCheck prop_min_integer
+    qc prop_min_integer
     putStr "min_double:     "
-    quickCheck prop_min_double
+    qc prop_min_double
     putStr "max_integer:    "
-    quickCheck prop_max_integer
+    qc prop_max_integer
     putStr "max_double:     "
-    quickCheck prop_max_double
+    qc prop_max_double
 
     putStrLn ""
     putStrLn "Tuple projection functions"
     putStrLn "-------------------------"
     putStr "fst:            "
-    quickCheck prop_fst
+    qc prop_fst
     putStr "snd:            "
-    quickCheck prop_snd
+    qc prop_snd
 
     putStrLn ""
     putStrLn "Conditionals:"
     putStrLn "-------------------------"
     putStr "cond:           "
-    quickCheck prop_cond
+    qc prop_cond
 
     putStrLn ""
     putStrLn "Numerical operations:"
     putStrLn "-------------------------"
     putStr "add_integer:    "
-    quickCheck prop_add_integer
+    qc prop_add_integer
     putStr "add_double:     "
-    quickCheck prop_add_double
+    qc prop_add_double
     putStr "mul_integer:    "
-    quickCheck prop_mul_integer
+    qc prop_mul_integer
     putStr "mul_double:     "
-    quickCheck prop_mul_double
+    qc prop_mul_double
     putStr "div_double:     "
-    quickCheck prop_div_double
+    qc prop_div_double
     putStr "integer_to_double: "
-    quickCheck prop_integer_to_double    
+    qc prop_integer_to_double    
     putStr "abs_integer:    "
-    quickCheck prop_abs_integer
+    qc prop_abs_integer
     putStr "abs_double:     "
-    quickCheck prop_abs_double
+    qc prop_abs_double
     putStr "signum_integer: "
-    quickCheck prop_signum_integer
+    qc prop_signum_integer
     putStr "signum_double:  "
-    quickCheck prop_signum_double
+    qc prop_signum_double
     putStr "negate_integer: "
-    quickCheck prop_negate_integer
+    qc prop_negate_integer
     putStr "negate_double:  "
-    quickCheck prop_negate_double
+    qc prop_negate_double
 
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-------------------------"
     putStr "head:           "
-    quickCheck prop_head
+    qc prop_head
     putStr "tail:           "
-    quickCheck prop_tail
+    qc prop_tail
     putStr "cons:           "
-    quickCheck prop_cons
+    qc prop_cons
     putStr "snoc:           "
-    quickCheck prop_snoc
+    qc prop_snoc
     putStr "take:           "
-    quickCheck prop_take
+    qc prop_take
     putStr "drop:           "
-    quickCheck prop_drop
+    qc prop_drop
     putStr "map_id:         "
-    quickCheck prop_map_id
+    qc prop_map_id
     putStr "filter_True:    "
-    quickCheck prop_filter_True
+    qc prop_filter_True
     putStr "the:            "
-    quickCheck prop_the
+    qc prop_the
     putStr "last:           "
-    quickCheck prop_last
+    qc prop_last
     putStr "init:           "
-    quickCheck prop_init
+    qc prop_init
     putStr "null:           "
-    quickCheck prop_null
+    qc prop_null
     putStr "length:         "
-    quickCheck prop_length
+    qc prop_length
     putStr "index:          "
-    quickCheck prop_index
+    qc prop_index
     putStr "reverse:        "
-    quickCheck prop_reverse
+    qc prop_reverse
     putStr "append:         "
-    quickCheck prop_append
+    qc prop_append
     putStr "groupWith_id:   "
-    quickCheck prop_groupWith_id
+    qc prop_groupWith_id
     putStr "sortWith_id:    "
-    quickCheck prop_sortWith_id
+    qc prop_sortWith_id
 
     putStrLn ""
     putStrLn "Special folds"
     putStrLn "-------------------------"
     putStr "and:            "
-    quickCheck prop_and
+    qc prop_and
     putStr "or:             "
-    quickCheck prop_or
+    qc prop_or
     putStr "any_zero:       "
-    quickCheck prop_any_zero
+    qc prop_any_zero
     putStr "all_zero:       "
-    quickCheck prop_all_zero
+    qc prop_all_zero
     putStr "sum_integer:    "
-    quickCheck prop_sum_integer
+    qc prop_sum_integer
     putStr "sum_double:     "
-    quickCheck prop_sum_double
+    qc prop_sum_double
     putStr "concat:         "
-    quickCheck prop_concat
+    qc prop_concat
     putStr "concatMap:      "
-    quickCheck prop_concatMap
+    qc prop_concatMap
     putStr "maximum:        "
-    quickCheck prop_maximum
+    qc prop_maximum
     putStr "minimum:        "
-    quickCheck prop_minimum
+    qc prop_minimum
 
     putStrLn ""
     putStrLn "Sublists"
     putStrLn "-------------------------"
     putStr "splitAt:        "
-    quickCheck prop_splitAt
+    qc prop_splitAt
     putStr "takeWhile:      "
-    quickCheck prop_takeWhile
+    qc prop_takeWhile
     putStr "dropWhile:      "
-    quickCheck prop_dropWhile
+    qc prop_dropWhile
     putStr "span:           "
-    quickCheck prop_span
+    qc prop_span
     putStr "break:          "
-    quickCheck prop_break
+    qc prop_break
 
     putStrLn ""
     putStrLn "Zipping and unzipping lists"
     putStrLn "-------------------------"
     putStr "zip:            "
-    quickCheck prop_zip
+    qc prop_zip
     putStr "zipWith_plus:   "
-    quickCheck prop_zipWith_plus
+    qc prop_zipWith_plus
     putStr "unzip:          "
-    quickCheck prop_unzip
+    qc prop_unzip
 
     putStrLn ""
     putStrLn "Set operations"
     putStrLn "-------------------------"
     putStr "nub:            "
-    quickCheck prop_nub
+    qc prop_nub
 
 
 runTest :: (Eq b, QA a, QA b, Show a, Show b)
@@ -268,10 +273,10 @@ isValidXmlChar c =
   || '\x10000'<= c && c <= '\x10FFFF'
 
 prop_char :: Char -> Property
-prop_char c = isValidXmlChar c ==> runTest id id c
+prop_char c = isPrint c ==> runTest id id c
 
 prop_text :: Text -> Property
-prop_text t = Text.all isValidXmlChar t ==> runTest id id t
+prop_text t = Text.all isPrint t ==> runTest id id t
 
 
 
