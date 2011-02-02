@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
 
 module Database.DSH.Data where
 
@@ -427,9 +427,11 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlString s, TextT)     -> Right $ TextN (pack s) TextT
           (SqlByteString s, TextT) -> Right $ TextN (pack (B.unpack s)) TextT
 
-          (SqlChar c, CharT)       -> Right $ CharN c CharT
-          _                        -> $impossible
-        
+          (SqlChar c, CharT)                            -> Right $ CharN c CharT
+          (SqlString (c : _), CharT)                    -> Right $ CharN c CharT
+          (SqlByteString (B.unpack -> (c : _)), CharT)  -> Right $ CharN c CharT
+
+          _                        -> error (show sql) -- $impossible
 
 instance Convertible Norm SqlValue where
     safeConvert n =
