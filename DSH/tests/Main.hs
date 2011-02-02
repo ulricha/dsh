@@ -36,12 +36,12 @@ main = do
     quickCheck prop_bool
     putStr "Char:           "
     quickCheck prop_char
+    putStr "Text:           "
+    quickCheck prop_text
     putStr "Integer:        "
     quickCheck prop_integer
     putStr "Double:         "
     quickCheck prop_double
-    putStr "Text:           "
-    quickCheck prop_text
 
     putStrLn ""
     putStrLn "Equality & Ordering"
@@ -73,7 +73,47 @@ main = do
     putStr "max_double:     "
     quickCheck prop_max_double
 
+    putStrLn ""
+    putStrLn "Tuple projection functions"
+    putStrLn "-------------------------"
+    putStr "fst:            "
+    quickCheck prop_fst
+    putStr "snd:            "
+    quickCheck prop_snd
 
+    putStrLn ""
+    putStrLn "Conditionals:"
+    putStrLn "-------------------------"
+    putStr "cond:           "
+    quickCheck prop_cond
+
+    putStrLn ""
+    putStrLn "Numerical operations:"
+    putStrLn "-------------------------"
+    putStr "add_integer:    "
+    quickCheck prop_add_integer
+    putStr "add_double:     "
+    quickCheck prop_add_double
+    putStr "mul_integer:    "
+    quickCheck prop_mul_integer
+    putStr "mul_double:     "
+    quickCheck prop_mul_double
+    putStr "div_double:     "
+    quickCheck prop_div_double
+    putStr "integer_to_double: "
+    quickCheck prop_integer_to_double    
+    putStr "abs_integer:    "
+    quickCheck prop_abs_integer
+    putStr "abs_double:     "
+    quickCheck prop_abs_double
+    putStr "signum_integer: "
+    quickCheck prop_signum_integer
+    putStr "signum_double:  "
+    quickCheck prop_signum_double
+    putStr "negate_integer: "
+    quickCheck prop_negate_integer
+    putStr "negate_double:  "
+    quickCheck prop_negate_double
 
     putStrLn ""
     putStrLn "Lists"
@@ -169,48 +209,6 @@ main = do
     putStr "nub:            "
     quickCheck prop_nub
 
-    putStrLn ""
-    putStrLn "Tuple projection functions"
-    putStrLn "-------------------------"
-    putStr "fst:            "
-    quickCheck prop_fst
-    putStr "snd:            "
-    quickCheck prop_snd
-
-    putStrLn ""
-    putStrLn "Conditionals:"
-    putStrLn "-------------------------"
-    putStr "cond:           "
-    quickCheck prop_cond
-
-    putStrLn ""
-    putStrLn "Numerical operations:"
-    putStrLn "-------------------------"
-    putStr "add_integer:    "
-    quickCheck prop_add_integer
-    putStr "add_double:     "
-    quickCheck prop_add_double
-    putStr "mul_integer:    "
-    quickCheck prop_mul_integer
-    putStr "mul_double:     "
-    quickCheck prop_mul_double
-    putStr "div_double:     "
-    quickCheck prop_div_double
-    putStr "integer_to_double: "
-    quickCheck prop_integer_to_double    
-    putStr "abs_integer:    "
-    quickCheck prop_abs_integer
-    putStr "abs_double:     "
-    quickCheck prop_abs_double
-    putStr "signum_integer: "
-    quickCheck prop_signum_integer
-    putStr "signum_double:  "
-    quickCheck prop_signum_double
-    putStr "negate_integer: "
-    quickCheck prop_negate_integer
-    putStr "negate_double:  "
-    quickCheck prop_negate_double
-
 
 runTest :: (Eq b, QA a, QA b, Show a, Show b)
         => (Q a -> Q b)
@@ -221,7 +219,7 @@ runTest q f arg = monadicIO $ do
     c  <- run $ getConn
     db <- run $ fromQ c (q (Q.toQ arg))
     run $ HDBC.disconnect c
-    let hs = f arg    
+    let hs = f arg
     assert (db == hs)
 
 testNotNull :: (Eq b, Q.QA a, Q.QA b, Show a, Show b)
@@ -241,9 +239,8 @@ runTestDouble q f arg = monadicIO $ do
     db <- run $ fromQ c (q (Q.toQ arg))
     run $ HDBC.disconnect c
     let hs = f arg
-    let eps = 1.0E-6 :: Double;    
+    let eps = 1.0E-8 :: Double;    
     assert (abs(db - hs) < eps)
-
 
 
 
@@ -262,12 +259,11 @@ prop_integer = runTest id id
 prop_double :: Double -> Property
 prop_double = runTestDouble id id
 
--- Check what goes wrong when the new line character is used
 prop_char :: Char -> Property
-prop_char c = (isAlphaNum c) ==> runTest id id c
+prop_char c = isPrint c ==> runTest id id c
 
 prop_text :: Text -> Property
-prop_text t = Text.all isAlphaNum t ==> runTest id id t
+prop_text t = Text.all isPrint t ==> runTest id id t
 
 
 
