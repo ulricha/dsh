@@ -65,12 +65,12 @@ main = do
     putStr "gte:            "
     quickCheck prop_gte
     -- Ferry Issue J
-    -- putStr "min_integer:    "
-    -- quickCheck prop_min_integer
+    putStr "min_integer:    "
+    --quickCheck prop_min_integer
     -- putStr "min_double:     "
     -- quickCheck prop_min_double
-    -- putStr "max_integer:    "
-    -- quickCheck prop_max_integer
+    putStr "max_integer:    "
+    --quickCheck prop_max_integer
     -- putStr "max_double:     "
     -- quickCheck prop_max_double
 
@@ -143,18 +143,16 @@ main = do
     putStrLn ""
     putStrLn "Sublists"
     putStrLn "-------------------------"
-    -- Ferry Issue J
-    -- putStr "splitAt:        "
-    -- quickCheck prop_splitAt
+    putStr "splitAt:        "
+    quickCheck prop_splitAt
     putStr "takeWhile:      "
     quickCheck prop_takeWhile
     putStr "dropWhile:      "
     quickCheck prop_dropWhile
-    -- Ferry Issue J
-    -- putStr "span:           "
-    -- quickCheck prop_span
-    -- putStr "break:          "
-    -- quickCheck prop_break
+    putStr "span:           "
+    quickCheck prop_span
+    putStr "break:          "
+    quickCheck prop_break
 
     putStrLn ""
     putStrLn "Searching lists"
@@ -172,9 +170,8 @@ main = do
     quickCheck prop_zip
     putStr "zipWith_plus:   "
     quickCheck prop_zipWith_plus
-    -- Ferry Issue J
-    -- putStr "unzip:          "
-    -- quickCheck prop_unzip
+    putStr "unzip:          "
+    quickCheck prop_unzip
 
     putStrLn ""
     putStrLn "Set operations"
