@@ -10,6 +10,8 @@ import Database.HDBC
 import Data.ByteString.Char8 as B (unpack)
 import Data.Generics
 import Data.Text as T (Text(), pack, unpack)
+import qualified Data.Text.Encoding as T
+
 -- import Data.Time
 import GHC.Exts
 
@@ -427,9 +429,9 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlString s, TextT)     -> Right $ TextN (pack s) TextT
           (SqlByteString s, TextT) -> Right $ TextN (pack (B.unpack s)) TextT
 
-          (SqlChar c, CharT)                            -> Right $ CharN c CharT
-          (SqlString (c : _), CharT)                    -> Right $ CharN c CharT
-          (SqlByteString (B.unpack -> (c : _)), CharT)  -> Right $ CharN c CharT
+          (SqlChar c, CharT) -> Right $ CharN c CharT
+          (SqlString (c : _), CharT) -> Right $ CharN c CharT
+          (SqlByteString ((T.unpack . T.decodeUtf8) -> (c : _)), CharT)  -> Right $ CharN c CharT
 
           _                        -> error (show sql) -- $impossible
 
