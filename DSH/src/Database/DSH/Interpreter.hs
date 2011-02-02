@@ -220,11 +220,6 @@ evaluate c e = case e of
            $ break (\(_,BoolN b BoolT) -> b)
            $ zip as1 as2
 
-  AppE2 Elem a as _ -> do
-    a1 <- evaluate c a
-    (ListN as1 _) <- evaluate c as
-    return $ BoolN (elem a1 as1) BoolT
-
   AppE2 Zip as bs t -> do
     (ListN as1 (ListT t1)) <- evaluate c as
     (ListN bs1 (ListT t2)) <- evaluate c bs

@@ -208,14 +208,6 @@ span f (Q as) = Q (AppE2 Span (toLam1 f) as $ reify (undefined :: ([a],[a])))
 break     :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
 break f (Q as) = Q (AppE2 Break (toLam1 f) as $ reify (undefined :: ([a],[a])))
 
--- * Searching Lists
-
-elem      :: forall a. (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-elem (Q a) (Q as) = Q (AppE2 Elem a as $ reify (undefined :: Bool))
-
-notElem   :: (QA a, Eq a) => Q a -> Q [a] -> Q Bool
-notElem a as = not (elem a as)
-
 -- * Zipping and Unzipping Lists
 
 zip       :: forall a b. (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
@@ -285,6 +277,11 @@ General folds:
 > foldr1
 > scanr
 > scanr1
+
+searching lists:
+
+> elem
+> notElem
 
 Infinit lists:
 

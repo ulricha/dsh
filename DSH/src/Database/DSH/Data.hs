@@ -50,7 +50,7 @@ data Fun2 =
     Add | Mul | Sub | Div | All | Any | Index
   | SortWith | Cons | Snoc | Take | Drop
   | Map | Append | Filter | GroupWith | Zip
-  | Elem | Break | Span | DropWhile | TakeWhile
+  | Break | Span | DropWhile | TakeWhile
   | SplitAt | Equ | Conj | Disj
   | Lt | Lte | Gte | Gt | Max | Min
   deriving (Eq, Ord, Show, Data, Typeable)

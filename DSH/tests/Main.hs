@@ -154,15 +154,6 @@ main = do
     quickCheck prop_break
 
     putStrLn ""
-    putStrLn "Searching lists"
-    putStrLn "-------------------------"
-    -- Ferry Issue J
-    -- putStr "elem:           "
-    -- quickCheck prop_elem
-    -- putStr "notElem:        "
-    -- quickCheck prop_notElem
-
-    putStrLn ""
     putStrLn "Zipping and unzipping lists"
     putStrLn "-------------------------"
     putStr "zip:            "
@@ -459,16 +450,6 @@ prop_span = runTest (uncurry_Q $ Q.span . (Q.==))
 prop_break :: (Integer, [Integer]) -> Property
 prop_break = runTest (uncurry_Q $ Q.break . (Q.==))
                      (uncurry   $   break . (==) . fromIntegral)
-
-
---------------------------------------------------------------------------------
--- Searching lists
-
-prop_elem :: (Integer, [Integer]) -> Property
-prop_elem = runTest (uncurry_Q Q.elem) (uncurry elem)
-
-prop_notElem :: (Integer, [Integer]) -> Property
-prop_notElem = runTest (uncurry_Q Q.notElem) (uncurry notElem)
 
 
 --------------------------------------------------------------------------------
