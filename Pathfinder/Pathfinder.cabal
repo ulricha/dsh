@@ -9,9 +9,9 @@ Description:
   .
   * and compilation of table algebra expressions into SQL:1999 queries
   .
-
-  Note that Pathfinder's C source code is also included with this package. There is no need to download and install Pathfinder separately.
-
+  Note that the C source bundle of Pathfinder is also included in this
+  package. The C sources are automatically built along with the Haskell FFI
+  bindings. There is no need to download and install Pathfinder separately.
   .
   More information about Pathfinder is available from the following web page:
   .
