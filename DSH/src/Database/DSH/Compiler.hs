@@ -14,8 +14,8 @@ import Database.DSH.CSV (csvImport)
 
 import Database.DSH.Compile as C
 
-import Ferry.SyntaxTyped  as F
-import Ferry.Compiler
+import Database.Ferry.SyntaxTyped  as F
+import Database.Ferry.Compiler
 
 import qualified Data.Map as M
 import Data.Char
