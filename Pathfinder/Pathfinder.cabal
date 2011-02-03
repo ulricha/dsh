@@ -1,5 +1,5 @@
 Name:                 Pathfinder
-Version:              0.4
+Version:              0.4.1
 Synopsis:             Relational optimiser and code generator
 Description:
   The library provides FFI bindings to the Pathfinder relational optimiser and
@@ -31,8 +31,8 @@ Extra-tmp-files:      pathfinder,
 
 Library
   Build-depends:      base        >= 4.2 && < 5,
-                      text        >= 0.10,
-                      bytestring  >= 0.9.1.7
+                      text        >= 0.11,
+                      bytestring  >= 0.9
   Hs-source-dirs:     src
   GHC-options:        -Wall -O3
   Include-dirs:       include

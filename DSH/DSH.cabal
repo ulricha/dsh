@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.4
+Version:             0.4.1
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -25,7 +25,7 @@ Description:
   data (e.g., larger than the available heap) or query existing database
   resident data with Haskell.
   .
-  Note that this package is flagged experimental and therefor not suited for
+  Note that this package is flagged experimental and therefore not suited for
   production use. This is a proof of concept implementation only. To learn
   more about DSH, our paper entitled as "Haskell boards the Ferry:
   Database-supported program execution for Haskell" [1] is a recommended
@@ -56,7 +56,7 @@ Library
                      array              >= 0.3,
                      syb                >= 0.1,
                      mtl                >= 2.0.1,
-                     bytestring         >= 0.9.1.7,
+                     bytestring         >= 0.9,
                      text               >= 0.10,
                      HDBC               >= 2.2,
                      convertible        >= 1.0,
@@ -64,7 +64,7 @@ Library
                      haskell-src-exts   >= 1.9,
                      syntax-trees       >= 0.1.2,
                      HaXml              >= 1.20,
-                     csv                >= 0.1.2,
+                     csv                >= 0.1,
                      Pathfinder         >= 0.4,
                      FerryCore          >= 0.4
 
