@@ -1,11 +1,24 @@
 Name:                DSH
 Version:             0.4
 Synopsis:            Database Supported Haskell
-Description:         Database Supported Haskell
+Description:         Database Supported Haskell (Compiler)
+                     This package provides a query facility for Haskell, called DSH [1]. Queries can
+                     be written using list comprehensions (with modest syntax changes due to quasiquoting) 
+                     and list combinators with the same syntax and semantics as the combinators as those
+                     in the Prelude. 
+                     
+                     In the folder examples we included two examples that demonstrate how to use DSH.
+                     
+                     This package is the prototype implementation that goes with the IFL 2010 paper:
+                     "Haskell boards the Ferry"[1]. 
+                     
+                     This package is flagged experimental and therefor not suited for production purposes.
+
+                     [1]: http://www-db.informatik.uni-tuebingen.de/files/publications/ferryhaskell.pdf
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          giorgidze@gmail.com
+Maintainer:          giorgidze@gmail.com, jeroen.weijers@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
