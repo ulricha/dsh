@@ -433,7 +433,7 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlString (c : _), CharT) -> Right $ CharN c CharT
           (SqlByteString ((T.unpack . T.decodeUtf8) -> (c : _)), CharT)  -> Right $ CharN c CharT
 
-          _                        -> error (show sql) -- $impossible
+          _                        -> error (show sql) 
 
 instance Convertible Norm SqlValue where
     safeConvert n =
