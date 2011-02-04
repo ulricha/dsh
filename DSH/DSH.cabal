@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.4.0.1
+Version:             0.4.2.1
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -56,15 +56,15 @@ Library
                      array              >= 0.3,
                      syb                >= 0.1,
                      mtl                >= 2.0.1,
-                     bytestring         >= 0.9.1.7,
-                     text               >= 0.10,
+                     bytestring         >= 0.9,
+                     text               >= 0.11,
                      HDBC               >= 2.2,
                      convertible        >= 1.0,
                      template-haskell   >= 2.4,
                      haskell-src-exts   >= 1.9,
                      syntax-trees       >= 0.1.2,
                      HaXml              >= 1.20,
-                     csv                >= 0.1.2,
+                     csv                >= 0.1,
                      Pathfinder         >= 0.4,
                      FerryCore          >= 0.4
 

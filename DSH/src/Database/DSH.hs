@@ -86,8 +86,6 @@ import Prelude hiding (
   , dropWhile
   , span
   , break
-  , elem
-  , notElem
   , zip
   , zipWith
   , unzip
