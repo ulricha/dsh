@@ -1,9 +1,9 @@
 Name:                 Pathfinder
-Version:              0.4.2.1
+Version:              0.5
 Synopsis:             Relational optimiser and code generator
 Description:
   The library provides FFI bindings to the Pathfinder relational optimiser and
-  code generator. Specifically, the provided functions allow for
+  code generator. Specifically, the library allows for
   .
   * optimisation of table algebra (a variant of relational algebra) expressions
   .

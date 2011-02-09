@@ -2,13 +2,12 @@
 
 module Database.Pathfinder
     (
-      compileFerry
-    , compileFerryOpt
+      pathfinder
     , OutputFormat (..)
     , XmlString
     , ErrorString
     , OutputString
-    , OptArgs
+    , OptString
     ) where
 
 import Foreign
@@ -19,9 +18,6 @@ import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 
 #include <pathfinder.h>
-
---------------------------------------------------------------------------------
--- Enum: OutputFormat
 
 newtype COutputFormat = COutputFormat { unCOutputFormat :: CInt }
 #{enum COutputFormat, COutputFormat
@@ -43,64 +39,36 @@ outputFormatToCInt output = unCOutputFormat $
          OutputDot -> c_PFoutput_format_dot
 
 
---------------------------------------------------------------------------------
--- FFI functions
-
 type XmlString    = String
 type ErrorString  = String
 type OutputString = String
-type OptArgs = String
-
-
-foreign import ccall safe "PFcompile_ferry"
-    c'PFcompile_ferry :: Ptr CString -> CString -> CString -> CInt -> IO CInt
-
--- | Accept a logical query plan bundle in XML format and transform it into one
--- of the output formats.
-compileFerry :: XmlString                   -- ^ Input XML plan
-             -> OutputFormat
-             -> IO (Either ErrorString OutputString)
-compileFerry xml output = do
-    let bs = T.encodeUtf8 (T.pack xml)
-    B.useAsCString bs $ \c'xml ->
-      alloca $ \ptr ->
-      alloca $ \c'err -> do
-          ci <- c'PFcompile_ferry ptr c'err c'xml (outputFormatToCInt output)
-          if ci == 0
-             then do
-               cs <- peek ptr
-               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString cs)
-               free cs
-               return (Right r)
-             else fmap (Left . T.unpack . T.decodeUtf8) (B.packCString c'err)
+type OptString    = String
 
 
 foreign import ccall safe "PFcompile_ferry_opt"
-    c'PFcompile_ferry_opt :: Ptr CString -> CString -> CString -> CInt -> CString -> IO CInt
+    c_PFcompile_ferry_opt :: Ptr CString -> CString -> CString -> CInt -> CString -> IO CInt
 
--- | Accept a logical query plan bundle in XML format, optimize it based on the
--- argument 'OptArgs' or (if 'Nothing') the default optimization arguments in
--- @PFopt_args@, and transform it into one of the output formats.
-compileFerryOpt :: XmlString
-                -> OutputFormat
-                -> Maybe OptArgs                        -- ^ Optimization arguments (see pf option -o)
-                -> IO (Either ErrorString OutputString)
-compileFerryOpt xml output optimization = do
+-- | Relational optimiser and code generator
+pathfinder :: XmlString     -- ^ A table algebra plan bundle in XML format
+           -> OptString     -- ^ An optimisation string (empty string indicates default optimisations)
+           -> OutputFormat  -- ^ Output format
+           -> IO (Either ErrorString OutputString)
+pathfinder xml optimisation output = do
     let bs = T.encodeUtf8 (T.pack xml)
-    B.useAsCString bs $ \c'xml ->
-      alloca $ \ptr ->
-      alloca $ \c'err -> do
+    B.useAsCString bs $ \c_xml -> 
+      alloca            $ \c_ptr ->
+        alloca            $ \c_err -> do
+          c_opt <-  case optimisation of
+                      [] -> return nullPtr
+                      _  -> newCString optimisation
 
-          -- Read optimization arguments, use nullPtr if nothing is given
-          opt <- maybe (return nullPtr)
-                       newCString
-                       optimization
+          ci <- c_PFcompile_ferry_opt c_ptr c_err c_xml (outputFormatToCInt output) c_opt
+          free c_opt
 
-          ci <- c'PFcompile_ferry_opt ptr c'err c'xml (outputFormatToCInt output) opt
           if ci == 0
              then do
-               cs <- peek ptr
-               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString cs)
-               free cs
+               c_string <- peek c_ptr
+               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString c_string)
+               free c_string
                return (Right r)
-             else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c'err)
+             else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c_err)

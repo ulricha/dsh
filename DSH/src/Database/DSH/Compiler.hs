@@ -1,8 +1,7 @@
-{- | DSH compiler module exposes the function fromQ that can be used to
-execute DSH programs on a database. It transform the DSH program into
-FerryCore which is then translated into SQL (through a table algebra). The SQL
-code is executed on the database and then processed to form a Haskell value.
--}
+-- | DSH compiler module exposes the function fromQ that can be used to
+-- execute DSH programs on a database. It transform the DSH program into
+-- FerryCore which is then translated into SQL (through a table algebra). The SQL
+-- code is executed on the database and then processed to form a Haskell value.
 
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
 
@@ -76,17 +75,16 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
             
 -- * Convert DB queries into Haskell values
 
--- | Similar to fromQ, gets as an extra argument a boolean determining whether 
--- debugging is switched on
+-- | Execute the query on the database
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c a = evaluate c a >>= (return . fromNorm)
 
 
--- | Convert the query in an unoptimized algebraic plan.
+-- | Convert the query into unoptimised algebraic plan
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugPlan = doCompile
 
--- | Convert the query in an optimized algebraic plan
+-- | Convert the query into optimised algebraic plan
 debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugPlanOpt q c = do
                     p <- doCompile q c

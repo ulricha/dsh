@@ -29,7 +29,7 @@ getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
 qc:: Testable prop => prop -> IO ()
-qc = quickCheckWith stdArgs{maxSuccess = 20, maxSize = 10}
+qc = quickCheckWith stdArgs{maxSuccess = 10, maxSize = 10}
 
 main :: IO ()
 main = do

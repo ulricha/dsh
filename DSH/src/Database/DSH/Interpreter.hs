@@ -1,3 +1,6 @@
+-- | This module provides the reference implementation of DSH by interpreting
+-- the embedded representation.
+
 {-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
@@ -12,7 +15,6 @@ import Database.HDBC
 import GHC.Exts
 import Data.List
 
--- * Convert DB queries into Haskell values
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 

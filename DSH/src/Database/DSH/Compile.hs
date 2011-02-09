@@ -55,7 +55,7 @@ executePlan c p = do
 
 algToAlg :: AlgebraXML a -> IO (AlgebraXML a)
 algToAlg (Algebra s) = do
-                        r <- compileFerryOpt s OutputXml Nothing
+                        r <- pathfinder s [] OutputXml
                         case r of
                            (Right sql) -> return $ Algebra sql
                            (Left err) -> error $ "Pathfinder compilation for input: \n"
@@ -65,7 +65,7 @@ algToAlg (Algebra s) = do
 -- | Translate an algebraic plan into SQL code using Pathfinder
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
-                         r <- compileFerryOpt s OutputSql Nothing
+                         r <- pathfinder s [] OutputSql
                          case r of
                             (Right sql) -> return $ SQL sql
                             (Left err) -> error $ "Pathfinder compilation for input: \n"
