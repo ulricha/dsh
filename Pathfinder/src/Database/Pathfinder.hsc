@@ -61,15 +61,18 @@ compileFerry :: XmlString                   -- ^ Input XML plan
              -> OutputFormat
              -> IO (Either ErrorString OutputString)
 compileFerry xml output = do
-    B.useAsCString (T.encodeUtf8 (T.pack xml)) $ \c'xml ->
-      alloca $ \ptr -> alloca $ \c'err -> do
-
-          -- run PFcompile_ferry
+    let bs = T.encodeUtf8 (T.pack xml)
+    B.useAsCString bs $ \c'xml ->
+      alloca $ \ptr ->
+      alloca $ \c'err -> do
           ci <- c'PFcompile_ferry ptr c'err c'xml (outputFormatToCInt output)
-
           if ci == 0
-             then Right `fmap` (peek ptr >>= B.packCString >>= (return . T.unpack . T.decodeUtf8))
-             else Left  `fmap` (B.packCString c'err >>= (return . T.unpack . T.decodeUtf8))
+             then do
+               cs <- peek ptr
+               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString cs)
+               free cs
+               return (Right r)
+             else fmap (Left . T.unpack . T.decodeUtf8) (B.packCString c'err)
 
 
 foreign import ccall safe "PFcompile_ferry_opt"
@@ -83,16 +86,21 @@ compileFerryOpt :: XmlString
                 -> Maybe OptArgs                        -- ^ Optimization arguments (see pf option -o)
                 -> IO (Either ErrorString OutputString)
 compileFerryOpt xml output optimization = do
-    B.useAsCString (T.encodeUtf8 (T.pack xml)) $ \c'xml ->
-      alloca $ \ptr -> alloca $ \c'err -> do
+    let bs = T.encodeUtf8 (T.pack xml)
+    B.useAsCString bs $ \c'xml ->
+      alloca $ \ptr ->
+      alloca $ \c'err -> do
 
           -- Read optimization arguments, use nullPtr if nothing is given
           opt <- maybe (return nullPtr)
                        newCString
                        optimization
 
-          -- run PFcompile_ferry_opt
           ci <- c'PFcompile_ferry_opt ptr c'err c'xml (outputFormatToCInt output) opt
           if ci == 0
-             then Right `fmap` (peek ptr >>= B.packCString >>= (return . T.unpack . T.decodeUtf8))
-             else Left  `fmap` (B.packCString c'err >>= (return . T.unpack . T.decodeUtf8))
+             then do
+               cs <- peek ptr
+               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString cs)
+               free cs
+               return (Right r)
+             else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c'err)
