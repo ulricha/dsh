@@ -486,7 +486,6 @@ generateRecords conn t dname dnames = do
                       CharT       -> ConT ''Char
                       DoubleT     -> ConT ''Double
                       TextT       -> ConT ''Text
-                      TimeT       -> ConT ''Time
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')

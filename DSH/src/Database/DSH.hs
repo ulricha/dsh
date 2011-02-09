@@ -19,7 +19,6 @@ module Database.DSH
 
     -- * Data Types
   , Q
-  , Time
 
     -- * Type Classes
   , QA
@@ -39,7 +38,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, Time, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
+import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
 import Database.DSH.QQ (qc)
 import Database.DSH.TH (generateRecords, generateInstances)
 

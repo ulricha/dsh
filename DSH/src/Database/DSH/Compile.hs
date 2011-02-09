@@ -178,7 +178,6 @@ processResults' q c vals t@(ListT _) = do
                                         return $ map (\val -> case lA A.! ((convert $ val !! i)::Int) of
                                                                 Just x -> x
                                                                 Nothing -> ListN [] t) vals
-processResults' _ _ _ (TimeT) = error "Results processing for time has not been implemented."
 processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
 processResults' q c vals t = do
                                     i <- getColResPos q c

@@ -12,10 +12,8 @@ import Data.Text(Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
--- import Data.Time
 import GHC.Exts
 
-type Time = Integer
 type Real = Double
 
 data Exp =
@@ -25,7 +23,6 @@ data Exp =
   | IntegerE Integer Type
   | DoubleE Double Type
   | TextE Text Type
-  | TimeE Time Type
   | TupleE Exp Exp Type
   | ListE [Exp] Type
   | LamE (Exp -> Exp) Type
@@ -66,7 +63,6 @@ data Norm =
   | IntegerN Integer Type
   | DoubleN Double Type
   | TextN Text Type
-  | TimeN Time Type
   | TupleN Norm Norm Type
   | ListN [Norm] Type
   deriving (Eq, Ord, Show, Data, Typeable)
@@ -78,7 +74,6 @@ data Type =
   | IntegerT
   | DoubleT
   | TextT
-  | TimeT
   | TupleT Type Type
   | ListT Type
   | ArrowT Type Type
@@ -99,7 +94,6 @@ typeExp e = case e of
   IntegerE _ t -> t
   DoubleE _ t -> t
   TextE _ t -> t
-  TimeE _ t -> t
   TupleE _ _ t -> t
   ListE _ t -> t
   LamE _ t -> t
@@ -168,13 +162,6 @@ instance QA Text where
     fromNorm (TextN t TextT) = t
     fromNorm _ = $impossible
 
--- instance QA Time where
---     reify _ = TimeT
---     toNorm t = TimeN t TimeT
---     fromNorm (TimeN t TimeT) = t
---     fromNorm _ = $impossible
-
-
 instance (QA a,QA b) => QA (a,b) where
   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
   toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
@@ -195,7 +182,6 @@ instance BasicType Char where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
--- instance BasicType Time where
 
 -- * Refering to Real Database Tables
 
@@ -319,10 +305,6 @@ instance View (Q Text) (Q Text) where
   view = id
   fromView = id
 
--- instance View (Q Time) (Q Time) where
---   view = id
---   fromView = id
-
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
   view (Q a) = (Q (AppE1 Fst a (reify (undefined :: a))), Q (AppE1 Snd a (reify (undefined :: b))))
   fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2 (reify (undefined :: (a, b))))
@@ -334,7 +316,6 @@ instance Convertible Norm Exp where
              BoolN b t      -> BoolE b t
              CharN c t      -> CharE c t
              TextN s t      -> TextE s t
-             TimeN u t      -> TimeE u t
              IntegerN i t   -> IntegerE i t
              DoubleN d t    -> DoubleE d t
              TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
@@ -366,7 +347,6 @@ instance Convertible Type SqlTypeId where
              BoolT          -> Right SqlBitT
              CharT          -> Right SqlCharT
              TextT          -> Right SqlVarCharT
-             TimeT          -> Right SqlTimestampT
              UnitT          -> convError "No `UnitT' representation" n
              TupleT {}      -> convError "No `TupleT' representation" n
              ListT {}       -> convError "No `ListT' representation" n
@@ -375,15 +355,23 @@ instance Convertible Type SqlTypeId where
 instance Convertible SqlTypeId Type where
     safeConvert n =
         case n of
-             SqlBigIntT         -> Right IntegerT
-             SqlDoubleT         -> Right DoubleT
-             SqlRealT           -> Right DoubleT
-             SqlBitT            -> Right BoolT
-             SqlCharT           -> Right CharT
-             SqlVarCharT        -> Right TextT
-             SqlDateT           -> Right TimeT
-             SqlTimestampT      -> Right TimeT
-             _                  -> convError "Unsupported `SqlTypeId'" n
+          SqlCharT           -> Right TextT
+          SqlVarCharT        -> Right TextT
+          SqlLongVarCharT    -> Right TextT
+          SqlWCharT          -> Right TextT
+          SqlWVarCharT       -> Right TextT
+          SqlWLongVarCharT   -> Right TextT
+          SqlDecimalT        -> Right DoubleT
+          SqlNumericT        -> Right DoubleT
+          SqlSmallIntT       -> Right IntegerT
+          SqlIntegerT        -> Right IntegerT
+          SqlRealT           -> Right DoubleT
+          SqlFloatT          -> Right DoubleT
+          SqlDoubleT         -> Right DoubleT
+          SqlBitT            -> Right BoolT
+          SqlBigIntT         -> Right IntegerT
+          SqlTinyIntT        -> Right IntegerT
+          _                  -> convError "Unsupported `SqlTypeId'" n
 
 
 instance Convertible SqlValue Norm where
@@ -396,8 +384,6 @@ instance Convertible SqlValue Norm where
              SqlChar c          -> Right $ CharN c CharT
              SqlString t        -> Right $ TextN (T.pack t) TextT
              SqlByteString s    -> Right $ TextN (T.decodeUtf8 s) TextT
-             -- SqlLocalTime t     -> Right $ TimeN (localTimeToUTC utc t) TimeT
-             -- SqlLocalDate d     -> Right $ TimeN (UTCTime d 0) TimeT
              _                  -> convError "Unsupported `SqlValue'" sql
 
 instance Convertible (SqlValue, Type) Norm where
@@ -444,7 +430,6 @@ instance Convertible Norm SqlValue where
              BoolN b _           -> Right $ SqlBool b
              CharN c _           -> Right $ SqlChar c
              TextN t _           -> Right $ SqlString $ T.unpack t
-             TimeN _t _          -> convError "Cannot convert `Norm' to `SqlValue'" n -- Right $ SqlUTCTime t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
                         

@@ -45,7 +45,6 @@ csvImport filepath csvType = do
     IntegerT   -> IntegerN (read s) IntegerT
     DoubleT    -> DoubleN  (read s) DoubleT
     TextT      -> TextN    (Text.pack s) TextT
-    TimeT      -> er
     TupleT _ _ -> er
     ListT _    -> er
     ArrowT _ _ -> er
