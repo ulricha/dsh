@@ -1,12 +1,34 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
 
-module Database.DSH.CSV (csvImport) where
+module Database.DSH.CSV (csvImport, csvExport) where
 
 import Database.DSH.Data
 import Database.DSH.Impossible
 
 import Text.CSV
-import qualified Data.Text as Text
+-- import Data.Text (Text)
+import qualified Data.Text as T
+
+
+csvExport :: (TA a) => FilePath -> [a] -> IO ()
+csvExport file as = writeFile file csvContent
+  where csvContent :: String
+        csvContent = unlines (map (toRow . toNorm) as)
+
+        quote :: String -> String
+        quote s = "\"" ++ s ++ "\""
+
+        toRow :: Norm -> String
+        toRow e = case e of
+                    ListN _ _       -> $impossible
+                    UnitN _         -> quote "()"
+                    BoolN b _       -> quote (show b)
+                    CharN c _       -> quote [c]
+                    IntegerN i _    -> quote (show i)
+                    DoubleN d _     -> quote (show d)
+                    TextN t _       -> quote (T.unpack t)
+                    TupleN e1 e2 _  -> toRow e1 ++ "," ++ toRow e2
+
 
 csvImport :: FilePath -> Type -> IO Norm
 csvImport filepath csvType = do
@@ -16,37 +38,31 @@ csvImport filepath csvType = do
                Left er -> error (show er)
                Right r -> filter (\l -> not (all null l) || length l > 1) (tail r)
   return (ListN (fmap (csvRecordToNorm rType) csv1) (ListT rType))
+  where csvError :: String -> a
+        csvError s = error ("Error in '" ++ filepath ++ "': " ++ s)
 
-  where
+        recordType :: Type -> Type
+        recordType (ListT rType) = rType
+        recordType _ = $impossible
 
-  csvError :: String -> a
-  csvError s = error ("Error in '" ++ filepath ++ "': " ++ s)
-    
-  recordType :: Type -> Type
-  recordType (ListT rType) = rType
-  recordType _ = $impossible
-  
-  csvRecordToNorm :: Type -> [String] -> Norm
-  csvRecordToNorm t rs = case (t,rs) of
-    (UnitT       , []      ) -> UnitN UnitT
-    (_           , []      ) -> er
-    (t1          , [bs]    ) -> csvFieldToNorm t1 bs
-    (TupleT t1 t2, bs : bss) -> TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
-    (_           , _       ) -> er
-    where
-    er = csvError ("When converting record '" ++ show rs ++ "' to a value of type '" ++ show t ++ "'")
-    
+        csvRecordToNorm :: Type -> [String] -> Norm
+        csvRecordToNorm t rs = case (t,rs) of
+          (UnitT       , []      ) -> UnitN UnitT
+          (_           , []      ) -> er
+          (t1          , [bs]    ) -> csvFieldToNorm t1 bs
+          (TupleT t1 t2, bs : bss) -> TupleN (csvFieldToNorm t1 bs) (csvRecordToNorm t2 bss) (TupleT t1 t2)
+          (_           , _       ) -> er
+          where er = csvError ("When converting record '" ++ show rs ++ "' to a value of type '" ++ show t ++ "'")
 
-  csvFieldToNorm :: Type -> String -> Norm
-  csvFieldToNorm t s = case t of
-    UnitT      -> UnitN             UnitT
-    BoolT      -> BoolN    (read s) BoolT
-    CharT      -> CharN    (head s) CharT
-    IntegerT   -> IntegerN (read s) IntegerT
-    DoubleT    -> DoubleN  (read s) DoubleT
-    TextT      -> TextN    (Text.pack s) TextT
-    TupleT _ _ -> er
-    ListT _    -> er
-    ArrowT _ _ -> er
-    where
-    er = csvError ("When converting CSV field'" ++ s ++ "' to a value of type '" ++ show t ++ "'")
+        csvFieldToNorm :: Type -> String -> Norm
+        csvFieldToNorm t s = case t of
+          UnitT      -> UnitN             UnitT
+          BoolT      -> BoolN    (read s) BoolT
+          CharT      -> CharN    (head s) CharT
+          IntegerT   -> IntegerN (read s) IntegerT
+          DoubleT    -> DoubleN  (read s) DoubleT
+          TextT      -> TextN    (T.pack s) TextT
+          TupleT _ _ -> er
+          ListT _    -> er
+          ArrowT _ _ -> er
+          where er = csvError ("When converting CSV field'" ++ s ++ "' to a value of type '" ++ show t ++ "'")

@@ -32,6 +32,8 @@ module Database.DSH
   , generateRecords
   , generateInstances
 
+  , module Database.DSH.CSV
+
   , module Data.Text
   , module Database.HDBC
   , module Prelude
@@ -41,6 +43,7 @@ module Database.DSH
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
 import Database.DSH.QQ (qc)
 import Database.DSH.TH (generateRecords, generateInstances)
+import Database.DSH.CSV (csvExport)
 
 import Database.DSH.Combinators
 
