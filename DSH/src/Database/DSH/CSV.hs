@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec, OverloadedStrings #-}
 
 module Database.DSH.CSV (csvImport, csvExport) where
 
@@ -6,28 +6,34 @@ import Database.DSH.Data
 import Database.DSH.Impossible
 
 import Text.CSV
--- import Data.Text (Text)
+import Data.Text (Text)
 import qualified Data.Text as T
-
+import qualified Data.Text.IO as T
 
 csvExport :: (TA a) => FilePath -> [a] -> IO ()
-csvExport file as = writeFile file csvContent
-  where csvContent :: String
-        csvContent = unlines (map (toRow . toNorm) as)
+csvExport file as = T.writeFile file csvContent
+  where csvContent :: Text
+        csvContent = T.unlines (map (toRow . toNorm) as)
 
-        quote :: String -> String
-        quote s = "\"" ++ s ++ "\""
+        quote :: Text -> Text
+        quote s = T.concat ["\"",s,"\""]
+        
+        escape :: Text -> Text
+        escape = (T.replace "\t" "\\t") .
+                 (T.replace "\r" "\\r") .
+                 (T.replace "\n" "\\n") .
+                 (T.replace "\"" "\"\"")
 
-        toRow :: Norm -> String
+        toRow :: Norm -> Text
         toRow e = case e of
                     ListN _ _       -> $impossible
                     UnitN _         -> quote "()"
-                    BoolN b _       -> quote (show b)
-                    CharN c _       -> quote [c]
-                    IntegerN i _    -> quote (show i)
-                    DoubleN d _     -> quote (show d)
-                    TextN t _       -> quote (T.unpack t)
-                    TupleN e1 e2 _  -> toRow e1 ++ "," ++ toRow e2
+                    BoolN b _       -> quote (T.pack (show b))
+                    CharN c _       -> quote (escape (T.singleton c))
+                    IntegerN i _    -> quote (T.pack (show i))
+                    DoubleN d _     -> quote (T.pack (show d))
+                    TextN t _       -> quote (escape t)
+                    TupleN e1 e2 _  -> T.concat [toRow e1,",",toRow e2]
 
 
 csvImport :: FilePath -> Type -> IO Norm
