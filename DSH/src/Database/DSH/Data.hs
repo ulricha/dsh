@@ -396,6 +396,7 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlInt64 i, IntegerT)   -> Right $ flip IntegerN IntegerT $ convert i
           (SqlWord32 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
           (SqlWord64 i, IntegerT)  -> Right $ flip IntegerN IntegerT $ convert i
+          (SqlRational r, IntegerT) -> Right $ flip IntegerN IntegerT $ convert r
 
           (SqlDouble d, DoubleT)   -> Right $ DoubleN d DoubleT
           (SqlRational r, DoubleT) -> Right $ flip DoubleN DoubleT $ convert r
@@ -419,7 +420,7 @@ instance Convertible (SqlValue, Type) Norm where
           (SqlString (c : _), CharT) -> Right $ CharN c CharT
           (SqlByteString ((T.unpack . T.decodeUtf8) -> (c : _)), CharT)  -> Right $ CharN c CharT
 
-          _                        -> error (show sql) 
+          _                        -> $impossible
 
 instance Convertible Norm SqlValue where
     safeConvert n =

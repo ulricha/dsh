@@ -8,7 +8,7 @@ import Database.DSH.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool, Integer, Double, undefined, error, ($))
+import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, undefined, error, ($))
 
 -- * Unit
 
@@ -16,6 +16,12 @@ unit :: Q ()
 unit = Q (UnitE $ reify (undefined :: ()))
 
 -- * Boolean logic
+
+false :: Q Bool
+false = Q (BoolE False BoolT)
+
+true :: Q Bool
+true = Q (BoolE True BoolT)
 
 not :: Q Bool -> Q Bool
 not (Q b) = Q (AppE1 Not b $ reify (undefined :: Bool))
@@ -208,6 +214,15 @@ span f (Q as) = Q (AppE2 Span (toLam1 f) as $ reify (undefined :: ([a],[a])))
 break     :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
 break f (Q as) = Q (AppE2 Break (toLam1 f) as $ reify (undefined :: ([a],[a])))
 
+
+-- * Searching Lists
+
+elem :: forall a. (Eq a, QA a) => Q a -> Q [a] -> Q Bool
+elem a as = (null (filter (a ==) as)) ? (false,true)
+
+notElem :: forall a. (Eq a, QA a) => Q a -> Q [a] -> Q Bool
+notElem a as = not (elem a as)
+
 -- * Zipping and Unzipping Lists
 
 zip       :: forall a b. (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
@@ -277,11 +292,6 @@ General folds:
 > foldr1
 > scanr
 > scanr1
-
-searching lists:
-
-> elem
-> notElem
 
 Infinit lists:
 

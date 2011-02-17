@@ -33,8 +33,8 @@ qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 10}
 
 main :: IO ()
 main = do
-    putStrLn "Running DSH prelude tests"
-    putStrLn "-------------------------"
+    putStrLn "Basic Types"
+    putStrLn "-----------"
     putStr "unit:           "
     qc prop_unit
     putStr "Bool:           "
@@ -49,8 +49,8 @@ main = do
     qc prop_double
 
     putStrLn ""
-    putStrLn "Equality & Ordering"
-    putStrLn "-------------------------"
+    putStrLn "Equality, Boolean Logic and Ordering"
+    putStrLn "------------------------------------"
     putStr "&&:             "
     qc prop_infix_and
     putStr "||:             "
@@ -61,6 +61,8 @@ main = do
     qc prop_eq_int
     putStr "neq:            "
     qc prop_neq_int
+    putStr "cond:           "
+    qc prop_cond
     putStr "lt:             "
     qc prop_lt
     putStr "lte:            "
@@ -79,22 +81,16 @@ main = do
     qc prop_max_double
 
     putStrLn ""
-    putStrLn "Tuple projection functions"
-    putStrLn "-------------------------"
+    putStrLn "Tuples"
+    putStrLn "------"
     putStr "fst:            "
     qc prop_fst
     putStr "snd:            "
     qc prop_snd
 
     putStrLn ""
-    putStrLn "Conditionals:"
-    putStrLn "-------------------------"
-    putStr "cond:           "
-    qc prop_cond
-
-    putStrLn ""
-    putStrLn "Numerical operations:"
-    putStrLn "-------------------------"
+    putStrLn "Numerics:"
+    putStrLn "-----------"
     putStr "add_integer:    "
     qc prop_add_integer
     putStr "add_double:     "
@@ -122,7 +118,7 @@ main = do
 
     putStrLn ""
     putStrLn "Lists"
-    putStrLn "-------------------------"
+    putStrLn "-----"
     putStr "head:           "
     qc prop_head
     putStr "tail:           "
@@ -159,10 +155,6 @@ main = do
     qc prop_groupWith_id
     putStr "sortWith_id:    "
     qc prop_sortWith_id
-
-    putStrLn ""
-    putStrLn "Special folds"
-    putStrLn "-------------------------"
     putStr "and:            "
     qc prop_and
     putStr "or:             "
@@ -183,10 +175,6 @@ main = do
     qc prop_maximum
     putStr "minimum:        "
     qc prop_minimum
-
-    putStrLn ""
-    putStrLn "Sublists"
-    putStrLn "-------------------------"
     putStr "splitAt:        "
     qc prop_splitAt
     putStr "takeWhile:      "
@@ -197,20 +185,16 @@ main = do
     qc prop_span
     putStr "break:          "
     qc prop_break
-
-    putStrLn ""
-    putStrLn "Zipping and unzipping lists"
-    putStrLn "-------------------------"
+    putStr "elem:           "
+    qc prop_elem
+    putStr "notElem:        "
+    qc prop_notElem
     putStr "zip:            "
     qc prop_zip
     putStr "zipWith_plus:   "
     qc prop_zipWith_plus
     putStr "unzip:          "
     qc prop_unzip
-
-    putStrLn ""
-    putStrLn "Set operations"
-    putStrLn "-------------------------"
     putStr "nub:            "
     qc prop_nub
 
@@ -245,12 +229,12 @@ runTestDouble q f arg = monadicIO $ do
     run $ HDBC.disconnect c
     let hs = f arg
     let eps = 1.0E-8 :: Double;    
-    assert (abs(db - hs) < eps)
-
-
+    assert (abs (db - hs) < eps)
 
 uncurry_Q :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurry_Q q = uncurry q . Q.view
+
+-- * Basic Types
 
 prop_unit :: () -> Property
 prop_unit = runTest id id
@@ -278,10 +262,7 @@ prop_char c = isPrint c ==> runTest id id c
 prop_text :: Text -> Property
 prop_text t = Text.all isPrint t ==> runTest id id t
 
-
-
---------------------------------------------------------------------------------
--- Equality & Ordering
+-- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
 prop_infix_and = runTest (uncurry_Q (Q.&&)) (uncurry (&&))
@@ -303,6 +284,10 @@ prop_neq = runTest (uncurry_Q (Q./=)) (\(a,b) -> a /= b)
 
 prop_neq_int :: (Integer,Integer) -> Property
 prop_neq_int = prop_eq
+
+prop_cond :: Bool -> Property
+prop_cond = runTest (Q.cond Q.empty (Q.toQ [0 :: Integer]))
+                    (\b -> if b then [] else [0])
 
 prop_lt :: (Integer, Integer) -> Property
 prop_lt = runTest (uncurry_Q (Q.<)) (uncurry (<))
@@ -328,8 +313,7 @@ prop_min_double = runTestDouble (uncurry_Q Q.min) (uncurry min)
 prop_max_double :: (Double,Double) -> Property
 prop_max_double = runTestDouble (uncurry_Q Q.max) (uncurry max)
 
---------------------------------------------------------------------------------
--- Lists
+-- * Lists
 
 prop_cons :: (Integer, [Integer]) -> Property
 prop_cons = runTest (uncurry_Q (Q.<|)) (uncurry (:))
@@ -339,9 +323,6 @@ prop_snoc = runTest (uncurry_Q (Q.|>)) (\(a,b) -> a ++ [b])
 
 prop_singleton :: Integer -> Property
 prop_singleton = runTest Q.singleton (\x -> [x])
-
-
--- head, tail, last, init, the and index may fail:
 
 prop_head  :: [Integer] -> Property
 prop_head  = testNotNull Q.head head
@@ -370,21 +351,18 @@ prop_index (l, i) =
                 (\(a,b) -> a !! fromIntegral b)
                 (l, i)
 
-
 prop_take :: (Integer, [Integer]) -> Property
 prop_take = runTest (uncurry_Q Q.take) (\(n,l) -> take (fromIntegral n) l)
 
 prop_drop :: (Integer, [Integer]) -> Property
 prop_drop = runTest (uncurry_Q Q.drop) (\(n,l) -> drop (fromIntegral n) l)
 
--- | Map "id" over the list
 prop_map_id :: [Integer] -> Property
 prop_map_id = runTest (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
 prop_append = runTest (uncurry_Q (Q.><)) (\(a,b) -> a ++ b)
 
--- | filter "const True"
 prop_filter_True :: [Integer] -> Property
 prop_filter_True = runTest (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
@@ -402,10 +380,6 @@ prop_length = runTest Q.length (fromIntegral . length)
 
 prop_reverse :: [Integer] -> Property
 prop_reverse = runTest Q.reverse reverse
-
-
---------------------------------------------------------------------------------
--- Special folds
 
 prop_and :: [Bool] -> Property
 prop_and = runTest Q.and and
@@ -431,15 +405,11 @@ prop_concat = runTest Q.concat concat
 prop_concatMap :: [Integer] -> Property
 prop_concatMap = runTest (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
 
-
 prop_maximum :: [Integer] -> Property
 prop_maximum = testNotNull Q.maximum maximum
 
 prop_minimum :: [Integer] -> Property
 prop_minimum = testNotNull Q.minimum minimum
-
---------------------------------------------------------------------------------
--- Sublists
 
 prop_splitAt :: (Integer, [Integer]) -> Property
 prop_splitAt = runTest (uncurry_Q Q.splitAt) (\(a,b) -> splitAt (fromIntegral a) b)
@@ -460,9 +430,13 @@ prop_break :: (Integer, [Integer]) -> Property
 prop_break = runTest (uncurry_Q $ Q.break . (Q.==))
                      (uncurry   $   break . (==) . fromIntegral)
 
+prop_elem :: (Integer, [Integer]) -> Property
+prop_elem = runTest (uncurry_Q $ Q.elem)
+                    (uncurry   $   elem)
 
---------------------------------------------------------------------------------
--- Zipping and unzipping lists
+prop_notElem :: (Integer, [Integer]) -> Property
+prop_notElem = runTest (uncurry_Q $ Q.notElem)
+                       (uncurry   $   notElem)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = runTest (uncurry_Q Q.zip) (uncurry zip)
@@ -473,16 +447,10 @@ prop_zipWith_plus = runTest (uncurry_Q $ Q.zipWith (+)) (uncurry $ zipWith (+))
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = runTest Q.unzip unzip
 
-
---------------------------------------------------------------------------------
--- Set operations
-
 prop_nub :: [Integer] -> Property
 prop_nub = runTest Q.nub nub
 
-
---------------------------------------------------------------------------------
--- Tuple projection functions
+-- * Tuples
 
 prop_fst :: (Integer, Integer) -> Property
 prop_fst = runTest Q.fst fst
@@ -490,16 +458,7 @@ prop_fst = runTest Q.fst fst
 prop_snd :: (Integer, Integer) -> Property
 prop_snd = runTest Q.snd snd
 
-
---------------------------------------------------------------------------------
--- Conditionals
-
-prop_cond :: Bool -> Property
-prop_cond = runTest (Q.cond Q.empty (Q.toQ [0 :: Integer]))
-                    (\b -> if b then [] else [0])
-
---------------------------------------------------------------------------------
--- Numerical Operations
+-- * Numerics
 
 prop_add_integer :: (Integer,Integer) -> Property
 prop_add_integer = runTest (uncurry_Q (+)) (uncurry (+))
