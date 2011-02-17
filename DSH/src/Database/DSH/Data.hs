@@ -14,8 +14,6 @@ import qualified Data.Text.Encoding as T
 
 import GHC.Exts
 
-type Real = Double
-
 data Exp =
     UnitE Type
   | BoolE Bool Type
@@ -32,7 +30,10 @@ data Exp =
   | AppE3 Fun3 Exp Exp Exp Type
   | TableE Table Type
   | VarE Int Type
-   deriving (Data, Typeable)
+   deriving (Show, Data, Typeable)
+
+instance Show (Exp -> Exp) where
+  show _ = "(f :: Exp -> Exp)"
 
 data Fun1 =
     Fst | Snd | Not | IntegerToDouble
@@ -119,7 +120,7 @@ typeTupleSnd _ = $impossible
 typeNorm :: Norm -> Type
 typeNorm = typeExp . convert
 
-data Q a = Q Exp
+data Q a = Q Exp deriving (Show, Data, Typeable)
 
 class QA a where
   reify :: a -> Type
@@ -211,10 +212,7 @@ instance TA Double where
 instance TA Text where
 instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
 
--- * Eq, Ord, Show and Num Instances for Databse Queries
-
-instance Show (Q a) where
-  show _ = "Query"
+-- * Eq, Ord and Num Instances for Databse Queries
 
 instance Eq (Q Integer) where
   (==) _ _ = error "Eq instance for (Q Integer) must not be used."
