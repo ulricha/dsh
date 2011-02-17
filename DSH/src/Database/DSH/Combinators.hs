@@ -79,14 +79,11 @@ max (Q a) (Q b) = Q (AppE2 Max a b $ reify (undefined :: a))
 
 -- * Conditionals
 
-cond :: (QA a) => Q a -> Q a -> Q Bool -> Q a
-cond a b c = c ? (a,b)
+cond :: forall a. (QA a) => Q Bool -> Q a -> Q a -> Q a
+cond (Q c) (Q a) (Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))
 
-bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
-bool = cond
-
-(?) :: forall a. (QA a) => Q Bool -> (Q a,Q a) -> Q a
-(?) (Q c) (Q a,Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))
+(?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
+(?) c (a,b) = cond c a b
 
 -- * List Construction
 

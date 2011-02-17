@@ -58,9 +58,9 @@ main = do
     putStr "not:            "
     qc prop_not
     putStr "eq:             "
-    qc prop_eq_int
+    qc prop_eq
     putStr "neq:            "
-    qc prop_neq_int
+    qc prop_neq
     putStr "cond:           "
     qc prop_cond
     putStr "lt:             "
@@ -119,6 +119,10 @@ main = do
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
+    putStr "[Integer]:           "
+    qc prop_list
+    putStr "[[Integer]]:         "
+    qc prop_list_list
     putStr "head:           "
     qc prop_head
     putStr "tail:           "
@@ -199,147 +203,138 @@ main = do
     qc prop_nub
 
 
-runTest :: (Eq b, QA a, QA b, Show a, Show b)
-        => (Q a -> Q b)
-        -> (a -> b)
-        -> a
-        -> Property
-runTest q f arg = monadicIO $ do
-    c  <- run $ getConn
-    db <- run $ fromQ c (q (Q.toQ arg))
-    run $ HDBC.disconnect c
-    let hs = f arg
+makeProp :: (Eq b, QA a, QA b, Show a, Show b)
+            => (Q a -> Q b)
+            -> (a -> b)
+            -> a
+            -> Property
+makeProp f1 f2 arg = monadicIO $ do
+    c  <- run getConn
+    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    run (HDBC.disconnect c)
+    let hs = f2 arg
     assert (db == hs)
 
-testNotNull :: (Eq b, Q.QA a, Q.QA b, Show a, Show b)
-            => (Q.Q [a] -> Q.Q b)
-            -> ([a] -> b)
-            -> [a]
-            -> Property
-testNotNull q f arg = not (null arg) ==> runTest q f arg
+makePropNotNull ::  (Eq b, Q.QA a, Q.QA b, Show a, Show b)
+                    => (Q.Q [a] -> Q.Q b)
+                    -> ([a] -> b)
+                    -> [a]
+                    -> Property
+makePropNotNull q f arg = not (null arg) ==> makeProp q f arg
 
-runTestDouble :: (QA a, Show a)
-        => (Q a -> Q Double)
-        -> (a -> Double)
-        -> a
-        -> Property
-runTestDouble q f arg = monadicIO $ do
+makePropDouble :: (QA a, Show a)
+                  => (Q a -> Q Double)
+                  -> (a -> Double)
+                  -> a
+                  -> Property
+makePropDouble f1 f2 arg = monadicIO $ do
     c  <- run $ getConn
-    db <- run $ fromQ c (q (Q.toQ arg))
+    db <- run $ fromQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
-    let hs = f arg
+    let hs = f2 arg
     let eps = 1.0E-8 :: Double;    
     assert (abs (db - hs) < eps)
 
-uncurry_Q :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
-uncurry_Q q = uncurry q . Q.view
+uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
+uncurryQ f = uncurry f . Q.view
 
 -- * Basic Types
 
 prop_unit :: () -> Property
-prop_unit = runTest id id
+prop_unit = makeProp id id
 
 prop_bool :: Bool -> Property
-prop_bool = runTest id id
+prop_bool = makeProp id id
 
 prop_integer :: Integer -> Property
-prop_integer = runTest id id
+prop_integer = makeProp id id
 
 prop_double :: Double -> Property
-prop_double = runTestDouble id id
-
-isValidXmlChar :: Char -> Bool
-isValidXmlChar c =
-     '\x0009' <= c && c <= '\x000A'
-  || '\x000D' <= c && c <= '\x000D'
-  || '\x0020' <= c && c <= '\xD7FF'
-  || '\xE000' <= c && c <= '\xFFFD'
-  || '\x10000'<= c && c <= '\x10FFFF'
+prop_double = makePropDouble id id
 
 prop_char :: Char -> Property
-prop_char c = isPrint c ==> runTest id id c
+prop_char c = isPrint c ==> makeProp id id c
 
 prop_text :: Text -> Property
-prop_text t = Text.all isPrint t ==> runTest id id t
+prop_text t = Text.all isPrint t ==> makeProp id id t
 
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
-prop_infix_and = runTest (uncurry_Q (Q.&&)) (uncurry (&&))
+prop_infix_and = makeProp (uncurryQ (Q.&&)) (uncurry (&&))
 
 prop_infix_or :: (Bool,Bool) -> Property
-prop_infix_or = runTest (uncurry_Q (Q.||)) (uncurry (||))
+prop_infix_or = makeProp (uncurryQ (Q.||)) (uncurry (||))
 
 prop_not :: Bool -> Property
-prop_not = runTest Q.not not
+prop_not = makeProp Q.not not
 
-prop_eq :: (Eq a, Q.QA a, Show a) => (a,a) -> Property
-prop_eq = runTest (\q -> Q.fst q Q.== Q.snd q) (\(a,b) -> a == b)
+prop_eq :: (Integer,Integer) -> Property
+prop_eq = makeProp (uncurryQ (Q.==)) (uncurry (==))
 
-prop_eq_int :: (Integer,Integer) -> Property
-prop_eq_int = prop_eq
-
-prop_neq :: (Eq a, Q.QA a, Show a) => (a,a) -> Property
-prop_neq = runTest (uncurry_Q (Q./=)) (\(a,b) -> a /= b)
-
-prop_neq_int :: (Integer,Integer) -> Property
-prop_neq_int = prop_eq
+prop_neq :: (Integer,Integer) -> Property
+prop_neq = makeProp (uncurryQ (Q./=)) (uncurry (/=))
 
 prop_cond :: Bool -> Property
-prop_cond = runTest (Q.cond Q.empty (Q.toQ [0 :: Integer]))
-                    (\b -> if b then [] else [0])
+prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else 1)
 
 prop_lt :: (Integer, Integer) -> Property
-prop_lt = runTest (uncurry_Q (Q.<)) (uncurry (<))
+prop_lt = makeProp (uncurryQ (Q.<)) (uncurry (<))
 
 prop_lte :: (Integer, Integer) -> Property
-prop_lte = runTest (uncurry_Q (Q.<=)) (uncurry (<=))
+prop_lte = makeProp (uncurryQ (Q.<=)) (uncurry (<=))
 
 prop_gt :: (Integer, Integer) -> Property
-prop_gt = runTest (uncurry_Q (Q.>)) (uncurry (>))
+prop_gt = makeProp (uncurryQ (Q.>)) (uncurry (>))
 
 prop_gte :: (Integer, Integer) -> Property
-prop_gte = runTest (uncurry_Q (Q.>=)) (uncurry (>=))
+prop_gte = makeProp (uncurryQ (Q.>=)) (uncurry (>=))
 
 prop_min_integer :: (Integer,Integer) -> Property
-prop_min_integer = runTest (uncurry_Q Q.min) (uncurry min)
+prop_min_integer = makeProp (uncurryQ Q.min) (uncurry min)
 
 prop_max_integer :: (Integer,Integer) -> Property
-prop_max_integer = runTest (uncurry_Q Q.max) (uncurry max)
+prop_max_integer = makeProp (uncurryQ Q.max) (uncurry max)
 
 prop_min_double :: (Double,Double) -> Property
-prop_min_double = runTestDouble (uncurry_Q Q.min) (uncurry min)
+prop_min_double = makePropDouble (uncurryQ Q.min) (uncurry min)
 
 prop_max_double :: (Double,Double) -> Property
-prop_max_double = runTestDouble (uncurry_Q Q.max) (uncurry max)
+prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 
 -- * Lists
 
+prop_list :: [Integer] -> Property
+prop_list = makeProp id id
+
+prop_list_list :: [[Integer]] -> Property
+prop_list_list = makeProp id id
+
 prop_cons :: (Integer, [Integer]) -> Property
-prop_cons = runTest (uncurry_Q (Q.<|)) (uncurry (:))
+prop_cons = makeProp (uncurryQ (Q.<|)) (uncurry (:))
 
 prop_snoc :: ([Integer], Integer) -> Property
-prop_snoc = runTest (uncurry_Q (Q.|>)) (\(a,b) -> a ++ [b])
+prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
 
 prop_singleton :: Integer -> Property
-prop_singleton = runTest Q.singleton (\x -> [x])
+prop_singleton = makeProp Q.singleton (\x -> [x])
 
 prop_head  :: [Integer] -> Property
-prop_head  = testNotNull Q.head head
+prop_head  = makePropNotNull Q.head head
 
 prop_tail  :: [Integer] -> Property
-prop_tail  = testNotNull Q.tail tail
+prop_tail  = makePropNotNull Q.tail tail
 
 prop_last  :: [Integer] -> Property
-prop_last  = testNotNull Q.last last
+prop_last  = makePropNotNull Q.last last
 
 prop_init  :: [Integer] -> Property
-prop_init  = testNotNull Q.init init
+prop_init  = makePropNotNull Q.init init
 
 prop_the   :: [Integer] -> Property
 prop_the l =
         allEqual l
-    ==> runTest Q.the the l
+    ==> makeProp Q.the the l
   where
     allEqual []     = False
     allEqual (x:xs) = all (x ==) xs
@@ -347,153 +342,153 @@ prop_the l =
 prop_index :: ([Integer], Integer)  -> Property
 prop_index (l, i) =
         i > 0 && i < fromIntegral (length l)
-    ==> runTest (uncurry_Q (Q.!!))
-                (\(a,b) -> a !! fromIntegral b)
-                (l, i)
+    ==> makeProp (uncurryQ (Q.!!))
+                 (\(a,b) -> a !! fromIntegral b)
+                 (l, i)
 
 prop_take :: (Integer, [Integer]) -> Property
-prop_take = runTest (uncurry_Q Q.take) (\(n,l) -> take (fromIntegral n) l)
+prop_take = makeProp (uncurryQ Q.take) (\(n,l) -> take (fromIntegral n) l)
 
 prop_drop :: (Integer, [Integer]) -> Property
-prop_drop = runTest (uncurry_Q Q.drop) (\(n,l) -> drop (fromIntegral n) l)
+prop_drop = makeProp (uncurryQ Q.drop) (\(n,l) -> drop (fromIntegral n) l)
 
 prop_map_id :: [Integer] -> Property
-prop_map_id = runTest (Q.map id) (map id)
+prop_map_id = makeProp (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
-prop_append = runTest (uncurry_Q (Q.><)) (\(a,b) -> a ++ b)
+prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
 
 prop_filter_True :: [Integer] -> Property
-prop_filter_True = runTest (Q.filter (const $ Q.toQ True)) (filter $ const True)
+prop_filter_True = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
 prop_groupWith_id :: [Integer] -> Property
-prop_groupWith_id = runTest (Q.groupWith id) (groupWith id)
+prop_groupWith_id = makeProp (Q.groupWith id) (groupWith id)
 
 prop_sortWith_id  :: [Integer] -> Property
-prop_sortWith_id = runTest (Q.sortWith id) (sortWith id)
+prop_sortWith_id = makeProp (Q.sortWith id) (sortWith id)
 
 prop_null :: [Integer] -> Property
-prop_null = runTest Q.null null
+prop_null = makeProp Q.null null
 
 prop_length :: [Integer] -> Property
-prop_length = runTest Q.length (fromIntegral . length)
+prop_length = makeProp Q.length (fromIntegral . length)
 
 prop_reverse :: [Integer] -> Property
-prop_reverse = runTest Q.reverse reverse
+prop_reverse = makeProp Q.reverse reverse
 
 prop_and :: [Bool] -> Property
-prop_and = runTest Q.and and
+prop_and = makeProp Q.and and
 
 prop_or :: [Bool] -> Property
-prop_or = runTest Q.or or
+prop_or = makeProp Q.or or
 
 prop_any_zero :: [Integer] -> Property
-prop_any_zero = runTest (Q.any (Q.== 0)) (any (== 0))
+prop_any_zero = makeProp (Q.any (Q.== 0)) (any (== 0))
 
 prop_all_zero :: [Integer] -> Property
-prop_all_zero = runTest (Q.all (Q.== 0)) (all (== 0))
+prop_all_zero = makeProp (Q.all (Q.== 0)) (all (== 0))
 
 prop_sum_integer :: [Integer] -> Property
-prop_sum_integer = runTest Q.sum sum
+prop_sum_integer = makeProp Q.sum sum
 
 prop_sum_double :: [Double] -> Property
-prop_sum_double = runTestDouble Q.sum sum
+prop_sum_double = makePropDouble Q.sum sum
 
 prop_concat :: [[Integer]] -> Property
-prop_concat = runTest Q.concat concat
+prop_concat = makeProp Q.concat concat
 
 prop_concatMap :: [Integer] -> Property
-prop_concatMap = runTest (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
+prop_concatMap = makeProp (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
 
 prop_maximum :: [Integer] -> Property
-prop_maximum = testNotNull Q.maximum maximum
+prop_maximum = makePropNotNull Q.maximum maximum
 
 prop_minimum :: [Integer] -> Property
-prop_minimum = testNotNull Q.minimum minimum
+prop_minimum = makePropNotNull Q.minimum minimum
 
 prop_splitAt :: (Integer, [Integer]) -> Property
-prop_splitAt = runTest (uncurry_Q Q.splitAt) (\(a,b) -> splitAt (fromIntegral a) b)
+prop_splitAt = makeProp (uncurryQ Q.splitAt) (\(a,b) -> splitAt (fromIntegral a) b)
 
 prop_takeWhile :: (Integer, [Integer]) -> Property
-prop_takeWhile = runTest (uncurry_Q $ Q.takeWhile . (Q.==))
+prop_takeWhile = makeProp (uncurryQ $ Q.takeWhile . (Q.==))
                          (uncurry   $   takeWhile . (==))
 
 prop_dropWhile :: (Integer, [Integer]) -> Property
-prop_dropWhile = runTest (uncurry_Q $ Q.dropWhile . (Q.==))
+prop_dropWhile = makeProp (uncurryQ $ Q.dropWhile . (Q.==))
                          (uncurry   $   dropWhile . (==))
 
 prop_span :: (Integer, [Integer]) -> Property
-prop_span = runTest (uncurry_Q $ Q.span . (Q.==))
-                    (uncurry   $   span . (==) . fromIntegral)
+prop_span = makeProp (uncurryQ $ Q.span . (Q.==))
+                     (uncurry   $   span . (==) . fromIntegral)
 
 prop_break :: (Integer, [Integer]) -> Property
-prop_break = runTest (uncurry_Q $ Q.break . (Q.==))
+prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
                      (uncurry   $   break . (==) . fromIntegral)
 
 prop_elem :: (Integer, [Integer]) -> Property
-prop_elem = runTest (uncurry_Q $ Q.elem)
-                    (uncurry   $   elem)
+prop_elem = makeProp (uncurryQ $ Q.elem)
+                     (uncurry   $   elem)
 
 prop_notElem :: (Integer, [Integer]) -> Property
-prop_notElem = runTest (uncurry_Q $ Q.notElem)
-                       (uncurry   $   notElem)
+prop_notElem = makeProp (uncurryQ $ Q.notElem)
+                        (uncurry   $   notElem)
 
 prop_zip :: ([Integer], [Integer]) -> Property
-prop_zip = runTest (uncurry_Q Q.zip) (uncurry zip)
+prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
 
 prop_zipWith_plus :: ([Integer], [Integer]) -> Property
-prop_zipWith_plus = runTest (uncurry_Q $ Q.zipWith (+)) (uncurry $ zipWith (+))
+prop_zipWith_plus = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 
 prop_unzip :: [(Integer, Integer)] -> Property
-prop_unzip = runTest Q.unzip unzip
+prop_unzip = makeProp Q.unzip unzip
 
 prop_nub :: [Integer] -> Property
-prop_nub = runTest Q.nub nub
+prop_nub = makeProp Q.nub nub
 
 -- * Tuples
 
 prop_fst :: (Integer, Integer) -> Property
-prop_fst = runTest Q.fst fst
+prop_fst = makeProp Q.fst fst
 
 prop_snd :: (Integer, Integer) -> Property
-prop_snd = runTest Q.snd snd
+prop_snd = makeProp Q.snd snd
 
 -- * Numerics
 
 prop_add_integer :: (Integer,Integer) -> Property
-prop_add_integer = runTest (uncurry_Q (+)) (uncurry (+))
+prop_add_integer = makeProp (uncurryQ (+)) (uncurry (+))
 
 prop_add_double :: (Double,Double) -> Property
-prop_add_double = runTestDouble (uncurry_Q (+)) (uncurry (+))
+prop_add_double = makePropDouble (uncurryQ (+)) (uncurry (+))
 
 prop_mul_integer :: (Integer,Integer) -> Property
-prop_mul_integer = runTest (uncurry_Q (*)) (uncurry (*))
+prop_mul_integer = makeProp (uncurryQ (*)) (uncurry (*))
 
 prop_mul_double :: (Double,Double) -> Property
-prop_mul_double = runTestDouble (uncurry_Q (*)) (uncurry (*))
+prop_mul_double = makePropDouble (uncurryQ (*)) (uncurry (*))
 
 prop_div_double :: (Double,Double) -> Property
 prop_div_double (x,y) =
       y /= 0
-  ==> runTestDouble (uncurry_Q (/)) (uncurry (/)) (x,y)
+  ==> makePropDouble (uncurryQ (/)) (uncurry (/)) (x,y)
 
 prop_integer_to_double :: Integer -> Property
-prop_integer_to_double = runTestDouble Q.integerToDouble fromInteger
+prop_integer_to_double = makePropDouble Q.integerToDouble fromInteger
 
 prop_abs_integer :: Integer -> Property
-prop_abs_integer = runTest Q.abs abs
+prop_abs_integer = makeProp Q.abs abs
 
 prop_abs_double :: Double -> Property
-prop_abs_double = runTestDouble Q.abs abs
+prop_abs_double = makePropDouble Q.abs abs
 
 prop_signum_integer :: Integer -> Property
-prop_signum_integer = runTest Q.signum signum
+prop_signum_integer = makeProp Q.signum signum
 
 prop_signum_double :: Double -> Property
-prop_signum_double = runTestDouble Q.signum signum
+prop_signum_double = makePropDouble Q.signum signum
 
 prop_negate_integer :: Integer -> Property
-prop_negate_integer = runTest Q.negate negate
+prop_negate_integer = makeProp Q.negate negate
 
 prop_negate_double :: Double -> Property
-prop_negate_double = runTestDouble Q.negate negate
+prop_negate_double = makePropDouble Q.negate negate
