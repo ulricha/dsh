@@ -132,7 +132,6 @@ transformE (TupleE e1 e2 ty) = do
                                         return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
 transformE (ListE es ty) = let qt = ([] :=> transformTy ty) 
                                   in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
-transformE (AppE f a _) = transformE $ f a 
 transformE (AppE1 f1 e1 ty) = do
                                       let tr = transformTy ty
                                       e1' <- transformArg e1

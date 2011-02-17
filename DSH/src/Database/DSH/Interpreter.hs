@@ -33,8 +33,6 @@ evaluate c e = case e of
   VarE _ _ -> $impossible
   LamE _ _ -> $impossible
 
-  AppE f1 e1 _ -> evaluate c (f1 e1)
-
   TupleE e1 e2 t -> do
     e3 <- evaluate c e1
     e4 <- evaluate c e2

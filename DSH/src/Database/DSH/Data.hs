@@ -24,7 +24,6 @@ data Exp =
   | TupleE Exp Exp Type
   | ListE [Exp] Type
   | LamE (Exp -> Exp) Type
-  | AppE (Exp -> Exp) Exp Type
   | AppE1 Fun1 Exp Type
   | AppE2 Fun2 Exp Exp Type
   | AppE3 Fun3 Exp Exp Exp Type
@@ -98,7 +97,6 @@ typeExp e = case e of
   TupleE _ _ t -> t
   ListE _ t -> t
   LamE _ t -> t
-  AppE _ _ t -> t
   AppE1 _ _ t -> t
   AppE2 _ _ _ t -> t
   AppE3 _ _ _ _ t -> t
