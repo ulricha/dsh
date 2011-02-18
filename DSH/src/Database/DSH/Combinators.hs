@@ -78,6 +78,12 @@ max (Q a) (Q b) = Q (AppE2 Max a b $ reify (undefined :: a))
 
 
 -- * Conditionals
+-- | Boolean fold
+-- | It's first argument is used in the case of False
+-- | It's second argument is used in the case of True
+-- | The third argument is the boolean
+bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
+bool f t b = cond b t f
 
 cond :: forall a. (QA a) => Q Bool -> Q a -> Q a -> Q a
 cond (Q c) (Q a) (Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))

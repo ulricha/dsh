@@ -24,10 +24,10 @@ import qualified Data.List as L
 import Data.Version (showVersion)
 
 combinatorMod :: ModuleName
-combinatorMod = ModuleName "database.DSH.Combinators"
+combinatorMod = ModuleName "Database.DSH"
 
 dataMod :: ModuleName
-dataMod = ModuleName "database.DSH.Data"
+dataMod = ModuleName "Database.DSH"
 
 {-
 N monad, version of the state monad that can provide fresh variable names.
@@ -142,7 +142,7 @@ normaliseQuals' (q:ps) = do
 
 normaliseQual :: QualStmt -> N Exp
 normaliseQual (QualStmt (Generator _ _ e)) = pure $ e
-normaliseQual (QualStmt (Qualifier e)) = pure $ boolF (consF unit nilF) nilF e
+normaliseQual (QualStmt (Qualifier e)) = pure $ boolF nilF (consF unit nilF)  e
 normaliseQual (QualStmt (LetStmt (BDecls bi@[PatBind _ p _ _ _]))) = pure $ flip consF nilF $ letE bi $ patToExp p
 normaliseQual _ = $impossible
 
