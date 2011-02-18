@@ -170,14 +170,16 @@ processResults' q c vals t@(TupleT t1 t2) = do
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
+                                        i <- getColResPos q c
+                                        let (maxV, vals') = foldl (\(m,vs) v -> let v' = (convert $ v !! i)::Int 
+                                                                                 in (m `max` v', v':vs))  (1,[]) vals
                                         let maxI = if null list
                                                     then 1
                                                     else fst $ L.maximumBy (\x y -> fst x `compare` fst y) list
-                                        let lA = (A.accumArray ($impossible) Nothing (1,maxI) []) A.// map (\(x,y) -> (x, Just y)) list
-                                        i <- getColResPos q c
-                                        return $ map (\val -> case lA A.! ((convert $ val !! i)::Int) of
+                                        let lA = (A.accumArray ($impossible) Nothing (1,maxI `max` maxV) []) A.// map (\(x,y) -> (x, Just y)) list
+                                        return $ map (\val -> case lA A.! val of
                                                                 Just x -> x
-                                                                Nothing -> ListN [] t) vals
+                                                                Nothing -> ListN [] t) vals'
 processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
 processResults' q c vals t = do
                                     i <- getColResPos q c
