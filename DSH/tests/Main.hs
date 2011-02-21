@@ -119,10 +119,12 @@ main = do
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
-    putStr "[Integer]:           "
-    qc prop_list
-    putStr "[[Integer]]:         "
-    qc prop_list_list
+    putStr "[Integer]:      "
+    qc prop_list_1
+    putStr "[[Integer]]:    "
+    qc prop_list_2
+    putStr "[[[Integer]]]:  "
+    qc prop_list_3
     putStr "head:           "
     qc prop_head
     putStr "tail:           "
@@ -304,11 +306,14 @@ prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 
 -- * Lists
 
-prop_list :: [Integer] -> Property
-prop_list = makeProp id id
+prop_list_1 :: [Integer] -> Property
+prop_list_1 = makeProp id id
 
-prop_list_list :: [[Integer]] -> Property
-prop_list_list = makeProp id id
+prop_list_2 :: [[Integer]] -> Property
+prop_list_2 = makeProp id id
+
+prop_list_3 :: [[[Integer]]] -> Property
+prop_list_3 = makeProp id id
 
 prop_cons :: (Integer, [Integer]) -> Property
 prop_cons = makeProp (uncurryQ (Q.<|)) (uncurry (:))
