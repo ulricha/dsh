@@ -95,4 +95,5 @@ import Prelude hiding (
   , unzip
   , fst
   , snd
+  , maybe
   )

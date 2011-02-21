@@ -8,7 +8,7 @@ import Database.DSH.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, undefined, error, ($))
+import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, undefined, error, ($))
 
 -- * Unit
 
@@ -90,6 +90,41 @@ cond (Q c) (Q a) (Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))
 
 (?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) c (a,b) = cond c a b
+
+-- * Maybe
+
+listToMaybe :: QA a => Q [a] -> Q (Maybe a)
+listToMaybe (Q as) = (Q as) 
+
+maybeToList :: QA a => Q (Maybe a) -> Q [a]
+maybeToList (Q ma) = (Q ma)
+
+nothing :: QA a => Q (Maybe a)
+nothing = listToMaybe nil
+
+just :: QA a => Q a -> Q (Maybe a)
+just a = listToMaybe (singleton a)
+
+isNothing :: QA a => Q (Maybe a) -> Q Bool
+isNothing ma = null (maybeToList ma)
+
+isJust :: QA a => Q (Maybe a) -> Q Bool
+isJust ma = not (isNothing ma)
+
+fromJust :: QA a => Q (Maybe a) -> Q a
+fromJust ma = head (maybeToList ma)
+
+maybe :: (QA a, QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
+maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
+
+fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
+fromMaybe a ma = (isNothing ma) ? (a, fromJust(ma))
+
+catMaybes :: QA a => Q [Maybe a] -> Q [a]
+catMaybes mas = map fromJust (filter isJust mas)
+
+mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
+mapMaybe f as = catMaybes (map f as)
 
 -- * List Construction
 

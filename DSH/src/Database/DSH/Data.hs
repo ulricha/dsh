@@ -173,6 +173,14 @@ instance (QA a) => QA [a] where
   fromNorm (ListN as (ListT _)) = map fromNorm as
   fromNorm _ = $impossible
 
+instance (QA a) => QA (Maybe a) where
+  reify _ = ListT (reify (undefined :: a))
+  toNorm Nothing  = ListN []         (ListT (reify (undefined :: a)))
+  toNorm (Just x) = ListN [toNorm x] (ListT (reify (undefined :: a)))
+  fromNorm (ListN []  (ListT _)) = Nothing
+  fromNorm (ListN [x] (ListT _)) = Just (fromNorm x)
+  fromNorm _ = $impossible
+
 class BasicType a where
 
 instance BasicType () where

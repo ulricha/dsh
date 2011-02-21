@@ -33,9 +33,9 @@ qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 10}
 
 main :: IO ()
 main = do
-    putStrLn "Basic Types"
-    putStrLn "-----------"
-    putStr "unit:           "
+    putStrLn "Supprted Types"
+    putStrLn "--------------"
+    putStr "():             "
     qc prop_unit
     putStr "Bool:           "
     qc prop_bool
@@ -47,6 +47,15 @@ main = do
     qc prop_integer
     putStr "Double:         "
     qc prop_double
+    putStr "[Integer]:      "
+    qc prop_list_integer_1
+    putStr "[[Integer]]:    "
+    qc prop_list_integer_2
+    putStr "[[[Integer]]]:  "
+    qc prop_list_integer_3
+    putStr "Maybe Integer:  "
+    qc prop_maybe_integer
+
 
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
@@ -119,12 +128,6 @@ main = do
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
-    putStr "[Integer]:      "
-    qc prop_list_1
-    putStr "[[Integer]]:    "
-    qc prop_list_2
-    putStr "[[[Integer]]]:  "
-    qc prop_list_3
     putStr "head:           "
     qc prop_head
     putStr "tail:           "
@@ -240,7 +243,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
 uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurryQ f = uncurry f . Q.view
 
--- * Basic Types
+-- * Supported Types
 
 prop_unit :: () -> Property
 prop_unit = makeProp id id
@@ -259,6 +262,18 @@ prop_char c = isPrint c ==> makeProp id id c
 
 prop_text :: Text -> Property
 prop_text t = Text.all isPrint t ==> makeProp id id t
+
+prop_list_integer_1 :: [Integer] -> Property
+prop_list_integer_1 = makeProp id id
+
+prop_list_integer_2 :: [[Integer]] -> Property
+prop_list_integer_2 = makeProp id id
+
+prop_list_integer_3 :: [[[Integer]]] -> Property
+prop_list_integer_3 = makeProp id id
+
+prop_maybe_integer :: Maybe Integer -> Property
+prop_maybe_integer = makeProp id id
 
 -- * Equality, Boolean Logic and Ordering
 
@@ -305,15 +320,6 @@ prop_max_double :: (Double,Double) -> Property
 prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 
 -- * Lists
-
-prop_list_1 :: [Integer] -> Property
-prop_list_1 = makeProp id id
-
-prop_list_2 :: [[Integer]] -> Property
-prop_list_2 = makeProp id id
-
-prop_list_3 :: [[[Integer]]] -> Property
-prop_list_3 = makeProp id id
 
 prop_cons :: (Integer, [Integer]) -> Property
 prop_cons = makeProp (uncurryQ (Q.<|)) (uncurry (:))
