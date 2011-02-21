@@ -118,7 +118,7 @@ maybe :: (QA a, QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
 maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
 
 fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
-fromMaybe a ma = (isNothing ma) ? (a, fromJust(ma))
+fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
 
 catMaybes :: QA a => Q [Maybe a] -> Q [a]
 catMaybes mas = map fromJust (filter isJust mas)

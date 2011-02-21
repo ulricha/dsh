@@ -15,6 +15,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
 import Data.List
+import Data.Maybe
 import GHC.Exts
 
 import Data.Text (Text)
@@ -126,6 +127,29 @@ main = do
     qc prop_negate_double
 
     putStrLn ""
+    putStrLn "Maybe"
+    putStrLn "-----"
+    putStr "maybe:          "
+    qc prop_maybe
+    putStr "isJust:         "
+    qc prop_isJust
+    putStr "isNothing:      "
+    qc prop_isNothing
+    putStr "fromJust:       "
+    qc prop_fromJust
+    putStr "fromMaybe:      "
+    qc prop_fromMaybe
+    putStr "listToMaybe:    "
+    qc prop_listToMaybe
+    putStr "maybeToList:    "
+    qc prop_maybeToList
+    putStr "catMaybes:      "
+    qc prop_catMaybes
+    putStr "mapMaybe:       "
+    qc prop_mapMaybe
+
+
+    putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
     putStr "head:           "
@@ -141,9 +165,9 @@ main = do
     putStr "drop:           "
     qc prop_drop
     putStr "map_id:         "
-    qc prop_map_id
+    qc prop_map
     putStr "filter_True:    "
-    qc prop_filter_True
+    qc prop_filter
     putStr "the:            "
     qc prop_the
     putStr "last:           "
@@ -161,9 +185,9 @@ main = do
     putStr "append:         "
     qc prop_append
     putStr "groupWith_id:   "
-    qc prop_groupWith_id
+    qc prop_groupWith
     putStr "sortWith_id:    "
-    qc prop_sortWith_id
+    qc prop_sortWith
     putStr "and:            "
     qc prop_and
     putStr "or:             "
@@ -201,7 +225,7 @@ main = do
     putStr "zip:            "
     qc prop_zip
     putStr "zipWith_plus:   "
-    qc prop_zipWith_plus
+    qc prop_zipWith
     putStr "unzip:          "
     qc prop_unzip
     putStr "nub:            "
@@ -319,6 +343,35 @@ prop_min_double = makePropDouble (uncurryQ Q.min) (uncurry min)
 prop_max_double :: (Double,Double) -> Property
 prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 
+-- * Maybe
+
+prop_maybe :: (Integer, Maybe Integer) -> Property
+prop_maybe =  makeProp (\a -> Q.maybe (Q.fst a) id (Q.snd a)) (\(i,mi) -> maybe i id mi)
+
+prop_isJust :: Maybe Integer -> Property
+prop_isJust = makeProp Q.isJust isJust
+
+prop_isNothing :: Maybe Integer -> Property
+prop_isNothing = makeProp Q.isNothing isNothing
+
+prop_fromJust :: Maybe Integer -> Property
+prop_fromJust = makeProp Q.fromJust fromJust
+
+prop_fromMaybe :: (Integer,Maybe Integer) -> Property
+prop_fromMaybe = makeProp (uncurryQ Q.fromMaybe) (uncurry fromMaybe)
+
+prop_listToMaybe :: [Integer] -> Property
+prop_listToMaybe = makeProp Q.listToMaybe listToMaybe
+
+prop_maybeToList :: Maybe Integer -> Property
+prop_maybeToList = makeProp Q.maybeToList maybeToList
+
+prop_catMaybes :: [Maybe Integer] -> Property
+prop_catMaybes = makeProp Q.catMaybes catMaybes
+
+prop_mapMaybe :: [Maybe Integer] -> Property
+prop_mapMaybe = makeProp (Q.mapMaybe id) (mapMaybe id)
+
 -- * Lists
 
 prop_cons :: (Integer, [Integer]) -> Property
@@ -363,20 +416,20 @@ prop_take = makeProp (uncurryQ Q.take) (\(n,l) -> take (fromIntegral n) l)
 prop_drop :: (Integer, [Integer]) -> Property
 prop_drop = makeProp (uncurryQ Q.drop) (\(n,l) -> drop (fromIntegral n) l)
 
-prop_map_id :: [Integer] -> Property
-prop_map_id = makeProp (Q.map id) (map id)
+prop_map :: [Integer] -> Property
+prop_map = makeProp (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
 prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
 
-prop_filter_True :: [Integer] -> Property
-prop_filter_True = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
+prop_filter :: [Integer] -> Property
+prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
-prop_groupWith_id :: [Integer] -> Property
-prop_groupWith_id = makeProp (Q.groupWith id) (groupWith id)
+prop_groupWith :: [Integer] -> Property
+prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
-prop_sortWith_id  :: [Integer] -> Property
-prop_sortWith_id = makeProp (Q.sortWith id) (sortWith id)
+prop_sortWith  :: [Integer] -> Property
+prop_sortWith = makeProp (Q.sortWith id) (sortWith id)
 
 prop_null :: [Integer] -> Property
 prop_null = makeProp Q.null null
@@ -447,8 +500,8 @@ prop_notElem = makeProp (uncurryQ $ Q.notElem)
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
 
-prop_zipWith_plus :: ([Integer], [Integer]) -> Property
-prop_zipWith_plus = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
+prop_zipWith :: ([Integer], [Integer]) -> Property
+prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = makeProp Q.unzip unzip
