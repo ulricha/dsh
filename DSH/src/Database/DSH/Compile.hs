@@ -171,7 +171,7 @@ processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
                                         i <- getColResPos q c
-                                        let (maxV, vals') = foldl (\(m,vs) v -> let v' = (convert $ v !! i)::Int 
+                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = (convert $ v !! i)::Int 
                                                                                  in (m `max` v', v':vs))  (1,[]) vals
                                         let maxI = if null list
                                                     then 1
