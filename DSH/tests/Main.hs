@@ -89,7 +89,7 @@ main = do
     qc prop_max_integer
     putStr "max_double:     "
     qc prop_max_double
-
+    
     putStrLn ""
     putStrLn "Tuples"
     putStrLn "------"
@@ -97,7 +97,7 @@ main = do
     qc prop_fst
     putStr "snd:            "
     qc prop_snd
-
+    
     putStrLn ""
     putStrLn "Numerics:"
     putStrLn "-----------"
@@ -148,7 +148,6 @@ main = do
     putStr "mapMaybe:       "
     qc prop_mapMaybe
 
-
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
@@ -164,9 +163,9 @@ main = do
     qc prop_take
     putStr "drop:           "
     qc prop_drop
-    putStr "map_id:         "
+    putStr "map:            "
     qc prop_map
-    putStr "filter_True:    "
+    putStr "filter:         "
     qc prop_filter
     putStr "the:            "
     qc prop_the
@@ -184,9 +183,9 @@ main = do
     qc prop_reverse
     putStr "append:         "
     qc prop_append
-    putStr "groupWith_id:   "
+    putStr "groupWith:      "
     qc prop_groupWith
-    putStr "sortWith_id:    "
+    putStr "sortWith:       "
     qc prop_sortWith
     putStr "and:            "
     qc prop_and
@@ -224,13 +223,12 @@ main = do
     qc prop_notElem
     putStr "zip:            "
     qc prop_zip
-    putStr "zipWith_plus:   "
+    putStr "zipWith:        "
     qc prop_zipWith
     putStr "unzip:          "
     qc prop_unzip
     putStr "nub:            "
     qc prop_nub
-
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
@@ -355,7 +353,7 @@ prop_isNothing :: Maybe Integer -> Property
 prop_isNothing = makeProp Q.isNothing isNothing
 
 prop_fromJust :: Maybe Integer -> Property
-prop_fromJust = makeProp Q.fromJust fromJust
+prop_fromJust mi = isJust mi ==> makeProp Q.fromJust fromJust mi
 
 prop_fromMaybe :: (Integer,Maybe Integer) -> Property
 prop_fromMaybe = makeProp (uncurryQ Q.fromMaybe) (uncurry fromMaybe)

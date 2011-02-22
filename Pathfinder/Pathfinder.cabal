@@ -1,5 +1,5 @@
 Name:                 Pathfinder
-Version:              0.5.2
+Version:              0.5.3
 Synopsis:             Relational optimiser and code generator
 Description:
   The library provides FFI bindings to the Pathfinder relational optimiser and
