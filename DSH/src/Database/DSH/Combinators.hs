@@ -8,7 +8,7 @@ import Database.DSH.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, undefined, error, ($))
+import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, undefined, error, ($), (.))
 
 -- * Unit
 
@@ -121,10 +121,10 @@ fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
 fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
 
 catMaybes :: QA a => Q [Maybe a] -> Q [a]
-catMaybes mas = map fromJust (filter isJust mas)
+catMaybes mas = concatMap maybeToList mas
 
 mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
-mapMaybe f as = catMaybes (map f as)
+mapMaybe f as = concatMap (maybeToList . f) as
 
 -- * List Construction
 
