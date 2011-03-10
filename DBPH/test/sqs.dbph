@@ -1,0 +1,8 @@
+let
+
+sqs :: Int -> [Int]
+sqs n = [j*j | j <- range 1 n]
+ 
+in
+
+[sqs i | i <- range 1 5]
