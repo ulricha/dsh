@@ -1,0 +1,50 @@
+cabal-version: >=1.8
+Name:           DBPH
+Version:        0.4
+Description:    Experiments with flattening and algebraic compilation
+License:             GPL
+License-file:   LICENSE
+Author:			Jeroen Weijers <jeroen.weijers@uni-tuebingen.de> 
+Maintainer:		Jeroen Weijers <jeroen.weijers@uni-tuebingen.de>
+Build-Type:     Simple
+executable dbph
+    buildable:        True
+    build-depends:    base >= 4.2, mtl >= 2.0, containers >= 0.3.0.0, template-haskell,
+                      parsec >= 2.1, pretty >= 1.0.1.1, filepath >= 1.1.0.4,
+                      haskell-src-exts >=1.9.6, hint >= 0.3.3.2
+    main-is: DBPH.hs 
+    hs-source-dirs:   src
+    GHC-Options:      -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
+    other-modules:
+        Language.ParallelLang.NKL.Data.UntypedNKL
+        Language.ParallelLang.NKL.Data.NKL
+        Language.ParallelLang.FKL.Data.FKL
+        Language.ParallelLang.Common.Data.Op
+        Language.ParallelLang.Common.Data.Val
+        Language.ParallelLang.Common.Data.Config
+        Language.ParallelLang.FKL.Primitives
+        Language.ParallelLang.NKL.Parser.Config
+        Language.ParallelLang.Translate.NKL2FKL
+        Language.ParallelLang.NKL.Parser.Parser
+        Language.ParallelLang.FKL.Render.Render
+        Language.ParallelLang.Common.Impossible
+        Language.ParallelLang.Common.Data.Type 
+        Language.ParallelLang.NKL.TypeInferencer.TypeInferencer
+        Language.ParallelLang.NKL.TypeInferencer.Types
+        Language.ParallelLang.NKL.TypeInferencer.Unification
+        Language.ParallelLang.Translate.TransM
+        Language.ParallelLang.Common.Data.Prelude
+        Language.ParallelLang.Translate.RewritePhases
+        Language.ParallelLang.Translate.Rewriter
+        Language.ParallelLang.FKL.ProcessFKL
+Library
+    build-depends:    base >= 4.2, 
+                      mtl >= 2.0, 
+                      containers >= 0.3.0.0, 
+                      template-haskell,
+                      parsec >= 2.1, 
+                      pretty >= 1.0.1.1, 
+                      filepath >= 1.1.0.4,
+                      haskell-src-exts >=1.9.6, 
+                      hint >= 0.3.3.2,
+                      TableAlgebra >= 0.2.0

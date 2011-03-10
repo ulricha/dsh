@@ -1,0 +1,184 @@
+changes in version 0.1.2:
+
+Lighter syntax for programs without function declarations.
+no more let decls in expr needed, just expr will do.
+
+Lighter syntax for functions syntax changed from:
+function f a1 ... an = return e
+fn f a1 .. an = e
+
+Lists are no longer full magic primitives. Nil is still primitive
+cons (or :) is still, special syntax is also still available [e1, ..., en]
+is desugared into e1: ... : en : []. (:) is a primitive operator that behaves
+like any other operator and can thus be lifted.
+
+Tuples are no longer completely primitives as they have to
+be liftable like any other function. Special syntax still remains.
+Tuples greater then 4-tuples will no longer work correctly and will
+cause a crash when lifted (it's the principle that matters not annoying 
+repetition...).
+
+changes in version 0.1.3:
+
+Fixed bug with a two big tuple constructor function being used
+
+changes in version 0.1.4:
+
+Allow lifted operators (op^level)
+Added support for tuple projectors (tup@i), with support for lifting (tup@^level i)
+
+changes in version 0.1.5:
+
+Added @ operator to primitive list. Fixed pretty printing of non-lifted operators
+
+Changes in version 0.1.6:
+When lifting @ we should not lift it's second argument
+Added printing support for @
+Added flattening rules for @
+
+Changes in version 0.1.8:
+
+Optimisation of let rule lifting
+
+Changes in version 0.1.9:
+
+Apparently the optimised rule was a bit recursive, defined it in some other way
+Add missing part of rule 5 (prevent promote from being lifted)
+
+Changes in version 0.2.0:
+
+Added support for flags two flags available currently:
+ -o or --opt to enable all optimisations
+ -l or --letOpt to enable the recently introduced let optimisation (version 0.1.9)
+
+Changes in version 0.2.1:
+
+Added optimisation for lifting function bodies. With flag -f or --funOpt (and included in -o)
+
+Changes in version 0.2.2:
+
+Added optimisation for reducing replication of code. With flag -r or --reduceRepl (and included in -o)
+
+Changes in version 0.2.3:
+
+Fixed a bug in the reduce replication optimisation.
+It bound sub-expressions that did not depend on the iteration variable, but did depend on variables that where lifted without lifting the expression, causing wrong output programs. 
+
+Changes in version 0.2.4:
+
+Added type inferencer. When passed the flag -t or --type the compiler will
+output the result type of the program (flag not implied by -o). Works for constant ints, further tests still have to be performed. Not using the -t flag should result in the compiler behaving as in previous release. Type inferencer is needed for tuple rewriting phase.
+
+Changes in version 0.2.5:
+
+Removed some serious (but trivial) bugs in type system
+
+Changes in version 0.2.6:
+
+Added support for tuple projections to the type system
+
+Changes in version 0.3.0:
+
+All programs are now type checked (regardless of the given flag) the -t flag still outputs the top level type of the program and halts the compiler after type inferencing.
+Fixed all compiler warnings
+
+Changes in version 0.3.1:
+
+Types are now also handled by flattening transformation.
+
+Changes in version 0.3.2:
+
+Added very basic evaluator the nested kernel program is compiled into Haskell source code which is then evaluated by the ghci (through the hint package).
+Adds flags: -e and --eval causing the compiler to type check the program and then evaluate it. After evaluation the compilation is halted.
+-h --haskell outputting the haskell code to a hs file
+Known issues: User lifted functions are *NOT* supported at all. 
+Function bindings are *NOT* supported yet.
+
+Changes in version 0.3.2.1:
+
+Bug fix in evaluator/haskell printer, tuple projections are now handled correctly. 
+Small policy change regarding version numbers:
+Formatting is now a.b.c[.d]
+'a' is major version number (1.0.0.0) represents first complete version
+'b' is major feature added (type system etc.)
+'c' bigger bug fixes, small functionality added
+'d' is optional, represents very small bug fixes (such as this patch)
+
+Changes in version 0.3.2.2:
+Minor additions preparing for detupling of programs.
+Changed dist function so that it's second argument expects a vector instead of an int.
+
+Changes in version 0.3.3:
+Detupler now part of the pipeline.
+New flag -d or --detuple triggers the detupling process.
+The operator `:' is now allowed to be used as an infix operator.
+
+Changes in version 0.3.4:
+Major issue with the type system (actually the problem is tuple projection...)
+A function as fn fst a = a@1 cannot be typed. There is no way to determine how big the tuple should be.
+To make up for this we add type annotations so that the function can be written as:
+fst :: (a, b) -> a
+fst a = a@1
+or as:
+fst a = (a::(t1,t2))@1
+
+!!!!IMPORTANT!!!!
+The syntax for functions has changed, it no longer requires the "fn" keyword.
+
+Note that the expr :: t syntax works everywhere not just in function bodies
+Currently it can only be used to restrict types, there is no guarantee that (t1, t2) won't get a more specific type inferred. (Next patch should fix that).
+
+Changes in version 0.3.4.1:
+The explicit types now behave more as they do in Haskell meaning that:
+When an expression has annotated typed (a,b) and (Int, b) is inferred a
+type error is displayed. The general rule is that the given type has to be
+equal to, or an instance of the inferred type.
+
+Changes in version 0.3.4.2:
+Fixed "torsten bug" this bug was caused by an error in the extractShape function
+that is used to recompute  the type for promoted values. The bug thus wasn't a bug 
+in the actual optimisation, but just happened to pop up here first. A different bug
+that doesn't cause the compiler to crash however still is present. Symptoms are newly
+introduced variables that are not bound...
+
+Changes in version 0.3.4.3:
+Fixed bug causing newly introduced variables to occur free in the program when -r flag is
+used. The -r flag now also implies -l flag, which is natural as they are both concerned with
+let optimisations. The -l flag prevents the occurrence of a pattern that cannot be lifted properly
+that will occur when the -r flag is used.
+
+Changes in version 0.3.4.4:
+Removing bugs in detupling, which were found while writing the specification. Also improved the type
+transformation function, and function that generates reconstruction plans.
+There are still bugs in the detupling phase that will occur in deeper nested (depth >= 2) programs,
+these all concerns a certain pattern in the rules concerning application to primitive functions. The
+primitive functions will be fixed in the next version.
+
+Changes in version 0.3.5:
+Fixed all bugs that came out of formalising the detupling transformation.
+Added rewrite phase (not optional) after flattening, not entirely correct yet.
+
+Changes in version 0.3.6:
+Fixed rewrite phase. Added rewrite rule to eliminate trivial let bindings (optional -z).
+
+Changes in version 0.3.6.1:
+Fixed a bug in detecting tuples in function types, causing the detupler to make wrong decisions.
+
+Changes in version 0.3.7:
+Added a rewrite rule that introduces bPermute in favour of  index^1 (dist b a) a
+If the dist occurs in a let binding nothing happens...
+
+Changes in version 0.3.7.1:
+Made rewrites an optional step. When enabling detupling basic rewriting is enabled as well.
+There seems to be a bug in the flattening or rewriting phase causing the output results to 
+be incorrect!
+
+Changes in version 0.3.7.2:
+Fixed the bug causing incorrect handling of higher lifted function applications.
+
+Changes in version 0.3.8:
+Added rewrite rule to translate "index^n (promote a b) b" into "insert (bPermute a (extract b (n - 1))) b (n - 1)"
+
+Changes in version 0.3.9:
+Added support for guarded comprehensions as was already mentioned in the documentation. Syntax: [e1 | x <- e2, e3] The type of e3 should be Bool.
+ 
