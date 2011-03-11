@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, typeOf, Typed)
+ (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, typeOf, Typed)
 where
     
 import qualified Data.Map as M
@@ -50,6 +50,9 @@ intT = TyC "Int" []
 
 boolT :: Type
 boolT = TyC "Bool" []
+
+unitT :: Type
+unitT = TyC "()" []
 
 pairT :: Type -> Type -> Type
 pairT t1 t2 = TyC "tuple" [t1, t2]

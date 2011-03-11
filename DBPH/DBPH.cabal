@@ -47,4 +47,31 @@ Library
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2,
-                      TableAlgebra >= 0.2.0
+                      TableAlgebra >= 0.2.1
+    Hs-Source-Dirs:   src
+    
+    GHC-Options:       -O3 -Wall
+    
+    Exposed-modules: Language.ParallelLang.NKL.Data.NKL
+                     Language.ParallelLang.Common.Data.Val
+                     Language.ParallelLang.Common.Data.Type
+    
+    Other-modules: Language.ParallelLang.NKL.Data.UntypedNKL
+                   Language.ParallelLang.FKL.Data.FKL
+                   Language.ParallelLang.Common.Data.Op
+                   Language.ParallelLang.Common.Data.Config
+                   Language.ParallelLang.FKL.Primitives
+                   Language.ParallelLang.NKL.Parser.Config
+                   Language.ParallelLang.Translate.NKL2FKL
+                   Language.ParallelLang.NKL.Parser.Parser
+                   Language.ParallelLang.FKL.Render.Render
+                   Language.ParallelLang.Common.Impossible
+                   Language.ParallelLang.NKL.TypeInferencer.TypeInferencer
+                   Language.ParallelLang.NKL.TypeInferencer.Types
+                   Language.ParallelLang.NKL.TypeInferencer.Unification
+                   Language.ParallelLang.Translate.TransM
+                   Language.ParallelLang.Common.Data.Prelude
+                   Language.ParallelLang.Translate.RewritePhases
+                   Language.ParallelLang.Translate.Rewriter
+                   Language.ParallelLang.FKL.ProcessFKL
+        
