@@ -7,4 +7,5 @@ Basic values in both FKL and NKL.
 data Val where
     Int :: Int -> Val
     Bool :: Bool -> Val
+    Unit :: Val
     deriving (Eq, Show)
