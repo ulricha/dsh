@@ -4,7 +4,10 @@ import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.Common.Data.Type as T
 import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 import Language.ParallelLang.VL.Data.VectorTypes
--- import Language.ParallelLang.Translate.TransM
+import Language.ParallelLang.Translate.TransM
+
+import Language.ParallelLang.FKL.Primitives
+import Language.ParallelLang.Common.Data.Val
 
 
 vectoriseType :: T.Type -> VType
@@ -102,6 +105,57 @@ bPermute e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
                         = let rt = tupleT [typeOf e1, propT]
                            in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "bPermute" 0) [e1, e2]
                | otherwise = error "bPermute: Can't construct bPermute node"
+
+extract :: Expr VType -> Int -> Expr VType
+extract e i | nestingDepth (typeOf e) > i && i > 0
+                        = let rt = nVectorT (nestingDepth (typeOf e) - i)
+                           in App rt (Var (typeOf e .~> pValT .~> rt) "extract" 0) [e, intV i]
+
+intV :: Int -> Expr VType
+intV i = Const pValT (Int i)
+-- | Other construction functions
+
+project :: Expr VType -> Int -> Expr VType
+project e i = let t = typeOf e
+                in case t of
+                    (Tuple ts) -> if length ts >= i 
+                                            then Proj (ts !! (i - 1)) 0 e i
+                                            else error "Provided tuple expression is not big enough"
+                    _                -> error "Provided type is not a tuple"
+
+-- | Chain propagation
+chainPropagate :: Expr VType -> Expr VType -> TransM (Expr VType)
+chainPropagate pV rV | typeOf pV == propT && nestingDepth (typeOf rV) == 1
+                        = return $ flip project 1 $ propagateIn pV rV
+                    | typeOf pV == propT && nestingDepth (typeOf rV) > 1
+                        = do
+                            r <- getFreshVar
+                            v <- getFreshVar
+                            p <- getFreshVar
+                            (b, d, vs) <- patV rV
+                            let val = propagateIn pV d
+                            let r' = Var (typeOf val) r 0
+                            let valV = project r' 1
+                            let v' = Var (typeOf valV) v 0
+                            let valP = project r' 2
+                            let p' = Var (typeOf valP) p 0
+                            recurse <- chainPropagate p' vs
+                            return $ b $ letF r val (letF v valV (letF p valP (attach v' recurse)))
+
+
+patV :: Expr VType -> TransM (Expr VType -> Expr VType, Expr VType, Expr VType)
+patV e | nestingDepth (typeOf e) > 1
+                = do
+                    hd <- getFreshVar
+                    tl <- getFreshVar
+                    v <- getFreshVar
+                    let v' = Var (typeOf e) v 0
+                    let hdv = outer v'
+                    let tlv = extract v' 1
+                    let hd' = Var (typeOf hdv) hd 0
+                    let tl' = Var (typeOf tlv) tl 0
+                    let e' = \x -> letF v e (letF hd hdv (letF tl tlv x))
+                    return (e', hd', tl')
 {-
 App   :: Type -> Expr -> [Expr] -> Expr -- | Apply multiple arguments to an expression
 Fn    :: Type -> String -> Int -> [String] -> Expr -> Expr -- | A function has a name (and lifted level), some arguments and a body

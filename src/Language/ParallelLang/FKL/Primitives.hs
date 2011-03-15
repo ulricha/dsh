@@ -83,7 +83,7 @@ zipF es = F.App resType (flip (F.Var zipType) 0 $ "zip" ++ (show $ length es)) e
      resType = (TyC "tuple" types)
      zipType = foldr (.->) resType types
      
-letF :: String -> TExpr -> TExpr -> TExpr
+letF :: String -> Expr t -> Expr t -> Expr t
 letF v e1 e2 = F.Let (typeOf e2) v e1 e2
 
 tupleF :: [TExpr] -> TExpr
