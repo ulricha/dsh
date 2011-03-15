@@ -1,6 +1,6 @@
-{-# LANGUAGE GADTs, TypeSynonymInstances #-}
+{-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, typeOf, Typed)
+ (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, Typed (..), typeOf)
 where
     
 import qualified Data.Map as M
@@ -156,5 +156,5 @@ collectFreeVars (Fn t1 t2) = L.nub $ (collectFreeVars t1 ++ collectFreeVars t2)
 collectFreeVars (TyC _ ts) = L.nub $ concatMap collectFreeVars ts
 collectFreeVars (Var t) = [t]
 
-class Typed a where
-    typeOf :: a -> Type
+class Typed a t where
+  typeOf :: a t -> t

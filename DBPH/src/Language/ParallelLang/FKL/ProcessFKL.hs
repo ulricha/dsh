@@ -14,6 +14,7 @@ substitute :: String -> Expr Type -> Expr Type -> Expr Type
 substitute n r e = substitute' e
  where
   substitute' :: Expr Type -> Expr Type
+  substitute' (Labeled s e1) = Labeled s (substitute' e1)
   substitute' (App t e1 es) = App t (substitute' e1) $ map substitute' es
   substitute' (Nil t) = Nil t
   substitute' v@(Fn t f i args e1) = case elem n (f:args) of

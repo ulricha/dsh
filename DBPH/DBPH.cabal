@@ -37,6 +37,8 @@ executable dbph
         Language.ParallelLang.Translate.RewritePhases
         Language.ParallelLang.Translate.Rewriter
         Language.ParallelLang.FKL.ProcessFKL
+        Language.ParallelLang.VL.Data.VectorTypes
+        Language.ParallelLang.Translate.Vectorise
 Library
     build-depends:    base >= 4.2, 
                       mtl >= 2.0, 
@@ -55,7 +57,8 @@ Library
     Exposed-modules: Language.ParallelLang.NKL.Data.NKL
                      Language.ParallelLang.Common.Data.Val
                      Language.ParallelLang.Common.Data.Type
-    
+                     Language.ParallelLang.Translate.Vectorise
+                       
     Other-modules: Language.ParallelLang.NKL.Data.UntypedNKL
                    Language.ParallelLang.FKL.Data.FKL
                    Language.ParallelLang.Common.Data.Op
@@ -74,4 +77,6 @@ Library
                    Language.ParallelLang.Translate.RewritePhases
                    Language.ParallelLang.Translate.Rewriter
                    Language.ParallelLang.FKL.ProcessFKL
+                   Language.ParallelLang.VL.Data.VectorTypes
+
         

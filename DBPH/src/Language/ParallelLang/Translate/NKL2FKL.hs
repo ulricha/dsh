@@ -83,6 +83,7 @@ flatten i e1 eb = do
                          else flatten' i e1 eb
     
 flatten' :: String -> F.Expr Type -> F.Expr Type -> TransM (F.Expr Type)
+flatten' i e1 (F.Labeled s e) = F.Labeled s <$> flatten' i e1 e
 flatten' i e1 (F.Var t x d) | i == x = return e1
                             | otherwise = do 
                                            isLet <- isLetVar x
@@ -146,6 +147,7 @@ collectLifted :: [F.Expr Type] -> [(String, [Int])]
 collectLifted es = group' $ L.nub $ filter (\(n, i) -> (not $ isPrimitive n) || i > 1) $ concatMap collectFns es
 
 collectFns :: (F.Expr Type) -> [(String, Int)]
+collectFns (F.Labeled _ e) = collectFns e
 collectFns (F.App _ e1 es) = collectFns e1 ++ concatMap collectFns es
 collectFns (F.Nil _) = []
 collectFns (F.Fn _ _ _ _ e1) = collectFns e1
@@ -212,6 +214,7 @@ primFunsArgs = [("+",     ["e1", "e2"]),
           ("(,,,)", ["e1", "e2", "e3", "e4"])]
 
 dependsOnVar :: [String] -> F.Expr Type -> Bool
+dependsOnVar v (F.Labeled _ e) = dependsOnVar v e
 dependsOnVar v (F.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
 dependsOnVar _ (F.Nil _) = False
 dependsOnVar v (F.Fn _ _ _ args e1) = let n = v L.\\ args 
