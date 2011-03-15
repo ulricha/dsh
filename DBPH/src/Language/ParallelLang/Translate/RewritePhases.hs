@@ -12,10 +12,10 @@ import Language.ParallelLang.Translate.Rewriter
 
 import Control.Applicative hiding (Const, optional)
 
-runRWPhase1 :: ([Expr], Expr) -> TransM ([Expr], Expr)
+runRWPhase1 :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr)
 runRWPhase1 e = rewriteAST rwPhase1 e >>= rewriteAST rwPhase1'
 
-runRWPhase2 :: ([Expr], Expr) -> TransM ([Expr], Expr)
+runRWPhase2 :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr)
 runRWPhase2 = rewriteAST rwPhase2
 
 rwPhase2 :: RewriteRule

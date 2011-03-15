@@ -106,6 +106,7 @@ typeExpr (U.Typed e t) = do
                                             ++ "\nExpected: " ++ show t
 typeExpr (U.Const c@(Int _)) =  pure $ Ty.Const intT c
 typeExpr (U.Const c@(Bool _)) = pure $ Ty.Const boolT c
+typeExpr (U.Const c@(Unit)) = pure $ Ty.Const unitT c
 typeExpr (U.Var v i) = do
                         t <- instantiate =<< lookupVariable v
                         pure $ Ty.Var t v i

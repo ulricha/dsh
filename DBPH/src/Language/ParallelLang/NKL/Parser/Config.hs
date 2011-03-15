@@ -3,7 +3,6 @@ module Language.ParallelLang.NKL.Parser.Config where
     
 import qualified Text.ParserCombinators.Parsec.Token as P
 import Control.Applicative
-import Control.Monad (MonadPlus(..), ap)
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 
 lexer :: P.TokenParser st
@@ -67,6 +66,7 @@ stringLiteral   = P.stringLiteral lexer
 comma :: CharParser st String
 comma           = P.comma lexer
 
+{-
 instance Applicative (GenParser s a) where
   pure  = return
   (<*>) = ap
@@ -74,3 +74,4 @@ instance Applicative (GenParser s a) where
 instance Alternative (GenParser s a) where
   empty = mzero
   (<|>) = mplus
+-}

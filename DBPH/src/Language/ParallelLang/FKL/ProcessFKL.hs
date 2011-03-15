@@ -1,17 +1,19 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Language.ParallelLang.FKL.ProcessFKL where
     
-import Language.ParallelLang.FKL.Data.FKL
+import Language.ParallelLang.FKL.Data.FKL 
+import Language.ParallelLang.Common.Data.Type (Type ()) 
 
-isSimpleExpr :: Expr -> Bool
+isSimpleExpr :: Expr t -> Bool
 isSimpleExpr (Const _ _) = True
 isSimpleExpr (Nil _) = True
 isSimpleExpr (Var _ _ _) = True
 isSimpleExpr _ = False
 
-substitute :: String -> Expr -> Expr -> Expr
+substitute :: String -> Expr Type -> Expr Type -> Expr Type
 substitute n r e = substitute' e
  where
-  substitute' :: Expr -> Expr
+  substitute' :: Expr Type -> Expr Type
   substitute' (App t e1 es) = App t (substitute' e1) $ map substitute' es
   substitute' (Nil t) = Nil t
   substitute' v@(Fn t f i args e1) = case elem n (f:args) of

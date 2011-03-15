@@ -1,12 +1,13 @@
 module Language.ParallelLang.Translate.Rewriter (rewriteAST, RewriteRule, optional) where
-    
+
+import Language.ParallelLang.Common.Data.Type (Type ())
 import Language.ParallelLang.FKL.Data.FKL
 
 import Language.ParallelLang.Translate.TransM
 
 import Control.Applicative hiding (Const, optional)
 
-type RewriteRule = Expr -> TransM Expr
+type RewriteRule = Expr Type -> TransM (Expr Type)
 
 optional :: TransM Bool -> RewriteRule -> RewriteRule
 optional b r e = do
@@ -15,7 +16,7 @@ optional b r e = do
                  False -> return e
                  True  -> r e
                  
-rewriteAST :: RewriteRule -> ([Expr], Expr) -> TransM ([Expr], Expr)
+rewriteAST :: RewriteRule -> ([Expr Type], Expr Type) -> TransM ([Expr Type], Expr Type)
 rewriteAST r (es, e) = do
                              rs' <- mapM (rewriteTree r) es
                              r' <- rewriteTree r e
@@ -26,11 +27,11 @@ rewriteAST r (es, e) = do
 rewriteTree :: RewriteRule -> RewriteRule
 rewriteTree r e = recurse e
   where
-    recurse :: Expr -> TransM Expr
+    recurse :: Expr Type -> TransM (Expr Type)
     recurse ex = do
                    ex' <- r ex
                    rewriteAST' ex'
-    rewriteAST' :: Expr -> TransM Expr
+    rewriteAST' :: Expr Type -> TransM (Expr Type)
     rewriteAST' (App  t ex1 exs) = (App t) <$> recurse ex1 <*> mapM recurse exs
     rewriteAST' (Fn t n i as ex) = (Fn t n i as) <$> recurse ex
     rewriteAST' (Let t s ex1 ex2) = (Let t s) <$> recurse ex1 <*> recurse ex2

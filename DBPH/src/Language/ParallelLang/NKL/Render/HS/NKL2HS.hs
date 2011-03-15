@@ -21,11 +21,13 @@ toHs (N.Const _ v) = valToHs v
 toHs (N.Var _ n 0) = var $ name n
 toHs (N.Iter _ v e1 e2) = ListComp (toHs e2) [QualStmt $ Generator emptyLoc (pvar $ name v) (toHs e1)]
 toHs (N.Nil _) = List []
-toHs (N.Proj t 0 e1 i) = let size = length $ T.tupleComponents $ T.typeOf e1
+toHs (N.Proj _ 0 e1 i) = let size = length $ T.tupleComponents $ T.typeOf e1
                              proj = Lambda emptyLoc [PTuple [PVar $ name $ "__pv" ++ show l | l <- [1..size]]] $ var $ name $ "__pv" ++ show i
                           in app proj (toHs e1)
+toHs _ = error "toHs not complete"
 
 valToHs :: V.Val -> Exp
+valToHs (V.Unit)   = Con $ Special UnitCon
 valToHs (V.Int i)  = intE $ toInteger i
 valToHs (V.Bool b) = Con $ UnQual $ name $ show b
 

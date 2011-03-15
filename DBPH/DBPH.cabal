@@ -42,7 +42,7 @@ Library
                       mtl >= 2.0, 
                       containers >= 0.3.0.0, 
                       template-haskell,
-                      parsec >= 2.1, 
+                      parsec >= 3.1, 
                       pretty >= 1.0.1.1, 
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
@@ -50,7 +50,7 @@ Library
                       TableAlgebra >= 0.2.1
     Hs-Source-Dirs:   src
     
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
     
     Exposed-modules: Language.ParallelLang.NKL.Data.NKL
                      Language.ParallelLang.Common.Data.Val

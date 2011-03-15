@@ -14,13 +14,13 @@ import Language.ParallelLang.Common.Data.Op
 
 import qualified Data.List as L
 
-normTuples :: ([Expr], Expr) -> TransM ([Expr], Expr)
+normTuples :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr)
 normTuples (fs, e) = do
                         fs' <- mapM deTupleFun fs
                         e' <- deTuple e
                         return (fs', e')
                         
-deTupleFun :: Expr -> TransM Expr
+deTupleFun :: TExpr -> TransM TExpr
 deTupleFun (Fn t n l args e) = do
                                 let t' = fst $ transType t
                                 e' <- deTuple e
@@ -36,7 +36,7 @@ transType (T.TyC "tuple" ts) = let tts = map transType ts
 transType (T.Fn t1 t2)       = (T.Fn (fst $ transType t1) (fst $ transType t2), error "Cannot make reconstruction plan for function types")
 transType t                  = (t, Id)
 
-deTuple :: Expr -> TransM Expr
+deTuple :: TExpr -> TransM TExpr
 deTuple (Fn _ _ _ _ _) = $impossible
 deTuple (BinOp rt o@(Op ":" _) e1 e2) | containsTuple rt =
                             do
@@ -203,7 +203,7 @@ deTuple a@(App _ (Var ft _ _) _) | not (containsTuple ft) = return a
 deTuple (App _ _ _) = $impossible
 
 
-deTupleApp :: Expr -> TransM Expr
+deTupleApp :: TExpr -> TransM TExpr
 deTupleApp (App rt e1 es) = do
                              let rt' = fst $ transType rt
                              e1' <- deTuple e1

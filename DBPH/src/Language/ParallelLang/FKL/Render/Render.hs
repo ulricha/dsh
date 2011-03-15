@@ -6,10 +6,10 @@ import Language.ParallelLang.Common.Data.Op
 
 import Text.PrettyPrint hiding (render)
 
-instance Show Expr where
+instance Show (Expr t) where
    show a = show $ render a
     
-render :: Expr -> Doc
+render :: Expr t -> Doc
 render (App _ e1 e2) = let e2' = map render e2
                       in parens $ render e1 <+> hsep e2'
 render (Fn _ n 0 args e) = text "fn" <+> text n <+> hsep (map text args) <+> text "="
@@ -34,6 +34,7 @@ render (BinOp _ (Op o i) e1 e2) = let e1' = render e1
                                    in parens $ e1' <+> text o <> text "^" <> int i <+> e2'
 render (Const _ (Int i)) = int i
 render (Const _ (Bool b)) = text $ show b
+render (Const _ (Unit)) = text $ "()"
 render (Var _ x 0) = text x
 render (Var _ x i) = text $ x ++ "^" ++ show i
 -- render (Cons x xs) = text "(" <> render x <> text ":" <> render xs <> text ")"
