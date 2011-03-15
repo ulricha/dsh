@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, FlexibleInstances #-}
 module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
@@ -6,19 +6,19 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
   
 -- | Data type expr represents flat kernel language.
-data Expr where
-    App   :: Type -> Expr -> [Expr] -> Expr -- | Apply multiple arguments to an expression
-    Fn    :: Type -> String -> Int -> [String] -> Expr -> Expr -- | A function has a name (and lifted level), some arguments and a body
-    Let   :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
-    If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
-    BinOp :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-    Const :: Type -> Val -> Expr -- | Constant value
-    Var   :: Type -> String -> Int -> Expr  -- | Variable lifted to level i
-    Nil   :: Type -> Expr -- | []
-    Proj  :: Type -> Int -> Expr -> Int -> Expr
+data Expr t where
+    App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
+    Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
+    Let   :: t -> String -> Expr t -> Expr t -> Expr t -- | Let a variable have value expr1 in expr2
+    If    :: t -> Expr t -> Expr t -> Expr t -> Expr t -- | If expr1 then expr2 else expr3
+    BinOp :: t -> Op -> Expr t -> Expr t -> Expr t -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
+    Const :: t -> Val -> Expr t -- | Constant value
+    Var   :: t -> String -> Int -> Expr t -- | Variable lifted to level i
+    Nil   :: t -> Expr t -- | []
+    Proj  :: t -> Int -> Expr t -> Int -> Expr t
     deriving Eq
     
-instance Typed Expr where
+instance Typed (Expr Type) where
     typeOf (App t _ _) = t
     typeOf (Fn t _ _ _ _) = t
     typeOf (Let t _ _ _) = t
@@ -29,6 +29,6 @@ instance Typed Expr where
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
     
-isTupleConstr :: Expr -> Bool
+isTupleConstr :: Expr Type -> Bool
 isTupleConstr (Var _ ('(':xs) _) = (==) ")" $ dropWhile (\x -> x == ',') xs 
 isTupleConstr _ = False

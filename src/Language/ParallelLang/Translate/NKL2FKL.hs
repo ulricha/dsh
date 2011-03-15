@@ -18,7 +18,7 @@ import qualified Data.List as L
 
 import Control.Applicative
 
-flatTransform :: ([N.Expr], N.Expr) -> TransM ([F.Expr], F.Expr)
+flatTransform :: ([N.Expr], N.Expr) -> TransM ([F.Expr Type], F.Expr Type)
 flatTransform (fs, e) = do
                            -- Transform function declarations
                            fs'  <- mapM transform fs
@@ -30,16 +30,16 @@ flatTransform (fs, e) = do
                            -- let liftFun = generateHigherLifted (M.fromList $ primFuns ++ funArgs) funs
                            return (concat fs''', e')
                            
-generateHigherLifted :: M.Map String ([String], Type) -> [(String, [Int])] -> [F.Expr]
+generateHigherLifted :: M.Map String ([String], Type) -> [(String, [Int])] -> [F.Expr Type]
 generateHigherLifted args l = concat $ [map (liftFunD x (args M.! x)) (filter (>1) is) | (x, is) <- l]
 
-liftFunD :: String -> ([String], Type) -> Int -> F.Expr
+liftFunD :: String -> ([String], Type) -> Int -> F.Expr Type
 liftFunD n (args, t) d = let (tys, rt) = splitTypeArgsRes t
                              argTy = zip args $ map (liftTypeN d) tys
                              f = F.App (liftType rt) (F.Var (liftType t) n 1) [extractF (F.Var ty v 0) (intF (d -1)) | (v, ty) <- argTy]
                           in F.Fn (liftTypeN d t) n d args $ insertF f (F.Var (liftTypeN d $ head tys) (head args) 0) (intF $ d-1)
 
-transform :: N.Expr -> TransM F.Expr
+transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.App t e1 es) = F.App t <$> (transform e1) <*> mapM transform es
 transform (N.Fn t n l args e) = F.Fn t n l args <$> transform e
@@ -61,7 +61,7 @@ transform (N.Iter t n e1 e2) = do
                                     False -> error "Transformation wrecked the type"
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
-flatten :: String -> F.Expr -> F.Expr -> TransM F.Expr
+flatten :: String -> F.Expr Type -> F.Expr Type -> TransM (F.Expr Type)
 flatten i e1 eb = do
                     o <- withOpt RedRepl
                     fVars <- getLetVars
@@ -82,7 +82,7 @@ flatten i e1 eb = do
                                              
                          else flatten' i e1 eb
     
-flatten' :: String -> F.Expr -> F.Expr -> TransM F.Expr
+flatten' :: String -> F.Expr Type -> F.Expr Type -> TransM (F.Expr Type)
 flatten' i e1 (F.Var t x d) | i == x = return e1
                             | otherwise = do 
                                            isLet <- isLetVar x
@@ -142,10 +142,10 @@ flatten' i d (F.Proj t l e1 el) = do
 group' :: Eq a => [(a, b)] -> [(a, [b])]
 group' a = map (\(k, v) -> (head k, v)) $ map (\ls -> (map fst ls, map snd ls)) $  L.groupBy (\(x, _) (y, _) -> x == y) a
 
-collectLifted :: [F.Expr] -> [(String, [Int])]
+collectLifted :: [F.Expr Type] -> [(String, [Int])]
 collectLifted es = group' $ L.nub $ filter (\(n, i) -> (not $ isPrimitive n) || i > 1) $ concatMap collectFns es
 
-collectFns :: F.Expr -> [(String, Int)]
+collectFns :: (F.Expr Type) -> [(String, Int)]
 collectFns (F.App _ e1 es) = collectFns e1 ++ concatMap collectFns es
 collectFns (F.Nil _) = []
 collectFns (F.Fn _ _ _ _ e1) = collectFns e1
@@ -157,7 +157,7 @@ collectFns (F.Var _ x i) = [(x, i)]
 collectFns (F.Const _ _) = []
 collectFns (F.Proj _ _ e _) = collectFns e 
 
-liftFunction :: F.Expr -> TransM (String, Type, [String], [F.Expr])
+liftFunction :: (F.Expr Type) -> TransM (String, Type, [String], [F.Expr Type])
 liftFunction f@(F.Fn t n _ [] _)   = return (n, t, [], [f])
 liftFunction f@(F.Fn t x 0 args e) = 
                                   do
@@ -211,7 +211,7 @@ primFunsArgs = [("+",     ["e1", "e2"]),
           ("(,,)", ["e1", "e2", "e3"]),
           ("(,,,)", ["e1", "e2", "e3", "e4"])]
 
-dependsOnVar :: [String] -> F.Expr -> Bool
+dependsOnVar :: [String] -> F.Expr Type -> Bool
 dependsOnVar v (F.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
 dependsOnVar _ (F.Nil _) = False
 dependsOnVar v (F.Fn _ _ _ args e1) = let n = v L.\\ args 
