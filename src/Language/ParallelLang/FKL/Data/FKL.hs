@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, FlexibleInstances #-}
+{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
@@ -7,6 +7,7 @@ import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
   
 -- | Data type expr represents flat kernel language.
 data Expr t where
+    Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
     App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
     Let   :: t -> String -> Expr t -> Expr t -> Expr t -- | Let a variable have value expr1 in expr2
@@ -17,8 +18,8 @@ data Expr t where
     Nil   :: t -> Expr t -- | []
     Proj  :: t -> Int -> Expr t -> Int -> Expr t
     deriving Eq
-    
-instance Typed (Expr Type) where
+
+instance Typed Expr t where
     typeOf (App t _ _) = t
     typeOf (Fn t _ _ _ _) = t
     typeOf (Let t _ _ _) = t
@@ -28,6 +29,7 @@ instance Typed (Expr Type) where
     typeOf (Var t _ _) = t
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
+    typeOf (Labeled _ e) = typeOf e
     
 isTupleConstr :: Expr Type -> Bool
 isTupleConstr (Var _ ('(':xs) _) = (==) ")" $ dropWhile (\x -> x == ',') xs 

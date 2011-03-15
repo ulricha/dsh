@@ -58,6 +58,9 @@ deTuple (BinOp rt o e1 e2) = do
                                 e1' <- deTuple e1
                                 e2' <- deTuple e2
                                 return $ BinOp rt o e1' e2'
+deTuple (Labeled s e) = do
+                          e' <- deTuple e
+                          return $ Labeled s e'
 deTuple (Let _ v e1 e2) = do
                             e1' <- deTuple e1
                             e2' <- deTuple e2

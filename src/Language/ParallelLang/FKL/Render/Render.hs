@@ -10,6 +10,7 @@ instance Show (Expr t) where
    show a = show $ render a
     
 render :: Expr t -> Doc
+render (Labeled _ e) = render e
 render (App _ e1 e2) = let e2' = map render e2
                       in parens $ render e1 <+> hsep e2'
 render (Fn _ n 0 args e) = text "fn" <+> text n <+> hsep (map text args) <+> text "="
