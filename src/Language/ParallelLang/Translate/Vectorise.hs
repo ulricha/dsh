@@ -107,17 +107,17 @@ distL e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) > 1
 consEmpty :: Expr VType -> TransM (Expr VType)
 consEmpty e | typeOf e == pValT 
                 -- Corresponds to rule [cons-empty-1]
-                = singletonPrim e
+                = return $ singletonPrim e
             
             | nestingDepth (typeOf e) > 0
                 -- Corresponds to rule [cons-empty-2]
-                = singletonVec e
+                = return $ singletonVec e
             | otherwise = error "consEmpty: Can't construct consEmpty node"
             
 cons :: Expr VType -> Expr VType -> TransM (Expr VType)
-cons e1 e2 | typeOf e1 = pValT && nestingDepth (typeOf e2) == 1
+cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                 -- corresponds to rule [cons-1]
-                = project (append (singletonPrim e1) e2) 1
+                = return $ project (append (singletonPrim e1) e2) 1
             
             | nestingDepth (typeOf e1) > 0 && nestingDepth (typeOf e2) == (nestingDepth (typeOf e1)) + 1
                 -- Corresponds to rule [cons-2]
@@ -133,7 +133,22 @@ cons e1 e2 | typeOf e1 = pValT && nestingDepth (typeOf e2) == 1
                     (b1, d1, vs1) <- patV e1'  -- Pattern matching on e1': <d1, vs1> = e1'
                     (b2, d2, vs2) <- patV e2   -- Pattern matching on e2: <d2, vs2> = e2
                     
-                     
+                    let rv = append (outer (singletonVec e1')) d2
+                    let r' = Var (typeOf rv) r 0
+                    
+                    let vv = project r' 1
+                    let v' = Var (typeOf vv) v 0
+                    
+                    let p1v = project r' 2
+                    let p1' = Var (typeOf p1v) p1 0
+                    
+                    let p2v = project r' 3
+                    let p2' = Var (typeOf p2v) p2 0
+                    
+                    e3 <- appendR (attach (rename p1' d1) vs1) (attach (rename p2' (outer vs2)) (extract vs2 1))
+                    
+                    return $ letF e1a e1 (b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3)))))))  
+            | otherwise = error "cons: Can't construct cons node"                 
                     
  
 {-
