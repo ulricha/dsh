@@ -8,7 +8,7 @@ import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Common.Data.Val
 
--- | Vector primitive constructor functions
+-- * Vector primitive constructor functions
 
 outer :: Expr VType -> Expr VType
 outer e1 | nestingDepth (typeOf e1) > 0 = App descrT (Var (typeOf e1 .~> descrT) "outer" 0) [e1]
@@ -94,8 +94,10 @@ extract e i | nestingDepth (typeOf e) > i && i > 0
 
 intV :: Int -> Expr VType
 intV i = Const pValT (Int i)
--- | Other construction functions
 
+-- * meta construction functions
+
+-- | Create a tuple projection node
 project :: Expr VType -> Int -> Expr VType
 project e i = let t = typeOf e
                 in case t of
@@ -166,6 +168,7 @@ appendR e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                         return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' rec))))))
               | otherwise = error "appendR: Can't expand meta function appendR"
 
+-- | Apply renaming to the outermost vector
 renameOuter :: Expr VType -> Expr VType -> TransM (Expr VType)
 renameOuter p e | typeOf p == propT && nestingDepth (typeOf e) == 1
                     = return $ rename p e
