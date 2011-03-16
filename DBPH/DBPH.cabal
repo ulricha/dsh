@@ -39,6 +39,7 @@ executable dbph
         Language.ParallelLang.FKL.ProcessFKL
         Language.ParallelLang.VL.Data.VectorTypes
         Language.ParallelLang.Translate.Vectorise
+        Language.ParallelLang.VL.VectorPrimitives
 Library
     build-depends:    base >= 4.2, 
                       mtl >= 2.0, 
@@ -78,5 +79,5 @@ Library
                    Language.ParallelLang.Translate.Rewriter
                    Language.ParallelLang.FKL.ProcessFKL
                    Language.ParallelLang.VL.Data.VectorTypes
-
+                   Language.ParallelLang.VL.VectorPrimitives
         
