@@ -187,4 +187,7 @@ Switched to DSH branch, preparing for integration
 
 Changes in version 0.5:
 Added vectorisation to the compilation pipeline (-v flag)
+
+Changes in version 0.5.1:
+Fixing bugs
  

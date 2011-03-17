@@ -8,6 +8,7 @@ import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Common.Data.Val
 
+import Language.ParallelLang.FKL.Render.Render
 -- * Vector primitive constructor functions
 
 outer :: Expr VType -> Expr VType
@@ -39,7 +40,7 @@ propagateIn e1 e2 | typeOf e1 == propT &&  descrOrVal (typeOf e2)
 
 rename :: Expr VType -> Expr VType -> Expr VType
 rename e1 e2 | typeOf e1 == propT && descrOrVal (typeOf e2)
-                        = App (typeOf e1) (Var (typeOf e1 .~> typeOf e2 .~> typeOf e1) "rename" 0) [e1, e2]
+                        = App (typeOf e2) (Var (typeOf e1 .~> typeOf e2 .~> typeOf e1) "rename" 0) [e1, e2]
              | otherwise = error "rename: Can't construct rename node"
 
 attach :: Expr VType -> Expr VType -> Expr VType
@@ -59,10 +60,10 @@ singletonVec e1 | nestingDepth (typeOf e1) > 0
                 | otherwise = error "singletonVec: Can't construct singletonVec node"
 
 append :: Expr VType -> Expr VType -> Expr VType
-append e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2) && typeOf e1 == typeOf e2
+append e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2) && nestingDepth (typeOf e1) == nestingDepth (typeOf e2)
                     = let rt = tupleT [typeOf e1, propT, propT]
                        in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "append" 0) [e1, e2]
-             | otherwise = error "append: Can't construct append node"
+             | otherwise = error $ "append: Can't construct append node" ++ show (typeOf e1) ++ " XXX " ++ show (typeOf e2)
 
 segment :: Expr VType -> Expr VType
 segment e1 | descrOrVal (typeOf e1) = App (typeOf e1) (Var (typeOf e1 .~> typeOf e1) "segment" 0) [e1]
@@ -146,7 +147,7 @@ patV e | nestingDepth (typeOf e) > 1
 appendR :: Expr VType -> Expr VType -> TransM (Expr VType)
 appendR e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                     = return $ flip project 1 $ append e1 e2
-              | nestingDepth (typeOf e1) > 1 && typeOf e1 == typeOf e2
+              | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e1) == nestingDepth (typeOf e2)
                     = do
                         r <- getFreshVar
                         v <- getFreshVar
@@ -166,7 +167,7 @@ appendR e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                         r2 <- renameOuter p2' vs2
                         rec <- appendR r1 r2
                         return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' rec))))))
-              | otherwise = error "appendR: Can't expand meta function appendR"
+              | otherwise = error $ "appendR: Can't expand meta function appendR "
 
 -- | Apply renaming to the outermost vector
 renameOuter :: Expr VType -> Expr VType -> TransM (Expr VType)

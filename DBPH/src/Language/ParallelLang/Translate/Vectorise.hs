@@ -120,7 +120,7 @@ cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                 -- corresponds to rule [cons-1]
                 = return $ project (append (singletonPrim e1) e2) 1
             
-            | nestingDepth (typeOf e1) > 0 && nestingDepth (typeOf e2) == (nestingDepth (typeOf e1)) + 1
+           | nestingDepth (typeOf e1) > 0 && nestingDepth (typeOf e2) == (nestingDepth (typeOf e1)) + 1
                 -- Corresponds to rule [cons-2]
                 = do
                     e1a <- getFreshVar -- Variable to act as place holder for e1
@@ -131,7 +131,6 @@ cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                     
                     let e1' = Var (typeOf e1) e1a 0 -- Construct the actual placeholder variable for e1
                     
-                    (b1, d1, vs1) <- patV e1'  -- Pattern matching on e1': <d1, vs1> = e1'
                     (b2, d2, vs2) <- patV e2   -- Pattern matching on e2: <d2, vs2> = e2
                     
                     let rv = append (outer (singletonVec e1')) d2
@@ -146,9 +145,11 @@ cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                     let p2v = project r' 3
                     let p2' = Var (typeOf p2v) p2 0
                     
-                    e3 <- appendR (attach (rename p1' d1) vs1) (attach (rename p2' (outer vs2)) (extract vs2 1))
+                    r1 <- renameOuter p1' e1'
+                    r2 <- renameOuter p2' vs2
+                    e3 <- appendR r1 r2
                     
-                    return $ letF e1a e1 (b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3)))))))  
+                    return $ letF e1a e1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3))))))  
             | otherwise = error "cons: Can't construct cons node"                 
 
 consLift :: Expr VType -> Expr VType -> TransM (Expr VType)
