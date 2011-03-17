@@ -181,4 +181,10 @@ Added rewrite rule to translate "index^n (promote a b) b" into "insert (bPermute
 
 Changes in version 0.3.9:
 Added support for guarded comprehensions as was already mentioned in the documentation. Syntax: [e1 | x <- e2, e3] The type of e3 should be Bool.
+
+Changes in version 0.4:
+Switched to DSH branch, preparing for integration
+
+Changes in version 0.5:
+Added vectorisation to the compilation pipeline (-v flag)
  
