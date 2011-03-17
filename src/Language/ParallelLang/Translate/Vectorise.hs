@@ -7,9 +7,10 @@ import Language.ParallelLang.VL.Data.VectorTypes
 import Language.ParallelLang.Translate.TransM
 
 import Language.ParallelLang.FKL.Primitives
-import Language.ParallelLang.Common.Data.Val
+import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.VectorPrimitives
 
+import Control.Applicative ((<$>), (<*>))
 
 vectoriseType :: T.Type -> VType
 vectoriseType (T.TyC s [])   | isPrimTy s          = pValT
@@ -249,14 +250,45 @@ combine eb e1 e2 | nestingDepth (typeOf eb) == 1 && nestingDepth (typeOf e1) == 
                         
                         return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3))))))
                  | otherwise = error "combine: Can't construct combine node"
-{-
-App   :: Type -> Expr -> [Expr] -> Expr -- | Apply multiple arguments to an expression
-Fn    :: Type -> String -> Int -> [String] -> Expr -> Expr -- | A function has a name (and lifted level), some arguments and a body
-Let   :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
-If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
-BinOp :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-Const :: Type -> Val -> Expr -- | Constant value
-Var   :: Type -> String -> Int -> Expr  -- | Variable lifted to level i
-Nil   :: Type -> Expr -- | []
-Proj  :: Type -> Int -> Expr -> Int -> Expr
--}
+                 
+bPermute :: Expr VType -> Expr VType -> TransM (Expr VType)
+bPermute e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
+                    = return (project (bPermuteVec e1 e2) 1)
+               | otherwise = error "bPermute: Can't construct bPermute node"
+
+vectorise :: Expr T.Type -> TransM (Expr VType)
+vectorise (Labeled s e) = Labeled s <$> vectorise e
+vectorise (Const t v) = return $ Const (vectoriseType t) v
+vectorise (Nil t)     = return $ Nil $ tag (vectoriseType t) t
+vectorise (Var t x l) = return $ Var (vectoriseType t) x l
+vectorise (Proj t l e i) = do
+                            e' <- vectorise e
+                            return $ Proj (vectoriseType t) l e' i
+vectorise (BinOp t o e1 e2) = case o of
+                                    (Op ":" 0) -> case e2 of
+                                                    (Nil _) -> do {e1' <- vectorise e1; consEmpty e1'}
+                                                    _       -> do {e1' <- vectorise e1; e2' <- vectorise e2; cons e1' e2'}
+                                    (Op ":" 1) -> do {e1' <- vectorise e1; e2' <- vectorise e2; consLift e1' e2'}
+                                    _    -> BinOp (vectoriseType t) o <$> vectorise e1 <*> vectorise e2
+                                --case of cons
+vectorise (If t e1 e2 e3) = If (vectoriseType t) <$> vectorise e1 <*> vectorise e2 <*> vectorise e3
+vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
+vectorise (Fn t s l as e) = Fn (vectoriseType t) s l as <$> vectorise e
+vectorise (App t e es) = case e of
+                            (Var _ "dist" 0)         -> do
+                                                         [e1, e2] <- mapM vectorise es
+                                                         dist e1 e2
+                            (Var _ "dist" 1)         -> do
+                                                         [e1, e2] <- mapM vectorise es
+                                                         distL e1 e2
+                            (Var _ "restrict" 0)     -> do
+                                                         [e1, e2] <- mapM vectorise es
+                                                         restrict e1 e2
+                            (Var _ "combine" 0)      -> do
+                                                         [e1, e2, e3] <- mapM vectorise es
+                                                         combine e1 e2 e3
+                            (Var _ "back_Permute" 0) -> do
+                                                         [e1, e2] <- mapM vectorise es
+                                                         bPermute e1 e2
+                            _                        -> App (vectoriseType t) <$> vectorise e <*> mapM vectorise es
+                                                         
