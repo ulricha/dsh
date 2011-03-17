@@ -149,8 +149,44 @@ cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                     
                     return $ letF e1a e1 (b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3)))))))  
             | otherwise = error "cons: Can't construct cons node"                 
-                    
- 
+
+consLift :: Expr VType -> Expr VType -> TransM (Expr VType)
+consLift e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 2
+                      -- Case that e1 has a nesting depth of 1
+                    = do
+                        (b1, d2, vs2) <- patV e2
+                        return $ b1 $ attach d2 (project (append (segment e1) vs2) 1)
+               
+               | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e2) == (nestingDepth (typeOf e1)) + 1
+                      -- Case that e1 has a nesting depth > 1
+                    = do
+                        (b1, d1, vs1) <- patV e1
+                        (b2, d2, vs2) <- patV e2
+                        
+                        r  <- getFreshVar
+                        v  <- getFreshVar
+                        p1 <- getFreshVar
+                        p2 <- getFreshVar
+                        
+                        let rv = append (segment d1) (outer vs2)
+                        let r' = Var (typeOf rv) r 0
+                        
+                        let vv = project r' 1
+                        let v' = Var (typeOf vv) v 0
+                        
+                        let p1v = project r' 2
+                        let p1' = Var (typeOf p1v) p1 0
+                        
+                        let p2v = project r' 3
+                        let p2' = Var (typeOf p2v) p2 0
+                        
+                        r1 <- renameOuter p1' vs1
+                        r2 <- renameOuter p2' (extract vs2 1) 
+                        e3 <- r1 `appendR` r2
+                        return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach d2 (attach v' e3)))))))
+                
+               | otherwise = error "consLift: Can't construct consLift node" 
+
 {-
 App   :: Type -> Expr -> [Expr] -> Expr -- | Apply multiple arguments to an expression
 Fn    :: Type -> String -> Int -> [String] -> Expr -> Expr -- | A function has a name (and lifted level), some arguments and a body
