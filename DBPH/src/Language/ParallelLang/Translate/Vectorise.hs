@@ -187,6 +187,68 @@ consLift e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 2
                 
                | otherwise = error "consLift: Can't construct consLift node" 
 
+restrict :: Expr VType -> Expr VType -> TransM (Expr VType)
+restrict e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
+                      -- Corresponds to compilation rule [restrict-1]
+                    = return $ project (restrictVec e1 e2) 1
+         
+               | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e2) == 1
+                      -- Corresponds to compilation rule [restrict-2]
+                    = do
+                        (b1, d1, vs1) <- patV e1
+                        
+                        r <- getFreshVar
+                        v <- getFreshVar
+                        p <- getFreshVar
+                        
+                        let rv = restrictVec d1 e2
+                        let r' = Var (typeOf rv) r 0
+                        
+                        let vv = project r' 1
+                        let v' = Var (typeOf vv) v 0
+                        
+                        let pv = project r' 2
+                        let p' = Var (typeOf pv) p 0
+                        
+                        e3 <- chainPropagate p' vs1
+                        
+                        return $ b1 (letF r rv (letF v vv (letF p pv (attach v' e3))))                        
+               | otherwise = error "restrict: Can't construct restrict node"
+               
+combine :: Expr VType -> Expr VType -> Expr VType -> TransM (Expr VType)
+combine eb e1 e2 | nestingDepth (typeOf eb) == 1 && nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
+                      -- Corresponds to compilation rule [combine-1]
+                    = return $ project (combineVec eb e1 e2) 1
+                 
+                 | nestingDepth (typeOf eb) == 1 && nestingDepth (typeOf e1) > 1 && typeOf e1 == typeOf e2
+                      -- Corresponds to compilation rule [combine-2]
+                    = do
+                        (b1, d1, vs1) <- patV e1
+                        (b2, d2, vs2) <- patV e2
+                        
+                        r <- getFreshVar
+                        v <- getFreshVar
+                        p1 <- getFreshVar
+                        p2 <- getFreshVar
+                        
+                        let rv = combineVec eb d1 d2
+                        let r' = Var (typeOf rv) r 0
+                        
+                        let vv = project r' 1
+                        let v' = Var (typeOf vv) v 0
+                        
+                        let p1v = project r' 2
+                        let p1' = Var (typeOf p1v) p1 0
+                        
+                        let p2v = project r' 3
+                        let p2' = Var (typeOf p2v) p2 0
+                        
+                        r1 <- renameOuter p1' vs1
+                        r2 <- renameOuter p2' vs2
+                        e3 <- appendR r1 r2
+                        
+                        return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' e3))))))
+                 | otherwise = error "combine: Can't construct combine node"
 {-
 App   :: Type -> Expr -> [Expr] -> Expr -- | Apply multiple arguments to an expression
 Fn    :: Type -> String -> Int -> [String] -> Expr -> Expr -- | A function has a name (and lifted level), some arguments and a body
