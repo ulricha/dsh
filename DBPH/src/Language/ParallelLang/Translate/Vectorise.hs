@@ -1,4 +1,4 @@
-module Language.ParallelLang.Translate.Vectorise where
+module Language.ParallelLang.Translate.Vectorise (runVectorise) where
 
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -256,6 +256,9 @@ bPermute e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                     = return (project (bPermuteVec e1 e2) 1)
                | otherwise = error "bPermute: Can't construct bPermute node"
 
+runVectorise :: ([Expr T.Type], Expr T.Type) -> TransM ([Expr VType], Expr VType)
+runVectorise (ds, e) = (,) <$> mapM vectorise ds <*> vectorise e 
+                        
 vectorise :: Expr T.Type -> TransM (Expr VType)
 vectorise (Labeled s e) = Labeled s <$> vectorise e
 vectorise (Const t v) = return $ Const (vectoriseType t) v

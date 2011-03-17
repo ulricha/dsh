@@ -1,6 +1,6 @@
 cabal-version: >=1.8
 Name:           DBPH
-Version:        0.4
+Version:        0.5
 Description:    Experiments with flattening and algebraic compilation
 License:             GPL
 License-file:   LICENSE

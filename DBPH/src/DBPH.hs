@@ -16,6 +16,7 @@ import Language.ParallelLang.Common.Data.Type
 import Language.ParallelLang.Common.Data.Prelude
 import Language.ParallelLang.Translate.TransM
 import Language.ParallelLang.Translate.RewritePhases
+import Language.ParallelLang.Translate.Vectorise 
 
 import Language.ParallelLang.Translate.Detupler
 
@@ -49,6 +50,9 @@ options = [ Option ['o']["opt"]
             Option ['d']["detuple"]
                     (NoArg (\o -> o {detupling = True, opt = RewriteOpt : (opt o)}))
                         "Flatten the given program and then detuple",
+            Option ['v']["vectorise"]
+                    (NoArg (\o -> o {vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
+                        "Vectorise the given program",
             Option ['z']["trivialLet"]
                     (NoArg (\o -> o {opt = LetSimple : (opt o)}))
                         "Remove let bindings of trivial expressions",
@@ -108,19 +112,25 @@ handleFile c n = do
                                 exitSuccess
                       _ -> return () 
                   
-                  let (fs, b) = runTransform c $ do
-                                                   r <- flatTransform tyAst
-                                                   dr <- withOpt RewriteOpt  
-                                                   
-                                                   r' <- if dr 
-                                                            then runRWPhase1 r
-                                                            else return r
-                                                   if detupling c
-                                                     then do 
-                                                            r'' <- normTuples r' 
-                                                            if dr 
-                                                              then runRWPhase2 r''
-                                                              else return r''
-                                                     else return r'
-                  let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
-                  writeFile (file ++ ".out") output
+                  let ir = do
+                             r <- flatTransform tyAst
+                             dr <- withOpt RewriteOpt  
+                             r' <- if dr 
+                                     then runRWPhase1 r
+                                     else return r
+                             if detupling c
+                                   then do 
+                                          r'' <- normTuples r' 
+                                          if dr 
+                                             then runRWPhase2 r''
+                                             else return r''
+                                   else return r'
+                  if vectorise c
+                       then do
+                              let (fs, b) = runTransform c $ runVectorise =<< ir
+                              let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
+                              writeFile (file ++ ".vec") output
+                       else do
+                                let (fs, b) = runTransform c ir
+                                let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
+                                writeFile (file ++ ".out") output
