@@ -11,7 +11,7 @@ data VType =
   | Tuple [VType]
   | VectorFun VType VType
   | Tagged VType T.Type
-   deriving Eq
+   deriving (Eq, Show)
   
 descrT :: VType
 descrT = DescrVector
@@ -54,4 +54,5 @@ nestingDepth _                = 0
 descrOrVal :: VType -> Bool
 descrOrVal ValueVector = True
 descrOrVal DescrVector = True
+descrOrVal (NestedVector 1) = True
 descrOrVal _           = False

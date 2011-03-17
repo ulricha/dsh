@@ -17,7 +17,7 @@ data Expr t where
     Var   :: t -> String -> Int -> Expr t -- | Variable lifted to level i
     Nil   :: t -> Expr t -- | []
     Proj  :: t -> Int -> Expr t -> Int -> Expr t
-    deriving Eq
+    deriving (Eq)
 
 instance Typed Expr t where
     typeOf (App t _ _) = t

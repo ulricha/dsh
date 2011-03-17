@@ -86,6 +86,9 @@ zipF es = F.App resType (flip (F.Var zipType) 0 $ "zip" ++ (show $ length es)) e
 letF :: String -> Expr t -> Expr t -> Expr t
 letF v e1 e2 = F.Let (typeOf e2) v e1 e2
 
+tagN :: String -> Expr t -> Expr t
+tagN s e = Labeled s e
+
 tupleF :: [TExpr] -> TExpr
 tupleF es = F.App resType (F.Var tType tName 0) es
     where
