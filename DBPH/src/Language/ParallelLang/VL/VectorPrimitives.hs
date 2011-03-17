@@ -8,7 +8,6 @@ import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Common.Data.Val
 
-import Language.ParallelLang.FKL.Render.Render
 -- * Vector primitive constructor functions
 
 outer :: Expr VType -> Expr VType
