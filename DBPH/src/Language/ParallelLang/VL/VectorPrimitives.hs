@@ -80,11 +80,11 @@ combineVec eb e1 e2 | nestingDepth (typeOf eb) == 1 && descrOrVal (typeOf e1) &&
                            in App rt (Var (typeOf eb .~> typeOf e1 .~> typeOf e2 .~> rt) "combineVec" 0) [eb, e1, e2]
                     | otherwise = error "combineVec: Can't construct combineVec node"
 
-bPermute :: Expr VType -> Expr VType -> Expr VType
-bPermute e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
+bPermuteVec :: Expr VType -> Expr VType -> Expr VType
+bPermuteVec e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
                         = let rt = tupleT [typeOf e1, propT]
                            in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "bPermute" 0) [e1, e2]
-               | otherwise = error "bPermute: Can't construct bPermute node"
+                  | otherwise = error "bPermute: Can't construct bPermute node"
 
 extract :: Expr VType -> Int -> Expr VType
 extract e i | nestingDepth (typeOf e) > i && i > 0
