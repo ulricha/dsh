@@ -64,7 +64,24 @@ distDesc e1 e2 = do
                    qr1 <- rf <$> proj ([(descr, descr), (pos, pos)] ++ pI) q
                    qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
                    return $ Tuple [qr1, qr2]
-                    
+
+distLift :: Graph Plan -> Graph Plan -> Graph Plan
+distLift e1 e2 = do
+                    hasI <- isValueVector e1
+                    let rf = if hasI then ValueVector else DescrVector
+                    (DescrVector q2) <- toDescr e2
+                    e1' <- e1
+                    let (q1, pI) = case hasI of
+                                    True -> case e1' of
+                                                (ValueVector q1) -> (q1, [(item1, item1)])
+                                                _                -> error "distDesc: Not a value vector"
+                                    False -> case e1' of
+                                                (DescrVector q1) -> (q1, [])
+                                                _                -> error "distDesc: Not a descriptor vector"
+                    q <- eqJoinM pos' descr (proj ((pos', pos):pI) q1) $ return q2
+                    qr1 <- rf <$> proj ([(descr, descr), (pos, pos)] ++ pI) q
+                    qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
+                    return $ Tuple [qr1, qr2]                    
 
 var :: String -> Graph Plan
 var s = fromGam s
@@ -75,7 +92,7 @@ toDescr v = do
              v' <- v
              case v' of
                  (DescrVector _) -> v
-                 (ValueVector n) -> DescrVector <$> proj [("iter", "iter"), ("pos", "pos")] n
+                 (ValueVector n) -> DescrVector <$> proj [(descr, descr), (pos, pos)] n
                                         
                  _               -> error "toDescr: Cannot cast into descriptor vector"
 
