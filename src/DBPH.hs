@@ -23,6 +23,7 @@ import Language.ParallelLang.Translate.Detupler
 
 import Language.ParallelLang.NKL.Eval
 import Language.ParallelLang.NKL.Render.Hs.NKL2HS
+import Language.ParallelLang.Translate.Vec2Algebra
 
 -- | Description of the options for the compiler 'Mode'
 options :: [OptDescr (Config -> Config)]

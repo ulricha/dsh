@@ -9,9 +9,16 @@ Maintainer:		Jeroen Weijers <jeroen.weijers@uni-tuebingen.de>
 Build-Type:     Simple
 executable dbph
     buildable:        True
-    build-depends:    base >= 4.2, mtl >= 2.0, containers >= 0.3.0.0, template-haskell,
-                      parsec >= 2.1, pretty >= 1.0.1.1, filepath >= 1.1.0.4,
-                      haskell-src-exts >=1.9.6, hint >= 0.3.3.2
+    build-depends:    base >= 4.2, 
+                      mtl >= 2.0, 
+                      containers >= 0.3.0.0, 
+                      template-haskell,
+                      parsec >= 2.1, 
+                      pretty >= 1.0.1.1, 
+                      filepath >= 1.1.0.4,
+                      haskell-src-exts >=1.9.6, 
+                      hint >= 0.3.3.2, 
+                      TableAlgebra >= 0.5
     main-is: DBPH.hs 
     hs-source-dirs:   src
     GHC-Options:      -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
@@ -40,6 +47,7 @@ executable dbph
         Language.ParallelLang.VL.Data.VectorTypes
         Language.ParallelLang.Translate.Vectorise
         Language.ParallelLang.VL.VectorPrimitives
+        Language.ParallelLang.Translate.Vec2Algebra
 Library
     build-depends:    base >= 4.2, 
                       mtl >= 2.0, 
@@ -50,7 +58,7 @@ Library
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2,
-                      TableAlgebra >= 0.2.1
+                      TableAlgebra >= 0.5
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
@@ -80,4 +88,5 @@ Library
                    Language.ParallelLang.FKL.ProcessFKL
                    Language.ParallelLang.VL.Data.VectorTypes
                    Language.ParallelLang.VL.VectorPrimitives
+                   Language.ParallelLang.Translate.Vec2Algebra
         
