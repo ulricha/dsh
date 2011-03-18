@@ -83,6 +83,57 @@ distLift e1 e2 = do
                     qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ Tuple [qr1, qr2]                    
 
+rename :: Graph Plan -> Graph Plan -> Graph Plan
+rename e1 e2 = do
+                (PropVector q1) <- e1
+                hasI <- isValueVector e2
+                let rf = if hasI then ValueVector else DescrVector
+                e2' <- e2
+                let (q2, pI) = case hasI of
+                                True -> case e2' of
+                                            (ValueVector q2) -> (q2, [(item1, item1)])
+                                            _                -> error "distDesc: Not a value vector"
+                                False -> case e2' of
+                                            (DescrVector q2) -> (q2, [])
+                                            _                -> error "distDesc: Not a descriptor vector"
+                q <- projM ([(descr, posnew), (pos, pos)] ++ pI) $ eqJoin posold descr q1 q2
+                return $ rf q
+                
+propagateIn :: Graph Plan -> Graph Plan -> Graph Plan
+propagateIn e1 e2 = do
+                     (PropVector q1) <- e1
+                     hasI <- isValueVector e2
+                     let rf = if hasI then ValueVector else DescrVector
+                     e2' <- e2
+                     let (q2, pI) = case hasI of
+                                     True -> case e2' of
+                                                 (ValueVector q2) -> (q2, [(item1, item1)])
+                                                 _                -> error "distDesc: Not a value vector"
+                                     False -> case e2' of
+                                                 (DescrVector q2) -> (q2, [])
+                                                 _                -> error "distDesc: Not a descriptor vector"
+                     q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
+                     qr1 <- rf <$> proj ([(descr, posnew), (pos, pos')] ++ pI) q
+                     qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
+                     return $ Tuple [qr1, qr2]
+                     
+attach :: Graph Plan -> Graph Plan -> Graph Plan
+attach e1 e2 = do
+                (DescrVector q1) <- e1
+                e2' <- e2
+                return $ NestedVector q1 e2'
+                
+singletonPrim :: Graph Plan -> Graph Plan
+singletonPrim e1 = do
+                    (PrimVal q1) <- e1
+                    return $ ValueVector q1
+                    
+singletonVec :: Graph Plan -> Graph Plan
+singletonVec e1 = do
+                    e1' <- e1
+                    q <- attachM pos natT (nat 1) $ litTable (nat 1) descr natT
+                    return $ NestedVector q e1'
+
 var :: String -> Graph Plan
 var s = fromGam s
 
