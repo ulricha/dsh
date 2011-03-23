@@ -58,7 +58,7 @@ Library
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2,
-                      TableAlgebra >= 0.5
+                      TableAlgebra >= 0.5.1
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans

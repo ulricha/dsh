@@ -50,71 +50,35 @@ distPrim v d = do
                   
 distDesc :: Graph Plan -> Graph Plan -> Graph Plan
 distDesc e1 e2 = do
-                   hasI <- isValueVector e1
-                   let rf = if hasI then ValueVector else DescrVector
+                   (rf, q1, pf) <- determineResultVector e1
                    (DescrVector q2) <- toDescr e2
-                   e1' <- e1
-                   let (q1, pI) = case hasI of
-                                    True -> case e1' of
-                                                (ValueVector q1') -> (q1', [(item1, item1)])
-                                                _                 -> error "distDesc: Not a value vector"
-                                    False -> case e1' of
-                                                (DescrVector q1') -> (q1', [])
-                                                _                 -> error "distDesc: Not a descriptor vector"
-                   q <- projM ([(descr, pos), (pos, pos''), (posold, posold)] ++ pI) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj ([(pos', pos), (posold, pos)] ++ pI) q1)
-                   qr1 <- rf <$> proj ([(descr, descr), (pos, pos)] ++ pI) q
+                   q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
+                   qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                    qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
                    return $ Tuple [qr1, qr2]
 
 distLift :: Graph Plan -> Graph Plan -> Graph Plan
 distLift e1 e2 = do
-                    hasI <- isValueVector e1
-                    let rf = if hasI then ValueVector else DescrVector
+                    (rf, q1, pf) <- determineResultVector e1
                     (DescrVector q2) <- toDescr e2
-                    e1' <- e1
-                    let (q1, pI) = case hasI of
-                                    True -> case e1' of
-                                                (ValueVector q1') -> (q1', [(item1, item1)])
-                                                _                -> error "distDesc: Not a value vector"
-                                    False -> case e1' of
-                                                (DescrVector q1') -> (q1', [])
-                                                _                -> error "distDesc: Not a descriptor vector"
-                    q <- eqJoinM pos' descr (proj ((pos', pos):pI) q1) $ return q2
-                    qr1 <- rf <$> proj ([(descr, descr), (pos, pos)] ++ pI) q
+                    q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
+                    qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                     qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ Tuple [qr1, qr2]                    
 
 rename :: Graph Plan -> Graph Plan -> Graph Plan
 rename e1 e2 = do
                 (PropVector q1) <- e1
-                hasI <- isValueVector e2
-                let rf = if hasI then ValueVector else DescrVector
-                e2' <- e2
-                let (q2, pI) = case hasI of
-                                True -> case e2' of
-                                            (ValueVector q2') -> (q2', [(item1, item1)])
-                                            _                 -> error "distDesc: Not a value vector"
-                                False -> case e2' of
-                                            (DescrVector q2') -> (q2', [])
-                                            _                 -> error "distDesc: Not a descriptor vector"
-                q <- projM ([(descr, posnew), (pos, pos)] ++ pI) $ eqJoin posold descr q1 q2
+                (rf, q2, pf) <- determineResultVector e2
+                q <- projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
                 return $ rf q
                 
 propagateIn :: Graph Plan -> Graph Plan -> Graph Plan
 propagateIn e1 e2 = do
                      (PropVector q1) <- e1
-                     hasI <- isValueVector e2
-                     let rf = if hasI then ValueVector else DescrVector
-                     e2' <- e2
-                     let (q2, pI) = case hasI of
-                                     True -> case e2' of
-                                                 (ValueVector q2') -> (q2', [(item1, item1)])
-                                                 _                 -> error "distDesc: Not a value vector"
-                                     False -> case e2' of
-                                                 (DescrVector q2') -> (q2', [])
-                                                 _                 -> error "distDesc: Not a descriptor vector"
+                     (rf, q2, pf) <- determineResultVector e2
                      q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
-                     qr1 <- rf <$> proj ([(descr, posnew), (pos, pos')] ++ pI) q
+                     qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
                      qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
                      return $ Tuple [qr1, qr2]
                      
@@ -137,19 +101,9 @@ singletonVec e1 = do
                     
 append :: Graph Plan -> Graph Plan -> Graph Plan
 append e1 e2 = do
-                hasI <- isValueVector e1
-                let rf = if hasI then ValueVector else DescrVector
-                e1' <- e1
-                e2' <- e2
-                let (q1, q2, pI) = if hasI
-                                        then let (ValueVector q1') = e1'
-                                                 (ValueVector q2') = e2'
-                                              in (q1', q2', [(item1, item1)])
-                                        else let (DescrVector q1') = e1'
-                                                 (DescrVector q2') = e2'
-                                              in (q1', q2', [])
+                (rf, q1, q2, pf) <- determineResultVector' e1 e2
                 q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
-                qv <- rf <$> proj ([(pos, pos'), (descr, descr)] ++ pI) q
+                qv <- rf <$> proj (pf [(pos, pos'), (descr, descr)]) q
                 qp1 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
                 qp2 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
                 return $ Tuple [qv, qp1, qp2]
@@ -157,15 +111,8 @@ append e1 e2 = do
 
 segment :: Graph Plan -> Graph Plan
 segment e = do
-             hasI <- isValueVector e
-             let rf = if hasI then ValueVector else DescrVector
-             e' <- e
-             let (q, pI) = if hasI
-                                then let (ValueVector q') = e'
-                                      in (q', [(item1, item1)])
-                                else let (DescrVector q') = e'
-                                      in (q', [])
-             rf <$> proj ([(descr, pos), (pos, pos)] ++ pI) q
+             (rf, q, pf) <- determineResultVector e
+             rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
 extract :: Int -> Graph Plan -> Graph Plan
 extract 0 p = p
@@ -181,57 +128,58 @@ insert n p d | n > 0 = insert (n - 1) (attachV (outer d) p) (extract 1 d)
 
 restrictVec :: Graph Plan -> Graph Plan -> Graph Plan
 restrictVec e1 m = do
-                    hasI <- isValueVector e1
-                    let rf = if hasI then ValueVector else DescrVector
-                    e1' <- e1
+                    (rf, q1, pf) <- determineResultVector e1
                     (ValueVector qm) <- m
-                    let (q1, pI) = if hasI 
-                                    then let (ValueVector q') = e1'
-                                          in (q', [(item1, item1)])
-                                    else let (DescrVector q') = e1'
-                                          in (q', [])
                     q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item1)] qm
-                    qr <- rf <$> proj ([(pos, pos''), (descr, descr)] ++ pI) q
+                    qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
                     qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
                     return $ Tuple [qr, qp]
 
 combineVec :: Graph Plan -> Graph Plan -> Graph Plan -> Graph Plan
 combineVec eb e1 e2 = do
-                        hasI <- isValueVector e1
-                        let rf = if hasI then ValueVector else DescrVector
-                        e1' <- e1
-                        e2' <- e2
+                        (rf, q1, q2, pf) <- determineResultVector' e1 e2
                         (ValueVector qb) <- eb
-                        let (q1, q2, pI) = if hasI
-                                            then let (ValueVector q1') = e1'
-                                                     (ValueVector q2') = e2'
-                                                  in (q1', q2', [(item1, item1)])
-                                            else let (DescrVector q1') = e1'
-                                                     (DescrVector q2') = e2'
-                                                  in (q1', q2', [])
                         d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item1 qb
                         d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item1 qb
-                        q <- eqJoinM pos' posold (return d1) (proj ([(posold, posold), (descr, descr)] ++ pI) q1) `unionM` eqJoinM pos' posold (return d2) (proj ([(posold, posold), (descr, descr)] ++ pI) q2)
-                        qr <- rf <$> proj ([(descr, descr), (pos, pos)] ++ pI) q
+                        q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, posold), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, posold), (descr, descr)]) q2)
+                        qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                         qp1 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d1
                         qp2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d2
                         return $ Tuple [qr, qp1, qp2]
                         
 bPermuteVec :: Graph Plan -> Graph Plan -> Graph Plan
 bPermuteVec e1 e2 = do
-                     hasI <- isValueVector e1
-                     let rf = if hasI then ValueVector else DescrVector
-                     e1' <- e1
+                     (rf, q1, pf) <- determineResultVector e1
                      (ValueVector q2) <- e2
-                     let (q1, pI) = if hasI
-                                     then let (ValueVector q1') = e1'
-                                           in (q1', [(item1, item1)])
-                                     else let (DescrVector q1') = e1'
-                                           in (q1', [])
                      q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item1)] q2
-                     qr <- rf <$> proj ([(descr, descr), (pos, posnew)] ++ pI) q
+                     qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
                      qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
                      return $ Tuple [qr, qp]
+
+determineResultVector :: Graph Plan -> Graph (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
+determineResultVector e = do
+                            hasI <- isValueVector e
+                            e' <- e
+                            let rf = if hasI then ValueVector else DescrVector
+                            let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                            let q = if hasI
+                                        then let (ValueVector q') = e' in q'
+                                        else let (DescrVector q') = e' in q'
+                            return (rf, q, pf)
+
+determineResultVector' :: Graph Plan -> Graph Plan -> Graph (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
+determineResultVector' e1 e2 = do
+                                hasI <- isValueVector e1
+                                e1' <- e1
+                                e2' <- e2
+                                let rf = if hasI then ValueVector else DescrVector
+                                let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                                let (q1, q2) = if hasI
+                                                then let (ValueVector q1') = e1'
+                                                         (ValueVector q2') = e2' in (q1', q2')
+                                                else let (DescrVector q1') = e1' 
+                                                         (DescrVector q2') = e2' in (q1', q2')
+                                return (rf, q1, q2, pf)
 
 var :: String -> Graph Plan
 var s = fromGam s
