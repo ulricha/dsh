@@ -18,7 +18,7 @@ executable dbph
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2, 
-                      TableAlgebra >= 0.5
+                      TableAlgebra >= 0.5.1
     main-is: DBPH.hs 
     hs-source-dirs:   src
     GHC-Options:      -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
@@ -67,10 +67,10 @@ Library
                      Language.ParallelLang.Common.Data.Val
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.Translate.Vectorise
+                     Language.ParallelLang.Common.Data.Op
                        
     Other-modules: Language.ParallelLang.NKL.Data.UntypedNKL
                    Language.ParallelLang.FKL.Data.FKL
-                   Language.ParallelLang.Common.Data.Op
                    Language.ParallelLang.Common.Data.Config
                    Language.ParallelLang.FKL.Primitives
                    Language.ParallelLang.NKL.Parser.Config
