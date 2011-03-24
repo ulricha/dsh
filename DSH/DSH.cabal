@@ -66,7 +66,7 @@ Library
                      HaXml              >= 1.20,
                      csv                >= 0.1,
                      Pathfinder         >= 0.5,
-                     FerryCore          >= 0.4
+                     FerryCore          >= 0.4.5.5
 
   Hs-Source-Dirs:    src
 
