@@ -84,8 +84,8 @@ data Table =
     TableDB   String [[String]]
   | TableCSV  String
   deriving (Eq, Ord, Show, Data, Typeable)
-  
-  
+
+
 typeExp :: Exp -> Type
 typeExp e = case e of
   UnitE t -> t
@@ -174,27 +174,29 @@ instance (QA a) => QA [a] where
   fromNorm _ = $impossible
 
 instance (QA a) => QA (Maybe a) where
-  reify _ = ListT (reify (undefined :: a))
-  toNorm Nothing  = ListN []         (ListT (reify (undefined :: a)))
-  toNorm (Just x) = ListN [toNorm x] (ListT (reify (undefined :: a)))
-  fromNorm (ListN []      _) = Nothing
-  fromNorm (ListN (x : _) _) = Just (fromNorm x)
-  fromNorm _ = $impossible
+  reify _ = reify ([] :: [a])
+
+  toNorm Nothing  = toNorm ([] :: [a])
+  toNorm (Just x) = toNorm [x]
+
+  fromNorm ma = case (fromNorm ma) :: [a] of
+                  []      -> Nothing
+                  (x : _) -> Just x
 
 instance (QA a,QA b) => QA (Either a b) where
-  reify _ = reify (undefined :: ([a],[b]))
+  reify _ = reify (([],[]) :: ([a],[b]))
 
   toNorm (Left  x) = toNorm ([x],[] :: [b])
   toNorm (Right x) = toNorm ([] :: [a],[x])
 
-  fromNorm e =  case ((fromNorm e) :: ([a],[b])) of
+  fromNorm e =  case (fromNorm e) :: ([a],[b]) of
                   ([],x : _) -> Right x
                   (x : _,[]) -> Left  x
                   _          -> $impossible
 
 
 tupleToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
-tupleToEither (Q x) = (Q x) 
+tupleToEither (Q x) = (Q x)
 
 eitherToTuple :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
 eitherToTuple (Q x) = (Q x)
@@ -455,7 +457,7 @@ instance Convertible Norm SqlValue where
              TextN t _           -> Right $ SqlString $ T.unpack t
              ListN _ _           -> convError "Cannot convert `Norm' to `SqlValue'" n
              TupleN _ _ _        -> convError "Cannot convert `Norm' to `SqlValue'" n
-                        
-                        
+
+
 instance IsString (Q Text) where
   fromString s = Q (TextE (T.pack s) TextT)
