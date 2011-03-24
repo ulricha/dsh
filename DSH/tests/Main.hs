@@ -16,6 +16,7 @@ import Test.QuickCheck.Monadic
 
 import Data.List
 import Data.Maybe
+import Data.Either
 import GHC.Exts
 
 import Data.Text (Text)
@@ -32,202 +33,228 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 qc:: Testable prop => prop -> IO ()
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 10}
 
+putStrPad :: String -> IO ()
+putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
+
 main :: IO ()
 main = do
     putStrLn "Supprted Types"
     putStrLn "--------------"
-    putStr "():             "
+    putStrPad "()"
     qc prop_unit
-    putStr "Bool:           "
+    putStrPad "Bool"
     qc prop_bool
-    putStr "Char:           "
+    putStrPad "Char"
     qc prop_char
-    putStr "Text:           "
+    putStrPad "Text"
     qc prop_text
-    putStr "Integer:        "
+    putStrPad "Integer"
     qc prop_integer
-    putStr "Double:         "
+    putStrPad "Double"
     qc prop_double
-    putStr "[Integer]:      "
+    putStrPad "[Integer]"
     qc prop_list_integer_1
-    putStr "[[Integer]]:    "
+    putStrPad "[[Integer]]"
     qc prop_list_integer_2
-    putStr "[[[Integer]]]:  "
+    putStrPad "[[[Integer]]]"
     qc prop_list_integer_3
-    putStr "Maybe Integer:  "
+    putStrPad "Maybe Integer"
     qc prop_maybe_integer
-
+    putStrPad "Either Integer Integer: "
+    qc prop_either_integer
 
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
     putStrLn "------------------------------------"
-    putStr "&&:             "
+    putStrPad "&&"
     qc prop_infix_and
-    putStr "||:             "
+    putStrPad "||"
     qc prop_infix_or
-    putStr "not:            "
+    putStrPad "not"
     qc prop_not
-    putStr "eq:             "
+    putStrPad "eq"
     qc prop_eq
-    putStr "neq:            "
+    putStrPad "neq"
     qc prop_neq
-    putStr "cond:           "
+    putStrPad "cond"
     qc prop_cond
-    putStr "lt:             "
+    putStrPad "lt"
     qc prop_lt
-    putStr "lte:            "
+    putStrPad "lte"
     qc prop_lte
-    putStr "gt:             "
+    putStrPad "gt"
     qc prop_gt
-    putStr "gte:            "
+    putStrPad "gte"
     qc prop_gte
-    putStr "min_integer:    "
+    putStrPad "min_integer"
     qc prop_min_integer
-    putStr "min_double:     "
+    putStrPad "min_double"
     qc prop_min_double
-    putStr "max_integer:    "
+    putStrPad "max_integer"
     qc prop_max_integer
-    putStr "max_double:     "
+    putStrPad "max_double"
     qc prop_max_double
     
     putStrLn ""
     putStrLn "Tuples"
     putStrLn "------"
-    putStr "fst:            "
+    putStrPad "fst"
     qc prop_fst
-    putStr "snd:            "
+    putStrPad "snd"
     qc prop_snd
     
     putStrLn ""
     putStrLn "Numerics:"
     putStrLn "-----------"
-    putStr "add_integer:    "
+    putStrPad "add_integer"
     qc prop_add_integer
-    putStr "add_double:     "
+    putStrPad "add_double"
     qc prop_add_double
-    putStr "mul_integer:    "
+    putStrPad "mul_integer"
     qc prop_mul_integer
-    putStr "mul_double:     "
+    putStrPad "mul_double"
     qc prop_mul_double
-    putStr "div_double:     "
+    putStrPad "div_double"
     qc prop_div_double
-    putStr "integer_to_double: "
+    putStrPad "integer_to_double: "
     qc prop_integer_to_double    
-    putStr "abs_integer:    "
+    putStrPad "abs_integer"
     qc prop_abs_integer
-    putStr "abs_double:     "
+    putStrPad "abs_double"
     qc prop_abs_double
-    putStr "signum_integer: "
+    putStrPad "signum_integer: "
     qc prop_signum_integer
-    putStr "signum_double:  "
+    putStrPad "signum_double"
     qc prop_signum_double
-    putStr "negate_integer: "
+    putStrPad "negate_integer: "
     qc prop_negate_integer
-    putStr "negate_double:  "
+    putStrPad "negate_double"
     qc prop_negate_double
 
     putStrLn ""
     putStrLn "Maybe"
     putStrLn "-----"
-    putStr "maybe:          "
+    putStrPad "maybe"
     qc prop_maybe
-    putStr "isJust:         "
+    putStrPad "just"
+    qc prop_just
+    putStrPad "isJust"
     qc prop_isJust
-    putStr "isNothing:      "
+    putStrPad "isNothing"
     qc prop_isNothing
-    putStr "fromJust:       "
+    putStrPad "fromJust"
     qc prop_fromJust
-    putStr "fromMaybe:      "
+    putStrPad "fromMaybe"
     qc prop_fromMaybe
-    putStr "listToMaybe:    "
+    putStrPad "listToMaybe"
     qc prop_listToMaybe
-    putStr "maybeToList:    "
+    putStrPad "maybeToList"
     qc prop_maybeToList
-    putStr "catMaybes:      "
+    putStrPad "catMaybes"
     qc prop_catMaybes
-    putStr "mapMaybe:       "
+    putStrPad "mapMaybe"
     qc prop_mapMaybe
+
+    putStrLn ""
+    putStrLn "Either"
+    putStrLn "-----"
+    putStrPad "left"
+    qc prop_left
+    putStrPad "right"
+    qc prop_right
+    putStrPad "isLeft"
+    qc prop_isLeft
+    putStrPad "isRight"
+    qc prop_isRight
+    putStrPad "either"
+    qc prop_either
+    putStrPad "lefts"
+    qc prop_lefts
+    putStrPad "rights"
+    qc prop_rights
+    putStrPad "partitionEithers"
+    qc prop_partitionEithers
 
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
-    putStr "head:           "
+    putStrPad "head"
     qc prop_head
-    putStr "tail:           "
+    putStrPad "tail"
     qc prop_tail
-    putStr "cons:           "
+    putStrPad "cons"
     qc prop_cons
-    putStr "snoc:           "
+    putStrPad "snoc"
     qc prop_snoc
-    putStr "take:           "
+    putStrPad "take"
     qc prop_take
-    putStr "drop:           "
+    putStrPad "drop"
     qc prop_drop
-    putStr "map:            "
+    putStrPad "map"
     qc prop_map
-    putStr "filter:         "
+    putStrPad "filter"
     qc prop_filter
-    putStr "the:            "
+    putStrPad "the"
     qc prop_the
-    putStr "last:           "
+    putStrPad "last"
     qc prop_last
-    putStr "init:           "
+    putStrPad "init"
     qc prop_init
-    putStr "null:           "
+    putStrPad "null"
     qc prop_null
-    putStr "length:         "
+    putStrPad "length"
     qc prop_length
-    putStr "index:          "
+    putStrPad "index"
     qc prop_index
-    putStr "reverse:        "
+    putStrPad "reverse"
     qc prop_reverse
-    putStr "append:         "
+    putStrPad "append"
     qc prop_append
-    putStr "groupWith:      "
+    putStrPad "groupWith"
     qc prop_groupWith
-    putStr "sortWith:       "
+    putStrPad "sortWith"
     qc prop_sortWith
-    putStr "and:            "
+    putStrPad "and"
     qc prop_and
-    putStr "or:             "
+    putStrPad "or"
     qc prop_or
-    putStr "any_zero:       "
+    putStrPad "any_zero"
     qc prop_any_zero
-    putStr "all_zero:       "
+    putStrPad "all_zero"
     qc prop_all_zero
-    putStr "sum_integer:    "
+    putStrPad "sum_integer"
     qc prop_sum_integer
-    putStr "sum_double:     "
+    putStrPad "sum_double"
     qc prop_sum_double
-    putStr "concat:         "
+    putStrPad "concat"
     qc prop_concat
-    putStr "concatMap:      "
+    putStrPad "concatMap"
     qc prop_concatMap
-    putStr "maximum:        "
+    putStrPad "maximum"
     qc prop_maximum
-    putStr "minimum:        "
+    putStrPad "minimum"
     qc prop_minimum
-    putStr "splitAt:        "
+    putStrPad "splitAt"
     qc prop_splitAt
-    putStr "takeWhile:      "
+    putStrPad "takeWhile"
     qc prop_takeWhile
-    putStr "dropWhile:      "
+    putStrPad "dropWhile"
     qc prop_dropWhile
-    putStr "span:           "
+    putStrPad "span"
     qc prop_span
-    putStr "break:          "
+    putStrPad "break"
     qc prop_break
-    putStr "elem:           "
+    putStrPad "elem"
     qc prop_elem
-    putStr "notElem:        "
+    putStrPad "notElem"
     qc prop_notElem
-    putStr "zip:            "
+    putStrPad "zip"
     qc prop_zip
-    putStr "zipWith:        "
+    putStrPad "zipWith"
     qc prop_zipWith
-    putStr "unzip:          "
+    putStrPad "unzip"
     qc prop_unzip
-    putStr "nub:            "
+    putStrPad "nub"
     qc prop_nub
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
@@ -297,6 +324,9 @@ prop_list_integer_3 = makeProp id id
 prop_maybe_integer :: Maybe Integer -> Property
 prop_maybe_integer = makeProp id id
 
+prop_either_integer :: Either Integer Integer -> Property
+prop_either_integer = makeProp id id
+
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
@@ -346,6 +376,9 @@ prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 prop_maybe :: (Integer, Maybe Integer) -> Property
 prop_maybe =  makeProp (\a -> Q.maybe (Q.fst a) id (Q.snd a)) (\(i,mi) -> maybe i id mi)
 
+prop_just :: Integer -> Property
+prop_just = makeProp Q.just Just
+
 prop_isJust :: Maybe Integer -> Property
 prop_isJust = makeProp Q.isJust isJust
 
@@ -369,6 +402,32 @@ prop_catMaybes = makeProp Q.catMaybes catMaybes
 
 prop_mapMaybe :: [Maybe Integer] -> Property
 prop_mapMaybe = makeProp (Q.mapMaybe id) (mapMaybe id)
+
+-- * Either
+
+prop_left :: Integer -> Property
+prop_left = makeProp (Q.left :: Q Integer -> Q (Either Integer Integer)) Left
+
+prop_right :: Integer -> Property
+prop_right = makeProp (Q.right :: Q Integer -> Q (Either Integer Integer)) Right
+
+prop_isLeft :: Either Integer Integer -> Property
+prop_isLeft = makeProp Q.isLeft (\e -> case e of {Left _ -> True; Right _ -> False;})
+
+prop_isRight :: Either Integer Integer -> Property
+prop_isRight = makeProp Q.isRight (\e -> case e of {Left _ -> False; Right _ -> True;})
+
+prop_either :: (Either Integer Integer) -> Property
+prop_either =  makeProp (Q.either id id) (either id id)
+
+prop_lefts :: [Either Integer Integer] -> Property
+prop_lefts =  makeProp Q.lefts lefts
+
+prop_rights :: [Either Integer Integer] -> Property
+prop_rights =  makeProp Q.rights rights
+
+prop_partitionEithers :: [Either Integer Integer] -> Property
+prop_partitionEithers =  makeProp Q.partitionEithers partitionEithers
 
 -- * Lists
 

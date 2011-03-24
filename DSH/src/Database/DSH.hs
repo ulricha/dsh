@@ -96,4 +96,5 @@ import Prelude hiding (
   , fst
   , snd
   , maybe
+  , either
   )

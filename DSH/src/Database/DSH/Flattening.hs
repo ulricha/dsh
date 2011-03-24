@@ -1,5 +1,5 @@
 -- | This module provides the flattening implementation of DSH.
-module Database.DSH.Flattening (fromQ, debugFlat) where
+module Database.DSH.Flattening (fromQ) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.Common.Data.Val as V
@@ -54,16 +54,16 @@ translate :: IConnection conn => Exp -> N conn NKL.Expr
 translate (UnitE _) = return $ NKL.Const T.unitT V.Unit
 translate (BoolE b _) = return $ NKL.Const T.boolT $ V.Bool b
 translate (CharE c _) = error $ "Characters are not yet supported" 
-translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int i
+translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
 translate (DoubleE d _) = error "Doubles are not yet supported" 
 translate (TextE t _) = error "Texts are not yet supported" 
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
-                                let t1 = NKL.typeOf e1
-                                let t2 = NKL.typeOf e2
-                                return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T.-> t2 T.-> T.pairT t1 t2) "(,,)" ) [e1, e2]
-translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) $ map translate es
+                                let t1 = T.typeOf c1
+                                let t2 = T.typeOf c2
+                                return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)" 0) [c1, c2]
+-- translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) $ map translate es
 translate (AppE1 f1 e1 ty) = error "Application is not supported"
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
@@ -138,19 +138,19 @@ cons :: T.Type -> NKL.Expr -> NKL.Expr -> NKL.Expr
 cons t e1 e2 = NKL.BinOp t (O.Op ":" 0) e1 e2
 
 isTuple :: String -> Maybe Int
-isTuple '(':xs = let l = length xs
-                     s = (replicate (l - 1) ',' ) ++ ")"
-                  in if (xs == s) then Just (l - 1) else Nothing
+isTuple ('(':xs) = let l = length xs
+                       s = (replicate (l - 1) ',' ) ++ ")"
+                    in if (xs == s) then Just (l - 1) else Nothing
 isTuple _      = Nothing
 
 
-ty2ty :: Type -> V.Type
+ty2ty :: Type -> T.Type
 ty2ty UnitT = T.unitT
-ty2ty Boolt = T.boolT
+ty2ty BoolT = T.boolT
 ty2ty CharT = error "Char type is not supported"
 ty2ty IntegerT = T.intT
 ty2ty DoubleT = error "Double type is not supported"
 ty2ty TextT = error "Text type is not supported"
 ty2ty (TupleT t1 t2) = T.pairT (ty2ty t1) (ty2ty t2)
 ty2ty (ListT t) = T.listT (ty2ty t)
-ty2ty (ArrowT t1 t2) = (ty2ty t1) T.-> (ty2ty t2)
+ty2ty (ArrowT t1 t2) = (ty2ty t1) T..-> (ty2ty t2)
