@@ -177,9 +177,27 @@ instance (QA a) => QA (Maybe a) where
   reify _ = ListT (reify (undefined :: a))
   toNorm Nothing  = ListN []         (ListT (reify (undefined :: a)))
   toNorm (Just x) = ListN [toNorm x] (ListT (reify (undefined :: a)))
-  fromNorm (ListN []      (ListT _)) = Nothing
-  fromNorm (ListN (x : _) (ListT _)) = Just (fromNorm x)
+  fromNorm (ListN []      _) = Nothing
+  fromNorm (ListN (x : _) _) = Just (fromNorm x)
   fromNorm _ = $impossible
+
+instance (QA a,QA b) => QA (Either a b) where
+  reify _ = reify (undefined :: ([a],[b]))
+
+  toNorm (Left  x) = toNorm ([x],[] :: [b])
+  toNorm (Right x) = toNorm ([] :: [a],[x])
+
+  fromNorm e =  case ((fromNorm e) :: ([a],[b])) of
+                  ([],x : _) -> Right x
+                  (x : _,[]) -> Left  x
+                  _          -> $impossible
+
+
+tupleToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
+tupleToEither (Q x) = (Q x) 
+
+eitherToTuple :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
+eitherToTuple (Q x) = (Q x)
 
 class BasicType a where
 

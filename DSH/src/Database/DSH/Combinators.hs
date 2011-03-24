@@ -8,7 +8,7 @@ import Database.DSH.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, undefined, error, ($), (.))
+import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, error, ($), (.))
 
 -- * Unit
 
@@ -125,6 +125,32 @@ catMaybes mas = concatMap maybeToList mas
 
 mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
 mapMaybe f as = concatMap (maybeToList . f) as
+
+-- * Either
+
+left :: (QA a,QA b) => Q a -> Q (Either a b)
+left a = tupleToEither (tuple ((singleton a),nil))
+
+right :: (QA a,QA b) => Q b -> Q (Either a b)
+right a = tupleToEither (tuple (nil,(singleton a)))
+
+isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
+isLeft = null . snd . eitherToTuple
+
+isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
+isRight = null . fst . eitherToTuple
+
+either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
+either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToTuple) e,(rf . head . snd . eitherToTuple) e)
+
+lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
+lefts = concatMap (fst . eitherToTuple)
+
+rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
+rights = concatMap (snd . eitherToTuple)
+
+partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
+partitionEithers es = tuple (lefts es,rights es)
 
 -- * List Construction
 
