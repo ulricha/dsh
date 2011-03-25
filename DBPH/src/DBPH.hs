@@ -54,6 +54,9 @@ options = [ Option ['o']["opt"]
             Option ['v']["vectorise"]
                     (NoArg (\o -> o {vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
                         "Vectorise the given program",
+            Option ['a']["algebra"]
+                    (NoArg (\o -> o {algebra = True, vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
+                        "Transform program to algebra",
             Option ['z']["trivialLet"]
                     (NoArg (\o -> o {opt = LetSimple : (opt o)}))
                         "Remove let bindings of trivial expressions",
@@ -131,6 +134,9 @@ handleFile c n = do
                               let (fs, b) = runTransform c $ runVectorise =<< ir
                               let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
                               writeFile (file ++ ".vec") output
+                              if algebra c
+                                    then do
+                                            
                        else do
                                 let (fs, b) = runTransform c ir
                                 let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b

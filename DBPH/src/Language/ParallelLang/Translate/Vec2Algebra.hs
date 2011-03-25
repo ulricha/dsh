@@ -1,22 +1,21 @@
 module Language.ParallelLang.Translate.Vec2Algebra where
 
+import Language.ParallelLang.Common.Data.Val
 import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
 import qualified Database.Ferry.Algebra as A
+import Language.ParallelLang.FKL.Data.FKL
+import qualified Language.ParallelLang.VL.Data.VectorTypes as T
+import Language.ParallelLang.Common.Data.Op
+import qualified Language.ParallelLang.Common.Data.Type as U
+import Language.ParallelLang.VL.Data.Query
 
-import Control.Applicative
+import Control.Applicative hiding (Const)
 type Graph = GraphM Plan
-
 
 type Gam = A.Gam Plan
 
-data Plan =
-         Tuple [Plan]
-       | DescrVector AlgNode
-       | ValueVector AlgNode
-       | PrimVal AlgNode
-       | NestedVector AlgNode Plan
-       | PropVector AlgNode
-       
+type Plan = Query AlgNode
+
 -- | Results are stored in column:
 pos, item1, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol :: String
 pos       = "pos"
@@ -32,6 +31,56 @@ posnew    = "item99999605"
 ordCol    = "item99999801"
 resCol    = "item99999001"
 tmpCol    = "item99999002"
+
+val2Alg :: Val -> Graph AlgNode
+val2Alg (Int i) = litTable (int $ fromIntegral i) item1 intT
+val2Alg (Bool b) = litTable (bool b) item1 boolT
+val2Alg Unit     = litTable (int (-1)) item1 intT  
+
+convertType :: U.Type -> ATy
+convertType t | t == U.intT  = intT
+              | t == U.boolT = boolT
+              | t == U.unitT = intT
+              | otherwise = error "convertType: Can't convert from DBPH type to Ferry types"
+
+vec2Alg :: Expr T.VType -> Graph Plan
+vec2Alg (Labeled _ e) = vec2Alg e
+vec2Alg (Const _ v) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v)
+vec2Alg (Nil (T.Tagged vt t)) = case T.nestingDepth vt of
+                            0 -> error "Invalid vector type for a Nil value"
+                            1 -> ValueVector <$> emptyTable [(descr, natT), (pos, natT), (item1, convertType $ U.unliftType t)]
+                            n -> NestedVector <$> emptyTable [(descr, natT), (pos, natT)] <*> vec2Alg (Nil (T.Tagged (T.NestedVector (n - 1)) (U.unliftType t)))
+vec2Alg (Nil _) = error "Nil without tagged type not supported"
+vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have been desugared"
+                                 | otherwise = do
+                                                p1 <- vec2Alg e1
+                                                p2 <- vec2Alg e2
+                                                let (rt, extr) = case l of
+                                                                  0 -> (PrimVal, \(PrimVal q) -> q)
+                                                                  1 -> (ValueVector, \(ValueVector q) -> q)
+                                                                  _ -> error "This level of liftedness should have been elimated"
+                                                let q1 = extr p1
+                                                let q2 = extr p2
+                                                rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
+                                                    $ operM o resCol item1 tmpCol 
+                                                        $ eqJoinM pos pos' (return q1) 
+                                                            $ proj [(tmpCol, item1), (pos', pos)] q2)
+vec2Alg (Proj _ _ e n) = do
+                            (Tuple es) <- vec2Alg e
+                            return $ es !! (n - 1)        
+vec2Alg (If _ eb e1 e2) = do
+                            (PrimVal qb) <- vec2Alg eb
+                            undefined
+-- vec2Alg (If e1 e2 e3) = do
+                         
+{-
+data Expr t where
+    App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
+    Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
+    Let   :: t -> String -> Expr t -> Expr t -> Expr t -- | Let a variable have value expr1 in expr2
+    If    :: t -> Expr t -> Expr t -> Expr t -> Expr t -- | If expr1 then expr2 else expr3
+    Var   :: t -> String -> Int -> Expr t -- | Variable lifted to level i
+-}
 
 
 outer :: Graph Plan -> Graph Plan
