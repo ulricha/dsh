@@ -6,7 +6,7 @@ import System.Console.GetOpt
 import System.Exit
 
 
-import Language.ParallelLang.Translate.NKL2FKL
+import Language.ParallelLang.Translate.NKL2FKL hiding (transform)
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.NKL.Parser.Parser
 import Language.ParallelLang.Common.Data.Config
@@ -24,6 +24,7 @@ import Language.ParallelLang.Translate.Detupler
 import Language.ParallelLang.NKL.Eval
 import Language.ParallelLang.NKL.Render.Hs.NKL2HS
 import Language.ParallelLang.Translate.Vec2Algebra
+import Language.ParallelLang.Translate.Algebra2SQL
 
 -- | Description of the options for the compiler 'Mode'
 options :: [OptDescr (Config -> Config)]
@@ -135,8 +136,10 @@ handleFile c n = do
                               let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
                               writeFile (file ++ ".vec") output
                               if algebra c
-                                    then do
-                                            
+                                    then let alg = toXML $ transform b
+                                             sql = toSQL alg
+                                          in writeFile (file ++ ".sql") (show sql)
+                                    else return ()                                            
                        else do
                                 let (fs, b) = runTransform c ir
                                 let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
