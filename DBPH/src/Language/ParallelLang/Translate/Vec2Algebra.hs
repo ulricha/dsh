@@ -1,4 +1,4 @@
-module Language.ParallelLang.Translate.Vec2Algebra where
+module Language.ParallelLang.Translate.Vec2Algebra (transform, toXML) where
 
 import Language.ParallelLang.Common.Data.Val
 import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
@@ -8,7 +8,9 @@ import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as U
 import Language.ParallelLang.VL.Data.Query
+import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
 
+import qualified Data.Map as M
 import Control.Applicative hiding (Const)
 type Graph = GraphM Plan
 
@@ -31,6 +33,33 @@ posnew    = "item99999605"
 ordCol    = "item99999801"
 resCol    = "item99999001"
 tmpCol    = "item99999002"
+
+transform :: Expr T.VType -> AlgPlan Plan
+transform e = runGraph initLoop (vec2Alg e)
+
+toXML :: AlgPlan Plan -> Query XML
+toXML (g, r, ts) = case r of
+                     (PrimVal r') -> PrimVal (XML r' $ toXML' withItem r')
+                     (Tuple rs)   -> Tuple $ map (\r' -> toXML (g, r', ts)) rs
+                     (DescrVector r') -> DescrVector (XML r' $ toXML' withoutItem r')
+                     (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
+                     (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
+                     (PropVector _) -> error "Prop vectors should only be used internally and never appear in a result"
+                     (UnEvaluated _) -> error "A not evaluated function can not occur in the query result"
+    where
+        item :: Element ()
+        item = [attr "name" $ "item1", attr "new" "false", attr "function" "item", attr "position" "1"] `attrsOf` xmlElem "column"
+        withItem, withoutItem :: [Element ()]
+        withItem = [iterCol, posCol, item]
+        withoutItem = [iterCol, posCol]
+        nodeTable = M.fromList $ map (\(a, b) -> (b, a)) $ M.toList g
+        toXML' :: [Element ()] -> AlgNode -> String
+        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $ 
+                        runXML False M.empty M.empty $
+                            mkQueryPlan Nothing (xmlElem "property") $ 
+                                runXML False nodeTable ts $ serializeAlgebra cs n
+    
+
 
 val2Alg :: Val -> Graph AlgNode
 val2Alg (Int i) = litTable (int $ fromIntegral i) item1 intT
@@ -242,6 +271,7 @@ toDescr v = do
                  (ValueVector n) -> DescrVector <$> proj [(descr, descr), (pos, pos)] n
                                         
                  _               -> error "toDescr: Cannot cast into descriptor vector"
+
 
 isValueVector :: Graph Plan -> Graph Bool
 isValueVector p = do

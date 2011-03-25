@@ -18,7 +18,9 @@ executable dbph
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2, 
-                      TableAlgebra >= 0.5.1
+                      TableAlgebra >= 0.5.1,
+                      Pathfinder >= 0.5.4,
+                      HaXml >= 1.20
     main-is: DBPH.hs 
     hs-source-dirs:   src
     GHC-Options:      -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
@@ -58,7 +60,9 @@ Library
                       filepath >= 1.1.0.4,
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2,
-                      TableAlgebra >= 0.5.1
+                      TableAlgebra >= 0.5.1,
+                      Pathfinder >= 0.5.4,
+                      HaXml >= 1.20
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
