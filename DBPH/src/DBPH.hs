@@ -5,7 +5,6 @@ import System.FilePath
 import System.Console.GetOpt
 import System.Exit
 
-
 import Language.ParallelLang.Translate.NKL2FKL hiding (transform)
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.NKL.Parser.Parser
@@ -124,7 +123,7 @@ handleFile c n = do
                                      then runRWPhase1 r
                                      else return r
                              if detupling c
-                                   then do 
+                                   then do
                                           r'' <- normTuples r' 
                                           if dr 
                                              then runRWPhase2 r''

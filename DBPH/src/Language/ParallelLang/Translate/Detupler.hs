@@ -65,11 +65,11 @@ deTuple (Let _ v e1 e2) = do
                             e1' <- deTuple e1
                             e2' <- deTuple e2
                             return $ Let (typeOf e2') v e1' e2'
-deTuple (If _ e1 e2 e3) = do
+deTuple (If t e1 e2 e3) = do
                             e1' <- deTuple e1
                             e2' <- deTuple e2
                             e3' <- deTuple e3
-                            let t' = fst $ transType t'
+                            let t' = fst $ transType t
                             if containsTuple t'
                                 then do
                                       fv1 <- getFreshVar

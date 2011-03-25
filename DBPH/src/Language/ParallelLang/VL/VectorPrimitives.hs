@@ -2,6 +2,7 @@ module Language.ParallelLang.VL.VectorPrimitives where
 
 import Language.ParallelLang.VL.Data.VectorTypes
 import Language.ParallelLang.FKL.Data.FKL
+import Language.ParallelLang.FKL.Render.Render
 import Language.ParallelLang.Translate.TransM
 
 import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
@@ -46,7 +47,7 @@ attach :: Expr VType -> Expr VType -> Expr VType
 attach e1 e2 | typeOf e1 == descrT && nestingDepth (typeOf e2) > 0
                         = let rt = nVectorT' (typeOf e2)
                            in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "attach" 0) [e1, e2]
-             | otherwise = error "attach: Can't construct attach node"
+             | otherwise = error $ "attach: Can't construct attach node " ++ show e1 ++ "::" ++ (show $ typeOf e1) ++ "___" ++ show e2 ++ "::" ++ (show $ typeOf e1)
 
 singletonPrim :: Expr VType -> Expr VType
 singletonPrim e1 | typeOf e1 == pValT = App valVT (Var (typeOf e1 .~> valVT) "singletonPrim" 0) [e1]
