@@ -100,7 +100,6 @@ vec2Alg (Proj _ _ e n) = do
 vec2Alg (If _ eb e1 e2) = do
                             (PrimVal qb) <- vec2Alg eb
                             undefined
--- vec2Alg (If e1 e2 e3) = do
                          
 {-
 data Expr t where
