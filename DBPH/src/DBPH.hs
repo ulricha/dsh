@@ -57,6 +57,12 @@ options = [ Option ['o']["opt"]
             Option ['a']["algebra"]
                     (NoArg (\o -> o {algebra = True, vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
                         "Transform program to algebra",
+            Option ['x']["algXML"]
+                    (NoArg (\o -> o {algOut = True, algebra = True, vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
+                        "Output algebraic plan as XML",
+            Option ['p']["pf"]
+                    (NoArg (\o -> o {pathfinder = True, algebra = True, vectorise = True, detupling = True, opt = RewriteOpt : (opt o)}))
+                        "Optimise algebraic plan with pathfinder",
             Option ['z']["trivialLet"]
                     (NoArg (\o -> o {opt = LetSimple : (opt o)}))
                         "Remove let bindings of trivial expressions",
@@ -137,7 +143,11 @@ handleFile c n = do
                               if algebra c
                                     then let alg = toXML $ transform b
                                              sql = toSQL alg
-                                          in writeFile (file ++ ".sql") (show sql)
+                                          in do
+                                               writeFile (file ++ ".sql") (show sql)
+                                               if algOut c then
+                                                            writeFile (file ++ ".alg") (show alg)
+                                                           else return ()
                                     else return ()                                            
                        else do
                                 let (fs, b) = runTransform c ir

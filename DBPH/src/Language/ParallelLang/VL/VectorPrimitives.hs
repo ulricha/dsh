@@ -11,6 +11,10 @@ import Language.ParallelLang.Common.Data.Val
 
 -- * Vector primitive constructor functions
 
+notV :: Expr VType -> Expr VType
+notV e | typeOf e == pValT = App pValT (Var (pValT .~> pValT) "not" 0) [e]
+       | otherwise = error "Can't construct not node"
+
 outer :: Expr VType -> Expr VType
 outer e1 | nestingDepth (typeOf e1) > 0 = App descrT (Var (typeOf e1 .~> descrT) "outer" 0) [e1]
          | otherwise = error "Outer: Can't construct outer node"
@@ -96,6 +100,7 @@ extract e i | nestingDepth (typeOf e) > i && i > 0
 intV :: Int -> Expr VType
 intV i = Const pValT (Int i)
 
+
 -- * meta construction functions
 
 -- | Create a tuple projection node
@@ -107,6 +112,36 @@ project e i = let t = typeOf e
                                             else error "Provided tuple expression is not big enough"
                     _                -> error "Provided type is not a tuple"
 
+
+ifVec :: Expr VType -> Expr VType -> Expr VType -> TransM (Expr VType)
+ifVec qb q1 q2 | typeOf qb == pValT && nestingDepth (typeOf q1) > 1 && typeOf q1 == typeOf q2
+                        = do
+                            d1 <- getFreshVar
+                            p1 <- getFreshVar
+                            d2 <- getFreshVar
+                            p2 <- getFreshVar
+                            ir1 <- getFreshVar
+                            ir2 <- getFreshVar
+                            (b1, q1', vs1) <- patV q1
+                            (b2, q2', vs2) <- patV q2
+                            let res1 = restrictVec q1' (distDesc qb q1')
+                            let res2 = restrictVec q2' (distDesc (notV qb) q2')
+                            let ir1' = Var (typeOf res1) ir1 0
+                            let ir2' = Var (typeOf res2) ir2 0
+                            let d1v = project ir1' 1
+                            let d1'  = Var (typeOf d1v) d1 0
+                            let p1v = project ir1' 2
+                            let p1' = Var (typeOf p1v) p1 0
+                            let d2v = project ir2' 1
+                            let d2' = Var (typeOf d2v) d2 0
+                            let p2v = project ir2' 2
+                            let p2' = Var (typeOf p2v) p2 0
+                            r1 <- renameOuter p1' vs1
+                            r2 <- renameOuter p2' vs2
+                            e3 <- appendR r1 r2
+                            let d = flip project 1 $ append d1' d2'
+                            return $ b1 (b2 (letF ir1 res1 (letF ir2 res2 (letF p1 p1v (letF d1 d1v (letF p2 p2v (letF d2 d2v (attach d e3)))))))) 
+               | otherwise = error "Can't construct ifVec node"
 -- | Chain propagation
 chainPropagate :: Expr VType -> Expr VType -> TransM (Expr VType)
 chainPropagate pV rV | typeOf pV == propT && nestingDepth (typeOf rV) == 1
