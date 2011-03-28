@@ -97,10 +97,30 @@ vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have
 vec2Alg (Proj _ _ e n) = do
                             (Tuple es) <- vec2Alg e
                             return $ es !! (n - 1)        
-vec2Alg (If _ eb e1 e2) = do
-                            (PrimVal qb) <- vec2Alg eb
-                            undefined
-                         
+vec2Alg (If t eb e1 e2) | t == T.pValT = do
+                                            (PrimVal qb) <- vec2Alg eb
+                                            (PrimVal q1) <- vec2Alg e1
+                                            (PrimVal q2) <- vec2Alg e2
+                                            b <- proj [(tmpCol, item1)] qb
+                                            qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
+                                                    selectM  tmpCol $ 
+                                                        unionM (cross q1 b) $ 
+                                                            crossM (return q2) $ 
+                                                                projM [(tmpCol, resCol)] $ notC resCol tmpCol b
+                                            return (PrimVal qr)
+                        | T.nestingDepth t == 1 = do
+                                                 (PrimVal qb) <- vec2Alg eb
+                                                 (ValueVector q1) <- vec2Alg e1
+                                                 (ValueVector q2) <- vec2Alg e2
+                                                 b <- proj [(tmpCol, item1)] qb
+                                                 qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
+                                                         selectM  tmpCol $ 
+                                                             unionM (cross q1 b) $ 
+                                                                 crossM (return q2) $ 
+                                                                     projM [(tmpCol, resCol)] $ notC resCol tmpCol b
+                                                 return (ValueVector qr)
+                         | otherwise = error "vec2Alg: Can't translate if construction"
+
 {-
 data Expr t where
     App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression

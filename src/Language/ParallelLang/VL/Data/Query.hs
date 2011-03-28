@@ -17,4 +17,9 @@ data Query a =
 data XML = XML Int String
 
 data SQL = SQL Int String
-    deriving Show
+    
+instance Show SQL where
+    show (SQL _ s) = s
+    
+instance Show XML where
+    show (XML _ s) = s

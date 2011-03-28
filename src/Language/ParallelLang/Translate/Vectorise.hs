@@ -276,7 +276,12 @@ vectorise (BinOp t o e1 e2) = case o of
                                     (Op ":" 1) -> do {e1' <- vectorise e1; e2' <- vectorise e2; consLift e1' e2'}
                                     _    -> BinOp (vectoriseType t) o <$> vectorise e1 <*> vectorise e2
                                 --case of cons
-vectorise (If t e1 e2 e3) = If (vectoriseType t) <$> vectorise e1 <*> vectorise e2 <*> vectorise e3
+vectorise (If t eb e1 e2) | T.listDepth t > 1 = do
+                                                    qb <- vectorise eb
+                                                    q1 <- vectorise e1
+                                                    q2 <- vectorise e2
+                                                    ifVec qb q1 q2
+                          | otherwise = If (vectoriseType t) <$> vectorise eb <*> vectorise e1 <*> vectorise e2
 vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
 vectorise (Fn t s l as e) = Fn (vectoriseType t) s l as <$> vectorise e
 vectorise (App t e es) = case e of
