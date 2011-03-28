@@ -43,6 +43,7 @@ dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
             | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e2) > 0
                   -- Corresponds to rule [dist-3]
                 = do
+                    
                     -- Fresh variable names
                     h2 <- getFreshVar -- Variable for containing outer vector of e2
                     r  <- getFreshVar -- placeholder for distDesc e1 (outer e2)

@@ -34,7 +34,7 @@ distLift e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2)
 
 propagateIn :: Expr VType -> Expr VType -> Expr VType
 propagateIn e1 e2 | typeOf e1 == propT &&  descrOrVal (typeOf e2)
-                        = let rt = tupleT [typeOf e1, propT]
+                        = let rt = tupleT [typeOf e2, propT]
                            in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "propagateIn" 0) [e1, e2]
                   | otherwise = error "propagateIn: Can't construct propagateIn node"
 
