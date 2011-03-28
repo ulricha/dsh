@@ -120,14 +120,70 @@ vec2Alg (If t eb e1 e2) | t == T.pValT = do
                                                                      projM [(tmpCol, resCol)] $ notC resCol tmpCol b
                                                  return (ValueVector qr)
                          | otherwise = error "vec2Alg: Can't translate if construction"
-
+vec2Alg a@(App _ _ _) = return $ UnEvaluated a
+vec2Alg (Let _ s e1 e2) = do
+                            e1' <- vec2Alg e1
+                            withBinding s e1' (vec2Alg e2)
+vec2Alg (Var _ s i) = fromGam $ constrEnvName s i
+vec2Alg (App t (Var _ x i) args) = case x of
+                                    "outer" -> do 
+                                                let [e] = map vec2Alg args
+                                                outer e
+                                    "distPrim" -> do 
+                                                   let [e1, e2] = map vec2Alg args
+                                                   distPrim e1 e2
+                                    "distDesc" -> do 
+                                                   let [e1, e2] = map vec2Alg args
+                                                   distDesc e1 e2
+                                    "distLift" -> do 
+                                                    let [e1, e2] = map vec2Alg args
+                                                    distLift e1 e2
+                                    "propagateIn" -> do 
+                                                      let [e1, e2] = map vec2Alg args
+                                                      propagateIn e1 e2
+                                    "rename" -> do 
+                                                 let [e1, e2] = map vec2Alg args
+                                                 rename e1 e2
+                                    "attach" -> do 
+                                                 let [e1, e2] = map vec2Alg args
+                                                 attachV e1 e2
+                                    "singletonPrim" -> do 
+                                                        let [e1] = map vec2Alg args
+                                                        singletonPrim e1
+                                    "singletonVec" -> do 
+                                                       let [e1] = map vec2Alg args
+                                                       singletonVec e1
+                                    "append" -> do 
+                                                  let [e1, e2] = map vec2Alg args
+                                                  append e1 e2
+                                    "segment" -> do 
+                                                  let [e1] = map vec2Alg args
+                                                  segment e1
+                                    "restrictVec" -> do 
+                                                      let [e1, e2] = map vec2Alg args
+                                                      restrictVec e1 e2
+                                    "combineVec" -> do 
+                                                     let [e1, e2 ,e3] = map vec2Alg args
+                                                     combineVec e1 e2 e3
+                                    "bPermute" -> do 
+                                                    let [e1, e2] = map vec2Alg args
+                                                    bPermuteVec e1 e2
+                                    "extract" -> do 
+                                                    let [e1, e2] = args
+                                                    extract (intFromVal e1) (vec2Alg e2)
+                                    "insert" -> do 
+                                                  let [e1, e2, e3] = args
+                                                  insert (intFromVal e1) (vec2Alg e2) (vec2Alg e3)
+                                    _        -> do
+                                                 v <- fromGam (constrEnvName x i)
+                                                 case v of
+                                                     UnEvaluated v' -> vec2Alg (App t v' args)
+                                                     _              -> error $ "vec2Alg application: Not a function: " ++ show v
+-- vec2Alg (App _ (Fn _ n i avs e) args) = 
 {-
 data Expr t where
     App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
-    Let   :: t -> String -> Expr t -> Expr t -> Expr t -- | Let a variable have value expr1 in expr2
-    If    :: t -> Expr t -> Expr t -> Expr t -> Expr t -- | If expr1 then expr2 else expr3
-    Var   :: t -> String -> Int -> Expr t -- | Variable lifted to level i
 -}
 
 
@@ -298,3 +354,12 @@ isValueVector p = do
                     case p' of
                         (ValueVector _) -> return True
                         _               -> return False
+
+-- | Construct a name that represents a lifted variable in the environment.                        
+constrEnvName :: String -> Int -> String
+constrEnvName x 0 = x
+constrEnvName x i = x ++ "<%>" ++ show i
+
+intFromVal :: Expr T.VType -> Int
+intFromVal (Const _ (Int i)) = i
+intFromVal x                 = error $ "intFromVal: not an integer: " ++ show x
