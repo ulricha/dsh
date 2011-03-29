@@ -85,3 +85,4 @@ Library
                      Database.DSH.Impossible
                      Database.DSH.Compile
                      Paths_DSH
+                     Database.DSH.CompileFlattening
