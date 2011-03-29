@@ -120,7 +120,6 @@ vec2Alg (If t eb e1 e2) | t == T.pValT = do
                                                                      projM [(tmpCol, resCol)] $ notC resCol tmpCol b
                                                  return (ValueVector qr)
                          | otherwise = error "vec2Alg: Can't translate if construction"
-vec2Alg a@(App _ _ _) = return $ UnEvaluated a
 vec2Alg (Let _ s e1 e2) = do
                             e1' <- vec2Alg e1
                             withBinding s e1' (vec2Alg e2)
@@ -170,10 +169,10 @@ vec2Alg (App t (Var _ x i) args) = case x of
                                                     bPermuteVec e1 e2
                                     "extract" -> do 
                                                     let [e1, e2] = args
-                                                    extract (intFromVal e1) (vec2Alg e2)
+                                                    extract (vec2Alg e1) (intFromVal e2)
                                     "insert" -> do 
                                                   let [e1, e2, e3] = args
-                                                  insert (intFromVal e1) (vec2Alg e2) (vec2Alg e3)
+                                                  insert (vec2Alg e1) (vec2Alg e2) (intFromVal e3)
                                     _        -> do
                                                  v <- fromGam (constrEnvName x i)
                                                  case v of
@@ -192,14 +191,14 @@ outer e = do
             e' <- e
             case e' of
                 NestedVector p _  -> return $ DescrVector p
-                -- v@(ValueVector _) -> return $ v
-                _                 -> error "outer: Can't extract outer plan"
+                (ValueVector p) -> DescrVector <$> proj [(pos, pos), (descr,descr)] p
+                _                 -> error $ "outer: Can't extract outer plan" ++ show e'
                 
 distPrim :: Graph Plan -> Graph Plan -> Graph Plan
 distPrim v d = do
                  (PrimVal q1) <- v
                  (DescrVector q2) <- toDescr d
-                 DescrVector <$> crossM (proj [(item1, item1)] q1) (return q2)
+                 ValueVector <$> crossM (proj [(item1, item1)] q1) (return q2)
                   
 distDesc :: Graph Plan -> Graph Plan -> Graph Plan
 distDesc e1 e2 = do
@@ -267,16 +266,17 @@ segment e = do
              (rf, q, pf) <- determineResultVector e
              rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
-extract :: Int -> Graph Plan -> Graph Plan
-extract 0 p = p
-extract n p | n > 0 = do
+extract :: Graph Plan -> Int -> Graph Plan
+extract p 0 = p
+extract p n | n > 0 = do
+                       v' <- p
                        (NestedVector _ p') <- p
-                       extract (n - 1) (return p')
+                       extract (return p') (n - 1)
             | otherwise = error "Can't extract a negative amount of descriptors"
 
-insert :: Int -> Graph Plan -> Graph Plan -> Graph Plan
-insert 0 p _ = p
-insert n p d | n > 0 = insert (n - 1) (attachV (outer d) p) (extract 1 d)
+insert :: Graph Plan -> Graph Plan -> Int -> Graph Plan
+insert p _ 0 = p
+insert p d n | n > 0 = insert (attachV (outer d) p) (extract d 1) (n - 1)
              | otherwise = error "Can't insert a negative amount of descriptors"
 
 restrictVec :: Graph Plan -> Graph Plan -> Graph Plan

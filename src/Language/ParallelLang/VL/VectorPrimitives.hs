@@ -92,7 +92,7 @@ bPermuteVec e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
                   | otherwise = error "bPermute: Can't construct bPermute node"
 
 extract :: Expr VType -> Int -> Expr VType
-extract e i | nestingDepth (typeOf e) > i && i > 0
+extract e i | nestingDepth (typeOf e) > i && nestingDepth (typeOf e) > 1 && i > 0
                         = let rt = nVectorT (nestingDepth (typeOf e) - i)
                            in App rt (Var (typeOf e .~> pValT .~> rt) "extract" 0) [e, intV i]
             | otherwise = error "extract: Can't construct extract node"

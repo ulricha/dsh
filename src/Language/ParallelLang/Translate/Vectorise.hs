@@ -38,7 +38,11 @@ dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
             
             | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) > 0
                   -- Corresponds to rule [dist-2]
-                = return $ project (distDesc e1 (outer e2)) 1
+                = do
+                    d2 <- getFreshVar
+                    let d2v = outer e2
+                    let d2' = Var (typeOf d2v) d2 0
+                    return $ letF d2 d2v $ attach d2' $ project (distDesc e1 d2') 1
             
             | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e2) > 0
                   -- Corresponds to rule [dist-3]
