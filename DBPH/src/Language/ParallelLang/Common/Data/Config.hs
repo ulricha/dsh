@@ -15,3 +15,6 @@ allOpts = [LetOpt, FnOpt, RedRepl, LetSimple, PermuteOpt, RewriteOpt]
 
 defaultConfig :: Config
 defaultConfig = Config [] False False False False False False False False
+
+normalCompilation :: Config
+normalCompilation = Config allOpts False False False True True True True True

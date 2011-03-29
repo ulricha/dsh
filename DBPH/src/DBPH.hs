@@ -141,7 +141,7 @@ handleFile c n = do
                               let output = "let\n" ++ foldr (\x y -> show x ++ "\n" ++ y) [] fs ++ "in\n" ++ show b
                               writeFile (file ++ ".vec") output
                               if algebra c
-                                    then let alg = toXML $ transform b
+                                    then let alg = toXML $ toAlgebra b
                                              sql = toSQL alg
                                           in do
                                                writeFile (file ++ ".sql") (show sql)
