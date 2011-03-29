@@ -50,6 +50,10 @@ executable dbph
         Language.ParallelLang.Translate.Vectorise
         Language.ParallelLang.VL.VectorPrimitives
         Language.ParallelLang.Translate.Vec2Algebra
+        Language.ParallelLang.VL.Data.Query
+        Language.ParallelLang.Translate.Detupler
+        Language.ParallelLang.FKL.Data.WorkUnits
+        Language.ParallelLang.Translate.Algebra2SQL
 Library
     build-depends:    base >= 4.2, 
                       mtl >= 2.0, 
@@ -67,11 +71,13 @@ Library
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
     
-    Exposed-modules: Language.ParallelLang.NKL.Data.NKL
+    Exposed-modules: Language.ParallelLang.DBPH
+                     Language.ParallelLang.NKL.Data.NKL
                      Language.ParallelLang.Common.Data.Val
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.Translate.Vectorise
                      Language.ParallelLang.Common.Data.Op
+                     Language.ParallelLang.VL.Data.Query
                        
     Other-modules: Language.ParallelLang.NKL.Data.UntypedNKL
                    Language.ParallelLang.FKL.Data.FKL
@@ -93,4 +99,6 @@ Library
                    Language.ParallelLang.VL.Data.VectorTypes
                    Language.ParallelLang.VL.VectorPrimitives
                    Language.ParallelLang.Translate.Vec2Algebra
-        
+                   Language.ParallelLang.Translate.Detupler  
+                   Language.ParallelLang.FKL.Data.WorkUnits
+                   Language.ParallelLang.Translate.Algebra2SQL      

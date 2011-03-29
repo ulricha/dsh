@@ -1,4 +1,4 @@
-module Language.ParallelLang.Translate.Vec2Algebra (transform, toXML) where
+module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 
 import Language.ParallelLang.Common.Data.Val
 import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
@@ -34,8 +34,9 @@ ordCol    = "item99999801"
 resCol    = "item99999001"
 tmpCol    = "item99999002"
 
-transform :: Expr T.VType -> AlgPlan Plan
-transform e = runGraph initLoop (vec2Alg e)
+
+toAlgebra :: Expr T.VType -> AlgPlan Plan
+toAlgebra e = runGraph initLoop (vec2Alg e)
 
 toXML :: AlgPlan Plan -> Query XML
 toXML (g, r, ts) = case r of

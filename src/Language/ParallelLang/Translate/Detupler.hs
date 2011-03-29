@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Language.ParallelLang.Translate.Detupler(normTuples) where
+module Language.ParallelLang.Translate.Detupler(normTuples, detuple) where
 
 import Language.ParallelLang.Common.Impossible
 
@@ -13,6 +13,12 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 
 import qualified Data.List as L
+
+detuple :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr, ReconstructionPlan)
+detuple v@(_, e) = do
+               (fs', e') <- normTuples v
+               return (fs', e', snd $ transType $ typeOf e)
+               
 
 normTuples :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr)
 normTuples (fs, e) = do

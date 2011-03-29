@@ -18,7 +18,8 @@ data Ex t where
     Iter  :: t -> String -> Ex t -> Ex t -> Ex t -- | [expr2 | var <- expr1]
     IterG :: t -> String -> Ex t -> Ex t -> Ex t -> Ex t -- | [expr3 | var <- expr1, expr2]
     Nil   :: t -> Ex t -- | []
-    Proj  :: t -> Int -> Ex t -> Int -> Ex t    
+    Proj  :: t -> Int -> Ex t -> Int -> Ex t  
+      deriving Show
 
 instance Typed Ex t where
     typeOf (App t _ _) = t
