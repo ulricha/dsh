@@ -2,9 +2,10 @@
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Flattening (fromQ, debugVec, debugPlan, debugSQL, debugNKL) where
 
-import Language.ParallelLang.DBPH
+import Language.ParallelLang.DBPH hiding (SQL)
 import Database.DSH.Impossible
 
+import Database.DSH.ExecuteFlattening
 import Database.DSH.CompileFlattening
 
 import Database.DSH.Data
@@ -15,8 +16,10 @@ import Control.Monad.State
 import Control.Applicative
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) =  undefined -- evaluate c a >>= (return . fromNorm)
-
+fromQ c (Q a) =  do
+                   (q, s) <- liftM nkl2SQL $ toNKL c a
+                   executeQuery c $ SQL q
+                
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL c e
 

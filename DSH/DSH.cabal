@@ -86,3 +86,4 @@ Library
                      Database.DSH.Compile
                      Paths_DSH
                      Database.DSH.CompileFlattening
+                     Database.DSH.ExecuteFlattening

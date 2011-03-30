@@ -168,4 +168,4 @@ transformOp Gte = O.Op ">=" 0
 transformOp Gt = O.Op ">" 0
 transformOp Conj = O.Op "&&" 0
 transformOp Disj = O.Op "||" 0
-transformOp _ = $impossible
+transformOp _ = $impossible 
