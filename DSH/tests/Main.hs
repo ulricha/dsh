@@ -248,6 +248,8 @@ main = do
     qc prop_elem
     putStrPad "notElem"
     qc prop_notElem
+    putStrPad "lookup"
+    qc prop_lookup
     putStrPad "zip"
     qc prop_zip
     putStrPad "zipWith"
@@ -548,11 +550,14 @@ prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
 
 prop_elem :: (Integer, [Integer]) -> Property
 prop_elem = makeProp (uncurryQ $ Q.elem)
-                     (uncurry   $   elem)
+                     (uncurry  $   elem)
 
 prop_notElem :: (Integer, [Integer]) -> Property
 prop_notElem = makeProp (uncurryQ $ Q.notElem)
-                        (uncurry   $   notElem)
+                        (uncurry  $   notElem)
+prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
+prop_lookup = makeProp (uncurryQ $ Q.lookup)
+                       (uncurry  $   lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
