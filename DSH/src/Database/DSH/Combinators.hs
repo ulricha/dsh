@@ -373,10 +373,6 @@ String functions:
 > unlines
 > unwords
 
-Searching lists:
-
-> lookup
-
 Zipping and unzipping lists:
 
 > zip3

@@ -555,6 +555,7 @@ prop_elem = makeProp (uncurryQ $ Q.elem)
 prop_notElem :: (Integer, [Integer]) -> Property
 prop_notElem = makeProp (uncurryQ $ Q.notElem)
                         (uncurry  $   notElem)
+
 prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
 prop_lookup = makeProp (uncurryQ $ Q.lookup)
                        (uncurry  $   lookup)
