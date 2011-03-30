@@ -5,7 +5,7 @@ import Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.FKL.Render.Render()
 
 data Query a =
-         Tuple [Query a]
+         TupleVector [Query a]
        | DescrVector a
        | ValueVector a
        | PrimVal a
@@ -16,10 +16,12 @@ data Query a =
        
 data XML = XML Int String
 
-data SQL = SQL Int String
+data SQL = SQL Int Schema String
+
+type Schema = (String, Maybe (String, Int))
     
 instance Show SQL where
-    show (SQL _ s) = s
+    show (SQL _ _ s) = s
     
 instance Show XML where
     show (XML _ s) = s
