@@ -41,7 +41,7 @@ toAlgebra e = runGraph initLoop (vec2Alg e)
 toXML :: AlgPlan Plan -> Query XML
 toXML (g, r, ts) = case r of
                      (PrimVal r') -> PrimVal (XML r' $ toXML' withItem r')
-                     (Tuple rs)   -> Tuple $ map (\r' -> toXML (g, r', ts)) rs
+                     (TupleVector rs)   -> TupleVector $ map (\r' -> toXML (g, r', ts)) rs
                      (DescrVector r') -> DescrVector (XML r' $ toXML' withoutItem r')
                      (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
                      (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
@@ -96,7 +96,7 @@ vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have
                                                         $ eqJoinM pos pos' (return q1) 
                                                             $ proj [(tmpCol, item1), (pos', pos)] q2)
 vec2Alg (Proj _ _ e n) = do
-                            (Tuple es) <- vec2Alg e
+                            (TupleVector es) <- vec2Alg e
                             return $ es !! (n - 1)        
 vec2Alg (If t eb e1 e2) | t == T.pValT = do
                                             (PrimVal qb) <- vec2Alg eb
@@ -208,7 +208,7 @@ distDesc e1 e2 = do
                    q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
                    qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                    qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
-                   return $ Tuple [qr1, qr2]
+                   return $ TupleVector [qr1, qr2]
 
 distLift :: Graph Plan -> Graph Plan -> Graph Plan
 distLift e1 e2 = do
@@ -217,7 +217,7 @@ distLift e1 e2 = do
                     q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
                     qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                     qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
-                    return $ Tuple [qr1, qr2]                    
+                    return $ TupleVector [qr1, qr2]                    
 
 rename :: Graph Plan -> Graph Plan -> Graph Plan
 rename e1 e2 = do
@@ -233,7 +233,7 @@ propagateIn e1 e2 = do
                      q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
                      qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
                      qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
-                     return $ Tuple [qr1, qr2]
+                     return $ TupleVector [qr1, qr2]
                      
 attachV :: Graph Plan -> Graph Plan -> Graph Plan
 attachV e1 e2 = do
@@ -259,7 +259,7 @@ append e1 e2 = do
                 qv <- rf <$> proj (pf [(pos, pos'), (descr, descr)]) q
                 qp1 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
                 qp2 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
-                return $ Tuple [qv, qp1, qp2]
+                return $ TupleVector [qv, qp1, qp2]
                 
 
 segment :: Graph Plan -> Graph Plan
@@ -287,7 +287,7 @@ restrictVec e1 m = do
                     q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item1)] qm
                     qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
                     qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
-                    return $ Tuple [qr, qp]
+                    return $ TupleVector [qr, qp]
 
 combineVec :: Graph Plan -> Graph Plan -> Graph Plan -> Graph Plan
 combineVec eb e1 e2 = do
@@ -299,7 +299,7 @@ combineVec eb e1 e2 = do
                         qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                         qp1 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d1
                         qp2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d2
-                        return $ Tuple [qr, qp1, qp2]
+                        return $ TupleVector [qr, qp1, qp2]
                         
 bPermuteVec :: Graph Plan -> Graph Plan -> Graph Plan
 bPermuteVec e1 e2 = do
@@ -308,7 +308,7 @@ bPermuteVec e1 e2 = do
                      q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item1)] q2
                      qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
                      qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
-                     return $ Tuple [qr, qp]
+                     return $ TupleVector [qr, qp]
 
 determineResultVector :: Graph Plan -> Graph (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
 determineResultVector e = do
