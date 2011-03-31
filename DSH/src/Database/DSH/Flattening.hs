@@ -3,21 +3,18 @@
 module Database.DSH.Flattening (fromQ, debugVec, debugPlan, debugSQL, debugNKL) where
 
 import Language.ParallelLang.DBPH hiding (SQL)
-import Database.DSH.Impossible
 
 import Database.DSH.ExecuteFlattening
 import Database.DSH.CompileFlattening
 
 import Database.DSH.Data
-import Database.DSH.Impossible (impossible)
 import Database.HDBC
 
 import Control.Monad.State
-import Control.Applicative
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
-                   (q, s) <- liftM nkl2SQL $ toNKL c a
+                   (q, _s) <- liftM nkl2SQL $ toNKL c a
                    executeQuery c $ SQL q
                 
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
