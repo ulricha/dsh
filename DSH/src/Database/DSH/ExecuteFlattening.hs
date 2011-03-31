@@ -8,6 +8,8 @@ import Control.Exception (evaluate)
 import Database.DSH.Data
 import Data.Convertible
 
+import Data.List (foldl')
+
 import Data.Maybe (fromJust)
 
 data SQL a = SQL (P.Query P.SQL)
@@ -16,14 +18,28 @@ executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> SQL a
 executeQuery c (SQL (P.PrimVal (P.SQL _ s q))) = do
                                                     (r, d) <- doQuery c q
                                                     let (iC, ri) = schemeToResult s d
-                                                    let parted = partByIter iC r
+                                                    let [(_, [(_, v)])] = partByIter iC r
                                                     let i = snd (fromJust ri)
                                                     let t = reify (undefined :: a)
-                                                    return $ fromNorm $ snd $ head $ normalise t i parted 
-                                                    
-normalise :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
-normalise IntegerT i [(_, [(_, v)])] = [(1, convert (v !! i, IntegerT))]
-normalise _        _ _ = undefined
+                                                    return $ fromNorm $ normalise t i v
+executeQuery c (SQL (P.ValueVector (P.SQL _ s q))) = do
+                                                      (r, d) <- doQuery c q
+                                                      let (iC, ri) = schemeToResult s d
+                                                      let parted = partByIter iC r
+                                                      let i = snd (fromJust ri)
+                                                      let t = reify (undefined :: a)
+                                                      return $ fromNorm $ concatN $ map snd $ normaliseList t i parted
+
+concatN :: [Norm] -> Norm
+concatN ns@((ListN ls t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
+concatN _                    = error "concatN: Not a list of lists"
+
+normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
+normaliseList t@(ListT t1) c vs = foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
+normaliseList _            _ _  = error "normaliseList: Should not happen"
+
+normalise :: Type -> Int -> [SqlValue] -> Norm
+normalise t i v = convert (v !! i, t)
                                                     
 doQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])
 doQuery c q = do
@@ -50,7 +66,7 @@ partByIter iC vs = pbi (zip [1..] vs)
         pbi :: [(Int, [SqlValue])] -> [(Int, [(Int, [SqlValue])])]
         pbi ((p,v):vs) = let i = getIter v
                              (vi, vr) = span (\(p',v') -> i == getIter v') vs
-                          in (i, (p, v):vi) : pbi vs
+                          in (i, (p, v):vi) : pbi vr
         pbi []         = []
         getIter :: [SqlValue] -> Int
         getIter vals = ((fromSql (vals !! iC))::Int)

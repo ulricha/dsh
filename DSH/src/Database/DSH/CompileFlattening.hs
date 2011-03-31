@@ -62,7 +62,7 @@ translate (TupleE e1 e2 _) = do
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
                                 return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)" 0) [c1, c2]
--- translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) $ map translate es
+translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
 translate (AppE1 f1 e1 ty) = error "Application is not supported"
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
