@@ -90,6 +90,7 @@ import Prelude hiding (
   , break
   , elem
   , notElem
+  , lookup
   , zip
   , zipWith
   , unzip

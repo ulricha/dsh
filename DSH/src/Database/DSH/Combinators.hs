@@ -287,6 +287,9 @@ elem a as = (null (filter (a ==) as)) ? (false,true)
 notElem :: forall a. (Eq a, QA a) => Q a -> Q [a] -> Q Bool
 notElem a as = not (elem a as)
 
+lookup :: (QA a,QA b,Eq a) => Q a -> Q [(a, b)] -> Q (Maybe b)
+lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
+
 -- * Zipping and Unzipping Lists
 
 zip       :: forall a b. (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
@@ -369,10 +372,6 @@ String functions:
 > words
 > unlines
 > unwords
-
-Searching lists:
-
-> lookup
 
 Zipping and unzipping lists:
 

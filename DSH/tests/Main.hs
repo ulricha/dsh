@@ -31,7 +31,7 @@ getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
 qc:: Testable prop => prop -> IO ()
-qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 10}
+qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 
 putStrPad :: String -> IO ()
 putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
@@ -62,7 +62,7 @@ main = do
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
-
+    
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
     putStrLn "------------------------------------"
@@ -130,7 +130,7 @@ main = do
     qc prop_negate_integer
     putStrPad "negate_double"
     qc prop_negate_double
-
+    
     putStrLn ""
     putStrLn "Maybe"
     putStrLn "-----"
@@ -154,7 +154,7 @@ main = do
     qc prop_catMaybes
     putStrPad "mapMaybe"
     qc prop_mapMaybe
-
+    
     putStrLn ""
     putStrLn "Either"
     putStrLn "-----"
@@ -174,7 +174,7 @@ main = do
     qc prop_rights
     putStrPad "partitionEithers"
     qc prop_partitionEithers
-
+    
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
@@ -248,6 +248,8 @@ main = do
     qc prop_elem
     putStrPad "notElem"
     qc prop_notElem
+    putStrPad "lookup"
+    qc prop_lookup
     putStrPad "zip"
     qc prop_zip
     putStrPad "zipWith"
@@ -548,11 +550,15 @@ prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
 
 prop_elem :: (Integer, [Integer]) -> Property
 prop_elem = makeProp (uncurryQ $ Q.elem)
-                     (uncurry   $   elem)
+                     (uncurry  $   elem)
 
 prop_notElem :: (Integer, [Integer]) -> Property
 prop_notElem = makeProp (uncurryQ $ Q.notElem)
-                        (uncurry   $   notElem)
+                        (uncurry  $   notElem)
+
+prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
+prop_lookup = makeProp (uncurryQ $ Q.lookup)
+                       (uncurry  $   lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
