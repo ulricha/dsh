@@ -63,6 +63,19 @@ nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lis
 nestList t []         ls                         = ([], ls) 
 
 
+constructDescriptor :: [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)] -> [(Int, Norm)]
+constructDescriptor ((i, vs):outers) inners = undefined -- (i, )
+
+nestList :: Type -> [Int] -> [(Int, Norm)] -> ([Norm], [(Int, Norm)])
+nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lists)
+                                       | p <  d = ListN [] t `combine` (nestList t ps ls)
+                                       | p >  d = nestList t ps' lists
+       where
+           combine :: Norm -> ([Norm], [(Int, Norm)]) -> ([Norm], [(Int, Norm)])
+           combine n (ns, r) = (n:ns, r)
+nestList t []         ls                         = ([], ls) 
+
+
 concatN :: [Norm] -> Norm
 concatN ns@((ListN ls t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
 concatN _                    = error "concatN: Not a list of lists"
