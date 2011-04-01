@@ -65,9 +65,9 @@ Library
                      syntax-trees       >= 0.1.2,
                      HaXml              >= 1.20,
                      csv                >= 0.1,
-                     Pathfinder         >= 0.5,
-                     DBPH               >= 0.5.1,
-                     FerryCore          >= 0.4.5.5
+                     Pathfinder         >= 0.5.6,
+                     FerryCore          >= 0.4.6.1,
+                     DBPH               >= 0.5.1
   Hs-Source-Dirs:    src
 
   GHC-Options:       -O3 -Wall
