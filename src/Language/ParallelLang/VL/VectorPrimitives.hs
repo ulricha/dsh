@@ -45,14 +45,13 @@ propagateIn e1 e2 | typeOf e1 == propT &&  descrOrVal (typeOf e2)
 rename :: Expr VType -> Expr VType -> Expr VType
 rename e1 e2 | typeOf e1 == propT && descrOrVal (typeOf e2)
                         = App (typeOf e2) (Var (typeOf e1 .~> typeOf e2 .~> typeOf e1) "rename" 0) [e1, e2]
-             | otherwise = error "rename: Can't construct rename node"
+             | otherwise = error $ "rename: Can't construct rename node "
 
 attach :: Expr VType -> Expr VType -> Expr VType
 attach e1 e2 | typeOf e1 == descrT && nestingDepth (typeOf e2) > 0
                         = let rt = nVectorT' (typeOf e2)
                            in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "attach" 0) [e1, e2]
-             | otherwise = error $ "attach: Can't construct attach node " ++ show e1 ++ "::" ++ (show $ typeOf e1) ++ "___" ++ show e2 ++ "::" ++ (show $ typeOf e1)
-
+             | otherwise = error $ "attach: Can't construct attach node "
 singletonPrim :: Expr VType -> Expr VType
 singletonPrim e1 | typeOf e1 == pValT = App valVT (Var (typeOf e1 .~> valVT) "singletonPrim" 0) [e1]
                  | otherwise = error "singletonPrim: Can't construct singletonPrim node"

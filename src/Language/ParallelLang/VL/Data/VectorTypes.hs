@@ -55,4 +55,5 @@ descrOrVal :: VType -> Bool
 descrOrVal ValueVector = True
 descrOrVal DescrVector = True
 descrOrVal (NestedVector 1) = True
+descrOrVal (Tagged t _) = descrOrVal t
 descrOrVal _           = False
