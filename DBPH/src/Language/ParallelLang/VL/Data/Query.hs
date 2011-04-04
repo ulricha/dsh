@@ -11,7 +11,7 @@ data Query a =
        | PrimVal a
        | NestedVector a (Query a)
        | PropVector a
-       | UnEvaluated (Expr T.VType)
+--       | UnEvaluated (Expr T.VType)
      deriving Show
        
 data XML = XML Int String

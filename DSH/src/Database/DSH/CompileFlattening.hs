@@ -21,11 +21,11 @@ N monad, version of the state monad that can provide fresh variable names.
 type N conn = StateT (conn, Int) IO
 
 -- | Provide a fresh identifier name during compilation
-freshVar :: N conn Int
+freshVar :: N conn String
 freshVar = do
              (c, i) <- get
              put (c, i + 1)
-             return i
+             return $ "*dshVAR*" ++ show i
 
 -- | Get from the state the connection to the database                
 getConnection :: IConnection conn => N conn conn
@@ -63,7 +63,23 @@ translate (TupleE e1 e2 _) = do
                                 let t2 = T.typeOf c2
                                 return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)" 0) [c1, c2]
 translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
+translate (AppE1 Fst e1 ty) = do
+                                c1 <- translate e1
+                                let t1 = T.typeOf c1
+                                return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 1
+translate (AppE1 Snd e1 ty) = do
+                                c1 <- translate e1
+                                let t1 = T.typeOf c1
+                                return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 2
 translate (AppE1 f1 e1 ty) = error "Application is not supported"
+translate (AppE2 Map e1 e2 ty) = do
+                                  c1 <- translate e1
+                                  c2 <- translate e2
+                                  n <- freshVar
+                                  let tEl = T.unliftType (T.typeOf c2)
+                                  let tr = T.unliftType (T.typeOf c1)
+                                  return $ NKL.Iter (ty2ty ty) n c2 (NKL.App tr c1 [(NKL.Var tEl n 0)])
+
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
 translate (AppE2 Break (LamE f _) e t@(TupleT t1 _)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
@@ -112,6 +128,7 @@ translate (AppE2 f2 e1 e2 ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2' -}
+translate e = error $ show e
 {- translate (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- transformE e1
                                              e2' <- transformE e2

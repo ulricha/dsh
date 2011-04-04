@@ -28,11 +28,10 @@ executeQuery c (SQL (P.PrimVal (P.SQL _ s q))) = do
 executeQuery _ (SQL (P.TupleVector _)) = error "Tuples are not supported yet"
 executeQuery _ (SQL (P.DescrVector _)) = error "Descriptor vectors cannot be translated to haskell values"
 executeQuery _ (SQL (P.PropVector _)) = error "Propagation vectors cannot be translated to haskell values"
-executeQuery _ (SQL (P.UnEvaluated _)) = error "This should not be possible"
 executeQuery c (SQL q) = do
                           let t = reify (undefined :: a)
                           r <- makeVector c q t
-                          return $ fromNorm $ concatN $ map snd r
+                          return $ fromNorm $ concatN t $ map snd r
 
 makeVector :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO [(Int, Norm)]
 makeVector c (P.ValueVector (P.SQL _ s q)) t = do
@@ -57,16 +56,17 @@ nestList :: Type -> [Int] -> [(Int, Norm)] -> ([Norm], [(Int, Norm)])
 nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lists)
                                        | p <  d = ListN [] t `combine` (nestList t ps ls)
                                        | p >  d = nestList t ps' lists
-       where
-           combine :: Norm -> ([Norm], [(Int, Norm)]) -> ([Norm], [(Int, Norm)])
-           combine n (ns, r) = (n:ns, r)
+nestList t (p:ps)     []                         = ListN [] t `combine` (nestList t ps [])
 nestList t []         ls                         = ([], ls) 
 
+combine :: Norm -> ([Norm], [(Int, Norm)]) -> ([Norm], [(Int, Norm)])
+combine n (ns, r) = (n:ns, r)
 
 
-concatN :: [Norm] -> Norm
-concatN ns@((ListN ls t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
-concatN _                    = error "concatN: Not a list of lists"
+concatN :: Type -> [Norm] -> Norm
+concatN _ ns@((ListN ls t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
+concatN t []                   = ListN [] t
+concatN _ _                    = error "concatN: Not a list of lists"
 
 normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
 normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs

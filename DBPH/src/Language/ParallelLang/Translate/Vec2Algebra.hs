@@ -46,7 +46,7 @@ toXML (g, r, ts) = case r of
                      (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
                      (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
                      (PropVector _) -> error "Prop vectors should only be used internally and never appear in a result"
-                     (UnEvaluated _) -> error "A not evaluated function can not occur in the query result"
+--                     (UnEvaluated _) -> error "A not evaluated function can not occur in the query result"
     where
         item :: Element ()
         item = [attr "name" $ "item1", attr "new" "false", attr "function" "item", attr "position" "1"] `attrsOf` xmlElem "column"
@@ -177,9 +177,11 @@ vec2Alg (App t (Var _ x i) args) = case x of
                                     _        -> do
                                                  v <- fromGam (constrEnvName x i)
                                                  case v of
-                                                     UnEvaluated v' -> vec2Alg (App t v' args)
+--                                                     UnEvaluated v' -> vec2Alg (App t v' args)
                                                      _              -> error $ "vec2Alg application: Not a function: " ++ show v
--- vec2Alg (App _ (Fn _ n i avs e) args) = 
+vec2Alg (App _ (Fn _ n i avs e) args) = do
+                                         args' <- mapM vec2Alg args
+                                         foldr (\(x, a) e -> withBinding x a e) (vec2Alg e) (zip avs args')
 {-
 data Expr t where
     App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
