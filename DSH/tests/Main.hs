@@ -6,7 +6,11 @@ import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
 -- import Database.DSH.Interpreter (fromQ)
+#ifdef isDBPH
+import Database.DSH.Flattening (fromQ)    
+#else
 import Database.DSH.Compiler (fromQ)
+#endif
 
 import qualified Database.HDBC as HDBC
 import Database.HDBC.PostgreSQL
@@ -40,29 +44,44 @@ main :: IO ()
 main = do
     putStrLn "Supprted Types"
     putStrLn "--------------"
+#ifndef isDBPH
     putStrPad "()"
     qc prop_unit
+#endif
+
     putStrPad "Bool"
     qc prop_bool
+
+#ifndef isDBPH
     putStrPad "Char"
     qc prop_char
     putStrPad "Text"
     qc prop_text
+#endif
+
     putStrPad "Integer"
     qc prop_integer
+
+#ifndef isDBPH
     putStrPad "Double"
     qc prop_double
+#endif
+
     putStrPad "[Integer]"
     qc prop_list_integer_1
     putStrPad "[[Integer]]"
     qc prop_list_integer_2
     putStrPad "[[[Integer]]]"
     qc prop_list_integer_3
+
+#ifndef isDBPH
     putStrPad "Maybe Integer"
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
-    
+#endif
+
+#ifndef isDBPH    
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
     putStrLn "------------------------------------"
@@ -258,6 +277,7 @@ main = do
     qc prop_unzip
     putStrPad "nub"
     qc prop_nub
+#endif
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
