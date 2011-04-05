@@ -78,18 +78,18 @@ main = do
     qc prop_infix_and
     putStrPad "||"
     qc prop_infix_or
-#ifndef isDBPH    
     putStrPad "not"
     qc prop_not
-#endif
+
     putStrPad "eq"
     qc prop_eq
 #ifndef isDBPH
     putStrPad "neq"
     qc prop_neq
+#endif
+
     putStrPad "cond"
     qc prop_cond
-#endif
     putStrPad "lt"
     qc prop_lt
     putStrPad "lte"

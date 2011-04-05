@@ -76,6 +76,9 @@ translate (AppE1 Snd e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
                                 return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 2
+translate (AppE1 Not e1 ty) = do 
+                                c1 <- translate e1
+                                return $ NKL.App T.boolT (NKL.Var (T.boolT T..-> T.boolT) "not" 0) [c1]
 translate (AppE1 f1 e1 ty) = error "Application is not supported"
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
@@ -135,13 +138,12 @@ translate (AppE2 f2 e1 e2 ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2' -}
--- translate e = error $ show e
-{- translate (AppE3 Cond e1 e2 e3 _) = do
-                                             e1' <- transformE e1
-                                             e2' <- transformE e2
-                                             e3' <- transformE e3
-                                             let (_ :=> t) = typeOf e2'
-                                             return $ If ([] :=> t) e1' e2' e3'
+translate (AppE3 Cond e1 e2 e3 _) = do
+                                             e1' <- translate e1
+                                             e2' <- translate e2
+                                             e3' <- translate e3
+                                             return $ NKL.If (T.typeOf e2') e1' e2' e3'
+{-
 translate (AppE3 f3 e1 e2 e3 ty) = do
                                            let tr = transformTy ty
                                            e1' <- transformArg e1

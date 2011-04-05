@@ -11,7 +11,7 @@ data Ex t where
     App   :: t -> Expr -> [Ex t] -> Ex t -- | Apply multiple arguments to an expression
     Fn    :: t -> String -> Int -> [String] -> Ex t -> Ex t -- | A function has a name, some arguments and a body
     Let   :: t -> String -> Ex t -> Ex t -> Ex t -- | Let a variable have value expr1 in expr2
-    If    :: t -> Expr -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
+    If    :: t -> Ex t -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
     BinOp :: t -> Op -> Ex t -> Ex t -> Ex t -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
     Const :: t -> Val -> Ex t -- | Constant value
     Var   :: t -> String -> Int -> Ex t  -- | Variable
