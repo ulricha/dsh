@@ -33,6 +33,7 @@ posnew    = "item99999605"
 ordCol    = "item99999801"
 resCol    = "item99999001"
 tmpCol    = "item99999002"
+tmpCol'   = "item99999003"
 
 
 toAlgebra :: Expr T.VType -> AlgPlan Plan
@@ -58,7 +59,7 @@ toXML (g, r, ts) = case r of
         toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $ 
                         runXML False M.empty M.empty $
                             mkQueryPlan Nothing (xmlElem "property") $ 
-                                runXML False nodeTable ts $ serializeAlgebra cs n
+                                runXML True nodeTable ts $ serializeAlgebra cs n
     
 
 
@@ -75,11 +76,11 @@ convertType t | t == U.intT  = intT
 
 vec2Alg :: Expr T.VType -> Graph Plan
 vec2Alg (Labeled _ e) = vec2Alg e
-vec2Alg (Const _ v) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v)
+vec2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 vec2Alg (Nil (T.Tagged vt t)) = case T.nestingDepth vt of
                             0 -> error "Invalid vector type for a Nil value"
-                            1 -> ValueVector <$> emptyTable [(descr, natT), (pos, natT), (item1, convertType $ U.unliftType t)]
-                            n -> NestedVector <$> emptyTable [(descr, natT), (pos, natT)] <*> vec2Alg (Nil (T.Tagged (T.NestedVector (n - 1)) (U.unliftType t)))
+                            1 -> ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType $ U.unliftType t)])
+                            n -> NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> (tagVector "NilR" $ vec2Alg (Nil (T.Tagged (T.NestedVector (n - 1)) (U.unliftType t))))
 vec2Alg (Nil _) = error "Nil without tagged type not supported"
 vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have been desugared"
                                  | otherwise = do
@@ -122,7 +123,7 @@ vec2Alg (If t eb e1 e2) | t == T.pValT = do
                                                  return (ValueVector qr)
                          | otherwise = error "vec2Alg: Can't translate if construction"
 vec2Alg (Let _ s e1 e2) = do
-                            e1' <- vec2Alg e1
+                            e1' <- tagVector s $ vec2Alg e1
                             withBinding s e1' (vec2Alg e2)
 vec2Alg (Var _ s i) = fromGam $ constrEnvName s i
 vec2Alg (App t (Var _ x i) args) = case x of
@@ -194,7 +195,7 @@ outer e = do
             e' <- e
             case e' of
                 NestedVector p _  -> return $ DescrVector p
-                (ValueVector p) -> DescrVector <$> proj [(pos, pos), (descr,descr)] p
+                (ValueVector p) -> DescrVector <$> (tagM "outer" $ proj [(pos, pos), (descr,descr)] p)
                 _                 -> error $ "outer: Can't extract outer plan" ++ show e'
                 
 distPrim :: Graph Plan -> Graph Plan -> Graph Plan
@@ -225,7 +226,7 @@ rename :: Graph Plan -> Graph Plan -> Graph Plan
 rename e1 e2 = do
                 (PropVector q1) <- e1
                 (rf, q2, pf) <- determineResultVector e2
-                q <- projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
+                q <- tagM "rename" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
                 return $ rf q
                 
 propagateIn :: Graph Plan -> Graph Plan -> Graph Plan
@@ -251,16 +252,16 @@ singletonPrim e1 = do
 singletonVec :: Graph Plan -> Graph Plan
 singletonVec e1 = do
                     e1' <- e1
-                    q <- attachM pos natT (nat 1) $ litTable (nat 1) descr natT
+                    q <- tagM "singletonVec" $ attachM pos natT (nat 1) $ litTable (nat 1) descr natT
                     return $ NestedVector q e1'
                     
 append :: Graph Plan -> Graph Plan -> Graph Plan
 append e1 e2 = do
                 (rf, q1, q2, pf) <- determineResultVector' e1 e2
                 q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
-                qv <- rf <$> proj (pf [(pos, pos'), (descr, descr)]) q
-                qp1 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
-                qp2 <- PropVector <$> (projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
+                qv <- rf <$> tagM "append r" (proj (pf [(pos, pos'), (descr, descr)]) q)
+                qp1 <- PropVector <$> (tagM "append r1" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
+                qp2 <- PropVector <$> (tagM "append r2" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
                 return $ TupleVector [qv, qp1, qp2]
                 
 
@@ -346,7 +347,7 @@ toDescr v = do
              v' <- v
              case v' of
                  (DescrVector _) -> v
-                 (ValueVector n) -> DescrVector <$> proj [(descr, descr), (pos, pos)] n
+                 (ValueVector n) -> DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
                                         
                  _               -> error "toDescr: Cannot cast into descriptor vector"
 
@@ -366,3 +367,15 @@ constrEnvName x i = x ++ "<%>" ++ show i
 intFromVal :: Expr T.VType -> Int
 intFromVal (Const _ (Int i)) = i
 intFromVal x                 = error $ "intFromVal: not an integer: " ++ show x
+
+tagVector :: String -> Graph Plan -> Graph Plan
+tagVector s g = do
+                g' <- g
+                case g' of
+                    (TupleVector vs) -> TupleVector <$> (sequence $ map (\v -> tagVector s (pure v)) vs)
+                    (DescrVector q) -> DescrVector <$> tag s q
+                    (ValueVector q) -> ValueVector <$> tag s q
+                    (PrimVal q) -> PrimVal <$> tag s q
+                    (NestedVector q qs) -> NestedVector <$> tag s q <*> tagVector s (return qs)
+                    (PropVector q) -> PropVector <$> tag s q
+
