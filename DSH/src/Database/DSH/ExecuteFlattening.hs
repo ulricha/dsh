@@ -73,6 +73,7 @@ normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map
 normaliseList _            _ _  = error "normaliseList: Should not happen"
 
 normalise :: Type -> Int -> [SqlValue] -> Norm
+normalise UnitT _ _ = UnitN UnitT
 normalise t i v = convert (v !! i, t)
                                                     
 doQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])

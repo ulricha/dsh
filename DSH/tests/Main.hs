@@ -44,29 +44,18 @@ main :: IO ()
 main = do
     putStrLn "Supprted Types"
     putStrLn "--------------"
-#ifndef isDBPH
     putStrPad "()"
     qc prop_unit
-#endif
-
     putStrPad "Bool"
     qc prop_bool
-
-#ifndef isDBPH
     putStrPad "Char"
     qc prop_char
     putStrPad "Text"
     qc prop_text
-#endif
-
     putStrPad "Integer"
     qc prop_integer
-
-#ifndef isDBPH
     putStrPad "Double"
     qc prop_double
-#endif
-
     putStrPad "[Integer]"
     qc prop_list_integer_1
     putStrPad "[[Integer]]"
@@ -118,7 +107,7 @@ main = do
     qc prop_max_integer
     putStrPad "max_double"
     qc prop_max_double
-    
+#endif    
     putStrLn ""
     putStrLn "Tuples"
     putStrLn "------"
@@ -126,24 +115,22 @@ main = do
     qc prop_fst
     putStrPad "snd"
     qc prop_snd
-#endif
+
     
     putStrLn ""
     putStrLn "Numerics:"
     putStrLn "-----------"
     putStrPad "add_integer"
     qc prop_add_integer
-#ifndef isDBPH
     putStrPad "add_double"
     qc prop_add_double
-#endif
     putStrPad "mul_integer"
     qc prop_mul_integer
-#ifndef isDBPH
     putStrPad "mul_double"
     qc prop_mul_double
     putStrPad "div_double"
     qc prop_div_double
+#ifndef isDBPH
     putStrPad "integer_to_double: "
     qc prop_integer_to_double    
     putStrPad "abs_integer"

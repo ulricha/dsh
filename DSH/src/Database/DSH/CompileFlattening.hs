@@ -11,6 +11,7 @@ import qualified Language.ParallelLang.Common.Data.Op as O
 import Database.DSH.Data as D
 import Database.DSH.Impossible (impossible)
 import Database.HDBC
+import Data.Text (unpack)
 
 import Control.Monad.State
 import Control.Applicative
@@ -52,10 +53,10 @@ runN c  = liftM fst . flip runStateT (c, 1)
 translate :: IConnection conn => Exp -> N conn NKL.Expr
 translate (UnitE _) = return $ NKL.Const T.unitT V.Unit
 translate (BoolE b _) = return $ NKL.Const T.boolT $ V.Bool b
-translate (CharE c _) = error $ "Characters are not yet supported" 
+translate (CharE c _) = return $ NKL.Const T.stringT $ V.String [c]
 translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
-translate (DoubleE d _) = error "Doubles are not yet supported" 
-translate (TextE t _) = error "Texts are not yet supported" 
+translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
+translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
