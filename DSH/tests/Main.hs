@@ -205,8 +205,12 @@ main = do
     qc prop_take
     putStrPad "drop"
     qc prop_drop
+#endif
+
     putStrPad "map"
     qc prop_map
+
+#ifndef isDBPH
     putStrPad "filter"
     qc prop_filter
     putStrPad "the"

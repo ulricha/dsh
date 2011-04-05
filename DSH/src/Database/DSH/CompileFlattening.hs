@@ -22,22 +22,20 @@ N monad, version of the state monad that can provide fresh variable names.
 type N conn = StateT (conn, Int) IO
 
 -- | Provide a fresh identifier name during compilation
-freshVar :: N conn String
+freshVar :: N conn Int
 freshVar = do
              (c, i) <- get
              put (c, i + 1)
-             return $ "*dshVAR*" ++ show i
+             return i
+
+prefixVar :: Int -> String
+prefixVar i = "*dshVar*" ++ show i
 
 -- | Get from the state the connection to the database                
 getConnection :: IConnection conn => N conn conn
 getConnection = do
                  (c, _) <- get
                  return c
-
-
--- | Turn a given integer into a variable beginning with prefix "__fv_"                    
-prefixVar :: Int -> String
-prefixVar = ((++) "__fv_") . show
 
 toNKL :: IConnection conn => conn -> Exp -> IO NKL.Expr
 toNKL c e = runN c $ translate e
@@ -57,6 +55,7 @@ translate (CharE c _) = return $ NKL.Const T.stringT $ V.String [c]
 translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
 translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
 translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
+translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i) 0
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
@@ -64,6 +63,11 @@ translate (TupleE e1 e2 _) = do
                                 let t2 = T.typeOf c2
                                 return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)" 0) [c1, c2]
 translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
+translate (LamE f ty) = do
+                        v <- freshVar
+                        let (ArrowT t1 _) = ty
+                        f' <- translate $ f (VarE v t1)
+                        return $ NKL.Fn (ty2ty ty) "lambda expression" 0 [prefixVar v] f' 
 translate (AppE1 Fst e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
@@ -78,8 +82,8 @@ translate (AppE2 Map e1 e2 ty) = do
                                   c2 <- translate e2
                                   n <- freshVar
                                   let tEl = T.unliftType (T.typeOf c2)
-                                  let tr = T.unliftType (T.typeOf c1)
-                                  return $ NKL.Iter (ty2ty ty) n c2 (NKL.App tr c1 [(NKL.Var tEl n 0)])
+                                  let tr = T.extractFnRes (T.typeOf c1)
+                                  return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 [(NKL.Var tEl (prefixVar n) 0)])
 
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
@@ -129,7 +133,7 @@ translate (AppE2 f2 e1 e2 ty) = do
                                                       return $ App ([] :=> tr) 
                                                                 (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
                                                                 e2' -}
-translate e = error $ show e
+-- translate e = error $ show e
 {- translate (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- transformE e1
                                              e2' <- transformE e2
@@ -165,10 +169,10 @@ isTuple _      = Nothing
 ty2ty :: Type -> T.Type
 ty2ty UnitT = T.unitT
 ty2ty BoolT = T.boolT
-ty2ty CharT = error "Char type is not supported"
+ty2ty CharT = T.stringT 
 ty2ty IntegerT = T.intT
-ty2ty DoubleT = error "Double type is not supported"
-ty2ty TextT = error "Text type is not supported"
+ty2ty DoubleT = T.doubleT
+ty2ty TextT = T.stringT
 ty2ty (TupleT t1 t2) = T.pairT (ty2ty t1) (ty2ty t2)
 ty2ty (ListT t) = T.listT (ty2ty t)
 ty2ty (ArrowT t1 t2) = (ty2ty t1) T..-> (ty2ty t2)
