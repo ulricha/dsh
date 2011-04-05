@@ -101,6 +101,7 @@ flatten' i d (F.App _ (F.Var _ "promote" 0) [arg1, arg2]) =
                                     arg2' <- flatten i d arg2
                                     return $ promoteF arg1 arg2'
 flatten' i e1 (F.App t (F.Var ft x d) es) = F.App (liftType t) (F.Var (liftType ft) x $ d + 1) <$> mapM (flatten i e1) es
+flatten' i e1 (F.App t (F.Fn _ _ _ args b) vals) = flatten' i e1 (foldr (\(a, v) e -> F.Let t a v e) b (zip args vals))
 flatten' i e1 (F.Let ty v eb e) = do 
                                 o <- withOpt LetOpt
                                 case o of
