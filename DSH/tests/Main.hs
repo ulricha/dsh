@@ -81,7 +81,7 @@ main = do
     qc prop_either_integer
 #endif
 
-#ifndef isDBPH    
+
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
     putStrLn "------------------------------------"
@@ -89,14 +89,18 @@ main = do
     qc prop_infix_and
     putStrPad "||"
     qc prop_infix_or
+#ifndef isDBPH    
     putStrPad "not"
     qc prop_not
+#endif
     putStrPad "eq"
     qc prop_eq
+#ifndef isDBPH
     putStrPad "neq"
     qc prop_neq
     putStrPad "cond"
     qc prop_cond
+#endif
     putStrPad "lt"
     qc prop_lt
     putStrPad "lte"
@@ -105,6 +109,7 @@ main = do
     qc prop_gt
     putStrPad "gte"
     qc prop_gte
+#ifndef isDBPH
     putStrPad "min_integer"
     qc prop_min_integer
     putStrPad "min_double"
@@ -121,16 +126,20 @@ main = do
     qc prop_fst
     putStrPad "snd"
     qc prop_snd
+#endif
     
     putStrLn ""
     putStrLn "Numerics:"
     putStrLn "-----------"
     putStrPad "add_integer"
     qc prop_add_integer
+#ifndef isDBPH
     putStrPad "add_double"
     qc prop_add_double
+#endif
     putStrPad "mul_integer"
     qc prop_mul_integer
+#ifndef isDBPH
     putStrPad "mul_double"
     qc prop_mul_double
     putStrPad "div_double"
