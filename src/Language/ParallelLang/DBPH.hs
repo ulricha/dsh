@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2Vec, ReconstructionPlan(..), Query(..), SQL(..), Schema) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2Vec,nkl2fkl, ReconstructionPlan(..), Query(..), SQL(..), Schema) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
@@ -26,6 +26,13 @@ nkl2Alg e = let (e', r) = nkl2Vec' e
              
 nkl2Vec :: NKL.Expr -> String
 nkl2Vec e = show $ fst $ nkl2Vec' e
+
+nkl2fkl :: NKL.Expr -> String
+nkl2fkl e = show $ runTransform normalCompilation $
+             do 
+                 (_, e', _) <- flatTransform ([], e) >>=  runRWPhase1 >>= detuple 
+                 (_, r) <- runRWPhase2 ([], e')
+                 return r
 
 nkl2Vec' :: NKL.Expr -> (FKL.Expr VType, ReconstructionPlan)
 nkl2Vec' e = runTransform normalCompilation  $ 

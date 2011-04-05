@@ -10,6 +10,8 @@ import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.VectorPrimitives
 
+import Language.ParallelLang.FKL.Render.Render
+
 import Control.Applicative ((<$>), (<*>))
 
 vectoriseType :: T.Type -> VType
@@ -220,7 +222,7 @@ restrict e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                         e3 <- chainPropagate p' vs1
                         
                         return $ b1 (letF r rv (letF v vv (letF p pv (attach v' e3))))                        
-               | otherwise = error "restrict: Can't construct restrict node"
+               | otherwise = error $ "restrict: Can't construct restrict node " ++ show e1 ++ show (typeOf e1) ++ " " ++ show e2 ++ show (typeOf e2) 
                
 combine :: Expr VType -> Expr VType -> Expr VType -> TransM (Expr VType)
 combine eb e1 e2 | nestingDepth (typeOf eb) == 1 && nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
