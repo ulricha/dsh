@@ -34,6 +34,8 @@ render (BinOp _ (Op o i) e1 e2) = let e1' = render e1
                                       e2' = render e2
                                    in parens $ e1' <+> text o <> text "^" <> int i <+> e2'
 render (Const _ (Int i)) = int i
+render (Const _ (String s)) = text $ show s
+render (Const _ (Double d)) = double d
 render (Const _ (Bool b)) = text $ show b
 render (Const _ (Unit)) = text $ "()"
 render (Var _ x 0) = text x

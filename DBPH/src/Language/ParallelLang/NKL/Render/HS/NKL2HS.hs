@@ -29,6 +29,8 @@ toHs _ = error "toHs not complete"
 valToHs :: V.Val -> Exp
 valToHs (V.Unit)   = Con $ Special UnitCon
 valToHs (V.Int i)  = intE $ toInteger i
+valToHs (V.String s) = strE s
+valToHs (V.Double d) = (Lit . PrimDouble . toRational) d
 valToHs (V.Bool b) = Con $ UnQual $ name $ show b
 
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, Typed (..))
+ (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, Typed (..))
 where
     
 import qualified Data.Map as M
@@ -47,6 +47,12 @@ t1 .-> t2 = Fn t1 t2
 
 intT :: Type
 intT = TyC "Int" []
+
+stringT :: Type
+stringT = TyC "String" []
+
+doubleT :: Type
+doubleT = TyC "Double" []
 
 boolT :: Type
 boolT = TyC "Bool" []
