@@ -93,7 +93,7 @@ deTuple (Proj t l e i) = do
                             let r = Proj (fst $ transType t) l e' i
                             case e' of
                                 (App _ v es) -> if isTupleConstr v 
-                                                 then return $ es L.!! i
+                                                 then return $ es L.!! (i - 1)
                                                  else return r
                                 _            -> return r
 deTuple v@(Nil t) | containsTuple t = do
