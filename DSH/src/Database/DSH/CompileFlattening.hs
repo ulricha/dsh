@@ -119,12 +119,14 @@ translate (AppE2 All f e _) = transformE $ AppE1 And (AppE2 Map f e $ ListT Bool
 translate (AppE2 Snoc e1 e2 t) = transformE (AppE2 Append e1 (ListE [e2] t) t)-}
 translate (AppE2 f2 e1 e2 ty) = do
                                         let tr = ty2ty ty
-                                        case elem f2 [Add, Sub, Mul, Div, Equ, Lt, Lte, Gte, Gt, Conj, Disj] of
-                                            True  -> do
-                                                      e1' <- translate e1
-                                                      e2' <- translate e2
-                                                      return $ NKL.BinOp tr (transformOp f2) e1' e2'
-                                            False -> error "Application2: Not supported yet"
+                                        if elem f2 [Add, Sub, Mul, Div, Equ, Lt, Gt, Conj, Disj]
+                                            then do
+                                                   e1' <- translate e1
+                                                   e2' <- translate e2
+                                                   return $ NKL.BinOp tr (transformOp f2) e1' e2'
+                                            else if elem f2 [Lte, Gte] 
+                                                    then translate (AppE2 Disj (AppE2 Equ e1 e2 ty) (AppE2 (gtorlt f2) e1 e2 ty) ty)
+                                                    else error "Application2: Not supported yet"
                                               {- do
                                                       e1' <- transformArg e1
                                                       e2' <- transformArg e2
@@ -156,6 +158,11 @@ translate (AppE3 f3 e1 e2 e3 ty) = do
 translate (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
 -}
 
+gtorlt :: Fun2 -> Fun2
+gtorlt Gte = Gt
+gtorlt Lte = Lt
+gtorlt _   = $impossible
+
 cons :: T.Type -> NKL.Expr -> NKL.Expr -> NKL.Expr
 cons t e1 e2 = NKL.BinOp t (O.Op ":" 0) e1 e2
 
@@ -164,7 +171,6 @@ isTuple ('(':xs) = let l = length xs
                        s = (replicate (l - 1) ',' ) ++ ")"
                     in if (xs == s) then Just (l - 1) else Nothing
 isTuple _      = Nothing
-
 
 ty2ty :: Type -> T.Type
 ty2ty UnitT = T.unitT
