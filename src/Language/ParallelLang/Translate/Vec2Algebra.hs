@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 
 import Language.ParallelLang.Common.Data.Val
@@ -12,6 +13,9 @@ import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
+
+import Language.ParallelLang.Common.Impossible
+
 type Graph = GraphM Plan
 
 type Gam = A.Gam Plan
@@ -19,7 +23,7 @@ type Gam = A.Gam Plan
 type Plan = Query AlgNode
 
 -- | Results are stored in column:
-pos, item1, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol :: String
+pos, item1, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: String
 pos       = "pos"
 item1     = "item1"
 descr     = "iter"
@@ -67,11 +71,15 @@ val2Alg :: Val -> Graph AlgNode
 val2Alg (Int i) = litTable (int $ fromIntegral i) item1 intT
 val2Alg (Bool b) = litTable (bool b) item1 boolT
 val2Alg Unit     = litTable (int (-1)) item1 intT  
+val2Alg (String s) = litTable (string s) item1 stringT
+val2Alg (Double d) = litTable (double d) item1 doubleT 
 
 convertType :: U.Type -> ATy
 convertType t | t == U.intT  = intT
               | t == U.boolT = boolT
               | t == U.unitT = intT
+              | t == U.stringT = stringT
+              | t == U.doubleT = doubleT
               | otherwise = error "convertType: Can't convert from DBPH type to Ferry types"
 
 vec2Alg :: Expr T.VType -> Graph Plan
@@ -87,8 +95,8 @@ vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have
                                                 p1 <- vec2Alg e1
                                                 p2 <- vec2Alg e2
                                                 let (rt, extr) = case l of
-                                                                  0 -> (PrimVal, \(PrimVal q) -> q)
-                                                                  1 -> (ValueVector, \(ValueVector q) -> q)
+                                                                  0 -> (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
+                                                                  1 -> (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
                                                                   _ -> error "This level of liftedness should have been elimated"
                                                 let q1 = extr p1
                                                 let q2 = extr p2
@@ -126,7 +134,7 @@ vec2Alg (Let _ s e1 e2) = do
                             e1' <- tagVector s $ vec2Alg e1
                             withBinding s e1' (vec2Alg e2)
 vec2Alg (Var _ s i) = fromGam $ constrEnvName s i
-vec2Alg (App t (Var _ x i) args) = case x of
+vec2Alg (App _ (Var _ x i) args) = case x of
                                     "outer" -> do 
                                                 let [e] = map vec2Alg args
                                                 outer e
@@ -180,9 +188,10 @@ vec2Alg (App t (Var _ x i) args) = case x of
                                                  case v of
 --                                                     UnEvaluated v' -> vec2Alg (App t v' args)
                                                      _              -> error $ "vec2Alg application: Not a function: " ++ show v
-vec2Alg (App _ (Fn _ n i avs e) args) = do
+vec2Alg (App _ (Fn _ _ _ avs e) args) = do
                                          args' <- mapM vec2Alg args
-                                         foldr (\(x, a) e -> withBinding x a e) (vec2Alg e) (zip avs args')
+                                         foldr (\(x, a) ex -> withBinding x a ex) (vec2Alg e) (zip avs args')
+vec2Alg _ = error "Not defined yet"
 {-
 data Expr t where
     App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
@@ -273,7 +282,6 @@ segment e = do
 extract :: Graph Plan -> Int -> Graph Plan
 extract p 0 = p
 extract p n | n > 0 = do
-                       v' <- p
                        (NestedVector _ p') <- p
                        extract (return p') (n - 1)
             | otherwise = error "Can't extract a negative amount of descriptors"
@@ -337,10 +345,6 @@ determineResultVector' e1 e2 = do
                                                 else let (DescrVector q1') = e1' 
                                                          (DescrVector q2') = e2' in (q1', q2')
                                 return (rf, q1, q2, pf)
-
-var :: String -> Graph Plan
-var s = fromGam s
-
 
 toDescr :: Graph Plan -> Graph Plan
 toDescr v = do

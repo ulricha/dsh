@@ -1,7 +1,5 @@
 module Language.ParallelLang.VL.Data.Query where
 
-import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.FKL.Render.Render()
 
 data Query a =

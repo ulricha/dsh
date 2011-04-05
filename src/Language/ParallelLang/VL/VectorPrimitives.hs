@@ -2,7 +2,6 @@ module Language.ParallelLang.VL.VectorPrimitives where
 
 import Language.ParallelLang.VL.Data.VectorTypes
 import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.FKL.Render.Render
 import Language.ParallelLang.Translate.TransM
 
 import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
