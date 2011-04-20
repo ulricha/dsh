@@ -30,13 +30,13 @@ nkl2Vec e = show $ fst $ nkl2Vec' e
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform normalCompilation $
              do 
-                 (_, e', _) <- flatTransform ([], e) >>=  runRWPhase1 >>= detuple 
-                 (_, r) <- runRWPhase2 ([], e')
+                 (e', _) <- flatTransform e >>= runRWPhase1 >>= detuple 
+                 r <- runRWPhase2 e'
                  return r
 
 nkl2Vec' :: NKL.Expr -> (FKL.Expr VType, ReconstructionPlan)
 nkl2Vec' e = runTransform normalCompilation  $ 
                 do 
-                 (_, e', reconstruction) <- flatTransform ([], e) >>=  runRWPhase1 >>= detuple 
-                 (_, r) <- runRWPhase2 ([], e') >>= runVectorise 
+                 (e', reconstruction) <- flatTransform e >>= runRWPhase1 >>= detuple 
+                 r <- runRWPhase2 e' >>= runVectorise 
                  return (r, reconstruction)

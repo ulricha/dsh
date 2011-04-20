@@ -16,11 +16,10 @@ optional b r e = do
                  False -> return e
                  True  -> r e
                  
-rewriteAST :: RewriteRule -> ([Expr Type], Expr Type) -> TransM ([Expr Type], Expr Type)
-rewriteAST r (es, e) = do
-                             rs' <- mapM (rewriteTree r) es
-                             r' <- rewriteTree r e
-                             return (rs', r')
+rewriteAST :: RewriteRule -> Expr Type -> TransM (Expr Type)
+rewriteAST r e = do
+                     rewriteTree r e
+
 
 
 

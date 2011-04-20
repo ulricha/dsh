@@ -14,17 +14,16 @@ import Language.ParallelLang.Common.Data.Op
 
 import qualified Data.List as L
 
-detuple :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr, ReconstructionPlan)
-detuple v@(_, e) = do
-               (fs', e') <- normTuples v
-               return (fs', e', snd $ transType $ typeOf e)
+detuple :: TExpr -> TransM (TExpr, ReconstructionPlan)
+detuple v = do
+               e' <- normTuples v
+               return (e', snd $ transType $ typeOf v)
                
 
-normTuples :: ([TExpr], TExpr) -> TransM ([TExpr], TExpr)
-normTuples (fs, e) = do
-                        fs' <- mapM deTupleFun fs
+normTuples :: TExpr -> TransM TExpr
+normTuples e = do
                         e' <- deTuple e
-                        return (fs', e')
+                        return e'
                         
 deTupleFun :: TExpr -> TransM TExpr
 deTupleFun (Fn t n l args e) = do
