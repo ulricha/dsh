@@ -1,13 +1,15 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, StandaloneDeriving  #-}
 module Language.ParallelLang.Common.Data.Val where
 
 {-
 Basic values in both FKL and NKL. 
 -}
-data Val where
-    Int :: Int -> Val
-    Bool :: Bool -> Val
-    String :: String -> Val
-    Double :: Double -> Val
-    Unit :: Val
-    deriving (Eq, Show)
+data Val t where
+    Int :: Int -> Val Int
+    Bool :: Bool -> Val Bool
+    String :: String -> Val String
+    Double :: Double -> Val Double
+    Unit :: Val ()
+
+deriving instance Eq (Val t)
+deriving instance Show (Val t)

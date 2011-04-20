@@ -1,10 +1,24 @@
-{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, ExistentialQuantification #-}
 module Language.ParallelLang.FKL.Data.FKL where
 
+import Language.ParallelLang.Common.Data.TypeRestrictions 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
-  
+-- import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
+
+data Expr t where
+    Labeled :: QT t => String -> Expr t -> Expr t
+    App     :: forall a b. (QT a, QT b) => Expr (a -> b) -> Expr a -> Expr b 
+    Fn      :: (QT a, QT b) => String -> Expr b -> Expr (a -> b)
+    Let     :: forall a b. (QT a, QT b) => String -> Expr a -> Expr b -> Expr b
+    If      :: Expr Bool -> Expr a -> Expr a -> Expr a
+    BinOp   :: forall a b c. (QT a, QT b, QT c) => Op (a -> b -> c) -> Expr a -> Expr b -> Expr c
+    Const   :: RT a => Val a -> Expr a
+    Var     :: QT a => String -> Expr a
+    Nil     :: QT a => Expr a
+    Proj    :: forall a b. (QT a, QT b) => Expr a -> Int -> Expr b
+    
+{-
 -- | Data type expr represents flat kernel language.
 data Expr t where
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
@@ -34,3 +48,4 @@ instance Typed Expr t where
 isTupleConstr :: Expr Type -> Bool
 isTupleConstr (Var _ ('(':xs) _) = (==) ")" $ dropWhile (\x -> x == ',') xs 
 isTupleConstr _ = False
+-}
