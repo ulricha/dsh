@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Language.ParallelLang.Translate.NKL2FKL where
+module Language.ParallelLang.Translate.NKL2FKL (flatTransform) where
 
 import qualified Language.ParallelLang.FKL.Data.FKL as F
 import qualified Language.ParallelLang.NKL.Data.NKL as N
@@ -9,35 +9,31 @@ import Language.ParallelLang.Translate.TransM
 import Language.ParallelLang.FKL.ProcessFKL
 
 import Language.ParallelLang.FKL.Primitives
-import Language.ParallelLang.Common.Impossible
+-- import Language.ParallelLang.Common.Impossible
 import Language.ParallelLang.Common.Data.Type
-import Language.ParallelLang.Common.Data.Prelude(preludeEnv)
+-- import Language.ParallelLang.Common.Data.Prelude(preludeEnv)
 
-import qualified Data.Map as M
+-- import qualified Data.Map as M
 import qualified Data.List as L
 
 import Control.Applicative
 
-flatTransform :: ([N.Expr], N.Expr) -> TransM ([F.Expr Type], F.Expr Type)
-flatTransform (fs, e) = do
-                           -- Transform function declarations
-                           fs'  <- mapM transform fs
-                           -- Lift all declared functions
-                           fs'' <- mapM liftFunction fs'
-                           let fs''' = map (\(_, _, _, fn) -> fn) fs''
+flatTransform :: N.Expr -> TransM (F.Expr Type)
+flatTransform e = do
                            e'   <- transform e
-                           -- let funs = collectLifted (e':(concat fs'''))
-                           -- let liftFun = generateHigherLifted (M.fromList $ primFuns ++ funArgs) funs
-                           return (concat fs''', e')
-                           
+                           return e'
+
+{-                           
 generateHigherLifted :: M.Map String ([String], Type) -> [(String, [Int])] -> [F.Expr Type]
 generateHigherLifted args l = concat $ [map (liftFunD x (args M.! x)) (filter (>1) is) | (x, is) <- l]
-
+-}
+{-
 liftFunD :: String -> ([String], Type) -> Int -> F.Expr Type
 liftFunD n (args, t) d = let (tys, rt) = splitTypeArgsRes t
                              argTy = zip args $ map (liftTypeN d) tys
                              f = F.App (liftType rt) (F.Var (liftType t) n 1) [extractF (F.Var ty v 0) (intF (d -1)) | (v, ty) <- argTy]
                           in F.Fn (liftTypeN d t) n d args $ insertF f (F.Var (liftTypeN d $ head tys) (head args) 0) (intF $ d-1)
+-}
 
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
@@ -141,9 +137,11 @@ flatten' i d (F.Proj t l e1 el) = do
                                 e1' <- flatten i d e1
                                 return $ F.Proj (listT t) (l + 1) e1' el
 
+{-
 group' :: Eq a => [(a, b)] -> [(a, [b])]
 group' a = map (\(k, v) -> (head k, v)) $ map (\ls -> (map fst ls, map snd ls)) $  L.groupBy (\(x, _) (y, _) -> x == y) a
-
+-}
+{-
 collectLifted :: [F.Expr Type] -> [(String, [Int])]
 collectLifted es = group' $ L.nub $ filter (\(n, i) -> (not $ isPrimitive n) || i > 1) $ concatMap collectFns es
 
@@ -213,7 +211,7 @@ primFunsArgs = [("+",     ["e1", "e2"]),
           ("(,)", ["e1", "e2"]),
           ("(,,)", ["e1", "e2", "e3"]),
           ("(,,,)", ["e1", "e2", "e3", "e4"])]
-
+-}
 dependsOnVar :: [String] -> F.Expr Type -> Bool
 dependsOnVar v (F.Labeled _ e) = dependsOnVar v e
 dependsOnVar v (F.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
