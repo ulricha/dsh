@@ -1,46 +1,39 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, unsafeInstantiate, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, emptyTyEnv, TypeScheme(..), Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, TyEnv, generalise, Typed (..))
+ (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), (.~>), apply, addSubstitution, Typed (..))
 where
     
 import qualified Data.Map as M
 import qualified Data.List as L
 
-type TyEnv = String -> TypeScheme
-
-emptyTyEnv :: TyEnv
-emptyTyEnv = \i -> error $ "Variable " ++ i ++ " not bound in env." 
-
-instance Show TypeScheme where
-    show (Forall v t) = "forall " ++ v ++ ". " ++ show t
-    show (Ty t) = show t
-    
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+    show (LFn t1 t2) = "(" ++ show t1 ++ " :-> " ++ show t2 ++ ")"
     show (TyC c []) = c
     show (TyC c ts) = case c of
                         "List"  -> "[" ++ (show $ head ts) ++ "]"
                         "tuple" -> "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
                         _       -> c ++ (concat $ L.intersperse " " (map show ts)) 
 
-data TypeScheme where
-    Forall :: String -> TypeScheme -> TypeScheme
-    Ty :: Type -> TypeScheme
-
 data Type where
     Var :: String -> Type
     TyC :: String -> [Type] -> Type
     Fn :: Type -> Type -> Type
+    LFn :: Type -> Type -> Type
     deriving Eq
---    Forall :: String -> Type -> Type
 
+infixr 7 .~>
 infixr 6 .->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
+varsInType (LFn t1 t2) = varsInType t1 ++ varsInType t2
 varsInType (TyC _ vs) = concatMap varsInType vs
 varsInType (Var v) = [v]
+
+(.~>) :: Type -> Type -> Type
+t1 .~> t2 = LFn t1 t2
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = Fn t1 t2
@@ -78,13 +71,6 @@ containsTuple (Fn t1 t2) = containsTuple t1 || containsTuple t2
 containsTuple (TyC "tuple" _) = True
 containsTuple (TyC _ ts) = or $ map containsTuple ts
 containsTuple _          = False
-
-{-
-containsTuple :: Type -> Bool
-containsTuple (TyC "List" [t1]) = containsTuple t1
-containsTuple (TyC "tuple" _) = True
-containsTuple _               = False
--}
 
 extractTuple :: Type -> (Type, Type -> Type, Int)
 extractTuple (TyC "List" [t1]) = let (t, f, i) = extractTuple t1
@@ -134,33 +120,14 @@ class Substitutable a where
 
 instance Substitutable Type where
     apply s (Fn t1 t2) = Fn (apply s t1) (apply s t2)
+    apply s (LFn t1 t2) = LFn (apply s t1) (apply s t2)
     apply s (TyC n args) = TyC n $ map (apply s) args
     apply s t@(Var v2) = M.findWithDefault t v2 s
 
-instance Substitutable TypeScheme where
-    apply _ t@(Forall _ _) = t
-    apply s (Ty t) = Ty $ apply s t
-
-instance Substitutable TyEnv where
-    apply s env = (\x -> apply s $ env x)
-    
 addSubstitution :: Subst -> String -> Type -> Subst
 addSubstitution s i t = let s' = M.singleton i t
                             s'' = M.map (apply s') s
                          in s' `M.union` s''
-
-generalise :: Type -> TypeScheme
-generalise t = let fv = collectFreeVars t
-                in foldr Forall (Ty t) fv
-                
-unsafeInstantiate :: TypeScheme -> Type
-unsafeInstantiate (Forall _ t) = unsafeInstantiate t
-unsafeInstantiate (Ty t)       = t
-
-collectFreeVars :: Type -> [String]
-collectFreeVars (Fn t1 t2) = L.nub $ (collectFreeVars t1 ++ collectFreeVars t2)
-collectFreeVars (TyC _ ts) = L.nub $ concatMap collectFreeVars ts
-collectFreeVars (Var t) = [t]
 
 class Typed a t where
   typeOf :: a t -> t

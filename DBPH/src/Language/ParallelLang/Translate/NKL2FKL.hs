@@ -11,7 +11,6 @@ import Language.ParallelLang.FKL.ProcessFKL
 import Language.ParallelLang.FKL.Primitives
 -- import Language.ParallelLang.Common.Impossible
 import Language.ParallelLang.Common.Data.Type
--- import Language.ParallelLang.Common.Data.Prelude(preludeEnv)
 
 -- import qualified Data.Map as M
 import qualified Data.List as L

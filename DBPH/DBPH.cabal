@@ -27,7 +27,6 @@ Library
     Exposed-modules: Language.ParallelLang.DBPH
                      Language.ParallelLang.NKL.Data.NKL
                      Language.ParallelLang.Common.Data.Val
-                     Language.ParallelLang.Common.Data.TypeRestrictions
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.Translate.Vectorise
                      Language.ParallelLang.Common.Data.Op
@@ -39,7 +38,6 @@ Library
                    Language.ParallelLang.FKL.Render.Render
                    Language.ParallelLang.Common.Impossible
                    Language.ParallelLang.Translate.TransM
-                   Language.ParallelLang.Common.Data.Prelude
                    Language.ParallelLang.Translate.RewritePhases
                    Language.ParallelLang.Translate.Rewriter
                    Language.ParallelLang.FKL.ProcessFKL
