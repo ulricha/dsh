@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), (.~>), apply, addSubstitution, Typed (..))
+ (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..))
 where
     
 import qualified Data.Map as M
@@ -9,7 +9,7 @@ import qualified Data.List as L
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
-    show (LFn t1 t2) = "(" ++ show t1 ++ " :-> " ++ show t2 ++ ")"
+--    show (LFn t1 t2) = "(" ++ show t1 ++ " :-> " ++ show t2 ++ ")"
     show (TyC c []) = c
     show (TyC c ts) = case c of
                         "List"  -> "[" ++ (show $ head ts) ++ "]"
@@ -20,20 +20,20 @@ data Type where
     Var :: String -> Type
     TyC :: String -> [Type] -> Type
     Fn :: Type -> Type -> Type
-    LFn :: Type -> Type -> Type
+--    LFn :: Type -> Type -> Type
     deriving Eq
 
-infixr 7 .~>
+-- infixr 7 .~>
 infixr 6 .->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (LFn t1 t2) = varsInType t1 ++ varsInType t2
+-- varsInType (LFn t1 t2) = varsInType t1 ++ varsInType t2
 varsInType (TyC _ vs) = concatMap varsInType vs
 varsInType (Var v) = [v]
 
-(.~>) :: Type -> Type -> Type
-t1 .~> t2 = LFn t1 t2
+-- (.~>) :: Type -> Type -> Type
+-- t1 .~> t2 = LFn t1 t2
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = Fn t1 t2
@@ -120,7 +120,7 @@ class Substitutable a where
 
 instance Substitutable Type where
     apply s (Fn t1 t2) = Fn (apply s t1) (apply s t2)
-    apply s (LFn t1 t2) = LFn (apply s t1) (apply s t2)
+--    apply s (LFn t1 t2) = LFn (apply s t1) (apply s t2)
     apply s (TyC n args) = TyC n $ map (apply s) args
     apply s t@(Var v2) = M.findWithDefault t v2 s
 

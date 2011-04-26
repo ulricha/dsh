@@ -13,9 +13,7 @@ render :: Expr t -> Doc
 render (Labeled _ e) = render e
 render (App _ e1 e2) = let e2' = map render e2
                       in parens $ render e1 <+> hsep e2'
-render (Fn _ n 0 args e) = text "fn" <+> text n <+> hsep (map text args) <+> text "="
-                            $+$ render e
-render (Fn _ n i args e) = text "fn" <+> text n <> text "^" <> int i <+> hsep (map text args) <+> text "="
+render (Lam _ arg e) = text "\\" <+> text arg <+> text "->"
                             $+$ render e
 render (Let _ x e1 e2) = let e1' = render e1
                              e2' = render e2

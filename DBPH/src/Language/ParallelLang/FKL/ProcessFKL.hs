@@ -17,9 +17,9 @@ substitute n r e = substitute' e
   substitute' (Labeled s e1) = Labeled s (substitute' e1)
   substitute' (App t e1 es) = App t (substitute' e1) $ map substitute' es
   substitute' (Nil t) = Nil t
-  substitute' v@(Fn t f i args e1) = case elem n (f:args) of
+  substitute' v@(Lam t arg e1) = case n == arg of
                                         True -> v
-                                        False -> Fn t f i args $ substitute' e1
+                                        False -> Lam t arg $ substitute' e1
   substitute' (Let t x e1 e2) = case n == x of
                                     True -> Let t x (substitute' e1) e2
                                     False -> Let t x (substitute' e1) $ substitute' e2

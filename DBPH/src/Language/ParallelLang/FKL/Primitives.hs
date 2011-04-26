@@ -11,6 +11,12 @@ import Language.ParallelLang.Common.Data.Type
 
 type TExpr = F.Expr Type
 
+cloApp :: Type -> TExpr -> [TExpr] -> TExpr
+cloApp t e1 es = CloApp t e1 es
+
+cloLApp :: Type -> TExpr -> [TExpr] -> TExpr
+cloLApp t e1 es = CloLApp t e1 es
+
 indexF :: TExpr -> TExpr -> TExpr
 indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1
                    t2 = typeOf e2
