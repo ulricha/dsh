@@ -27,12 +27,12 @@ rwPhase1' = optional (withOpt PermuteOpt) rewriteIndexDist
 rwPhase1 :: RewriteRule
 rwPhase1 x = (pure x) >>=
               optional (withOpt LetSimple) removeLetVarIsSimple >>=
-              rewriteCombineLift >>=
-              rewriteRestrictLift >>=
-              rewriteIndexPromote >>=
-              rewritePromote >>=
-              rewriteHigherLiftedOp >>=
-              removeHigherLifted >>=
+              -- rewriteCombineLift >>=
+              -- rewriteRestrictLift >>=
+              -- rewriteIndexPromote >>=
+              -- rewritePromote >>=
+              -- rewriteHigherLiftedOp >>=
+              -- removeHigherLifted >>=
               optional (withOpt LetSimple) removeLetVarIsSimple  
 
               
@@ -47,6 +47,7 @@ removeLetVarIsSimple l@(Let _ v e1 e2) = return $ case isSimpleExpr e1 of
                                                     True -> substitute v e1 e2
 removeLetVarIsSimple e1 = return e1
 
+{-
 removeHigherLifted :: RewriteRule
 removeHigherLifted a@(App rt (Var _ n d) es) | d > 1 =
                         do
@@ -61,7 +62,8 @@ removeHigherLifted a@(App rt (Var _ n d) es) | d > 1 =
                                         v1 (intF $ d - 1)
                                             | otherwise = return a
 removeHigherLifted e = return e
-
+-}
+{-
 rewriteHigherLiftedOp :: RewriteRule
 rewriteHigherLiftedOp a@(BinOp rt (Op n d) e1 e2) | d > 1 =
                     do
@@ -74,7 +76,8 @@ rewriteHigherLiftedOp a@(BinOp rt (Op n d) e1 e2) | d > 1 =
                                     $ insertF (BinOp rt' (Op n 1) e1' e2') v1 (intF $ d - 1)
                                                  | otherwise = return a
 rewriteHigherLiftedOp e = return e
-
+-}
+{-
 rewritePromote :: RewriteRule
 rewritePromote (App _ (Var _ "promote" 0) [e1, e2]) = 
                             let d = listDepth $ typeOf e2
@@ -87,7 +90,8 @@ rewritePromote (App _ (Var _ "promote" 0) [e1, e2]) =
                                                          v2 (intF $ d - 1) 
                                  else return $ distF e1 e2
 rewritePromote e = return e
-
+-}
+{-
 rewriteRestrictLift :: RewriteRule
 rewriteRestrictLift a@(App _ (Var _ "restrict" d) [e1, e2]) | d > 0 =
                             do
@@ -98,7 +102,8 @@ rewriteRestrictLift a@(App _ (Var _ "restrict" d) [e1, e2]) | d > 0 =
                                                 v1 (intF d)
                                                             | otherwise = return a
 rewriteRestrictLift e = return e
-
+-}
+{-
 rewriteCombineLift :: RewriteRule
 rewriteCombineLift a@(App _ (Var _ "combine" d) [e1, e2, e3]) | d > 0 = 
                               do
@@ -116,7 +121,7 @@ rewriteCombineLift a@(App _ (Var _ "combine" d) [e1, e2, e3]) | d > 0 =
                                                                 v1 (intF d) 
                                                               | otherwise = return a
 rewriteCombineLift e = return e
-
+-}
 rewriteIndexDist :: RewriteRule
 rewriteIndexDist a@(App _ (Var _ "index" 1) [(App _ (Var _ "dist" 0) [e1, e2]), e3]) | e2 == e3 = return $ bPermuteF e1 e3
                                                                                      | otherwise = return a
