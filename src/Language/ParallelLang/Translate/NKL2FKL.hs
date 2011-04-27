@@ -30,7 +30,7 @@ transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
-transform (N.Var t x l) = pure $ F.Var t x l
+transform (N.Var t x) = pure $ F.Var t x
 transform (N.Iter t n e1 e2) = do
                                 e1' <- transform e1
                                 r <- flatten n e1' e2
@@ -47,15 +47,16 @@ flatten i e1 eb = do
                                 if (not $ isSimpleExpr e1)
                                   then do
                                          fv <- getFreshVar
-                                         let v = F.Var (typeOf e1) fv 0
+                                         let v = F.Var (typeOf e1) fv
                                          e' <- flatten i v eb
                                          return $ letF fv e1 e'
                                   else if (not $ N.isSimpleExpr eb) && (not $ dependsOnVar (i:fVars) eb)
                                          then do
                                                fv <- getFreshVar
                                                let t = typeOf eb
-                                               e' <- flatten' i e1 (N.Var t fv 0)
-                                               return $ letF fv eb e'
+                                               e' <- flatten' i e1 (N.Var t fv)
+                                               undefined
+                                               -- return $ letF fv eb e'
                                          else flatten' i e1 eb
                                              
                          else flatten' i e1 eb
@@ -205,6 +206,6 @@ dependsOnVar v (N.Let _ x e1 e2) | x `elem` v = dependsOnVar v e1
                                | otherwise  = dependsOnVar v e1 || dependsOnVar v e2
 dependsOnVar v (N.If _ e1 e2 e3) = dependsOnVar v e1 || dependsOnVar v e2 || dependsOnVar v e3
 dependsOnVar v (N.BinOp _ _ e1 e2) = dependsOnVar v e1 || dependsOnVar v e2
-dependsOnVar v (N.Var _ x _) = x `elem` v
+dependsOnVar v (N.Var _ x) = x `elem` v
 dependsOnVar _ (N.Const _ _) = False
 dependsOnVar v (N.Proj _ _ e _) = dependsOnVar v e

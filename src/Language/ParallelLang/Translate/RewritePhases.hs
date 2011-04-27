@@ -123,10 +123,11 @@ rewriteCombineLift a@(App _ (Var _ "combine" d) [e1, e2, e3]) | d > 0 =
 rewriteCombineLift e = return e
 -}
 rewriteIndexDist :: RewriteRule
-rewriteIndexDist a@(App _ (Var _ "index" 1) [(App _ (Var _ "dist" 0) [e1, e2]), e3]) | e2 == e3 = return $ bPermuteF e1 e3
-                                                                                     | otherwise = return a
+rewriteIndexDist a@(CloLApp _ (Var _ "index") [(CloApp _ (Var _ "dist") [e1, e2]), e3]) | e2 == e3 = return $ bPermuteF e1 e3
+                                                                                        | otherwise = return a
 rewriteIndexDist e = return e
 
+{-
 rewriteIndexPromote :: RewriteRule
 rewriteIndexPromote a@(App _ (Var _ "index" d) [(App _ (Var _ "promote" 0) [e1, e2]), e3]) | d > 1 && e2 == e3 =
                                 do  
@@ -135,3 +136,4 @@ rewriteIndexPromote a@(App _ (Var _ "index" d) [(App _ (Var _ "promote" 0) [e1, 
                                     return $ letF fv e2 $ insertF (bPermuteF e1 (extractF v (intF $ d - 1))) v (intF $ d - 1)
                                                                                            | otherwise = return a
 rewriteIndexPromote e = return e    
+-}

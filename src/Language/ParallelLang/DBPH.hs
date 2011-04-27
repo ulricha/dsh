@@ -34,7 +34,7 @@ nkl2Vec e = show $ fst $ nkl2Vec' e
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform normalCompilation $
              do 
-                 (e', _) <- flatTransform e >>= runRWPhase1 >>= detuple 
+                 e' <- flatTransform e >>= runRWPhase1 -- >>= detuple 
                  r <- runRWPhase2 e'
                  return r
 {-
