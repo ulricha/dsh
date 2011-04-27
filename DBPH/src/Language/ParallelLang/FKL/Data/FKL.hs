@@ -39,5 +39,5 @@ instance Typed Expr t where
 --    typeOf ()
     
 isTupleConstr :: Expr Type -> Bool
-isTupleConstr (Var _ ('(':xs) _) = (==) ")" $ dropWhile (\x -> x == ',') xs 
+isTupleConstr (Var _ ('(':xs)) = (==) ")" $ dropWhile (\x -> x == ',') xs 
 isTupleConstr _ = False

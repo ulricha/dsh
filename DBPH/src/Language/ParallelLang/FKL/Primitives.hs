@@ -20,37 +20,37 @@ cloLApp t e1 es = CloLApp t e1 es
 indexF :: TExpr -> TExpr -> TExpr
 indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1
                    t2 = typeOf e2
-                in F.App t (F.Var (t1 .-> t2 .-> t) "index" 0) [e1, e2]
+                in F.App t (F.Var (t1 .-> t2 .-> t) "index") [e1, e2]
 
 distF :: TExpr -> TExpr -> TExpr 
 distF e1 e2 = let t1 = typeOf e1
                   t2 = typeOf e2
                   ft = t1 .-> t2 .-> listT t1
-               in F.App (listT t1) (F.Var ft "dist" 0) [e1, e2] 
+               in F.App (listT t1) (F.Var ft "dist") [e1, e2] 
 
 lengthF :: TExpr -> TExpr
 lengthF e1 = let t1 = typeOf e1
-              in F.App intT (F.Var (t1 .-> intT) "length" 0) [e1]
+              in F.App intT (F.Var (t1 .-> intT) "length") [e1]
 
 promoteF :: TExpr -> TExpr -> TExpr
 promoteF e1 e2 = let t1 = typeOf e1
                      t2 = typeOf e2
                      rt = extractShape t2 t1
                      ft = t1 .-> t2 .-> rt
-                  in F.App rt (F.Var ft "promote" 0) [e1, e2]
+                  in F.App rt (F.Var ft "promote") [e1, e2]
 
 restrictF :: TExpr -> TExpr -> TExpr
 restrictF e1 e2 = let t1 = typeOf e1
                       rt = t1
                       ft = t1 .-> listT boolT .-> rt
-                   in F.App rt (F.Var ft "restrict" 0) [e1, e2]
+                   in F.App rt (F.Var ft "restrict") [e1, e2]
 
 rangeF :: TExpr -> TExpr -> TExpr
-rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range" 0) [e1, e2]
+rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range") [e1, e2]
 
 notF :: TExpr -> TExpr
-notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "not" 0) [e]
-       | typeOf e == listT boolT = F.App (listT boolT) (F.Var (listT boolT .-> listT boolT) "not" 1) [e] 
+notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "not") [e]
+       | typeOf e == listT boolT = F.App (listT boolT) (F.Var (listT boolT .-> listT boolT) "not") [e] 
        | otherwise = error $ "notF" ++ show (typeOf e)
        
 combineF :: TExpr -> TExpr -> TExpr -> TExpr
@@ -58,34 +58,34 @@ combineF e1 e2 e3 = let t1 = typeOf e1
                         t2 = typeOf e2
                         rt = t2
                         ft = t1 .-> t2 .-> t2 .-> rt
-                     in F.App rt (F.Var ft "combine" 0) [e1, e2, e3]
+                     in F.App rt (F.Var ft "combine") [e1, e2, e3]
 
 insertF :: TExpr -> TExpr -> TExpr -> TExpr
 insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
                                         t2 = typeOf v
                                         rt = liftTypeN i t1
                                         ft = t1 .-> t2 .-> intT .-> rt
-                                     in F.App rt (F.Var ft "insert" 0) [f, v, d]
+                                     in F.App rt (F.Var ft "insert") [f, v, d]
 insertF _ _ _ = error "Third argument to insert should be an integer"
 
 extractF :: TExpr -> TExpr -> TExpr
 extractF v d@(F.Const _ (Int i)) = let t1 = typeOf v
                                        rt = unliftTypeN i t1
                                        ft = t1 .-> intT .-> rt
-                                    in F.App rt (F.Var ft "extract" 0) [v, d]
+                                    in F.App rt (F.Var ft "extract") [v, d]
 extractF _ _ = error "Second argument to extract should be an integer"
 
 bPermuteF :: TExpr -> TExpr -> TExpr
-bPermuteF e1 e2 = F.App (typeOf e1) (F.Var (typeOf e1 .-> typeOf e2 .-> typeOf e1) "bPermute" 0) [e1, e2] 
+bPermuteF e1 e2 = F.App (typeOf e1) (F.Var (typeOf e1 .-> typeOf e2 .-> typeOf e1) "bPermute") [e1, e2] 
 
 intF :: Int -> TExpr
 intF i = F.Const intT $ Int i
 
 varF :: Type -> String -> TExpr
-varF t x = F.Var t x 0
+varF t x = F.Var t x
 
 zipF :: [TExpr] -> TExpr
-zipF es = F.App resType (flip (F.Var zipType) 0 $ "zip" ++ (show $ length es)) es
+zipF es = F.App resType (F.Var zipType $ "zip" ++ (show $ length es)) es
   where
      types = map typeOf es
      resType = (TyC "tuple" types)
@@ -98,7 +98,7 @@ tagN :: String -> Expr t -> Expr t
 tagN s e = Labeled s e
 
 tupleF :: [TExpr] -> TExpr
-tupleF es = F.App resType (F.Var tType tName 0) es
+tupleF es = F.App resType (F.Var tType tName) es
     where
         resType = TyC "tuple" [typeOf e | e <- es]
         tName = "(" ++ replicate ((length es) - 1) ',' ++ ")"

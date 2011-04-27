@@ -24,7 +24,7 @@ data Ex t where
 isSimpleExpr :: Ex t -> Bool
 isSimpleExpr (Const _ _) = True
 isSimpleExpr (Nil _) = True
-isSimpleExpr (Var _ _ _) = True
+isSimpleExpr (Var _ _) = True
 isSimpleExpr _ = False
 
 instance Typed Ex t where

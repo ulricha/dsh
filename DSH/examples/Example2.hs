@@ -33,5 +33,5 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 main :: IO ()
 main = do
   conn   <- getConn
-  result <- fromQ conn query
-  print result
+  result <- debugPlan conn query
+  putStrLn result

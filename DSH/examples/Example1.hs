@@ -69,5 +69,5 @@ query = [$qc| tuple (the cat, nub $ concatMap descrFacility fac)
 main :: IO ()
 main = do
   conn   <- getConn           -- Get a connection
-  result <- fromQ conn query  -- Execute the query using fromQ
-  print result
+  result <- debugPlan conn query  -- Execute the query using fromQ
+  putStrLn result
