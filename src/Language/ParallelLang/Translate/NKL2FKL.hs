@@ -48,161 +48,37 @@ transform (N.Iter t n e1 e2) = do
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
-flatten i e1 eb = do
-                    o <- withOpt RedRepl
-                    fVars <- getLetVars
-                    if o then do
-                                if (not $ isSimpleExpr e1)
-                                  then do
-                                         fv <- getFreshVar
-                                         let v = F.Var (typeOf e1) fv
-                                         e' <- flatten i v eb
-                                         return $ letF fv e1 e'
-                                  else if (not $ N.isSimpleExpr eb) && (not $ dependsOnVar (i:fVars) eb)
-                                         then do
-                                               fv <- getFreshVar
-                                               let t = typeOf eb
-                                               e' <- flatten' i e1 (N.Var t fv)
-                                               undefined
-                                               -- return $ letF fv eb e'
-                                         else flatten' i e1 eb
-                                             
-                         else flatten' i e1 eb
-
-flatten' :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
-flatten' = undefined
-{-flatten' i e1 (N.Var t x d) | i == x = return e1
-                            | otherwise = do 
-                                           isLet <- isLetVar x
-                                           case isLet of
-                                             True -> return $ F.Var (listT t) x d
-                                             False -> do
-                                                        isIter <- isIterVar x
-                                                        case isIter of
-                                                            True -> return $ distF (F.Var t x d) e1
-                                                            False -> return $ promoteF (F.Var t x d) e1
-flatten' _ e1 (N.Const t v) = return $ promoteF (F.Const t v) e1
-flatten' _ d (N.Nil t) = return $ promoteF (F.Nil t) d
-flatten' i d (N.App _ (F.Var _ "promote" 0) [arg1, arg2]) =
-                                do
-                                    arg2' <- flatten i d arg2
-                                    return $ promoteF arg1 arg2'
-flatten' i e1 (N.App t (F.Var ft x d) es) = F.App (liftType t) (F.Var (liftType ft) x $ d + 1) <$> mapM (flatten i e1) es
-flatten' i e1 (N.App t (F.Fn _ _ _ args b) vals) = flatten' i e1 (foldr (\(a, v) e -> F.Let t a v e) b (zip args vals))
-flatten' i e1 (N.Let ty v eb e) = do 
-                                o <- withOpt LetOpt
-                                case o of
-                                    True -> do
-                                             tB <- flatten i e1 eb
-                                             F.Let (listT ty) v tB <$> (withLetVar v $ flatten i e1 e)
-                                    False -> do
-                                              t <- getFreshVar
-                                              it <- getFreshVar
-                                              tb <- flatten i e1 eb
-                                              let t1 = typeOf eb
-                                              let t2 = typeOf e
-                                              bd <- withIterVar it $ flatten it 
-                                                                        (rangeF (intF 1) (lengthF $ varF (listT t1) t)) 
-                                                                        (substitute v (indexF (varF (listT t1) t)  (varF intT it)) 
-                                                                            $ substitute i (indexF e1 (varF intT it)) e)
-                                              return $ F.Let (listT t2) t tb bd
-flatten' i d (N.If ty e1 e2 e3) = do
-                                m <- getFreshVar
-                                t <- getFreshVar
-                                e <- getFreshVar
-                                k <- getFreshVar
-                                e1' <- flatten i d e1
-                                e2' <- withIterVar k $ flatten k (restrictF d (F.Var (listT boolT) m 0)) (substitute i (F.Var ty k 0) e2)
-                                e3' <- withIterVar k $ flatten k (restrictF d $ notF $ F.Var (listT boolT) m 0) (substitute i (F.Var ty k 0) e3)
-                                return $ F.Let (listT ty) m e1'
-                                            $ F.Let (listT ty) t e2'
-                                                $ F.Let (listT ty) e e3' 
-                                                    $ combineF (F.Var (listT boolT) m 0) (F.Var (listT ty) t 0) (F.Var (listT ty) e 0)
-flatten' _ _ (N.Fn _ _ _ _ _) = error "Functions cannot yet occur in lists"-- $impossible
-flatten' _ _ (N.App _ _ _) = error "Unsupported form of application" -- $impossible
-flatten' i d (N.BinOp t (Op o n) e1 e2) = do
-                                          e1' <- flatten i d e1
-                                          e2' <- flatten i d e2
-                                          return $ F.BinOp (listT t) (Op o (n + 1)) e1' e2'
-flatten' i d (N.Proj t l e1 el) = do
-                                e1' <- flatten i d e1
-                                return $ F.Proj (listT t) (l + 1) e1' el
--}
-{-
-group' :: Eq a => [(a, b)] -> [(a, [b])]
-group' a = map (\(k, v) -> (head k, v)) $ map (\ls -> (map fst ls, map snd ls)) $  L.groupBy (\(x, _) (y, _) -> x == y) a
--}
-{-
-collectLifted :: [F.Expr Type] -> [(String, [Int])]
-collectLifted es = group' $ L.nub $ filter (\(n, i) -> (not $ isPrimitive n) || i > 1) $ concatMap collectFns es
-
-collectFns :: (F.Expr Type) -> [(String, Int)]
-collectFns (F.Labeled _ e) = collectFns e
-collectFns (F.App _ e1 es) = collectFns e1 ++ concatMap collectFns es
-collectFns (F.Nil _) = []
-collectFns (F.Fn _ _ _ _ e1) = collectFns e1
-collectFns (F.Let _ _ e1 e2) = collectFns e1 ++ collectFns e2
-collectFns (F.If _ e1 e2 e3) = collectFns e1 ++ collectFns e2 ++ collectFns e3
-collectFns (F.BinOp _ (Op o i) e1 e2) = (:) (o, i) $ collectFns e1 ++ collectFns e2
-collectFns (F.Var _ _ 0) = []
-collectFns (F.Var _ x i) = [(x, i)]
-collectFns (F.Const _ _) = []
-collectFns (F.Proj _ _ e _) = collectFns e 
-
-liftFunction :: (F.Expr Type) -> TransM (String, Type, [String], [F.Expr Type])
-liftFunction f@(F.Fn t n _ [] _)   = return (n, t, [], [f])
-liftFunction f@(F.Fn t x 0 args e) = 
-                                  do
-                                    o <- withOpt FnOpt
-                                    if o
-                                     then do
-                                            let tys = extractFnArgs t
-                                            let v = head args
-                                            let r = rangeF (intF 1) $ lengthF $ varF (head tys) v
-                                            i <- getFreshVar
-                                            e' <- withIterVar i $ foldr withLetVar (flatten i r e) args 
-                                            return (x, t, args, [f, F.Fn (liftType t) x 1 args e'])
-                                     else do
-                                            let v = head args
-                                            let tys = extractFnArgs t
-                                            let r = rangeF (intF 1) $ lengthF $ varF (head tys) v
-                                            let args' = zip args tys
-                                            i <- getFreshVar
-                                            let rep = \(var, ty) -> F.App (listT ty) (F.Var (listT ty .-> intT .-> ty) "index" 0) [F.Var (listT ty) var 0, F.Var intT i 0]
-                                            e' <- withIterVar i $ flatten i r $ foldr (\var b -> substitute (fst var) (rep var) b) e args'
-                                            return (x, t, args, [f, F.Fn (liftType t) x 1 args e'])
-liftFunction _ = $impossible 
-                                     
-                                     
-isPrimitive :: String -> Bool
-isPrimitive f = elem f $ map fst primFuns
-
-primFuns :: [(String, ([String], Type))]
-primFuns = [(f, (args, unsafeInstantiate $ preludeEnv f)) | (f, args) <- primFunsArgs]
-
-primFunsArgs :: [(String, [String])]
-primFunsArgs = [("+",     ["e1", "e2"]),
-          ("-",     ["e1", "e2"]),
-          ("/",     ["e1", "e2"]),
-          ("*",     ["e1", "e2"]),
-          ("&&",    ["e1", "e2"]),
-          ("||",    ["e1", "e2"]),
-          (":", ["hd", "tl"]),
-          ("not", ["e1"]),
---        (  "build", ["e1", "e2"]
-          ("index", ["e1", "e2"]),
-          ("length", ["e1"]),
-          ("dist",   ["e1", "e2"]),
-          ("range",  ["e1", "e2"]),
-          ("restrict", ["e1", "e2"]),
-          ("reduce", ["e1"]),
-          ("combine", ["e1", "e2", "e3"]),
-          ("promote", ["e1", "e2"]),
-          ("bPermute", ["e1", "e2"]),
-          ("(,)", ["e1", "e2"]),
-          ("(,,)", ["e1", "e2", "e3"]),
-          ("(,,,)", ["e1", "e2", "e3", "e4"])]
--}
+flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
+                         | otherwise             = return $ F.Var (liftType t) x
+flatten i e1 (N.Const t v) = return $ distF (F.Const t v) e1
+flatten i e1 (N.Nil t) = return $ distF (F.Nil t) e1
+flatten i e1 (N.App t f es) = cloLApp (liftType t) <$> flatten i e1 f <*> mapM (flatten i e1) es
+flatten i d (N.Proj t 0 e1 el) = do
+                                    e1' <- flatten i d e1
+                                    return $ F.Proj (listT t) 1 e1' el
+flatten i d (N.Let ty v e1 e2) = do
+                                    e1' <- flatten i d e1
+                                    e2' <- withLetVar v $ flatten i d e2
+                                    return $ F.Let (liftType ty) v e1' e2'
+flatten i d (N.If t e1 e2 e3) = do
+                                    r1' <- getFreshVar
+                                    r2' <- getFreshVar 
+                                    v1' <- getFreshVar
+                                    v2' <- getFreshVar
+                                    v3' <- getFreshVar
+                                    e1' <- flatten i d e1
+                                    let v1 = F.Var (typeOf e1') v1'
+                                    let rv1 = restrictF d v1
+                                    let r1 = F.Var (typeOf rv1) r1'
+                                    e2' <- flatten i r1 e2
+                                    let rv2 = restrictF d (notF v1)
+                                    let r2 = F.Var (typeOf rv2) r2'
+                                    e3' <- flatten i r2 e3
+                                    let v2 = F.Var (typeOf e2') v2'
+                                    let v3 = F.Var (typeOf e3') v2'
+                                    return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combineF v1 v2 v3
+flatten i d (N.BinOp t (Op o 0) e1 e2) = do
+                                    (F.BinOp (liftType t) (Op o 1)) <$> flatten i d e1 <*> flatten i d e2
 dependsOnVar :: [String] -> N.Expr -> Bool
 dependsOnVar v (N.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
 dependsOnVar _ (N.Nil _) = False
