@@ -10,6 +10,7 @@ isSimpleExpr (Nil _) = True
 isSimpleExpr (Var _ _) = True
 isSimpleExpr _ = False
 
+{-
 substitute :: String -> Expr Type -> Expr Type -> Expr Type
 substitute n r e = substitute' e
  where
@@ -20,6 +21,9 @@ substitute n r e = substitute' e
   substitute' v@(Lam t arg e1) = case n == arg of
                                         True -> v
                                         False -> Lam t arg $ substitute' e1
+  substitute' c@(Clo t fvs f fl) = case n `elem` fvs of
+                                        True -> v
+                                        False -> (Clo t fvs (subsitute' f) (substitute' fl))
   substitute' (Let t x e1 e2) = case n == x of
                                     True -> Let t x (substitute' e1) e2
                                     False -> Let t x (substitute' e1) $ substitute' e2
@@ -30,3 +34,4 @@ substitute n r e = substitute' e
                             False -> v
   substitute' v@(Const _ _) = v
   substitute' (Proj t l e1 i) = Proj t l (substitute' e1) i
+-}

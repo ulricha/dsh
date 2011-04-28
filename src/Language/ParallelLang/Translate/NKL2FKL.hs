@@ -14,6 +14,7 @@ import Language.ParallelLang.Common.Data.Type
 
 -- import qualified Data.Map as M
 import qualified Data.List as L
+import qualified Data.Set as S
 
 import Control.Applicative
 
@@ -25,18 +26,25 @@ flatTransform e = do
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.App t e1 es) = cloApp t <$> transform e1 <*> mapM transform es
-transform (N.Lam t arg e) = undefined -- Should be converted to a closure -- F.Lam t n l args <$> transform e
+transform (N.Lam t arg e) = do
+                             let fvs = S.toList $ freeVars topLevelVars e
+                             i' <- getFreshVar
+                             n' <- getFreshVar
+                             let n = F.Var (listT (Var "a")) n'
+                             e' <- foldr withLetVar (flatten i' n e) (arg:fvs)
+                             e'' <- transform e
+                             return $ F.Clo t (n':fvs) (F.Lam t arg e'') (F.Lam (liftType t) arg e')
 transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
 transform (N.Var t x) = pure $ F.Var t x
 transform (N.Iter t n e1 e2) = do
+                                let ty = unliftType (typeOf e1) .-> (typeOf e2)
+                                let f  = N.Lam ty n e2
+                                f' <- transform f
                                 e1' <- transform e1
-                                r <- flatten n e1' e2
-                                case typeOf r == t of
-                                    True -> pure r
-                                    False -> error "Transformation wrecked the type"
+                                return $ cloLApp t (distF f' e1') [e1']  
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
