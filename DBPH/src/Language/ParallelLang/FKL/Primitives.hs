@@ -56,8 +56,8 @@ rangeF :: TExpr -> TExpr -> TExpr
 rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range") [e1, e2]
 
 notF :: TExpr -> TExpr
-notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "not") [e]
-       | typeOf e == listT boolT = F.App (listT boolT) (F.Var (listT boolT .-> listT boolT) "not") [e] 
+notF e | typeOf e == boolT = cloApp boolT (F.Var (boolT .-> boolT) "not") [e]
+       | typeOf e == listT boolT = cloLApp (listT boolT) (F.Var (listT boolT .-> listT boolT) "not") [e] 
        | otherwise = error $ "notF" ++ show (typeOf e)
        
 combineF :: TExpr -> TExpr -> TExpr -> TExpr
