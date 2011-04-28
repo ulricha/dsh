@@ -19,13 +19,13 @@ runRWPhase2 :: TExpr -> TransM TExpr
 runRWPhase2 = rewriteAST rwPhase2
 
 rwPhase2 :: RewriteRule
-rwPhase2 = optional (withOpt LetSimple) removeLetVarIsSimple
+rwPhase2 x = (pure x) -- optional (withOpt LetSimple) removeLetVarIsSimple
 
 rwPhase1' :: RewriteRule
 rwPhase1' = optional (withOpt PermuteOpt) rewriteIndexDist
 
 rwPhase1 :: RewriteRule
-rwPhase1 x = (pure x) >>=
+rwPhase1 x = (pure x) {- >>=
               optional (withOpt LetSimple) removeLetVarIsSimple >>=
               -- rewriteCombineLift >>=
               -- rewriteRestrictLift >>=
@@ -33,7 +33,7 @@ rwPhase1 x = (pure x) >>=
               -- rewritePromote >>=
               -- rewriteHigherLiftedOp >>=
               -- removeHigherLifted >>=
-              optional (withOpt LetSimple) removeLetVarIsSimple  
+              optional (withOpt LetSimple) removeLetVarIsSimple  -}
 
               
 
@@ -41,12 +41,13 @@ rwPhase1 x = (pure x) >>=
 Rules
 -}
 
+{-
 removeLetVarIsSimple :: RewriteRule
 removeLetVarIsSimple l@(Let _ v e1 e2) = return $ case isSimpleExpr e1 of
                                                     False -> l
                                                     True -> substitute v e1 e2
 removeLetVarIsSimple e1 = return e1
-
+-}
 {-
 removeHigherLifted :: RewriteRule
 removeHigherLifted a@(App rt (Var _ n d) es) | d > 1 =

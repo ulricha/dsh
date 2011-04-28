@@ -22,11 +22,18 @@ indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1
                    t2 = typeOf e2
                 in F.App t (F.Var (t1 .-> t2 .-> t) "index") [e1, e2]
 
-distF :: TExpr -> TExpr -> TExpr 
+distF :: TExpr -> TExpr -> TExpr
 distF e1 e2 = let t1 = typeOf e1
                   t2 = typeOf e2
                   ft = t1 .-> t2 .-> listT t1
-               in F.App (listT t1) (F.Var ft "dist") [e1, e2] 
+               in cloApp (listT t1) (F.Var ft "dist") [e1, e2]
+
+distFL :: TExpr -> TExpr -> TExpr
+distFL e1 e2 = let t1 = typeOf e1
+                   t2 = typeOf e2
+                   ft = t1 .-> t2 .-> listT t1
+                in cloLApp (listT t1) (F.Var ft "dist") [e1, e2]
+
 
 lengthF :: TExpr -> TExpr
 lengthF e1 = let t1 = typeOf e1

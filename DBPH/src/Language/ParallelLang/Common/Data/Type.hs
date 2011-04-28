@@ -5,6 +5,7 @@ where
     
 import qualified Data.Map as M
 import qualified Data.List as L
+import qualified Data.Set as S
 
 instance Show Type where 
     show (Var v) = v
@@ -131,3 +132,4 @@ addSubstitution s i t = let s' = M.singleton i t
 
 class Typed a t where
   typeOf :: a t -> t
+  freeVars :: [String] -> a t -> S.Set String

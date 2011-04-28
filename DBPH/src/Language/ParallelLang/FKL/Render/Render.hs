@@ -6,8 +6,10 @@ import Language.ParallelLang.Common.Data.Op
 
 import Text.PrettyPrint hiding (render)
 
+{-
 instance Show (Expr t) where
    show a = show $ render a
+-}
     
 render :: Expr t -> Doc
 render (Labeled _ e) = render e

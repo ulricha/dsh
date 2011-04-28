@@ -3,7 +3,9 @@ module Language.ParallelLang.NKL.Data.NKL where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
+import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf, freeVars)
+
+import qualified Data.Set as S
 
 type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
@@ -39,3 +41,13 @@ instance Typed Ex t where
 --    typeOf (IterG t _ _ _ _) = t
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
+    freeVars t (App _ e1 es) = freeVars t e1 `S.union` (S.unions $ map (freeVars t) es)
+    freeVars t (Lam _ x e) = S.delete x $ freeVars t e 
+    freeVars t (Let _ x e1 e2) = freeVars t e1 `S.union` S.delete x (freeVars t e2)
+    freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t e3]
+    freeVars t (BinOp _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
+    freeVars _ (Const _ _) = S.empty
+    freeVars t (Var _ x) = if x `elem` t then S.empty else S.singleton x
+    freeVars t (Iter _ x e1 e2) = freeVars t e1 `S.union` S.delete x (freeVars t e2)
+    freeVars _ (Nil _) = S.empty
+    freeVars t (Proj _ _ e _) = freeVars t e
