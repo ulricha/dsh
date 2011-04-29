@@ -18,7 +18,7 @@ Library
                       haskell-src-exts >=1.9.6, 
                       hint >= 0.3.3.2,
                       TableAlgebra >= 0.5.1,
-                      Pathfinder >= 0.5.4,
+                      Pathfinder >= 0.5.7,
                       HaXml >= 1.20
     Hs-Source-Dirs:   src
     
@@ -30,7 +30,7 @@ Library
                      Language.ParallelLang.Common.Data.Type
                      -- Language.ParallelLang.Translate.Vectorise
                      Language.ParallelLang.Common.Data.Op
-                     -- Language.ParallelLang.VL.Data.Query
+                     Language.ParallelLang.VL.Data.Query
     Other-modules: Language.ParallelLang.FKL.Data.FKL
                    Language.ParallelLang.Common.Data.Config
                    Language.ParallelLang.FKL.Primitives
@@ -40,7 +40,6 @@ Library
                    Language.ParallelLang.Translate.TransM
                    Language.ParallelLang.Translate.RewritePhases
                    Language.ParallelLang.Translate.Rewriter
-                   Language.ParallelLang.FKL.ProcessFKL
                    -- Language.ParallelLang.VL.Data.VectorTypes
                    -- Language.ParallelLang.VL.VectorPrimitives
                    -- Language.ParallelLang.Translate.Vec2Algebra

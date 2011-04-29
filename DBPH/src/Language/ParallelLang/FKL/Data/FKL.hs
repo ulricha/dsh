@@ -21,7 +21,7 @@ data Expr t where
     Proj    :: t -> Int -> Expr t -> Int -> Expr t
     Clo     :: t -> [String] -> Expr t -> Expr t -> Expr t -- When performing normal function application ignore the first value of the freeVars!!!
     AClo    :: t -> [String] -> Expr t -> Expr t -> Expr t
-    deriving (Show, Eq)
+    deriving Eq
 
 
 

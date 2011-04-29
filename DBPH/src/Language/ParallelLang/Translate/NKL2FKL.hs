@@ -6,14 +6,11 @@ import qualified Language.ParallelLang.NKL.Data.NKL as N
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Config
 import Language.ParallelLang.Translate.TransM
--- import Language.ParallelLang.FKL.ProcessFKL
 
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Common.Impossible
 import Language.ParallelLang.Common.Data.Type
 
--- import qualified Data.Map as M
--- import qualified Data.List as L
 import qualified Data.Set as S
 
 import Control.Applicative
@@ -93,21 +90,3 @@ flatten v d (N.Iter t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
                                     return $ unconcatF e1' $ cloLApp t (concatF (distFL (distF f d) e1')) [concatF e1']
-                                    
-    
---     Iter  :: t -> String -> Ex t -> Ex t -> Ex t -- | [expr2 | var <- expr1]
-{-
-dependsOnVar :: [String] -> N.Expr -> Bool
-dependsOnVar v (N.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
-dependsOnVar _ (N.Nil _) = False
-dependsOnVar v (N.Lam _ arg e1) = let n = v L.\\ [arg]
-                                     in case n of
-                                            [] -> False
-                                            _  -> dependsOnVar n e1
-dependsOnVar v (N.Let _ x e1 e2) | x `elem` v = dependsOnVar v e1
-                               | otherwise  = dependsOnVar v e1 || dependsOnVar v e2
-dependsOnVar v (N.If _ e1 e2 e3) = dependsOnVar v e1 || dependsOnVar v e2 || dependsOnVar v e3
-dependsOnVar v (N.BinOp _ _ e1 e2) = dependsOnVar v e1 || dependsOnVar v e2
-dependsOnVar v (N.Var _ x) = x `elem` v
-dependsOnVar _ (N.Const _ _) = False
-dependsOnVar v (N.Proj _ _ e _) = dependsOnVar v e -}

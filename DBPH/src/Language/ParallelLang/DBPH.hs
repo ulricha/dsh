@@ -16,19 +16,20 @@ import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
 -- import Language.ParallelLang.Translate.Vectorise
 -- import Language.ParallelLang.VL.Data.VectorTypes
 
-nkl2SQL = undefined
-nkl2Alg = undefined
-nkl2Vec = undefined
-{-
 nkl2SQL :: NKL.Expr -> (Query SQL, ReconstructionPlan)
+nkl2SQL = undefined
+{-
 nkl2SQL e = let (e', r) = nkl2Alg e
              in (toSQL e', r)
-
+-}
 nkl2Alg :: NKL.Expr -> (Query XML, ReconstructionPlan)
-nkl2Alg e = let (e', r) = nkl2Vec' e
+nkl2Alg = undefined
+{-nkl2Alg e = let (e', r) = nkl2Vec' e
              in (toXML $ toAlgebra e', r)
-             
+-}             
 nkl2Vec :: NKL.Expr -> String
+nkl2Vec = undefined
+{-
 nkl2Vec e = show $ fst $ nkl2Vec' e
 -}
 nkl2fkl :: NKL.Expr -> String

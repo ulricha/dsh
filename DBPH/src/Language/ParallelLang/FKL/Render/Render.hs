@@ -6,10 +6,8 @@ import Language.ParallelLang.Common.Data.Op
 
 import Text.PrettyPrint hiding (render)
 
-{-
 instance Show (Expr t) where
    show a = show $ render a
--}
     
 render :: Expr t -> Doc
 render (Labeled _ e) = render e
@@ -39,6 +37,10 @@ render (Const _ (Double d)) = double d
 render (Const _ (Bool b)) = text $ show b
 render (Const _ (Unit)) = text $ "()"
 render (Var _ x) = text x
+render (Clo _ vs f fl) = text "<<" <+> text (show vs) <> text "," <+> render f <> text "," <+> render fl <> text ">>"
+render (AClo _ vs f fl) = text "<<" <+> text (show vs) <> text "," <+> render f <> text "," <+> render fl <> text ">>+"
+render (CloApp _ f as) = render f <+> text ":$" <+> (hsep $ map render as)
+render (CloLApp _ f as) = render f <+> text ":$l" <+> (hsep $ map render as)
 -- render (Cons x xs) = text "(" <> render x <> text ":" <> render xs <> text ")"
 render (Nil _) = text "[]" 
 -- render (Tuple es) = text "(" <> hcat (intersperse (text ", ") $ map render es) <> text ")"
