@@ -6,15 +6,17 @@ import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.FKL.Data.WorkUnits
 
+import Control.Monad
+
 -- import Language.ParallelLang.Translate.Algebra2SQL
 -- import Language.ParallelLang.Translate.Vec2Algebra
 import Language.ParallelLang.Translate.TransM (runTransform)
 import Language.ParallelLang.Translate.RewritePhases
 import Language.ParallelLang.Common.Data.Config (normalCompilation)
 import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
--- import Language.ParallelLang.Translate.Detupler (detuple)
--- import Language.ParallelLang.Translate.Vectorise
--- import Language.ParallelLang.VL.Data.VectorTypes
+import Language.ParallelLang.Translate.Detupler (detuple)
+import Language.ParallelLang.Translate.Vectorise
+import Language.ParallelLang.VL.Data.VectorTypes
 
 nkl2SQL :: NKL.Expr -> (Query SQL, ReconstructionPlan)
 nkl2SQL = undefined
@@ -35,14 +37,13 @@ nkl2Vec e = show $ fst $ nkl2Vec' e
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform normalCompilation $
              do 
-                 e' <- flatTransform e >>= runRWPhase1 -- >>= detuple 
+                 e' <- liftM fst $ flatTransform e >>= runRWPhase1 >>= detuple 
                  r <- runRWPhase2 e'
                  return r
-{-
+
 nkl2Vec' :: NKL.Expr -> (FKL.Expr VType, ReconstructionPlan)
 nkl2Vec' e = runTransform normalCompilation  $ 
                 do 
                  (e', reconstruction) <- flatTransform e >>= runRWPhase1 >>= detuple 
                  r <- runRWPhase2 e' >>= runVectorise 
                  return (r, reconstruction)
--}

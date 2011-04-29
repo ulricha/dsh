@@ -43,7 +43,7 @@ dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
                 = do
                     d2 <- getFreshVar
                     let d2v = outer e2
-                    let d2' = Var (typeOf d2v) d2 0
+                    let d2' = Var (typeOf d2v) d2
                     return $ letF d2 d2v $ attach d2' $ project (distDesc e1 d2') 1
             
             | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e2) > 0
@@ -57,20 +57,20 @@ dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
                     p  <- getFreshVar
                     
                     let h2v = outer e2
-                    let h2' = Var (typeOf h2v) h2 0
+                    let h2' = Var (typeOf h2v) h2
                     
                     (b1, h1, vs1) <- patV e1     -- Pattern match on vector structure of e1 (b1 contains the bindings)
                     let b2 = \x -> b1 (letF h2 h2v x) -- Add The declaration of h2 to the AST
                     
                     -- Construct (distDesc h1 h2) and a place holder variable
                     let rv = distDesc h1 h2'
-                    let r' = Var (typeOf rv) r 0
+                    let r' = Var (typeOf rv) r
                     
                     -- Do pattern matching r' extract d and p from it.
                     let dv = project r' 1
-                    let d' = Var (typeOf dv) d 0
+                    let d' = Var (typeOf dv) d
                     let pv = project r' 2
-                    let p' = Var (typeOf pv) p 0
+                    let p' = Var (typeOf pv) p
                     
                     -- Recursively propagate the new names through the inner vectors of e1
                     e3 <- chainPropagate p' vs1
@@ -97,13 +97,13 @@ distL e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) > 1
                     p <- getFreshVar
                     
                     let rv = distLift d1 (outer vs2)
-                    let r' = Var (typeOf rv) r 0
+                    let r' = Var (typeOf rv) r
                     
                     let dv = project r' 1
-                    let d' = Var (typeOf dv) d 0
+                    let d' = Var (typeOf dv) d
                     
                     let pv = project r' 2
-                    let p' = Var (typeOf pv) p 0
+                    let p' = Var (typeOf pv) p
                     
                     let b3 = \x -> letF r rv (letF d dv (letF p pv x))
                     
@@ -136,21 +136,21 @@ cons e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) == 1
                     p1  <- getFreshVar
                     p2  <- getFreshVar
                     
-                    let e1' = Var (typeOf e1) e1a 0 -- Construct the actual placeholder variable for e1
+                    let e1' = Var (typeOf e1) e1a -- Construct the actual placeholder variable for e1
                     
                     (b2, d2, vs2) <- patV e2   -- Pattern matching on e2: <d2, vs2> = e2
                     
                     let rv = append (outer (singletonVec e1')) d2
-                    let r' = Var (typeOf rv) r 0
+                    let r' = Var (typeOf rv) r
                     
                     let vv = project r' 1
-                    let v' = Var (typeOf vv) v 0
+                    let v' = Var (typeOf vv) v
                     
                     let p1v = project r' 2
-                    let p1' = Var (typeOf p1v) p1 0
+                    let p1' = Var (typeOf p1v) p1
                     
                     let p2v = project r' 3
-                    let p2' = Var (typeOf p2v) p2 0
+                    let p2' = Var (typeOf p2v) p2
                     
                     r1 <- renameOuter p1' e1'
                     r2 <- renameOuter p2' vs2
@@ -178,16 +178,16 @@ consLift e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 2
                         p2 <- getFreshVar
                         
                         let rv = append (segment d1) (outer vs2)
-                        let r' = Var (typeOf rv) r 0
+                        let r' = Var (typeOf rv) r
                         
                         let vv = project r' 1
-                        let v' = Var (typeOf vv) v 0
+                        let v' = Var (typeOf vv) v
                         
                         let p1v = project r' 2
-                        let p1' = Var (typeOf p1v) p1 0
+                        let p1' = Var (typeOf p1v) p1
                         
                         let p2v = project r' 3
-                        let p2' = Var (typeOf p2v) p2 0
+                        let p2' = Var (typeOf p2v) p2
                         
                         r1 <- renameOuter p1' vs1
                         r2 <- renameOuter p2' (extract vs2 1) 
@@ -211,13 +211,13 @@ restrict e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
                         p <- getFreshVar
                         
                         let rv = restrictVec d1 e2
-                        let r' = Var (typeOf rv) r 0
+                        let r' = Var (typeOf rv) r
                         
                         let vv = project r' 1
-                        let v' = Var (typeOf vv) v 0
+                        let v' = Var (typeOf vv) v
                         
                         let pv = project r' 2
-                        let p' = Var (typeOf pv) p 0
+                        let p' = Var (typeOf pv) p
                         
                         e3 <- chainPropagate p' vs1
                         
@@ -241,16 +241,16 @@ combine eb e1 e2 | nestingDepth (typeOf eb) == 1 && nestingDepth (typeOf e1) == 
                         p2 <- getFreshVar
                         
                         let rv = combineVec eb d1 d2
-                        let r' = Var (typeOf rv) r 0
+                        let r' = Var (typeOf rv) r
                         
                         let vv = project r' 1
-                        let v' = Var (typeOf vv) v 0
+                        let v' = Var (typeOf vv) v
                         
                         let p1v = project r' 2
-                        let p1' = Var (typeOf p1v) p1 0
+                        let p1' = Var (typeOf p1v) p1
                         
                         let p2v = project r' 3
-                        let p2' = Var (typeOf p2v) p2 0
+                        let p2' = Var (typeOf p2v) p2
                         
                         r1 <- renameOuter p1' vs1
                         r2 <- renameOuter p2' vs2
@@ -271,7 +271,7 @@ vectorise :: Expr T.Type -> TransM (Expr VType)
 vectorise (Labeled s e) = Labeled s <$> vectorise e
 vectorise (Const t v) = return $ Const (vectoriseType t) v
 vectorise (Nil t)     = return $ Nil $ tag (vectoriseType t) t
-vectorise (Var t x l) = return $ Var (vectoriseType t) x l
+vectorise (Var t x) = return $ Var (vectoriseType t) x
 vectorise (Proj t l e i) = do
                             e' <- vectorise e
                             return $ Proj (vectoriseType t) l e' i
@@ -289,21 +289,21 @@ vectorise (If t eb e1 e2) | T.listDepth t > 1 = do
                                                     ifVec qb q1 q2
                           | otherwise = If (vectoriseType t) <$> vectorise eb <*> vectorise e1 <*> vectorise e2
 vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
-vectorise (Fn t s l as e) = Fn (vectoriseType t) s l as <$> vectorise e
+vectorise (Lam t a e) = Lam (vectoriseType t) a <$> vectorise e
 vectorise (App t e es) = case e of
-                            (Var _ "dist" 0)         -> do
+            {-                (Var _ "dist")         -> do
                                                          [e1, e2] <- mapM vectorise es
                                                          dist e1 e2
-                            (Var _ "dist" 1)         -> do
+                            (Var _ "dist"          -> do
                                                          [e1, e2] <- mapM vectorise es
-                                                         distL e1 e2
-                            (Var _ "restrict" 0)     -> do
+                                                         distL e1 e2 -}
+                            (Var _ "restrict")     -> do
                                                          [e1, e2] <- mapM vectorise es
                                                          restrict e1 e2
-                            (Var _ "combine" 0)      -> do
+                            (Var _ "combine")      -> do
                                                          [e1, e2, e3] <- mapM vectorise es
                                                          combine e1 e2 e3
-                            (Var _ "back_Permute" 0) -> do
+                            (Var _ "back_Permute") -> do
                                                          [e1, e2] <- mapM vectorise es
                                                          bPermute e1 e2
                             _                        -> App (vectoriseType t) <$> vectorise e <*> mapM vectorise es
