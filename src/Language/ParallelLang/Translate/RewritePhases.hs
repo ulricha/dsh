@@ -2,9 +2,6 @@ module Language.ParallelLang.Translate.RewritePhases(runRWPhase1, runRWPhase2) w
 
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.FKL.Primitives
-import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.Common.Data.Type hiding (Var)
-import Language.ParallelLang.FKL.ProcessFKL
 
 import Language.ParallelLang.Common.Data.Config
 import Language.ParallelLang.Translate.TransM
@@ -19,7 +16,7 @@ runRWPhase2 :: TExpr -> TransM TExpr
 runRWPhase2 = rewriteAST rwPhase2
 
 rwPhase2 :: RewriteRule
-rwPhase2 x = (pure x) -- optional (withOpt LetSimple) removeLetVarIsSimple
+rwPhase2 x = (pure x) 
 
 rwPhase1' :: RewriteRule
 rwPhase1' = optional (withOpt PermuteOpt) rewriteIndexDist
