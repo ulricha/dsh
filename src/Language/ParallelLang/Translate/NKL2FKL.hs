@@ -6,28 +6,28 @@ import qualified Language.ParallelLang.NKL.Data.NKL as N
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Config
 import Language.ParallelLang.Translate.TransM
-import Language.ParallelLang.FKL.ProcessFKL
+-- import Language.ParallelLang.FKL.ProcessFKL
 
 import Language.ParallelLang.FKL.Primitives
--- import Language.ParallelLang.Common.Impossible
+import Language.ParallelLang.Common.Impossible
 import Language.ParallelLang.Common.Data.Type
 
 -- import qualified Data.Map as M
-import qualified Data.List as L
+-- import qualified Data.List as L
 import qualified Data.Set as S
 
 import Control.Applicative
 
 flatTransform :: N.Expr -> TransM (F.Expr Type)
 flatTransform e = do
-                           e'   <- transform e
+                           e'   <- withCleanLetEnv $ transform e
                            return e'
 
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.App t e1 es) = cloApp t <$> transform e1 <*> mapM transform es
 transform (N.Lam t arg e) = do
-                             let fvs = S.toList $ freeVars topLevelVars e
+                             let fvs = S.toList $ S.delete arg $ freeVars topLevelVars e
                              i' <- getFreshVar
                              n' <- getFreshVar
                              let n = F.Var (listT (Var "a")) n'
@@ -50,17 +50,18 @@ transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
 flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x
-flatten i e1 (N.Const t v) = return $ distF (F.Const t v) e1
-flatten i e1 (N.Nil t) = return $ distF (F.Nil t) e1
+flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1
+flatten _ e1 (N.Nil t) = return $ distF (F.Nil t) e1
 flatten i e1 (N.App t f es) = cloLApp (liftType t) <$> flatten i e1 f <*> mapM (flatten i e1) es
 flatten i d (N.Proj t 0 e1 el) = do
                                     e1' <- flatten i d e1
                                     return $ F.Proj (listT t) 1 e1' el
+flatten _ _ (N.Proj _ _ _ _) = $impossible
 flatten i d (N.Let ty v e1 e2) = do
                                     e1' <- flatten i d e1
                                     e2' <- withLetVar v $ flatten i d e2
                                     return $ F.Let (liftType ty) v e1' e2'
-flatten i d (N.If t e1 e2 e3) = do
+flatten i d (N.If _ e1 e2 e3) = do
                                     r1' <- getFreshVar
                                     r2' <- getFreshVar 
                                     v1' <- getFreshVar
@@ -79,6 +80,23 @@ flatten i d (N.If t e1 e2 e3) = do
                                     return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combineF v1 v2 v3
 flatten i d (N.BinOp t (Op o 0) e1 e2) = do
                                     (F.BinOp (liftType t) (Op o 1)) <$> flatten i d e1 <*> flatten i d e2
+flatten _ _ (N.BinOp _ _ _ _) = $impossible
+flatten v d (N.Lam t arg e) = do
+                                i' <- getFreshVar
+                                n' <- getFreshVar
+                                let n = F.Var (typeOf d) n'
+                                e' <- withCleanLetEnv $ transform e
+                                let fvs = S.toList $ freeVars (arg:topLevelVars) e
+                                e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg:fvs)
+                                return $ letF v d $ letF n' d $ F.AClo (liftType t) (n':fvs) (F.Lam t arg e') (F.Lam (liftType t) arg e'')
+flatten v d (N.Iter t n e1 e2) = do
+                                    f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
+                                    e1' <- flatten v d e1
+                                    return $ unconcatF e1' $ cloLApp t (concatF (distFL (distF f d) e1')) [concatF e1']
+                                    
+    
+--     Iter  :: t -> String -> Ex t -> Ex t -> Ex t -- | [expr2 | var <- expr1]
+{-
 dependsOnVar :: [String] -> N.Expr -> Bool
 dependsOnVar v (N.App _ e1 es) = dependsOnVar v e1 || (or $ map (dependsOnVar v) es)
 dependsOnVar _ (N.Nil _) = False
@@ -92,4 +110,4 @@ dependsOnVar v (N.If _ e1 e2 e3) = dependsOnVar v e1 || dependsOnVar v e2 || dep
 dependsOnVar v (N.BinOp _ _ e1 e2) = dependsOnVar v e1 || dependsOnVar v e2
 dependsOnVar v (N.Var _ x) = x `elem` v
 dependsOnVar _ (N.Const _ _) = False
-dependsOnVar v (N.Proj _ _ e _) = dependsOnVar v e
+dependsOnVar v (N.Proj _ _ e _) = dependsOnVar v e -}
