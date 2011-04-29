@@ -29,6 +29,15 @@ instance Applicative TransM where
     pure  = return
     (<*>) = ap
 
+withCleanLetEnv :: TransM a -> TransM a
+withCleanLetEnv e = do
+                     (v, l) <- get
+                     put (v, [])
+                     e' <- e
+                     (v', _) <- get
+                     put (v', l)
+                     return e'
+
 withLetVar :: String -> TransM a -> TransM a
 withLetVar n e = do
                     (v, l) <- get

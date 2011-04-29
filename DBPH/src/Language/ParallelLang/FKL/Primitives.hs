@@ -67,6 +67,9 @@ combineF e1 e2 e3 = let t1 = typeOf e1
                         ft = t1 .-> t2 .-> t2 .-> rt
                      in F.App rt (F.Var ft "combine") [e1, e2, e3]
 
+unconcatF :: TExpr -> TExpr -> TExpr
+unconcatF e1 e2 = insertF e2 e1 (F.Const intT (Int 1))
+
 insertF :: TExpr -> TExpr -> TExpr -> TExpr
 insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
                                         t2 = typeOf v
@@ -74,6 +77,9 @@ insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
                                         ft = t1 .-> t2 .-> intT .-> rt
                                      in F.App rt (F.Var ft "insert") [f, v, d]
 insertF _ _ _ = error "Third argument to insert should be an integer"
+
+concatF :: TExpr -> TExpr
+concatF e = extractF e (F.Const intT (Int 1))
 
 extractF :: TExpr -> TExpr -> TExpr
 extractF v d@(F.Const _ (Int i)) = let t1 = typeOf v
