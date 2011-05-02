@@ -30,7 +30,7 @@ transform (N.Lam t arg e) = do
                              let n = F.Var (listT (Var "a")) n'
                              e' <- foldr withLetVar (flatten i' n e) (arg:fvs)
                              e'' <- transform e
-                             return $ F.Clo t (n':fvs) (F.Lam t arg e'') (F.Lam (liftType t) arg e')
+                             return $ F.Clo (funToCloTy t) (n':fvs) (F.Lam t arg e'') (F.Lam (liftType t) arg e')
 transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
@@ -85,7 +85,7 @@ flatten v d (N.Lam t arg e) = do
                                 e' <- withCleanLetEnv $ transform e
                                 let fvs = S.toList $ freeVars (arg:topLevelVars) e
                                 e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg:fvs)
-                                return $ letF v d $ letF n' d $ F.AClo (liftType t) (n':fvs) (F.Lam t arg e') (F.Lam (liftType t) arg e'')
+                                return $ letF v d $ letF n' d $ F.AClo (liftType $ funToCloTy t) (n':fvs) (F.Lam t arg e') (F.Lam (liftType t) arg e'')
 flatten v d (N.Iter t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
