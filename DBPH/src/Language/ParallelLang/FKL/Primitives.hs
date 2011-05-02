@@ -26,13 +26,13 @@ distF :: TExpr -> TExpr -> TExpr
 distF e1 e2 = let t1 = typeOf e1
                   t2 = typeOf e2
                   ft = t1 .-> t2 .-> listT t1
-               in cloApp (listT t1) (F.Var ft "dist") [e1, e2]
+               in F.App (listT t1) (F.Var ft "dist") [e1, e2]
 
 distFL :: TExpr -> TExpr -> TExpr
 distFL e1 e2 = let t1 = typeOf e1
                    t2 = typeOf e2
                    ft = t1 .-> t2 .-> listT t1
-                in cloLApp (listT t1) (F.Var ft "dist") [e1, e2]
+                in F.App (listT t1) (F.Var ft "dist_L") [e1, e2]
 
 
 lengthF :: TExpr -> TExpr

@@ -291,12 +291,12 @@ vectorise (If t eb e1 e2) | T.listDepth t > 1 = do
 vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
 vectorise (Lam t a e) = Lam (vectoriseType t) a <$> vectorise e
 vectorise (App t e es) = case e of
-            {-                (Var _ "dist")         -> do
+                            (Var _ "dist")         -> do
                                                          [e1, e2] <- mapM vectorise es
                                                          dist e1 e2
-                            (Var _ "dist"          -> do
+                            (Var _ "dist_L")          -> do
                                                          [e1, e2] <- mapM vectorise es
-                                                         distL e1 e2 -}
+                                                         distL e1 e2
                             (Var _ "restrict")     -> do
                                                          [e1, e2] <- mapM vectorise es
                                                          restrict e1 e2
