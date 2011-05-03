@@ -22,7 +22,7 @@ data Type where
     TyC :: String -> [Type] -> Type
     Fn :: Type -> Type -> Type
 --    LFn :: Type -> Type -> Type
-    deriving Eq
+    deriving (Eq, Ord)
 
 -- infixr 7 .~>
 infixr 6 .->
@@ -141,4 +141,4 @@ funToCloTy t          = t
 
 class Typed a t where
   typeOf :: a t -> t
-  freeVars :: [String] -> a t -> S.Set String
+  freeVars :: [String] -> a t -> S.Set (String, a t)

@@ -40,5 +40,5 @@ rewriteTree r e = recurse e
     rewriteAST' (Proj t l ex i) = (flip (Proj t l) i) <$> recurse ex
     rewriteAST' (CloApp t e1 e2) = (CloApp t) <$> recurse e1 <*> mapM recurse e2
     rewriteAST' (CloLApp t e1 e2) = (CloLApp t) <$> recurse e1 <*> mapM recurse e2
-    rewriteAST' (Clo t fvs f fl) = (Clo t fvs) <$> recurse f <*> recurse fl
+    rewriteAST' (Clo t l fvs f fl) = (Clo t l fvs) <$> recurse f <*> recurse fl
     rewriteAST' (AClo t fvs f fl) = (AClo t fvs) <$> recurse f <*> recurse fl

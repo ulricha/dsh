@@ -10,4 +10,4 @@ data Val where
     String :: String -> Val
     Double :: Double -> Val
     Unit :: Val
-    deriving (Eq, Show)
+    deriving (Eq, Show, Ord)
