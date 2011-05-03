@@ -29,11 +29,10 @@ nkl2Alg = undefined
 {-nkl2Alg e = let (e', r) = nkl2Vec' e
              in (toXML $ toAlgebra e', r)
 -}             
+
 nkl2Vec :: NKL.Expr -> String
-nkl2Vec = undefined
-{-
 nkl2Vec e = show $ fst $ nkl2Vec' e
--}
+
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform normalCompilation $
              do 

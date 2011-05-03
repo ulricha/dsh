@@ -8,4 +8,4 @@ The string argument represents the operator itself, the int it's nesting depth
 -}    
 data Op where
     Op :: String -> Int -> Op
-    deriving (Eq, Show)
+    deriving (Eq, Show, Ord)

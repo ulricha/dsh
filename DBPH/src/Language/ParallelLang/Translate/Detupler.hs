@@ -206,7 +206,7 @@ deTuple (Lam t arg e) = do
                           e' <- deTuple e
                           let t' = fst $ transType t
                           return $ Lam t' arg e'
-deTuple (Clo t vs f fl) = Clo (fst $ transType t) vs <$> deTuple f <*> deTuple fl
+deTuple (Clo t l vs f fl) = Clo (fst $ transType t) l vs <$> deTuple f <*> deTuple fl
 deTuple (AClo t vs f fl) = AClo (fst $ transType t) vs <$> deTuple f <*> deTuple fl
 deTuple (CloApp t f args) = CloApp (fst $ transType t) <$> deTuple f <*> mapM deTuple args
 deTuple (CloLApp t f args) = CloLApp (fst $ transType t) <$> deTuple f <*> mapM deTuple args 

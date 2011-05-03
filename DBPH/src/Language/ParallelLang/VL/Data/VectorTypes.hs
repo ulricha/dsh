@@ -10,6 +10,7 @@ data VType =
   | PropVector
   | Tuple [VType]
   | VectorFun VType VType
+  | VectorClo VType VType
   | Tagged VType T.Type
    deriving (Eq, Show)
   
@@ -44,6 +45,10 @@ infixr 6 .~>
 
 (.~>) :: VType -> VType -> VType
 t1 .~> t2 = VectorFun t1 t2
+
+infixr 7 .:~>
+(.:~>) :: VType -> VType -> VType
+t1 .:~> t2 = VectorClo t1 t2
 
 nestingDepth :: VType -> Int
 nestingDepth (Tagged t _)     = nestingDepth t

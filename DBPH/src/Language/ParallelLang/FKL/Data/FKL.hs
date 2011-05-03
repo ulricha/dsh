@@ -19,8 +19,8 @@ data Expr t where
     Var     :: t -> String -> Expr t -- | Variable lifted to level i
     Nil     :: t -> Expr t -- | []
     Proj    :: t -> Int -> Expr t -> Int -> Expr t
-    Clo     :: t -> [String] -> Expr t -> Expr t -> Expr t -- When performing normal function application ignore the first value of the freeVars!!!
-    AClo    :: t -> [String] -> Expr t -> Expr t -> Expr t
+    Clo     :: t -> String -> [(String, Expr t)] -> Expr t -> Expr t -> Expr t -- When performing normal function application ignore the first value of the freeVars!!!
+    AClo    :: t -> [(String, Expr t)] -> Expr t -> Expr t -> Expr t
     deriving Eq
 
 
@@ -38,7 +38,7 @@ instance Typed Expr t where
     typeOf (Labeled _ e) = typeOf e
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
-    typeOf (Clo t _ _ _) = t
+    typeOf (Clo t _ _ _ _) = t
     typeOf (AClo t _ _ _) = t
     
 isTupleConstr :: Expr Type -> Bool

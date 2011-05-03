@@ -21,6 +21,7 @@ vectoriseType (T.TyC "List" [t@(T.TyC "List" _)])  = nVectorT' (vectoriseType t)
 vectoriseType (T.TyC "List" [(T.TyC _ [])])        = valVT
 vectoriseType (T.TyC s args) | isTuple s           = tupleT (map vectoriseType args)
 vectoriseType (T.Fn t1 t2)                         = vectoriseType t1 .~> vectoriseType t2
+vectoriseType (T.TyC ":->" [t1, t2])               = vectoriseType t1 .:~> vectoriseType t2
 vectoriseType t                                    = error $ "vectoriseType: Type not supported: " ++ show t
 
 isPrimTy :: String -> Bool
@@ -77,7 +78,7 @@ dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
                     
                     -- Glue together all variables with let bindings 
                     return (b2 (letF r rv (letF d dv (letF p pv (attach h2' (attach d' e3))))))
-            | otherwise = error "dist: Can't construct dist node"  
+            | otherwise = error $ "dist: Can't construct dist node " ++ show (typeOf e1) ++ " XXX " ++ show (typeOf e2) 
             
 distL :: Expr VType -> Expr VType -> TransM (Expr VType)
 distL e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) > 1
@@ -110,7 +111,7 @@ distL e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) > 1
                     e3 <- chainPropagate p' vs1 -- recursively propagate changes through the inner vectors of e1
                     
                     return $ b1 (b2 (b3 (attach d2 (attach d' e3))))
-            | otherwise = error "distL: Can't construct distL node"
+            | otherwise = error $ "distL: Can't construct distL node " ++ show (typeOf e1) ++ " XXX " ++ show (typeOf e2) 
                     
 consEmpty :: Expr VType -> TransM (Expr VType)
 consEmpty e | typeOf e == pValT 
@@ -290,6 +291,10 @@ vectorise (If t eb e1 e2) | T.listDepth t > 1 = do
                           | otherwise = If (vectoriseType t) <$> vectorise eb <*> vectorise e1 <*> vectorise e2
 vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
 vectorise (Lam t a e) = Lam (vectoriseType t) a <$> vectorise e
+vectorise (Clo t l vs f fl) = (Clo (vectoriseType t) l undefined) <$> vectorise f <*> vectorise fl
+vectorise (AClo t vs f fl) = (AClo (vectoriseType t) undefined) <$> vectorise f <*> vectorise fl
+vectorise (CloApp t f as) = (CloApp (vectoriseType t)) <$> vectorise f <*> mapM vectorise as
+vectorise (CloLApp t f as) = (CloLApp (vectoriseType t)) <$> vectorise f <*> mapM vectorise as
 vectorise (App t e es) = case e of
                             (Var _ "dist")         -> do
                                                          [e1, e2] <- mapM vectorise es
