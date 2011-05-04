@@ -10,9 +10,13 @@ data VType =
   | PropVector
   | Tuple [VType]
   | VectorFun VType VType
-  | VectorClo VType VType
+  | VectorClo Int VType
   | Tagged VType T.Type
    deriving (Eq, Show)
+
+listClo :: VType -> VType
+listClo (VectorClo i t) = (VectorClo (i + 1) t)
+listClo t               = error $ "Not a closure type: " ++ show t    
   
 descrT :: VType
 descrT = DescrVector
@@ -46,10 +50,6 @@ infixr 6 .~>
 (.~>) :: VType -> VType -> VType
 t1 .~> t2 = VectorFun t1 t2
 
-infixr 7 .:~>
-(.:~>) :: VType -> VType -> VType
-t1 .:~> t2 = VectorClo t1 t2
-
 nestingDepth :: VType -> Int
 nestingDepth (Tagged t _)     = nestingDepth t
 nestingDepth ValueVector      = 1
@@ -62,3 +62,7 @@ descrOrVal DescrVector = True
 descrOrVal (NestedVector 1) = True
 descrOrVal (Tagged t _) = descrOrVal t
 descrOrVal _           = False
+
+isClo :: VType -> Bool
+isClo (VectorClo _ _) = True
+isClo _               = False

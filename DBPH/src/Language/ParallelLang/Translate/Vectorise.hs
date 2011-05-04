@@ -21,7 +21,7 @@ vectoriseType (T.TyC "List" [t@(T.TyC "List" _)])  = nVectorT' (vectoriseType t)
 vectoriseType (T.TyC "List" [(T.TyC _ [])])        = valVT
 vectoriseType (T.TyC s args) | isTuple s           = tupleT (map vectoriseType args)
 vectoriseType (T.Fn t1 t2)                         = vectoriseType t1 .~> vectoriseType t2
-vectoriseType (T.TyC ":->" [t1, t2])               = vectoriseType t1 .:~> vectoriseType t2
+vectoriseType (T.TyC ":->" [t1, t2])               = VectorClo 0 $ vectoriseType t1 .~> vectoriseType t2
 vectoriseType t                                    = error $ "vectoriseType: Type not supported: " ++ show t
 
 isPrimTy :: String -> Bool
@@ -35,7 +35,7 @@ isTuple _        = False
 -- * Translation smart constructors
 
 dist :: Expr VType -> Expr VType -> TransM (Expr VType)
-dist e1 e2 | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
+dist e1 e2  | typeOf e1 == pValT && nestingDepth (typeOf e2) > 0
                   -- Corresponds to rule [dist-1]
                 = return $ distPrim e1 (outer e2)
             
@@ -291,8 +291,8 @@ vectorise (If t eb e1 e2) | T.listDepth t > 1 = do
                           | otherwise = If (vectoriseType t) <$> vectorise eb <*> vectorise e1 <*> vectorise e2
 vectorise (Let t s e1 e2) = Let (vectoriseType t) s <$> vectorise e1 <*> vectorise e2
 vectorise (Lam t a e) = Lam (vectoriseType t) a <$> vectorise e
-vectorise (Clo t l vs f fl) = (Clo (vectoriseType t) l undefined) <$> vectorise f <*> vectorise fl
-vectorise (AClo t vs f fl) = (AClo (vectoriseType t) undefined) <$> vectorise f <*> vectorise fl
+vectorise (Clo t l vs f fl) = (Clo (vectoriseType t) l) <$> vectoriseEnv vs <*> vectorise f <*> vectorise fl
+vectorise (AClo t vs f fl) = (AClo (listClo $ vectoriseType t)) <$> vectoriseEnv vs <*> vectorise f <*> vectorise fl
 vectorise (CloApp t f as) = (CloApp (vectoriseType t)) <$> vectorise f <*> mapM vectorise as
 vectorise (CloLApp t f as) = (CloLApp (vectoriseType t)) <$> vectorise f <*> mapM vectorise as
 vectorise (App t e es) = case e of
@@ -313,3 +313,9 @@ vectorise (App t e es) = case e of
                                                          bPermute e1 e2
                             _                        -> App (vectoriseType t) <$> vectorise e <*> mapM vectorise es
                                                          
+vectoriseEnv :: [(String, Expr T.Type)] -> TransM [(String, Expr VType)]
+vectoriseEnv ((n, v):xs) = do
+                            v' <- vectorise v
+                            xs' <- vectoriseEnv xs
+                            return ((n,v'):xs')
+vectoriseEnv []          = return []
