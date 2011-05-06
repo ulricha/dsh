@@ -10,6 +10,7 @@ import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as U
 import Language.ParallelLang.VL.Data.Query
 import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
+import qualified Language.ParallelLang.Common.Data.Type as Ty
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
@@ -39,7 +40,53 @@ resCol    = "item99999001"
 tmpCol    = "item99999002"
 tmpCol'   = "item99999003"
 
+fkl2Alg :: Expr Ty.Type -> Graph Plan
+fkl2Alg (Labeled s e) = fkl2Alg e
+fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 
+dist :: Plan -> Plan -> Graph Plan
+dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = distPrim (return q1) (outer $ return q2)
+                              | otherwise           = error "dist: Not a list vector"
+dist q1@(ValueVector _) q2    | nestingDepth q2 > 0 = do
+                                                       d2v <- outer (return q2)
+                                                       TupleVector [q1v, _] <- distDesc (return q1) (return d2v)
+                                                       attachV (return d2v) (return q1v)
+                              | otherwise           = error "dist: Not a list vector"
+dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
+                                                        TupleVector [d, p] <- distDesc (outer $ return q1) (outer $ return q2)
+                                                        et <- extract (return q1) 1
+                                                        attachV (outer $ return q2) $ attachV (return d) (chainPropagate p et)
+                              | otherwise           = error "dist: Not a list vector"
+
+dist q1@(Closure n env f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') f fl) <$> distEnv env q2
+                                                            
+distEnv :: [(String, Plan)] -> Plan -> Graph [(String, Plan)]
+distEnv ((x, p):xs) q = (\p' xs' -> (x, p'):xs') <$> dist p q <*> distEnv xs q
+distEnv []          _ = return []
+                         
+distL :: Plan -> Plan -> Graph (Plan)
+distL q1@(ValueVector _) (NestedVector d vs) = do
+                                                TupleVector [v, _] <- distLift (return q1) (outer $ return vs)
+                                                attachV (return $ DescrVector d) (return v)
+distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do 
+                                                     TupleVector [d, p] <- distLift (return $ DescrVector d1) (outer $ return vs2)
+                                                     e3 <- chainPropagate p vs1
+                                                     attachV (return $ DescrVector d2) $ attachV (return d) (return e3)
+distL (AClosure env f fl) (NestedVector d vs) = do
+                                                 undefined
+                                                   
+
+-- Closure String [(String, Query a)] (Expr T.Type) (Expr T.Type)
+-- AClosure [(String, Query a)] (Expr T.Type) (Expr T.Type)
+
+chainPropagate :: Plan -> Plan -> Graph Plan
+chainPropagate p q@(ValueVector _) = do 
+                                      TupleVector [v, _] <- propagateIn (return p) (return q)
+                                      return v
+chainPropagate p (NestedVector d vs) = do
+                                        TupleVector [v', p'] <- propagateIn (return p) (return $ DescrVector d)
+                                        attachV (return v') $ chainPropagate p' vs
+                                        
 toAlgebra :: Expr T.VType -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (vec2Alg e)
 
@@ -82,8 +129,10 @@ convertType t | t == U.intT  = intT
               | t == U.doubleT = doubleT
               | otherwise = error "convertType: Can't convert from DBPH type to Ferry types"
 
+
 vec2Alg :: Expr T.VType -> Graph Plan
 vec2Alg (Labeled _ e) = vec2Alg e
+{-
 vec2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 vec2Alg (Nil (T.Tagged vt t)) = case T.nestingDepth vt of
                             0 -> error "Invalid vector type for a Nil value"
@@ -133,7 +182,7 @@ vec2Alg (If t eb e1 e2) | t == T.pValT = do
 vec2Alg (Let _ s e1 e2) = do
                             e1' <- tagVector s $ vec2Alg e1
                             withBinding s e1' (vec2Alg e2)
-vec2Alg (Var _ s i) = fromGam $ constrEnvName s i
+vec2Alg (Var _ s) = fromGam $ constrEnvName s i
 vec2Alg (App _ (Var _ x i) args) = case x of
                                     "not" -> do
                                                let [e] = map vec2Alg args
@@ -191,9 +240,12 @@ vec2Alg (App _ (Var _ x i) args) = case x of
                                                  case v of
 --                                                     UnEvaluated v' -> vec2Alg (App t v' args)
                                                      _              -> error $ "vec2Alg application: Not a function: " ++ show v
+-}
+{-
 vec2Alg (App _ (Fn _ _ _ avs e) args) = do
                                          args' <- mapM vec2Alg args
                                          foldr (\(x, a) ex -> withBinding x a ex) (vec2Alg e) (zip avs args')
+-}
 vec2Alg _ = error "Not defined yet"
 {-
 data Expr t where

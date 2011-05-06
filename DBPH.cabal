@@ -42,7 +42,7 @@ Library
                    Language.ParallelLang.Translate.Rewriter
                    Language.ParallelLang.VL.Data.VectorTypes
                    Language.ParallelLang.VL.VectorPrimitives
-                   -- Language.ParallelLang.Translate.Vec2Algebra
+                   Language.ParallelLang.Translate.Vec2Algebra
                    Language.ParallelLang.Translate.Detupler  
                    Language.ParallelLang.FKL.Data.WorkUnits
                    -- Language.ParallelLang.Translate.Algebra2SQL      
