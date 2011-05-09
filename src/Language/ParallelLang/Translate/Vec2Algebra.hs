@@ -44,6 +44,48 @@ fkl2Alg :: Expr Ty.Type -> Graph Plan
 fkl2Alg (Labeled s e) = fkl2Alg e
 fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 
+consEmpty :: Plan -> Graph Plan
+consEmpty q@(PrimVal _) = singletonPrim $ return q -- Corresponds to rule [cons-empty-1]
+consEmpty q | nestingDepth q > 0 = singletonVec $ return q
+            | otherwise = error "consEmpty: Can't construct consEmpty node"
+
+cons :: Plan -> Plan -> Graph Plan
+cons q1@(PrimVal _) q2@(ValueVector _)
+                -- corresponds to rule [cons-1]
+                = do
+                    TupleVector [v, _, _] <- append (singletonPrim (return q1)) (return q2)
+                    return v
+cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (nestingDepth q1) + 1
+                -- Corresponds to rule [cons-2]
+                = do
+                    TupleVector [v, p1, p2] <- append (outer $ singletonVec $ return q1) (return $ DescrVector d2)
+                    r1 <- renameOuter p1 q1
+                    r2 <- renameOuter p2 vs2
+                    e3 <- appendR r1 r2
+                    attachV (return v) (return e3)
+            | otherwise = error "cons: Can't construct cons node"
+
+-- | Apply renaming to the outermost vector
+renameOuter :: Plan -> Plan -> Graph Plan
+renameOuter p@(PropVector _) e@(ValueVector _)
+                                = rename (return p) (return e)
+renameOuter p@(PropVector _) e@(NestedVector h t)
+                                = attachV (rename (return p) (return $ DescrVector h)) (return t)
+
+-- | Append two vectors
+appendR :: Plan -> Plan -> Graph Plan
+appendR e1@(ValueVector _) e2@(ValueVector _)
+                    = do
+                          TupleVector [v, _] <- append (return e1) (return e2)
+                          return v
+appendR e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
+                    = do
+                        TupleVector [v, p1, p2] <- append (return $ DescrVector d1) (return $ DescrVector d2)
+                        e1' <- renameOuter p1 vs1
+                        e2' <- renameOuter p2 vs2
+                        e3 <- appendR e1' e2'
+                        attachV (return v) (return e3)
+
 dist :: Plan -> Plan -> Graph Plan
 dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = distPrim (return q1) (outer $ return q2)
                               | otherwise           = error "dist: Not a list vector"
@@ -78,10 +120,7 @@ distL (AClosure ((n,v):xs) f fl) q2 = do
                                         v' <- dist q2 v
                                         xs' <- mapEnv (\x -> distL x v') xs
                                         return $ AClosure ((n, v'):xs') f fl
-                                
-                                                 
-                                                   
-
+                                        
 -- Closure String [(String, Query a)] (Expr T.Type) (Expr T.Type)
 -- AClosure [(String, Query a)] (Expr T.Type) (Expr T.Type)
 
