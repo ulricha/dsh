@@ -76,6 +76,67 @@ renameOuter p@(PropVector _) e@(NestedVector h t)
                                     d <- rename p (DescrVector h)
                                     return $ attachV d t
 
+consLift :: Plan -> Plan -> Graph Plan
+consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
+                      -- Case that e1 has a nesting depth of 1
+                    = do
+                        s <- segment e1
+                        TupleVector [v, _, _] <- append s vs2
+                        return $ attachV (DescrVector d2) v
+consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2) 
+               | nestingDepth e1 > 1 && nestingDepth e2 == (nestingDepth e1) + 1
+                      -- Case that e1 has a nesting depth > 1
+                    = do
+                        s <- segment (DescrVector d1)
+                        o <- outer vs2
+                        TupleVector [v, p1, p2] <- append s o
+                        r1 <- renameOuter p1 vs1
+                        vs2' <- extract vs2 1
+                        r2 <- renameOuter p2 vs2'
+                        e3 <- appendR r1 r2
+                        return $ attachV (DescrVector d2) $ attachV v e3
+               | otherwise = error "consLift: Can't construct consLift node"
+
+restrict :: Plan -> Plan -> Graph Plan
+restrict e1@(ValueVector _) e2@(ValueVector _) 
+                     -- Corresponds to compilation rule [restrict-1]
+                   = do
+                        TupleVector [v, _] <- restrictVec e1 e2
+                        return v
+
+restrict (NestedVector d1 vs1) e2@(ValueVector _)
+                     -- Corresponds to compilation rule [restrict-2]
+                   = do
+                       TupleVector [v, p] <- restrictVec (DescrVector d1) e2
+                       e3 <- chainPropagate p vs1
+                       return $ attachV v e3
+restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
+
+combine :: Plan -> Plan -> Plan -> Graph Plan
+combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth e2 == 1
+                      -- Corresponds to compilation rule [combine-1]
+                    = do
+                        TupleVector [v, _, _] <- combineVec eb e1 e2
+                        return v
+                 | nestingDepth eb == 1 && nestingDepth e1 > 1 && nestingDepth e1 == nestingDepth e2
+                      -- Corresponds to compilation rule [combine-2]
+                    = do
+                        let (NestedVector d1 vs1) = e1
+                        let (NestedVector d2 vs2) = e2
+                        TupleVector [v, p1, p2] <- combineVec eb (DescrVector d1) (DescrVector d2)
+                        r1 <- renameOuter p1 vs1
+                        r2 <- renameOuter p2 vs2
+                        e3 <- appendR r1 r2
+                        return $ attachV v e3
+                 | otherwise = error "combine: Can't construct combine node"
+
+bPermute :: Plan -> Plan -> Graph Plan
+bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
+                    = do
+                        TupleVector [v, _] <- bPermuteVec e1 e2
+                        return v
+               | otherwise = error "bPermute: Can't construct bPermute node"
+
 -- | Append two vectors
 appendR :: Plan -> Plan -> Graph Plan
 appendR e1@(ValueVector _) e2@(ValueVector _)
