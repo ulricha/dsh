@@ -1,213 +1,159 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
-import Language.ParallelLang.VL.Data.VectorTypes
-import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.Translate.TransM
+import Database.Ferry.Algebra
 
-import Language.ParallelLang.Common.Data.Type(typeOf, Typed)
-import Language.ParallelLang.FKL.Primitives
-import Language.ParallelLang.Common.Data.Val
+import Control.Applicative
+import Language.ParallelLang.VL.Algebra
+import Language.ParallelLang.VL.Data.Query
 
 -- * Vector primitive constructor functions
 
-notV :: Expr VType -> Expr VType
-notV e | typeOf e == pValT = App pValT (Var (pValT .~> pValT) "not") [e]
-       | otherwise = error "Can't construct not node"
+notA :: Plan -> Graph Plan
+notA (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
+notA (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
 
-outer :: Expr VType -> Expr VType
-outer e1 | nestingDepth (typeOf e1) > 0 = App descrT (Var (typeOf e1 .~> descrT) "outer") [e1]
-         | otherwise = error "Outer: Can't construct outer node"
+outer :: Plan -> Graph Plan
+outer (NestedVector p _) = return $ DescrVector p
+outer (ValueVector p)    = DescrVector <$> (tagM "outer" $ proj [(pos, pos), (descr,descr)] p)
+outer e                  = error $ "outer: Can't extract outer plan" ++ show e
+                
+distPrim :: Plan -> Plan -> Graph Plan
+distPrim (PrimVal q1) d = do
+                 (DescrVector q2) <- toDescr d
+                 ValueVector <$> crossM (proj [(item1, item1)] q1) (return q2)
+                  
+distDesc :: Plan -> Plan -> Graph Plan
+distDesc e1 e2 = do
+                   (rf, q1, pf) <- determineResultVector e1
+                   (DescrVector q2) <- toDescr e2
+                   q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
+                   qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
+                   qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
+                   return $ TupleVector [qr1, qr2]
 
-distPrim :: Expr VType -> Expr VType -> Expr VType
-distPrim e1 e2 | typeOf e1 == pValT && descrOrVal (typeOf e2)
-                        = App valVT (Var (typeOf e1 .~> typeOf e2 .~> valVT) "distPrim") [e1, e2]
-               | otherwise = error "distPrim: Can't construct distPrim node"
+distLift :: Plan -> Plan -> Graph Plan
+distLift e1 e2 = do
+                    (rf, q1, pf) <- determineResultVector e1
+                    (DescrVector q2) <- toDescr e2
+                    q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
+                    qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
+                    qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
+                    return $ TupleVector [qr1, qr2]                    
 
-distDesc :: Expr VType -> Expr VType -> Expr VType
-distDesc e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2)
-                        = let rt = tupleT [typeOf e1, propT]
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "distDesc") [e1, e2]
-                | otherwise = error "distDesc: Can't construct distDesc node"
+rename :: Plan -> Plan -> Graph Plan
+rename (PropVector q1) e2 = do
+                (rf, q2, pf) <- determineResultVector e2
+                q <- tagM "rename" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
+                return $ rf q
+                
+propagateIn :: Plan -> Plan -> Graph Plan
+propagateIn (PropVector q1) e2 = do
+                     (rf, q2, pf) <- determineResultVector e2
+                     q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
+                     qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
+                     qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
+                     return $ TupleVector [qr1, qr2]
+                     
+attachV :: Plan -> Plan -> Plan
+attachV (DescrVector q1) e2 = NestedVector q1 e2
+                
+singletonPrim :: Plan -> Graph Plan
+singletonPrim (PrimVal q1) = do
+                    return $ ValueVector q1
+                    
+singletonVec :: Plan -> Graph Plan
+singletonVec e1 = do
+                    q <- tagM "singletonVec" $ attachM pos natT (nat 1) $ litTable (nat 1) descr natT
+                    return $ NestedVector q e1
+                    
+append :: Plan -> Plan -> Graph Plan
+append e1 e2 = do
+                (rf, q1, q2, pf) <- determineResultVector' e1 e2
+                q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
+                qv <- rf <$> tagM "append r" (proj (pf [(pos, pos'), (descr, descr)]) q)
+                qp1 <- PropVector <$> (tagM "append r1" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
+                qp2 <- PropVector <$> (tagM "append r2" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
+                return $ TupleVector [qv, qp1, qp2]
+                
 
-distLift :: Expr VType -> Expr VType -> Expr VType
-distLift e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2) 
-                        = let rt = tupleT [typeOf e1, propT]
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "distLift") [e1, e2]
-               | otherwise = error "distLift: Can't construct distLift node"
+segment :: Plan -> Graph Plan
+segment e = do
+             (rf, q, pf) <- determineResultVector e
+             rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
-propagateIn :: Expr VType -> Expr VType -> Expr VType
-propagateIn e1 e2 | typeOf e1 == propT &&  descrOrVal (typeOf e2)
-                        = let rt = tupleT [typeOf e2, propT]
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "propagateIn") [e1, e2]
-                  | otherwise = error "propagateIn: Can't construct propagateIn node"
+extract :: Plan -> Int -> Graph Plan
+extract p 0 = return p
+extract (NestedVector _ p') n | n > 0 = extract p' (n - 1)
 
-rename :: Expr VType -> Expr VType -> Expr VType
-rename e1 e2 | typeOf e1 == propT && descrOrVal (typeOf e2)
-                        = App (typeOf e2) (Var (typeOf e1 .~> typeOf e2 .~> typeOf e1) "rename") [e1, e2]
-             | otherwise = error $ "rename: Can't construct rename node "
+insert :: Plan -> Plan -> Int -> Graph Plan
+insert p _ 0 = return p
+insert p d n | n > 0 = do
+                        o <- outer d
+                        d' <- extract d 1
+                        insert (attachV o p) d' (n - 1)
+             | otherwise = error "Can't insert a negative amount of descriptors"
 
-attach :: Expr VType -> Expr VType -> Expr VType
-attach e1 e2 | typeOf e1 == descrT && nestingDepth (typeOf e2) > 0
-                        = let rt = nVectorT' (typeOf e2)
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "attach") [e1, e2]
-             | otherwise = error $ "attach: Can't construct attach node "
-singletonPrim :: Expr VType -> Expr VType
-singletonPrim e1 | typeOf e1 == pValT = App valVT (Var (typeOf e1 .~> valVT) "singletonPrim") [e1]
-                 | otherwise = error "singletonPrim: Can't construct singletonPrim node"
+restrictVec :: Plan -> Plan -> Graph Plan
+restrictVec e1 (ValueVector qm) = do
+                    (rf, q1, pf) <- determineResultVector e1
+                    q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item1)] qm
+                    qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
+                    qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
+                    return $ TupleVector [qr, qp]
 
-singletonVec :: Expr VType -> Expr VType
-singletonVec e1 | nestingDepth (typeOf e1) > 0
-                    = let rt = nVectorT' (typeOf e1)
-                       in App rt (Var (typeOf e1 .~> rt) "singletonVec") [e1]
-                | otherwise = error "singletonVec: Can't construct singletonVec node"
+combineVec :: Plan -> Plan -> Plan -> Graph Plan
+combineVec (ValueVector qb) e1 e2 = do
+                        (rf, q1, q2, pf) <- determineResultVector' e1 e2
+                        d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item1 qb
+                        d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item1 qb
+                        q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
+                        qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
+                        qp1 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d1
+                        qp2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d2
+                        return $ TupleVector [qr, qp1, qp2]
+                        
+bPermuteVec :: Plan -> Plan -> Graph Plan
+bPermuteVec e1 (ValueVector q2) = do
+                     (rf, q1, pf) <- determineResultVector e1
+                     q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item1)] q2
+                     qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
+                     qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
+                     return $ TupleVector [qr, qp]
 
-append :: Expr VType -> Expr VType -> Expr VType
-append e1 e2 | descrOrVal (typeOf e1) && descrOrVal (typeOf e2) && nestingDepth (typeOf e1) == nestingDepth (typeOf e2)
-                    = let rt = tupleT [typeOf e1, propT, propT]
-                       in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "append") [e1, e2]
-             | otherwise = error $ "append: Can't construct append node" ++ show (typeOf e1) ++ " XXX " ++ show (typeOf e2)
+determineResultVector :: Plan -> Graph (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
+determineResultVector e = do
+                             let hasI = isValueVector e
+                             let rf = if hasI then ValueVector else DescrVector
+                             let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                             let q = if hasI
+                                         then let (ValueVector q') = e in q'
+                                         else let (DescrVector q') = e in q'
+                             return (rf, q, pf)
 
-segment :: Expr VType -> Expr VType
-segment e1 | descrOrVal (typeOf e1) = App (typeOf e1) (Var (typeOf e1 .~> typeOf e1) "segment") [e1]
-           | otherwise = error "segment: Can't construct segment node"
+determineResultVector' :: Plan -> Plan -> Graph (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
+determineResultVector' e1 e2 = do
+                                 let hasI = isValueVector e1
+                                 let rf = if hasI then ValueVector else DescrVector
+                                 let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                                 let (q1, q2) = if hasI
+                                                 then let (ValueVector q1') = e1
+                                                          (ValueVector q2') = e2 in (q1', q2')
+                                                 else let (DescrVector q1') = e1 
+                                                          (DescrVector q2') = e2 in (q1', q2')
+                                 return (rf, q1, q2, pf)
+                                 
+toDescr :: Plan -> Graph Plan
+toDescr v@(DescrVector _) = return v
+toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
 
-restrictVec :: Expr VType -> Expr VType -> Expr VType
-restrictVec e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
-                        = let rt = tupleT [typeOf e1, propT]
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "restrictVec") [e1, e2]
-                  | otherwise = error "restrictVec: Can't construct restrictVec node"
+isValueVector :: Plan -> Bool
+isValueVector (ValueVector _) = True
+isValueVector _               = False
 
-combineVec :: Expr VType -> Expr VType -> Expr VType -> Expr VType
-combineVec eb e1 e2 | nestingDepth (typeOf eb) == 1 && descrOrVal (typeOf e1) && descrOrVal (typeOf e2) && typeOf e1 == typeOf e2
-                        = let rt = tupleT [typeOf e1, propT, propT]
-                           in App rt (Var (typeOf eb .~> typeOf e1 .~> typeOf e2 .~> rt) "combineVec") [eb, e1, e2]
-                    | otherwise = error "combineVec: Can't construct combineVec node"
-
-bPermuteVec :: Expr VType -> Expr VType -> Expr VType
-bPermuteVec e1 e2 | descrOrVal (typeOf e1) && nestingDepth (typeOf e2) == 1
-                        = let rt = tupleT [typeOf e1, propT]
-                           in App rt (Var (typeOf e1 .~> typeOf e2 .~> rt) "bPermute") [e1, e2]
-                  | otherwise = error "bPermute: Can't construct bPermute node"
-
-extract :: Expr VType -> Int -> Expr VType
-extract e i | nestingDepth (typeOf e) > i && nestingDepth (typeOf e) > 1 && i > 0
-                        = let rt = nVectorT (nestingDepth (typeOf e) - i)
-                           in App rt (Var (typeOf e .~> pValT .~> rt) "extract") [e, intV i]
-            | otherwise = error "extract: Can't construct extract node"
-
-intV :: Int -> Expr VType
-intV i = Const pValT (Int i)
-
-
--- * meta construction functions
-
--- | Create a tuple projection node
-project :: Expr VType -> Int -> Expr VType
-project e i = let t = typeOf e
-                in case t of
-                    (Tuple ts) -> if length ts >= i 
-                                            then Proj (ts !! (i - 1)) 0 e i
-                                            else error "Provided tuple expression is not big enough"
-                    _                -> error "Provided type is not a tuple"
-
-
-ifVec :: Expr VType -> Expr VType -> Expr VType -> TransM (Expr VType)
-ifVec qb q1 q2 | typeOf qb == pValT && nestingDepth (typeOf q1) > 1 && typeOf q1 == typeOf q2
-                        = do
-                            d1 <- getFreshVar
-                            p1 <- getFreshVar
-                            d2 <- getFreshVar
-                            p2 <- getFreshVar
-                            ir1 <- getFreshVar
-                            ir2 <- getFreshVar
-                            (b1, q1', vs1) <- patV q1
-                            (b2, q2', vs2) <- patV q2
-                            let res1 = restrictVec q1' (distDesc qb q1')
-                            let res2 = restrictVec q2' (distDesc (notV qb) q2')
-                            let ir1' = Var (typeOf res1) ir1
-                            let ir2' = Var (typeOf res2) ir2
-                            let d1v = project ir1' 1
-                            let d1'  = Var (typeOf d1v) d1
-                            let p1v = project ir1' 2
-                            let p1' = Var (typeOf p1v) p1
-                            let d2v = project ir2' 1
-                            let d2' = Var (typeOf d2v) d2
-                            let p2v = project ir2' 2
-                            let p2' = Var (typeOf p2v) p2
-                            r1 <- renameOuter p1' vs1
-                            r2 <- renameOuter p2' vs2
-                            e3 <- appendR r1 r2
-                            let d = flip project 1 $ append d1' d2'
-                            return $ b1 (b2 (letF ir1 res1 (letF ir2 res2 (letF p1 p1v (letF d1 d1v (letF p2 p2v (letF d2 d2v (attach d e3)))))))) 
-               | otherwise = error "Can't construct ifVec node"
--- | Chain propagation
-chainPropagate :: Expr VType -> Expr VType -> TransM (Expr VType)
-chainPropagate pV rV | typeOf pV == propT && nestingDepth (typeOf rV) == 1
-                        = return $ flip project 1 $ propagateIn pV rV
-                     | typeOf pV == propT && nestingDepth (typeOf rV) > 1
-                        = do
-                            r <- getFreshVar
-                            v <- getFreshVar
-                            p <- getFreshVar
-                            (b, d, vs) <- patV rV
-                            let val = propagateIn pV d
-                            let r' = Var (typeOf val) r
-                            let valV = project r' 1
-                            let v' = Var (typeOf valV) v
-                            let valP = project r' 2
-                            let p' = Var (typeOf valP) p
-                            recurse <- chainPropagate p' vs
-                            return $ b $ letF r val (letF v valV (letF p valP (attach v' recurse)))
-                     | otherwise = error "chainPropagate: Can't expand meta rule chainPropagate" 
-
--- | Pattern matching. 
-patV :: Expr VType -> TransM (Expr VType -> Expr VType, Expr VType, Expr VType)
-patV e | nestingDepth (typeOf e) > 1
-                = do
-                    hd <- getFreshVar
-                    tl <- getFreshVar
-                    v <- getFreshVar
-                    let v' = Var (typeOf e) v
-                    let hdv = outer v'
-                    let tlv = extract v' 1
-                    let hd' = Var (typeOf hdv) hd
-                    let tl' = Var (typeOf tlv) tl
-                    let e' = \x -> letF v e (letF hd hdv (letF tl tlv x))
-                    return (e', hd', tl')
-        | otherwise = error "patV: Can't perform pattern match on a nesting depth smaller than 2"
-
--- | Append two vectors
-appendR :: Expr VType -> Expr VType -> TransM (Expr VType)
-appendR e1 e2 | nestingDepth (typeOf e1) == 1 && nestingDepth (typeOf e2) == 1
-                    = return $ flip project 1 $ append e1 e2
-              | nestingDepth (typeOf e1) > 1 && nestingDepth (typeOf e1) == nestingDepth (typeOf e2)
-                    = do
-                        r <- getFreshVar
-                        v <- getFreshVar
-                        p1 <- getFreshVar
-                        p2 <- getFreshVar
-                        (b1, d1, vs1) <- patV e1
-                        (b2, d2, vs2) <- patV e2
-                        let rv = append d1 d2
-                        let r' = Var (typeOf rv) r
-                        let vv = project r' 1
-                        let v' = Var (typeOf vv) v
-                        let p1v = project r' 2
-                        let p1' = Var (typeOf p1v) p1
-                        let p2v = project r' 3
-                        let p2' = Var (typeOf p2v) p2
-                        r1 <- renameOuter p1' vs1
-                        r2 <- renameOuter p2' vs2
-                        rec <- appendR r1 r2
-                        return $ b1 (b2 (letF r rv (letF v vv (letF p1 p1v (letF p2 p2v (attach v' rec))))))
-              | otherwise = error $ "appendR: Can't expand meta function appendR "
-
--- | Apply renaming to the outermost vector
-renameOuter :: Expr VType -> Expr VType -> TransM (Expr VType)
-renameOuter p e | typeOf p == propT && nestingDepth (typeOf e) == 1
-                    = return $ rename p e
-                | typeOf p == propT && nestingDepth (typeOf e) > 1
-                    = do
-                        (b, h, t) <- patV e
-                        return $ b (attach (rename p h) t)
-                | otherwise = error "renameOuter: Can't expand meta renameOuter rule"
+tagVector :: String -> Plan -> Graph Plan
+tagVector s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVector s v) vs)
+tagVector s (DescrVector q) = DescrVector <$> tag s q
+tagVector s (ValueVector q) = ValueVector <$> tag s q
+tagVector s (PrimVal q) = PrimVal <$> tag s q
+tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
+tagVector s (PropVector q) = PropVector <$> tag s q
