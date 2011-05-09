@@ -45,61 +45,70 @@ fkl2Alg (Labeled s e) = fkl2Alg e
 fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 
 consEmpty :: Plan -> Graph Plan
-consEmpty q@(PrimVal _) = singletonPrim $ return q -- Corresponds to rule [cons-empty-1]
-consEmpty q | nestingDepth q > 0 = singletonVec $ return q
+consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
+consEmpty q | nestingDepth q > 0 = singletonVec q
             | otherwise = error "consEmpty: Can't construct consEmpty node"
 
 cons :: Plan -> Plan -> Graph Plan
 cons q1@(PrimVal _) q2@(ValueVector _)
                 -- corresponds to rule [cons-1]
                 = do
-                    TupleVector [v, _, _] <- append (singletonPrim (return q1)) (return q2)
+                    n <- singletonPrim q1
+                    TupleVector [v, _, _] <- append n q2
                     return v
 cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (nestingDepth q1) + 1
                 -- Corresponds to rule [cons-2]
                 = do
-                    TupleVector [v, p1, p2] <- append (outer $ singletonVec $ return q1) (return $ DescrVector d2)
+                    o <- (singletonVec q1) >>= outer
+                    TupleVector [v, p1, p2] <- append o (DescrVector d2)
                     r1 <- renameOuter p1 q1
                     r2 <- renameOuter p2 vs2
                     e3 <- appendR r1 r2
-                    attachV (return v) (return e3)
+                    return $ attachV v e3
             | otherwise = error "cons: Can't construct cons node"
 
 -- | Apply renaming to the outermost vector
 renameOuter :: Plan -> Plan -> Graph Plan
 renameOuter p@(PropVector _) e@(ValueVector _)
-                                = rename (return p) (return e)
+                                = rename p e
 renameOuter p@(PropVector _) e@(NestedVector h t)
-                                = attachV (rename (return p) (return $ DescrVector h)) (return t)
+                                = do
+                                    d <- rename p (DescrVector h)
+                                    return $ attachV d t
 
 -- | Append two vectors
 appendR :: Plan -> Plan -> Graph Plan
 appendR e1@(ValueVector _) e2@(ValueVector _)
                     = do
-                          TupleVector [v, _] <- append (return e1) (return e2)
+                          TupleVector [v, _] <- append e1 e2
                           return v
 appendR e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                     = do
-                        TupleVector [v, p1, p2] <- append (return $ DescrVector d1) (return $ DescrVector d2)
+                        TupleVector [v, p1, p2] <- append (DescrVector d1) (DescrVector d2)
                         e1' <- renameOuter p1 vs1
                         e2' <- renameOuter p2 vs2
                         e3 <- appendR e1' e2'
-                        attachV (return v) (return e3)
+                        return $ attachV v e3
 
 dist :: Plan -> Plan -> Graph Plan
-dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = distPrim (return q1) (outer $ return q2)
+dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = do
+                                                        o <- outer q2
+                                                        distPrim q1 o
                               | otherwise           = error "dist: Not a list vector"
 dist q1@(ValueVector _) q2    | nestingDepth q2 > 0 = do
-                                                       d2v <- outer (return q2)
-                                                       TupleVector [q1v, _] <- distDesc (return q1) (return d2v)
-                                                       attachV (return d2v) (return q1v)
+                                                       d2v <- outer q2
+                                                       TupleVector [q1v, _] <- distDesc q1 d2v
+                                                       return $ attachV d2v q1v
                               | otherwise           = error "dist: Not a list vector"
 dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
-                                                        TupleVector [d, p] <- distDesc (outer $ return q1) (outer $ return q2)
-                                                        et <- extract (return q1) 1
-                                                        attachV (outer $ return q2) $ attachV (return d) (chainPropagate p et)
+                                                        o1 <- outer q1
+                                                        o2 <- outer q2
+                                                        TupleVector [d, p] <- distDesc o1 o2
+                                                        et <- extract q1 1
+                                                        e3 <- chainPropagate p et
+                                                        o <- outer q2
+                                                        return $ attachV o $ attachV d e3
                               | otherwise           = error "dist: Not a list vector"
-
 dist q1@(Closure n env f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') f fl) <$> mapEnv (flip dist q2) env
                                                             
 mapEnv :: (Plan -> Graph Plan) -> [(String, Plan)] -> Graph [(String, Plan)]
@@ -110,12 +119,14 @@ mapEnv f []          = return []
                          
 distL :: Plan -> Plan -> Graph (Plan)
 distL q1@(ValueVector _) (NestedVector d vs) = do
-                                                TupleVector [v, _] <- distLift (return q1) (outer $ return vs)
-                                                attachV (return $ DescrVector d) (return v)
+                                                o <- outer vs
+                                                TupleVector [v, _] <- distLift q1 o
+                                                return $ attachV (DescrVector d) v
 distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do 
-                                                     TupleVector [d, p] <- distLift (return $ DescrVector d1) (outer $ return vs2)
+                                                     o <- outer vs2
+                                                     TupleVector [d, p] <- distLift (DescrVector d1) o
                                                      e3 <- chainPropagate p vs1
-                                                     attachV (return $ DescrVector d2) $ attachV (return d) (return e3)
+                                                     return $ attachV (DescrVector d2) $ attachV d e3
 distL (AClosure ((n,v):xs) f fl) q2 = do
                                         v' <- dist q2 v
                                         xs' <- mapEnv (\x -> distL x v') xs
@@ -126,11 +137,12 @@ distL (AClosure ((n,v):xs) f fl) q2 = do
 
 chainPropagate :: Plan -> Plan -> Graph Plan
 chainPropagate p q@(ValueVector _) = do 
-                                      TupleVector [v, _] <- propagateIn (return p) (return q)
+                                      TupleVector [v, _] <- propagateIn p q
                                       return v
 chainPropagate p (NestedVector d vs) = do
-                                        TupleVector [v', p'] <- propagateIn (return p) (return $ DescrVector d)
-                                        attachV (return v') $ chainPropagate p' vs
+                                        TupleVector [v', p'] <- propagateIn p (DescrVector d)
+                                        e3 <- chainPropagate p' vs
+                                        return $ attachV v' e3
                                         
 toAlgebra :: Expr T.VType -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (vec2Alg e)
@@ -298,27 +310,21 @@ data Expr t where
     Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
 -}
 
-notA :: Graph Plan -> Graph Plan
-notA e = do
-           e' <- e
-           case e' of
-               (PrimVal q1) -> PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
-               (ValueVector q1) -> ValueVector <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
-outer :: Graph Plan -> Graph Plan
-outer e = do
-            e' <- e
-            case e' of
-                NestedVector p _  -> return $ DescrVector p
-                (ValueVector p) -> DescrVector <$> (tagM "outer" $ proj [(pos, pos), (descr,descr)] p)
-                _                 -> error $ "outer: Can't extract outer plan" ++ show e'
+notA :: Plan -> Graph Plan
+notA (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
+notA (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
+
+outer :: Plan -> Graph Plan
+outer (NestedVector p _) = return $ DescrVector p
+outer (ValueVector p)    = DescrVector <$> (tagM "outer" $ proj [(pos, pos), (descr,descr)] p)
+outer e                  = error $ "outer: Can't extract outer plan" ++ show e
                 
-distPrim :: Graph Plan -> Graph Plan -> Graph Plan
-distPrim v d = do
-                 (PrimVal q1) <- v
+distPrim :: Plan -> Plan -> Graph Plan
+distPrim (PrimVal q1) d = do
                  (DescrVector q2) <- toDescr d
                  ValueVector <$> crossM (proj [(item1, item1)] q1) (return q2)
                   
-distDesc :: Graph Plan -> Graph Plan -> Graph Plan
+distDesc :: Plan -> Plan -> Graph Plan
 distDesc e1 e2 = do
                    (rf, q1, pf) <- determineResultVector e1
                    (DescrVector q2) <- toDescr e2
@@ -327,7 +333,7 @@ distDesc e1 e2 = do
                    qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
                    return $ TupleVector [qr1, qr2]
 
-distLift :: Graph Plan -> Graph Plan -> Graph Plan
+distLift :: Plan -> Plan -> Graph Plan
 distLift e1 e2 = do
                     (rf, q1, pf) <- determineResultVector e1
                     (DescrVector q2) <- toDescr e2
@@ -336,40 +342,33 @@ distLift e1 e2 = do
                     qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ TupleVector [qr1, qr2]                    
 
-rename :: Graph Plan -> Graph Plan -> Graph Plan
-rename e1 e2 = do
-                (PropVector q1) <- e1
+rename :: Plan -> Plan -> Graph Plan
+rename (PropVector q1) e2 = do
                 (rf, q2, pf) <- determineResultVector e2
                 q <- tagM "rename" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
                 return $ rf q
                 
-propagateIn :: Graph Plan -> Graph Plan -> Graph Plan
-propagateIn e1 e2 = do
-                     (PropVector q1) <- e1
+propagateIn :: Plan -> Plan -> Graph Plan
+propagateIn (PropVector q1) e2 = do
                      (rf, q2, pf) <- determineResultVector e2
                      q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
                      qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
                      qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
                      return $ TupleVector [qr1, qr2]
                      
-attachV :: Graph Plan -> Graph Plan -> Graph Plan
-attachV e1 e2 = do
-                 (DescrVector q1) <- e1
-                 e2' <- e2
-                 return $ NestedVector q1 e2'
+attachV :: Plan -> Plan -> Plan
+attachV (DescrVector q1) e2 = NestedVector q1 e2
                 
-singletonPrim :: Graph Plan -> Graph Plan
-singletonPrim e1 = do
-                    (PrimVal q1) <- e1
+singletonPrim :: Plan -> Graph Plan
+singletonPrim (PrimVal q1) = do
                     return $ ValueVector q1
                     
-singletonVec :: Graph Plan -> Graph Plan
+singletonVec :: Plan -> Graph Plan
 singletonVec e1 = do
-                    e1' <- e1
                     q <- tagM "singletonVec" $ attachM pos natT (nat 1) $ litTable (nat 1) descr natT
-                    return $ NestedVector q e1'
+                    return $ NestedVector q e1
                     
-append :: Graph Plan -> Graph Plan -> Graph Plan
+append :: Plan -> Plan -> Graph Plan
 append e1 e2 = do
                 (rf, q1, q2, pf) <- determineResultVector' e1 e2
                 q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
@@ -379,36 +378,34 @@ append e1 e2 = do
                 return $ TupleVector [qv, qp1, qp2]
                 
 
-segment :: Graph Plan -> Graph Plan
+segment :: Plan -> Graph Plan
 segment e = do
              (rf, q, pf) <- determineResultVector e
              rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
-extract :: Graph Plan -> Int -> Graph Plan
-extract p 0 = p
-extract p n | n > 0 = do
-                       (NestedVector _ p') <- p
-                       extract (return p') (n - 1)
-            | otherwise = error "Can't extract a negative amount of descriptors"
+extract :: Plan -> Int -> Graph Plan
+extract p 0 = return p
+extract (NestedVector _ p') n | n > 0 = extract p' (n - 1)
 
-insert :: Graph Plan -> Graph Plan -> Int -> Graph Plan
-insert p _ 0 = p
-insert p d n | n > 0 = insert (attachV (outer d) p) (extract d 1) (n - 1)
+insert :: Plan -> Plan -> Int -> Graph Plan
+insert p _ 0 = return p
+insert p d n | n > 0 = do
+                        o <- outer d
+                        d' <- extract d 1
+                        insert (attachV o p) d' (n - 1)
              | otherwise = error "Can't insert a negative amount of descriptors"
 
-restrictVec :: Graph Plan -> Graph Plan -> Graph Plan
-restrictVec e1 m = do
+restrictVec :: Plan -> Plan -> Graph Plan
+restrictVec e1 (ValueVector qm) = do
                     (rf, q1, pf) <- determineResultVector e1
-                    (ValueVector qm) <- m
                     q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item1)] qm
                     qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
                     qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
                     return $ TupleVector [qr, qp]
 
-combineVec :: Graph Plan -> Graph Plan -> Graph Plan -> Graph Plan
-combineVec eb e1 e2 = do
+combineVec :: Plan -> Plan -> Plan -> Graph Plan
+combineVec (ValueVector qb) e1 e2 = do
                         (rf, q1, q2, pf) <- determineResultVector' e1 e2
-                        (ValueVector qb) <- eb
                         d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item1 qb
                         d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item1 qb
                         q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
@@ -417,56 +414,43 @@ combineVec eb e1 e2 = do
                         qp2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d2
                         return $ TupleVector [qr, qp1, qp2]
                         
-bPermuteVec :: Graph Plan -> Graph Plan -> Graph Plan
-bPermuteVec e1 e2 = do
+bPermuteVec :: Plan -> Plan -> Graph Plan
+bPermuteVec e1 (ValueVector q2) = do
                      (rf, q1, pf) <- determineResultVector e1
-                     (ValueVector q2) <- e2
                      q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item1)] q2
                      qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
                      qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
                      return $ TupleVector [qr, qp]
 
-determineResultVector :: Graph Plan -> Graph (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
+determineResultVector :: Plan -> Graph (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
 determineResultVector e = do
-                            hasI <- isValueVector e
-                            e' <- e
+                            let hasI = isValueVector e
                             let rf = if hasI then ValueVector else DescrVector
                             let pf = if hasI then \x -> (item1, item1):x else \x -> x
                             let q = if hasI
-                                        then let (ValueVector q') = e' in q'
-                                        else let (DescrVector q') = e' in q'
+                                        then let (ValueVector q') = e in q'
+                                        else let (DescrVector q') = e in q'
                             return (rf, q, pf)
 
-determineResultVector' :: Graph Plan -> Graph Plan -> Graph (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
+determineResultVector' :: Plan -> Plan -> Graph (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
 determineResultVector' e1 e2 = do
-                                hasI <- isValueVector e1
-                                e1' <- e1
-                                e2' <- e2
+                                let hasI = isValueVector e1
                                 let rf = if hasI then ValueVector else DescrVector
                                 let pf = if hasI then \x -> (item1, item1):x else \x -> x
                                 let (q1, q2) = if hasI
-                                                then let (ValueVector q1') = e1'
-                                                         (ValueVector q2') = e2' in (q1', q2')
-                                                else let (DescrVector q1') = e1' 
-                                                         (DescrVector q2') = e2' in (q1', q2')
+                                                then let (ValueVector q1') = e1
+                                                         (ValueVector q2') = e2 in (q1', q2')
+                                                else let (DescrVector q1') = e1 
+                                                         (DescrVector q2') = e2 in (q1', q2')
                                 return (rf, q1, q2, pf)
 
-toDescr :: Graph Plan -> Graph Plan
-toDescr v = do
-             v' <- v
-             case v' of
-                 (DescrVector _) -> v
-                 (ValueVector n) -> DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
-                                        
-                 _               -> error "toDescr: Cannot cast into descriptor vector"
+toDescr :: Plan -> Graph Plan
+toDescr v@(DescrVector _) = return v
+toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
 
-
-isValueVector :: Graph Plan -> Graph Bool
-isValueVector p = do
-                    p' <- p
-                    case p' of
-                        (ValueVector _) -> return True
-                        _               -> return False
+isValueVector :: Plan -> Bool
+isValueVector (ValueVector _) = True
+isValueVector _               = False
 
 -- | Construct a name that represents a lifted variable in the environment.                        
 constrEnvName :: String -> Int -> String
@@ -477,14 +461,10 @@ intFromVal :: Expr T.VType -> Int
 intFromVal (Const _ (Int i)) = i
 intFromVal x                 = error $ "intFromVal: not an integer: " ++ show x
 
-tagVector :: String -> Graph Plan -> Graph Plan
-tagVector s g = do
-                g' <- g
-                case g' of
-                    (TupleVector vs) -> TupleVector <$> (sequence $ map (\v -> tagVector s (pure v)) vs)
-                    (DescrVector q) -> DescrVector <$> tag s q
-                    (ValueVector q) -> ValueVector <$> tag s q
-                    (PrimVal q) -> PrimVal <$> tag s q
-                    (NestedVector q qs) -> NestedVector <$> tag s q <*> tagVector s (return qs)
-                    (PropVector q) -> PropVector <$> tag s q
-
+tagVector :: String -> Plan -> Graph Plan
+tagVector s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVector s v) vs)
+tagVector s (DescrVector q) = DescrVector <$> tag s q
+tagVector s (ValueVector q) = ValueVector <$> tag s q
+tagVector s (PrimVal q) = PrimVal <$> tag s q
+tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
+tagVector s (PropVector q) = PropVector <$> tag s q
