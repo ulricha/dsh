@@ -58,11 +58,13 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         attachV (outer $ return q2) $ attachV (return d) (chainPropagate p et)
                               | otherwise           = error "dist: Not a list vector"
 
-dist q1@(Closure n env f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') f fl) <$> distEnv env q2
+dist q1@(Closure n env f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') f fl) <$> mapEnv (flip dist q2) env
                                                             
-distEnv :: [(String, Plan)] -> Plan -> Graph [(String, Plan)]
-distEnv ((x, p):xs) q = (\p' xs' -> (x, p'):xs') <$> dist p q <*> distEnv xs q
-distEnv []          _ = return []
+mapEnv :: (Plan -> Graph Plan) -> [(String, Plan)] -> Graph [(String, Plan)]
+mapEnv f ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
+mapEnv f []          = return []
+
+
                          
 distL :: Plan -> Plan -> Graph (Plan)
 distL q1@(ValueVector _) (NestedVector d vs) = do
@@ -72,8 +74,12 @@ distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do
                                                      TupleVector [d, p] <- distLift (return $ DescrVector d1) (outer $ return vs2)
                                                      e3 <- chainPropagate p vs1
                                                      attachV (return $ DescrVector d2) $ attachV (return d) (return e3)
-distL (AClosure env f fl) (NestedVector d vs) = do
-                                                 undefined
+distL (AClosure ((n,v):xs) f fl) q2 = do
+                                        v' <- dist q2 v
+                                        xs' <- mapEnv (\x -> distL x v') xs
+                                        return $ AClosure ((n, v'):xs') f fl
+                                
+                                                 
                                                    
 
 -- Closure String [(String, Query a)] (Expr T.Type) (Expr T.Type)
