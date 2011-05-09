@@ -28,7 +28,7 @@ Library
                      Language.ParallelLang.NKL.Data.NKL
                      Language.ParallelLang.Common.Data.Val
                      Language.ParallelLang.Common.Data.Type
-                     Language.ParallelLang.Translate.Vectorise
+                     -- Language.ParallelLang.Translate.Vectorise
                      Language.ParallelLang.Common.Data.Op
                      Language.ParallelLang.VL.Data.Query
     Other-modules: Language.ParallelLang.FKL.Data.FKL
@@ -45,4 +45,8 @@ Library
                    Language.ParallelLang.Translate.Vec2Algebra
                    Language.ParallelLang.Translate.Detupler  
                    Language.ParallelLang.FKL.Data.WorkUnits
+                   Language.ParallelLang.VL.Algebra
+                   Language.ParallelLang.VL.MetaPrimitives
+                   Language.ParallelLang.VL.VectorOperations
+                   Language.ParallelLang.VL.VectorPrimitives
                    -- Language.ParallelLang.Translate.Algebra2SQL      
