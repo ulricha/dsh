@@ -15,7 +15,7 @@ data Query a =
        | Closure String [(String, Query a)] (Expr T.Type) (Expr T.Type)
        | AClosure [(String, Query a)] (Expr T.Type) (Expr T.Type)
      deriving Show
-      
+
 nestingDepth :: Query a -> Int
 nestingDepth (ValueVector _) = 1
 nestingDepth (NestedVector _ r) = 1 + nestingDepth r
