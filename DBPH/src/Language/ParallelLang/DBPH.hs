@@ -9,7 +9,7 @@ import Language.ParallelLang.FKL.Data.WorkUnits
 import Control.Monad
 
 -- import Language.ParallelLang.Translate.Algebra2SQL
--- import Language.ParallelLang.Translate.Vec2Algebra
+import Language.ParallelLang.Translate.Vec2Algebra
 import Language.ParallelLang.Translate.TransM (runTransform)
 import Language.ParallelLang.Translate.RewritePhases
 import Language.ParallelLang.Common.Data.Config (normalCompilation)
@@ -23,13 +23,20 @@ nkl2SQL = undefined
 nkl2SQL e = let (e', r) = nkl2Alg e
              in (toSQL e', r)
 -}
+
 nkl2Alg :: NKL.Expr -> (Query XML, ReconstructionPlan)
 nkl2Alg = undefined
-{-nkl2Alg e = let (e', r) = nkl2Vec' e
-             in (toXML $ toAlgebra e', r)
--}             
-
-
+{- nkl2Alg e = let (e', r) = nkl2Vec' e
+             in (toXML $ toAlgebra e', r) -}
+             
+{-
+nkl2Vec' :: NKL.Expr -> (FKL.Expr VType, ReconstructionPlan)
+nkl2Vec' e = runTransform normalCompilation  $ 
+                 do 
+                  (e', reconstruction) <- flatTransform e >>= runRWPhase1 >>= detuple 
+                  return (e'
+                  , reconstruction)
+-}
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform normalCompilation $
              do 
