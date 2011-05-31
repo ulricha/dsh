@@ -2,15 +2,14 @@
 module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 
 import Language.ParallelLang.VL.Algebra
-import Language.ParallelLang.VL.VectorOperations
-
+-- import Language.ParallelLang.VL.VectorOperations
+import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.Common.Data.Val
 import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
-import qualified Database.Ferry.Algebra as A
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
-import qualified Language.ParallelLang.Common.Data.Type as U
+-- import qualified Language.ParallelLang.Common.Data.Type as U
 import Language.ParallelLang.VL.Data.Query
 import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
@@ -20,9 +19,59 @@ import Control.Applicative hiding (Const)
 
 import Language.ParallelLang.Common.Impossible
 
+
 fkl2Alg :: Expr Ty.Type -> Graph Plan
 fkl2Alg (Labeled s e) = fkl2Alg e
 fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
+fkl2Alg (Nil (Ty.TyC "List" [t@(Ty.TyC "List" _)])) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
+fkl2Alg (Nil (Ty.TyC "List" [t])) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
+fkl2Alg (Nil _)                = error "Not a valid nil value"
+fkl2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have been desugared"
+                                 | otherwise = do
+                                                p1 <- fkl2Alg e1
+                                                p2 <- fkl2Alg e2
+                                                let (rt, extr) = case l of
+                                                                   0 -> (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
+                                                                   1 -> (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
+                                                                   _ -> error "This level of liftedness should have been elimated"
+                                                let q1 = extr p1
+                                                let q2 = extr p2
+                                                rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
+                                                    $ operM o resCol item1 tmpCol 
+                                                        $ eqJoinM pos pos' (return q1) 
+                                                            $ proj [(tmpCol, item1), (pos', pos)] q2)
+fkl2Alg (Proj _ _ e n) = do
+                          (TupleVector es) <- fkl2Alg e
+                          return $ es !! (n - 1)
+fkl2Alg (If t eb e1 e2) | Ty.listDepth t == 0 = do
+                             (PrimVal qb) <- fkl2Alg eb
+                             (PrimVal q1) <- fkl2Alg e1
+                             (PrimVal q2) <- fkl2Alg e2
+                             b <- proj [(tmpCol, item1)] qb
+                             qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
+                                       selectM  tmpCol $ 
+                                           unionM (cross q1 b) $ 
+                                              crossM (return q2) $ 
+                                                  projM [(tmpCol, resCol)] $ notC resCol tmpCol b
+                             return (PrimVal qr)
+                        | Ty.listDepth t == 1 = do
+                             (PrimVal qb)     <- fkl2Alg eb
+                             (ValueVector q1) <- fkl2Alg e1
+                             (ValueVector q2) <- fkl2Alg e2
+                             b <- proj [(tmpCol, item1)] qb
+                             qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
+                                   selectM  tmpCol $ 
+                                       unionM (cross q1 b) $ 
+                                           crossM (return q2) $ 
+                                               projM [(tmpCol, resCol)] $ notC resCol tmpCol b
+                             return (ValueVector qr)
+                        | otherwise = error "vec2Alg: Can't translate if construction"
+fkl2Alg (Let _ s e1 e2) = do
+                            e' <- fkl2Alg e1
+                            e1' <- tagVector s e'
+                            withBinding s e1' $ fkl2Alg e2
+fkl2Alg (Var _ s) = fromGam s
+
 
 toAlgebra :: Expr T.VType -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (vec2Alg e)
@@ -35,6 +84,8 @@ toXML (g, r, ts) = case r of
                      (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
                      (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
                      (PropVector _) -> error "Prop vectors should only be used internally and never appear in a result"
+                     (Closure _ _ _ _) -> error "Functions cannot appear as a result value"
+                     (AClosure _ _ _) -> error "Function cannot appear as a result value"
 --                     (UnEvaluated _) -> error "A not evaluated function can not occur in the query result"
     where
         item :: Element ()
