@@ -18,7 +18,7 @@ chainPropagate p (NestedVector d vs) = do
 appendR :: Plan -> Plan -> Graph Plan
 appendR e1@(ValueVector _) e2@(ValueVector _)
                     = do
-                          TupleVector [v, _] <- append e1 e2
+                          TupleVector [v, _, _] <- append e1 e2
                           return v
 appendR e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                     = do

@@ -13,6 +13,7 @@ import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Query
 import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
+import Language.ParallelLang.VL.VectorOperations
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
@@ -26,14 +27,20 @@ fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1)
 fkl2Alg (Nil (Ty.TyC "List" [t@(Ty.TyC "List" _)])) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
 fkl2Alg (Nil (Ty.TyC "List" [t])) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
 fkl2Alg (Nil _)                = error "Not a valid nil value"
-fkl2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have been desugared"
+fkl2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = do
+                                                p1 <- fkl2Alg e1
+                                                p2 <- fkl2Alg e2
+                                                case l of
+                                                    0 -> cons p1 p2
+                                                    1 -> consLift p1 p2
+                                                    _ -> error "This level of liftedness should have been eliminated"
                                  | otherwise = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
                                                 let (rt, extr) = case l of
                                                                    0 -> (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
                                                                    1 -> (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
-                                                                   _ -> error "This level of liftedness should have been elimated"
+                                                                   _ -> error "This level of liftedness should have been eliminated"
                                                 let q1 = extr p1
                                                 let q2 = extr p2
                                                 rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
@@ -71,10 +78,25 @@ fkl2Alg (Let _ s e1 e2) = do
                             e1' <- tagVector s e'
                             withBinding s e1' $ fkl2Alg e2
 fkl2Alg (Var _ s) = fromGam s
+fkl2Alg (App _ (Var _ x) args) = case x of
+                                    "dist" -> do
+                                                [e1, e2] <- mapM fkl2Alg args
+                                                dist e1 e2
+                                    "dist_L" -> do
+                                                [e1, e2] <- mapM fkl2Alg args
+                                                distL e1 e2
+                                    "index" -> undefined
+                                    "length" -> undefined
+                                    "restrict" -> undefined
+                                    "not" -> undefined
+                                    "combine" -> undefined
+                                    "insert" -> undefined
+                                    "extract" -> undefined
+                                    "bPermute" -> undefined
+                                    
 
-
-toAlgebra :: Expr T.VType -> AlgPlan Plan
-toAlgebra e = runGraph initLoop (vec2Alg e)
+toAlgebra :: Expr Ty.Type -> AlgPlan Plan
+toAlgebra e = runGraph initLoop (fkl2Alg e)
 
 toXML :: AlgPlan Plan -> Query XML
 toXML (g, r, ts) = case r of
