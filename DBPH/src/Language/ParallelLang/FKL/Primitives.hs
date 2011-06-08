@@ -39,12 +39,14 @@ lengthF :: TExpr -> TExpr
 lengthF e1 = let t1 = typeOf e1
               in F.App intT (F.Var (t1 .-> intT) "length") [e1]
 
+{-
 promoteF :: TExpr -> TExpr -> TExpr
 promoteF e1 e2 = let t1 = typeOf e1
                      t2 = typeOf e2
                      rt = extractShape t2 t1
                      ft = t1 .-> t2 .-> rt
                   in F.App rt (F.Var ft "promote") [e1, e2]
+-}
 
 restrictF :: TExpr -> TExpr -> TExpr
 restrictF e1 e2 = let t1 = typeOf e1
@@ -52,8 +54,10 @@ restrictF e1 e2 = let t1 = typeOf e1
                       ft = t1 .-> listT boolT .-> rt
                    in F.App rt (F.Var ft "restrict") [e1, e2]
 
+{-
 rangeF :: TExpr -> TExpr -> TExpr
 rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range") [e1, e2]
+-}
 
 notF :: TExpr -> TExpr
 notF e | typeOf e == boolT = cloApp boolT (F.Var (boolT .-> boolT) "not") [e]

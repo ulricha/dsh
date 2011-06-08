@@ -40,6 +40,7 @@ transform (N.Lam t arg e) = do
                              return $ F.Clo (funToCloTy t) n' fvs (F.Lam t arg e'') (F.Lam (liftType t) arg e')
 transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
+-- transform (N.BinOp _ (Op ":" 0) e1 e2) = error "TODO: desugar cons in nkl2fkl"
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
 transform (N.Var t x) = pure $ F.Var t x
@@ -82,6 +83,7 @@ flatten i d (N.If _ e1 e2 e3) = do
                                     let v2 = F.Var (typeOf e2') v2'
                                     let v3 = F.Var (typeOf e3') v2'
                                     return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combineF v1 v2 v3
+-- flatten i d (N.BinOp _ (Op ":" 0) e1 e2) = undefined
 flatten i d (N.BinOp t (Op o 0) e1 e2) = do
                                     (F.BinOp (liftType t) (Op o 1)) <$> flatten i d e1 <*> flatten i d e2
 flatten _ _ (N.BinOp _ _ _ _) = $impossible
