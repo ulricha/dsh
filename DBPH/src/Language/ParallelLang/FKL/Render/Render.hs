@@ -12,7 +12,7 @@ instance Show (Expr t) where
 render :: Expr t -> Doc
 render (Labeled _ e) = render e
 render (App _ e1 e2) = let e2' = map render e2
-                      in parens $ render e1 <+> hsep e2'
+                        in parens $ render e1 <+> hsep e2'
 render (Lam _ arg e) = text "\\" <+> text arg <+> text "->"
                             $+$ render e
 render (Let _ x e1 e2) = let e1' = render e1
@@ -37,10 +37,10 @@ render (Const _ (Double d)) = double d
 render (Const _ (Bool b)) = text $ show b
 render (Const _ (Unit)) = text $ "()"
 render (Var _ x) = text x
-render (Clo _ l vs f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text "," <+> render f <> text "," <+> render fl <> text ">>"
-render (AClo _ vs f fl) = text "<<" <+> text (show vs) <> text "," <+> render f <> text "," <+> render fl <> text ">>+"
-render (CloApp _ f as) = render f <+> text ":$" <+> (hsep $ map render as)
-render (CloLApp _ f as) = render f <+> text ":$l" <+> (hsep $ map render as)
+render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text ", \\" <+> text x  <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> "<+> render fl <> text ">>"
+render (AClo _ vs x f fl) = text "<<" <+> text (show vs) <> text ", \\" <+> text x <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> " <+> render fl <> text ">>+"
+render (CloApp _ f a) = render f <+> text ":$" <+> render a
+render (CloLApp _ f a) = render f <+> text ":$l" <+> render a
 -- render (Cons x xs) = text "(" <> render x <> text ":" <> render xs <> text ")"
 render (Nil _) = text "[]" 
 -- render (Tuple es) = text "(" <> hcat (intersperse (text ", ") $ map render es) <> text ")"

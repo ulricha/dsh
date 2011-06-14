@@ -29,7 +29,7 @@ transEnv []          = return []
 
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
-transform (N.App t e1 es) = cloApp t <$> transform e1 <*> mapM transform es
+transform (N.App t e1 es) = cloApp t <$> transform e1 <*> transform es
 transform (N.Lam t arg e) = do
                              fvs <- transEnv $ S.toList $ freeVars (arg:topLevelVars) e
                              i' <- getFreshVar
@@ -37,7 +37,7 @@ transform (N.Lam t arg e) = do
                              let n = F.Var (listT (Var "a")) n'
                              e' <- foldr withLetVar (flatten i' n e) (arg: map fst fvs)
                              e'' <- transform e
-                             return $ F.Clo (funToCloTy t) n' fvs (F.Lam t arg e'') (F.Lam (liftType t) arg e')
+                             return $ F.Clo (funToCloTy t) n' fvs arg e'' e'
 transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 -- transform (N.BinOp _ (Op ":" 0) e1 e2) = error "TODO: desugar cons in nkl2fkl"
@@ -49,7 +49,7 @@ transform (N.Iter t n e1 e2) = do
                                 let f  = N.Lam ty n e2
                                 f' <- transform f
                                 e1' <- transform e1
-                                return $ cloLApp t (distF f' e1') [e1']  
+                                return $ cloLApp t (distF f' e1') e1'
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
@@ -57,7 +57,7 @@ flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x
 flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1
 flatten _ e1 (N.Nil t) = return $ distF (F.Nil t) e1
-flatten i e1 (N.App t f es) = cloLApp (liftType t) <$> flatten i e1 f <*> mapM (flatten i e1) es
+flatten i e1 (N.App t f es) = cloLApp (liftType t) <$> flatten i e1 f <*> flatten i e1 es
 flatten i d (N.Proj t 0 e1 el) = do
                                     e1' <- flatten i d e1
                                     return $ F.Proj (listT t) 1 e1' el
@@ -94,8 +94,8 @@ flatten v d (N.Lam t arg e) = do
                                 e' <- withCleanLetEnv $ transform e
                                 fvs <- transEnv $ S.toList $ freeVars (arg:topLevelVars) e
                                 e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg: map fst fvs)
-                                return $ letF v d $ F.AClo (liftType $ funToCloTy t) ((n', d):fvs) (F.Lam t arg e') (F.Lam (liftType t) arg e'')
+                                return $ letF v d $ F.AClo (liftType $ funToCloTy t) ((n', d):fvs) arg e' e''
 flatten v d (N.Iter t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
-                                    return $ unconcatF e1' $ cloLApp t (concatF (distFL (distF f d) e1')) [concatF e1']
+                                    return $ unconcatF e1' $ cloLApp t (concatF (distFL (distF f d) e1')) (concatF e1')

@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..), funToCloTy)
+ (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..), funToCloTy)
 where
     
 import qualified Data.Map as M
@@ -97,6 +97,10 @@ extractFnArgs = fst . splitTypeArgsRes
 splitTypeArgsRes :: Type -> ([Type], Type)
 splitTypeArgsRes (Fn t1 t2) = let (args, r) = splitTypeArgsRes t2 in (t1:args, r)
 splitTypeArgsRes t          = ([], t)
+
+splitType :: Type -> (Type, Type)
+splitType (Fn t1 t2) = (t1, t2)
+splitType _          = error "Can only split function types"
 
 extractShape :: Type -> Type -> Type
 extractShape (TyC "List" [t1]) = \x -> listT $ extractShape t1 x

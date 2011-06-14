@@ -28,7 +28,6 @@ appendR e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                         e3 <- appendR e1' e2'
                         return $ attachV v e3
 
-
 -- | Apply renaming to the outermost vector
 renameOuter :: Plan -> Plan -> Graph Plan
 renameOuter p@(PropVector _) e@(ValueVector _)

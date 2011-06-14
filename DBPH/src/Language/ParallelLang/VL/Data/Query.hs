@@ -12,8 +12,9 @@ data Query a =
        | PrimVal a
        | NestedVector a (Query a)
        | PropVector a
-       | Closure String [(String, Query a)] (Expr T.Type) (Expr T.Type)
-       | AClosure [(String, Query a)] (Expr T.Type) (Expr T.Type)
+       | Closure String [(String, Query a)] String (Expr T.Type) (Expr T.Type)
+       | AClosure [(String, Query a)] String (Expr T.Type) (Expr T.Type)
+--       | NotSaturated String Int [Query a]
      deriving Show
 
 nestingDepth :: Query a -> Int
