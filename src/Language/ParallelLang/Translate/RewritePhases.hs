@@ -121,8 +121,9 @@ rewriteCombineLift a@(App _ (Var _ "combine" d) [e1, e2, e3]) | d > 0 =
 rewriteCombineLift e = return e
 -}
 rewriteIndexDist :: RewriteRule
+{-
 rewriteIndexDist a@(CloLApp _ (Var _ "index") [(CloApp _ (Var _ "dist") [e1, e2]), e3]) | e2 == e3 = return $ bPermuteF e1 e3
-                                                                                        | otherwise = return a
+                                                                                        | otherwise = return a -}
 rewriteIndexDist e = return e
 
 {-

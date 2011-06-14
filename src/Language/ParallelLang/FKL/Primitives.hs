@@ -11,11 +11,11 @@ import Language.ParallelLang.Common.Data.Type
 
 type TExpr = F.Expr Type
 
-cloApp :: Type -> TExpr -> [TExpr] -> TExpr
-cloApp t e1 es = CloApp t e1 es
+cloApp :: Type -> TExpr -> TExpr -> TExpr
+cloApp t e1 ea = CloApp t e1 ea
 
-cloLApp :: Type -> TExpr -> [TExpr] -> TExpr
-cloLApp t e1 es = CloLApp t e1 es
+cloLApp :: Type -> TExpr -> TExpr -> TExpr
+cloLApp t e1 ea = CloLApp t e1 ea
 
 indexF :: TExpr -> TExpr -> TExpr
 indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1
@@ -60,8 +60,8 @@ rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range")
 -}
 
 notF :: TExpr -> TExpr
-notF e | typeOf e == boolT = cloApp boolT (F.Var (boolT .-> boolT) "not") [e]
-       | typeOf e == listT boolT = cloLApp (listT boolT) (F.Var (listT boolT .-> listT boolT) "not") [e] 
+notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "notPrim") [e]
+       | typeOf e == listT boolT = F.App (listT boolT) (F.Var (listT boolT .-> listT boolT) "notVec") [e] 
        | otherwise = error $ "notF" ++ show (typeOf e)
        
 combineF :: TExpr -> TExpr -> TExpr -> TExpr

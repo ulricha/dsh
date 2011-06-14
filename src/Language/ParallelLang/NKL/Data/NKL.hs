@@ -10,7 +10,7 @@ import qualified Data.Set as S
 type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
 data Ex t where
-    App   :: t -> Expr -> [Ex t] -> Ex t -- | Apply multiple arguments to an expression
+    App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
     Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body
     Let   :: t -> String -> Ex t -> Ex t -> Ex t -- | Let a variable have value expr1 in expr2
     If    :: t -> Ex t -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
@@ -41,7 +41,7 @@ instance Typed Ex Type where
 --    typeOf (IterG t _ _ _ _) = t
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
-    freeVars t (App _ e1 es) = freeVars t e1 `S.union` (S.unions $ map (freeVars t) es)
+    freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
     freeVars t (Lam _ x e) = freeVars (x:t) e 
     freeVars t (Let _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
     freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t e3]

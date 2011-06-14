@@ -111,7 +111,7 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         o <- outer q2
                                                         return $ attachV o $ attachV d e3
                               | otherwise           = error "dist: Not a list vector"
-dist q1@(Closure n env f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') f fl) <$> mapEnv (flip dist q2) env
+dist q1@(Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure ((n, q2):env') x f fl) <$> mapEnv (flip dist q2) env
 
 mapEnv :: (Plan -> Graph Plan) -> [(String, Plan)] -> Graph [(String, Plan)]
 mapEnv f ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
@@ -129,9 +129,9 @@ distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do
                                                      TupleVector [d, p] <- distLift (DescrVector d1) o
                                                      e3 <- chainPropagate p vs1
                                                      return $ attachV (DescrVector d2) $ attachV d e3
-distL (AClosure ((n,v):xs) f fl) q2 = do
+distL (AClosure ((n,v):xs) x f fl) q2 = do
                                         v' <- dist q2 v
                                         xs' <- mapEnv (\x -> distL x v') xs
-                                        return $ AClosure ((n, v'):xs') f fl
+                                        return $ AClosure ((n, v'):xs') x f fl
 
 
