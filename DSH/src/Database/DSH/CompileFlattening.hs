@@ -56,12 +56,14 @@ translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
 translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
 translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
 translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i)
+{-
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
                                 return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)") [c1, c2]
+-}
 translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
@@ -78,7 +80,7 @@ translate (AppE1 Snd e1 ty) = do
                                 return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 2
 translate (AppE1 Not e1 ty) = do 
                                 c1 <- translate e1
-                                return $ NKL.App T.boolT (NKL.Var (T.boolT T..-> T.boolT) "not") [c1]
+                                return $ NKL.App T.boolT (NKL.Var (T.boolT T..-> T.boolT) "not") c1
 translate (AppE1 f1 e1 ty) = error "Application is not supported"
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
@@ -86,7 +88,7 @@ translate (AppE2 Map e1 e2 ty) = do
                                   n <- freshVar
                                   let tEl = T.unliftType (T.typeOf c2)
                                   let tr = T.extractFnRes (T.typeOf c1)
-                                  return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 [(NKL.Var tEl (prefixVar n))])
+                                  return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 (NKL.Var tEl (prefixVar n)))
 
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
