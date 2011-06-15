@@ -8,6 +8,16 @@ import Language.ParallelLang.VL.Data.Query
 
 -- * Vector primitive constructor functions
 
+lengthA :: Plan -> Graph Plan
+lengthA e = do
+             (DescrVector d) <- outer e
+             v <- attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d
+             return $ ValueVector v
+
+lengthSeg :: Plan -> Graph Plan
+lengthSeg (ValueVector d) = ValueVector <$> (attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d)
+lengthSeg (DescrVector d) = ValueVector <$> (attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d)
+
 notA :: Plan -> Graph Plan
 notA (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
 notA (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
@@ -84,6 +94,13 @@ segment e = do
 extract :: Plan -> Int -> Graph Plan
 extract p 0 = return p
 extract (NestedVector _ p') n | n > 0 = extract p' (n - 1)
+extract (AClosure n v l fvs x f1 f2) i | i < l = AClosure n <$> (extract v i) 
+                                                             <*> pure (l - i) 
+                                                             <*> (mapM (\(x, val) -> do
+                                                                                        val' <- extract val i
+                                                                                        return (x, val')) fvs)
+                                                             <*> pure x <*> pure f1 <*> pure f2
+extract v i = error $ "Extract: " ++ show v ++ " " ++ show i
 
 insert :: Plan -> Plan -> Int -> Graph Plan
 insert p _ 0 = return p

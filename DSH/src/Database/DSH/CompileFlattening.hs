@@ -16,6 +16,7 @@ import Data.Text (unpack)
 import Control.Monad.State
 import Control.Applicative
 
+import Data.Char (toLower)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
@@ -78,10 +79,9 @@ translate (AppE1 Snd e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
                                 return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 2
-translate (AppE1 Not e1 ty) = do 
+translate (AppE1 f e1 ty) = do 
                                 c1 <- translate e1
-                                return $ NKL.App T.boolT (NKL.Var (T.boolT T..-> T.boolT) "not") c1
-translate (AppE1 f1 e1 ty) = error "Application is not supported"
+                                return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
                                   c2 <- translate e2
@@ -161,7 +161,7 @@ translate (AppE3 f3 e1 e2 e3 ty) = do
                                                         e3'
 translate (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
 -}
-
+translate e = error $ "CompileFlattening: Not supported: " ++ show e
 gtorlt :: Fun2 -> Fun2
 gtorlt Gte = Gt
 gtorlt Lte = Lt
