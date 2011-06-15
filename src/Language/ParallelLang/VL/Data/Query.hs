@@ -13,7 +13,7 @@ data Query a =
        | NestedVector a (Query a)
        | PropVector a
        | Closure String [(String, Query a)] String (Expr T.Type) (Expr T.Type)
-       | AClosure [(String, Query a)] String (Expr T.Type) (Expr T.Type)
+       | AClosure String (Query a) Int [(String, Query a)] String (Expr T.Type) (Expr T.Type)
 --       | NotSaturated String Int [Query a]
      deriving Show
 
