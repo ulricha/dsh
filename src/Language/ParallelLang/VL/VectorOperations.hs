@@ -8,6 +8,17 @@ import Language.ParallelLang.VL.MetaPrimitives
 import Control.Applicative
 
 
+lengthLift :: Plan -> Graph Plan
+lengthLift (NestedVector d vs1) = do 
+                                   v <- outer vs1
+                                   ls <- lengthSeg v
+                                   return (NestedVector d ls)
+
+lengthV :: Plan -> Graph Plan
+lengthV v = do
+             v' <- outer v
+             lengthA v'
+
 consEmpty :: Plan -> Graph Plan
 consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
 consEmpty q | nestingDepth q > 0 = singletonVec q
