@@ -43,6 +43,7 @@ transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> trans
 -- transform (N.BinOp _ (Op ":" 0) e1 e2) = error "TODO: desugar cons in nkl2fkl"
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
+transform (N.Var t "length") = pure $ lengthVal t
 transform (N.Var t x) = pure $ F.Var t x
 transform (N.Iter t n e1 e2) = do
                                 let ty = unliftType (typeOf e1) .-> (typeOf e2)
@@ -53,6 +54,7 @@ transform (N.Iter t n e1 e2) = do
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
+flatten _ e1 (N.Var t "length") = return $ distF (lengthVal t) e1
 flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x
 flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1

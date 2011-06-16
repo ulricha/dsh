@@ -20,4 +20,4 @@ normalCompilation :: Config
 normalCompilation = Config allOpts False False False True True True True True
 
 topLevelVars :: [String]
-topLevelVars = ["dist", "restrict", "combine", "not", "length", "insert", "extract"]
+topLevelVars = ["dist", "restrict", "combine", "not", "insert", "extract"]
