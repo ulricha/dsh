@@ -12,9 +12,12 @@ lengthA :: Plan -> Graph Plan
 lengthA (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthA (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
 
-lengthSeg :: Plan -> Graph Plan
-lengthSeg (ValueVector d) = ValueVector <$> (attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d)
-lengthSeg (DescrVector d) = ValueVector <$> (attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d)
+lengthSeg :: Plan -> Plan -> Graph Plan
+lengthSeg (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item1", Just "item1")] (Just descr) $ (attachM "item1" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSeg (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item1", Just "item1")] (Just descr) $ (attachM "item1" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d))
+
+descToProp :: Plan -> Graph Plan
+descToProp (DescrVector q1) = PropVector <$> proj [(posnew, descr), (posold, pos)] q1
 
 notA :: Plan -> Graph Plan
 notA (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)

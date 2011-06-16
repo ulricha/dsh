@@ -11,8 +11,9 @@ import Control.Applicative
 lengthLift :: Plan -> Graph Plan
 lengthLift (NestedVector d vs1) = do 
                                    v <- outer vs1
-                                   ls <- lengthSeg v
-                                   return (NestedVector d ls)
+                                   ls <- lengthSeg (DescrVector d) v
+                                   p <- descToProp (DescrVector d)
+                                   rename p ls
 
 lengthV :: Plan -> Graph Plan
 lengthV v = do
