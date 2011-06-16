@@ -9,10 +9,8 @@ import Language.ParallelLang.VL.Data.Query
 -- * Vector primitive constructor functions
 
 lengthA :: Plan -> Graph Plan
-lengthA e = do
-             (DescrVector d) <- outer e
-             v <- attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d
-             return $ ValueVector v
+lengthA (DescrVector d) = ValueVector <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d)
+lengthA (ValueVector d) = ValueVector <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d)
 
 lengthSeg :: Plan -> Graph Plan
 lengthSeg (ValueVector d) = ValueVector <$> (attachM pos natT (nat 1) $ aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d)
