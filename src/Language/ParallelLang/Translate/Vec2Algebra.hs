@@ -97,6 +97,12 @@ fkl2Alg (App _ f arg) =  case f of
                              (Var _ "dist_L") -> do
                                                   [e1, e2] <- mapM fkl2Alg arg
                                                   distL e1 e2
+                             (Var _ "lengthPrim") -> do
+                                                      [e1] <- mapM fkl2Alg arg
+                                                      lengthV e1
+                             (Var _ "lengthLift") -> do
+                                                      [e1] <- mapM fkl2Alg arg
+                                                      lengthLift e1
                              _ -> do
                                     arg' <- mapM fkl2Alg arg
                                     app f arg'

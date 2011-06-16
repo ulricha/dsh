@@ -11,6 +11,14 @@ import Language.ParallelLang.Common.Data.Type
 
 type TExpr = F.Expr Type
 
+lengthVal :: Type -> TExpr
+lengthVal t = Clo (funToCloTy t) "n" [] "__*length_v*" f1 f2
+    where
+        (a, r) = splitType t
+        f1 = F.App r (F.Var t "lengthPrim") [(F.Var a "__*length_v*")]
+        f2 = F.App r (F.Var (liftType t) "lengthLift") [(F.Var (liftType a) "__*length_v*")]
+
+
 cloApp :: Type -> TExpr -> TExpr -> TExpr
 cloApp t e1 ea = CloApp t e1 ea
 
