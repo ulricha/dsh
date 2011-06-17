@@ -103,6 +103,12 @@ fkl2Alg (App _ f arg) =  case f of
                              (Var _ "lengthLift") -> do
                                                       [e1] <- mapM fkl2Alg arg
                                                       lengthLift e1
+                             (Var _ "notPrim") -> do
+                                                    [e1] <- mapM fkl2Alg arg
+                                                    notPrim e1
+                             (Var _ "notVec") -> do
+                                                    [e1] <- mapM fkl2Alg arg
+                                                    notVec e1
                              _ -> do
                                     arg' <- mapM fkl2Alg arg
                                     app f arg'

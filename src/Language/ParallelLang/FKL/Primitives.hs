@@ -18,6 +18,13 @@ lengthVal t = Clo (funToCloTy t) "n" [] "__*length_v*" f1 f2
         f1 = F.App r (F.Var t "lengthPrim") [(F.Var a "__*length_v*")]
         f2 = F.App r (F.Var (liftType t) "lengthLift") [(F.Var (liftType a) "__*length_v*")]
 
+notVal :: Type -> TExpr
+notVal t = Clo (funToCloTy t) "n" [] "__*not_v*" f1 f2
+    where
+        (a, r) = splitType t
+        f1 = F.App r (F.Var t "notPrim") [F.Var a "__*not_v*"]
+        f2 = F.App r (F.Var (liftType t) "notVec") [F.Var (liftType a) "__*not_v*"]
+
 
 cloApp :: Type -> TExpr -> TExpr -> TExpr
 cloApp t e1 ea = CloApp t e1 ea

@@ -8,6 +8,12 @@ import Language.ParallelLang.VL.Data.Query
 
 -- * Vector primitive constructor functions
 
+notPrim :: Plan -> Graph Plan
+notPrim (PrimVal q) = PrimVal <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 q)
+
+notVec :: Plan -> Graph Plan
+notVec (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 d)
+
 lengthA :: Plan -> Graph Plan
 lengthA (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthA (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
