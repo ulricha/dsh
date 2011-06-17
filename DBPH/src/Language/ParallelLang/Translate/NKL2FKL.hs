@@ -29,6 +29,7 @@ transEnv []          = return []
 
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Nil t) = pure $ F.Nil t
+transform (N.Tuple t es) = F.Tuple t <$> mapM transform es
 transform (N.App t e1 es) = cloApp t <$> transform e1 <*> transform es
 transform (N.Lam t arg e) = do
                              fvs <- transEnv $ S.toList $ freeVars (arg:topLevelVars) e
@@ -54,6 +55,9 @@ transform (N.Iter t n e1 e2) = do
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
+flatten i e1 (N.Tuple t es) = do
+                                es' <- mapM (flatten i e1) es
+                                return $ F.Tuple (liftType t) es'
 flatten _ e1 (N.Var t "length") = return $ distF (lengthVal t) e1
 flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x

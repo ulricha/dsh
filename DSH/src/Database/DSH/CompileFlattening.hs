@@ -57,14 +57,12 @@ translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
 translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
 translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
 translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i)
-{-
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
-                                return $ NKL.App (T.pairT t1 t2) (NKL.Var (t1 T..-> t2 T..-> T.pairT t1 t2) "(,,)") [c1, c2]
--}
+                                return $ NKL.Tuple (T.pairT t1 t2) [c1, c2]
 translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
