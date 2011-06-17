@@ -8,6 +8,7 @@ import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf, freeVars)
 -- | Data type expr represents flat kernel language.
 data Expr t where
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
+    Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
     App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     CloApp  :: t -> Expr t -> Expr t -> Expr t
     CloLApp :: t -> Expr t -> Expr t -> Expr t
@@ -41,7 +42,3 @@ instance Typed Expr t where
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _) = t
     freeVars = undefined
-    
-isTupleConstr :: Expr Type -> Bool
-isTupleConstr (Var _ ('(':xs)) = (==) ")" $ dropWhile (\x -> x == ',') xs 
-isTupleConstr _ = False

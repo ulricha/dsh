@@ -3,8 +3,8 @@ module Language.ParallelLang.Translate.Detupler(normTuples, detuple) where
 
 import Language.ParallelLang.Common.Impossible
 
-import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.FKL.Data.WorkUnits
+import Language.ParallelLang.FKL.Data.FKL as F
+import Language.ParallelLang.FKL.Data.WorkUnits as W
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Translate.TransM
 import Language.ParallelLang.Common.Data.Type hiding (Var, Fn)
@@ -31,7 +31,7 @@ transType ot@(T.TyC "List" [t]) | containsTuple t = let (TyC "tuple" ts, f) = tr
                                                      in (TyC "tuple" [TyC "List" [ty] | ty <- ts], Compose (Map f) Zip)
                                 | otherwise       = (ot, Id)
 transType (T.TyC "tuple" ts) = let tts = map transType ts
-                                in (T.TyC "tuple" $ map fst tts, Tuple $ map snd tts)
+                                in (T.TyC "tuple" $ map fst tts, W.Tuple $ map snd tts)
 transType (T.Fn t1 t2)       = (T.Fn (fst $ transType t1) (fst $ transType t2), error "Cannot make reconstruction plan for function types")
 transType t                  = (t, Id)
 
@@ -80,13 +80,14 @@ deTuple (If t e1 e2 e3) = do
                                       e' <- mapM deTuple e
                                       return $ letF fv1 e1' $ letF fv2 e2' $ letF fv3 e3' $ tupleF e'
                                 else return $ If t' e1' e2' e3'
+deTuple (F.Tuple t es) = do
+                          es' <- mapM deTuple es
+                          return $ F.Tuple (fst $ transType t) es'
 deTuple (Proj t l e i) = do
                             e' <- deTuple e
                             let r = Proj (fst $ transType t) l e' i
                             case e' of
-                                (App _ v es) -> if isTupleConstr v 
-                                                 then return $ es L.!! (i - 1)
-                                                 else return r
+                                (F.Tuple _ es) -> return $ es L.!! (i - 1)
                                 _            -> return r
 deTuple v@(Nil t) | containsTuple t = do
                                         let (tuple, _, _) = extractTuple t

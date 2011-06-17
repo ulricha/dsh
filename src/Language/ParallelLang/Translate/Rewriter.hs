@@ -29,6 +29,7 @@ rewriteTree r e = recurse e
                    rewriteAST' ex'
     rewriteAST' :: Expr Type -> TransM (Expr Type)
     rewriteAST' (Labeled s ex1) = (Labeled s) <$> recurse ex1
+    rewriteAST' (Tuple t es) = (Tuple t) <$> mapM recurse es
     rewriteAST' (App  t ex1 exs) = (App t) <$> recurse ex1 <*> mapM recurse exs
     rewriteAST' (Lam t a ex) = (Lam t a) <$> recurse ex
     rewriteAST' (Let t s ex1 ex2) = (Let t s) <$> recurse ex1 <*> recurse ex2

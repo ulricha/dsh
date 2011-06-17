@@ -11,6 +11,7 @@ type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
 data Ex t where
     App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
+    Tuple :: t -> [Ex t] -> Ex t
     Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body
     Let   :: t -> String -> Ex t -> Ex t -> Ex t -- | Let a variable have value expr1 in expr2
     If    :: t -> Ex t -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
