@@ -88,9 +88,9 @@ fkl2Alg (App _ f arg) =  case f of
                                                    let [e1, (Const _ (Int i))] = arg
                                                    e1' <- fkl2Alg e1
                                                    extract e1' i                             
-                             (Var _ "concat") -> do
+                             (Var _ "concatLift") -> do
                                                   [e1] <- mapM fkl2Alg arg
-                                                  extract e1 1
+                                                  concatLift e1
                              (Var _ "dist") -> do
                                                  [e1, e2] <- mapM fkl2Alg arg
                                                  dist e1 e2

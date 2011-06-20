@@ -25,6 +25,12 @@ notVal t = Clo (funToCloTy t) "n" [] "__*not_v*" f1 f2
         f1 = F.App r (F.Var t "notPrim") [F.Var a "__*not_v*"]
         f2 = F.App r (F.Var (liftType t) "notVec") [F.Var (liftType a) "__*not_v*"]
 
+concatVal :: Type -> TExpr
+concatVal t = Clo (funToCloTy t) "n" [] "__*concat_v*" f1 f2
+    where
+        (a, r) = splitType t
+        f1 = extractF (F.Var a "__*concat_v*") (F.Const intT (Int 1))
+        f2 = F.App r (F.Var (liftType t) "concatLift") [F.Var (liftType a) "__*concat_v*"]
 
 cloApp :: Type -> TExpr -> TExpr -> TExpr
 cloApp t e1 ea = CloApp t e1 ea
@@ -86,8 +92,10 @@ combineF e1 e2 e3 = let t1 = typeOf e1
                         ft = t1 .-> t2 .-> t2 .-> rt
                      in F.App rt (F.Var ft "combine") [e1, e2, e3]
 
+
 unconcatF :: TExpr -> TExpr -> TExpr
 unconcatF e1 e2 = insertF e2 e1 (F.Const intT (Int 1))
+
 
 insertF :: TExpr -> TExpr -> TExpr -> TExpr
 insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
@@ -97,8 +105,10 @@ insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
                                      in F.App rt (F.Var ft "insert") [f, v, d]
 insertF _ _ _ = error "Third argument to insert should be an integer"
 
+
 concatF :: TExpr -> TExpr
 concatF e = extractF e (F.Const intT (Int 1))
+
 
 extractF :: TExpr -> TExpr -> TExpr
 extractF v d@(F.Const _ (Int i)) = let t1 = typeOf v

@@ -7,6 +7,11 @@ import Language.ParallelLang.VL.MetaPrimitives
 
 import Control.Applicative
 
+concatLift :: Plan -> Graph Plan
+concatLift (NestedVector d (NestedVector d' vs)) = do
+                                                    p <- descToProp (DescrVector d')
+                                                    vs' <- renameOuter p vs
+                                                    return $ NestedVector d vs'
 
 lengthLift :: Plan -> Graph Plan
 lengthLift (NestedVector d vs1) = do 
