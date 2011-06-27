@@ -44,6 +44,7 @@ transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> trans
 -- transform (N.BinOp _ (Op ":" 0) e1 e2) = error "TODO: desugar cons in nkl2fkl"
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
+transform (N.Var t "map")    = pure $ mapVal t
 transform (N.Var t "length") = pure $ lengthVal t
 transform (N.Var t "not")    = pure $ notVal t
 transform (N.Var t "concat") = pure $ concatVal t
@@ -61,6 +62,7 @@ flatten i e1 (N.Tuple t es) = do
                                 es' <- mapM (flatten i e1) es
                                 return $ F.Tuple (liftType t) es'
 flatten _ e1 (N.Var t "not") = return $ distF (notVal t) e1
+flatten _ e1 (N.Var t "map") = return $ distF (mapVal t) e1
 flatten _ e1 (N.Var t "length") = return $ distF (lengthVal t) e1
 flatten _ e1 (N.Var t "concat") = return $ distF (concatVal t) e1
 flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
