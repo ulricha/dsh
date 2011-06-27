@@ -50,6 +50,9 @@ Extra-source-files:  examples/Example1.hs
 
 Cabal-version:       >= 1.2
 
+flag map
+    description: Builds DSH with map combinators instead of using iterators (flattening path)
+
 Library
   Build-depends:     base               >= 4.2 && < 5,
                      containers         >= 0.3,
@@ -70,8 +73,13 @@ Library
                      DBPH               >= 0.5.1
   Hs-Source-Dirs:    src
 
-  GHC-Options:       -O3 -Wall
-
+  if flag (map)
+    GHC-Options:       -O3 -Wall
+    cpp-options: -DwithMap
+  else
+    GHC-Options:       -O3 -Wall
+  
+  extensions: CPP
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
                      Database.DSH.Compiler

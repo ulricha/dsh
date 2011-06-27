@@ -11,6 +11,20 @@ import Language.ParallelLang.Common.Data.Type
 
 type TExpr = F.Expr Type
 
+-- groupWith :: Type -> TExpr
+-- groupWith t1 = 
+
+mapVal :: Type -> TExpr
+mapVal t = Clo (funToCloTy t) "n" [] "__*map_f*" f1 f2
+    where
+        (t1, r1) = splitType t
+        (t2, r) = splitType r1
+        f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (fs r (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (fl (listT r) (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+        f2 = AClo (listT r1) [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (fs r (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (fl (listT r) (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+        fs t f e = cloLApp t (distF f e) e
+        fl t f e = unconcatF e $ cloLApp t (concatF (distF f e)) (concatF e)
+
+
 lengthVal :: Type -> TExpr
 lengthVal t = Clo (funToCloTy t) "n" [] "__*length_v*" f1 f2
     where

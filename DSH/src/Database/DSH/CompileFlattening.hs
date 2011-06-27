@@ -86,7 +86,11 @@ translate (AppE2 Map e1 e2 ty) = do
                                   n <- freshVar
                                   let tEl = T.unliftType (T.typeOf c2)
                                   let tr = T.extractFnRes (T.typeOf c1)
+#ifndef withMap
                                   return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 (NKL.Var tEl (prefixVar n)))
+#else
+                                  return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e2) ty) (NKL.Var (ty2ty $ ArrowT (typeExp e1) (ArrowT (typeExp e2) ty)) "map") c1) c2
+#endif
 
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
