@@ -54,7 +54,7 @@ transform (N.Iter t n e1 e2) = do
                                 let f  = N.Lam ty n e2
                                 f' <- transform f
                                 e1' <- transform e1
-                                return $ cloLApp t (distF f' e1') e1'
+                                return $ mapS t f' e1' 
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
@@ -110,4 +110,4 @@ flatten v d (N.Lam t arg e) = do
 flatten v d (N.Iter t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
-                                    return $ unconcatF e1' $ cloLApp t (concatF (distFL (distF f d) e1')) (concatF e1')
+                                    return $ mapL t (distF f d) e1'
