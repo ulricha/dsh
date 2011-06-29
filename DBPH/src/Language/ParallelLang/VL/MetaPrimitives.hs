@@ -12,7 +12,7 @@ chainPropagate p (NestedVector d vs) = do
                                         TupleVector [v', p'] <- propagateIn p (DescrVector d)
                                         e3 <- chainPropagate p' vs
                                         return $ attachV v' e3
-
+chainPropagate _ _ = error "chainPropagate: Should not be possible"
 
 -- | Append two vectors
 appendR :: Plan -> Plan -> Graph Plan
@@ -20,21 +20,23 @@ appendR e1@(ValueVector _) e2@(ValueVector _)
                     = do
                           TupleVector [v, _, _] <- append e1 e2
                           return v
-appendR e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
+appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
                     = do
                         TupleVector [v, p1, p2] <- append (DescrVector d1) (DescrVector d2)
                         e1' <- renameOuter p1 vs1
                         e2' <- renameOuter p2 vs2
                         e3 <- appendR e1' e2'
                         return $ attachV v e3
+appendR _ _ = error "appendR: Should not be possible"
 
 -- | Apply renaming to the outermost vector
 renameOuter :: Plan -> Plan -> Graph Plan
 renameOuter p@(PropVector _) e@(ValueVector _)
                                 = rename p e
-renameOuter p@(PropVector _) e@(NestedVector h t)
+renameOuter p@(PropVector _) (NestedVector h t)
                                 = do
                                     d <- rename p (DescrVector h)
                                     return $ attachV d t
+renameOuter _ _ = error "renameOuter: Should not be possible"
 
 

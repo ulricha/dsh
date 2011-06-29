@@ -3,7 +3,7 @@ module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
+import Language.ParallelLang.Common.Data.Type(Typed, typeOf)
 
 -- | Data type expr represents flat kernel language.
 data Expr t where
@@ -41,3 +41,4 @@ instance Typed Expr t where
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _) = t
+    typeOf (Tuple t _) = t

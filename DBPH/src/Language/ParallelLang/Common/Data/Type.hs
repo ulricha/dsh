@@ -5,7 +5,6 @@ where
     
 import qualified Data.Map as M
 import qualified Data.List as L
-import qualified Data.Set as S
 
 instance Show Type where 
     show (Var v) = v
