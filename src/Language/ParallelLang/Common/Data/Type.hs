@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..), funToCloTy)
+ (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..))
 where
     
 import qualified Data.Map as M
@@ -27,7 +27,7 @@ data Type where
 -- infixr 7 .~>
 infixr 6 .->
 
-infixr 7 .:->
+-- infixr 7 .:->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
@@ -38,8 +38,10 @@ varsInType (Var v) = [v]
 -- (.~>) :: Type -> Type -> Type
 -- t1 .~> t2 = LFn t1 t2
 
+{-
 (.:->) :: Type -> Type -> Type
 t1 .:-> t2 = TyC ":->" [t1, t2]
+-}
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = Fn t1 t2
@@ -139,9 +141,11 @@ addSubstitution s i t = let s' = M.singleton i t
                             s'' = M.map (apply s') s
                          in s' `M.union` s''
 
+{-
 funToCloTy :: Type -> Type
 funToCloTy (Fn t1 t2) = t1 .:-> (funToCloTy t2)
 funToCloTy t          = t 
+-}
 
 class Typed a t where
   typeOf :: a t -> t
