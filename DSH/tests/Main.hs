@@ -42,7 +42,7 @@ putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
 
 main :: IO ()
 main = do
-    putStrLn "Supprted Types"
+    putStrLn "Supported Types"
     putStrLn "--------------"
     putStrPad "()"
     qc prop_unit
@@ -229,8 +229,10 @@ main = do
     qc prop_reverse
     putStrPad "append"
     qc prop_append
+#endif
     putStrPad "groupWith"
     qc prop_groupWith
+#ifndef isDBPH
     putStrPad "sortWith"
     qc prop_sortWith
     putStrPad "and"

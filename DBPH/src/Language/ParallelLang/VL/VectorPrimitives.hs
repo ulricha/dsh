@@ -8,6 +8,24 @@ import Language.ParallelLang.VL.Data.Query
 
 -- * Vector primitive constructor functions
 
+groupBy :: Plan -> Plan -> Graph Plan
+groupBy (ValueVector v1) (ValueVector v2) = do
+                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item1, Asc)] v1
+                                             d1 <- distinctM $ proj [(descr, descr), (pos, resCol)] q'
+                                             p <- proj [(posold, pos), (posnew, pos')] q'
+                                             v <- tagM "groupBy ValueVector" $ projM [(descr, descr), (pos, pos), (item1, item1)]
+                                                    $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
+                                                                         (proj [(pos', pos), (item1, item1)] v2)
+                                             return $ TupleVector [DescrVector d1, ValueVector v, PropVector p]
+groupBy (ValueVector v1) (DescrVector v2) = do
+                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item1, Asc)] v1
+                                             d1 <- distinctM $ proj [(descr, descr), (pos, resCol)] q'
+                                             p <- proj [(posold, pos), (posnew, pos')] q'
+                                             v <- projM [(descr, descr), (pos, pos), (item1, item1)]
+                                                    $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
+                                                                         (proj [(pos', pos)] v2)
+                                             return $ TupleVector [DescrVector d1, DescrVector v, PropVector p]
+groupBy e1 e2 = error $ "I didn't expect this: " ++ show e1 ++ " ::::: " ++ show e2
 notPrim :: Plan -> Graph Plan
 notPrim (PrimVal q) = PrimVal <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 q)
 

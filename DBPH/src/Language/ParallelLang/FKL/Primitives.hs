@@ -14,48 +14,71 @@ type TExpr = F.Expr Type
 -- groupWith :: Type -> TExpr
 -- groupWith t1 = 
 
+--The groupWith combinator
 
--- The map combinators are used for desugaring iterators.
-mapVal :: Type -> TExpr
-mapVal t = Clo (funToCloTy t) "n" [] "__*map_f*" f1 f2
+groupWithVal :: Type -> TExpr
+groupWithVal t = Clo t "n" [] "__*group_f*" f1 f2
     where
         (t1, r1) = splitType t
         (t2, r) = splitType r1
-        f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (mapS r (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (listT r) (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
-        f2 = AClo (listT r1) [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS r (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (listT r) (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+        gws = groupWithS r (F.Var t1 "__*group_f*") (F.Var t2 "__*group_xs*")
+        gwl = groupWithL (listT r) (F.Var (listT t1) "__*group_f*") (F.Var (listT t2) "__*group_xs*")
+        f1 = Clo r1 "n" [("__*group_f*", F.Var t1 "__*group_f*")] "__*group_xs*" gws gwl
+        f2 = AClo (listT r1) [("__*group_f*", F.Var (listT t1) "__*group_f*")] "__*group_xs*" gws gwl
 
-mapS :: Type -> TExpr -> TExpr -> TExpr
-mapS t f e = cloLApp t (distF f e) e
+groupWithS :: Type -> TExpr -> TExpr -> TExpr
+groupWithS t f e = F.App t (F.Var (typeOf f .-> typeOf e .-> t) "groupWithS") [mapS f e, e]
 
-mapL :: Type -> TExpr -> TExpr -> TExpr
-mapL t f e = unconcatF e $ cloLApp t (concatF (distFL f e)) (concatF e)
+groupWithL :: Type -> TExpr -> TExpr -> TExpr
+groupWithL t f e = F.App t (F.Var (typeOf f .-> typeOf e .-> t) "groupWithL") [mapL f e, e] 
+
+-- The map combinators are used for desugaring iterators.
+mapVal :: Type -> TExpr
+mapVal t = Clo t "n" [] "__*map_f*" f1 f2
+    where
+        (t1, r1) = splitType t
+        (t2, r)  = splitType r1
+        f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+        f2 = AClo (listT r1) [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+
+mapS :: TExpr -> TExpr -> TExpr
+mapS f e = cloLApp (distF f e) e
+
+mapL :: TExpr -> TExpr -> TExpr
+mapL f e = unconcatF e $ cloLApp (concatF (distFL f e)) (concatF e)
 
 lengthVal :: Type -> TExpr
-lengthVal t = Clo (funToCloTy t) "n" [] "__*length_v*" f1 f2
+lengthVal t = Clo t "n" [] "__*length_v*" f1 f2
     where
         (a, r) = splitType t
         f1 = F.App r (F.Var t "lengthPrim") [(F.Var a "__*length_v*")]
         f2 = F.App r (F.Var (liftType t) "lengthLift") [(F.Var (liftType a) "__*length_v*")]
 
 notVal :: Type -> TExpr
-notVal t = Clo (funToCloTy t) "n" [] "__*not_v*" f1 f2
+notVal t = Clo t "n" [] "__*not_v*" f1 f2
     where
         (a, r) = splitType t
         f1 = F.App r (F.Var t "notPrim") [F.Var a "__*not_v*"]
         f2 = F.App r (F.Var (liftType t) "notVec") [F.Var (liftType a) "__*not_v*"]
 
 concatVal :: Type -> TExpr
-concatVal t = Clo (funToCloTy t) "n" [] "__*concat_v*" f1 f2
+concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
     where
         (a, r) = splitType t
         f1 = extractF (F.Var a "__*concat_v*") (F.Const intT (Int 1))
         f2 = F.App r (F.Var (liftType t) "concatLift") [F.Var (liftType a) "__*concat_v*"]
 
-cloApp :: Type -> TExpr -> TExpr -> TExpr
-cloApp t e1 ea = CloApp t e1 ea
+cloApp :: TExpr -> TExpr -> TExpr
+cloApp e1 ea = CloApp rt e1 ea
+   where
+       fty = typeOf e1
+       (_, rt) = splitType fty
 
-cloLApp :: Type -> TExpr -> TExpr -> TExpr
-cloLApp t e1 ea = CloLApp t e1 ea
+cloLApp :: TExpr -> TExpr -> TExpr
+cloLApp e1 ea = CloLApp (liftType rt) e1 ea
+    where
+        fty = typeOf e1
+        (_, rt) = splitType $ unliftType fty
 
 indexF :: TExpr -> TExpr -> TExpr
 indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1

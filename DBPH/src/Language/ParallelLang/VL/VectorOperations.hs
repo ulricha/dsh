@@ -7,6 +7,24 @@ import Language.ParallelLang.VL.MetaPrimitives
 
 import Control.Applicative
 
+groupByS :: Plan -> Plan -> Graph Plan
+groupByS e1 e2@(ValueVector _) = do
+                                  TupleVector [d, v, _] <- groupBy e1 e2
+                                  return $ attachV d v
+groupByS e1 (NestedVector d2 vs2) = do
+                                     TupleVector [d, v, p] <- groupBy e1 (DescrVector d2)
+                                     vs' <- chainPropagate p vs2
+                                     return $ attachV d $ attachV v vs'
+
+groupByL :: Plan -> Plan -> Graph Plan
+groupByL (NestedVector d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
+                                  TupleVector [d, v, _] <- groupBy v1 v2
+                                  return $ attachV (DescrVector d2) $ attachV d v
+groupByL (NestedVector d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
+                                     TupleVector [d, v, p] <- groupBy v1 (DescrVector d')
+                                     vs' <- chainPropagate p vs2
+                                     return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
+                    
 concatLift :: Plan -> Graph Plan
 concatLift (NestedVector d (NestedVector d' vs)) = do
                                                     p <- descToProp (DescrVector d')

@@ -109,6 +109,12 @@ fkl2Alg (App _ f arg) =  case f of
                              (Var _ "notVec") -> do
                                                     [e1] <- mapM fkl2Alg arg
                                                     notVec e1
+                             (Var _ "groupWithS") -> do
+                                                      [e1, e2] <- mapM fkl2Alg arg
+                                                      groupByS e1 e2
+                             (Var _ "groupWithL") -> do
+                                                      [e1, e2] <- mapM fkl2Alg arg
+                                                      groupByL e1 e2
                              _ -> do
                                     arg' <- mapM fkl2Alg arg
                                     app f arg'
@@ -184,129 +190,6 @@ val2Alg (Bool b) = litTable (bool b) item1 boolT
 val2Alg Unit     = litTable (int (-1)) item1 intT  
 val2Alg (String s) = litTable (string s) item1 stringT
 val2Alg (Double d) = litTable (double d) item1 doubleT 
-
-vec2Alg :: Expr T.VType -> Graph Plan
-vec2Alg (Labeled _ e) = vec2Alg e
-{-
-vec2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
-vec2Alg (Nil (T.Tagged vt t)) = case T.nestingDepth vt of
-                            0 -> error "Invalid vector type for a Nil value"
-                            1 -> ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType $ U.unliftType t)])
-                            n -> NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> (tagVector "NilR" $ vec2Alg (Nil (T.Tagged (T.NestedVector (n - 1)) (U.unliftType t))))
-vec2Alg (Nil _) = error "Nil without tagged type not supported"
-vec2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = error "Cons operations should have been desugared"
-                                 | otherwise = do
-                                                p1 <- vec2Alg e1
-                                                p2 <- vec2Alg e2
-                                                let (rt, extr) = case l of
-                                                                  0 -> (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
-                                                                  1 -> (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
-                                                                  _ -> error "This level of liftedness should have been elimated"
-                                                let q1 = extr p1
-                                                let q2 = extr p2
-                                                rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
-                                                    $ operM o resCol item1 tmpCol 
-                                                        $ eqJoinM pos pos' (return q1) 
-                                                            $ proj [(tmpCol, item1), (pos', pos)] q2)
-vec2Alg (Proj _ _ e n) = do
-                            (TupleVector es) <- vec2Alg e
-                            return $ es !! (n - 1)        
-vec2Alg (If t eb e1 e2) | t == T.pValT = do
-                                            (PrimVal qb) <- vec2Alg eb
-                                            (PrimVal q1) <- vec2Alg e1
-                                            (PrimVal q2) <- vec2Alg e2
-                                            b <- proj [(tmpCol, item1)] qb
-                                            qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
-                                                    selectM  tmpCol $ 
-                                                        unionM (cross q1 b) $ 
-                                                            crossM (return q2) $ 
-                                                                projM [(tmpCol, resCol)] $ notC resCol tmpCol b
-                                            return (PrimVal qr)
-                        | T.nestingDepth t == 1 = do
-                                                 (PrimVal qb) <- vec2Alg eb
-                                                 (ValueVector q1) <- vec2Alg e1
-                                                 (ValueVector q2) <- vec2Alg e2
-                                                 b <- proj [(tmpCol, item1)] qb
-                                                 qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
-                                                         selectM  tmpCol $ 
-                                                             unionM (cross q1 b) $ 
-                                                                 crossM (return q2) $ 
-                                                                     projM [(tmpCol, resCol)] $ notC resCol tmpCol b
-                                                 return (ValueVector qr)
-                         | otherwise = error "vec2Alg: Can't translate if construction"
-vec2Alg (Let _ s e1 e2) = do
-                            e1' <- tagVector s $ vec2Alg e1
-                            withBinding s e1' (vec2Alg e2)
-vec2Alg (Var _ s) = fromGam $ constrEnvName s i
-vec2Alg (App _ (Var _ x i) args) = case x of
-                                    "not" -> do
-                                               let [e] = map vec2Alg args
-                                               notA e
-                                    "outer" -> do 
-                                                let [e] = map vec2Alg args
-                                                outer e
-                                    "distPrim" -> do 
-                                                   let [e1, e2] = map vec2Alg args
-                                                   distPrim e1 e2
-                                    "distDesc" -> do 
-                                                   let [e1, e2] = map vec2Alg args
-                                                   distDesc e1 e2
-                                    "distLift" -> do 
-                                                    let [e1, e2] = map vec2Alg args
-                                                    distLift e1 e2
-                                    "propagateIn" -> do 
-                                                      let [e1, e2] = map vec2Alg args
-                                                      propagateIn e1 e2
-                                    "rename" -> do 
-                                                 let [e1, e2] = map vec2Alg args
-                                                 rename e1 e2
-                                    "attach" -> do 
-                                                 let [e1, e2] = map vec2Alg args
-                                                 attachV e1 e2
-                                    "singletonPrim" -> do 
-                                                        let [e1] = map vec2Alg args
-                                                        singletonPrim e1
-                                    "singletonVec" -> do 
-                                                       let [e1] = map vec2Alg args
-                                                       singletonVec e1
-                                    "append" -> do 
-                                                  let [e1, e2] = map vec2Alg args
-                                                  append e1 e2
-                                    "segment" -> do 
-                                                  let [e1] = map vec2Alg args
-                                                  segment e1
-                                    "restrictVec" -> do 
-                                                      let [e1, e2] = map vec2Alg args
-                                                      restrictVec e1 e2
-                                    "combineVec" -> do 
-                                                     let [e1, e2 ,e3] = map vec2Alg args
-                                                     combineVec e1 e2 e3
-                                    "bPermute" -> do 
-                                                    let [e1, e2] = map vec2Alg args
-                                                    bPermuteVec e1 e2
-                                    "extract" -> do 
-                                                    let [e1, e2] = args
-                                                    extract (vec2Alg e1) (intFromVal e2)
-                                    "insert" -> do 
-                                                  let [e1, e2, e3] = args
-                                                  insert (vec2Alg e1) (vec2Alg e2) (intFromVal e3)
-                                    _        -> do
-                                                 v <- fromGam (constrEnvName x i)
-                                                 case v of
---                                                     UnEvaluated v' -> vec2Alg (App t v' args)
-                                                     _              -> error $ "vec2Alg application: Not a function: " ++ show v
--}
-{-
-vec2Alg (App _ (Fn _ _ _ avs e) args) = do
-                                         args' <- mapM vec2Alg args
-                                         foldr (\(x, a) ex -> withBinding x a ex) (vec2Alg e) (zip avs args')
--}
-vec2Alg _ = error "Not defined yet"
-{-
-data Expr t where
-    App   :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
-    Fn    :: t -> String -> Int -> [String] -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
--}
 
 -- | Construct a name that represents a lifted variable in the environment.                        
 constrEnvName :: String -> Int -> String

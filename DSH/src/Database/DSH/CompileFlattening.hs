@@ -91,7 +91,10 @@ translate (AppE2 Map e1 e2 ty) = do
 #else
                                   return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e2) ty) (NKL.Var (ty2ty $ ArrowT (typeExp e1) (ArrowT (typeExp e2) ty)) "map") c1) c2
 #endif
-
+translate (AppE2 GroupWith f e ty) = do
+                                      c1 <- translate f
+                                      c2 <- translate e
+                                      return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "groupWith") c1) c2
 {-
 translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
 translate (AppE2 Break (LamE f _) e t@(TupleT t1 _)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
