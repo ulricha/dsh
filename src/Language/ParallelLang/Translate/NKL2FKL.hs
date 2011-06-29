@@ -32,7 +32,7 @@ transform (N.Nil t) = pure $ F.Nil t
 transform (N.Tuple t es) = F.Tuple t <$> mapM transform es
 transform (N.App _t e1 es) = cloApp <$> transform e1 <*> transform es
 transform (N.Lam t arg e) = do
-                             fvs <- transEnv $ S.toList $ freeVars (arg:topLevelVars) e
+                             fvs <- transEnv $ S.toList $ N.freeVars (arg:topLevelVars) e
                              i' <- getFreshVar
                              n' <- getFreshVar
                              let n = F.Var (listT (Var "a")) n'
@@ -104,7 +104,7 @@ flatten v d (N.Lam t arg e) = do
                                 n' <- getFreshVar
                                 let n = F.Var (typeOf d) n'
                                 e' <- withCleanLetEnv $ transform e
-                                fvs <- transEnv $ S.toList $ freeVars (arg:topLevelVars) e
+                                fvs <- transEnv $ S.toList $ N.freeVars (arg:topLevelVars) e
                                 e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg: map fst fvs)
                                 return $ letF v d $ F.AClo (liftType t) ((n', d):fvs) arg e' e''
 flatten v d (N.Iter _t n e1 e2) = do

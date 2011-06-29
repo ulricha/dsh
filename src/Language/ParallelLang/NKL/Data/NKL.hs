@@ -3,7 +3,7 @@ module Language.ParallelLang.NKL.Data.NKL where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf, freeVars)
+import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 
 import qualified Data.Set as S
 
@@ -39,16 +39,20 @@ instance Typed Ex Type where
     typeOf (Const t _) = t
     typeOf (Var t _) = t
     typeOf (Iter t _ _ _) = t
---    typeOf (IterG t _ _ _ _) = t
+    typeOf (Tuple t _) = t
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
-    freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
-    freeVars t (Lam _ x e) = freeVars (x:t) e 
-    freeVars t (Let _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
-    freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t e3]
-    freeVars t (BinOp _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
-    freeVars _ (Const _ _) = S.empty
-    freeVars t v@(Var _ x) = if x `elem` t then S.empty else S.singleton (x, v)
-    freeVars t (Iter _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
-    freeVars _ (Nil _) = S.empty
-    freeVars t (Proj _ _ e _) = freeVars t e
+
+freeVars :: [String] -> Expr -> S.Set (String, Expr)
+freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
+freeVars t (Lam _ x e) = freeVars (x:t) e 
+freeVars t (Let _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
+freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t e3]
+freeVars t (BinOp _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
+freeVars _ (Const _ _) = S.empty
+freeVars t v@(Var _ x) = if x `elem` t then S.empty else S.singleton (x, v)
+freeVars t (Iter _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
+freeVars _ (Nil _) = S.empty
+freeVars t (Proj _ _ e _) = freeVars t e
+freeVars t (Tuple _ es) = S.unions $ map (freeVars t) es
+    
