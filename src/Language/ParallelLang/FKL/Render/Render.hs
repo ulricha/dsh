@@ -5,6 +5,7 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 
 import Text.PrettyPrint hiding (render)
+import Data.List (intersperse)
 
 instance Show (Expr t) where
    show a = show $ render a
@@ -46,6 +47,7 @@ render (Nil _) = text "[]"
 -- render (Tuple es) = text "(" <> hcat (intersperse (text ", ") $ map render es) <> text ")"
 render (Proj _ 0 e i) = parens (render e) <> text "@" <> text (show i) 
 render (Proj _ l e i) = parens (render e) <> text "@^" <> text (show l) <+> text (show i) 
+render (Tuple _ es) = parens (hsep $ intersperse comma $ map render es) 
 {-
 renderLiftLevel :: Int -> String
 rednerLiftLevel i = "⁰¹²³⁴⁵⁶⁷⁸⁹"
