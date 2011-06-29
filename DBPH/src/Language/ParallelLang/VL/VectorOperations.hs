@@ -15,21 +15,24 @@ groupByS e1 (NestedVector d2 vs2) = do
                                      TupleVector [d, v, p] <- groupBy e1 (DescrVector d2)
                                      vs' <- chainPropagate p vs2
                                      return $ attachV d $ attachV v vs'
+groupByS _ _ = error "groupByS: Should not be possible"
 
 groupByL :: Plan -> Plan -> Graph Plan
-groupByL (NestedVector d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
+groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
                                   TupleVector [d, v, _] <- groupBy v1 v2
                                   return $ attachV (DescrVector d2) $ attachV d v
-groupByL (NestedVector d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
+groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
                                      TupleVector [d, v, p] <- groupBy v1 (DescrVector d')
                                      vs' <- chainPropagate p vs2
                                      return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
+groupByL _ _ = error "groupByL: Should not be possible"
                     
 concatLift :: Plan -> Graph Plan
 concatLift (NestedVector d (NestedVector d' vs)) = do
                                                     p <- descToProp (DescrVector d')
                                                     vs' <- renameOuter p vs
                                                     return $ NestedVector d vs'
+concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift :: Plan -> Graph Plan
 lengthLift (NestedVector d vs1) = do 
@@ -37,6 +40,7 @@ lengthLift (NestedVector d vs1) = do
                                    ls <- lengthSeg (DescrVector d) v
                                    p <- descToProp (DescrVector d)
                                    rename p ls
+lengthLift _ = error "lengthLift: Should not be possible"
 
 lengthV :: Plan -> Graph Plan
 lengthV v = do
@@ -65,6 +69,7 @@ cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (ne
                     e3 <- appendR r1 r2
                     return $ attachV v e3
             | otherwise = error "cons: Can't construct cons node"
+cons _ _ = error "Should not be possible"
 
 consLift :: Plan -> Plan -> Graph Plan
 consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
@@ -86,6 +91,7 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                         e3 <- appendR r1 r2
                         return $ attachV (DescrVector d2) $ attachV v e3
                | otherwise = error "consLift: Can't construct consLift node"
+consLift _ _ = error "consLift: Should not be possible"
 
 restrict :: Plan -> Plan -> Graph Plan
 restrict e1@(ValueVector _) e2@(ValueVector _) 
@@ -146,11 +152,12 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         o <- outer q2
                                                         return $ attachV o $ attachV d e3
                               | otherwise           = error "dist: Not a list vector"
-dist q1@(Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
+dist (Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
+dist _ _ = error "dist: Should not be possible"
 
 mapEnv :: (Plan -> Graph Plan) -> [(String, Plan)] -> Graph [(String, Plan)]
-mapEnv f ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
-mapEnv f []          = return []
+mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
+mapEnv _f []          = return []
 
 
 
@@ -166,7 +173,7 @@ distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do
                                                      return $ attachV (DescrVector d2) $ attachV d e3
 distL (AClosure n v i xs x f fl) q2 = do
                                         v' <- dist q2 v
-                                        xs' <- mapEnv (\x -> distL x v') xs
+                                        xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
-
+distL _ _ = error "distL: Should not be possible"
 

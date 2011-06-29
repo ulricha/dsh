@@ -25,7 +25,8 @@ groupBy (ValueVector v1) (DescrVector v2) = do
                                                     $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                                                          (proj [(pos', pos)] v2)
                                              return $ TupleVector [DescrVector d1, DescrVector v, PropVector p]
-groupBy e1 e2 = error $ "I didn't expect this: " ++ show e1 ++ " ::::: " ++ show e2
+groupBy e1 e2 = error "groupBy"
+
 notPrim :: Plan -> Graph Plan
 notPrim (PrimVal q) = PrimVal <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 q)
 

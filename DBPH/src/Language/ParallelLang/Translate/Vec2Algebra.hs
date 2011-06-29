@@ -2,14 +2,12 @@
 module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 
 import Language.ParallelLang.VL.Algebra
--- import Language.ParallelLang.VL.VectorOperations
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.Common.Data.Val
 import Database.Ferry.Algebra hiding (getLoop, Gam)
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
--- import qualified Language.ParallelLang.Common.Data.Type as U
 import Language.ParallelLang.VL.Data.Query
 import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
@@ -17,13 +15,12 @@ import Language.ParallelLang.VL.VectorOperations
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
-import Control.Monad (foldM)
 
 import Language.ParallelLang.Common.Impossible
 
 
 fkl2Alg :: Expr Ty.Type -> Graph Plan
-fkl2Alg (Labeled s e) = fkl2Alg e
+fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
 fkl2Alg (Nil (Ty.TyC "List" [t@(Ty.TyC "List" _)])) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
 fkl2Alg (Nil (Ty.TyC "List" [t])) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
@@ -115,46 +112,29 @@ fkl2Alg (App _ f arg) =  case f of
                              (Var _ "groupWithL") -> do
                                                       [e1, e2] <- mapM fkl2Alg arg
                                                       groupByL e1 e2
-                             _ -> do
-                                    arg' <- mapM fkl2Alg arg
-                                    app f arg'
+                             (Lam _ x e) ->
+                                    do
+                                        [v] <- mapM fkl2Alg arg
+                                        withBinding x v $ fkl2Alg e
+                             _ -> error "Should not be possible"
+                                                
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
-                                fv <- mapM (\(x, v) -> do {v' <- fkl2Alg v; return (x, v')}) fvs
+                                fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
                                 return $ Closure n fv x f1 f2
 fkl2Alg (AClo _ fvs x f1 f2) = do
-                              ((n, v):fv) <- mapM (\(x, v) -> do {v' <- fkl2Alg v; return (x, v')}) fvs
+                              ((n, v):fv) <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
                               return $ AClosure n v 1 fv x f1 f2 
 fkl2Alg (CloApp _ c arg) = do
                              (Closure _ fvs x f1 _) <- fkl2Alg c
                              arg' <- fkl2Alg arg
-                             withContext [] undefined $ foldl (\e (y,v) -> withBinding y v e) (fkl2Alg f1) ((x, arg'):fvs)
+                             withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f1) ((x, arg'):fvs)
 fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
-                              withContext [] undefined $ foldl (\e (y,v) -> withBinding y v e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
+                              withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 fkl2Alg e                 = error $ "unsupported: " ++ show e
 
-app :: Expr Ty.Type -> [Plan] -> Graph Plan
--- app (Var _ "dist") [e1, e2] = dist e1 e2
-app (Var _ "dist_L") [e1, e2] = distL e1 e2
--- app (Var _ "index") args = error "Undefined index"
-app (Var _ "length") args = error "Undefined length"
-app (Var _ "restrict") args = error "Undefined restrict"
-app (Var _ "not") args = error "Undefined not"
-app (Var _ "combine") args = error "Undefined combine"
--- app (Var _ "insert") [e1, e2, e3] = insert e1 e2 e3
-app (Var _ "extract") args = error "Undefined extract"
-app (Var _ "bPermute") args = error "Undefined bPermute"
-app (Lam _ x e) [v] = withBinding x v $ fkl2Alg e
--- app (Lam _ x e) (v:vs) = withBinding x v $ fkl2Alg $ App undefined e vs
-
-{-
-applyCloApp :: Expr Ty.Type -> [(String, Plan)] -> [Expr Ty.Type] -> Graph Plan
-applyCloApp f env [v] = do
-                         v' <- 
--}
-                                    
 toAlgebra :: Expr Ty.Type -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (fkl2Alg e)
 
@@ -168,7 +148,6 @@ toXML (g, r, ts) = case r of
                      (PropVector _) -> error "Prop vectors should only be used internally and never appear in a result"
                      (Closure _ _ _ _ _) -> error "Functions cannot appear as a result value"
                      (AClosure _ _ _ _ _ _ _) -> error "Function cannot appear as a result value"
---                     (UnEvaluated _) -> error "A not evaluated function can not occur in the query result"
     where
         item :: Element ()
         item = [attr "name" $ "item1", attr "new" "false", attr "function" "item", attr "position" "1"] `attrsOf` xmlElem "column"

@@ -11,9 +11,6 @@ import Language.ParallelLang.Common.Data.Type
 
 type TExpr = F.Expr Type
 
--- groupWith :: Type -> TExpr
--- groupWith t1 = 
-
 --The groupWith combinator
 
 groupWithVal :: Type -> TExpr
@@ -37,7 +34,7 @@ mapVal :: Type -> TExpr
 mapVal t = Clo t "n" [] "__*map_f*" f1 f2
     where
         (t1, r1) = splitType t
-        (t2, r)  = splitType r1
+        (t2, _r)  = splitType r1
         f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
         f2 = AClo (listT r1) [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
 
