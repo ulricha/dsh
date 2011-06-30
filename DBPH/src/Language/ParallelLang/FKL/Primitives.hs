@@ -21,7 +21,7 @@ groupWithVal t = Clo t "n" [] "__*group_f*" f1 f2
         gws = groupWithS r (F.Var t1 "__*group_f*") (F.Var t2 "__*group_xs*")
         gwl = groupWithL (listT r) (F.Var (listT t1) "__*group_f*") (F.Var (listT t2) "__*group_xs*")
         f1 = Clo r1 "n" [("__*group_f*", F.Var t1 "__*group_f*")] "__*group_xs*" gws gwl
-        f2 = AClo (listT r1) [("__*group_f*", F.Var (listT t1) "__*group_f*")] "__*group_xs*" gws gwl
+        f2 = AClo (listT r1) [("n", F.Var (listT t1) "n"), ("__*group_f*", F.Var (listT t1) "__*group_f*")] "__*group_xs*" gws gwl
 
 groupWithS :: Type -> TExpr -> TExpr -> TExpr
 groupWithS t f e = F.App t (F.Var (typeOf f .-> typeOf e .-> t) "groupWithS") [mapS f e, e]
@@ -36,7 +36,7 @@ mapVal t = Clo t "n" [] "__*map_f*" f1 f2
         (t1, r1) = splitType t
         (t2, _r)  = splitType r1
         f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
-        f2 = AClo (listT r1) [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
+        f2 = AClo (listT r1) [("n", F.Var (listT t1) "n"), ("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
 
 mapS :: TExpr -> TExpr -> TExpr
 mapS f e = cloLApp (distF f e) e
