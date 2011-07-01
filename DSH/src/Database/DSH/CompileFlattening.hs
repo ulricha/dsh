@@ -63,7 +63,7 @@ translate (TupleE e1 e2 _) = do
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
                                 return $ NKL.Tuple (T.pairT t1 t2) [c1, c2]
-translate (ListE es ty) = foldr (cons (ty2ty ty)) (NKL.Nil (ty2ty ty)) <$> mapM translate es
+translate (ListE es ty) = toList (ty2ty ty) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
@@ -136,7 +136,7 @@ translate (AppE2 f2 e1 e2 ty) = do
                                                    return $ NKL.BinOp tr (transformOp f2) e1' e2'
                                             else if elem f2 [Lte, Gte] 
                                                     then translate (AppE2 Disj (AppE2 Equ e1 e2 ty) (AppE2 (gtorlt f2) e1 e2 ty) ty)
-                                                    else error "Application2: Not supported yet"
+                                                    else error $"Application2: Not supported yet: " ++ show f2
                                               {- do
                                                       e1' <- transformArg e1
                                                       e2' <- transformArg e2
@@ -206,3 +206,23 @@ transformOp Gt = O.Op ">" 0
 transformOp Conj = O.Op "&&" 0
 transformOp Disj = O.Op "||" 0
 transformOp _ = $impossible 
+
+toList :: T.Type -> [NKL.Expr] -> NKL.Expr
+toList t es = primList (reverse es) (NKL.Const t (V.List []))
+    where
+        primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
+        primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List es)) = primList vs (NKL.Const ty (V.List (v:es)))
+        primList [] e = e
+        primList vs e = consList vs e
+        consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
+        consList es e = foldl (flip (cons t)) e es
+
+isPrimVal :: Exp -> Bool
+isPrimVal (UnitE _) = True
+isPrimVal (BoolE _ _) = True
+isPrimVal (CharE _ _) = True
+isPrimVal (IntegerE _ _) = True
+isPrimVal (ListE es _) = and $ map isPrimVal es
+isPrimVal (DoubleE _ _) = True
+isPrimVal (TextE _ _) = True
+isPrimVal _ = False
