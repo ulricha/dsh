@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses  #-}
-module Language.ParallelLang.NKL.Data.NKL where
+module Language.ParallelLang.NKL.Data.NKL (Expr(..), Ex(..), Typed(..), typeOf, freeVars) where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val

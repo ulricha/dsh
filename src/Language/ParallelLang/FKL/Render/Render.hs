@@ -32,11 +32,7 @@ render (BinOp _ (Op o 0) e1 e2) = let e1' = render e1
 render (BinOp _ (Op o i) e1 e2) = let e1' = render e1
                                       e2' = render e2
                                    in parens $ e1' <+> text o <> text "^" <> int i <+> e2'
-render (Const _ (Int i)) = int i
-render (Const _ (String s)) = text $ show s
-render (Const _ (Double d)) = double d
-render (Const _ (Bool b)) = text $ show b
-render (Const _ (Unit)) = text $ "()"
+render (Const _ v) = renderC v
 render (Var _ x) = text x
 render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text ", \\" <+> text x  <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> "<+> render fl <> text ">>"
 render (AClo _ vs x f fl) = text "<<" <+> text (show vs) <> text ", \\" <+> text x <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> " <+> render fl <> text ">>+"
@@ -52,3 +48,11 @@ render (Tuple _ es) = parens (hsep $ intersperse comma $ map render es)
 renderLiftLevel :: Int -> String
 rednerLiftLevel i = "⁰¹²³⁴⁵⁶⁷⁸⁹"
 -}
+
+renderC :: Val -> Doc
+renderC (Int i) = int i
+renderC (String s) = text $ show s
+renderC (Double d) = double d
+renderC (Bool b) = text $ show b
+renderC (Unit) = text $ "()"
+renderC (List es) = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
