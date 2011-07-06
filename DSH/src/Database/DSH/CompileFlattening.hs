@@ -63,7 +63,7 @@ translate (TupleE e1 e2 _) = do
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
                                 return $ NKL.Tuple (T.pairT t1 t2) [c1, c2]
-translate (ListE es ty) = toList (ty2ty ty) <$> mapM translate es
+translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
@@ -117,12 +117,12 @@ translate (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                                     (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
                                                                     fn'
                                                                 )
-                                                                e')
+                                                                e') -}
 translate (AppE2 D.Cons e1 e2 _) = do
-                                            e1' <- transformE e1
-                                            e2' <- transformE e2
-                                            let (_ :=> t) = typeOf e1'
-                                            return $ F.Cons ([] :=> list t) e1' e2'
+                                            e1' <- translate e1
+                                            e2' <- translate e2
+                                            return $ toList e2' [e1']  
+{-
 translate (AppE2 Append e1 e2 t) = transformE (AppE1 Concat (ListE [e1, e2] (ListT t)) t)
 translate (AppE2 Any f e _) = transformE $ AppE1 Or (AppE2 Map f e $ ListT BoolT) BoolT
 translate (AppE2 All f e _) = transformE $ AppE1 And (AppE2 Map f e $ ListT BoolT) BoolT
@@ -172,8 +172,8 @@ gtorlt Gte = Gt
 gtorlt Lte = Lt
 gtorlt _   = $impossible
 
-cons :: T.Type -> NKL.Expr -> NKL.Expr -> NKL.Expr
-cons t e1 e2 = NKL.BinOp t (O.Op ":" 0) e1 e2
+cons :: NKL.Expr -> NKL.Expr -> NKL.Expr
+cons e1 e2 = NKL.BinOp (NKL.typeOf e2) (O.Op ":" 0) e1 e2
 
 isTuple :: String -> Maybe Int
 isTuple ('(':xs) = let l = length xs
@@ -207,15 +207,19 @@ transformOp Conj = O.Op "&&" 0
 transformOp Disj = O.Op "||" 0
 transformOp _ = $impossible 
 
-toList :: T.Type -> [NKL.Expr] -> NKL.Expr
-toList t es = primList (reverse es) (NKL.Const t (V.List []))
+toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
+toList n es = primList (reverse es) n 
     where
         primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
         primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List es)) = primList vs (NKL.Const ty (V.List (v:es)))
         primList [] e = e
         primList vs e = consList vs e
         consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        consList es e = foldl (flip (cons t)) e es
+        consList es e = foldl cons e es
+
+isConst :: NKL.Expr -> Bool
+isConst (NKL.Const _ _) = True
+isConst _               = False
 
 isPrimVal :: Exp -> Bool
 isPrimVal (UnitE _) = True

@@ -21,7 +21,7 @@ import Language.ParallelLang.Common.Impossible
 
 fkl2Alg :: Expr Ty.Type -> Graph Plan
 fkl2Alg (Labeled _ e) = fkl2Alg e
-fkl2Alg (Const _ v) = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg v))
+fkl2Alg (Const t v) = val2Alg t v 
 fkl2Alg (Nil (Ty.TyC "List" [t@(Ty.TyC "List" _)])) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
 fkl2Alg (Nil (Ty.TyC "List" [t])) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
 fkl2Alg (Nil _)                = error "Not a valid nil value"
@@ -163,12 +163,45 @@ toXML (g, r, ts) = case r of
     
 
 
-val2Alg :: Val -> Graph AlgNode
-val2Alg (Int i) = litTable (int $ fromIntegral i) item1 intT
-val2Alg (Bool b) = litTable (bool b) item1 boolT
-val2Alg Unit     = litTable (int (-1)) item1 intT  
-val2Alg (String s) = litTable (string s) item1 stringT
-val2Alg (Double d) = litTable (double d) item1 doubleT 
+val2Alg :: Ty.Type -> Val -> Graph Plan
+val2Alg t (List es) = listToPlan t (zip (repeat 1) es)
+val2Alg _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg' v))
+ where
+  val2Alg' (Int i) = litTable (int $ fromIntegral i) item1 intT
+  val2Alg' (Bool b) = litTable (bool b) item1 boolT
+  val2Alg' Unit     = litTable (int (-1)) item1 intT  
+  val2Alg' (String s) = litTable (string s) item1 stringT
+  val2Alg' (Double d) = litTable (double d) item1 doubleT 
+
+listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph Plan
+listToPlan (Ty.TyC "List" [t@(Ty.TyC "List" _)]) [] = do
+                                                       d <- emptyTable [("iter", natT), ("pos", natT)]
+                                                       v <- listToPlan t []
+                                                       return $ NestedVector d v
+listToPlan (Ty.TyC "List" [t@(Ty.TyC "List" _)]) vs = do
+                                                       let (vals, rec) = unzip [([nat i, nat p], zip (repeat p) es) | (p, (i, List es)) <- zip [1..] vs]
+                                                       d <- litTable' vals  [("iter", natT), ("pos", natT)]
+                                                       v <- listToPlan t $ concat rec
+                                                       return $ NestedVector d v                                                    
+listToPlan (Ty.TyC "List" [t]) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
+listToPlan (Ty.TyC "List" [t]) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item1", algTy t)]
+listToPlan _ _ = $impossible "Not a list value or type"
+       
+algTy :: Ty.Type -> ATy
+algTy (Ty.TyC "Int" _) = intT
+algTy (Ty.TyC "Double" _) = doubleT
+algTy (Ty.TyC "Bool" _) = boolT
+algTy (Ty.TyC "String" _) = stringT
+algTy (Ty.TyC "()" _) = intT
+algTy _               = $impossible "Not a primitive type"
+
+toAlgVal :: Val -> AVal
+toAlgVal (Int i) = int $ fromIntegral i
+toAlgVal (Bool b) = bool b
+toAlgVal Unit = int (-1)
+toAlgVal (String s) = string s
+toAlgVal (Double d) = double d
+toAlgVal _ = $impossible "Not a primitive value"
 
 -- | Construct a name that represents a lifted variable in the environment.                        
 constrEnvName :: String -> Int -> String

@@ -28,6 +28,8 @@ import qualified Data.Text as Text
 
 import Data.Char
 
+import System.IO.Unsafe
+
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
