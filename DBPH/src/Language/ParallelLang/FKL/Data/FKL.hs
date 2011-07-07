@@ -12,7 +12,6 @@ data Expr t where
     App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     CloApp  :: t -> Expr t -> Expr t -> Expr t
     CloLApp :: t -> Expr t -> Expr t -> Expr t
-    Lam     :: t -> String -> Expr t -> Expr t -- | A function has a name (and lifted level), some arguments and a body
     Let     :: t -> String -> Expr t -> Expr t -> Expr t -- | Let a variable have value expr1 in expr2
     If      :: t -> Expr t -> Expr t -> Expr t -> Expr t -- | If expr1 then expr2 else expr3
     BinOp   :: t -> Op -> Expr t -> Expr t -> Expr t -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
@@ -28,7 +27,6 @@ data Expr t where
 
 instance Typed Expr t where
     typeOf (App t _ _) = t
-    typeOf (Lam t _ _) = t
     typeOf (Let t _ _ _) = t
     typeOf (If t _ _ _) = t
     typeOf (BinOp t _ _ _) = t

@@ -31,7 +31,6 @@ rewriteTree r e = recurse e
     rewriteAST' (Labeled s ex1) = (Labeled s) <$> recurse ex1
     rewriteAST' (Tuple t es) = (Tuple t) <$> mapM recurse es
     rewriteAST' (App  t ex1 exs) = (App t) <$> recurse ex1 <*> mapM recurse exs
-    rewriteAST' (Lam t a ex) = (Lam t a) <$> recurse ex
     rewriteAST' (Let t s ex1 ex2) = (Let t s) <$> recurse ex1 <*> recurse ex2
     rewriteAST' (If t ex1 ex2 ex3) = (If t) <$> recurse ex1 <*> recurse ex2 <*> recurse ex3
     rewriteAST' (BinOp t o ex1 ex2) = (BinOp t o) <$> recurse ex1 <*> recurse ex2

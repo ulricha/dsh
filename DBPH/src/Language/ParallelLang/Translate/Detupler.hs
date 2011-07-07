@@ -203,10 +203,6 @@ deTuple a@(App rt (Var ft n) [e1]) | n == "length" && (containsTuple $ typeOf e1
 deTuple a@(App _ (Var ft _ ) _) | not (containsTuple ft) = return a
                                  | otherwise = deTupleApp a
 deTuple (App _ _ _) = $impossible
-deTuple (Lam t arg e) = do
-                          e' <- deTuple e
-                          let t' = fst $ transType t
-                          return $ Lam t' arg e'
 deTuple (Clo t l vs x f fl) = Clo (fst $ transType t) l vs x <$> deTuple f <*> deTuple fl
 deTuple (AClo t vs x f fl) = AClo (fst $ transType t) vs x <$> deTuple f <*> deTuple fl
 deTuple (CloApp t f args) = CloApp (fst $ transType t) <$> deTuple f <*> deTuple args
