@@ -62,14 +62,3 @@ attrToInt _ = $impossible
 attrToString :: AttValue -> String
 attrToString (AttValue [(Left i)]) = i
 attrToString _ = $impossible
-{-
-{-
-  Tuple [Query a]
-| DescrVector a
-| ValueVector a
-| PrimVal a
-| NestedVector a (Query a)
-| PropVector a
-| UnEvaluated (Expr T.VType)
--}
--}

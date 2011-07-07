@@ -25,24 +25,22 @@ fkl2Alg (Const t v) = val2Alg t v
 fkl2Alg (Nil (Ty.TyC "List" [t@(Ty.TyC "List" _)])) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
 fkl2Alg (Nil (Ty.TyC "List" [t])) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
 fkl2Alg (Nil _)                = error "Not a valid nil value"
-fkl2Alg (BinOp _ (Op o l) e1 e2) | o == ":" = do
+fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
-                                                case l of
-                                                    0 -> cons p1 p2
-                                                    1 -> consLift p1 p2
-                                                    _ -> error "This level of liftedness should have been eliminated"
+                                                if l 
+                                                    then consLift p1 p2
+                                                    else cons p1 p2
                                  | otherwise = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
-                                                let (rt, extr) = case l of
-                                                                   0 -> (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
-                                                                   1 -> (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
-                                                                   _ -> error "This level of liftedness should have been eliminated"
+                                                let (rt, extr) = if l 
+                                                                   then (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
+                                                                   else (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
                                                 let q1 = extr p1
                                                 let q2 = extr p2
                                                 rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
-                                                    $ operM o resCol item1 tmpCol 
+                                                    $ operM (show o) resCol item1 tmpCol 
                                                         $ eqJoinM pos pos' (return q1) 
                                                             $ proj [(tmpCol, item1), (pos', pos)] q2)
 fkl2Alg (Proj _ _ e n) = do

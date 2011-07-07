@@ -173,7 +173,7 @@ gtorlt Lte = Lt
 gtorlt _   = $impossible
 
 cons :: NKL.Expr -> NKL.Expr -> NKL.Expr
-cons e1 e2 = NKL.BinOp (NKL.typeOf e2) (O.Op ":" 0) e1 e2
+cons e1 e2 = NKL.BinOp (NKL.typeOf e2) (O.Op O.Cons False) e1 e2
 
 isTuple :: String -> Maybe Int
 isTuple ('(':xs) = let l = length xs
@@ -194,17 +194,17 @@ ty2ty (ArrowT t1 t2) = (ty2ty t1) T..-> (ty2ty t2)
 
 -- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> O.Op
-transformOp Add = O.Op "+" 0
-transformOp Sub = O.Op "-" 0
-transformOp Mul = O.Op "*" 0
-transformOp Div = O.Op "/" 0
-transformOp Equ = O.Op "==" 0
-transformOp Lt = O.Op "<" 0
-transformOp Lte = O.Op "<=" 0
-transformOp Gte = O.Op ">=" 0
-transformOp Gt = O.Op ">" 0
-transformOp Conj = O.Op "&&" 0
-transformOp Disj = O.Op "||" 0
+transformOp Add = O.Op O.Add False
+transformOp Sub = O.Op O.Sub False
+transformOp Mul = O.Op O.Mul False
+transformOp Div = O.Op O.Div False
+transformOp Equ = O.Op O.Eq False
+transformOp Lt = O.Op O.Lt False
+transformOp Lte = O.Op O.LtE False
+transformOp Gte = O.Op O.GtE False
+transformOp Gt = O.Op O.Gt False
+transformOp Conj = O.Op O.Conj False
+transformOp Disj = O.Op O.Disj False
 transformOp _ = $impossible 
 
 toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
