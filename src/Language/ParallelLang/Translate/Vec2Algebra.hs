@@ -112,10 +112,6 @@ fkl2Alg (App _ f arg) =  case f of
                              (Var _ "groupWithL") -> do
                                                       [e1, e2] <- mapM fkl2Alg arg
                                                       groupByL e1 e2
-                             (Lam _ x e) ->
-                                    do
-                                        [v] <- mapM fkl2Alg arg
-                                        withBinding x v $ fkl2Alg e
                              _ -> error "Should not be possible"
                                                 
 fkl2Alg (Var _ s) = fromGam s
