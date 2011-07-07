@@ -27,12 +27,9 @@ render (If _ e1 e2 e3) = let e1' = render e1
                           in text "if" <+> e1'
                               $+$ (nest 2 $ text "then" <+> e2')
                               $+$ (nest 2 $ text "else" <+> e3')
-render (BinOp _ (Op o 0) e1 e2) = let e1' = render e1
-                                      e2' = render e2
-                                   in parens $ e1' <+> text o <+> e2'
-render (BinOp _ (Op o i) e1 e2) = let e1' = render e1
-                                      e2' = render e2
-                                   in parens $ e1' <+> text o <> text "^" <> int i <+> e2'
+render (BinOp _ o e1 e2) = let e1' = render e1
+                               e2' = render e2
+                            in parens $ e1' <+> text (show o) <+> e2'
 render (Const _ v) = renderC v
 render (Var _ x) = text x
 render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text ", \\" <+> text x  <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> "<+> render fl <> text ">>"

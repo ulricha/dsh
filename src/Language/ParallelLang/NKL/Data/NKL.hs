@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses  #-}
-module Language.ParallelLang.NKL.Data.NKL (Expr(..), Ex(..), Typed(..), typeOf, freeVars) where
+module Language.ParallelLang.NKL.Data.NKL (Expr, Ex(..), Typed(..), freeVars) where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
@@ -19,16 +19,9 @@ data Ex t where
     Const :: t -> Val -> Ex t -- | Constant value
     Var   :: t -> String -> Ex t  -- | Variable
     Iter  :: t -> String -> Ex t -> Ex t -> Ex t -- | [expr2 | var <- expr1]
---    IterG :: t -> String -> Ex t -> Ex t -> Ex t -> Ex t -- | [expr3 | var <- expr1, expr2]
     Nil   :: t -> Ex t -- | []
     Proj  :: t -> Int -> Ex t -> Int -> Ex t  
       deriving (Show, Eq, Ord)
-
-isSimpleExpr :: Ex t -> Bool
-isSimpleExpr (Const _ _) = True
-isSimpleExpr (Nil _) = True
-isSimpleExpr (Var _ _) = True
-isSimpleExpr _ = False
 
 instance Typed Ex Type where
     typeOf (App t _ _) = t

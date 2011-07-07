@@ -9,7 +9,6 @@ import qualified Data.List as L
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
---    show (LFn t1 t2) = "(" ++ show t1 ++ " :-> " ++ show t2 ++ ")"
     show (TyC c []) = c
     show (TyC c ts) = case c of
                         "List"  -> "[" ++ (show $ head ts) ++ "]"
@@ -20,27 +19,14 @@ data Type where
     Var :: String -> Type
     TyC :: String -> [Type] -> Type
     Fn :: Type -> Type -> Type
---    LFn :: Type -> Type -> Type
     deriving (Eq, Ord)
 
--- infixr 7 .~>
 infixr 6 .->
-
--- infixr 7 .:->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
--- varsInType (LFn t1 t2) = varsInType t1 ++ varsInType t2
 varsInType (TyC _ vs) = concatMap varsInType vs
 varsInType (Var v) = [v]
-
--- (.~>) :: Type -> Type -> Type
--- t1 .~> t2 = LFn t1 t2
-
-{-
-(.:->) :: Type -> Type -> Type
-t1 .:-> t2 = TyC ":->" [t1, t2]
--}
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = Fn t1 t2
@@ -139,12 +125,6 @@ addSubstitution :: Subst -> String -> Type -> Subst
 addSubstitution s i t = let s' = M.singleton i t
                             s'' = M.map (apply s') s
                          in s' `M.union` s''
-
-{-
-funToCloTy :: Type -> Type
-funToCloTy (Fn t1 t2) = t1 .:-> (funToCloTy t2)
-funToCloTy t          = t 
--}
 
 class Typed a t where
   typeOf :: a t -> t
