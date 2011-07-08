@@ -4,7 +4,6 @@ module Language.ParallelLang.Translate.NKL2FKL (flatTransform) where
 import qualified Language.ParallelLang.FKL.Data.FKL as F
 import qualified Language.ParallelLang.NKL.Data.NKL as N
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.Common.Data.Config
 import Language.ParallelLang.Translate.TransM
 
 import Language.ParallelLang.FKL.Primitives
@@ -111,3 +110,6 @@ flatten v d (N.Iter _t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
                                     return $ mapL (distF f d) e1'
+
+topLevelVars :: [String]
+topLevelVars = ["dist", "restrict", "combine", "not", "insert", "extract"]

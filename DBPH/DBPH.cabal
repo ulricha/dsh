@@ -31,7 +31,6 @@ Library
                      Language.ParallelLang.Common.Data.Op
                      Language.ParallelLang.VL.Data.Query
     Other-modules: Language.ParallelLang.FKL.Data.FKL
-                   Language.ParallelLang.Common.Data.Config
                    Language.ParallelLang.FKL.Primitives
                    Language.ParallelLang.Translate.NKL2FKL
                    Language.ParallelLang.FKL.Render.Render

@@ -11,10 +11,8 @@ import Control.Monad
 import Language.ParallelLang.Translate.Algebra2SQL
 import Language.ParallelLang.Translate.Vec2Algebra
 import Language.ParallelLang.Translate.TransM (runTransform)
-import Language.ParallelLang.Common.Data.Config (normalCompilation)
 import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
 import Language.ParallelLang.Translate.Detupler (detuple)
--- import Language.ParallelLang.VL.Data.VectorTypes
 import Language.ParallelLang.Common.Data.Type
 
 nkl2SQL :: NKL.Expr -> (Query SQL, ReconstructionPlan)
@@ -26,11 +24,11 @@ nkl2Alg e = let (e', r) = nkl2Vec' e
              in (toXML $ toAlgebra e', r)
              
 nkl2Vec' :: NKL.Expr -> (FKL.Expr Type , ReconstructionPlan)
-nkl2Vec' e = runTransform normalCompilation  $ 
+nkl2Vec' e = runTransform $ 
                  do 
                   (e', reconstruction) <- flatTransform e >>= detuple 
                   return (e', reconstruction)
 
 nkl2fkl :: NKL.Expr -> String
-nkl2fkl e = show $ runTransform normalCompilation $ liftM fst $ flatTransform e >>= detuple 
+nkl2fkl e = show $ runTransform $ liftM fst $ flatTransform e >>= detuple 
                  

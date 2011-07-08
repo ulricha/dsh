@@ -9,71 +9,81 @@ import qualified Data.List as L
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
-    show (TyC c []) = c
-    show (TyC c ts) = case c of
-                        "List"  -> "[" ++ (show $ head ts) ++ "]"
-                        "tuple" -> "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
-                        _       -> c ++ (concat $ L.intersperse " " (map show ts)) 
+    show Int = "Int"
+    show Bool = "Bool"
+    show Double = "Double"
+    show String = "String"
+    show Unit = "()"
+    show (List t) = "[" ++ (show t) ++ "]"
+    show (Tuple ts) = "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
 
 data Type where
     Var :: String -> Type
-    TyC :: String -> [Type] -> Type
     Fn :: Type -> Type -> Type
+    Int :: Type
+    Bool :: Type
+    Double :: Type
+    String :: Type
+    Unit :: Type
+    Tuple :: [Type] -> Type
+    List :: Type -> Type
     deriving (Eq, Ord)
 
 infixr 6 .->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (TyC _ vs) = concatMap varsInType vs
+varsInType (Tuple vs) = concatMap varsInType vs
+varsInType (List t) = varsInType t
 varsInType (Var v) = [v]
+varsInType _ = []
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = Fn t1 t2
 
 intT :: Type
-intT = TyC "Int" []
+intT = Int
 
 stringT :: Type
-stringT = TyC "String" []
+stringT = String
 
 doubleT :: Type
-doubleT = TyC "Double" []
+doubleT = Double
 
 boolT :: Type
-boolT = TyC "Bool" []
+boolT = Bool
 
 unitT :: Type
-unitT = TyC "()" []
+unitT = Unit
 
 pairT :: Type -> Type -> Type
-pairT t1 t2 = TyC "tuple" [t1, t2]
+pairT t1 t2 = Tuple [t1, t2]
 
 tupleT :: [Type] -> Type
-tupleT = TyC "tuple"
+tupleT = Tuple
 
 listT :: Type -> Type
-listT t1 = TyC "List" [t1]
+listT = List
 
 listDepth :: Type -> Int
-listDepth (TyC "List" [t1]) = 1 + listDepth t1
+listDepth (List t1) = 1 + listDepth t1
 listDepth _                 = 0
 
 containsTuple :: Type -> Bool
 containsTuple (Fn t1 t2) = containsTuple t1 || containsTuple t2
-containsTuple (TyC "tuple" _) = True
-containsTuple (TyC _ ts) = or $ map containsTuple ts
+containsTuple (Tuple _)  = True
+containsTuple (List t)   = containsTuple t
 containsTuple _          = False
 
 extractTuple :: Type -> (Type, Type -> Type, Int)
-extractTuple (TyC "List" [t1]) = let (t, f, i) = extractTuple t1
-                                  in (t, \x -> TyC "List" [f x], i + 1)
-extractTuple t@(TyC "tuple" _) = (t, id, 0) 
-extractTuple _                 = error "Type doesn't contain a tuple, cannot extract tuple"
+extractTuple (List t1)   = let (t, f, i) = extractTuple t1
+                            in (t, \x -> List (f x), i + 1)
+extractTuple t@(Tuple _) = (t, id, 0) 
+extractTuple _           = error "Type doesn't contain a tuple, cannot extract tuple"
 
 tupleComponents :: Type -> [Type]
-tupleComponents (TyC "tuple" ts) = ts
-tupleComponents t   = error $ "Type is not a tuple type: " ++ show t
+tupleComponents (Tuple ts) = ts
+tupleComponents t          = error $ "Type is not a tuple type: " ++ show t
 
 extractFnRes :: Type -> Type
 extractFnRes = snd . splitTypeArgsRes
@@ -90,8 +100,8 @@ splitType (Fn t1 t2) = (t1, t2)
 splitType _          = error "Can only split function types"
 
 extractShape :: Type -> Type -> Type
-extractShape (TyC "List" [t1]) = \x -> listT $ extractShape t1 x
-extractShape _                 = \x -> x
+extractShape (List t1) = \x -> listT $ extractShape t1 x
+extractShape _         = \x -> x
 
 liftTypeN :: Int -> Type -> Type
 liftTypeN 0 t = t
@@ -106,8 +116,8 @@ unliftTypeN 0 t = t
 unliftTypeN i t = unliftTypeN (i - 1) $ unliftType t
 
 unliftType :: Type -> Type
-unliftType (TyC "List" [t1]) = t1
-unliftType t                 = error $ "Type: " ++ show t ++ " cannot be unlifted."
+unliftType (List t1) = t1
+unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
 
 
 type Subst = M.Map String Type
@@ -116,10 +126,11 @@ class Substitutable a where
     apply :: Subst -> a -> a
 
 instance Substitutable Type where
-    apply s (Fn t1 t2) = Fn (apply s t1) (apply s t2)
---    apply s (LFn t1 t2) = LFn (apply s t1) (apply s t2)
-    apply s (TyC n args) = TyC n $ map (apply s) args
-    apply s t@(Var v2) = M.findWithDefault t v2 s
+    apply s (Fn t1 t2)   = Fn (apply s t1) (apply s t2)
+    apply s (List t)     = List (apply s t)
+    apply s (Tuple args) = Tuple $ map (apply s) args
+    apply s t@(Var v2)   = M.findWithDefault t v2 s
+    apply _ t            = t
 
 addSubstitution :: Subst -> String -> Type -> Subst
 addSubstitution s i t = let s' = M.singleton i t
