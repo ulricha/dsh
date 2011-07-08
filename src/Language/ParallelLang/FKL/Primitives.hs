@@ -7,7 +7,8 @@ module Language.ParallelLang.FKL.Primitives where
     
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type
+import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), unliftTypeN, liftTypeN, boolT, listT, unliftType, splitType, liftType, Type(), tupleT)
+import qualified Language.ParallelLang.Common.Data.Type as T
 
 type TExpr = F.Expr Type
 
@@ -78,7 +79,7 @@ cloLApp e1 ea = CloLApp (liftType rt) e1 ea
         (_, rt) = splitType $ unliftType fty
 
 indexF :: TExpr -> TExpr -> TExpr
-indexF e1 e2 = let t1@(TyC "List" [t]) = typeOf e1
+indexF e1 e2 = let t1@(T.List t) = typeOf e1
                    t2 = typeOf e2
                 in F.App t (F.Var (t1 .-> t2 .-> t) "index") [e1, e2]
 
@@ -99,25 +100,11 @@ lengthF :: TExpr -> TExpr
 lengthF e1 = let t1 = typeOf e1
               in F.App intT (F.Var (t1 .-> intT) "length") [e1]
 
-{-
-promoteF :: TExpr -> TExpr -> TExpr
-promoteF e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                     rt = extractShape t2 t1
-                     ft = t1 .-> t2 .-> rt
-                  in F.App rt (F.Var ft "promote") [e1, e2]
--}
-
 restrictF :: TExpr -> TExpr -> TExpr
 restrictF e1 e2 = let t1 = typeOf e1
                       rt = t1
                       ft = t1 .-> listT boolT .-> rt
                    in F.App rt (F.Var ft "restrict") [e1, e2]
-
-{-
-rangeF :: TExpr -> TExpr -> TExpr
-rangeF e1 e2 = F.App (listT intT) (F.Var (intT .-> intT .-> listT intT) "range") [e1, e2]
--}
 
 notF :: TExpr -> TExpr
 notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "notPrim") [e]
@@ -169,7 +156,7 @@ zipF :: [TExpr] -> TExpr
 zipF es = F.App resType (F.Var zipType $ "zip" ++ (show $ length es)) es
   where
      types = map typeOf es
-     resType = (TyC "tuple" types)
+     resType = (tupleT types)
      zipType = foldr (.->) resType types
      
 letF :: String -> Expr t -> Expr t -> Expr t
@@ -181,14 +168,14 @@ tagN s e = Labeled s e
 tupleF :: [TExpr] -> TExpr
 tupleF es = F.App resType (F.Var tType tName) es
     where
-        resType = TyC "tuple" [typeOf e | e <- es]
+        resType = tupleT [typeOf e | e <- es]
         tName = "(" ++ replicate ((length es) - 1) ',' ++ ")"
         tType = foldr (.->) resType (map typeOf es)
 
 projectF :: TExpr -> Int -> TExpr
 projectF e i = let t = typeOf e
                 in case t of
-                    (TyC "tuple" ts) -> if length ts >= i 
+                    (T.Tuple ts) -> if length ts >= i 
                                             then Proj (ts !! (i - 1)) 0 e i
                                             else error "Provided tuple expression is not big enough"
                     _                -> error "Provided type is not a tuple"            

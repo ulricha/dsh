@@ -7,7 +7,7 @@ import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.FKL.Data.WorkUnits as W
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Translate.TransM
-import Language.ParallelLang.Common.Data.Type hiding (Var, Fn)
+import Language.ParallelLang.Common.Data.Type hiding (Var, Fn, Int)
 import qualified Language.ParallelLang.Common.Data.Type as T
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
@@ -27,11 +27,11 @@ normTuples e = do
                         return e'
                         
 transType :: Type -> (Type, ReconstructionPlan)
-transType ot@(T.TyC "List" [t]) | containsTuple t = let (TyC "tuple" ts, f) = transType t
-                                                     in (TyC "tuple" [TyC "List" [ty] | ty <- ts], Compose (Map f) Zip)
-                                | otherwise       = (ot, Id)
-transType (T.TyC "tuple" ts) = let tts = map transType ts
-                                in (T.TyC "tuple" $ map fst tts, W.Tuple $ map snd tts)
+transType ot@(T.List t) | containsTuple t = let (T.Tuple ts, f) = transType t
+                                             in (T.Tuple [T.List ty | ty <- ts], Compose (Map f) Zip)
+                        | otherwise       = (ot, Id)
+transType (T.Tuple ts) = let tts = map transType ts
+                          in (T.Tuple $ map fst tts, W.Tuple $ map snd tts)
 transType (T.Fn t1 t2)       = (T.Fn (fst $ transType t1) (fst $ transType t2), error "Cannot make reconstruction plan for function types")
 transType t                  = (t, Id)
 

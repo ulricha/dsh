@@ -1,23 +1,14 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
 module Language.ParallelLang.Translate.TransM where
 
-import Language.ParallelLang.Common.Data.Config
-
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Reader
 
-newtype TransM a = TransM (ReaderT Config (State (Int, [String])) a)
+newtype TransM a = TransM (State (Int, [String]) a)
     deriving (Monad, Functor)
 
 deriving instance MonadState (Int, [String]) TransM
-deriving instance MonadReader Config TransM
-
-withOpt :: Optimisation -> TransM Bool
-withOpt o = do
-             c <- ask
-             return $ o `elem` opt c
 
 getFreshVar :: TransM String
 getFreshVar = do
@@ -57,5 +48,5 @@ getLetVars = do
                (_, vs) <- get
                return vs
                
-runTransform :: Config -> TransM a -> a
-runTransform c (TransM e) = fst $ flip runState (0, []) $ runReaderT e c
+runTransform :: TransM a -> a
+runTransform (TransM e) = fst $ flip runState (0, []) e
