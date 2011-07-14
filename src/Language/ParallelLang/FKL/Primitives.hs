@@ -25,10 +25,10 @@ groupWithVal t = Clo t "n" [] "__*group_f*" f1 f2
         f2 = AClo (listT r1) [("n", F.Var (listT t1) "n"), ("__*group_f*", F.Var (listT t1) "__*group_f*")] "__*group_xs*" gws gwl
 
 groupWithS :: Type -> TExpr -> TExpr -> TExpr
-groupWithS t f e = F.App t (F.Var (typeOf f .-> typeOf e .-> t) "groupWithS") [mapS f e, e]
+groupWithS t f e = F.PApp2 t (F.GroupWithS (typeOf f .-> typeOf e .-> t)) (mapS f e) e
 
 groupWithL :: Type -> TExpr -> TExpr -> TExpr
-groupWithL t f e = F.App t (F.Var (typeOf f .-> typeOf e .-> t) "groupWithL") [mapL f e, e] 
+groupWithL t f e = F.PApp2 t (F.GroupWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e 
 
 -- The map combinators are used for desugaring iterators.
 mapVal :: Type -> TExpr
@@ -49,22 +49,22 @@ lengthVal :: Type -> TExpr
 lengthVal t = Clo t "n" [] "__*length_v*" f1 f2
     where
         (a, r) = splitType t
-        f1 = F.App r (F.Var t "lengthPrim") [(F.Var a "__*length_v*")]
-        f2 = F.App r (F.Var (liftType t) "lengthLift") [(F.Var (liftType a) "__*length_v*")]
+        f1 = F.PApp1 r (F.LengthPrim t) (F.Var a "__*length_v*")
+        f2 = F.PApp1 r (F.LengthLift (liftType t)) (F.Var (liftType a) "__*length_v*")
 
 notVal :: Type -> TExpr
 notVal t = Clo t "n" [] "__*not_v*" f1 f2
     where
         (a, r) = splitType t
-        f1 = F.App r (F.Var t "notPrim") [F.Var a "__*not_v*"]
-        f2 = F.App r (F.Var (liftType t) "notVec") [F.Var (liftType a) "__*not_v*"]
+        f1 = F.PApp1 r (F.NotPrim t) $ F.Var a "__*not_v*"
+        f2 = F.PApp1 r (F.NotVec (liftType t)) $ F.Var (liftType a) "__*not_v*"
 
 concatVal :: Type -> TExpr
 concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
     where
         (a, r) = splitType t
         f1 = extractF (F.Var a "__*concat_v*") (F.Const intT (Int 1))
-        f2 = F.App r (F.Var (liftType t) "concatLift") [F.Var (liftType a) "__*concat_v*"]
+        f2 = F.PApp1 r (F.ConcatLift $ liftType t) $ F.Var (liftType a) "__*concat_v*"
 
 cloApp :: TExpr -> TExpr -> TExpr
 cloApp e1 ea = CloApp rt e1 ea
@@ -81,34 +81,35 @@ cloLApp e1 ea = CloLApp (liftType rt) e1 ea
 indexF :: TExpr -> TExpr -> TExpr
 indexF e1 e2 = let t1@(T.List t) = typeOf e1
                    t2 = typeOf e2
-                in F.App t (F.Var (t1 .-> t2 .-> t) "index") [e1, e2]
+                in F.PApp2 t (F.Index $ t1 .-> t2 .-> t) e1 e2
 
 distF :: TExpr -> TExpr -> TExpr
 distF e1 e2 = let t1 = typeOf e1
                   t2 = typeOf e2
                   ft = t1 .-> t2 .-> listT t1
-               in F.App (listT t1) (F.Var ft "dist") [e1, e2]
+               in F.PApp2 (listT t1) (F.Dist ft) e1 e2
 
 distFL :: TExpr -> TExpr -> TExpr
 distFL e1 e2 = let t1 = typeOf e1
                    t2 = typeOf e2
                    ft = t1 .-> t2 .-> listT t1
-                in F.App (listT t1) (F.Var ft "dist_L") [e1, e2]
+                in F.PApp2 (listT t1) (F.Dist_L ft) e1 e2
 
-
+{-
 lengthF :: TExpr -> TExpr
 lengthF e1 = let t1 = typeOf e1
-              in F.App intT (F.Var (t1 .-> intT) "length") [e1]
+              in F.PApp1 intT (F.Length $ t1 .-> intT) e1
+-}
 
 restrictF :: TExpr -> TExpr -> TExpr
 restrictF e1 e2 = let t1 = typeOf e1
                       rt = t1
                       ft = t1 .-> listT boolT .-> rt
-                   in F.App rt (F.Var ft "restrict") [e1, e2]
+                   in F.PApp2 rt (F.Restrict ft) e1 e2
 
 notF :: TExpr -> TExpr
-notF e | typeOf e == boolT = F.App boolT (F.Var (boolT .-> boolT) "notPrim") [e]
-       | typeOf e == listT boolT = F.App (listT boolT) (F.Var (listT boolT .-> listT boolT) "notVec") [e] 
+notF e | typeOf e == boolT = F.PApp1 boolT (F.NotPrim $ boolT .-> boolT) e
+       | typeOf e == listT boolT = F.PApp1 (listT boolT) (F.NotVec $ listT boolT .-> listT boolT) e 
        | otherwise = error $ "notF" ++ show (typeOf e)
        
 combineF :: TExpr -> TExpr -> TExpr -> TExpr
@@ -116,7 +117,7 @@ combineF e1 e2 e3 = let t1 = typeOf e1
                         t2 = typeOf e2
                         rt = t2
                         ft = t1 .-> t2 .-> t2 .-> rt
-                     in F.App rt (F.Var ft "combine") [e1, e2, e3]
+                     in F.PApp3 rt (F.Combine ft) e1 e2 e3
 
 
 unconcatF :: TExpr -> TExpr -> TExpr
@@ -128,7 +129,7 @@ insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
                                         t2 = typeOf v
                                         rt = liftTypeN i t1
                                         ft = t1 .-> t2 .-> intT .-> rt
-                                     in F.App rt (F.Var ft "insert") [f, v, d]
+                                     in F.PApp3 rt (F.Insert ft) f v d
 insertF _ _ _ = error "Third argument to insert should be an integer"
 
 
@@ -140,11 +141,11 @@ extractF :: TExpr -> TExpr -> TExpr
 extractF v d@(F.Const _ (Int i)) = let t1 = typeOf v
                                        rt = unliftTypeN i t1
                                        ft = t1 .-> intT .-> rt
-                                    in F.App rt (F.Var ft "extract") [v, d]
+                                    in F.PApp2 rt (F.Extract ft) v d
 extractF _ _ = error "Second argument to extract should be an integer"
 
 bPermuteF :: TExpr -> TExpr -> TExpr
-bPermuteF e1 e2 = F.App (typeOf e1) (F.Var (typeOf e1 .-> typeOf e2 .-> typeOf e1) "bPermute") [e1, e2] 
+bPermuteF e1 e2 = F.PApp2 (typeOf e1) (F.BPermute $ typeOf e1 .-> typeOf e2 .-> typeOf e1) e1 e2 
 
 intF :: Int -> TExpr
 intF i = F.Const intT $ Int i
@@ -152,13 +153,6 @@ intF i = F.Const intT $ Int i
 varF :: Type -> String -> TExpr
 varF t x = F.Var t x
 
-zipF :: [TExpr] -> TExpr
-zipF es = F.App resType (F.Var zipType $ "zip" ++ (show $ length es)) es
-  where
-     types = map typeOf es
-     resType = (tupleT types)
-     zipType = foldr (.->) resType types
-     
 letF :: String -> Expr t -> Expr t -> Expr t
 letF v e1 e2 = F.Let (typeOf e2) v e1 e2
 
@@ -166,11 +160,9 @@ tagN :: String -> Expr t -> Expr t
 tagN s e = Labeled s e
 
 tupleF :: [TExpr] -> TExpr
-tupleF es = F.App resType (F.Var tType tName) es
+tupleF es = F.Tuple t es
     where
-        resType = tupleT [typeOf e | e <- es]
-        tName = "(" ++ replicate ((length es) - 1) ',' ++ ")"
-        tType = foldr (.->) resType (map typeOf es)
+        t = tupleT $ map typeOf es
 
 projectF :: TExpr -> Int -> TExpr
 projectF e i = let t = typeOf e

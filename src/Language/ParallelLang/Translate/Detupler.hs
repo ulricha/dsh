@@ -1,8 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Language.ParallelLang.Translate.Detupler(normTuples, detuple) where
 
-import Language.ParallelLang.Common.Impossible
-
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.FKL.Data.WorkUnits as W
 import Language.ParallelLang.FKL.Primitives
@@ -97,122 +95,119 @@ deTuple v@(Nil t) | containsTuple t = do
                   | otherwise       = return v
 deTuple c@(Const _ _)               = return c
 deTuple (Var t s)                 = return $ Var (fst $ transType t) s
-deTuple a@(App rt (Var ft n) [e1 ,e2, e3])   | n == "insert" && (containsTuple (typeOf e1) || containsTuple (typeOf e2)) =
-                                                   do
-                                                      e1' <- deTuple e1
-                                                      e2' <- deTuple e2
-                                                      let (Const _ (Int d)) = e3
-                                                      fv1 <- getFreshVar
-                                                      fv2 <- getFreshVar
-                                                      let e2'' = if containsTuple $ typeOf e2'
-                                                                    then Proj (head $ tupleComponents $ typeOf e2') 0 e2' 1
-                                                                    else e2'
-                                                      let v1 = Var (typeOf e1') fv1
-                                                      let v2 = Var (typeOf e2'') fv2
-                                                      eb'' <- if containsTuple $ typeOf e1'
-                                                                  then do
-                                                                            es <- mapM deTuple [App (liftTypeN d ty) (Var (ty .-> typeOf v2 .-> intT .-> liftTypeN d ty) "insert") [Proj ty 0 v1 ind, v2, e3] | (ind, ty) <- zip [1..] (tupleComponents $ typeOf e1')]
-                                                                            return $ tupleF es
-                                                                  else deTuple $ App rt (Var (typeOf e1' .-> typeOf v2 .-> intT .-> rt) "insert") [v1, v2, e3]
-                                                      return $ letF fv1 e1' $ letF fv2 e2'' eb''
-                                                | n == "combine" && containsTuple rt = 
-                                                    do
-                                                        e1' <- deTuple e1
-                                                        e2' <- deTuple e2
-                                                        e3' <- deTuple e3
-                                                        fv1 <- getFreshVar
-                                                        fv2 <- getFreshVar
-                                                        fv3 <- getFreshVar
-                                                        let ts = tupleComponents $ typeOf e2' 
-                                                        let v1 = Var (typeOf e1') fv1
-                                                        let v2 = Var (typeOf e2') fv2
-                                                        let v3 = Var (typeOf e3') fv3
-                                                        let proj2 = \x -> Proj (ts!!x) 0 v2 x
-                                                        let proj3 = \x -> Proj (ts!!x) 0 v3 x
-                                                        e' <- mapM deTuple [App t (Var (listT boolT .-> t .-> t .-> t) n) [v1, proj2 ind, proj3 ind] | (t, ind) <- zip ts [1..]]   
-                                                        return $ letF fv1 e1' $
-                                                                    letF fv2 e2' $
-                                                                      letF fv3 e3' $
-                                                                        tupleF e'                                                                            
-                                               | not $ containsTuple ft = return a
-                                               | otherwise = deTupleApp a
-deTuple a@(App rt (Var ft n) [e1 ,e2])      | n == "extract" && (containsTuple $ typeOf e1) =
-                                                    do
-                                                        e1' <- deTuple e1
-                                                        fv1 <- getFreshVar
-                                                        let v1 = Var (typeOf e1') fv1
-                                                        let ts = tupleComponents $ typeOf e1'
-                                                        e' <- mapM deTuple [extractF (Proj ty 0 v1 ind) e2 | (ind, ty) <- zip [1..] ts ] 
-                                                        return $ letF fv1 e1' $ tupleF e'
-                                               | n == "dist" && (containsTuple ft) = 
-                                                    do
-                                                        e1' <- deTuple e1
-                                                        e2' <- deTuple e2
-                                                        fv1 <- getFreshVar
-                                                        fv2 <- getFreshVar
-                                                        let e2'' = if containsTuple $ typeOf e2'
-                                                                    then Proj (head $ tupleComponents $ typeOf e2') 0 e2' 1
-                                                                    else e2'
-                                                        let v1 = Var (typeOf e1') fv1
-                                                        let v2 = Var (typeOf e2'') fv2
-                                                        es <- if containsTuple $ typeOf e1' 
-                                                               then
-                                                                do
-                                                                    let ts = tupleComponents $ typeOf e1'
-                                                                    let rts = tupleComponents $ fst $ transType rt 
-                                                                    es' <- mapM deTuple [App rt' (Var (t .-> typeOf v2 .-> rt') n) [(Proj t 0 v1 ident), v2] | (rt', t, ident) <- zip3 rts ts [1..]]
-                                                                    return $ tupleF es'
-                                                               else
-                                                                do
-                                                                    return $ App rt (Var (typeOf v1 .-> typeOf v2 .-> listT (typeOf v1)) n) [v1, v2]
-                                                        e' <- deTuple es
-                                                        return $ letF fv1 e1' $ letF fv2 e2'' e'
-                                            | n `elem` ["index", "restrict"] && containsTuple ft =
-                                                   do
-                                                       e1' <- deTuple e1
-                                                       e2' <- deTuple e2
-                                                       fv1 <- getFreshVar
-                                                       fv2 <- getFreshVar
-                                                       let v1 = Var (typeOf e1') fv1
-                                                       let v2 = Var (typeOf e2') fv2
-                                                       let ts = tupleComponents $ typeOf e1'
-                                                       let rts = tupleComponents $ fst $ transType rt
-                                                       es <- mapM deTuple [App rt' (Var (t .-> typeOf e2' .-> rt') n) [(Proj t 0 v1 ind), v2] | (ind, t, rt') <- zip3 [1..] ts rts]
-                                                       return $ letF fv1 e1' $ letF fv2 e2' $ tupleF es
-                                            | n == "promote" && (containsTuple $ typeOf e2) =
-                                                    do
-                                                        let t2 = typeOf e2
-                                                        let (t2', _) = transType t2
-                                                        let k = listDepth t2
-                                                        e1' <- deTuple e1
-                                                        e2' <- deTuple e2 
-                                                        fv2 <- getFreshVar
-                                                        let v2 = Var (head $ tupleComponents t2') fv2
-                                                        let e2h = Proj (head $ tupleComponents t2') 0 e2' 1
-                                                        bd <- deTuple $ insertF (distF e1' $ extractF v2 (intF $ k - 1)) v2 (intF $ k - 1)
-                                                        return $ letF fv2 e2h bd 
-                                            | not (containsTuple ft) = return a
-                                            | otherwise = deTupleApp a
-deTuple a@(App rt (Var ft n) [e1]) | n == "length" && (containsTuple $ typeOf e1) =
-                                                    do
-                                                        e1' <- deTuple e1
-                                                        let ts = tupleComponents $ typeOf e1'
-                                                        deTuple $ App rt (Var (head ts .-> intT) n) [Proj (head ts) 0 e1' 1]
-                                      | not (containsTuple ft) = return a
-                                      | otherwise   = deTupleApp a
-deTuple a@(App _ (Var ft _ ) _) | not (containsTuple ft) = return a
-                                 | otherwise = deTupleApp a
-deTuple (App _ _ _) = $impossible
+deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) || containsTuple (typeOf e2)) =
+                                             do
+                                              e1' <- deTuple e1
+                                              e2' <- deTuple e2
+                                              let (Const _ (Int d)) = e3
+                                              fv1 <- getFreshVar
+                                              fv2 <- getFreshVar
+                                              let e2'' = if containsTuple $ typeOf e2'
+                                                            then Proj (head $ tupleComponents $ typeOf e2') 0 e2' 1
+                                                            else e2'
+                                              let v1 = Var (typeOf e1') fv1
+                                              let v2 = Var (typeOf e2'') fv2
+                                              eb'' <- if containsTuple $ typeOf e1'
+                                                          then do
+                                                                    es <- mapM deTuple [PApp3 (liftTypeN d ty) (Insert $ ty .-> typeOf v2 .-> intT .-> liftTypeN d ty) (Proj ty 0 v1 ind) v2 e3 | (ind, ty) <- zip [1..] (tupleComponents $ typeOf e1')]
+                                                                    return $ tupleF es
+                                                          else deTuple $ PApp3 rt (Insert $ typeOf e1' .-> typeOf v2 .-> intT .-> rt) v1 v2 e3
+                                              return $ letF fv1 e1' $ letF fv2 e2'' eb''
+                                         | otherwise = PApp3 rt (Insert ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
+deTuple (PApp3 rt (Combine ft) e1 e2 e3) | containsTuple rt =
+                                            do
+                                                e1' <- deTuple e1
+                                                e2' <- deTuple e2
+                                                e3' <- deTuple e3
+                                                fv1 <- getFreshVar
+                                                fv2 <- getFreshVar
+                                                fv3 <- getFreshVar
+                                                let ts = tupleComponents $ typeOf e2' 
+                                                let v1 = Var (typeOf e1') fv1
+                                                let v2 = Var (typeOf e2') fv2
+                                                let v3 = Var (typeOf e3') fv3
+                                                let proj2 = \x -> Proj (ts!!x) 0 v2 x
+                                                let proj3 = \x -> Proj (ts!!x) 0 v3 x
+                                                e' <- mapM deTuple [PApp3 t (Combine $ listT boolT .-> t .-> t .-> t) v1 (proj2 ind) (proj3 ind) | (t, ind) <- zip ts [1..]]   
+                                                return $ letF fv1 e1' $
+                                                            letF fv2 e2' $
+                                                              letF fv3 e3' $
+                                                                tupleF e'
+                                         | otherwise = PApp3 rt (Insert ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
+deTuple (PApp2 rt (Extract ft) e1 e2) | (containsTuple $ typeOf e1) =
+                                            do
+                                                e1' <- deTuple e1
+                                                fv1 <- getFreshVar
+                                                let v1 = Var (typeOf e1') fv1
+                                                let ts = tupleComponents $ typeOf e1'
+                                                e' <- mapM deTuple [extractF (Proj ty 0 v1 ind) e2 | (ind, ty) <- zip [1..] ts ] 
+                                                return $ letF fv1 e1' $ tupleF e'
+                                        | otherwise = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
+deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft =
+                                            do
+                                                e1' <- deTuple e1
+                                                e2' <- deTuple e2
+                                                fv1 <- getFreshVar
+                                                fv2 <- getFreshVar
+                                                let e2'' = if containsTuple $ typeOf e2'
+                                                            then Proj (head $ tupleComponents $ typeOf e2') 0 e2' 1
+                                                            else e2'
+                                                let v1 = Var (typeOf e1') fv1
+                                                let v2 = Var (typeOf e2'') fv2
+                                                es <- if containsTuple $ typeOf e1' 
+                                                       then
+                                                        do
+                                                            let ts = tupleComponents $ typeOf e1'
+                                                            let rts = tupleComponents $ fst $ transType rt 
+                                                            es' <- mapM deTuple [PApp2 rt' (Dist $ t .-> typeOf v2 .-> rt') (Proj t 0 v1 ident) v2 | (rt', t, ident) <- zip3 rts ts [1..]]
+                                                            return $ tupleF es'
+                                                       else
+                                                        do
+                                                            return $ PApp2 rt (Dist $ typeOf v1 .-> typeOf v2 .-> listT (typeOf v1)) v1 v2
+                                                e' <- deTuple es
+                                                return $ letF fv1 e1' $ letF fv2 e2'' e'
+                                     | otherwise = PApp2 rt (Dist ft) <$> deTuple e1 <*> deTuple e2
+deTuple (PApp2 rt (Index ft) e1 e2) | containsTuple ft =
+                                        do
+                                               e1' <- deTuple e1
+                                               e2' <- deTuple e2
+                                               fv1 <- getFreshVar
+                                               fv2 <- getFreshVar
+                                               let v1 = Var (typeOf e1') fv1
+                                               let v2 = Var (typeOf e2') fv2
+                                               let ts = tupleComponents $ typeOf e1'
+                                               let rts = tupleComponents $ fst $ transType rt
+                                               es <- mapM deTuple [PApp2 rt' (Index $ t .-> typeOf e2' .-> rt') (Proj t 0 v1 ind) v2 | (ind, t, rt') <- zip3 [1..] ts rts]
+                                               return $ letF fv1 e1' $ letF fv2 e2' $ tupleF es
+                                    | otherwise = PApp2 rt (Index ft) <$> deTuple e1 <*> deTuple e2
+deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple ft =
+                                          do
+                                                 e1' <- deTuple e1
+                                                 e2' <- deTuple e2
+                                                 fv1 <- getFreshVar
+                                                 fv2 <- getFreshVar
+                                                 let v1 = Var (typeOf e1') fv1
+                                                 let v2 = Var (typeOf e2') fv2
+                                                 let ts = tupleComponents $ typeOf e1'
+                                                 let rts = tupleComponents $ fst $ transType rt
+                                                 es <- mapM deTuple [PApp2 rt' (Restrict $ t .-> typeOf e2' .-> rt') (Proj t 0 v1 ind) v2 | (ind, t, rt') <- zip3 [1..] ts rts]
+                                                 return $ letF fv1 e1' $ letF fv2 e2' $ tupleF es
+                                       | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
+deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
+deTuple (PApp1 rt (LengthPrim ft) e1) | containsTuple $ typeOf e1 =  
+                                            do
+                                                e1' <- deTuple e1
+                                                let ts = tupleComponents $ typeOf e1'
+                                                deTuple $ PApp1 rt (LengthPrim $ head ts .-> intT) $ Proj (head ts) 0 e1' 1
+                                      | otherwise = PApp1 rt (LengthPrim ft) <$> deTuple e1
+deTuple (PApp1 rt (LengthLift ft) e1) | containsTuple $ typeOf e1 =  
+                                          do
+                                              e1' <- deTuple e1
+                                              let ts = tupleComponents $ typeOf e1'
+                                              deTuple $ PApp1 rt (LengthLift $ head ts .-> intT) $ Proj (head ts) 0 e1' 1
+                                      | otherwise = PApp1 rt (LengthLift ft) <$> deTuple e1
+deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (fst $ transType t) l vs x <$> deTuple f <*> deTuple fl
 deTuple (AClo t vs x f fl) = AClo (fst $ transType t) vs x <$> deTuple f <*> deTuple fl
 deTuple (CloApp t f args) = CloApp (fst $ transType t) <$> deTuple f <*> deTuple args
 deTuple (CloLApp t f args) = CloLApp (fst $ transType t) <$> deTuple f <*> deTuple args 
-
-
-deTupleApp :: TExpr -> TransM TExpr
-deTupleApp (App rt e1 es) = do
-                             let rt' = fst $ transType rt
-                             e1' <- deTuple e1
-                             es' <- mapM deTuple es
-                             return $ App rt' e1' es'
-deTupleApp _             = $impossible

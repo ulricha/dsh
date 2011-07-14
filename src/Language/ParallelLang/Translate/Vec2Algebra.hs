@@ -4,7 +4,7 @@ module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.Common.Data.Val
-import Database.Ferry.Algebra hiding (getLoop, Gam)
+import Database.Ferry.Algebra (double, string, int, bool, AVal(), intT, doubleT, stringT, natT, boolT, ATy(), nat, litTable, litTable', emptyTable, attachM, tagM, AlgNode(), AlgPlan(), initLoop, runGraph, withBinding, withContext, fromGam, notC, projM, crossM, unionM, selectM, proj, cross, eqJoinM, operM) -- hiding (getLoop, Gam)
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
@@ -15,6 +15,7 @@ import Language.ParallelLang.VL.VectorOperations
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
+import Control.Monad (liftM2)
 
 import Language.ParallelLang.Common.Impossible
 
@@ -73,45 +74,27 @@ fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'
                             withBinding s e1' $ fkl2Alg e2
-fkl2Alg (App _ f arg) =  case f of
-                             (Var _ "insert") -> do
-                                                  let [e1, e2, (Const _ (Int i))] = arg
-                                                  e1' <- fkl2Alg e1
-                                                  e2' <- fkl2Alg e2
-                                                  insert e1' e2' i
-                             (Var _ "extract") -> do
-                                                   let [e1, (Const _ (Int i))] = arg
-                                                   e1' <- fkl2Alg e1
-                                                   extract e1' i                             
-                             (Var _ "concatLift") -> do
-                                                  [e1] <- mapM fkl2Alg arg
-                                                  concatLift e1
-                             (Var _ "dist") -> do
-                                                 [e1, e2] <- mapM fkl2Alg arg
-                                                 dist e1 e2
-                             (Var _ "dist_L") -> do
-                                                  [e1, e2] <- mapM fkl2Alg arg
-                                                  distL e1 e2
-                             (Var _ "lengthPrim") -> do
-                                                      [e1] <- mapM fkl2Alg arg
-                                                      lengthV e1
-                             (Var _ "lengthLift") -> do
-                                                      [e1] <- mapM fkl2Alg arg
-                                                      lengthLift e1
-                             (Var _ "notPrim") -> do
-                                                    [e1] <- mapM fkl2Alg arg
-                                                    notPrim e1
-                             (Var _ "notVec") -> do
-                                                    [e1] <- mapM fkl2Alg arg
-                                                    notVec e1
-                             (Var _ "groupWithS") -> do
-                                                      [e1, e2] <- mapM fkl2Alg arg
-                                                      groupByS e1 e2
-                             (Var _ "groupWithL") -> do
-                                                      [e1, e2] <- mapM fkl2Alg arg
-                                                      groupByL e1 e2
-                             _ -> error "Should not be possible"
-                                                
+fkl2Alg (PApp1 _ f arg) = fkl2Alg arg >>= case f of
+                                           (LengthPrim _) -> lengthV 
+                                           (LengthLift _) -> lengthLift
+                                           (NotPrim _) -> notPrim 
+                                           (NotVec _) -> notVec 
+                                           (ConcatLift _) -> concatLift
+fkl2Alg (PApp2 _ (Extract _) arg1 (Const _ (Int i))) = do
+                                        e1 <- fkl2Alg arg1
+                                        extract e1 i
+fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn 
+    where
+        fn = case f of
+                (Extract _) -> $impossible
+                (Dist _) -> dist
+                (Dist_L _) -> distL
+                (GroupWithS _) -> groupByS
+                (GroupWithL _) -> groupByL
+                (Index _) -> error "Index is not yet defined fkl2Alg"
+                (Restrict _) -> restrict
+                (BPermute _) -> bPermute
+fkl2Alg (PApp3 _ (Insert _) arg1 arg2 (Const _ (Int i))) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= (\(x,y) -> insert x y i)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
@@ -165,7 +148,8 @@ val2Alg _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ atta
   val2Alg' (Bool b) = litTable (bool b) item1 boolT
   val2Alg' Unit     = litTable (int (-1)) item1 intT  
   val2Alg' (String s) = litTable (string s) item1 stringT
-  val2Alg' (Double d) = litTable (double d) item1 doubleT 
+  val2Alg' (Double d) = litTable (double d) item1 doubleT
+  val2Alg' (List _) = $impossible 
 
 listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph Plan
 listToPlan (Ty.List t@(Ty.List _)) [] = do
