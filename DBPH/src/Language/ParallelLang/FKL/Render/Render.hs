@@ -12,8 +12,9 @@ instance Show (Expr t) where
     
 render :: Expr t -> Doc
 render (Labeled _ e) = render e
+{-
 render (App _ e1 e2) = let e2' = map render e2
-                        in parens $ render e1 <+> hsep e2'
+                        in parens $ render e1 <+> hsep e2' -}
 {-
 render (Lam _ arg e) = text "\\" <+> text arg <+> text "->"
                             $+$ render e -}

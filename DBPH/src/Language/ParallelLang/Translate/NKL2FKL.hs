@@ -106,6 +106,7 @@ flatten v d (N.Lam t arg e) = do
                                 fvs <- transEnv $ S.toList $ N.freeVars (arg:topLevelVars) e
                                 e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg: map fst fvs)
                                 return $ letF v d $ F.AClo (liftType t) ((n', d):fvs) arg e' e''
+-- This compilation rule is equivalent to using the combinator map
 flatten v d (N.Iter _t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
                                     e1' <- flatten v d e1
