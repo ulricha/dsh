@@ -1,0 +1,4 @@
+let
+in
+let ***_FV0 = ((append (singletonPrim 1) ((append (singletonPrim 2) (singletonPrim 3)))@1))@1
+  in ((,)^1 (distPrim 1 (outer ***_FV0)) ***_FV0)

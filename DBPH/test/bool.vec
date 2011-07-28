@@ -1,0 +1,16 @@
+let
+in
+let ***_FV3 = ((append (singletonPrim 7) ((append (singletonPrim 8) (singletonPrim 9)))@1))@1
+  in let ***_FV4 = let ***_FV1 = ((append (singletonPrim 4) ((append (singletonPrim 5) (singletonPrim 6)))@1))@1
+                     in let ***_FV2 = let ***_FV0 = ((append (singletonPrim 1) ((append (singletonPrim 2) (singletonPrim 3)))@1))@1
+                                        in (***_FV0 +^1 (distPrim 1 (outer ***_FV0)))
+                          in let ***_FV5 = (outer ***_FV1)
+                               in (attach ***_FV5 ((distDesc ***_FV2 ***_FV5))@1)
+       in let ***_FV12 = ***_FV4
+            in let ***_FV10 = (outer ***_FV12)
+                 in let ***_FV11 = (extract ***_FV12 1)
+                      in let ***_FV6 = (outer ***_FV3)
+                           in let ***_FV7 = (distDesc ***_FV10 ***_FV6)
+                                in let ***_FV8 = (***_FV7)@1
+                                     in let ***_FV9 = (***_FV7)@2
+                                          in (attach ***_FV6 (attach ***_FV8 ((propagateIn ***_FV9 ***_FV11))@1))
