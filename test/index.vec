@@ -1,0 +1,19 @@
+let
+in
+let a = let ***_FV5 = ((append (singletonPrim 1) (singletonPrim 2)))@1
+          in let ***_FV12 = (singletonVec ((append (singletonPrim 3) (singletonPrim 4)))@1)
+               in let ***_FV10 = (outer ***_FV12)
+                    in let ***_FV11 = (extract ***_FV12 1)
+                         in let ***_FV6 = (append (outer (singletonVec ***_FV5)) ***_FV10)
+                              in let ***_FV7 = (***_FV6)@1
+                                   in let ***_FV8 = (***_FV6)@2
+                                        in let ***_FV9 = (***_FV6)@3
+                                             in (attach ***_FV7 ((append (rename ***_FV8 ***_FV5) (rename ***_FV9 ***_FV11)))@1)
+  in let ***_FV1 = ((append (singletonPrim 10) (singletonPrim 20)))@1
+       in let ***_FV0 = let ***_FV2 = ((append (singletonPrim 1) (singletonPrim 2)))@1
+                          in ((distDesc ***_FV2 (outer ***_FV1)))@1
+            in let ***_FV3 = (insert (bPermute a (extract ***_FV0 1)) ***_FV0 1)
+                 in (insert (index^1 (extract ***_FV3 1) (extract let ***_FV15 = ***_FV0
+                                                                    in let ***_FV13 = (outer ***_FV15)
+                                                                         in let ***_FV14 = (extract ***_FV15 1)
+                                                                              in (attach ***_FV13 ((distLift ***_FV1 (outer ***_FV14)))@1) 1)) ***_FV3 1)
