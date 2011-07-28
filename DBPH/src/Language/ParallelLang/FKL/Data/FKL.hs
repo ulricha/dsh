@@ -5,12 +5,12 @@ import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Type(Typed, typeOf)
 
-type Column = String
+type Column t = (String, t)
 type Key = [String]
 
 -- | Data type expr represents flat kernel language.
 data Expr t where
-    Table   :: t -> String -> [Column] -> [Key] -> Expr t
+    Table   :: t -> String -> [Column t] -> [Key] -> Expr t
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
     Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
 --    App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression

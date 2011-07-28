@@ -7,14 +7,14 @@ import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 
 import qualified Data.Set as S
 
-type Column = String
+type Column t = (String, t)
 
 type Key = [String]
 
 type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
 data Ex t where
-    Table :: t -> String -> [Column] -> [Key] -> Ex t
+    Table :: t -> String -> [Column t] -> [Key] -> Ex t
     App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
     Tuple :: t -> [Ex t] -> Ex t
     Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body

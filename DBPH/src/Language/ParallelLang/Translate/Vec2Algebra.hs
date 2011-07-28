@@ -4,7 +4,8 @@ module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.Common.Data.Val
-import Database.Ferry.Algebra (double, string, int, bool, AVal(), intT, doubleT, stringT, natT, boolT, ATy(), nat, litTable, litTable', emptyTable, attachM, tagM, AlgNode(), AlgPlan(), initLoop, runGraph, withBinding, withContext, fromGam, notC, projM, crossM, unionM, selectM, proj, cross, eqJoinM, operM) -- hiding (getLoop, Gam)
+import Database.Ferry.Algebra (double, string, int, bool, AVal(), intT, doubleT, stringT, natT, boolT, ATy(), nat, litTable, litTable', emptyTable, attachM, tagM, AlgNode(), AlgPlan(), initLoop, runGraph, withBinding, withContext, fromGam, notC, projM, crossM, unionM, selectM, proj, cross, eqJoinM, operM, dbTable, rownum) -- hiding (getLoop, Gam)
+import qualified Database.Ferry.Algebra as A 
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
@@ -22,7 +23,7 @@ import Language.ParallelLang.Common.Impossible
 
 fkl2Alg :: Expr Ty.Type -> Graph Plan
 fkl2Alg (Tuple _ es) = TupleVector <$> mapM fkl2Alg es
-fkl2Alg (Table _ n cs ks) = 
+fkl2Alg (Table _ n cs ks) = makeTable n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) = val2Alg t v 
 fkl2Alg (Nil (Ty.List t@(Ty.List _))) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
@@ -114,9 +115,15 @@ fkl2Alg (CloLApp _ c arg) = do
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 -- fkl2Alg e                 = error $ "unsupported: " ++ show e
 
-makeTable :: String -> [Column] -> [Key] -> Graph Plan
+makeTable :: String -> [Column Ty.Type] -> [Key] -> Graph Plan
 makeTable n cs ks = do
-                     litTable <- dbTable n cs ks
+                     table <- dbTable n (renameCols cs) ks
+                     t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
+                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item1, "item" ++ show i)] t') $ zip cs [1..]
+                     return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
+  where
+    renameCols :: [Column Ty.Type] -> [A.Column]
+    renameCols xs = [A.NCol cn [A.Col i $ algTy t]| ((cn, t), i) <- zip xs [1..]]
 
 toAlgebra :: Expr Ty.Type -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (fkl2Alg e)
