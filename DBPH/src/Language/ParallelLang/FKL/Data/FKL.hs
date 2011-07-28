@@ -5,8 +5,12 @@ import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Type(Typed, typeOf)
 
+type Column = String
+type Key = [String]
+
 -- | Data type expr represents flat kernel language.
 data Expr t where
+    Table   :: t -> String -> [Column] -> [Key] -> Expr t
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
     Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
 --    App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
@@ -33,6 +37,13 @@ data Prim1 t = LengthPrim t
              | ConcatLift t
     deriving Eq
     
+instance Show (Prim1 t)where
+    show (LengthPrim _) = "lengthPrim"
+    show (LengthLift _) = "lengthLift"
+    show (NotPrim _)    = "notPrim"
+    show (NotVec _)     = "notVec"
+    show (ConcatLift _) = "concatLift"
+    
 data Prim2 t = GroupWithS t
              | GroupWithL t 
              | Index t
@@ -42,14 +53,28 @@ data Prim2 t = GroupWithS t
              | Extract t
              | BPermute t
     deriving Eq
-    
+
+instance Show (Prim2 t) where
+    show (GroupWithS _) = "groupWithS"
+    show (GroupWithL _) = "groupWithL" 
+    show (Index _)      = "index"
+    show (Dist _)       = "dist"
+    show (Dist_L _)     = "dist_L"
+    show (Restrict _)   = "restrict"
+    show (Extract _)    = "extract"
+    show (BPermute _)   = "bPermute"
+
 data Prim3 t = Combine t 
              | Insert t
     deriving Eq
 
+instance Show (Prim3 t) where
+    show (Combine _) = "combine"
+    show (Insert _)  = "insert"
 
 instance Typed Expr t where
     -- typeOf (App t _ _) = t
+    typeOf (Table t _ _ _) = t
     typeOf (PApp1 t _ _) = t
     typeOf (PApp2 t _ _ _) = t
     typeOf (PApp3 t _ _ _ _) = t

@@ -34,6 +34,7 @@ transType (T.Fn t1 t2)       = (T.Fn (fst $ transType t1) (fst $ transType t2), 
 transType t                  = (t, Id)
 
 deTuple :: TExpr -> TransM TExpr
+deTuple (Table t n c k) = return $ Table (fst $ transType t) n c k
 deTuple (BinOp rt o@(Op Cons _) e1 e2) | containsTuple rt =
                             do
                                 e1' <- deTuple e1

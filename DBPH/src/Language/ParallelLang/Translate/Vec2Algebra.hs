@@ -21,6 +21,8 @@ import Language.ParallelLang.Common.Impossible
 
 
 fkl2Alg :: Expr Ty.Type -> Graph Plan
+fkl2Alg (Tuple _ es) = TupleVector <$> mapM fkl2Alg es
+fkl2Alg (Table _ n cs ks) = 
 fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) = val2Alg t v 
 fkl2Alg (Nil (Ty.List t@(Ty.List _))) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
@@ -110,7 +112,11 @@ fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
-fkl2Alg e                 = error $ "unsupported: " ++ show e
+-- fkl2Alg e                 = error $ "unsupported: " ++ show e
+
+makeTable :: String -> [Column] -> [Key] -> Graph Plan
+makeTable n cs ks = do
+                     litTable <- dbTable n cs ks
 
 toAlgebra :: Expr Ty.Type -> AlgPlan Plan
 toAlgebra e = runGraph initLoop (fkl2Alg e)

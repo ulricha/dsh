@@ -27,6 +27,7 @@ transEnv ((x, v):xs) = do
 transEnv []          = return []
 
 transform :: N.Expr -> TransM (F.Expr Type)
+transform (N.Table t n c k) = pure $ F.Table t n c k
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.Tuple t es) = F.Tuple t <$> mapM transform es
 transform (N.App _t e1 es) = cloApp <$> transform e1 <*> transform es
@@ -57,6 +58,7 @@ transform (N.Iter _t n e1 e2) = do
 transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
+flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
 flatten i e1 (N.Tuple t es) = do
                                 es' <- mapM (flatten i e1) es
                                 return $ F.Tuple (liftType t) es'
