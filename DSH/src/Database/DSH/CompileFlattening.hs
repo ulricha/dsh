@@ -8,10 +8,15 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Op as O
 
+-- import Database.DSH.Compiler (tableInfo, legalType)
+
 import Database.DSH.Data as D
 import Database.DSH.Impossible (impossible)
 import Database.HDBC
 import Data.Text (unpack)
+
+import qualified Data.Map as M
+import qualified Data.List as L
 
 import Control.Monad.State
 import Control.Applicative
@@ -20,13 +25,47 @@ import Data.Char (toLower)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-type N conn = StateT (conn, Int) IO
+type N conn = StateT (conn, Int, M.Map String [(String, (T.Type -> Bool))]) IO
+
+-- | Lookup information that describes a table. If the information is 
+-- not present in the state then the connection is used to retrieve the
+-- table information from the Database.
+tableInfo :: IConnection conn => String -> N conn [(String, (T.Type -> Bool))]
+tableInfo t = do
+               (c, i, env) <- get
+               case M.lookup t env of
+                     Nothing -> do
+                                 inf <- lift $ getTableInfo c t
+                                 put (c, i, M.insert t inf env)
+                                 return inf                                      
+                     Just v -> return v
+
+-- | Retrieve through the given database connection information on the table (columns with their types)
+-- which name is given as the second argument.        
+getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
+getTableInfo c n = do
+                 info <- describeTable c n
+                 return $ toTableDescr info
+
+     where
+       toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
+       toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
+       compatibleType :: SqlTypeId -> T.Type -> Bool
+       compatibleType dbT hsT = case hsT of
+                                     T.Unit -> True
+                                     T.Bool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                     T.String -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+                                     T.Int -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                     T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                     t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+
+
 
 -- | Provide a fresh identifier name during compilation
 freshVar :: N conn Int
 freshVar = do
-             (c, i) <- get
-             put (c, i + 1)
+             (c, i, m) <- get
+             put (c, i + 1, m)
              return i
 
 prefixVar :: Int -> String
@@ -35,7 +74,7 @@ prefixVar i = "*dshVar*" ++ show i
 -- | Get from the state the connection to the database                
 getConnection :: IConnection conn => N conn conn
 getConnection = do
-                 (c, _) <- get
+                 (c, _, _) <- get
                  return c
 
 toNKL :: IConnection conn => conn -> Exp -> IO NKL.Expr
@@ -46,7 +85,7 @@ toNKL c e = runN c $ translate e
 -- the database, therefor the result is wrapped in the IO
 -- Monad.      
 runN :: IConnection conn => conn -> N conn a -> IO a
-runN c  = liftM fst . flip runStateT (c, 1)
+runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 
 
 translate :: IConnection conn => Exp -> N conn NKL.Expr
@@ -57,6 +96,30 @@ translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
 translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
 translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
 translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i)
+translate (TableE (TableDB n ks) ty) = do
+                                        let ts = zip [1..] $ tableTypes ty
+                                        tableDescr <- tableInfo n
+                                        let tyDescr = if length tableDescr == length ts
+                                                        then zip tableDescr ts
+                                                        else error $ "Inferred typed: " ++ show ts ++ " \n doesn't match type of table: \"" 
+                                                                ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty
+                                        let cols = [(cn, t) | ((cn, f), (i, t)) <- tyDescr, legalType n cn i t f]
+                                        let ks' = if ks == []
+                                                    then [map fst tableDescr]
+                                                    else ks
+                                        return $ NKL.Table (ty2ty ty) n cols ks'
+{-
+transformE (TableE (TableDB n ks) ty) = do
+                                    fv <- freshVar
+                                    let tTy@(FList (FRec ts)) = flatFTy ty
+                                    let varB = Var ([] :=> FRec ts) $ prefixVar fv
+                                    tableDescr <- tableInfo n
+                                    let tyDescr = case length tableDescr == length ts of
+                                                    True -> zip tableDescr ts
+                                                    False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
+                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty 
+                                    let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
+-}                            
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
@@ -166,7 +229,14 @@ translate (AppE3 f3 e1 e2 e3 ty) = do
                                                         e3'
 translate (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
 -}
-translate e = error $ "CompileFlattening: Not supported: " ++ show e
+
+legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
+legalType tn cn nr t f = case f t of
+                            True -> True
+                            False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
+                                                ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
+
+-- translate e = error $ "CompileFlattening: Not supported: " ++ show e
 gtorlt :: Fun2 -> Fun2
 gtorlt Gte = Gt
 gtorlt Lte = Lt
@@ -191,6 +261,14 @@ ty2ty TextT = T.stringT
 ty2ty (TupleT t1 t2) = T.pairT (ty2ty t1) (ty2ty t2)
 ty2ty (ListT t) = T.listT (ty2ty t)
 ty2ty (ArrowT t1 t2) = (ty2ty t1) T..-> (ty2ty t2)
+
+tableTypes :: Type -> [T.Type]
+tableTypes (ListT t) = fromTuples t
+    where
+        fromTuples :: Type -> [T.Type]
+        fromTuples (TupleT t1 t2) = ty2ty t1 : fromTuples t2
+        fromTuples t              = [ty2ty t]
+tableTypes _         = $impossible
 
 -- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> O.Op
