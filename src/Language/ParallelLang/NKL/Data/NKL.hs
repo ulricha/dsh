@@ -7,9 +7,14 @@ import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 
 import qualified Data.Set as S
 
+type Column = String
+
+type Key = [String]
+
 type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
 data Ex t where
+    Table :: t -> String -> [Column] -> [Key] -> Ex t
     App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
     Tuple :: t -> [Ex t] -> Ex t
     Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body
@@ -24,6 +29,7 @@ data Ex t where
       deriving (Show, Eq, Ord)
 
 instance Typed Ex Type where
+    typeOf (Table t _ _ _) = t
     typeOf (App t _ _) = t
     typeOf (Lam t _ _) = t
     typeOf (Let t _ _ _) = t
@@ -37,6 +43,7 @@ instance Typed Ex Type where
     typeOf (Proj t _ _ _) = t
 
 freeVars :: [String] -> Expr -> S.Set (String, Expr)
+freeVars _ (Table _ _ _ _) = S.empty
 freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
 freeVars t (Lam _ x e) = freeVars (x:t) e 
 freeVars t (Let _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
