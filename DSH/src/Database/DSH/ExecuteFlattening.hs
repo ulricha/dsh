@@ -1,51 +1,72 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
 module Database.DSH.ExecuteFlattening where
 
 import qualified Language.ParallelLang.DBPH as P
+import Language.ParallelLang.FKL.Data.WorkUnits
+import qualified Language.ParallelLang.Common.Data.Type as T
 import Database.DSH.Data
 import Database.HDBC
 import Control.Exception (evaluate)
 import Database.DSH.Data
 import Data.Convertible
+import Database.DSH.Impossible
 
 import Data.List (foldl')
 
-import System.IO.Unsafe
-
 import Data.Maybe (fromJust)
 import Control.Applicative ((<$>))
+import Control.Monad(liftM)
 
 data SQL a = SQL (P.Query P.SQL)
 
-executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> SQL a -> IO a
-executeQuery c (SQL (P.PrimVal (P.SQL _ s q))) = do
-                                                    (r, d) <- doQuery c q
-                                                    let (iC, ri) = schemeToResult s d
-                                                    let [(_, [(_, v)])] = partByIter iC r
-                                                    let i = snd (fromJust ri)
-                                                    let t = reify (undefined :: a)
-                                                    return $ fromNorm $ normalise t i v
-executeQuery _ (SQL (P.TupleVector _)) = error "Tuples are not supported yet"
-executeQuery _ (SQL (P.DescrVector _)) = error "Descriptor vectors cannot be translated to haskell values"
-executeQuery _ (SQL (P.PropVector _)) = error "Propagation vectors cannot be translated to haskell values"
-executeQuery c (SQL q) = do
-                          let t = reify (undefined :: a)
-                          r <- makeVector c q t
-                          return $ fromNorm $ concatN t $ map snd r
+fromFType :: T.Type -> Type
+fromFType (T.Var _) = $impossible
+fromFType (T.Fn _ _)  = $impossible
+fromFType (T.Int)   = IntegerT
+fromFType (T.Bool)  = BoolT
+fromFType (T.Double) = DoubleT
+fromFType (T.String) = TextT
+fromFType (T.Unit) = UnitT
+fromFType (T.Tuple [e1, e2]) = TupleT (fromFType e1) (fromFType e2)  
+fromFType (T.List t) = ListT (fromFType t)
 
-makeVector :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO [(Int, Norm)]
-makeVector c (P.ValueVector (P.SQL _ s q)) t = do
-                                                (r, d) <- doQuery c q
-                                                let (iC, ri) = schemeToResult s d
-                                                let parted = partByIter iC r
-                                                let i = snd (fromJust ri)
-                                                return $ normaliseList t i parted
-makeVector c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
-                                                               (r, d) <- doQuery c q
-                                                               let (iC, ri) = schemeToResult s d
-                                                               let parted = partByIter iC r
-                                                               constructDescriptor t parted <$> makeVector c qr t1
-makeVector _ _ _ = error "impossible"
+executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> ReconstructionPlan -> T.Type -> SQL a -> IO a
+executeQuery c _ vt (SQL q) = do
+                                let et = reify (undefined :: a)
+                                n <- makeNorm c q (fromFType vt)
+                                return $ fromNorm $ fromEither (fromFType vt) n
+
+makeNorm :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
+makeNorm c (P.PrimVal (P.SQL _ s q)) t = do
+                                          (r, d) <- doQuery c q
+                                          let (iC, ri) = schemeToResult s d
+                                          let [(_, [(_, v)])] = partByIter iC r
+                                          let i = snd (fromJust ri)
+                                          return $ Left $ normalise t i v
+makeNorm c (P.ValueVector (P.SQL _ s q)) t = do
+                                               (r, d) <- doQuery c q
+                                               let (iC, ri) = schemeToResult s d
+                                               let parted = partByIter iC r
+                                               let i = snd (fromJust ri)
+                                               return $ Right $ normaliseList t i parted
+makeNorm c (P.TupleVector [q1, q2]) t@(TupleT t1 t2) = do
+                                                         r1 <- liftM (fromEither t1) $ makeNorm c q1 t1
+                                                         r2 <- liftM (fromEither t2) $ makeNorm c q2 t2
+                                                         return $ Left $ TupleN r1 r2 t
+makeNorm c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
+                                                             (r, d) <- doQuery c q
+                                                             let (iC, ri) = schemeToResult s d
+                                                             let parted = partByIter iC r
+                                                             inner <- (liftM fromRight) $ makeNorm c qr t1
+                                                             return $ Right $ constructDescriptor t parted inner
+
+fromRight :: Either a b -> b
+fromRight (Right x) = x
+fromRight _         = error "fromRight"
+
+fromEither :: Type -> Either Norm [(Int, Norm)] -> Norm
+fromEither _ (Left n) = n
+fromEither t (Right ns) = concatN t $ map snd ns 
 
 constructDescriptor :: Type -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)] -> [(Int, Norm)]
 constructDescriptor t@(ListT t1) ((i, vs):outers) inners = let (r, inners') = nestList t1 (map fst vs) inners

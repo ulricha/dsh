@@ -9,6 +9,12 @@ import Database.HDBC.PostgreSQL
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
+test3 :: IO ()
+test3 = do
+         conn <- getConn
+         val <- I.fromQ conn $ Q.toQ (10::Integer,20::Integer)
+         putStrLn $ show val
+
 test :: IO ()
 test = do
         conn <- getConn

@@ -14,8 +14,8 @@ import Control.Monad.State
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
-                   (q, _s) <- liftM nkl2SQL $ toNKL c a
-                   executeQuery c $ SQL q
+                   (q, t, s) <- liftM nkl2SQL $ toNKL c a
+                   executeQuery c s t $ SQL q
                 
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL c e
@@ -29,7 +29,7 @@ debugVec c (Q e) = liftM nkl2Vec $ toNKL c e
 -}
 
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugPlan c (Q e) = liftM (show . fst . nkl2Alg) $ toNKL c e
+debugPlan c (Q e) = liftM (show . (\(x,_,_) -> x) . nkl2Alg) $ toNKL c e
 
 debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugSQL c (Q e) = liftM (show . fst . nkl2SQL) $ toNKL c e
+debugSQL c (Q e) = liftM (show . (\(x,_,_) -> x) . nkl2SQL) $ toNKL c e

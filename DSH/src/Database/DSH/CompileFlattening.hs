@@ -8,8 +8,6 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Op as O
 
--- import Database.DSH.Compiler (tableInfo, legalType)
-
 import Database.DSH.Data as D
 import Database.DSH.Impossible (impossible)
 import Database.HDBC
@@ -108,18 +106,6 @@ translate (TableE (TableDB n ks) ty) = do
                                                     then [map fst tableDescr]
                                                     else ks
                                         return $ NKL.Table (ty2ty ty) n cols ks'
-{-
-transformE (TableE (TableDB n ks) ty) = do
-                                    fv <- freshVar
-                                    let tTy@(FList (FRec ts)) = flatFTy ty
-                                    let varB = Var ([] :=> FRec ts) $ prefixVar fv
-                                    tableDescr <- tableInfo n
-                                    let tyDescr = case length tableDescr == length ts of
-                                                    True -> zip tableDescr ts
-                                                    False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
-                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty 
-                                    let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
--}                            
 translate (TupleE e1 e2 _) = do
                                 c1 <- translate e1
                                 c2 <- translate e2
@@ -158,38 +144,10 @@ translate (AppE2 GroupWith f e ty) = do
                                       c1 <- translate f
                                       c2 <- translate e
                                       return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "groupWith") c1) c2
-{-
-translate (AppE2 Span f e t@(TupleT t1 t2)) = transformE $ TupleE (AppE2 TakeWhile f e t1) (AppE2 DropWhile f e t2) t
-translate (AppE2 Break (LamE f _) e t@(TupleT t1 _)) = let notF = LamE (\x -> AppE1 Not (f x) BoolT) $ ArrowT t1 BoolT
-                                                 in transformE $ AppE2 Span notF e t
-translate (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
-                                                let tr = transformTy ty
-                                                fn' <- transformArg gfn
-                                                let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
-                                                let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
-                                                e' <- transformArg e
-                                                let (_ :=> te) = typeOf e'
-                                                fv <- transformArg (LamE id $ ArrowT tel tel)
-                                                snd' <- transformArg (LamE (\x -> AppE1 Snd x $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel)) $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel))
-                                                let (_ :=> sndTy) = typeOf snd'
-                                                let (_ :=> tfv) = typeOf fv
-                                                return $ App ([] :=> tr)
-                                                            (App ([] :=> gtr .-> tr) (Var ([] :=> sndTy .-> gtr .-> tr) "map") snd') 
-                                                            (ParExpr ([] :=> gtr) $ App ([] :=> gtr)
-                                                                (App ([] :=> te .-> gtr)
-                                                                    (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
-                                                                    fn'
-                                                                )
-                                                                e') -}
 translate (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- translate e1
                                             e2' <- translate e2
                                             return $ toList e2' [e1']  
-{-
-translate (AppE2 Append e1 e2 t) = transformE (AppE1 Concat (ListE [e1, e2] (ListT t)) t)
-translate (AppE2 Any f e _) = transformE $ AppE1 Or (AppE2 Map f e $ ListT BoolT) BoolT
-translate (AppE2 All f e _) = transformE $ AppE1 And (AppE2 Map f e $ ListT BoolT) BoolT
-translate (AppE2 Snoc e1 e2 t) = transformE (AppE2 Append e1 (ListE [e2] t) t)-}
 translate (AppE2 f2 e1 e2 ty) = do
                                         let tr = ty2ty ty
                                         if elem f2 [Add, Sub, Mul, Div, Equ, Lt, Gt, Conj, Disj]
@@ -200,35 +158,12 @@ translate (AppE2 f2 e1 e2 ty) = do
                                             else if elem f2 [Lte, Gte] 
                                                     then translate (AppE2 Disj (AppE2 Equ e1 e2 ty) (AppE2 (gtorlt f2) e1 e2 ty) ty)
                                                     else error $"Application2: Not supported yet: " ++ show f2
-                                              {- do
-                                                      e1' <- transformArg e1
-                                                      e2' <- transformArg e2
-                                                      let (_ :=> ta1) = typeOf e1'
-                                                      let (_ :=> ta2) = typeOf e2'
-                                                      return $ App ([] :=> tr) 
-                                                                (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
-                                                                e2' -}
 translate (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- translate e1
                                              e2' <- translate e2
                                              e3' <- translate e3
                                              return $ NKL.If (T.typeOf e2') e1' e2' e3'
-{-
-translate (AppE3 f3 e1 e2 e3 ty) = do
-                                           let tr = transformTy ty
-                                           e1' <- transformArg e1
-                                           e2' <- transformArg e2
-                                           e3' <- transformArg e3
-                                           let (_ :=> ta1) = typeOf e1'
-                                           let (_ :=> ta2) = typeOf e2'
-                                           let (_ :=> ta3) = typeOf e3'
-                                           return $ App ([] :=> tr)
-                                                        (App ([] :=> ta3 .-> tr)
-                                                             (App ([] :=> ta2 .-> ta3 .-> tr) (transformF f3 (ta1 .-> ta2 .-> ta3 .-> tr)) e1')
-                                                             e2')
-                                                        e3'
-translate (VarE i ty) = return $ Var ([] :=> transformTy ty) $ prefixVar i
--}
+
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
@@ -236,7 +171,6 @@ legalType tn cn nr t f = case f t of
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 
--- translate e = error $ "CompileFlattening: Not supported: " ++ show e
 gtorlt :: Fun2 -> Fun2
 gtorlt Gte = Gt
 gtorlt Lte = Lt

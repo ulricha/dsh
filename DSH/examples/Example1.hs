@@ -17,7 +17,7 @@ module Main where
 
 import Prelude () 
 import Database.DSH
-import Database.DSH.Compiler
+import Database.DSH.Flattening
 
 -- For our example we use postgresql, any database will do as long it can be
 -- approached through HDBC.
@@ -50,7 +50,8 @@ features = table "features"
           
 meanings :: Q [(Feature, Meaning)]
 meanings = table "meanings"
-            
+
+{-            
 -- Helper function for the query.
 -- Despite the different braces for the comprehension the comprehension body
 -- works as normal
@@ -70,4 +71,4 @@ main :: IO ()
 main = do
   conn   <- getConn           -- Get a connection
   result <- debugPlan conn query  -- Execute the query using fromQ
-  putStrLn result
+  putStrLn result -}
