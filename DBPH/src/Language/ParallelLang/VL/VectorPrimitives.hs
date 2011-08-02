@@ -41,7 +41,7 @@ class VectorAlgebra a where
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
   tableRef :: String -> [FKL.Column Ty.Type] -> KeyInfos -> Graph a Plan
   tagVector :: String -> Plan -> Graph a Plan
-  emptyVector :: SchemaInfos -> Graph a AlgNode
+  emptyVector :: [(String, Ty.Type)] -> Graph a AlgNode
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimValues :: Plan -> Plan -> Plan -> Graph a Plan
   ifValueVectors :: Plan -> Plan -> Plan -> Graph a Plan

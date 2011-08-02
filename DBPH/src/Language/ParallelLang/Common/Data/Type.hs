@@ -10,6 +10,7 @@ instance Show Type where
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
     show Int = "Int"
+    show Nat = "Nat"
     show Bool = "Bool"
     show Double = "Double"
     show String = "String"
@@ -20,6 +21,7 @@ instance Show Type where
 data Type where
     Var :: String -> Type
     Fn :: Type -> Type -> Type
+    Nat :: Type
     Int :: Type
     Bool :: Type
     Double :: Type

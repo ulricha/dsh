@@ -6,9 +6,7 @@ import Control.Applicative hiding (Const)
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as Ty
-import Language.ParallelLang.NKL.Data.NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
-import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -46,8 +44,8 @@ instance VectorAlgebra PFAlgebra where
   tagVector = tagVectorPF
   emptyVector = emptyVectorPF
 
-emptyVectorPF :: SchemaInfos -> Graph PFAlgebra AlgNode
-emptyVectorPF infos = litTable' [] infos
+emptyVectorPF :: [(String, Ty.Type)] -> Graph PFAlgebra AlgNode
+emptyVectorPF infos = litTable' [] $ map (\(x,y) -> (x, algTy y)) infos
 
 ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
@@ -194,10 +192,10 @@ appendPF e1 e2 = do
                 
 
 segmentPF :: Plan -> Graph PFAlgebra Plan
-segmentPF e = do
-             (rf, q, pf) <- determineResultVector e
-             rf <$> proj (pf [(descr, pos), (pos, pos)]) q
-
+segmentPF e = 
+    do
+     (rf, q, pf) <- determineResultVector e
+     rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
 restrictVecPF :: Plan -> Plan -> Graph PFAlgebra Plan
 restrictVecPF e1 (ValueVector qm) = do
@@ -262,7 +260,11 @@ algTy (Ty.Double) = doubleT
 algTy (Ty.Bool) = boolT
 algTy (Ty.String) = stringT
 algTy (Ty.Unit) = intT
-algTy _               = $impossible "Not a primitive type"
+algTy (Ty.Nat) = natT
+algTy (Ty.Var _) = $impossible
+algTy (Ty.Fn _ _) = $impossible
+algTy (Ty.Tuple _) = $impossible
+algTy (Ty.List _) = $impossible
 
 toAlgVal :: Val -> AVal
 toAlgVal (Int i) = int $ fromIntegral i

@@ -3,15 +3,14 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
-import Database.Algebra.Pathfinder(natT, PFAlgebra)
+import Database.Algebra.Pathfinder(PFAlgebra)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
-import Language.ParallelLang.VL.PathfinderVectorPrimitives
+import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.Common.Data.Val
 import Database.Algebra.Graph.GraphBuilder
 import Language.ParallelLang.FKL.Data.FKL
-import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Query
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
@@ -31,10 +30,10 @@ fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) = constructLiteral t v 
 fkl2Alg (Nil (Ty.List t@(Ty.List _))) = do
   p <- fkl2Alg (Nil t)
-  p_empty <- emptyVector [(descr, natT), (pos, natT)]
+  p_empty <- emptyVector [(descr, Ty.Nat), (pos, Ty.Nat)]
   return (NestedVector p_empty p)
 fkl2Alg (Nil (Ty.List t)) = do
-  p_empty <- emptyVector [(descr, natT), (pos, natT), (item1, convertType t)]
+  p_empty <- emptyVector [(descr, Ty.Nat), (pos, Ty.Nat), (item1, t)]
   return (ValueVector p_empty)
 fkl2Alg (Nil _)                = error "Not a valid nil value"
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
