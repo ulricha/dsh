@@ -100,8 +100,12 @@ fkl2Alg (CloLApp _ c arg) = do
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 -- fkl2Alg e                 = error $ "unsupported: " ++ show e
 
+-- FIXME
+-- undefined is used here because the flattening code generation does not use 
+-- loop relations. At some point, loop should be separated from the general
+-- GraphM monad.                              
 toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
-toPFAlgebra e = runGraph initialLoop (fkl2Alg e)
+toPFAlgebra e = runGraph undefined (fkl2Alg e)
 
 --toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 --toX100Algebra e = runGraph initialLoop (fkl2Alg e)

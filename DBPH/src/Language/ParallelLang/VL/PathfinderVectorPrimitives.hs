@@ -40,7 +40,6 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   ifPrimValues = ifPrimPF
   ifValueVectors = ifValuePF
-  initialLoop = initLoop
   tagVector = tagVectorPF
   emptyVector = emptyVectorPF
 
