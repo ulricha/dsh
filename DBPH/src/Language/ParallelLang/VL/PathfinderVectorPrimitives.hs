@@ -40,7 +40,6 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   ifPrimValues = ifPrimPF
   ifValueVectors = ifValuePF
-  tagVector = tagVectorPF
   emptyVector = emptyVectorPF
 
 emptyVectorPF :: [(String, Ty.Type)] -> Graph PFAlgebra AlgNode
@@ -288,38 +287,8 @@ tableRefPF n cs ks = do
     renameCols :: [FKL.Column Ty.Type] -> [Column]
     renameCols xs = [NCol cn [Col i $ algTy t]| ((cn, t), i) <- zip xs [1..]]
 
-determineResultVector :: Plan -> Graph PFAlgebra (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
-determineResultVector e = do
-                             let hasI = isValueVector e
-                             let rf = if hasI then ValueVector else DescrVector
-                             let pf = if hasI then \x -> (item1, item1):x else \x -> x
-                             let q = if hasI
-                                         then let (ValueVector q') = e in q'
-                                         else let (DescrVector q') = e in q'
-                             return (rf, q, pf)
-
-determineResultVector' :: Plan -> Plan -> Graph PFAlgebra (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
-determineResultVector' e1 e2 = do
-                                 let hasI = isValueVector e1
-                                 let rf = if hasI then ValueVector else DescrVector
-                                 let pf = if hasI then \x -> (item1, item1):x else \x -> x
-                                 let (q1, q2) = if hasI
-                                                 then let (ValueVector q1') = e1
-                                                          (ValueVector q2') = e2 in (q1', q2')
-                                                 else let (DescrVector q1') = e1 
-                                                          (DescrVector q2') = e2 in (q1', q2')
-                                 return (rf, q1, q2, pf)
-                                 
 toDescr :: Plan -> Graph PFAlgebra Plan
 toDescr v@(DescrVector _) = return v
 toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
 toDescr _ = error "toDescr: Should not be possible"
 
-tagVectorPF :: String -> Plan -> Graph PFAlgebra Plan
-tagVectorPF s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVectorPF s v) vs)
-tagVectorPF s (DescrVector q) = DescrVector <$> tag s q
-tagVectorPF s (ValueVector q) = ValueVector <$> tag s q
-tagVectorPF s (PrimVal q) = PrimVal <$> tag s q
-tagVectorPF s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVectorPF s qs
-tagVectorPF s (PropVector q) = PropVector <$> tag s q
-tagVectorPF _ _ = error "tagVectorPF: Should not be possible"

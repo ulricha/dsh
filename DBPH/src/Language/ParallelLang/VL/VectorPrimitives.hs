@@ -40,7 +40,6 @@ class VectorAlgebra a where
   bPermuteVec :: Plan -> Plan -> Graph a Plan
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
   tableRef :: String -> [FKL.Column Ty.Type] -> KeyInfos -> Graph a Plan
-  tagVector :: String -> Plan -> Graph a Plan
   emptyVector :: [(String, Ty.Type)] -> Graph a AlgNode
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimValues :: Plan -> Plan -> Plan -> Graph a Plan
@@ -81,3 +80,33 @@ singletonPrim (PrimVal q1) = do
                     return $ ValueVector q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
                     
+tagVector :: String -> Plan -> Graph a Plan
+tagVector s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVector s v) vs)
+tagVector s (DescrVector q) = DescrVector <$> tag s q
+tagVector s (ValueVector q) = ValueVector <$> tag s q
+tagVector s (PrimVal q) = PrimVal <$> tag s q
+tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
+tagVector s (PropVector q) = PropVector <$> tag s q
+tagVector _ _ = error "tagVector: Should not be possible"
+
+determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
+determineResultVector e = do
+                             let hasI = isValueVector e
+                             let rf = if hasI then ValueVector else DescrVector
+                             let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                             let q = if hasI
+                                         then let (ValueVector q') = e in q'
+                                         else let (DescrVector q') = e in q'
+                             return (rf, q, pf)
+
+determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
+determineResultVector' e1 e2 = do
+                                 let hasI = isValueVector e1
+                                 let rf = if hasI then ValueVector else DescrVector
+                                 let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                                 let (q1, q2) = if hasI
+                                                 then let (ValueVector q1') = e1
+                                                          (ValueVector q2') = e2 in (q1', q2')
+                                                 else let (DescrVector q1') = e1 
+                                                          (DescrVector q2') = e2 in (q1', q2')
+                                 return (rf, q1, q2, pf)
