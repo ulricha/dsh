@@ -45,7 +45,6 @@ class VectorAlgebra a where
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimValues :: Plan -> Plan -> Plan -> Graph a Plan
   ifValueVectors :: Plan -> Plan -> Plan -> Graph a Plan
-  initialLoop :: a
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
