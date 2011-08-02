@@ -4,7 +4,7 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.VectorPrimitives
 
-chainPropagate :: Plan -> Plan -> Graph Plan
+chainPropagate :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 chainPropagate p q@(ValueVector _) = do 
                                       TupleVector [v, _] <- propagateIn p q
                                       return v
@@ -15,7 +15,7 @@ chainPropagate p (NestedVector d vs) = do
 chainPropagate _ _ = error "chainPropagate: Should not be possible"
 
 -- | Append two vectors
-appendR :: Plan -> Plan -> Graph Plan
+appendR :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 appendR e1@(ValueVector _) e2@(ValueVector _)
                     = do
                           TupleVector [v, _, _] <- append e1 e2
@@ -30,7 +30,7 @@ appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
 appendR _ _ = error "appendR: Should not be possible"
 
 -- | Apply renaming to the outermost vector
-renameOuter :: Plan -> Plan -> Graph Plan
+renameOuter :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 renameOuter p@(PropVector _) e@(ValueVector _)
                                 = rename p e
 renameOuter p@(PropVector _) (NestedVector h t)

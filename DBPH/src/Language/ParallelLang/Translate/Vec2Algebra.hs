@@ -1,16 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toAlgebra, toXML) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML) where
+
+-- FIXME this should import a module from TableAlgebra which defines 
+-- common types like schema info and abstract column types.
+import Database.Algebra.Pathfinder(natT, PFAlgebra)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
+import Language.ParallelLang.VL.PathfinderVectorPrimitives
 import Language.ParallelLang.Common.Data.Val
-import Database.Ferry.Algebra (double, string, int, bool, AVal(), intT, doubleT, stringT, natT, boolT, ATy(), nat, litTable, litTable', emptyTable, attachM, tagM, AlgNode(), AlgPlan(), initLoop, runGraph, withBinding, withContext, fromGam, notC, projM, crossM, unionM, selectM, proj, cross, eqJoinM, operM, dbTable, rownum) -- hiding (getLoop, Gam)
-import qualified Database.Ferry.Algebra as A 
+import Database.Algebra.Graph.GraphBuilder
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Query
-import Database.Ferry.Algebra.Render.XML hiding (XML, Graph)
+import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import Language.ParallelLang.VL.VectorOperations
 
@@ -20,14 +24,18 @@ import Control.Monad (liftM2)
 
 import Language.ParallelLang.Common.Impossible
 
-
-fkl2Alg :: Expr Ty.Type -> Graph Plan
+fkl2Alg :: (VectorAlgebra a) => Expr Ty.Type -> Graph a Plan
 fkl2Alg (Tuple _ es) = TupleVector <$> mapM fkl2Alg es
-fkl2Alg (Table _ n cs ks) = makeTable n cs ks
+fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
-fkl2Alg (Const t v) = val2Alg t v 
-fkl2Alg (Nil (Ty.List t@(Ty.List _))) = NestedVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT)]) <*> fkl2Alg (Nil t)
-fkl2Alg (Nil (Ty.List t)) = ValueVector <$> (tagM "Nil" $ emptyTable [(descr, natT), (pos, natT), (item1, convertType t)])
+fkl2Alg (Const t v) = constructLiteral t v 
+fkl2Alg (Nil (Ty.List t@(Ty.List _))) = do
+  p <- fkl2Alg (Nil t)
+  p_empty <- emptyVector [(descr, natT), (pos, natT)]
+  return (NestedVector p_empty p)
+fkl2Alg (Nil (Ty.List t)) = do
+  p_empty <- emptyVector [(descr, natT), (pos, natT), (item1, convertType t)]
+  return (ValueVector p_empty)
 fkl2Alg (Nil _)                = error "Not a valid nil value"
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
@@ -38,41 +46,19 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                  | otherwise = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
-                                                let (rt, extr) = if l 
-                                                                   then (ValueVector, \e -> case e of {(ValueVector q) -> q; _ -> $impossible})
-                                                                   else (PrimVal, \e -> case e of {(PrimVal q) -> q; _ -> $impossible})
-                                                let q1 = extr p1
-                                                let q2 = extr p2
-                                                rt <$> (projM [(item1, resCol), (descr, descr), (pos, pos)] 
-                                                    $ operM (show o) resCol item1 tmpCol 
-                                                        $ eqJoinM pos pos' (return q1) 
-                                                            $ proj [(tmpCol, item1), (pos', pos)] q2)
+                                                binOp l o p1 p2
 fkl2Alg (Proj _ _ e n) = do
                           (TupleVector es) <- fkl2Alg e
                           return $ es !! (n - 1)
-fkl2Alg (If t eb e1 e2) | Ty.listDepth t == 0 = do
-                             (PrimVal qb) <- fkl2Alg eb
-                             (PrimVal q1) <- fkl2Alg e1
-                             (PrimVal q2) <- fkl2Alg e2
-                             b <- proj [(tmpCol, item1)] qb
-                             qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
-                                       selectM  tmpCol $ 
-                                           unionM (cross q1 b) $ 
-                                              crossM (return q2) $ 
-                                                  projM [(tmpCol, resCol)] $ notC resCol tmpCol b
-                             return (PrimVal qr)
-                        | Ty.listDepth t == 1 = do
-                             (PrimVal qb)     <- fkl2Alg eb
-                             (ValueVector q1) <- fkl2Alg e1
-                             (ValueVector q2) <- fkl2Alg e2
-                             b <- proj [(tmpCol, item1)] qb
-                             qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
-                                   selectM  tmpCol $ 
-                                       unionM (cross q1 b) $ 
-                                           crossM (return q2) $ 
-                                               projM [(tmpCol, resCol)] $ notC resCol tmpCol b
-                             return (ValueVector qr)
-                        | otherwise = error "vec2Alg: Can't translate if construction"
+fkl2Alg (If t eb e1 e2) = do
+                             pc <- fkl2Alg eb
+                             pt <- fkl2Alg e1
+                             pe <- fkl2Alg e2
+                             case Ty.listDepth t of
+                               0 -> ifPrimValues pc pt pe
+                               1 -> ifValueVectors pc pt pe
+                               _ -> error "vec2Alg: Can't translate if construction"
+  
 fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'
@@ -115,20 +101,16 @@ fkl2Alg (CloLApp _ c arg) = do
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 -- fkl2Alg e                 = error $ "unsupported: " ++ show e
 
-makeTable :: String -> [Column Ty.Type] -> [Key] -> Graph Plan
-makeTable n cs ks = do
-                     table <- dbTable n (renameCols cs) ks
-                     t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
-                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item1, "item" ++ show i)] t') $ zip cs [1..]
-                     return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
-  where
-    renameCols :: [Column Ty.Type] -> [A.Column]
-    renameCols xs = [A.NCol cn [A.Col i $ algTy t]| ((cn, t), i) <- zip xs [1..]]
+toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
+toPFAlgebra e = runGraph initialLoop (fkl2Alg e)
 
-toAlgebra :: Expr Ty.Type -> AlgPlan Plan
-toAlgebra e = runGraph initLoop (fkl2Alg e)
+--toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
+--toX100Algebra e = runGraph initialLoop (fkl2Alg e)
 
-toXML :: AlgPlan Plan -> Query XML
+-- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
+-- toX100Algebra e = runGraph initLoop (fkl2Alg e)
+
+toXML :: AlgPlan PFAlgebra Plan -> Query XML
 toXML (g, r, ts) = case r of
                      (PrimVal r') -> PrimVal (XML r' $ toXML' withItem r')
                      (TupleVector rs)   -> TupleVector $ map (\r' -> toXML (g, r', ts)) rs
@@ -153,52 +135,3 @@ toXML (g, r, ts) = case r of
     
 
 
-val2Alg :: Ty.Type -> Val -> Graph Plan
-val2Alg t (List es) = listToPlan t (zip (repeat 1) es)
-val2Alg _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ val2Alg' v))
- where
-  val2Alg' (Int i) = litTable (int $ fromIntegral i) item1 intT
-  val2Alg' (Bool b) = litTable (bool b) item1 boolT
-  val2Alg' Unit     = litTable (int (-1)) item1 intT  
-  val2Alg' (String s) = litTable (string s) item1 stringT
-  val2Alg' (Double d) = litTable (double d) item1 doubleT
-  val2Alg' (List _) = $impossible 
-
-listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph Plan
-listToPlan (Ty.List t@(Ty.List _)) [] = do
-                                               d <- emptyTable [("iter", natT), ("pos", natT)]
-                                               v <- listToPlan t []
-                                               return $ NestedVector d v
-listToPlan (Ty.List t@(Ty.List _)) vs = do
-                                          let (vals, rec) = unzip [([nat i, nat p], zip (repeat p) es) | (p, (i, List es)) <- zip [1..] vs]
-                                          d <- litTable' vals  [("iter", natT), ("pos", natT)]
-                                          v <- listToPlan t $ concat rec
-                                          return $ NestedVector d v                                                    
-listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
-listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item1", algTy t)]
-listToPlan _ _ = $impossible "Not a list value or type"
-       
-algTy :: Ty.Type -> ATy
-algTy (Ty.Int) = intT
-algTy (Ty.Double) = doubleT
-algTy (Ty.Bool) = boolT
-algTy (Ty.String) = stringT
-algTy (Ty.Unit) = intT
-algTy _               = $impossible "Not a primitive type"
-
-toAlgVal :: Val -> AVal
-toAlgVal (Int i) = int $ fromIntegral i
-toAlgVal (Bool b) = bool b
-toAlgVal Unit = int (-1)
-toAlgVal (String s) = string s
-toAlgVal (Double d) = double d
-toAlgVal _ = $impossible "Not a primitive value"
-
--- | Construct a name that represents a lifted variable in the environment.                        
-constrEnvName :: String -> Int -> String
-constrEnvName x 0 = x
-constrEnvName x i = x ++ "<%>" ++ show i
-
-intFromVal :: Expr T.VType -> Int
-intFromVal (Const _ (Int i)) = i
-intFromVal x                 = error $ "intFromVal: not an integer: " ++ show x
