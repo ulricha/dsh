@@ -13,10 +13,11 @@ import Language.ParallelLang.Common.Data.Op
 import qualified Data.List as L
 import Control.Applicative hiding (Const)
 
-detuple :: TExpr -> TransM (TExpr, ReconstructionPlan)
+detuple :: TExpr -> TransM (TExpr, Type, ReconstructionPlan)
 detuple v = do
                e' <- normTuples v
-               return (e', snd $ transType $ typeOf v)
+               let (t,r) = transType $ typeOf v
+               return (e', t, r)
                
 
 normTuples :: TExpr -> TransM TExpr

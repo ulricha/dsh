@@ -15,20 +15,20 @@ import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
 import Language.ParallelLang.Translate.Detupler (detuple)
 import Language.ParallelLang.Common.Data.Type
 
-nkl2SQL :: NKL.Expr -> (Query SQL, ReconstructionPlan)
-nkl2SQL e = let (e', r) = nkl2Alg e
-             in (toSQL e', r)
+nkl2SQL :: NKL.Expr -> (Query SQL, Type, ReconstructionPlan)
+nkl2SQL e = let (e', t, r) = nkl2Alg e
+             in (toSQL e', t, r)
 
-nkl2Alg :: NKL.Expr -> (Query XML, ReconstructionPlan)
-nkl2Alg e = let (e', r) = nkl2Vec' e
-             in (toXML $ toAlgebra e', r)
+nkl2Alg :: NKL.Expr -> (Query XML, Type, ReconstructionPlan)
+nkl2Alg e = let (e', t, r) = nkl2Vec' e
+             in (toXML $ toAlgebra e', t, r)
              
-nkl2Vec' :: NKL.Expr -> (FKL.Expr Type , ReconstructionPlan)
+nkl2Vec' :: NKL.Expr -> (FKL.Expr Type, Type, ReconstructionPlan)
 nkl2Vec' e = runTransform $ 
                  do 
-                  (e', reconstruction) <- flatTransform e >>= detuple 
-                  return (e', reconstruction)
+                  (e', t, reconstruction) <- flatTransform e >>= detuple 
+                  return (e', t, reconstruction)
 
 nkl2fkl :: NKL.Expr -> String
-nkl2fkl e = show $ runTransform $ liftM fst $ flatTransform e >>= detuple 
+nkl2fkl e = show $ runTransform $ liftM (\(x, _, _) -> x) $ flatTransform e >>= detuple 
                  

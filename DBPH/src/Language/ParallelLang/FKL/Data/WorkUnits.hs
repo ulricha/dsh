@@ -7,13 +7,14 @@ transformUnits :: (a -> b) -> Work a -> Work b
 transformUnits f (a, r) = (f a, r)
 
 class Structural a where
-    constantS :: a -> a
+--    constantS :: a -> a
     tupleS :: a -> [a]
     listS :: a -> [a]
 
 
 class Structural a => Reconstructable a where
     idR :: a -> a
+    idR = id
     tupleR :: [a] -> a
     listR :: [a] -> a
 
