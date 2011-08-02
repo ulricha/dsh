@@ -47,7 +47,7 @@ instance VectorAlgebra PFAlgebra where
   emptyVector = emptyVectorPF
 
 emptyVectorPF :: SchemaInfos -> Graph PFAlgebra AlgNode
-emptyVectorPF infos = litTable [] infos
+emptyVectorPF infos = litTable' [] infos
 
 ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
@@ -115,8 +115,8 @@ notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (
 notVecPF _ = error "notVecPF: Should not be possible"
 
 lengthAPF :: Plan -> Graph PFAlgebra Plan
-lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTableSingle (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
-lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTableSingle (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF _ = error "lengthAPF: Should not be possible"
 
 lengthSegPF :: Plan -> Plan -> Graph PFAlgebra Plan
@@ -180,7 +180,7 @@ propagateInPF _ _ = error "propagateInPF: Should not be possible"
                      
 singletonVecPF :: Plan -> Graph PFAlgebra Plan
 singletonVecPF e1 = do
-                    q <- tagM "singletonVecPF" $ attachM pos natT (nat 1) $ litTableSingle (nat 1) descr natT
+                    q <- tagM "singletonVecPF" $ attachM pos natT (nat 1) $ litTable (nat 1) descr natT
                     return $ NestedVector q e1
                     
 appendPF :: Plan -> Plan -> Graph PFAlgebra Plan
@@ -234,11 +234,11 @@ constructLiteralPF :: Ty.Type -> Val -> Graph PFAlgebra Plan
 constructLiteralPF t (List es) = listToPlan t (zip (repeat 1) es)
 constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ constructLiteralPF' v))
  where
-  constructLiteralPF' (Int i) = litTableSingle (int $ fromIntegral i) item1 intT
-  constructLiteralPF' (Bool b) = litTableSingle (bool b) item1 boolT
-  constructLiteralPF' Unit     = litTableSingle (int (-1)) item1 intT  
-  constructLiteralPF' (String s) = litTableSingle (string s) item1 stringT
-  constructLiteralPF' (Double d) = litTableSingle (double d) item1 doubleT
+  constructLiteralPF' (Int i) = litTable (int $ fromIntegral i) item1 intT
+  constructLiteralPF' (Bool b) = litTable (bool b) item1 boolT
+  constructLiteralPF' Unit     = litTable (int (-1)) item1 intT  
+  constructLiteralPF' (String s) = litTable (string s) item1 stringT
+  constructLiteralPF' (Double d) = litTable (double d) item1 doubleT
   constructLiteralPF' (List _) = $impossible 
 
 -- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
@@ -249,11 +249,11 @@ listToPlan (Ty.List t@(Ty.List _)) [] = do
                                                return $ NestedVector d v
 listToPlan (Ty.List t@(Ty.List _)) vs = do
                                           let (vals, rec) = unzip [([nat i, nat p], zip (repeat p) es) | (p, (i, List es)) <- zip [1..] vs]
-                                          d <- litTable vals  [("iter", natT), ("pos", natT)]
+                                          d <- litTable' vals  [("iter", natT), ("pos", natT)]
                                           v <- listToPlan t $ concat rec
                                           return $ NestedVector d v                                                    
 listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
-listToPlan (Ty.List t) vs = ValueVector <$> litTable [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item1", algTy t)]
+listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item1", algTy t)]
 listToPlan _ _ = $impossible "Not a list value or type"
        
 algTy :: Ty.Type -> ATy
