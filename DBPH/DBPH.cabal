@@ -39,6 +39,7 @@ Library
                    Language.ParallelLang.Translate.TransM
                    Language.ParallelLang.VL.Data.VectorTypes
                    Language.ParallelLang.VL.VectorPrimitives
+                   Language.ParallelLang.VL.PathfinderVectorPrimitives
                    Language.ParallelLang.Translate.Vec2Algebra
                    Language.ParallelLang.Translate.Detupler  
                    -- Language.ParallelLang.FKL.Data.WorkUnits
