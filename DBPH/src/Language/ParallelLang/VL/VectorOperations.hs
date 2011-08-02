@@ -7,7 +7,7 @@ import Language.ParallelLang.VL.MetaPrimitives
 
 import Control.Applicative
 
-groupByS :: Plan -> Plan -> Graph Plan
+groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByS e1 e2@(ValueVector _) = do
                                   TupleVector [d, v, _] <- groupBy e1 e2
                                   return $ attachV d v
@@ -17,7 +17,7 @@ groupByS e1 (NestedVector d2 vs2) = do
                                      return $ attachV d $ attachV v vs'
 groupByS _ _ = error "groupByS: Should not be possible"
 
-groupByL :: Plan -> Plan -> Graph Plan
+groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
                                   TupleVector [d, v, _] <- groupBy v1 v2
                                   return $ attachV (DescrVector d2) $ attachV d v
@@ -27,14 +27,14 @@ groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d'
                                      return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
 groupByL _ _ = error "groupByL: Should not be possible"
                     
-concatLift :: Plan -> Graph Plan
+concatLift :: VectorAlgebra a => Plan -> Graph a Plan
 concatLift (NestedVector d (NestedVector d' vs)) = do
                                                     p <- descToProp (DescrVector d')
                                                     vs' <- renameOuter p vs
                                                     return $ NestedVector d vs'
 concatLift _ = error "concatLift: Should not be possible"
 
-lengthLift :: Plan -> Graph Plan
+lengthLift :: VectorAlgebra a => Plan -> Graph a Plan
 lengthLift (NestedVector d vs1) = do 
                                    v <- outer vs1
                                    ls <- lengthSeg (DescrVector d) v
@@ -42,17 +42,17 @@ lengthLift (NestedVector d vs1) = do
                                    rename p ls
 lengthLift _ = error "lengthLift: Should not be possible"
 
-lengthV :: Plan -> Graph Plan
+lengthV :: VectorAlgebra a => Plan -> Graph a Plan
 lengthV v = do
              v' <- outer v
              lengthA v'
 
-consEmpty :: Plan -> Graph Plan
+consEmpty :: VectorAlgebra a => Plan -> Graph a Plan
 consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
 consEmpty q | nestingDepth q > 0 = singletonVec q
             | otherwise = error "consEmpty: Can't construct consEmpty node"
 
-cons :: Plan -> Plan -> Graph Plan
+cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 cons q1@(PrimVal _) q2@(ValueVector _)
                 -- corresponds to rule [cons-1]
                 = do
@@ -71,7 +71,7 @@ cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (ne
             | otherwise = error "cons: Can't construct cons node"
 cons _ _ = error "Should not be possible"
 
-consLift :: Plan -> Plan -> Graph Plan
+consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
                       -- Case that e1 has a nesting depth of 1
                     = do
@@ -93,7 +93,7 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                | otherwise = error "consLift: Can't construct consLift node"
 consLift _ _ = error "consLift: Should not be possible"
 
-restrict :: Plan -> Plan -> Graph Plan
+restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 restrict e1@(ValueVector _) e2@(ValueVector _) 
                      -- Corresponds to compilation rule [restrict-1]
                    = do
@@ -108,7 +108,7 @@ restrict (NestedVector d1 vs1) e2@(ValueVector _)
                        return $ attachV v e3
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
-combine :: Plan -> Plan -> Plan -> Graph Plan
+combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
 combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth e2 == 1
                       -- Corresponds to compilation rule [combine-1]
                     = do
@@ -126,14 +126,14 @@ combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth 
                         return $ attachV v e3
                  | otherwise = error "combine: Can't construct combine node"
 
-bPermute :: Plan -> Plan -> Graph Plan
+bPermute :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
                     = do
                         TupleVector [v, _] <- bPermuteVec e1 e2
                         return v
                | otherwise = error "bPermute: Can't construct bPermute node"
 
-dist :: Plan -> Plan -> Graph Plan
+dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = do
                                                         o <- outer q2
                                                         distPrim q1 o
@@ -155,13 +155,13 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
 dist (Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
 dist _ _ = error "dist: Should not be possible"
 
-mapEnv :: (Plan -> Graph Plan) -> [(String, Plan)] -> Graph [(String, Plan)]
+mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph a [(String, Plan)]
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
 
 
 
-distL :: Plan -> Plan -> Graph (Plan)
+distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 distL q1@(ValueVector _) (NestedVector d vs) = do
                                                 o <- outer vs
                                                 TupleVector [v, _] <- distLift q1 o

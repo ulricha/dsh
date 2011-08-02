@@ -21,8 +21,14 @@ nkl2SQL e = let (e', t, r) = nkl2Alg e
 
 nkl2Alg :: NKL.Expr -> (Query XML, Type, ReconstructionPlan)
 nkl2Alg e = let (e', t, r) = nkl2Vec' e
-             in (toXML $ toAlgebra e', t, r)
+             in (toXML $ toPFAlgebra e', t, r)
              
+{-
+nkl2X100Alg :: NKL.Expr -> (Query X100Algebra, ReconstructionPlan)
+nkl2X100Alg e = let (e', r) = nkl2Vec' e
+                in (toX100Algebra, r)
+-}
+
 nkl2Vec' :: NKL.Expr -> (FKL.Expr Type, Type, ReconstructionPlan)
 nkl2Vec' e = runTransform $ 
                  do 
