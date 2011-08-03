@@ -5,9 +5,12 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML) where
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
+import Database.Algebra.X100(inlineLoad, X100Algebra, dummy)
+
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
+import Language.ParallelLang.VL.X100VectorPrimitives()
 import Language.ParallelLang.Common.Data.Val
 import Database.Algebra.Graph.GraphBuilder
 import Language.ParallelLang.FKL.Data.FKL
@@ -23,6 +26,7 @@ import Control.Monad (liftM2)
 
 import Language.ParallelLang.Common.Impossible
 
+
 fkl2Alg :: (VectorAlgebra a) => Expr Ty.Type -> Graph a Plan
 fkl2Alg (Tuple _ es) = TupleVector <$> mapM fkl2Alg es
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
@@ -33,7 +37,7 @@ fkl2Alg (Nil (Ty.List t@(Ty.List _))) = do
   p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat)]
   return (NestedVector p_empty p)
 fkl2Alg (Nil (Ty.List t)) = do
-  p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item1, t)]
+  p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item, t)]
   return (ValueVector p_empty)
 fkl2Alg (Nil _)                = error "Not a valid nil value"
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
@@ -106,6 +110,9 @@ fkl2Alg (CloLApp _ c arg) = do
 -- GraphM monad.                              
 toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph undefined (fkl2Alg e)
+
+toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
+toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 --toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 --toX100Algebra e = runGraph initialLoop (fkl2Alg e)

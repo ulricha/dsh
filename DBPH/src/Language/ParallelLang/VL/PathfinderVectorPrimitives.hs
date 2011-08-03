@@ -3,6 +3,7 @@ module Language.ParallelLang.VL.PathfinderVectorPrimitives where
 
 import Control.Applicative hiding (Const)
 
+import Language.ParallelLang.Common.Impossible
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as Ty
@@ -13,7 +14,6 @@ import Language.ParallelLang.VL.VectorPrimitives
 
 import Database.Algebra.Pathfinder
 import Database.Algebra.Graph.GraphBuilder
-import Database.Algebra.Impossible
 
 instance VectorAlgebra PFAlgebra where
   groupBy = groupByPF
@@ -43,9 +43,10 @@ instance VectorAlgebra PFAlgebra where
   emptyVector = emptyVectorPF
 
 -- | Results are stored in column:
-pos, item1, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
+pos, item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
-item1     = "item1"
+item      = "item"
+item'     = "item2"
 descr     = "iter"
 descr'    = "item99999501"
 descr''   = "item99999502"
@@ -82,15 +83,16 @@ auxCol OrdCol = ordCol
 auxCol ResCol = resCol
 auxCol TmpCol = tmpCol
 auxCol TmpCol' = tmpCol'
-auxCol Item1 = item1
+auxCol Item = item
+auxCol Item' = item'
 
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = litTable' [] $ map (\(x,y) -> (algCol x, algTy y)) infos
 
 ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
-  qb <- proj [(tmpCol, item1)] qc
-  qr <- projM [(descr, descr), (pos, pos), (item1, item1)] $ 
+  qb <- proj [(tmpCol, item)] qc
+  qr <- projM [(descr, descr), (pos, pos), (item, item)] $ 
         selectM  tmpCol $ 
         unionM (cross qt qb) $ 
         crossM (return qe) $ 
@@ -100,8 +102,8 @@ ifPrimPF _ _ _ = error "ifPrimPF: Can't translate if construction"
 
 ifValuePF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifValuePF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
-  qb <- proj [(tmpCol, item1)] qc
-  qr <- projM [(descr, descr), (pos, pos), (item1, item1)]
+  qb <- proj [(tmpCol, item)] qc
+  qr <- projM [(descr, descr), (pos, pos), (item, item)]
         $ selectM  tmpCol
         $ unionM (cross qt qb)
         $ crossM (return qe)
@@ -111,10 +113,10 @@ ifValuePF _ _ _ = error "ifValuePF: Can't translate if construction"
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
 applyBinOp op q1 q2 =
-  projM [(item1, resCol), (descr, descr), (pos, pos)] 
-    $ operM (show op) resCol item1 tmpCol 
+  projM [(item, resCol), (descr, descr), (pos, pos)] 
+    $ operM (show op) resCol item tmpCol 
     $ eqJoinM pos pos' (return q1) 
-    $ proj [(tmpCol, item1), (pos', pos)] q2
+    $ proj [(tmpCol, item), (pos', pos)] q2
 
 binOpPF :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan
 binOpPF True op (ValueVector q1) (ValueVector q2) = do 
@@ -127,39 +129,39 @@ binOpPF _ _ _ _ = $impossible
 
 groupByPF :: Plan -> Plan -> Graph PFAlgebra Plan
 groupByPF (ValueVector v1) (ValueVector v2) = do
-                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item1, Asc)] v1
+                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item, Asc)] v1
                                              d1 <- distinctM $ proj [(descr, descr), (pos, resCol)] q'
                                              p <- proj [(posold, pos), (posnew, pos')] q'
-                                             v <- tagM "groupBy ValueVector" $ projM [(descr, descr), (pos, pos), (item1, item1)]
+                                             v <- tagM "groupBy ValueVector" $ projM [(descr, descr), (pos, pos), (item, item)]
                                                     $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
-                                                                         (proj [(pos', pos), (item1, item1)] v2)
+                                                                         (proj [(pos', pos), (item, item)] v2)
                                              return $ TupleVector [DescrVector d1, ValueVector v, PropVector p]
 groupByPF (ValueVector v1) (DescrVector v2) = do
-                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item1, Asc)] v1
+                                             q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item, Asc)] v1
                                              d1 <- distinctM $ proj [(descr, descr), (pos, resCol)] q'
                                              p <- proj [(posold, pos), (posnew, pos')] q'
-                                             v <- projM [(descr, descr), (pos, pos), (item1, item1)]
+                                             v <- projM [(descr, descr), (pos, pos), (item, item)]
                                                     $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                                                          (proj [(pos', pos)] v2)
                                              return $ TupleVector [DescrVector d1, DescrVector v, PropVector p]
 groupByPF _ _ = error "groupBy: Should not be possible"
 
 notPrimPF :: Plan -> Graph PFAlgebra Plan
-notPrimPF (PrimVal q) = PrimVal <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 q)
+notPrimPF (PrimVal q) = PrimVal <$> (projM [(pos, pos), (descr, descr), (item, tmpCol)] $ notC tmpCol item q)
 notPrimPF _ = error "notPrimPF: Should not be possible"
 
 notVecPF :: Plan -> Graph PFAlgebra Plan
-notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (item1, tmpCol)] $ notC tmpCol item1 d)
+notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (item, tmpCol)] $ notC tmpCol item d)
 notVecPF _ = error "notVecPF: Should not be possible"
 
 lengthAPF :: Plan -> Graph PFAlgebra Plan
-lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
-lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item1", Just "item1")] Nothing $ (litTable (int 0) "item1" intT) `unionM` (aggrM [(Count, "item1", Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item", Just "item")] Nothing $ (litTable (int 0) "item" intT) `unionM` (aggrM [(Count, "item", Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item", Just "item")] Nothing $ (litTable (int 0) "item" intT) `unionM` (aggrM [(Count, "item", Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF _ = error "lengthAPF: Should not be possible"
 
 lengthSegPF :: Plan -> Plan -> Graph PFAlgebra Plan
-lengthSegPF (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item1", Just "item1")] (Just descr) $ (attachM "item1" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d))
-lengthSegPF (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item1", Just "item1")] (Just descr) $ (attachM "item1" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item1", Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSegPF (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item", Just "item")] (Just descr) $ (attachM "item" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item", Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSegPF (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item", Just "item")] (Just descr) $ (attachM "item" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item", Nothing)] (Just descr) $ proj [(descr, descr)] d))
 lengthSegPF _ _ = error "lengthSegPF: Should not be possible"
 
 descToPropPF :: Plan -> Graph PFAlgebra Plan
@@ -167,8 +169,8 @@ descToPropPF (DescrVector q1) = PropVector <$> proj [(posnew, descr), (posold, p
 descToPropPF _ = error "descToPropPF: Should not be possible"
 
 notAPF :: Plan -> Graph PFAlgebra Plan
-notAPF (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
-notAPF (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item1, resCol)] (notC resCol item1 q1)
+notAPF (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item, resCol)] (notC resCol item q1)
+notAPF (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item, resCol)] (notC resCol item q1)
 notAPF _ = error "notAPF: Should not be possible"
 
 outerPF :: Plan -> Graph PFAlgebra Plan
@@ -179,7 +181,7 @@ outerPF e                  = error $ "outerPF: Can't extract outerPF plan" ++ sh
 distPrimPF :: Plan -> Plan -> Graph PFAlgebra Plan
 distPrimPF (PrimVal q1) d = do
                  (DescrVector q2) <- toDescr d
-                 ValueVector <$> crossM (proj [(item1, item1)] q1) (return q2)
+                 ValueVector <$> crossM (proj [(item, item)] q1) (return q2)
 distPrimPF _ _ = error "distPrimPF: Should not be possible"
                   
 distDescPF :: Plan -> Plan -> Graph PFAlgebra Plan
@@ -240,7 +242,7 @@ segmentPF e =
 restrictVecPF :: Plan -> Plan -> Graph PFAlgebra Plan
 restrictVecPF e1 (ValueVector qm) = do
                     (rf, q1, pf) <- determineResultVector e1
-                    q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item1)] qm
+                    q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item)] qm
                     qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
                     qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
                     return $ TupleVector [qr, qp]
@@ -249,8 +251,8 @@ restrictVecPF _ _ = error "restrictVecPF: Should not be possible"
 combineVecPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 combineVecPF (ValueVector qb) e1 e2 = do
                         (rf, q1, q2, pf) <- determineResultVector' e1 e2
-                        d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item1 qb
-                        d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item1 qb
+                        d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item qb
+                        d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item qb
                         q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
                         qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
                         qp1 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] d1
@@ -261,7 +263,7 @@ combineVecPF _ _ _ = error "combineVecPF: Should not be possible"
 bPermuteVecPF :: Plan -> Plan -> Graph PFAlgebra Plan
 bPermuteVecPF e1 (ValueVector q2) = do
                      (rf, q1, pf) <- determineResultVector e1
-                     q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item1)] q2
+                     q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item)] q2
                      qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
                      qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
                      return $ TupleVector [qr, qp]
@@ -272,11 +274,11 @@ constructLiteralPF :: Ty.Type -> Val -> Graph PFAlgebra Plan
 constructLiteralPF t (List es) = listToPlan t (zip (repeat 1) es)
 constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ constructLiteralPF' v))
  where
-  constructLiteralPF' (Int i) = litTable (int $ fromIntegral i) item1 intT
-  constructLiteralPF' (Bool b) = litTable (bool b) item1 boolT
-  constructLiteralPF' Unit     = litTable (int (-1)) item1 intT  
-  constructLiteralPF' (String s) = litTable (string s) item1 stringT
-  constructLiteralPF' (Double d) = litTable (double d) item1 doubleT
+  constructLiteralPF' (Int i) = litTable (int $ fromIntegral i) item intT
+  constructLiteralPF' (Bool b) = litTable (bool b) item boolT
+  constructLiteralPF' Unit     = litTable (int (-1)) item intT  
+  constructLiteralPF' (String s) = litTable (string s) item stringT
+  constructLiteralPF' (Double d) = litTable (double d) item doubleT
   constructLiteralPF' (List _) = $impossible 
 
 -- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
@@ -290,8 +292,8 @@ listToPlan (Ty.List t@(Ty.List _)) vs = do
                                           d <- litTable' vals  [("iter", natT), ("pos", natT)]
                                           v <- listToPlan t $ concat rec
                                           return $ NestedVector d v                                                    
-listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
-listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item1", algTy t)]
+listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item", algTy t)]
+listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item", algTy t)]
 listToPlan _ _ = $impossible "Not a list value or type"
        
 algTy :: Ty.Type -> ATy
@@ -323,7 +325,7 @@ tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebr
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) ks
                      t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
-                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item1, "item" ++ show i)] t') $ zip cs [1..]
+                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, "item" ++ show i)] t') $ zip cs [1..]
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
     renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
@@ -339,7 +341,7 @@ determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, ProjInf -> P
 determineResultVector e = do
                              let hasI = isValueVector e
                              let rf = if hasI then ValueVector else DescrVector
-                             let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                             let pf = if hasI then \x -> (item, item):x else \x -> x
                              let q = if hasI
                                          then let (ValueVector q') = e in q'
                                          else let (DescrVector q') = e in q'
@@ -349,7 +351,7 @@ determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, Alg
 determineResultVector' e1 e2 = do
                                  let hasI = isValueVector e1
                                  let rf = if hasI then ValueVector else DescrVector
-                                 let pf = if hasI then \x -> (item1, item1):x else \x -> x
+                                 let pf = if hasI then \x -> (item, item):x else \x -> x
                                  let (q1, q2) = if hasI
                                                  then let (ValueVector q1') = e1
                                                           (ValueVector q2') = e2 in (q1', q2')

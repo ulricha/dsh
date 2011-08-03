@@ -31,7 +31,8 @@ data AuxColumn = Pos
             | ResCol
             | TmpCol
             | TmpCol'
-            | Item1
+            | Item
+            | Item'
 
 data AbstractColumn = DataCol DataColumn
                     | AuxCol AuxColumn
