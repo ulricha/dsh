@@ -17,12 +17,12 @@ import Database.Algebra.Graph.GraphBuilder
 
 instance VectorAlgebra PFAlgebra where
   groupBy = groupByPF
+  notA = notAPF
   notPrim = notPrimPF
   notVec = notVecPF
   lengthA = lengthAPF
   lengthSeg = lengthSegPF
   descToProp = descToPropPF
-  notA = notAPF
   outer = outerPF
   distPrim = distPrimPF
   distDesc = distDescPF
