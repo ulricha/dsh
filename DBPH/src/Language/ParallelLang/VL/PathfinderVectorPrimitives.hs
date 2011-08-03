@@ -40,11 +40,52 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   ifPrimValues = ifPrimPF
   ifValueVectors = ifValuePF
-  tagVector = tagVectorPF
   emptyVector = emptyVectorPF
 
-emptyVectorPF :: [(String, Ty.Type)] -> Graph PFAlgebra AlgNode
-emptyVectorPF infos = litTable' [] $ map (\(x,y) -> (x, algTy y)) infos
+-- | Results are stored in column:
+pos, item1, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
+pos       = "pos"
+item1     = "item1"
+descr     = "iter"
+descr'    = "item99999501"
+descr''   = "item99999502"
+pos'      = "item99999601"
+pos''     = "item99999602"
+pos'''    = "item99999603"
+posold    = "item99999604"
+posnew    = "item99999605"
+ordCol    = "item99999801"
+resCol    = "item99999001"
+tmpCol    = "item99999002"
+tmpCol'   = "item99999003"
+
+algCol :: AbstractColumn -> AttrName
+algCol (AuxCol c) = auxCol c
+algCol (DataCol s) = s
+
+{-
+concretizeProjInfo :: AbstractProjInfo -> ProjInf
+concretizeProjInfo = map (\(c1, c2) -> (algCol c1, algCol c2))
+-}
+
+auxCol :: AuxColumn -> AttrName
+auxCol Pos = pos
+auxCol Pos' = pos'
+auxCol Pos'' = pos''
+auxCol Pos''' = pos'''
+auxCol Descr = descr
+auxCol Descr' = descr'
+auxCol Descr'' = descr'
+auxCol PosOld = posold
+auxCol PosNew = posnew
+auxCol OrdCol = ordCol
+auxCol ResCol = resCol
+auxCol TmpCol = tmpCol
+auxCol TmpCol' = tmpCol'
+auxCol Item1 = item1
+
+emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
+emptyVectorPF infos = litTable' [] $ map (\(x,y) -> (algCol x, algTy y)) infos
 
 ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
@@ -278,17 +319,23 @@ constrEnvName :: String -> Int -> String
 constrEnvName x 0 = x
 constrEnvName x i = x ++ "<%>" ++ show i
 
-tableRefPF :: String -> [FKL.Column Ty.Type] -> KeyInfos -> Graph PFAlgebra Plan
+tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebra Plan
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) ks
                      t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
                      cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item1, "item" ++ show i)] t') $ zip cs [1..]
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
-    renameCols :: [FKL.Column Ty.Type] -> [Column]
+    renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
     renameCols xs = [NCol cn [Col i $ algTy t]| ((cn, t), i) <- zip xs [1..]]
 
-determineResultVector :: Plan -> Graph PFAlgebra (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
+toDescr :: Plan -> Graph PFAlgebra Plan
+toDescr v@(DescrVector _) = return v
+toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
+toDescr _ = error "toDescr: Should not be possible"
+
+-- FIXME abstract and move to VectorPrimitives
+determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
 determineResultVector e = do
                              let hasI = isValueVector e
                              let rf = if hasI then ValueVector else DescrVector
@@ -298,7 +345,7 @@ determineResultVector e = do
                                          else let (DescrVector q') = e in q'
                              return (rf, q, pf)
 
-determineResultVector' :: Plan -> Plan -> Graph PFAlgebra (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
+determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
 determineResultVector' e1 e2 = do
                                  let hasI = isValueVector e1
                                  let rf = if hasI then ValueVector else DescrVector
@@ -309,17 +356,4 @@ determineResultVector' e1 e2 = do
                                                  else let (DescrVector q1') = e1 
                                                           (DescrVector q2') = e2 in (q1', q2')
                                  return (rf, q1, q2, pf)
-                                 
-toDescr :: Plan -> Graph PFAlgebra Plan
-toDescr v@(DescrVector _) = return v
-toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
-toDescr _ = error "toDescr: Should not be possible"
 
-tagVectorPF :: String -> Plan -> Graph PFAlgebra Plan
-tagVectorPF s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVectorPF s v) vs)
-tagVectorPF s (DescrVector q) = DescrVector <$> tag s q
-tagVectorPF s (ValueVector q) = ValueVector <$> tag s q
-tagVectorPF s (PrimVal q) = PrimVal <$> tag s q
-tagVectorPF s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVectorPF s qs
-tagVectorPF s (PropVector q) = PropVector <$> tag s q
-tagVectorPF _ _ = error "tagVectorPF: Should not be possible"

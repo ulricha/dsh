@@ -3,7 +3,7 @@ module Language.ParallelLang.VL.VectorPrimitives where
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 --import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Val
-import qualified Language.ParallelLang.FKL.Data.FKL as FKL
+import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 
 import Control.Applicative
@@ -14,10 +14,32 @@ import Database.Algebra.Graph.GraphBuilder
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
-import Database.Algebra.Pathfinder
+import Database.Algebra.Pathfinder()
 
 -- * Vector primitive constructor functions
 
+data AuxColumn = Pos
+            | Pos'
+            | Pos''
+            | Pos'''
+            | Descr
+            | Descr'
+            | Descr''
+            | PosOld
+            | PosNew
+            | OrdCol
+            | ResCol
+            | TmpCol
+            | TmpCol'
+            | Item1
+
+data AbstractColumn = DataCol DataColumn
+                    | AuxCol AuxColumn
+
+type TypedAbstractColumn t = (AbstractColumn, t)
+
+--type AbstractProjInfo = [(AbstractColumn, AbstractColumn)]
+                   
 class VectorAlgebra a where
   groupBy :: Plan -> Plan -> Graph a Plan
   notPrim :: Plan -> Graph a Plan
@@ -39,9 +61,8 @@ class VectorAlgebra a where
   combineVec :: Plan -> Plan -> Plan -> Graph a Plan
   bPermuteVec :: Plan -> Plan -> Graph a Plan
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
-  tableRef :: String -> [FKL.Column Ty.Type] -> KeyInfos -> Graph a Plan
-  tagVector :: String -> Plan -> Graph a Plan
-  emptyVector :: [(String, Ty.Type)] -> Graph a AlgNode
+  tableRef :: String -> [TypedColumn Ty.Type] -> [Key] -> Graph a Plan
+  emptyVector :: [TypedAbstractColumn Ty.Type] -> Graph a AlgNode
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimValues :: Plan -> Plan -> Plan -> Graph a Plan
   ifValueVectors :: Plan -> Plan -> Plan -> Graph a Plan
@@ -81,3 +102,37 @@ singletonPrim (PrimVal q1) = do
                     return $ ValueVector q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
                     
+tagVector :: String -> Plan -> Graph a Plan
+tagVector s (TupleVector vs) = TupleVector <$> (sequence $ map (\v -> tagVector s v) vs)
+tagVector s (DescrVector q) = DescrVector <$> tag s q
+tagVector s (ValueVector q) = ValueVector <$> tag s q
+tagVector s (PrimVal q) = PrimVal <$> tag s q
+tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
+tagVector s (PropVector q) = PropVector <$> tag s q
+tagVector _ _ = error "tagVector: Should not be possible"
+
+
+{-
+determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, AbstractProjInfo -> AbstractProjInfo)
+determineResultVector e = do
+                             let hasI = isValueVector e
+                             let rf = if hasI then ValueVector else DescrVector
+                             let pf = if hasI then \x -> (AuxCol Item1, AuxCol Item1):x else \x -> x
+                             let q = if hasI
+                                         then let (ValueVector q') = e in q'
+                                         else let (DescrVector q') = e in q'
+                             return (rf, q, pf)
+
+determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, AlgNode, AbstractProjInfo -> AbstractProjInfo)
+determineResultVector' e1 e2 = do
+                                 let hasI = isValueVector e1
+                                 let rf = if hasI then ValueVector else DescrVector
+                                 let pf = if hasI then \x -> (AuxCol Item1, AuxCol Item1):x else \x -> x
+                                 let (q1, q2) = if hasI
+                                                 then let (ValueVector q1') = e1
+                                                          (ValueVector q2') = e2 in (q1', q2')
+                                                 else let (DescrVector q1') = e1 
+                                                          (DescrVector q2') = e2 in (q1', q2')
+                                 return (rf, q1, q2, pf)
+
+-}
