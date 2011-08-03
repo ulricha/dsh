@@ -227,7 +227,7 @@ toList n es = primList (reverse es) n
         primList [] e = e
         primList vs e = consList vs e
         consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        consList es e = foldl cons e es
+        consList es e = foldr cons e es
 
 isConst :: NKL.Expr -> Bool
 isConst (NKL.Const _ _) = True
