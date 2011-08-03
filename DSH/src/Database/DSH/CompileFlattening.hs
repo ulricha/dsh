@@ -220,7 +220,7 @@ transformOp Disj = O.Op O.Disj False
 transformOp _ = $impossible 
 
 toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
-toList n es = primList (reverse es) n 
+toList n es = primList es n 
     where
         primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
         primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List es)) = primList vs (NKL.Const ty (V.List (v:es)))

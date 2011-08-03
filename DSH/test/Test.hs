@@ -9,12 +9,13 @@ import Database.HDBC.PostgreSQL
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
-test3 :: IO ()
-test3 = do
+test :: IO ()
+test = do
          conn <- getConn
-         val <- I.fromQ conn $ Q.toQ (10::Integer,20::Integer)
+         val <- I.fromQ conn $ Q.toQ [(1::Integer,2::Integer),(3,4),(5,6)]
          putStrLn $ show val
 
+{-
 test :: IO ()
 test = do
         conn <- getConn
@@ -25,4 +26,5 @@ test2 :: IO ()
 test2 = do
         conn <- getConn
         val <- I.fromQ conn $ Q.map (Q.map id) $ Q.toQ [[0,1,2,1::Integer], [0,3,1,0,3],[1,1]]
-        putStrLn $ show val        
+        putStrLn $ show val    
+-}    

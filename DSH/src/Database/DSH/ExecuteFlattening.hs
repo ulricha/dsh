@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp #-}
 module Database.DSH.ExecuteFlattening where
 
 import qualified Language.ParallelLang.DBPH as P
@@ -30,11 +30,21 @@ fromFType (T.Unit) = UnitT
 fromFType (T.Tuple [e1, e2]) = TupleT (fromFType e1) (fromFType e2)  
 fromFType (T.List t) = ListT (fromFType t)
 
+retuple :: Type -> Type -> Norm -> Norm
+retuple (TupleT t1 t2) (ListT (TupleT te1 te2)) (TupleN e1 e2 _) = zipN $ TupleN (retuple t1 (ListT te1) e1) (retuple t2 (ListT te2) e2) undefined
+retuple t te n | t == te = n
+               | otherwise = error $ "Don't know how to rewrite: " ++ show t ++ " into " ++ show te
+
+zipN :: Norm -> Norm
+zipN (TupleN (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) _) = ListN [TupleN e1 e2 (TupleT t1 t2) | e1 <- es1 | e2 <- es2] (ListT (TupleT t1 t2))
+zipN _ = $impossible
+
 executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> ReconstructionPlan -> T.Type -> SQL a -> IO a
 executeQuery c _ vt (SQL q) = do
                                 let et = reify (undefined :: a)
+                                let gt = fromFType vt
                                 n <- makeNorm c q (fromFType vt)
-                                return $ fromNorm $ fromEither (fromFType vt) n
+                                return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
 
 makeNorm :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
 makeNorm c (P.PrimVal (P.SQL _ s q)) t = do
