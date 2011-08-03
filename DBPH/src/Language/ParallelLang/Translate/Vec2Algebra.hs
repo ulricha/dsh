@@ -20,6 +20,8 @@ import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import Language.ParallelLang.VL.VectorOperations
 
+import Database.Algebra.Pathfinder(initLoop)
+
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
 import Control.Monad (liftM2)
@@ -39,7 +41,7 @@ fkl2Alg (Nil (Ty.List t@(Ty.List _))) = do
 fkl2Alg (Nil (Ty.List t)) = do
   p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item, t)]
   return (ValueVector p_empty)
-fkl2Alg (Nil _)                = error "Not a valid nil value"
+fkl2Alg (Nil t)                = error $ "Not a valid nil value" ++ show t
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
@@ -109,7 +111,7 @@ fkl2Alg (CloLApp _ c arg) = do
 -- loop relations. At some point, loop should be separated from the general
 -- GraphM monad.                              
 toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
-toPFAlgebra e = runGraph undefined (fkl2Alg e)
+toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 
 toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)

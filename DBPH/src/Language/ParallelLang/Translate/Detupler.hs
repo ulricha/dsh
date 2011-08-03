@@ -92,7 +92,7 @@ deTuple (Proj t l e i) = do
 deTuple v@(Nil t) | containsTuple t = do
                                         let (tuple, _, _) = extractTuple t
                                         let els = tupleComponents tuple
-                                        childs <- mapM deTuple [Nil e | e <- els]
+                                        childs <- mapM deTuple [Nil $ listT e | e <- els]
                                         return $ tupleF childs
                   | otherwise       = return v
 deTuple c@(Const _ _)               = return c
