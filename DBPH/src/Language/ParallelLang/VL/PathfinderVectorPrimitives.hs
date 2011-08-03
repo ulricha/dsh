@@ -85,7 +85,7 @@ auxCol TmpCol' = tmpCol'
 auxCol Item1 = item1
 
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
-emptyVectorPF infos = litTable' [] $ map (\(x,y) -> (algCol x, algTy y)) infos
+emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
 
 ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
 ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
