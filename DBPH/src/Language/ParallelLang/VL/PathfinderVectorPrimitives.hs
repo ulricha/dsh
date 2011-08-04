@@ -88,15 +88,20 @@ auxCol Item' = item'
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
 
+doIf :: AlgNode -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
+doIf qc qt qe =
+    do
+        qb <- proj [(tmpCol, item)] qc
+        qr <- projM [(descr, descr), (pos, pos), (item, item)]
+              $ selectM  tmpCol
+              $ unionM (cross qt qb)
+              $ crossM (return qe)
+              $ projM [(tmpCol, resCol)] $ notC resCol tmpCol qb
+        return qr
+
 conditionalIfPF :: (AlgNode -> Plan) -> Plan -> Plan -> Plan -> Graph PFAlgebra Plan
-conditionalIfPF rf (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
-    qb <- proj [(tmpCol, item)] qc
-    qr <- projM [(descr, descr), (pos, pos), (item, item)]
-          $ selectM  tmpCol
-          $ unionM (cross qt qb)
-          $ crossM (return qe)
-          $ projM [(tmpCol, resCol)] $ notC resCol tmpCol qb
-    return $ rf qr
+conditionalIfPF rf (PrimVal qc) (PrimVal qt) (PrimVal qe) = rf <$> doIf qc qt qe
+conditionalIfPF rf (PrimVal qc) (ValueVector qt) (ValueVector qe) = rf <$> doIf qc qt qe
 conditionalIfPF _ _ _ _ = $impossible "conditionalIf (PF): Can't translate if construction"
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
