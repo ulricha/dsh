@@ -38,8 +38,7 @@ instance VectorAlgebra PFAlgebra where
   constructLiteral = constructLiteralPF
   tableRef = tableRefPF
   binOp = binOpPF
-  ifPrimValues = ifPrimPF
-  ifValueVectors = ifValuePF
+  conditionalIf = conditionalIfPF
   emptyVector = emptyVectorPF
 
 -- | Results are stored in column:
@@ -89,27 +88,16 @@ auxCol Item' = item'
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
 
-ifPrimPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
-ifPrimPF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
-  qb <- proj [(tmpCol, item)] qc
-  qr <- projM [(descr, descr), (pos, pos), (item, item)] $ 
-        selectM  tmpCol $ 
-        unionM (cross qt qb) $ 
-        crossM (return qe) $ 
-        projM [(tmpCol, resCol)] $ notC resCol tmpCol qb
-  return (PrimVal qr)
-ifPrimPF _ _ _ = error "ifPrimPF: Can't translate if construction"
-
-ifValuePF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
-ifValuePF (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
-  qb <- proj [(tmpCol, item)] qc
-  qr <- projM [(descr, descr), (pos, pos), (item, item)]
-        $ selectM  tmpCol
-        $ unionM (cross qt qb)
-        $ crossM (return qe)
-        $ projM [(tmpCol, resCol)] $ notC resCol tmpCol qb
-  return (ValueVector qr)
-ifValuePF _ _ _ = error "ifValuePF: Can't translate if construction"
+conditionalIfPF :: (AlgNode -> Plan) -> Plan -> Plan -> Plan -> Graph PFAlgebra Plan
+conditionalIfPF rf (PrimVal qc) (PrimVal qt) (PrimVal qe) = do
+    qb <- proj [(tmpCol, item)] qc
+    qr <- projM [(descr, descr), (pos, pos), (item, item)]
+          $ selectM  tmpCol
+          $ unionM (cross qt qb)
+          $ crossM (return qe)
+          $ projM [(tmpCol, resCol)] $ notC resCol tmpCol qb
+    return $ rf qr
+conditionalIfPF _ _ _ _ = $impossible "conditionalIf (PF): Can't translate if construction"
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
 applyBinOp op q1 q2 =

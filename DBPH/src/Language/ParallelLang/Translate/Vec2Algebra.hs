@@ -60,8 +60,8 @@ fkl2Alg (If t eb e1 e2) = do
                              pt <- fkl2Alg e1
                              pe <- fkl2Alg e2
                              case Ty.listDepth t of
-                               0 -> ifPrimValues pc pt pe
-                               1 -> ifValueVectors pc pt pe
+                               0 -> conditionalIf PrimVal pc pt pe
+                               1 -> conditionalIf ValueVector pc pt pe
                                _ -> error "vec2Alg: Can't translate if construction"
   
 fkl2Alg (Let _ s e1 e2) = do

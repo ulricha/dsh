@@ -65,8 +65,7 @@ class VectorAlgebra a where
   tableRef :: String -> [TypedColumn Ty.Type] -> [Key] -> Graph a Plan
   emptyVector :: [TypedAbstractColumn Ty.Type] -> Graph a AlgNode
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
-  ifPrimValues :: Plan -> Plan -> Plan -> Graph a Plan
-  ifValueVectors :: Plan -> Plan -> Plan -> Graph a Plan
+  conditionalIf :: (AlgNode -> Plan) -> Plan -> Plan -> Plan -> Graph a Plan
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
