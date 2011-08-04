@@ -55,14 +55,8 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
 fkl2Alg (Proj _ _ e n) = do
                           (TupleVector es) <- fkl2Alg e
                           return $ es !! (n - 1)
-fkl2Alg (If t eb e1 e2) = do
-                             pc <- fkl2Alg eb
-                             pt <- fkl2Alg e1
-                             pe <- fkl2Alg e2
-                             case Ty.listDepth t of
-                               0 -> conditionalIf PrimVal pc pt pe
-                               1 -> conditionalIf ValueVector pc pt pe
-                               _ -> error "vec2Alg: Can't translate if construction"
+-- FIXME implement If as documented in Sec. 5.3
+fkl2Alg (If t eb e1 e2) = undefined
   
 fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
