@@ -131,13 +131,13 @@ notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (
 notVecPF _ = error "notVecPF: Should not be possible"
 
 lengthAPF :: Plan -> Graph PFAlgebra Plan
-lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item", Just "item")] Nothing $ (litTable (int 0) "item" intT) `unionM` (aggrM [(Count, "item", Nothing)] Nothing $ proj [(pos, pos)] d))
-lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, "item", Just "item")] Nothing $ (litTable (int 0) "item" intT) `unionM` (aggrM [(Count, "item", Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF _ = error "lengthAPF: Should not be possible"
 
 lengthSegPF :: Plan -> Plan -> Graph PFAlgebra Plan
-lengthSegPF (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item", Just "item")] (Just descr) $ (attachM "item" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item", Nothing)] (Just descr) $ proj [(descr, descr)] d))
-lengthSegPF (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, "item", Just "item")] (Just descr) $ (attachM "item" intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, "item", Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSegPF (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, item, Just item)] (Just descr) $ (attachM item intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, item, Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSegPF (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, item, Just item)] (Just descr) $ (attachM item intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, item, Nothing)] (Just descr) $ proj [(descr, descr)] d))
 lengthSegPF _ _ = error "lengthSegPF: Should not be possible"
 
 descToPropPF :: Plan -> Graph PFAlgebra Plan
@@ -260,16 +260,16 @@ constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (na
 -- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
 listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph PFAlgebra Plan
 listToPlan (Ty.List t@(Ty.List _)) [] = do
-                                               d <- emptyTable [("iter", natT), ("pos", natT)]
+                                               d <- emptyTable [(descr, natT), (pos, natT)]
                                                v <- listToPlan t []
                                                return $ NestedVector d v
 listToPlan (Ty.List t@(Ty.List _)) vs = do
                                           let (vals, rec) = unzip [([nat i, nat p], zip (repeat p) es) | (p, (i, List es)) <- zip [1..] vs]
-                                          d <- litTable' vals  [("iter", natT), ("pos", natT)]
+                                          d <- litTable' vals  [(descr, natT), (pos, natT)]
                                           v <- listToPlan t $ concat rec
                                           return $ NestedVector d v                                                    
-listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
-listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item", algTy t)]
+listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [(descr, natT), (pos, natT), (item, algTy t)]
+listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [(descr, natT), (pos, natT), (item, algTy t)]
 listToPlan _ _ = $impossible "Not a list value or type"
        
 algTy :: Ty.Type -> ATy
@@ -301,7 +301,7 @@ tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebr
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) ks
                      t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
-                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, "item" ++ show i)] t') $ zip cs [1..]
+                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, item ++ show i)] t') $ zip cs [1..]
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
     renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
