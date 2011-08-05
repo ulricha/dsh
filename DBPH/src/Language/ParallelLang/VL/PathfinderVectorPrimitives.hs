@@ -43,7 +43,7 @@ instance VectorAlgebra PFAlgebra where
 -- | Results are stored in column:
 pos, item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
-item      = "item"
+item      = "item1"
 item'     = "item2"
 descr     = "iter"
 descr'    = "item99999501"
