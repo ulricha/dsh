@@ -268,7 +268,7 @@ listToPlan (Ty.List t@(Ty.List _)) vs = do
                                           d <- litTable' vals  [("iter", natT), ("pos", natT)]
                                           v <- listToPlan t $ concat rec
                                           return $ NestedVector d v                                                    
-listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item", algTy t)]
+listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [("iter", natT), ("pos", natT), ("item1", algTy t)]
 listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [("iter", natT), ("pos", natT), ("item", algTy t)]
 listToPlan _ _ = $impossible "Not a list value or type"
        
