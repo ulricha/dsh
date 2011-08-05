@@ -1,11 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100(inlineLoad, X100Algebra, dummy)
+import Database.Algebra.X100 (X100Algebra, dummy)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -19,6 +19,7 @@ import Language.ParallelLang.VL.Data.Query
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import Language.ParallelLang.VL.VectorOperations
+import Database.Algebra.X100.Render.X100Code
 
 import Database.Algebra.Pathfinder(initLoop)
 
@@ -100,18 +101,22 @@ fkl2Alg (CloLApp _ c arg) = do
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 -- fkl2Alg e                 = error $ "unsupported: " ++ show e
 
--- FIXME
--- undefined is used here because the flattening code generation does not use 
--- loop relations. At some point, loop should be separated from the general
--- GraphM monad.                              
 toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 
 toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
---toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
---toX100Algebra e = runGraph initialLoop (fkl2Alg e)
+toX100String :: AlgPlan X100Algebra Plan -> Query X100
+toX100String (m, r, t) = case r of
+                            PrimVal r'     -> PrimVal $ X100 r' $ snd $ render (m, r', t)
+                            TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
+                            DescrVector r' -> DescrVector $ X100 r' $ snd $ render (m, r', t) 
+                            ValueVector r' -> ValueVector $ X100 r' $ snd $ render (m, r', t)
+                            NestedVector r' rs -> NestedVector (X100 r' $ snd $ render (m, r', t)) $ toX100String (m, rs, t)
+                            PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
+                            Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
+                            AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
 
 -- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 -- toX100Algebra e = runGraph initLoop (fkl2Alg e)

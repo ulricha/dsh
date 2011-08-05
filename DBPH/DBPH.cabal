@@ -47,4 +47,5 @@ Library
                    Language.ParallelLang.VL.MetaPrimitives
                    Language.ParallelLang.VL.VectorOperations
                    Language.ParallelLang.VL.VectorPrimitives
-                   Language.ParallelLang.Translate.Algebra2SQL      
+                   Language.ParallelLang.Translate.Algebra2SQL    
+                   Language.ParallelLang.VL.X100VectorPrimitives  

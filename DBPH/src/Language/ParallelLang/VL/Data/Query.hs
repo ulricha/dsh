@@ -21,11 +21,16 @@ nestingDepth (ValueVector _) = 1
 nestingDepth (NestedVector _ r) = 1 + nestingDepth r
 nestingDepth _                  = error "Not a list vector"
        
+data X100 = X100 Int String
+
 data XML = XML Int String
 
 data SQL = SQL Int Schema String
 
 type Schema = (String, Maybe (String, Int))
+
+instance Show X100 where
+    show (X100 _ s) = s
     
 instance Show SQL where
     show (SQL _ _ s) = s
