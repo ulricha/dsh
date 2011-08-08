@@ -228,8 +228,8 @@ toList n es = primList (reverse es) n
         primList vs (NKL.Const ty (V.List [])) = consList vs (NKL.Nil ty)
         primList vs e = consList vs e
         consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        consList es e = foldl cons e es
-
+        consList es e = foldl (flip cons) e es
+        
 isConst :: NKL.Expr -> Bool
 isConst (NKL.Const _ _) = True
 isConst _               = False
