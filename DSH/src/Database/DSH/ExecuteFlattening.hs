@@ -11,6 +11,8 @@ import Database.DSH.Data
 import Data.Convertible
 import Database.DSH.Impossible
 
+import qualified Data.Text as Txt
+
 import Data.List (foldl')
 
 import Data.Maybe (fromJust)
@@ -33,6 +35,9 @@ fromFType (T.List t) = ListT (fromFType t)
 retuple :: Type -> Type -> Norm -> Norm
 retuple (TupleT t1 t2) (ListT (TupleT te1 te2)) (TupleN e1 e2 _) = zipN $ TupleN (retuple t1 (ListT te1) e1) (retuple t2 (ListT te2) e2) undefined
 retuple t te n | t == te = n
+               | t == TextT && te == CharT = case n of
+                                                TextN v TextT -> CharN (Txt.head v) CharT
+                                                _             -> $impossible
                | otherwise = error $ "Don't know how to rewrite: " ++ show t ++ " into " ++ show te
 
 zipN :: Norm -> Norm
