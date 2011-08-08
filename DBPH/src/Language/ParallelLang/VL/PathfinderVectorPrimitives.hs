@@ -11,6 +11,7 @@ import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
+import Language.ParallelLang.VL.MetaPrimitives
 
 import Database.Algebra.Pathfinder
 import Database.Algebra.Graph.GraphBuilder
@@ -39,6 +40,8 @@ instance VectorAlgebra PFAlgebra where
   tableRef = tableRefPF
   binOp = binOpPF
   emptyVector = emptyVectorPF
+  ifPrimList = ifPrimListPF
+  ifNestList = isNestListM
 
 -- | Results are stored in column:
 pos, item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
@@ -312,6 +315,17 @@ toDescr v@(DescrVector _) = return v
 toDescr (ValueVector n)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
 toDescr _ = error "toDescr: Should not be possible"
 
+ifPrimListPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
+ifPrimListPF qb (PrimVal q1) (PrimVal q2) = (\(ValueVector v) -> PrimVal v) <$> ifPrimListPF qb (ValueVector q1) (ValueVector q2)
+ifPrimListPF (PrimVal qb) (ValueVector q1) (ValueVector q2) = ValueVector <$>
+    do
+     projM [(descr, descr), (pos, pos), (item, item)] $ 
+        selectM tmpCol $ 
+            unionM 
+                (crossM (pure q1) (proj [(tmpCol, item)] qb))
+                (crossM (pure q2) (projM [(tmpCol, item')] (notC item' item qb)))
+ifPrimListPF _ _ _ = $impossible
+
 -- FIXME abstract and move to VectorPrimitives
 determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
 determineResultVector e = do
@@ -334,4 +348,3 @@ determineResultVector' e1 e2 = do
                                                  else let (DescrVector q1') = e1 
                                                           (DescrVector q2') = e2 in (q1', q2')
                                  return (rf, q1, q2, pf)
-

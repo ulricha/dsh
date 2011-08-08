@@ -176,4 +176,3 @@ distL (AClosure n v i xs x f fl) q2 = do
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL _ _ = error "distL: Should not be possible"
-

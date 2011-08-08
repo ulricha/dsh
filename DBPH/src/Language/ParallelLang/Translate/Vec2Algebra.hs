@@ -57,8 +57,16 @@ fkl2Alg (Proj _ _ e n) = do
                           (TupleVector es) <- fkl2Alg e
                           return $ es !! (n - 1)
 -- FIXME implement If as documented in Sec. 5.3
-fkl2Alg (If t eb e1 e2) = undefined
-  
+fkl2Alg (If t eb e1 e2) | Ty.listDepth t > 1 = do 
+                                                eb' <- fkl2Alg eb
+                                                e1' <- fkl2Alg e1
+                                                e2' <- fkl2Alg e2
+                                                ifNestList eb' e1' e2'
+                        | otherwise = do 
+                                       eb' <- fkl2Alg eb
+                                       e1' <- fkl2Alg e1
+                                       e2' <- fkl2Alg e2
+                                       ifPrimList eb' e1' e2'
 fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'
