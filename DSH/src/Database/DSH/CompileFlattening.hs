@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec  #-}
 module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
