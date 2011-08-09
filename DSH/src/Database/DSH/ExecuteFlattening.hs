@@ -2,7 +2,6 @@
 module Database.DSH.ExecuteFlattening where
 
 import qualified Language.ParallelLang.DBPH as P
-import Language.ParallelLang.FKL.Data.WorkUnits
 import qualified Language.ParallelLang.Common.Data.Type as T
 import Database.DSH.Data
 import Database.HDBC
@@ -44,8 +43,8 @@ zipN :: Norm -> Norm
 zipN (TupleN (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) _) = ListN [TupleN e1 e2 (TupleT t1 t2) | e1 <- es1 | e2 <- es2] (ListT (TupleT t1 t2))
 zipN _ = $impossible
 
-executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> ReconstructionPlan -> T.Type -> SQL a -> IO a
-executeQuery c _ vt (SQL q) = do
+executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> T.Type -> SQL a -> IO a
+executeQuery c vt (SQL q) = do
                                 let et = reify (undefined :: a)
                                 let gt = fromFType vt
                                 n <- makeNorm c q (fromFType vt)
@@ -74,6 +73,7 @@ makeNorm c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
                                                              let parted = partByIter iC r
                                                              inner <- (liftM fromRight) $ makeNorm c qr t1
                                                              return $ Right $ constructDescriptor t parted inner
+makeNorm c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x
