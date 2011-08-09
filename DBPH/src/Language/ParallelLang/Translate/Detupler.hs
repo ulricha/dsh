@@ -2,7 +2,6 @@
 module Language.ParallelLang.Translate.Detupler(normTuples, detuple) where
 
 import Language.ParallelLang.FKL.Data.FKL as F
-import Language.ParallelLang.FKL.Data.WorkUnits as W
 import Language.ParallelLang.FKL.Primitives
 import Language.ParallelLang.Translate.TransM
 import Language.ParallelLang.Common.Data.Type hiding (Var, Fn, Int)
@@ -13,11 +12,11 @@ import Language.ParallelLang.Common.Data.Op
 import qualified Data.List as L
 import Control.Applicative hiding (Const)
 
-detuple :: TExpr -> TransM (TExpr, Type, ReconstructionPlan)
+detuple :: TExpr -> TransM (TExpr, Type)
 detuple v = do
                e' <- normTuples v
-               let (t,r) = transType $ typeOf v
-               return (e', t, r)
+               let (t) = transType $ typeOf v
+               return (e', t)
                
 
 normTuples :: TExpr -> TransM TExpr
@@ -25,17 +24,17 @@ normTuples e = do
                         e' <- deTuple e
                         return e'
                         
-transType :: Type -> (Type, ReconstructionPlan)
-transType ot@(T.List t) | containsTuple t = let (T.Tuple ts, f) = transType t
-                                             in (T.Tuple [T.List ty | ty <- ts], Compose (Map f) Zip)
-                        | otherwise       = (ot, Id)
+transType :: Type -> Type
+transType ot@(T.List t) | containsTuple t = let (T.Tuple ts) = transType t
+                                             in T.Tuple [transType $ T.List ty | ty <- ts]
+                        | otherwise       = ot
 transType (T.Tuple ts) = let tts = map transType ts
-                          in (T.Tuple $ map fst tts, W.Tuple $ map snd tts)
-transType (T.Fn t1 t2)       = (T.Fn (fst $ transType t1) (fst $ transType t2), error "Cannot make reconstruction plan for function types")
-transType t                  = (t, Id)
+                          in T.Tuple tts
+transType (T.Fn t1 t2)       = T.Fn (transType t1) (transType t2)
+transType t                  = t
 
 deTuple :: TExpr -> TransM TExpr
-deTuple (Table t n c k) = return $ Table (fst $ transType t) n c k
+deTuple (Table t n c k) = return $ Table (transType t) n c k
 deTuple (BinOp rt o@(Op Cons _) e1 e2) | containsTuple rt =
                             do
                                 e1' <- deTuple e1
@@ -67,7 +66,7 @@ deTuple (If t e1 e2 e3) = do
                             e1' <- deTuple e1
                             e2' <- deTuple e2
                             e3' <- deTuple e3
-                            let t' = fst $ transType t
+                            let t' = transType t
                             if containsTuple t'
                                 then do
                                       fv1 <- getFreshVar
@@ -82,10 +81,10 @@ deTuple (If t e1 e2 e3) = do
                                 else return $ If t' e1' e2' e3'
 deTuple (F.Tuple t es) = do
                           es' <- mapM deTuple es
-                          return $ F.Tuple (fst $ transType t) es'
+                          return $ F.Tuple (transType t) es'
 deTuple (Proj t l e i) = do
                             e' <- deTuple e
-                            let r = Proj (fst $ transType t) l e' i
+                            let r = Proj (transType t) l e' i
                             case e' of
                                 (F.Tuple _ es) -> return $ es L.!! (i - 1)
                                 _            -> return r
@@ -96,7 +95,7 @@ deTuple v@(Nil t) | containsTuple t = do
                                         return $ tupleF childs
                   | otherwise       = return v
 deTuple c@(Const _ _)               = return c
-deTuple (Var t s)                 = return $ Var (fst $ transType t) s
+deTuple (Var t s)                 = return $ Var (transType t) s
 deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) || containsTuple (typeOf e2)) =
                                              do
                                               e1' <- deTuple e1
@@ -160,7 +159,7 @@ deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft =
                                                        then
                                                         do
                                                             let ts = tupleComponents $ typeOf e1'
-                                                            let rts = tupleComponents $ fst $ transType rt 
+                                                            let rts = tupleComponents $ transType rt 
                                                             es' <- mapM deTuple [PApp2 rt' (Dist $ t .-> typeOf v2 .-> rt') (Proj t 0 v1 ident) v2 | (rt', t, ident) <- zip3 rts ts [1..]]
                                                             return $ tupleF es'
                                                        else
@@ -178,7 +177,7 @@ deTuple (PApp2 rt (Index ft) e1 e2) | containsTuple ft =
                                                let v1 = Var (typeOf e1') fv1
                                                let v2 = Var (typeOf e2') fv2
                                                let ts = tupleComponents $ typeOf e1'
-                                               let rts = tupleComponents $ fst $ transType rt
+                                               let rts = tupleComponents $ transType rt
                                                es <- mapM deTuple [PApp2 rt' (Index $ t .-> typeOf e2' .-> rt') (Proj t 0 v1 ind) v2 | (ind, t, rt') <- zip3 [1..] ts rts]
                                                return $ letF fv1 e1' $ letF fv2 e2' $ tupleF es
                                     | otherwise = PApp2 rt (Index ft) <$> deTuple e1 <*> deTuple e2
@@ -191,7 +190,7 @@ deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple ft =
                                                  let v1 = Var (typeOf e1') fv1
                                                  let v2 = Var (typeOf e2') fv2
                                                  let ts = tupleComponents $ typeOf e1'
-                                                 let rts = tupleComponents $ fst $ transType rt
+                                                 let rts = tupleComponents $ transType rt
                                                  es <- mapM deTuple [PApp2 rt' (Restrict $ t .-> typeOf e2' .-> rt') (Proj t 0 v1 ind) v2 | (ind, t, rt') <- zip3 [1..] ts rts]
                                                  return $ letF fv1 e1' $ letF fv2 e2' $ tupleF es
                                        | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
@@ -209,7 +208,7 @@ deTuple (PApp1 rt (LengthLift ft) e1) | containsTuple $ typeOf e1 =
                                               deTuple $ PApp1 rt (LengthLift $ head ts .-> intT) $ Proj (head ts) 0 e1' 1
                                       | otherwise = PApp1 rt (LengthLift ft) <$> deTuple e1
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
-deTuple (Clo t l vs x f fl) = Clo (fst $ transType t) l vs x <$> deTuple f <*> deTuple fl
-deTuple (AClo t vs x f fl) = AClo (fst $ transType t) vs x <$> deTuple f <*> deTuple fl
-deTuple (CloApp t f args) = CloApp (fst $ transType t) <$> deTuple f <*> deTuple args
-deTuple (CloLApp t f args) = CloLApp (fst $ transType t) <$> deTuple f <*> deTuple args 
+deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl
+deTuple (AClo t vs x f fl) = AClo (transType t) vs x <$> deTuple f <*> deTuple fl
+deTuple (CloApp t f args) = CloApp (transType t) <$> deTuple f <*> deTuple args
+deTuple (CloLApp t f args) = CloLApp (transType t) <$> deTuple f <*> deTuple args 
