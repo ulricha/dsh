@@ -31,17 +31,39 @@ fromFType (T.Unit) = UnitT
 fromFType (T.Tuple [e1, e2]) = TupleT (fromFType e1) (fromFType e2)  
 fromFType (T.List t) = ListT (fromFType t)
 
+typeReconstructor :: Type -> Type -> (Type, Norm -> Norm)
+typeReconstructor o ex | o == ex = (o, id)
+                       | otherwise = case ex of
+                                        ListT es -> let (t1, f1) = pushIn ex
+                                                        (t2, f2) = typeReconstructor o t1
+                                                     in (t2, f1 . f2)
+                                        TupleT t1 t2 -> case o of
+                                                         TupleT to1 to2 -> let r1@(t1',_) = typeReconstructor to1 t1
+                                                                               r2@(t2',_) = typeReconstructor to2 t2
+                                                                            in (TupleT t1' t2', onPair r1 r2)
+                                                         otherwise -> error "cannot reconstruct type"
+                                        t -> error $ "This type cannot be reconstructed: " ++ show t
+
+onPair :: (Type, Norm -> Norm) -> (Type, Norm -> Norm) -> Norm -> Norm
+onPair (t1, f1) (t2, f2) (TupleN e1 e2 _) = TupleN (f1 e1) (f2 e2) (TupleT t1 t2) 
+                                                         
+pushIn :: Type -> (Type, Norm -> Norm)
+pushIn (ListT (TupleT e1 e2)) = (TupleT (ListT e1) (ListT e2), zipN)
+pushIn ty@(ListT v@(ListT _)) = let (t, f) = pushIn v
+                                 in (ListT t, mapN (ty, f))
+pushIn t = (t, id)
+                      
+mapN :: (Type, Norm -> Norm) -> Norm -> Norm
+mapN (t, f) (ListN es _) = ListN (map f es) t
+mapN (t, _) v = error $ "This can't be: " ++ show t ++ "\n" ++ show v
+                                      
 retuple :: Type -> Type -> Norm -> Norm
-retuple (TupleT t1 t2) (ListT (TupleT te1 te2)) (TupleN e1 e2 _) = zipN $ TupleN (retuple t1 (ListT te1) e1) (retuple t2 (ListT te2) e2) undefined
-retuple t te n | t == te = n
-               | t == TextT && te == CharT = case n of
-                                                TextN v TextT -> CharN (Txt.head v) CharT
-                                                _             -> $impossible
-               | otherwise = error $ "Don't know how to rewrite: " ++ show t ++ " into " ++ show te
+retuple t te v = let (t', f) = typeReconstructor t te
+                  in f v
 
 zipN :: Norm -> Norm
 zipN (TupleN (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) _) = ListN [TupleN e1 e2 (TupleT t1 t2) | e1 <- es1 | e2 <- es2] (ListT (TupleT t1 t2))
-zipN _ = $impossible
+zipN e = error $ "zipN: " ++ show e -- $impossible
 
 executeQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> T.Type -> SQL a -> IO a
 executeQuery c vt (SQL q) = do
