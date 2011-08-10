@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.5.5.2
+Version:             0.5.6.2
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -64,7 +64,7 @@ Library
                      HDBC               >= 2.2,
                      convertible        >= 1.0,
                      template-haskell   >= 2.4,
-                     haskell-src-exts   >= 1.9,
+                     haskell-src-exts   >= 1.11,
                      syntax-trees       >= 0.1.2,
                      HaXml              >= 1.20,
                      csv                >= 0.1,
