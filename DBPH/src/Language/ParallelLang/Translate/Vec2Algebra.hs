@@ -126,7 +126,15 @@ toX100String (m, r, t) = case r of
                             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
 
 toX100Dot :: AlgPlan X100Algebra Plan -> String
-toX100Dot (m, _, t) = renderX100Dot t m
+toX100Dot (m, q, t) = renderX100Dot t (rootNodes q) m
+    where rootNodes (TupleVector qs) = concat $ map rootNodes qs
+          rootNodes (DescrVector n) = [n]
+          rootNodes (ValueVector n) = [n]
+          rootNodes (PrimVal n) = [n]
+          rootNodes (NestedVector n q) = n : (rootNodes q)
+          rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
+          rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
+          rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
 
 -- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 -- toX100Algebra e = runGraph initLoop (fkl2Alg e)
