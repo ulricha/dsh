@@ -28,7 +28,7 @@ fromFType (T.Bool)  = BoolT
 fromFType (T.Double) = DoubleT
 fromFType (T.String) = TextT
 fromFType (T.Unit) = UnitT
-fromFType (T.Tuple [e1, e2]) = TupleT (fromFType e1) (fromFType e2)  
+fromFType (T.Pair e1 e2) = TupleT (fromFType e1) (fromFType e2)  
 fromFType (T.List t) = ListT (fromFType t)
 
 typeReconstructor :: Type -> Type -> (Type, Norm -> Norm)

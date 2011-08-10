@@ -111,7 +111,7 @@ translate (TupleE e1 e2 _) = do
                                 c2 <- translate e2
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
-                                return $ NKL.Tuple (T.pairT t1 t2) [c1, c2]
+                                return $ NKL.Pair (T.pairT t1 t2) c1 c2
 translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
@@ -121,11 +121,11 @@ translate (LamE f ty) = do
 translate (AppE1 Fst e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Proj (head $ T.tupleComponents t1) 0 c1 1
+                                return $ NKL.Proj (fst $ T.pairComponents t1) 0 c1 1
 translate (AppE1 Snd e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Proj (head $ tail $ T.tupleComponents t1) 0 c1 2
+                                return $ NKL.Proj (snd $ T.pairComponents t1) 0 c1 2
 translate (AppE1 f e1 ty) = do 
                                 c1 <- translate e1
                                 return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1
