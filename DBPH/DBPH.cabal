@@ -15,7 +15,7 @@ Library
                       parsec >= 3.1, 
                       pretty >= 1.0.1.1, 
                       filepath >= 1.1.0.4,
-                      haskell-src-exts >=1.9.6, 
+                      haskell-src-exts >=1.11, 
                       hint >= 0.3.3.2,
                       TableAlgebra2,
                       Pathfinder >= 0.5.7,
