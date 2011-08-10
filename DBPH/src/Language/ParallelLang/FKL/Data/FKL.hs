@@ -16,7 +16,7 @@ data Expr t where
     Table   :: t -> String -> [TypedColumn t] -> [Key] -> Expr t
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
     Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
---    App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
+--    App     :: t -> Expr t -> [Expr t] -> Expr t -- | Apply multiple arguments to an expression
     PApp1   :: t -> Prim1 t -> Expr t -> Expr t
     PApp2   :: t -> Prim2 t -> Expr t -> Expr t -> Expr t
     PApp3   :: t -> Prim3 t -> Expr t -> Expr t -> Expr t -> Expr t
