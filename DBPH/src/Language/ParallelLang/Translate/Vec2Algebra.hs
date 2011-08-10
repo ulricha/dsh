@@ -5,7 +5,7 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Al
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100 (X100Algebra, dummy, renderX100Code)
+import Database.Algebra.X100 (X100Algebra, dummy, renderX100Code, renderX100Dot)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -124,6 +124,9 @@ toX100String (m, r, t) = case r of
                             PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
                             Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
                             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
+
+toX100Dot :: AlgPlan X100Algebra Plan -> String
+toX100Dot (m, _, t) = renderX100Dot t m
 
 -- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 -- toX100Algebra e = runGraph initLoop (fkl2Alg e)
