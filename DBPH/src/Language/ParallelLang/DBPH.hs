@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..), Schema, nkl2X100Alg, X100(..)) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2fkl') where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
@@ -34,5 +34,8 @@ nkl2Vec' e = runTransform $
                   return (e', t)
 
 nkl2fkl :: NKL.Expr -> String
-nkl2fkl e = show $ runTransform $ liftM (\(x, _) -> x) $ flatTransform e >>= detuple 
+nkl2fkl e = show $ runTransform $ liftM (\(x, _) -> x) $ flatTransform e >>= detuple
+
+nkl2fkl' :: NKL.Expr -> String
+nkl2fkl' e = show $ runTransform $ flatTransform e
                  

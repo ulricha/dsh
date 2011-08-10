@@ -16,10 +16,11 @@ data Query a =
        | AClosure String (Query a) Int [(String, Query a)] String (Expr T.Type) (Expr T.Type)
      deriving Show
 
-nestingDepth :: Query a -> Int
+nestingDepth :: Show a => Query a -> Int
 nestingDepth (ValueVector _) = 1
 nestingDepth (NestedVector _ r) = 1 + nestingDepth r
-nestingDepth _                  = error "Not a list vector"
+nestingDepth (AClosure _ q _ _ _ _ _) = nestingDepth q 
+nestingDepth v                  = error $ "Not a list vector" ++ show v
        
 data X100 = X100 Int String
 
