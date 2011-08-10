@@ -16,7 +16,8 @@ type Expr = Ex Type
 data Ex t where
     Table :: t -> String -> [Column t] -> [Key] -> Ex t
     App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
-    Tuple :: t -> [Ex t] -> Ex t
+--    Tuple :: t -> [Ex t] -> Ex t
+    Pair  :: t -> Ex t -> Ex t -> Ex t
     Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body
     Let   :: t -> String -> Ex t -> Ex t -> Ex t -- | Let a variable have value expr1 in expr2
     If    :: t -> Ex t -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
@@ -38,7 +39,8 @@ instance Typed Ex Type where
     typeOf (Const t _) = t
     typeOf (Var t _) = t
     typeOf (Iter t _ _ _) = t
-    typeOf (Tuple t _) = t
+--    typeOf (Tuple t _) = t
+    typeOf (Pair t _ _) = t
     typeOf (Nil t) = t
     typeOf (Proj t _ _ _) = t
 
@@ -54,5 +56,6 @@ freeVars t v@(Var _ x) = if x `elem` t then S.empty else S.singleton (x, v)
 freeVars t (Iter _ x e1 e2) = freeVars t e1 `S.union` freeVars (x:t) e2
 freeVars _ (Nil _) = S.empty
 freeVars t (Proj _ _ e _) = freeVars t e
-freeVars t (Tuple _ es) = S.unions $ map (freeVars t) es
+-- freeVars t (Tuple _ es) = S.unions $ map (freeVars t) es
+freeVars t (Pair _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
     

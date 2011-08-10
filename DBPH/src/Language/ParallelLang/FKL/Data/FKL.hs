@@ -15,8 +15,9 @@ type Key = [DataColumn]
 data Expr t where
     Table   :: t -> String -> [TypedColumn t] -> [Key] -> Expr t
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
-    Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
---    App     :: t -> Expr t -> [Expr t] -> Expr t -- | Apply multiple arguments to an expression
+--    Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
+    Pair    :: t -> Expr t -> Expr t -> Expr t
+--    App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     PApp1   :: t -> Prim1 t -> Expr t -> Expr t
     PApp2   :: t -> Prim2 t -> Expr t -> Expr t -> Expr t
     PApp3   :: t -> Prim3 t -> Expr t -> Expr t -> Expr t -> Expr t
@@ -93,4 +94,5 @@ instance Typed Expr t where
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _) = t
-    typeOf (Tuple t _) = t
+--    typeOf (Tuple t _) = t
+    typeOf (Pair t _ _) = t

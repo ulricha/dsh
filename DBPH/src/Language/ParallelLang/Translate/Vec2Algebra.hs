@@ -30,7 +30,7 @@ import Language.ParallelLang.Common.Impossible
 
 
 fkl2Alg :: (VectorAlgebra a) => Expr Ty.Type -> Graph a Plan
-fkl2Alg (Tuple _ es) = TupleVector <$> mapM fkl2Alg es
+fkl2Alg (Pair _ e1 e2) = TupleVector <$> mapM fkl2Alg [e1, e2]
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) = constructLiteral t v 

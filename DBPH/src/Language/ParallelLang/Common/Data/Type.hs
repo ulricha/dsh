@@ -1,11 +1,8 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..), isFuns)
+ (extractPair, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
 where
     
-import qualified Data.Map as M
-import qualified Data.List as L
-
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
@@ -16,7 +13,8 @@ instance Show Type where
     show String = "String"
     show Unit = "()"
     show (List t) = "[" ++ (show t) ++ "]"
-    show (Tuple ts) = "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
+--    show (Tuple ts) = "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
+    show (Pair t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
 
 data Type where
     Var :: String -> Type
@@ -27,7 +25,8 @@ data Type where
     Double :: Type
     String :: Type
     Unit :: Type
-    Tuple :: [Type] -> Type
+--    Tuple :: [Type] -> Type
+    Pair :: Type -> Type -> Type
     List :: Type -> Type
     deriving (Eq, Ord)
 
@@ -35,7 +34,8 @@ infixr 6 .->
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (Tuple vs) = concatMap varsInType vs
+varsInType (Pair t1 t2) = varsInType t1 ++ varsInType t2
+-- varsInType (Tuple vs) = concatMap varsInType vs
 varsInType (List t) = varsInType t
 varsInType (Var v) = [v]
 varsInType _ = []
@@ -59,10 +59,12 @@ unitT :: Type
 unitT = Unit
 
 pairT :: Type -> Type -> Type
-pairT t1 t2 = Tuple [t1, t2]
+pairT t1 t2 = Pair t1 t2
 
+{-
 tupleT :: [Type] -> Type
 tupleT = Tuple
+-}
 
 listT :: Type -> Type
 listT = List
@@ -73,19 +75,33 @@ listDepth _                 = 0
 
 containsTuple :: Type -> Bool
 containsTuple (Fn t1 t2) = containsTuple t1 || containsTuple t2
-containsTuple (Tuple _)  = True
+-- containsTuple (Tuple _)  = True
+containsTuple (Pair _ _)  = True
 containsTuple (List t)   = containsTuple t
 containsTuple _          = False
 
+{-
 extractTuple :: Type -> (Type, Type -> Type, Int)
 extractTuple (List t1)   = let (t, f, i) = extractTuple t1
                             in (t, \x -> List (f x), i + 1)
 extractTuple t@(Tuple _) = (t, id, 0) 
 extractTuple _           = error "Type doesn't contain a tuple, cannot extract tuple"
+-}
 
+extractPair :: Type -> Type
+extractPair (List t1) = extractPair t1
+extractPair t@(Pair _ _) = t
+extractPair _ = error "Type doesn't contain a pair, cannot extract pair"
+
+pairComponents :: Type -> (Type, Type)
+pairComponents (Pair t1 t2) = (t1, t2)
+pairComponents t = error $ "Type is not a pair: " ++ show t
+
+{-
 tupleComponents :: Type -> [Type]
 tupleComponents (Tuple ts) = ts
 tupleComponents t          = error $ "Type is not a tuple type: " ++ show t
+-}
 
 extractFnRes :: Type -> Type
 extractFnRes = snd . splitTypeArgsRes
@@ -123,10 +139,12 @@ unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
 
 isFuns :: Type -> Bool
 isFuns (List t1) = isFuns t1
-isFuns (Fn t1 t2) = True
-isFuns (Tuple _) = False
+isFuns (Fn _ _) = True
+-- isFuns (Tuple _) = False
+isFuns (Pair _ _) = False
 isFuns _         = False 
 
+{-
 type Subst = M.Map String Type
 
 class Substitutable a where
@@ -135,7 +153,8 @@ class Substitutable a where
 instance Substitutable Type where
     apply s (Fn t1 t2)   = Fn (apply s t1) (apply s t2)
     apply s (List t)     = List (apply s t)
-    apply s (Tuple args) = Tuple $ map (apply s) args
+--    apply s (Tuple args) = Tuple $ map (apply s) args
+    apply s (Pair t1 t2) = Pair (apply s t1) (apply s t2)
     apply s t@(Var v2)   = M.findWithDefault t v2 s
     apply _ t            = t
 
@@ -143,6 +162,6 @@ addSubstitution :: Subst -> String -> Type -> Subst
 addSubstitution s i t = let s' = M.singleton i t
                             s'' = M.map (apply s') s
                          in s' `M.union` s''
-
+-}
 class Typed a t where
   typeOf :: a t -> t

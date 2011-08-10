@@ -37,7 +37,8 @@ render (CloLApp _ f a) = render f <+> text ":$l" <+> render a
 render (Nil _) = text "[]" 
 render (Proj _ 0 e i) = parens (render e) <> text "@" <> text (show i) 
 render (Proj _ l e i) = parens (render e) <> text "@^" <> text (show l) <+> text (show i) 
-render (Tuple _ es) = parens (hsep $ intersperse comma $ map render es) 
+-- render (Tuple _ es) = parens (hsep $ intersperse comma $ map render es) 
+render (Pair _ e1 e2) = parens (render e1 <> comma <+> render e2)
 
 renderC :: Val -> Doc
 renderC (Int i) = int i

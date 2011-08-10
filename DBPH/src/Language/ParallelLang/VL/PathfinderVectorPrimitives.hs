@@ -44,7 +44,7 @@ instance VectorAlgebra PFAlgebra where
   ifNestList = isNestListM
 
 -- | Results are stored in column:
-pos, item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
 item      = "item1"
 item'     = "item2"
@@ -284,7 +284,7 @@ algTy (Ty.Unit) = intT
 algTy (Ty.Nat) = natT
 algTy (Ty.Var _) = $impossible
 algTy (Ty.Fn _ _) = $impossible
-algTy (Ty.Tuple _) = $impossible
+algTy (Ty.Pair _ _) = $impossible
 algTy (Ty.List _) = $impossible
 
 toAlgVal :: Val -> AVal

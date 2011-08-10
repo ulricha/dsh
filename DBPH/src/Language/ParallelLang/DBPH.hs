@@ -28,7 +28,7 @@ nkl2X100Alg e = let (e', t) = nkl2Vec' e
                 in (toX100String $ toX100Algebra e', t)
                 
 nkl2X100Dot :: NKL.Expr -> String
-nkl2X100Dot e = let (e', t) = nkl2Vec' e
+nkl2X100Dot e = let (e', _) = nkl2Vec' e
                 in toX100Dot $ toX100Algebra e'
 
 nkl2Vec' :: NKL.Expr -> (FKL.Expr Type, Type)
