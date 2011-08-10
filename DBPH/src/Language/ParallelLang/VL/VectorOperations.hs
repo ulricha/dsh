@@ -15,7 +15,8 @@ groupByS e1 (NestedVector d2 vs2) = do
                                      TupleVector [d, v, p] <- groupBy e1 (DescrVector d2)
                                      vs' <- chainPropagate p vs2
                                      return $ attachV d $ attachV v vs'
-groupByS _ _ = error "groupByS: Should not be possible"
+groupByS e1 (TupleVector es) = TupleVector <$> mapM (groupByS e1) es
+groupByS e1 e2 = error $ "groupByS: Should not be possible"
 
 groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
@@ -25,6 +26,7 @@ groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d'
                                      TupleVector [d, v, p] <- groupBy v1 (DescrVector d')
                                      vs' <- chainPropagate p vs2
                                      return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
+groupByL e1 (TupleVector es) = TupleVector <$> mapM (groupByL e1) es
 groupByL _ _ = error "groupByL: Should not be possible"
                     
 concatLift :: VectorAlgebra a => Plan -> Graph a Plan
@@ -69,7 +71,7 @@ cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (ne
                     e3 <- appendR r1 r2
                     return $ attachV v e3
             | otherwise = error "cons: Can't construct cons node"
-cons _ _ = error "Should not be possible"
+cons q1 q2 = error $ "cons: Should not be possible" ++ show q1 ++ "*******" ++ show q2
 
 consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
@@ -134,6 +136,7 @@ bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
                | otherwise = error "bPermute: Can't construct bPermute node"
 
 dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dist q1             (TupleVector (q2:_)) = dist q1 q2
 dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = do
                                                         o <- outer q2
                                                         distPrim q1 o

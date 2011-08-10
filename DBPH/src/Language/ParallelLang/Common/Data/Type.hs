@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..))
+ (splitType, varsInType, listDepth, tupleT, extractTuple, containsTuple, tupleComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, pairT, listT, Subst, Substitutable, (.->), apply, addSubstitution, Typed (..), isFuns)
 where
     
 import qualified Data.Map as M
@@ -121,6 +121,11 @@ unliftType :: Type -> Type
 unliftType (List t1) = t1
 unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
 
+isFuns :: Type -> Bool
+isFuns (List t1) = isFuns t1
+isFuns (Fn t1 t2) = True
+isFuns (Tuple _) = False
+isFuns _         = False 
 
 type Subst = M.Map String Type
 
