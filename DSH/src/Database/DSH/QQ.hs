@@ -72,7 +72,10 @@ parseCompr = fromParseResult . exprParser
 ferryParseMode :: ParseMode
 ferryParseMode = defaultParseMode {
     extensions = [TransformListComp, ViewPatterns]
-  , fixities = fixities defaultParseMode ++ infix_ 0 ["?"] ++ infixr_ 5 ["><", "<|", "|>"]
+  , fixities = let v = case fixities defaultParseMode of
+                            Nothing -> [] 
+                            Just x -> x
+                in Just $ v ++ infix_ 0 ["?"] ++ infixr_ 5 ["><", "<|", "|>"]
   }
 
 exprParser :: String -> ParseResult Exp
