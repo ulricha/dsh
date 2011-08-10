@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | This module provides the flattening implementation of DSH.
-module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, debugFKL', debugX100) where
+module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, debugFKL', debugX100, debugX100Dot) where
 
 import Language.ParallelLang.DBPH hiding (SQL)
 
@@ -34,6 +34,9 @@ debugVec c (Q e) = liftM nkl2Vec $ toNKL c e
 
 debugX100 :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugX100 c (Q e) = liftM (show . (\(x,_) -> x) . nkl2X100Alg) $ toNKL c e
+
+debugX100Dot :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugX100Dot c (Q e) = liftM nkl2X100Dot $ toNKL c e
 
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugPlan c (Q e) = liftM (show . (\(x,_) -> x) . nkl2Alg) $ toNKL c e
