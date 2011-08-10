@@ -7,7 +7,7 @@ module Language.ParallelLang.FKL.Primitives where
     
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), unliftTypeN, liftTypeN, boolT, listT, unliftType, splitType, liftType, Type(), tupleT)
+import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), unliftTypeN, liftTypeN, boolT, listT, unliftType, splitType, liftType, Type(), pairT)
 import qualified Language.ParallelLang.Common.Data.Type as T
 
 type TExpr = F.Expr Type
@@ -159,15 +159,19 @@ letF v e1 e2 = F.Let (typeOf e2) v e1 e2
 tagN :: String -> Expr t -> Expr t
 tagN s e = Labeled s e
 
+
+pairF :: TExpr -> TExpr -> TExpr
+pairF e1 e2 = F.Pair (pairT (typeOf e1) (typeOf e2)) e1 e2
+
+{-
 tupleF :: [TExpr] -> TExpr
 tupleF es = F.Tuple t es
     where
         t = tupleT $ map typeOf es
+-}
 
 projectF :: TExpr -> Int -> TExpr
 projectF e i = let t = typeOf e
                 in case t of
-                    (T.Tuple ts) -> if length ts >= i 
-                                            then Proj (ts !! (i - 1)) 0 e i
-                                            else error "Provided tuple expression is not big enough"
-                    _                -> error "Provided type is not a tuple"            
+                    (T.Pair t1 t2) -> Proj (if i==1 then t1 else t2) 0 e i
+                    _              -> error "Provided type is not a tuple"            

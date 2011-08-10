@@ -16,7 +16,7 @@ groupByS e1 (NestedVector d2 vs2) = do
                                      vs' <- chainPropagate p vs2
                                      return $ attachV d $ attachV v vs'
 groupByS e1 (TupleVector es) = TupleVector <$> mapM (groupByS e1) es
-groupByS e1 e2 = error $ "groupByS: Should not be possible"
+groupByS _e1 _e2 = error $ "groupByS: Should not be possible"
 
 groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
