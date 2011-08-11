@@ -99,3 +99,4 @@ instance Typed Expr t where
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _) = t
     typeOf (Pair t _ _) = t
+
