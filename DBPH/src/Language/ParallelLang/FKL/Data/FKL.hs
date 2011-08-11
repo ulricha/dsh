@@ -15,9 +15,7 @@ type Key = [DataColumn]
 data Expr t where
     Table   :: t -> String -> [TypedColumn t] -> [Key] -> Expr t
     Labeled :: String -> Expr t -> Expr t -- | Constructor for debugging purposes
---    Tuple   :: t -> [Expr t] -> Expr t -- | Construct a tuple
     Pair    :: t -> Expr t -> Expr t -> Expr t
---    App     :: t -> Expr t -> [Expr t] -> Expr t-- | Apply multiple arguments to an expression
     PApp1   :: t -> Prim1 t -> Expr t -> Expr t
     PApp2   :: t -> Prim2 t -> Expr t -> Expr t -> Expr t
     PApp3   :: t -> Prim3 t -> Expr t -> Expr t -> Expr t -> Expr t
@@ -29,7 +27,6 @@ data Expr t where
     Const   :: t -> Val -> Expr t -- | Constant value
     Var     :: t -> String -> Expr t -- | Variable lifted to level i
     Nil     :: t -> Expr t -- | []
-    Proj    :: t -> Int -> Expr t -> Int -> Expr t
     Clo     :: t -> String -> [(String, Expr t)] -> String -> Expr t -> Expr t -> Expr t -- When performing normal function application ignore the first value of the freeVars!!!
     AClo    :: t -> [(String, Expr t)] -> String -> Expr t -> Expr t -> Expr t
     deriving Eq
@@ -39,6 +36,10 @@ data Prim1 t = LengthPrim t
              | NotPrim t 
              | NotVec t
              | ConcatLift t
+             | Fst t
+             | Snd t
+             | FstL t
+             | SndL t
     deriving Eq
     
 instance Show (Prim1 t)where
@@ -47,6 +48,10 @@ instance Show (Prim1 t)where
     show (NotPrim _)    = "notPrim"
     show (NotVec _)     = "notVec"
     show (ConcatLift _) = "concatLift"
+    show (Fst _)        = "fst"
+    show (Snd _)        = "snd"
+    show (FstL _)       = "fstL"
+    show (SndL _)       = "sndL"
     
 data Prim2 t = GroupWithS t
              | GroupWithL t 
@@ -88,11 +93,9 @@ instance Typed Expr t where
     typeOf (Const t _) = t
     typeOf (Var t _) = t
     typeOf (Nil t) = t
-    typeOf (Proj t _ _ _) = t
     typeOf (Labeled _ e) = typeOf e
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _) = t
---    typeOf (Tuple t _) = t
     typeOf (Pair t _ _) = t

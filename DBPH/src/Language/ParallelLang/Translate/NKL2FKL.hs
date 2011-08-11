@@ -29,7 +29,6 @@ transEnv []          = return []
 transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Table t n c k) = pure $ F.Table t n c k
 transform (N.Nil t) = pure $ F.Nil t
--- transform (N.Tuple t es) = F.Tuple t <$> mapM transform es
 transform (N.Pair t e1 e2) = F.Pair t <$> transform e1 <*> transform e2
 transform (N.App _t e1 es) = cloApp <$> transform e1 <*> transform es
 transform (N.Lam t arg e) = do
@@ -56,15 +55,11 @@ transform (N.Iter _t n e1 e2) = do
                                 f' <- transform f
                                 e1' <- transform e1
                                 return $ mapS f' e1' 
-transform (N.Proj t l e1 i) = flip (F.Proj t l) i <$> transform e1
+transform (N.Fst _ e) = fstF <$> transform e
+transform (N.Snd _ e) = sndF <$> transform e
 
 flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
 flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
-{-
-flatten i e1 (N.Tuple t es) = do
-                                es' <- mapM (flatten i e1) es
-                                return $ F.Tuple (liftType t) es'
--}
 flatten i e1 (N.Pair t ex1 ex2) = F.Pair (liftType t) <$> flatten i e1 ex1 <*> flatten i e1 ex2
 flatten _ e1 (N.Var t "not") = return $ distF (notVal t) e1
 flatten _ e1 (N.Var t "map") = return $ distF (mapVal t) e1
@@ -76,10 +71,12 @@ flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
 flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1
 flatten _ e1 (N.Nil t) = return $ distF (F.Nil t) e1
 flatten i e1 (N.App _t f es) = cloLApp <$> flatten i e1 f <*> flatten i e1 es
-flatten i d (N.Proj t 0 e1 el) = do
+flatten i d (N.Fst _ e) = fstLF <$> flatten i d e
+flatten i d (N.Snd _ e) = sndLF <$> flatten i d e
+{- flatten i d (N.Proj t 0 e1 el) = do
                                     e1' <- flatten i d e1
                                     return $ F.Proj (listT t) 1 e1' el
-flatten _ _ (N.Proj _ _ _ _) = $impossible
+flatten _ _ (N.Proj _ _ _ _) = $impossible -}
 flatten i d (N.Let ty v e1 e2) = do
                                     e1' <- flatten i d e1
                                     e2' <- withLetVar v $ flatten i d e2
