@@ -1,11 +1,11 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100Dot) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100Dot, toX100File) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100 (X100Algebra, dummy, renderX100Code, renderX100Dot)
+import Database.Algebra.X100 (X100Algebra, dummy, renderX100Code, renderX100Dot, tagsToFile, rootsToFile, nodesToFile)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -114,27 +114,35 @@ toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
+toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
+toX100File f (m, r, t) = do
+    tagsToFile f t
+    rootsToFile f (rootNodes r)
+    nodesToFile f m
+
 toX100String :: AlgPlan X100Algebra Plan -> Query X100
 toX100String (m, r, t) = case r of
-                            PrimVal r'     -> PrimVal $ X100 r' $ snd $ renderX100Code (m, r', t)
+                            PrimVal r'     -> PrimVal $ X100 r' $ snd $ renderX100Code m r'
                             TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
-                            DescrVector r' -> DescrVector $ X100 r' $ snd $ renderX100Code (m, r', t) 
-                            ValueVector r' -> ValueVector $ X100 r' $ snd $ renderX100Code (m, r', t)
-                            NestedVector r' rs -> NestedVector (X100 r' $ snd $ renderX100Code (m, r', t)) $ toX100String (m, rs, t)
+                            DescrVector r' -> DescrVector $ X100 r' $ snd $ renderX100Code m r' 
+                            ValueVector r' -> ValueVector $ X100 r' $ snd $ renderX100Code m r'
+                            NestedVector r' rs -> NestedVector (X100 r' $ snd $ renderX100Code m r') $ toX100String (m, rs, t)
                             PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
                             Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
                             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
 
+rootNodes :: Plan -> [AlgNode]
+rootNodes (TupleVector qs) = concat $ map rootNodes qs
+rootNodes (DescrVector n) = [n]
+rootNodes (ValueVector n) = [n]
+rootNodes (PrimVal n) = [n]
+rootNodes (NestedVector n q) = n : (rootNodes q)
+rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
+rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
+rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
+
 toX100Dot :: AlgPlan X100Algebra Plan -> String
 toX100Dot (m, q, t) = renderX100Dot t (rootNodes q) m
-    where rootNodes (TupleVector qs) = concat $ map rootNodes qs
-          rootNodes (DescrVector n) = [n]
-          rootNodes (ValueVector n) = [n]
-          rootNodes (PrimVal n) = [n]
-          rootNodes (NestedVector n q) = n : (rootNodes q)
-          rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
-          rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
-          rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
 
 -- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
 -- toX100Algebra e = runGraph initLoop (fkl2Alg e)

@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2fkl', nkl2X100Dot) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2fkl', nkl2X100Dot, nkl2X100File) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
@@ -22,7 +22,6 @@ nkl2Alg :: NKL.Expr -> (Query XML, Type)
 nkl2Alg e = let (e', t) = nkl2Vec' e
              in (toXML $ toPFAlgebra e', t)
              
-
 nkl2X100Alg :: NKL.Expr -> (Query X100, Type)
 nkl2X100Alg e = let (e', t) = nkl2Vec' e
                 in (toX100String $ toX100Algebra e', t)
@@ -30,6 +29,10 @@ nkl2X100Alg e = let (e', t) = nkl2Vec' e
 nkl2X100Dot :: NKL.Expr -> String
 nkl2X100Dot e = let (e', _) = nkl2Vec' e
                 in toX100Dot $ toX100Algebra e'
+
+nkl2X100File :: FilePath -> NKL.Expr -> IO ()
+nkl2X100File f e = let (e', _) = nkl2Vec' e
+                 in toX100File f $ toX100Algebra e'
 
 nkl2Vec' :: NKL.Expr -> (FKL.Expr Type, Type)
 nkl2Vec' e = runTransform $ 
