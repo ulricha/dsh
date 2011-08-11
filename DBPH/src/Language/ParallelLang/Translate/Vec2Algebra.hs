@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100Dot, toX100File) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -140,12 +140,6 @@ rootNodes (NestedVector n q) = n : (rootNodes q)
 rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
 rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
 rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-
-toX100Dot :: AlgPlan X100Algebra Plan -> String
-toX100Dot (m, q, t) = renderX100Dot t (rootNodes q) m
-
--- toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
--- toX100Algebra e = runGraph initLoop (fkl2Alg e)
 
 toXML :: AlgPlan PFAlgebra Plan -> Query XML
 toXML (g, r, ts) = case r of
