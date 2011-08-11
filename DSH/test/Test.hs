@@ -17,8 +17,7 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 t :: IO ()
 t = do
      conn <- getConn
-     q <- I.fromQ conn $ groupWith (\(view -> (n, d, i)) -> d) employees
-     putStrLn $ show q
+     I.debugX100File conn $ groupWith (\(view -> (n, d, i)) -> d) employees
 {-
 test :: IO ()
 test = do 
