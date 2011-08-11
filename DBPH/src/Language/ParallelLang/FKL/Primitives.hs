@@ -163,15 +163,27 @@ tagN s e = Labeled s e
 pairF :: TExpr -> TExpr -> TExpr
 pairF e1 e2 = F.Pair (pairT (typeOf e1) (typeOf e2)) e1 e2
 
-{-
-tupleF :: [TExpr] -> TExpr
-tupleF es = F.Tuple t es
-    where
-        t = tupleT $ map typeOf es
--}
 
-projectF :: TExpr -> Int -> TExpr
-projectF e i = let t = typeOf e
-                in case t of
-                    (T.Pair t1 t2) -> Proj (if i==1 then t1 else t2) 0 e i
-                    _              -> error "Provided type is not a tuple"            
+fstF :: TExpr -> TExpr
+fstF e = let t = typeOf e
+          in case t of
+                (T.Pair t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
+                _              -> error "Provided type is not a tuple" 
+
+sndF :: TExpr -> TExpr
+sndF e = let t = typeOf e
+          in case t of
+                (T.Pair _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
+                _             -> error "Provided type is not a tuple"
+
+fstLF :: TExpr -> TExpr
+fstLF e = let t = typeOf e
+          in case t of
+                (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (Fst $ t .-> T.List t1) e
+                _              -> error "Provided type is not a tuple" 
+
+sndLF :: TExpr -> TExpr
+sndLF e = let t = typeOf e
+          in case t of
+                (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
+                _             -> error "Provided type is not a tuple"

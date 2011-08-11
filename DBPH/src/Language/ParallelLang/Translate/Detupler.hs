@@ -43,8 +43,8 @@ deTuple (BinOp rt o@(Op Cons _) e1 e2) | containsTuple rt =
                                 let v1 = Var (typeOf e1') fv1
                                 let v2 = Var (typeOf e2') fv2
                                 let (t1, t2) = pairComponents $ typeOf e1'
-                                e1'' <- deTuple $ (BinOp (listT t1) o (Proj t1 0 v1 1) (Proj (listT t1) 0 v2 1))
-                                e2'' <- deTuple $ (BinOp (listT t2) o (Proj t2 0 v1 2) (Proj (listT t2) 0 v2 2))
+                                e1'' <- deTuple $ (BinOp (listT t1) o (fstF v1) (fstF v2))
+                                e2'' <- deTuple $ (BinOp (listT t2) o (sndF v1) (sndF v2))
                                 return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                       | otherwise =
                             do
@@ -76,21 +76,14 @@ deTuple (If t e1 e2 e3) = do
                                       let v2 = Var (typeOf e2') fv2
                                       let v3 = Var (typeOf e3') fv3
                                       let (t1, t2) = pairComponents t'
-                                      e1'' <- deTuple $ If t1 v1 (Proj t1 0 v2 1) (Proj t1 0 v3 1)
-                                      e2'' <- deTuple $ If t2 v1 (Proj t2 0 v2 2) (Proj t2 0 v3 2)
+                                      e1'' <- deTuple $ If t1 v1 (fstF v2) (fstF v3)
+                                      e2'' <- deTuple $ If t2 v1 (sndF v2) (sndF v3)
                                       return $ letF fv1 e1' $ letF fv2 e2' $ letF fv3 e3' $ pairF e1'' e2''
                                 else return $ If t' e1' e2' e3'
 deTuple (F.Pair t e1 e2) = do
                           e1' <- deTuple e1
                           e2' <- deTuple e2
                           return $ F.Pair (transType t) e1' e2'
-deTuple (Proj t l e i) = do
-                            e' <- deTuple e
-                            let r = Proj (transType t) l e' i
-                            case e' of
-                                (F.Pair _ e1 e2) -> if i == 1 then return e1
-                                                              else return e2
-                                _            -> return r
 deTuple v@(Nil t) | containsTuple t = do
                                         let tuple = extractPair t
                                         let (t1, t2) = pairComponents tuple
@@ -108,15 +101,15 @@ deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) && not (isF
                                               fv1 <- getFreshVar
                                               fv2 <- getFreshVar
                                               let e2'' = if containsTuple $ typeOf e2'
-                                                            then Proj (fst $ pairComponents $ typeOf e2') 0 e2' 1
+                                                            then fstF e2'
                                                             else e2'
                                               let v1 = Var (typeOf e1') fv1
                                               let v2 = Var (typeOf e2'') fv2
                                               eb'' <- if containsTuple $ typeOf e1'
                                                           then do
                                                                     let (t1, t2) = pairComponents $ typeOf e1'
-                                                                    e1s <- deTuple $ PApp3 (liftTypeN d t1) (Insert $ t1 .-> typeOf v2 .-> intT .-> liftTypeN d t1) (Proj t1 0 v1 1) v2 e3
-                                                                    e2s <- deTuple $ PApp3 (liftTypeN d t2) (Insert $ t2 .-> typeOf v2 .-> intT .-> liftTypeN d t2) (Proj t2 0 v1 2) v2 e3
+                                                                    e1s <- deTuple $ PApp3 (liftTypeN d t1) (Insert $ t1 .-> typeOf v2 .-> intT .-> liftTypeN d t1) (fstF v1) v2 e3
+                                                                    e2s <- deTuple $ PApp3 (liftTypeN d t2) (Insert $ t2 .-> typeOf v2 .-> intT .-> liftTypeN d t2) (sndF v1) v2 e3
                                                                     return $ pairF e1s e2s
                                                           else deTuple $ PApp3 rt (Insert $ typeOf e1' .-> typeOf v2 .-> intT .-> rt) v1 v2 e3
                                               return $ letF fv1 e1' $ letF fv2 e2'' eb''
@@ -133,8 +126,8 @@ deTuple (PApp3 rt (Combine ft) e1 e2 e3) | containsTuple rt && not (isFuns rt)=
                                                 let v1 = Var (typeOf e1') fv1
                                                 let v2 = Var (typeOf e2') fv2
                                                 let v3 = Var (typeOf e3') fv3
-                                                e1'' <- deTuple $ PApp3 t1 (Combine $ listT boolT .-> t1 .-> t1 .-> t1) v1 (Proj t1 0 v2 1) (Proj t1 0 v3 1)
-                                                e2'' <- deTuple $ PApp3 t2 (Combine $ listT boolT .-> t2 .-> t2 .-> t2) v1 (Proj t2 0 v2 2) (Proj t2 0 v3 2)
+                                                e1'' <- deTuple $ PApp3 t1 (Combine $ listT boolT .-> t1 .-> t1 .-> t1) v1 (fstF v2) (fstF v3)
+                                                e2'' <- deTuple $ PApp3 t2 (Combine $ listT boolT .-> t2 .-> t2 .-> t2) v1 (sndF v2) (sndF v3)
                                                 return $ letF fv1 e1' $
                                                             letF fv2 e2' $
                                                               letF fv3 e3' $
@@ -145,9 +138,8 @@ deTuple (PApp2 rt (Extract ft) e1 e2) | (containsTuple $ typeOf e1) && not (isFu
                                                 e1' <- deTuple e1
                                                 fv1 <- getFreshVar
                                                 let v1 = Var (typeOf e1') fv1
-                                                let (t1, t2) = pairComponents $ typeOf e1'
-                                                e1'' <- deTuple $ extractF (Proj t1 0 v1 1) e2
-                                                e2'' <- deTuple $ extractF (Proj t2 0 v1 2) e2
+                                                e1'' <- deTuple $ extractF (fstF v1) e2
+                                                e2'' <- deTuple $ extractF (sndF v1) e2
                                                 return $ letF fv1 e1' $ pairF e1'' e2''
                                         | otherwise = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
@@ -157,7 +149,7 @@ deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
                                                 fv1 <- getFreshVar
                                                 fv2 <- getFreshVar
                                                 let e2'' = if (containsTuple $ typeOf e2') && not (isFuns $ typeOf e2')
-                                                            then Proj (fst $ pairComponents $ typeOf e2') 0 e2' 1
+                                                            then fstF e2'
                                                             else e2'
                                                 let v1 = Var (typeOf e1') fv1
                                                 let v2 = Var (typeOf e2'') fv2
@@ -166,9 +158,9 @@ deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
                                                         do
                                                             let (t1, t2) = pairComponents $ typeOf e1'
                                                             let (rt1, rt2) = pairComponents $ transType rt 
-                                                            e1'' <- deTuple $ PApp2 rt1 (Dist $ t1 .-> typeOf v2 .-> rt1) (Proj t1 0 v1 1) v2
-                                                            e2'' <- deTuple $ PApp2 rt2 (Dist $ t2 .-> typeOf v2 .-> rt2) (Proj t2 0 v1 2) v2
-                                                            return $ pairF e1'' e2''
+                                                            e1s <- deTuple $ PApp2 rt1 (Dist $ t1 .-> typeOf v2 .-> rt1) (fstF v1) v2
+                                                            e2s <- deTuple $ PApp2 rt2 (Dist $ t2 .-> typeOf v2 .-> rt2) (sndF v1) v2
+                                                            return $ pairF e1s e2s
                                                        else
                                                         do
                                                             return $ PApp2 rt (Dist $ typeOf v1 .-> typeOf v2 .-> listT (typeOf v1)) v1 v2
@@ -185,8 +177,8 @@ deTuple (PApp2 rt (Index ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                let v2 = Var (typeOf e2') fv2
                                                let (t1, t2) = pairComponents $ typeOf e1'
                                                let (rt1, rt2) = pairComponents $ transType rt
-                                               e1'' <- deTuple $ PApp2 rt1 (Index $ t1 .-> typeOf e2' .-> rt1) (Proj t1 0 v1 1) v2
-                                               e2'' <- deTuple $ PApp2 rt2 (Index $ t2 .-> typeOf e2' .-> rt2) (Proj t2 0 v1 2) v2
+                                               e1'' <- deTuple $ PApp2 rt1 (Index $ t1 .-> typeOf e2' .-> rt1) (fstF v1) v2
+                                               e2'' <- deTuple $ PApp2 rt2 (Index $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
                                                return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                     | otherwise = PApp2 rt (Index ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
@@ -199,8 +191,8 @@ deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                  let v2 = Var (typeOf e2') fv2
                                                  let (t1, t2) = pairComponents $ typeOf e1'
                                                  let (rt1, rt2) = pairComponents $ transType rt
-                                                 e1'' <- deTuple $ PApp2 rt1 (Restrict $ t1 .-> typeOf e2' .-> rt1) (Proj t1 0 v1 1) v2
-                                                 e2'' <- deTuple $ PApp2 rt2 (Restrict $ t2 .-> typeOf e2' .-> rt2) (Proj t2 0 v1 2) v2
+                                                 e1'' <- deTuple $ PApp2 rt1 (Restrict $ t1 .-> typeOf e2' .-> rt1) (fstF v1) v2
+                                                 e2'' <- deTuple $ PApp2 rt2 (Restrict $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
                                                  return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                        | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
@@ -208,14 +200,34 @@ deTuple (PApp1 rt (LengthPrim ft) e1) | (containsTuple $ typeOf e1) && not (isFu
                                             do
                                                 e1' <- deTuple e1
                                                 let (t1, _) = pairComponents $ typeOf e1'
-                                                deTuple $ PApp1 rt (LengthPrim $ t1 .-> intT) $ Proj t1 0 e1' 1
+                                                deTuple $ PApp1 rt (LengthPrim $ t1 .-> intT) $ fstF e1'
                                       | otherwise = PApp1 rt (LengthPrim ft) <$> deTuple e1
 deTuple (PApp1 rt (LengthLift ft) e1) | (containsTuple $ typeOf e1) && not (isFuns $ typeOf e1) =  
                                           do
                                               e1' <- deTuple e1
                                               let (t1, _) = pairComponents $ typeOf e1'
-                                              deTuple $ PApp1 rt (LengthLift $ t1 .-> intT) $ Proj t1 0 e1' 1
+                                              deTuple $ PApp1 rt (LengthLift $ t1 .-> intT) $ fstF e1'
                                       | otherwise = PApp1 rt (LengthLift ft) <$> deTuple e1
+deTuple (PApp1 _ (Fst _) e) = do
+                            e' <- deTuple e
+                            case e' of
+                                (F.Pair _ e1 _) -> return e1
+                                _               -> return $ fstF e'
+deTuple (PApp1 _ (Snd _) e) = do
+                            e' <- deTuple e
+                            case e' of
+                                (F.Pair _ _ e2) -> return e2
+                                _               -> return $ sndF e'
+deTuple (PApp1 _ (FstL _) e) = do
+                                  e' <- deTuple e
+                                  case e' of
+                                      (F.Pair _ e1 _) -> return e1
+                                      _               -> return $ fstF e'
+deTuple (PApp1 _ (SndL _) e) = do
+                                e' <- deTuple e
+                                case e' of
+                                    (F.Pair _  _ e2) -> return e2
+                                    _               -> return $ sndF e'
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl
 deTuple (AClo t vs x f fl) = AClo (transType t) vs x <$> deTuple f <*> deTuple fl

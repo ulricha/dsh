@@ -52,9 +52,6 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
                                                 binOp l o p1 p2
-fkl2Alg (Proj _ _ e n) = do
-                          (TupleVector es) <- fkl2Alg e
-                          return $ es !! (n - 1)
 -- FIXME implement If as documented in Sec. 5.3
 fkl2Alg (If t eb e1 e2) | Ty.listDepth t > 1 = do 
                                                 eb' <- fkl2Alg eb
@@ -70,12 +67,24 @@ fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'
                             withBinding s e1' $ fkl2Alg e2
+fkl2Alg (PApp1 _ (Fst _) arg) = do
+                                 TupleVector [e1, _] <- fkl2Alg arg
+                                 return e1
+fkl2Alg (PApp1 _ (Snd _) arg) = do
+                                 TupleVector [_, e2] <- fkl2Alg arg
+                                 return e2
+fkl2Alg (PApp1 _ (FstL _) _) = error $ "FstL: Should have been eliminated by detupler"
+fkl2Alg (PApp1 _ (SndL _) _) = error $ "SndL: Should have been eliminated by detupler" 
 fkl2Alg (PApp1 _ f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
                                            (NotPrim _) -> notPrim 
                                            (NotVec _) -> notVec 
                                            (ConcatLift _) -> concatLift
+                                           (Fst _) -> $impossible
+                                           (Snd _) -> $impossible
+                                           (FstL _) -> $impossible
+                                           (SndL _) -> $impossible
 fkl2Alg (PApp2 _ (Extract _) arg1 (Const _ (Int i))) = do
                                         e1 <- fkl2Alg arg1
                                         extract e1 i
