@@ -121,11 +121,11 @@ translate (LamE f ty) = do
 translate (AppE1 Fst e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Proj (fst $ T.pairComponents t1) 0 c1 1
+                                return $ NKL.Fst (fst $ T.pairComponents t1) c1
 translate (AppE1 Snd e1 ty) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Proj (snd $ T.pairComponents t1) 0 c1 2
+                                return $ NKL.Snd (snd $ T.pairComponents t1) c1
 translate (AppE1 f e1 ty) = do 
                                 c1 <- translate e1
                                 return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1
