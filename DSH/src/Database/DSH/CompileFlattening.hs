@@ -111,7 +111,10 @@ translate (TupleE e1 e2 _) = do
                                 c2 <- translate e2
                                 let t1 = T.typeOf c1
                                 let t2 = T.typeOf c2
-                                return $ NKL.Pair (T.pairT t1 t2) c1 c2
+                                let t = (T.pairT t1 t2) 
+                                case (c1, c2) of
+                                    (NKL.Const _ v1, NKL.Const _ v2) -> return $ NKL.Const t (V.Pair v1 v2)
+                                    otherwise                        -> return $ NKL.Pair t c1 c2
 translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
@@ -242,4 +245,5 @@ isPrimVal (IntegerE _ _) = True
 isPrimVal (ListE es _) = and $ map isPrimVal es
 isPrimVal (DoubleE _ _) = True
 isPrimVal (TextE _ _) = True
+isPrimVal (TupleE e1 e2 _) = isPrimVal e1 && isPrimVal e2
 isPrimVal _ = False
