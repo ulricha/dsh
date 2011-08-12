@@ -10,5 +10,6 @@ data Val where
     Bool :: Bool -> Val
     String :: String -> Val
     Double :: Double -> Val
+    Pair :: Val -> Val -> Val
     Unit :: Val
     deriving (Eq, Show, Ord)

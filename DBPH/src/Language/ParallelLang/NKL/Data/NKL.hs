@@ -2,7 +2,7 @@
 module Language.ParallelLang.NKL.Data.NKL (Expr, Ex(..), Typed(..), freeVars) where
 
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.Common.Data.Val
+import Language.ParallelLang.Common.Data.Val(Val())
 import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 
 import qualified Data.Set as S

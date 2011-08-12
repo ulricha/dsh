@@ -11,7 +11,7 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
-import Language.ParallelLang.Common.Data.Val
+import Language.ParallelLang.Common.Data.Val(Val(Int))
 import Database.Algebra.Graph.GraphBuilder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
@@ -140,7 +140,7 @@ toX100Dot (m, q, t) = renderX100Dot t (rootNodes q) m
           rootNodes (DescrVector n) = [n]
           rootNodes (ValueVector n) = [n]
           rootNodes (PrimVal n) = [n]
-          rootNodes (NestedVector n q) = n : (rootNodes q)
+          rootNodes (NestedVector n q') = n : (rootNodes q')
           rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
           rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
           rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"

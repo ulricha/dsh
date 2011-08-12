@@ -1,7 +1,7 @@
 module Language.ParallelLang.FKL.Render.Render where
     
 import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.Common.Data.Val
+import qualified Language.ParallelLang.Common.Data.Val as V
 
 import Text.PrettyPrint hiding (render)
 import Data.List (intersperse)
@@ -37,10 +37,11 @@ render (CloLApp _ f a) = render f <+> text ":$l" <+> render a
 render (Nil _) = text "[]" 
 render (Pair _ e1 e2) = parens (render e1 <> comma <+> render e2)
 
-renderC :: Val -> Doc
-renderC (Int i) = int i
-renderC (String s) = text $ show s
-renderC (Double d) = double d
-renderC (Bool b) = text $ show b
-renderC (Unit) = text $ "()"
-renderC (List es) = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
+renderC :: V.Val -> Doc
+renderC (V.Int i) = int i
+renderC (V.String s) = text $ show s
+renderC (V.Double d) = double d
+renderC (V.Bool b) = text $ show b
+renderC (V.Unit) = text $ "()"
+renderC (V.List es) = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
+renderC (V.Pair e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"

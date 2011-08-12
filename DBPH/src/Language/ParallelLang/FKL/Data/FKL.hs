@@ -2,7 +2,7 @@
 module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.Common.Data.Val
+import Language.ParallelLang.Common.Data.Val(Val())
 import Language.ParallelLang.Common.Data.Type(Typed, typeOf)
 
 type DataColumn = String 

@@ -251,6 +251,7 @@ bPermuteVecPF _ _ = error "bpermuteVecPF: Should not be possible"
 -- constructLiteralPF :: VectorAlgebra a => Ty.Type -> Val -> Graph a Plan
 constructLiteralPF :: Ty.Type -> Val -> Graph PFAlgebra Plan
 constructLiteralPF t (List es) = listToPlan t (zip (repeat 1) es)
+constructLiteralPF (Ty.Pair t1 t2) (Pair e1 e2) = TupleVector <$> sequence [constructLiteralPF t1 e1, constructLiteralPF t2 e2]
 constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ constructLiteralPF' v))
  where
   constructLiteralPF' (Int i) = litTable (int $ fromIntegral i) item intT
@@ -259,6 +260,7 @@ constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (na
   constructLiteralPF' (String s) = litTable (string s) item stringT
   constructLiteralPF' (Double d) = litTable (double d) item doubleT
   constructLiteralPF' (List _) = $impossible 
+  constructLiteralPF' (Pair _ _) = $impossible
 
 -- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
 listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph PFAlgebra Plan
@@ -293,7 +295,8 @@ toAlgVal (Bool b) = bool b
 toAlgVal Unit = int (-1)
 toAlgVal (String s) = string s
 toAlgVal (Double d) = double d
-toAlgVal _ = $impossible "Not a primitive value"
+toAlgVal (List _) = $impossible "Not a primitive value"
+toAlgVal (Pair _ _) = $impossible
 
 -- | Construct a name that represents a lifted variable in the environment.                        
 constrEnvName :: String -> Int -> String
