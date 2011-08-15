@@ -28,7 +28,6 @@ import Control.Monad (liftM2)
 
 import Language.ParallelLang.Common.Impossible
 
-
 fkl2Alg :: (VectorAlgebra a) => Expr Ty.Type -> Graph a Plan
 fkl2Alg (Pair _ e1 e2) = TupleVector <$> mapM fkl2Alg [e1, e2]
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
@@ -92,7 +91,7 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
     where
         fn = case f of
                 (Extract _) -> $impossible
-                (Dist _) -> dist
+                (Dist _) -> \x y -> dist x y
                 (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
                 (GroupWithL _) -> groupByL
