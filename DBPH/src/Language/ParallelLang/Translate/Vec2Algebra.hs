@@ -126,7 +126,7 @@ toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
     tagsToFile f t
     rootsToFile f (rootNodes r)
-    nodesToFile f m
+    nodesToFile f $ reverseNodeMap m
   where
       rootNodes :: Plan -> [AlgNode]
       rootNodes (TupleVector qs) = concat $ map rootNodes qs
@@ -139,15 +139,18 @@ toX100File f (m, r, t) = do
       rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
 
 toX100String :: AlgPlan X100Algebra Plan -> Query X100
-toX100String (m, r, t) = case r of
-                            PrimVal r'     -> PrimVal $ X100 r' $ snd $ renderX100Code m r'
-                            TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
-                            DescrVector r' -> DescrVector $ X100 r' $ snd $ renderX100Code m r' 
-                            ValueVector r' -> ValueVector $ X100 r' $ snd $ renderX100Code m r'
-                            NestedVector r' rs -> NestedVector (X100 r' $ snd $ renderX100Code m r') $ toX100String (m, rs, t)
-                            PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
-                            Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
-                            AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
+toX100String (m, r, t) = 
+    let m' = reverseNodeMap m 
+    in
+        case r of
+            PrimVal r'     -> PrimVal $ X100 r' $ snd $ renderX100Code m' r'
+            TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
+            DescrVector r' -> DescrVector $ X100 r' $ snd $ renderX100Code m' r' 
+            ValueVector r' -> ValueVector $ X100 r' $ snd $ renderX100Code m' r'
+            NestedVector r' rs -> NestedVector (X100 r' $ snd $ renderX100Code m' r') $ toX100String (m, rs, t)
+            PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
+            Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
+            AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
 
 toXML :: AlgPlan PFAlgebra Plan -> Query XML
 toXML (g, r, ts) = case r of
