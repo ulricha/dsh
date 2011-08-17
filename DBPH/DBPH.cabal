@@ -19,7 +19,7 @@ Library
                       hint >= 0.3.3.2,
                       TableAlgebra2,
                       Pathfinder >= 0.5.7,
-                      HaXml >= 1.20
+                      HaXml >= 1.22
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
