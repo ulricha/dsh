@@ -37,8 +37,8 @@ extractSQL xml = let (Document _ _ r _) = xmlParse "query" xml
 
 
 process :: Content i -> (String, Maybe Int)
-process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup "name" attrs
-                                           pos = fmap attrToInt $ lookup "position" attrs
+process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup (X.N "name") attrs
+                                           pos = fmap attrToInt $ lookup (X.N "position") attrs
                                         in (name, pos)
 process _ = $impossible
 
