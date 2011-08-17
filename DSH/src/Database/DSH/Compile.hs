@@ -77,11 +77,11 @@ extractSQL :: SQLXML a -> QueryBundle a
 extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
                       in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r $impossible)
     where
-        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup "id" attrs of
+        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup (X.N "id") attrs of
                                                                     Just x -> x
                                                                     Nothing -> $impossible
-                                                           rId = fmap attrToInt $ lookup "idref" attrs
-                                                           cId = fmap attrToInt $ lookup "colref" attrs
+                                                           rId = fmap attrToInt $ lookup (X.N "idref") attrs
+                                                           cId = fmap attrToInt $ lookup (X.N "colref") attrs
                                                            ref = liftM2 (,) rId cId
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
                                                            schema = toSchemeInf $ map process $ concatMap (\x -> deep (tag "column") x) $ deep (tag "schema") c
@@ -101,8 +101,8 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
                                   cols = map (\(n, v) -> (n, fromJust v)) $ filter (\(_, p) -> isJust p) results
                                in SchemaInfo iterName cols
         process :: Content i -> (String, Maybe Int)
-        process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup "name" attrs
-                                                   pos = fmap attrToInt $ lookup "position" attrs
+        process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup (X.N "name") attrs
+                                                   pos = fmap attrToInt $ lookup (X.N "position") attrs
                                                 in (name, pos)
         process _ = $impossible
 
