@@ -5,7 +5,7 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Al
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100 (X100Algebra, dummy, generateQuery, renderX100Dot, tagsToFile, rootsToFile, nodesToFile)
+import Database.Algebra.X100 (X100Algebra, dummy, generateQuery, tagsToFile, rootsToFile, nodesToFile)
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -126,7 +126,7 @@ toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
     tagsToFile f t
     rootsToFile f (rootNodes r)
-    nodesToFile f $ reverseNodeMap m
+    nodesToFile f $ reverseAlgMap m
   where
       rootNodes :: Plan -> [AlgNode]
       rootNodes (TupleVector qs) = concat $ map rootNodes qs
@@ -140,7 +140,7 @@ toX100File f (m, r, t) = do
 
 toX100String :: AlgPlan X100Algebra Plan -> Query X100
 toX100String (m, r, t) = 
-    let m' = reverseNodeMap m 
+    let m' = reverseAlgMap m 
     in
         case r of
             PrimVal r'     -> PrimVal $ X100 r' $ snd $ generateQuery m' r'
