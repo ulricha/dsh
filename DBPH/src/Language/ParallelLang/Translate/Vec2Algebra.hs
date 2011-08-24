@@ -5,7 +5,13 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Al
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100 (X100Algebra, dummy, generateQuery, tagsToFile, rootsToFile, nodesToFile)
+import qualified Data.Set as Set
+
+import Database.Algebra.X100.Data.Algebra(X100Algebra)
+import Database.Algebra.X100.Data.Create(dummy)
+import Database.Algebra.X100.Aux
+import Database.Algebra.Graph.Serialize
+import Database.Algebra.X100.Render.X100Code
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
@@ -125,7 +131,7 @@ toX100Algebra e = runGraph dummy (fkl2Alg e)
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
     tagsToFile f t
-    rootsToFile f (rootNodes r)
+    rootsToFile f (Set.elems $ Set.fromList $ rootNodes r)
     nodesToFile f $ reverseAlgMap m
   where
       rootNodes :: Plan -> [AlgNode]
@@ -143,11 +149,11 @@ toX100String (m, r, t) =
     let m' = reverseAlgMap m 
     in
         case r of
-            PrimVal r'     -> PrimVal $ X100 r' $ snd $ generateQuery m' r'
+            PrimVal r'     -> PrimVal $ X100 r' $ generateQuery m' r'
             TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
-            DescrVector r' -> DescrVector $ X100 r' $ snd $ generateQuery m' r' 
-            ValueVector r' -> ValueVector $ X100 r' $ snd $ generateQuery m' r'
-            NestedVector r' rs -> NestedVector (X100 r' $ snd $ generateQuery m' r') $ toX100String (m, rs, t)
+            DescrVector r' -> DescrVector $ X100 r' $ generateQuery m' r' 
+            ValueVector r' -> ValueVector $ X100 r' $ generateQuery m' r'
+            NestedVector r' rs -> NestedVector (X100 r' $ generateQuery m' r') $ toX100String (m, rs, t)
             PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
             Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
