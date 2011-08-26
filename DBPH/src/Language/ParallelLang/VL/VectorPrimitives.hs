@@ -41,6 +41,7 @@ type TypedAbstractColumn t = (AbstractColumn, t)
 
 class VectorAlgebra a where
   groupBy :: Plan -> Plan -> Graph a Plan
+  sortWith :: Plan -> Plan -> Graph a Plan
   notPrim :: Plan -> Graph a Plan
   notVec :: Plan -> Graph a Plan
   lengthA :: Plan -> Graph a Plan
@@ -65,6 +66,10 @@ class VectorAlgebra a where
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
   ifNestList :: Plan -> Plan -> Plan -> Graph a Plan
+  vecSum :: Plan -> Graph a Plan
+  vecSumLift :: Plan -> Plan -> Graph a Plan
+  empty :: Plan -> Graph a Plan
+  emptyLift :: Plan -> Plan -> Graph a Plan
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
