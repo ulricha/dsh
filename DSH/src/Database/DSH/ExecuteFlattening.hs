@@ -108,7 +108,7 @@ fromRight _         = error "fromRight"
 
 fromEither :: Type -> Either Norm [(Int, Norm)] -> Norm
 fromEither _ (Left n) = n
-fromEither t (Right ns) = concatN t $ map snd ns 
+fromEither t (Right ns) = concatN t $ reverse $ map snd ns 
 
 constructDescriptor :: Type -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)] -> [(Int, Norm)]
 constructDescriptor t@(ListT t1) ((i, vs):outers) inners = let (r, inners') = nestList t1 (map fst vs) inners
@@ -132,7 +132,7 @@ concatN t []                   = ListN [] t
 concatN _ _                    = error "concatN: Not a list of lists"
 
 normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
-normaliseList t@(ListT t1) c vs = foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
+normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
 normaliseList _            _ _  = error "normaliseList: Should not happen"
 
 normalise :: Type -> Int -> [SqlValue] -> Norm
