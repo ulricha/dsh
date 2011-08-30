@@ -33,6 +33,7 @@ fromFType (T.List t) = ListT (fromFType t)
 
 typeReconstructor :: Type -> Type -> (Type, Norm -> Norm)
 typeReconstructor o ex | o == ex = (o, id)
+                       | o == TextT && ex == CharT = (ex, textToChar) 
                        | otherwise = case ex of
                                         ListT es -> let (t1, f1) = pushIn ex
                                                         (t2, f2) = typeReconstructor o t1
@@ -42,7 +43,11 @@ typeReconstructor o ex | o == ex = (o, id)
                                                                                r2@(t2',_) = typeReconstructor to2 t2
                                                                             in (TupleT t1' t2', onPair r1 r2)
                                                          otherwise -> error "cannot reconstruct type"
-                                        t -> error $ "This type cannot be reconstructed: " ++ show t
+                                        CharT -> (CharT, textToChar)
+                                        t -> error $ "This type cannot be reconstructed: " ++ show t ++ " provided: " ++ show o
+
+textToChar :: Norm -> Norm
+textToChar (TextN t TextT) = CharN (Txt.head t) CharT 
 
 onPair :: (Type, Norm -> Norm) -> (Type, Norm -> Norm) -> Norm -> Norm
 onPair (t1, f1) (t2, f2) (TupleN e1 e2 _) = TupleN (f1 e1) (f2 e2) (TupleT t1 t2) 
@@ -127,7 +132,7 @@ concatN t []                   = ListN [] t
 concatN _ _                    = error "concatN: Not a list of lists"
 
 normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
-normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
+normaliseList t@(ListT t1) c vs = foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
 normaliseList _            _ _  = error "normaliseList: Should not happen"
 
 normalise :: Type -> Int -> [SqlValue] -> Norm
