@@ -1,0 +1,8 @@
+#!/opt/local/bin/bash
+
+rm -f query*.vwq query*.pdf query*.dot
+codegen query
+sharingcodegen query
+dotgen query
+dot -Tpdf -o query.pdf query.dot
+open query.pdf
