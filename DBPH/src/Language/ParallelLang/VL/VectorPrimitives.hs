@@ -71,6 +71,8 @@ class VectorAlgebra a where
   vecSumLift :: Plan -> Plan -> Graph a Plan
   empty :: Plan -> Graph a Plan
   emptyLift :: Plan -> Plan -> Graph a Plan
+  selectPos :: Plan -> Oper -> Plan -> Graph a Plan
+  selectPosLift :: Plan -> Oper -> Plan -> Graph a Plan
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
