@@ -30,6 +30,7 @@ transform :: N.Expr -> TransM (F.Expr Type)
 transform (N.Table t n c k) = pure $ F.Table t n c k
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.Pair t e1 e2) = F.Pair t <$> transform e1 <*> transform e2
+transform (N.App _ (N.App _t (N.Var _ "map") f) e) = mapS <$> transform f <*> transform e
 transform (N.App _t e1 es) = cloApp <$> transform e1 <*> transform es
 transform (N.Lam t arg e) = do
                              fvs <- transEnv $ S.toList $ N.freeVars (arg:topLevelVars) e
@@ -43,7 +44,7 @@ transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
-transform (N.Var t "map")    = pure $ mapVal t
+transform (N.Var t "map")    = undefined -- pure $ mapVal t
 transform (N.Var t "length") = pure $ lengthVal t
 transform (N.Var t "not")    = pure $ notVal t
 transform (N.Var t "concat") = pure $ concatVal t
@@ -62,7 +63,7 @@ flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
 flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
 flatten i e1 (N.Pair t ex1 ex2) = F.Pair (liftType t) <$> flatten i e1 ex1 <*> flatten i e1 ex2
 flatten _ e1 (N.Var t "not") = return $ distF (notVal t) e1
-flatten _ e1 (N.Var t "map") = return $ distF (mapVal t) e1
+flatten _ e1 (N.Var t "map") = undefined -- return $ distF (mapVal t) e1
 flatten _ e1 (N.Var t "length") = return $ distF (lengthVal t) e1
 flatten _ e1 (N.Var t "concat") = return $ distF (concatVal t) e1
 flatten _ e1 (N.Var t "groupWith") = return $ distF (groupWithVal t) e1
@@ -70,6 +71,7 @@ flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x
 flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1
 flatten _ e1 (N.Nil t) = return $ distF (F.Nil t) e1
+flatten i e1 (N.App _ (N.App _t (N.Var _ "map") f) e) = mapL <$> flatten i e1 f <*> flatten i e1 e
 flatten i e1 (N.App _t f es) = cloLApp <$> flatten i e1 f <*> flatten i e1 es
 flatten i d (N.Fst _ e) = fstLF <$> flatten i d e
 flatten i d (N.Snd _ e) = sndLF <$> flatten i d e
@@ -108,7 +110,7 @@ flatten v d (N.Lam t arg e) = do
                                 e' <- withCleanLetEnv $ transform e
                                 fvs <- transEnv $ S.toList $ N.freeVars (arg:topLevelVars) e
                                 e'' <- withCleanLetEnv $ foldr withLetVar (flatten i' n e) (arg: map fst fvs)
-                                return $ letF v d $ F.AClo (liftType t) ((n', d):fvs) arg e' e''
+                                return $ letF v d $ F.AClo (liftType t) n' d fvs arg e' e''
 -- This compilation rule is equivalent to using the combinator map
 flatten v d (N.Iter _t n e1 e2) = do
                                     f <- withCleanLetEnv $ transform $ N.Lam (unliftType (typeOf e1) .-> typeOf e2) n e2
@@ -116,4 +118,4 @@ flatten v d (N.Iter _t n e1 e2) = do
                                     return $ mapL (distF f d) e1'
 
 topLevelVars :: [String]
-topLevelVars = ["dist", "restrict", "combine", "not", "insert", "extract"]
+topLevelVars = ["dist", "restrict", "combine", "not", "insert", "extract", "map"]

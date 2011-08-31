@@ -178,7 +178,7 @@ distLiftPF e1 e2 = do
                     (DescrVector q2) <- toDescr e2
                     q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
                     qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
-                    qr2 <- DescrVector <$> proj [(posold, pos'), (posnew, pos)] q
+                    qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ TupleVector [qr1, qr2]                    
 
 renamePF :: Plan -> Plan -> Graph PFAlgebra Plan
@@ -195,7 +195,7 @@ propagateInPF (PropVector q1) e2 = do
                      qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
                      qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
                      return $ TupleVector [qr1, qr2]
-propagateInPF _ _ = error "propagateInPF: Should not be possible"
+propagateInPF p e = error $ "propagateInPF: Should not be possible\n" ++ show p ++ "\n\n" ++ show e
                      
 singletonVecPF :: Plan -> Graph PFAlgebra Plan
 singletonVecPF e1 = do

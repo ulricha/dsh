@@ -93,7 +93,7 @@ fkl2Alg (PApp1 _ f arg) = fkl2Alg arg >>= case f of
 fkl2Alg (PApp2 _ (Extract _) arg1 (Const _ (Int i))) = do
                                         e1 <- fkl2Alg arg1
                                         extract e1 i
-fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn 
+fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of
                 (Extract _) -> $impossible
@@ -109,8 +109,9 @@ fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
                                 return $ Closure n fv x f1 f2
-fkl2Alg (AClo _ fvs x f1 f2) = do
-                              ((n, v):fv) <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
+fkl2Alg (AClo _ n e fvs x f1 f2) = do
+                              v <- fkl2Alg e
+                              fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
                               return $ AClosure n v 1 fv x f1 f2 
 fkl2Alg (CloApp _ c arg) = do
                              (Closure _ fvs x f1 _) <- fkl2Alg c
