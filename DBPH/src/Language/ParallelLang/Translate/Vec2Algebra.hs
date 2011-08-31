@@ -10,7 +10,6 @@ import qualified Data.Set as Set
 import Database.Algebra.X100.Data.Algebra(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.Aux
-import Database.Algebra.Graph.Serialize
 import Database.Algebra.X100.Render.X100Code
 
 import Language.ParallelLang.VL.Algebra
@@ -18,6 +17,7 @@ import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Language.ParallelLang.Common.Data.Val(Val(Int))
+import Database.Algebra.Graph.Common
 import Database.Algebra.Graph.GraphBuilder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
@@ -130,9 +130,7 @@ toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
-    tagsToFile f t
-    rootsToFile f (Set.elems $ Set.fromList $ rootNodes r)
-    nodesToFile f $ reverseAlgMap m
+    planToFile f (t, Set.elems $ Set.fromList $ rootNodes r, reverseAlgMap m)
   where
       rootNodes :: Plan -> [AlgNode]
       rootNodes (TupleVector qs) = concat $ map rootNodes qs

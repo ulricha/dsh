@@ -14,6 +14,7 @@ import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
 
 import Database.Algebra.Pathfinder
+import Database.Algebra.Graph.Common
 import Database.Algebra.Graph.GraphBuilder
 
 instance VectorAlgebra PFAlgebra where
