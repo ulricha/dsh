@@ -233,7 +233,7 @@ deTuple (PApp1 _ (SndL _) e) = do
                                     _               -> return $ sndF e'
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl
-deTuple (AClo t vs x f fl) = AClo (transType t) vs x <$> deTuple f <*> deTuple fl
+deTuple (AClo t n e vs x f fl) = AClo (transType t) n <$> deTuple e <*> pure vs <*> pure x <*> deTuple f <*> deTuple fl
 deTuple (CloApp t f args) = CloApp (transType t) <$> deTuple f <*> deTuple args
 deTuple (CloLApp t f args) = CloLApp (transType t) <$> deTuple f <*> deTuple args 
 

@@ -28,7 +28,7 @@ data Expr t where
     Var     :: t -> String -> Expr t -- | Variable lifted to level i
     Nil     :: t -> Expr t -- | []
     Clo     :: t -> String -> [(String, Expr t)] -> String -> Expr t -> Expr t -> Expr t -- When performing normal function application ignore the first value of the freeVars!!!
-    AClo    :: t -> [(String, Expr t)] -> String -> Expr t -> Expr t -> Expr t
+    AClo    :: t -> String -> Expr t -> [(String, Expr t)] -> String -> Expr t -> Expr t -> Expr t
     deriving Eq
 
 data Prim1 t = LengthPrim t
@@ -97,6 +97,6 @@ instance Typed Expr t where
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
-    typeOf (AClo t _ _ _ _) = t
+    typeOf (AClo t _ _ _ _ _ _) = t
     typeOf (Pair t _ _) = t
 

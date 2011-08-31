@@ -5,10 +5,10 @@ import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.VectorPrimitives
 
 chainPropagate :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-chainPropagate p q@(ValueVector _) = do 
+chainPropagate p@(PropVector _) q@(ValueVector _) = do 
                                       TupleVector [v, _] <- propagateIn p q
                                       return v
-chainPropagate p (NestedVector d vs) = do
+chainPropagate p@(PropVector _) (NestedVector d vs) = do
                                         TupleVector [v', p'] <- propagateIn p (DescrVector d)
                                         e3 <- chainPropagate p' vs
                                         return $ attachV v' e3

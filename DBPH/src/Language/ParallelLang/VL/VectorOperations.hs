@@ -149,7 +149,7 @@ dist q1@(ValueVector _) q2    | nestingDepth q2 > 0 = do
 dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         o1 <- outer q1
                                                         o2 <- outer q2
-                                                        TupleVector [d, p] <- distDesc o1 o2
+                                                        TupleVector [d, p@(PropVector _)] <- distDesc o1 o2
                                                         et <- extract q1 1
                                                         e3 <- chainPropagate p et
                                                         o <- outer q2
@@ -171,11 +171,11 @@ distL q1@(ValueVector _) (NestedVector d vs) = do
                                                 return $ attachV (DescrVector d) v
 distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do 
                                                      o <- outer vs2
-                                                     TupleVector [d, p] <- distLift (DescrVector d1) o
+                                                     TupleVector [d, p@(PropVector _)] <- distLift (DescrVector d1) o
                                                      e3 <- chainPropagate p vs1
                                                      return $ attachV (DescrVector d2) $ attachV d e3
 distL (AClosure n v i xs x f fl) q2 = do
-                                        v' <- dist q2 v
+                                        v' <- distL q2 v
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL _ _ = error "distL: Should not be possible"
