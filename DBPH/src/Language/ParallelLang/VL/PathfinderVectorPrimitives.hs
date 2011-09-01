@@ -43,6 +43,7 @@ instance VectorAlgebra PFAlgebra where
   emptyVector = emptyVectorPF
   ifPrimList = ifPrimListPF
   ifNestList = isNestListM
+  sortWith = sortWithPF
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
