@@ -107,6 +107,19 @@ binOpPF False op (PrimVal q1) (PrimVal q2) = do
   return (PrimVal q)
 binOpPF _ _ _ _ = $impossible
 
+sortWithPF :: Plan -> Plan -> Graph PFAlgebra Plan
+sortWithPF (ValueVector qs) e = 
+    do
+        (rf, qe, pf) <- determineResultVector e
+        q <- tagM "sortWith" 
+             $ eqJoinM pos pos''
+               (projM [(pos, pos), (pos', pos')]
+                $ rownum pos' [descr, item] Nothing qs)
+               (proj (pf [(descr, descr), (pos'', pos)]) qe)
+        qv <- proj (pf [(descr, descr), (pos, pos')]) q
+        qp <- proj [(posold, pos''), (posnew, pos')] q
+        return $ TupleVector [rf qv, PropVector qp]
+
 groupByPF :: Plan -> Plan -> Graph PFAlgebra Plan
 groupByPF (ValueVector v1) (ValueVector v2) = do
                                              q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol [(descr, Asc), (item, Asc)] v1
