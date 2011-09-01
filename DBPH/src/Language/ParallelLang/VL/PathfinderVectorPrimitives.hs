@@ -45,7 +45,7 @@ instance VectorAlgebra PFAlgebra where
   ifNestList = isNestListM
   sortWith = sortWithPF
   vecSum = vecSumPF
-  vecSumLift = undefined
+  vecSumLift = vecSumLiftPF
   selectPos = undefined
   selectPosLift = undefined
   -- FIXME implement empty primitives
