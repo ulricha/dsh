@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Language.ParallelLang.VL.PathfinderVectorPrimitives where
 
+import Data.Maybe
+
 import Control.Applicative hiding (Const)
 
 import Language.ParallelLang.Common.Impossible
@@ -99,22 +101,20 @@ auxCol Item' = item'
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
 
--- FIXME not what we want
 selectPosLiftPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
 selectPosLiftPF e op (ValueVector qi) =
     do
         (rf, qe, pf) <- determineResultVector e
-        qs <- projM (pf [(descr, descr), (pos, posnew)])
-              $ rownumM posnew [descr, pos] Nothing
+        qs <- rownumM posnew [descr, pos] Nothing
               $ selectM resCol
               $ operM (show op) resCol pos' item'
               $ eqJoinM descr pos''
               (rownum pos' [pos] (Just descr) qe)
               (proj [(pos'', pos), (item', item)] qi)
-        return $ rf qs
--- FIXME generate propagation Vector
+        q <- proj (pf [(descr, descr), (pos, posnew)]) qs
+        qp <- proj [(posold, pos), (posnew, posnew)] qs
+        return $ TupleVector [rf q, PropVector qp]
 
--- FIXME not what we want
 selectPosPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
 selectPosPF e op (PrimVal qi) =
     do
@@ -124,15 +124,17 @@ selectPosPF e op (PrimVal qi) =
               $ crossM
               (proj (pf [(descr, descr), (pos', pos)]) qe)
               (proj [(item', item)] qi)
-        q <- case op of 
+        qn <- case op of 
                 Lt -> 
-                    proj (pf [(descr, descr), (pos, pos')]) qs 
+                    proj (pf [(descr, descr), (pos, pos'), (pos', pos')]) qs 
                 LtE -> 
-                    proj (pf [(descr, descr), (pos, pos')]) qs 
+                    proj (pf [(descr, descr), (pos, pos'), (pos', pos')]) qs 
                 _ -> 
-                    projM (pf [(descr, descr), (pos, pos)])
+                    projM (pf [(descr, descr), (pos, pos), (pos', pos')])
                     $ rownum pos [descr, pos'] Nothing qs
-        return $ rf qs
+        q <- proj (pf [(descr, descr), (pos, pos)]) qn
+        qp <- proj [(posnew, pos), (posold, pos')] qn
+        return $ TupleVector [rf q, PropVector qp]
 
 vecSumPF :: Plan -> Graph PFAlgebra Plan
 vecSumPF (ValueVector q) =
@@ -386,12 +388,15 @@ constrEnvName x i = x ++ "<%>" ++ show i
 tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebra Plan
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) ks
-                     t' <- attachM descr natT (nat 1) $ rownum pos (head ks) Nothing table
-                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, item ++ show i)] t') $ zip cs [1..]
+                     t' <- attachM descr natT (nat 1) $ rownum pos keyItems Nothing table
+                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, item ++ show i)] t') numberedCols 
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
     renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
-    renameCols xs = [NCol cn [Col i $ algTy t]| ((cn, t), i) <- zip xs [1..]]
+    renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
+    numberedCols = zip cs [1 :: Integer .. ]
+    numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
+    keyItems = map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames)) (head ks)
 
 toDescr :: Plan -> Graph PFAlgebra Plan
 toDescr v@(DescrVector _) = return v
