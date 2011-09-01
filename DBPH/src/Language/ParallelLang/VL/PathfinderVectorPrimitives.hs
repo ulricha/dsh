@@ -387,8 +387,8 @@ constrEnvName x i = x ++ "<%>" ++ show i
 
 tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebra Plan
 tableRefPF n cs ks = do
-                     table <- dbTable n (renameCols cs) ks
-                     t' <- attachM descr natT (nat 1) $ rownum pos keyItems Nothing table
+                     table <- dbTable n (renameCols cs) keyItems
+                     t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
                      cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, "item" ++ show i)] t') numberedCols 
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
@@ -396,7 +396,7 @@ tableRefPF n cs ks = do
     renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
     numberedCols = zip cs [1 :: Integer .. ]
     numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
-    keyItems = map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames)) (head ks)
+    keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
 
 toDescr :: Plan -> Graph PFAlgebra Plan
 toDescr v@(DescrVector _) = return v
