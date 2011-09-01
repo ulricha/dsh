@@ -86,6 +86,8 @@ fkl2Alg (PApp1 _ f arg) = fkl2Alg arg >>= case f of
                                            (NotPrim _) -> notPrim 
                                            (NotVec _) -> notVec 
                                            (ConcatLift _) -> concatLift
+                                           (Sum _) -> sumPrim
+                                           (SumL _) -> sumLift
                                            (Fst _) -> $impossible
                                            (Snd _) -> $impossible
                                            (FstL _) -> $impossible
@@ -101,6 +103,8 @@ fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= u
                 (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
                 (GroupWithL _) -> groupByL
+                (SortWithS _) -> sortWithS
+                (SortWithL _) -> sortWithL
                 (Index _) -> error "Index is not yet defined fkl2Alg"
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute

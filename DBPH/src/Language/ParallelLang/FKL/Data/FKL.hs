@@ -40,6 +40,8 @@ data Prim1 t = LengthPrim t
              | Snd t
              | FstL t
              | SndL t
+             | Sum t
+             | SumL t
     deriving Eq
     
 instance Show (Prim1 t)where
@@ -55,6 +57,8 @@ instance Show (Prim1 t)where
     
 data Prim2 t = GroupWithS t
              | GroupWithL t 
+             | SortWithS t
+             | SortWithL t
              | Index t
              | Dist t
              | Dist_L t
@@ -65,7 +69,9 @@ data Prim2 t = GroupWithS t
 
 instance Show (Prim2 t) where
     show (GroupWithS _) = "groupWithS"
-    show (GroupWithL _) = "groupWithL" 
+    show (GroupWithL _) = "groupWithL"
+    show (SortWithS _)  = "sortWithS"
+    show (SortWithL _)  = "sortWithL" 
     show (Index _)      = "index"
     show (Dist _)       = "dist"
     show (Dist_L _)     = "dist_L"
