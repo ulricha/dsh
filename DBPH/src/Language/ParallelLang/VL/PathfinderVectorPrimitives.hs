@@ -44,7 +44,7 @@ instance VectorAlgebra PFAlgebra where
   ifPrimList = ifPrimListPF
   ifNestList = isNestListM
   sortWith = sortWithPF
-  vecSum = undefined
+  vecSum = vecSumPF
   vecSumLift = undefined
   selectPos = undefined
   selectPosLift = undefined
@@ -98,6 +98,29 @@ auxCol Item' = item'
 
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
+
+vecSumPF :: Plan -> Graph PFAlgebra Plan
+vecSumPF (ValueVector q) =
+    do
+        qs <- attachM descr natT (nat 1)
+             $ attachM pos natT (nat 1)
+             $ aggr [(Sum, item, Just item)] Nothing q
+        return $ PrimVal qs
+vecSumPF _ = $impossible
+
+vecSumLiftPF :: Plan -> Plan -> Graph PFAlgebra Plan
+vecSumLiftPF (DescrVector qd) (ValueVector qv) =
+    do
+        qe <- attachM item intT (int 0)
+              $ attachM pos natT (nat 1)
+              $ differenceM
+                (proj [(descr, pos)] qd)
+                (proj [(pos, pos)] qv)
+        qs <- attachM pos natT (nat 1)
+              $ aggr [(Sum, item, Just item)] (Just descr) qv
+        qr <- union qe qs
+        return $ ValueVector qr
+vecSumLiftPF _ _ = $impossible
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
 applyBinOp op q1 q2 =
