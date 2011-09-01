@@ -46,8 +46,8 @@ instance VectorAlgebra PFAlgebra where
   sortWith = sortWithPF
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF
-  selectPos = undefined
-  selectPosLift = undefined
+  selectPos = selectPosPF
+  selectPosLift = selectPosLiftPF
   -- FIXME implement empty primitives
   empty = undefined
   emptyLift = undefined
@@ -99,6 +99,41 @@ auxCol Item' = item'
 emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
 emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
 
+-- FIXME not what we want
+selectPosLiftPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
+selectPosLiftPF e op (ValueVector qi) =
+    do
+        (rf, qe, pf) <- determineResultVector e
+        qs <- projM (pf [(descr, descr), (pos, posnew)])
+              $ rownumM posnew [descr, pos] Nothing
+              $ selectM resCol
+              $ operM (show op) resCol pos' item'
+              $ eqJoinM descr pos''
+              (rownum pos' [pos] (Just descr) qe)
+              (proj [(pos'', pos), (item', item)] qi)
+        return $ rf qs
+-- FIXME generate propagation Vector
+
+-- FIXME not what we want
+selectPosPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
+selectPosPF e op (PrimVal qi) =
+    do
+        (rf, qe, pf) <- determineResultVector e
+        qs <- selectM resCol
+              $ operM (show op) resCol pos' item'
+              $ crossM
+              (proj (pf [(descr, descr), (pos', pos)]) qe)
+              (proj [(item', item)] qi)
+        q <- case op of 
+                Lt -> 
+                    proj (pf [(descr, descr), (pos, pos')]) qs 
+                LtE -> 
+                    proj (pf [(descr, descr), (pos, pos')]) qs 
+                _ -> 
+                    projM (pf [(descr, descr), (pos, pos)])
+                    $ rownum pos [descr, pos'] Nothing qs
+        return $ rf qs
+
 vecSumPF :: Plan -> Graph PFAlgebra Plan
 vecSumPF (ValueVector q) =
     do
@@ -115,7 +150,7 @@ vecSumLiftPF (DescrVector qd) (ValueVector qv) =
               $ attachM pos natT (nat 1)
               $ differenceM
                 (proj [(descr, pos)] qd)
-                (proj [(pos, pos)] qv)
+                (proj [(descr, descr)] qv)
         qs <- attachM pos natT (nat 1)
               $ aggr [(Sum, item, Just item)] (Just descr) qv
         qr <- union qe qs
