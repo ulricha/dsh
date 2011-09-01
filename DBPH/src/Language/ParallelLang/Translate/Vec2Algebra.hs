@@ -104,6 +104,7 @@ fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= u
                 (GroupWithS _) -> groupByS
                 (GroupWithL _) -> groupByL
                 (SortWithS _) -> sortWithS
+                (SortWithL _) -> sortWithL
                 (Index _) -> error "Index is not yet defined fkl2Alg"
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute

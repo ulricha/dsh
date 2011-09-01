@@ -18,6 +18,17 @@ sortWithS e1 (NestedVector d2 vs2) = do
 sortWithS e1 (TupleVector es) = TupleVector <$> mapM (sortWithS e1) es
 sortWithS _e1 _e2 = error "sortWithS: Should not be possible" 
 
+sortWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
+                                  TupleVector [v, _] <- sortWith v1 v2
+                                  return $ attachV (DescrVector d2) v
+sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
+                                     TupleVector [v, p] <- sortWith v1 (DescrVector d')
+                                     vs' <- chainPropagate p vs2
+                                     return $ attachV (DescrVector d2) $ attachV v vs'
+sortWithL e1 (TupleVector es) = TupleVector <$> mapM (sortWithL e1) es
+sortWithL _ _ = error "sortWithL: Should not be possible"
+
 groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByS e1 e2@(ValueVector _) = do
                                   TupleVector [d, v, _] <- groupBy e1 e2

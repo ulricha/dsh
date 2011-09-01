@@ -39,7 +39,7 @@ sortWithVal t = Clo t "n" [] "__*sort_f*" f1 f2
         (t2, r) = splitType r1
         sws = sortWithS r (F.Var t1 "__*sort_f*") (F.Var t2 "__*sort_xs*")
         swl = sortWithL (listT r) (F.Var (listT t1) "__*sort_f*") (F.Var (listT t2) "__*sort_xs*")
-        f1 = Clo r1 "n" [("__*group_f*", F.Var t1 "__*sort_f*")] "__*sort_xs*" sws swl
+        f1 = Clo r1 "n" [("__*sort_f*", F.Var t1 "__*sort_f*")] "__*sort_xs*" sws swl
         f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*sort_f*", F.Var (listT t1) "__*sort_f*")] "__*sort_xs*" sws swl
 
 sortWithS :: Type -> TExpr -> TExpr -> TExpr
