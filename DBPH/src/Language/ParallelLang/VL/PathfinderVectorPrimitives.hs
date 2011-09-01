@@ -389,7 +389,7 @@ tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebr
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) ks
                      t' <- attachM descr natT (nat 1) $ rownum pos keyItems Nothing table
-                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, item ++ show i)] t') numberedCols 
+                     cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, "item" ++ show i)] t') numberedCols 
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
     renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
