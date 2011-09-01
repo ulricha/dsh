@@ -11,6 +11,7 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 
 import Database.Algebra.Graph.GraphBuilder
+import Database.Algebra.Graph.Common
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -70,6 +71,8 @@ class VectorAlgebra a where
   vecSumLift :: Plan -> Plan -> Graph a Plan
   empty :: Plan -> Graph a Plan
   emptyLift :: Plan -> Plan -> Graph a Plan
+  selectPos :: Plan -> Oper -> Plan -> Graph a Plan
+  selectPosLift :: Plan -> Oper -> Plan -> Graph a Plan
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra

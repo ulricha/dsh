@@ -2,6 +2,7 @@ module Language.ParallelLang.VL.Algebra where
 
 import qualified Language.ParallelLang.Common.Data.Type as U
 --import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
+import Database.Algebra.Graph.Common
 import qualified Database.Algebra.Graph.GraphBuilder as G
 import Database.Algebra.Pathfinder
 --import qualified Database.Ferry.Algebra as A
@@ -12,8 +13,7 @@ type Graph a = G.GraphM Plan a
 
 type Gam = G.Gam Plan
 
-type Plan = Query G.AlgNode
-
+type Plan = Query AlgNode
 
 convertType :: U.Type -> ATy
 convertType t | t == U.intT  = intT

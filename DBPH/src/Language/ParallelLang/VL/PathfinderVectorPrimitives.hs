@@ -14,6 +14,7 @@ import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
 
 import Database.Algebra.Pathfinder
+import Database.Algebra.Graph.Common
 import Database.Algebra.Graph.GraphBuilder
 
 instance VectorAlgebra PFAlgebra where
@@ -42,6 +43,7 @@ instance VectorAlgebra PFAlgebra where
   emptyVector = emptyVectorPF
   ifPrimList = ifPrimListPF
   ifNestList = isNestListM
+  sortWith = sortWithPF
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
@@ -105,6 +107,19 @@ binOpPF False op (PrimVal q1) (PrimVal q2) = do
   q <- applyBinOp op q1 q2
   return (PrimVal q)
 binOpPF _ _ _ _ = $impossible
+
+sortWithPF :: Plan -> Plan -> Graph PFAlgebra Plan
+sortWithPF (ValueVector qs) e = 
+    do
+        (rf, qe, pf) <- determineResultVector e
+        q <- tagM "sortWith" 
+             $ eqJoinM pos pos''
+               (projM [(pos, pos), (pos', pos')]
+                $ rownum pos' [descr, item] Nothing qs)
+               (proj (pf [(descr, descr), (pos'', pos)]) qe)
+        qv <- proj (pf [(descr, descr), (pos, pos')]) q
+        qp <- proj [(posold, pos''), (posnew, pos')] q
+        return $ TupleVector [rf qv, PropVector qp]
 
 groupByPF :: Plan -> Plan -> Graph PFAlgebra Plan
 groupByPF (ValueVector v1) (ValueVector v2) = do
