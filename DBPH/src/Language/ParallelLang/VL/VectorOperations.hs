@@ -204,4 +204,5 @@ distL (AClosure n v i xs x f fl) q2 = do
                                         v' <- distL q2 v
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
-distL _ _ = error "distL: Should not be possible"
+distL (TupleVector es) e2 = TupleVector <$> mapM (\e -> distL e e2) es 
+distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
