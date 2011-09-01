@@ -44,6 +44,13 @@ instance VectorAlgebra PFAlgebra where
   ifPrimList = ifPrimListPF
   ifNestList = isNestListM
   sortWith = sortWithPF
+  vecSum = undefined
+  vecSumLift = undefined
+  selectPos = undefined
+  selectPosLift = undefined
+  -- FIXME implement empty primitives
+  empty = undefined
+  emptyLift = undefined
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
