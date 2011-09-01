@@ -35,7 +35,7 @@ debugVec c (Q e) = liftM nkl2Vec $ toNKL c e
 debugX100 :: (QA a, IConnection conn) => conn -> Q a -> IO ()
 debugX100 c (Q e) = do
               e' <- toNKL c e
-              nkl2X100File "query" e'
+              nkl2X100File "query.plan" e'
               
 debugX100Plan :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugX100Plan c (Q e) = liftM (show . fst . nkl2X100Alg) $ toNKL c e
