@@ -30,6 +30,24 @@ groupWithS t f e = F.PApp2 t (F.GroupWithS (typeOf f .-> typeOf e .-> t)) (mapS 
 groupWithL :: Type -> TExpr -> TExpr -> TExpr
 groupWithL t f e = F.PApp2 t (F.GroupWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e 
 
+--The sortWith combinator
+
+sortWithVal :: Type -> TExpr
+sortWithVal t = Clo t "n" [] "__*sort_f*" f1 f2
+    where
+        (t1, r1) = splitType t
+        (t2, r) = splitType r1
+        sws = sortWithS r (F.Var t1 "__*sort_f*") (F.Var t2 "__*sort_xs*")
+        swl = sortWithL (listT r) (F.Var (listT t1) "__*sort_f*") (F.Var (listT t2) "__*sort_xs*")
+        f1 = Clo r1 "n" [("__*group_f*", F.Var t1 "__*sort_f*")] "__*sort_xs*" sws swl
+        f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*sort_f*", F.Var (listT t1) "__*sort_f*")] "__*sort_xs*" sws swl
+
+sortWithS :: Type -> TExpr -> TExpr -> TExpr
+sortWithS t f e = F.PApp2 t (F.SortWithS (typeOf f .-> typeOf e .-> t)) (mapS f e) e
+
+sortWithL :: Type -> TExpr -> TExpr -> TExpr
+sortWithL t f e = F.PApp2 t (F.SortWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e
+
 -- The map combinators are used for desugaring iterators.
 mapVal :: Type -> TExpr
 mapVal t = Clo t "n" [] "__*map_f*" f1 f2
@@ -58,6 +76,13 @@ notVal t = Clo t "n" [] "__*not_v*" f1 f2
         (a, r) = splitType t
         f1 = F.PApp1 r (F.NotPrim t) $ F.Var a "__*not_v*"
         f2 = F.PApp1 r (F.NotVec (liftType t)) $ F.Var (liftType a) "__*not_v*"
+
+sumVal :: Type -> TExpr
+sumVal t = Clo t "n" [] "__*sum_v*" f1 f2
+    where
+        (a, r) = splitType t
+        f1 = F.PApp1 r (F.Sum t) $ F.Var a "__*sum_v*"
+        f2 = F.PApp1 r (F.SumL (liftType t)) $ F.Var (liftType a) "__*sum_v*"
 
 concatVal :: Type -> TExpr
 concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
