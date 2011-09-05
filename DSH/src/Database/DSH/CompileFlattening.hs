@@ -147,6 +147,10 @@ translate (AppE2 GroupWith f e ty) = do
                                       c1 <- translate f
                                       c2 <- translate e
                                       return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "groupWith") c1) c2
+translate (AppE2 SortWith f e ty) = do
+                                        c1 <- translate f
+                                        c2 <- translate e
+                                        return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "sortWith") c1) c2
 translate (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- translate e1
                                             e2' <- translate e2
