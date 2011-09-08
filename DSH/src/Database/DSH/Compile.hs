@@ -13,11 +13,24 @@ import Data.List (sortBy)
 import Control.Monad.Reader
 import Control.Exception (evaluate)
 
+import Control.Concurrent.MVar
+import System.IO.Unsafe (unsafePerformIO)
+
 import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
 import Data.Convertible
+
+
+-- | This is a global synchronisation variable used to gouard calls to the
+-- Pathfinder C library. The C library appears not to be thread safe and this
+-- variable is used to make sure that only one pathfinder call is made at time
+-- even when a number parallel calls are made to the DSH's fromQ query
+-- evaluator.
+{-# NOINLINE globalMVar #-}
+globalMVar :: MVar ()
+globalMVar = unsafePerformIO (newEmptyMVar)
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -55,7 +68,9 @@ executePlan c p = do
 
 algToAlg :: AlgebraXML a -> IO (AlgebraXML a)
 algToAlg (Algebra s) = do
+                        putMVar  globalMVar ()
                         r <- pathfinder s [] OutputXml
+                        takeMVar globalMVar
                         case r of
                            (Right sql) -> return $ Algebra sql
                            (Left err) -> error $ "Pathfinder compilation for input: \n"
@@ -65,7 +80,9 @@ algToAlg (Algebra s) = do
 -- | Translate an algebraic plan into SQL code using Pathfinder
 algToSQL :: AlgebraXML a -> IO (SQLXML a)
 algToSQL (Algebra s) = do
+                         putMVar  globalMVar ()
                          r <- pathfinder s [] OutputSql
+                         takeMVar globalMVar
                          case r of
                             (Right sql) -> return $ SQL sql
                             (Left err) -> error $ "Pathfinder compilation for input: \n"
