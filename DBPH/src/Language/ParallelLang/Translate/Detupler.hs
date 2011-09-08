@@ -136,15 +136,7 @@ deTuple (PApp3 rt (Combine ft) e1 e2 e3) | containsTuple rt && not (isFuns rt)=
                                                               letF fv3 e3' $
                                                                 pairF e1'' e2''
                                          | otherwise = PApp3 rt (Insert ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
-deTuple (PApp2 rt (Extract ft) e1 e2) | (containsTuple $ typeOf e1) && not (isFuns $ typeOf e1) =
-                                            do
-                                                e1' <- deTuple e1
-                                                fv1 <- getFreshVar
-                                                let v1 = Var (typeOf e1') fv1
-                                                e1'' <- deTuple $ extractF (fstF v1) e2
-                                                e2'' <- deTuple $ extractF (sndF v1) e2
-                                                return $ letF fv1 e1' $ pairF e1'' e2''
-                                        | otherwise = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
+deTuple (PApp2 rt (Extract ft) e1 e2)  = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
                                             do
                                                 e1' <- deTuple e1
