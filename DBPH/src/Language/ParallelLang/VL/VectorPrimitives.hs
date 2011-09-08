@@ -86,6 +86,7 @@ extract (AClosure n v l fvs x f1 f2) i | i < l = AClosure n <$> (extract v i)
                                                                                         val' <- extract val i
                                                                                         return (y, val')) fvs)
                                                              <*> pure x <*> pure f1 <*> pure f2
+extract (TupleVector es) i = TupleVector <$> mapM (flip extract i) es
 extract v i = error $ "Extract: " ++ show v ++ " " ++ show i
 
 insert :: VectorAlgebra a => Plan -> Plan -> Int -> Graph a Plan
