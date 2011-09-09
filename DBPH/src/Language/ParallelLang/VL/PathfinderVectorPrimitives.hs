@@ -186,7 +186,7 @@ vecSumLiftPF (DescrVector qd) (ValueVector qv) =
               $ differenceM
                 (proj [(descr, pos)] qd)
                 (proj [(descr, descr)] qv)
-        qs <- attachM pos natT (nat 1)
+        qs <- rownumM pos [descr] Nothing
               $ aggr [(Sum, item, Just item)] (Just descr) qv
         qr <- union qe qs
         return $ ValueVector qr
