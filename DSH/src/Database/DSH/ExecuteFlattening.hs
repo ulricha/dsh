@@ -81,6 +81,7 @@ makeNorm :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm
 makeNorm c (P.PrimVal (P.SQL _ s q)) t = do
                                           (r, d) <- doQuery c q
                                           let (iC, ri) = schemeToResult s d
+                                          putStrLn $ show $ partByIter iC r
                                           let [(_, [(_, v)])] = partByIter iC r
                                           let i = snd (fromJust ri)
                                           return $ Left $ normalise t i v

@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec  #-}
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec, FlexibleInstances, UndecidableInstances  #-}
 module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
@@ -25,18 +25,30 @@ N monad, version of the state monad that can provide fresh variable names.
 -}
 type N conn = StateT (conn, Int, M.Map String [(String, (T.Type -> Bool))]) IO
 
--- | Lookup information that describes a table. If the information is 
--- not present in the state then the connection is used to retrieve the
--- table information from the Database.
-tableInfo :: IConnection conn => String -> N conn [(String, (T.Type -> Bool))]
-tableInfo t = do
-               (c, i, env) <- get
-               case M.lookup t env of
-                     Nothing -> do
-                                 inf <- lift $ getTableInfo c t
-                                 put (c, i, M.insert t inf env)
-                                 return inf                                      
-                     Just v -> return v
+{-
+class DBConn conn where
+    getTableInfo :: conn -> String -> IO [(String, (T.Type -> Bool))]
+
+instance IConnection conn => DBConn conn where
+    -- | Retrieve through the given database connection information on the table (columns with their types)
+    -- which name is given as the second argument.        
+    -- getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
+    getTableInfo c n = do
+                     info <- describeTable c n
+                     return $ toTableDescr info
+
+         where
+           toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
+           toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
+           compatibleType :: SqlTypeId -> T.Type -> Bool
+           compatibleType dbT hsT = case hsT of
+                                         T.Unit -> True
+                                         T.Bool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                         T.String -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+                                         T.Int -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                         T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                         t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+-}
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.        
@@ -57,6 +69,39 @@ getTableInfo c n = do
                                      T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                      t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
 
+-- | Lookup information that describes a table. If the information is 
+-- not present in the state then the connection is used to retrieve the
+-- table information from the Database.
+tableInfo :: IConnection conn => String -> N conn [(String, (T.Type -> Bool))]
+tableInfo t = do
+               (c, i, env) <- get
+               case M.lookup t env of
+                     Nothing -> do
+                                 inf <- lift $ getTableInfo c t
+                                 put (c, i, M.insert t inf env)
+                                 return inf                                      
+                     Just v -> return v
+
+{-
+-- | Retrieve through the given database connection information on the table (columns with their types)
+-- which name is given as the second argument.        
+getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
+getTableInfo c n = do
+                 info <- describeTable c n
+                 return $ toTableDescr info
+
+     where
+       toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
+       toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
+       compatibleType :: SqlTypeId -> T.Type -> Bool
+       compatibleType dbT hsT = case hsT of
+                                     T.Unit -> True
+                                     T.Bool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                     T.String -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+                                     T.Int -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                     T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                     t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+-}
 
 
 -- | Provide a fresh identifier name during compilation
@@ -74,6 +119,11 @@ getConnection :: IConnection conn => N conn conn
 getConnection = do
                  (c, _, _) <- get
                  return c
+
+{-
+toNKLX100 :: String -> Int -> Maybe FilePath -> Exp -> IO NKL.Expr
+toNKLX100 
+-}
 
 toNKL :: IConnection conn => conn -> Exp -> IO NKL.Expr
 toNKL c e = runN c $ translate e

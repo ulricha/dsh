@@ -34,7 +34,7 @@ instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
+getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5433' dbname = 'ferry'"
 
 qc:: Testable prop => prop -> IO ()
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
@@ -234,9 +234,9 @@ main = do
 #endif
     putStrPad "groupWith"
     qc prop_groupWith
-#ifndef isDBPH
     putStrPad "sortWith"
     qc prop_sortWith
+#ifndef isDBPH
     putStrPad "and"
     qc prop_and
     putStrPad "or"
@@ -245,12 +245,14 @@ main = do
     qc prop_any_zero
     putStrPad "all_zero"
     qc prop_all_zero
+#endif
     putStrPad "sum_integer"
     qc prop_sum_integer
     putStrPad "sum_double"
     qc prop_sum_double
     putStrPad "concat"
     qc prop_concat
+#ifndef isDBPH
     putStrPad "concatMap"
     qc prop_concatMap
     putStrPad "maximum"

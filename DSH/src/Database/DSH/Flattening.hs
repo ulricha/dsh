@@ -16,7 +16,7 @@ fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
                    (q, t) <- liftM nkl2SQL $ toNKL c a
                    executeQuery c t $ SQL q
-                
+                   
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL c e
 
