@@ -194,7 +194,7 @@ vecSumLiftPF (DescrVector qd) (ValueVector qv) =
         qa <- projM [(descr, descr'), (pos, pos), (item, item)]
               $ (eqJoinM pos' descr
                  (proj [(descr', descr), (pos', pos)] qd)
-                 (return qd))
+                 (return qr))
         return $ ValueVector qa
 vecSumLiftPF _ _ = $impossible
 
