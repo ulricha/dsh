@@ -189,7 +189,13 @@ vecSumLiftPF (DescrVector qd) (ValueVector qv) =
         qs <- rownumM pos [descr] Nothing
               $ aggr [(Sum, item, Just item)] (Just descr) qv
         qr <- union qe qs
-        return $ ValueVector qr
+        -- align the result vector with the original descriptor vector to get
+        -- the proper descriptor values (sum removes one list type constructor)
+        qa <- projM [(descr, descr'), (pos, pos), (item, item)]
+              $ (eqJoinM pos' descr
+                 (proj [(descr', descr), (pos', pos)] qd)
+                 (return qd))
+        return $ ValueVector qa
 vecSumLiftPF _ _ = $impossible
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
