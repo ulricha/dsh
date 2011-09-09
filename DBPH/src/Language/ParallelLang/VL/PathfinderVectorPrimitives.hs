@@ -50,9 +50,8 @@ instance VectorAlgebra PFAlgebra where
   vecSumLift = vecSumLiftPF
   selectPos = selectPosPF
   selectPosLift = selectPosLiftPF
-  -- FIXME implement empty primitives
-  empty = undefined
-  emptyLift = undefined
+  empty = emptyPF
+  emptyLift = emptyLiftPF
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
@@ -135,6 +134,40 @@ selectPosPF e op (PrimVal qi) =
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ TupleVector [rf q, PropVector qp]
+
+emptyPF :: Plan -> Graph PFAlgebra Plan
+emptyPF e =
+    do
+        (_, q, _) <- determineResultVector e
+        qs <- operM "==" resCol item' tmpCol 
+              $ attachM item' natT (nat 0)
+              $ aggr [(Max, tmpCol, Nothing)] Nothing q
+        qe <- projM [(descr, descr), (pos, pos), (item, item)]
+              $ attachM item boolT (bool True) 
+              $ select resCol qs
+        qne <- projM [(descr, descr), (pos, pos), (item, item)]
+              $ attachM item boolT (bool False) 
+              $ select resCol qs
+        qu <- attachM pos natT (nat 1)
+              $ attachM descr natT (nat 1)
+              $ union qe qne
+        return $ ValueVector qu
+
+emptyLiftPF :: Plan -> Plan -> Graph PFAlgebra Plan
+emptyLiftPF (DescrVector qo) ei =
+    do
+        (_, qi, _) <- determineResultVector ei
+        qd <- distinctM
+              $ proj [(descr, descr)] qi
+        qe <- attachM item boolT (bool True)
+              $ attachM pos natT (nat 1)
+              $ (differenceM
+                 (proj [(descr, descr)] qo)
+                 (return qd))
+        qne <- attachM pos natT (nat 1)
+               $ attach item boolT (bool False) qd
+        qu <- union qe qne
+        return $ ValueVector qu
 
 vecSumPF :: Plan -> Graph PFAlgebra Plan
 vecSumPF (ValueVector q) =
