@@ -169,19 +169,27 @@ emptyLiftPF (DescrVector qo) ei =
         qu <- union qe qne
         return $ ValueVector qu
 
-vecSumPF :: Plan -> Graph PFAlgebra Plan
-vecSumPF (ValueVector q) =
+vecSumPF :: Ty.Type -> Plan -> Graph PFAlgebra Plan
+vecSumPF t (ValueVector q) =
     do
+        q' <- attachM pos natT (nat 1) 
+                $ attachM descr natT (nat 1) $
+                 case t of
+                    Ty.Int -> litTable (int 0) item intT
+                    Ty.Nat -> litTable (nat 0) item natT
+                    Ty.Double -> litTable (double 0) item doubleT
+                    _   -> error "This type is not supported by the sum primitive (PF)"
         qs <- attachM descr natT (nat 1)
              $ attachM pos natT (nat 1)
-             $ aggr [(Sum, item, Just item)] Nothing q
+             $ aggrM [(Sum, item, Just item)] Nothing
+             $ union q' q
         return $ PrimVal qs
-vecSumPF _ = $impossible
+vecSumPF _ _ = $impossible
 
 vecSumLiftPF :: Plan -> Plan -> Graph PFAlgebra Plan
 vecSumLiftPF (DescrVector qd) (ValueVector qv) =
     do
-        qe <- attachM item intT (int 0)
+        qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...
               $ attachM pos natT (nat 1)
               $ differenceM
                 (proj [(descr, pos)] qd)

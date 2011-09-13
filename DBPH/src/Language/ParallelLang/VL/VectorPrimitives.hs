@@ -67,7 +67,7 @@ class VectorAlgebra a where
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
   ifNestList :: Plan -> Plan -> Plan -> Graph a Plan
-  vecSum :: Plan -> Graph a Plan
+  vecSum :: Ty.Type -> Plan -> Graph a Plan
   vecSumLift :: Plan -> Plan -> Graph a Plan
   empty :: Plan -> Graph a Plan
   emptyLift :: Plan -> Plan -> Graph a Plan

@@ -70,6 +70,13 @@ lengthVal t = Clo t "n" [] "__*length_v*" f1 f2
         f1 = F.PApp1 r (F.LengthPrim t) (F.Var a "__*length_v*")
         f2 = F.PApp1 r (F.LengthLift (liftType t)) (F.Var (liftType a) "__*length_v*")
 
+theVal :: Type -> TExpr
+theVal t = Clo t "n" [] "__*the_v*" f1 f2
+    where
+        (a, r) = splitType t
+        f1 = F.PApp1 r (F.The t) (F.Var a "__*the_v*")
+        f2 = F.PApp1 r (F.TheL (liftType t)) (F.Var (liftType a) "__*the_v*")
+
 notVal :: Type -> TExpr
 notVal t = Clo t "n" [] "__*not_v*" f1 f2
     where
