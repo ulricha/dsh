@@ -215,8 +215,10 @@ main = do
 #ifndef isDBPH
     putStrPad "filter"
     qc prop_filter
+#endif
     putStrPad "the"
     qc prop_the
+#ifndef isDBPH
     putStrPad "last"
     qc prop_last
     putStrPad "init"
