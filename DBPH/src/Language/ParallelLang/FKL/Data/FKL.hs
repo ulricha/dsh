@@ -42,6 +42,8 @@ data Prim1 t = LengthPrim t
              | SndL t
              | Sum t
              | SumL t
+             | The t
+             | TheL t
     deriving Eq
     
 instance Show (Prim1 t)where

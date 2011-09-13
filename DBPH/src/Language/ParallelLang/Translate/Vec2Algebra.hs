@@ -80,14 +80,15 @@ fkl2Alg (PApp1 _ (Snd _) arg) = do
                                  return e2
 fkl2Alg (PApp1 _ (FstL _) _) = error $ "FstL: Should have been eliminated by detupler"
 fkl2Alg (PApp1 _ (SndL _) _) = error $ "SndL: Should have been eliminated by detupler" 
-fkl2Alg (PApp1 _ f arg) = fkl2Alg arg >>= case f of
+fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
                                            (NotPrim _) -> notPrim 
                                            (NotVec _) -> notVec 
                                            (ConcatLift _) -> concatLift
-                                           (Sum _) -> sumPrim
+                                           (Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
+                                           (The _) -> the
                                            (Fst _) -> $impossible
                                            (Snd _) -> $impossible
                                            (FstL _) -> $impossible

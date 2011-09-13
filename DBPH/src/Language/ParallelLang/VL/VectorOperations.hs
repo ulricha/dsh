@@ -4,8 +4,22 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
+import Language.ParallelLang.Common.Data.Op
+import Language.ParallelLang.Common.Data.Type
+import qualified Language.ParallelLang.Common.Data.Val as V
 
 import Control.Applicative
+
+the :: VectorAlgebra a => Plan -> Graph a Plan
+the e@(ValueVector _) = do
+                         p <- constructLiteral intT (V.Int 1)
+                         TupleVector [ValueVector q, _] <- selectPos e Eq p
+                         return $ PrimVal q
+the (NestedVector d vs) = do
+                            p <- constructLiteral intT (V.Int 1)
+                            TupleVector [_, prop] <- selectPos (DescrVector d) Eq p
+                            chainPropagate prop vs
+the _ = error "the: Should not be possible"
 
 sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 sortWithS e1 e2@(ValueVector _) = do
@@ -184,8 +198,8 @@ mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
 
-sumPrim :: VectorAlgebra a => Plan -> Graph a Plan
-sumPrim q@(ValueVector _) = vecSum q
+sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
+sumPrim t q@(ValueVector _) = vecSum t q
 
 sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
 sumLift (NestedVector d1 vs1@(ValueVector _)) = vecSumLift (DescrVector d1) vs1 
