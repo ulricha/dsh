@@ -89,6 +89,7 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
                                            (The _) -> the
+                                           (TheL _) -> theL
                                            (Fst _) -> $impossible
                                            (Snd _) -> $impossible
                                            (FstL _) -> $impossible

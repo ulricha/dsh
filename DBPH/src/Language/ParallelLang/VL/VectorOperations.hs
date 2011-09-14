@@ -19,7 +19,27 @@ the (NestedVector d vs) = do
                             p <- constructLiteral intT (V.Int 1)
                             TupleVector [_, prop] <- selectPos (DescrVector d) Eq p
                             chainPropagate prop vs
+the (TupleVector vs) = TupleVector <$> mapM the vs
 the _ = error "the: Should not be possible"
+
+theL :: VectorAlgebra a => Plan -> Graph a Plan
+theL (NestedVector d e@(ValueVector _)) = do
+                                            one <- constructLiteral intT (V.Int 1)
+                                            p <- distPrim one (DescrVector d)
+                                            TupleVector [v, _] <- selectPosLift e Eq p
+                                            prop <- descToProp (DescrVector d)
+                                            TupleVector [v', _] <- propagateIn prop v
+                                            return v' 
+theL (NestedVector d (NestedVector d2 vs)) = do
+                                            one <- constructLiteral intT (V.Int 1)
+                                            p <- distPrim one (DescrVector d)
+                                            TupleVector [v, p2] <- selectPosLift (DescrVector d2) Eq p
+                                            prop <- descToProp (DescrVector d)
+                                            vs' <- chainPropagate p2 vs
+                                            TupleVector [v', _] <- propagateIn prop v
+                                            return $ attachV v' vs'
+theL (TupleVector es) = TupleVector <$> mapM theL es
+theL _ = error "theL: Should not be possible" 
 
 sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 sortWithS e1 e2@(ValueVector _) = do
