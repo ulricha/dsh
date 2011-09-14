@@ -20,7 +20,7 @@ nestingDepth :: Show a => Query a -> Int
 nestingDepth (ValueVector _) = 1
 nestingDepth (NestedVector _ r) = 1 + nestingDepth r
 nestingDepth (AClosure _ q _ _ _ _ _) = nestingDepth q 
-nestingDepth v                  = error $ "Not a list vector" ++ show v
+nestingDepth v                  = error $ "nestingDepth: Not a list vector" ++ show v
        
 data X100 = X100 Int String
 
