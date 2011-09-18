@@ -336,9 +336,9 @@ infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
-$(generateDeriveTupleQARange   3 12)
-$(generateDeriveTupleTARange   3 12)
-$(generateDeriveTupleViewRange 3 12)
+$(generateDeriveTupleQARange   3 16)
+$(generateDeriveTupleTARange   3 16)
+$(generateDeriveTupleViewRange 3 16)
 
 
 -- * Missing Combinators
