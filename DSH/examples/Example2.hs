@@ -21,14 +21,14 @@ employees = toQ [
   ]
 
 query :: Q [(Text, Integer)]
-query = [$qc| tuple (the dept, sum salary)
-            | (name, dept, salary) <- employees
-            , then group by dept
-            , then sortWith by (sum salary)
-            , then take 5 |]
+query = [qc| tuple (the dept, sum salary)
+           | (name, dept, salary) <- employees
+          , then group by dept
+          , then sortWith by (sum salary)
+          , then take 5 |]
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
+getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
 
 main :: IO ()
 main = do

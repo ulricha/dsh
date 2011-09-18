@@ -63,7 +63,7 @@ dshPreBuild args flags = do
   let script = [ "rm -r -f pathfinder"
                , "tar xzf pathfinder.tar.gz"
                , "cd pathfinder"
-               , "export CFLAGS=' " ++ cflags ++ " -fno-jump-tables '"
+               , "export CFLAGS=' " ++ cflags ++ " -fno-jump-tables -fPIC '"
                , "sh configure --prefix=`pwd` --enable-static --disable-shared"
                , "make"
                , "make install"
