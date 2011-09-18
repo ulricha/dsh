@@ -13,9 +13,21 @@ module Database.Pathfinder
 import Foreign
 import Foreign.C
 
+import Control.Concurrent.MVar (MVar,takeMVar,putMVar,newEmptyMVar)
+import qualified System.IO.Unsafe
+
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
+
+-- | This is a global synchronisation variable used to guard calls to the
+-- Pathfinder C library. The C library appears not to be thread safe and this
+-- variable is used to make sure that only one pathfinder call is made at time
+-- even in the presence of parallel or concurrent program execution.
+{-# NOINLINE globalMVar #-}
+globalMVar :: MVar ()
+globalMVar = System.IO.Unsafe.unsafePerformIO (newEmptyMVar)
+
 
 #include <pathfinder.h>
 
@@ -54,21 +66,24 @@ pathfinder :: XmlString     -- ^ A table algebra plan bundle in XML format
            -> OutputFormat  -- ^ Output format
            -> IO (Either ErrorString OutputString)
 pathfinder xml optimisation output = do
-    let bs = T.encodeUtf8 (T.pack xml)
-    B.useAsCString bs $ \c_xml -> 
-      alloca            $ \c_ptr ->
-        alloca            $ \c_err -> do
-          c_opt <-  case optimisation of
-                      [] -> return nullPtr
-                      _  -> newCString optimisation
+  putMVar  globalMVar ()
+  let bs = T.encodeUtf8 (T.pack xml)
+  r <- B.useAsCString bs $ \c_xml -> 
+          alloca            $ \c_ptr ->
+            alloca            $ \c_err -> do
+              c_opt <-  case optimisation of
+                          [] -> return nullPtr
+                          _  -> newCString optimisation
 
-          ci <- c_PFcompile_ferry_opt c_ptr c_err c_xml (outputFormatToCInt output) c_opt
-          free c_opt
+              ci <- c_PFcompile_ferry_opt c_ptr c_err c_xml (outputFormatToCInt output) c_opt
+              free c_opt
 
-          if ci == 0
-             then do
-               c_string <- peek c_ptr
-               r <- fmap (T.unpack . T.decodeUtf8) (B.packCString c_string)
-               free c_string
-               return (Right r)
-             else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c_err)
+              if ci == 0
+                 then do
+                   c_string <- peek c_ptr
+                   r <- fmap (T.unpack . T.decodeUtf8) (B.packCString c_string)
+                   free c_string
+                   return (Right r)
+                 else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c_err)
+  takeMVar globalMVar
+  return r
