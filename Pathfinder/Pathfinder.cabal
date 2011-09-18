@@ -42,3 +42,4 @@ Library
   Include-dirs:       include
   Extra-libraries:    xml2
   Exposed-modules:    Database.Pathfinder
+                     

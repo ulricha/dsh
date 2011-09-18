@@ -70,7 +70,8 @@ Library
                      csv                >= 0.1,
                      DBPH               >= 0.5.1,
                      Pathfinder         >= 0.5.8,
-                     FerryCore          >= 0.4.6.4
+                     FerryCore          >= 0.4.6.4,
+                     X100Client         >= 0.0.2
 
   Hs-Source-Dirs:    src
 
