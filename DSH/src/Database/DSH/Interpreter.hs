@@ -1,7 +1,7 @@
 -- | This module provides the reference implementation of DSH by interpreting
 -- the embedded representation.
 
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
 module Database.DSH.Interpreter (fromQ) where
@@ -15,7 +15,7 @@ import Database.HDBC
 import GHC.Exts
 import Data.List
 
-fromQ :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b  -> IO a
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
 
 evaluate :: IConnection conn

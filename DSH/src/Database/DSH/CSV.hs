@@ -10,7 +10,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-csvExport :: (TA a b) => FilePath -> [a] -> IO ()
+csvExport :: (TA a) => FilePath -> [a] -> IO ()
 csvExport file as = T.writeFile file csvContent
   where csvContent :: Text
         csvContent = T.unlines (map (toRow . toNorm) as)
