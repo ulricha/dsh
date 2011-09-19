@@ -48,7 +48,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
+executePlan :: forall a b conn. (QA a b, IConnection conn) => conn -> AlgebraXML a -> IO Norm
 executePlan c p = do
                         sql@(SQL _s) <- algToSQL p
                         runSQL c $ extractSQL sql
@@ -105,7 +105,7 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
         process _ = $impossible
 
 -- | Execute the given SQL queries and assemble the results into one structure
-runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
+runSQL :: forall a b conn. (QA a b, IConnection conn) => conn -> QueryBundle a -> IO Norm
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results

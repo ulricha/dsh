@@ -18,19 +18,12 @@ module Database.DSH
     module Database.DSH.Combinators
 
     -- * Data Types
-  , Q
+  , Q, L, S
 
     -- * Type Classes
-  , QA
-  , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
+  , QA, toQ
+  , TA, table, tableDB, tableCSV, tableWithKeys
   , View, view, fromView, tuple, record
-
-    -- * Quasiquoter
-  , qc
-
-    -- * Template Haskell: Creating Table Representations
-  , generateRecords
-  , generateInstances
 
   , module Database.DSH.CSV
 
@@ -40,9 +33,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
-import Database.DSH.QQ (qc)
-import Database.DSH.TH (generateRecords, generateInstances)
+import Database.DSH.Data (Q, QA, TA, L, S, toQ, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record)
 import Database.DSH.CSV (csvExport)
 
 import Database.DSH.Combinators

@@ -1,7 +1,7 @@
 -- This example was taken from the paper called "Comprehensive Comprehensions"
 -- by Phil Wadler and Simon Peyton Jones
 
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE MonadComprehensions, TransformListComp, ViewPatterns, OverloadedStrings #-}
 
 module Main where
 
@@ -11,7 +11,7 @@ import Database.DSH.Compiler
 
 import Database.HDBC.PostgreSQL
 
-employees :: Q [(Text, Text, Integer)]
+employees :: Q L (Q S (Q S Text, Q S Text, Q S Integer))
 employees = toQ [
     ("Simon",  "MS",   80)
   , ("Erik",   "MS",   90)
@@ -20,12 +20,13 @@ employees = toQ [
   , ("Paul",   "Yale", 60)
   ]
 
-query :: Q [(Text, Integer)]
-query = [qc| tuple (the dept, sum salary)
-           | (name, dept, salary) <- employees
-          , then group by dept
-          , then sortWith by (sum salary)
-          , then take 5 |]
+query :: Q L (Q S (Q S Text, Q S Integer))
+query = [ tuple (the dept, sum salary)
+        | (view -> (name, dept, salary)) <- employees
+        , then group by dept
+        , then sortWith by (sum salary)
+        , then take 5
+        ]
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"

@@ -3,7 +3,7 @@
 -- FerryCore which is then translated into SQL (through a table algebra). The SQL
 -- code is executed on the database and then processed to form a Haskell value.
 
-{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables, FlexibleContexts #-}
 
 module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL) where
 
@@ -76,28 +76,28 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 -- * Convert DB queries into Haskell values
 
 -- | Execute the query on the database
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b -> IO a
 fromQ c a = evaluate c a >>= (return . fromNorm)
 
 
 -- | Convert the query into unoptimised algebraic plan
-debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlan :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b -> IO String
 debugPlan = doCompile
 
 -- | Convert the query into optimised algebraic plan
-debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlanOpt :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b -> IO String
 debugPlanOpt q c = do
                     p <- doCompile q c
                     (C.Algebra r) <- algToAlg ((C.Algebra p)::AlgebraXML a)
                     return r
 
-debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugCore :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b -> IO String
 debugCore c (Q a) = do
                      core <- runN c $ transformE a
                      return $ show core
 
 -- | Convert the query into SQL
-debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugSQL :: (QA a (Q tb b), IConnection conn) => conn -> Q tb b -> IO String
 debugSQL q c = do
                 p <- doCompile q c
                 (C.SQL r) <- algToSQL ((C.Algebra p)::AlgebraXML a)
@@ -106,9 +106,9 @@ debugSQL q c = do
 -- | evaluate compiles the given Q query into an executable plan, executes this and returns 
 -- the result as norm. For execution it uses the given connection. If the boolean flag is set
 -- to true it outputs the intermediate algebraic plan to disk.
-evaluate :: forall a. forall conn. (QA a, IConnection conn)
-         =>  conn
-         -> Q a
+evaluate :: forall a b tb conn. (QA a (Q tb b), IConnection conn)
+         => conn
+         -> Q tb b
          -> IO Norm
 evaluate c q = do
                   algPlan' <- doCompile c q
@@ -118,7 +118,7 @@ evaluate c q = do
                   return n
 
 -- | Transform a query into an algebraic plan.                   
-doCompile :: IConnection conn => conn -> Q a -> IO String
+doCompile :: IConnection conn => conn -> Q tb b -> IO String
 doCompile c (Q a) = do 
                         core <- runN c $ transformE a
                         return $ typedCoreToAlgebra core
