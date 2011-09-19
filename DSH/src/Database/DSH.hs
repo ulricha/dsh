@@ -25,15 +25,13 @@ module Database.DSH
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
   , View, view, fromView, tuple, record
 
-    -- * Quasiquoter
-  , qc
-
     -- * Template Haskell: Creating Table Representations
   , generateRecords
   , generateInstances
 
   , module Database.DSH.CSV
 
+  , module Data.String
   , module Data.Text
   , module Database.HDBC
   , module Prelude
@@ -41,12 +39,12 @@ module Database.DSH
   where
 
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
-import Database.DSH.QQ (qc)
 import Database.DSH.TH (generateRecords, generateInstances)
 import Database.DSH.CSV (csvExport)
 
 import Database.DSH.Combinators
 
+import Data.String(IsString,fromString)
 import Data.Text (Text)
 import Database.HDBC
 
@@ -98,4 +96,6 @@ import Prelude hiding (
   , snd
   , maybe
   , either
+  , return
+  , (>>=)
   )

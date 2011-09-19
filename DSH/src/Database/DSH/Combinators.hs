@@ -326,6 +326,17 @@ integerToDouble (Q a) = Q (AppE1 IntegerToDouble a DoubleT)
 toQ   :: forall a. (QA a) => a -> Q a
 toQ c = Q (convert (toNorm c))
 
+-- * Rebind Monadic Combinators
+
+return :: (QA a) => Q a -> Q [a]
+return = singleton
+
+(>>=) :: (QA a, QA b) => Q [a] -> (Q a -> Q [b]) -> Q [b]
+(>>=) ma f = concatMap f ma
+
+mzip :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
+mzip = zip
+
 
 infixl 9 !!
 infixr 5 ><, <|, |>
@@ -336,9 +347,9 @@ infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
-$(generateDeriveTupleQARange   3 16)
-$(generateDeriveTupleTARange   3 16)
-$(generateDeriveTupleViewRange 3 16)
+$(generateDeriveTupleQARange   3 8)
+$(generateDeriveTupleTARange   3 8)
+$(generateDeriveTupleViewRange 3 8)
 
 
 -- * Missing Combinators

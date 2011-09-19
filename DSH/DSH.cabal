@@ -1,7 +1,14 @@
 Name:                DSH
-Version:             0.6.2
+Version:             0.7
 Synopsis:            Database Supported Haskell
 Description:
+  Note that DSH-0.7 is the very first, experimental release that is intended
+  to be used with monad comprehensions (a Haskell extension available in
+  GHC-7.2). For a currently stable version that implements comprehensions
+  using quasiquoting please download DSH-0.6. The experimental changes in this
+  version only affect the comprehension notation, the behaviour of the
+  supported combinators is not affected.
+  .
   This is a Haskell library for database-supported program execution. Using
   this library a relational database management system (RDBMS) can be used as
   a coprocessor for the Haskell programming language, especially for those
@@ -42,9 +49,7 @@ Stability:           Experimental
 Category:            Database
 Build-type:          Simple
 
-Extra-source-files:  examples/Example1.hs
-                     examples/Example1_data.sql
-                     examples/Example2.hs
+Extra-source-files:  examples/Example01.hs
                      tests/Main.hs
                      tests/Makefile
 
@@ -61,8 +66,6 @@ Library
                      HDBC               >= 2.2,
                      convertible        >= 1.0,
                      template-haskell   >= 2.4,
-                     haskell-src-exts   >= 1.11,
-                     syntax-trees       >= 0.1.2,
                      HaXml              >= 1.22,
                      csv                >= 0.1,
                      Pathfinder         >= 0.5.8,
@@ -76,11 +79,9 @@ Library
                      Database.DSH.Interpreter
                      Database.DSH.Compiler
 
-  Other-modules:     Database.DSH.QQ
-                     Database.DSH.TH
+  Other-modules:     Database.DSH.TH
                      Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
                      Database.DSH.Impossible
                      Database.DSH.Compile
-                     Paths_DSH
