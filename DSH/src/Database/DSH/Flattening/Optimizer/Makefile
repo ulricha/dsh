@@ -1,2 +1,2 @@
 all:
-	cabal configure && cabal build
+	cabal build
