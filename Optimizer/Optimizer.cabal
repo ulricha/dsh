@@ -19,11 +19,13 @@ Library
   Exposed-modules:     Optimizer.X100.OptimizeX100
   
   -- Packages needed in order to build this package.
-  Build-depends:       base, haskell98, mtl, containers, TableAlgebra2
+  Build-depends:       base, haskell98, mtl, containers, TableAlgebra2, fgl
   
   -- Modules not exported by this package.
   Other-modules:       Optimizer.X100.Rewrite.ProjectionMerge
                        Optimizer.X100.Rewrite.ConstOpt
+                       Optimizer.X100.Rewrite.SelectionPushdown
+                       Optimizer.X100.Rewrite.Normalize
   
 Executable x100opt
   Hs-Source-Dirs:   src
