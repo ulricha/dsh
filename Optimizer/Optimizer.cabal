@@ -31,3 +31,4 @@ Executable x100opt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/X100/Tools/Opt.hs
   Build-depends:       base, TableAlgebra2
+  GHC-Options: -rtsopts -auto-all -O3
