@@ -26,6 +26,7 @@ Library
                        Optimizer.X100.Rewrite.ConstOpt
                        Optimizer.X100.Rewrite.SelectionPushdown
                        Optimizer.X100.Rewrite.Normalize
+                       Optimizer.X100.Rewrite.PruneColumns
   
 Executable x100opt
   Hs-Source-Dirs:   src
