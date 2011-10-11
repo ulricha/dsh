@@ -19,7 +19,7 @@ Library
   Exposed-modules:     Optimizer.X100.OptimizeX100
   
   -- Packages needed in order to build this package.
-  Build-depends:       base, haskell98, mtl, containers, TableAlgebra2, fgl
+  Build-depends:       base, mtl, containers, TableAlgebra2, fgl, pretty
   
   -- Modules not exported by this package.
   Other-modules:       Optimizer.X100.Rewrite.ProjectionMerge
