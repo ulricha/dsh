@@ -1,6 +1,3 @@
--- This example was taken from the paper called "Comprehensive Comprehensions"
--- by Phil Wadler and Simon Peyton Jones
-
 {-# LANGUAGE MonadComprehensions, RebindableSyntax, ViewPatterns #-}
 
 module Main where
@@ -14,16 +11,23 @@ import Database.HDBC.PostgreSQL
 ints :: Q [Integer]
 ints = toQ [1 .. 10]
 
-query :: Q [(Integer,Integer)]
-query = [ tuple (i1, i2)
-        | i1 <- ints
-        , i2 <- ints
-        ]
+query1 :: Q [(Integer,Integer)]
+query1 =  [ tuple (i1,i2)
+          | i1 <- ints
+          , i2 <- ints
+          ]
 
+query2 :: Q [(Integer,Integer)]
+query2 =  [ tuple (i1,i2)
+          | (view -> (i1,i2)) <- query1
+          , i1 == i2
+          ]
+          
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
 
+runQ :: (Show a,QA a) => Q a -> IO ()
+runQ q = getConn P.>>= \conn -> (fromQ conn q P.>>= P.print) P.>> disconnect conn
+
 main :: IO ()
-main = 
-  getConn          P.>>= \conn ->
-  fromQ conn query P.>>= P.print
+main = (runQ ints) P.>> (runQ query1) P.>> (runQ query2)

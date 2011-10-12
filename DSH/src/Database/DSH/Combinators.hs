@@ -334,9 +334,14 @@ return = singleton
 (>>=) :: (QA a, QA b) => Q [a] -> (Q a -> Q [b]) -> Q [b]
 (>>=) ma f = concatMap f ma
 
+(>>) :: (QA a, QA b) => Q [a] -> Q [b] -> Q [b]
+(>>) ma mb = concatMap (\_ -> mb) ma
+
 mzip :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
 mzip = zip
 
+guard :: Q Bool -> Q [()]
+guard c = cond c (singleton unit) nil
 
 infixl 9 !!
 infixr 5 ><, <|, |>

@@ -98,4 +98,5 @@ import Prelude hiding (
   , either
   , return
   , (>>=)
+  , (>>)
   )

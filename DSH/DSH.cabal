@@ -1,14 +1,7 @@
 Name:                DSH
-Version:             0.7
+Version:             0.7.1
 Synopsis:            Database Supported Haskell
 Description:
-  Note that DSH-0.7 is the very first, experimental release that is intended
-  to be used with monad comprehensions (a Haskell extension available in
-  GHC-7.2). For a currently stable version that implements comprehensions
-  using quasiquoting please download DSH-0.6. The experimental changes in this
-  version only affect the comprehension notation, the behaviour of the
-  supported combinators is not affected.
-  .
   This is a Haskell library for database-supported program execution. Using
   this library a relational database management system (RDBMS) can be used as
   a coprocessor for the Haskell programming language, especially for those
