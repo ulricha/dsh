@@ -65,9 +65,9 @@ Library
                      Pathfinder         >= 0.5.8,
                      FerryCore          >= 0.4.6.4
 
-  Hs-Source-Dirs:    src
+  Hs-source-dirs:    src
 
-  GHC-Options:       -O3 -Wall
+  GHC-options:       -O3 -Wall
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
