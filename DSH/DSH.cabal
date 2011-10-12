@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.7.1
+Version:             0.7.2
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -43,6 +43,7 @@ Category:            Database
 Build-type:          Simple
 
 Extra-source-files:  examples/Example01.hs
+                     examples/Makefile
                      tests/Main.hs
                      tests/Makefile
 
