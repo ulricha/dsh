@@ -16,8 +16,10 @@ module Database.DSH.TH
     , deriveTAForRecord
     , deriveTAForRecord'
 
-    , generateRecords
-    , generateInstances
+    , generateDatabaseRecordInstances
+    , generateTableRecordInstances
+    , generateRecordInstances
+    , generateTableDeclarations
     ) where
 
 
@@ -27,6 +29,7 @@ import Database.DSH.Impossible
 import Control.Applicative
 import Control.Monad
 import Data.Convertible
+import Data.Char
 import Data.List
 import Database.HDBC
 import Data.Text (Text)
@@ -443,25 +446,80 @@ recordQSelectors' q = q >>= fmap join . mapM addSel
 -- * Exported enduser functions
 --
 
+-- | Generate table declarations for all tables in the database. This function
+-- should be used in conjunction with generateDatabaseRecordInstances. For
+-- example, this function generates the following code for the table 'users':
+--
+-- > users :: Q [User]
+-- > users = table "users"
+--
+generateTableDeclarations :: (IConnection conn)
+                             => (IO conn)  -- ^ Database connection
+                             -> TH.Q [Dec]
+generateTableDeclarations conn = do
+  tables <- runIO $ do  c <- conn
+                        r <- getTables c
+                        disconnect c
+                        return r
+  declss <- mapM generateTableDeclaration tables
+  return (concat declss)
+
+generateTableDeclaration :: String -> TH.Q [Dec]
+generateTableDeclaration s = return
+  [ TH.SigD (mkName s) (TH.AppT (TH.ConT ''Q) (TH.AppT TH.ListT (TH.ConT (mkName (dataTypeName s)))))
+  , TH.FunD (mkName s) [TH.Clause [] (TH.NormalB (TH.AppE (TH.VarE (mkName "table")) (TH.LitE (TH.StringL s)))) []]
+  ]
+
+-- | Create corresponding Haskell record data types and generate QA and View
+-- instances for all tables in the database (except for system tables).
+--
+-- Example usage:
+--
+-- > $(generateDatabaseRecordInstances myConnection)
+--
+-- Note that the database information is queried at compile time, not at run time!
+generateDatabaseRecordInstances :: (IConnection conn)
+                             => (IO conn)  -- ^ Database connection
+                             -> TH.Q [Dec]
+generateDatabaseRecordInstances conn = do
+  tables <- runIO $ do  c <- conn
+                        r <- getTables c
+                        disconnect c
+                        return r
+  decss <- mapM (\t -> generateTableRecordInstances conn t (dataTypeName t) [''Show,''Eq]) tables
+  return (concat decss)
+
+dataTypeName :: String -> String
+dataTypeName []       = []
+dataTypeName [c]      = map toUpper (cleanUnderscores [c])
+dataTypeName (c : cs) = toUpper c : cleanUnderscores (init cs)
+
+cleanUnderscores :: String -> String
+cleanUnderscores []             = []
+cleanUnderscores ['_']          = [] 
+cleanUnderscores ('_' : c : cs) = toUpper c : cleanUnderscores cs
+cleanUnderscores (c : cs)       = c : cleanUnderscores cs
+
 -- | Lookup a database table, create corresponding Haskell record data types
 -- and generate QA and View instances
 --
 -- Example usage:
 --
--- > $(generateRecords myConnection "users" "User" [''Show,''Eq])
+-- > $(generateTableRecordInstances myConnection "users" "User" [''Show,''Eq])
 --
--- Note that the da is created at compile time, not at run time!
-generateRecords :: (IConnection conn)
-                    => (IO conn)  -- ^ Database connection
-                    -> String     -- ^ Table name
-                    -> String     -- ^ Data type name for each row of the table
-                    -> [Name]     -- ^ Default deriving instances
-                    -> TH.Q [Dec]
-generateRecords conn t dname dnames = do
-    tdesc <- runIO $ do
-        c <- conn
-        describeTable c t
-    generateInstances (createDataType (sortWith fst tdesc))
+-- Note that the table information is queried at compile time, not at run time!
+generateTableRecordInstances  :: (IConnection conn)
+                              => (IO conn)  -- ^ Database connection
+                              -> String     -- ^ Table name
+                              -> String     -- ^ Data type name for each row of the table
+                              -> [Name]     -- ^ Default deriving instances
+                              -> TH.Q [Dec]
+generateTableRecordInstances conn t dname dnames = do
+    tdesc <- runIO $ do c <- conn
+                        r <- describeTable c t
+                        disconnect c
+                        return r
+    generateRecordInstances (createDataType (sortWith fst tdesc))
 
   where
     createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
@@ -495,7 +553,7 @@ generateRecords conn t dname dnames = do
 --
 -- Example usage:
 --
--- > $(generateInstances [d|
+-- > $(generateRecordInstances [d|
 -- >
 -- >     data User = User
 -- >         { userId    :: Int
@@ -517,11 +575,11 @@ generateRecords conn t dname dnames = do
 --
 -- > userIdQ      :: Q User -> Q Int
 -- > userNameQ    :: Q User -> Q String
-generateInstances :: TH.Q [Dec] -> TH.Q [Dec]
-generateInstances q = do
+generateRecordInstances :: TH.Q [Dec] -> TH.Q [Dec]
+generateRecordInstances q = do
     d  <- q
     qa <- deriveQAForRecord' q
     v  <- deriveViewForRecord' q
     ta <- deriveTAForRecord' q
     rs <- recordQSelectors' q
-    return $ d ++ qa ++ v ++ ta ++ rs
+    return (d ++ qa ++ v ++ ta ++ rs)

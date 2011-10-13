@@ -2,7 +2,7 @@
 
 module Main where
 
-import qualified Prelude as P 
+import qualified Prelude as P
 import Database.DSH
 import Database.DSH.Compiler
 
@@ -22,7 +22,7 @@ query2 =  [ tuple (i1,i2)
           | (view -> (i1,i2)) <- query1
           , i1 == i2
           ]
-          
+
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
 
