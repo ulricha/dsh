@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 
 import Database.Algebra.X100.Data.Algebra(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
-import Database.Algebra.X100.Aux
+import Database.Algebra.X100.Serialize
 import Database.Algebra.X100.Render.X100Code
 
 import Language.ParallelLang.VL.Algebra
