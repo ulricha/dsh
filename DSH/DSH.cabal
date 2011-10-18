@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.7.3
+Version:             0.7.4
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
