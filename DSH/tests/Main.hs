@@ -15,8 +15,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
 import Data.List
-import Data.Maybe
-import Data.Either
 import GHC.Exts
 
 import Data.Text (Text)
@@ -58,10 +56,6 @@ main = do
     qc prop_list_integer_2
     putStrPad "[[[Integer]]]"
     qc prop_list_integer_3
-    putStrPad "Maybe Integer"
-    qc prop_maybe_integer
-    putStrPad "Either Integer Integer: "
-    qc prop_either_integer
     
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
@@ -130,51 +124,7 @@ main = do
     qc prop_negate_integer
     putStrPad "negate_double"
     qc prop_negate_double
-    
-    putStrLn ""
-    putStrLn "Maybe"
-    putStrLn "-----"
-    putStrPad "maybe"
-    qc prop_maybe
-    putStrPad "just"
-    qc prop_just
-    putStrPad "isJust"
-    qc prop_isJust
-    putStrPad "isNothing"
-    qc prop_isNothing
-    putStrPad "fromJust"
-    qc prop_fromJust
-    putStrPad "fromMaybe"
-    qc prop_fromMaybe
-    putStrPad "listToMaybe"
-    qc prop_listToMaybe
-    putStrPad "maybeToList"
-    qc prop_maybeToList
-    putStrPad "catMaybes"
-    qc prop_catMaybes
-    putStrPad "mapMaybe"
-    qc prop_mapMaybe
-    
-    putStrLn ""
-    putStrLn "Either"
-    putStrLn "-----"
-    putStrPad "left"
-    qc prop_left
-    putStrPad "right"
-    qc prop_right
-    putStrPad "isLeft"
-    qc prop_isLeft
-    putStrPad "isRight"
-    qc prop_isRight
-    putStrPad "either"
-    qc prop_either
-    putStrPad "lefts"
-    qc prop_lefts
-    putStrPad "rights"
-    qc prop_rights
-    putStrPad "partitionEithers"
-    qc prop_partitionEithers
-    
+        
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
@@ -248,8 +198,6 @@ main = do
     qc prop_elem
     putStrPad "notElem"
     qc prop_notElem
-    putStrPad "lookup"
-    qc prop_lookup
     putStrPad "zip"
     qc prop_zip
     putStrPad "zipWith"
@@ -323,12 +271,6 @@ prop_list_integer_2 = makeProp id id
 prop_list_integer_3 :: [[[Integer]]] -> Property
 prop_list_integer_3 = makeProp id id
 
-prop_maybe_integer :: Maybe Integer -> Property
-prop_maybe_integer = makeProp id id
-
-prop_either_integer :: Either Integer Integer -> Property
-prop_either_integer = makeProp id id
-
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
@@ -372,64 +314,6 @@ prop_min_double = makePropDouble (uncurryQ Q.min) (uncurry min)
 
 prop_max_double :: (Double,Double) -> Property
 prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
-
--- * Maybe
-
-prop_maybe :: (Integer, Maybe Integer) -> Property
-prop_maybe =  makeProp (\a -> Q.maybe (Q.fst a) id (Q.snd a)) (\(i,mi) -> maybe i id mi)
-
-prop_just :: Integer -> Property
-prop_just = makeProp Q.just Just
-
-prop_isJust :: Maybe Integer -> Property
-prop_isJust = makeProp Q.isJust isJust
-
-prop_isNothing :: Maybe Integer -> Property
-prop_isNothing = makeProp Q.isNothing isNothing
-
-prop_fromJust :: Maybe Integer -> Property
-prop_fromJust mi = isJust mi ==> makeProp Q.fromJust fromJust mi
-
-prop_fromMaybe :: (Integer,Maybe Integer) -> Property
-prop_fromMaybe = makeProp (uncurryQ Q.fromMaybe) (uncurry fromMaybe)
-
-prop_listToMaybe :: [Integer] -> Property
-prop_listToMaybe = makeProp Q.listToMaybe listToMaybe
-
-prop_maybeToList :: Maybe Integer -> Property
-prop_maybeToList = makeProp Q.maybeToList maybeToList
-
-prop_catMaybes :: [Maybe Integer] -> Property
-prop_catMaybes = makeProp Q.catMaybes catMaybes
-
-prop_mapMaybe :: [Maybe Integer] -> Property
-prop_mapMaybe = makeProp (Q.mapMaybe id) (mapMaybe id)
-
--- * Either
-
-prop_left :: Integer -> Property
-prop_left = makeProp (Q.left :: Q Integer -> Q (Either Integer Integer)) Left
-
-prop_right :: Integer -> Property
-prop_right = makeProp (Q.right :: Q Integer -> Q (Either Integer Integer)) Right
-
-prop_isLeft :: Either Integer Integer -> Property
-prop_isLeft = makeProp Q.isLeft (\e -> case e of {Left _ -> True; Right _ -> False;})
-
-prop_isRight :: Either Integer Integer -> Property
-prop_isRight = makeProp Q.isRight (\e -> case e of {Left _ -> False; Right _ -> True;})
-
-prop_either :: (Either Integer Integer) -> Property
-prop_either =  makeProp (Q.either id id) (either id id)
-
-prop_lefts :: [Either Integer Integer] -> Property
-prop_lefts =  makeProp Q.lefts lefts
-
-prop_rights :: [Either Integer Integer] -> Property
-prop_rights =  makeProp Q.rights rights
-
-prop_partitionEithers :: [Either Integer Integer] -> Property
-prop_partitionEithers =  makeProp Q.partitionEithers partitionEithers
 
 -- * Lists
 
@@ -555,10 +439,6 @@ prop_elem = makeProp (uncurryQ $ Q.elem)
 prop_notElem :: (Integer, [Integer]) -> Property
 prop_notElem = makeProp (uncurryQ $ Q.notElem)
                         (uncurry  $   notElem)
-
-prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
-prop_lookup = makeProp (uncurryQ $ Q.lookup)
-                       (uncurry  $   lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
