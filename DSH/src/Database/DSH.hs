@@ -25,12 +25,6 @@ module Database.DSH
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
   , View, view, fromView, tuple, record
 
-    -- * Template Haskell: Creating Table Representations
-  , generateDatabaseRecordInstances
-  , generateTableRecordInstances
-  , generateRecordInstances
-  , generateTableDeclarations
-
   , module Database.DSH.CSV
 
   , module Data.String
@@ -41,8 +35,7 @@ module Database.DSH
   where
 
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
-import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
-import Database.DSH.CSV (csvExport)
+import Database.DSH.CSV
 
 import Database.DSH.Combinators
 
