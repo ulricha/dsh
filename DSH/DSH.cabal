@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.7.4
+Version:             0.7.5
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -63,6 +63,7 @@ Library
                      template-haskell   >= 2.4,
                      HaXml              >= 1.22,
                      csv                >= 0.1,
+                     json               >= 0.5,
                      Pathfinder         >= 0.5.8,
                      FerryCore          >= 0.4.6.4
 
@@ -78,5 +79,6 @@ Library
                      Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
+                     Database.DSH.JSON
                      Database.DSH.Impossible
                      Database.DSH.Compile
