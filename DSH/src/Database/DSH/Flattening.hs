@@ -9,8 +9,10 @@ import Database.DSH.CompileFlattening
 
 import Database.DSH.Data
 import Database.HDBC
+import qualified Database.HDBC as H
 
-import Database.X100Client(X100Info)
+import Database.X100Client
+import qualified Database.X100Client as X
 
 import qualified Language.ParallelLang.Common.Data.Type as T
 
@@ -22,6 +24,11 @@ fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
                    (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
                    executeSQLQuery c t $ SQL q
+
+fromX100 :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromX100 c (Q a) =  do
+                  (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
+                  executeSQLQuery c t $ SQL q
                    
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
@@ -57,7 +64,7 @@ debugSQL c (Q e) = liftM (show . fst . nkl2SQL) $ toNKL (getTableInfo c) e
 -- which name is given as the second argument.        
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
 getTableInfo c n = do
-                 info <- describeTable c n
+                 info <- H.describeTable c n
                  return $ toTableDescr info
 
      where
@@ -73,6 +80,41 @@ getTableInfo c n = do
                                      t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
 
 getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
-getX100TableInfo _c n = return $ 
-                        case n of
-                         "employees" -> [("department", \t -> t == T.String), ("name", \t -> t == T.String), ("salary", \t -> t == T.Int)]
+getX100TableInfo c n = do
+                         t <- X.describeTable' c n
+                         return [ col2Val c | c <- columns t]
+        where
+            col2Val :: ColumnInfo -> (String, T.Type -> Bool)
+            col2Val c = (colName c, \t -> case logicalType c of
+                                                LBool       -> t == T.Bool || t == T.Unit
+                                                LInt1       -> t == T.Int  || t == T.Unit
+                                                LUInt1      -> t == T.Int  || t == T.Unit
+                                                LInt2       -> t == T.Int  || t == T.Unit
+                                                LUInt2      -> t == T.Int  || t == T.Unit
+                                                LInt4       -> t == T.Int  || t == T.Unit
+                                                LUInt4      -> t == T.Int  || t == T.Unit
+                                                LInt8       -> t == T.Int  || t == T.Unit
+                                                LUInt8      -> t == T.Int  || t == T.Unit
+                                                LInt16      -> t == T.Int  || t == T.Unit
+                                                LUIDX       -> t == T.Nat  || t == T.Unit
+                                                LDec        -> t == T.Double
+                                                LFlt4       -> t == T.Double
+                                                LFlt8       -> t == T.Double
+                                                LMoney      -> t == T.Double
+                                                LChar       -> t == T.String
+                                                LVChar      -> t == T.String
+                                                LDate       -> t == T.Int
+                                                LTime       -> t == T.Int
+                                                LTimeStamp  -> t == T.Int
+                                                LIntervalDS -> t == T.Int
+                                                LIntervalYM -> t == T.Int
+                                                LUnknown s  -> error $ "Unknown DB type" ++ show s)
+                                                
+{-
+Nat :: Type
+Int :: Type
+Bool :: Type
+Double :: Type
+String :: Type
+Unit :: Type
+-}

@@ -210,11 +210,8 @@ partByIterX100 :: [X100Column] -> [(Int, [(Int, X100Data)])]
 partByIterX100 d = pbi d'  
     where
         d' :: [(Int, Int, X100Data)]
-        d' = let [descr, p, i] = [ expand c | c <- d]
+        d' = let [descr, p, i] = d
               in zip3 (map convert descr) (map convert p) i
-        expand :: X100Column -> [X100Data]
-        expand (NConstant rs) = rs
-        expand (Constant c rs) = replicate c rs     
         pbi :: [(Int, Int, X100Data)] -> [(Int, [(Int, X100Data)])]
         pbi vs = [ (the i, zip p it) | (i, p, it) <- vs
                                      , then group by i]

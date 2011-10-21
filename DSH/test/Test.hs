@@ -11,12 +11,17 @@ import Database.HDBC.PostgreSQL
 
 import Data.Text (Text(..))
 
+import Database.X100Client
+
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
+getXConn :: IO X100Info
+getXConn = return $ x100Info "localhost" 48130 Nothing
+
 t :: IO ()
 t = do
-     conn <- getConn
+     conn <- getXConn
      I.debugX100 conn $ groupWith (\(view -> (n, d, i)) -> d) employees
 {-
 test :: IO ()
