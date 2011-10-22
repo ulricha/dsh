@@ -33,6 +33,7 @@ module Database.DSH
 
   , module Database.DSH.CSV
   , module Database.DSH.JSON
+  , module Database.DSH.XHTML
 
   , module Data.String
   , module Data.Text
@@ -46,6 +47,7 @@ import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInst
 
 import Database.DSH.CSV
 import Database.DSH.JSON
+import Database.DSH.XHTML
 
 import Database.DSH.Combinators
 
