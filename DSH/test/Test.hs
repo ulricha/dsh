@@ -19,8 +19,8 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 getXConn :: IO X100Info
 getXConn = return $ x100Info "localhost" 48130 Nothing
 
-expr :: Q Integer
-expr = (toQ 39) + (toQ 1) + (toQ 2)
+expr :: Q (Integer, [Integer])
+expr = fromView ((toQ 39) + (toQ 1) + (toQ 2), toQ [100,10])
 
 t' :: IO ()
 t' = do

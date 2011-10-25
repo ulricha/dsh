@@ -6,10 +6,16 @@ import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
 -- import Database.DSH.Interpreter (fromQ)
-#ifdef isDBPH
-import Database.DSH.Flattening (fromQ)    
+#ifdef isDBPH 
+import Database.DSH.Flattening (fromQ)
+#elif isX100
+import Database.DSH.Flattening (fromX100) 
 #else
 import Database.DSH.Compiler (fromQ)
+#endif
+
+#ifdef isX100
+import Database.X100Client
 #endif
 
 import qualified Database.HDBC as HDBC
@@ -33,8 +39,13 @@ import System.IO.Unsafe
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
+#ifdef isX100
+getConn :: IO X100Info
+getConn = return $ x100Info "localhost" 48130 Nothing    
+#else
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5433' dbname = 'ferry'"
+#endif
 
 qc:: Testable prop => prop -> IO ()
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
@@ -293,9 +304,14 @@ makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             -> a
             -> Property
 makeProp f1 f2 arg = monadicIO $ do
-    c  <- run getConn
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+#else
+    c  <- run $ getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)
-    run (HDBC.disconnect c)
+    run $ HDBC.disconnect c
+#endif
     let hs = f2 arg
     assert (db == hs)
 
@@ -312,9 +328,14 @@ makePropDouble :: (QA a, Show a)
                   -> a
                   -> Property
 makePropDouble f1 f2 arg = monadicIO $ do
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+#else
     c  <- run $ getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
+#endif
     let hs = f2 arg
     let eps = 1.0E-8 :: Double;    
     assert (abs (db - hs) < eps)

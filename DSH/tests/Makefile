@@ -6,6 +6,9 @@ dbph: cabal
 		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main 
 		./Main
 
+x100: cabal
+		ghc -Wall -O3 -cpp -DisX100 --make Main.hs -o Main 
+		./Main
 map: clean
 		cd ..; cabal clean; cabal install -fmap; cd tests;
 		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main 
