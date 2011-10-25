@@ -19,6 +19,15 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 getXConn :: IO X100Info
 getXConn = return $ x100Info "localhost" 48130 Nothing
 
+expr :: Q Integer
+expr = (toQ 39) + (toQ 1) + (toQ 2)
+
+t' :: IO ()
+t' = do
+      conn <- getXConn
+      r <- I.fromX100 conn expr
+      putStrLn $ show r
+
 t :: IO ()
 t = do
      conn <- getXConn

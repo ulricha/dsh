@@ -3,26 +3,25 @@ module Database.DSH.ExecuteFlattening where
 
 import qualified Language.ParallelLang.DBPH as P
 import qualified Language.ParallelLang.Common.Data.Type as T
+
 import Database.DSH.Data
-import Database.HDBC
-import Control.Exception (evaluate)
--- import Database.DSH.Data
-import Data.Convertible
 import Database.DSH.Impossible
 
-import Data.Text (pack)
+import Database.X100Client hiding (X100 (..))
+
+import Database.HDBC
+
+import Control.Exception (evaluate)
+import Control.Monad(liftM)
 
 import GHC.Exts
 
-import Database.X100Client
-
+import Data.Convertible
+import Data.Text (pack)
 import qualified Data.Text as Txt
-
 import Data.List (foldl')
-
 import Data.Maybe (fromJust)
--- import Control.Applicative ((<$>))
-import Control.Monad(liftM)
+
 
 data SQL a = SQL (P.Query P.SQL)
 
@@ -88,6 +87,13 @@ executeSQLQuery c vt (SQL q) = do
                                 n <- makeNormSQL c q (fromFType vt)
                                 return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
 
+executeX100Query :: forall a. QA a => X100Info -> T.Type -> X100 a -> IO a
+executeX100Query c vt (X100 q) = do
+                                  let et = reify (undefined :: a)
+                                  let gt = fromFType vt
+                                  n <- makeNormX100 c q (fromFType vt)
+                                  return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
+
 makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
 makeNormSQL c (P.PrimVal (P.SQL _ s q)) t = do
                                           (r, d) <- doSQLQuery c q
@@ -114,9 +120,10 @@ makeNormSQL c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
 makeNormSQL _c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormX100 c (P.PrimVal (P.X100 _ q)) t = undefined {- do
-                                               r <- doX100Query c q
-                                               patByIterX100 r -}
+makeNormX100 c (P.PrimVal (P.X100 _ q)) t = do
+                                              (X100Res cols res) <- doX100Query c q
+                                              let [(_, [(_, v)])] = partByIterX100 res
+                                              return $ Left $ normaliseX100 t v
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x

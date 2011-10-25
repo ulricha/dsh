@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | This module provides the flattening implementation of DSH.
-module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, debugFKL', debugX100, debugX100Plan, debugNKLX100, debugFKLX100) where
+module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, debugFKL', fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100) where
 
-import Language.ParallelLang.DBPH hiding (SQL)
+import Language.ParallelLang.DBPH hiding (SQL, X100)
 
 import Database.DSH.ExecuteFlattening
 import Database.DSH.CompileFlattening
@@ -11,7 +11,7 @@ import Database.DSH.Data
 import Database.HDBC
 import qualified Database.HDBC as H
 
-import Database.X100Client
+import Database.X100Client hiding (X100(..))
 import qualified Database.X100Client as X
 
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -25,10 +25,11 @@ fromQ c (Q a) =  do
                    (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
                    executeSQLQuery c t $ SQL q
 
-fromX100 :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromX100 :: QA a => X100Info -> Q a -> IO a
 fromX100 c (Q a) =  do
-                  (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
-                  executeSQLQuery c t $ SQL q
+                  (q, t) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
+                  executeX100Query c t $ X100 q
+                  -- executeSQLQuery c t $ SQL q
                    
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
