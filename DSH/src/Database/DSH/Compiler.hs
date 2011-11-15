@@ -92,12 +92,11 @@ debugPlanOpt q c = do
                     return r
 
 debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCore c (Q a) = do
-                     core <- runN c $ transformE a
-                     return $ show core
+debugCore c q = do core <- runN c $ transformE (convert q)
+                   return $ show core
 
 debugAST :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugAST _c (Q a) = do
+debugAST _c a = do
                     return $ show a
 
 -- | Convert the query into SQL
@@ -122,10 +121,9 @@ evaluate c q = do
                   return n
 
 -- | Transform a query into an algebraic plan.                   
-doCompile :: IConnection conn => conn -> Q a -> IO String
-doCompile c (Q a) = do 
-                        core <- runN c $ transformE a
-                        return $ typedCoreToAlgebra core
+doCompile :: (IConnection conn, QA a) => conn -> Q a -> IO String
+doCompile c q = do core <- runN c $ transformE (convert q)
+                   return $ typedCoreToAlgebra core
 
 -- | Transform the Query into a ferry core program.
 transformE :: IConnection conn => Exp -> N conn CoreExpr

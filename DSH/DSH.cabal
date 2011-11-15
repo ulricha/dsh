@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.6.1.1
+Version:             0.7.4
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -42,9 +42,9 @@ Stability:           Experimental
 Category:            Database
 Build-type:          Simple
 
-Extra-source-files:  examples/Example1.hs
-                     examples/Example1_data.sql
-                     examples/Example2.hs
+Extra-source-files:  examples/Example01.hs
+                     examples/Example02.hs
+                     examples/Makefile
                      tests/Main.hs
                      tests/Makefile
 
@@ -64,8 +64,6 @@ Library
                      HDBC               >= 2.2,
                      convertible        >= 1.0,
                      template-haskell   >= 2.4,
-                     haskell-src-exts   >= 1.11,
-                     syntax-trees       >= 0.1.2,
                      HaXml              >= 1.22,
                      csv                >= 0.1,
                      DBPH               >= 0.5.1,
@@ -73,7 +71,7 @@ Library
                      FerryCore          >= 0.4.6.4,
                      X100Client         >= 0.0.2
 
-  Hs-Source-Dirs:    src
+  Hs-source-dirs:    src
 
   if flag (map)
     GHC-Options:       -O3 -Wall
@@ -87,9 +85,7 @@ Library
                      Database.DSH.Compiler
                      Database.DSH.Flattening
 
-  Other-modules:     Database.DSH.QQ
-                     Database.DSH.TH
-                     Database.DSH.Data
+  Other-modules:     Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
                      Database.DSH.Impossible
@@ -97,3 +93,4 @@ Library
                      Paths_DSH
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
+

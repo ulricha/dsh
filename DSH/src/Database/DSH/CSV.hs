@@ -1,6 +1,6 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
-module Database.DSH.CSV (csvImport, csvExport) where
+module Database.DSH.CSV (csvImport, csvExport, csvExportHandle, csvExportStdout) where
 
 import Database.DSH.Data
 import Database.DSH.Impossible
@@ -10,8 +10,17 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
-csvExport :: (TA a) => FilePath -> [a] -> IO ()
-csvExport file as = T.writeFile file csvContent
+import qualified System.IO as IO
+import System.IO (Handle)
+
+csvExport :: (QA a) => FilePath -> [a] -> IO ()
+csvExport file as = IO.withFile file IO.WriteMode (\handle -> csvExportHandle handle as)
+
+csvExportStdout :: (QA a) => [a] -> IO ()
+csvExportStdout = csvExportHandle IO.stdout
+
+csvExportHandle :: (QA a) => Handle -> [a] -> IO ()
+csvExportHandle handle as = T.hPutStr handle csvContent
   where csvContent :: Text
         csvContent = T.unlines (map (toRow . toNorm) as)
 
@@ -26,7 +35,7 @@ csvExport file as = T.writeFile file csvContent
 
         toRow :: Norm -> Text
         toRow e = case e of
-                    ListN _ _       -> $impossible
+                    ListN _ _       -> "Nesting"
                     UnitN _         -> quote "()"
                     BoolN b _       -> quote (T.pack (show b))
                     CharN c _       -> quote (escape (T.singleton c))

@@ -20,45 +20,47 @@ import qualified Data.List as L
 
 import Control.Monad.State
 
+import Data.Convertible
+
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) =  do
-                   (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
+fromQ c a =  do
+                   (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) $ convert a
                    executeSQLQuery c t $ SQL q
 
 fromX100 :: QA a => X100Info -> Q a -> IO a
-fromX100 c (Q a) =  do
-                  (q, t) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
+fromX100 c a =  do
+                  (q, t) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) $ convert a
                   executeX100Query c t $ X100 q
                   -- executeSQLQuery c t $ SQL q
                    
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
+debugNKL c e = liftM show $ toNKL (getTableInfo c) $ convert e
 
 debugNKLX100 :: QA a => X100Info -> Q a -> IO String
-debugNKLX100 c (Q e) = liftM show $ toNKL (getX100TableInfo c) e
+debugNKLX100 c e = liftM show $ toNKL (getX100TableInfo c) $ convert e
 
 debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = liftM nkl2fkl $ toNKL (getTableInfo c) e
+debugFKL c e = liftM nkl2fkl $ toNKL (getTableInfo c) $ convert e
 
 debugFKLX100 :: QA a => X100Info -> Q a -> IO String
-debugFKLX100 c (Q e) = liftM nkl2fkl $ toNKL (getX100TableInfo c) e
+debugFKLX100 c e = liftM nkl2fkl $ toNKL (getX100TableInfo c) $ convert e
 
 debugFKL' :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL' c (Q e) = liftM nkl2fkl' $ toNKL (getTableInfo c) e
+debugFKL' c e = liftM nkl2fkl' $ toNKL (getTableInfo c) $ convert e
     
 debugX100 :: QA a => X100Info -> Q a -> IO ()
-debugX100 c (Q e) = do
-              e' <- toNKL (getX100TableInfo c) e
+debugX100 c e = do
+              e' <- toNKL (getX100TableInfo c) $ convert e
               nkl2X100File "query.plan" e'
               
 debugX100Plan :: QA a => X100Info -> Q a -> IO String
-debugX100Plan c (Q e) = liftM (show . fst . nkl2X100Alg) $ toNKL (getX100TableInfo c) e
+debugX100Plan c e = liftM (show . fst . nkl2X100Alg) $ toNKL (getX100TableInfo c) $ convert e
 
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugPlan c (Q e) = liftM (show . fst . nkl2Alg) $ toNKL (getTableInfo c) e
+debugPlan c e = liftM (show . fst . nkl2Alg) $ toNKL (getTableInfo c) $ convert e
 
 debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugSQL c (Q e) = liftM (show . fst . nkl2SQL) $ toNKL (getTableInfo c) e
+debugSQL c e = liftM (show . fst . nkl2SQL) $ toNKL (getTableInfo c) $ convert e
 
 
 -- | Retrieve through the given database connection information on the table (columns with their types)

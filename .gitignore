@@ -5,3 +5,12 @@ tests/*.hpc
 tests/*.html
 tests/*.tix
 tests/Main
+
+*.pdf
+*.plan
+DSH/tests/Main
+*.hi
+*.o
+Pathfinder/pathfinder/
+Pathfinder/pathfinder_post_build.sh
+Pathfinder/pathfinder_pre_build.sh

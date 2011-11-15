@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE GADTs, TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
 
 module Database.DSH.Data where
 
@@ -33,6 +33,68 @@ data Exp =
 
 instance Show (Exp -> Exp) where
   show _ = "(f :: Exp -> Exp)"
+
+data Q a where
+  ToQ               :: (QA a)               =>  a -> Q a
+  PairQ             :: (QA a,QA b)          =>  Q a -> Q b -> Q (a,b)
+  TableQ            :: (TA a)               =>  Table -> Q [a]
+  FstQ              :: (QA a,QA b)          =>  Q (a,b) -> Q a
+  SndQ              :: (QA a,QA b)          =>  Q (a,b) -> Q b
+  NotQ              ::                          Q Bool -> Q Bool
+  IntegerToDoubleQ  ::                          Q Integer -> Q Double
+  HeadQ             :: (QA a)               =>  Q [a] -> Q a
+  TailQ             :: (QA a)               =>  Q [a] -> Q [a]
+  UnzipQ            :: (QA a,QA b)          =>  Q [(a,b)] -> Q ([a],[b])
+  MinimumQ          :: (QA a,Ord a)         =>  Q [a] -> Q a
+  MaximumQ          :: (QA a,Ord a)         =>  Q [a] -> Q a
+  ConcatQ           :: (QA a)               =>  Q [[a]] -> Q [a]
+  SumQ              :: (QA a,Num a)         =>  Q [a] -> Q a
+  AndQ              ::                          Q [Bool] -> Q Bool
+  OrQ               ::                          Q [Bool] -> Q Bool
+  ReverseQ          :: (QA a)               =>  Q [a] -> Q [a]
+  LengthQ           :: (QA a)               =>  Q [a] -> Q Integer
+  NullQ             :: (QA a)               =>  Q [a] -> Q Bool
+  InitQ             :: (QA a)               =>  Q [a] -> Q [a]
+  LastQ             :: (QA a)               =>  Q [a] -> Q a
+  TheQ              :: (QA a,Eq a)          =>  Q [a] -> Q a
+  NubQ              :: (QA a,Eq a)          =>  Q [a] -> Q [a]
+  AddQ              :: (QA a,Num a)         =>  Q a -> Q a -> Q a
+  MulQ              :: (QA a,Num a)         =>  Q a -> Q a -> Q a
+  SubQ              :: (QA a,Num a)         =>  Q a -> Q a -> Q a
+  DivQ              :: (QA a,Fractional a)  =>  Q a -> Q a -> Q a
+  AllQ              :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q Bool
+  AnyQ              :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q Bool
+  IndexQ            :: (QA a)               =>  Q [a] -> Q Integer -> Q a
+  SortWithQ         :: (QA a,QA b,Ord b)    =>  (Q a -> Q b) -> Q [a] -> Q [a]
+  ConsQ             :: (QA a)               =>  Q a -> Q [a] -> Q [a]
+  SnocQ             :: (QA a)               =>  Q [a] -> Q a -> Q [a]
+  TakeQ             :: (QA a)               =>  Q Integer -> Q [a] -> Q [a]
+  DropQ             :: (QA a)               =>  Q Integer -> Q [a] -> Q [a]
+  MapQ              :: (QA a,QA b)          =>  (Q a -> Q b) -> Q [a] -> Q [b]
+  AppendQ           :: (QA a)               =>  Q [a] -> Q [a] -> Q [a]
+  FilterQ           :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q [a]
+  GroupWithQ        :: (QA a,QA b,Ord b)    =>  (Q a -> Q b) -> Q [a] -> Q [[a]]
+  ZipQ              :: (QA a,QA b)          =>  Q [a] -> Q [b] -> Q [(a,b)]
+  BreakQ            :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q ([a], [a])
+  SpanQ             :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q ([a], [a])
+  DropWhileQ        :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q [a]
+  TakeWhileQ        :: (QA a)               =>  (Q a -> Q Bool) -> Q [a] -> Q [a]
+  SplitAtQ          :: (QA a)               =>  Q Integer -> Q [a] -> Q ([a],[a])
+  EquQ              :: (QA a,Eq a)          =>  Q a -> Q a -> Q Bool
+  ConjQ             ::                          Q Bool -> Q Bool -> Q Bool
+  DisjQ             ::                          Q Bool -> Q Bool -> Q Bool
+  LtQ               :: (QA a,Ord a)         => Q a -> Q a -> Q Bool
+  LteQ              :: (QA a,Ord a)         => Q a -> Q a -> Q Bool
+  GteQ              :: (QA a,Ord a)         => Q a -> Q a -> Q Bool
+  GtQ               :: (QA a,Ord a)         => Q a -> Q a -> Q Bool
+  MaxQ              :: (QA a,Ord a)         => Q a -> Q a -> Q a
+  MinQ              :: (QA a,Ord a)         => Q a -> Q a -> Q a
+  CondQ             :: (QA a)               => Q Bool -> Q a -> Q a -> Q a
+  ZipWithQ          :: (QA a,QA b,QA c)     => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
+  UntypedQ          :: (QA a)               => Exp -> Q a
+
+instance Show (Q a) where
+  show _ = "(Q a)"
 
 data Fun1 =
     Fst | Snd | Not | IntegerToDouble
@@ -88,20 +150,20 @@ data Table =
 
 typeExp :: Exp -> Type
 typeExp e = case e of
-  UnitE t -> t
-  BoolE _ t -> t
-  CharE _ t -> t
-  IntegerE _ t -> t
-  DoubleE _ t -> t
-  TextE _ t -> t
-  TupleE _ _ t -> t
-  ListE _ t -> t
-  LamE _ t -> t
-  AppE1 _ _ t -> t
-  AppE2 _ _ _ t -> t
+  UnitE t         -> t
+  BoolE _ t       -> t
+  CharE _ t       -> t
+  IntegerE _ t    -> t
+  DoubleE _ t     -> t
+  TextE _ t       -> t
+  TupleE _ _ t    -> t
+  ListE _ t       -> t
+  LamE _ t        -> t
+  AppE1 _ _ t     -> t
+  AppE2 _ _ _ t   -> t
   AppE3 _ _ _ _ t -> t
-  TableE _ t -> t
-  VarE _ t -> t
+  TableE _ t      -> t
+  VarE _ t        -> t
 
 typeArrowResult :: Type -> Type
 typeArrowResult (ArrowT _ t) = t
@@ -118,7 +180,11 @@ typeTupleSnd _ = $impossible
 typeNorm :: Norm -> Type
 typeNorm = typeExp . convert
 
-data Q a = Q Exp deriving (Show, Data, Typeable)
+unfoldType :: Type -> [Type]
+unfoldType (TupleT t1 t2) = t1 : unfoldType t2
+unfoldType t = [t]
+
+-- data Q a = Q Exp deriving (Show, Data, Typeable)
 
 class QA a where
   reify :: a -> Type
@@ -173,34 +239,6 @@ instance (QA a) => QA [a] where
   fromNorm (ListN as (ListT _)) = map fromNorm as
   fromNorm _ = $impossible
 
-instance (QA a) => QA (Maybe a) where
-  reify _ = reify ([] :: [a])
-
-  toNorm Nothing  = toNorm ([] :: [a])
-  toNorm (Just x) = toNorm [x]
-
-  fromNorm ma = case (fromNorm ma) :: [a] of
-                  []      -> Nothing
-                  (x : _) -> Just x
-
-instance (QA a,QA b) => QA (Either a b) where
-  reify _ = reify (([],[]) :: ([a],[b]))
-
-  toNorm (Left  x) = toNorm ([x],[] :: [b])
-  toNorm (Right x) = toNorm ([] :: [a],[x])
-
-  fromNorm e =  case (fromNorm e) :: ([a],[b]) of
-                  ([],x : _) -> Right x
-                  (x : _,[]) -> Left  x
-                  _          -> $impossible
-
-
-tupleToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
-tupleToEither (Q x) = (Q x)
-
-eitherToTuple :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
-eitherToTuple (Q x) = (Q x)
-
 class BasicType a where
 
 instance BasicType () where
@@ -214,7 +252,7 @@ instance BasicType Text where
 
 class (QA a) => TA a where
   tablePersistence :: Table -> Q [a]
-  tablePersistence t = Q (TableE t (reify (undefined :: [a])))
+  tablePersistence t = TableQ t
 
 
 table :: (TA a) => String -> Q [a]
@@ -247,51 +285,24 @@ instance Eq (Q Double) where
   (==) _ _ = error "Eq instance for (Q Double) must not be used."
 
 instance Num (Q Integer) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 IntegerT)
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 IntegerT)
-  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 IntegerT)
-
-  fromInteger i = Q (IntegerE i      IntegerT)
-
-  abs (Q e1) =
-    let zero      = IntegerE 0 IntegerT
-        e1Negated = AppE2 Sub zero e1 IntegerT
-    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT) e1Negated e1 IntegerT)
-
-  signum (Q e1) =
-    let zero     = IntegerE 0 IntegerT
-        one      = IntegerE 1 IntegerT
-        minusOne = IntegerE (negate 1) IntegerT
-    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT)
-                     (minusOne)
-                     (AppE3 Cond (AppE2 Equ e1 zero BoolT) zero one IntegerT)
-                     IntegerT)
+  (+)         = AddQ
+  (*)         = MulQ
+  (-)         = SubQ
+  fromInteger = ToQ
+  abs e       = CondQ (LtQ e 0) (negate e) e
+  signum e    = CondQ (LtQ e 0) (-1) (CondQ (EquQ e 0) 0 1)
 
 instance Num (Q Double) where
-  (+) (Q e1) (Q e2) = Q (AppE2 Add e1 e2 DoubleT)
-  (*) (Q e1) (Q e2) = Q (AppE2 Mul e1 e2 DoubleT)
-  (-) (Q e1) (Q e2) = Q (AppE2 Sub e1 e2 DoubleT)
-
-  fromInteger d     = Q (DoubleE (fromIntegral d) DoubleT)
-
-  abs (Q e1) =
-    let zero      = DoubleE 0.0 DoubleT
-        e1Negated = AppE2 Sub zero e1 DoubleT
-    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT) e1Negated e1 DoubleT)
-
-  signum (Q e1) =
-    let zero     = DoubleE 0.0 DoubleT
-        one      = DoubleE 1.0 DoubleT
-        minusOne = DoubleE (negate 1.0) DoubleT
-    in Q (AppE3 Cond (AppE2 Lt e1 zero BoolT)
-                     (minusOne)
-                     (AppE3 Cond (AppE2 Equ e1 zero BoolT) zero one DoubleT)
-                     DoubleT)
-
+  (+)         = AddQ
+  (*)         = MulQ
+  (-)         = SubQ
+  fromInteger = ToQ . fromInteger
+  abs e       = CondQ (LtQ e 0) (negate e) e
+  signum e    = CondQ (LtQ e 0) (-1) (CondQ (EquQ e 0) 0 1)
 
 instance Fractional (Q Double) where
-  (/) (Q e1) (Q e2) = Q (AppE2 Div e1 e2          DoubleT)
-  fromRational r    = Q (DoubleE (fromRational r) DoubleT)
+  (/)           = DivQ
+  fromRational  = ToQ . fromRational
 
 -- * Support for View Patterns
 
@@ -330,8 +341,8 @@ instance View (Q Text) (Q Text) where
   fromView = id
 
 instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
-  view (Q a) = (Q (AppE1 Fst a (reify (undefined :: a))), Q (AppE1 Snd a (reify (undefined :: b))))
-  fromView ((Q e1),(Q e2)) = Q (TupleE e1 e2 (reify (undefined :: (a, b))))
+  view e = (FstQ e, SndQ e)
+  fromView (e1,e2) = PairQ e1 e2
 
 instance Convertible Norm Exp where
     safeConvert n = Right $
@@ -345,23 +356,77 @@ instance Convertible Norm Exp where
              TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
              ListN ns t     -> ListE (map convert ns) t
 
-forget :: (QA a) => Q a -> Exp
-forget (Q a) = a
+instance (QA a) => Convertible (Q a) Exp where
+  safeConvert q =
+    let rt = reify (undefined :: a)
+    in  Right $ case q of
+                  UntypedQ e          -> e
+                  ToQ a               -> convert (toNorm a)
+                  TableQ t            -> TableE                 t                                       rt
+                  FstQ e              -> AppE1 Fst              (convert e)                             rt
+                  SndQ e              -> AppE1 Snd              (convert e)                             rt
+                  NotQ e              -> AppE1 Not              (convert e)                             rt
+                  IntegerToDoubleQ e  -> AppE1 IntegerToDouble  (convert e)                             rt
+                  HeadQ e             -> AppE1 Head             (convert e)                             rt
+                  TailQ e             -> AppE1 Tail             (convert e)                             rt
+                  UnzipQ e            -> AppE1 Unzip            (convert e)                             rt
+                  MinimumQ e          -> AppE1 Minimum          (convert e)                             rt
+                  MaximumQ e          -> AppE1 Maximum          (convert e)                             rt
+                  ConcatQ e           -> AppE1 Concat           (convert e)                             rt
+                  SumQ e              -> AppE1 Sum              (convert e)                             rt
+                  AndQ e              -> AppE1 And              (convert e)                             rt
+                  OrQ e               -> AppE1 Or               (convert e)                             rt
+                  ReverseQ e          -> AppE1 Reverse          (convert e)                             rt
+                  LengthQ e           -> AppE1 Length           (convert e)                             rt
+                  NullQ e             -> AppE1 Null             (convert e)                             rt
+                  InitQ e             -> AppE1 Init             (convert e)                             rt
+                  LastQ e             -> AppE1 Last             (convert e)                             rt
+                  TheQ e              -> AppE1 The              (convert e)                             rt
+                  NubQ e              -> AppE1 Nub              (convert e)                             rt
+                  PairQ e1 e2         -> TupleE                 (convert e1)  (convert e2)              rt
+                  AddQ e1 e2          -> AppE2 Add              (convert e1)  (convert e2)              rt
+                  MulQ e1 e2          -> AppE2 Mul              (convert e1)  (convert e2)              rt
+                  SubQ e1 e2          -> AppE2 Sub              (convert e1)  (convert e2)              rt
+                  DivQ e1 e2          -> AppE2 Div              (convert e1)  (convert e2)              rt
+                  IndexQ e1 e2        -> AppE2 Index            (convert e1)  (convert e2)              rt
+                  ConsQ e1 e2         -> AppE2 Cons             (convert e1)  (convert e2)              rt
+                  SnocQ e1 e2         -> AppE2 Snoc             (convert e1)  (convert e2)              rt
+                  AppendQ e1 e2       -> AppE2 Append           (convert e1)  (convert e2)              rt
+                  ZipQ e1 e2          -> AppE2 Zip              (convert e1)  (convert e2)              rt
+                  TakeQ e1 e2         -> AppE2 Take             (convert e1)  (convert e2)              rt
+                  DropQ e1 e2         -> AppE2 Drop             (convert e1)  (convert e2)              rt
+                  SplitAtQ e1 e2      -> AppE2 SplitAt          (convert e1)  (convert e2)              rt
+                  EquQ e1 e2          -> AppE2 Equ              (convert e1)  (convert e2)              rt
+                  ConjQ e1 e2         -> AppE2 Conj             (convert e1)  (convert e2)              rt
+                  DisjQ e1 e2         -> AppE2 Disj             (convert e1)  (convert e2)              rt
+                  LtQ e1 e2           -> AppE2 Lt               (convert e1)  (convert e2)              rt
+                  LteQ e1 e2          -> AppE2 Lte              (convert e1)  (convert e2)              rt
+                  GteQ e1 e2          -> AppE2 Gte              (convert e1)  (convert e2)              rt
+                  GtQ e1 e2           -> AppE2 Gt               (convert e1)  (convert e2)              rt  
+                  MaxQ e1 e2          -> AppE2 Max              (convert e1)  (convert e2)              rt
+                  MinQ e1 e2          -> AppE2 Min              (convert e1)  (convert e2)              rt  
+                  MapQ f e            -> AppE2 Map              (convert f)   (convert e)               rt
+                  AllQ f e            -> AppE2 All              (convert f)   (convert e)               rt
+                  AnyQ f e            -> AppE2 Any              (convert f)   (convert e)               rt
+                  FilterQ f e         -> AppE2 Filter           (convert f)   (convert e)               rt
+                  SortWithQ f e       -> AppE2 SortWith         (convert f)   (convert e)               rt
+                  GroupWithQ f e      -> AppE2 GroupWith        (convert f)   (convert e)               rt
+                  BreakQ f e          -> AppE2 Break            (convert f)   (convert e)               rt
+                  SpanQ f e           -> AppE2 Span             (convert f)   (convert e)               rt
+                  DropWhileQ f e      -> AppE2 DropWhile        (convert f)   (convert e)               rt
+                  TakeWhileQ f e      -> AppE2 TakeWhile        (convert f)   (convert e)               rt
+                  CondQ c e1 e2       -> AppE3 Cond             (convert c)   (convert e1) (convert e2) rt
+                  ZipWithQ f e1 e2    -> AppE3 ZipWith          (convert f)   (convert e1) (convert e2) rt
 
-toLam1 :: forall a b. (QA a,QA b) => (Q a -> Q b) -> Exp
-toLam1 f = LamE (forget . f . Q) (ArrowT (reify (undefined :: a)) (reify (undefined :: b)))
+instance (QA a,QA b) => Convertible (Q a -> Q b) Exp where
+  safeConvert f = Right (LamE (convert . f . UntypedQ) (ArrowT (reify (undefined :: a)) (reify (undefined :: b))))
 
-toLam2 :: forall a b c. (QA a,QA b,QA c) => (Q a -> Q b -> Q c) -> Exp
-toLam2 f =
-  let f1 = \a b -> forget (f (Q a) (Q b))
-      t1 = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
-      f2 = \a -> LamE (\b -> f1 a b) t1
-      t2 = ArrowT (reify (undefined :: a)) t1
-  in  LamE f2 t2
-
-unfoldType :: Type -> [Type]
-unfoldType (TupleT t1 t2) = t1 : unfoldType t2
-unfoldType t = [t]
+instance (QA a,QA b,QA c) => Convertible (Q a -> Q b -> Q c) Exp where
+  safeConvert f = let f1 = \a b -> convert (f (UntypedQ a) (UntypedQ b))
+                      t1 = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
+                      f2 = \a -> LamE (\b -> f1 a b) t1
+                      t2 = ArrowT (reify (undefined :: a)) t1
+                  in  Right (LamE f2 t2)
 
 instance Convertible Type SqlTypeId where
     safeConvert n =
@@ -460,4 +525,4 @@ instance Convertible Norm SqlValue where
 
 
 instance IsString (Q Text) where
-  fromString s = Q (TextE (T.pack s) TextT)
+  fromString = ToQ . T.pack
