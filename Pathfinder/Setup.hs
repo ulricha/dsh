@@ -9,10 +9,8 @@ import Distribution.System
 
 import System.Directory (doesFileExist)
 
-
 main :: IO ()
 main = defaultMainWithHooks dshHooks
-
 
 dshHooks :: UserHooks
 dshHooks = simpleUserHooks {
@@ -63,7 +61,7 @@ dshPreBuild args flags = do
   let script = [ "rm -r -f pathfinder"
                , "tar xzf pathfinder.tar.gz"
                , "cd pathfinder"
-               , "export CFLAGS=' " ++ cflags ++ " -fno-jump-tables -fPIC '"
+               , "export CFLAGS=' " ++ cflags ++ " -fno-jump-tables '"
                , "sh configure --prefix=`pwd` --enable-static --disable-shared"
                , "make"
                , "make install"

@@ -1,5 +1,5 @@
 Name:                 Pathfinder
-Version:              0.5.9
+Version:              0.5.10
 Synopsis:             Relational optimiser and code generator
 Description:
   The library provides FFI bindings to the Pathfinder relational optimiser and
@@ -15,7 +15,7 @@ Description:
   .
   More information about Pathfinder is available from the following web page:
   .
-  * <http://www-db.informatik.uni-tuebingen.de/research/pathfinder>
+  * <http://db.inf.uni-tuebingen.de/research/pathfinder>
 License:              BSD3
 License-file:         LICENSE
 Author:               George Giorgidze and Nils Schweinsberg
@@ -34,9 +34,9 @@ Extra-tmp-files:      pathfinder,
                       pathfinder_post_build.sh
 
 Library
-  Build-depends:      base        >= 4.2 && < 5,
-                      text        >= 0.11,
-                      bytestring  >= 0.9
+  Build-depends:      base        >= 4.3.1.0 && < 5,
+                      text        >= 0.11.0.6,
+                      bytestring  >= 0.9.1.10
   Hs-source-dirs:     src
   GHC-options:        -Wall -O3
   Include-dirs:       include

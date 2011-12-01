@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.7.7
+Version:             0.7.8
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -32,7 +32,7 @@ Description:
   reading. The package includes a couple of examples that demonstrate how to
   use DSH.
   .
-  1. <http://www-db.informatik.uni-tuebingen.de/files/publications/ferryhaskell.pdf>
+  1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
 
 License:             BSD3
 License-file:        LICENSE
@@ -65,7 +65,7 @@ Library
                      csv                >= 0.1.2,
                      json               >= 0.5,
                      xhtml              >= 3000.2.0.1,
-                     Pathfinder         >= 0.5.9,
+                     Pathfinder         >= 0.5.10,
                      FerryCore          >= 0.4.6.4
 
   Hs-source-dirs:    src
