@@ -131,6 +131,16 @@ packets = table "packets" $ TableHints [ Key ["p_pid"]] NonEmpty
 deltas :: Q [Integer] -> Q [Integer]
 deltas xs = cons 0 (map (\(view -> (a, b)) -> a - b) (zip (drop 1 xs) xs))
 
+-- TRY OUT: better or worse than drop?
+deltas' :: Q [Integer] -> Q [Integer]
+deltas' xs = cons 0
+             [ ts - ts'
+             | (view -> (ts, i))   <- number xs
+             , (view -> (ts', i')) <- number xs
+             , i' == i - 1
+             ]
+
+
 sums :: (QA a, Num a) => Q [a] -> Q [a]
 sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
           | let nas = number as
@@ -139,7 +149,7 @@ sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
 
 -- | For each packet, compute the ID of the flow that it belongs to
 flowids :: Q [Packet] -> Q [Integer]
-flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas $ map p_tsQ ps ]
+flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas' $ map p_tsQ ps ]
 
 -- | For each flow, compute the number of packets and average length
 -- of packets in the flow. A flow is defined as a number of packets
