@@ -9,7 +9,8 @@ import Database.DSH (Q, QA)
 #ifdef isDBPH 
 import Database.DSH.Flattening (fromQ)
 #elif isX100
-import Database.DSH.Flattening (fromX100) 
+import Database.DSH.Flattening (fromX100)
+#define isDBPH 
 #else
 import Database.DSH.Compiler (fromQ)
 #endif
