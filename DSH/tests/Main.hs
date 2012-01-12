@@ -43,7 +43,7 @@ getConn :: IO X100Info
 getConn = return $ x100Info "localhost" 48130 Nothing    
 #else
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5433' dbname = 'ferry'"
+getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
 #endif
 
 qc:: Testable prop => prop -> IO ()
@@ -94,10 +94,8 @@ main = do
 
     putStrPad "eq"
     qc prop_eq
-#ifndef isDBPH
     putStrPad "neq"
     qc prop_neq
-#endif
 
     putStrPad "cond"
     qc prop_cond
