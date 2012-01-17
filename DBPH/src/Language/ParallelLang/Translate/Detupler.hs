@@ -135,7 +135,7 @@ deTuple (PApp3 rt (Combine ft) e1 e2 e3) | containsTuple rt && not (isFuns rt)=
                                                             letF fv2 e2' $
                                                               letF fv3 e3' $
                                                                 pairF e1'' e2''
-                                         | otherwise = PApp3 rt (Insert ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
+                                         | otherwise = PApp3 rt (Combine ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
 deTuple (PApp2 rt (Extract ft) e1 e2)  = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
                                             do

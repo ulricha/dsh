@@ -104,7 +104,7 @@ flatten i d (N.If _ e1 e2 e3) = do
                                     let r2 = F.Var (typeOf rv2) r2'
                                     e3' <- flatten i r2 e3
                                     let v2 = F.Var (typeOf e2') v2'
-                                    let v3 = F.Var (typeOf e3') v2'
+                                    let v3 = F.Var (typeOf e3') v3'
                                     return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combineF v1 v2 v3
 flatten i d (N.BinOp t (Op o False) e1 e2) = do
                                     (F.BinOp (liftType t) (Op o True)) <$> flatten i d e1 <*> flatten i d e2
