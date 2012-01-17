@@ -163,14 +163,9 @@ translate (AppE2 D.Cons e1 e2 _) = do
                                             return $ toList e2' [e1']  
 translate (AppE2 f2 e1 e2 ty) = do
                                         let tr = ty2ty ty
-                                        if elem f2 [Add, Sub, Mul, Div, Equ, Lt, Gt, Conj, Disj]
-                                            then do
-                                                   e1' <- translate e1
-                                                   e2' <- translate e2
-                                                   return $ NKL.BinOp tr (transformOp f2) e1' e2'
-                                            else if elem f2 [Lte, Gte] 
-                                                    then translate (AppE2 Disj (AppE2 Equ e1 e2 ty) (AppE2 (gtorlt f2) e1 e2 ty) ty)
-                                                    else error $"Application2: Not supported yet: " ++ show f2
+                                        e1' <- translate e1
+                                        e2' <- translate e2
+                                        return $ NKL.BinOp tr (transformOp f2) e1' e2'
 translate (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- translate e1
                                              e2' <- translate e2
