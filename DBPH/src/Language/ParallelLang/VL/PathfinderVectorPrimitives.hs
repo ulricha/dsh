@@ -214,13 +214,27 @@ applyBinOp op q1 q2 =
     $ proj [(tmpCol, item), (pos', pos)] q2
 
 binOpPF :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan
-binOpPF True op (ValueVector q1) (ValueVector q2) = do 
-  q <- applyBinOp op q1 q2
-  return (ValueVector q)
-binOpPF False op (PrimVal q1) (PrimVal q2) = do
-  q <- applyBinOp op q1 q2
-  return (PrimVal q)
-binOpPF _ _ _ _ = $impossible
+binOpPF b op q1 q2 | op == GtE = do
+                                    q1' <- binOpPF' b Gt q1 q2
+                                    q2' <- binOpPF' b Eq q1 q2
+                                    binOpPF' b Disj q1' q2'
+                   | op == LtE = do
+                                    q1' <- binOpPF' b Lt q1 q2
+                                    q2' <- binOpPF' b Eq q1 q2
+                                    binOpPF' b Disj q1' q2'
+                   | otherwise = binOpPF' b op q1 q2
+ where
+  binOpPF' :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan     
+  binOpPF' True op (ValueVector q1) (ValueVector q2) = do 
+    q <- applyBinOp op q1 q2
+    return (ValueVector q)
+  binOpPF' False op (PrimVal q1) (PrimVal q2) = do
+    q <- applyBinOp op q1 q2
+    return (PrimVal q)
+  binOpPF' _ _ _ _ = $impossible
+
+
+
 
 sortWithPF :: Plan -> Plan -> Graph PFAlgebra Plan
 sortWithPF (ValueVector qs) e = 
