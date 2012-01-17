@@ -30,7 +30,7 @@ import Database.Algebra.Pathfinder(initLoop)
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
-import Control.Monad (liftM2)
+import Control.Monad (liftM2, liftM3)
 
 import Language.ParallelLang.Common.Impossible
 
@@ -111,6 +111,7 @@ fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= u
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute
 fkl2Alg (PApp3 _ (Insert _) arg1 arg2 (Const _ (Int i))) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= (\(x,y) -> insert x y i)
+fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
@@ -127,7 +128,7 @@ fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
--- fkl2Alg e                 = error $ "unsupported: " ++ show e
+fkl2Alg e                 = error $ "unsupported: " ++ show e
 
 toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)
