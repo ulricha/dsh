@@ -54,6 +54,7 @@ putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
 
 main :: IO ()
 main = do
+
     putStrLn "Supported Types"
     putStrLn "--------------"
     putStrPad "()"
@@ -162,8 +163,10 @@ main = do
     qc prop_head
     putStrPad "tail"
     qc prop_tail
+#endif
     putStrPad "cons"
     qc prop_cons
+#ifndef isDBPH
     putStrPad "snoc"
     qc prop_snoc
     putStrPad "take"
@@ -188,8 +191,10 @@ main = do
     qc prop_init
     putStrPad "null"
     qc prop_null
+#endif
     putStrPad "length"
     qc prop_length
+#ifndef isDBPH
     putStrPad "index"
     qc prop_index
     putStrPad "reverse"
@@ -211,6 +216,7 @@ main = do
     putStrPad "all_zero"
     qc prop_all_zero
 #endif
+
     putStrPad "sum_integer"
     qc prop_sum_integer
     putStrPad "sum_double"
@@ -247,7 +253,44 @@ main = do
     putStrPad "nub"
     qc prop_nub
 #endif
-
+    putStrLn ""
+    putStrLn "Lifted operations:"
+    putStrLn "-----------"
+    putStrPad "Lifted &&"
+    qc prop_infix_map_and
+    putStrPad "Lifted ||"
+    qc prop_infix_map_or
+    putStrPad "Lifted not"
+    qc prop_map_not
+    putStrPad "Lifted eq"
+    qc prop_map_eq
+    putStrPad "Lifted neq"
+    qc prop_map_neq
+{-  putStrPad "Lifted cond"
+    qc prop_map_cond
+-}
+    putStrPad "Lifted lt"
+    qc prop_map_lt
+    putStrPad "Lifted lte"
+    qc prop_map_lte
+    putStrPad "Lifted gt"
+    qc prop_map_gt
+    putStrPad "Lifted gte"
+    qc prop_map_gte
+    putStrPad "Lifted cons"
+    qc prop_map_cons
+    putStrPad "map (map (*2))"
+    qc prop_map_map_mul
+    putStrPad "Lifted groupWith"
+    qc prop_map_groupWith
+    putStrPad "Lifted sortWith"
+    qc prop_map_sortWith
+    putStrPad "Lifted sortWith length"
+    qc prop_map_sortWith_length
+    putStrPad "Lifted length"
+    qc prop_map_length
+    putStrPad "Sortwith length nested"
+    
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
             -> (a -> b)
@@ -327,32 +370,62 @@ prop_list_integer_3 = makeProp id id
 prop_infix_and :: (Bool,Bool) -> Property
 prop_infix_and = makeProp (uncurryQ (Q.&&)) (uncurry (&&))
 
+prop_infix_map_and :: (Bool, [Bool]) -> Property
+prop_infix_map_and = makeProp (\x -> Q.map ((Q.fst x) Q.&&) $ Q.snd x) (\(x,xs) -> map (x &&) xs)
+
 prop_infix_or :: (Bool,Bool) -> Property
 prop_infix_or = makeProp (uncurryQ (Q.||)) (uncurry (||))
+
+prop_infix_map_or :: (Bool, [Bool]) -> Property
+prop_infix_map_or = makeProp (\x -> Q.map ((Q.fst x) Q.||) $ Q.snd x) (\(x,xs) -> map (x ||) xs)
 
 prop_not :: Bool -> Property
 prop_not = makeProp Q.not not
 
+prop_map_not :: [Bool] -> Property
+prop_map_not = makeProp (Q.map Q.not) (map not)
+
 prop_eq :: (Integer,Integer) -> Property
 prop_eq = makeProp (uncurryQ (Q.==)) (uncurry (==))
+
+prop_map_eq :: (Integer, [Integer]) -> Property
+prop_map_eq = makeProp (\x -> Q.map ((Q.fst x) Q.==) $ Q.snd x) (\(x,xs) -> map (x ==) xs)
 
 prop_neq :: (Integer,Integer) -> Property
 prop_neq = makeProp (uncurryQ (Q./=)) (uncurry (/=))
 
+prop_map_neq :: (Integer, [Integer]) -> Property
+prop_map_neq = makeProp (\x -> Q.map ((Q.fst x) Q./=) $ Q.snd x) (\(x,xs) -> map (x /=) xs)
+
 prop_cond :: Bool -> Property
 prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else 1)
+
+prop_map_cond :: [Bool] -> Property
+prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
 
 prop_lt :: (Integer, Integer) -> Property
 prop_lt = makeProp (uncurryQ (Q.<)) (uncurry (<))
 
+prop_map_lt :: (Integer, [Integer]) -> Property
+prop_map_lt = makeProp (\x -> Q.map ((Q.fst x) Q.<) $ Q.snd x) (\(x,xs) -> map (x <) xs)
+
 prop_lte :: (Integer, Integer) -> Property
 prop_lte = makeProp (uncurryQ (Q.<=)) (uncurry (<=))
+
+prop_map_lte :: (Integer, [Integer]) -> Property
+prop_map_lte = makeProp (\x -> Q.map ((Q.fst x) Q.<=) $ Q.snd x) (\(x,xs) -> map (x <=) xs)
 
 prop_gt :: (Integer, Integer) -> Property
 prop_gt = makeProp (uncurryQ (Q.>)) (uncurry (>))
 
+prop_map_gt :: (Integer, [Integer]) -> Property
+prop_map_gt = makeProp (\x -> Q.map ((Q.fst x) Q.>) $ Q.snd x) (\(x,xs) -> map (x >) xs)
+
 prop_gte :: (Integer, Integer) -> Property
 prop_gte = makeProp (uncurryQ (Q.>=)) (uncurry (>=))
+
+prop_map_gte :: (Integer, [Integer]) -> Property
+prop_map_gte = makeProp (\x -> Q.map ((Q.fst x) Q.>=) $ Q.snd x) (\(x,xs) -> map (x >=) xs)
 
 prop_min_integer :: (Integer,Integer) -> Property
 prop_min_integer = makeProp (uncurryQ Q.min) (uncurry min)
@@ -371,8 +444,13 @@ prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 prop_cons :: (Integer, [Integer]) -> Property
 prop_cons = makeProp (uncurryQ (Q.<|)) (uncurry (:))
 
+prop_map_cons :: (Integer, [[Integer]]) -> Property
+prop_map_cons = makeProp (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x) (\(x,xs) -> map (x:) xs)
+
 prop_snoc :: ([Integer], Integer) -> Property
 prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
+
+
 
 prop_singleton :: Integer -> Property
 prop_singleton = makeProp Q.singleton (\x -> [x])
@@ -413,6 +491,9 @@ prop_drop = makeProp (uncurryQ Q.drop) (\(n,l) -> drop (fromIntegral n) l)
 prop_map :: [Integer] -> Property
 prop_map = makeProp (Q.map id) (map id)
 
+prop_map_map_mul :: [[Integer]] -> Property
+prop_map_map_mul = makeProp (Q.map (Q.map (*2))) (map (map (*2)))
+
 prop_append :: ([Integer], [Integer]) -> Property
 prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
 
@@ -422,14 +503,29 @@ prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 prop_groupWith :: [Integer] -> Property
 prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
+prop_map_groupWith :: [[Integer]] -> Property
+prop_map_groupWith = makeProp (Q.map (Q.groupWith id)) (map (groupWith id))
+
 prop_sortWith  :: [Integer] -> Property
 prop_sortWith = makeProp (Q.sortWith id) (sortWith id)
+
+prop_map_sortWith :: [[Integer]] -> Property
+prop_map_sortWith = makeProp (Q.map (Q.sortWith id)) (map (sortWith id))
+
+prop_map_sortWith_length :: [[[Integer]]] -> Property
+prop_map_sortWith_length = makeProp (Q.map (Q.sortWith Q.length)) (map (sortWith length))
+
+prop_sortWith_length_nest  :: [[[Integer]]] -> Property
+prop_sortWith_length_nest = makeProp (Q.sortWith Q.length) (sortWith length)
 
 prop_null :: [Integer] -> Property
 prop_null = makeProp Q.null null
 
 prop_length :: [Integer] -> Property
 prop_length = makeProp Q.length (fromIntegral . length)
+
+prop_map_length :: [[Integer]] -> Property
+prop_map_length = makeProp (Q.map Q.length) (map (fromIntegral . length))
 
 prop_reverse :: [Integer] -> Property
 prop_reverse = makeProp Q.reverse reverse
