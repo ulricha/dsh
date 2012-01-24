@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable, TypeOperators, DefaultSignatures, FlexibleContexts #-}
 
 module Database.DSH.Data where
 
@@ -7,12 +7,13 @@ import Database.DSH.Impossible
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
-import Data.Generics
+import Data.Generics hiding (Generic)
 import Data.Text(Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import GHC.Exts
+import GHC.Generics
 
 data Exp =
     UnitE Type
@@ -124,6 +125,13 @@ class QA a where
   reify :: a -> Type
   toNorm :: a -> Norm
   fromNorm :: Norm -> a
+  default reify :: (Generic a, GenericQA (Rep a)) => a -> Type
+  reify a = genericReify (from a)
+  default toNorm :: (Generic a, GenericQA (Rep a)) => a -> Norm
+  toNorm a = genericToNorm (from a)
+  default fromNorm :: (Generic a, GenericQA (Rep a)) => Norm -> a
+  fromNorm na = to (genericFromNorm na)
+
 
 instance QA () where
   reify _ = UnitT
@@ -161,39 +169,59 @@ instance QA Text where
     fromNorm (TextN t TextT) = t
     fromNorm _ = $impossible
 
-instance (QA a,QA b) => QA (a,b) where
-  reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
-  toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
-  fromNorm (TupleN a b (TupleT _ _)) = (fromNorm a,fromNorm b)
-  fromNorm _ = $impossible
-
 instance (QA a) => QA [a] where
   reify _ = ListT (reify (undefined :: a))
   toNorm as = ListN (map toNorm as) (reify as)
   fromNorm (ListN as (ListT _)) = map fromNorm as
   fromNorm _ = $impossible
 
+class GenericQA f where
+  genericReify    :: f a -> Type
+  genericToNorm   :: f a -> Norm
+  genericFromNorm :: Norm -> f a
+
+instance GenericQA U1 where
+  genericReify _ = UnitT
+  genericToNorm U1 = UnitN UnitT
+  genericFromNorm (UnitN UnitT) = U1
+  genericFromNorm _ = $impossible
+
+instance (GenericQA a, GenericQA b) => GenericQA (a :*: b) where
+  genericReify _ = TupleT (genericReify (undefined :: a ())) (genericReify (undefined :: b ()))
+  genericToNorm (a :*: b) = TupleN (genericToNorm a) (genericToNorm b) (genericReify (a :*: b))
+  genericFromNorm (TupleN a b (TupleT _ _)) = (genericFromNorm a) :*: (genericFromNorm b)
+  genericFromNorm _ = $impossible
+
+instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
+  genericReify _ = TupleT (ListT (genericReify (undefined :: a ())))
+                          (ListT (genericReify (undefined :: b ())))
+
+  genericToNorm (L1 a) = TupleN (ListN [genericToNorm a] (ListT (genericReify (undefined :: a ()))))
+                                (ListN [] (ListT (genericReify (undefined :: b ()))))
+                                (genericReify (undefined :: (a :+: b) ()))
+  genericToNorm (R1 b) = TupleN (ListN [] (ListT (genericReify (undefined :: a ()))))
+                                (ListN [genericToNorm b] (ListT (genericReify (undefined :: b ()))))
+                                (genericReify (undefined :: (a :+: b) ()))
+
+  genericFromNorm (TupleN (ListN [na] _) (ListN [] _) _) = L1 (genericFromNorm na)
+  genericFromNorm (TupleN (ListN [] _) (ListN [nb] _) _) = R1 (genericFromNorm nb)
+  genericFromNorm _ = $impossible
+
+instance (GenericQA a) => GenericQA (M1 i c a) where
+  genericReify (M1 a) = genericReify a
+  genericToNorm (M1 a) = genericToNorm a
+  genericFromNorm na = M1 (genericFromNorm na)
+    
+instance (QA a) => GenericQA (K1 i a) where
+  genericReify (K1 a) = reify a
+  genericToNorm (K1 a) = toNorm a
+  genericFromNorm na = (K1 (fromNorm na))
+
+instance (QA a,QA b) => QA (a,b) where
+
 instance (QA a) => QA (Maybe a) where
-  reify _ = reify ([] :: [a])
-
-  toNorm Nothing  = toNorm ([] :: [a])
-  toNorm (Just x) = toNorm [x]
-
-  fromNorm ma = case (fromNorm ma) :: [a] of
-                  []      -> Nothing
-                  (x : _) -> Just x
 
 instance (QA a,QA b) => QA (Either a b) where
-  reify _ = reify (([],[]) :: ([a],[b]))
-
-  toNorm (Left  x) = toNorm ([x],[] :: [b])
-  toNorm (Right x) = toNorm ([] :: [a],[x])
-
-  fromNorm e =  case (fromNorm e) :: ([a],[b]) of
-                  ([],x : _) -> Right x
-                  (x : _,[]) -> Left  x
-                  _          -> $impossible
-
 
 tupleToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
 tupleToEither (Q x) = (Q x)

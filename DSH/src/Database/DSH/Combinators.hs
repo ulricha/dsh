@@ -8,7 +8,7 @@ import Database.DSH.TH
 
 import Data.Convertible
 
-import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, error, ($), (.))
+import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, ($), (.))
 
 -- * Unit
 
@@ -352,9 +352,9 @@ infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
-$(generateDeriveTupleQARange   3 16)
-$(generateDeriveTupleTARange   3 16)
-$(generateDeriveTupleViewRange 3 16)
+$(generateDeriveTupleQARange   3 7)
+$(generateDeriveTupleTARange   3 7)
+$(generateDeriveTupleViewRange 3 7)
 
 
 -- * Missing Combinators

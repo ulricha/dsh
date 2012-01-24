@@ -67,10 +67,6 @@ applyChainTupleE n = foldr1 (\e1 e2 -> appE (appE (conE n) e1) e2)
 
 -- Original Code
 -- instance (QA a,QA b) => QA (a,b) where
---   reify _ = TupleT (reify (undefined :: a)) (reify (undefined :: b))
---   toNorm (a,b) = TupleN (toNorm a) (toNorm b) (reify (a,b))
---   fromNorm (TupleN a b (TupleT _ _)) = (fromNorm a,fromNorm b)
---   fromNorm _ = $impossible
 
 deriveTupleQA :: Int -> TH.Q [Dec]
 deriveTupleQA l
@@ -84,38 +80,7 @@ deriveTupleQA l
 
     qaCxts = return [ ClassP ''QA [VarT n] | n <- names ]
     qaType = conT ''QA `appT` applyChainT (TH.tupleT l) (map varT names)
-    qaDecs = [ reifyDec
-             , fromNormDec
-             , toNormDec
-             ]
-
-    -- The class functions:
-
-    reifyDec    = funD 'reify [reifyClause]
-    reifyClause = clause [ wildP ]
-                         ( normalB $ applyChainTupleE 'TupleT [ [| reify (undefined :: $_n) |] | _n <- map varT names ] )
-                         []
-
-    fromNormDec    = funD 'fromNorm [fromNormClause, clause [TH.wildP] (normalB [| $impossible |]) [] ]
-    fromNormClause = clause [applyChainTupleP (map varP names)]
-                            (normalB $ TH.tupE [ [| fromNorm $(varE n) |] | n <- names ])
-                            []
-
-    toNormDec    = funD 'toNorm [toNormClause]
-    toNormClause = clause [ toNormClausePattern ] (normalB $ fst $ toNormClauseBody $ [ varE n | n <- names ]) []
-
-    toNormClausePattern = tupP [ varP n | n <- names ]
-
-    toNormClauseBody [a1,b1] =
-      let t1 = [| TupleT (reify $a1) (reify $b1) |]
-          e1 = [| TupleN (toNorm $a1) (toNorm $b1) ($t1) |]
-      in  (e1,t1)
-    toNormClauseBody (a1 : as1) =
-      let (e1,t1) = toNormClauseBody as1
-          t2 = [| TupleT (reify $a1) ($t1) |]
-          e2 = [| TupleN (toNorm $a1) ($e1) ($t2) |]
-      in  (e2,t2)
-    toNormClauseBody _ = $impossible
+    qaDecs = []
 
 
 -- | Generate all 'QA' instances for tuples within range.
