@@ -5,3 +5,8 @@ tests/*.hpc
 tests/*.html
 tests/*.tix
 tests/Main
+
+DSH/tests/Main
+*.hi
+*.o
+DSH/test/
