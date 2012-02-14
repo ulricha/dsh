@@ -47,6 +47,7 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 #endif
 
 qc:: Testable prop => prop -> IO ()
+--qc = verboseCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 
 putStrPad :: String -> IO ()
@@ -76,10 +77,12 @@ main = do
     putStrPad "[[[Integer]]]"
     qc prop_list_integer_3
 #ifndef isDBPH
+    {-
     putStrPad "Maybe Integer"
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
+    -}
 #endif
 
 
@@ -204,6 +207,8 @@ main = do
 #endif
     putStrPad "groupWith"
     qc prop_groupWith
+    putStrPad "groupWith length"
+    qc prop_groupWith_length
     putStrPad "sortWith"
     qc prop_sortWith
 #ifndef isDBPH
@@ -450,8 +455,6 @@ prop_map_cons = makeProp (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x) (\(x,xs) -> ma
 prop_snoc :: ([Integer], Integer) -> Property
 prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
 
-
-
 prop_singleton :: Integer -> Property
 prop_singleton = makeProp Q.singleton (\x -> [x])
 
@@ -467,13 +470,11 @@ prop_last  = makePropNotNull Q.last last
 prop_init  :: [Integer] -> Property
 prop_init  = makePropNotNull Q.init init
 
-prop_the   :: [Integer] -> Property
-prop_the l =
-        allEqual l
-    ==> makeProp Q.the the l
-  where
-    allEqual []     = False
-    allEqual (x:xs) = all (x ==) xs
+prop_the   :: (Int, Integer) -> Property
+prop_the (n, i) = 
+  n > 0
+  ==>
+  let l = replicate n i in makeProp Q.the the l
 
 prop_index :: ([Integer], Integer)  -> Property
 prop_index (l, i) =
@@ -505,6 +506,9 @@ prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
 prop_map_groupWith :: [[Integer]] -> Property
 prop_map_groupWith = makeProp (Q.map (Q.groupWith id)) (map (groupWith id))
+                     
+prop_groupWith_length :: [[Integer]] -> Property
+prop_groupWith_length = makeProp (Q.groupWith Q.length) (groupWith length)
 
 prop_sortWith  :: [Integer] -> Property
 prop_sortWith = makeProp (Q.sortWith id) (sortWith id)
