@@ -352,14 +352,13 @@ infix  0  ?
 
 -- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
 
-$(generateDeriveTupleQARange   3 7)
+$(generateDeriveTupleQARange   5 7)
 $(generateDeriveTupleTARange   3 7)
 $(generateDeriveTupleViewRange 3 7)
 
-
 -- * Missing Combinators
--- $missing
 
+-- $missing
 {- $missing
 
 This module offers most of the functions on lists given in PreludeList for the

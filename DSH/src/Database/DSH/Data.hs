@@ -1,4 +1,15 @@
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, DeriveDataTypeable, TypeOperators, DefaultSignatures, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, 
+             ViewPatterns,
+             ScopedTypeVariables, 
+             MultiParamTypeClasses, 
+             FunctionalDependencies, 
+             FlexibleInstances, 
+             DeriveDataTypeable, 
+             TypeOperators, 
+             DefaultSignatures, 
+             FlexibleContexts,
+             TypeFamilies,
+             UndecidableInstances #-}
 
 module Database.DSH.Data where
 
@@ -216,8 +227,57 @@ instance (QA a) => GenericQA (K1 i a) where
   genericReify (K1 a) = reify a
   genericToNorm (K1 a) = toNorm a
   genericFromNorm na = (K1 (fromNorm na))
+ 
+class (QA a, QA r) => Case1 a r where
+    case1 :: Case a r -> Q a -> Q r
+    type Case a r
+    type Case a r = GCase ((Rep a) ()) (Q r)
+    
+class GenericCase a r where
+    type GCase a r
+    
+instance GenericCase (U1 p) r where
+    type GCase (U1 p) r = r
+    
+instance (GenericCase (a p) r, GenericCase (b p) r) => GenericCase ((a :*: b) p) r where
+    type GCase ((a :*: b) p) r = GCase (a p) (GCase (b p) r)
+    
+instance GenericCase (a p) r => GenericCase (M1 i c a p) r where
+    type GCase (M1 i c a p) r = GCase (a p) r
+    
+instance GenericCase (K1 i a p) r where
+    type GCase (K1 i a p) r = Q a -> r
 
-instance (QA a,QA b) => QA (a,b) where
+instance (QA a, QA b, QA r) => Case1 (a, b) r where
+    case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Snd e $ reify (undefined :: b))
+
+instance (QA a, QA b, QA c, QA r) => Case1 (a, b, c) r where
+    case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Fst (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: b)) (Q $ AppE1 Snd (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: c)) 
+
+
+{-    
+instance Case1 () r where
+    case1 f a = f
+    type C1T1 () r = r
+-}
+    
+class (QA a) => Case2 a r where
+    case2 :: C2T1 a r -> C2T2 a r -> a -> r
+    type C2T1 a r
+    type C2T2 a r
+
+instance (QA a, QA b) => Case2 (Either a b) r where
+    case2 = either
+    type C2T1 (Either a b) r = a -> r
+    type C2T2 (Either a b) r = b -> r
+    
+
+
+instance (QA a, QA b) => QA (a, b) where
+    
+instance (QA a, QA b, QA c) => QA (a, b, c) where
+    
+instance (QA a, QA b, QA c, QA d) => QA (a, b, c, d) where
 
 instance (QA a) => QA (Maybe a) where
 
