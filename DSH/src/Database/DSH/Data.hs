@@ -230,29 +230,51 @@ instance (QA a) => GenericQA (K1 i a) where
  
 class (QA a, QA r) => Case1 a r where
     case1 :: Case a r -> Q a -> Q r
+    default case1 :: (Generic a, GenericCase ((Rep a) ()) r, GCase (Rep a ()) r ~ Case a r) => Case a r -> Q a -> Q r
+    case1 f (Q e) = gcase f (Q e :: Q ((Rep a) ())) 
     type Case a r
-    type Case a r = GCase ((Rep a) ()) (Q r)
+    type Case a r = GCase ((Rep a) ()) r
     
 class GenericCase a r where
     type GCase a r
+    type GRep a
+    gcase :: GCase a r -> Q a -> Q r
     
 instance GenericCase (U1 p) r where
-    type GCase (U1 p) r = r
+    type GCase (U1 p) r = Q r
+    type GRep (U1 p) = ()
+    gcase = const
     
 instance (GenericCase (a p) r, GenericCase (b p) r) => GenericCase ((a :*: b) p) r where
-    type GCase ((a :*: b) p) r = GCase (a p) (GCase (b p) r)
-    
+    type GCase ((a :*: b) p) r = Q (GRep (a p)) -> GCase (b p) r
+    type GRep ((a :*: b) p) = (GRep (a p), GRep (b p))
+    gcase f (Q e) = gcase (f first) second
+        where
+            (TupleT t1 t2) = typeExp e
+            first :: Q (GRep (a p))
+            first = Q $ AppE1 Fst e t1
+            second :: Q (b p)
+            second = Q $ AppE1 Snd e t2
+-- (Q $ AppE1 Fst e $ reify (undefined :: GRep (a p)))    
+
 instance GenericCase (a p) r => GenericCase (M1 i c a p) r where
     type GCase (M1 i c a p) r = GCase (a p) r
+    type GRep (M1 i c a p) = GRep (a p)
+    gcase f (Q a) = gcase f (Q a :: Q (a p))
     
 instance GenericCase (K1 i a p) r where
-    type GCase (K1 i a p) r = Q a -> r
+    type GCase (K1 i a p) r = Q a -> Q r
+    type GRep  (K1 i a p) = a
+    gcase f (Q a) = f (Q a) 
+
+instance (QA r) => Case1 () r where
+    -- case1 f (Q _) = f
 
 instance (QA a, QA b, QA r) => Case1 (a, b) r where
-    case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Snd e $ reify (undefined :: b))
+    -- case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Snd e $ reify (undefined :: b))
 
 instance (QA a, QA b, QA c, QA r) => Case1 (a, b, c) r where
-    case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Fst (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: b)) (Q $ AppE1 Snd (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: c)) 
+    -- case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Fst (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: b)) (Q $ AppE1 Snd (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: c)) 
 
 
 {-    
