@@ -31,8 +31,9 @@ instance VectorAlgebra PFAlgebra where
   distPrim = distPrimPF
   distDesc = distDescPF
   distLift = distLiftPF
-  rename = renamePF
-  propagateIn = propagateInPF
+  propRename = propRenamePF
+  propFilter = propFilterPF
+  propReorder = propReorderPF
   singletonVec = singletonVecPF
   append = appendPF
   segment = segmentPF
@@ -324,21 +325,26 @@ distLiftPF e1 e2 = do
                     qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ TupleVector [qr1, qr2]                    
 
-renamePF :: Plan -> Plan -> Graph PFAlgebra Plan
-renamePF (PropVector q1) e2 = do
+propRenamePF :: Plan -> Plan -> Graph PFAlgebra Plan
+propRenamePF (PropVector q1) e2 = do
                 (rf, q2, pf) <- determineResultVector e2
-                q <- tagM "renamePF" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
+                q <- tagM "propRenamePF" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
                 return $ rf q
-renamePF _ _ = error "renamePF: Should not be possible"
+propRenamePF _ _ = error "propRenamePF: Should not be possible"
                 
-propagateInPF :: Plan -> Plan -> Graph PFAlgebra Plan
-propagateInPF (PropVector q1) e2 = do
+propFilterPF :: Plan -> Plan -> Graph PFAlgebra Plan
+propFilterPF (PropVector q1) e2 = do
                      (rf, q2, pf) <- determineResultVector e2
                      q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
                      qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
                      qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
                      return $ TupleVector [qr1, qr2]
-propagateInPF p e = error $ "propagateInPF: Should not be possible\n" ++ show p ++ "\n\n" ++ show e
+propFilterPF p e = error $ "propFilterPF: Should not be possible\n" ++ show p ++ "\n\n" ++ show e
+                   
+propReorderPF :: Plan -> Plan -> Graph PFAlgebra Plan
+-- For Pathfinder algebra, the filter and reorder cases are the same, since numbering to generate positions
+-- is done with a rownum and involves sorting.
+propReorderPF = propFilterPF
                      
 singletonVecPF :: Plan -> Graph PFAlgebra Plan
 singletonVecPF e1 = do
