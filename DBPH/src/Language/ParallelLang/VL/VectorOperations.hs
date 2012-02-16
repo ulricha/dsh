@@ -18,7 +18,7 @@ the e@(ValueVector _) = do
 the (NestedVector d vs) = do
                             p <- constructLiteral intT (V.Int 1)
                             TupleVector [_, prop] <- selectPos (DescrVector d) Eq p
-                            chainPropagate prop vs
+                            chainRenameFilter prop vs
 the (TupleVector vs) = TupleVector <$> mapM the vs
 the _ = error "the: Should not be possible"
 
@@ -28,15 +28,15 @@ theL (NestedVector d e@(ValueVector _)) = do
                                             p <- distPrim one (DescrVector d)
                                             TupleVector [v, _] <- selectPosLift e Eq p
                                             prop <- descToProp (DescrVector d)
-                                            TupleVector [v', _] <- propagateIn prop v
+                                            TupleVector [v', _] <- propFilter prop v
                                             return v' 
 theL (NestedVector d (NestedVector d2 vs)) = do
                                             one <- constructLiteral intT (V.Int 1)
                                             p <- distPrim one (DescrVector d)
                                             TupleVector [v, p2] <- selectPosLift (DescrVector d2) Eq p
                                             prop <- descToProp (DescrVector d)
-                                            vs' <- chainPropagate p2 vs
-                                            TupleVector [v', _] <- propagateIn prop v
+                                            vs' <- chainRenameFilter p2 vs
+                                            TupleVector [v', _] <- propFilter prop v
                                             return $ attachV v' vs'
 theL (TupleVector es) = TupleVector <$> mapM theL es
 theL _ = error "theL: Should not be possible" 
@@ -47,7 +47,7 @@ sortWithS e1 e2@(ValueVector _) = do
                                    return v
 sortWithS e1 (NestedVector d2 vs2) = do
                                         TupleVector [v, p] <- sortWith e1 (DescrVector d2)
-                                        vs' <- chainPropagate p vs2
+                                        vs' <- chainReorder p vs2
                                         return $ attachV v vs'
 sortWithS e1 (TupleVector es) = TupleVector <$> mapM (sortWithS e1) es
 sortWithS _e1 _e2 = error "sortWithS: Should not be possible" 
@@ -58,7 +58,7 @@ sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector
                                   return $ attachV (DescrVector d2) v
 sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
                                      TupleVector [v, p] <- sortWith v1 (DescrVector d')
-                                     vs' <- chainPropagate p vs2
+                                     vs' <- chainReorder p vs2
                                      return $ attachV (DescrVector d2) $ attachV v vs'
 sortWithL e1 (TupleVector es) = TupleVector <$> mapM (sortWithL e1) es
 sortWithL _ _ = error "sortWithL: Should not be possible"
@@ -69,7 +69,7 @@ groupByS e1 e2@(ValueVector _) = do
                                   return $ attachV d v
 groupByS e1 (NestedVector d2 vs2) = do
                                      TupleVector [d, v, p] <- groupBy e1 (DescrVector d2)
-                                     vs' <- chainPropagate p vs2
+                                     vs' <- chainReorder p vs2
                                      return $ attachV d $ attachV v vs'
 groupByS e1 (TupleVector es) = TupleVector <$> mapM (groupByS e1) es
 groupByS _e1 _e2 = error $ "groupByS: Should not be possible "
@@ -80,7 +80,7 @@ groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector 
                                   return $ attachV (DescrVector d2) $ attachV d v
 groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
                                      TupleVector [d, v, p] <- groupBy v1 (DescrVector d')
-                                     vs' <- chainPropagate p vs2
+                                     vs' <- chainReorder p vs2
                                      return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
 groupByL e1 (TupleVector es) = TupleVector <$> mapM (groupByL e1) es
 groupByL _ _ = error "groupByL: Should not be possible"
@@ -97,7 +97,7 @@ lengthLift (NestedVector d vs1) = do
                                    v <- outer vs1
                                    ls <- lengthSeg (DescrVector d) v
                                    p <- descToProp (DescrVector d)
-                                   rename p ls
+                                   propRename p ls
 lengthLift _ = error "lengthLift: Should not be possible"
 
 lengthV :: VectorAlgebra a => Plan -> Graph a Plan
@@ -162,7 +162,7 @@ restrict (NestedVector d1 vs1) e2@(ValueVector _)
                      -- Corresponds to compilation rule [restrict-2]
                    = do
                        TupleVector [v, p] <- restrictVec (DescrVector d1) e2
-                       e3 <- chainPropagate p vs1
+                       e3 <- chainRenameFilter p vs1
                        return $ attachV v e3
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
@@ -207,7 +207,7 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         o2 <- outer q2
                                                         TupleVector [d, p@(PropVector _)] <- distDesc o1 o2
                                                         et <- extract q1 1
-                                                        e3 <- chainPropagate p et
+                                                        e3 <- chainRenameFilter p et
                                                         o <- outer q2
                                                         return $ attachV o $ attachV d e3
                               | otherwise           = error "dist: Not a list vector"
@@ -232,7 +232,7 @@ distL q1@(ValueVector _) (NestedVector d vs) = do
 distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do 
                                                      o <- outer vs2
                                                      TupleVector [d, p@(PropVector _)] <- distLift (DescrVector d1) o
-                                                     e3 <- chainPropagate p vs1
+                                                     e3 <- chainRenameFilter p vs1
                                                      return $ attachV (DescrVector d2) $ attachV d e3
 distL (AClosure n v i xs x f fl) q2 = do
                                         v' <- distL q2 v

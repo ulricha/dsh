@@ -53,8 +53,12 @@ class VectorAlgebra a where
   distPrim :: Plan -> Plan -> Graph a Plan
   distDesc :: Plan -> Plan -> Graph a Plan
   distLift :: Plan -> Plan -> Graph a Plan
-  rename :: Plan -> Plan -> Graph a Plan
-  propagateIn :: Plan -> Plan -> Graph a Plan
+  -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
+  propRename :: Plan -> Plan -> Graph a Plan
+  -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
+  propFilter :: Plan -> Plan -> Graph a Plan
+  -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
+  propReorder :: Plan -> Plan -> Graph a Plan
   singletonVec :: Plan -> Graph a Plan
   append :: Plan -> Plan -> Graph a Plan
   segment :: Plan -> Graph a Plan

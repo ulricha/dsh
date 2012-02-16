@@ -4,15 +4,42 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.VectorPrimitives
 
-chainPropagate :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-chainPropagate p@(PropVector _) q@(ValueVector _) = do 
-                                      TupleVector [v, _] <- propagateIn p q
+-- | chainRenameFilter renames and filters a vector according to a propagation vector
+-- and propagates these changes to all inner vectors. No reordering is applied,
+-- that is the propagation vector must not change the order of tuples.
+chainRenameFilter :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+chainRenameFilter p@(PropVector _) q@(ValueVector _) = do 
+                                      TupleVector [v, _] <- propFilter p q
                                       return v
-chainPropagate p@(PropVector _) (NestedVector d vs) = do
-                                        TupleVector [v', p'] <- propagateIn p (DescrVector d)
-                                        e3 <- chainPropagate p' vs
+chainRenameFilter p@(PropVector _) (NestedVector d vs) = do
+                                        TupleVector [v', p'] <- propFilter p (DescrVector d)
+                                        e3 <- chainRenameFilter p' vs
                                         return $ attachV v' e3
-chainPropagate _ _ = error "chainPropagate: Should not be possible"
+chainRenameFilter _ _ = error "chainRenameFilter: Should not be possible"
+                  
+-- | chainReorder renames and filters a vector according to a propagation vector
+-- and propagates these changes to all inner vectors. The propagation vector
+-- may change the order of tuples.
+chainReorder :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+chainReorder p@(PropVector _) q@(ValueVector _) = do 
+                                      TupleVector [v, _] <- propReorder p q
+                                      return v
+chainReorder p@(PropVector _) (NestedVector d vs) = do
+                                        TupleVector [v', p'] <- propReorder p (DescrVector d)
+                                        e3 <- chainReorder p' vs
+                                        return $ attachV v' e3
+chainReorder _ _ = error "chainReorder: Should not be possible"
+               
+-- | renameOuter renames and filters a vector according to a propagation vector
+-- Changes are not propagated to inner vectors.
+renameOuter :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+renameOuter p@(PropVector _) e@(ValueVector _)
+                                = propRename p e
+renameOuter p@(PropVector _) (NestedVector h t)
+                                = do
+                                    d <- propRename p (DescrVector h)
+                                    return $ attachV d t
+renameOuter _ _ = error "renameOuter: Should not be possible"
 
 -- | Append two vectors
 appendR :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
@@ -29,15 +56,6 @@ appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
                         return $ attachV v e3
 appendR _ _ = error "appendR: Should not be possible"
 
--- | Apply renaming to the outermost vector
-renameOuter :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-renameOuter p@(PropVector _) e@(ValueVector _)
-                                = rename p e
-renameOuter p@(PropVector _) (NestedVector h t)
-                                = do
-                                    d <- rename p (DescrVector h)
-                                    return $ attachV d t
-renameOuter _ _ = error "renameOuter: Should not be possible"
 
 isNestListM :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
 isNestListM qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
