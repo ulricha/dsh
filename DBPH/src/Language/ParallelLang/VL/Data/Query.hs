@@ -4,7 +4,6 @@ import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.FKL.Data.FKL
 import qualified Language.ParallelLang.Common.Data.Type as T
 
-
 data Query a =
          TupleVector [Query a]
        | DescrVector a
