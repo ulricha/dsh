@@ -9,7 +9,8 @@
              DefaultSignatures, 
              FlexibleContexts,
              TypeFamilies,
-             UndecidableInstances #-}
+             UndecidableInstances,
+             DeriveGeneric #-}
 
 module Database.DSH.Data where
 
@@ -219,27 +220,49 @@ instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
   genericFromNorm _ = $impossible
 
 instance (GenericQA a) => GenericQA (M1 i c a) where
-  genericReify (M1 a) = genericReify a
+  genericReify (M1 _a) = genericReify (undefined :: a ())
   genericToNorm (M1 a) = genericToNorm a
   genericFromNorm na = M1 (genericFromNorm na)
     
 instance (QA a) => GenericQA (K1 i a) where
-  genericReify (K1 a) = reify a
+  genericReify (K1 _a) = reify (undefined :: a)
   genericToNorm (K1 a) = toNorm a
   genericFromNorm na = (K1 (fromNorm na))
  
-class (QA a, QA r) => Case1 a r where
-    case1 :: Case a r -> Q a -> Q r
-    default case1 :: (Generic a, GenericCase ((Rep a) ()) r, GCase (Rep a ()) r ~ Case a r) => Case a r -> Q a -> Q r
+class (QA a, QA r) => Case a r where
+    case1 :: Cases a r -> Q a -> Q r
+    default case1 :: (Generic a, GenericCase ((Rep a) ()) r, GCase (Rep a ()) r ~ Cases a r) => Cases a r -> Q a -> Q r
     case1 f (Q e) = gcase f (Q e :: Q ((Rep a) ())) 
-    type Case a r
-    type Case a r = GCase ((Rep a) ()) r
-    
+    type Cases a r
+    type Cases a r = GCase ((Rep a) ()) r
+
+
+-- Generic cases
+-- The GCase type is the type of the destructor function for a data-type a with result type r.
+-- For example for data Example a = Ex a Int gcase should be "a -> Int -> r"
+-- The GRep type has to correspond to the internal representation of a datatype in Ferry.
+-- All product types are broken down into nested pairs.
+-- gcase is essentially the uncurry functions.    
 class GenericCase a r where
     type GCase a r
     type GRep a
     gcase :: GCase a r -> Q a -> Q r
-    
+
+instance (GenericCase (a p) r, GenericCase (b p) r, GenericQA a, GenericQA b, QA r) => GenericCase ((a :+: b) p) r where
+    type GCase ((a :+: b) p) r = (GCase (a p) r, GCase (b p) r)
+    type GRep ((a :+: b) p) = ([GRep (a p)], [GRep (b p)])
+    gcase (f, g) (Q e) = Q $ (\(Q l) (Q r) -> AppE2 Append l r $ reify (undefined :: r))
+                                (fs $ Q $ (AppE1 Fst e (ListT $ genericReify (undefined :: a p))))
+                                (gs $ Q $ (AppE1 Snd e (ListT $ genericReify (undefined :: b p))))
+        where
+            fs :: Q [(a p)] -> Q [r]
+            fs (Q args) = Q $ AppE2 Map (toLamG (gcase f :: Q (a p) -> Q r)) args (reify (undefined :: [r]))
+            gs :: Q [(b p)] -> Q r
+            gs (Q args) = Q $ AppE2 Map (toLamG (gcase g :: Q (b p) -> Q r)) args (reify (undefined :: [r]))
+
+toLamG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Exp
+toLamG fun = LamE ((\(Q e) -> e) . fun . Q) (ArrowT (genericReify (undefined :: (a p))) (reify (undefined :: r)))
+
 instance GenericCase (U1 p) r where
     type GCase (U1 p) r = Q r
     type GRep (U1 p) = ()
@@ -267,21 +290,16 @@ instance GenericCase (K1 i a p) r where
     type GRep  (K1 i a p) = a
     gcase f (Q a) = f (Q a) 
 
-instance (QA r) => Case1 () r where
+instance (QA r) => Case () r where
     -- case1 f (Q _) = f
 
-instance (QA a, QA b, QA r) => Case1 (a, b) r where
+instance (QA a, QA b, QA r) => Case (a, b) r where
     -- case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Snd e $ reify (undefined :: b))
 
-instance (QA a, QA b, QA c, QA r) => Case1 (a, b, c) r where
+instance (QA a, QA b, QA c, QA r) => Case (a, b, c) r where
     -- case1 f (Q e) = f (Q $ AppE1 Fst e $ reify (undefined :: a)) (Q $ AppE1 Fst (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: b)) (Q $ AppE1 Snd (AppE1 Snd e $ reify (undefined :: (b, c))) $ reify (undefined :: c)) 
 
-
-{-    
-instance Case1 () r where
-    case1 f a = f
-    type C1T1 () r = r
--}
+instance (QA a, QA b, QA r) => Case (Either a b) r where
     
 class (QA a) => Case2 a r where
     case2 :: C2T1 a r -> C2T2 a r -> a -> r
@@ -458,10 +476,10 @@ instance Convertible Norm Exp where
 forget :: (QA a) => Q a -> Exp
 forget (Q a) = a
 
-toLam1 :: forall a b. (QA a,QA b) => (Q a -> Q b) -> Exp
+toLam1 :: forall a b. (QA a, QA b) => (Q a -> Q b) -> Exp
 toLam1 f = LamE (forget . f . Q) (ArrowT (reify (undefined :: a)) (reify (undefined :: b)))
 
-toLam2 :: forall a b c. (QA a,QA b,QA c) => (Q a -> Q b -> Q c) -> Exp
+toLam2 :: forall a b c. (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Exp
 toLam2 f =
   let f1 = \a b -> forget (f (Q a) (Q b))
       t1 = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
