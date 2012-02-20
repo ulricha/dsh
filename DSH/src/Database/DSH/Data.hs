@@ -220,12 +220,12 @@ instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
   genericFromNorm _ = $impossible
 
 instance (GenericQA a) => GenericQA (M1 i c a) where
-  genericReify (M1 _a) = genericReify (undefined :: a ())
+  genericReify _ = genericReify (undefined :: a ())
   genericToNorm (M1 a) = genericToNorm a
   genericFromNorm na = M1 (genericFromNorm na)
     
 instance (QA a) => GenericQA (K1 i a) where
-  genericReify (K1 _a) = reify (undefined :: a)
+  genericReify _ = reify (undefined :: a)
   genericToNorm (K1 a) = toNorm a
   genericFromNorm na = (K1 (fromNorm na))
  
