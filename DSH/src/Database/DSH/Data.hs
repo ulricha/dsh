@@ -258,48 +258,35 @@ class (QA a, QA r) => Case a r where
 class (GenericQA a, QA r) => GenericCase a r where
     type GCase a r
     type GRep a
+    type GRep' a
+    type GRep' a = [GRep a]
     gcase :: GCase a r -> Q (a p) -> Q r
-    gcases :: GCase a r -> Q [a p] -> Q [r]
-    gcases f = mapG (gcase f :: Q (a p) -> Q r)
-
-{-
-instance (GenericCase a r, GenericCase b r, QA r) => GenericCase (a :+: b) r where
-    type GCase (a :+: b) r = (GCase a r, GCase b r)
-    type GRep (a :+: b) = ([GRep a], [GRep b])
-    {- gcases (f, g) (Q e) = Q $ (\(Q l) (Q r) -> AppE2 Append l r $ reify (undefined :: [r]))
-      where
-        lefts = Q $ AppE1 Concat $ AppE2 Map (LamE \e -> AppE1 Fst e $ reify (undefined :: [a p]))
-        fs :: Q [(a p)] -> Q [r]
-        fs arg = mapG (gcase f :: Q (a p) -> Q r) arg --Q $ AppE2 Map (toLamG (gcase f :: Q (a p) -> Q r)) args (reify (undefined :: [r]))
-        -- gs :: Q [(b p)] -> Q [r]
-        -- gs arg = gcases g arg -- mapG (gcase g :: Q (b p) -> Q r) arg -- Q $ AppE2 Map (toLamG (gcase g :: Q (b p) -> Q r)) args (reify (undefined :: [r]))                                
-    -}                        
-    gcase (f, g) (Q e) = Q $ AppE1 Head 
-                                    ((\(Q l) (Q r) -> AppE2 Append l r $ reify (undefined :: [r]))
-                                        (fs $ Q $ (AppE1 Fst e (ListT $ genericReify (undefined :: a p))))
-                                        (gs $ Q $ (AppE1 Snd e (ListT $ genericReify (undefined :: b p)))))
-                                    (reify (undefined :: r))
-        where
-            fs :: Q [(a p)] -> Q [r]
-            fs arg = undefined-- gcases f arg -- mapG (gcase f :: Q (a p) -> Q r) arg --Q $ AppE2 Map (toLamG (gcase f :: Q (a p) -> Q r)) args (reify (undefined :: [r]))
-            gs :: Q [(b p)] -> Q [r]
-            gs arg = undefined --gcases g arg -- mapG (gcase g :: Q (b p) -> Q r) arg -- Q $ AppE2 Map (toLamG (gcase g :: Q (b p) -> Q r)) args (reify (undefined :: [r]))
+    -- Alt case is called from sum constructors the subtypes seem to be ordinary but in reality it is a list, this function performs the case (except for the case of sums themselves)
+    galtCase :: GCase a r -> Q (a p) -> Q [r]
+    galtCase f (Q a) = mapG (gcase f) (Q a :: Q [a p])
 
 
-{-    gcase (f, g) (Q e) = Q $ (\(Q l) (Q r) -> AppE2 Append l r $ reify (undefined :: r))
-                                (fs $ Q $ (AppE1 Fst e (ListT $ genericReify (undefined :: a p))))
-                                (gs $ Q $ (AppE1 Snd e (ListT $ genericReify (undefined :: b p))))
-        where
-            fs :: Q [(a p)] -> Q [r]
-            fs arg = mapG (gcase f :: Q (a p) -> Q r) arg --Q $ AppE2 Map (toLamG (gcase f :: Q (a p) -> Q r)) args (reify (undefined :: [r]))
-            gs :: Q [(b p)] -> Q [r]
-            gs arg = mapG (gcase g :: Q (b p) -> Q r) arg -- Q $ AppE2 Map (toLamG (gcase g :: Q (b p) -> Q r)) args (reify (undefined :: [r]))
--} -}
 toLamG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Exp
-toLamG fun = LamE ((\(Q e) -> e) . fun . Q) (ArrowT (genericReify (undefined :: (a p))) (reify (undefined :: r)))
+toLamG fun = LamE (forget . fun . Q) (ArrowT (genericReify (undefined :: (a p))) (reify (undefined :: r)))
 
 mapG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Q [(a p)] -> Q [r]
 mapG f (Q arg) = Q $ AppE2 Map (toLamG f) arg (reify (undefined :: [r]))
+
+instance (GenericCase a r, GenericCase b r, QA r) => GenericCase (a :+: b) r where
+    type GCase (a :+: b) r = (GCase a r, GCase b r)
+    type GRep (a :+: b) = (GRep' a, GRep' b)
+    type GRep' (a :+: b) = GRep (a :+: b)
+    galtCase (f, g) (Q e) = Q $ AppE2 Append (forget first) (forget second) (reify (undefined :: [r]))
+       where
+        (TupleT t1 t2) = typeExp e
+        first :: Q [r]
+        first = galtCase f (Q $ AppE1 Fst e t1 :: Q (a ()))
+        second :: Q [r]
+        second = galtCase g (Q $ AppE1 Snd e t2 :: Q (b ())) 
+    gcase fs e = Q $ AppE1 Head (forget alts) (reify (undefined :: r)) 
+        where
+          alts :: Q [r]
+          alts = galtCase fs e
 
 instance QA r => GenericCase U1 r where
     type GCase U1 r = Q r
@@ -333,7 +320,7 @@ instance (QA a, QA b, QA r) => Case (a, b) r where
 
 instance (QA a, QA b, QA c, QA r) => Case (a, b, c) r where
 
--- instance (QA a, QA b, QA r) => Case (Either a b) r where
+instance (QA a, QA b, QA r) => Case (Either a b) r where
     
 instance (QA a, QA b) => QA (a, b) where
     
@@ -495,7 +482,7 @@ instance Convertible Norm Exp where
              TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
              ListN ns t     -> ListE (map convert ns) t
 
-forget :: (QA a) => Q a -> Exp
+forget :: Q a -> Exp
 forget (Q a) = a
 
 toLam1 :: forall a b. (QA a, QA b) => (Q a -> Q b) -> Exp
