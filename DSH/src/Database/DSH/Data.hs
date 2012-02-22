@@ -196,7 +196,11 @@ class GenericQA f where
     emptyAlternative :: f a -> Norm
     emptyAlternative _ = ListN [] $ genericReify' (undefined :: f a)
     genericToNorm   :: f a -> Norm
+    genericToNorm'  :: f a -> Norm
+    genericToNorm' a = ListN [genericToNorm a] (genericReify' (undefined :: f a)) 
     genericFromNorm :: Norm -> f a
+    genericFromNorm' :: Norm -> f a
+    genericFromNorm' (ListN [a] _) = genericFromNorm a
 
 -- Constructor without any arguments 
 instance GenericQA U1 where
@@ -220,15 +224,24 @@ instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
     emptyAlternative _ = TupleN (emptyAlternative (undefined :: a ()))
                                 (emptyAlternative (undefined :: b ()))
                                 (genericReify (undefined :: (a :+: b) ()))
-    genericToNorm (L1 a) = TupleN (ListN [genericToNorm a] (genericReify' (undefined :: a ())))
+    genericToNorm (L1 a) = TupleN (genericToNorm' a)
                                   (emptyAlternative (undefined :: b ()))
                                   (genericReify (undefined :: (a :+: b) ()))
     genericToNorm (R1 b) = TupleN (emptyAlternative (undefined :: a ()))
-                                  (genericToNorm b)
+                                  (genericToNorm' b)
                                   (genericReify (undefined :: (a :+: b) ()))
-    genericFromNorm (TupleN (ListN [na] _) _ _) = L1 (genericFromNorm na)
-    genericFromNorm (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm nb)
+    genericToNorm' (L1 a) = TupleN (genericToNorm' a) 
+                                   (emptyAlternative (undefined :: b ()))
+                                   (genericReify' (undefined :: (a :+: b) ()))
+    genericToNorm' (R1 b) = TupleN (emptyAlternative (undefined :: a ()))
+                                   (genericToNorm' b)
+                                   (genericReify' (undefined :: (a :+: b) ()))
+    genericFromNorm (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
+    genericFromNorm (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
     genericFromNorm _ = $impossible
+    genericFromNorm' (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
+    genericFromNorm' (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
+    genericFromNorm' _ = $impossible
 
 instance (GenericQA a) => GenericQA (M1 i c a) where
     genericReify _ = genericReify (undefined :: a ())
