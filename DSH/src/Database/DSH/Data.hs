@@ -230,18 +230,11 @@ instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
     genericToNorm (R1 b) = TupleN (emptyAlternative (undefined :: a ()))
                                   (genericToNorm' b)
                                   (genericReify (undefined :: (a :+: b) ()))
-    genericToNorm' (L1 a) = TupleN (genericToNorm' a) 
-                                   (emptyAlternative (undefined :: b ()))
-                                   (genericReify' (undefined :: (a :+: b) ()))
-    genericToNorm' (R1 b) = TupleN (emptyAlternative (undefined :: a ()))
-                                   (genericToNorm' b)
-                                   (genericReify' (undefined :: (a :+: b) ()))
+    genericToNorm' = genericToNorm
     genericFromNorm (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
     genericFromNorm (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
     genericFromNorm _ = $impossible
-    genericFromNorm' (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
-    genericFromNorm' (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
-    genericFromNorm' _ = $impossible
+    genericFromNorm' = genericFromNorm
 
 instance (GenericQA a) => GenericQA (M1 i c a) where
     genericReify _ = genericReify (undefined :: a ())
