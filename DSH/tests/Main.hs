@@ -28,7 +28,7 @@ instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'postgres'"
+getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'postgres'"
 
 qc:: Testable prop => prop -> IO ()
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}

@@ -5,7 +5,7 @@
 
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
 
-module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL) where
+module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
 
 import Database.DSH.Data as D
 import Database.DSH.Impossible (impossible)
@@ -95,6 +95,12 @@ debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugCore c (Q a) = do
                      core <- runN c $ transformE a
                      return $ show core
+
+
+debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugCoreDot c (Q a) = do
+                        core <- runN c $ transformE a
+                        return $ (\(Right d) -> d) $ dot core
 
 -- | Convert the query into SQL
 debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String

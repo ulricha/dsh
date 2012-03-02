@@ -255,6 +255,24 @@ class (QA a, QA r) => Case a r where
     type Cases a r = GCase (Rep a) r
 
 
+class GenericCollect a where
+    type Collect a
+    type Col a
+    collect :: Collect a
+
+    
+instance GenericCollect ((a :+: b) p) where
+    type Collect ((a :+: b) p) = (a p) -> Collect (b p) (a p, Col (b p))
+    type Col ((a :+: b) p) = (a p, Col (b p))
+    collect f = ((,) f) . collect
+
+
+instance GenericCollect (K1 i a p) where
+    type Collect (K1 i a p) = a -> a
+    type Col (K1 i a p) = a
+    collect = id
+    
+
 -- Generic cases
 -- The GCase type is the type of the destructor function for a data-type a with result type r.
 -- For example for data Example a = Ex a Int gcase should be "a -> Int -> r"
@@ -272,6 +290,7 @@ class (GenericQA a, QA r) => GenericCase a r where
     galtCase f (Q a) = mapG (gcase f) (Q a :: Q [a p])
 
 
+
 toLamG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Exp
 toLamG fun = LamE (forget . fun . Q) (ArrowT (genericReify (undefined :: (a p))) (reify (undefined :: r)))
 
@@ -282,6 +301,7 @@ instance (GenericCase a r, GenericCase b r, QA r) => GenericCase (a :+: b) r whe
     type GCase (a :+: b) r = (GCase a r, GCase b r)
     type GRep (a :+: b) = (GRep' a, GRep' b)
     type GRep' (a :+: b) = GRep (a :+: b)
+    -- gcollect f = (\x -> (f, x)) . gcollect
     galtCase (f, g) (Q e) = Q $ AppE2 Append (forget first) (forget second) (reify (undefined :: [r]))
        where
         (TupleT t1 t2) = typeExp e
@@ -298,6 +318,7 @@ instance QA r => GenericCase U1 r where
     type GCase U1 r = Q r
     type GRep U1 = ()
     gcase = const
+    
     
 instance (GenericCase a r, GenericCase b r) => GenericCase (a :*: b) r where
     type GCase (a :*: b) r = Q (GRep a) -> GCase b r
