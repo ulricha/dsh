@@ -240,7 +240,7 @@ partByIterX100 d = pbi d'
                 [descr, p] -> zip3 (map convert descr) (map convert p) (repeat Nothing)
         pbi :: [(Int, Int, Maybe X100Data)] -> [(Int, [(Int, Maybe X100Data)])]
         pbi vs = [ (the i, zip p it) | (i, p, it) <- vs
-                                     , then group by i]
+                                     , then group by i using groupWith]
         
 partByIter :: Int -> [[SqlValue]] -> [(Int, [(Int, [SqlValue])])]
 partByIter iC vs = pbi (zip [1..] vs)
