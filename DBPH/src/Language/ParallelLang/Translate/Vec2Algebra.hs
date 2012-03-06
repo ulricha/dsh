@@ -138,7 +138,7 @@ toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
-    planToFile f (t, Set.elems $ Set.fromList $ rootNodes r, reverseAlgMap m)
+    planToFile f (t, rootNodes r, reverseAlgMap m)
   where
       rootNodes :: Plan -> [AlgNode]
       rootNodes (TupleVector qs) = concat $ map rootNodes qs
