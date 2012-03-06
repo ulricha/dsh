@@ -47,7 +47,7 @@ getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
 #endif
 
-qc:: Testable prop => prop -> IO ()
+qc :: Testable prop => prop -> IO ()
 --qc = verboseCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 
@@ -305,6 +305,8 @@ main = do
     qc prop_map_map_mul
     putStrPad "map (map (map (*2)))"
     qc prop_map_map_map_mul
+    putStrPad "map (\\x -> map (\\y -> x + y) ..) .."
+    qc prop_map_map_add
     putStrPad "Lifted groupWith"
     qc prop_map_groupWith
     putStrPad "Lifted sortWith"
@@ -548,6 +550,9 @@ prop_map = makeProp (Q.map id) (map id)
 
 prop_map_map_mul :: [[Integer]] -> Property
 prop_map_map_mul = makeProp (Q.map (Q.map (*2))) (map (map (*2)))
+
+prop_map_map_add :: ([Integer], [Integer]) -> Property
+prop_map_map_add = makeProp (\z -> Q.map (\x -> (Q.map (\y -> x + y) $ Q.snd z)) $ Q.fst z) (\(l,r) -> map (\x -> map (\y -> x + y) r) l)
                    
 prop_map_map_map_mul :: [[[Integer]]] -> Property
 prop_map_map_map_mul = makeProp (Q.map (Q.map (Q.map (*2)))) (map (map (map (*2))))
