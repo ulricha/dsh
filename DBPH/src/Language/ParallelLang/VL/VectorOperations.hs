@@ -235,7 +235,7 @@ distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do
                                                      e3 <- chainRenameFilter p vs1
                                                      return $ attachV (DescrVector d2) $ attachV d e3
 distL (AClosure n v i xs x f fl) q2 = do
-                                        v' <- distL q2 v
+                                        v' <- distL v q2
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL (TupleVector es) e2 = TupleVector <$> mapM (\e -> distL e e2) es 
