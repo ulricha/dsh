@@ -124,4 +124,3 @@ flatten v d (N.Iter _t n e1 e2) = do
                                     return $ mapL (distF f d) e1'
 
 topLevelVars :: [String]
-topLevelVars = ["dist", "restrict", "combine", "not", "insert", "extract", "map"]
