@@ -53,6 +53,10 @@ qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
 
 putStrPad :: String -> IO ()
 putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
+              
+isOrdered :: (a -> a -> Bool) -> [a] -> Bool
+isOrdered p (x1:x2:xs) = p x1 x2 && isOrdered p (x2:xs)
+isOrdered _ _          = True
 
 main :: IO ()
 main = do
@@ -343,6 +347,22 @@ makeProp f1 f2 arg = monadicIO $ do
     let hs = f2 arg
     assert (db == hs)
 
+makePropPred :: (QA a, QA b, Show a, Show b)
+                => (a -> b -> Bool)
+                -> (Q a -> Q b)
+                -> a
+                -> Property
+makePropPred p f1 arg = monadicIO $ do
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+#else
+    c  <- run $ getConn
+    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    run $ HDBC.disconnect c
+#endif
+    assert (p arg db)
+
 makePropNotNull ::  (Eq b, Q.QA a, Q.QA b, Show a, Show b)
                     => (Q.Q [a] -> Q.Q b)
                     -> ([a] -> b)
@@ -579,13 +599,19 @@ prop_map_sortWith :: [[Integer]] -> Property
 prop_map_sortWith = makeProp (Q.map (Q.sortWith id)) (map (sortWith id))
 
 prop_map_sortWith_length :: [[[Integer]]] -> Property
-prop_map_sortWith_length = makeProp (Q.map (Q.sortWith Q.length)) (map (sortWith length))
+prop_map_sortWith_length = makePropPred check (Q.map (Q.sortWith Q.length)) 
+  where check orig res = all (isOrdered (\l1 l2 -> length l1 <= length l2)) res
+                         && length orig == length res
+                         && (all (\(l1, l2) -> length l1 == length l2) $ zip orig res)
+                         && (all (\(l1, l2) -> all (\x -> x `elem` l1) l2) $ zip orig res) 
                            
 prop_map_groupWith_length :: [[[Integer]]] -> Property
 prop_map_groupWith_length = makeProp (Q.map (Q.groupWith Q.length)) (map (groupWith length))
 
 prop_sortWith_length_nest  :: [[[Integer]]] -> Property
-prop_sortWith_length_nest = makeProp (Q.sortWith Q.length) (sortWith length)
+prop_sortWith_length_nest = makePropPred check (Q.sortWith Q.length) 
+  where check orig res = isOrdered (\l1 l2 -> length l1 <= length l2) res
+                         && all (\x -> x `elem` res) orig
                             
 prop_groupWith_length_nest :: [[[Integer]]] -> Property
 prop_groupWith_length_nest = makeProp (Q.groupWith Q.length) (groupWith length)
