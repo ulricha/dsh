@@ -99,7 +99,9 @@ Test-Suite Flattening_x100
                    QuickCheck         >= 2.4,
                    DSH                >= 0.7.8.1,
                    text               >= 0.11,
-                   X100Client         >= 0.0.2
+                   X100Client         >= 0.0.2,
+                   test-framework-quickcheck2 >= 0.2,
+                   test-framework >= 0.5
     cpp-options: -DisX100
     GHC-Options:       -O3 -Wall
     extensions: CPP
@@ -112,7 +114,9 @@ Test-Suite Flattening_TA
                    DSH                >= 0.7.8.1,
                    text               >= 0.11,
                    HDBC-postgresql    >= 2.3,
-                   HDBC               >= 2.3 
+                   HDBC               >= 2.3,
+                   test-framework-quickcheck2 >= 0.2,
+                   test-framework >= 0.5 
     cpp-options: -DisDBPH
     GHC-Options:       -O3 -Wall
     extensions: CPP
@@ -125,6 +129,8 @@ Test-Suite Ferry_DSH
                    DSH                >= 0.7.8.1,
                    text               >= 0.11,
                    HDBC-postgresql    >= 2.3,
-                   HDBC               >= 2.3 
+                   HDBC               >= 2.3,
+                   test-framework-quickcheck2 >= 0.2,
+                   test-framework >= 0.5 
     GHC-Options:       -O3 -Wall
     extensions: CPP

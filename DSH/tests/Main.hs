@@ -25,6 +25,8 @@ import qualified Database.HDBC as HDBC
 import Database.HDBC.PostgreSQL
 #endif
 
+import Test.Framework (Test, defaultMain, testGroup)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
@@ -47,289 +49,168 @@ getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
 #endif
 
-qc :: Testable prop => prop -> IO ()
---qc = verboseCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
-qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
-
-putStrPad :: String -> IO ()
-putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
-              
 isOrdered :: (a -> a -> Bool) -> [a] -> Bool
 isOrdered p (x1:x2:xs) = p x1 x2 && isOrdered p (x2:xs)
 isOrdered _ _          = True
 
 main :: IO ()
-main = do
+main = defaultMain tests 
 
-    putStrLn "Supported Types"
-    putStrLn "--------------"
-    putStrPad "()"
-    qc prop_unit
-    putStrPad "Bool"
-    qc prop_bool
-    putStrPad "Char"
-    qc prop_char
-    putStrPad "Text"
-    qc prop_text
-    putStrPad "Integer"
-    qc prop_integer
-    putStrPad "Double"
-    qc prop_double
-    putStrPad "[Integer]"
-    qc prop_list_integer_1
-    putStrPad "[[Integer]]"
-    qc prop_list_integer_2
-    putStrPad "[[[Integer]]]"
-    qc prop_list_integer_3
+tests :: [Test]
+tests = 
+    [
+      testGroup "Supported Types"
+        [ testProperty "()" $ prop_unit
+        , testProperty "()" $ prop_unit
+        , testProperty "Bool" $ prop_bool
+        , testProperty "Char" $ prop_char
+        , testProperty "Text" $ prop_text
+        , testProperty "Integer" $ prop_integer
+        , testProperty "Double" $ prop_double
+        , testProperty "[Integer]" $ prop_list_integer_1
+        , testProperty "[[Integer]]" $ prop_list_integer_2
+        , testProperty "[[[Integer]]]" $ prop_list_integer_3
 #ifndef isDBPH
-    {-
-    putStrPad "Maybe Integer"
-    qc prop_maybe_integer
-    putStrPad "Either Integer Integer: "
-    qc prop_either_integer
-    -}
+        {-
+        , testProperty "Maybe Integer" $ prop_maybe_integer
+        , testProperty "Either Integer Integer" $ prop_either_integer
+        -}
+#endif
+        ]
+    , testGroup "Equality, Boolean Logic and Ordering"
+        [ testProperty "&&" $ prop_infix_and
+        , testProperty "||" $ prop_infix_or
+        , testProperty "not" $ prop_not
+        , testProperty "eq" $ prop_eq
+        , testProperty "neq" $ prop_neq
+        , testProperty "cond" $ prop_cond
+        , testProperty "lt" $ prop_lt
+        , testProperty "lte" $ prop_lte
+        , testProperty "gt" $ prop_gt
+        , testProperty "gte" $ prop_gte
+#ifndef isDBPH
+        , testProperty "min_integer" $ prop_min_integer
+        , testProperty "min_double" $ prop_min_double
+        , testProperty "max_integer" $ prop_max_integer
+        , testProperty "max_double" $ prop_max_double
+#endif
+        ]
+    , testGroup "Tuples"
+        [ testProperty "fst" $ prop_fst
+        , testProperty "snd" $ prop_snd
+        ]
+    , testGroup "Numerics"
+        [ testProperty "add_integer" $ prop_add_integer
+        , testProperty "add_double" $ prop_add_double
+        , testProperty "mul_integer" $ prop_mul_integer
+        , testProperty "mul_double" $ prop_mul_double
+        , testProperty "div_double" $ prop_div_double
+#ifndef isDBPH
+        , testProperty "integer_to_double" $ prop_integer_to_double    
+        , testProperty "abs_integer" $ prop_abs_integer
+        , testProperty "abs_double" $ prop_abs_double
+        , testProperty "signum_integer" $ prop_signum_integer
+        , testProperty "signum_double" $ prop_signum_double
+        , testProperty "negate_integer" $ prop_negate_integer
+        , testProperty "negate_double" $ prop_negate_double
+#endif
+        ]
+    , testGroup "Lists"
+        [
+#ifndef isDBPH 
+          testProperty "head" $ prop_head
+        , testProperty "tail" $ prop_tail
+        , 
+#endif        
+         testProperty "cons" $ prop_cons
+#ifndef isDBPH
+        , testProperty "snoc" $ prop_snoc
+        , testProperty "take" $ prop_take
+        , testProperty "drop" $ prop_drop
+        , testProperty "take ++ drop" $ prop_takedrop
 #endif
 
-
-    putStrLn ""
-    putStrLn "Equality, Boolean Logic and Ordering"
-    putStrLn "------------------------------------"
-    putStrPad "&&"
-    qc prop_infix_and
-    putStrPad "||"
-    qc prop_infix_or
-    putStrPad "not"
-    qc prop_not
-
-    putStrPad "eq"
-    qc prop_eq
-    putStrPad "neq"
-    qc prop_neq
-
-    putStrPad "cond"
-    qc prop_cond
-    putStrPad "lt"
-    qc prop_lt
-    putStrPad "lte"
-    qc prop_lte
-    putStrPad "gt"
-    qc prop_gt
-    putStrPad "gte"
-    qc prop_gte
-#ifndef isDBPH
-    putStrPad "min_integer"
-    qc prop_min_integer
-    putStrPad "min_double"
-    qc prop_min_double
-    putStrPad "max_integer"
-    qc prop_max_integer
-    putStrPad "max_double"
-    qc prop_max_double
-#endif    
-    putStrLn ""
-    putStrLn "Tuples"
-    putStrLn "------"
-    putStrPad "fst"
-    qc prop_fst
-    putStrPad "snd"
-    qc prop_snd
-    
-    putStrLn ""
-    putStrLn "Numerics:"
-    putStrLn "-----------"
-    putStrPad "add_integer"
-    qc prop_add_integer
-    putStrPad "add_double"
-    qc prop_add_double
-    putStrPad "mul_integer"
-    qc prop_mul_integer
-    putStrPad "mul_double"
-    qc prop_mul_double
-    putStrPad "div_double"
-    qc prop_div_double
-#ifndef isDBPH
-    putStrPad "integer_to_double: "
-    qc prop_integer_to_double    
-    putStrPad "abs_integer"
-    qc prop_abs_integer
-    putStrPad "abs_double"
-    qc prop_abs_double
-    putStrPad "signum_integer: "
-    qc prop_signum_integer
-    putStrPad "signum_double"
-    qc prop_signum_double
-    putStrPad "negate_integer: "
-    qc prop_negate_integer
-    putStrPad "negate_double"
-    qc prop_negate_double
-        
-    putStrLn ""
-    putStrLn "Lists"
-    putStrLn "-----"
-    putStrPad "head"
-    qc prop_head
-    putStrPad "tail"
-    qc prop_tail
-#endif
-    putStrPad "cons"
-    qc prop_cons
-#ifndef isDBPH
-    putStrPad "snoc"
-    qc prop_snoc
-    putStrPad "take"
-    qc prop_take
-    putStrPad "drop"
-    qc prop_drop
-    putStrPad "take ++ drop"
-    qc prop_takedrop
-#endif
-
-    putStrPad "map"
-    qc prop_map
+        , testProperty "map" $ prop_map
 
 #ifndef isDBPH
-    putStrPad "filter"
-    qc prop_filter
+        , testProperty "filter" $ prop_filter
 #endif
-    putStrPad "the"
-    qc prop_the
+        , testProperty "the" $ prop_the
 #ifndef isDBPH
-    putStrPad "last"
-    qc prop_last
-    putStrPad "init"
-    qc prop_init
-    putStrPad "null"
-    qc prop_null
+        , testProperty "last" $ prop_last
+        , testProperty "init" $ prop_init
+        , testProperty "null" $ prop_null
 #endif
-    putStrPad "length"
-    qc prop_length
+        , testProperty "length" $ prop_length
 #ifndef isDBPH
-    putStrPad "index"
-    qc prop_index
-    putStrPad "reverse"
-    qc prop_reverse
-    putStrPad "append"
-    qc prop_append
+        , testProperty "index" $ prop_index
+        , testProperty "reverse" $ prop_reverse
+        , testProperty "append" $ prop_append
 #endif
-    putStrPad "groupWith"
-    qc prop_groupWith
-    putStrPad "groupWith length"
-    qc prop_groupWith_length
-    putStrPad "sortWith"
-    qc prop_sortWith
+        , testProperty "groupWith" $ prop_groupWith
+        , testProperty "groupWith length" $ prop_groupWith_length
+        , testProperty "sortWith" $ prop_sortWith
 #ifndef isDBPH
-    putStrPad "and"
-    qc prop_and
-    putStrPad "or"
-    qc prop_or
-    putStrPad "any_zero"
-    qc prop_any_zero
-    putStrPad "all_zero"
-    qc prop_all_zero
+        , testProperty "and" $ prop_and
+        , testProperty "or" $ prop_or
+        , testProperty "any_zero" $ prop_any_zero
+        , testProperty "all_zero" $ prop_all_zero
 #endif
+        , testProperty "sum_integer" $ prop_sum_integer
+        , testProperty "sum_double" $ prop_sum_double
+        , testProperty "concat" $ prop_concat
+        , testProperty "concatMap" $ prop_concatMap
+#ifndef isDBPH
+        , testProperty "maximum" $ prop_maximum
+        , testProperty "minimum" $ prop_minimum
+        , testProperty "splitAt" $ prop_splitAt
+        , testProperty "takeWhile" $ prop_takeWhile
+        , testProperty "dropWhile" $ prop_dropWhile
+        , testProperty "span" $ prop_span
+        , testProperty "break" $ prop_break
+        , testProperty "elem" $ prop_elem
+        , testProperty "notElem" $ prop_notElem
+        , testProperty "zip" $ prop_zip
+        , testProperty "zipWith" $ prop_zipWith
+        , testProperty "unzip" $ prop_unzip
+        , testProperty "nub" $ prop_nub
+#endif
+        ]
+    , testGroup "Lifted operations"
+        [ testProperty "Lifted &&" $ prop_infix_map_and
+        , testProperty "Lifted ||" $ prop_infix_map_or
+        , testProperty "Lifted not" $ prop_map_not
+        , testProperty "Lifted eq" $ prop_map_eq
+        , testProperty "Lifted neq" $ prop_map_neq
+        , testProperty "Lifted cond" $ prop_map_cond
+        , testProperty "Lifted cond + concat" $ prop_concatmapcond
+        , testProperty "Lifted lt" $ prop_map_lt
+        , testProperty "Lifted lte" $ prop_map_lte
+        , testProperty "Lifted gt" $ prop_map_gt
+        , testProperty "Lifted gte" $ prop_map_gte
+        , testProperty "Lifted cons" $ prop_map_cons
+        , testProperty "Lifted concat" $ prop_map_concat
+        , testProperty "Lifted fst" $ prop_map_fst
+        , testProperty "Lifted snd" $ prop_map_snd
+        , testProperty "Lifted the" $ prop_map_the
+        --, testProperty "Lifed and" $ prop_map_and
+        , testProperty "map (map (*2))" $ prop_map_map_mul
+        , testProperty "map (map (map (*2)))" $ prop_map_map_map_mul
+        , testProperty "map (\\x -> map (\\y -> x + y) ..) .." $ prop_map_map_add
+        , testProperty "Lifted groupWith" $ prop_map_groupWith
+        , testProperty "Lifted sortWith" $ prop_map_sortWith
+        , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
+        , testProperty "Lifted groupWith length" $ prop_map_groupWith_length
+        , testProperty "Lifted length" $ prop_map_length
+        {- This test fails at least on X100: The X100 result is correct, but the order of elements
+           with the same ordering criterium is different from the one generated by GHC.Exts.sortWith,
+           which is not a stable sort. GHC.Exts.sortWith documentation does not specify wether it
+           sorts in a stable way or not. -}
+        , testProperty "Sortwith length nested" $ prop_sortWith_length_nest
+        , testProperty "GroupWith length nested" $ prop_groupWith_length_nest
+        ]
+    ]
 
-    putStrPad "sum_integer"
-    qc prop_sum_integer
-    putStrPad "sum_double"
-    qc prop_sum_double
-    putStrPad "concat"
-    qc prop_concat
-    putStrPad "concatMap"
-    qc prop_concatMap
-#ifndef isDBPH
-    putStrPad "maximum"
-    qc prop_maximum
-    putStrPad "minimum"
-    qc prop_minimum
-    putStrPad "splitAt"
-    qc prop_splitAt
-    putStrPad "takeWhile"
-    qc prop_takeWhile
-    putStrPad "dropWhile"
-    qc prop_dropWhile
-    putStrPad "span"
-    qc prop_span
-    putStrPad "break"
-    qc prop_break
-    putStrPad "elem"
-    qc prop_elem
-    putStrPad "notElem"
-    qc prop_notElem
-    putStrPad "zip"
-    qc prop_zip
-    putStrPad "zipWith"
-    qc prop_zipWith
-    putStrPad "unzip"
-    qc prop_unzip
-    putStrPad "nub"
-    qc prop_nub
-#endif
-    putStrLn ""
-    putStrLn "Lifted operations:"
-    putStrLn "-----------"
-    putStrPad "Lifted &&"
-    qc prop_infix_map_and
-    putStrPad "Lifted ||"
-    qc prop_infix_map_or
-    putStrPad "Lifted not"
-    qc prop_map_not
-    putStrPad "Lifted eq"
-    qc prop_map_eq
-    putStrPad "Lifted neq"
-    qc prop_map_neq
-    putStrPad "Lifted cond"
-    qc prop_map_cond
-    putStrPad "Lifted cond + concat"
-    qc prop_concatmapcond
-    putStrPad "Lifted lt"
-    qc prop_map_lt
-    putStrPad "Lifted lte"
-    qc prop_map_lte
-    putStrPad "Lifted gt"
-    qc prop_map_gt
-    putStrPad "Lifted gte"
-    qc prop_map_gte
-    putStrPad "Lifted cons"
-    qc prop_map_cons
-    putStrPad "Lifted concat"
-    qc prop_map_concat
-    
-    putStrPad "Lifted fst"
-    qc prop_map_fst
-    putStrPad "Lifted snd"
-    qc prop_map_snd
-    
-    putStrPad "Lifted the"
-    qc prop_map_the
-    {-
-    putStrPad "Lifed and"
-    qc prop_map_and
-    -}
-    putStrPad "map (map (*2))"
-    qc prop_map_map_mul
-    putStrPad "map (map (map (*2)))"
-    qc prop_map_map_map_mul
-    putStrPad "map (\\x -> map (\\y -> x + y) ..) .."
-    qc prop_map_map_add
-    putStrPad "Lifted groupWith"
-    qc prop_map_groupWith
-    putStrPad "Lifted sortWith"
-    qc prop_map_sortWith
-    putStrPad "Lifted sortWith length"
-    qc prop_map_sortWith_length
-    putStrPad "Lifted groupWith length"
-    qc prop_map_groupWith_length
-    putStrPad "Lifted length"
-    qc prop_map_length
-    {- This test fails at least on X100: The X100 result is correct, but the order of elements
-       with the same ordering criterium is different from the one generated by GHC.Exts.sortWith,
-       which is not a stable sort. GHC.Exts.sortWith documentation does not specify wether it
-       sorts in a stable way or not. -}
-    putStrPad "Sortwith length nested"
-    qc prop_sortWith_length_nest
-    putStrPad "GroupWith length nested"
-    qc prop_groupWith_length_nest
-    
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
             -> (a -> b)
