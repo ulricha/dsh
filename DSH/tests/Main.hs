@@ -25,7 +25,9 @@ import qualified Database.HDBC as HDBC
 import Database.HDBC.PostgreSQL
 #endif
 
-import Test.Framework (Test, defaultMain, testGroup)
+
+import System.Environment
+import Test.Framework (Test, defaultMainWithArgs, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -50,7 +52,12 @@ getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'lo
 #endif
 
 main :: IO ()
-main = defaultMain tests 
+main = do
+            args <- getArgs
+            let args' = if or $ map (isPrefixOf "-s") args
+                         then args
+                         else "-s5":args
+            defaultMainWithArgs tests args'
 
 tests :: [Test]
 tests = 
