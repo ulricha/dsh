@@ -20,8 +20,10 @@ import Database.DSH.Compiler (fromQ)
 import Database.X100Client
 #endif
 
+#ifndef isX100
 import qualified Database.HDBC as HDBC
 import Database.HDBC.PostgreSQL
+#endif
 
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -33,8 +35,6 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 
 import Data.Char
-
-import System.IO.Unsafe
 
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
@@ -462,11 +462,11 @@ prop_map_cond :: [Bool] -> Property
 prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
 
 prop_concatmapcond :: [Integer] -> Property
-prop_concatmapcond l = 
+prop_concatmapcond l1 = 
         -- FIXME remove precondition as soon as X100 is fixed
-	(not $ null l)
+	(not $ null l1)
 	==>
-	makeProp q n l
+	makeProp q n l1
         where q l = Q.concatMap (\x -> Q.cond ((Q.>) x (Q.toQ 0)) (x Q.<| el) el) l
               n l = concatMap (\x -> if x > 0 then [x] else []) l
               el = Q.toQ []

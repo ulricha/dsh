@@ -48,7 +48,7 @@ Extra-source-files:  examples/Example01.hs
                      tests/Main.hs
                      tests/Makefile
 
-Cabal-version:       >= 1.2
+Cabal-version:       >= 1.9
 
 flag map
     description: Builds DSH with map combinators instead of using iterators (flattening path)
@@ -72,7 +72,6 @@ Library
                      X100Client         >= 0.0.2
 
   Hs-source-dirs:    src
-
   if flag (map)
     GHC-Options:       -O3 -Wall
     cpp-options: -DwithMap
@@ -93,4 +92,39 @@ Library
                      Paths_DSH
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
+Test-Suite Flattening_x100
+    type:       exitcode-stdio-1.0
+    Main-is:    tests/Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   text               >= 0.11,
+                   X100Client         >= 0.0.2
+    cpp-options: -DisX100
+    GHC-Options:       -O3 -Wall
+    extensions: CPP
+    
+Test-Suite Flattening_TA
+    type:       exitcode-stdio-1.0
+    Main-is:    tests/Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   text               >= 0.11,
+                   HDBC-postgresql    >= 2.3,
+                   HDBC               >= 2.3 
+    cpp-options: -DisDBPH
+    GHC-Options:       -O3 -Wall
+    extensions: CPP
 
+Test-Suite Ferry_DSH
+    type:       exitcode-stdio-1.0
+    Main-is:    tests/Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   text               >= 0.11,
+                   HDBC-postgresql    >= 2.3,
+                   HDBC               >= 2.3 
+    GHC-Options:       -O3 -Wall
+    extensions: CPP
