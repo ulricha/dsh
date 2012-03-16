@@ -88,8 +88,7 @@ deTuple v@(Nil t) | containsTuple t = do
                                         c2 <- deTuple $ Nil (listT t2)
                                         return $ pairF c1 c2
                   | otherwise       = return v
-deTuple c@(Const t v) | containsTuple t = return $ Const (transType t) $ fst $ deTupleVal t v
-                      | otherwise       = return c
+deTuple c@(Const t v) = return c
 deTuple (Var t s)                 = return $ Var (transType t) s
 deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) && not (isFuns $ typeOf e1) || containsTuple (typeOf e2)) && not (isFuns $ typeOf e2)=
                                              do
@@ -159,28 +158,3 @@ deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple
 deTuple (AClo t n e vs x f fl) = AClo (transType t) n <$> deTuple e <*> pure vs <*> pure x <*> deTuple f <*> deTuple fl
 deTuple (CloApp t f args) = CloApp (transType t) <$> deTuple f <*> deTuple args
 deTuple (CloLApp t f args) = CloLApp (transType t) <$> deTuple f <*> deTuple args 
-
-deTupleVal :: T.Type -> V.Val -> (V.Val, T.Type)
-deTupleVal t v@(V.Int _) = (v, t)
-deTupleVal t v@(V.Bool _) = (v, t)
-deTupleVal t v@(V.String _) = (v, t)
-deTupleVal t v@(V.Double _) = (v, t)
-deTupleVal t v@(V.Unit) = (v, t)
-deTupleVal (T.Pair t1 t2) (V.Pair e1 e2) = let (v1, t1') = deTupleVal t1 e1
-                                               (v2, t2') = deTupleVal t2 e2
-                                            in (V.Pair v1 v2, T.Pair t1' t2')
-deTupleVal (T.List (T.Pair t1 t2)) (V.List xs) = let (l1, l2) = pushIn xs
-                                                     (v1, t1') = deTupleVal (T.List t1) $ V.List l1
-                                                     (v2, t2') = deTupleVal (T.List t2) $ V.List l2
-                                                  in (V.Pair v1 v2, T.Pair t1' t2')
-deTupleVal t1@(T.List t@(T.List _)) v@(V.List xs) | containsTuple t = deTupleVal (T.List $ transType t) $ V.List $ map (fst . (deTupleVal t)) xs
-                                                  | otherwise       = (v, t1)
-deTupleVal t@(T.List _) v = (v, t)
-deTupleVal (T.Var _) _ = $impossible
-deTupleVal (T.Fn _ _) _ = $impossible
-deTupleVal _ _          = $impossible
-    
-pushIn :: [V.Val] -> ([V.Val], [V.Val])
-pushIn ((V.Pair e1 e2):xs) = let (es1, es2) = pushIn xs in (e1:es1, e2:es2)
-pushIn []                  = ([], [])
-pushIn v                   = error $ "deTupler pushIn: Not a list of tuples: " ++ show v
