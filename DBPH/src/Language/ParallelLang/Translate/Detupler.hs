@@ -112,25 +112,7 @@ deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) && not (isF
                                                           else deTuple $ PApp3 rt (Insert $ typeOf e1' .-> typeOf v2 .-> intT .-> rt) v1 v2 e3
                                               return $ letF fv1 e1' $ letF fv2 e2'' eb''
                                          | otherwise = PApp3 rt (Insert ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
-deTuple (PApp3 rt (Combine ft) e1 e2 e3) | containsTuple rt && not (isFuns rt)=
-                                            do
-                                                e1' <- deTuple e1
-                                                e2' <- deTuple e2
-                                                e3' <- deTuple e3
-                                                fv1 <- getFreshVar
-                                                fv2 <- getFreshVar
-                                                fv3 <- getFreshVar
-                                                let (t1, t2) = pairComponents $ typeOf e2' 
-                                                let v1 = Var (typeOf e1') fv1
-                                                let v2 = Var (typeOf e2') fv2
-                                                let v3 = Var (typeOf e3') fv3
-                                                e1'' <- deTuple $ PApp3 t1 (Combine $ listT boolT .-> t1 .-> t1 .-> t1) v1 (fstF v2) (fstF v3)
-                                                e2'' <- deTuple $ PApp3 t2 (Combine $ listT boolT .-> t2 .-> t2 .-> t2) v1 (sndF v2) (sndF v3)
-                                                return $ letF fv1 e1' $
-                                                            letF fv2 e2' $
-                                                              letF fv3 e3' $
-                                                                pairF e1'' e2''
-                                         | otherwise = PApp3 rt (Combine ft) <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
+deTuple (PApp3 rt f e1 e2 e3) = PApp3 rt f <$> deTuple e1 <*> deTuple e2 <*> deTuple e3
 deTuple (PApp2 rt (Extract ft) e1 e2)  = PApp2 rt (Extract ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt (Dist ft) e1 e2) | containsTuple ft && not (isFuns rt)=
                                             do
@@ -171,20 +153,6 @@ deTuple (PApp2 rt (Index ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                e2'' <- deTuple $ PApp2 rt2 (Index $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
                                                return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                     | otherwise = PApp2 rt (Index ft) <$> deTuple e1 <*> deTuple e2
-{- deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
-                                          do
-                                                 e1' <- deTuple e1
-                                                 e2' <- deTuple e2
-                                                 fv1 <- getFreshVar
-                                                 fv2 <- getFreshVar
-                                                 let v1 = Var (typeOf e1') fv1
-                                                 let v2 = Var (typeOf e2') fv2
-                                                 let (t1, t2) = pairComponents $ typeOf e1'
-                                                 let (rt1, rt2) = pairComponents $ transType rt
-                                                 e1'' <- deTuple $ PApp2 rt1 (Restrict $ t1 .-> typeOf e2' .-> rt1) (fstF v1) v2
-                                                 e2'' <- deTuple $ PApp2 rt2 (Restrict $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
-                                                 return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
-                                       | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2 -}
 deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl

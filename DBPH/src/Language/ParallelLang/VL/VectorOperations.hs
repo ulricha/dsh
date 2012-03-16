@@ -173,6 +173,11 @@ restrict (NestedVector d1 vs1) e2@(ValueVector _)
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
+combine eb (TupleVector [e11, e12]) (TupleVector [e21, e22]) = 
+                     do
+                         e1 <- combine eb e11 e21
+                         e2 <- combine eb e12 e22
+                         return $ TupleVector [e1, e2]
 combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth e2 == 1
                       -- Corresponds to compilation rule [combine-1]
                     = do
