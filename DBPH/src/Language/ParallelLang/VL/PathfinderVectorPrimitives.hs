@@ -278,6 +278,7 @@ notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (
 notVecPF _ = error "notVecPF: Should not be possible"
 
 lengthAPF :: Plan -> Graph PFAlgebra Plan
+-- lengthAPF (TupleVector [e1, _e2]) = lengthAPF e1
 lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF _ = error "lengthAPF: Should not be possible"
@@ -297,6 +298,7 @@ notAPF (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (it
 notAPF _ = error "notAPF: Should not be possible"
 
 outerPF :: Plan -> Graph PFAlgebra Plan
+outerPF (TupleVector [e1, _e2]) = outerPF e1
 outerPF (NestedVector p _) = return $ DescrVector p
 outerPF (ValueVector p)    = DescrVector <$> (tagM "outerPF" $ proj [(pos, pos), (descr,descr)] p)
 outerPF e                  = error $ "outerPF: Can't extract outerPF plan" ++ show e

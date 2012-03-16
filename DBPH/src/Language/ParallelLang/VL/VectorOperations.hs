@@ -93,6 +93,7 @@ concatLift (NestedVector d (NestedVector d' vs)) = do
 concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift :: VectorAlgebra a => Plan -> Graph a Plan
+lengthLift (TupleVector [e1, _e2]) = lengthLift e1
 lengthLift (NestedVector d vs1) = do 
                                    v <- outer vs1
                                    ls <- lengthSeg (DescrVector d) v
@@ -101,6 +102,7 @@ lengthLift (NestedVector d vs1) = do
 lengthLift _ = error "lengthLift: Should not be possible"
 
 lengthV :: VectorAlgebra a => Plan -> Graph a Plan
+lengthV (TupleVector [e1, _e2]) = lengthV e1
 lengthV v = do
              v' <- outer v
              lengthA v'
@@ -152,6 +154,10 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
 consLift _ _ = error "consLift: Should not be possible"
 
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+restrict (TupleVector [e1, e2]) bs = do
+                                        e1' <- restrict e1 bs
+                                        e2' <- restrict e2 bs
+                                        return $ TupleVector [e1', e2']
 restrict e1@(ValueVector _) e2@(ValueVector _) 
                      -- Corresponds to compilation rule [restrict-1]
                    = do
@@ -167,6 +173,11 @@ restrict (NestedVector d1 vs1) e2@(ValueVector _)
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
+combine eb (TupleVector [e11, e12]) (TupleVector [e21, e22]) = 
+                     do
+                         e1 <- combine eb e11 e21
+                         e2 <- combine eb e12 e22
+                         return $ TupleVector [e1, e2]
 combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth e2 == 1
                       -- Corresponds to compilation rule [combine-1]
                     = do
