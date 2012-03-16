@@ -77,6 +77,18 @@ class VectorAlgebra a where
   emptyLift :: Plan -> Plan -> Graph a Plan
   selectPos :: Plan -> Oper -> Plan -> Graph a Plan
   selectPosLift :: Plan -> Oper -> Plan -> Graph a Plan
+  fstA :: Plan -> Graph a Plan
+  fstA (TupleVector [e1, _]) = return e1
+  fstA _                     = error "fstA: not a tuple"
+  sndA :: Plan -> Graph a Plan
+  sndA (TupleVector [_, e2]) = return e2
+  sndA _                     = error "sndA: not a tuple"
+  fstL :: Plan -> Graph a Plan
+  fstL (TupleVector [e1, _]) = return e1
+  fstL _                     = error "fstL: not a tuple"
+  sndL :: Plan -> Graph a Plan 
+  sndL (TupleVector [_, e2]) = return e2
+  sndL _                     = error "sndL: not a tuple"
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
