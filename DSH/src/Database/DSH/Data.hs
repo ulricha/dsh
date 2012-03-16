@@ -274,7 +274,7 @@ instance TA Char where
 instance TA Integer where
 instance TA Double where
 instance TA Text where
-instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
+instance (QA a, QA b) => TA (a,b) where
 
 -- * Eq, Ord and Num Instances for Databse Queries
 
