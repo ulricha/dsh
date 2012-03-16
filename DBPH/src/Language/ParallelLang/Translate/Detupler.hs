@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
-module Language.ParallelLang.Translate.Detupler(normTuples, detuple) where
+module Language.ParallelLang.Translate.Detupler(detuple) where
 
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.FKL.Primitives
@@ -15,16 +15,11 @@ import Language.ParallelLang.Common.Impossible
 
 detuple :: TExpr -> TransM (TExpr, Type)
 detuple v = do
-               e' <- normTuples v
+               e' <- deTuple v
                let (t) = transType $ typeOf v
                return (e', t)
                
 
-normTuples :: TExpr -> TransM TExpr
-normTuples e = do
-                        e' <- deTuple e
-                        return e'
-                        
 transType :: Type -> Type
 transType ot@(T.List t) | containsTuple t = case transType t of
                                                 (T.Pair t1 t2) -> T.Pair (transType $ T.List t1) (transType $ T.List t2)
@@ -191,38 +186,12 @@ deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                  return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                        | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
-deTuple (PApp1 rt (LengthPrim ft) e1) | (containsTuple $ typeOf e1) && not (isFuns $ typeOf e1) =  
-                                            do
-                                                e1' <- deTuple e1
-                                                let (t1, _) = pairComponents $ typeOf e1'
-                                                deTuple $ PApp1 rt (LengthPrim $ t1 .-> intT) $ fstF e1'
-                                      | otherwise = PApp1 rt (LengthPrim ft) <$> deTuple e1
 deTuple (PApp1 rt (LengthLift ft) e1) | (containsTuple $ typeOf e1) && not (isFuns $ typeOf e1) =  
                                           do
                                               e1' <- deTuple e1
                                               let (t1, _) = pairComponents $ typeOf e1'
                                               deTuple $ PApp1 rt (LengthLift $ t1 .-> intT) $ fstF e1'
                                       | otherwise = PApp1 rt (LengthLift ft) <$> deTuple e1
-deTuple (PApp1 _ (Fst _) e) = do
-                            e' <- deTuple e
-                            case e' of
-                                (F.Pair _ e1 _) -> return e1
-                                _               -> return $ fstF e'
-deTuple (PApp1 _ (Snd _) e) = do
-                            e' <- deTuple e
-                            case e' of
-                                (F.Pair _ _ e2) -> return e2
-                                _               -> return $ sndF e'
-deTuple (PApp1 _ (FstL _) e) = do
-                                  e' <- deTuple e
-                                  case e' of
-                                      (F.Pair _ e1 _) -> return e1
-                                      _               -> return $ fstF e'
-deTuple (PApp1 _ (SndL _) e) = do
-                                e' <- deTuple e
-                                case e' of
-                                    (F.Pair _  _ e2) -> return e2
-                                    _               -> return $ sndF e'
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl
 deTuple (AClo t n e vs x f fl) = AClo (transType t) n <$> deTuple e <*> pure vs <*> pure x <*> deTuple f <*> deTuple fl
