@@ -2,8 +2,8 @@ module Language.ParallelLang.VL.Algebra where
 
 import qualified Language.ParallelLang.Common.Data.Type as U
 --import Database.Ferry.Algebra hiding (getLoop, withContext, Gam)
-import Database.Algebra.Graph.Common
-import qualified Database.Algebra.Graph.GraphBuilder as G
+import Database.Algebra.Dag.Common
+import qualified Database.Algebra.Dag.Builder as G
 import Database.Algebra.Pathfinder
 --import qualified Database.Ferry.Algebra as A
 import Language.ParallelLang.VL.Data.Query

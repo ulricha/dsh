@@ -10,8 +10,8 @@ import Control.Applicative
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 
-import Database.Algebra.Graph.GraphBuilder
-import Database.Algebra.Graph.Common
+import Database.Algebra.Dag.Builder
+import Database.Algebra.Dag.Common
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
