@@ -171,7 +171,7 @@ deTuple (PApp2 rt (Index ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                e2'' <- deTuple $ PApp2 rt2 (Index $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
                                                return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                     | otherwise = PApp2 rt (Index ft) <$> deTuple e1 <*> deTuple e2
-deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
+{- deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                           do
                                                  e1' <- deTuple e1
                                                  e2' <- deTuple e2
@@ -184,7 +184,7 @@ deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                  e1'' <- deTuple $ PApp2 rt1 (Restrict $ t1 .-> typeOf e2' .-> rt1) (fstF v1) v2
                                                  e2'' <- deTuple $ PApp2 rt2 (Restrict $ t2 .-> typeOf e2' .-> rt2) (sndF v1) v2
                                                  return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
-                                       | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
+                                       | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2 -}
 deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl

@@ -5,8 +5,6 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Al
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import qualified Data.Set as Set
-
 import Database.Algebra.X100.Data.Algebra(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.Serialize
