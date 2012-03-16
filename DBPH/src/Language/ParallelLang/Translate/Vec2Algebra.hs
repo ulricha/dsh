@@ -15,8 +15,8 @@ import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Language.ParallelLang.Common.Data.Val(Val(Int))
-import Database.Algebra.Graph.Common
-import Database.Algebra.Graph.GraphBuilder
+import Database.Algebra.Dag.Common
+import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Query
