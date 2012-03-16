@@ -145,6 +145,7 @@ tests =
         , testProperty "null" $ prop_null
 #endif
         , testProperty "length" $ prop_length
+        , testProperty "length tuple list" $ prop_length_tuple
 #ifndef isDBPH
         , testProperty "index" $ prop_index
         , testProperty "reverse" $ prop_reverse
@@ -483,6 +484,9 @@ prop_null = makeProp Q.null null
 
 prop_length :: [Integer] -> Property
 prop_length = makeProp Q.length (fromIntegral . length)
+
+prop_length_tuple :: [(Integer, Integer)] -> Property
+prop_length_tuple = makeProp Q.length (fromIntegral . length)
 
 prop_map_length :: [[Integer]] -> Property
 prop_map_length = makeProp (Q.map Q.length) (map (fromIntegral . length))
