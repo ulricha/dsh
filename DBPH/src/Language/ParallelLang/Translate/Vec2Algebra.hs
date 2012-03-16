@@ -72,14 +72,6 @@ fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'
                             withBinding s e1' $ fkl2Alg e2
-fkl2Alg (PApp1 _ (Fst _) arg) = do
-                                 TupleVector [e1, _] <- fkl2Alg arg
-                                 return e1
-fkl2Alg (PApp1 _ (Snd _) arg) = do
-                                 TupleVector [_, e2] <- fkl2Alg arg
-                                 return e2
-fkl2Alg (PApp1 _ (FstL _) _) = error $ "FstL: Should have been eliminated by detupler"
-fkl2Alg (PApp1 _ (SndL _) _) = error $ "SndL: Should have been eliminated by detupler" 
 fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
@@ -90,10 +82,10 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (SumL _) -> sumLift
                                            (The _) -> the
                                            (TheL _) -> theL
-                                           (Fst _) -> $impossible
-                                           (Snd _) -> $impossible
-                                           (FstL _) -> $impossible
-                                           (SndL _) -> $impossible
+                                           (Fst _) -> fstA
+                                           (Snd _) -> sndA
+                                           (FstL _) -> fstL
+                                           (SndL _) -> sndL
 fkl2Alg (PApp2 _ (Extract _) arg1 (Const _ (Int i))) = do
                                         e1 <- fkl2Alg arg1
                                         extract e1 i
