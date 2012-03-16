@@ -154,6 +154,10 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
 consLift _ _ = error "consLift: Should not be possible"
 
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+restrict (TupleVector [e1, e2]) bs = do
+                                        e1' <- restrict e1 bs
+                                        e2' <- restrict e2 bs
+                                        return $ TupleVector [e1', e2']
 restrict e1@(ValueVector _) e2@(ValueVector _) 
                      -- Corresponds to compilation rule [restrict-1]
                    = do
