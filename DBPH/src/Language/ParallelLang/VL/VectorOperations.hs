@@ -93,6 +93,7 @@ concatLift (NestedVector d (NestedVector d' vs)) = do
 concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift :: VectorAlgebra a => Plan -> Graph a Plan
+lengthLift (TupleVector [e1, _e2]) = lengthLift e1
 lengthLift (NestedVector d vs1) = do 
                                    v <- outer vs1
                                    ls <- lengthSeg (DescrVector d) v
@@ -101,6 +102,7 @@ lengthLift (NestedVector d vs1) = do
 lengthLift _ = error "lengthLift: Should not be possible"
 
 lengthV :: VectorAlgebra a => Plan -> Graph a Plan
+lengthV (TupleVector [e1, _e2]) = lengthV e1
 lengthV v = do
              v' <- outer v
              lengthA v'

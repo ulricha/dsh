@@ -186,12 +186,6 @@ deTuple (PApp2 rt (Restrict ft) e1 e2) | containsTuple rt && not (isFuns rt) =
                                                  return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
                                        | otherwise = PApp2 rt (Restrict ft) <$> deTuple e1 <*> deTuple e2
 deTuple (PApp2 rt f e1 e2) = PApp2 rt f <$> deTuple e1 <*> deTuple e2
-deTuple (PApp1 rt (LengthLift ft) e1) | (containsTuple $ typeOf e1) && not (isFuns $ typeOf e1) =  
-                                          do
-                                              e1' <- deTuple e1
-                                              let (t1, _) = pairComponents $ typeOf e1'
-                                              deTuple $ PApp1 rt (LengthLift $ t1 .-> intT) $ fstF e1'
-                                      | otherwise = PApp1 rt (LengthLift ft) <$> deTuple e1
 deTuple (PApp1 rt f e) = PApp1 rt f <$> deTuple e
 deTuple (Clo t l vs x f fl) = Clo (transType t) l vs x <$> deTuple f <*> deTuple fl
 deTuple (AClo t n e vs x f fl) = AClo (transType t) n <$> deTuple e <*> pure vs <*> pure x <*> deTuple f <*> deTuple fl
