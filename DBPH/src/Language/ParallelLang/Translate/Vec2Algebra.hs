@@ -21,8 +21,11 @@ import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Query
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
-import qualified Language.ParallelLang.Common.Data.Type as Ty
+import qualified Language.ParallelLang.Common.Data.Type as T
+import qualified Language.ParallelLang.Common.Data.Val as V
 import Language.ParallelLang.VL.VectorOperations
+
+
 
 import Database.Algebra.Pathfinder(initLoop)
 
@@ -32,17 +35,52 @@ import Control.Monad (liftM2, liftM3)
 
 import Language.ParallelLang.Common.Impossible
 
-fkl2Alg :: (VectorAlgebra a) => Expr Ty.Type -> Graph a Plan
+deTupleVal :: T.Type -> V.Val -> (V.Val, T.Type)
+deTupleVal t v@(V.Int _) = (v, t)
+deTupleVal t v@(V.Bool _) = (v, t)
+deTupleVal t v@(V.String _) = (v, t)
+deTupleVal t v@(V.Double _) = (v, t)
+deTupleVal t v@(V.Unit) = (v, t)
+deTupleVal (T.Pair t1 t2) (V.Pair e1 e2) = let (v1, t1') = deTupleVal t1 e1
+                                               (v2, t2') = deTupleVal t2 e2
+                                            in (V.Pair v1 v2, T.Pair t1' t2')
+deTupleVal (T.List (T.Pair t1 t2)) (V.List xs) = let (l1, l2) = pushIn xs
+                                                     (v1, t1') = deTupleVal (T.List t1) $ V.List l1
+                                                     (v2, t2') = deTupleVal (T.List t2) $ V.List l2
+                                                  in (V.Pair v1 v2, T.Pair t1' t2')
+deTupleVal t1@(T.List t@(T.List _)) v@(V.List xs) | T.containsTuple t = deTupleVal (T.List $ transType t) $ V.List $ map (fst . (deTupleVal t)) xs
+                                                  | otherwise       = (v, t1)
+deTupleVal t@(T.List _) v = (v, t)
+deTupleVal (T.Var _) _ = $impossible
+deTupleVal (T.Fn _ _) _ = $impossible
+deTupleVal _ _          = $impossible
+    
+pushIn :: [V.Val] -> ([V.Val], [V.Val])
+pushIn ((V.Pair e1 e2):xs) = let (es1, es2) = pushIn xs in (e1:es1, e2:es2)
+pushIn []                  = ([], [])
+pushIn v                   = error $ "deTupler pushIn: Not a list of tuples: " ++ show v
+
+transType :: T.Type -> T.Type
+transType ot@(T.List t) | T.containsTuple t = case transType t of
+                                                (T.Pair t1 t2) -> T.Pair (transType $ T.List t1) (transType $ T.List t2)
+                                                t' -> T.List t'
+                        | otherwise       = ot
+transType (T.Pair t1 t2) = T.Pair (transType t1) (transType t2)
+transType (T.Fn t1 t2)       = T.Fn (transType t1) (transType t2)
+transType t                  = t
+
+fkl2Alg :: (VectorAlgebra a) => Expr T.Type -> Graph a Plan
 fkl2Alg (Pair _ e1 e2) = TupleVector <$> mapM fkl2Alg [e1, e2]
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
-fkl2Alg (Const t v) = constructLiteral t v 
-fkl2Alg (Nil (Ty.List t@(Ty.List _))) = do
+fkl2Alg (Const t v) | T.containsTuple t = constructLiteral (transType t) (fst $ deTupleVal t v)
+                    | otherwise = constructLiteral t v 
+fkl2Alg (Nil (T.List t@(T.List _))) = do
   p <- fkl2Alg (Nil t)
-  p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat)]
+  p_empty <- emptyVector [(AuxCol Descr, T.Nat), (AuxCol Pos, T.Nat)]
   return (NestedVector p_empty p)
-fkl2Alg (Nil (Ty.List t)) = do
-  p_empty <- emptyVector [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item, t)]
+fkl2Alg (Nil (T.List t)) = do
+  p_empty <- emptyVector [(AuxCol Descr, T.Nat), (AuxCol Pos, T.Nat), (AuxCol Item, t)]
   return (ValueVector p_empty)
 fkl2Alg (Nil t)                = error $ "Not a valid nil value" ++ show t
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
@@ -56,7 +94,7 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p2 <- fkl2Alg e2
                                                 binOp l o p1 p2
 -- FIXME implement If as documented in Sec. 5.3
-fkl2Alg (If t eb e1 e2) | Ty.listDepth t > 1 = do 
+fkl2Alg (If t eb e1 e2) | T.listDepth t > 1 = do 
                                                 eb' <- fkl2Alg eb
                                                 e1' <- fkl2Alg e1
                                                 e2' <- fkl2Alg e2
@@ -120,10 +158,10 @@ fkl2Alg (CloLApp _ c arg) = do
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 fkl2Alg e                 = error $ "unsupported: " ++ show e
 
-toPFAlgebra :: Expr Ty.Type -> AlgPlan PFAlgebra Plan
+toPFAlgebra :: Expr T.Type -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 
-toX100Algebra :: Expr Ty.Type -> AlgPlan X100Algebra Plan
+toX100Algebra :: Expr T.Type -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
