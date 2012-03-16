@@ -187,6 +187,7 @@ tests =
         , testProperty "Lifted eq" $ prop_map_eq
         , testProperty "Lifted neq" $ prop_map_neq
         , testProperty "Lifted cond" $ prop_map_cond
+        , testProperty "Lifted cond tuples" $ prop_map_cond_tuples
         , testProperty "Lifted cond + concat" $ prop_concatmapcond
         , testProperty "Lifted lt" $ prop_map_lt
         , testProperty "Lifted lte" $ prop_map_lte
@@ -330,6 +331,9 @@ prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else
 
 prop_map_cond :: [Bool] -> Property
 prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
+
+prop_map_cond_tuples :: [Bool] -> Property
+prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b (Q.toQ (0, 10) :: Q (Integer, Integer)) (Q.toQ (1, 11)))) (map (\b -> if b then (0, 10) else (1, 11)))
 
 prop_concatmapcond :: [Integer] -> Property
 prop_concatmapcond l1 = 
