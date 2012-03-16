@@ -2,6 +2,8 @@
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, debugFKL', fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100) where
 
+import GHC.Exts
+
 import Language.ParallelLang.DBPH hiding (SQL, X100)
 
 import Database.DSH.ExecuteFlattening
@@ -85,7 +87,7 @@ getTableInfo c n = do
 getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
 getX100TableInfo c n = do
                          t <- X.describeTable' c n
-                         return [ col2Val c | c <- columns t]
+                         return [ col2Val c | c <- sortWith colName $ columns t]
         where
             col2Val :: ColumnInfo -> (String, T.Type -> Bool)
             col2Val c = (colName c, \t -> case logicalType c of

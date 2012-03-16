@@ -18,8 +18,11 @@ import Data.Text (unpack)
 import qualified Data.Map as M
 import qualified Data.List as L
 
+import Control.Monad
 import Control.Monad.State
 import Control.Applicative
+  
+import GHC.Exts(sortWith)
 
 import Data.Char (toLower)
 {-
@@ -102,7 +105,7 @@ translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t)
 translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i)
 translate (TableE (TableDB n ks) ty) = do
                                         let ts = zip [1..] $ tableTypes ty
-                                        tableDescr <- tableInfo n
+                                        tableDescr <- liftM (sortWith fst) $ tableInfo n
                                         let tyDescr = if length tableDescr == length ts
                                                         then zip tableDescr ts
                                                         else error $ "Inferred typed: " ++ show ts ++ " \n doesn't match type of table: \"" 
