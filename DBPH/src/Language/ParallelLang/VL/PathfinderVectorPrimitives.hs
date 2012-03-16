@@ -278,7 +278,7 @@ notVecPF (ValueVector d) = ValueVector <$> (projM [(pos, pos), (descr, descr), (
 notVecPF _ = error "notVecPF: Should not be possible"
 
 lengthAPF :: Plan -> Graph PFAlgebra Plan
-lengthAPF (TupleVector [e1, _e2]) = lengthAPF e1
+-- lengthAPF (TupleVector [e1, _e2]) = lengthAPF e1
 lengthAPF (DescrVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF (ValueVector d) = PrimVal <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
 lengthAPF _ = error "lengthAPF: Should not be possible"
