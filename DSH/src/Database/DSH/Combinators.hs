@@ -241,6 +241,9 @@ nub = NubQ
 
 -- * Tuple Projection Functions
 
+pair :: (QA a, QA b) => Q a -> Q b -> Q (a, b)
+pair = PairQ
+
 fst :: (QA a, QA b) => Q (a,b) -> Q a
 fst = FstQ
 
