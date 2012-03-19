@@ -67,7 +67,7 @@ class VectorAlgebra a where
   bPermuteVec :: Plan -> Plan -> Graph a Plan
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
   tableRef :: String -> [TypedColumn Ty.Type] -> [Key] -> Graph a Plan
-  emptyVector :: [TypedAbstractColumn Ty.Type] -> Graph a AlgNode
+  emptyVector :: Maybe Ty.Type -> Graph a Plan
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
   ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
   ifNestList :: Plan -> Plan -> Plan -> Graph a Plan
