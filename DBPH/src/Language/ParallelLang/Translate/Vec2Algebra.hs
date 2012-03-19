@@ -5,17 +5,17 @@ module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Al
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder(PFAlgebra)
 
-import Database.Algebra.X100.Data.Algebra(X100Algebra)
+import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.Serialize
-import Database.Algebra.X100.Render.X100Code
+import Database.Algebra.X100.Render
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Language.ParallelLang.Common.Data.Val(Val(Int))
-import Database.Algebra.Dag.Common
+import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
