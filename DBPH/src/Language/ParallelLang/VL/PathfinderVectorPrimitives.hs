@@ -98,9 +98,21 @@ auxCol TmpCol' = tmpCol'
 auxCol Item = item
 auxCol Item' = item'
 
-emptyVectorPF :: [TypedAbstractColumn Ty.Type] -> Graph PFAlgebra AlgNode
-emptyVectorPF infos = emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos
-
+emptyVectorPF :: (Maybe Ty.Type) -> Graph PFAlgebra Plan
+emptyVectorPF Nothing  = DescrVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat)])
+emptyVectorPF (Just t) = case t of
+                          (Ty.List (Ty.Pair t1 t2)) -> do
+                                                       e1 <- emptyVectorPF (Just $ Ty.List t1)
+                                                       e2 <- emptyVectorPF (Just $ Ty.List t2)
+                                                       return $ TupleVector [e1, e2]
+                          (Ty.List t'@(Ty.List _)) -> do
+                                                    (DescrVector dv) <- emptyVectorPF Nothing
+                                                    nv <- emptyVectorPF (Just t')
+                                                    return $ NestedVector dv nv
+                          (Ty.List t')             -> let infos = [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item, t')] 
+                                                       in ValueVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos)
+                          _                        -> error $ "Can't generate an empty list for an expression of type: " ++ show t
+                           
 selectPosLiftPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
 selectPosLiftPF e op (ValueVector qi) =
     do

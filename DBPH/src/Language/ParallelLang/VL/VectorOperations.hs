@@ -113,6 +113,10 @@ consEmpty q | nestingDepth q > 0 = singletonVec q
             | otherwise = error "consEmpty: Can't construct consEmpty node"
 
 cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+cons (TupleVector [x, y]) (TupleVector [xs, ys]) = do
+                                                    xxs <- cons x xs
+                                                    yys <- cons y ys
+                                                    return $ TupleVector [xxs, yys]
 cons q1@(PrimVal _) q2@(ValueVector _)
                 -- corresponds to rule [cons-1]
                 = do

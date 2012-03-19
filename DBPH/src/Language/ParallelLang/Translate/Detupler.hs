@@ -31,23 +31,6 @@ transType t                  = t
 
 deTuple :: TExpr -> TransM TExpr
 deTuple (Table t n c k) = return $ Table (transType t) n c k
-deTuple (BinOp rt o@(Op Cons _) e1 e2) | containsTuple rt =
-                            do
-                                e1' <- deTuple e1
-                                e2' <- deTuple e2
-                                fv1 <- getFreshVar
-                                fv2 <- getFreshVar
-                                let v1 = Var (typeOf e1') fv1
-                                let v2 = Var (typeOf e2') fv2
-                                let (t1, t2) = pairComponents $ typeOf e1'
-                                e1'' <- deTuple $ (BinOp (listT t1) o (fstF v1) (fstF v2))
-                                e2'' <- deTuple $ (BinOp (listT t2) o (sndF v1) (sndF v2))
-                                return $ letF fv1 e1' $ letF fv2 e2' $ pairF e1'' e2''
-                                      | otherwise =
-                            do
-                                e1' <- deTuple e1
-                                e2' <- deTuple e2
-                                return (BinOp rt o e1' e2')
 deTuple (BinOp rt o e1 e2) = do
                                 e1' <- deTuple e1
                                 e2' <- deTuple e2
@@ -81,14 +64,8 @@ deTuple (F.Pair t e1 e2) = do
                           e1' <- deTuple e1
                           e2' <- deTuple e2
                           return $ F.Pair (transType t) e1' e2'
-deTuple v@(Nil t) | containsTuple t = do
-                                        let tuple = extractPair t
-                                        let (t1, t2) = pairComponents tuple
-                                        c1 <- deTuple $ Nil (listT t1)
-                                        c2 <- deTuple $ Nil (listT t2)
-                                        return $ pairF c1 c2
-                  | otherwise       = return v
-deTuple c@(Const t v) = return c
+deTuple v@(Nil _) = return v
+deTuple c@(Const _ _) = return c
 deTuple (Var t s)                 = return $ Var (transType t) s
 deTuple (PApp3 rt (Insert ft) e1 e2 e3) | (containsTuple (typeOf e1) && not (isFuns $ typeOf e1) || containsTuple (typeOf e2)) && not (isFuns $ typeOf e2)=
                                              do
