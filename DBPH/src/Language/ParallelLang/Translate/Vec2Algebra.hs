@@ -75,14 +75,7 @@ fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) | T.containsTuple t = constructLiteral (transType t) (fst $ deTupleVal t v)
                     | otherwise = constructLiteral t v 
-fkl2Alg (Nil (T.List t@(T.List _))) = do
-  p <- fkl2Alg (Nil t)
-  p_empty <- emptyVector [(AuxCol Descr, T.Nat), (AuxCol Pos, T.Nat)]
-  return (NestedVector p_empty p)
-fkl2Alg (Nil (T.List t)) = do
-  p_empty <- emptyVector [(AuxCol Descr, T.Nat), (AuxCol Pos, T.Nat), (AuxCol Item, t)]
-  return (ValueVector p_empty)
-fkl2Alg (Nil t)                = error $ "Not a valid nil value" ++ show t
+fkl2Alg (Nil t) = emptyVector $ Just t
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
