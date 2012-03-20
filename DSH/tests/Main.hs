@@ -73,6 +73,8 @@ tests =
         , testProperty "[Integer]" $ prop_list_integer_1
         , testProperty "[[Integer]]" $ prop_list_integer_2
         , testProperty "[[[Integer]]]" $ prop_list_integer_3
+        , testProperty "[(Integer, Integer)]" $ prop_list_tuple_integer
+        , testProperty "([], [])" $ prop_tuple_list_integer
 #ifndef isDBPH
         {-
         , testProperty "Maybe Integer" $ prop_maybe_integer
@@ -87,6 +89,8 @@ tests =
         , testProperty "eq" $ prop_eq
         , testProperty "neq" $ prop_neq
         , testProperty "cond" $ prop_cond
+        , testProperty "cond tuples" $ prop_cond_tuples
+        , testProperty "cond ([[Integer]], [[Integer]])" $ prop_cond_list_tuples
         , testProperty "lt" $ prop_lt
         , testProperty "lte" $ prop_lte
         , testProperty "gt" $ prop_gt
@@ -291,6 +295,12 @@ prop_list_integer_2 = makeProp id id
 prop_list_integer_3 :: [[[Integer]]] -> Property
 prop_list_integer_3 = makeProp id id
 
+prop_list_tuple_integer :: [(Integer, Integer)] -> Property
+prop_list_tuple_integer = makeProp id id
+
+prop_tuple_list_integer :: ([Integer], [Integer]) -> Property
+prop_tuple_list_integer = makeProp id id
+
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
@@ -328,6 +338,12 @@ prop_map_neq = makeProp (\x -> Q.map ((Q.fst x) Q./=) $ Q.snd x) (\(x,xs) -> map
 
 prop_cond :: Bool -> Property
 prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else 1)
+
+prop_cond_tuples :: (Bool, (Integer, Integer)) -> Property
+prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
+
+prop_cond_list_tuples :: (Bool, ([[Integer]], [[Integer]])) -> Property
+prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
 
 prop_map_cond :: [Bool] -> Property
 prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
