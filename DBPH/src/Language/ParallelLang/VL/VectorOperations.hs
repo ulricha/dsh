@@ -155,6 +155,10 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                         e3 <- appendR r1 r2
                         return $ attachV (DescrVector d2) $ attachV v e3
                | otherwise = error "consLift: Can't construct consLift node"
+consLift (TupleVector [x, y]) (TupleVector [xs, ys]) = do
+                                                        xxs <- consLift x xs
+                                                        yys <- consLift y ys
+                                                        return $ TupleVector [xxs, yys]
 consLift e1 e2 = error $ "consLift: Should not be possible: \n" ++ show e1 ++ " : " ++ show e2 
 
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan

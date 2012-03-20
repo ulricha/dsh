@@ -94,6 +94,13 @@ class VectorAlgebra a where
 
 concatV :: Plan -> Graph a Plan
 concatV (NestedVector _ p) = return p
+concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
+                                                             <*> pure (l - 1) 
+                                                             <*> (mapM (\(y, val) -> do
+                                                                                        val' <- concatV val
+                                                                                        return (y, val')) fvs)
+                                                             <*> pure x <*> pure f1 <*> pure f2
+concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 -- move a descriptor from e1 to e2
 unconcatV :: Plan -> Plan -> Graph a Plan
