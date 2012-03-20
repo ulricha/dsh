@@ -44,6 +44,7 @@ data Prim1 t = LengthPrim t
              | SumL t
              | The t
              | TheL t
+             | Concat t
     deriving Eq
     
 instance Show (Prim1 t)where
@@ -56,6 +57,8 @@ instance Show (Prim1 t)where
     show (Snd _)        = "snd"
     show (FstL _)       = "fstL"
     show (SndL _)       = "sndL"
+    show (Concat _)     = "concat"
+    
     
 data Prim2 t = GroupWithS t
              | GroupWithL t 
@@ -65,8 +68,8 @@ data Prim2 t = GroupWithS t
              | Dist t
              | Dist_L t
              | Restrict t
-             | Extract t
              | BPermute t
+             | Unconcat t
     deriving Eq
 
 instance Show (Prim2 t) where
@@ -78,19 +81,16 @@ instance Show (Prim2 t) where
     show (Dist _)       = "dist"
     show (Dist_L _)     = "dist_L"
     show (Restrict _)   = "restrict"
-    show (Extract _)    = "extract"
     show (BPermute _)   = "bPermute"
+    show (Unconcat _)   = "unconcat"
 
 data Prim3 t = Combine t 
-             | Insert t
     deriving Eq
 
 instance Show (Prim3 t) where
     show (Combine _) = "combine"
-    show (Insert _)  = "insert"
 
 instance Typed Expr t where
-    -- typeOf (App t _ _) = t
     typeOf (Table t _ _ _) = t
     typeOf (PApp1 t _ _) = t
     typeOf (PApp2 t _ _ _) = t
