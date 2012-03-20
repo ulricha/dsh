@@ -109,13 +109,10 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
-fkl2Alg (PApp2 _ (Extract _) arg1 (Const _ (Int i))) = do
-                                        e1 <- fkl2Alg arg1
-                                        extract e1 i
+                                           (Concat _) -> concatV
 fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of
-                (Extract _) -> $impossible
                 (Dist _) -> \x y -> dist x y
                 (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
@@ -125,7 +122,7 @@ fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= u
                 (Index _) -> error "Index is not yet defined fkl2Alg"
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute
-fkl2Alg (PApp3 _ (Insert _) arg1 arg2 (Const _ (Int i))) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= (\(x,y) -> insert x y i)
+                (Unconcat _) -> unconcatV
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do

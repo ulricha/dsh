@@ -92,25 +92,12 @@ class VectorAlgebra a where
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
 
-extract :: Plan -> Int -> Graph a Plan
-extract p 0 = return p
-extract (NestedVector _ p') n | n > 0 = extract p' (n - 1)
-extract (AClosure n v l fvs x f1 f2) i | i < l = AClosure n <$> (extract v i) 
-                                                             <*> pure (l - i) 
-                                                             <*> (mapM (\(y, val) -> do
-                                                                                        val' <- extract val i
-                                                                                        return (y, val')) fvs)
-                                                             <*> pure x <*> pure f1 <*> pure f2
-extract (TupleVector es) i = TupleVector <$> mapM (flip extract i) es
-extract v i = error $ "Extract: " ++ show v ++ " " ++ show i
+concatV :: Plan -> Graph a Plan
+concatV (NestedVector _ p) = return p
 
-insert :: VectorAlgebra a => Plan -> Plan -> Int -> Graph a Plan
-insert p _ 0 = return p
-insert p d n | n > 0 = do
-                        o <- outer d
-                        d' <- extract d 1
-                        insert (attachV o p) d' (n - 1)
-             | otherwise = error "Can't insert a negative amount of descriptors"
+-- move a descriptor from e1 to e2
+unconcatV :: Plan -> Plan -> Graph a Plan
+unconcatV (NestedVector d _) q = return $ NestedVector d q
 
 isValueVector :: Plan -> Bool
 isValueVector (ValueVector _) = True
@@ -133,29 +120,3 @@ tagVector s (PrimVal q) = PrimVal <$> tag s q
 tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
 tagVector s (PropVector q) = PropVector <$> tag s q
 tagVector _ _ = error "tagVector: Should not be possible"
-
-
-{-
-determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, AbstractProjInfo -> AbstractProjInfo)
-determineResultVector e = do
-                             let hasI = isValueVector e
-                             let rf = if hasI then ValueVector else DescrVector
-                             let pf = if hasI then \x -> (AuxCol Item1, AuxCol Item1):x else \x -> x
-                             let q = if hasI
-                                         then let (ValueVector q') = e in q'
-                                         else let (DescrVector q') = e in q'
-                             return (rf, q, pf)
-
-determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, AlgNode, AbstractProjInfo -> AbstractProjInfo)
-determineResultVector' e1 e2 = do
-                                 let hasI = isValueVector e1
-                                 let rf = if hasI then ValueVector else DescrVector
-                                 let pf = if hasI then \x -> (AuxCol Item1, AuxCol Item1):x else \x -> x
-                                 let (q1, q2) = if hasI
-                                                 then let (ValueVector q1') = e1
-                                                          (ValueVector q2') = e2 in (q1', q2')
-                                                 else let (DescrVector q1') = e1 
-                                                          (DescrVector q2') = e2 in (q1', q2')
-                                 return (rf, q1, q2, pf)
-
--}

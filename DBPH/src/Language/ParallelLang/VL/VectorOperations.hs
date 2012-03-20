@@ -150,7 +150,7 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                         o <- outer vs2
                         TupleVector [v, p1, p2] <- append s o
                         r1 <- renameOuter p1 vs1
-                        vs2' <- extract vs2 1
+                        vs2' <- concatV vs2 
                         r2 <- renameOuter p2 vs2'
                         e3 <- appendR r1 r2
                         return $ attachV (DescrVector d2) $ attachV v e3
@@ -225,7 +225,7 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         o1 <- outer q1
                                                         o2 <- outer q2
                                                         TupleVector [d, p@(PropVector _)] <- distDesc o1 o2
-                                                        et <- extract q1 1
+                                                        et <- concatV q1
                                                         e3 <- chainRenameFilter p et
                                                         o <- outer q2
                                                         return $ attachV o $ attachV d e3

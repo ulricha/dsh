@@ -95,7 +95,7 @@ concatVal :: Type -> TExpr
 concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
     where
         (a, r) = splitType t
-        f1 = extractF (F.Var a "__*concat_v*") (F.Const intT (Int 1))
+        f1 = concatF (F.Var a "__*concat_v*")
         f2 = F.PApp1 r (F.ConcatLift $ liftType t) $ F.Var (liftType a) "__*concat_v*"
 
 cloApp :: TExpr -> TExpr -> TExpr
@@ -127,12 +127,6 @@ distFL e1 e2 = let t1 = typeOf e1
                    ft = t1 .-> t2 .-> listT t1
                 in F.PApp2 (listT t1) (F.Dist_L ft) e1 e2
 
-{-
-lengthF :: TExpr -> TExpr
-lengthF e1 = let t1 = typeOf e1
-              in F.PApp1 intT (F.Length $ t1 .-> intT) e1
--}
-
 restrictF :: TExpr -> TExpr -> TExpr
 restrictF e1 e2 = let t1 = typeOf e1
                       rt = t1
@@ -153,28 +147,16 @@ combineF e1 e2 e3 = let t1 = typeOf e1
 
 
 unconcatF :: TExpr -> TExpr -> TExpr
-unconcatF e1 e2 = insertF e2 e1 (F.Const intT (Int 1))
-
-
-insertF :: TExpr -> TExpr -> TExpr -> TExpr
-insertF f v d@(F.Const _ (Int i)) = let t1 = typeOf f
-                                        t2 = typeOf v
-                                        rt = liftTypeN i t1
-                                        ft = t1 .-> t2 .-> intT .-> rt
-                                     in F.PApp3 rt (F.Insert ft) f v d
-insertF _ _ _ = error "Third argument to insert should be an integer"
-
+unconcatF e1 e2 = let t1 = typeOf e1
+                      t2 = typeOf e2
+                      rt = listT t2
+                      ft = t1 .-> t2 .-> rt
+                   in F.PApp2 rt (F.Unconcat ft) e1 e2 
 
 concatF :: TExpr -> TExpr
-concatF e = extractF e (F.Const intT (Int 1))
-
-
-extractF :: TExpr -> TExpr -> TExpr
-extractF v d@(F.Const _ (Int i)) = let t1 = typeOf v
-                                       rt = unliftTypeN i t1
-                                       ft = t1 .-> intT .-> rt
-                                    in F.PApp2 rt (F.Extract ft) v d
-extractF _ _ = error "Second argument to extract should be an integer"
+concatF e = let t1@(T.List rt) = typeOf e
+                ft = t1 .-> rt
+             in F.PApp1 rt (F.Concat ft) e
 
 bPermuteF :: TExpr -> TExpr -> TExpr
 bPermuteF e1 e2 = F.PApp2 (typeOf e1) (F.BPermute $ typeOf e1 .-> typeOf e2 .-> typeOf e1) e1 e2 
