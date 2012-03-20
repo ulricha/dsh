@@ -30,7 +30,7 @@ transType (T.Fn t1 t2)       = T.Fn (transType t1) (transType t2)
 transType t                  = t
 
 deTuple :: TExpr -> TransM TExpr
-deTuple (Table t n c k) = return $ Table (transType t) n c k
+deTuple (Table t n c k) = return $ Table t n c k
 deTuple (BinOp rt o e1 e2) = do
                                 e1' <- deTuple e1
                                 e2' <- deTuple e2
@@ -46,7 +46,7 @@ deTuple (If t e1 e2 e3) = do
                             e1' <- deTuple e1
                             e2' <- deTuple e2
                             e3' <- deTuple e3
-                            let t' = transType t
+                            {- let t' = transType t
                             if containsTuple t'
                                 then do
                                       fv1 <- getFreshVar
@@ -59,11 +59,12 @@ deTuple (If t e1 e2 e3) = do
                                       e1'' <- deTuple $ If t1 v1 (fstF v2) (fstF v3)
                                       e2'' <- deTuple $ If t2 v1 (sndF v2) (sndF v3)
                                       return $ letF fv1 e1' $ letF fv2 e2' $ letF fv3 e3' $ pairF e1'' e2''
-                                else return $ If t' e1' e2' e3'
+                                else -} 
+                            return $ If t e1' e2' e3'
 deTuple (F.Pair t e1 e2) = do
                           e1' <- deTuple e1
                           e2' <- deTuple e2
-                          return $ F.Pair (transType t) e1' e2'
+                          return $ F.Pair t e1' e2'
 deTuple v@(Nil _) = return v
 deTuple c@(Const _ _) = return c
 deTuple (Var t s)                 = return $ Var (transType t) s
