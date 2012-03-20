@@ -207,6 +207,10 @@ bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
                | otherwise = error "bPermute: Can't construct bPermute node"
 
 dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dist (TupleVector [e1, e2]) q2 = do
+                                 e1' <- dist e1 q2
+                                 e2' <- dist e2 q2
+                                 return $ TupleVector [e1', e2']
 dist q1             (TupleVector (q2:_)) = dist q1 q2
 dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = do
                                                         o <- outer q2
@@ -227,7 +231,7 @@ dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
                                                         return $ attachV o $ attachV d e3
                               | otherwise           = error "dist: Not a list vector"
 dist (Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
-dist _ _ = error "dist: Should not be possible"
+dist e1 e2 = error $ "dist: Should not be possible" ++ show e1 ++ " " ++ show e2
 
 mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph a [(String, Plan)]
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
