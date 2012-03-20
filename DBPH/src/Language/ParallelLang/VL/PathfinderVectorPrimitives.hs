@@ -45,7 +45,6 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   emptyVector = emptyVectorPF
   ifPrimList = ifPrimListPF
-  ifNestList = isNestListM
   sortWith = sortWithPF
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF

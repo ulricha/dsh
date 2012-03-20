@@ -86,17 +86,11 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
                                                 binOp l o p1 p2
--- FIXME implement If as documented in Sec. 5.3
-fkl2Alg (If t eb e1 e2) | T.listDepth t > 1 = do 
-                                                eb' <- fkl2Alg eb
-                                                e1' <- fkl2Alg e1
-                                                e2' <- fkl2Alg e2
-                                                ifNestList eb' e1' e2'
-                        | otherwise = do 
-                                       eb' <- fkl2Alg eb
-                                       e1' <- fkl2Alg e1
-                                       e2' <- fkl2Alg e2
-                                       ifPrimList eb' e1' e2'
+fkl2Alg (If t eb e1 e2) = do 
+                          eb' <- fkl2Alg eb
+                          e1' <- fkl2Alg e1
+                          e2' <- fkl2Alg e2
+                          ifList eb' e1' e2'
 fkl2Alg (Let _ s e1 e2) = do
                             e' <- fkl2Alg e1
                             e1' <- tagVector s e'

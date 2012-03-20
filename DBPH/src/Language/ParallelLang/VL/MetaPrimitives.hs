@@ -56,17 +56,3 @@ appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
                         return $ attachV v e3
 appendR _ _ = error "appendR: Should not be possible"
 
-
-isNestListM :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
-isNestListM qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
-    do
-     d1' <- distPrim qb (DescrVector q1)  
-     TupleVector [d1, p1] <- restrictVec (DescrVector q1) d1'
-     d2' <- distPrim qb (DescrVector q2)  
-     TupleVector [d2, p2] <- restrictVec (DescrVector q2) d2'
-     r1 <- renameOuter p1 vs1
-     r2 <- renameOuter p2 vs2
-     e3 <- appendR r1 r2
-     TupleVector [d, _, _] <- append d1 d2
-     return $ attachV d e3
-isNestListM _ _ _ = error "isNestList: Should not be possible"

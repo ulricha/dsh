@@ -155,7 +155,7 @@ consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2)
                         e3 <- appendR r1 r2
                         return $ attachV (DescrVector d2) $ attachV v e3
                | otherwise = error "consLift: Can't construct consLift node"
-consLift _ _ = error "consLift: Should not be possible"
+consLift e1 e2 = error $ "consLift: Should not be possible: \n" ++ show e1 ++ " : " ++ show e2 
 
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 restrict (TupleVector [e1, e2]) bs = do
@@ -255,3 +255,22 @@ distL (AClosure n v i xs x f fl) q2 = do
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL (TupleVector es) e2 = TupleVector <$> mapM (\e -> distL e e2) es 
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
+
+ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
+ifList qb (TupleVector [e11, e12]) (TupleVector [e21, e22]) = do
+                                                                e1 <- ifList qb e11 e21
+                                                                e2 <- ifList qb e12 e22
+                                                                return $ TupleVector [e1, e2]
+ifList qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
+    do
+     d1' <- distPrim qb (DescrVector q1)  
+     TupleVector [d1, p1] <- restrictVec (DescrVector q1) d1'
+     qb' <- notPrim qb
+     d2' <- distPrim qb' (DescrVector q2)  
+     TupleVector [d2, p2] <- restrictVec (DescrVector q2) d2'
+     r1 <- renameOuter p1 vs1
+     r2 <- renameOuter p2 vs2
+     e3 <- appendR r1 r2
+     TupleVector [d, _, _] <- append d1 d2
+     return $ attachV d e3
+ifList qb e1 e2 = ifPrimList qb e1 e2
