@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (extractPair, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
+ (transType, extractPair, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
 where
     
 instance Show Type where 
@@ -145,24 +145,14 @@ isFuns (Fn _ _) = True
 isFuns (Pair _ _) = False
 isFuns _         = False 
 
-{-
-type Subst = M.Map String Type
+transType :: Type -> Type
+transType ot@(List t) | containsTuple t = case transType t of
+                                                (Pair t1 t2) -> Pair (transType $ List t1) (transType $ List t2)
+                                                t' -> List t'
+                        | otherwise       = ot
+transType (Pair t1 t2) = Pair (transType t1) (transType t2)
+transType (Fn t1 t2)   = Fn (transType t1) (transType t2)
+transType t            = t
 
-class Substitutable a where
-    apply :: Subst -> a -> a
-
-instance Substitutable Type where
-    apply s (Fn t1 t2)   = Fn (apply s t1) (apply s t2)
-    apply s (List t)     = List (apply s t)
---    apply s (Tuple args) = Tuple $ map (apply s) args
-    apply s (Pair t1 t2) = Pair (apply s t1) (apply s t2)
-    apply s t@(Var v2)   = M.findWithDefault t v2 s
-    apply _ t            = t
-
-addSubstitution :: Subst -> String -> Type -> Subst
-addSubstitution s i t = let s' = M.singleton i t
-                            s'' = M.map (apply s') s
-                         in s' `M.union` s''
--}
 class Typed a t where
   typeOf :: a t -> t
