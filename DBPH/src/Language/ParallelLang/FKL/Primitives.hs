@@ -7,7 +7,7 @@ module Language.ParallelLang.FKL.Primitives where
     
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.Common.Data.Val
-import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), unliftTypeN, liftTypeN, boolT, listT, unliftType, splitType, liftType, Type(), pairT)
+import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
 import qualified Language.ParallelLang.Common.Data.Type as T
 
 type TExpr = F.Expr Type

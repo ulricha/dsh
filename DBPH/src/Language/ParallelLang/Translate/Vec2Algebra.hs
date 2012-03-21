@@ -14,7 +14,6 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
-import Language.ParallelLang.Common.Data.Val(Val(Int))
 import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
@@ -86,7 +85,7 @@ fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
                                                 binOp l o p1 p2
-fkl2Alg (If t eb e1 e2) = do 
+fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
                           e2' <- fkl2Alg e2
@@ -110,7 +109,7 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
                                            (Concat _) -> concatV
-fkl2Alg v@(PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
+fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of
                 (Dist _) -> \x y -> dist x y
@@ -130,7 +129,7 @@ fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 return $ Closure n fv x f1 f2
 fkl2Alg (AClo _ n e fvs x f1 f2) = do
                               v <- fkl2Alg e
-                              fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
+                              fv <- mapM (\(y, var) -> do {v' <- fkl2Alg var; return (y, v')}) fvs
                               return $ AClosure n v 1 fv x f1 f2 
 fkl2Alg (CloApp _ c arg) = do
                              (Closure _ fvs x f1 _) <- fkl2Alg c
@@ -140,7 +139,6 @@ fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
-fkl2Alg e                 = error $ "unsupported: " ++ show e
 
 toPFAlgebra :: Expr T.Type -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)

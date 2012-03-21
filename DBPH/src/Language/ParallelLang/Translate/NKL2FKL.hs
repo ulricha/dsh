@@ -44,7 +44,7 @@ transform (N.Let t n e1 e2) = F.Let t n <$> transform e1 <*> transform e2
 transform (N.If t e1 e2 e3) = F.If t <$> transform e1 <*> transform e2 <*> transform e3
 transform (N.BinOp t o e1 e2) = F.BinOp t o <$> transform e1 <*> transform e2
 transform (N.Const t v) = pure $ F.Const t v
-transform (N.Var t "map")    = undefined -- pure $ mapVal t
+transform (N.Var _t "map")    = undefined -- pure $ mapVal t
 transform (N.Var t "length") = pure $ lengthVal t
 transform (N.Var t "not")    = pure $ notVal t
 transform (N.Var t "concat") = pure $ concatVal t
@@ -66,7 +66,7 @@ flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
 flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
 flatten i e1 (N.Pair t ex1 ex2) = F.Pair (liftType t) <$> flatten i e1 ex1 <*> flatten i e1 ex2
 flatten _ e1 (N.Var t "not") = return $ distF (notVal t) e1
-flatten _ e1 (N.Var t "map") = undefined -- return $ distF (mapVal t) e1
+flatten _ _e1 (N.Var _t "map") = undefined -- return $ distF (mapVal t) e1
 flatten _ e1 (N.Var t "length") = return $ distF (lengthVal t) e1
 flatten _ e1 (N.Var t "concat") = return $ distF (concatVal t) e1
 flatten _ e1 (N.Var t "groupWith") = return $ distF (groupWithVal t) e1

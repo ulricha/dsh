@@ -5,8 +5,6 @@ import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 
 import Language.ParallelLang.VL.Data.Query
 
-import Control.Monad
-
 import Language.ParallelLang.Translate.Algebra2SQL
 import Language.ParallelLang.Translate.Vec2Algebra
 import Language.ParallelLang.Translate.TransM (runTransform)

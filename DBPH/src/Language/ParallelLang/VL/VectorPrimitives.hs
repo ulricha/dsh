@@ -11,7 +11,6 @@ import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
 
 import Database.Algebra.Dag.Builder
-import Database.Algebra.Dag.Common
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -97,7 +96,7 @@ concatV (NestedVector _ p) = return p
 concatV (TupleVector [e1, e2]) = do
                                   e1' <- concatV e1
                                   e2' <- concatV e2
-                                  return $ TupleVector [e1, e2]
+                                  return $ TupleVector [e1', e2']
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
                                                              <*> pure (l - 1) 
                                                              <*> (mapM (\(y, val) -> do
@@ -109,6 +108,7 @@ concatV e                  = error $ "Not supported by concatV: " ++ show e
 -- move a descriptor from e1 to e2
 unconcatV :: Plan -> Plan -> Graph a Plan
 unconcatV (NestedVector d _) q = return $ NestedVector d q
+unconcatV e1 e2                = error $ "unconcatV: Not supported: " ++ show e1 ++ " " ++ show e2
 
 isValueVector :: Plan -> Bool
 isValueVector (ValueVector _) = True
