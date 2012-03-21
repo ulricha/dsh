@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, TransformListComp, FlexibleInstances, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.DSH.ExecuteFlattening where
 
 import qualified Language.ParallelLang.DBPH as P
@@ -7,7 +8,7 @@ import qualified Language.ParallelLang.Common.Data.Type as T
 import Database.DSH.Data
 import Database.DSH.Impossible
 
-import Database.X100Client hiding (X100 (..))
+import Database.X100Client hiding (X100)
 
 import Database.HDBC
 
@@ -121,11 +122,11 @@ makeNormSQL _c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
 makeNormX100 c (P.PrimVal (P.X100 _ q)) t = do
-                                              (X100Res cols res) <- doX100Query c q
+                                              (X100Res _ res) <- doX100Query c q
                                               let [(_, [(_, Just v)])] = partByIterX100 res
                                               return $ Left $ normaliseX100 t v
 makeNormX100 c (P.ValueVector (P.X100 _ q)) t = do
-                                                (X100Res cols res) <- doX100Query c q
+                                                (X100Res _ res) <- doX100Query c q
                                                 let parted = partByIterX100 res
                                                 return $ Right $ normaliseX100List t parted
 makeNormX100 c (P.TupleVector [q1, q2]) t@(TupleT t1 t2) = do
@@ -133,10 +134,11 @@ makeNormX100 c (P.TupleVector [q1, q2]) t@(TupleT t1 t2) = do
                                                             r2 <- liftM (fromEither t2) $ makeNormX100 c q2 t2
                                                             return $ Left $ TupleN r1 r2 t
 makeNormX100 c (P.NestedVector (P.X100 _ q) qr) t@(ListT t1) = do
-                                                                (X100Res cols res) <- doX100Query c q
+                                                                (X100Res _ res) <- doX100Query c q
                                                                 let parted = partByIterX100 res
                                                                 inner <- (liftM fromRight) $ makeNormX100 c qr t1
                                                                 return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
+makeNormX100 _ _ _ = $impossible
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x
@@ -157,8 +159,8 @@ nestList :: Type -> [Int] -> [(Int, Norm)] -> ([Norm], [(Int, Norm)])
 nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lists)
                                        | p <  d = ListN [] t `combine` (nestList t ps ls)
                                        | p >  d = nestList t ps' lists
-nestList t (p:ps)     []                         = ListN [] t `combine` (nestList t ps [])
-nestList t []         ls                         = ([], ls) 
+nestList t (_:ps)     []                         = ListN [] t `combine` (nestList t ps [])
+nestList _ []         ls                         = ([], ls) 
 nestList _ _ _ = error "nestList $ Not a neted list"
 
 combine :: Norm -> ([Norm], [(Int, Norm)]) -> ([Norm], [(Int, Norm)])
@@ -166,9 +168,9 @@ combine n (ns, r) = (n:ns, r)
 
 
 concatN :: Type -> [Norm] -> Norm
-concatN _ ns@((ListN ls t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
-concatN t []                   = ListN [] t
-concatN _ _                    = error "concatN: Not a list of lists"
+concatN _ ns@((ListN _ t1):_) = foldl' (\(ListN e t) (ListN e1 _) -> ListN (e1 ++ e) t) (ListN [] t1) ns
+concatN t []                  = ListN [] t
+concatN _ _                   = error "concatN: Not a list of lists"
 
 normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
 normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
@@ -238,20 +240,21 @@ partByIterX100 d = pbi d'
         d' = case d of
                 [descr, p, i] -> zip3 (map convert descr) (map convert p) (map Just i)
                 [descr, p] -> zip3 (map convert descr) (map convert p) (repeat Nothing)
+                _          -> $impossible -- In a setting where we have more columns this will not fly!
         pbi :: [(Int, Int, Maybe X100Data)] -> [(Int, [(Int, Maybe X100Data)])]
         pbi vs = [ (the i, zip p it) | (i, p, it) <- vs
                                      , then group by i using groupWith]
         
 partByIter :: Int -> [[SqlValue]] -> [(Int, [(Int, [SqlValue])])]
-partByIter iC vs = pbi (zip [1..] vs)
+partByIter iC vals = pbi (zip [1..] vals)
     where
         pbi :: [(Int, [SqlValue])] -> [(Int, [(Int, [SqlValue])])]
         pbi ((p,v):vs) = let i = getIter v
-                             (vi, vr) = span (\(p',v') -> i == getIter v') vs
+                             (vi, vr) = span (\v' -> i == (getIter $ snd v')) vs
                           in (i, (p, v):vi) : pbi vr
         pbi []         = []
         getIter :: [SqlValue] -> Int
-        getIter vals = ((fromSql (vals !! iC))::Int)
+        getIter vs = ((fromSql (vs !! iC))::Int)
         
 type ResultInfo = (Int, Maybe (String, Int))
 

@@ -8,15 +8,10 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Op as O
 
-import Database.X100Client(X100Info)
-
 import Database.DSH.Data as D
-import Database.DSH.Impossible (impossible)
-import Database.HDBC
 import Data.Text (unpack)
 
 import qualified Data.Map as M
-import qualified Data.List as L
 
 import Control.Monad
 import Control.Monad.State
@@ -123,18 +118,18 @@ translate (TupleE e1 e2 _) = do
                                 let t = (T.pairT t1 t2) 
                                 case (c1, c2) of
                                     (NKL.Const _ v1, NKL.Const _ v2) -> return $ NKL.Const t (V.Pair v1 v2)
-                                    otherwise                        -> return $ NKL.Pair t c1 c2
+                                    _                                -> return $ NKL.Pair t c1 c2
 translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
                         f' <- translate $ f (VarE v t1)
                         return $ NKL.Lam (ty2ty ty) (prefixVar v) f' 
-translate (AppE1 Fst e1 ty) = do
+translate (AppE1 Fst e1 _) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
                                 return $ NKL.Fst (fst $ T.pairComponents t1) c1
-translate (AppE1 Snd e1 ty) = do
+translate (AppE1 Snd e1 _) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
                                 return $ NKL.Snd (snd $ T.pairComponents t1) c1
@@ -144,10 +139,10 @@ translate (AppE1 f e1 ty) = do
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
                                   c2 <- translate e2
+#ifndef withMap
                                   n <- freshVar
                                   let tEl = T.unliftType (T.typeOf c2)
                                   let tr = T.extractFnRes (T.typeOf c1)
-#ifndef withMap
                                   return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 (NKL.Var tEl (prefixVar n)))
 #else
                                   return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e2) ty) (NKL.Var (ty2ty $ ArrowT (typeExp e1) (ArrowT (typeExp e2) ty)) "map") c1) c2
@@ -174,7 +169,8 @@ translate (AppE3 Cond e1 e2 e3 _) = do
                                              e2' <- translate e2
                                              e3' <- translate e3
                                              return $ NKL.If (T.typeOf e2') e1' e2' e3'
-
+translate (TableE (TableCSV _) _) = $impossible
+translate (AppE3 ZipWith _ _ _ _) = $impossible
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
@@ -212,7 +208,7 @@ tableTypes (ListT t) = fromTuples t
     where
         fromTuples :: Type -> [T.Type]
         fromTuples (TupleT t1 t2) = ty2ty t1 : fromTuples t2
-        fromTuples t              = [ty2ty t]
+        fromTuples t'              = [ty2ty t']
 tableTypes _         = $impossible
 
 -- | Translate the DSH operator to Ferry Core operators
@@ -234,12 +230,12 @@ toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
 toList n es = primList (reverse es) n 
     where
         primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List es)) = primList vs (NKL.Const ty (V.List (v:es)))
+        primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List xs)) = primList vs (NKL.Const ty (V.List (v:xs)))
         primList [] e = e
         primList vs (NKL.Const ty (V.List [])) = consList vs (NKL.Nil ty)
         primList vs e = consList vs e
         consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        consList es e = foldl (flip cons) e es
+        consList xs e = foldl (flip cons) e xs
         
 isConst :: NKL.Expr -> Bool
 isConst (NKL.Const _ _) = True

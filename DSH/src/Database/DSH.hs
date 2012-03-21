@@ -37,7 +37,6 @@ module Database.DSH
   where
 
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf)
-import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
 
 import Database.DSH.CSV
 import Database.DSH.JSON

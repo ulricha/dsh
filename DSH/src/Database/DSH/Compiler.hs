@@ -249,12 +249,6 @@ transformE (TableE (TableDB n ks) ty) = do
                                                                     lambda)
                                                                    (ParExpr (typeOf table') table') 
                                     return expr
-    where
-        legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
-        legalType tn cn nr t f = case f t of
-                                True -> True
-                                False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
-                                                    ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE (LamE _ _) = $impossible
 
 legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool

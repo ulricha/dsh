@@ -201,6 +201,7 @@ class GenericQA f where
     genericFromNorm :: Norm -> f a
     genericFromNorm' :: Norm -> f a
     genericFromNorm' (ListN [a] _) = genericFromNorm a
+    genericFromNorm' _             = $impossible
 
 -- Constructor without any arguments 
 instance GenericQA U1 where

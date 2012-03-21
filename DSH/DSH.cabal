@@ -76,10 +76,10 @@ Library
 
   Hs-source-dirs:    src
   if flag (map)
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -Werror
     cpp-options: -DwithMap
   else
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -Werror
   
   extensions: CPP
   Exposed-modules:   Database.DSH
@@ -94,7 +94,6 @@ Library
                      Database.DSH.XHTML
                      Database.DSH.Impossible
                      Database.DSH.Compile
-                     Paths_DSH
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
 Test-Suite Flattening_x100
@@ -108,7 +107,7 @@ Test-Suite Flattening_x100
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
     cpp-options: -DisX100
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -Werror
     extensions: CPP
     
 Test-Suite Flattening_TA
@@ -123,7 +122,7 @@ Test-Suite Flattening_TA
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
     cpp-options: -DisDBPH
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -Werror
     extensions: CPP
 
 Test-Suite Ferry_DSH
@@ -137,5 +136,5 @@ Test-Suite Ferry_DSH
                    HDBC               >= 2.3,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
-    GHC-Options:       -O3 -Wall
+    GHC-Options:       -O3 -Wall -Werror
     extensions: CPP

@@ -13,7 +13,7 @@ import Database.DSH.Data
 import Database.HDBC
 import qualified Database.HDBC as H
 
-import Database.X100Client hiding (X100(..))
+import Database.X100Client hiding (X100)
 import qualified Database.X100Client as X
 
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -22,7 +22,7 @@ import qualified Data.List as L
 
 import Control.Monad.State
 
-import Data.Convertible
+import Data.Convertible()
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
@@ -84,10 +84,10 @@ getTableInfo c n = do
 getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
 getX100TableInfo c n = do
                          t <- X.describeTable' c n
-                         return [ col2Val c | c <- sortWith colName $ columns t]
+                         return [ col2Val col | col <- sortWith colName $ columns t]
         where
             col2Val :: ColumnInfo -> (String, T.Type -> Bool)
-            col2Val c = (colName c, \t -> case logicalType c of
+            col2Val col = (colName col, \t -> case logicalType col of
                                                 LBool       -> t == T.Bool || t == T.Unit
                                                 LInt1       -> t == T.Int  || t == T.Unit
                                                 LUInt1      -> t == T.Int  || t == T.Unit
