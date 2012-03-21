@@ -23,7 +23,7 @@ Library
                       X100Client >= 0.0.2
     Hs-Source-Dirs:   src
     
-    GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans
+    GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans -Werror
     
     Exposed-modules: Language.ParallelLang.DBPH
                      Language.ParallelLang.NKL.Data.NKL

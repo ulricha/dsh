@@ -13,7 +13,6 @@ import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.Query
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
-import Language.ParallelLang.VL.MetaPrimitives
 
 import Database.Algebra.Pathfinder
 import Database.Algebra.Dag.Common
@@ -125,6 +124,7 @@ selectPosLiftPF e op (ValueVector qi) =
         q <- proj (pf [(descr, descr), (pos, posnew)]) qs
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ TupleVector [rf q, PropVector qp]
+selectPosLiftPF _ _ _ = $impossible
 
 selectPosPF :: Plan -> Oper -> Plan -> Graph PFAlgebra Plan
 selectPosPF e op (PrimVal qi) =
@@ -146,6 +146,7 @@ selectPosPF e op (PrimVal qi) =
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ TupleVector [rf q, PropVector qp]
+selectPosPF _ _ _ = $impossible
 
 emptyPF :: Plan -> Graph PFAlgebra Plan
 emptyPF e =
@@ -180,6 +181,7 @@ emptyLiftPF (DescrVector qo) ei =
                $ attach item boolT (bool False) qd
         qu <- union qe qne
         return $ ValueVector qu
+emptyLiftPF _ _ = $impossible
 
 vecSumPF :: Ty.Type -> Plan -> Graph PFAlgebra Plan
 vecSumPF t (ValueVector q) =
@@ -237,11 +239,11 @@ binOpPF b op q1 q2 | op == GtE = do
                    | otherwise = binOpPF' b op q1 q2
  where
   binOpPF' :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan     
-  binOpPF' True op (ValueVector q1) (ValueVector q2) = do 
-    q <- applyBinOp op q1 q2
+  binOpPF' True op' (ValueVector q1') (ValueVector q2') = do 
+    q <- applyBinOp op' q1' q2'
     return (ValueVector q)
-  binOpPF' False op (PrimVal q1) (PrimVal q2) = do
-    q <- applyBinOp op q1 q2
+  binOpPF' False op' (PrimVal q1') (PrimVal q2') = do
+    q <- applyBinOp op' q1' q2'
     return (PrimVal q)
   binOpPF' _ _ _ _ = $impossible
 
@@ -260,6 +262,7 @@ sortWithPF (ValueVector qs) e =
         qv <- proj (pf [(descr, descr), (pos, pos')]) q
         qp <- proj [(posold, pos''), (posnew, pos')] q
         return $ TupleVector [rf qv, PropVector qp]
+sortWithPF _ _ = $impossible
 
 groupByPF :: Plan -> Plan -> Graph PFAlgebra Plan
 groupByPF (ValueVector v1) (ValueVector v2) = do

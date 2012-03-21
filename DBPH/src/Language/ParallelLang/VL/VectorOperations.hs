@@ -1,4 +1,7 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Language.ParallelLang.VL.VectorOperations where
+
+import Language.ParallelLang.Common.Impossible
 
 import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.Data.Query
@@ -243,9 +246,11 @@ mapEnv _f []          = return []
 
 sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
 sumPrim t q@(ValueVector _) = vecSum t q
+sumPrim _ _ = $impossible
 
 sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
 sumLift (NestedVector d1 vs1@(ValueVector _)) = vecSumLift (DescrVector d1) vs1 
+sumLift _ = $impossible
 
 distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 distL q1@(ValueVector _) (NestedVector d vs) = do

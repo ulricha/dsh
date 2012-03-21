@@ -58,6 +58,10 @@ instance Show (Prim1 t)where
     show (FstL _)       = "fstL"
     show (SndL _)       = "sndL"
     show (Concat _)     = "concat"
+    show (Sum _)        = "sum"
+    show (SumL _)       = "sumL"
+    show (The _)        = "the"
+    show (TheL _)       = "theL"
     
     
 data Prim2 t = GroupWithS t
