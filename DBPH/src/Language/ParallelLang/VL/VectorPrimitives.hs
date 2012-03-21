@@ -94,6 +94,10 @@ class VectorAlgebra a where
 
 concatV :: Plan -> Graph a Plan
 concatV (NestedVector _ p) = return p
+concatV (TupleVector [e1, e2]) = do
+                                  e1' <- concatV e1
+                                  e2' <- concatV e2
+                                  return $ TupleVector [e1, e2]
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
                                                              <*> pure (l - 1) 
                                                              <*> (mapM (\(y, val) -> do
