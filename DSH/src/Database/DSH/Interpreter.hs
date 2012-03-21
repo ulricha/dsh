@@ -16,7 +16,7 @@ import GHC.Exts
 import Data.List
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c q = evaluate c (convert q) >>= (return . fromNorm)
+fromQ c (Q q) = evaluate c q >>= (return . fromNorm)
 
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
