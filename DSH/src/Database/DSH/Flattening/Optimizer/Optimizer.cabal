@@ -19,16 +19,20 @@ Library
   Exposed-modules:     Optimizer.X100.OptimizeX100
   
   -- Packages needed in order to build this package.
-  Build-depends:       base, mtl, containers, TableAlgebra2, fgl, pretty
+  Build-depends:       base,
+                       mtl,
+                       containers,
+                       fgl,
+                       pretty,
+                       TableAlgebra >= 2.0.0
   
   -- Modules not exported by this package.
-  Other-modules:       Optimizer.X100.Rewrite.ProjectionMerge
-                       Optimizer.X100.Rewrite.ConstOpt
-                       Optimizer.X100.Rewrite.SelectionPushdown
-                       Optimizer.X100.Rewrite.PruneColumns
-  
+  Other-modules:       Optimizer.X100.Rewrite.PruneEmpty
+                       Optimizer.X100.Rewrite.Common
+
 Executable x100opt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/X100/Tools/Opt.hs
-  Build-depends:       base, TableAlgebra2
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0
   GHC-Options: -rtsopts -auto-all -O3
