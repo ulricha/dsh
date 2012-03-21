@@ -96,6 +96,20 @@ concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
         f1 = concatF (F.Var a "__*concat_v*")
         f2 = F.PApp1 r (F.ConcatLift $ liftType t) $ F.Var (liftType a) "__*concat_v*"
 
+fstVal :: Type -> Expr
+fstVal t = Clo t "n" [] "__*fst_v*" f1 f2
+    where
+        (a, _) = splitType t
+        f1 = fstF (F.Var a "__*fst_v*")
+        f2 = fstLF (F.Var a "__*fst_v*")
+        
+sndVal :: Type -> Expr
+sndVal t = Clo t "n" [] "__*snd_v*" f1 f2
+    where
+        (a, _) = splitType t
+        f1 = sndF (F.Var a "__*snd_v*")
+        f2 = sndLF (F.Var a "__*snd_v*")
+
 cloApp :: Expr -> Expr -> Expr
 cloApp e1 ea = CloApp rt e1 ea
    where
