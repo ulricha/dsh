@@ -254,7 +254,7 @@ class (QA a, QA r) => Case a r where
     type Cases a r
     type Cases a r = GCase (Rep a) r
 
-
+{-
 class GenericCollect a where
     type Collect a
     type Col a
@@ -271,7 +271,7 @@ instance GenericCollect (K1 i a p) where
     type Collect (K1 i a p) = a -> a
     type Col (K1 i a p) = a
     collect = id
-    
+-}    
 
 -- Generic cases
 -- The GCase type is the type of the destructor function for a data-type a with result type r.
