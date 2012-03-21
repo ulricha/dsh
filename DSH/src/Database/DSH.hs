@@ -23,9 +23,11 @@ module Database.DSH
     -- * Type Classes
   , QA
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
-  , View, view, fromView, tuple, record
+  , View, view, fromView, tuple, record, caseOf
 
   , module Database.DSH.CSV
+  , module Database.DSH.JSON
+  , module Database.DSH.XHTML
 
   , module Data.String
   , module Data.Text
@@ -34,8 +36,12 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
+import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf)
+import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
+
 import Database.DSH.CSV
+import Database.DSH.JSON
+import Database.DSH.XHTML
 
 import Database.DSH.Combinators
 

@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.7.8.1
+Version:             0.8
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -54,21 +54,24 @@ flag map
     description: Builds DSH with map combinators instead of using iterators (flattening path)
 
 Library
-  Build-depends:     base               >= 4.2 && < 5,
-                     containers         >= 0.3,
-                     array              >= 0.3,
-                     syb                >= 0.1,
-                     mtl                >= 2.0.1,
-                     bytestring         >= 0.9,
-                     text               >= 0.11,
-                     HDBC               >= 2.2,
-                     convertible        >= 1.0,
-                     template-haskell   >= 2.4,
-                     HaXml              >= 1.22,
-                     csv                >= 0.1,
-                     DBPH               >= 0.5.1,
-                     Pathfinder         >= 0.5.8,
+  Build-depends:     base               >= 4.3.1.0 && < 5,
+                     ghc-prim           >= 0.2.0.0,
+                     containers         >= 0.4.0.0,
+                     array              >= 0.3.0.2,
+                     syb                >= 0.3,
+                     mtl                >= 2.0.1.0,
+                     bytestring         >= 0.9.1.10,
+                     text               >= 0.11.0.6,
+                     HDBC               >= 2.3.1.0,
+                     convertible        >= 1.0.11.0,
+                     template-haskell   >= 2.5.0.0,
+                     HaXml              >= 1.22.5,
+                     csv                >= 0.1.2,
+                     json               >= 0.5,
+                     xhtml              >= 3000.2.0.1,
+                     Pathfinder         >= 0.5.10,
                      FerryCore          >= 0.4.6.4,
+                     DBPH               >= 0.5.1.4,
                      X100Client         >= 0.0.2
 
   Hs-source-dirs:    src
@@ -87,6 +90,8 @@ Library
   Other-modules:     Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
+                     Database.DSH.JSON
+                     Database.DSH.XHTML
                      Database.DSH.Impossible
                      Database.DSH.Compile
                      Paths_DSH

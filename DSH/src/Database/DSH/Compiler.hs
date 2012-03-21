@@ -5,7 +5,7 @@
 
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
 
-module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugAST) where
+module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
 
 import Database.DSH.Data as D
 import Database.DSH.Impossible (impossible)
@@ -92,12 +92,15 @@ debugPlanOpt q c = do
                     return r
 
 debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCore c q = do core <- runN c $ transformE (convert q)
-                   return $ show core
+debugCore c (Q a) = do
+                     core <- runN c $ transformE a
+                     return $ show core
 
-debugAST :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugAST _c a = do
-                    return $ show a
+
+debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugCoreDot c (Q a) = do
+                        core <- runN c $ transformE a
+                        return $ (\(Right d) -> d) $ dot core
 
 -- | Convert the query into SQL
 debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
@@ -121,9 +124,10 @@ evaluate c q = do
                   return n
 
 -- | Transform a query into an algebraic plan.                   
-doCompile :: (IConnection conn, QA a) => conn -> Q a -> IO String
-doCompile c q = do core <- runN c $ transformE (convert q)
-                   return $ typedCoreToAlgebra core
+doCompile :: IConnection conn => conn -> Q a -> IO String
+doCompile c (Q a) = do 
+                        core <- runN c $ transformE a
+                        return $ typedCoreToAlgebra core
 
 -- | Transform the Query into a ferry core program.
 transformE :: IConnection conn => Exp -> N conn CoreExpr
@@ -245,6 +249,12 @@ transformE (TableE (TableDB n ks) ty) = do
                                                                     lambda)
                                                                    (ParExpr (typeOf table') table') 
                                     return expr
+    where
+        legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
+        legalType tn cn nr t f = case f t of
+                                True -> True
+                                False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
+                                                    ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE (LamE _ _) = $impossible
 
 legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
