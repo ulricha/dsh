@@ -19,7 +19,6 @@ import Control.Applicative
   
 import GHC.Exts(sortWith)
 
-import Data.Char (toLower)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
@@ -118,7 +117,7 @@ translate (TupleE e1 e2 _) = do
                                 let t = (T.pairT t1 t2) 
                                 case (c1, c2) of
                                     (NKL.Const _ v1, NKL.Const _ v2) -> return $ NKL.Const t (V.Pair v1 v2)
-                                    _                                -> return $ NKL.Pair t c1 c2
+                                    _                                -> return $ NKL.AppE2 t (NKL.Pair $ t1 T..-> t2 T..-> t) c1 c2
 translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
@@ -128,14 +127,35 @@ translate (LamE f ty) = do
 translate (AppE1 Fst e1 _) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Fst (fst $ T.pairComponents t1) c1
+                                return $ NKL.AppE1 (fst $ T.pairComponents t1) (NKL.Fst $ t1 T..-> (fst $ T.pairComponents t1)) c1
 translate (AppE1 Snd e1 _) = do
                                 c1 <- translate e1
                                 let t1 = T.typeOf c1
-                                return $ NKL.Snd (snd $ T.pairComponents t1) c1
-translate (AppE1 f e1 ty) = do 
+                                return $ NKL.AppE1 (snd $ T.pairComponents t1) (NKL.Snd $ t1 T..-> (snd $ T.pairComponents t1)) c1
+translate (AppE1 Not e1 _) = do
                                 c1 <- translate e1
-                                return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1
+                                let t1 = T.typeOf c1
+                                return $ NKL.AppE1 t1 (NKL.Not $ t1 T..-> t1) c1
+translate (AppE1 IntegerToDouble _ _) = undefined
+translate (AppE1 Head _ _) = undefined
+translate (AppE1 Tail _ _) = undefined
+translate (AppE1 Unzip _ _) = undefined
+translate (AppE1 Minimum _ _) = undefined
+translate (AppE1 Maximum _ _) = undefined
+translate (AppE1 Concat _e1 _) = undefined
+translate (AppE1 Sum _e1 _) = undefined
+translate (AppE1 And _e1 _) = undefined
+translate (AppE1 Or _e1 _) = undefined
+translate (AppE1 Reverse _e1 _) = undefined
+translate (AppE1 Length _e1 _) = undefined 
+translate (AppE1 Null _e1 _) = undefined
+translate (AppE1 Init _e1 _) = undefined
+translate (AppE1 Last _e1 _) = undefined
+translate (AppE1 The _e1 _) = undefined
+translate (AppE1 Nub _e1 _) = undefined
+{-translate (AppE1 f e1 ty) = do 
+                                c1 <- translate e1
+                                return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1 -}
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
                                   c2 <- translate e2
@@ -225,11 +245,11 @@ toList n es = primList (reverse es) n
         primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
         primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List xs)) = primList vs (NKL.Const ty (V.List (v:xs)))
         primList [] e = e
-        primList vs (NKL.Const ty (V.List [])) = consList vs (NKL.Nil ty)
+        primList vs c@(NKL.Const _ (V.List [])) = consList vs c
         primList vs e = consList vs e
         consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
         consList xs e = foldl (flip cons) e xs
-        
+
 isConst :: NKL.Expr -> Bool
 isConst (NKL.Const _ _) = True
 isConst _               = False
