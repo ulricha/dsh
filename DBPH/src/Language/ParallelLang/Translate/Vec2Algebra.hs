@@ -167,11 +167,11 @@ toX100String (m, r, t) =
     let m' = reverseAlgMap m 
     in
         case r of
-            PrimVal r'     -> PrimVal $ X100 r' $ generateQuery m' r'
+            PrimVal r'     -> PrimVal $ X100 r' $ generateDumbQuery m' r'
             TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
-            DescrVector r' -> DescrVector $ X100 r' $ generateQuery m' r' 
-            ValueVector r' -> ValueVector $ X100 r' $ generateQuery m' r'
-            NestedVector r' rs -> NestedVector (X100 r' $ generateQuery m' r') $ toX100String (m, rs, t)
+            DescrVector r' -> DescrVector $ X100 r' $ generateDumbQuery m' r' 
+            ValueVector r' -> ValueVector $ X100 r' $ generateDumbQuery m' r'
+            NestedVector r' rs -> NestedVector (X100 r' $ generateDumbQuery m' r') $ toX100String (m, rs, t)
             PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
             Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
