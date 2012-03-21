@@ -139,14 +139,7 @@ translate (AppE1 f e1 ty) = do
 translate (AppE2 Map e1 e2 ty) = do
                                   c1 <- translate e1
                                   c2 <- translate e2
-#ifndef withMap
-                                  n <- freshVar
-                                  let tEl = T.unliftType (T.typeOf c2)
-                                  let tr = T.extractFnRes (T.typeOf c1)
-                                  return $ NKL.Iter (ty2ty ty) (prefixVar n) c2 (NKL.App tr c1 (NKL.Var tEl (prefixVar n)))
-#else
                                   return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e2) ty) (NKL.Var (ty2ty $ ArrowT (typeExp e1) (ArrowT (typeExp e2) ty)) "map") c1) c2
-#endif
 translate (AppE2 GroupWith f e ty) = do
                                       c1 <- translate f
                                       c2 <- translate e
