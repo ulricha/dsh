@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses  #-}
-module Language.ParallelLang.NKL.Data.NKL (Expr, Ex(..), Typed(..), freeVars) where
+module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars) where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val(Val())
@@ -7,29 +7,29 @@ import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
 
 import qualified Data.Set as S
 
-type Column t = (String, t)
+type Column = (String, Type)
 
 type Key = [String]
 
-type Expr = Ex Type
 -- | Data type expr represents nested kernel language.
-data Ex t where
-    Table :: t -> String -> [Column t] -> [Key] -> Ex t
-    App   :: t -> Expr -> Ex t -> Ex t -- | Apply multiple arguments to an expression
-    Pair  :: t -> Ex t -> Ex t -> Ex t
-    Lam   :: t -> String -> Ex t -> Ex t -- | A function has a name, some arguments and a body
-    Let   :: t -> String -> Ex t -> Ex t -> Ex t -- | Let a variable have value expr1 in expr2
-    If    :: t -> Ex t -> Ex t -> Ex t -> Ex t -- | If expr1 then expr2 else expr3
-    BinOp :: t -> Op -> Ex t -> Ex t -> Ex t -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-    Const :: t -> Val -> Ex t -- | Constant value
-    Var   :: t -> String -> Ex t  -- | Variable
-    Iter  :: t -> String -> Ex t -> Ex t -> Ex t -- | [expr2 | var <- expr1]
-    Nil   :: t -> Ex t -- | []
-    Fst   :: t -> Ex t -> Ex t
-    Snd   :: t -> Ex t -> Ex t
+data Expr where
+    Table :: Type -> String -> [Column] -> [Key] -> Expr
+    App   :: Type -> Expr -> Expr -> Expr -- | Apply multiple arguments to an expression
+    -- AppE1 :: Type -> Prim1 -> Expr -> Expr 
+    Pair  :: Type -> Expr -> Expr -> Expr
+    Lam   :: Type -> String -> Expr -> Expr -- | A function has a name, some arguments and a body
+    Let   :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
+    If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
+    BinOp :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
+    Const :: Type -> Val -> Expr -- | Constant value
+    Var   :: Type -> String -> Expr  -- | Variable
+    Iter  :: Type -> String -> Expr -> Expr -> Expr -- | [expr2 | var <- expr1]
+    Nil   :: Type -> Expr -- | []
+    Fst   :: Type -> Expr -> Expr
+    Snd   :: Type -> Expr -> Expr
       deriving (Show, Eq, Ord)
 
-instance Typed Ex Type where
+instance Typed Expr where
     typeOf (Table t _ _ _) = t
     typeOf (App t _ _) = t
     typeOf (Lam t _ _) = t

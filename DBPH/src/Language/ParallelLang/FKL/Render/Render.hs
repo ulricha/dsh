@@ -6,10 +6,10 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 import Text.PrettyPrint hiding (render)
 import Data.List (intersperse)
 
-instance Show (Expr t) where
+instance Show Expr where
    show a = show $ render a
     
-render :: Expr t -> Doc
+render :: Expr -> Doc
 render (Table _ n _c _k) = parens $ text "Table" <+> text n
 render (Labeled _ e) = render e
 render (PApp1 _ f e1) = text (show f) <+> (parens $ render e1)

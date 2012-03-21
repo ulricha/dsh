@@ -68,7 +68,7 @@ transType (T.Pair t1 t2) = T.Pair (transType t1) (transType t2)
 transType (T.Fn t1 t2)       = T.Fn (transType t1) (transType t2)
 transType t                  = t
 
-fkl2Alg :: (VectorAlgebra a) => Expr T.Type -> Graph a Plan
+fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 fkl2Alg (Pair _ e1 e2) = TupleVector <$> mapM fkl2Alg [e1, e2]
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
@@ -140,10 +140,10 @@ fkl2Alg (CloLApp _ c arg) = do
                               arg' <- fkl2Alg arg
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
 
-toPFAlgebra :: Expr T.Type -> AlgPlan PFAlgebra Plan
+toPFAlgebra :: Expr -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 
-toX100Algebra :: Expr T.Type -> AlgPlan X100Algebra Plan
+toX100Algebra :: Expr -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()

@@ -154,5 +154,5 @@ transType (Pair t1 t2) = Pair (transType t1) (transType t2)
 transType (Fn t1 t2)   = Fn (transType t1) (transType t2)
 transType t            = t
 
-class Typed a t where
-  typeOf :: a t -> t
+class Typed a where
+  typeOf :: a -> Type

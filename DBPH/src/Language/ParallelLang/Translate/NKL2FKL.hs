@@ -14,19 +14,19 @@ import qualified Data.Set as S
 
 import Control.Applicative
 
-flatTransform :: N.Expr -> TransM (F.Expr Type)
+flatTransform :: N.Expr -> TransM F.Expr
 flatTransform e = do
                     e' <- withCleanLetEnv $ transform e
                     return e'
 
-transEnv :: [(String, N.Expr)] -> TransM [(String, F.Expr Type)]
+transEnv :: [(String, N.Expr)] -> TransM [(String, F.Expr)]
 transEnv ((x, v):xs) = do
                         v' <- transform v
                         xs' <- transEnv xs
                         return ((x, v'):xs')
 transEnv []          = return []
 
-transform :: N.Expr -> TransM (F.Expr Type)
+transform :: N.Expr -> TransM F.Expr
 transform (N.Table t n c k) = pure $ F.Table t n c k
 transform (N.Nil t) = pure $ F.Nil t
 transform (N.Pair t e1 e2) = F.Pair t <$> transform e1 <*> transform e2
@@ -62,7 +62,7 @@ transform (N.Iter _t n e1 e2) = do
 transform (N.Fst _ e) = fstF <$> transform e
 transform (N.Snd _ e) = sndF <$> transform e
 
-flatten :: String -> F.Expr Type -> N.Expr -> TransM (F.Expr Type)
+flatten :: String -> F.Expr -> N.Expr -> TransM F.Expr
 flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
 flatten i e1 (N.Pair t ex1 ex2) = F.Pair (liftType t) <$> flatten i e1 ex1 <*> flatten i e1 ex2
 flatten _ e1 (N.Var t "not") = return $ distF (notVal t) e1
