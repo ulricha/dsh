@@ -467,14 +467,14 @@ constrEnvName :: String -> Int -> String
 constrEnvName x 0 = x
 constrEnvName x i = x ++ "<%>" ++ show i
 
-tableRefPF :: String -> [FKL.TypedColumn Ty.Type] -> [FKL.Key] -> Graph PFAlgebra Plan
+tableRefPF :: String -> [FKL.TypedColumn] -> [FKL.Key] -> Graph PFAlgebra Plan
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) keyItems
                      t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
                      cs' <- mapM (\(_, i) -> ValueVector <$> proj [(descr, descr), (pos, pos), (item, "item" ++ show i)] t') numberedCols 
                      return $ foldl1 (\x y -> TupleVector [y,x]) $ reverse cs'
   where
-    renameCols :: [FKL.TypedColumn Ty.Type] -> [Column]
+    renameCols :: [FKL.TypedColumn] -> [Column]
     renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
     numberedCols = zip cs [1 :: Integer .. ]
     numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
