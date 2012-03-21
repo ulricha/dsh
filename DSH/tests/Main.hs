@@ -45,7 +45,7 @@ instance Arbitrary Text where
 
 #ifdef isX100
 getConn :: IO X100Info
-getConn = return $ x100Info "localhost" 48130 Nothing    
+getConn = return $ x100Info "localhost" "48130" Nothing    
 #else
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
