@@ -184,7 +184,7 @@ cond :: Expr -> Expr -> Expr -> Expr
 cond eb et ee = let tb = typeOf eb
                     tt = typeOf et
                     te = typeOf ee
-                 in if tb P.== boolT P.&& et P.== ee
+                 in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
                       else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
 
