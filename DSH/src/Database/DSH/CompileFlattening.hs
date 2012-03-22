@@ -1,13 +1,11 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec, FlexibleInstances, UndecidableInstances  #-}
+{-# LANGUAGE TemplateHaskell  #-}
 module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
 
 import qualified Language.ParallelLang.NKL.Primitives as NP
-import qualified Language.ParallelLang.NKL.Data.NKL as NKL
-import qualified Language.ParallelLang.Common.Data.Val as V
+-- import qualified Language.ParallelLang.NP.Data.NP as NP
 import qualified Language.ParallelLang.Common.Data.Type as T
-import qualified Language.ParallelLang.Common.Data.Op as O
 
 import Database.DSH.Data as D
 import Data.Text (unpack)
@@ -54,7 +52,7 @@ getTableInfoFun n = do
                    (_, _, f) <- get
                    lift $ f n
 
-toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp -> IO NKL.Expr
+toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp -> IO NP.Expr
 toNKL f e = runN f $ translate e
 
 -- | Execute the transformation computation. During
@@ -65,7 +63,7 @@ runN :: (String -> IO [(String, T.Type -> Bool)]) -> N a -> IO a
 runN f = liftM fst . flip runStateT (1, M.empty, f)
 
 
-translate ::  Exp -> N NKL.Expr
+translate ::  Exp -> N NP.Expr
 translate (UnitE _) = return $ NP.unit
 translate (BoolE b _) = return $ NP.bool b
 translate (CharE c _) = return $ NP.string [c]
@@ -86,26 +84,18 @@ translate (TableE (TableDB n ks) ty) = do
                                                     else ks
                                         return $ NP.table (translateType ty) n cols ks'
 translate (TupleE e1 e2 _) = NP.pair <$> translate e1 <*> translate e2
-translate (ListE es ty) = toList (NKL.Const (translateType ty) (V.List [])) <$> mapM translate es
+translate (ListE es ty) = NP.list (translateType ty) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
                         NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v t1)) 
 translate (AppE1 f e _) = translateFun1 f <$> translate e
-translate (AppE2 D.Cons e1 e2 _) = do
-                                            e1' <- translate e1
-                                            e2' <- translate e2
-                                            return $ toList e2' [e1']  
 translate (AppE2 f2 e1 e2 _) = translateFun2 f2 <$> translate e1 <*> translate e2
-translate (AppE3 Cond e1 e2 e3 _) = do
-                                             e1' <- translate e1
-                                             e2' <- translate e2
-                                             e3' <- translate e3
-                                             return $ NKL.If (T.typeOf e2') e1' e2' e3'
+translate (AppE3 Cond e1 e2 e3 _) = NP.cond <$> translate e1 <*> translate e2 <*> translate e3
 translate (TableE (TableCSV _) _) = $impossible
 translate (AppE3 ZipWith _ _ _ _) = $impossible
 
-translateFun2 :: Fun2 -> NKL.Expr -> NKL.Expr -> NKL.Expr
+translateFun2 :: Fun2 -> NP.Expr -> NP.Expr -> NP.Expr
 translateFun2 Add       = NP.add
 translateFun2 Mul       = NP.mul
 translateFun2 Sub       = NP.sub
@@ -114,7 +104,7 @@ translateFun2 All       = $impossible
 translateFun2 Any       = $impossible
 translateFun2 Index     = $impossible
 translateFun2 SortWith  = NP.sortWith
-translateFun2 Cons      = NP.cons
+translateFun2 Cons      = NP.consOpt
 translateFun2 Snoc      = $impossible
 translateFun2 Take      = $impossible
 translateFun2 Drop      = $impossible
@@ -138,7 +128,7 @@ translateFun2 Gt        = NP.gt
 translateFun2 Max       = $impossible
 translateFun2 Min       = $impossible
 
-translateFun1 :: Fun1 -> NKL.Expr -> NKL.Expr
+translateFun1 :: Fun1 -> NP.Expr -> NP.Expr
 translateFun1 Fst = NP.fst
 translateFun1 Snd = NP.snd
 translateFun1 Not = NP.not
@@ -166,20 +156,6 @@ legalType tn cn nr t f = case f t of
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 
-gtorlt :: Fun2 -> Fun2
-gtorlt Gte = Gt
-gtorlt Lte = Lt
-gtorlt _   = $impossible
-
-cons :: NKL.Expr -> NKL.Expr -> NKL.Expr
-cons e1 e2 = NKL.BinOp (NKL.typeOf e2) (O.Op O.Cons False) e1 e2
-
-isTuple :: String -> Maybe Int
-isTuple ('(':xs) = let l = length xs
-                       s = (replicate (l - 1) ',' ) ++ ")"
-                    in if (xs == s) then Just (l - 1) else Nothing
-isTuple _      = Nothing
-
 translateType :: Type -> T.Type
 translateType UnitT = T.unitT
 translateType BoolT = T.boolT
@@ -198,29 +174,3 @@ tableTypes (ListT t) = fromTuples t
         fromTuples (TupleT t1 t2) = translateType t1 : fromTuples t2
         fromTuples t'              = [translateType t']
 tableTypes _         = $impossible
-
-toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
-toList n es = primList (reverse es) n 
-    where
-        primList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        primList ((NKL.Const _ v):vs) (NKL.Const ty (V.List xs)) = primList vs (NKL.Const ty (V.List (v:xs)))
-        primList [] e = e
-        primList vs c@(NKL.Const _ (V.List [])) = consList vs c
-        primList vs e = consList vs e
-        consList :: [NKL.Expr] -> NKL.Expr -> NKL.Expr
-        consList xs e = foldl (flip cons) e xs
-
-isConst :: NKL.Expr -> Bool
-isConst (NKL.Const _ _) = True
-isConst _               = False
-
-isPrimVal :: Exp -> Bool
-isPrimVal (UnitE _) = True
-isPrimVal (BoolE _ _) = True
-isPrimVal (CharE _ _) = True
-isPrimVal (IntegerE _ _) = True
-isPrimVal (ListE es _) = and $ map isPrimVal es
-isPrimVal (DoubleE _ _) = True
-isPrimVal (TextE _ _) = True
-isPrimVal (TupleE e1 e2 _) = isPrimVal e1 && isPrimVal e2
-isPrimVal _ = False
