@@ -30,9 +30,11 @@ Library
   Other-modules:       Optimizer.X100.Rewrite.PruneEmpty
                        Optimizer.X100.Rewrite.Common
 
+  GHC-Options: -O3 -Wall
+
 Executable x100opt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/X100/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -auto-all -O3
+  GHC-Options: -rtsopts -auto-all -O3 -Wall
