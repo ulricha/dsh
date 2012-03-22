@@ -60,13 +60,13 @@ transform (N.Const t v) = pure $ F.Const t v
 transform (N.Var t x) = pure $ F.Var t x
 
 flatten :: String -> F.Expr -> N.Expr -> TransM F.Expr
-flatten _ e1 (N.Table t n c k) = return $ distF (F.Table t n c k) e1
-flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distF (F.Var t x) e1
+flatten _ e1 (N.Table t n c k) = return $ distPrim (F.Table t n c k) e1
+flatten _ e1 (N.Var t x) | x `elem` topLevelVars = return $ distPrim (F.Var t x) e1
                          | otherwise             = return $ F.Var (liftType t) x
-flatten _ e1 (N.Const t v) = return $ distF (F.Const t v) e1
+flatten _ e1 (N.Const t v) = return $ distPrim (F.Const t v) e1
 flatten i e1 (N.App _t f es) = cloLApp <$> flatten i e1 f <*> flatten i e1 es
-flatten i e1 (N.AppE1 _ p arg) = cloLApp (distF (prim1Transform p) e1) <$> flatten i e1 arg 
-flatten i e1 (N.AppE2 _ p arg1 arg2) = cloLApp <$> (cloLApp (distF (prim2Transform p) e1) <$> flatten i e1 arg1) <*> flatten i e1 arg2
+flatten i e1 (N.AppE1 _ p arg) = cloLApp (distPrim (prim1Transform p) e1) <$> flatten i e1 arg 
+flatten i e1 (N.AppE2 _ p arg1 arg2) = cloLApp <$> (cloLApp (distPrim (prim2Transform p) e1) <$> flatten i e1 arg1) <*> flatten i e1 arg2
 flatten i d (N.If _ e1 e2 e3) = do
                                     r1' <- getFreshVar
                                     r2' <- getFreshVar 
@@ -75,15 +75,15 @@ flatten i d (N.If _ e1 e2 e3) = do
                                     v3' <- getFreshVar
                                     e1' <- flatten i d e1
                                     let v1 = F.Var (typeOf e1') v1'
-                                    let rv1 = restrictF d v1
+                                    let rv1 = restrictPrim d v1
                                     let r1 = F.Var (typeOf rv1) r1'
                                     e2' <- flatten i r1 e2
-                                    let rv2 = restrictF d (notF v1)
+                                    let rv2 = restrictPrim d (notLPrim v1)
                                     let r2 = F.Var (typeOf rv2) r2'
                                     e3' <- flatten i r2 e3
                                     let v2 = F.Var (typeOf e2') v2'
                                     let v3 = F.Var (typeOf e3') v3'
-                                    return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combineF v1 v2 v3
+                                    return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combinePrim v1 v2 v3
 flatten i d (N.BinOp t (Op o False) e1 e2) = do
                                     (F.BinOp (liftType t) (Op o True)) <$> flatten i d e1 <*> flatten i d e2
 flatten _ _ (N.BinOp _ _ _ _) = $impossible

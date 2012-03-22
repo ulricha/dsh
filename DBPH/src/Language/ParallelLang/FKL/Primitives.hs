@@ -12,119 +12,145 @@ import qualified Language.ParallelLang.Common.Data.Type as T
 
 --The groupWith combinator
 
-groupWithVal :: Type -> Expr
-groupWithVal t = Clo t "n" [] "__*group_f*" f1 f2
+doubleArgClo :: Type -> String -> String -> (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) -> Expr
+doubleArgClo t v1 v2 e1 e2 = Clo t "n" [] arg1 f1 f2
     where
         (t1, r1) = splitType t
-        (t2, r) = splitType r1
-        gws = groupWithS r (F.Var t1 "__*group_f*") (F.Var t2 "__*group_xs*")
-        gwl = groupWithL (listT r) (F.Var (listT t1) "__*group_f*") (F.Var (listT t2) "__*group_xs*")
-        f1 = Clo r1 "n" [("__*group_f*", F.Var t1 "__*group_f*")] "__*group_xs*" gws gwl
-        f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*group_f*", F.Var (listT t1) "__*group_f*")] "__*group_xs*" gws gwl
+        (t2, _) = splitType r1
+        arg1 = "__*" ++ v1 ++ "*"
+        arg2 = "__*" ++ v2 ++ "*"
+        body1 = e1 (F.Var t1 arg1) (F.Var t2 arg2)
+        body2 = e2 (F.Var (liftType t1) arg1) (F.Var (liftType t2) arg2)
+        f1 = Clo r1 "n" [(arg1, F.Var t1 arg1)] arg2 body1 body2
+        f2 = AClo (liftType r1) "n" (F.Var (liftType t1) "n") [(arg1, F.Var (liftType t1) arg1)] arg2 body1 body2
 
-groupWithS :: Type -> Expr -> Expr -> Expr
-groupWithS t f e = F.PApp2 t (F.GroupWithS (typeOf f .-> typeOf e .-> t)) (mapS f e) e
+groupWithVal :: Type -> Expr
+groupWithVal t = doubleArgClo t "group_f" "group_xs" groupWithPrim groupWithLPrim
 
-groupWithL :: Type -> Expr -> Expr -> Expr
-groupWithL t f e = F.PApp2 t (F.GroupWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e 
+groupWithPrim :: Expr -> Expr -> Expr
+groupWithPrim f e = let arg1 = mapPrim f e
+                        t1 = typeOf arg1
+                        t2 = typeOf e
+                        t3 = listT t2
+                     in F.PApp2 t3 (F.GroupWithS (t1 .-> t2 .-> t3)) arg1 e
+
+groupWithLPrim :: Expr -> Expr -> Expr
+groupWithLPrim f e = let arg1 = mapLPrim f e
+                         t1 = typeOf arg1 
+                         t2 = typeOf e
+                         t3 = listT t2
+                      in F.PApp2 t3 (F.GroupWithL (t1 .-> t2 .-> t3)) arg1 e 
 
 pairVal :: Type -> Expr
-pairVal t = Clo t "n" [] "__*pair_e1*" f1 f2
-  where
-    (t1, r1) = splitType t
-    (t2, r) = splitType r1
-    ps = pairS r (F.Var t1 "__*pair_e1*") (F.Var t2 "__*pair_e2*")
-    pl = pairL (listT r) (F.Var (listT t1) "__*pair_e1*") (F.Var (listT t2) "__*pair_e2*")
-    f1 = Clo r1 "n" [("__*pair_e1*", F.Var t1 "__*pair_e1*")] "__*pair_e2*" ps pl
-    f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*pair_e1*", F.Var (listT t1) "__*pair_e1*")] "__*pair_e2*" ps pl 
-     
-pairS :: Type -> Expr -> Expr -> Expr
-pairS t e1 e2 = F.Pair t e1 e2
+pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 
-pairL :: Type -> Expr -> Expr -> Expr
-pairL t e1 e2 = F.Pair t e1 e2 
+pairPrim :: Expr -> Expr -> Expr
+pairPrim e1 e2 = let t1 = typeOf e1
+                     t2 = typeOf e2
+                  in F.Pair (t1 .-> t2 .-> pairT t1 t2) e1 e2
+
+pairLPrim :: Expr -> Expr -> Expr
+pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
+                      t2@(T.List t2') = typeOf e2
+                   in F.Pair (t1 .-> t2 .-> listT (pairT t1' t2')) e1 e2 
 
 --The sortWith combinator
 
 sortWithVal :: Type -> Expr
-sortWithVal t = Clo t "n" [] "__*sort_f*" f1 f2
-    where
-        (t1, r1) = splitType t
-        (t2, r) = splitType r1
-        sws = sortWithS r (F.Var t1 "__*sort_f*") (F.Var t2 "__*sort_xs*")
-        swl = sortWithL (listT r) (F.Var (listT t1) "__*sort_f*") (F.Var (listT t2) "__*sort_xs*")
-        f1 = Clo r1 "n" [("__*sort_f*", F.Var t1 "__*sort_f*")] "__*sort_xs*" sws swl
-        f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*sort_f*", F.Var (listT t1) "__*sort_f*")] "__*sort_xs*" sws swl
+sortWithVal t = doubleArgClo t "sort_f" "sort_xs" sortWithPrim sortWithLPrim 
 
-sortWithS :: Type -> Expr -> Expr -> Expr
-sortWithS t f e = F.PApp2 t (F.SortWithS (typeOf f .-> typeOf e .-> t)) (mapS f e) e
+sortWithPrim :: Expr -> Expr -> Expr
+sortWithPrim f e = let arg1 = mapPrim f e
+                       t1@(T.List _) = typeOf arg1
+                       t2@(T.List _) = typeOf e
+                    in F.PApp2 t2 (F.SortWithS (t1 .-> t2 .-> t2)) arg1 e
 
-sortWithL :: Type -> Expr -> Expr -> Expr
-sortWithL t f e = F.PApp2 t (F.SortWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e
+sortWithLPrim :: Expr -> Expr -> Expr
+sortWithLPrim f e = let arg1 = mapLPrim f e
+                        t1@(T.List (T.List _)) = typeOf arg1 
+                        t2@(T.List (T.List _)) = typeOf e
+                     in F.PApp2 t2 (F.SortWithL (t1 .-> t2 .-> t2)) arg1 e
 
 -- The map combinators are used for desugaring iterators.
 mapVal :: Type -> Expr
-mapVal t = Clo t "n" [] "__*map_f*" f1 f2
+mapVal t = doubleArgClo t "map_f" "map_xs" mapPrim mapLPrim
+
+mapPrim :: Expr -> Expr -> Expr
+mapPrim f e = cloLApp (distPrim f e) e
+
+mapLPrim :: Expr -> Expr -> Expr
+mapLPrim f e = unconcatPrim e $ cloLApp (concatPrim (distLPrim f e)) (concatPrim e)
+
+singleArgClo :: Type -> String -> (Expr -> Expr) -> (Expr -> Expr) -> Expr
+singleArgClo t arg e1 e2 = Clo t "n" [] argname f1 f2
     where
-        (t1, r1) = splitType t
-        (t2, _r)  = splitType r1
-        f1 = Clo r1 "n" [("__*map_f*", F.Var t1 "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
-        f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*map_f*", F.Var (listT t1) "__*map_f*")] "__*map_xs*" (mapS (F.Var t1 "__*map_f*") (F.Var t2 "__*map_xs*")) (mapL (F.Var (listT t1) "__*map_f*") (F.Var (listT t2) "__*map_xs*")) 
-
-mapS :: Expr -> Expr -> Expr
-mapS f e = cloLApp (distF f e) e
-
-mapL :: Expr -> Expr -> Expr
-mapL f e = unconcatF e $ cloLApp (concatF (distFL f e)) (concatF e)
+        argname = "__*" ++ arg ++ "*"
+        (a, _) = splitType t
+        f1 = e1 (F.Var a argname)
+        f2 = e2 (F.Var (liftType a) argname)  
 
 lengthVal :: Type -> Expr
-lengthVal t = Clo t "n" [] "__*length_v*" f1 f2
-    where
-        (a, r) = splitType t
-        f1 = F.PApp1 r (F.LengthPrim t) (F.Var a "__*length_v*")
-        f2 = F.PApp1 r (F.LengthLift (liftType t)) (F.Var (liftType a) "__*length_v*")
+lengthVal t = singleArgClo t "length_v" lengthPrim lengthLPrim
 
+lengthPrim :: Expr -> Expr
+lengthPrim e1 = let t1@(T.List _) = typeOf e1
+                 in F.PApp1 intT (F.LengthPrim $ t1 .-> intT) e1
+
+lengthLPrim :: Expr -> Expr
+lengthLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+                  in F.PApp1 (listT intT) (F.LengthLift $ t1 .-> listT intT) e1
+    
 theVal :: Type -> Expr
-theVal t = Clo t "n" [] "__*the_v*" f1 f2
-    where
-        (a, r) = splitType t
-        f1 = F.PApp1 r (F.The t) (F.Var a "__*the_v*")
-        f2 = F.PApp1 r (F.TheL (liftType t)) (F.Var (liftType a) "__*the_v*")
+theVal t = singleArgClo t "the_v" thePrim theLPrim
+
+thePrim :: Expr -> Expr
+thePrim e1 = let t1@(T.List t1') = typeOf e1
+              in F.PApp1 t1' (F.The $ t1 .-> t1') e1
+
+theLPrim :: Expr -> Expr
+theLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+               in F.PApp1 t (F.TheL $ t1 .-> t) e1
 
 notVal :: Type -> Expr
-notVal t = Clo t "n" [] "__*not_v*" f1 f2
-    where
-        (a, r) = splitType t
-        f1 = F.PApp1 r (F.NotPrim t) $ F.Var a "__*not_v*"
-        f2 = F.PApp1 r (F.NotVec (liftType t)) $ F.Var (liftType a) "__*not_v*"
+notVal t = singleArgClo t "not_v" notPrim notLPrim
+
+notPrim :: Expr -> Expr
+notPrim e1 = let t1@(T.Bool) = typeOf e1
+              in F.PApp1 t1 (F.NotPrim $ t1 .-> t1) e1
+              
+notLPrim :: Expr -> Expr 
+notLPrim e1 = let t1@(T.List T.Bool) = typeOf e1
+               in F.PApp1 t1 (F.NotVec $ t1 .-> t1) e1
 
 sumVal :: Type -> Expr
-sumVal t = Clo t "n" [] "__*sum_v*" f1 f2
-    where
-        (a, r) = splitType t
-        f1 = F.PApp1 r (F.Sum t) $ F.Var a "__*sum_v*"
-        f2 = F.PApp1 r (F.SumL (liftType t)) $ F.Var (liftType a) "__*sum_v*"
+sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim
+
+sumPrim :: Expr -> Expr
+sumPrim e1 = let t1@(T.List t) = typeOf e1
+              in F.PApp1 t (F.Sum $ t1 .-> t) e1
+
+sumLPrim :: Expr -> Expr
+sumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+               in F.PApp1 t (F.SumL $ t1 .-> t) e1
 
 concatVal :: Type -> Expr
-concatVal t = Clo t "n" [] "__*concat_v*" f1 f2
-    where
-        (a, r) = splitType t
-        f1 = concatF (F.Var a "__*concat_v*")
-        f2 = F.PApp1 r (F.ConcatLift $ liftType t) $ F.Var (liftType a) "__*concat_v*"
+concatVal t = singleArgClo t "concat_v" concatPrim concatLPrim
+
+concatPrim :: Expr -> Expr
+concatPrim e = let t1@(T.List rt@(T.List _)) = typeOf e
+                   ft = t1 .-> rt
+                in F.PApp1 rt (F.Concat ft) e
+                
+concatLPrim :: Expr -> Expr
+concatLPrim e = let t1@(T.List rt@(T.List (T.List _))) = typeOf e
+                    ft = t1 .-> rt
+                 in F.PApp1 rt (F.ConcatLift $ ft) e
 
 fstVal :: Type -> Expr
-fstVal t = Clo t "n" [] "__*fst_v*" f1 f2
-    where
-        (a, _) = splitType t
-        f1 = fstF (F.Var a "__*fst_v*")
-        f2 = fstLF (F.Var (liftType a) "__*fst_v*")
+fstVal t = singleArgClo t "fst_v" fstPrim fstLPrim
         
 sndVal :: Type -> Expr
-sndVal t = Clo t "n" [] "__*snd_v*" f1 f2
-    where
-        (a, _) = splitType t
-        f1 = sndF (F.Var a "__*snd_v*")
-        f2 = sndLF (F.Var (liftType a) "__*snd_v*")
+sndVal t = singleArgClo t "snd_v" sndPrim sndLPrim
 
 cloApp :: Expr -> Expr -> Expr
 cloApp e1 ea = CloApp rt e1 ea
@@ -138,56 +164,46 @@ cloLApp e1 ea = CloLApp (liftType rt) e1 ea
         fty = typeOf e1
         (_, rt) = splitType $ unliftType fty
 
-indexF :: Expr -> Expr -> Expr
-indexF e1 e2 = let t1@(T.List t) = typeOf e1
-                   t2 = typeOf e2
-                in F.PApp2 t (F.Index $ t1 .-> t2 .-> t) e1 e2
-
-distF :: Expr -> Expr -> Expr
-distF e1 e2 = let t1 = typeOf e1
-                  t2 = typeOf e2
-                  ft = t1 .-> t2 .-> listT t1
-               in F.PApp2 (listT t1) (F.Dist ft) e1 e2
-
-distFL :: Expr -> Expr -> Expr
-distFL e1 e2 = let t1 = typeOf e1
-                   t2 = typeOf e2
-                   ft = t1 .-> t2 .-> listT t1
-                in F.PApp2 (listT t1) (F.Dist_L ft) e1 e2
-
-restrictF :: Expr -> Expr -> Expr
-restrictF e1 e2 = let t1 = typeOf e1
-                      rt = t1
-                      ft = t1 .-> listT boolT .-> rt
-                   in F.PApp2 rt (F.Restrict ft) e1 e2
-
-notF :: Expr -> Expr
-notF e | typeOf e == boolT = F.PApp1 boolT (F.NotPrim $ boolT .-> boolT) e
-       | typeOf e == listT boolT = F.PApp1 (listT boolT) (F.NotVec $ listT boolT .-> listT boolT) e 
-       | otherwise = error $ "notF" ++ show (typeOf e)
-       
-combineF :: Expr -> Expr -> Expr -> Expr
-combineF e1 e2 e3 = let t1 = typeOf e1 
-                        t2 = typeOf e2
-                        rt = t2
-                        ft = t1 .-> t2 .-> t2 .-> rt
-                     in F.PApp3 rt (F.Combine ft) e1 e2 e3
-
-
-unconcatF :: Expr -> Expr -> Expr
-unconcatF e1 e2 = let t1 = typeOf e1
+indexPrim :: Expr -> Expr -> Expr
+indexPrim e1 e2 = let t1@(T.List t) = typeOf e1
                       t2 = typeOf e2
-                      rt = listT t2
-                      ft = t1 .-> t2 .-> rt
-                   in F.PApp2 rt (F.Unconcat ft) e1 e2 
+                   in F.PApp2 t (F.Index $ t1 .-> t2 .-> t) e1 e2
 
-concatF :: Expr -> Expr
-concatF e = let t1@(T.List rt) = typeOf e
-                ft = t1 .-> rt
-             in F.PApp1 rt (F.Concat ft) e
+distPrim :: Expr -> Expr -> Expr
+distPrim e1 e2 = let t1 = typeOf e1
+                     t2 = typeOf e2
+                     ft = t1 .-> t2 .-> listT t1
+                  in F.PApp2 (listT t1) (F.Dist ft) e1 e2
 
-bPermuteF :: Expr -> Expr -> Expr
-bPermuteF e1 e2 = F.PApp2 (typeOf e1) (F.BPermute $ typeOf e1 .-> typeOf e2 .-> typeOf e1) e1 e2 
+distLPrim :: Expr -> Expr -> Expr
+distLPrim e1 e2 = let t1 = typeOf e1
+                      t2 = typeOf e2
+                      ft = t1 .-> t2 .-> listT t1
+                   in F.PApp2 (listT t1) (F.Dist_L ft) e1 e2
+
+restrictPrim :: Expr -> Expr -> Expr
+restrictPrim e1 e2 = let t1 = typeOf e1
+                         rt = t1
+                         ft = t1 .-> listT boolT .-> rt
+                      in F.PApp2 rt (F.Restrict ft) e1 e2
+
+combinePrim :: Expr -> Expr -> Expr -> Expr
+combinePrim e1 e2 e3 = let t1 = typeOf e1 
+                           t2 = typeOf e2
+                           rt = t2
+                           ft = t1 .-> t2 .-> t2 .-> rt
+                        in F.PApp3 rt (F.Combine ft) e1 e2 e3
+
+
+unconcatPrim :: Expr -> Expr -> Expr
+unconcatPrim e1 e2 = let t1 = typeOf e1
+                         t2 = typeOf e2
+                         rt = listT t2
+                         ft = t1 .-> t2 .-> rt
+                      in F.PApp2 rt (F.Unconcat ft) e1 e2 
+
+bPermutePrim :: Expr -> Expr -> Expr
+bPermutePrim e1 e2 = F.PApp2 (typeOf e1) (F.BPermute $ typeOf e1 .-> typeOf e2 .-> typeOf e1) e1 e2 
 
 intF :: Int -> Expr
 intF i = F.Const intT $ Int i
@@ -205,27 +221,26 @@ tagN s e = Labeled s e
 pairF :: Expr -> Expr -> Expr
 pairF e1 e2 = F.Pair (pairT (typeOf e1) (typeOf e2)) e1 e2
 
+fstPrim :: Expr -> Expr
+fstPrim e = let t = typeOf e
+             in case t of
+                 (T.Pair t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
+                 _              -> error $ "fstPrim: Provided type is not a tuple: " ++ show t
 
-fstF :: Expr -> Expr
-fstF e = let t = typeOf e
-          in case t of
-                (T.Pair t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
-                _              -> error $ "Provided type is not a tuple 1" ++ show t
+sndPrim :: Expr -> Expr
+sndPrim e = let t = typeOf e
+             in case t of
+                 (T.Pair _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
+                 _             -> error $ "sndPrim: Provided type is not a tuple: " ++ show t
 
-sndF :: Expr -> Expr
-sndF e = let t = typeOf e
-          in case t of
-                (T.Pair _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
-                _             -> error $ "Provided type is not a tuple 2" ++ show t
+fstLPrim :: Expr -> Expr
+fstLPrim e = let t = typeOf e
+              in case t of
+                  (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (Fst $ t .-> T.List t1) e
+                  _              -> error $ "fstLPrim: Provided type is not a tuple: " ++ show t
 
-fstLF :: Expr -> Expr
-fstLF e = let t = typeOf e
-          in case t of
-                (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (Fst $ t .-> T.List t1) e
-                _              -> error $ "Provided type is not a tuple 3" ++ show t
-
-sndLF :: Expr -> Expr
-sndLF e = let t = typeOf e
-          in case t of
-                (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
-                _             -> error $ "Provided type is not a tuple 4"++ show t
+sndLPrim :: Expr -> Expr
+sndLPrim e = let t = typeOf e
+              in case t of
+                  (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
+                  _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
