@@ -3,6 +3,7 @@ module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
 
+import qualified Language.ParallelLang.NKL.Primitives as NP
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.Common.Data.Val as V
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -23,31 +24,6 @@ import GHC.Exts(sortWith)
 N monad, version of the state monad that can provide fresh variable names.
 -}
 type N = StateT (Int, M.Map String [(String, (T.Type -> Bool))], String -> IO [(String, T.Type -> Bool)]) IO
-
-{-
-class DBConn conn where
-    getTableInfo :: conn -> String -> IO [(String, (T.Type -> Bool))]
-
-instance IConnection conn => DBConn conn where
-    -- | Retrieve through the given database connection information on the table (columns with their types)
-    -- which name is given as the second argument.        
-    -- getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
-    getTableInfo c n = do
-                     info <- describeTable c n
-                     return $ toTableDescr info
-
-         where
-           toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
-           toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
-           compatibleType :: SqlTypeId -> T.Type -> Bool
-           compatibleType dbT hsT = case hsT of
-                                         T.Unit -> True
-                                         T.Bool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                         T.String -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
-                                         T.Int -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                         T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
-                                         t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
--}
 
 -- | Lookup information that describes a table. If the information is 
 -- not present in the state then the connection is used to retrieve the
@@ -90,13 +66,13 @@ runN f = liftM fst . flip runStateT (1, M.empty, f)
 
 
 translate ::  Exp -> N NKL.Expr
-translate (UnitE _) = return $ NKL.Const T.unitT V.Unit
-translate (BoolE b _) = return $ NKL.Const T.boolT $ V.Bool b
-translate (CharE c _) = return $ NKL.Const T.stringT $ V.String [c]
-translate (IntegerE i _) = return $ NKL.Const T.intT $ V.Int (fromInteger i)
-translate (DoubleE d _) = return $ NKL.Const T.doubleT $ V.Double d 
-translate (TextE t _) = return $ NKL.Const T.stringT $ V.String (unpack t) 
-translate (VarE i ty) = return $ NKL.Var (ty2ty ty) (prefixVar i)
+translate (UnitE _) = return $ NP.unit
+translate (BoolE b _) = return $ NP.bool b
+translate (CharE c _) = return $ NP.string [c]
+translate (IntegerE i _) = return $ NP.int (fromInteger i)
+translate (DoubleE d _) = return $ NP.double d 
+translate (TextE t _) = return $ NP.string (unpack t) 
+translate (VarE i ty) = return $ NP.var (translateType ty) (prefixVar i)
 translate (TableE (TableDB n ks) ty) = do
                                         let ts = zip [1..] $ tableTypes ty
                                         tableDescr <- liftM (sortWith fst) $ tableInfo n
@@ -108,75 +84,19 @@ translate (TableE (TableDB n ks) ty) = do
                                         let ks' = if ks == []
                                                     then [map fst tableDescr]
                                                     else ks
-                                        return $ NKL.Table (ty2ty ty) n cols ks'
-translate (TupleE e1 e2 _) = do
-                                c1 <- translate e1
-                                c2 <- translate e2
-                                let t1 = T.typeOf c1
-                                let t2 = T.typeOf c2
-                                let t = (T.pairT t1 t2) 
-                                case (c1, c2) of
-                                    (NKL.Const _ v1, NKL.Const _ v2) -> return $ NKL.Const t (V.Pair v1 v2)
-                                    _                                -> return $ NKL.AppE2 t (NKL.Pair $ t1 T..-> t2 T..-> t) c1 c2
-translate (ListE es ty) = toList (NKL.Const (ty2ty ty) (V.List [])) <$> mapM translate es
+                                        return $ NP.table (translateType ty) n cols ks'
+translate (TupleE e1 e2 _) = NP.pair <$> translate e1 <*> translate e2
+translate (ListE es ty) = toList (NKL.Const (translateType ty) (V.List [])) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
-                        f' <- translate $ f (VarE v t1)
-                        return $ NKL.Lam (ty2ty ty) (prefixVar v) f' 
-translate (AppE1 Fst e1 _) = do
-                                c1 <- translate e1
-                                let t1 = T.typeOf c1
-                                return $ NKL.AppE1 (fst $ T.pairComponents t1) (NKL.Fst $ t1 T..-> (fst $ T.pairComponents t1)) c1
-translate (AppE1 Snd e1 _) = do
-                                c1 <- translate e1
-                                let t1 = T.typeOf c1
-                                return $ NKL.AppE1 (snd $ T.pairComponents t1) (NKL.Snd $ t1 T..-> (snd $ T.pairComponents t1)) c1
-translate (AppE1 Not e1 _) = do
-                                c1 <- translate e1
-                                let t1 = T.typeOf c1
-                                return $ NKL.AppE1 t1 (NKL.Not $ t1 T..-> t1) c1
-translate (AppE1 IntegerToDouble _ _) = undefined
-translate (AppE1 Head _ _) = undefined
-translate (AppE1 Tail _ _) = undefined
-translate (AppE1 Unzip _ _) = undefined
-translate (AppE1 Minimum _ _) = undefined
-translate (AppE1 Maximum _ _) = undefined
-translate (AppE1 Concat _e1 _) = undefined
-translate (AppE1 Sum _e1 _) = undefined
-translate (AppE1 And _e1 _) = undefined
-translate (AppE1 Or _e1 _) = undefined
-translate (AppE1 Reverse _e1 _) = undefined
-translate (AppE1 Length _e1 _) = undefined 
-translate (AppE1 Null _e1 _) = undefined
-translate (AppE1 Init _e1 _) = undefined
-translate (AppE1 Last _e1 _) = undefined
-translate (AppE1 The _e1 _) = undefined
-translate (AppE1 Nub _e1 _) = undefined
-{-translate (AppE1 f e1 ty) = do 
-                                c1 <- translate e1
-                                return $ NKL.App (ty2ty ty) (NKL.Var (T.typeOf c1 T..-> ty2ty ty) (map toLower $ show f)) c1 -}
-translate (AppE2 Map e1 e2 ty) = do
-                                  c1 <- translate e1
-                                  c2 <- translate e2
-                                  return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e2) ty) (NKL.Var (ty2ty $ ArrowT (typeExp e1) (ArrowT (typeExp e2) ty)) "map") c1) c2
-translate (AppE2 GroupWith f e ty) = do
-                                      c1 <- translate f
-                                      c2 <- translate e
-                                      return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "groupWith") c1) c2
-translate (AppE2 SortWith f e ty) = do
-                                        c1 <- translate f
-                                        c2 <- translate e
-                                        return $ NKL.App (ty2ty ty) (NKL.App (ty2ty $ ArrowT (typeExp e) ty) (NKL.Var (ty2ty $  ArrowT (typeExp f) (ArrowT (typeExp e) ty)) "sortWith") c1) c2
+                        NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v t1)) 
+translate (AppE1 f e _) = translateFun1 f <$> translate e
 translate (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- translate e1
                                             e2' <- translate e2
                                             return $ toList e2' [e1']  
-translate (AppE2 f2 e1 e2 ty) = do
-                                        let tr = ty2ty ty
-                                        e1' <- translate e1
-                                        e2' <- translate e2
-                                        return $ NKL.BinOp tr (transformOp f2) e1' e2'
+translate (AppE2 f2 e1 e2 _) = translateFun2 f2 <$> translate e1 <*> translate e2
 translate (AppE3 Cond e1 e2 e3 _) = do
                                              e1' <- translate e1
                                              e2' <- translate e2
@@ -184,6 +104,61 @@ translate (AppE3 Cond e1 e2 e3 _) = do
                                              return $ NKL.If (T.typeOf e2') e1' e2' e3'
 translate (TableE (TableCSV _) _) = $impossible
 translate (AppE3 ZipWith _ _ _ _) = $impossible
+
+translateFun2 :: Fun2 -> NKL.Expr -> NKL.Expr -> NKL.Expr
+translateFun2 Add       = NP.add
+translateFun2 Mul       = NP.mul
+translateFun2 Sub       = NP.sub
+translateFun2 Div       = NP.div
+translateFun2 All       = $impossible
+translateFun2 Any       = $impossible
+translateFun2 Index     = $impossible
+translateFun2 SortWith  = NP.sortWith
+translateFun2 Cons      = NP.cons
+translateFun2 Snoc      = $impossible
+translateFun2 Take      = $impossible
+translateFun2 Drop      = $impossible
+translateFun2 Map       = NP.map
+translateFun2 Append    = $impossible
+translateFun2 Filter    = $impossible
+translateFun2 GroupWith = NP.groupWith
+translateFun2 Zip       = $impossible
+translateFun2 Break     = $impossible
+translateFun2 Span      = $impossible
+translateFun2 DropWhile = $impossible
+translateFun2 TakeWhile = $impossible
+translateFun2 SplitAt   = $impossible
+translateFun2 Equ       = NP.eq
+translateFun2 Conj      = NP.conj
+translateFun2 Disj      = NP.disj
+translateFun2 Lt        = NP.lt
+translateFun2 Lte       = NP.lte
+translateFun2 Gte       = NP.gte
+translateFun2 Gt        = NP.gt
+translateFun2 Max       = $impossible
+translateFun2 Min       = $impossible
+
+translateFun1 :: Fun1 -> NKL.Expr -> NKL.Expr
+translateFun1 Fst = NP.fst
+translateFun1 Snd = NP.snd
+translateFun1 Not = NP.not
+translateFun1 IntegerToDouble = $impossible
+translateFun1 Head = $impossible
+translateFun1 Tail = $impossible
+translateFun1 Unzip = $impossible
+translateFun1 Minimum = $impossible
+translateFun1 Maximum = $impossible
+translateFun1 Concat = NP.concat
+translateFun1 Sum = NP.sum
+translateFun1 And = $impossible
+translateFun1 Or = $impossible
+translateFun1 Reverse = $impossible
+translateFun1 Length = NP.length
+translateFun1 Null = $impossible
+translateFun1 Init = $impossible
+translateFun1 Last = $impossible
+translateFun1 The = NP.the
+translateFun1 Nub = $impossible
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
@@ -205,39 +180,24 @@ isTuple ('(':xs) = let l = length xs
                     in if (xs == s) then Just (l - 1) else Nothing
 isTuple _      = Nothing
 
-ty2ty :: Type -> T.Type
-ty2ty UnitT = T.unitT
-ty2ty BoolT = T.boolT
-ty2ty CharT = T.stringT 
-ty2ty IntegerT = T.intT
-ty2ty DoubleT = T.doubleT
-ty2ty TextT = T.stringT
-ty2ty (TupleT t1 t2) = T.pairT (ty2ty t1) (ty2ty t2)
-ty2ty (ListT t) = T.listT (ty2ty t)
-ty2ty (ArrowT t1 t2) = (ty2ty t1) T..-> (ty2ty t2)
+translateType :: Type -> T.Type
+translateType UnitT = T.unitT
+translateType BoolT = T.boolT
+translateType CharT = T.stringT 
+translateType IntegerT = T.intT
+translateType DoubleT = T.doubleT
+translateType TextT = T.stringT
+translateType (TupleT t1 t2) = T.pairT (translateType t1) (translateType t2)
+translateType (ListT t) = T.listT (translateType t)
+translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
 
 tableTypes :: Type -> [T.Type]
 tableTypes (ListT t) = fromTuples t
     where
         fromTuples :: Type -> [T.Type]
-        fromTuples (TupleT t1 t2) = ty2ty t1 : fromTuples t2
-        fromTuples t'              = [ty2ty t']
+        fromTuples (TupleT t1 t2) = translateType t1 : fromTuples t2
+        fromTuples t'              = [translateType t']
 tableTypes _         = $impossible
-
--- | Translate the DSH operator to Ferry Core operators
-transformOp :: Fun2 -> O.Op
-transformOp Add = O.Op O.Add False
-transformOp Sub = O.Op O.Sub False
-transformOp Mul = O.Op O.Mul False
-transformOp Div = O.Op O.Div False
-transformOp Equ = O.Op O.Eq False
-transformOp Lt = O.Op O.Lt False
-transformOp Lte = O.Op O.LtE False
-transformOp Gte = O.Op O.GtE False
-transformOp Gt = O.Op O.Gt False
-transformOp Conj = O.Op O.Conj False
-transformOp Disj = O.Op O.Disj False
-transformOp _ = $impossible 
 
 toList :: NKL.Expr -> [NKL.Expr] -> NKL.Expr
 toList n es = primList (reverse es) n 
