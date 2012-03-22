@@ -1,10 +1,13 @@
 module Language.ParallelLang.NKL.Primitives where
     
 import qualified Prelude as P
+import Prelude (Bool(..))
 
 import Language.ParallelLang.NKL.Data.NKL
-import Language.ParallelLang.Common.Data.Type(splitType, intT, boolT, isListT, (.->), listDepth, unliftType, Type(..), isNum)
+import Language.ParallelLang.Common.Data.Type(unitT, splitType, intT, boolT, listT, stringT, doubleT, pairT, isListT, (.->), listDepth, unliftType, Type(List, Fn), isNum)
 import qualified Language.ParallelLang.Common.Data.Type as T
+import Language.ParallelLang.Common.Data.Op
+import qualified Language.ParallelLang.Common.Data.Val as V
 
 ($) :: Expr -> Expr -> Expr
 f $ e = let tf = typeOf f
@@ -23,7 +26,7 @@ length e = let t = typeOf e
 not :: Expr -> Expr 
 not e = let t = typeOf e
          in if boolT P.== t
-                then AppE1 boolT (Length P.$ t .-> t) e
+                then AppE1 boolT (Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
@@ -50,24 +53,160 @@ snd :: Expr -> Expr
 snd e = let t@(T.Pair _ t2) = typeOf e
          in AppE1 t2 (Snd P.$ t .-> t2) e
 
+map :: Expr -> Expr -> Expr
+map f es = let ft@(Fn ta tr) = typeOf f
+               te@(List t) = typeOf es
+            in if t P.== ta
+                 then AppE2 (listT tr) (Map P.$ ft .-> te .-> listT tr) f es
+                 else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+
+groupWith :: Expr -> Expr -> Expr
+groupWith f es = let ft@(Fn ta _) = typeOf f
+                     te@(List t) = typeOf es
+                  in if t P.== ta
+                       then AppE2 (listT te) (GroupWith P.$ ft .-> te .-> listT te) f es
+                       else P.error P.$ "NKLPrims.groupWith: Cannot apply groupWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+
+sortWith :: Expr -> Expr -> Expr
+sortWith f es = let ft@(Fn ta _) = typeOf f
+                    te@(List t) = typeOf es
+                 in if t P.== ta
+                        then AppE2 te (SortWith P.$ ft .-> te .-> te) f es
+                        else P.error P.$ "NKLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+
+pair :: Expr -> Expr -> Expr
+pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.Pair v1 v2)
+pair e1 e2 = let t1 = typeOf e1
+                 t2 = typeOf e2
+              in AppE2 (pairT t1 t2) (Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
+
+add :: Expr -> Expr -> Expr
+add e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if isNum t1 P.&& t1 P.== t2
+                 then BinOp t1 (Op Add False) e1 e2
+                 else P.error P.$ "NKLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+sub :: Expr -> Expr -> Expr
+sub e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if isNum t1 P.&& t1 P.== t2
+                  then BinOp t1 (Op Sub False) e1 e2
+                  else P.error P.$ "NKLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+div :: Expr -> Expr -> Expr
+div e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if isNum t1 P.&& t1 P.== t2
+                  then BinOp t1 (Op Div False) e1 e2
+                  else P.error P.$ "NKLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+mul :: Expr -> Expr -> Expr
+mul e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if isNum t1 P.&& t1 P.== t2
+                  then BinOp t1 (Op Mul False) e1 e2
+                  else P.error P.$ "NKLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+mod :: Expr -> Expr -> Expr
+mod e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if isNum t1 P.&& t1 P.== t2
+                  then BinOp t1 (Op Mod False) e1 e2
+                  else P.error P.$ "NKLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+eq :: Expr -> Expr -> Expr
+eq e1 e2 = let t1 = typeOf e1
+               t2 = typeOf e2
+            in if t1 P.== t2
+                 then BinOp boolT (Op Eq False) e1 e2
+                 else P.error P.$ "NKLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+gt :: Expr -> Expr -> Expr
+gt e1 e2 = let t1 = typeOf e1
+               t2 = typeOf e2
+            in if t1 P.== t2
+                 then BinOp boolT (Op Gt False) e1 e2
+                 else P.error P.$ "NKLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+lt :: Expr -> Expr -> Expr
+lt e1 e2 = let t1 = typeOf e1
+               t2 = typeOf e2
+            in if t1 P.== t2
+                 then BinOp boolT (Op Lt False) e1 e2
+                 else P.error P.$ "NKLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+gte :: Expr -> Expr -> Expr
+gte e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if t1 P.== t2
+                  then BinOp boolT (Op GtE False) e1 e2
+                  else P.error P.$ "NKLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+lte :: Expr -> Expr -> Expr
+lte e1 e2 = let t1 = typeOf e1
+                t2 = typeOf e2
+             in if t1 P.== t2
+                  then BinOp boolT (Op LtE False) e1 e2
+                  else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+conj :: Expr -> Expr -> Expr
+conj e1 e2 = let t1 = typeOf e1
+                 t2 = typeOf e2
+              in if t1 P.== boolT P.&& t1 P.== t2
+                   then BinOp boolT (Op Conj False) e1 e2
+                   else P.error P.$ "NKLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+disj :: Expr -> Expr -> Expr
+disj e1 e2 = let t1 = typeOf e1
+                 t2 = typeOf e2
+              in if t1 P.== boolT P.&& t1 P.== t2
+                   then BinOp boolT (Op Disj False) e1 e2
+                   else P.error P.$ "NKLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+cons :: Expr -> Expr -> Expr
+cons e1 e2 = let t1 = typeOf e1
+                 t@(List t2) = typeOf e2
+              in if t1 P.== t2
+                   then BinOp t (Op Cons False) e1 e2
+                   else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+var :: Type -> P.String -> Expr
+var = Var
+
+table :: Type -> P.String -> [Column] -> [Key] -> Expr
+table = Table
+
+lambda :: Type -> P.String -> Expr -> Expr
+lambda = Lam
+
+unit :: Expr
+unit = Const unitT V.Unit
+
+int :: P.Int -> Expr
+int i = Const intT (V.Int i)
+
+bool :: P.Bool -> Expr
+bool b = Const boolT (V.Bool b)
+
+string :: P.String -> Expr
+string s = Const stringT (V.String s)
+
+double :: P.Double -> Expr
+double d = Const doubleT (V.Double d)
+
+
+
+
+
 {-
-     
+
 data Expr where
-    Table :: Type -> String -> [Column] -> [Key] -> Expr
-    AppE2 :: Type -> Prim2 -> Expr -> Expr -> Expr 
-    BinOp :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-    Lam   :: Type -> String -> Expr -> Expr -- | A function has a name, some arguments and a body
     Let   :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
     If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
     Const :: Type -> Val -> Expr -- | Constant value
-    Var   :: Type -> String -> Expr  -- | Variable
       deriving (Show, Eq, Ord)
 
 
 
-data Prim2 = Map Type
-           | GroupWith Type
-           | SortWith Type
-           | Pair Type
-    deriving (Show, Eq, Ord)
 -}
