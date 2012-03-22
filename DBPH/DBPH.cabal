@@ -26,13 +26,13 @@ Library
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-unused-do-bind -fno-warn-orphans -Werror
     
     Exposed-modules: Language.ParallelLang.DBPH
-                     Language.ParallelLang.NKL.Data.NKL
-                     Language.ParallelLang.Common.Data.Val
                      Language.ParallelLang.Common.Data.Type
-                     Language.ParallelLang.Common.Data.Op
                      Language.ParallelLang.VL.Data.Query
                      Language.ParallelLang.NKL.Primitives
-    Other-modules: Language.ParallelLang.FKL.Data.FKL
+    Other-modules: Language.ParallelLang.Common.Data.Val
+                   Language.ParallelLang.Common.Data.Op
+                   Language.ParallelLang.NKL.Data.NKL
+                   Language.ParallelLang.FKL.Data.FKL
                    Language.ParallelLang.FKL.Primitives
                    Language.ParallelLang.Translate.NKL2FKL
                    Language.ParallelLang.FKL.Render.Render

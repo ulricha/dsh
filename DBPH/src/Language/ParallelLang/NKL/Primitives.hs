@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.Primitives where
+module Language.ParallelLang.NKL.Primitives (Expr, ($), length, not, concat, sum, the, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -180,6 +180,14 @@ table = Table
 lambda :: Type -> P.String -> Expr -> Expr
 lambda = Lam
 
+cond :: Expr -> Expr -> Expr -> Expr
+cond eb et ee = let tb = typeOf eb
+                    tt = typeOf et
+                    te = typeOf ee
+                 in if tb P.== boolT P.&& et P.== ee
+                      then If te eb et ee
+                      else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
+
 unit :: Expr
 unit = Const unitT V.Unit
 
@@ -195,18 +203,22 @@ string s = Const stringT (V.String s)
 double :: P.Double -> Expr
 double d = Const doubleT (V.Double d)
 
+nil :: Type -> Expr
+nil t = Const t (V.List []) 
 
+list :: Type -> [Expr] -> Expr
+list t es = toList (nil t) es
 
+consOpt :: Expr -> Expr -> Expr
+consOpt e1 e2 = toList e2 [e1]
 
-
-{-
-
-data Expr where
-    Let   :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
-    If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
-    Const :: Type -> Val -> Expr -- | Constant value
-      deriving (Show, Eq, Ord)
-
-
-
--}
+toList :: Expr -> [Expr] -> Expr
+toList n es = primList (P.reverse es) n 
+    where
+        primList :: [Expr] -> Expr -> Expr
+        primList ((Const _ v):vs) (Const ty (V.List xs)) = primList vs (Const ty (V.List (v:xs)))
+        primList [] e = e
+        primList vs c@(Const _ (V.List [])) = consList vs c
+        primList vs e = consList vs e
+        consList :: [Expr] -> Expr -> Expr
+        consList xs e = P.foldl (P.flip cons) e xs
