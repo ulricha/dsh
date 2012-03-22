@@ -28,6 +28,22 @@ groupWithS t f e = F.PApp2 t (F.GroupWithS (typeOf f .-> typeOf e .-> t)) (mapS 
 groupWithL :: Type -> Expr -> Expr -> Expr
 groupWithL t f e = F.PApp2 t (F.GroupWithL (typeOf f .-> typeOf e .-> t)) (mapL f e) e 
 
+pairVal :: Type -> Expr
+pairVal t = Clo t "n" [] "__*pair_e1*" f1 f2
+  where
+    (t1, r1) = splitType t
+    (t2, r) = splitType r1
+    ps = pairS r (F.Var t1 "__*pair_e1*") (F.Var t2 "__*pair_e2*")
+    pl = pairL (listT r) (F.Var (listT t1) "__*pair_e1*") (F.Var (listT t2) "__*pair_e2*")
+    f1 = Clo r1 "n" [("__*pair_e1*", F.Var t1 "__*pair_e1*")] "__*pair_e2*" ps pl
+    f2 = AClo (listT r1) "n" (F.Var (listT t1) "n") [("__*pair_e1*", F.Var (listT t1) "__*pair_e1*")] "__*pair_e2*" ps pl 
+     
+pairS :: Type -> Expr -> Expr -> Expr
+pairS t e1 e2 = F.Pair t e1 e2
+
+pairL :: Type -> Expr -> Expr -> Expr
+pairL t e1 e2 = F.Pair t e1 e2 
+
 --The sortWith combinator
 
 sortWithVal :: Type -> Expr
@@ -101,14 +117,14 @@ fstVal t = Clo t "n" [] "__*fst_v*" f1 f2
     where
         (a, _) = splitType t
         f1 = fstF (F.Var a "__*fst_v*")
-        f2 = fstLF (F.Var a "__*fst_v*")
+        f2 = fstLF (F.Var (liftType a) "__*fst_v*")
         
 sndVal :: Type -> Expr
 sndVal t = Clo t "n" [] "__*snd_v*" f1 f2
     where
         (a, _) = splitType t
         f1 = sndF (F.Var a "__*snd_v*")
-        f2 = sndLF (F.Var a "__*snd_v*")
+        f2 = sndLF (F.Var (liftType a) "__*snd_v*")
 
 cloApp :: Expr -> Expr -> Expr
 cloApp e1 ea = CloApp rt e1 ea
@@ -194,22 +210,22 @@ fstF :: Expr -> Expr
 fstF e = let t = typeOf e
           in case t of
                 (T.Pair t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
-                _              -> error "Provided type is not a tuple" 
+                _              -> error $ "Provided type is not a tuple 1" ++ show t
 
 sndF :: Expr -> Expr
 sndF e = let t = typeOf e
           in case t of
                 (T.Pair _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
-                _             -> error "Provided type is not a tuple"
+                _             -> error $ "Provided type is not a tuple 2" ++ show t
 
 fstLF :: Expr -> Expr
 fstLF e = let t = typeOf e
           in case t of
                 (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (Fst $ t .-> T.List t1) e
-                _              -> error "Provided type is not a tuple" 
+                _              -> error $ "Provided type is not a tuple 3" ++ show t
 
 sndLF :: Expr -> Expr
 sndLF e = let t = typeOf e
           in case t of
                 (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
-                _             -> error "Provided type is not a tuple"
+                _             -> error $ "Provided type is not a tuple 4"++ show t
