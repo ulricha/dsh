@@ -84,91 +84,91 @@ add :: Expr -> Expr -> Expr
 add e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                 then BinOp t1 (Op Add False) e1 e2
+                 then BinOp t1 Add e1 e2
                  else P.error P.$ "NKLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 sub :: Expr -> Expr -> Expr
 sub e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 (Op Sub False) e1 e2
+                  then BinOp t1 Sub e1 e2
                   else P.error P.$ "NKLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 div :: Expr -> Expr -> Expr
 div e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 (Op Div False) e1 e2
+                  then BinOp t1 Div e1 e2
                   else P.error P.$ "NKLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 mul :: Expr -> Expr -> Expr
 mul e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 (Op Mul False) e1 e2
+                  then BinOp t1 Mul e1 e2
                   else P.error P.$ "NKLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 mod :: Expr -> Expr -> Expr
 mod e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 (Op Mod False) e1 e2
+                  then BinOp t1 Mod e1 e2
                   else P.error P.$ "NKLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 eq :: Expr -> Expr -> Expr
 eq e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT (Op Eq False) e1 e2
+                 then BinOp boolT Eq e1 e2
                  else P.error P.$ "NKLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gt :: Expr -> Expr -> Expr
 gt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT (Op Gt False) e1 e2
+                 then BinOp boolT Gt e1 e2
                  else P.error P.$ "NKLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lt :: Expr -> Expr -> Expr
 lt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT (Op Lt False) e1 e2
+                 then BinOp boolT Lt e1 e2
                  else P.error P.$ "NKLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gte :: Expr -> Expr -> Expr
 gte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
-                  then BinOp boolT (Op GtE False) e1 e2
+                  then BinOp boolT GtE e1 e2
                   else P.error P.$ "NKLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lte :: Expr -> Expr -> Expr
 lte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
-                  then BinOp boolT (Op LtE False) e1 e2
+                  then BinOp boolT LtE e1 e2
                   else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT (Op Conj False) e1 e2
+                   then BinOp boolT Conj e1 e2
                    else P.error P.$ "NKLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 disj :: Expr -> Expr -> Expr
 disj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT (Op Disj False) e1 e2
+                   then BinOp boolT Disj e1 e2
                    else P.error P.$ "NKLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
                  t@(List t2) = typeOf e2
               in if t1 P.== t2
-                   then BinOp t (Op Cons False) e1 e2
+                   then BinOp t Cons e1 e2
                    else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 var :: Type -> P.String -> Expr
