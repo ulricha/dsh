@@ -17,7 +17,7 @@ data Expr where
     App   :: Type -> Expr -> Expr -> Expr -- | Apply multiple arguments to an expression
     AppE1 :: Type -> Prim1 -> Expr -> Expr
     AppE2 :: Type -> Prim2 -> Expr -> Expr -> Expr 
-    BinOp :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
+    BinOp :: Type -> Oper -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
     Lam   :: Type -> String -> Expr -> Expr -- | A function has a name, some arguments and a body
     If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
     Const :: Type -> Val -> Expr -- | Constant value
