@@ -37,4 +37,5 @@ Executable x100opt
   Main-Is: Optimizer/X100/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
+  -- GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices
   GHC-Options: -rtsopts -auto-all -O3 -Wall
