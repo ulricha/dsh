@@ -1,0 +1,200 @@
+\newpage
+\chapter{The flattening transformation}
+In this chapter we describe how the flattening transformation is performed. The flattening transformation has been described in numerous papers \cite{Goldberg24, Palmer95, Prins93} and more recently in the context of Data Parallel Haskell \cite{Keller98, Keller99, Jones08, Leschinskiy06}
+\section{Intuition}
+
+The iterator yields a value of type |[b]| defined as follows:
+\begin{code}
+forall k In 1..#d : [x <- d: e][k] == [x +-> d[k]] e
+\end{code} 
+
+According to this definition the value of an arbitrary element
+ of the result is independent of the values of the other elements.
+Therefore computing all results can be done in parallel.
+
+\section{Representing functions as first class citizens}
+
+In Haskell functions are treated the same as values are, and can thus be passed to another function as an argument or put in a list. In order to achieve this in DBPH we introduce a new syntactic node, a closure
+
+A closure is build out of three components, a set of variables that occur free in the function body. A flattened version of the lambda and a lifted version. A closure will be represented as: | Clo env e1 e2 |. A closure has a type | t1 :-> t2 |. Note that the function type constructor is slightly different from the regular function space constructor | -> |. A closure can be distributed like any other primitive type and can thus appear in a list. Technically it is possible to construct a list of several different closures, this however goes against the very nature of the flattening transformation and such lists are never constructed by the flattening transformation. It also supports indexing operations, dist, insert and extract are supported as well.
+
+Distribute over a closure is defined as follows:
+\begin{code}
+dist (Clo ((x1, ..., xn)) f f') e = AClo ((e, dist x1 e, ..., dist xn e)) f f'
+\end{code}
+The result type is a list of closures: |[t1 :-> t2]|. Distribute over (nested-) lists of closure is defined similarly. Other primitive operations as |index|, |length|, |insert| and |extract| are defined similar to |dist|.
+
+It is of course also possible to use a list of closures as second argument to |dist| and distribute over that list. The alert reader might have noticed that  the lifted closure the environment is expanded with an extra value. This extra value represents the iteration context, and is expected as an argument by |f'|.
+
+We also introduce a construct for applying a closure to an argument, namely | cAppn |. For regular closure application | n == 0 | we write | cApp |. The type of |(cApp1)| is: |[t1 :-> t2] -> [t1] -> [t2]|.
+
+The semantics of |cApp| and |cApp1|:
+
+\begin{code}
+Clo ((x1, ..., xn)) f f' cApp x == f x1 ... xn x
+AClo ((n, x1, ..., xn)) f f' cApp1 x == f' n x1 ... xn x
+\end{code}
+
+\section{Lifting, an intuition}
+
+The lifting transformation eliminates occurrences of map/comprehensions, in order to do so it needs to replicate certain values. In this section we will illustrate what happens to values and variables inside (nested-) comprehensions.
+
+We start out with a trivial case: |map (\x -> x) [10,20,30] |. The flattening transformation replaces maps with functions that process vectors. In our example the type of |x| will change from |Int| in the original expression to |[Int]| in the flattened expression. The value of |x| will change from |10| in the first iteration |20| in the second and |30| in the last in the original expression, into |[10,20,30]| in one application in the flattened expression. The comprehension will thus be translated into: |(\x -> x) [10,20,30]|. All consecutive values for |x| (or any other value/variable) are packed together in one vector and are applied to vector operations.   
+
+Constant values in map expressions are replicated to form constant vectors. Consider for example the following expression: | map (\x -> 10 + x) [10,20, 30]|. This expression is translated into: |(\x -> dist 10 x (level plus 1) x) [10,20,30]|. The constant value |10| is replicated into a vector with a shape that matches the shape of the vector for |x|. 
+
+When maps are nested the values of the inner map have to be replicated as well. Consider for example the following expression: | map (\x -> (map (\y -> y) [10,20,30])) [40,50] |. This expression evaluates to: | [[10,20,30],[10,20,30]] |. The values for |y| in each consecutive step are |[10,20,30,10,20,30]|. And this exactly the vector that should be passed in as value for |y|. The result shows a nested list, this nesting can be reintroduced after finishing the inner computation. We obtain the shape of the result by distributing the inner vector over the outer vector: |dist [10,20,30] [40,50]|. The result of this computation is nested and represented by two vectors |[(1,1),(1,2)]| and |[(1,1,10),(1,2,20),(1,3,30),(2,4,10),(2,5,20),(2,6,30)]|. The first vector is a descriptor vector describing the outer structure. The second vector is a value vector that contains all values. When evaluating the inner context we would want to forget about the nesting, to this end we apply concat to remove the nesting and get only the value vector. We can reintroduce the shape by reattaching the outer descriptor, this is done through |unconcat|. This function takes the outer descriptor of a given value and attaches it to another one. So fully desugared we get: |(\x -> unconcat (dist [10,20,30] x) $ (\y -> y) (concat $ dist [10,20,30] x)) [40,50]|. By introducing |concat| and |unconcat| we prevent ourselves from having to generate code for higher lifted functions. 
+
+As a final example let us now consider the following example: |map (\x -> map (\y -> x + y) [10,20,30]) [40,50]|. As before in the flattened version the value for |y| in the inner lambda will be |[10,20,30,10,20,30]| in consecutive iterations and this is again obtained the computation |concat (dist [10,20,30] [40,50])|. The values for |x| in the inner lambda will be |[40,40,40,50,50,50]| in the consecutive iterations. The unflattened version of that vector has to have exactly the same shape as the unflattened version of the vector for |y|. So the shape is determined by |dist [10,20,30] [40,50]|. This gives a nested list where there are two inner lists with each a length of 3 elements. The right values are then obtained by applying the lifted version of |dist| namely |(level dist 1)| and then flattening the result. The vector for |x| is thus constructed by the following expression: |concat $ (level dist 1) [40,50] (dist [10,20,30] [40,50])|. The whole expression is desugared to: 
+\begin{code}
+(\x ->  (unconcat $ dist [10,20,30] x) $ 
+            (\x y -> x (level plus 1) y) 
+                (concat $ (level dist 1) x $ dist [10,20,30] x) 
+                (concat $ dist [10,20,30] x)
+) [40,50] 
+\end{code}
+
+The strategy provided above for dealing with nested maps (/iteration) and replicating variables also applies to deeper nested comprehensions. In those cases just like with two nested comprehensions we flatten (concat) values when we step into the nested expression, and expand (unconcat) the result of the nested expression.
+
+\section{Lifting}
+
+The flattening transformation aims at removing \emph{all} occurrences of map (|map e1 e2|).
+
+Several optimisations can be made with respect to the original algorithm. In this section we directly include some optimisation that make the transformation more suitable for our execution platform. As we are targeting databases instead of GPUs or C-vector libraries. The original let rule translates the program into a new program with index lookups. These index lookups however are very costly operations on the database. We can, luckily, avoid these introductions of index operations. We therefore add to the flattening transformation an extra environment |LetE| to hold the optimised let variables. The change is also reflected by the presence of an additional variable rule.
+
+All iterators can now be eliminated by applying the following transformation rules to the source program. 
+
+\begin{infrules} 
+    \infrule[trans-abs]
+            {| let i, n be fresh |\quad | (fv1, ..., fvn) = fv(e)/{x} |\\
+             | ++- e => e' |\quad | [x, fv1, ..., fvn] +-- [e || i <- n] => e'' |}
+            {| ++- \x -> e => Clo (fv1, ..., fvn) (\fv1 ... fvn x -> e') (\n fv1 ... fvn x -> e'') |}\\
+    \infrule[trans-nil]
+            {| |}
+            {|  ++- [] => [] |}
+    \infrule[trans-app]
+            {|  ++- f => f' | \quad 
+             |  ++- e1 => e1'|\quad
+             |  ++- en => en'|}
+            {|  ++- f e1 ... en => f' cApp e1' ... en'|}\\
+    \infrule[trans-binop]
+            {| ++- e1 => e1'|\quad
+             | ++- e2 => e2'|}
+            {| ++- e1 op e2 => e1' op e2|}\\
+    \infrule[trans-let]
+            {| ++- e1 => e1'|\quad
+             | ++- e2 => e2'|\quad
+             | ++- e3 => e3'|}
+            {| ++- if e1 then e2 else e3 => if e1' then e2' else e3' |}\\
+    \infrule[trans-const]
+            {| |}
+            {| ++- c => c |}
+    \infrule[trans-var]
+            {| |}
+            {| ++- x => x |}
+    \infrule[trans-proj]
+            {| ++- e1 => e1'|}
+            {| ++- e1@i => e1'@i |}\\
+    \infrule[trans-map]
+            {| ++- e2 => e2'|\quad
+             | ++- e1 => e1'|}
+            {| ++- map e1 e2 => (dist e1' e2') cApp1 e2'|}
+\end{infrules}
+
+The actual flattening is performed when an iterator is encountered. First the body of the 
+iterator is transformed and flattened, before the iterator itself is flattened.
+
+\begin{infrules}
+    \infrule[flat-nest]
+        {| ++- \x -> e1 => f |\\
+         | LetE +-- [e2 || i <- e3] => e2' |}
+        {| LetE +-- [[e1 || x <- e2] i <- e3] => unconcat e2' (concat (dist cApp1 (dist cApp f e3) e2')) cApp1 (concat e2') |}\\
+    \infrule[flat-var-1]
+        {| |}
+        {| LetE  +-- [v || v <- e1] => e1|}
+    \infrule[flat-var-2]
+        {| x `elem` LetE|}
+        {| LetE  +-- [x || v <- e1] => x|}\\
+    \infrule[flat-var-3]
+        {| x |~\textrm{is bound at top level}}
+        {| LetE  +-- [x || v <- e1] => dist cApp x e1 |}
+    \infrule[flat-const]
+        {| |}
+        {| LetE +-- [c || v <- e1] => dist cApp c e1 |}\\
+    \infrule[flat-proj]
+        {| LetE +-- [e1 || v <- e2] => e1' |}
+        {| LetE +-- [e1@i || v <- e2] => e1' (level at 1) i|}\\
+    \infrule[flat-app]
+        {| LetE +-- [arg1 || v <- e1] => arg1'|\quad
+         | ... |\quad
+         | LetE +-- [argn || v <- e1] => argn'|\\
+         | LetE +-- ef => ef' |}
+        {| LetE +-- [ef arg1 ... argn || v <- e1] => ef' cApp1 arg1' ... argn'|}\\
+    \infrule[flat-let]
+        {| LetE +-- [e1 || v <- e3] => e1' |\quad
+         | LetE[x] +-- [e2 || v <- e3] => e2'|}
+        {| LetE +-- [let x = e1 in e2 || v <- e3] => let x = e1' in e2'|}\\
+    \infrule[flat-lambda]
+        {| let i, n be fresh |\quad | (fv1, ..., fvn) = fv(e1)/{x} |\\
+         | ++- e1 => e' |\quad | [x, fv1, ..., fvn] +-- [e1 || i <- n] => e'' |}
+        {| LetE +-- [\x -> e1 || v <- e2] => let v = e2 in AClo ((e2, fv1, ..., fvn)) (\fv1 ... fv1 x -> e') (\n fv1 ... fvn x -> e'') |}\\
+    \infrule[flat-if]
+        {| let v1, v2, v3 be fresh |\\
+         | LetE +-- [e1 || v <- e4] => e1'|\quad
+         | LetE +-- [e2 || v <- restrict e4 v1] => e2'|\\
+         | LetE +-- [e3 || v <- restrict e4 (not v1)] => e3'|}
+        {| LetE +-- [if e1 then e2 else e3 || v <- e4] => let v1 = e1', v2 = e2', v3 = e3' in combine v1 v2 v3|}\\
+    \infrule[flat-op]
+        {| LetE +-- [e1 || v <- e3] => e1' |\quad
+         | LetE +-- [e2 || v <- e3] => e2' |}
+        {| LetE +-- [e1 op e2 || v <- e3] => e1' (level op 1) e2' |}\\
+\end{infrules}
+
+Primitive operations that are required:
+restrict, combine, not, dist, length, insert, extract.
+
+\section{Simplifying the flattening transformation}
+
+We can remove the two rules [tran-iter] and [flat-nest] by treating the variable \emph{map} as a variable that stands for a closure. This approach is equivalent to the approach outlined above, but benefits from the reusability of the map combinator and ensures that \emph{all} variables can be treated the same.
+
+|map| can be defined as:
+
+\begin{code}
+    map :: (a :-> b) :-> [a] :-> [b]
+    map = Clo {} (\f -> map1 f) (\f -> map2 f)
+    
+    map1 :: (a :-> b) -> [a] :-> [b] 
+    map1 f = Clo {f} (\xs -> mapS f xs) (\xs -> mapL f xs)
+    
+    map2 :: [a :-> b] -> [[a] :-> [b]]
+    map2 f = AClo {f} (\xs -> mapS f xs) (\xs -> mapL f xs)
+    
+    mapS :: (a :-> b) -> [a] -> [b]
+    mapS f xs = dist f xs cApp1 xs
+    
+    mapL :: [a :-> b] -> [[a]] -> [[b]]
+    mapL f xs = unconcat xs (concat (distL f xs) cApp1 concat xs) 
+\end{code}
+
+It is quite easy to verify that this is exactly what happens in the above to rules. Of course for this to work all iterators have to be desugared into list combinators.
+
+Along the same lines other operators can be defined such as |groupWith| which is defined as:
+
+\begin{code}
+    groupWith :: (a :-> b) :-> [a] :-> [[a]]
+    groupWith = Clo {} (\f -> groupWith1 f) (\f -> groupWith2 f)
+    
+    groupWith1 :: (a :-> b) -> [a] :-> [[a]]
+    groupWith1 f = Clo {f} (\xs -> groupWithS f xs) (\xs -> groupWithL f xs)
+    
+    groupWith2 :: [a :-> b] -> [[a] :-> [[a]]]
+    groupWith2 f = AClo {f} (\xs -> groupWithS f xs) (\xs -> groupWithL f xs)
+    
+    groupWithS :: (a :-> b) -> [a] -> [[a]]
+    groupWithS f xs = groupByS (mapS f xs) xs
+    
+    groupWithL :: [a :-> b] -> [[a]] -> [[[a]]]
+    groupWithL f xs = groupByL (mapL f xs) xs
+\end{code}
+
+The operations |groupByL| and |groupByS| are defined in terms of primitive vector operations. Their definition is given in Section~\ref{chap_Vec}.

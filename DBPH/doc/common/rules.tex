@@ -1,0 +1,65 @@
+
+%-------------------------------------------------------------------%
+%--
+%-- Type rules and judgements
+%--
+%-------------------------------------------------------------------%
+
+%style parameters
+\newlength{\typerulevspace}
+\setlength{\typerulevspace}{0cm}
+\newlength{\typerulehorskip}
+\setlength{\typerulehorskip}{1cm}
+\newlength{\judgementhspace}
+\setlength{\judgementhspace}{0.1cm}
+\newcommand{\typerulespacing}{1.15}
+\newcommand{\typefigurespacing}{1.15}
+\newcommand{\spacebox}[1]{\mbox{\rule[-.3cm]{0cm}{0.8cm}$#1$}}
+\newcommand{\smalllabel}[1]{\scriptsize{\hspace{-1mm}#1}}
+
+% arg 1: formatting: {b,n,r}
+% arg 2: type rule name
+% arg 3: premises
+% arg 4: conclusion
+\newcommand{\formattedtyperule}[4]{\ovr[#1]{\renewcommand{\arraystretch}{\typerulespacing}\begin{array}{c}#3\end{array}}[#2]{\renewcommand{\arraystretch}{\typerulespacing}\begin{array}{c}#4\end{array}}}
+
+% arg 1: type rule name
+% arg 2: premises
+% arg 3: conclusion
+\newcommand{\typerule}[3]{\formattedtyperule{n}{#1}{#2}{#3}}
+
+\newcommand{\typerulenewline}{\\[\typerulevspace]}       % continue on the next line
+\newcommand{\typeruledoublenl}{\\[3mm]}
+\newcommand{\typeruleskip}{\hspace{\typerulehorskip}}    % skip some horizontal space (for next item)
+\newcommand{\typerulesmallskip}{\hspace{.5\typerulehorskip}}
+
+\newcommand{\typerulename}[1]{\mbox{\textsc{(#1)}}}
+\newcommand{\typerulenamewithset}[2]{\typerulename{#1-#2}}
+\newcommand{\typerulenamewithsetplus}[3]{\typerulename{#1-#2}^{\mbox{$#3$}}}
+
+% use renewcommand to specify the _current_ type rule set. 
+% this will appear in the turnstyles/judgements 
+\newcommand{\typeruleSet}{}     %subscript
+\newcommand{\typeruleSubset}{}  %superscript
+
+\newcommand{\turnstyle}{\mbox{$\vdash\!\!\!_{\typeruleSet}^{\raisebox{0.05cm}{\typeruleSubset}}$}}
+\newcommand{\turnstyleOne}[1]{\ {\renewcommand{\typeruleSet}{#1}\turnstyle}\ }
+\newcommand{\turnstyleTwo}[2]{\ {\renewcommand{\typeruleSet}{#1}\renewcommand{\typeruleSubset}{#2}\turnstyle}\ }
+
+\newif\ifprotectjudgements
+\protectjudgementstrue
+
+\newcommand{\judgement}[3]{\ifprotectjudgements\mbox{$\unprotectedjudgement{#1}{#2}{#3}$}\else\unprotectedjudgement{#1}{#2}{#3}\fi}
+\newcommand{\unprotectedjudgement}[3]{#1 \hspace*{\judgementhspace}\turnstyle\hspace*{\judgementhspace} #2 : #3}
+
+% named entailment relation
+% #1 name of rule
+% #2 premisses
+% #3 consequences
+\newcommand{\entailN}[3]{\entail{#2}{#3} ~~~ #1}
+
+% unnamed entailment relation
+\newcommand{\entail}[2]{#1 ~ \Vdash ~ #2}
+
+
+       

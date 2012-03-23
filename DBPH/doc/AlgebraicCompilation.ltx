@@ -1,0 +1,537 @@
+\newpage
+%{
+%include algebra.fmt
+\newcommand{\ql}[1]{\texttt{#1}}
+\newtheorem{definition}{Definition}
+\chapter{Algebraic Compilation}
+
+\section{Nested Recursive Algebra}
+
+Description of the Nested Recursive Algebra as described in 
+"A Recursive Algebra for Nested Relations" (Latha S. Colby)
+shall take it's place here. The Recursive Algebra provides
+an enhanced toolset of algebraic operators, which allows one to deal
+with nested relations in a more pleasant way.
+
+The operators of the nested algebra are recursively defined and
+therefore apply themselves to the subrelations at the different 
+relation levels. This avoids the need for an operator that 
+serves as navigator (e.g. index), since each operator is able to traverse 
+the different levels of a nested relation.
+
+
+Let |Attr(r)| be the set of attributes of the relation |r|.
+
+The Projection operator ($\pi$):
+
+\begin{align}
+\pi_{\scriptsize\begin{array}{lcl}
+|b1 <- a1,| & |...,| & |bn <- an| \\
+|c1 <- p1.P1,| & |...,| & |cm <- pm.Pm|
+      \end{array}} (r) & =
+\{ |t| || |exists tr elem r:(bigand (i elem (1,...,n))) t[bi] = tr[ai] and
+                              (bigand (i elem (1,...,m))) t[pi] =project (ci <- Pi) (tr[pi])| \} \notag
+\end{align}
+
+The Cross operator ($\times$):
+
+\begin{align}
+|(n_cross r o)| & = & \{ |t| || |exists tr elem r, exists to elem o: t[Attr(r)] = tr and t[Attr(o)] = to| \} \\ 
+|(n_cross ((p.P) r) o)| & = & \{ |t| || |exists tr elem r: t[Attr(r) - p] = t[Attr(r) - p] and t[p] = (n_cross ((P) tr[p]) o)| \}
+\end{align}
+
+The Join operator ($\Join$):
+
+\begin{align}
+\Join_{x = y} (r, o) & = & \{ |t| || |exists tr elem r, exists to elem o :| &| t[Attr(r)-x] = tr[Attr(r)-x] and| &  \notag \\
+                     &   & & | t[Attr(o)-y] = to[Attr(o)-y] and| &  \notag \\ 
+                     &   & & | t[x] = t[y] = tr[x] = to[y]|  & \} \notag \\
+\Join_{x = y} ((|p.P|) r, o) & = & \{ |t| || |exists tr elem r:| &
+                             | t[Attr(r) - p] = tr[Attr(r) - p] and| & \notag \\ 
+                     &   & & | t[p] = | \Join_{x = y} ((P) |tr[p]|,o) & \} \notag \\
+\end{align}
+
+The Union operator ($\cup$):
+
+\begin{align}
+\cup (r,o) & = & \{ |t| || |t elem r or t elem o| \} \\
+\cup ((p.P)r, o) & = & \{ |t| || |exists tr elem r : t[Attr(r) - p] = tr[Attr(r) - p] and t[p] = (n_union ((P)tr[p]) o)| \}
+\end{align}
+
+The Extended Union ($\stackrel{e}{\cup}$): 
+
+\begin{align}
+|(extunion r o)| & = & \textrm{FIXME: Colby}
+\end{align}
+
+The Rownum operator ($\#_{a:\left\langle s_1, \ldots , s_n\right\rangle}$):
+
+\begin{align}
+  |rownum (a) (s_1, ..., s_n) (r)| & = & & \textrm{FIXME: Melton ???} \\
+  |rownum (a) (s_1, ..., s_n) ((p.P)r)| & = & \{ |t| || |exists tr elem r :| & |t[Attr(r) - p] = tr[Attr(r) - p] and| & \notag \\
+                                        &   & & |t[p] = (rownum (a) (s_1, ..., s_n) ((P) tr[p]) | & \} \\
+\end{align}
+
+Binary operator (|generic_binop|):
+
+\begin{align}
+|generic_binop|_{i:|i'|,|i''|}(r) & = & \{ |t| || |exists tr elem r: | & |t[Attr(r) - i] = tr[Attr(r) - i] and| & \notag \\
+                                  &   & &  |t[i] = tr[i'] | \ast |tr[i'']| & \} \\
+|generic_binop|_{i:|i'|,|i''|}((p.P)r) & = &  \{ |t| || |exists tr elem r: | & |t[Attr(r) - p] = tr[Attr(r) - p] and| & \notag \\
+                                  &   & &   |t[p] = (binop i i' i'' ((P) tr[p])| & \}
+\end{align}
+
+Path operator: |op elem | $\left\{\times,\Join\right\}$:
+
+\begin{align}
+\mathcal{P}_{|empty->p'|}(r, |op(L,L')| ) & = & \{ |t| || |exists tr elem r: t[Attr(r)-{L,L'}] = tr[Attr(r)-{L,L'}] and t[p'] = op(L,L')| \} \notag \\
+\mathcal{P}_{|p.P -> p'|}(r, |op(L,L')| ) & = & \{ |t| || |exists tr elem r: t[Attr(r)-p] = tr[Attr(r)-p] and t[p] = |\mathcal{P}_{|P->p'|}(|tr[p]|, |op(L,L')|) \}
+\end{align}
+
+
+\section{Nested Algebraic Compilation}
+
+For brevity we denote |a has_type list_n| as |a_n|, $a^0$ is a single element.
+
+\scriptsize
+\begin{align}
+|wrap e| & = & |attach p 1 (nest (p,i) L (attach p 1 (e)))| \label{NAC.Wrap}
+\end{align}
+
+\begin{align} 
+|NAC (c)|                       & = |item_littbl| \label{NAC.Const}\\
+\hline
+|NAC (dist a_0 b_m) |           & = |project (p,L . p,i<-L . i') (n_cross (L (NAC b_m)) (project (i'<-i) (NAC a_0)))| \label{NAC.dist.flat}\\ 
+|NAC (dist a_n b_m) |           & = |project (p,L . p,L <- L . L') (n_cross (L (NAC b_m)) (project (L'<-L) (NAC a_n)))| \label{NAC.dist.nest}\\ 
+|NAC (dist_lift a b_m) |        & = |project (p,L.p,L.L.p,i<-L.L.i') (path (L -> L) (nest (L.i') L' (n_equijoin p p' (L (NAC b_m)) (unnest L (project ({p',i'}<-{L.p,L.i}) (NAC a))))) (n_cross L L'))| \label{NAC.dist.lift.flat}\\
+|NAC (dist_lift a_n b_m) |      & = |project (p,L.p,L.L.p,L<-L.L.L') (path (L -> L) (nest (L.L') L' (n_equijoin p p' (L (NAC b_m)) (unnest L (project ({p',L'}<-{L.p,L.L}) (NAC a_n))))) (n_cross L L'))| \label{NAC.dist.lift.nest}\\
+\hline
+|NAC (a_0 sgeneric_binop b_0)|  & = |project (i<-i'') (binop i'' i i' (n_cross (NAC a_0) (NAC b_0)))| \label{NAC.bin}\\
+|NAC (a sgeneric_binop_lift b)| & = |project (p,L.p,i<-L.i'') (binop i'' i' i (L (n_equijoin p p' (L (NAC a)) (unnest L (project ({p',i'}<-{L.p,L.i}) (NAC b))))))| \label{NAC.bin.lift} \\
+\hline
+|NAC (cons a_0 syntaxempty)| & = |wrap (NAC a_0)| \label{NAC.Singleton.Flat}\\
+|NAC (cons a_n syntaxempty)| & = |attach p 1 (nest (p,L) L (NAC a_n))| \label{NAC.Singleton.Nest} \\
+|NAC (cons a_0 b_1 )|        & = |project (p,p<-L.p',L.i) (rownum p' (d,p) (L (extunion (attach d 0 (L (wrap (NAC a_0)))) (attach d 1 (L (NAC b_1))))))| \label{NAC.cons.flat}\\
+|NAC (cons a_n b_n_1)|       & = |project (p,p<-L.p',L.L) (rownum p' (d,p) (L (n_union (L (attach d 1 (L (NAC b_n_1)))) (attach d 0 (NAC a_n))))| \label{NAC.cons.lift}\\
+|NAC (cons_lift a b_2)|      & = |project (p,L.p,p<-L.L.p',L.L.i) (rownum p' (d,p) (L.L (path (L -> L) (L (n_equijoin p p' (L (attach d 1 (L.L (NAC b_2)))) (nest (p,d,i) L' (attach d 0 (unnest L (project (p'<-L.p,L.p,L.i) (NAC a))))))) (n_union L L'))))|\label{NAC.cons.lift.flat}\\
+|NAC (cons_lift a_n b_n_1)|  & = |project (p,L.p,p<-L.L.p',L.L.L) (rownum p' (d,p) (L.L (path (L -> L) (L (n_equijoin p p' (L (attach d 1 (L.L (NAC b_n_1)))) (nest (p,d,L) L' (attach d 0 (unnest L (project (p'<-L.p,L.p,L.L) (NAC a_n))))))) (n_union L L'))))|\label{NAC.cons.lift.nest}\\
+\hline
+|NAC (restrict a b)|   & = |project (p,p<-L.p'',L.i) (rownum p'' p (L (select i' (L (n_equijoin p p' (L (NAC a)) (unnest L (project ({p',i'}<-{L.p,L.i}) (NAC b))))))))| \label{NAC.restrict.flat}\\
+|NAC (restrict a_n b)| & = |project (p,p<-L.p'',L.L) (rownum p'' p (L (select i (L (n_equijoin p p' (L (NAC a_n)) (unnest L (project (p'<-L.p,L.i) (NAC b))))))))| \label{NAC.restrict.nest}\\
+\hline
+|NAC (combine g a b)|  & = |project (p,p<-L.p'',L.i) (extunion (n_equijoin p p' (L (NAC a)) (project (p''<-p,p') (rownum p' p (select i (unnest L g))))) (n_equijoin p p' (L (NAC b)) (project (p''<-p,p') (rownum p' p (select (not i) (unnest L g))))))| \label{NAC.combine.flat}\\
+|NAC (combine g a_n b_n)|  & = |project (p,p<-L.p'',L.L) (extunion (n_equijoin p p' (L (NAC a_n)) (project (p''<-p,p') (rownum p' p (select i (unnest L g))))) (n_equijoin p p' (L (NAC b_n)) (project (p''<-p,p') (rownum p' p (select (not i) (unnest L g))))))| \label{NAC.combine.nest}\\
+\hline
+|NAC (back_permute a b)|   & = |project (p,p<-L.i',L.i) (n_equijoin p p' (L (NAC a)) (unnest L (project ({p',i'}<-{L.p,L.i}) (NAC b))))|\label{NAC.bPermute.flat} \\
+|NAC (back_permute a_n b)| & = |project (p,p<-L.i,L.L) (n_equijoin p p' (L (NAC a_n)) (unnest L (project (p'<-L.p,L.i) (NAC b))))|\label{NAC.bPermute.nest}\\
+\hline
+|NAC (extract a i)| & = \textrm{No idea}\\
+|NAC (insert a b i)| & = \textrm{No idea}\\
+\end{align}
+
+
+\section{Target language: Flat Table Algebra}
+The algebraic operators denoted in table \ref{algops} reflect a subset of the
+query capabilities of a modern Relational Database System. 
+As a consequence of this purist algebraic approach plans tend
+to be rather verbose. Unfortunatly they also tend to shroud their essence
+and being hard to read.
+
+The algebra intentionally operates over ''flat tables'' only,
+which are required to obey the first normal form (1NF).
+
+\begin{table}[h]
+  \begin{tabular}{lp{0.73\linewidth}}
+    \toprule
+    \textbf{Operator} & \textbf{Semantics} \\
+    \cmidrule(lr){1-1}\cmidrule(lr){2-2}
+    |gen_littbl| &
+    generic table\\
+    |project (a_1 <- b_1, ..., a_n <- b_n)| &
+     project onto columns |b_i|, rename |b_i| into |a_i| \\
+    |cross| &
+    Cartesian product \\
+    |select p| &
+    select rows satisfying predicate $p$ \\
+    |equijoin c d| &
+    natural Join on columns |c| and |d| \\
+    |union, difference| &
+    disjoint union, difference \\
+    |attach c v| &
+    Attach constant value |v| in column |c|\\
+    |rownum r (a_1, ..., a_n)| &
+    rownum\\
+    |rowrank r (a_1, ..., a_n)| &
+    rowrank\\
+    |rowid r| &
+    rowid \\
+    |binop r c d| &
+    binary operator \\
+    \bottomrule
+  \end{tabular}
+  \caption{\label{algops} Excerpt of the target table algebra}
+\end{table}
+
+\section{Algebraic Compilation}
+
+The Flattening Transformation translates an iterator based 
+into an iterator free language. In each transformation step towards 
+such a flat language iterators are rewrited such that they steadily
+approximate the leafs (by looking at the AST), where they finally vanish.
+The price we pay for those transformations is to introduce primitives that
+imitate the semantics of the original language. Even though the flattening
+transformation completely removes each appearance of iterators, nested data
+remains untouched.
+
+The execution model of a relational database system neither is designed to work
+with ordered data nor it can deal with nested data. Typically database systems
+categorize its data in a hierachical manner.
+A more fine grained structure we can find there is the table. Informally a table is nothing more
+than an unordered container of tuples, hence a multiset (bag) of product types.
+It's obvious that the storage layer as well as the query engine don't have an
+intrinsic support neither for nested nor ordered data. 
+
+-- Pos column to deal with ordering (here it important to mention that it is not
+   necessary to pose density on the pos columns, density plays a role only when we introduce extract 
+   and insert, since they require that two equal structures also have literally the
+   same encoding.)
+-- foreign key relations to deal with nesting (descriptors and value vectors)
+
+\begin{definition}{Encoding of arbitrary nested lists.}
+To encode a list with nesting depth |n| we use the following encoding:
+\[
+   |(vectors v (d_1, ..., d_n))|
+\]
+While the descriptor tables |d_1, ..., d_n| encode the structure
+, the value table |v| keeps track of the items retained by the list.
+
+Each descriptor table has the following schema:
+  \begin{littbl}   
+    $
+    \begin{array}[t]{||c||c||}
+      \tabname{1}{$d_i$}\\
+      \colhd{desc} & \colhd{pos} \\
+      \ldots & \ldots \\
+      \hline
+    \end{array}
+    $
+  \end{littbl}
+
+  \begin{littbl}   
+    $
+    \begin{array}[t]{||c||c||}
+      \tabname{1}{|v|}\\
+      \colhd{pos} & \colhd{item} \\
+      \ldots & \ldots \\
+      \hline
+    \end{array}
+    $
+  \end{littbl}
+
+  \begin{littbl}   
+    $
+    \begin{array}[t]{||c||c||c||}
+      \tabname{1}{|(val_desc v d_1)|}\\
+      \colhd{desc} & \colhd{pos} & \colhd{item} \\
+      \ldots & \ldots & \ldots \\
+      \hline
+    \end{array}
+    $
+  \end{littbl}
+
+\end{definition}
+
+\begin{figure}[h]
+  \small\centering
+  \renewcommand{\arraycolsep}{2.5pt}%
+  \renewcommand{\arraystretch}{0.6}%
+  \newcommand{\sep}{\rule{0pt}{5pt}}%
+  \pgfdeclarelayer{background}
+  \pgfdeclarelayer{middle}
+  \pgfsetlayers{background,middle,main}
+  \begin{tikzpicture}[x=1mm,
+                      y=1mm,
+                      % ,baseline=(subordinate.south)
+                      outer sep=0pt,inner sep=0pt]
+
+    \node (list) at (40,5) {$[[],[[\ql{a},\ql{b},\ql{c}],[],[]],[[\ql{d}],[\ql{e},\ql{f}]]]$};
+    \draw (0,0) node[anchor=north west] (q2) {% 
+      $                
+      \begin{array}{@@{}||c||c||@@{}}
+        \tabname{1}{|d_3|} \\
+        \colhd{desc} & \colhd{pos} \strut\strut \\
+        %\multicolumn{1}{||c||}{$:$} & \multicolumn{1}{c||}{$:$} \strut\\
+        \ql{1} & \ql{1}\\
+        \ql{1} & \ql{2}\\
+        \ql{1} & \ql{3}\\
+        \hline
+      \end{array}
+      $};
+
+    \draw (29,0) node[anchor=north west] (q3) {%
+      $                
+      \begin{array}{@@{}||c||c||@@{}}
+        \tabname{1}{|d_2|} \\
+        \colhd{desc} & \colhd{pos} \strut \\
+        \ql{2} & \ql{1} \\
+        \ql{2} & \ql{2} \\
+        \ql{2} & \ql{3} \\
+        &\sep\\
+        \ql{3} & \ql{4} \\
+        \ql{3} & \ql{5} \\
+        \hline
+      \end{array}
+      $};
+
+    \draw (58,0) node[anchor=north west] (q4) {%
+      $                
+      \begin{array}{@@{}||c||c||c||@@{}}
+        \tabname{1}{|val_desc v d_1|} \\
+        \colhd{desc} & \colhd{pos} & \colhd{item}\strut \\
+         \ql{1} & \ql{1} & \ql{a}\\
+         \ql{1} & \ql{2} & \ql{b}\\
+         \ql{1} & \ql{3} & \ql{c}\\
+         &&\sep\\
+         \ql{4} & \ql{4} & \ql{d}\\
+         &&\sep\\
+         \ql{5} & \ql{5} & \ql{e}\\
+         \ql{5} & \ql{6} & \ql{f}\\
+         \hline
+      \end{array}
+      $};
+
+    \begin{pgfonlayer}{background}
+      \begin{scope}[black!20,fill=black!20]
+        \pgfsetcornersarced{\pgfpoint{1mm}{1mm}}
+        \draw[fill,rounded corners=3pt] 
+             (30.5,-9.6) rectangle (42.5,-18.5);
+        \draw[fill]
+             (11.3,-13.85) circle (1ex);
+        \draw[very thick,->]
+             (11.3,-13.85) -- (30.5,-14);
+        \draw[fill, rounded corners=3pt]
+             (24.5,7.5) rectangle (43.4,2.5);
+      \end{scope}
+    \end{pgfonlayer}
+
+    \begin{pgfonlayer}{background}
+      \begin{scope}[black!40,fill=black!40]
+        \draw[fill]
+             (40.4,-10.85) circle (1ex);
+        \draw[fill,rounded corners=3pt] 
+             (60,-10.0) rectangle (80.4,-18.6);
+        \draw[very thick,->]
+             (39.5,-10.85) -- (60,-14);
+        \draw[fill]
+             (40.4,-13.85) circle (1ex);
+        \draw[fill]
+             (40.4,-16.85) circle (1ex);
+
+        \draw[very thick,->,dashed]
+             (40.5,-13.85) .. controls ++(6,-1.5) .. (50,-18);
+        \draw[very thick,->,dashed]
+             (40.5,-16.85) .. controls ++(6,-1.5) .. (50,-22);
+        \draw[fill, rounded corners=2pt]
+             (25.5,7.3) rectangle (35.5,2.7);
+        \draw[fill, rounded corners=2pt]
+             (37.1,7.3) rectangle (39.0,2.7);
+        \draw[fill, rounded corners=2pt]
+             (40.4,7.3) rectangle (42.3,2.7);
+      \end{scope}
+    \end{pgfonlayer}
+  \end{tikzpicture}
+  \caption{encoding of a list}
+\end{figure} % )]) 
+
+|one=desc_littbl|
+
+\begin{infrules}
+     \infrule[ac-lit]%
+%       {|c has_type T|\quad
+%        |t elem (setcomp (int,str,dec,nat))|}%
+       {|v = attach i c pos_littbl|}
+       {|Env follows c compiles_to (vector v)|}\\\\
+     \infrule[ac-var]%
+       {\relax}
+       {|(set (..., x mapsto (vectors v (d_1, ..., d_n)), ...)) follows x compiles_to (vectors v (d_1, ..., d_n))|}\\\\
+     \infrule[ac-let]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |(env_union Env (set (x mapsto (vectors v_a (d_a_1, ..., d_a_n))))) follows b compiles_to (vectors v_b (d_b_1, ..., d_b_m))|}
+       {|Env follows let x = a in b compiles_to (vectors v_b (d_b_1, ..., d_b_m))|}\\\\
+     \infrule[ac-binop]%
+       {|Env follows a compiles_to (vector v_a)|\qquad
+        |Env follows b compiles_to (vector v_b)|\\
+        |v = project (p,i<-i'') (attach p 1 (binop i'' i i' (cross (project i v_a) (project (i' <- i) v_b))))|}%
+       {|Env follows a sgeneric_binop b compiles_to (vector v)|}\\\\
+     \infrule[ac-binop-lift]%
+       {|Env follows a compiles_to (vectors v_a d_a)|\qquad
+        |Env follows b compiles_to (vectors v_b d_b)|\\
+        |(val_desc v d) = project (d,p, i <- i'') (binop i'' i i' (equijoin p p' (val_desc v_a d_a) (project (p' <- p, i' <- i) v_b)))|}%
+       {|Env follows a sgeneric_binop_lift b compiles_to (vectors v d)|}\\\\
+     \infrule[ac-extract]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |1 <= i < n|}%
+       {|Env follows (extract a i) compiles_to (vectors v_a (d_a_1, ..., d_a_n_i))|}\\\\
+     \infrule[ac-insert]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\qquad
+        |1 <= i < m|}%
+       {|Env follows (insert a b i) compiles_to (vectors v_a (d_a_1, ..., d_a_n, d_b_m_i, ..., d_b_m))|}\\\\
+     \infrule[ac-promote-1]%
+       {|Env follows a compiles_to (vector v_a)|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |(val_desc v d) =  cross d_b_1 (project i v_a)|}
+       {|Env follows (promote a b) compiles_to (vectors  v (d, d_b_2, ..., d_b_m))|}\\\\
+     \infrule[ac-promote-2]%
+       {|Env follows a compiles_to (vectors v_a d_a_1)|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |(val_desc v_g d_g) = project (d <- p, p <- p'', i) (rownum p'' (p,p') (cross (project (p) d_b_1) (project (p' <- p, i) (val_desc v_a d_a_1))))|}
+       {|Env follows (promote a b) compiles_to (vectors v_g (d_g, d_b_1, ..., d_b_m))|}\\\\
+     \infrule[ac-promote-3]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |d_g_n = project (d <- p, p <- p'', s) (rownum p'' (p,p') (cross (project (p) d_b_1) (project (p' <- p, s <- p) (d_a_n)))) |\\
+         \text{copy the descriptor |(project (p) d_b_1)| times} \\
+        |forall i elem (set (n-1,...,2)) : d_g_i = project (d <- p, p <- p'', s <- s') (rownum (p'') (p,p') (equijoin (s) (d') (project (p,s) d_g_i_1) (project (d' <- d, p' <- p, s' <- p) d_a_i)))| \\
+         \text{unfold the structure} \\
+%        |(sqbr (d_g_1, ..., d_g_n)) = join_push_down d_g_n (tails (sqbr (d_g_1, ..., d_g_n_1)))|\\
+        |(val_desc v_g d_g_1) = project (d <- p, p <- p'', i) (rownum (p'') (p,p') (equijoin s d' (project (p,s) d_g_2) (project (d' <- d, p' <- p, i) (val_desc v_a d_a_1)))) |} 
+       {|Env follows (promote a b) compiles_to (vectors v_g ((project (d, p) d_g_1), ..., (project (d, p) d_g_n), d_b_1, d_b_2, ..., d_b_m))|}\\\\
+     \infrule[ac-dist-1]%
+       {|Env follows a compiles_to (vector v_a)|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |(val_desc v d) =  cross d_b_m (project i v_a)|}
+       {|Env follows (dist a b) compiles_to (vectors  v d)|}\\\\
+     \infrule[ac-dist-2]%
+       {|Env follows a compiles_to (vectors v_a d_a_1)|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |(val_desc v_g d_g) = project (d <- p, p <- p'', i) (rownum p'' (p,p') (cross (project (p) d_b_m) (project (p' <- p, i) (val_desc v_a d_a_1))))|}
+       {|Env follows (dist a b) compiles_to (vectors v_g (d_g, d_b_m))|}\\\\
+     \infrule[ac-dist-3]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ...., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m))|\\
+        |d_g_n = project (d <- p, p <- p'', s) (rownum p'' (p,p') (cross (project (p) d_b_m) (project (p' <- p, s <- p) (d_a_n)))) |\\
+        |forall i elem (set (n-1,...,2)) : d_g_i = project (d <- p, p <- p'', s <- s') (rownum (p'') (p,p') (equijoin (s) (d') (project (p,s) d_g_i_1) (project (d' <- d, p' <- p, s' <- p) d_a_i)))|\\
+%        |(sqbr (d_g_1, ..., d_g_n)) = join_push_down d_g_n (tails (sqbr (d_g_1, ..., d_g_n_1)))|\\
+        |(val_desc v_g d_g_1) = project (d <- p, p <- p'', i) (rownum (p'') (p,p') (equijoin s d' (project (p,s) d_g_2) (project (d' <- d, p' <- p, i) (val_desc v_a d_a_1)))) |} 
+       {|Env follows (dist a b) compiles_to (vectors v_g ((project (d,p) d_g_1), ..., (project (d,p) d_g_n), d_b_m))|}\\\\
+     \infrule[ac-dist-lift-1]%
+       {|Env follows a compiles_to (vectors v_a (d_a))|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m_1, d_b_m))|\\
+        |(val_desc v d) = project (d <- p, p <- p'', i) (rownum p'' (p,p') (equijoin d p' (d_b_m_1) (project (p' <- p, i) (val_desc v_a d_a)))) |}
+       {|Env follows (dist_lift a b) compiles_to (vectors v (d, d_b_m) |}\\\\
+     \infrule[ac-dist-lift-2]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors dont_care (d_b_1, ..., d_b_m_1, d_b_m))|\\
+        |d_g_n = project (d <- p, p <- p'', s) (rownum p'' (p,p') (equijoin d p' (d_b_m_1) (project (p' <- p, s <- p) (d_a_n)))) |\\
+        |forall i elem (set (n-1,...,2)) : d_g_i = project (d <- p, p <- p'', s <- s') (rownum (p'') (p,p') (equijoin (s) (d') (project (p,s) d_g_i_1) (project (d' <- d, p' <- p, s' <- p) d_a_i)))|\\
+%        |(sqbr (d_g_1, ..., d_g_n)) = join_push_down d_g_n (tails (sqbr (d_g_1, ..., d_g_n_1)))|\\
+        |(val_desc v d_g_1) = project (d <- p, p <- p'', i) (rownum (p'') (p,p') (equijoin s d' d_g_2 (project (d' <- d, p' <- p, i) (val_desc v_a d_a_1)))) |} 
+       {|Env follows (dist_lift a b) compiles_to (vectors v ((project (d,p) d_g_1), ..., (project (d,p) d_g_n), d_b_m_1, d_b_m)) |}\\\\
+     \infrule[ac-cons-empty]%
+       {|Env follows a compiles_to (vector v_a)|\qquad
+        |(val_desc v d) = attach d 1 v_a|}
+       {|Env follows (cons a syntaxempty) compiles_to (vectors v d)|}\\\\
+     \infrule[ac-cons-empty-2]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\\
+        |d_a_n_1 = attach p 1 one|}
+       {|Env follows (cons a syntaxempty) compiles_to (vectors v_a (d_a_1, ..., d_a_n, d_a_n_1))|}\\\\
+     \infrule[ac-cons-1]%
+       {|Env follows a compiles_to (vector v_a)|\qquad
+        |Env follows b compiles_to (vectors v_b d_b)|\\
+        |(val_desc v d) = attach d 1 (project (p,i) (rownum p' (o,p) (union (attach o 1 v_a) (attach o 2 v_b)))) |}
+       {|Env follows (cons a b) compiles_to (vectors v d)|}\\\\
+     \infrule[ac-cons-2]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors v_b (d_b_1, ..., d_b_n, d_b_n_1))|\\
+        |d_g_n_plus_1 = rowid p (union (project d d_b_n_1) one)|\\
+        |d_g_n = project (d <- d', p) (rownum p d' (rowrank d' (o, d) (union (attach o 1 (project d d_a_n)) (attach o 2 (project d d_b_n)))))|\\
+        |forall i elem (set (n-1, ..., 1)): d_empty_a_i = (difference (project (d <- p) (d_a_i_1)) (project d (d_a_i)))|\\
+        |forall i elem (set (n-1, ..., 1)): d_empty_b_i = (difference (project (d <- p) (d_b_i_1)) (project d (d_b_i)))|\\
+        |forall i elem (set (n-1, ..., 2)): d_full_a_i = (attach o 1 (union (attach f 1 (project d (d_a_i))) (attach f 0 (d_empty_a_i))))|\\
+        |forall i elem (set (n-1, ..., 2)): d_full_b_i = (attach o 2 (union (attach f 1 (project d (d_b_i))) (attach f 0 (d_empty_b_i))))|\\
+        |forall i elem (set (n-1, ..., 2)): d_g_i =  project (d<-d',p) (rownum p d' (select (f /= 0) (rowrank d' (o,d) (union d_full_a_i d_full_b_i))))|\\
+        | d_full_a_1 = (attach o' 1 (union (project (d,p' <- p) d_a_1) (attach p' 0 (d_empty_a_1))))|\qquad
+        | d_full_b_1 = (attach o' 2 (union (project (d,p' <- p) d_b_1) (attach p' 0 (d_empty_b_1))))|\\
+        %|v_g = project (p <- p', i) (rownum p' (o,p) (union (attach o 1 v_a) (attach o 2 v_b)))|}
+        |(val_desc v_g d_g_1) = project (d<-d',p<-p'',i) (rownum p'' (d',p) (thetajoin (o = o' and p = p') (paren (union (attach o 1 v_a) (attach o 2 v_b))) (rowrank d' (o,d) (union (d_full_a_1) (d_full_b_1)))))|}
+       {|Env follows (cons a b) compiles_to (vectors v_g (d_g_1, ..., d_g_n, d_g_n_plus_1))|}\\\\
+     \infrule[ac-cons-lift]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors v_b (d_b_1, ..., d_b_n, d_b_n_1))|\\
+        |d_g_n_plus_1 = d_b_n_1|\qquad
+        |d_g_n = rownum p d (union (project (d <- p) d_a_n) (project d d_b_n))|\\
+        |d_map_a_n = project (ou <- p, in <- p, s <- p) d_a_n|\qquad
+        |d_map_b_n = project (ou <- d, in <- p, s <- p) d_b_n|\\
+        |forall i elem (set (n-1,...,1)):d_empty_a_i= (difference (project (d <- s) d_map_a_i_1) (project d d_a_i))|\\
+        |forall i elem (set (n-1,...,1)):d_empty_b_i= (difference (project (d <- s) d_map_b_i_1) (project d d_b_i))|\\
+        |forall i elem (set (n-1,...,1)):d_map_a_i = union (project (ou, in <-s, s <-p) (equijoin s d d_map_a_i_1 d_a_i)) (attach s 0 (project (ou, in <- s) (equijoin s d d_map_a_i_1 d_empty_a_i)))|\\
+        |forall i elem (set (n-1,...,1)):d_map_b_i = union (project (ou, in <-s, s <-p) (equijoin s d d_map_b_i_1 d_b_i)) (attach s 0 (project (ou, in <- s) (equijoin s d d_map_b_i_1 d_empty_b_i)))|\\
+        |forall i elem (set (n-1,...,1)):d_g_i = project (d,p) (rownum p d (select (s /= 0) (rowrank d (ou,o,in) (union (attach o 1 d_map_a_i) (attach o 2 d_map_b_i)))))|\\
+        |v_g = project (p<-p',i) (rownum p' (d',p) (thetajoin (s=p and o' = o) (paren (union (attach o 1 v_a) (attach o 2 v_b))) (rowrank d' (ou,o',in) (union (attach o' 1 d_map_a_1) (attach o' 2 d_map_b_1)))))|}
+       {|Env follows (cons_lift a b) compiles_to (vectors v_g (d_g_1, ..., d_g_n, d_g_n_plus_1)) |}\\\\
+     \infrule[ac-restrict-1]%
+       {|Env follows a compiles_to (vectors v_a d_a)|\qquad
+        |Env follows b compiles_to (vectors v_b d_b)|\\
+        |(val_desc v d) = project (d, p<-p'',i) (rownum p'' p (equijoin p' p (project (p'<-p) (select i v_b)) v_a))|}
+       {|Env follows (restrict a b) compiles_to (vectors v d)|}\\\\
+     \infrule[ac-restrict-2]%
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors v_b (d_b))|\\
+        |d_g_n = project (d, p<-p'', s<-p) (rownum p'' p (equijoin p' p (project (p'<-p) (select i v_b)) d_a_n)|\\
+        |forall i elem (set (n-1,...,2)) : d_g_i = project (d<-p, p<-p'', s <-p') (rownum p'' p' (equijoin s d' d_g_i_1  (project (d'<-d, p'<-p) d_a_i)))|\\
+        |(val_desc v_g d_g_1) = project (d<-p, p<-p'', i) (rownum p'' p' (equijoin s d' d_g_2 (project (d' <- d, p' <- p, i) (val_desc v_a d_a_1)))) |}
+       {|Env follows (restrict a b) compiles_to (vectors v_g (d_g_1, (project (d,p) d_g_2), ..., (project (d,p) d_g_n)))|}\\\\
+     \infrule[ac-combine]
+       {|Env follows g compiles_to (vectors v_g d_g)|\qquad
+        |Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors v_b (d_b_1, ..., d_b_n))|\\
+        |d_true_n  = (project (d,p,s<-p') (rownum p' p (select i (val_desc v_g d_g))))|\qquad
+        |d_false_n = (project (d,p,s<-p') (rownum p' p (select (not i) (val_desc v_g d_g))))|\\
+        |d_e_n = union (attach o 1 d_true_n) (attach o 2 d_false_n)|\\ 
+        |forall i elem (set (n-1,...,1)): d_u_i = union (attach o' 1 (project (d'<-d,p'<-p) d_a_i)) (attach o' 2 (project (d'<-d,p'<-p) d_b_i))|\\
+        |forall i elem (set (n-1,...,1)): d_e_i = project (d<-p,p<-p'',s<-p',o) (rownum p'' (p,p') (thetajoin (s=d' and o=o') d_e_i_1 d_u_i))|\\
+        |v_e = project (p<-p'',i) (rownum p'' (p,p') (thetajoin (s=p' and o=o') d_e_1 (union (attach o' 1 v_a) (attach o' 2 v_b))))|}
+       {|Env follows (combine g a b) compiles_to (vectors v_e ((project (d,p) d_e_1), ..., (project (d,p) d_e_n)))|}\\\\
+      \infrule[ac-bpermute-1]
+       {|Env follows a compiles_to (vectors v_a d_a)|\qquad
+        |Env follows b compiles_to (vectors v_b d_b)|\\
+        |(val_desc v d) = project (d, p<-i', i) (equijoin p p' (val_desc v_a d_a) (project (p'<-p,i'<-i) (v_b)))|}
+       {|Env follows (back_permute a b) compiles_to (vectors v d)|}\\\\
+      \infrule[ac-bpermute-2]
+       {|Env follows a compiles_to (vectors v_a (d_a_1, ..., d_a_n))|\qquad
+        |Env follows b compiles_to (vectors v_b d_b)|\\
+        |d_g_n = project (d, p<-i', s <- p) (equijoin p p' d_a_n (project (p'<-p,i'<-i) (v_b)))|\\
+        |forall i elem (set (n-1,...,2)) : d_g_i = project (d<-p, p<-p'', s <-p') (rownum p'' (p,p') (equijoin s d' d_g_i_1  (project (d'<-d, p'<-p) d_a_i)))|\\
+        |(val_desc v_g d_g_1) = project (d<-p, p<-p'', i) (rownum p'' (p,p') (equijoin s d' d_g_2 (project (d' <- d, p' <- p, i) (val_desc v_a d_a_1)))) |}
+       {|Env follows (back_permute a b) compiles_to (vectors v d)|}
+\end{infrules}
+
+
+\section{Algebraic Tuple Compilation}
+
+\begin{infrules}
+     \infrule[ac-tuple-access]%
+       {|e compiles_to (tuple (e_1, ..., e_i, ... ,e_n))|}
+       {|(access_tuple e i) compiles_to e_i|}\\\\
+\end{infrules}
+
+\section{Example}
+
+\textbf{Source level transformation}
+\begin{align}
+     & |(list_compr (list_compr (x+1) (y <- sqbr(30,40,50))) (x <- sqbr (10,20))) |\\
+|=>| & |(list_compr (plus_lift (list_compr (x) (y <- sqbr(30,40,50))) (list_compr (1) (y <- sqbr(30,40,50)))) (x <- sqbr (10,20)))|\\
+|=>| & |(plus_lift_n 2 (dist_lift (list_compr x (x <- (sqbr (10,20)))) (list_compr (sqbr (30,40,50)) (x <- [10,20]))) (promote 1 (list_compr (sqbr(30,40,50)) (x <- (sqbr (10,20))))))|\\
+|=>| & |(plus_lift_n 2 (dist_lift (sqbr (10,20)) (promote (sqbr (30,40,50)) (sqbr (10,20)))) (promote 1 (promote (sqbr (30,40,50)) (sqbr (10,20)))))|\\
+|->| & |a = (promote (sqbr (30,40,50)) (sqbr (10,20)))|\\
+|=>| & |(insert (plus_lift (extract (dist_lift (sqbr (10,20)) a) 1) (extract (promote 1 a) 1)) (dist_lift (sqbr (10,20)) a) 1)|\\
+|->| & |a = (promote (sqbr (30,40,50)) (sqbr (10,20))) == (dist (sqbr (30,40,50)) (sqbr (10,20)))|\\
+|->| & |b = (promote 1 a) == (insert (dist 1 (extract a 1)) a 1)|
+\end{align}
+
+\textbf{Algebraic Compilation}
+
+%}
+
+

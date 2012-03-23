@@ -1,0 +1,25 @@
+\newpage
+\chapter{Removing some primitives}
+
+Promote can be fully removed during an intermediate step, the lifted versions of restrict and combine as well.
+
+\begin{align}
+%|dist a (length b)| & |==| |dist a b|\tag{ac-slt-dist}\\
+| (restrict_lift a b) | & | == | | (insert (restrict(extract a 1) (extract b 1)) a 1) |\tag{ac-slt-restrict} \\
+| (combine_lift g a b) | & | == | | (insert (combine (extract g 1) (extract a 1) (extract b 1)) g 1) |  \tag{ac-slt-combine} \\
+| (back_permute_lift a b)| & | == | | (insert (back_permute (extract a 1) (extract b 1)) a 1) | \tag{ac-slt-back-permute}
+\end{align}
+
+\section{Further optimising}
+
+As pointed out in the thesis of Gabrielle Keller (page 84-85, rule 4.12 (Index-I) we can optimise some lifted index operations. This patterns of index operations is introduced by the the flattening transformation. This specific rule can best be applied after the rules mentioned earlier in this chapter.
+
+\begin{align}
+|index1 (dist a b) b| & | == | | bPermute a b | \tag{Index-I}   
+\end{align}
+
+A second optimisation can also be applied to the flattened program, before the earlier rewrites mentioned in this chapter.
+
+\begin{align}
+|indexn (promote a b) b | & | == | | insert (bPermute a (extract b (n - 1))) b (n - 1) |\tag{Index-II}
+\end{align}
