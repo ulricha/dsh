@@ -15,23 +15,8 @@ type Key = [String]
 \end{code}
 %endif
 %{
-%format Expr = " e "
-%format data = " "
-%format = = " ::= "
-%format (Table (t) (x) (c) (k)) = " \textbf{table}(n) "
-%format (App (t) (e1) (e2)) = e1 "~" e2
-%format (AppE1 (t) (p) (e)) = p "~" e
-%format (AppE2 (t) (p) (e1) (e2)) = p "~" e1 "~" e2
-%format (BinOp (t) (o) (e1) (e2)) = e1 "~" o "~" e2
-%format (Lam (t) (x) (e)) = " \lambda " x "~\rightarrow~" e
-%format (If (t) (e1) (e2) (e3)) = " \textbf{if}~" e1 "~\textbf{then}~" e2 " ~\textbf{else}~ " e3 
-%format (Const (t) (c)) = c
-%format (Var (t) (s)) = s
-%format String = " x " 
-%format Val = " c "
-%format Prim1 = " \textbf{p} "
-%format Prim2 = " \textbf{p} "
-%format Oper = " \oplus "
+%include syntaxdef.fmt
+%include nkl.fmt
 
 % The code below defines the NKL grammar
 \newcommand{\NKLGrammar}{

@@ -1,0 +1,6 @@
+%format (Var (x)) = x
+%format (Fn (t1) (t2)) = t1 "~\rightarrow~" t2
+%format (Unit) = " () "
+%format (Pair (t1) (t2)) = " (" t1 ",~" t2 ") "
+%format (List (t1)) = " [" t1 "] "
+%format Type = " \tau "

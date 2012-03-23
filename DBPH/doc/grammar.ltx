@@ -1,17 +1,10 @@
 \chapter{Grammar}
 
 Type language:
-%include ../src/Language/ParallelLang/NKL/Data/NKL.lhs
+%include Type.lhs
+%include NKL.lhs
 
-\begin{syntaxdefs}
-    \syntaxdef{|t|}
-        \alt{|Int|}
-        \alt{|Bool|}
-        \alt{|[t]|}
-        \alt{|(t1, ..., tn)|}
-        \alt{|t1 -> t2|}
-        \alt{|a|}
-\end{syntaxdefs}
+\typeLang
 
 Non flat language:
 

@@ -3,8 +3,8 @@
 # Replace occurences of word Template with the file you want to compile
 
 commonFiles := $(wildcard ./common/*)
-ltxFiles := $(wildcard ./src/*.ltx)
-fmtFiles := $(wildcard ./directives/*.fmt)
+ltxFiles := $(wildcard *.ltx)
+fmtFiles := $(wildcard ./fmt/*.fmt)
 dbphFiles := $(shell find ../src)
 
 all : ./build/Flattening.pdf
@@ -21,7 +21,9 @@ build :
 
 ./build/Flattening.tex : build $(ltxFiles) $(commonFiles) $(fmtFiles) $(dbphFiles)
 	rm -f ./build/Flattening.tex
-	lhs2TeX --poly ./Flattening.ltx >> ./build/Flattening.tex
+	echo $(ltxFiles)
+	echo  
+	lhs2TeX --poly -v --path=:fmt:$(shell find ../src -type d  | tr '\n' ':') ./Flattening.ltx >> ./build/Flattening.tex
 
 clean :
 	rm -r ./build
