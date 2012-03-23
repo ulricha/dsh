@@ -1,3 +1,5 @@
+%if False
+\begin{code}
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses  #-}
 module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key) where
 
@@ -10,20 +12,48 @@ import qualified Data.Set as S
 type Column = (String, Type)
 
 type Key = [String]
+\end{code}
+%endif
+%{
+%format Expr = " e "
+%format data = " "
+%format = = " ::= "
+%format (Table (t) (x) (c) (k)) = " \textbf{table}(n) "
+%format (App (t) (e1) (e2)) = e1 "~" e2
+%format (AppE1 (t) (p) (e)) = p "~" e
+%format (AppE2 (t) (p) (e1) (e2)) = p "~" e1 "~" e2
+%format (BinOp (t) (o) (e1) (e2)) = e1 "~" o "~" e2
+%format (Lam (t) (x) (e)) = " \lambda " x "~\rightarrow~" e
+%format (If (t) (e1) (e2) (e3)) = " \textbf{if}~" e1 "~\textbf{then}~" e2 " ~\textbf{else}~ " e3 
+%format (Const (t) (c)) = c
+%format (Var (t) (s)) = s
+%format String = " x " 
+%format Val = " c "
+%format Prim1 = " \textbf{p} "
+%format Prim2 = " \textbf{p} "
+%format Oper = " \oplus "
 
--- | Data type expr represents nested kernel language.
-data Expr where
-    Table :: Type -> String -> [Column] -> [Key] -> Expr
-    App   :: Type -> Expr -> Expr -> Expr -- | Apply multiple arguments to an expression
-    AppE1 :: Type -> Prim1 -> Expr -> Expr
-    AppE2 :: Type -> Prim2 -> Expr -> Expr -> Expr 
-    BinOp :: Type -> Oper -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-    Lam   :: Type -> String -> Expr -> Expr -- | A function has a name, some arguments and a body
-    If    :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
-    Const :: Type -> Val -> Expr -- | Constant value
-    Var   :: Type -> String -> Expr  -- | Variable
-      deriving (Show, Eq, Ord)
+% The code below defines the NKL grammar
+\newcommand{\NKLGrammar}{
+\begin{code}
+data Expr  =  Table Type String [Column] [Key]
+           |  App Type Expr Expr   
+           |  AppE1 Type Prim1 Expr
+           |  AppE2 Type Prim2 Expr Expr
+           |  BinOp Type Oper Expr Expr 
+           |  Lam Type String Expr 
+           |  If Type Expr Expr Expr 
+           |  Const Type Val
+           |  Var Type String  
+\end{code}
+}
+%}
+%if False
+\begin{code}
+    deriving (Show, Eq, Ord)
+\end{code}
 
+\begin{code}
 data Prim1 = Length Type
            | Not Type
            | Concat Type
@@ -32,13 +62,17 @@ data Prim1 = Length Type
            | Fst Type
            | Snd Type
     deriving (Show, Eq, Ord)
+\end{code}
 
+\begin{code}
 data Prim2 = Map Type
            | GroupWith Type
            | SortWith Type
            | Pair Type
     deriving (Show, Eq, Ord)
+\end{code}
 
+\begin{code}
 instance Typed Expr where
     typeOf (Table t _ _ _) = t
     typeOf (App t _ _) = t
@@ -49,7 +83,9 @@ instance Typed Expr where
     typeOf (BinOp t _ _ _) = t
     typeOf (Const t _) = t
     typeOf (Var t _) = t
+\end{code}
 
+\begin{code}
 freeVars :: [String] -> Expr -> S.Set (String, Expr)
 freeVars _ (Table _ _ _ _) = S.empty
 freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
@@ -60,3 +96,5 @@ freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t 
 freeVars t (BinOp _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
 freeVars _ (Const _ _) = S.empty
 freeVars t v@(Var _ x) = if x `elem` t then S.empty else S.singleton (x, v)
+\end{code}
+%endif

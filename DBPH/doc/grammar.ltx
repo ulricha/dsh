@@ -1,6 +1,7 @@
 \chapter{Grammar}
 
 Type language:
+%include ../src/Language/ParallelLang/NKL/Data/NKL.lhs
 
 \begin{syntaxdefs}
     \syntaxdef{|t|}
@@ -14,17 +15,8 @@ Type language:
 
 Non flat language:
 
-\begin{syntaxdefs}
-    \syntaxdef{|e|}
-        \alt{|e1 e2|}\\
-        \alt{|(\x -> e)|}\\
-        \alt{|let x = e1 in e2|}\\
-        \alt{|if e1 then e2 else e3|}\\
-        \alt{|e1 op e2|} \\
-        \alt{|c|}\\
-        \alt{|x|}\\
-        \alt{|map e1 e2 |}\\
-\end{syntaxdefs}
+
+\NKLGrammar
 
 All regular scalar functions are supported (e.g. | + |, | - |, | && |, etc). Furthermore the
 following functions are supported:

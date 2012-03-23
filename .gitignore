@@ -2,3 +2,5 @@ dist/
 *.swp
 \#*
 *~
+
+DBPH/doc/build/
