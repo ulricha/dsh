@@ -27,7 +27,7 @@ nkl2X100File :: FilePath -> NKL.Expr -> IO ()
 nkl2X100File f e = let (e', _) = nkl2Vec' e
                  in toX100File f $ toX100Algebra e'
 
-nkl2Vec' :: NKL.Expr -> (FKL.Expr Type, Type)
+nkl2Vec' :: NKL.Expr -> (FKL.Expr, Type)
 nkl2Vec' e = runTransform $ 
                  do 
                   e' <- flatTransform e 
