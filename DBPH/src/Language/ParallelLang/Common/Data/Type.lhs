@@ -1,3 +1,5 @@
+%if False
+\begin{code}
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
  (isNum, transType, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
@@ -13,21 +15,27 @@ instance Show Type where
     show String = "String"
     show Unit = "()"
     show (List t) = "[" ++ (show t) ++ "]"
---    show (Tuple ts) = "(" ++ (concat $ L.intersperse ", " (map show ts)) ++ ")"
     show (Pair t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
+\end{code}
+%endif
+%{
 
-data Type where
-    Var :: String -> Type
-    Fn :: Type -> Type -> Type
-    Nat :: Type
-    Int :: Type
-    Bool :: Type
-    Double :: Type
-    String :: Type
-    Unit :: Type
---    Tuple :: [Type] -> Type
-    Pair :: Type -> Type -> Type
-    List :: Type -> Type
+%include syntaxdef.fmt
+%include types.fmt
+%format (Var (x)) = " x "
+%format Nat = " \const{Nat}"
+  
+\newcommand{\typeLang}{
+\begin{code}
+data Type  =  Fn Type Type
+           |  Nat | Int | Bool |  Double
+           |  String | Unit | Var String
+           |  Pair Type Type |  List Type
+\end{code}
+}
+%}
+%if False
+\begin{code}
     deriving (Eq, Ord)
 
 infixr 6 .->
@@ -172,3 +180,5 @@ transType t            = t
 
 class Typed a where
   typeOf :: a -> Type
+\end{code}
+%endif

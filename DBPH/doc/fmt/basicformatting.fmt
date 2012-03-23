@@ -47,16 +47,11 @@
 %% TYPE CONSTANTS
 %% ----------------------------------------------------------------------------
 
-%format base = "\ty{\const{base}}"
-%format Int  = "\ty{\const{Int}}"
-%format Bool = "\ty{\const{Bool}}"
-
-%% ----------------------------------------------------------------------------
-%% LIVENESS PROPERTIES
-%% ----------------------------------------------------------------------------
-
-%format H = "\ann{\prop{H}}"
-%format L = "\ann{\prop{L}}"
+%format base = " \const{base} "
+%format Int  = " \const{Int}"
+%format Bool = " \const{Bool} "
+%format Double = " \const{Double} "
+%format String = " \const{String} "
 
 %% ----------------------------------------------------------------------------
 %% METAVARIABLES
