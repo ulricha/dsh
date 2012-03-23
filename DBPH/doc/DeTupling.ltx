@@ -1,0 +1,209 @@
+\newpage
+\chapter{Factoring out tuples}
+
+When targeting column store databases it can be worthwhile to eliminate tuples from the source program by propagating them to the top of the program. Some sub expressions can still be tuples however, such as function arguments, and
+the result of functions. These will be eliminated by the algebraic compilation phase with a simple rule that will not result in any runtime costs at all.
+The reason we do not deal with these tuples in this phase is that it will increase the code size significantly.
+
+A program that would have result type |[(Int, Bool)]| will be compiled into
+a program of type |([Int], [Bool])|.
+
+In general types can be translated as follows:
+
+\begin{infrules}
+    \infrule[Int]
+        {| |}
+        {| Int !=> Int |}
+    \infrule[Bool]
+        {| |}
+        {| Bool !=> Bool|}
+    \infrule[Tuple]
+        {| t1 !=> t1' | \quad | ... |\quad | tn !=> tn' |}
+        {| (t1, ..., tn) !=> (t1', ..., tn') |}\\
+    \infrule[List-tuple]
+        {\textrm{iff}~|t|~\textrm{contains a tuple}\\
+         | t !=> (t1, ..., tn)|}
+        {| [t] !=> ([t1], ..., [tn])|}\\
+    \infrule[List]
+        {\textrm{iff}~|t|~\textrm{does not contain a tuple}}
+        {| [t] !=> [t]|}
+\end{infrules}
+
+Tuples also have to be factored out of user defined functions (and their generated lifted counterparts). We first extend the scheme for translating types to deal with functions. We do not extend the algorithm for reconstruction plans, as the top level result of a program is not allowed to be a function, or a structure containing functions.
+
+\begin{infrules}
+    \infrule[Fn]
+        {| t1 !=> t1'|\quad| t2 !=> t2' |}
+        {| t1 -> t2 !=> t1' -> t2'|}
+\end{infrules}
+
+Functions are translated into closures, which may be a list element. Translating closures types is done as follows:
+
+\begin{infrules}
+    \infrule[Clo]
+        {| t1 !=> t1' |\quad| t2 !=> t2' |}
+        {| t1 :-> t2 !=> t1' :-> t2' |}
+    \infrule[List-Clo]
+        {\textrm{iff}~ | t | ~ \textrm{contains a closure type}\\
+         | t !=> t' |}
+        {| [t] !=> [t'] |}
+\end{infrules}
+
+
+After computing all components of the top level tuple, one has to construct out of these values a new value with the type of the original program. A reconstruction plan that transform a value of type |t'| into a value of type |t| can be constructed as follows, given the type t:
+
+\begin{infrules}
+    \infrule[Int]
+        {| |}
+        {| Int ?=> id |}
+    \infrule[Bool]
+        {| |}
+        {| Bool ?=> id |}
+    \infrule[List]
+        {\textrm{iff}~|t|~\textrm{does not contain a tuple}}
+        {| [t] ?=> id |}\\
+    \infrule[Tuple]
+        {| t1 !=> f1 | \quad | ... |\quad | tn !=> fn |}
+        {| (t1, ..., tn) ?=> \(x1, ..., xn) -> (f1 x1, ..., fn xn) |}\\
+    \infrule[List-tuple]
+        {\textrm{iff}~|t|~\textrm{contains a tuple}\\
+         | t ?=> f|}
+        {| [t] !=> (map f) . zip |}\\   
+\end{infrules}
+
+Note that this reconstruction plan follows exactly the same pattern as the rules for computing the transformed type, in an algorithm they can well be constructed together in one traversal over the type |t|.
+
+With this basic machinery in place we can now define the actual tuple factoring. Please note that in some rules the type annotation are explicitly mentioned |(e :: t)|, in these rules the translation is guided by the type. In rules where the types are not necessary to make decisions we omit the type annotations for readability. As an invariant it holds that for any expressions |e| with type |t| after translation |e :: t #=> e' :: t'| the type |t'| can also be derived by applying the type transformation to |t| and get |t !=> t'|. 
+
+We point out that none of the rules are concerned with the lifted-ness of functions, the whole process of factoring out tuples is agnostic to the level a function is lifted. Furthermore the rules only apply for programs that are known to be type correct.
+
+\begin{infrules}
+    \infrule[Nil-nontuple]
+        {\textrm{iff}~|t|~\textrm{does not contain a tuple}}
+        {| Nil :: [t] #=> Nil :: [t]|}
+    \infrule[Nil-tuple]
+        {| Nil :: t1 #=> n1' :: t1' |\quad | Nil :: tn #=> nn' :: tn' |}
+        {| Nil :: [(t1, ..., tn)] #=> (n1', ..., nn') :: (t1', ..., tn')|}\\
+    \infrule[Cons-nontuple]
+        {\textrm{iff}~|t|~\textrm{does not contain a tuple}\\
+         | e1 #=> e1'|\quad | e2 #=> e2'|}
+        {| e1:e2 :: t #=> e1':e2' :: t|}
+    \infrule[Cons-tuple]
+        {\textrm{iff}~|t|~\textrm{does contain a tuple}\\
+         | e1 #=> (e11, ..., e1n)|\quad| ... |\quad| e2 #=> (e21, ..., e2n)|\\
+         | e11 : e21 #=> e1'|\quad|... |\quad| e1n : e2n #=>  en'| |t !=> t'|}
+        {| e1:e2 :: t #=> (e1', ..., en') :: t'|}\\
+    \infrule[proj]
+        {| e #=> e'|\quad |t !=> t' |}
+        {| e@i :: t #=> e'@i :: t'|}
+    \infrule[proj-opt]
+        {| e #=> (e1, ..., en)|\quad|t !=> ti|}
+        {| e@i :: t #=> ei :: ti|}\\
+    \infrule[Constant]
+        {| |}
+        {| c #=> c |}
+    \infrule[Variable]
+        {| t !=> t' |}
+        {| x :: t #=> x :: t'|}
+    \infrule[Let]
+        {| e1 #=> e1'|\quad| e2 #=> e2' |}
+        {| let x = e1 in e2 #=> let x = e1' in e2' |}\\
+    \infrule[Bin-op]
+        {| e1 #=> e1'|\quad| e2 #=> e2'|}
+        {| e1 op e2 #=> e1' op e2'|}\\
+    \infrule[If-tuple]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | t !=> (t1, ..., tn)| \quad | let v1, v2, v3|~\textrm{be fresh}\\
+         | e1 #=> e1' | \quad | e2 #=> e2' | \quad | e3 #=> e3' |\\
+         | if v1 then v2'@1 else v3'@1 #=> e1''| \quad | ... | \quad | if v1 then e2'@n else e3'@n #=> en''|}
+        {| if e1 then e2 else e3 :: t #=>  let v1 = e1', v2 = e2', v3 = e3'|\\
+                                        |   in (e1'', ..., en'')|}\\
+    \infrule[If]
+        {\textrm{Iff~}|t|~\textrm{does not contain a tuple}\\
+         | e1 #=> e1'|\quad | e2 #=> e2' | \quad | e3 #=> e3'|}
+        {| if e1 then e2 else e3 :: t #=> if e1' then e2' else e3' :: t|}
+    \infrule[App]
+        {| f #=> f'|\quad |e1 #=> e1'| \quad | en #=> en'|}
+        {| f e1 ... en #=> f' e1' ... en'|}\\
+    \infrule[Clo-App]
+        {| f #=> f' | \quad | e1 #=> e1' | \quad | en #=> en' |}
+        {| f cApp e1 ... en #=> f' cApp e1' ... en' |}
+    \infrule[Clo-App-Lift]
+        {| f #=> f' | \quad | e1 #=> e1' | \quad | en #=> en' |}
+        {| f cApp1 e1 ... en #=> f' cApp1 e1' ... en' |}\\
+    \infrule[Clo]
+        {| f #=> f'| \quad | fl #=> fl'|}
+        {| Clo vars f fl #=> Clo vars f' fl'|}
+    \infrule[Clo-lift]
+        {| f #=> f' | \quad | fl #=> fl' |}
+        {| AClo vars f1 fl #=> AClo vars f' fl' |}\\
+    \infrule[Lambda]
+        {| e #=> e'|}
+        {| \x -> e #=> \x -> e' |}
+\end{infrules}
+
+For the application of primitive functions some alternative rules for factoring out tuples are applied, if they would apply they are preferred over the regular function application rule.
+
+\begin{infrules}
+    \infrule[App-insert-tupleStr]
+        {\textrm{Iff}~|t2|~\textrm{does contain a tuple}\\
+         | let v |~\textrm{be fresh} \quad |t2 !=> (t1', ..., tn') |\\
+         | e1 #=> e1' |\quad | e2 #=> e2' | \quad | insert e1' (v :: t1') i => e'|}
+        {| insert e1 (e2 :: t2) i #=> let v = e2' in e'|}\\
+    \infrule[App-insert-tupleVal]
+        {\textrm{Iff}~|t1|~\textrm{does contain a tuple}\\
+         | let v |~\textrm{be fresh} \quad |t1 !=> (t1', ..., tn') |\\
+         | e1 #=> e1'|\quad|e2 #=> e2'|\\
+         | insert v@1 e2' i #=> e1'' | \quad | ... | \quad | insert v@n e2' i #=> en''|}
+        {| insert e1 e2 i #=> let v = e1' in (e1'', ..., en'')|}\\
+    \infrule[App-combine-tuple]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | let v1, v2, v3|~\textrm{be fresh}\\
+         | e1 #=> e1'|\quad|e2 #=> e2'|\quad|e3 #=> e3'|\\
+         | t !=> (t1, ..., tn)|\\
+         | combine v1 v2@1 v3@1 #=> e1''|\quad | ... |\quad|combine v1 v2@n v3@n|}
+        {| combine e1 e2 e3 :: t =>  let v1 = e1', v2 = e2', v3 = e3'|\\ 
+         |                            in (e1'', ..., en'')|}\\
+    \infrule[extract]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | let v1 |~\textrm{be fresh} \quad | t !=> (t1, ..., tn) |\\
+         | e1 #=> e1'|\\
+         | extract (v1@1::t1) i #=> e1'' |\quad | ... | \quad | extract (v1@n::tn) i #=> en''|} 
+        {| extract (e1::t) i #=> let v1 = e1' in (e1'', ..., en'') |}\\
+    \infrule[dist-tupleIndex]
+        {\textrm{Iff}~|t2|~\textrm{does contain a tuple}\\
+         |let v |~\textrm{be fresh}\quad |t2 !=> (t1', ..., tn') |\\
+         | e1 #=> e1'|\quad| e2 #=> e2' |\quad |dist e1' (v@1 :: t1') #=> e' |}
+        {| dist e1 (e2 :: t2) #=> let v = e2' in e'|}\\
+    \infrule[dist-tupleValue]
+        {\textrm{Iff}~|t1|~\textrm{does contain a tuple}\\
+         | let v1, v2 |~\textrm{be fresh} \quad | t1 !=> (t1', ..., tn') |\\
+         | e1 #=> e1'|\quad| e2 #=> e2' |\\
+         | dist (v1@1 :: t1') v2 #=> e1''| \quad | ... | \quad | dist (v1@n :: tn') v2 #=> en'' |}
+        {| dist (e1 :: t1) e2 #=> let v1 = e1', v2 = e2' in (e1'', ..., en'')|}\\
+    \infrule[index]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | let v1, v2 |~\textrm{be fresh}\quad | t !=> (t1, ..., tn) |\\
+         | e1 #=> e1' | \quad | e2 #=> e2' |\\
+         | index v1@1 v2 #=> e1'' | \quad | ... |\quad | index v1@n v2 #=> en'' |}
+        {| index (e1 :: t) e2 #=> (e1'', ..., en'')|}\\
+    \infrule[restrict]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | let v1, v2 |~\textrm{be fresh}\quad | t !=> (t1, ..., tn) |\\
+         | e1 #=> e1'|\quad | e2 #=> e2'| \\
+         | restrict v1@1 v2 #=> e1'' | \quad | ... | \quad | restrict v1@n v2 #=> en'' |}
+        {| restrict e1 e2 :: t #=> let v1 = e1'm v2 = e2' in (e1'', ..., en'')|}\\
+    \infrule[length]
+        {\textrm{Iff}~|t|~\textrm{does contain a tuple}\\
+         | let v |~\textrm{be fresh}\\
+         | e1 #=> e1' | \quad | length v@1 #=> e1''|}
+        {| length (e1 :: t) #=> let v = e1' in e1'' |}        
+\end{infrules}
+
+% With this small extensions for translating types, we define the rule for factoring out tuples from functions.
+
+% \begin{infrules}
+%    \infrule[Fn]
+%        {| e #=> e'|\quad | t !=> t'|}
+%        {| (n x1 ... xn = e) :: t #=> (n x1 ... xn = e') :: t'|}
+% \end{infrules}

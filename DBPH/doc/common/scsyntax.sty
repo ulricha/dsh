@@ -1,0 +1,73 @@
+% LaTeX package for syntax definitions in Scriptcom style
+% scsyntax.sty
+%
+% Copyright (c) 2007 Utrecht University
+%
+% author: Stefan Holdermans (stefan@cs.uu.nl)
+
+\NeedsTeXFormat{LaTeX2e}[1995/12/01]
+\ProvidesPackage{scsyntax}[2007/03/13 v0.1a%
+  LaTeX package for syntax definitions in Scriptcom style]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% options
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\ProcessOptions
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% systems of syntaxdefinitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newenvironment{syntaxDefs}[1]%
+  {\setlength\sc@abovesyntaxdefskip{.5\abovedisplayskip}%
+   \setlength\sc@belowsyntaxdefskip{0em}%
+   \par\noindent\textit{#1}}%
+  {}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% syntax definitions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newlength\sc@abovesyntaxdefskip
+\setlength\sc@abovesyntaxdefskip\abovedisplayskip
+\newlength\sc@belowsyntaxdefskip
+\setlength\sc@belowsyntaxdefskip\belowdisplayskip
+
+\newlength\sc@altsepwidth
+\settowidth\sc@altsepwidth{$::=$}
+
+\newif\ifsc@firstalt
+
+\newenvironment{syntaxDef}[3]%
+  {\setlength\parskip{0em}%
+   \vspace\sc@abovesyntaxdefskip\par\noindent%
+   \hspace\parindent{#3}\ $\in$\ #2\hfill\textit{#1}%
+   \sc@firstalttrue}%
+  {\vspace\sc@belowsyntaxdefskip\par}
+
+\newcommand\Alt[2]{%
+  \ifsc@firstalt{:}\fi\par\noindent%
+  \hspace{2\parindent}%
+  \parbox{\sc@altsepwidth}{%
+    \ifsc@firstalt{$::=$}\else\centerline{$\mid$}\fi}%
+    \ #2\hfill\textit{#1}%
+  \sc@firstaltfalse}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% syntax tables (for compact presentation of grammars)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newenvironment{syntaxTable}%
+  {\begin{tabular}{r@{\ }c@{\ }l@{\ }@{\ }c@{\ \ }l@{}}}%
+  {\end{tabular}}
+\newcommand{\syntaxtabhdr}[1]{\multicolumn{5}{@{}l@{}}{\textit{#1}}\\}
+\newcommand{\syntaxtababs}[3]{#3 & $\in$ & #2 & & \textit{(#1)}\\}
+\newcommand{\syntaxtabnonterm}[2]{#2 & $\in$ & #1 & $:=$ & 
+\sc@firstalttrue}
+\newcommand{\mysyntaxtabnonterm}[2]{#2 & $ $ & & $:=$ & 
+\sc@firstalttrue}
+\newcommand{\syntaxtabnewline}{\\ & & & $\mid$&\sc@firstalttrue}
+\newcommand{\syntaxtabalt}[1]{%
+  \ifsc@firstalt\else $\mid$ \fi#1\sc@firstaltfalse}

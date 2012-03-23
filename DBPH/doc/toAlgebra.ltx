@@ -1,0 +1,50 @@
+\chapter{Algebraic compilation}
+
+After vectorising the code we can compile the program into a bundle of table algebra. For the vector operation we already provided the algebraic compilation rules. We would like to point out here that a variable environment |Gam| has to be added to these rules so that the variable environment is also available when translating the arguments of the vector operations.
+
+The vector structure as described in the previous section remains intact. Instead of containing vector programs describing the various vectors they now contain algebraic plans describing these very same vectors.
+
+%{
+%include algebra2.fmt
+\begin{infrules}
+    \infrule[Const]
+        {| |}
+        {| Gam +- c => Val constantTable |}
+    \infrule[Var]
+        {| Gam(x) = v|}
+        {| Gam +- x => v|}\\
+    \infrule[Nil-1]
+        {| |}
+        {| Gam +- ([]::[tc]) => ValueVector emptyTable (descr, pos, item) |}\\
+    \infrule[Nil-2]
+        {| Gam +- ([]::[t]) => v |}
+        {| Gam +- ([]::[[t]]) => NestedVector (emptyTable (descr, pos)) v |}\\
+    \infrule[Op-l]
+        {| Gam +- e1 => (ValueVector v1) |\quad| Gam +- e2 => (ValueVector v2)|}
+        {| Gam +- e1 opl e2 => ValueVector (proj (item1:res, descr, pos) (oper res item1 tmp (join (pos==pos') v1 (proj (tmp:item1, pos':pos) v2))))|}\\
+    \infrule[Op-l]
+        {| Gam +- e1 => (Val v1) |\quad| Gam +- e2 => (Val v2)|}
+        {| Gam +- e1 opl e2 => Val (proj (item1:res, descr, pos) (oper res item1 tmp (join (pos==pos') v1 (proj (tmp:item1, pos':pos) v2))))|}\\
+    \infrule[Proj]
+        {| Gam +- e => Tuple [e1, ..., en]| \quad \textrm{where}~|n >= i|}
+        {| Gam +- e@i => ei |}\\
+    \infrule[Let]
+        {| Gam +- e1 => v1 |\quad| Gam[x +-> v1] +- e2 => v2 |}
+        {| Gam +- let x = e1 in e2 => v2 |}\\
+    \infrule[Clo]
+        {| Gam +- e1 => v1 |\quad| ... |\quad| Gam +- en => vn|}
+        {| Gam +- Clo ((x1, ..., xn)) f1 f2 => Clo ((x1 +-> v1, ..., xn +-> vn)) f1 f2|}\\
+    \infrule[AClo]
+        {| Gam +- e1 => v1 |\quad| ... |\quad| Gam +- en => vn|}
+        {| Gam +- AClo ((x1, ..., xn)) f1 f2 => AClo ((x1 +-> v1, ..., xn +-> vn)) f1 f2|}\\
+    \infrule[Clo-App]
+        {| Gam +- f => Clo Gam' f1 f2 |\quad | Gam +- e => v |\quad| Gam' f1 v => v'|}
+        {| Gam +- f cApp e => v'|}\\
+    \infrule[Clo-LApp]
+        {| Gam +- f => Clo Gam' f1 f2 |\quad | Gam +- e => v |\quad| Gam' +- f2 v => v'|}
+        {| Gam +- f cApp1 e => v'|}\\
+    \infrule[App]
+        {| |}
+        {| |}
+\end{infrules}
+%}

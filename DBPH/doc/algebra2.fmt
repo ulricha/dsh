@@ -1,0 +1,13 @@
+%format (proj (x) (y)) = " \pi_{" x"}(" y ") "
+%format (join (x) (y) (z)) = " " y " \bowtie_{" x "} " z " "
+%format (rownum (x) (y) (z)) = " \text{rownum}_{\stackrel{"x"}{"y"}}("z") "
+%format (rank (x) (y) (z)) = " \text{rank}_{\stackrel{"x"}{"y"}}("z") "
+%format (cross (x) (y)) = " " x " \times " y " "
+%format (attachA (x) (y) (b)) = " @_{" x ":" y"}(" b ") "
+%format (union (x) (y)) = x "\cup" y
+%format (sel (x) (y)) = " \sigma_{"x"} ( "y")"
+%format (aggr (a) (x)) = " \text{aggr}_{"a"}("x") "
+%format (distinct (x)) = " \text{distinct}("x") "
+%format (emptyTable (x)) = " emptyTBL_{" x" } "
+%format (oper (x) (y) (z) (a)) = " \oplus^{"x"}_{< \stackrel{"y"}{"z"} >} " a " "
+%format opl = " \oplus^{\uparrow} "
