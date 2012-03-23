@@ -2,24 +2,7 @@
 
 Type language:
 %include Type.lhs
-%include NKL.lhs
-
-\typeLang
 
 Non flat language:
+%include NKL.lhs
 
-
-\NKLGrammar
-
-All regular scalar functions are supported (e.g. | + |, | - |, | && |, etc). Furthermore the
-following functions are supported:
-\begin{itemize}
-    \item |e.i| projection on tuples
-    \item |e1[e2]| element lookup on lists, e2 should evaluate to an int
-    \item |length|
-%    \item |range e1 e2| results in a list |[e1 ... e2]|
-    \item |restrict| takes two vectors and filters from the first all the element at a false position in the second
-    \item |combine|
-    \item |dist| works on vectors!
-    \item |bPermute| 
-\end{itemize}

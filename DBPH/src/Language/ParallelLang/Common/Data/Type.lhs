@@ -19,6 +19,7 @@ instance Show Type where
 \end{code}
 %endif
 %{
+We use the following type language to type our input language with (the Nested Kernel Language). We also use this type scheme for several intermediate languages.
 
 %include syntaxdef.fmt
 %include types.fmt
@@ -33,6 +34,7 @@ data Type  =  Fn Type Type
            |  Pair Type Type |  List Type
 \end{code}
 }
+\typeLang
 %}
 %if False
 \begin{code}
@@ -55,7 +57,6 @@ isNum (Pair _ _) = False
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
 varsInType (Pair t1 t2) = varsInType t1 ++ varsInType t2
--- varsInType (Tuple vs) = concatMap varsInType vs
 varsInType (List t) = varsInType t
 varsInType (Var v) = [v]
 varsInType _ = []
@@ -81,11 +82,6 @@ unitT = Unit
 pairT :: Type -> Type -> Type
 pairT t1 t2 = Pair t1 t2
 
-{-
-tupleT :: [Type] -> Type
-tupleT = Tuple
--}
-
 listT :: Type -> Type
 listT = List
 
@@ -99,18 +95,9 @@ listDepth _                 = 0
 
 containsTuple :: Type -> Bool
 containsTuple (Fn t1 t2) = containsTuple t1 || containsTuple t2
--- containsTuple (Tuple _)  = True
 containsTuple (Pair _ _)  = True
 containsTuple (List t)   = containsTuple t
 containsTuple _          = False
-
-{-
-extractTuple :: Type -> (Type, Type -> Type, Int)
-extractTuple (List t1)   = let (t, f, i) = extractTuple t1
-                            in (t, \x -> List (f x), i + 1)
-extractTuple t@(Tuple _) = (t, id, 0) 
-extractTuple _           = error "Type doesn't contain a tuple, cannot extract tuple"
--}
 
 extractPair :: Type -> Type
 extractPair (List t1) = extractPair t1
@@ -120,12 +107,6 @@ extractPair _ = error "Type doesn't contain a pair, cannot extract pair"
 pairComponents :: Type -> (Type, Type)
 pairComponents (Pair t1 t2) = (t1, t2)
 pairComponents t = error $ "Type is not a pair: " ++ show t
-
-{-
-tupleComponents :: Type -> [Type]
-tupleComponents (Tuple ts) = ts
-tupleComponents t          = error $ "Type is not a tuple type: " ++ show t
--}
 
 extractFnRes :: Type -> Type
 extractFnRes = snd . splitTypeArgsRes
@@ -165,7 +146,6 @@ unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
 isFuns :: Type -> Bool
 isFuns (List t1) = isFuns t1
 isFuns (Fn _ _) = True
--- isFuns (Tuple _) = False
 isFuns (Pair _ _) = False
 isFuns _         = False 
 

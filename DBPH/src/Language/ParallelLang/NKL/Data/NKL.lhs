@@ -1,7 +1,7 @@
 %if False
 \begin{code}
-{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses  #-}
-module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key) where
+{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving  #-}
+module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key, difference) where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val(Val())
@@ -17,46 +17,66 @@ type Key = [String]
 %{
 %include syntaxdef.fmt
 %include nkl.fmt
-
+The following syntax diagram describes our input language, the Nested Kernel Language. 
 % The code below defines the NKL grammar
 \newcommand{\NKLGrammar}{
 \begin{code}
-data Expr  =  Table Type String [Column] [Key]
-           |  App Type Expr Expr   
-           |  AppE1 Type Prim1 Expr
-           |  AppE2 Type Prim2 Expr Expr
-           |  BinOp Type Oper Expr Expr 
-           |  Lam Type String Expr 
-           |  If Type Expr Expr Expr 
-           |  Const Type Val
-           |  Var Type String  
+data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database table $n$}
+           |  App Type Expr Expr                -- \textrm{Application of two expressions}
+           |  AppE1 Type Prim1 Expr             -- \textrm{Application of a primitive to a single argument}
+           |  AppE2 Type Prim2 Expr Expr        -- \textrm{Application of a primitive to two arguments}
+           |  BinOp Type Oper Expr Expr         -- \textrm{Application of a binary opertor $\oplus$ to two arguments}
+           |  Lam Type String Expr              -- \textrm{Lambda abstraction}
+           |  If Type Expr Expr Expr            -- \textrm{Conditional}
+           |  Const Type Val                    -- \textrm{Constant value}
+           |  Var Type String                   -- \textrm{Variable}
 \end{code}
 }
 %}
+\NKLGrammar
+
 %if False
 \begin{code}
-    deriving (Show, Eq, Ord)
+deriving instance Show Expr
+deriving instance Eq Expr
+deriving instance Ord Expr
+\end{code}
+%endif
+
+The primitive operations supported by the NKL are the following:
+
+Unary primitive operations:
+%{
+%include syntaxdef.fmt
+%include NKLPrims.fmt
+\begin{code}
+data Prim1  =  Length Type  |  Not Type  |  Concat Type
+            |  Sum Type | The Type | Fst Type | Snd Type
 \end{code}
 
+%if False
 \begin{code}
-data Prim1 = Length Type
-           | Not Type
-           | Concat Type
-           | Sum Type
-           | The Type
-           | Fst Type
-           | Snd Type
-    deriving (Show, Eq, Ord)
+deriving instance Show Prim1
+deriving instance Eq Prim1
+deriving instance Ord Prim1    
 \end{code}
+%endif
+
+Binary primitive operations:
 
 \begin{code}
 data Prim2 = Map Type
            | GroupWith Type
            | SortWith Type
            | Pair Type
-    deriving (Show, Eq, Ord)
 \end{code}
-
+%}
+%if False
+\begin{code}
+deriving instance Show Prim2
+deriving instance Eq Prim2
+deriving instance Ord Prim2
+\end{code}
 \begin{code}
 instance Typed Expr where
     typeOf (Table t _ _ _) = t
@@ -69,17 +89,28 @@ instance Typed Expr where
     typeOf (Const t _) = t
     typeOf (Var t _) = t
 \end{code}
+%endif
 
+We define a function |fvs| to compute the set of free variable in an NKL-expression:
+%{
+%format freeVars = " fvs "
 \begin{code}
-freeVars :: [String] -> Expr -> S.Set (String, Expr)
-freeVars _ (Table _ _ _ _) = S.empty
-freeVars t (App _ e1 es) = freeVars t e1 `S.union` (freeVars t es)
-freeVars t (AppE1 _ _ e1) = freeVars t e1
-freeVars t (AppE2 _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
-freeVars t (Lam _ x e) = freeVars (x:t) e 
-freeVars t (If _ e1 e2 e3) = S.unions [freeVars t e1, freeVars t e2, freeVars t e3]
-freeVars t (BinOp _ _ e1 e2) = freeVars t e1 `S.union` freeVars t e2
-freeVars _ (Const _ _) = S.empty
-freeVars t v@(Var _ x) = if x `elem` t then S.empty else S.singleton (x, v)
+freeVars :: Expr -> S.Set (String, Expr)
+freeVars (Table _ _ _ _) = S.empty
+freeVars (App _ e1 es) = freeVars e1 `S.union` (freeVars es)
+freeVars (AppE1 _ _ e1) = freeVars e1
+freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Lam _ x e) = difference x (freeVars e) -- freeVars (x:t) e 
+freeVars (If _ e1 e2 e3) = S.unions [freeVars e1, freeVars e2, freeVars e3]
+freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Const _ _) = S.empty
+freeVars v@(Var _ x) = S.singleton (x, v)
+\end{code}
+%}
+
+%if False
+\begin{code}
+difference :: Ord a => String -> S.Set (String, a) -> S.Set (String, a)
+difference key = S.filter ((/=) key . fst)
 \end{code}
 %endif
