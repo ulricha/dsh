@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (transType, extractPair, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
+ (isNum, transType, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
 where
     
 instance Show Type where 
@@ -31,6 +31,18 @@ data Type where
     deriving (Eq, Ord)
 
 infixr 6 .->
+
+isNum :: Type -> Bool
+isNum Int = True
+isNum Nat = True
+isNum Double = True
+isNum (Var _) = False
+isNum (Fn _ _) = False
+isNum Bool = False
+isNum String = False
+isNum Unit = False
+isNum (List _) = False
+isNum (Pair _ _) = False
 
 varsInType :: Type -> [String]
 varsInType (Fn t1 t2) = varsInType t1 ++ varsInType t2
@@ -68,6 +80,10 @@ tupleT = Tuple
 
 listT :: Type -> Type
 listT = List
+
+isListT :: Type -> Bool
+isListT (List _) = True
+isListT _        = False
 
 listDepth :: Type -> Int
 listDepth (List t1) = 1 + listDepth t1
@@ -154,5 +170,5 @@ transType (Pair t1 t2) = Pair (transType t1) (transType t2)
 transType (Fn t1 t2)   = Fn (transType t1) (transType t2)
 transType t            = t
 
-class Typed a t where
-  typeOf :: a t -> t
+class Typed a where
+  typeOf :: a -> Type

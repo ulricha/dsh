@@ -2,7 +2,6 @@ module Language.ParallelLang.VL.Data.Query where
 
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.FKL.Data.FKL
-import qualified Language.ParallelLang.Common.Data.Type as T
 
 data Query a =
          TupleVector [Query a]
@@ -11,8 +10,8 @@ data Query a =
        | PrimVal a
        | NestedVector a (Query a)
        | PropVector a
-       | Closure String [(String, Query a)] String (Expr T.Type) (Expr T.Type)
-       | AClosure String (Query a) Int [(String, Query a)] String (Expr T.Type) (Expr T.Type)
+       | Closure String [(String, Query a)] String Expr Expr
+       | AClosure String (Query a) Int [(String, Query a)] String Expr Expr
      deriving Show
 
 nestingDepth :: Show a => Query a -> Int
