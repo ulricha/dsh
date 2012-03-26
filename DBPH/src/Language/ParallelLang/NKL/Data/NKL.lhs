@@ -65,10 +65,8 @@ deriving instance Ord Prim1
 Binary primitive operations:
 
 \begin{code}
-data Prim2 = Map Type
-           | GroupWith Type
-           | SortWith Type
-           | Pair Type
+data Prim2  =  Map Type | GroupWith Type
+            |  SortWith Type | Pair Type
 \end{code}
 %}
 %if False
@@ -93,18 +91,23 @@ instance Typed Expr where
 
 We define a function |fvs| to compute the set of free variable in an NKL-expression:
 %{
-%format freeVars = " fvs "
+%include nkl.fmt
+%format (freeVars (x)) = " fvs (" x ") "
+%format `S.union` = " \cup "
+%format S.empty = " \emptyset "
+%format (S.singleton (x)) = " \{ x \} "
+
 \begin{code}
 freeVars :: Expr -> S.Set (String, Expr)
 freeVars (Table _ _ _ _) = S.empty
-freeVars (App _ e1 es) = freeVars e1 `S.union` (freeVars es)
+freeVars (App _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (AppE1 _ _ e1) = freeVars e1
 freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e) = difference x (freeVars e) -- freeVars (x:t) e 
-freeVars (If _ e1 e2 e3) = S.unions [freeVars e1, freeVars e2, freeVars e3]
+freeVars (Lam _ x e) = difference x (freeVars e)
+freeVars (If _ e1 e2 e3) = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Const _ _) = S.empty
-freeVars v@(Var _ x) = S.singleton (x, v)
+freeVars (v@(Var _ x)) = S.singleton (x, v)
 \end{code}
 %}
 
