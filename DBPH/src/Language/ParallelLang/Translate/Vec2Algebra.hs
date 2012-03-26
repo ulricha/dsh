@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RelaxedPolyRec #-}
+{-# LANGUAGE TemplateHaskell, RelaxedPolyRec, TupleSections #-}
 module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
@@ -30,7 +30,7 @@ import Database.Algebra.Pathfinder(initLoop)
 
 import qualified Data.Map as M
 import Control.Applicative hiding (Const)
-import Control.Monad (liftM2, liftM3)
+import Control.Monad (liftM, liftM2, liftM3)
 
 import Language.ParallelLang.Common.Impossible
 
@@ -125,11 +125,13 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
-                                fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
+                                -- fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
+                                fv <- constructClosureEnv fvs
                                 return $ Closure n fv x f1 f2
-fkl2Alg (AClo _ n e fvs x f1 f2) = do
-                              v <- fkl2Alg e
-                              fv <- mapM (\(y, var) -> do {v' <- fkl2Alg var; return (y, v')}) fvs
+fkl2Alg (AClo _ n fvs x f1 f2) = do
+                              v <- fromGam n
+                              -- fv <- mapM (\(y, var) -> do {v' <- fkl2Alg var; return (y, v')}) fvs
+                              fv <- constructClosureEnv fvs
                               return $ AClosure n v 1 fv x f1 f2 
 fkl2Alg (CloApp _ c arg) = do
                              (Closure _ fvs x f1 _) <- fkl2Alg c
@@ -139,6 +141,10 @@ fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
                               withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
+
+constructClosureEnv :: [String] -> Graph a [(String, Plan)]
+constructClosureEnv [] = return []
+constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
 toPFAlgebra :: Expr -> AlgPlan PFAlgebra Plan
 toPFAlgebra e = runGraph initLoop (fkl2Alg e)

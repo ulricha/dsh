@@ -21,8 +21,8 @@ doubleArgClo t v1 v2 e1 e2 = Clo t "n" [] arg1 f1 f2
         arg2 = "__*" ++ v2 ++ "*"
         body1 = e1 (F.Var t1 arg1) (F.Var t2 arg2)
         body2 = e2 (F.Var (liftType t1) arg1) (F.Var (liftType t2) arg2)
-        f1 = Clo r1 "n" [(arg1, F.Var t1 arg1)] arg2 body1 body2
-        f2 = AClo (liftType r1) "n" (F.Var (liftType t1) "n") [(arg1, F.Var (liftType t1) arg1)] arg2 body1 body2
+        f1 = Clo r1 "n" [arg1] arg2 body1 body2
+        f2 = AClo (liftType r1) "n" [arg1] arg2 body1 body2
 
 groupWithVal :: Type -> Expr
 groupWithVal t = doubleArgClo t "group_f" "group_xs" groupWithPrim groupWithLPrim

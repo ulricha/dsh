@@ -20,8 +20,17 @@ instance Applicative TransM where
     pure  = return
     (<*>) = ap
 
-withCleanLetEnv :: TransM a -> TransM a
-withCleanLetEnv e = do
+withClosure :: [String] -> TransM a -> TransM a
+withClosure xs e = do
+                    (v, l) <- get
+                    put (v, xs)
+                    e' <- e
+                    (v', _) <- get
+                    put (v', l)
+                    return e'
+
+withCleanClosureEnv :: TransM a -> TransM a
+withCleanClosureEnv e = do
                      (v, l) <- get
                      put (v, [])
                      e' <- e
@@ -29,8 +38,8 @@ withCleanLetEnv e = do
                      put (v', l)
                      return e'
 
-withLetVar :: String -> TransM a -> TransM a
-withLetVar n e = do
+withVar :: String -> TransM a -> TransM a
+withVar n e = do
                     (v, l) <- get
                     put (v, n:l)
                     e' <- e
@@ -38,13 +47,13 @@ withLetVar n e = do
                     put (v', l)
                     return e'
 
-isLetVar :: String -> TransM Bool
-isLetVar v = do 
+isClosureVar :: String -> TransM Bool
+isClosureVar v = do 
                 (_, vs) <- get
                 return $ elem v vs
                 
-getLetVars :: TransM [String]
-getLetVars = do
+getClosureVars :: TransM [String]
+getClosureVars = do
                (_, vs) <- get
                return vs
                

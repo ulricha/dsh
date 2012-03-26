@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
@@ -12,23 +11,22 @@ type TypedColumn = (DataColumn, Type)
 type Key = [DataColumn]
 
 -- | Data type expr represents flat kernel language.
-data Expr where
-    Table   :: Type -> String -> [TypedColumn] -> [Key] -> Expr
-    Labeled :: String -> Expr -> Expr -- | Constructor for debugging purposes
-    Pair    :: Type -> Expr -> Expr -> Expr
-    PApp1   :: Type -> Prim1 -> Expr -> Expr
-    PApp2   :: Type -> Prim2 -> Expr -> Expr -> Expr
-    PApp3   :: Type -> Prim3 -> Expr -> Expr -> Expr -> Expr
-    CloApp  :: Type -> Expr -> Expr -> Expr
-    CloLApp :: Type -> Expr -> Expr -> Expr
-    Let     :: Type -> String -> Expr -> Expr -> Expr -- | Let a variable have value expr1 in expr2
-    If      :: Type -> Expr -> Expr -> Expr -> Expr -- | If expr1 then expr2 else expr3
-    BinOp   :: Type -> Op -> Expr -> Expr -> Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-    Const   :: Type -> Val -> Expr -- | Constant value
-    Var     :: Type -> String -> Expr -- | Variable lifted to level i
-    Nil     :: Type -> Expr -- | []
-    Clo     :: Type -> String -> [(String, Expr)] -> String -> Expr -> Expr -> Expr  -- When performing normal function application ignore the first value of the freeVars!!!
-    AClo    :: Type -> String -> Expr -> [(String, Expr)] -> String -> Expr -> Expr -> Expr 
+data Expr = Table   Type String [TypedColumn] [Key]
+          | Labeled String Expr
+          | Pair    Type Expr Expr
+          | PApp1   Type Prim1 Expr
+          | PApp2   Type Prim2 Expr Expr 
+          | PApp3   Type Prim3 Expr Expr Expr
+          | CloApp  Type Expr Expr
+          | CloLApp Type Expr Expr
+          | Let     Type String Expr Expr -- | Let a variable have value expr1 in expr2
+          | If      Type Expr Expr Expr -- | If expr1 then expr2 else expr3
+          | BinOp   Type Op Expr Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
+          | Const   Type Val  -- | Constant value
+          | Var     Type String  -- | Variable lifted to level i
+          | Nil     Type -- | []
+          | Clo     Type String [String] String Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
+          | AClo    Type String [String] String Expr Expr
     deriving Eq
 
 data Prim1 = LengthPrim Type
@@ -109,6 +107,6 @@ instance Typed Expr where
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
-    typeOf (AClo t _ _ _ _ _ _) = t
+    typeOf (AClo t _ _ _ _ _) = t
     typeOf (Pair t _ _) = t
 

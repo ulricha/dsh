@@ -31,7 +31,7 @@ render (BinOp _ o e1 e2) = let e1' = render e1
 render (Const _ v) = renderC v
 render (Var _ x) = text x
 render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text ", \\" <+> text x  <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> "<+> render fl  <> text ">>"
-render (AClo _ l e vs x f fl) = text "<<" <+> text l <> text "<-" <+> render e <+> text (show vs) <> text ", \\" <+> text x <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> " <+> render fl <> text ">>+"
+render (AClo _ l vs x f fl) = text "<<" <+> text l <+> text (show vs) <> text ", \\" <+> text x <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> " <+> render fl <> text ">>+"
 render (CloApp _ f a) = parens $ render f <+> text ":$" <+> (parens $ render a)
 render (CloLApp _ f a) = parens $ render f <+> text ":$l" <+> (parens $ render a)
 render (Nil _) = text "[]" 

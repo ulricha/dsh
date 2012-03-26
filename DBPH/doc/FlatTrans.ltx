@@ -1,16 +1,14 @@
 \newpage
+%include NKL2FKL.lhs
+
 \chapter{The flattening transformation}
-In this chapter we describe how the flattening transformation is performed. The flattening transformation has been described in numerous papers \cite{Goldberg24, Palmer95, Prins93} and more recently in the context of Data Parallel Haskell \cite{Keller98, Keller99, Jones08, Leschinskiy06}
+In this chapter we describe how the flattening transformation is performed. The flattening transformation has been described in numerous papers \cite{Goldberg24, Palmer95, Prins93} and more recently in the context of Data Parallel Haskell \cite{Keller98, Keller99, Jones08, Leschinskiy06}. The flattening transformation aims to transform arbitrarily nested programs into flat programs, were the notion of nesting is encoded through multiple flat lists.
+
 \section{Intuition}
 
-The iterator yields a value of type |[b]| defined as follows:
-\begin{code}
-forall k In 1..#d : [x <- d: e][k] == [x +-> d[k]] e
-\end{code} 
-
-According to this definition the value of an arbitrary element
- of the result is independent of the values of the other elements.
-Therefore computing all results can be done in parallel.
+The goal of the flattening transformation is to make programs more suitable for parallel execution. When we map a function over all elements of a list this is an opportunity for parallelism as the application of the function to each individual element of the list is independent of all the other applications, these applications can thus be executed in parallel.
+It is however not easy to execute an arbitrarily nested program in parallel. Ideally we would have every processor perform the same operations at the same time, this is however not easily achievable for arbitrarily nested data in an efficient manner. We can however transform a nested program into a flat program, which we can then execute in parallel.
+The flattening transformation eliminates all occurrences of |map|, primitive operations are lifted to their vector equivalents. 
 
 \section{Representing functions as first class citizens}
 
@@ -60,46 +58,11 @@ The strategy provided above for dealing with nested maps (/iteration) and replic
 
 The flattening transformation aims at removing \emph{all} occurrences of map (|map e1 e2|).
 
-Several optimisations can be made with respect to the original algorithm. In this section we directly include some optimisation that make the transformation more suitable for our execution platform. As we are targeting databases instead of GPUs or C-vector libraries. The original let rule translates the program into a new program with index lookups. These index lookups however are very costly operations on the database. We can, luckily, avoid these introductions of index operations. We therefore add to the flattening transformation an extra environment |LetE| to hold the optimised let variables. The change is also reflected by the presence of an additional variable rule.
+The transformation described in this section is very similar to the transformation described in \cite{Jones08}. Our implementation is somewhat  different from the transformation described in \cite{Jones08} to make the result more suitable for our execution platform, databases. As we are targeting databases instead of GPUs or C-vector libraries. For instance it is better for us to avoid the use index operations as these are very costly on a database. We can, luckily, avoid these introductions of index operations. % We therefore add to the flattening transformation an extra environment |LetE| to hold the optimised let variables. The change is also reflected by the presence of an additional variable rule.
 
-All iterators can now be eliminated by applying the following transformation rules to the source program. 
+The transformation consists out of two functions, the first merely translates a part of an NKL tree into an FKL tree. The second however lifts such a tree into a vector form (which is included in every function).
 
-\begin{infrules} 
-    \infrule[trans-abs]
-            {| let i, n be fresh |\quad | (fv1, ..., fvn) = fv(e)/{x} |\\
-             | ++- e => e' |\quad | [x, fv1, ..., fvn] +-- [e || i <- n] => e'' |}
-            {| ++- \x -> e => Clo (fv1, ..., fvn) (\fv1 ... fvn x -> e') (\n fv1 ... fvn x -> e'') |}\\
-    \infrule[trans-nil]
-            {| |}
-            {|  ++- [] => [] |}
-    \infrule[trans-app]
-            {|  ++- f => f' | \quad 
-             |  ++- e1 => e1'|\quad
-             |  ++- en => en'|}
-            {|  ++- f e1 ... en => f' cApp e1' ... en'|}\\
-    \infrule[trans-binop]
-            {| ++- e1 => e1'|\quad
-             | ++- e2 => e2'|}
-            {| ++- e1 op e2 => e1' op e2|}\\
-    \infrule[trans-let]
-            {| ++- e1 => e1'|\quad
-             | ++- e2 => e2'|\quad
-             | ++- e3 => e3'|}
-            {| ++- if e1 then e2 else e3 => if e1' then e2' else e3' |}\\
-    \infrule[trans-const]
-            {| |}
-            {| ++- c => c |}
-    \infrule[trans-var]
-            {| |}
-            {| ++- x => x |}
-    \infrule[trans-proj]
-            {| ++- e1 => e1'|}
-            {| ++- e1@i => e1'@i |}\\
-    \infrule[trans-map]
-            {| ++- e2 => e2'|\quad
-             | ++- e1 => e1'|}
-            {| ++- map e1 e2 => (dist e1' e2') cApp1 e2'|}
-\end{infrules}
+\transform
 
 The actual flattening is performed when an iterator is encountered. First the body of the 
 iterator is transformed and flattened, before the iterator itself is flattened.
