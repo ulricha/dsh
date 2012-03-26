@@ -1,7 +1,7 @@
 %if False
 \begin{code}
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving  #-}
-module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key, difference) where
+module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key) where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val(Val())
@@ -98,22 +98,15 @@ We define a function |fvs| to compute the set of free variable in an NKL-express
 %format (S.singleton (x)) = " \{ x \} "
 
 \begin{code}
-freeVars :: Expr -> S.Set (String, Expr)
+freeVars :: Expr -> S.Set String
 freeVars (Table _ _ _ _) = S.empty
 freeVars (App _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (AppE1 _ _ e1) = freeVars e1
 freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e) = difference x (freeVars e)
+freeVars (Lam _ x e) = (freeVars e) S.\\ S.singleton x
 freeVars (If _ e1 e2 e3) = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Const _ _) = S.empty
-freeVars (v@(Var _ x)) = S.singleton (x, v)
+freeVars (Var _ x) = S.singleton x
 \end{code}
 %}
-
-%if False
-\begin{code}
-difference :: Ord a => String -> S.Set (String, a) -> S.Set (String, a)
-difference key = S.filter ((/=) key . fst)
-\end{code}
-%endif
