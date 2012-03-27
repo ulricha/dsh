@@ -257,7 +257,7 @@ sortWithPF (ValueVector qs) e =
         q <- tagM "sortWith" 
              $ eqJoinM pos pos''
                (projM [(pos, pos), (pos', pos')]
-                $ rownum pos' [descr, item] Nothing qs)
+                $ rownum pos' [descr, item, pos] Nothing qs)
                (proj (pf [(descr, descr), (pos'', pos)]) qe)
         qv <- proj (pf [(descr, descr), (pos, pos')]) q
         qp <- proj [(posold, pos''), (posnew, pos')] q
@@ -402,7 +402,7 @@ combineVecPF (ValueVector qb) e1 e2 = do
                         qp2 <- PropVector <$> proj [(posnew, pos), (posold, pos')] d2
                         return $ TupleVector [qr, qp1, qp2]
 combineVecPF _ _ _ = error "combineVecPF: Should not be possible"
-                        
+
 bPermuteVecPF :: Plan -> Plan -> Graph PFAlgebra Plan
 bPermuteVecPF e1 (ValueVector q2) = do
                      (rf, q1, pf) <- determineResultVector e1
