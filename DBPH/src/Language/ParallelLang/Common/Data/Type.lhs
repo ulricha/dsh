@@ -131,7 +131,7 @@ liftTypeN 0 t = t
 liftTypeN i t = liftTypeN (i - 1) $ liftType t
 
 liftType :: Type -> Type
-liftType (Fn t1 t2) = Fn (liftType t1) (liftType t2)
+-- liftType (Fn t1 t2) = Fn (liftType t1) (liftType t2)
 liftType t = listT t 
 
 unliftTypeN :: Int -> Type -> Type
@@ -140,7 +140,7 @@ unliftTypeN i t = unliftTypeN (i - 1) $ unliftType t
 
 unliftType :: Type -> Type
 unliftType (List t1) = t1
-unliftType (Fn t1 t2) = Fn (unliftType t1) (unliftType t2)
+-- unliftType (Fn t1 t2) = Fn (unliftType t1) (unliftType t2)
 unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
 
 isFuns :: Type -> Bool
