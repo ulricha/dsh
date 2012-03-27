@@ -6,6 +6,10 @@ module Main where
 import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
+#if !defined(isDBPH) & !defined(isX100)
+#define isFerry
+#endif
+
 -- import Database.DSH.Interpreter (fromQ)
 #ifdef isDBPH 
 import Database.DSH.Flattening (fromQ)
@@ -158,7 +162,9 @@ tests =
         , testProperty "append" $ prop_append
 #endif
         , testProperty "groupWith" $ prop_groupWith
+#ifdef isX100
         , testProperty "groupWith length" $ prop_groupWith_length
+#endif
         , testProperty "sortWith" $ prop_sortWith
 #ifndef isDBPH
         , testProperty "and" $ prop_and
@@ -194,7 +200,9 @@ tests =
         , testProperty "Lifted neq" $ prop_map_neq
         , testProperty "Lifted cond" $ prop_map_cond
         , testProperty "Lifted cond tuples" $ prop_map_cond_tuples
+#ifndef isFerry        
         , testProperty "Lifted cond + concat" $ prop_concatmapcond
+#endif
         , testProperty "Lifted lt" $ prop_map_lt
         , testProperty "Lifted lte" $ prop_map_lte
         , testProperty "Lifted gt" $ prop_map_gt
@@ -203,7 +211,9 @@ tests =
         , testProperty "Lifted concat" $ prop_map_concat
         , testProperty "Lifted fst" $ prop_map_fst
         , testProperty "Lifted snd" $ prop_map_snd
+#ifdef isX100
         , testProperty "Lifted the" $ prop_map_the
+#endif
         --, testProperty "Lifed and" $ prop_map_and
         , testProperty "map (map (*2))" $ prop_map_map_mul
         , testProperty "map (map (map (*2)))" $ prop_map_map_map_mul
@@ -211,7 +221,9 @@ tests =
         , testProperty "Lifted groupWith" $ prop_map_groupWith
         , testProperty "Lifted sortWith" $ prop_map_sortWith
         , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
+#ifdef isX100        
         , testProperty "Lifted groupWith length" $ prop_map_groupWith_length
+#endif        
         , testProperty "Lifted length" $ prop_map_length
         , testProperty "Lifted length on [[(a,b)]]" $ prop_map_length_tuple
         {- This test fails at least on X100: The X100 result is correct, but the order of elements
@@ -219,7 +231,9 @@ tests =
            which is not a stable sort. GHC.Exts.sortWith documentation does not specify wether it
            sorts in a stable way or not. -}
         , testProperty "Sortwith length nested" $ prop_sortWith_length_nest
+#ifdef isX100
         , testProperty "GroupWith length nested" $ prop_groupWith_length_nest
+#endif
         ]
     ]
 
