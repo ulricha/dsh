@@ -181,6 +181,10 @@ restrict (NestedVector d1 vs1) e2@(ValueVector _)
                        TupleVector [v, p] <- restrictVec (DescrVector d1) e2
                        e3 <- chainRenameFilter p vs1
                        return $ attachV v e3
+restrict (AClosure n l i env arg e1 e2) bs = do
+                                            l' <- restrict l bs
+                                            env' <- mapEnv (flip restrict bs) env
+                                            return $ AClosure n l' i env' arg e1 e2 
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
@@ -267,6 +271,7 @@ distL (AClosure n v i xs x f fl) q2 = do
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL (TupleVector es) e2 = TupleVector <$> mapM (\e -> distL e e2) es 
+distL e1 (TupleVector [e2, _]) = distL e1 e2
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
 ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan

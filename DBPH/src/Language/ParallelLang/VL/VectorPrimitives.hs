@@ -107,6 +107,7 @@ concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 -- move a descriptor from e1 to e2
 unconcatV :: Plan -> Plan -> Graph a Plan
+unconcatV (TupleVector [e1, _]) q = unconcatV e1 q
 unconcatV (NestedVector d _) q = return $ NestedVector d q
 unconcatV e1 e2                = error $ "unconcatV: Not supported: " ++ show e1 ++ " " ++ show e2
 

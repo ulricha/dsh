@@ -66,7 +66,33 @@ lift en   (N.App _t f es) = cloLApp <$> lift en f <*> lift en es
 lift en   (N.AppE1 _ p arg) = cloLApp (distPrim (prim1Transform p) en) <$> lift en arg 
 lift en   (N.AppE2 _ p arg1 arg2) = cloLApp <$> (cloLApp (distPrim (prim2Transform p) en) <$> lift en arg1) <*> lift en arg2
 lift en   (N.If _ e1 e2 e3) = do
-                                   r1' <- getFreshVar
+                                   e1' <- lift en e1
+                                   let (F.Var t n) = en
+                                   -- let r1 = restrictPrim en e1'
+                                   -- let r2 = restrictPrim en (notLPrim e1')
+                                   let fvs = S.toList $ N.freeVars e2 `S.union` N.freeVars e3
+                                   n1' <- getFreshVar
+                                   let n1 = F.Var (typeOf en) n1'
+                                   n2' <- getFreshVar
+                                   let n2 = F.Var (typeOf en) n2'
+                                   let rt = listT $ (unliftType t) .-> typeOf e2
+                                   e21 <- withCleanClosureEnv $ transform e2
+                                   
+                                   e22 <- withClosure (n1':fvs) (lift n1 e2) 
+                                   let e2' = F.AClo rt n fvs n1' e21 e22
+                                   
+                                   e31 <- withCleanClosureEnv $ transform e3
+                                   e32 <- withClosure (n1':fvs) (lift n2 e3)
+                                   let e3' = F.AClo rt n fvs n2' e31 e32
+                                   
+                                   let e2'' = restrictPrim e2' e1'
+                                   let e3'' = restrictPrim e3' (notLPrim e1')
+                                   
+                                   return $ combinePrim e1' (e2'' `cloLApp` en) (e3'' `cloLApp` en)                                                                                                                                          
+                                   {- e2' <- lift r1 e2
+                                   e3' <- lift r2 e3
+                                   return $ combinePrim e1' e2' e3' -}
+                                   {- r1' <- getFreshVar
                                    r2' <- getFreshVar 
                                    v1' <- getFreshVar
                                    v2' <- getFreshVar
@@ -81,7 +107,7 @@ lift en   (N.If _ e1 e2 e3) = do
                                    e3' <- lift r2 e3
                                    let v2 = F.Var (typeOf e2') v2'
                                    let v3 = F.Var (typeOf e3') v3'
-                                   return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combinePrim v1 v2 v3
+                                   return $ letF v1' e1' $ letF r1' rv1 $ letF r2' rv2 $ letF v2' e2' $ letF v3' e3' $ combinePrim v1 v2 v3 -}
 lift en   (N.BinOp t o e1 e2) = (F.BinOp (liftType t) (Op o True)) <$> lift en e1 <*> lift en e2
 lift en   (N.Lam t arg e) = do
                                 let (F.Var _ n') = en
