@@ -398,8 +398,8 @@ combineVecPF (ValueVector qb) e1 e2 = do
                         d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item qb
                         q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
                         qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
-                        qp1 <- PropVector <$> proj [(posold, pos), (posnew, pos')] d1
-                        qp2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] d2
+                        qp1 <- PropVector <$> proj [(posnew, pos), (posold, pos')] d1
+                        qp2 <- PropVector <$> proj [(posnew, pos), (posold, pos')] d2
                         return $ TupleVector [qr, qp1, qp2]
 combineVecPF _ _ _ = error "combineVecPF: Should not be possible"
                         
