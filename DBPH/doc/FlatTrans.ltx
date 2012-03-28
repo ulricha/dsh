@@ -67,54 +67,7 @@ The transformation consists out of two functions, the first merely translates a 
 The actual flattening is performed when an iterator is encountered. First the body of the 
 iterator is transformed and flattened, before the iterator itself is flattened.
 
-\begin{infrules}
-    \infrule[flat-nest]
-        {| ++- \x -> e1 => f |\\
-         | LetE +-- [e2 || i <- e3] => e2' |}
-        {| LetE +-- [[e1 || x <- e2] i <- e3] => unconcat e2' (concat (dist cApp1 (dist cApp f e3) e2')) cApp1 (concat e2') |}\\
-    \infrule[flat-var-1]
-        {| |}
-        {| LetE  +-- [v || v <- e1] => e1|}
-    \infrule[flat-var-2]
-        {| x `elem` LetE|}
-        {| LetE  +-- [x || v <- e1] => x|}\\
-    \infrule[flat-var-3]
-        {| x |~\textrm{is bound at top level}}
-        {| LetE  +-- [x || v <- e1] => dist cApp x e1 |}
-    \infrule[flat-const]
-        {| |}
-        {| LetE +-- [c || v <- e1] => dist cApp c e1 |}\\
-    \infrule[flat-proj]
-        {| LetE +-- [e1 || v <- e2] => e1' |}
-        {| LetE +-- [e1@i || v <- e2] => e1' (level at 1) i|}\\
-    \infrule[flat-app]
-        {| LetE +-- [arg1 || v <- e1] => arg1'|\quad
-         | ... |\quad
-         | LetE +-- [argn || v <- e1] => argn'|\\
-         | LetE +-- ef => ef' |}
-        {| LetE +-- [ef arg1 ... argn || v <- e1] => ef' cApp1 arg1' ... argn'|}\\
-    \infrule[flat-let]
-        {| LetE +-- [e1 || v <- e3] => e1' |\quad
-         | LetE[x] +-- [e2 || v <- e3] => e2'|}
-        {| LetE +-- [let x = e1 in e2 || v <- e3] => let x = e1' in e2'|}\\
-    \infrule[flat-lambda]
-        {| let i, n be fresh |\quad | (fv1, ..., fvn) = fv(e1)/{x} |\\
-         | ++- e1 => e' |\quad | [x, fv1, ..., fvn] +-- [e1 || i <- n] => e'' |}
-        {| LetE +-- [\x -> e1 || v <- e2] => let v = e2 in AClo ((e2, fv1, ..., fvn)) (\fv1 ... fv1 x -> e') (\n fv1 ... fvn x -> e'') |}\\
-    \infrule[flat-if]
-        {| let v1, v2, v3 be fresh |\\
-         | LetE +-- [e1 || v <- e4] => e1'|\quad
-         | LetE +-- [e2 || v <- restrict e4 v1] => e2'|\\
-         | LetE +-- [e3 || v <- restrict e4 (not v1)] => e3'|}
-        {| LetE +-- [if e1 then e2 else e3 || v <- e4] => let v1 = e1', v2 = e2', v3 = e3' in combine v1 v2 v3|}\\
-    \infrule[flat-op]
-        {| LetE +-- [e1 || v <- e3] => e1' |\quad
-         | LetE +-- [e2 || v <- e3] => e2' |}
-        {| LetE +-- [e1 op e2 || v <- e3] => e1' (level op 1) e2' |}\\
-\end{infrules}
-
-Primitive operations that are required:
-restrict, combine, not, dist, length, insert, extract.
+\flatten
 
 \section{Simplifying the flattening transformation}
 

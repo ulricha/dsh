@@ -10,6 +10,8 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
 import qualified Language.ParallelLang.Common.Data.Type as T
 
+import Control.Monad
+
 --The groupWith combinator
 
 doubleArgClo :: Type -> String -> String -> (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) -> Expr
@@ -157,6 +159,10 @@ cloApp e1 ea = CloApp rt e1 ea
    where
        fty = typeOf e1
        (_, rt) = splitType fty
+       
+cloAppM :: Monad m => m Expr -> m Expr -> m Expr
+cloAppM = liftM2 cloApp
+                
 
 cloLApp :: Expr -> Expr -> Expr
 cloLApp e1 ea = CloLApp (liftType rt) e1 ea
