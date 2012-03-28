@@ -12,33 +12,10 @@
 %% Variables
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%format e0 = " e_{0} "
-%format e1 = " e_{1} "
-%format e2 = " e_{2} "
-%format e3 = " e_{3} "
-%format e4 = " e_{4} "
-%format en = " e_{n} "
-%format em = " e_{m} "
-%format er = " e_r "
-%format ef = " e_f "
 %format ea1 = " e_{a1} "
 %format ea2 = " e_{a2} "
 %format ean = " e_{an} "
 %format enp1 = " e_{n+1} "
-%format e1' = " e_{1}'' "
-%format e2' = " e_{2}'' "
-%format e3' = " e_{3}'' "
-%format e4' = " e_{4}'' "
-%format en' = " e_{n}'' "
-%format e1'' = " e_{1}'''' "
-%format e2'' = " e_{2}'''' "
-%format e3'' = " e_{3}'''' "
-%format e4'' = " e_{4}'''' "
-%format en'' = " e_{n}'''' "
-
-%format v1 = " v_{1} "
-%format v2 = " v_{2} "
-%format v3 = " v_{3} "
 
 %format n1' = " n_{1}'' "
 %format nn' = " n_{n}'' "
@@ -57,28 +34,8 @@
 %format e2n = " e_{2n} "
 %format ei = " e_{i} "
 
-%format ef = " e_f "
-%format ef' = " e_f'' "
-
-%format t = " \tau "
-%format t1 = " \tau_{1} "
-%format t2 = " \tau_{2} "
-%format tn = " \tau_{n} "
-%format ti = " \tau_{i} "
-%format t' = " \tau'' "
-%format t1' = " \tau_{1}'' "
-%format t2' = " \tau_{2}'' "
-%format tn' = " \tau_{n}'' "
-%format ti' = " \tau_{i}'' "
 %format fv1 = " fv_{1} "
 %format fvn = " fv_{n} "
-
-
-%format x1 = " x_1 "
-%format x2 = " x_2 "
-%format x3 = "x_3"
-%format x4 = "x_4"
-%format xn = "x_n"
 
 %format fl = " f^{l} "
 %format fd = " f^{d} "
@@ -114,7 +71,6 @@
 %% Misc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%format ... = "\ldots "
 %format <.> = "\bullet"
 %format binds = "bind^{*}"
 %format In = " \in "
@@ -157,21 +113,11 @@
 %format r1 = " r_1 "
 %format r2 = " r_2 "
 
-%format (Clo (x) (y) (z)) = " \ll " x ", " y ", " z "\gg "
-%format (AClo (x) (y) (z)) = "\ll " x ", " y ", " z " \gg^\uparrow "
-
 %format plus = " + "
 %format Gam = " \Gamma "
 %format Gam' = " \Gamma'' "
 
 %format :-> = " \rightarrowtail "
-
-%format cApp = " :\$"
-%format cAppn = " :{}\$^n "
-%format cAppd = " :{}\$^d "
-%format cApp1 = " :{}\$^1 "
-%format cApp0 = " :{}\$^0 "
-%format cAppn1 = " :{}\$^{n+1} "
 
 %format nullVal = "\begin{array}[t]{|c|}\colhd{\scriptstyle i}\\ \scriptstyle{'0'}\\ \hline \end{array} "
 

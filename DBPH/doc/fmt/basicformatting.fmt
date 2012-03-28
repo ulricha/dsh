@@ -14,7 +14,8 @@
 %% PUNCTUATION
 %% ----------------------------------------------------------------------------
 %format ^   = "{}"
-%format ... = "\cdots"
+% format ... = "\cdots"
+%format ... = "\ldots "
 
 %format (sup(x)(y)) = x "^{" y "}"
 
