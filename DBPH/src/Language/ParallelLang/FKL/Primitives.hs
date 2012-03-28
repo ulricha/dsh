@@ -7,6 +7,7 @@ module Language.ParallelLang.FKL.Primitives where
     
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.Common.Data.Val
+import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
 import qualified Language.ParallelLang.Common.Data.Type as T
 
@@ -169,6 +170,9 @@ cloLApp e1 ea = CloLApp (liftType rt) e1 ea
     where
         fty = typeOf e1
         (_, rt) = splitType $ unliftType fty
+        
+cloLAppM :: Monad m => m Expr -> m Expr -> m Expr
+cloLAppM = liftM2 cloLApp
 
 indexPrim :: Expr -> Expr -> Expr
 indexPrim e1 e2 = let t1@(T.List t) = typeOf e1
@@ -250,3 +254,24 @@ sndLPrim e = let t = typeOf e
               in case t of
                   (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
                   _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
+
+ifPrim :: Expr -> Expr -> Expr -> Expr
+ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
+                   in if tb == boolT && tt == te
+                       then If tt eb et ee
+                       else error $ "ifPrim: Provided types are not compatible: " ++ show tb ++ " " ++ show tt ++ " " ++ show te
+
+ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
+ifPrimM = liftM3 ifPrim
+    
+opPrim :: Type -> Oper -> Expr -> Expr -> Expr     
+opPrim t o = BinOp t (Op o False)
+
+opPrimM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
+opPrimM t o = liftM2 (opPrim t o)
+
+opPrimL :: Type -> Oper -> Expr -> Expr -> Expr
+opPrimL t o = BinOp t (Op o True) 
+
+opPrimLM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
+opPrimLM t o = liftM2 (opPrimL t o)

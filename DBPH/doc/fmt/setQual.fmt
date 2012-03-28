@@ -1,3 +1,4 @@
 %format S.\\ = " ~\backslash\backslash ~ "
 %format (S.singleton (x)) = " \{" x "\} "
 %format S.toList = " "
+%format `S.union` = " \cup "
