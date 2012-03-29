@@ -3,7 +3,7 @@ module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
 
-import qualified Language.ParallelLang.NKL.Primitives as NP
+import qualified Language.ParallelLang.NKL.NKLPrimitives as NP
 -- import qualified Language.ParallelLang.NP.Data.NP as NP
 import qualified Language.ParallelLang.Common.Data.Type as T
 
