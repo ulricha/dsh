@@ -50,12 +50,14 @@ pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 pairPrim :: Expr -> Expr -> Expr
 pairPrim e1 e2 = let t1 = typeOf e1
                      t2 = typeOf e2
-                  in F.Pair (t1 .-> t2 .-> pairT t1 t2) e1 e2
+                     rt = pairT t1 t2
+                  in F.PApp2 rt (F.Pair (t1 .-> t2 .-> rt)) e1 e2
 
 pairLPrim :: Expr -> Expr -> Expr
 pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
                       t2@(T.List t2') = typeOf e2
-                   in F.Pair (t1 .-> t2 .-> listT (pairT t1' t2')) e1 e2 
+                      rt = listT (pairT t1' t2')
+                   in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
 --The sortWith combinator
 
@@ -221,15 +223,8 @@ intF i = F.Const intT $ Int i
 varF :: Type -> String -> Expr
 varF t x = F.Var t x
 
-letF :: String -> Expr -> Expr -> Expr
-letF v e1 e2 = F.Let (typeOf e2) v e1 e2
-
 tagN :: String -> Expr -> Expr
 tagN s e = Labeled s e
-
-
-pairF :: Expr -> Expr -> Expr
-pairF e1 e2 = F.Pair (pairT (typeOf e1) (typeOf e2)) e1 e2
 
 fstPrim :: Expr -> Expr
 fstPrim e = let t = typeOf e
@@ -275,3 +270,15 @@ opPrimL t o = BinOp t (Op o True)
 
 opPrimLM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
 opPrimLM t o = liftM2 (opPrimL t o)
+
+clo :: Type -> String -> [String] -> String -> Expr -> Expr -> Expr
+clo = Clo
+
+cloM :: Monad m => Type -> String -> [String] -> String -> m Expr -> m Expr -> m Expr
+cloM t n fv a = liftM2 (Clo t n fv a)
+
+cloL :: Type -> String -> [String] -> String -> Expr -> Expr -> Expr
+cloL = AClo
+
+cloLM :: Monad m => Type -> String -> [String] -> String -> m Expr -> m Expr -> m Expr
+cloLM t n fv a = liftM2 (cloL t n fv a) 
