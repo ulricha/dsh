@@ -29,7 +29,6 @@ import Language.ParallelLang.VL.VectorOperations
 import Database.Algebra.Pathfinder(initLoop)
 
 import qualified Data.Map as M
-import Control.Applicative hiding (Const)
 import Control.Monad (liftM, liftM2, liftM3)
 
 import Language.ParallelLang.Common.Impossible
@@ -69,12 +68,10 @@ transType (T.Fn t1 t2)       = T.Fn (transType t1) (transType t2)
 transType t                  = t
 
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
-fkl2Alg (Pair _ e1 e2) = TupleVector <$> mapM fkl2Alg [e1, e2]
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 fkl2Alg (Labeled _ e) = fkl2Alg e
 fkl2Alg (Const t v) | T.containsTuple t = constructLiteral (transType t) (fst $ deTupleVal t v)
                     | otherwise = constructLiteral t v 
-fkl2Alg (Nil t) = emptyVector $ Just t
 fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
                                                 p1 <- fkl2Alg e1
                                                 p2 <- fkl2Alg e2
@@ -90,10 +87,6 @@ fkl2Alg (If _ eb e1 e2) = do
                           e1' <- fkl2Alg e1
                           e2' <- fkl2Alg e2
                           ifList eb' e1' e2'
-fkl2Alg (Let _ s e1 e2) = do
-                            e' <- fkl2Alg e1
-                            e1' <- tagVector s e'
-                            withBinding s e1' $ fkl2Alg e2
 fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
@@ -122,15 +115,15 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute
                 (Unconcat _) -> unconcatV
+                (Pair _) -> \e1 e2 -> return $ TupleVector [e1, e2]
+                (PairL _) -> \e1 e2 -> return $ TupleVector [e1, e2]
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
-                                -- fv <- mapM (\(y, v) -> do {v' <- fkl2Alg v; return (y, v')}) fvs
                                 fv <- constructClosureEnv fvs
                                 return $ Closure n fv x f1 f2
 fkl2Alg (AClo _ n fvs x f1 f2) = do
                               v <- fromGam n
-                              -- fv <- mapM (\(y, var) -> do {v' <- fkl2Alg var; return (y, v')}) fvs
                               fv <- constructClosureEnv fvs
                               return $ AClosure n v 1 fv x f1 f2 
 fkl2Alg (CloApp _ c arg) = do

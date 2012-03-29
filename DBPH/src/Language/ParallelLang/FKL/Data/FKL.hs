@@ -13,18 +13,15 @@ type Key = [DataColumn]
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [TypedColumn] [Key]
           | Labeled String Expr
-          | Pair    Type Expr Expr
           | PApp1   Type Prim1 Expr
           | PApp2   Type Prim2 Expr Expr 
           | PApp3   Type Prim3 Expr Expr Expr
           | CloApp  Type Expr Expr
           | CloLApp Type Expr Expr
-          | Let     Type String Expr Expr -- | Let a variable have value expr1 in expr2
           | If      Type Expr Expr Expr -- | If expr1 then expr2 else expr3
           | BinOp   Type Op Expr Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
           | Const   Type Val  -- | Constant value
           | Var     Type String  -- | Variable lifted to level i
-          | Nil     Type -- | []
           | Clo     Type String [String] String Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
           | AClo    Type String [String] String Expr Expr
     deriving Eq
@@ -72,6 +69,8 @@ data Prim2 = GroupWithS Type
            | Restrict Type
            | BPermute Type
            | Unconcat Type
+           | Pair Type
+           | PairL Type
     deriving Eq
 
 instance Show Prim2 where
@@ -85,7 +84,9 @@ instance Show Prim2 where
     show (Restrict _)   = "restrict"
     show (BPermute _)   = "bPermute"
     show (Unconcat _)   = "unconcat"
-
+    show (Pair _)       = "pair"
+    show (PairL _)      = "pairL"
+    
 data Prim3 = Combine Type
     deriving Eq
 
@@ -97,16 +98,12 @@ instance Typed Expr where
     typeOf (PApp1 t _ _) = t
     typeOf (PApp2 t _ _ _) = t
     typeOf (PApp3 t _ _ _ _) = t
-    typeOf (Let t _ _ _) = t
     typeOf (If t _ _ _) = t
     typeOf (BinOp t _ _ _) = t
     typeOf (Const t _) = t
     typeOf (Var t _) = t
-    typeOf (Nil t) = t
     typeOf (Labeled _ e) = typeOf e
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t
     typeOf (AClo t _ _ _ _ _) = t
-    typeOf (Pair t _ _) = t
-

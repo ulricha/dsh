@@ -13,7 +13,6 @@ import Language.ParallelLang.Common.Data.Type
 import qualified Data.Set as S
 
 import Control.Applicative
-import Control.Monad
 
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
@@ -70,7 +69,7 @@ transform (N.Lam t arg e)      =   do
                                     let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
                                     n' <- getFreshVar
                                     let n = F.Var (listT (Var "a")) n'
-                                    liftM2 (F.Clo t n' fvs arg) (transform e) (lift n e)
+                                    cloM t n' fvs arg (transform e) (lift n e)
 transform (N.If _ e1 e2 e3)    =   ifPrimM (transform e1) (transform e2) (transform e3)
 transform (N.BinOp t o e1 e2)  =   opPrimM t o (transform e1) (transform e2)
 transform (N.Const t v)        =   pure $ F.Const t v
@@ -84,9 +83,9 @@ lift :: F.Expr -> N.Expr -> TransM F.Expr
 lift en   (N.Table t n c k)        = pure $ distPrim ((F.Table t n c k)) en
 lift _en  (N.Var t x)              = pure $ F.Var (liftType t) x
 lift en   (N.Const t v)            = pure $ distPrim (F.Const t v) en
-lift en   (N.App _t f es)          = cloLAppM (lift en f) (lift en es)
-lift en   (N.AppE1 _ p arg)        = cloLAppM (pure $ distPrim (prim1Transform p) en) (lift en arg) 
-lift en   (N.AppE2 _ p arg1 arg2)  = cloLAppM (cloLAppM (pure $ distPrim (prim2Transform p) en) (lift en arg1)) (lift en arg2)
+lift en   (N.App _t e1 e2)         = cloLAppM (lift en e1) (lift en e2)
+lift en   (N.AppE1 _ p e1)         = cloLAppM (pure $ distPrim (prim1Transform p) en) (lift en e1) 
+lift en   (N.AppE2 _ p e1 e2)      = cloLAppM (cloLAppM (pure $ distPrim (prim2Transform p) en) (lift en e1)) (lift en e2)
 lift en   (N.If _ e1 e2 e3)        = do
                                       e1' <- lift en e1
                                       let (F.Var t n) = en
@@ -97,9 +96,9 @@ lift en   (N.If _ e1 e2 e3)        = do
                                       let n2 = F.Var (typeOf en) n2'
                                       let rt = listT $ (unliftType t) .-> typeOf e2
 
-                                      e2' <- liftM2 (F.AClo rt n fvs n1') (transform e2) (lift n1 e2)
+                                      e2' <- cloLM rt n fvs n1' (transform e2) (lift n1 e2)
                                       
-                                      e3' <- liftM2 (F.AClo rt n fvs n2') (transform e3) (lift n2 e3) 
+                                      e3' <- cloLM rt n fvs n2' (transform e3) (lift n2 e3) 
                                       
                                       let e2'' = restrictPrim e2' e1' `cloLApp` restrictPrim en e1'
                                       let e3'' = restrictPrim e3' (notLPrim e1') `cloLApp` restrictPrim en (notLPrim e1')
@@ -109,6 +108,6 @@ lift en   (N.BinOp t o e1 e2)      = opPrimLM t o (lift en e1) (lift en e2)
 lift en   (N.Lam t arg e)          = do
                                       let (F.Var _ n') = en
                                       let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
-                                      liftM2 (F.AClo (liftType t) n' fvs arg) (transform e) (lift en e)
+                                      cloLM (liftType t) n' fvs arg (transform e) (lift en e)
 \end{code}
 }

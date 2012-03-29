@@ -15,10 +15,6 @@ render (Labeled _ e) = render e
 render (PApp1 _ f e1) = text (show f) <+> (parens $ render e1)
 render (PApp2 _ f e1 e2) = text (show f) <+> (parens $ render e1) <+> (parens $ render e2)
 render (PApp3 _ f e1 e2 e3) = text (show f) <+> (parens $ render e1) <+> (parens $ render e2) <+> (parens $ render e3)
-render (Let _ x e1 e2) = let e1' = render e1
-                             e2' = render e2
-                          in text "(" <> text "let" <+> text x <+> text "=" <+> e1'
-                               $+$ (nest 2 $ text "in" <+> e2') <> text ")"
 render (If _ e1 e2 e3) = let e1' = render e1
                              e2' = render e2
                              e3' = render e3
@@ -34,8 +30,6 @@ render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <
 render (AClo _ l vs x f fl) = text "<<" <+> text l <+> text (show vs) <> text ", \\" <+> text x <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> " <+> render fl <> text ">>+"
 render (CloApp _ f a) = parens $ render f <+> text ":$" <+> (parens $ render a)
 render (CloLApp _ f a) = parens $ render f <+> text ":$l" <+> (parens $ render a)
-render (Nil _) = text "[]" 
-render (Pair _ e1 e2) = parens (render e1 <> comma <+> render e2)
 
 renderC :: V.Val -> Doc
 renderC (V.Int i) = int i
