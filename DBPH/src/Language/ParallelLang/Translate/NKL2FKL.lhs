@@ -16,7 +16,7 @@ import qualified Language.ParallelLang.FKL.Data.FKL as F
 import qualified Language.ParallelLang.NKL.Data.NKL as N
 import Language.ParallelLang.Translate.TransM
 
-import Language.ParallelLang.FKL.Primitives
+import Language.ParallelLang.FKL.FKLPrimitives
 import Language.ParallelLang.Common.Data.Type
 
 import qualified Data.Set as S
@@ -60,9 +60,9 @@ In Haskell functions are treated the same as values are, and can thus be passed 
 A closure is build out of three components, a set of variables that occur free in the function body. A flattened version of the lambda and a lifted version. This lifted version is needed to deal with the fact any lambda might be passed to a map function. A closure will be represented as: | Clo env e1 e2 |. A closure has a type | t1 :-> t2 |. Note that the function type constructor is slightly different from the regular function space constructor | -> |. A closure can be distributed like any other primitive type and can thus appear in a list. Technically it is possible to construct a list of several different closures, this however goes against the very nature of the flattening transformation and such lists are never constructed by the flattening transformation. All primitives operations can also be performed on closures.
 
 Distribute over a closure is defined as follows:
-\begin{code}
+\begin{spec}
 dist (Clo ((x1, ..., xn)) f f') e = AClo ((e, dist x1 e, ..., dist xn e)) f f'
-\end{code}
+\end{spec}
 The result type is a list of closures: |[t1 :-> t2]|. Distribute over (nested-) lists of closure is defined similarly. Other primitive operations as  |length|, |concat| and |unconcat| are defined similar to |dist|.
 
 It is of course also possible to use a list of closures as second argument to |dist| and distribute over that list. The alert reader might have noticed that in the lifted closure the environment is expanded with an extra value. This extra value represents the iteration context, and is expected as an argument by |f'|, it is the value that is used to distribute values to the right length.

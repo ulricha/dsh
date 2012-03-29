@@ -28,12 +28,12 @@ Library
     Exposed-modules: Language.ParallelLang.DBPH
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.VL.Data.Query
-                     Language.ParallelLang.NKL.Primitives
+                     Language.ParallelLang.NKL.NKLPrimitives
     Other-modules: Language.ParallelLang.Common.Data.Val
                    Language.ParallelLang.Common.Data.Op
                    Language.ParallelLang.NKL.Data.NKL
                    Language.ParallelLang.FKL.Data.FKL
-                   Language.ParallelLang.FKL.Primitives
+                   Language.ParallelLang.FKL.FKLPrimitives
                    Language.ParallelLang.Translate.NKL2FKL
                    Language.ParallelLang.FKL.Render.Render
                    Language.ParallelLang.Common.Impossible
