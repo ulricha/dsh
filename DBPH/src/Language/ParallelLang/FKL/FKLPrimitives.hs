@@ -3,7 +3,7 @@ Module containing some primitive operations in AST form.
 
 All of these are helper functions for the flattening transformation
 -}
-module Language.ParallelLang.FKL.Primitives where
+module Language.ParallelLang.FKL.FKLPrimitives where
     
 import Language.ParallelLang.FKL.Data.FKL as F
 import Language.ParallelLang.Common.Data.Val
