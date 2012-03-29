@@ -24,8 +24,6 @@ import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Val as V
 import Language.ParallelLang.VL.VectorOperations
 
-
-
 import Database.Algebra.Pathfinder(initLoop)
 
 import qualified Data.Map as M
@@ -69,19 +67,12 @@ transType t                  = t
 
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
-fkl2Alg (Labeled _ e) = fkl2Alg e
+--FIXME
 fkl2Alg (Const t v) | T.containsTuple t = constructLiteral (transType t) (fst $ deTupleVal t v)
                     | otherwise = constructLiteral t v 
-fkl2Alg (BinOp _ (Op o l) e1 e2) | o == Cons = do
-                                                p1 <- fkl2Alg e1
-                                                p2 <- fkl2Alg e2
-                                                if l 
-                                                    then consLift p1 p2
-                                                    else cons p1 p2
-                                 | otherwise = do
-                                                p1 <- fkl2Alg e1
-                                                p2 <- fkl2Alg e2
-                                                binOp l o p1 p2
+fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
+fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
+fkl2Alg (BinOp _ (Op o l) e1 e2)        = do {p1 <- fkl2Alg e1; p2 <- fkl2Alg e2; binOp l o p1 p2}
 fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1

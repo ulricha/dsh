@@ -223,9 +223,6 @@ intF i = F.Const intT $ Int i
 varF :: Type -> String -> Expr
 varF t x = F.Var t x
 
-tagN :: String -> Expr -> Expr
-tagN s e = Labeled s e
-
 fstPrim :: Expr -> Expr
 fstPrim e = let t = typeOf e
              in case t of
