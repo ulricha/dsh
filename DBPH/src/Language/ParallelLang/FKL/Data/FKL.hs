@@ -12,7 +12,6 @@ type Key = [DataColumn]
 
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [TypedColumn] [Key]
-          | Labeled String Expr
           | PApp1   Type Prim1 Expr
           | PApp2   Type Prim2 Expr Expr 
           | PApp3   Type Prim3 Expr Expr Expr
@@ -102,7 +101,6 @@ instance Typed Expr where
     typeOf (BinOp t _ _ _) = t
     typeOf (Const t _) = t
     typeOf (Var t _) = t
-    typeOf (Labeled _ e) = typeOf e
     typeOf (CloApp t _ _) = t
     typeOf (CloLApp t _ _) = t
     typeOf (Clo t _ _ _ _ _) = t

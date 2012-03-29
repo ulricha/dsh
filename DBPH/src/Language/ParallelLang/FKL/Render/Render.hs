@@ -11,7 +11,6 @@ instance Show Expr where
     
 render :: Expr -> Doc
 render (Table _ n _c _k) = parens $ text "Table" <+> text n
-render (Labeled _ e) = render e
 render (PApp1 _ f e1) = text (show f) <+> (parens $ render e1)
 render (PApp2 _ f e1 e2) = text (show f) <+> (parens $ render e1) <+> (parens $ render e2)
 render (PApp3 _ f e1 e2 e3) = text (show f) <+> (parens $ render e1) <+> (parens $ render e2) <+> (parens $ render e3)
