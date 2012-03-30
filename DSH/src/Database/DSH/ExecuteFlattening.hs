@@ -108,7 +108,7 @@ makeNormSQL c (P.ValueVector (P.SQL _ s q)) t = do
                                                let parted = partByIter iC r
                                                let i = snd (fromJust ri)
                                                return $ Right $ normaliseList t i parted
-makeNormSQL c (P.TupleVector [q1, q2]) t@(TupleT t1 t2) = do
+makeNormSQL c (P.PairVector q1 q2) t@(TupleT t1 t2) = do
                                                          r1 <- liftM (fromEither t1) $ makeNormSQL c q1 t1
                                                          r2 <- liftM (fromEither t2) $ makeNormSQL c q2 t2
                                                          return $ Left $ TupleN r1 r2 t
@@ -129,7 +129,7 @@ makeNormX100 c (P.ValueVector (P.X100 _ q)) t = do
                                                 (X100Res _ res) <- doX100Query c q
                                                 let parted = partByIterX100 res
                                                 return $ Right $ normaliseX100List t parted
-makeNormX100 c (P.TupleVector [q1, q2]) t@(TupleT t1 t2) = do
+makeNormX100 c (P.PairVector q1 q2) t@(TupleT t1 t2) = do
                                                             r1 <- liftM (fromEither t1) $ makeNormX100 c q1 t1
                                                             r2 <- liftM (fromEither t2) $ makeNormX100 c q2 t2
                                                             return $ Left $ TupleN r1 r2 t
