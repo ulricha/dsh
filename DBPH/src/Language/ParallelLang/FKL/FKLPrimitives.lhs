@@ -1,3 +1,13 @@
+\newpage
+%{
+%include fkl.fmt
+%include setQual.fmt
+%include fklQual.fmt
+\chapter{Functions in the flat languages}
+In this chapter we describe how our primitive functions are encoded. Most notable function of which is the map function. The flattening transformation is aimed at removing all occurrences of this function and in particular nested occurrences as to exploit potential parallelism. We describe a version of this particular function that transforms function and values as described in the previous section in both normal and nested occurrences.
+
+%if False
+\begin{code}
 {-
 Module containing some primitive operations in AST form.
 
@@ -12,7 +22,23 @@ import Language.ParallelLang.Common.Data.Type (intT, Typed(..), (.->), boolT, li
 import qualified Language.ParallelLang.Common.Data.Type as T
 
 import Control.Monad
+\end{code}
+%endif
 
+The map combinator is build up out of multiple nested closures. This comes from the fact that the function map takes two arguments (a function and a list value) and can be applied partially. The result of a partial application can also be manipulated as an ordinary value.
+
+\begin{code}
+mapVal :: Type -> Expr
+mapVal t = doubleArgClo t "map_f" "map_xs" mapPrim mapLPrim 
+
+mapPrim :: Expr -> Expr -> Expr
+mapPrim f e = cloLApp (distPrim f e) e
+
+mapLPrim :: Expr -> Expr -> Expr
+mapLPrim f e = unconcatPrim e $ cloLApp (concatPrim (distLPrim f e)) (concatPrim e)
+\end{code}
+
+\begin{code}
 --The groupWith combinator
 
 doubleArgClo :: Type -> String -> String -> (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr) -> Expr
@@ -75,16 +101,6 @@ sortWithLPrim f e = let arg1 = mapLPrim f e
                         t1@(T.List (T.List _)) = typeOf arg1 
                         t2@(T.List (T.List _)) = typeOf e
                      in F.PApp2 t2 (F.SortWithL (t1 .-> t2 .-> t2)) arg1 e
-
--- The map combinators are used for desugaring iterators.
-mapVal :: Type -> Expr
-mapVal t = doubleArgClo t "map_f" "map_xs" mapPrim mapLPrim
-
-mapPrim :: Expr -> Expr -> Expr
-mapPrim f e = cloLApp (distPrim f e) e
-
-mapLPrim :: Expr -> Expr -> Expr
-mapLPrim f e = unconcatPrim e $ cloLApp (concatPrim (distLPrim f e)) (concatPrim e)
 
 singleArgClo :: Type -> String -> (Expr -> Expr) -> (Expr -> Expr) -> Expr
 singleArgClo t arg e1 e2 = Clo t "n" [] argname f1 f2
@@ -246,7 +262,10 @@ sndLPrim e = let t = typeOf e
               in case t of
                   (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
                   _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
+\end{code}
 
+%if False
+\begin{code}
 ifPrim :: Expr -> Expr -> Expr -> Expr
 ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
                    in if tb == boolT && tt == te
@@ -279,3 +298,5 @@ cloL = AClo
 
 cloLM :: Monad m => Type -> String -> [String] -> String -> m Expr -> m Expr -> m Expr
 cloLM t n fv a = liftM2 (cloL t n fv a) 
+\end{code}
+%endif

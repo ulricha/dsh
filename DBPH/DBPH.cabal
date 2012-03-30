@@ -38,7 +38,6 @@ Library
                    Language.ParallelLang.FKL.Render.Render
                    Language.ParallelLang.Common.Impossible
                    Language.ParallelLang.Translate.TransM
-                   Language.ParallelLang.VL.Data.VectorTypes
                    Language.ParallelLang.VL.VectorPrimitives
                    Language.ParallelLang.VL.PathfinderVectorPrimitives
                    Language.ParallelLang.Translate.Vec2Algebra
