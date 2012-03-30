@@ -14,7 +14,7 @@ import System.IO.Unsafe
 
 toSQL :: Query XML -> Query SQL
 toSQL r = case r of
-            (TupleVector rs)             -> TupleVector $ map toSQL rs
+            (PairVector e1 e2)           -> PairVector (toSQL e1) (toSQL e2)
             (DescrVector (XML i r'))     -> DescrVector $ (\(q, s) -> SQL i s q) $ translate r'
             (ValueVector (XML i r'))     -> ValueVector $ (\(q, s) -> SQL i s q) $ translate r'
             (PrimVal (XML i r'))         -> PrimVal     $ (\(q, s) -> SQL i s q) $ translate r'

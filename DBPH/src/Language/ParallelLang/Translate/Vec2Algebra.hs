@@ -106,8 +106,8 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute
                 (Unconcat _) -> unconcatV
-                (Pair _) -> \e1 e2 -> return $ TupleVector [e1, e2]
-                (PairL _) -> \e1 e2 -> return $ TupleVector [e1, e2]
+                (Pair _) -> \e1 e2 -> return $ PairVector e1 e2
+                (PairL _) -> \e1 e2 -> return $ PairVector e1 e2
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
@@ -141,12 +141,11 @@ toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
   where
       rootNodes :: Plan -> [AlgNode]
-      rootNodes (TupleVector qs) = concat $ map rootNodes qs
+      rootNodes (PairVector q1 q2) = rootNodes q1 ++ rootNodes q2 
       rootNodes (DescrVector n) = [n]
       rootNodes (ValueVector n) = [n]
       rootNodes (PrimVal n) = [n]
       rootNodes (NestedVector n q) = n : (rootNodes q)
-      rootNodes (PropVector _ ) = error "Prop vectors should only be used internally and never appear in a result"
       rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
       rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
 
@@ -156,22 +155,20 @@ toX100String (m, r, t) =
     in
         case r of
             PrimVal r'     -> PrimVal $ X100 r' $ generateDumbQuery m' r'
-            TupleVector rs -> TupleVector $ map (\r' -> toX100String (m, r', t)) rs
+            PairVector r1 r2 -> PairVector (toX100String (m, r1, t)) (toX100String (m, r2, t))
             DescrVector r' -> DescrVector $ X100 r' $ generateDumbQuery m' r' 
             ValueVector r' -> ValueVector $ X100 r' $ generateDumbQuery m' r'
             NestedVector r' rs -> NestedVector (X100 r' $ generateDumbQuery m' r') $ toX100String (m, rs, t)
-            PropVector _ -> error "Prop vectors should only be used internally and never appear in a result"
             Closure _ _ _ _ _ -> error "Functions cannot appear as a result value"
             AClosure _ _ _ _ _ _ _ -> error "Function cannot appear as a result value"
 
 toXML :: AlgPlan PFAlgebra Plan -> Query XML
 toXML (g, r, ts) = case r of
                      (PrimVal r') -> PrimVal (XML r' $ toXML' withItem r')
-                     (TupleVector rs)   -> TupleVector $ map (\r' -> toXML (g, r', ts)) rs
+                     (PairVector e1 e2)   -> PairVector (toXML (g, e1, ts)) (toXML (g, e2, ts))
                      (DescrVector r') -> DescrVector (XML r' $ toXML' withoutItem r')
                      (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
                      (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
-                     (PropVector _) -> error "Prop vectors should only be used internally and never appear in a result"
                      (Closure _ _ _ _ _) -> error "Functions cannot appear as a result value"
                      (AClosure _ _ _ _ _ _ _) -> error "Function cannot appear as a result value"
     where
