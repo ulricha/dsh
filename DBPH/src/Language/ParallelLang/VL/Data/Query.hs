@@ -1,18 +1,21 @@
 module Language.ParallelLang.VL.Data.Query where
 
+import Database.Algebra.Dag.Common
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.FKL.Data.FKL
 
 data Query a =
-         TupleVector [Query a]
+         PairVector (Query a) (Query a)
        | DescrVector a
        | ValueVector a
        | PrimVal a
        | NestedVector a (Query a)
-       | PropVector a
+--       | PropVector a
        | Closure String [(String, Query a)] String Expr Expr
        | AClosure String (Query a) Int [(String, Query a)] String Expr Expr
      deriving Show
+
+data PropVector = PropVector AlgNode
 
 nestingDepth :: Show a => Query a -> Int
 nestingDepth (ValueVector _) = 1
