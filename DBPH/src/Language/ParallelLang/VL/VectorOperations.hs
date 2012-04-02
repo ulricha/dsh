@@ -30,14 +30,14 @@ theL (NestedVector d e@(ValueVector _)) = do
                                             one <- constructLiteral intT (V.Int 1)
                                             p <- distPrim one (DescrVector d)
                                             (v, _) <- selectPosLift e Eq p
-                                            prop <- descToProp (DescrVector d)
+                                            prop <- descToRename (DescrVector d)
                                             (v', _) <- propFilter prop v
                                             return v' 
 theL (NestedVector d (NestedVector d2 vs)) = do
                                             one <- constructLiteral intT (V.Int 1)
                                             p <- distPrim one (DescrVector d)
                                             (v, p2) <- selectPosLift (DescrVector d2) Eq p
-                                            prop <- descToProp (DescrVector d)
+                                            prop <- descToRename (DescrVector d)
                                             vs' <- chainRenameFilter p2 vs
                                             (v', _) <- propFilter prop v
                                             return $ attachV v' vs'
@@ -90,7 +90,7 @@ groupByL _ _ = error "groupByL: Should not be possible"
                     
 concatLift :: VectorAlgebra a => Plan -> Graph a Plan
 concatLift (NestedVector d (NestedVector d' vs)) = do
-                                                    p <- descToProp (DescrVector d')
+                                                    p <- descToRename (DescrVector d')
                                                     vs' <- renameOuter p vs
                                                     return $ NestedVector d vs'
 concatLift _ = error "concatLift: Should not be possible"
@@ -100,7 +100,7 @@ lengthLift (PairVector e1 _e2) = lengthLift e1
 lengthLift (NestedVector d vs1) = do 
                                    v <- outer vs1
                                    ls <- lengthSeg (DescrVector d) v
-                                   p <- descToProp (DescrVector d)
+                                   p <- descToRename (DescrVector d)
                                    propRename p ls
 lengthLift _ = error "lengthLift: Should not be possible"
 

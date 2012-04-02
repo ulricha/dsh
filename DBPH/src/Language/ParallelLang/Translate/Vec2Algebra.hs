@@ -120,11 +120,11 @@ fkl2Alg (AClo _ n fvs x f1 f2) = do
 fkl2Alg (CloApp _ c arg) = do
                              (Closure _ fvs x f1 _) <- fkl2Alg c
                              arg' <- fkl2Alg arg
-                             withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f1) ((x, arg'):fvs)
+                             withContext ((x, arg'):fvs) undefined $ fkl2Alg f1
 fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
-                              withContext [] undefined $ foldl (\e (y,v') -> withBinding y v' e) (fkl2Alg f2) ((n, v):(x, arg'):fvs)
+                              withContext ((n, v):(x, arg'):fvs) undefined $ fkl2Alg f2
 
 constructClosureEnv :: [String] -> Graph a [(String, Plan)]
 constructClosureEnv [] = return []
