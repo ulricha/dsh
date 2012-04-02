@@ -1,7 +1,6 @@
 module Language.ParallelLang.VL.MetaPrimitives where
 
-import Language.ParallelLang.VL.Algebra
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 import Language.ParallelLang.VL.VectorPrimitives
 
 -- | chainRenameFilter renames and filters a vector according to a propagation vector

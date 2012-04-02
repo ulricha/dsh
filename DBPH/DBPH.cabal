@@ -27,7 +27,7 @@ Library
     
     Exposed-modules: Language.ParallelLang.DBPH
                      Language.ParallelLang.Common.Data.Type
-                     Language.ParallelLang.VL.Data.Query
+                     Language.ParallelLang.VL.Data.Vector
                      Language.ParallelLang.NKL.NKLPrimitives
     Other-modules: Language.ParallelLang.Common.Data.Val
                    Language.ParallelLang.Common.Data.Op
@@ -37,11 +37,10 @@ Library
                    Language.ParallelLang.Translate.NKL2FKL
                    Language.ParallelLang.FKL.Render.Render
                    Language.ParallelLang.Common.Impossible
-                   Language.ParallelLang.Translate.TransM
+                   Language.ParallelLang.Common.TransM
                    Language.ParallelLang.VL.VectorPrimitives
                    Language.ParallelLang.VL.PathfinderVectorPrimitives
                    Language.ParallelLang.Translate.Vec2Algebra
-                   Language.ParallelLang.VL.Algebra
                    Language.ParallelLang.VL.MetaPrimitives
                    Language.ParallelLang.VL.VectorOperations
                    Language.ParallelLang.VL.VectorPrimitives

@@ -10,8 +10,7 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
-import Language.ParallelLang.VL.Data.Query
-import Language.ParallelLang.VL.Algebra
+import Language.ParallelLang.VL.Data.Vector
 import Language.ParallelLang.VL.VectorPrimitives
 
 import Database.Algebra.Pathfinder

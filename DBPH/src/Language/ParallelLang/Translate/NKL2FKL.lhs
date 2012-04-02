@@ -14,7 +14,7 @@ module Language.ParallelLang.Translate.NKL2FKL (flatTransform) where
 
 import qualified Language.ParallelLang.FKL.Data.FKL as F
 import qualified Language.ParallelLang.NKL.Data.NKL as N
-import Language.ParallelLang.Translate.TransM
+import Language.ParallelLang.Common.TransM
 
 import Language.ParallelLang.FKL.FKLPrimitives
 import Language.ParallelLang.Common.Data.Type

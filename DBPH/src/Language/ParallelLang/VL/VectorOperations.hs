@@ -3,8 +3,7 @@ module Language.ParallelLang.VL.VectorOperations where
 
 import Language.ParallelLang.Common.Impossible
 
-import Language.ParallelLang.VL.Algebra
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
 import Language.ParallelLang.Common.Data.Op

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
-module Language.ParallelLang.Translate.TransM where
+module Language.ParallelLang.Common.TransM where
 
 import Control.Applicative
 import Control.Monad

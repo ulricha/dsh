@@ -10,7 +10,6 @@ import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.Serialize
 import Database.Algebra.X100.Render
 
-import Language.ParallelLang.VL.Algebra
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
@@ -18,7 +17,7 @@ import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Val as V

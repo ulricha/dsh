@@ -5,7 +5,7 @@ import Text.XML.HaXml (Content(..), tag, deep, children, xmlParse, Document(..),
 import qualified Text.XML.HaXml as X
 
 import Data.Maybe
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 import Database.Pathfinder
 import Language.ParallelLang.Common.Impossible
 

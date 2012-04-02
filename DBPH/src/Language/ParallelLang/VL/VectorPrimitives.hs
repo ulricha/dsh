@@ -1,14 +1,12 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
 import qualified Language.ParallelLang.Common.Data.Type as Ty
---import qualified Language.ParallelLang.VL.Data.VectorTypes as T
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 
 import Control.Applicative
-import Language.ParallelLang.VL.Algebra
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 
 import Database.Algebra.Dag.Builder
 
