@@ -3,11 +3,11 @@ module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..)
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 
-import Language.ParallelLang.VL.Data.Query
+import Language.ParallelLang.VL.Data.Vector
 
 import Language.ParallelLang.Translate.Algebra2SQL
 import Language.ParallelLang.Translate.Vec2Algebra
-import Language.ParallelLang.Translate.TransM (runTransform)
+import Language.ParallelLang.Common.TransM (runTransform)
 import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
 import Language.ParallelLang.Common.Data.Type
 
