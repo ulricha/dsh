@@ -46,23 +46,23 @@ class VectorAlgebra a where
   notVec :: Plan -> Graph a Plan
   lengthA :: Plan -> Graph a Plan
   lengthSeg :: Plan -> Plan -> Graph a Plan
-  descToProp :: Plan -> Graph a PropVector
+  descToRename :: Plan -> Graph a RenameVector
   notA :: Plan -> Graph a Plan
   outer :: Plan -> Graph a Plan
   distPrim :: Plan -> Plan -> Graph a Plan
-  distDesc :: Plan -> Plan -> Graph a (Plan, PropVector)
-  distLift :: Plan -> Plan -> Graph a (Plan, PropVector)
+  distDesc :: Plan -> Plan -> Graph a (Plan, RenameVector)
+  distLift :: Plan -> Plan -> Graph a (Plan, RenameVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
-  propRename :: PropVector -> Plan -> Graph a Plan
+  propRename :: RenameVector -> Plan -> Graph a Plan
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
-  propFilter :: PropVector -> Plan -> Graph a (Plan, PropVector)
+  propFilter :: RenameVector -> Plan -> Graph a (Plan, RenameVector)
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
   propReorder :: PropVector -> Plan -> Graph a (Plan, PropVector)
   singletonVec :: Plan -> Graph a Plan
-  append :: Plan -> Plan -> Graph a (Plan, PropVector, PropVector)
+  append :: Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
   segment :: Plan -> Graph a Plan
-  restrictVec :: Plan -> Plan -> Graph a (Plan, PropVector)
-  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, PropVector, PropVector)
+  restrictVec :: Plan -> Plan -> Graph a (Plan, RenameVector)
+  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
   bPermuteVec :: Plan -> Plan -> Graph a (Plan, PropVector)
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
   tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
@@ -73,8 +73,8 @@ class VectorAlgebra a where
   vecSumLift :: Plan -> Plan -> Graph a Plan
   empty :: Plan -> Graph a Plan
   emptyLift :: Plan -> Plan -> Graph a Plan
-  selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, PropVector)
-  selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, PropVector)
+  selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
+  selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
   fstA :: Plan -> Graph a Plan
   fstA (PairVector e1 _) = return e1
   fstA _                     = error "fstA: not a tuple"

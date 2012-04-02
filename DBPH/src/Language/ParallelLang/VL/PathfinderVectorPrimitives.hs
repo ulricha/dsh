@@ -25,7 +25,7 @@ instance VectorAlgebra PFAlgebra where
   notVec = notVecPF
   lengthA = lengthAPF
   lengthSeg = lengthSegPF
-  descToProp = descToPropPF
+  descToRename = descToRenamePF
   outer = outerPF
   distPrim = distPrimPF
   distDesc = distDescPF
@@ -111,7 +111,7 @@ emptyVectorPF (Just t) = case t of
                                                        in ValueVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos)
                           _                        -> error $ "Can't generate an empty list for an expression of type: " ++ show t
                            
-selectPosLiftPF :: Plan -> Oper -> Plan -> Graph PFAlgebra (Plan, PropVector)
+selectPosLiftPF :: Plan -> Oper -> Plan -> Graph PFAlgebra (Plan, RenameVector)
 selectPosLiftPF e op (ValueVector qi) =
     do
         (rf, qe, pf) <- determineResultVector e
@@ -123,10 +123,10 @@ selectPosLiftPF e op (ValueVector qi) =
               (proj [(pos'', pos), (item', item)] qi)
         q <- proj (pf [(descr, descr), (pos, posnew)]) qs
         qp <- proj [(posold, pos), (posnew, posnew)] qs
-        return $ (rf q, PropVector qp)
+        return $ (rf q, RenameVector qp)
 selectPosLiftPF _ _ _ = $impossible
 
-selectPosPF :: Plan -> Oper -> Plan -> Graph PFAlgebra (Plan, PropVector)
+selectPosPF :: Plan -> Oper -> Plan -> Graph PFAlgebra (Plan, RenameVector)
 selectPosPF e op (PrimVal qi) =
     do
         (rf, qe, pf) <- determineResultVector e
@@ -145,7 +145,7 @@ selectPosPF e op (PrimVal qi) =
                     $ rownum pos [descr, pos'] Nothing qs
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
-        return $ (rf q, PropVector qp)
+        return $ (rf q, RenameVector qp)
 selectPosPF _ _ _ = $impossible
 
 emptyPF :: Plan -> Graph PFAlgebra Plan
@@ -302,9 +302,9 @@ lengthSegPF (DescrVector q1) (ValueVector d) = ValueVector <$> (rownumM pos [des
 lengthSegPF (DescrVector q1) (DescrVector d) = ValueVector <$> (rownumM pos [descr] Nothing $ aggrM [(Max, item, Just item)] (Just descr) $ (attachM item intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, item, Nothing)] (Just descr) $ proj [(descr, descr)] d))
 lengthSegPF _ _ = error "lengthSegPF: Should not be possible"
 
-descToPropPF :: Plan -> Graph PFAlgebra PropVector
-descToPropPF (DescrVector q1) = PropVector <$> proj [(posnew, descr), (posold, pos)] q1
-descToPropPF _ = error "descToPropPF: Should not be possible"
+descToRenamePF :: Plan -> Graph PFAlgebra RenameVector
+descToRenamePF (DescrVector q1) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
+descToRenamePF _ = error "descToPropPF: Should not be possible"
 
 notAPF :: Plan -> Graph PFAlgebra Plan
 notAPF (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item, resCol)] (notC resCol item q1)
@@ -323,55 +323,57 @@ distPrimPF (PrimVal q1) d = do
                  ValueVector <$> crossM (proj [(item, item)] q1) (return q2)
 distPrimPF _ _ = error "distPrimPF: Should not be possible"
                   
-distDescPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector)
+distDescPF :: Plan -> Plan -> Graph PFAlgebra (Plan, RenameVector)
 distDescPF e1 e2 = do
                    (rf, q1, pf) <- determineResultVector e1
                    (DescrVector q2) <- toDescr e2
                    q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
                    qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
-                   qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
+                   qr2 <- RenameVector <$> proj [(posold, posold), (posnew, pos)] q
                    return $ (qr1, qr2)
 
-distLiftPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector)
+distLiftPF :: Plan -> Plan -> Graph PFAlgebra (Plan, RenameVector)
 distLiftPF e1 e2 = do
                     (rf, q1, pf) <- determineResultVector e1
                     (DescrVector q2) <- toDescr e2
                     q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
                     qr1 <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
-                    qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
+                    qr2 <- RenameVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ (qr1, qr2)                    
 
-propRenamePF :: PropVector -> Plan -> Graph PFAlgebra Plan
-propRenamePF (PropVector q1) e2 = do
+propRenamePF :: RenameVector -> Plan -> Graph PFAlgebra Plan
+propRenamePF (RenameVector q1) e2 = do
                 (rf, q2, pf) <- determineResultVector e2
                 q <- tagM "propRenamePF" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
                 return $ rf q
                 
-propFilterPF :: PropVector -> Plan -> Graph PFAlgebra (Plan, PropVector)
-propFilterPF (PropVector q1) e2 = do
+propFilterPF :: RenameVector -> Plan -> Graph PFAlgebra (Plan, RenameVector)
+propFilterPF (RenameVector q1) e2 = do
                      (rf, q2, pf) <- determineResultVector e2
                      q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
                      qr1 <- rf <$> proj (pf [(descr, posnew), (pos, pos')]) q
-                     qr2 <- PropVector <$> proj [(posold, pos), (posnew, pos')] q
+                     qr2 <- RenameVector <$> proj [(posold, pos), (posnew, pos')] q
                      return $ (qr1, qr2)
                    
 propReorderPF :: PropVector -> Plan -> Graph PFAlgebra (Plan, PropVector)
 -- For Pathfinder algebra, the filter and reorder cases are the same, since numbering to generate positions
 -- is done with a rownum and involves sorting.
-propReorderPF = propFilterPF
+propReorderPF (PropVector q1) e2 = do
+                                 (p, (RenameVector r)) <- propFilterPF (RenameVector q1) e2
+                                 return (p, PropVector r)
                      
 singletonVecPF :: Plan -> Graph PFAlgebra Plan
 singletonVecPF e1 = do
                     q <- tagM "singletonVecPF" $ attachM pos natT (nat 1) $ litTable (nat 1) descr natT
                     return $ NestedVector q e1
                     
-appendPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector, PropVector)
+appendPF :: Plan -> Plan -> Graph PFAlgebra (Plan, RenameVector, RenameVector)
 appendPF e1 e2 = do
                 (rf, q1, q2, pf) <- determineResultVector' e1 e2
                 q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
                 qv <- rf <$> tagM "append r" (proj (pf [(pos, pos'), (descr, descr)]) q)
-                qp1 <- PropVector <$> (tagM "append r1" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
-                qp2 <- PropVector <$> (tagM "append r2" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
+                qp1 <- RenameVector <$> (tagM "append r1" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
+                qp2 <- RenameVector <$> (tagM "append r2" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
                 return $ (qv, qp1, qp2)
 
 segmentPF :: Plan -> Graph PFAlgebra Plan
@@ -380,24 +382,24 @@ segmentPF e =
      (rf, q, pf) <- determineResultVector e
      rf <$> proj (pf [(descr, pos), (pos, pos)]) q
 
-restrictVecPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector)
+restrictVecPF :: Plan -> Plan -> Graph PFAlgebra (Plan, RenameVector)
 restrictVecPF e1 (ValueVector qm) = do
                     (rf, q1, pf) <- determineResultVector e1
                     q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item)] qm
                     qr <- rf <$> proj (pf [(pos, pos''), (descr, descr)]) q
-                    qp <- PropVector <$> proj [(posold, pos), (posnew, pos'')] q
+                    qp <- RenameVector <$> proj [(posold, pos), (posnew, pos'')] q
                     return $ (qr, qp)
 restrictVecPF _ _ = error "restrictVecPF: Should not be possible"
 
-combineVecPF :: Plan -> Plan -> Plan -> Graph PFAlgebra (Plan, PropVector, PropVector)
+combineVecPF :: Plan -> Plan -> Plan -> Graph PFAlgebra (Plan, RenameVector, RenameVector)
 combineVecPF (ValueVector qb) e1 e2 = do
                         (rf, q1, q2, pf) <- determineResultVector' e1 e2
                         d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item qb
                         d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item qb
                         q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
                         qr <- rf <$> proj (pf [(descr, descr), (pos, pos)]) q
-                        qp1 <- PropVector <$> proj [(posnew, pos), (posold, pos')] d1
-                        qp2 <- PropVector <$> proj [(posnew, pos), (posold, pos')] d2
+                        qp1 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d1
+                        qp2 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d2
                         return $ (qr, qp1, qp2)
 combineVecPF _ _ _ = error "combineVecPF: Should not be possible"
 

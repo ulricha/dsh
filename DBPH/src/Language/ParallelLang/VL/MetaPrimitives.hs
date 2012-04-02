@@ -7,7 +7,7 @@ import Language.ParallelLang.VL.VectorPrimitives
 -- | chainRenameFilter renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
-chainRenameFilter :: VectorAlgebra a => PropVector -> Plan -> Graph a Plan
+chainRenameFilter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
 chainRenameFilter p q@(ValueVector _) = do 
                                       (v, _) <- propFilter p q
                                       return v
@@ -32,7 +32,7 @@ chainReorder _ _ = error "chainReorder: Should not be possible"
                
 -- | renameOuter renames and filters a vector according to a propagation vector
 -- Changes are not propagated to inner vectors.
-renameOuter :: VectorAlgebra a => PropVector -> Plan -> Graph a Plan
+renameOuter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
 renameOuter p e@(ValueVector _)
                                 = propRename p e
 renameOuter p (NestedVector h t)

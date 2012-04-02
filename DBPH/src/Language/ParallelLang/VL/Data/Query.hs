@@ -17,6 +17,8 @@ data Query a =
 
 data PropVector = PropVector AlgNode
 
+data RenameVector = RenameVector AlgNode
+
 nestingDepth :: Show a => Query a -> Int
 nestingDepth (ValueVector _) = 1
 nestingDepth (NestedVector _ r) = 1 + nestingDepth r
