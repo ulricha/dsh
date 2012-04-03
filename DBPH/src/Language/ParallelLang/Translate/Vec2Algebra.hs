@@ -7,7 +7,7 @@ import Database.Algebra.Pathfinder(PFAlgebra)
 
 import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
-import Database.Algebra.X100.Serialize
+import Database.Algebra.X100.JSON
 import Database.Algebra.X100.Render
 
 import Language.ParallelLang.VL.VectorPrimitives
