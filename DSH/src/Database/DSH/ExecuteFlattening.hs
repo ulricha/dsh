@@ -20,7 +20,7 @@ import GHC.Exts
 import Data.Convertible
 import Data.Text (pack)
 import qualified Data.Text as Txt
-import Data.List (foldl')
+import Data.List (foldl', transpose)
 import Data.Maybe (fromJust)
 
 
@@ -96,6 +96,8 @@ executeX100Query c vt (X100 q) = do
                                   return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
 
 makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
+makeNormSQL = undefined
+{-
 makeNormSQL c (P.PrimVal (P.SQL _ s q)) t = do
                                           (r, d) <- doSQLQuery c q
                                           let (iC, ri) = schemeToResult s d
@@ -119,12 +121,33 @@ makeNormSQL c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
                                                              inner <- (liftM fromRight) $ makeNormSQL c qr t1
                                                              return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
 makeNormSQL _c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
+-}
+
+{-
+data Layout a = Descriptor
+              | Content Type (Position a)
+      deriving Show
+
+data Position a = InColumn Int
+                | Nest (Query a)
+                | Pair (Position a) (Position a)
+-}
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormX100 c (P.PrimVal (P.X100 _ q)) t = do
+makeNormX100 c (P.ValueVector (P.Content _ (P.InColumn i)) (P.X100 _ q)) t = do                                                   
+                                                   (X100Res _ res) <- doX100Query c q
+                                                   let parted = partByIterX100 res
+                                                   return $ Right $ normaliseX100List t parted
+makeNormX100 c (P.ValueVector (P.Content _ (P.Nest qn)) (P.X100 _ q1)) t@(ListT t1) = do
+                                                                (X100Res _ res) <- doX100Query c q1
+                                                                let parted = partByIterX100 res
+                                                                inner <- liftM fromRight $ makeNormX100 c qn t1
+                                                                return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
+makeNormX100 c (P.PrimVal _ (P.X100 _ q)) t = do
                                               (X100Res _ res) <- doX100Query c q
-                                              let [(_, [(_, Just v)])] = partByIterX100 res
+                                              let [(_, [(_, [v])])] = partByIterX100 res
                                               return $ Left $ normaliseX100 t v
+{-
 makeNormX100 c (P.ValueVector (P.X100 _ q)) t = do
                                                 (X100Res _ res) <- doX100Query c q
                                                 let parted = partByIterX100 res
@@ -139,7 +162,7 @@ makeNormX100 c (P.NestedVector (P.X100 _ q) qr) t@(ListT t1) = do
                                                                 inner <- (liftM fromRight) $ makeNormX100 c qr t1
                                                                 return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
 makeNormX100 _ _ _ = $impossible
-
+-}
 fromRight :: Either a b -> b
 fromRight (Right x) = x
 fromRight _         = error "fromRight"
@@ -176,8 +199,8 @@ normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
 normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
 normaliseList _            _ _  = error "normaliseList: Should not happen"
 
-normaliseX100List :: Type -> [(Int, [(Int, Maybe X100Data)])] -> [(Int, Norm)]
-normaliseX100List t@(ListT t1) vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normaliseX100 t1) . fromJust . snd) v) t):tl) [] vs
+normaliseX100List :: Type -> [(Int, [(Int, [X100Data])])] -> [(Int, Norm)]
+normaliseX100List t@(ListT t1) vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normaliseX100 t1) . head . snd) v) t):tl) [] vs
 normaliseX100List _ _ = error "normaliseX100List: Should not happen"
 
 normalise :: Type -> Int -> [SqlValue] -> Norm
@@ -233,15 +256,15 @@ dshFetchAllRowsStrict stmt = go []
                  Just row  -> do mapM_ evaluate row
                                  go (row : acc)
 
-partByIterX100 :: [X100Column] -> [(Int, [(Int, Maybe X100Data)])]
+partByIterX100 :: [X100Column] -> [(Int, [(Int, [X100Data])])]
 partByIterX100 d = pbi d'  
     where
-        d' :: [(Int, Int, Maybe X100Data)]
+        d' :: [(Int, Int, [X100Data])]
         d' = case d of
-                [descr, p, i] -> zip3 (map convert descr) (map convert p) (map Just i)
-                [descr, p] -> zip3 (map convert descr) (map convert p) (repeat Nothing)
-                _          -> $impossible -- In a setting where we have more columns this will not fly!
-        pbi :: [(Int, Int, Maybe X100Data)] -> [(Int, [(Int, Maybe X100Data)])]
+                [descr, p] -> zipWith (\x y -> (x, y, [])) (map convert descr) (map convert p)
+                (descr:(p:vs)) -> zip3 (map convert descr) (map convert p) $ transpose vs
+                _          -> $impossible
+        pbi :: [(Int, Int, [X100Data])] -> [(Int, [(Int, [X100Data])])]
         pbi vs = [ (the i, zip p it) | (i, p, it) <- vs
                                      , then group by i using groupWith]
         
