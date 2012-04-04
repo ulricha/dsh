@@ -3,10 +3,12 @@ module Language.ParallelLang.VL.MetaPrimitives where
 import Language.ParallelLang.VL.Data.Vector
 import Language.ParallelLang.VL.VectorPrimitives
 
+{-
 -- | chainRenameFilter renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
 chainRenameFilter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
+chainRenameFilter p q@(ValueVector)
 chainRenameFilter p q@(ValueVector _) = do 
                                       (v, _) <- propFilter p q
                                       return v
@@ -55,3 +57,4 @@ appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
                         return $ attachV v e3
 appendR _ _ = error "appendR: Should not be possible"
 
+-}

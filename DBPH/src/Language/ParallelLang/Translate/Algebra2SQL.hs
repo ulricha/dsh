@@ -1,34 +1,34 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Language.ParallelLang.Translate.Algebra2SQL (toSQL) where
 
-import Text.XML.HaXml (Content(..), tag, deep, children, xmlParse, Document(..), AttValue(..))
-import qualified Text.XML.HaXml as X
+-- import Text.XML.HaXml (Content(..), tag, deep, children, xmlParse, Document(..), AttValue(..))
+-- import qualified Text.XML.HaXml as X
 
-import Data.Maybe
+-- import Data.Maybe
 import Language.ParallelLang.VL.Data.Vector
-import Database.Pathfinder
-import Language.ParallelLang.Common.Impossible
+-- import Database.Pathfinder
+-- import Language.ParallelLang.Common.Impossible
 
-import System.IO.Unsafe
+-- import System.IO.Unsafe
 
 
 toSQL :: Query XML -> Query SQL
 toSQL r = case r of
-            (PairVector e1 e2)           -> PairVector (toSQL e1) (toSQL e2)
+            {- (PairVector e1 e2)           -> PairVector (toSQL e1) (toSQL e2)
             (DescrVector (XML i r'))     -> DescrVector $ (\(q, s) -> SQL i s q) $ translate r'
             (ValueVector (XML i r'))     -> ValueVector $ (\(q, s) -> SQL i s q) $ translate r'
             (PrimVal (XML i r'))         -> PrimVal     $ (\(q, s) -> SQL i s q) $ translate r'
-            (NestedVector (XML i r') rs) -> NestedVector ((\(q, s) -> SQL i s q) $ translate r') $ toSQL rs
+            (NestedVector (XML i r') rs) -> NestedVector ((\(q, s) -> SQL i s q) $ translate r') $ toSQL rs -}
             _                            -> error "Should not have happened"
   where
-    translate :: String -> (String, Schema)
+{-    translate :: String -> (String, Schema)
     translate xml = let r' = unsafePerformIO $ pathfinder xml [] OutputSql
                      in case r' of
                          (Right sql) -> extractSQL sql
                          (Left err) -> error $ "Pathfinder compilation for input: \n"
                                                  ++ xml ++ "\n failed with error: \n"
-                                                 ++ err
-                                                 
+                                                 ++ err -}
+{-                                                 
 extractSQL :: String -> (String, Schema)
 extractSQL xml = let (Document _ _ r _) = xmlParse "query" xml
                      q = extractCData $ head $ concatMap children $ (deep $ tag "query") (CElem r undefined)
@@ -62,3 +62,4 @@ attrToInt _ = $impossible
 attrToString :: AttValue -> String
 attrToString (AttValue [(Left i)]) = i
 attrToString _ = $impossible
+-}

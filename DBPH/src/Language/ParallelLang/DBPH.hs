@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), Position(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL

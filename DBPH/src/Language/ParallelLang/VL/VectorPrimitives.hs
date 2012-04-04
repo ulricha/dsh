@@ -5,10 +5,10 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 
-import Control.Applicative
+-- import Control.Applicative
 import Language.ParallelLang.VL.Data.Vector
 
-import Database.Algebra.Dag.Builder
+-- import Database.Algebra.Dag.Builder
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -74,23 +74,24 @@ class VectorAlgebra a where
   selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
   selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
   fstA :: Plan -> Graph a Plan
-  fstA (PairVector e1 _) = return e1
-  fstA _                     = error "fstA: not a tuple"
+{-  fstA (PairVector e1 _) = return e1
+  fstA _                     = error "fstA: not a tuple" -}
   sndA :: Plan -> Graph a Plan
-  sndA (PairVector _ e2) = return e2
-  sndA _                     = error "sndA: not a tuple"
+{-  sndA (PairVector _ e2) = return e2
+  sndA _                     = error "sndA: not a tuple" -}
   fstL :: Plan -> Graph a Plan
-  fstL (PairVector e1 _) = return e1
-  fstL _                     = error "fstL: not a tuple"
+{-  fstL (PairVector e1 _) = return e1
+  fstL _                     = error "fstL: not a tuple" -}
   sndL :: Plan -> Graph a Plan 
-  sndL (PairVector _ e2) = return e2
-  sndL _                     = error "sndL: not a tuple"
+{-  sndL (PairVector _ e2) = return e2
+  sndL _                     = error "sndL: not a tuple" -}
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
 
 concatV :: Plan -> Graph a Plan
-concatV (NestedVector _ p) = return p
+concatV = undefined
+{- concatV (NestedVector _ p) = return p
 concatV (PairVector e1 e2) = PairVector <$> concatV e1 <*> concatV e2
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
                                                              <*> pure (l - 1) 
@@ -98,31 +99,38 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                                                         val' <- concatV val
                                                                                         return (y, val')) fvs)
                                                              <*> pure x <*> pure f1 <*> pure f2
-concatV e                  = error $ "Not supported by concatV: " ++ show e
+concatV e                  = error $ "Not supported by concatV: " ++ show e -}
 
 -- move a descriptor from e1 to e2
 unconcatV :: Plan -> Plan -> Graph a Plan
-unconcatV (PairVector e1 _) q = unconcatV e1 q
+unconcatV = undefined
+{-unconcatV (PairVector e1 _) q = unconcatV e1 q
 unconcatV (NestedVector d _) q = return $ NestedVector d q
-unconcatV e1 e2                = error $ "unconcatV: Not supported: " ++ show e1 ++ " " ++ show e2
+unconcatV e1 e2                = error $ "unconcatV: Not supported: " ++ show e1 ++ " " ++ show e2 -}
 
 isValueVector :: Plan -> Bool
-isValueVector (ValueVector _) = True
-isValueVector _               = False
+isValueVector = undefined
+{-isValueVector (ValueVector _) = True
+isValueVector _               = False -}
 
 attachV :: Plan -> Plan -> Plan
-attachV (DescrVector q1) e2 = NestedVector q1 e2
-attachV _ _ = error "attachVPF: Should not be possible"
+attachV = undefined
+{-attachV (DescrVector q1) e2 = NestedVector q1 e2
+attachV _ _ = error "attachVPF: Should not be possible" -}
                 
 singletonPrim :: VectorAlgebra a => Plan -> Graph a Plan
-singletonPrim (PrimVal q1) = do
+singletonPrim = undefined
+{-singletonPrim (PrimVal q1) = do
                     return $ ValueVector q1
-singletonPrim _ = error "singletonPrim: Should not be possible"
+singletonPrim _ = error "singletonPrim: Should not be possible" -}
                     
 tagVector :: String -> Plan -> Graph a Plan
+tagVector = undefined
+{-
 tagVector s (PairVector e1 e2) = PairVector <$> tagVector s e1 <*> tagVector s e2
 tagVector s (DescrVector q) = DescrVector <$> tag s q
 tagVector s (ValueVector q) = ValueVector <$> tag s q
 tagVector s (PrimVal q) = PrimVal <$> tag s q
 tagVector s (NestedVector q qs) = NestedVector <$> tag s q <*> tagVector s qs
 tagVector _ _ = error "tagVector: Should not be possible"
+-}

@@ -12,6 +12,7 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 
 import Control.Applicative
 
+{-
 the :: VectorAlgebra a => Plan -> Graph a Plan
 the e@(ValueVector _) = do
                          p <- constructLiteral intT (V.Int 1)
@@ -291,3 +292,4 @@ ifList qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
      (d, _, _) <- append d1 d2
      return $ attachV d e3
 ifList qb e1 e2 = ifPrimList qb e1 e2
+-}
