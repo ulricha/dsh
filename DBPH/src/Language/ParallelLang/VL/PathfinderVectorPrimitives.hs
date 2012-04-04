@@ -18,6 +18,7 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.Dag.Builder
 
 instance VectorAlgebra PFAlgebra where
+{-
   groupBy = groupByPF
   notA = notAPF
   notPrim = notPrimPF
@@ -517,3 +518,4 @@ determineResultVector' e1 e2 = do
                                                  else let (DescrVector q1') = e1 
                                                           (DescrVector q2') = e2 in (q1', q2')
                                  return (rf, q1, q2, pf)
+-}
