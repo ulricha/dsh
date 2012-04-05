@@ -17,7 +17,8 @@ import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.VL.Data.Vector as Vec
+import Language.ParallelLang.VL.Data.Vector hiding (Pair)
+import qualified Language.ParallelLang.VL.Data.Vector as Vec
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as T
 import qualified Language.ParallelLang.Common.Data.Val as V
@@ -30,38 +31,42 @@ import Control.Monad (liftM, liftM2, liftM3)
 
 import Language.ParallelLang.Common.Impossible
 
+import System.IO.Unsafe
+
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 -- fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 --FIXME
 fkl2Alg (Const t v) = constructLiteral t v
-fkl2Alg _ = undefined 
-{- fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
-fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
+fkl2Alg (BinOp _ (Op Cons False) e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
+fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
 fkl2Alg (BinOp _ (Op o l) e1 e2)        = do {p1 <- fkl2Alg e1; p2 <- fkl2Alg e2; binOp l o p1 p2}
+{- 
 fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
                           e2' <- fkl2Alg e2
                           ifList eb' e1' e2'
+-}
 fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
-                                           (LengthPrim _) -> lengthV 
+                                           {-(LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
-                                           (NotPrim _) -> notPrim 
-                                           (NotVec _) -> notVec 
                                            (ConcatLift _) -> concatLift
                                            (Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
                                            (The _) -> the
-                                           (TheL _) -> theL
+                                           (TheL _) -> theL -}
+                                           (NotPrim _) -> notPrim 
+                                           (NotVec _) -> notVec
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
-                                           (Concat _) -> concatV
+                                           -- (Concat _) -> concatV
+
 fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of
-                (Dist _) -> \x y -> dist x y
+                {- (Dist _) -> \x y -> dist x y
                 (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
                 (GroupWithL _) -> groupByL
@@ -70,10 +75,11 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (Index _) -> error "Index is not yet defined fkl2Alg"
                 (Restrict _) -> restrict
                 (BPermute _) -> bPermute
-                (Unconcat _) -> unconcatV
-                (Pair _) -> \e1 e2 -> return $ PairVector e1 e2
-                (PairL _) -> \e1 e2 -> return $ PairVector e1 e2
-fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
+                (Unconcat _) -> unconcatV -}
+                (Pair _) -> error "Pair"-- \e1 e2 -> return $ PairVector e1 e2
+                (PairL _) -> error "PairL"-- \e1 e2 -> return $ PairVector e1 e2
+                e -> error $ "Not supported yet: " ++ show e
+-- fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 fv <- constructClosureEnv fvs
@@ -89,7 +95,8 @@ fkl2Alg (CloApp _ c arg) = do
 fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
-                              withContext ((n, v):(x, arg'):fvs) undefined $ fkl2Alg f2 -}
+                              withContext ((n, v):(x, arg'):fvs) undefined $ fkl2Alg f2 
+fkl2Alg _ = undefined 
 
 constructClosureEnv :: [String] -> Graph a [(String, Plan)]
 constructClosureEnv [] = return []

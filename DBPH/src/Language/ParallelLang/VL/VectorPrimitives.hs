@@ -45,7 +45,7 @@ class VectorAlgebra a where
   lengthA :: Plan -> Graph a Plan
   lengthSeg :: Plan -> Plan -> Graph a Plan
   descToRename :: Plan -> Graph a RenameVector
-  notA :: Plan -> Graph a Plan
+  -- notA :: Plan -> Graph a Plan
   outer :: Plan -> Graph a Plan
   distPrim :: Plan -> Plan -> Graph a Plan
   distDesc :: Plan -> Plan -> Graph a (Plan, RenameVector)
