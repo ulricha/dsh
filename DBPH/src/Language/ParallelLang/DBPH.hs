@@ -31,7 +31,7 @@ nkl2Vec' :: NKL.Expr -> (FKL.Expr, Type)
 nkl2Vec' e = runTransform $ 
                  do 
                   e' <- flatTransform e 
-                  let t = transType $ typeOf e' 
+                  let t = typeOf e' 
                   return (e', t)
 
 nkl2fkl :: NKL.Expr -> String

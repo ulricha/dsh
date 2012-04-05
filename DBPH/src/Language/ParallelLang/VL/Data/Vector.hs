@@ -16,7 +16,7 @@ type Gam = G.Gam Plan
 type Plan = Query AlgNode
 
 data Layout a = Descriptor
-              | Content Type (Position a)
+              | Content (Position a)
       deriving Show
 
 data Position a = InColumn Int

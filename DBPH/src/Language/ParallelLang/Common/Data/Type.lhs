@@ -2,7 +2,7 @@
 \begin{code}
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
 module Language.ParallelLang.Common.Data.Type 
- (isNum, transType, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
+ (isNum, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
 where
     
 instance Show Type where 
@@ -149,14 +149,6 @@ isFuns (Fn _ _) = True
 isFuns (Pair _ _) = False
 isFuns _         = False 
 
-transType :: Type -> Type
-transType ot@(List t) | containsTuple t = case transType t of
-                                                (Pair t1 t2) -> Pair (transType $ List t1) (transType $ List t2)
-                                                t' -> List t'
-                        | otherwise       = ot
-transType (Pair t1 t2) = Pair (transType t1) (transType t2)
-transType (Fn t1 t2)   = Fn (transType t1) (transType t2)
-transType t            = t
 
 class Typed a where
   typeOf :: a -> Type

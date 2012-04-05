@@ -128,7 +128,7 @@ toX100String (m, r, t) = convertQuery r
     convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
     convertLayout :: Layout AlgNode -> Layout X100
     convertLayout Descriptor = Descriptor
-    convertLayout (Content t p) = Content t $ convertPos p
+    convertLayout (Content p) = Content $ convertPos p
     convertPos :: Position AlgNode -> Position X100
     convertPos (InColumn i) = InColumn i
     convertPos (Nest r') = Nest $ convertQuery r'
