@@ -23,6 +23,7 @@ import qualified Data.Text as Txt
 import Data.List (foldl', transpose)
 import Data.Maybe (fromJust)
 
+import Control.Applicative
 
 data SQL a = SQL (P.Query P.SQL)
 
@@ -123,46 +124,38 @@ makeNormSQL c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
 makeNormSQL _c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
 -}
 
-{-
-data Layout a = Descriptor
-              | Content Type (Position a)
-      deriving Show
+constructVector :: X100Info -> P.Position P.X100 -> [(Int, [(Int, [X100Data])])] -> Type -> IO [(Int, Norm)]
+constructVector _ (P.InColumn i) parted t = do
+                                            return $ normaliseX100List t i parted
+constructVector c (P.Nest n) parted t@(ListT t1) = do
+                                        inner <- liftM fromRight $ makeNormX100 c n t1
+                                        return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
+constructVector c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
+                                                                    v1 <- constructVector c p1 parted $ ListT t1
+                                                                    v2 <- constructVector c p2 parted $ ListT t2
+                                                                    return $ makeTuple v1 v2
+                                             
 
-data Position a = InColumn Int
-                | Nest (Query a)
-                | Pair (Position a) (Position a)
--}
+makeTuple :: [(Int, Norm)] -> [(Int, Norm)] -> [(Int, Norm)]
+makeTuple ((i1, vs1):v1) ((i2, vs2):v2) | i1 == i2  = (i1, zipNorm vs1 vs2) : makeTuple v1 v2
+                                        | otherwise = error "makeTuple: Cannot zip"
+makeTuple []             []                         = []
+
+zipNorm :: Norm -> Norm -> Norm
+zipNorm (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) = ListN [TupleN e1 e2 (TupleT t1 t2) | (e1, e2) <- zip es1 es2] (ListT $ TupleT t1 t2)
+zipNorm _ _ = error "zipNorm: Cannot zip"
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormX100 c (P.ValueVector (P.Content _ (P.InColumn i)) (P.X100 _ q)) t = do                                                   
+makeNormX100 c (P.ValueVector (P.Content p) (P.X100 _ q)) t = do                                                   
                                                    (X100Res _ res) <- doX100Query c q
                                                    let parted = partByIterX100 res
-                                                   return $ Right $ normaliseX100List t parted
-makeNormX100 c (P.ValueVector (P.Content _ (P.Nest qn)) (P.X100 _ q1)) t@(ListT t1) = do
-                                                                (X100Res _ res) <- doX100Query c q1
-                                                                let parted = partByIterX100 res
-                                                                inner <- liftM fromRight $ makeNormX100 c qn t1
-                                                                return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-makeNormX100 c (P.PrimVal _ (P.X100 _ q)) t = do
+                                                   Right <$> constructVector c p parted t
+makeNormX100 c (P.PrimVal (P.Content p) (P.X100 _ q)) t = do
                                               (X100Res _ res) <- doX100Query c q
-                                              let [(_, [(_, [v])])] = partByIterX100 res
-                                              return $ Left $ normaliseX100 t v
-{-
-makeNormX100 c (P.ValueVector (P.X100 _ q)) t = do
-                                                (X100Res _ res) <- doX100Query c q
-                                                let parted = partByIterX100 res
-                                                return $ Right $ normaliseX100List t parted
-makeNormX100 c (P.PairVector q1 q2) t@(TupleT t1 t2) = do
-                                                            r1 <- liftM (fromEither t1) $ makeNormX100 c q1 t1
-                                                            r2 <- liftM (fromEither t2) $ makeNormX100 c q2 t2
-                                                            return $ Left $ TupleN r1 r2 t
-makeNormX100 c (P.NestedVector (P.X100 _ q) qr) t@(ListT t1) = do
-                                                                (X100Res _ res) <- doX100Query c q
-                                                                let parted = partByIterX100 res
-                                                                inner <- (liftM fromRight) $ makeNormX100 c qr t1
-                                                                return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-makeNormX100 _ _ _ = $impossible
--}
+                                              let parted = partByIterX100 res
+                                              [(_, (ListN [n] _))] <- constructVector c p parted (ListT t)
+                                              return $ Left n
+
 fromRight :: Either a b -> b
 fromRight (Right x) = x
 fromRight _         = error "fromRight"
@@ -199,9 +192,9 @@ normaliseList :: Type -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Norm)]
 normaliseList t@(ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normalise t1 c) . snd) v) t):tl) [] vs
 normaliseList _            _ _  = error "normaliseList: Should not happen"
 
-normaliseX100List :: Type -> [(Int, [(Int, [X100Data])])] -> [(Int, Norm)]
-normaliseX100List t@(ListT t1) vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normaliseX100 t1) . head . snd) v) t):tl) [] vs
-normaliseX100List _ _ = error "normaliseX100List: Should not happen"
+normaliseX100List :: Type -> Int -> [(Int, [(Int, [X100Data])])] -> [(Int, Norm)]
+normaliseX100List t@(ListT t1) index vs = reverse $ foldl' (\tl (i, v) -> (i, ListN (map ((normaliseX100 t1) . (!! (index - 1)) . snd) v) t):tl) [] vs
+normaliseX100List _ _ _ = error "normaliseX100List: Should not happen"
 
 normalise :: Type -> Int -> [SqlValue] -> Norm
 normalise UnitT _ _ = UnitN UnitT

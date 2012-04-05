@@ -33,7 +33,6 @@ fromX100 :: QA a => X100Info -> Q a -> IO a
 fromX100 c (Q a) =  do
                   (q, t) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
                   executeX100Query c t $ X100 q
-                  -- executeSQLQuery c t $ SQL q
                    
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
