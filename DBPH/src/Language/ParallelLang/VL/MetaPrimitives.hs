@@ -1,60 +1,69 @@
 module Language.ParallelLang.VL.MetaPrimitives where
 
 import Language.ParallelLang.VL.Data.Vector
+import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.VL.VectorPrimitives
+import Database.Algebra.Dag.Common
 
-{-
+import Control.Applicative
+
+fromLayout :: Layout a -> [DBCol]
+fromLayout (InColumn i) = [i]
+fromLayout (Nest _ _) = []
+fromLayout (Pair l1 l2) = fromLayout l1 ++ fromLayout l2
+
 -- | chainRenameFilter renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
-chainRenameFilter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
-chainRenameFilter p q@(ValueVector)
-chainRenameFilter p q@(ValueVector _) = do 
-                                      (v, _) <- propFilter p q
-                                      return v
-chainRenameFilter p (NestedVector d vs) = do
-                                        (v', p') <- propFilter p (DescrVector d)
-                                        e3 <- chainRenameFilter p' vs
-                                        return $ attachV v' e3
-chainRenameFilter _ _ = error "chainRenameFilter: Should not be possible"
-                  
+chainRenameFilter :: VectorAlgebra a => RenameVector -> Layout AlgNode -> Graph a (Layout AlgNode) 
+chainRenameFilter r l@(InColumn _) = return l
+chainRenameFilter r (Nest q lyt) = do
+                                    (DBV q' _, r') <- propFilter r (DBV q (fromLayout lyt))
+                                    lyt' <- chainRenameFilter r' lyt
+                                    return $ Nest q' lyt'
+chainRenameFilter r (Pair l1 l2) = Pair <$> chainRenameFilter r l1 <*> chainRenameFilter r l2
+
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
 -- may change the order of tuples.
-chainReorder :: VectorAlgebra a => PropVector -> Plan -> Graph a Plan
-chainReorder p q@(ValueVector _) = do 
-                                      (v, _) <- propReorder p q
-                                      return v
-chainReorder p (NestedVector d vs) = do
-                                        (v', p') <- propReorder p (DescrVector d)
-                                        e3 <- chainReorder p' vs
-                                        return $ attachV v' e3
-chainReorder _ _ = error "chainReorder: Should not be possible"
-               
+chainReorder :: VectorAlgebra a => PropVector -> Layout AlgNode -> Graph a (Layout AlgNode)
+chainReorder p l@(InColumn _) = return l
+chainReorder p (Nest q lyt) = do
+                                (DBV q' _, p') <- propReorder p (DBV q (fromLayout lyt))
+                                lyt' <- chainReorder p' lyt
+                                return $ Nest q' lyt'
+chainReorder p (Pair l1 l2) = Pair <$> chainReorder p l1 <*> chainReorder p l2
+{-
+
+data Layout a = InColumn Int
+                | Nest (Query a)
+                | Pair (Layout a) (Layout a)
+    deriving Show
+    
+-}
 -- | renameOuter renames and filters a vector according to a propagation vector
 -- Changes are not propagated to inner vectors.
 renameOuter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
-renameOuter p e@(ValueVector _)
-                                = propRename p e
-renameOuter p (NestedVector h t)
-                                = do
-                                    d <- propRename p (DescrVector h)
-                                    return $ attachV d t
-renameOuter _ _ = error "renameOuter: Should not be possible"
+renameOuter p (ValueVector lyt q) = ValueVector lyt . (\(DBV x _) -> x) <$> propRename p (DBV q (fromLayout lyt))
+renameOuter _ _ = error "renameOuter: Not possible"
 
+renameOuter' :: VectorAlgebra a => RenameVector -> Layout AlgNode -> Graph a (Layout AlgNode)
+renameOuter' _ l@(InColumn _) = return l
+renameOuter' r (Nest q lyt) = flip Nest lyt . (\(DBV x _) -> x) <$> propRename r (DBV q (fromLayout lyt))
+renameOuter' r (Pair l1 l2) = Pair <$> renameOuter' r l1 <*> renameOuter' r l2
+                                
 -- | Append two vectors
 appendR :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-appendR e1@(ValueVector _) e2@(ValueVector _)
-                    = do
-                          (v, _, _) <- append e1 e2
-                          return v
-appendR (NestedVector d1 vs1) (NestedVector d2 vs2)
-                    = do
-                        (v, p1, p2) <- append (DescrVector d1) (DescrVector d2)
-                        e1' <- renameOuter p1 vs1
-                        e2' <- renameOuter p2 vs2
-                        e3 <- appendR e1' e2'
-                        return $ attachV v e3
+appendR (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
+                                                        (DBV v _, p1, p2) <- append (DBV q1 (fromLayout lyt1)) (DBV q2 (fromLayout lyt2))
+                                                        lyt1' <- renameOuter' p1 lyt1
+                                                        lyt2' <- renameOuter' p2 lyt2
+                                                        lyt' <- appendR' lyt1' lyt2'
+                                                        return $ ValueVector lyt' v
 appendR _ _ = error "appendR: Should not be possible"
 
--}
+appendR' :: VectorAlgebra a => Layout AlgNode -> Layout AlgNode -> Graph a (Layout AlgNode)
+appendR' (InColumn i1) (InColumn i2) | i1 == i2 = return $ InColumn i1
+                                     | otherwise = error "appendR': Incompatible vectors"
+appendR' (Nest q1 lyt1) (Nest q2 lyt2) = (\(ValueVector lyt q) -> Nest q lyt) <$> appendR (ValueVector lyt1 q1) (ValueVector lyt2 q2)
+appendR' (Pair ll1 lr1) (Pair ll2 lr2) = Pair <$> appendR' ll1 ll2 <*> appendR' lr1 lr2

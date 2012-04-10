@@ -46,3 +46,4 @@ Library
                    Language.ParallelLang.VL.VectorPrimitives
                    Language.ParallelLang.Translate.Algebra2SQL    
                    Language.ParallelLang.VL.X100VectorPrimitives  
+                   Language.ParallelLang.VL.Data.DBVector

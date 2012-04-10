@@ -37,7 +37,7 @@ fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 -- fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 --FIXME
 fkl2Alg (Const t v) = constructLiteral t v
-fkl2Alg (BinOp _ (Op Cons False) e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
+fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
 fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
 fkl2Alg (BinOp _ (Op o l) e1 e2)        = do {p1 <- fkl2Alg e1; p2 <- fkl2Alg e2; binOp l o p1 p2}
 {- 
@@ -134,12 +134,9 @@ toX100String (m, r, t) = convertQuery r
     convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
     convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
     convertLayout :: Layout AlgNode -> Layout X100
-    convertLayout Descriptor = Descriptor
-    convertLayout (Content p) = Content $ convertPos p
-    convertPos :: Position AlgNode -> Position X100
-    convertPos (InColumn i) = InColumn i
-    convertPos (Nest r') = Nest $ convertQuery r'
-    convertPos (Vec.Pair p1 p2) = Vec.Pair (convertPos p1) (convertPos p2)
+    convertLayout (InColumn i) = InColumn i
+    convertLayout (Nest r' l) = Nest (X100 r' $ generateDumbQuery m' r') $ convertLayout l
+    convertLayout (Vec.Pair p1 p2) = Vec.Pair (convertLayout p1) (convertLayout p2)
     
 toXML :: AlgPlan PFAlgebra Plan -> Query XML
 toXML = undefined

@@ -4,6 +4,7 @@ import qualified Language.ParallelLang.Common.Data.Type as Ty
 import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
+import Language.ParallelLang.VL.Data.DBVector
 
 -- import Control.Applicative
 import Language.ParallelLang.VL.Data.Vector
@@ -38,41 +39,44 @@ data AbstractColumn = DataCol DataColumn
 type TypedAbstractColumn t = (AbstractColumn, t)
 
 class VectorAlgebra a where
-  groupBy :: Plan -> Plan -> Graph a (Plan, Plan, PropVector)
-  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
+--  groupBy :: Plan -> Plan -> Graph a (Plan, Plan, PropVector)
+--  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
   notPrim :: Plan -> Graph a Plan
   notVec :: Plan -> Graph a Plan
-  lengthA :: Plan -> Graph a Plan
-  lengthSeg :: Plan -> Plan -> Graph a Plan
-  descToRename :: Plan -> Graph a RenameVector
+--  lengthA :: Plan -> Graph a Plan
+--  lengthSeg :: Plan -> Plan -> Graph a Plan
+--  descToRename :: Plan -> Graph a RenameVector
   -- notA :: Plan -> Graph a Plan
-  outer :: Plan -> Graph a Plan
-  distPrim :: Plan -> Plan -> Graph a Plan
-  distDesc :: Plan -> Plan -> Graph a (Plan, RenameVector)
-  distLift :: Plan -> Plan -> Graph a (Plan, RenameVector)
+  toDescr :: DBV -> Graph a DescrVector
+  distPrim :: DBP -> DescrVector -> Graph a (DBV, PropVector)
+--  distDesc :: Plan -> Plan -> Graph a (Plan, RenameVector)
+--  distLift :: Plan -> Plan -> Graph a (Plan, RenameVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
-  propRename :: RenameVector -> Plan -> Graph a Plan
+  propRename :: RenameVector -> DBV -> Graph a DBV
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
-  propFilter :: RenameVector -> Plan -> Graph a (Plan, RenameVector)
+  propFilter :: RenameVector -> DBV -> Graph a (DBV, RenameVector)
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
-  propReorder :: PropVector -> Plan -> Graph a (Plan, PropVector)
-  singletonVec :: Plan -> Graph a Plan
-  append :: Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
-  segment :: Plan -> Graph a Plan
-  restrictVec :: Plan -> Plan -> Graph a (Plan, RenameVector)
-  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
-  bPermuteVec :: Plan -> Plan -> Graph a (Plan, PropVector)
+  propReorder :: PropVector -> DBV -> Graph a (DBV, PropVector)
+--  singletonVec :: Plan -> Graph a Plan
+  append :: DBV -> DBV -> Graph a (DBV, RenameVector, RenameVector)
+--  segment :: Plan -> Graph a Plan
+--  restrictVec :: Plan -> Plan -> Graph a (Plan, RenameVector)
+--  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
+--  bPermuteVec :: Plan -> Plan -> Graph a (Plan, PropVector)
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
-  tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
-  emptyVector :: Maybe Ty.Type -> Graph a Plan
+--  tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
+--  emptyVector :: Maybe Ty.Type -> Graph a Plan
   binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
-  ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
-  vecSum :: Ty.Type -> Plan -> Graph a Plan
-  vecSumLift :: Plan -> Plan -> Graph a Plan
-  empty :: Plan -> Graph a Plan
-  emptyLift :: Plan -> Plan -> Graph a Plan
-  selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
-  selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
+--  ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
+--  vecSum :: Ty.Type -> Plan -> Graph a Plan
+--  vecSumLift :: Plan -> Plan -> Graph a Plan
+--  empty :: Plan -> Graph a Plan
+--  emptyLift :: Plan -> Plan -> Graph a Plan
+--  selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
+--  selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
+  projectL :: DBV -> [DBCol] -> Graph a DBV
+  projectA :: DBP -> [DBCol] -> Graph a DBP
+{-
   fstA :: Plan -> Graph a Plan
 {-  fstA (PairVector e1 _) = return e1
   fstA _                     = error "fstA: not a tuple" -}
@@ -85,7 +89,7 @@ class VectorAlgebra a where
   sndL :: Plan -> Graph a Plan 
 {-  sndL (PairVector _ e2) = return e2
   sndL _                     = error "sndL: not a tuple" -}
-
+-}
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
 
@@ -120,9 +124,10 @@ attachV _ _ = error "attachVPF: Should not be possible" -}
                 
 singletonPrim :: VectorAlgebra a => Plan -> Graph a Plan
 singletonPrim = undefined
-{-singletonPrim (PrimVal q1) = do
-                    return $ ValueVector q1
-singletonPrim _ = error "singletonPrim: Should not be possible" -}
+{-
+singletonPrim (PrimVal l q1) = return $ ValueVector l q1
+singletonPrim _ = error "singletonPrim: Should not be possible"
+-}
                     
 tagVector :: String -> Plan -> Graph a Plan
 tagVector = undefined

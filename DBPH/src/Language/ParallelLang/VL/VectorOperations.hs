@@ -4,10 +4,11 @@ module Language.ParallelLang.VL.VectorOperations where
 import Language.ParallelLang.Common.Impossible
 
 import Language.ParallelLang.VL.Data.Vector
+import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.Common.Data.Type
+-- import Language.ParallelLang.Common.Data.Type
 import qualified Language.ParallelLang.Common.Data.Val as V
 
 import Control.Applicative
@@ -114,8 +115,16 @@ consEmpty :: VectorAlgebra a => Plan -> Graph a Plan
 consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
 consEmpty q | nestingDepth q > 0 = singletonVec q
             | otherwise = error "consEmpty: Can't construct consEmpty node"
+-}
 
 cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+cons = undefined
+{-
+cons q1@(PrimVal l1 _) (ValueVector l2 q2) = do
+                                            n <- singleTonPrim q1
+                                            (v, _, _) <- append n q2
+
+cons (PrimVal  )
 cons (PairVector x y) (PairVector xs ys) = do
                                                     xxs <- cons x xs
                                                     yys <- cons y ys
@@ -137,7 +146,8 @@ cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (ne
                     return $ attachV v e3
             | otherwise = error "cons: Can't construct cons node"
 cons q1 q2 = error $ "cons: Should not be possible" ++ show q1 ++ "*******" ++ show q2
-
+-}
+{-
 consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
                       -- Case that e1 has a nesting depth of 1
@@ -216,7 +226,20 @@ bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
                         (v, _) <- bPermuteVec e1 e2
                         return v
                | otherwise = error "bPermute: Can't construct bPermute node"
+-}
 
+outer :: VectorAlgebra a => Plan -> Graph a DescrVector
+outer (PrimVal _ _) = $impossible
+outer (ValueVector _ q) = toDescr (DBV q [])
+outer (Closure _ _ _ _ _) = $impossible
+outer (AClosure _ v _ _ _ _ _) = outer v
+
+dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dist (PrimVal lyt q) q2 = do
+                           o <- outer q2
+                           (v, p) <- distPrim (DBP q $ snd $ projectFromPos lyt) o
+                           return undefined
+{-
 dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 dist (PairVector e1 e2) q2 = do
                                  e1' <- dist e1 q2
@@ -293,3 +316,42 @@ ifList qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
      return $ attachV d e3
 ifList qb e1 e2 = ifPrimList qb e1 e2
 -}
+
+fstA :: VectorAlgebra a => Plan -> Graph a Plan   
+fstA (PrimVal p@(Pair p1 _p2) q) = do
+                                     let (_, allCols) = projectFromPos p
+                                     let (p1', cols) = projectFromPos p1
+                                     (DBP proj _) <- projectA (DBP q allCols) cols
+                                     return $ PrimVal p1' proj
+                                                    
+fstL :: VectorAlgebra a => Plan -> Graph a Plan   
+fstL (ValueVector p@(Pair p1 _p2) q) = do
+                                        let (_, allCols) = projectFromPos p
+                                        let(p1', cols) = projectFromPos p1
+                                        (DBV proj _) <- projectL (DBV q allCols) cols
+                                        return $ ValueVector p1' proj
+
+sndA :: VectorAlgebra a => Plan -> Graph a Plan   
+sndA (PrimVal p@(Pair _p1 p2) q) = do
+                                    let (_, allCols) = projectFromPos p
+                                    let (p2', cols) = projectFromPos p2
+                                    (DBP proj _) <- projectA (DBP q allCols) cols
+                                    return $ PrimVal p2' proj
+    
+sndL :: VectorAlgebra a => Plan -> Graph a Plan   
+sndL (ValueVector p@(Pair _p1 p2) q) = do
+                                        let (_, allCols) = projectFromPos p
+                                        let (p2', cols) = projectFromPos p2
+                                        (DBV proj _) <- projectL (DBV q allCols) cols
+                                        return $ ValueVector p2' proj
+
+
+projectFromPos :: Layout AlgNode -> (Layout AlgNode, [DBCol])
+projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
+    where
+      projectFromPosWork :: Int -> Layout AlgNode -> (Layout AlgNode, [DBCol], Int)
+      projectFromPosWork c (InColumn i)   = (InColumn c, [i], c + 1)
+      projectFromPosWork c (Nest q l)       = (Nest q l, [], c)
+      projectFromPosWork c (Pair p1 p2)   = let (p1', cols1, c') = projectFromPosWork c p1
+                                                (p2', cols2, c'') = projectFromPosWork c' p2
+                                             in (Pair p1' p2', cols1 ++ cols2, c'')
