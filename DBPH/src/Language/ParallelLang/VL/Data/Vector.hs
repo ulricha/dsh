@@ -15,34 +15,23 @@ type Gam = G.Gam Plan
 
 type Plan = Query AlgNode
 
-data Layout a = Descriptor
-              | Content (Position a)
-      deriving Show
-
-data Position a = InColumn Int
-                | Nest (Query a)
-                | Pair (Position a) (Position a)
+data Layout a = InColumn Int
+                | Nest a (Layout a)
+                | Pair (Layout a) (Layout a)
     deriving Show
 
 data Query a =
---         PairVector (Query a) (Query a)
          ValueVector (Layout a) a
        | PrimVal (Layout a) a
        | Closure String [(String, Query a)] String Expr Expr
        | AClosure String (Query a) Int [(String, Query a)] String Expr Expr
      deriving Show
 
+data DescrVector = DescrVector AlgNode
+
 data PropVector = PropVector AlgNode
 
 data RenameVector = RenameVector AlgNode
-
-{-
-nestingDepth :: Show a => Query a -> Int
-nestingDepth (ValueVector _) = 1
-nestingDepth (NestedVector _ r) = 1 + nestingDepth r
-nestingDepth (AClosure _ q _ _ _ _ _) = nestingDepth q 
-nestingDepth v                  = error $ "nestingDepth: Not a list vector" ++ show v
--}
 
 data X100 = X100 Int String
 
