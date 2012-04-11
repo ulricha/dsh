@@ -237,39 +237,21 @@ outer (AClosure _ v _ _ _ _ _) = outer v
 dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 dist (PrimVal lyt q) q2 = do
                            o <- outer q2
-                           (v, p) <- distPrim (DBP q $ snd $ projectFromPos lyt) o
-                           return undefined
-{-
-dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-dist (PairVector e1 e2) q2 = do
-                                 e1' <- dist e1 q2
-                                 e2' <- dist e2 q2
-                                 return $ PairVector e1' e2'
-dist q1             (PairVector q2 _) = dist q1 q2
-dist q1@(PrimVal _) q2        | nestingDepth q2 > 0 = do
-                                                        o <- outer q2
-                                                        distPrim q1 o
-                              | otherwise           = error "dist: Not a list vector"
-dist q1@(ValueVector _) q2    | nestingDepth q2 > 0 = do
-                                                       d2v <- outer q2
-                                                       (q1v, _) <- distDesc q1 d2v
-                                                       return $ attachV d2v q1v
-                              | otherwise           = error "dist: Not a list vector"
-dist q1@(NestedVector _ _) q2 | nestingDepth q2 > 0 = do
-                                                        o1 <- outer q1
-                                                        o2 <- outer q2
-                                                        (d, p) <- distDesc o1 o2
-                                                        et <- concatV q1
-                                                        e3 <- chainRenameFilter p et
-                                                        o <- outer q2
-                                                        return $ attachV o $ attachV d e3
-                              | otherwise           = error "dist: Not a list vector"
-dist (Closure n env x f fl) q2 | nestingDepth q2 > 0 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
-dist e1 e2 = error $ "dist: Should not be possible" ++ show e1 ++ " " ++ show e2
+                           (DBV v _, p) <- distPrim (DBP q $ snd $ projectFromPos lyt) o
+                           lyt' <- chainRenameFilter p lyt
+                           return $ ValueVector lyt' v
+dist (ValueVector lyt q) q2 = do
+                               o@(DescrVector qo) <- outer q2
+                               (DBV d _, p) <- distDesc (DBV q $ snd $ projectFromPos lyt) o
+                               lyt' <- chainRenameFilter p lyt
+                               return $ ValueVector (Nest d lyt') qo
+dist (Closure n env x f fl) q2 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
 
 mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph a [(String, Plan)]
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
+
+{-
 
 sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
 sumPrim t q@(ValueVector _) = vecSum t q
@@ -318,12 +300,14 @@ ifList qb e1 e2 = ifPrimList qb e1 e2
 -}
 
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
+fstA (PrimVal (Pair (Nest q lyt) _p2) _q) = return $ ValueVector lyt q
 fstA (PrimVal p@(Pair p1 _p2) q) = do
                                      let (_, allCols) = projectFromPos p
                                      let (p1', cols) = projectFromPos p1
                                      (DBP proj _) <- projectA (DBP q allCols) cols
                                      return $ PrimVal p1' proj
-                                                    
+fstA e1 = error $ "fstA: " ++ show e1                                                     
+
 fstL :: VectorAlgebra a => Plan -> Graph a Plan   
 fstL (ValueVector p@(Pair p1 _p2) q) = do
                                         let (_, allCols) = projectFromPos p
@@ -332,6 +316,7 @@ fstL (ValueVector p@(Pair p1 _p2) q) = do
                                         return $ ValueVector p1' proj
 
 sndA :: VectorAlgebra a => Plan -> Graph a Plan   
+sndA (PrimVal (Pair _p1 (Nest q lyt)) _q) = return $ ValueVector lyt q
 sndA (PrimVal p@(Pair _p1 p2) q) = do
                                     let (_, allCols) = projectFromPos p
                                     let (p2', cols) = projectFromPos p2

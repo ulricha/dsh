@@ -254,13 +254,13 @@ sndPrim e = let t = typeOf e
 fstLPrim :: Expr -> Expr
 fstLPrim e = let t = typeOf e
               in case t of
-                  (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (Fst $ t .-> T.List t1) e
+                  (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (FstL $ t .-> T.List t1) e
                   _              -> error $ "fstLPrim: Provided type is not a tuple: " ++ show t
 
 sndLPrim :: Expr -> Expr
 sndLPrim e = let t = typeOf e
               in case t of
-                  (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (Snd $ t .-> T.List t2) e
+                  (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (SndL $ t .-> T.List t2) e
                   _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
 \end{code}
 

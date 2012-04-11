@@ -41,15 +41,15 @@ type TypedAbstractColumn t = (AbstractColumn, t)
 class VectorAlgebra a where
 --  groupBy :: Plan -> Plan -> Graph a (Plan, Plan, PropVector)
 --  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
-  notPrim :: Plan -> Graph a Plan
-  notVec :: Plan -> Graph a Plan
+  notPrim :: DBP -> Graph a DBP
+  notVec :: DBV -> Graph a DBV
 --  lengthA :: Plan -> Graph a Plan
 --  lengthSeg :: Plan -> Plan -> Graph a Plan
 --  descToRename :: Plan -> Graph a RenameVector
   -- notA :: Plan -> Graph a Plan
   toDescr :: DBV -> Graph a DescrVector
-  distPrim :: DBP -> DescrVector -> Graph a (DBV, PropVector)
---  distDesc :: Plan -> Plan -> Graph a (Plan, RenameVector)
+  distPrim :: DBP -> DescrVector -> Graph a (DBV, RenameVector)
+  distDesc :: DBV -> DescrVector -> Graph a (DBV, RenameVector)
 --  distLift :: Plan -> Plan -> Graph a (Plan, RenameVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
   propRename :: RenameVector -> DBV -> Graph a DBV
@@ -66,7 +66,8 @@ class VectorAlgebra a where
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
 --  tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
 --  emptyVector :: Maybe Ty.Type -> Graph a Plan
-  binOp :: Bool -> Oper -> Plan -> Plan -> Graph a Plan
+  binOp :: Oper -> DBP -> DBP -> Graph a DBP
+  binOpL :: Oper -> DBV -> DBV -> Graph a DBV
 --  ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
 --  vecSum :: Ty.Type -> Plan -> Graph a Plan
 --  vecSumLift :: Plan -> Plan -> Graph a Plan
