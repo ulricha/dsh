@@ -18,6 +18,7 @@ import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Vector hiding (Pair)
+import Language.ParallelLang.VL.Data.DBVector
 import qualified Language.ParallelLang.VL.Data.Vector as Vec
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -28,6 +29,7 @@ import Database.Algebra.Pathfinder(initLoop)
 
 import qualified Data.Map as M
 import Control.Monad (liftM, liftM2, liftM3)
+import Control.Applicative hiding (Const)
 
 import Language.ParallelLang.Common.Impossible
 
@@ -39,7 +41,8 @@ fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 fkl2Alg (Const t v) = constructLiteral t v
 fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
 fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
-fkl2Alg (BinOp _ (Op o l) e1 e2)        = do {p1 <- fkl2Alg e1; p2 <- fkl2Alg e2; binOp l o p1 p2}
+fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal lyt p1) <- fkl2Alg e1; (PrimVal _ p2) <- fkl2Alg e2; (DBP p _) <- binOp o (DBP p1 [1]) (DBP p2 [1]); return $ PrimVal lyt p}
+fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector lyt p1) <- fkl2Alg e1; (ValueVector _ p2) <- fkl2Alg e2; (DBV p _) <- binOpL o (DBV p1 [1]) (DBV p2 [1]); return $ ValueVector lyt p} 
 {- 
 fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
@@ -55,8 +58,8 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (SumL _) -> sumLift
                                            (The _) -> the
                                            (TheL _) -> theL -}
-                                           (NotPrim _) -> notPrim 
-                                           (NotVec _) -> notVec
+                                           (NotPrim _) -> (\(PrimVal lyt v) -> (\(DBP v' _) -> PrimVal lyt v') <$> notPrim (DBP v [1]))
+                                           (NotVec _) -> (\(ValueVector lyt v) -> (\(DBV v' _) -> ValueVector lyt v') <$> notVec (DBV v [1]))
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
@@ -66,8 +69,8 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
 fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of
-                {- (Dist _) -> \x y -> dist x y
-                (Dist_L _) -> distL
+                (Dist _) -> \x y -> dist x y
+                {-(Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
                 (GroupWithL _) -> groupByL
                 (SortWithS _) -> sortWithS
