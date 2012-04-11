@@ -43,9 +43,9 @@ class VectorAlgebra a where
 --  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
   notPrim :: DBP -> Graph a DBP
   notVec :: DBV -> Graph a DBV
---  lengthA :: Plan -> Graph a Plan
---  lengthSeg :: Plan -> Plan -> Graph a Plan
---  descToRename :: Plan -> Graph a RenameVector
+  lengthA :: DescrVector -> Graph a DBP
+  lengthSeg :: DescrVector -> DescrVector -> Graph a DBV
+  descToRename :: DescrVector -> Graph a RenameVector
   -- notA :: Plan -> Graph a Plan
   toDescr :: DBV -> Graph a DescrVector
   distPrim :: DBP -> DescrVector -> Graph a (DBV, RenameVector)
@@ -57,9 +57,9 @@ class VectorAlgebra a where
   propFilter :: RenameVector -> DBV -> Graph a (DBV, RenameVector)
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
   propReorder :: PropVector -> DBV -> Graph a (DBV, PropVector)
---  singletonVec :: Plan -> Graph a Plan
+  singletonDescr :: Graph a DescrVector
   append :: DBV -> DBV -> Graph a (DBV, RenameVector, RenameVector)
---  segment :: Plan -> Graph a Plan
+  segment :: DBV -> Graph a DBV
 --  restrictVec :: Plan -> Plan -> Graph a (Plan, RenameVector)
 --  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
 --  bPermuteVec :: Plan -> Plan -> Graph a (Plan, PropVector)
@@ -68,7 +68,7 @@ class VectorAlgebra a where
 --  emptyVector :: Maybe Ty.Type -> Graph a Plan
   binOp :: Oper -> DBP -> DBP -> Graph a DBP
   binOpL :: Oper -> DBV -> DBV -> Graph a DBV
---  ifPrimList :: Plan -> Plan -> Plan -> Graph a Plan
+  ifPrimList :: DBP -> DBV -> DBV -> Graph a DBV
 --  vecSum :: Ty.Type -> Plan -> Graph a Plan
 --  vecSumLift :: Plan -> Plan -> Graph a Plan
 --  empty :: Plan -> Graph a Plan
@@ -122,13 +122,16 @@ attachV :: Plan -> Plan -> Plan
 attachV = undefined
 {-attachV (DescrVector q1) e2 = NestedVector q1 e2
 attachV _ _ = error "attachVPF: Should not be possible" -}
+
+singletonVec :: VectorAlgebra a => Plan -> Graph a Plan
+singletonVec (ValueVector lyt q) = do
+                                    (DescrVector d) <- singletonDescr
+                                    return $ ValueVector (Nest q lyt) d
                 
 singletonPrim :: VectorAlgebra a => Plan -> Graph a Plan
-singletonPrim = undefined
-{-
-singletonPrim (PrimVal l q1) = return $ ValueVector l q1
+singletonPrim (PrimVal lyt q1) = return $ ValueVector lyt q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
--}
+
                     
 tagVector :: String -> Plan -> Graph a Plan
 tagVector = undefined

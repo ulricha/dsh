@@ -18,6 +18,7 @@ import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Vector hiding (Pair)
+import qualified Language.ParallelLang.VL.Data.Vector as Vec
 import Language.ParallelLang.VL.Data.DBVector
 import qualified Language.ParallelLang.VL.Data.Vector as Vec
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
@@ -40,21 +41,19 @@ fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 --FIXME
 fkl2Alg (Const t v) = constructLiteral t v
 fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
-fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = undefined -- do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
+fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
 fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal lyt p1) <- fkl2Alg e1; (PrimVal _ p2) <- fkl2Alg e2; (DBP p _) <- binOp o (DBP p1 [1]) (DBP p2 [1]); return $ PrimVal lyt p}
 fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector lyt p1) <- fkl2Alg e1; (ValueVector _ p2) <- fkl2Alg e2; (DBV p _) <- binOpL o (DBV p1 [1]) (DBV p2 [1]); return $ ValueVector lyt p} 
-{- 
-fkl2Alg (If _ eb e1 e2) = do 
+{-fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
                           e2' <- fkl2Alg e2
-                          ifList eb' e1' e2'
--}
+                          ifList eb' e1' e2' -}
 fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
-                                           {-(LengthPrim _) -> lengthV 
+                                           (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
                                            (ConcatLift _) -> concatLift
-                                           (Sum _) -> sumPrim t
+                                           {-}(Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
                                            (The _) -> the
                                            (TheL _) -> theL -}
@@ -99,7 +98,6 @@ fkl2Alg (CloLApp _ c arg) = do
                               (AClosure n v 1 fvs x _ f2) <- fkl2Alg c
                               arg' <- fkl2Alg arg
                               withContext ((n, v):(x, arg'):fvs) undefined $ fkl2Alg f2 
-fkl2Alg _ = undefined 
 
 constructClosureEnv :: [String] -> Graph a [(String, Plan)]
 constructClosureEnv [] = return []
@@ -112,20 +110,19 @@ toX100Algebra :: Expr -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
-toX100File = undefined
-{-
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
   where
       rootNodes :: Plan -> [AlgNode]
-      rootNodes (PairVector q1 q2) = rootNodes q1 ++ rootNodes q2 
-      rootNodes (DescrVector n) = [n]
-      rootNodes (ValueVector n) = [n]
-      rootNodes (PrimVal n) = [n]
-      rootNodes (NestedVector n q) = n : (rootNodes q)
+      rootNodes (ValueVector lyt n) = n : rootNodes' lyt
+      rootNodes (PrimVal lyt n) = n : rootNodes' lyt
       rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
       rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
--}
+      rootNodes' :: Layout AlgNode -> [AlgNode]
+      rootNodes' (Vec.Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
+      rootNodes' (InColumn _) = []
+      rootNodes' (Nest q lyt) = q : rootNodes' lyt
+      
 toX100String :: AlgPlan X100Algebra Plan -> Query X100
 toX100String (m, r, t) = convertQuery r
  where

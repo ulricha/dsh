@@ -88,29 +88,30 @@ groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d'
                                      return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
 groupByL e1 (PairVector e1' e2') = PairVector <$> groupByL e1 e1' <*> groupByL e1 e2'
 groupByL _ _ = error "groupByL: Should not be possible"
-                    
+-}                    
 concatLift :: VectorAlgebra a => Plan -> Graph a Plan
-concatLift (NestedVector d (NestedVector d' vs)) = do
-                                                    p <- descToRename (DescrVector d')
-                                                    vs' <- renameOuter p vs
-                                                    return $ NestedVector d vs'
+concatLift (ValueVector (Nest d' vs) d) = do
+                                                    p <- descToRename =<< (toDescr $ DBV d' $ snd $ projectFromPos vs)
+                                                    vs' <- renameOuter' p vs
+                                                    return $ ValueVector vs' d
 concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift :: VectorAlgebra a => Plan -> Graph a Plan
-lengthLift (PairVector e1 _e2) = lengthLift e1
-lengthLift (NestedVector d vs1) = do 
-                                   v <- outer vs1
-                                   ls <- lengthSeg (DescrVector d) v
-                                   p <- descToRename (DescrVector d)
-                                   propRename p ls
-lengthLift _ = error "lengthLift: Should not be possible"
+lengthLift (ValueVector (Nest qi lyt) q) = do
+                                            d <- toDescr (DBV q [])
+                                            di <- toDescr (DBV qi $ snd $ projectFromPos lyt)
+                                            ls <- lengthSeg d di
+                                            p <- descToRename d
+                                            (DBV r _) <- propRename p ls
+                                            return $ ValueVector (InColumn 1) r
 
 lengthV :: VectorAlgebra a => Plan -> Graph a Plan
-lengthV (PairVector e1 _e2) = lengthV e1
 lengthV v = do
              v' <- outer v
-             lengthA v'
+             (DBP v _) <- lengthA v'
+             return $ PrimVal (InColumn 1) v
 
+{-
 consEmpty :: VectorAlgebra a => Plan -> Graph a Plan
 consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
 consEmpty q | nestingDepth q > 0 = singletonVec q
@@ -118,62 +119,25 @@ consEmpty q | nestingDepth q > 0 = singletonVec q
 -}
 
 cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-cons = undefined
-{-
-cons q1@(PrimVal l1 _) (ValueVector l2 q2) = do
-                                            n <- singleTonPrim q1
-                                            (v, _, _) <- append n q2
-
-cons (PrimVal  )
-cons (PairVector x y) (PairVector xs ys) = do
-                                                    xxs <- cons x xs
-                                                    yys <- cons y ys
-                                                    return $ PairVector xxs yys
-cons q1@(PrimVal _) q2@(ValueVector _)
-                -- corresponds to rule [cons-1]
-                = do
-                    n <- singletonPrim q1
-                    (v, _, _) <- append n q2
-                    return v
-cons q1 q2@(NestedVector d2 vs2) | nestingDepth q1 > 0 && nestingDepth q2 == (nestingDepth q1) + 1
-                -- Corresponds to rule [cons-2]
-                = do
-                    o <- (singletonVec q1) >>= outer
-                    (v, p1, p2) <- append o (DescrVector d2)
-                    r1 <- renameOuter p1 q1
-                    r2 <- renameOuter p2 vs2
-                    e3 <- appendR r1 r2
-                    return $ attachV v e3
-            | otherwise = error "cons: Can't construct cons node"
+cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
+                                             n <- singletonPrim q1
+                                             appendR n q2
+cons q1 q2 = do
+                n <- singletonVec q1
+                appendR n q2
 cons q1 q2 = error $ "cons: Should not be possible" ++ show q1 ++ "*******" ++ show q2
--}
-{-
-consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-consLift e1@(ValueVector _) e2@(NestedVector d2 vs2) | nestingDepth e2 == 2
-                      -- Case that e1 has a nesting depth of 1
-                    = do
-                        s <- segment e1
-                        (v, _, _) <- append s vs2
-                        return $ attachV (DescrVector d2) v
-consLift e1@(NestedVector d1 vs1) e2@(NestedVector d2 vs2) 
-               | nestingDepth e1 > 1 && nestingDepth e2 == (nestingDepth e1) + 1
-                      -- Case that e1 has a nesting depth > 1
-                    = do
-                        s <- segment (DescrVector d1)
-                        o <- outer vs2
-                        (v, p1, p2) <- append s o
-                        r1 <- renameOuter p1 vs1
-                        vs2' <- concatV vs2 
-                        r2 <- renameOuter p2 vs2'
-                        e3 <- appendR r1 r2
-                        return $ attachV (DescrVector d2) $ attachV v e3
-               | otherwise = error "consLift: Can't construct consLift node"
-consLift (PairVector x y) (PairVector xs ys) = do
-                                                        xxs <- consLift x xs
-                                                        yys <- consLift y ys
-                                                        return $ PairVector xxs yys
-consLift e1 e2 = error $ "consLift: Should not be possible: \n" ++ show e1 ++ " : " ++ show e2 
 
+
+consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+consLift (ValueVector lyt1 q1) (ValueVector (Nest qi lyt2) q2) = do
+                        s <- segment (DBV q1 $ snd $ projectFromPos lyt1)
+                        (DBV v _, p1, p2) <- append s (DBV qi $ snd $ projectFromPos lyt2)
+                        lyt1' <- renameOuter' p1 lyt1
+                        lyt2' <- renameOuter' p2 lyt2
+                        lyt' <- appendR' lyt1' lyt2'
+                        return $ ValueVector (Nest v lyt') q2
+                        
+{-
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 restrict (PairVector e1 e2) bs = do
                                         e1' <- restrict e1 bs
@@ -278,13 +242,10 @@ distL (AClosure n v i xs x f fl) q2 = do
 distL (PairVector e1 e1') e2 = PairVector <$> distL e1 e2 <*> distL e1' e2
 distL e1 (PairVector e2 _) = distL e1 e2
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
-
+-}
+{-
 ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
-ifList qb (PairVector e11 e12) (PairVector e21 e22) = do
-                                                                e1 <- ifList qb e11 e21
-                                                                e2 <- ifList qb e12 e22
-                                                                return $ PairVector e1 e2
-ifList qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
+{-ifList qb@(PrimVal _) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
     do
      d1' <- distPrim qb (DescrVector q1)  
      (d1, p1) <- restrictVec (DescrVector q1) d1'
@@ -295,10 +256,9 @@ ifList qb@(PrimVal _) (NestedVector q1 vs1) (NestedVector q2 vs2) =
      r2 <- renameOuter p2 vs2
      e3 <- appendR r1 r2
      (d, _, _) <- append d1 d2
-     return $ attachV d e3
-ifList qb e1 e2 = ifPrimList qb e1 e2
+     return $ attachV d e3 -}
+ifList (PrimVal _ qb) (PrimVal lyt1 q1) (PrimVal _ q2) = (\(DBV q _) -> ) <$> ifPrimList (DBP qb [1]) (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt1)
 -}
-
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
 fstA (PrimVal (Pair (Nest q lyt) _p2) _q) = return $ ValueVector lyt q
 fstA (PrimVal p@(Pair p1 _p2) q) = do
