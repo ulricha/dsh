@@ -8,43 +8,38 @@ import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.MetaPrimitives
 import Language.ParallelLang.Common.Data.Op
--- import Language.ParallelLang.Common.Data.Type
+import Language.ParallelLang.Common.Data.Type hiding (Pair)
 import qualified Language.ParallelLang.Common.Data.Val as V
 
 import Control.Applicative
 
-{-
+
 the :: VectorAlgebra a => Plan -> Graph a Plan
-the e@(ValueVector _) = do
-                         p <- constructLiteral intT (V.Int 1)
-                         (ValueVector q, _) <- selectPos e Eq p
-                         return $ PrimVal q
-the (NestedVector d vs) = do
+the (ValueVector lyt@(Nest _ _) d) = do
+                                     p <- constructLiteral intT (V.Int 1)
+                                     (_, prop) <- selectPos (DBV d []) Eq p
+                                     (Nest q' lyt') <- chainRenameFilter prop lyt
+                                     return $ ValueVector lyt' q'
+the (ValueVector lyt d) = do
                             p <- constructLiteral intT (V.Int 1)
-                            (_, prop) <- selectPos (DescrVector d) Eq p
-                            chainRenameFilter prop vs
-the (PairVector e1 e2) = PairVector <$> the e1 <*> the e2
+                            (DBV q' _, prop) <- selectPos (DBV d $ snd $ projectFromPos lyt) Eq p
+                            lyt' <- chainRenameFilter prop lyt
+                            return $ PrimVal lyt' q'
 the _ = error "the: Should not be possible"
 
+
 theL :: VectorAlgebra a => Plan -> Graph a Plan
-theL (NestedVector d e@(ValueVector _)) = do
-                                            one <- constructLiteral intT (V.Int 1)
-                                            p <- distPrim one (DescrVector d)
-                                            (v, _) <- selectPosLift e Eq p
-                                            prop <- descToRename (DescrVector d)
-                                            (v', _) <- propFilter prop v
-                                            return v' 
-theL (NestedVector d (NestedVector d2 vs)) = do
-                                            one <- constructLiteral intT (V.Int 1)
-                                            p <- distPrim one (DescrVector d)
-                                            (v, p2) <- selectPosLift (DescrVector d2) Eq p
-                                            prop <- descToRename (DescrVector d)
-                                            vs' <- chainRenameFilter p2 vs
-                                            (v', _) <- propFilter prop v
-                                            return $ attachV v' vs'
-theL (PairVector e1 e2) = PairVector <$> theL e1 <*> theL e2
+theL (ValueVector (Nest q lyt) d) = do
+                                      (PrimVal _ one) <- constructLiteral intT (V.Int 1)
+                                      (p, _) <- distPrim (DBP one [1]) (DescrVector d)
+                                      (v, p2) <- selectPosLift (DBV q $ snd $ projectFromPos lyt) Eq p 
+                                      prop <- descToRename (DescrVector d)
+                                      lyt' <- chainRenameFilter p2 lyt
+                                      (DBV v' _, _) <- propFilter prop v
+                                      return $ ValueVector lyt' v'
 theL _ = error "theL: Should not be possible" 
 
+{-
 sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 sortWithS e1 e2@(ValueVector _) = do
                                    (v, _) <- sortWith e1 e2
@@ -215,16 +210,14 @@ mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
 
-{-
-
 sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
-sumPrim t q@(ValueVector _) = vecSum t q
-sumPrim _ _ = $impossible
+sumPrim t (ValueVector (InColumn 1) q) = (\(DBP q' _) -> PrimVal (InColumn 1) q')<$> vecSum t (DBV q [1])
 
 sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
-sumLift (NestedVector d1 vs1@(ValueVector _)) = vecSumLift (DescrVector d1) vs1 
+sumLift (ValueVector (Nest q (InColumn 1)) d1) = (\(DBV q' _) -> ValueVector (InColumn 1) q') <$> vecSumLift (DescrVector d1) (DBV q [1])
 sumLift _ = $impossible
 
+{-
 distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 distL q1@(ValueVector _) (NestedVector d vs) = do
                                                 o <- outer vs

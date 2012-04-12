@@ -53,17 +53,17 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
                                            (ConcatLift _) -> concatLift
-                                           {-}(Sum _) -> sumPrim t
+                                           (Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
                                            (The _) -> the
-                                           (TheL _) -> theL -}
+                                           (TheL _) -> theL
                                            (NotPrim _) -> (\(PrimVal lyt v) -> (\(DBP v' _) -> PrimVal lyt v') <$> notPrim (DBP v [1]))
                                            (NotVec _) -> (\(ValueVector lyt v) -> (\(DBV v' _) -> ValueVector lyt v') <$> notVec (DBV v [1]))
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
-                                           -- (Concat _) -> concatV
+                                           (Concat _) -> concatV
 
 fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
