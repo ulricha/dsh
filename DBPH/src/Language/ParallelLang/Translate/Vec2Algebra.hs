@@ -69,9 +69,9 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
     where
         fn = case f of
                 (Dist _) -> \x y -> dist x y
-                {-(Dist_L _) -> distL
+                (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
-                (GroupWithL _) -> groupByL
+                {-(GroupWithL _) -> groupByL
                 (SortWithS _) -> sortWithS
                 (SortWithL _) -> sortWithL
                 (Index _) -> error "Index is not yet defined fkl2Alg"

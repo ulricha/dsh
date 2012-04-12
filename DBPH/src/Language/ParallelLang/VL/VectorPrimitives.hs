@@ -39,7 +39,7 @@ data AbstractColumn = DataCol DataColumn
 type TypedAbstractColumn t = (AbstractColumn, t)
 
 class VectorAlgebra a where
---  groupBy :: Plan -> Plan -> Graph a (Plan, Plan, PropVector)
+  groupBy :: DBV -> DBV -> Graph a (DescrVector, DBV, PropVector)
 --  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
   notPrim :: DBP -> Graph a DBP
   notVec :: DBV -> Graph a DBV
@@ -50,7 +50,7 @@ class VectorAlgebra a where
   toDescr :: DBV -> Graph a DescrVector
   distPrim :: DBP -> DescrVector -> Graph a (DBV, RenameVector)
   distDesc :: DBV -> DescrVector -> Graph a (DBV, RenameVector)
---  distLift :: Plan -> Plan -> Graph a (Plan, RenameVector)
+  distLift :: DBV -> DescrVector -> Graph a (DBV, RenameVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
   propRename :: RenameVector -> DBV -> Graph a DBV
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
