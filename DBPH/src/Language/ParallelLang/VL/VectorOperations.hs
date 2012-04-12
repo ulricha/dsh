@@ -61,18 +61,16 @@ sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d
                                      return $ attachV (DescrVector d2) $ attachV v vs'
 sortWithL e1 (PairVector e1' e2') = PairVector <$> sortWithL e1 e1' <*> sortWithL e1 e2'
 sortWithL _ _ = error "sortWithL: Should not be possible"
+-}
 
 groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-groupByS e1 e2@(ValueVector _) = do
-                                  (d, v, _) <- groupBy e1 e2
-                                  return $ attachV d v
-groupByS e1 (NestedVector d2 vs2) = do
-                                     (d, v, p) <- groupBy e1 (DescrVector d2)
-                                     vs' <- chainReorder p vs2
-                                     return $ attachV d $ attachV v vs'
-groupByS e1 (PairVector e1' e2') = PairVector <$>  groupByS e1 e1' <*> groupByS e1 e2'
+groupByS (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
+                                            (DescrVector d, DBV v _, p) <- groupBy (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt2)
+                                            lyt2' <- chainReorder p lyt2
+                                            return $ ValueVector (Nest v lyt2') d
 groupByS _e1 _e2 = error $ "groupByS: Should not be possible "
 
+{-
 groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
                                   (d, v, _) <- groupBy v1 v2
@@ -217,25 +215,18 @@ sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
 sumLift (ValueVector (Nest q (InColumn 1)) d1) = (\(DBV q' _) -> ValueVector (InColumn 1) q') <$> vecSumLift (DescrVector d1) (DBV q [1])
 sumLift _ = $impossible
 
-{-
+
 distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-distL q1@(ValueVector _) (NestedVector d vs) = do
-                                                o <- outer vs
-                                                (v, _) <- distLift q1 o
-                                                return $ attachV (DescrVector d) v
-distL (NestedVector d1 vs1) (NestedVector d2 vs2) = do 
-                                                     o <- outer vs2
-                                                     (d, p) <- distLift (DescrVector d1) o
-                                                     e3 <- chainRenameFilter p vs1
-                                                     return $ attachV (DescrVector d2) $ attachV d e3
+distL (ValueVector lyt1 q1) (ValueVector (Nest o lyt2) d) = do
+                                                          (DBV v _, p) <- distLift (DBV q1 $ snd $ projectFromPos lyt1) =<< (toDescr (DBV o $ snd $ projectFromPos lyt2))
+                                                          lyt1' <- chainRenameFilter p lyt1
+                                                          return $ ValueVector (Nest v lyt1') d
 distL (AClosure n v i xs x f fl) q2 = do
                                         v' <- distL v q2
                                         xs' <- mapEnv (\y -> distL y v') xs
                                         return $ AClosure n v' (i + 1) xs' x f fl
-distL (PairVector e1 e1') e2 = PairVector <$> distL e1 e2 <*> distL e1' e2
-distL e1 (PairVector e2 _) = distL e1 e2
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
--}
+
 {-
 ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
 {-ifList qb@(PrimVal _) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
