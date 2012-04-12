@@ -6,7 +6,7 @@ import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.DBVector
 
--- import Control.Applicative
+import Control.Applicative
 import Language.ParallelLang.VL.Data.Vector
 
 -- import Database.Algebra.Dag.Builder
@@ -69,42 +69,27 @@ class VectorAlgebra a where
   binOp :: Oper -> DBP -> DBP -> Graph a DBP
   binOpL :: Oper -> DBV -> DBV -> Graph a DBV
   ifPrimList :: DBP -> DBV -> DBV -> Graph a DBV
---  vecSum :: Ty.Type -> Plan -> Graph a Plan
---  vecSumLift :: Plan -> Plan -> Graph a Plan
+  vecSum :: Ty.Type -> DBV -> Graph a DBP
+  vecSumLift :: DescrVector -> DBV -> Graph a DBV
 --  empty :: Plan -> Graph a Plan
 --  emptyLift :: Plan -> Plan -> Graph a Plan
---  selectPos :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
---  selectPosLift :: Plan -> Oper -> Plan -> Graph a (Plan, RenameVector)
+  selectPos :: DBV -> Oper -> Plan -> Graph a (DBV, RenameVector)
+  selectPosLift :: DBV -> Oper -> DBV -> Graph a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> Graph a DBV
   projectA :: DBP -> [DBCol] -> Graph a DBP
-{-
-  fstA :: Plan -> Graph a Plan
-{-  fstA (PairVector e1 _) = return e1
-  fstA _                     = error "fstA: not a tuple" -}
-  sndA :: Plan -> Graph a Plan
-{-  sndA (PairVector _ e2) = return e2
-  sndA _                     = error "sndA: not a tuple" -}
-  fstL :: Plan -> Graph a Plan
-{-  fstL (PairVector e1 _) = return e1
-  fstL _                     = error "fstL: not a tuple" -}
-  sndL :: Plan -> Graph a Plan 
-{-  sndL (PairVector _ e2) = return e2
-  sndL _                     = error "sndL: not a tuple" -}
--}
+
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra
 
 concatV :: Plan -> Graph a Plan
-concatV = undefined
-{- concatV (NestedVector _ p) = return p
-concatV (PairVector e1 e2) = PairVector <$> concatV e1 <*> concatV e2
+concatV (ValueVector (Nest q lyt) _) = return $ ValueVector lyt q
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
                                                              <*> pure (l - 1) 
                                                              <*> (mapM (\(y, val) -> do
                                                                                         val' <- concatV val
                                                                                         return (y, val')) fvs)
                                                              <*> pure x <*> pure f1 <*> pure f2
-concatV e                  = error $ "Not supported by concatV: " ++ show e -}
+concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 -- move a descriptor from e1 to e2
 unconcatV :: Plan -> Plan -> Graph a Plan
