@@ -40,7 +40,7 @@ type TypedAbstractColumn t = (AbstractColumn, t)
 
 class VectorAlgebra a where
   groupBy :: DBV -> DBV -> Graph a (DescrVector, DBV, PropVector)
---  sortWith :: Plan -> Plan -> Graph a (Plan, PropVector)
+  sortWith :: DBV -> DBV -> Graph a (DBV, PropVector)
   notPrim :: DBP -> Graph a DBP
   notVec :: DBV -> Graph a DBV
   lengthA :: DescrVector -> Graph a DBP
@@ -48,9 +48,9 @@ class VectorAlgebra a where
   descToRename :: DescrVector -> Graph a RenameVector
   -- notA :: Plan -> Graph a Plan
   toDescr :: DBV -> Graph a DescrVector
-  distPrim :: DBP -> DescrVector -> Graph a (DBV, RenameVector)
-  distDesc :: DBV -> DescrVector -> Graph a (DBV, RenameVector)
-  distLift :: DBV -> DescrVector -> Graph a (DBV, RenameVector)
+  distPrim :: DBP -> DescrVector -> Graph a (DBV, PropVector)
+  distDesc :: DBV -> DescrVector -> Graph a (DBV, PropVector)
+  distLift :: DBV -> DescrVector -> Graph a (DBV, PropVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
   propRename :: RenameVector -> DBV -> Graph a DBV
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
@@ -91,12 +91,6 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                              <*> pure x <*> pure f1 <*> pure f2
 concatV e                  = error $ "Not supported by concatV: " ++ show e
 
--- move a descriptor from e1 to e2
-unconcatV :: Plan -> Plan -> Graph a Plan
-unconcatV = undefined
-{-unconcatV (PairVector e1 _) q = unconcatV e1 q
-unconcatV (NestedVector d _) q = return $ NestedVector d q
-unconcatV e1 e2                = error $ "unconcatV: Not supported: " ++ show e1 ++ " " ++ show e2 -}
 
 isValueVector :: Plan -> Bool
 isValueVector = undefined

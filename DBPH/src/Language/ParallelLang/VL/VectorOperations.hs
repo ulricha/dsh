@@ -39,29 +39,25 @@ theL (ValueVector (Nest q lyt) d) = do
                                       return $ ValueVector lyt' v'
 theL _ = error "theL: Should not be possible" 
 
-{-
 sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-sortWithS e1 e2@(ValueVector _) = do
-                                   (v, _) <- sortWith e1 e2
-                                   return v
-sortWithS e1 (NestedVector d2 vs2) = do
-                                        (v, p) <- sortWith e1 (DescrVector d2)
-                                        vs' <- chainReorder p vs2
-                                        return $ attachV v vs'
-sortWithS e1 (PairVector e1' e2') = PairVector <$> sortWithS e1 e1' <*> sortWithS e1 e2'
+sortWithS (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
+                                   (DBV v _, p) <- sortWith (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt2)
+                                   lyt2' <- chainReorder p lyt2
+                                   return $ ValueVector lyt2' v
 sortWithS _e1 _e2 = error "sortWithS: Should not be possible" 
 
 sortWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
-                                  (v, _) <- sortWith v1 v2
-                                  return $ attachV (DescrVector d2) v
-sortWithL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
-                                     (v, p) <- sortWith v1 (DescrVector d')
-                                     vs' <- chainReorder p vs2
-                                     return $ attachV (DescrVector d2) $ attachV v vs'
-sortWithL e1 (PairVector e1' e2') = PairVector <$> sortWithL e1 e1' <*> sortWithL e1 e2'
+sortWithL (ValueVector (Nest v1 lyt1) _) (ValueVector (Nest v2 lyt2) d2) = do
+                                  (DBV v _, p) <- sortWith (DBV v1 $ snd $ projectFromPos lyt1) (DBV v2 $ snd $ projectFromPos lyt2)
+                                  lyt2' <- chainReorder p lyt2
+                                  return $ ValueVector (Nest v lyt2') d2
 sortWithL _ _ = error "sortWithL: Should not be possible"
--}
+
+-- move a descriptor from e1 to e2
+unconcatV :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+unconcatV (ValueVector lyt1 d1) (ValueVector lyt2 d2) = do
+                                                         (DescrVector d') <- toDescr (DBV d1 $ snd $ projectFromPos lyt2)
+                                                         return $ ValueVector (Nest d2 lyt2) d' 
 
 groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByS (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
@@ -70,18 +66,13 @@ groupByS (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
                                             return $ ValueVector (Nest v lyt2') d
 groupByS _e1 _e2 = error $ "groupByS: Should not be possible "
 
-{-
 groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 v2@(ValueVector _)) = do
-                                  (d, v, _) <- groupBy v1 v2
-                                  return $ attachV (DescrVector d2) $ attachV d v
-groupByL (NestedVector _d1 v1@(ValueVector _)) (NestedVector d2 (NestedVector d' vs2)) = do
-                                     (d, v, p) <- groupBy v1 (DescrVector d')
-                                     vs' <- chainReorder p vs2
-                                     return $ attachV (DescrVector d2) $ attachV d $ attachV v vs'
-groupByL e1 (PairVector e1' e2') = PairVector <$> groupByL e1 e1' <*> groupByL e1 e2'
+groupByL (ValueVector (Nest v1 lyt1) _) (ValueVector (Nest v2 lyt2) d2) = do
+                                        (DescrVector d, DBV v _, p) <- groupBy (DBV v1 $ snd $ projectFromPos lyt1) (DBV v2 $ snd $ projectFromPos lyt2)
+                                        lyt2' <- chainReorder p lyt2
+                                        return $ ValueVector (Nest d (Nest v lyt2')) d2
 groupByL _ _ = error "groupByL: Should not be possible"
--}                    
+
 concatLift :: VectorAlgebra a => Plan -> Graph a Plan
 concatLift (ValueVector (Nest d' vs) d) = do
                                                     p <- descToRename =<< (toDescr $ DBV d' $ snd $ projectFromPos vs)
@@ -195,12 +186,12 @@ dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 dist (PrimVal lyt q) q2 = do
                            o <- outer q2
                            (DBV v _, p) <- distPrim (DBP q $ snd $ projectFromPos lyt) o
-                           lyt' <- chainRenameFilter p lyt
+                           lyt' <- chainReorder p lyt
                            return $ ValueVector lyt' v
 dist (ValueVector lyt q) q2 = do
                                o@(DescrVector qo) <- outer q2
                                (DBV d _, p) <- distDesc (DBV q $ snd $ projectFromPos lyt) o
-                               lyt' <- chainRenameFilter p lyt
+                               lyt' <- chainReorder p lyt
                                return $ ValueVector (Nest d lyt') qo
 dist (Closure n env x f fl) q2 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
 
@@ -219,7 +210,7 @@ sumLift _ = $impossible
 distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 distL (ValueVector lyt1 q1) (ValueVector (Nest o lyt2) d) = do
                                                           (DBV v _, p) <- distLift (DBV q1 $ snd $ projectFromPos lyt1) =<< (toDescr (DBV o $ snd $ projectFromPos lyt2))
-                                                          lyt1' <- chainRenameFilter p lyt1
+                                                          lyt1' <- chainReorder p lyt1
                                                           return $ ValueVector (Nest v lyt1') d
 distL (AClosure n v i xs x f fl) q2 = do
                                         v' <- distL v q2
