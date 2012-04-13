@@ -96,34 +96,6 @@ executeX100Query c vt (X100 q) = do
                                   n <- makeNormX100 c q (fromFType vt)
                                   return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
 
-makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormSQL = undefined
-{-
-makeNormSQL c (P.PrimVal (P.SQL _ s q)) t = do
-                                          (r, d) <- doSQLQuery c q
-                                          let (iC, ri) = schemeToResult s d
-                                          let [(_, [(_, v)])] = partByIter iC r
-                                          let i = snd (fromJust ri)
-                                          return $ Left $ normalise t i v
-makeNormSQL c (P.ValueVector (P.SQL _ s q)) t = do
-                                               (r, d) <- doSQLQuery c q
-                                               let (iC, ri) = schemeToResult s d
-                                               let parted = partByIter iC r
-                                               let i = snd (fromJust ri)
-                                               return $ Right $ normaliseList t i parted
-makeNormSQL c (P.PairVector q1 q2) t@(TupleT t1 t2) = do
-                                                         r1 <- liftM (fromEither t1) $ makeNormSQL c q1 t1
-                                                         r2 <- liftM (fromEither t2) $ makeNormSQL c q2 t2
-                                                         return $ Left $ TupleN r1 r2 t
-makeNormSQL c (P.NestedVector (P.SQL _ s q) qr) t@(ListT t1) = do
-                                                             (r, d) <- doSQLQuery c q
-                                                             let (iC, _) = schemeToResult s d
-                                                             let parted = partByIter iC r
-                                                             inner <- (liftM fromRight) $ makeNormSQL c qr t1
-                                                             return $ Right $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-makeNormSQL _c v t = error $ "Val: " ++ show v ++ "\nType: " ++ show t
--}
-
 constructVector :: X100Info -> P.Layout P.X100 -> [(Int, [(Int, [X100Data])])] -> Type -> IO [(Int, Norm)]
 constructVector _ (P.InColumn i) parted t = do
                                             return $ normaliseX100List t i parted
@@ -135,6 +107,17 @@ constructVector c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
                                                                     v2 <- constructVector c p2 parted $ ListT t2
                                                                     return $ makeTuple v1 v2
                                              
+constructVectorSQL :: IConnection conn => conn -> P.Layout P.SQL -> [(Int, [(Int, [SqlValue])])] -> Type -> IO [(Int, Norm)]
+constructVectorSQL _ (P.InColumn i) parted t = do
+                                            return $ normaliseList t i parted
+constructVectorSQL c (P.Nest v lyt) parted t@(ListT t1) = do
+                                        inner <- liftM fromRight $ makeNormSQL c (P.ValueVector lyt v) t1
+                                        return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
+constructVectorSQL c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
+                                                                    v1 <- constructVectorSQL c p1 parted $ ListT t1
+                                                                    v2 <- constructVectorSQL c p2 parted $ ListT t2
+                                                                    return $ makeTuple v1 v2
+
 
 makeTuple :: [(Int, Norm)] -> [(Int, Norm)] -> [(Int, Norm)]
 makeTuple ((i1, vs1):v1) ((i2, vs2):v2) | i1 == i2  = (i1, zipNorm vs1 vs2) : makeTuple v1 v2
@@ -155,6 +138,19 @@ makeNormX100 c (P.PrimVal p (P.X100 _ q)) t = do
                                               let parted = partByIterX100 res
                                               [(_, (ListN [n] _))] <- constructVector c p parted (ListT t)
                                               return $ Left n
+
+makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
+makeNormSQL c (P.ValueVector p (P.SQL _ s q)) t = do
+                                                    (r, d) <- doSQLQuery c q
+                                                    let (iC, ri) = schemeToResult s d
+                                                    let parted = partByIter iC r
+                                                    Right <$> constructVectorSQL c p parted t
+makeNormSQL c (P.PrimVal p (P.SQL _ s q)) t = do
+                                                (r, d) <- doSQLQuery c q
+                                                let (iC, ri) = schemeToResult s d
+                                                let parted = partByIter iC r
+                                                [(_, (ListN [n] _))] <- constructVectorSQL c p parted (ListT t)
+                                                return $ Left n
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x
