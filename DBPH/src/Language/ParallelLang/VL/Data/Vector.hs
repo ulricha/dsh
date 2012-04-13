@@ -3,8 +3,6 @@ module Language.ParallelLang.VL.Data.Vector where
 import Database.Algebra.Dag.Common
 import qualified Database.Algebra.Dag.Builder as G
 
-import Language.ParallelLang.Common.Data.Type
-
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.FKL.Data.FKL
 
