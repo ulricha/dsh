@@ -20,10 +20,6 @@ import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.Vector hiding (Pair)
 import qualified Language.ParallelLang.VL.Data.Vector as Vec
 import Language.ParallelLang.VL.Data.DBVector
-import qualified Language.ParallelLang.VL.Data.Vector as Vec
-import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
-import qualified Language.ParallelLang.Common.Data.Type as T
-import qualified Language.ParallelLang.Common.Data.Val as V
 import Language.ParallelLang.VL.VectorOperations
 
 import Database.Algebra.Pathfinder(initLoop)
@@ -31,10 +27,6 @@ import Database.Algebra.Pathfinder(initLoop)
 import qualified Data.Map as M
 import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
-
-import Language.ParallelLang.Common.Impossible
-
-import System.IO.Unsafe
 
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 fkl2Alg (Table _ n cs ks) = tableRef n cs ks
@@ -122,7 +114,7 @@ toX100File f (m, r, t) = do
       rootNodes' (Nest q lyt) = q : rootNodes' lyt
       
 toX100String :: AlgPlan X100Algebra Plan -> Query X100
-toX100String (m, r, t) = convertQuery r
+toX100String (m, r, _t) = convertQuery r
  where
     m' :: M.Map AlgNode X100Algebra
     m' = reverseAlgMap m

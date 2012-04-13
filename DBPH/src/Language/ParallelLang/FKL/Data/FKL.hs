@@ -66,7 +66,6 @@ data Prim2 = GroupWithS Type
            | Dist Type
            | Dist_L Type
            | Restrict Type
-           | BPermute Type
            | Unconcat Type
            | Pair Type
            | PairL Type
@@ -81,7 +80,6 @@ instance Show Prim2 where
     show (Dist _)       = "dist"
     show (Dist_L _)     = "dist_L"
     show (Restrict _)   = "restrict"
-    show (BPermute _)   = "bPermute"
     show (Unconcat _)   = "unconcat"
     show (Pair _)       = "pair"
     show (PairL _)      = "pairL"

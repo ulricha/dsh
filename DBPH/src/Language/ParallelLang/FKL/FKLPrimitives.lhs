@@ -230,9 +230,6 @@ unconcatPrim e1 e2 = let t1 = typeOf e1
                          ft = t1 .-> t2 .-> rt
                       in F.PApp2 rt (F.Unconcat ft) e1 e2 
 
-bPermutePrim :: Expr -> Expr -> Expr
-bPermutePrim e1 e2 = F.PApp2 (typeOf e1) (F.BPermute $ typeOf e1 .-> typeOf e2 .-> typeOf e1) e1 e2 
-
 intF :: Int -> Expr
 intF i = F.Const intT $ Int i
 

@@ -55,9 +55,10 @@ sortWithL _ _ = error "sortWithL: Should not be possible"
 
 -- move a descriptor from e1 to e2
 unconcatV :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-unconcatV (ValueVector lyt1 d1) (ValueVector lyt2 d2) = do
+unconcatV (ValueVector _ d1) (ValueVector lyt2 d2) = do
                                                          (DescrVector d') <- toDescr (DBV d1 $ snd $ projectFromPos lyt2)
-                                                         return $ ValueVector (Nest d2 lyt2) d' 
+                                                         return $ ValueVector (Nest d2 lyt2) d'
+unconcatV _ _ = $impossible
 
 groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 groupByS (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
@@ -88,19 +89,13 @@ lengthLift (ValueVector (Nest qi lyt) q) = do
                                             p <- descToRename d
                                             (DBV r _) <- propRename p ls
                                             return $ ValueVector (InColumn 1) r
+lengthLift _ = $impossible
 
 lengthV :: VectorAlgebra a => Plan -> Graph a Plan
-lengthV v = do
-             v' <- outer v
+lengthV q = do
+             v' <- outer q
              (DBP v _) <- lengthA v'
              return $ PrimVal (InColumn 1) v
-
-{-
-consEmpty :: VectorAlgebra a => Plan -> Graph a Plan
-consEmpty q@(PrimVal _) = singletonPrim q -- Corresponds to rule [cons-empty-1]
-consEmpty q | nestingDepth q > 0 = singletonVec q
-            | otherwise = error "consEmpty: Can't construct consEmpty node"
--}
 
 cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
@@ -109,8 +104,6 @@ cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
 cons q1 q2 = do
                 n <- singletonVec q1
                 appendR n q2
-cons q1 q2 = error $ "cons: Should not be possible" ++ show q1 ++ "*******" ++ show q2
-
 
 consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 consLift (ValueVector lyt1 q1) (ValueVector (Nest qi lyt2) q2) = do
@@ -120,6 +113,7 @@ consLift (ValueVector lyt1 q1) (ValueVector (Nest qi lyt2) q2) = do
                         lyt2' <- renameOuter' p2 lyt2
                         lyt' <- appendR' lyt1' lyt2'
                         return $ ValueVector (Nest v lyt') q2
+consLift _ _ = $impossible
                         
 
 restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
@@ -142,6 +136,7 @@ combine (ValueVector (InColumn 1) qb) (ValueVector lyt1 q1) (ValueVector lyt2 q2
                         lyt2' <- renameOuter' p2 lyt2
                         lyt' <- appendR' lyt1' lyt2'
                         return $ ValueVector lyt' v
+combine _ _ _ = $impossible
 
 
 outer :: VectorAlgebra a => Plan -> Graph a DescrVector
@@ -162,6 +157,7 @@ dist (ValueVector lyt q) q2 = do
                                lyt' <- chainReorder p lyt
                                return $ ValueVector (Nest d lyt') qo
 dist (Closure n env x f fl) q2 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
+dist _ _ = $impossible
 
 mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph a [(String, Plan)]
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
@@ -169,6 +165,7 @@ mapEnv _f []          = return []
 
 sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
 sumPrim t (ValueVector (InColumn 1) q) = (\(DBP q' _) -> PrimVal (InColumn 1) q')<$> vecSum t (DBV q [1])
+sumPrim _ _ = $impossible
 
 sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
 sumLift (ValueVector (Nest q (InColumn 1)) d1) = (\(DBV q' _) -> ValueVector (InColumn 1) q') <$> vecSumLift (DescrVector d1) (DBV q [1])
@@ -204,7 +201,8 @@ ifList (PrimVal _ qb) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
      return $ ValueVector lyt' d
 ifList qb (PrimVal lyt1 q1) (PrimVal lyt2 q2) = do
                                                    (ValueVector lyt q) <- ifList qb (ValueVector lyt1 q1) (ValueVector lyt2 q2)
-                                                   return $ PrimVal lyt q 
+                                                   return $ PrimVal lyt q
+ifList _ _ _ = $impossible
 
 zipOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 zipOp (PrimVal lyt1 q1) (PrimVal lyt2 q2) = do
@@ -215,7 +213,7 @@ zipOp (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
                                                     (DBV q _) <- zipL (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt2)
                                                     let lyt = zipLayout lyt1 lyt2
                                                     return $ ValueVector lyt q
-                                             
+zipOp _ _ = $impossible
 
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
 fstA (PrimVal (Pair (Nest q lyt) _p2) _q) = return $ ValueVector lyt q
@@ -232,6 +230,7 @@ fstL (ValueVector p@(Pair p1 _p2) q) = do
                                         let(p1', cols) = projectFromPos p1
                                         (DBV proj _) <- projectL (DBV q allCols) cols
                                         return $ ValueVector p1' proj
+fstL _ = $impossible
 
 sndA :: VectorAlgebra a => Plan -> Graph a Plan   
 sndA (PrimVal (Pair _p1 (Nest q lyt)) _q) = return $ ValueVector lyt q
@@ -240,6 +239,7 @@ sndA (PrimVal p@(Pair _p1 p2) q) = do
                                     let (p2', cols) = projectFromPos p2
                                     (DBP proj _) <- projectA (DBP q allCols) cols
                                     return $ PrimVal p2' proj
+sndA _ = $impossible
     
 sndL :: VectorAlgebra a => Plan -> Graph a Plan   
 sndL (ValueVector p@(Pair _p1 p2) q) = do
@@ -247,6 +247,7 @@ sndL (ValueVector p@(Pair _p1 p2) q) = do
                                         let (p2', cols) = projectFromPos p2
                                         (DBV proj _) <- projectL (DBV q allCols) cols
                                         return $ ValueVector p2' proj
+sndL _ = $impossible
 
 columnsInLayout :: Layout a -> Int
 columnsInLayout (InColumn _) = 1
@@ -257,11 +258,11 @@ zipLayout :: Layout a -> Layout a -> Layout a
 zipLayout l1 l2 = let offSet = columnsInLayout l1
                       l2' = incrementPositions offSet l2
                    in Pair l1 l2'
-    where
-      incrementPositions :: Int -> Layout a -> Layout a
-      incrementPositions i (InColumn n) = (InColumn $ n + i)
-      incrementPositions i v@(Nest _ _) = v
-      incrementPositions i (Pair l1 l2) = Pair (incrementPositions i l1) (incrementPositions i l2)
+
+incrementPositions :: Int -> Layout a -> Layout a
+incrementPositions i (InColumn n)  = (InColumn $ n + i)
+incrementPositions _i v@(Nest _ _) = v
+incrementPositions i (Pair l1 l2)  = Pair (incrementPositions i l1) (incrementPositions i l2)
 
 projectFromPos :: Layout AlgNode -> (Layout AlgNode, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
@@ -272,3 +273,24 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
       projectFromPosWork c (Pair p1 p2)   = let (p1', cols1, c') = projectFromPosWork c p1
                                                 (p2', cols2, c'') = projectFromPosWork c' p2
                                              in (Pair p1' p2', cols1 ++ cols2, c'')
+                                             
+concatV :: Plan -> Graph a Plan
+concatV (ValueVector (Nest q lyt) _) = return $ ValueVector lyt q
+concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
+                                                          <*> pure (l - 1) 
+                                                          <*> (mapM (\(y, val) -> do
+                                                                                     val' <- concatV val
+                                                                                     return (y, val')) fvs)
+                                                          <*> pure x <*> pure f1 <*> pure f2
+concatV e                  = error $ "Not supported by concatV: " ++ show e
+
+
+singletonVec :: VectorAlgebra a => Plan -> Graph a Plan
+singletonVec (ValueVector lyt q) = do
+                                 (DescrVector d) <- singletonDescr
+                                 return $ ValueVector (Nest q lyt) d
+singletonVec _ = error "singletonVec: Should not be possible"
+
+singletonPrim :: VectorAlgebra a => Plan -> Graph a Plan
+singletonPrim (PrimVal lyt q1) = return $ ValueVector lyt q1
+singletonPrim _ = error "singletonPrim: Should not be possible"
