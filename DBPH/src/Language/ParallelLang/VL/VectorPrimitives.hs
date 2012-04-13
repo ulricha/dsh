@@ -76,6 +76,8 @@ class VectorAlgebra a where
   selectPosLift :: DBV -> Oper -> DBV -> Graph a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> Graph a DBV
   projectA :: DBP -> [DBCol] -> Graph a DBP
+  zipA :: DBP -> DBP -> Graph a DBP
+  zipL :: DBV -> DBV -> Graph a DBV
 
 -- some purely compile time functions which involve no algebra code generation and 
 -- are therefore the same for all instances of VectorAlgebra

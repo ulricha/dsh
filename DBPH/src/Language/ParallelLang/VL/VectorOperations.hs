@@ -206,6 +206,17 @@ ifList qb (PrimVal lyt1 q1) (PrimVal lyt2 q2) = do
                                                    (ValueVector lyt q) <- ifList qb (ValueVector lyt1 q1) (ValueVector lyt2 q2)
                                                    return $ PrimVal lyt q 
 
+zipOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipOp (PrimVal lyt1 q1) (PrimVal lyt2 q2) = do
+                                             (DBP q _) <- zipA (DBP q1 $ snd $ projectFromPos lyt1) (DBP q2 $ snd $ projectFromPos lyt2)
+                                             let lyt = zipLayout lyt1 lyt2
+                                             return $ PrimVal lyt q
+zipOp (ValueVector lyt1 q1) (ValueVector lyt2 q2) = do
+                                                    (DBV q _) <- zipL (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt2)
+                                                    let lyt = zipLayout lyt1 lyt2
+                                                    return $ ValueVector lyt q
+                                             
+
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
 fstA (PrimVal (Pair (Nest q lyt) _p2) _q) = return $ ValueVector lyt q
 fstA (PrimVal p@(Pair p1 _p2) q) = do
@@ -237,6 +248,20 @@ sndL (ValueVector p@(Pair _p1 p2) q) = do
                                         (DBV proj _) <- projectL (DBV q allCols) cols
                                         return $ ValueVector p2' proj
 
+columnsInLayout :: Layout a -> Int
+columnsInLayout (InColumn _) = 1
+columnsInLayout (Nest _ _) = 0
+columnsInLayout (Pair p1 p2) = columnsInLayout p1 + columnsInLayout p2
+
+zipLayout :: Layout a -> Layout a -> Layout a
+zipLayout l1 l2 = let offSet = columnsInLayout l1
+                      l2' = incrementPositions offSet l2
+                   in Pair l1 l2'
+    where
+      incrementPositions :: Int -> Layout a -> Layout a
+      incrementPositions i (InColumn n) = (InColumn $ n + i)
+      incrementPositions i v@(Nest _ _) = v
+      incrementPositions i (Pair l1 l2) = Pair (incrementPositions i l1) (incrementPositions i l2)
 
 projectFromPos :: Layout AlgNode -> (Layout AlgNode, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
