@@ -10,6 +10,8 @@ import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.JSON
 import Database.Algebra.X100.Render
 
+import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
+
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.X100VectorPrimitives()
@@ -129,22 +131,21 @@ toX100String (m, r, _t) = convertQuery r
     convertLayout (Vec.Pair p1 p2) = Vec.Pair (convertLayout p1) (convertLayout p2)
     
 toXML :: AlgPlan PFAlgebra Plan -> Query XML
-toXML = undefined
-{-
-toXML (g, r, ts) = case r of
-                     (PrimVal r') -> PrimVal (XML r' $ toXML' withItem r')
-                     (PairVector e1 e2)   -> PairVector (toXML (g, e1, ts)) (toXML (g, e2, ts))
-                     (DescrVector r') -> DescrVector (XML r' $ toXML' withoutItem r')
-                     (ValueVector r') -> ValueVector (XML r' $ toXML' withItem r')
-                     (NestedVector r' rs) -> NestedVector (XML r' $ toXML' withoutItem r') $ toXML (g, rs, ts)
-                     (Closure _ _ _ _ _) -> error "Functions cannot appear as a result value"
-                     (AClosure _ _ _ _ _ _ _) -> error "Function cannot appear as a result value"
+toXML (g, r, ts) = convertQuery r
     where
-        item :: Element ()
-        item = [attr "name" $ "item1", attr "new" "false", attr "function" "item", attr "position" "1"] `attrsOf` xmlElem "column"
-        withItem, withoutItem :: [Element ()]
-        withItem = [iterCol, posCol, item]
-        withoutItem = [iterCol, posCol]
+        convertQuery :: Plan -> Query XML
+        convertQuery (PrimVal l r') = PrimVal (convertLayout l) $ XML r' $ toXML' (withItem $ columnsInLayout l) r'
+        convertQuery (ValueVector l r') = ValueVector (convertLayout l) $ XML r' $ toXML' (withItem $ columnsInLayout l) r'
+        convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
+        convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
+        convertLayout :: Layout AlgNode -> Layout XML
+        convertLayout (InColumn i) = InColumn i
+        convertLayout (Nest r' l) = Nest (XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
+        convertLayout (Vec.Pair p1 p2) = Vec.Pair (convertLayout p1) (convertLayout p2)
+        itemi :: Int -> Element ()
+        itemi i = [attr "name" $ "item" ++ show i, attr "new" "false", attr "function" "item", attr "position" (show i)] `attrsOf` xmlElem "column"
+        withItem :: Int -> [Element ()]
+        withItem i = (iterCol:posCol:[ itemi i' | i' <- [1..i]])
         nodeTable = M.fromList $ map (\(a, b) -> (b, a)) $ M.toList g
         toXML' :: [Element ()] -> AlgNode -> String
         toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $ 
@@ -153,4 +154,3 @@ toXML (g, r, ts) = case r of
                                 runXML True nodeTable ts $ serializeAlgebra cs n
     
 
--}

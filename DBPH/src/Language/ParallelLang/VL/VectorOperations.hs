@@ -249,21 +249,6 @@ sndL (ValueVector p@(Pair _p1 p2) q) = do
                                         return $ ValueVector p2' proj
 sndL _ = $impossible
 
-columnsInLayout :: Layout a -> Int
-columnsInLayout (InColumn _) = 1
-columnsInLayout (Nest _ _) = 0
-columnsInLayout (Pair p1 p2) = columnsInLayout p1 + columnsInLayout p2
-
-zipLayout :: Layout a -> Layout a -> Layout a
-zipLayout l1 l2 = let offSet = columnsInLayout l1
-                      l2' = incrementPositions offSet l2
-                   in Pair l1 l2'
-
-incrementPositions :: Int -> Layout a -> Layout a
-incrementPositions i (InColumn n)  = (InColumn $ n + i)
-incrementPositions _i v@(Nest _ _) = v
-incrementPositions i (Pair l1 l2)  = Pair (incrementPositions i l1) (incrementPositions i l2)
-
 projectFromPos :: Layout AlgNode -> (Layout AlgNode, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
     where
