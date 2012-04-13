@@ -121,24 +121,13 @@ consLift (ValueVector lyt1 q1) (ValueVector (Nest qi lyt2) q2) = do
                         lyt' <- appendR' lyt1' lyt2'
                         return $ ValueVector (Nest v lyt') q2
                         
-{-
-restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-restrict (PairVector e1 e2) bs = do
-                                        e1' <- restrict e1 bs
-                                        e2' <- restrict e2 bs
-                                        return $ PairVector e1' e2'
-restrict e1@(ValueVector _) e2@(ValueVector _) 
-                     -- Corresponds to compilation rule [restrict-1]
-                   = do
-                        (v, _) <- restrictVec e1 e2
-                        return v
 
-restrict (NestedVector d1 vs1) e2@(ValueVector _)
-                     -- Corresponds to compilation rule [restrict-2]
-                   = do
-                       (v, p) <- restrictVec (DescrVector d1) e2
-                       e3 <- chainRenameFilter p vs1
-                       return $ attachV v e3
+restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+restrict(ValueVector lyt q1) (ValueVector (InColumn 1) q2)
+                  = do
+                      (DBV v _, p) <- restrictVec (DBV q1 $ snd $ projectFromPos lyt) (DBV q2 [1])
+                      lyt' <- chainRenameFilter p lyt
+                      return $ ValueVector lyt' v
 restrict (AClosure n l i env arg e1 e2) bs = do
                                             l' <- restrict l bs
                                             env' <- mapEnv (flip restrict bs) env
@@ -146,35 +135,14 @@ restrict (AClosure n l i env arg e1 e2) bs = do
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
-combine eb (PairVector e11 e12) (PairVector e21 e22) = 
-                     do
-                         e1 <- combine eb e11 e21
-                         e2 <- combine eb e12 e22
-                         return $ PairVector e1 e2
-combine eb e1 e2 | nestingDepth eb == 1 && nestingDepth e1 == 1 && nestingDepth e2 == 1
-                      -- Corresponds to compilation rule [combine-1]
-                    = do
-                        (v, _, _) <- combineVec eb e1 e2
-                        return v
-                 | nestingDepth eb == 1 && nestingDepth e1 > 1 && nestingDepth e1 == nestingDepth e2
-                      -- Corresponds to compilation rule [combine-2]
-                    = do
-                        let (NestedVector d1 vs1) = e1
-                        let (NestedVector d2 vs2) = e2
-                        (v, p1, p2) <- combineVec eb (DescrVector d1) (DescrVector d2)
-                        r1 <- renameOuter p1 vs1
-                        r2 <- renameOuter p2 vs2
-                        e3 <- appendR r1 r2
-                        return $ attachV v e3
-                 | otherwise = error "combine: Can't construct combine node"
+combine (ValueVector (InColumn 1) qb) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
+                      do
+                        (DBV v _, p1, p2) <- combineVec (DBV qb [1]) (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt2)
+                        lyt1' <- renameOuter' p1 lyt1
+                        lyt2' <- renameOuter' p2 lyt2
+                        lyt' <- appendR' lyt1' lyt2'
+                        return $ ValueVector lyt' v
 
-bPermute :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-bPermute e1 e2 | nestingDepth e1 == 1 && nestingDepth e2 == 1
-                    = do
-                        (v, _) <- bPermuteVec e1 e2
-                        return v
-               | otherwise = error "bPermute: Can't construct bPermute node"
--}
 
 outer :: VectorAlgebra a => Plan -> Graph a DescrVector
 outer (PrimVal _ _) = $impossible
@@ -218,22 +186,26 @@ distL (AClosure n v i xs x f fl) q2 = do
                                         return $ AClosure n v' (i + 1) xs' x f fl
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
-{-
+
 ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
-{-ifList qb@(PrimVal _) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
+ifList (PrimVal _ qb) (ValueVector lyt1 q1) (ValueVector lyt2 q2) =
     do
-     d1' <- distPrim qb (DescrVector q1)  
-     (d1, p1) <- restrictVec (DescrVector q1) d1'
-     qb' <- notPrim qb
-     d2' <- distPrim qb' (DescrVector q2)  
-     (d2, p2) <- restrictVec (DescrVector q2) d2'
-     r1 <- renameOuter p1 vs1
-     r2 <- renameOuter p2 vs2
-     e3 <- appendR r1 r2
-     (d, _, _) <- append d1 d2
-     return $ attachV d e3 -}
-ifList (PrimVal _ qb) (PrimVal lyt1 q1) (PrimVal _ q2) = (\(DBV q _) -> ) <$> ifPrimList (DBP qb [1]) (DBV q1 $ snd $ projectFromPos lyt1) (DBV q2 $ snd $ projectFromPos lyt1)
--}
+     let q1' = (DBV q1 $ snd $ projectFromPos lyt1)
+     let q2' = (DBV q2 $ snd $ projectFromPos lyt2)
+     (d1', _) <- distPrim (DBP qb [1]) =<< toDescr q1'
+     (d1, p1) <- restrictVec q1' d1'
+     qb' <- notPrim (DBP qb [1])
+     (d2', _) <- distPrim qb' =<< toDescr q2'
+     (d2, p2) <- restrictVec q2' d2'
+     r1 <- renameOuter' p1 lyt1
+     r2 <- renameOuter' p2 lyt2
+     lyt' <- appendR' r1 r2
+     (DBV d _, _, _) <- append d1 d2
+     return $ ValueVector lyt' d
+ifList qb (PrimVal lyt1 q1) (PrimVal lyt2 q2) = do
+                                                   (ValueVector lyt q) <- ifList qb (ValueVector lyt1 q1) (ValueVector lyt2 q2)
+                                                   return $ PrimVal lyt q 
+
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
 fstA (PrimVal (Pair (Nest q lyt) _p2) _q) = return $ ValueVector lyt q
 fstA (PrimVal p@(Pair p1 _p2) q) = do
