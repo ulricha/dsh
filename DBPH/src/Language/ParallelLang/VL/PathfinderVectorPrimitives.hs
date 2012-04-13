@@ -10,7 +10,8 @@ import Language.ParallelLang.Common.Data.Val
 import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
-import Language.ParallelLang.VL.Data.Vector
+import Language.ParallelLang.VL.Data.Vector hiding (Pair)
+import qualified Language.ParallelLang.VL.Data.Vector as V
 import Language.ParallelLang.VL.VectorPrimitives
 
 import Database.Algebra.Pathfinder
@@ -38,9 +39,9 @@ instance VectorAlgebra PFAlgebra where
   segment = segmentPF
   restrictVec = restrictVecPF
   combineVec = combineVecPF
-  bPermuteVec = bPermuteVecPF
-  constructLiteral = constructLiteralPF
-  tableRef = tableRefPF
+  bPermuteVec = bPermuteVecPF -}
+  constructLiteral = mkLiteral
+{-  tableRef = tableRefPF
   binOp = binOpPF
   emptyVector = emptyVectorPF
   ifPrimList = ifPrimListPF
@@ -51,12 +52,12 @@ instance VectorAlgebra PFAlgebra where
   selectPosLift = selectPosLiftPF
   empty = emptyPF
   emptyLift = emptyLiftPF
-
+-}
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
 item      = "item1"
-item'     = "item2"
+item'     = "item99999991"
 descr     = "iter"
 descr'    = "item99999501"
 descr''   = "item99999502"
@@ -95,7 +96,7 @@ auxCol TmpCol = tmpCol
 auxCol TmpCol' = tmpCol'
 auxCol Item = item
 auxCol Item' = item'
-
+{-
 emptyVectorPF :: (Maybe Ty.Type) -> Graph PFAlgebra Plan
 emptyVectorPF Nothing  = DescrVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat)])
 emptyVectorPF (Just t) = case t of
@@ -411,7 +412,8 @@ bPermuteVecPF e1 (ValueVector q2) = do
                      qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
                      return $ (qr, qp)
 bPermuteVecPF _ _ = error "bpermuteVecPF: Should not be possible"
-
+-}
+{-
 -- constructLiteralPF :: VectorAlgebra a => Ty.Type -> Val -> Graph a Plan
 constructLiteralPF :: Ty.Type -> Val -> Graph PFAlgebra Plan
 constructLiteralPF t (List es) = listToPlan t (zip (repeat 1) es)
@@ -425,7 +427,68 @@ constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (na
   constructLiteralPF' (Double d) = litTable (double d) item doubleT
   constructLiteralPF' (List _) = $impossible 
   constructLiteralPF' (Pair _ _) = $impossible
+-}
 
+algVal :: Val -> AVal
+algVal (Int i) = int (fromIntegral i)
+algVal (Bool t) = bool t
+algVal Unit = int (-1)
+algVal (String s) = string s
+algVal (Double d) = double d
+
+mkLiteral :: Ty.Type -> Val -> Graph PFAlgebra Plan
+mkLiteral t@(Ty.List _) (List es) = do
+                                          ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
+                                          (ValueVector layout) <$> (flip litTable' (reverse descHd) $ map reverse descV)
+mkLiteral (Ty.Fn _ _) _ = error "Not supported"
+mkLiteral t e           = do
+                          ((descHd, descV), layout, _) <- toPlan (mkDescriptor [1]) (Ty.List t) 1 [e]
+                          PrimVal layout <$> flip litTable' (reverse descHd) (map reverse descV)
+
+toPlan :: Table -> Ty.Type -> Int -> [Val] -> Graph PFAlgebra (Table, Layout AlgNode, Int)
+toPlan (descHd, descV) (Ty.List t) c es = case t of
+                                           (Ty.Pair t1 t2) -> do 
+                                                               let (e1s, e2s) = unzip $ map splitVal es
+                                                               (desc', l1, c') <- toPlan (descHd, descV) (Ty.List t1) c e1s
+                                                               (desc'', l2, c'') <- toPlan desc' (Ty.List t2) c' e2s
+                                                               return (desc'', V.Pair l1 l2, c'')
+                                           (Ty.List t') -> do
+                                                            let vs = map fromListVal es
+                                                            let d = mkDescriptor $ map length vs
+                                                            ((hd, vs), l, _) <- toPlan d t 1 (concat vs)
+                                                            n <- flip litTable' (reverse hd) (map reverse vs)
+                                                            return ((descHd, descV), Nest n l, c)
+
+                                           (Ty.Fn _ _) -> error "Function are not db values"
+                                           _ -> let (hd, vs) = mkColumn c t es
+                                                 in return ((hd:descHd, zipWith (:) vs descV), (InColumn c), c + 1)
+toPlan _ (Ty.Fn _ _) _ _ = undefined
+toPlan (descHd, descV) t c v = let (hd, v') = mkColumn c t v
+                            in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
+
+fromListVal :: Val -> [Val]
+fromListVal (List es) = es
+fromListVal _              = error "fromListVal: Not a list"
+
+splitVal :: Val -> (Val, Val)
+splitVal (Pair e1 e2) = (e1, e2)
+splitVal _                 = error $ "splitVal: Not a tuple" 
+
+
+itemi :: Int -> String
+itemi i = "item" ++ show i
+
+mkColumn :: Int -> Ty.Type -> [Val] -> ((String, ATy), [AVal])
+mkColumn i t vs = ((itemi i, algTy t), [algVal v | v <- vs]) 
+
+type Table = ([(String, ATy)], [[AVal]])
+
+mkDescriptor :: [Int] -> Table
+mkDescriptor lengths = let header = [(pos, algTy Ty.Nat),(descr, algTy Ty.Nat)]
+                           body = map (\(d, p) -> [nat $ fromIntegral p, nat $ fromIntegral d]) $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
+                        in (header, body)
+
+{-
 -- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
 listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph PFAlgebra Plan
 listToPlan (Ty.List t@(Ty.List _)) [] = do
@@ -440,7 +503,7 @@ listToPlan (Ty.List t@(Ty.List _)) vs = do
 listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [(descr, natT), (pos, natT), (item, algTy t)]
 listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [(descr, natT), (pos, natT), (item, algTy t)]
 listToPlan _ _ = $impossible "Not a list value or type"
-       
+-}       
 algTy :: Ty.Type -> ATy
 algTy (Ty.Int) = intT
 algTy (Ty.Double) = doubleT
@@ -452,7 +515,7 @@ algTy (Ty.Var _) = $impossible
 algTy (Ty.Fn _ _) = $impossible
 algTy (Ty.Pair _ _) = $impossible
 algTy (Ty.List _) = $impossible
-
+{-
 toAlgVal :: Val -> AVal
 toAlgVal (Int i) = int $ fromIntegral i
 toAlgVal (Bool b) = bool b
