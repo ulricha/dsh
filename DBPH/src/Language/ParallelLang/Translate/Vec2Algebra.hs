@@ -71,13 +71,13 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (Dist _) -> \x y -> dist x y
                 (Dist_L _) -> distL
                 (GroupWithS _) -> groupByS
-                {-(GroupWithL _) -> groupByL
+                (GroupWithL _) -> groupByL
                 (SortWithS _) -> sortWithS
                 (SortWithL _) -> sortWithL
                 (Index _) -> error "Index is not yet defined fkl2Alg"
-                (Restrict _) -> restrict
-                (BPermute _) -> bPermute
-                (Unconcat _) -> unconcatV -}
+                {-}(Restrict _) -> restrict
+                (BPermute _) -> bPermute -}
+                (Unconcat _) -> unconcatV
                 (Pair _) -> error "Pair"-- \e1 e2 -> return $ PairVector e1 e2
                 (PairL _) -> error "PairL"-- \e1 e2 -> return $ PairVector e1 e2
                 e -> error $ "Not supported yet: " ++ show e
