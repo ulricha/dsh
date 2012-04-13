@@ -37,18 +37,18 @@ import Language.ParallelLang.Common.Impossible
 import System.IO.Unsafe
 
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
--- fkl2Alg (Table _ n cs ks) = tableRef n cs ks
+fkl2Alg (Table _ n cs ks) = tableRef n cs ks
 --FIXME
 fkl2Alg (Const t v) = constructLiteral t v
 fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
 fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
 fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal lyt p1) <- fkl2Alg e1; (PrimVal _ p2) <- fkl2Alg e2; (DBP p _) <- binOp o (DBP p1 [1]) (DBP p2 [1]); return $ PrimVal lyt p}
 fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector lyt p1) <- fkl2Alg e1; (ValueVector _ p2) <- fkl2Alg e2; (DBV p _) <- binOpL o (DBV p1 [1]) (DBV p2 [1]); return $ ValueVector lyt p} 
-{-fkl2Alg (If _ eb e1 e2) = do 
+fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
                           e2' <- fkl2Alg e2
-                          ifList eb' e1' e2' -}
+                          ifList eb' e1' e2'
 fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (LengthPrim _) -> lengthV 
                                            (LengthLift _) -> lengthLift
@@ -75,13 +75,12 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (SortWithS _) -> sortWithS
                 (SortWithL _) -> sortWithL
                 (Index _) -> error "Index is not yet defined fkl2Alg"
-                {-}(Restrict _) -> restrict
-                (BPermute _) -> bPermute -}
+                (Restrict _) -> restrict
                 (Unconcat _) -> unconcatV
                 (Pair _) -> error "Pair"-- \e1 e2 -> return $ PairVector e1 e2
                 (PairL _) -> error "PairL"-- \e1 e2 -> return $ PairVector e1 e2
                 e -> error $ "Not supported yet: " ++ show e
--- fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
+fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do
                                 fv <- constructClosureEnv fvs

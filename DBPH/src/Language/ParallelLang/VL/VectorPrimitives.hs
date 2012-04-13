@@ -60,11 +60,10 @@ class VectorAlgebra a where
   singletonDescr :: Graph a DescrVector
   append :: DBV -> DBV -> Graph a (DBV, RenameVector, RenameVector)
   segment :: DBV -> Graph a DBV
---  restrictVec :: Plan -> Plan -> Graph a (Plan, RenameVector)
---  combineVec :: Plan -> Plan -> Plan -> Graph a (Plan, RenameVector, RenameVector)
---  bPermuteVec :: Plan -> Plan -> Graph a (Plan, PropVector)
+  restrictVec :: DBV -> DBV -> Graph a (DBV, RenameVector)
+  combineVec :: DBV -> DBV -> DBV -> Graph a (DBV, RenameVector, RenameVector)
   constructLiteral :: Ty.Type -> Val -> Graph a Plan
---  tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
+  tableRef :: String -> [TypedColumn] -> [Key] -> Graph a Plan
 --  emptyVector :: Maybe Ty.Type -> Graph a Plan
   binOp :: Oper -> DBP -> DBP -> Graph a DBP
   binOpL :: Oper -> DBV -> DBV -> Graph a DBV
