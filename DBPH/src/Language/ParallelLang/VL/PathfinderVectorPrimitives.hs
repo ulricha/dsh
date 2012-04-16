@@ -18,6 +18,8 @@ import Database.Algebra.Pathfinder
 import Database.Algebra.Dag.Common
 import Database.Algebra.Dag.Builder
 
+import System.IO.Unsafe
+
 instance VectorAlgebra PFAlgebra where
 {-
   groupBy = groupByPF
