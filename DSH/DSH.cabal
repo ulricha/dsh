@@ -72,7 +72,7 @@ Library
                      X100Client         >= 0.0.2
 
   Hs-source-dirs:    src
-  GHC-Options:       -O3 -Wall
+  GHC-Options:       -O3 -Wall -Werror
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter

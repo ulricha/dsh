@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, TransformListComp, FlexibleInstances, MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Database.DSH.ExecuteFlattening where
+module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..), X100(..)) where
 
 import qualified Language.ParallelLang.DBPH as P
 import qualified Language.ParallelLang.Common.Data.Type as T
@@ -102,28 +102,31 @@ constructVector _ (P.InColumn i) parted t = do
 constructVector c (P.Nest v lyt) parted t@(ListT t1) = do
                                         inner <- liftM fromRight $ makeNormX100 c (P.ValueVector lyt v) t1
                                         return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-constructVector c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
+constructVector c (P.Pair p1 p2) parted (ListT (TupleT t1 t2)) = do
                                                                     v1 <- constructVector c p1 parted $ ListT t1
                                                                     v2 <- constructVector c p2 parted $ ListT t2
                                                                     return $ makeTuple v1 v2
+constructVector _ _ _ _ = $impossible
                                              
 constructVectorSQL :: IConnection conn => conn -> P.Layout P.SQL -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type -> IO [(Int, Norm)]
 constructVectorSQL _ (P.InColumn i) pos parted t = do
                                             let i' = snd $ pos !! (i - 1)
                                             return $ normaliseList t i' parted
-constructVectorSQL c (P.Nest v lyt) pos parted t@(ListT t1) = do
+constructVectorSQL c (P.Nest v lyt) _ parted t@(ListT t1) = do
                                         inner <- liftM fromRight $ makeNormSQL c (P.ValueVector lyt v) t1
                                         return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-constructVectorSQL c (P.Pair p1 p2) pos parted t@(ListT (TupleT t1 t2)) = do
+constructVectorSQL c (P.Pair p1 p2) pos parted (ListT (TupleT t1 t2)) = do
                                                                     v1 <- constructVectorSQL c p1 pos parted $ ListT t1
                                                                     v2 <- constructVectorSQL c p2 pos parted $ ListT t2
                                                                     return $ makeTuple v1 v2
+constructVectorSQL _ _ _ _ _ = $impossible
 
 
 makeTuple :: [(Int, Norm)] -> [(Int, Norm)] -> [(Int, Norm)]
 makeTuple ((i1, vs1):v1) ((i2, vs2):v2) | i1 == i2  = (i1, zipNorm vs1 vs2) : makeTuple v1 v2
                                         | otherwise = error "makeTuple: Cannot zip"
 makeTuple []             []                         = []
+makeTuple _              _                          = $impossible
 
 zipNorm :: Norm -> Norm -> Norm
 zipNorm (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) = ListN [TupleN e1 e2 (TupleT t1 t2) | (e1, e2) <- zip es1 es2] (ListT $ TupleT t1 t2)
@@ -139,6 +142,8 @@ makeNormX100 c (P.PrimVal p (P.X100 _ q)) t = do
                                               let parted = partByIterX100 res
                                               [(_, (ListN [n] _))] <- constructVector c p parted (ListT t)
                                               return $ Left n
+makeNormX100 _ (P.Closure _ _ _ _ _) _ = $impossible
+makeNormX100 _ (P.AClosure _ _ _ _ _ _ _) _ = $impossible
 
 makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
 makeNormSQL c (P.ValueVector p (P.SQL _ s q)) t = do
@@ -152,6 +157,8 @@ makeNormSQL c (P.PrimVal p (P.SQL _ s q)) t = do
                                                 let parted = partByIter iC r
                                                 [(_, (ListN [n] _))] <- constructVectorSQL c p ri parted (ListT t) 
                                                 return $ Left n
+makeNormSQL _ (P.Closure _ _ _ _ _) _ = $impossible
+makeNormSQL _ (P.AClosure _ _ _ _ _ _ _) _ = $impossible
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x
