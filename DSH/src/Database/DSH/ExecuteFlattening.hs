@@ -107,15 +107,16 @@ constructVector c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
                                                                     v2 <- constructVector c p2 parted $ ListT t2
                                                                     return $ makeTuple v1 v2
                                              
-constructVectorSQL :: IConnection conn => conn -> P.Layout P.SQL -> [(Int, [(Int, [SqlValue])])] -> Type -> IO [(Int, Norm)]
-constructVectorSQL _ (P.InColumn i) parted t = do
-                                            return $ normaliseList t i parted
-constructVectorSQL c (P.Nest v lyt) parted t@(ListT t1) = do
+constructVectorSQL :: IConnection conn => conn -> P.Layout P.SQL -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type -> IO [(Int, Norm)]
+constructVectorSQL _ (P.InColumn i) pos parted t = do
+                                            let i' = snd $ pos !! (i - 1)
+                                            return $ normaliseList t i' parted
+constructVectorSQL c (P.Nest v lyt) pos parted t@(ListT t1) = do
                                         inner <- liftM fromRight $ makeNormSQL c (P.ValueVector lyt v) t1
                                         return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-constructVectorSQL c (P.Pair p1 p2) parted t@(ListT (TupleT t1 t2)) = do
-                                                                    v1 <- constructVectorSQL c p1 parted $ ListT t1
-                                                                    v2 <- constructVectorSQL c p2 parted $ ListT t2
+constructVectorSQL c (P.Pair p1 p2) pos parted t@(ListT (TupleT t1 t2)) = do
+                                                                    v1 <- constructVectorSQL c p1 pos parted $ ListT t1
+                                                                    v2 <- constructVectorSQL c p2 pos parted $ ListT t2
                                                                     return $ makeTuple v1 v2
 
 
@@ -144,12 +145,12 @@ makeNormSQL c (P.ValueVector p (P.SQL _ s q)) t = do
                                                     (r, d) <- doSQLQuery c q
                                                     let (iC, ri) = schemeToResult s d
                                                     let parted = partByIter iC r
-                                                    Right <$> constructVectorSQL c p parted t
+                                                    Right <$> constructVectorSQL c p ri parted t
 makeNormSQL c (P.PrimVal p (P.SQL _ s q)) t = do
                                                 (r, d) <- doSQLQuery c q
                                                 let (iC, ri) = schemeToResult s d
                                                 let parted = partByIter iC r
-                                                [(_, (ListN [n] _))] <- constructVectorSQL c p parted (ListT t)
+                                                [(_, (ListN [n] _))] <- constructVectorSQL c p ri parted (ListT t) 
                                                 return $ Left n
 
 fromRight :: Either a b -> b
@@ -268,10 +269,10 @@ partByIter iC vals = pbi (zip [1..] vals)
         getIter :: [SqlValue] -> Int
         getIter vs = ((fromSql (vs !! iC))::Int)
         
-type ResultInfo = (Int, Maybe (String, Int))
+type ResultInfo = (Int, [(String, Int)])
 
 -- | Transform algebraic plan scheme info into resultinfo
 schemeToResult :: P.Schema -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (itN, col) resDescr = let resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
                                          itC = fromJust $ lookup itN resColumns
-                                      in (itC, fmap (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)
+                                      in (itC, map (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)
