@@ -16,13 +16,13 @@ import Control.Applicative
 
 the :: VectorAlgebra a => Plan -> Graph a Plan
 the (ValueVector lyt@(Nest _ _) d) = do
-                                     p <- constructLiteral intT (V.Int 1)
-                                     (_, prop) <- selectPos (DBV d []) Eq p
+                                     (PrimVal _ p) <- constructLiteral intT (V.Int 1)
+                                     (_, prop) <- selectPos (DBV d []) Eq (DBP p [1])
                                      (Nest q' lyt') <- chainRenameFilter prop lyt
                                      return $ ValueVector lyt' q'
 the (ValueVector lyt d) = do
-                            p <- constructLiteral intT (V.Int 1)
-                            (DBV q' _, prop) <- selectPos (DBV d $ snd $ projectFromPos lyt) Eq p
+                            (PrimVal _ p) <- constructLiteral intT (V.Int 1)
+                            (DBV q' _, prop) <- selectPos (DBV d $ snd $ projectFromPos lyt) Eq (DBP p [1])
                             lyt' <- chainRenameFilter prop lyt
                             return $ PrimVal lyt' q'
 the _ = error "the: Should not be possible"
