@@ -11,6 +11,7 @@ import Language.ParallelLang.Common.Data.Op
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.Vector hiding (Pair)
+import Language.ParallelLang.VL.Data.DBVector 
 import qualified Language.ParallelLang.VL.Data.Vector as V
 import Language.ParallelLang.VL.VectorPrimitives
 
@@ -43,9 +44,10 @@ instance VectorAlgebra PFAlgebra where
   combineVec = combineVecPF
   bPermuteVec = bPermuteVecPF -}
   constructLiteral = mkLiteral
-{-  tableRef = tableRefPF
+--  tableRef = tableRefPF
   binOp = binOpPF
-  emptyVector = emptyVectorPF
+  binOpL = binOpLPF
+{-  emptyVector = emptyVectorPF
   ifPrimList = ifPrimListPF
   sortWith = sortWithPF
   vecSum = vecSumPF
@@ -55,6 +57,9 @@ instance VectorAlgebra PFAlgebra where
   empty = emptyPF
   emptyLift = emptyLiftPF
 -}
+  projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
+  projectL (DBV q _) pc = flip DBV [1..length pc] <$> (tagM "projectL" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
+
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
@@ -222,6 +227,7 @@ vecSumLiftPF (DescrVector qd) (ValueVector qv) =
                  (return qr))
         return $ ValueVector qa
 vecSumLiftPF _ _ = $impossible
+-}
 
 applyBinOp :: Oper -> AlgNode -> AlgNode -> Graph PFAlgebra AlgNode
 applyBinOp op q1 q2 =
@@ -230,27 +236,29 @@ applyBinOp op q1 q2 =
     $ eqJoinM pos pos' (return q1) 
     $ proj [(tmpCol, item), (pos', pos)] q2
 
-binOpPF :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan
-binOpPF b op q1 q2 | op == GtE = do
-                                    q1' <- binOpPF' b Gt q1 q2
-                                    q2' <- binOpPF' b Eq q1 q2
-                                    binOpPF' b Disj q1' q2'
-                   | op == LtE = do
-                                    q1' <- binOpPF' b Lt q1 q2
-                                    q2' <- binOpPF' b Eq q1 q2
-                                    binOpPF' b Disj q1' q2'
-                   | otherwise = binOpPF' b op q1 q2
- where
-  binOpPF' :: Bool -> Oper -> Plan -> Plan -> Graph PFAlgebra Plan     
-  binOpPF' True op' (ValueVector q1') (ValueVector q2') = do 
-    q <- applyBinOp op' q1' q2'
-    return (ValueVector q)
-  binOpPF' False op' (PrimVal q1') (PrimVal q2') = do
-    q <- applyBinOp op' q1' q2'
-    return (PrimVal q)
-  binOpPF' _ _ _ _ = $impossible
+binOpLPF :: Oper -> DBV -> DBV -> Graph PFAlgebra DBV
+binOpLPF op (DBV q1 _) (DBV q2 _) | op == GtE = do
+                                             q1' <- applyBinOp Gt q1 q2
+                                             q2' <- applyBinOp Eq q1 q2
+                                             flip DBV [1] <$> applyBinOp Disj q1' q2'
+                              | op == LtE = do
+                                             q1' <- applyBinOp Lt q1 q2
+                                             q2' <- applyBinOp Eq q1 q2
+                                             flip DBV [1] <$> applyBinOp Disj q1' q2'
+                              | otherwise = flip DBV [1] <$> applyBinOp op q1 q2
 
-
+binOpPF :: Oper -> DBP -> DBP -> Graph PFAlgebra DBP
+binOpPF op (DBP q1 _) (DBP q2 _) | op == GtE = do
+                                            q1' <- applyBinOp Gt q1 q2
+                                            q2' <- applyBinOp Eq q1 q2
+                                            flip DBP [1] <$> applyBinOp Disj q1' q2'
+                             | op == LtE = do
+                                           q1' <- applyBinOp Lt q1 q2
+                                           q2' <- applyBinOp Eq q1 q2
+                                           flip DBP [1] <$> applyBinOp Disj q1' q2'
+                             | otherwise = flip DBP [1] <$> applyBinOp op q1 q2
+                                             
+{-
 
 
 sortWithPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector)
