@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Language.ParallelLang.VL.PathfinderVectorPrimitives where
+module Language.ParallelLang.VL.PathfinderVectorPrimitives() where
 
 import Data.Maybe
 
@@ -16,47 +16,35 @@ import qualified Language.ParallelLang.VL.Data.Vector as V
 import Language.ParallelLang.VL.VectorPrimitives
 
 import Database.Algebra.Pathfinder
-import Database.Algebra.Dag.Common
 import Database.Algebra.Dag.Builder
 
-import System.IO.Unsafe
-
 instance VectorAlgebra PFAlgebra where
-
   groupBy = groupByPF
-  -- notA = notAPF
   notPrim = notPrimPF
   notVec = notVecPF
   lengthA = lengthAPF
   lengthSeg = lengthSegPF
   descToRename = descToRenamePF
-  -- outer = outerPF
   distPrim = distPrimPF
   distDesc = distDescPF
   distLift = distLiftPF
   propRename = propRenamePF
   propFilter = propFilterPF
   propReorder = propReorderPF
-  -- singletonVec = singletonVecPF
   singletonDescr = singletonDescrPF
   append = appendPF
   segment = segmentPF
   restrictVec = restrictVecPF
   combineVec = combineVecPF
-  -- bPermuteVec = bPermuteVecPF
   constructLiteral = mkLiteral
   tableRef = tableRefPF
   binOp = binOpPF
   binOpL = binOpLPF
-  -- emptyVector = emptyVectorPF
-  -- ifPrimList = ifPrimListPF
   sortWith = sortWithPF
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF
   selectPos = selectPosPF
   selectPosLift = selectPosLiftPF
-  -- empty = emptyPF
-  -- emptyLift = emptyLiftPF
   projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   projectL (DBV q _) pc = flip DBV [1..length pc] <$> (tagM "projectL" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   toDescr = toDescrPF
@@ -99,11 +87,6 @@ algCol :: AbstractColumn -> AttrName
 algCol (AuxCol c) = auxCol c
 algCol (DataCol s) = s
 
-{-
-concretizeProjInfo :: AbstractProjInfo -> ProjInf
-concretizeProjInfo = map (\(c1, c2) -> (algCol c1, algCol c2))
--}
-
 auxCol :: AuxColumn -> AttrName
 auxCol Pos = pos
 auxCol Pos' = pos'
@@ -120,22 +103,6 @@ auxCol TmpCol = tmpCol
 auxCol TmpCol' = tmpCol'
 auxCol Item = item
 auxCol Item' = item'
-{-
-emptyVectorPF :: (Maybe Ty.Type) -> Graph PFAlgebra Plan
-emptyVectorPF Nothing  = DescrVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat)])
-emptyVectorPF (Just t) = case t of
-                          (Ty.List (Ty.Pair t1 t2)) -> do
-                                                       e1 <- emptyVectorPF (Just $ Ty.List t1)
-                                                       e2 <- emptyVectorPF (Just $ Ty.List t2)
-                                                       return $ PairVector e1 e2
-                          (Ty.List t'@(Ty.List _)) -> do
-                                                    (DescrVector dv) <- emptyVectorPF Nothing
-                                                    nv <- emptyVectorPF (Just t')
-                                                    return $ NestedVector dv nv
-                          (Ty.List t')             -> let infos = [(AuxCol Descr, Ty.Nat), (AuxCol Pos, Ty.Nat), (AuxCol Item, t')] 
-                                                       in ValueVector <$> (emptyTable $ map (\(x,y) -> (algCol x, algTy y)) infos)
-                          _                        -> error $ "Can't generate an empty list for an expression of type: " ++ show t
--}   
                         
 selectPosLiftPF :: DBV -> Oper -> DBV -> Graph PFAlgebra (DBV, RenameVector)
 selectPosLiftPF (DBV qe cols) op (DBV qi _) =
@@ -150,10 +117,9 @@ selectPosLiftPF (DBV qe cols) op (DBV qi _) =
         q <- proj (pf [(descr, descr), (pos, posnew)]) qs
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ (DBV q cols, RenameVector qp)
-selectPosLiftPF _ _ _ = $impossible
 
-selectPosPF :: DBV -> Oper -> Plan -> Graph PFAlgebra (DBV, RenameVector)
-selectPosPF (DBV qe cols) op (PrimVal _ qi) =
+selectPosPF :: DBV -> Oper -> DBP -> Graph PFAlgebra (DBV, RenameVector)
+selectPosPF (DBV qe cols) op (DBP qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
         qs <- selectM resCol
@@ -172,43 +138,7 @@ selectPosPF (DBV qe cols) op (PrimVal _ qi) =
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
-selectPosPF _ _ _ = $impossible
-{-
-emptyPF :: Plan -> Graph PFAlgebra Plan
-emptyPF e =
-    do
-        (_, q, _) <- determineResultVector e
-        qs <- operM "==" resCol item' tmpCol 
-              $ attachM item' natT (nat 0)
-              $ aggr [(Max, tmpCol, Nothing)] Nothing q
-        qe <- projM [(descr, descr), (pos, pos), (item, item)]
-              $ attachM item boolT (bool True) 
-              $ select resCol qs
-        qne <- projM [(descr, descr), (pos, pos), (item, item)]
-              $ attachM item boolT (bool False) 
-              $ select resCol qs
-        qu <- attachM pos natT (nat 1)
-              $ attachM descr natT (nat 1)
-              $ union qe qne
-        return $ ValueVector qu
 
-emptyLiftPF :: Plan -> Plan -> Graph PFAlgebra Plan
-emptyLiftPF (DescrVector qo) ei =
-    do
-        (_, qi, _) <- determineResultVector ei
-        qd <- distinctM
-              $ proj [(descr, descr)] qi
-        qe <- attachM item boolT (bool True)
-              $ attachM pos natT (nat 1)
-              $ (differenceM
-                 (proj [(descr, descr)] qo)
-                 (return qd))
-        qne <- attachM pos natT (nat 1)
-               $ attach item boolT (bool False) qd
-        qu <- union qe qne
-        return $ ValueVector qu
-emptyLiftPF _ _ = $impossible
--}
 vecSumPF :: Ty.Type -> DBV -> Graph PFAlgebra DBP
 vecSumPF t (DBV q _) =
     do
@@ -312,18 +242,6 @@ lengthSegPF (DescrVector q1) (DescrVector d) = flip DBV [1] <$> (rownumM pos [de
 descToRenamePF :: DescrVector -> Graph PFAlgebra RenameVector
 descToRenamePF (DescrVector q1) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
 
-{-
-notAPF :: Plan -> Graph PFAlgebra Plan
-notAPF (PrimVal q1) = PrimVal <$> projM [(pos, pos), (descr, descr), (item, resCol)] (notC resCol item q1)
-notAPF (ValueVector q1) = ValueVector <$> projM [(pos, pos), (descr, descr), (item, resCol)] (notC resCol item q1)
-notAPF _ = error "notAPF: Should not be possible"
-
-outerPF :: Plan -> Graph PFAlgebra Plan
-outerPF (PairVector e1 _e2) = outerPF e1
-outerPF (NestedVector p _) = return $ DescrVector p
-outerPF (ValueVector p)    = DescrVector <$> (tagM "outerPF" $ proj [(pos, pos), (descr,descr)] p)
-outerPF e                  = error $ "outerPF: Can't extract outerPF plan" ++ show e
--}      
 distPrimPF :: DBP -> DescrVector -> Graph PFAlgebra (DBV, PropVector)
 distPrimPF (DBP q1 cols) (DescrVector q2) = do
                  qr <- crossM (proj [(itemi i, itemi i) | i <- cols] q1) (return q2)
@@ -403,31 +321,6 @@ combineVecPF (DBV qb _) (DBV q1 cols) (DBV q2 _) = do
                         qp1 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d1
                         qp2 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d2
                         return $ (qr, qp1, qp2)
-{-
-bPermuteVecPF :: Plan -> Plan -> Graph PFAlgebra (Plan, PropVector)
-bPermuteVecPF e1 (ValueVector q2) = do
-                     (rf, q1, pf) <- determineResultVector e1
-                     q <- eqJoinM pos pos' (return q1) $ proj [(pos', pos), (posnew, item)] q2
-                     qr <- rf <$> proj (pf [(descr, descr), (pos, posnew)]) q
-                     qp <- PropVector <$> proj [(posold, pos), (posnew, posnew)] q
-                     return $ (qr, qp)
-bPermuteVecPF _ _ = error "bpermuteVecPF: Should not be possible"
--}
-{-
--- constructLiteralPF :: VectorAlgebra a => Ty.Type -> Val -> Graph a Plan
-constructLiteralPF :: Ty.Type -> Val -> Graph PFAlgebra Plan
-constructLiteralPF t (List es) = listToPlan t (zip (repeat 1) es)
-constructLiteralPF (Ty.Pair t1 t2) (Pair e1 e2) = PairVector <$> constructLiteralPF t1 e1 <*> constructLiteralPF t2 e2
-constructLiteralPF _t v = PrimVal <$> (tagM "constant" $ (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ constructLiteralPF' v))
- where
-  constructLiteralPF' (Int i) = litTable (int $ fromIntegral i) item intT
-  constructLiteralPF' (Bool b) = litTable (bool b) item boolT
-  constructLiteralPF' Unit     = litTable (int (-1)) item intT  
-  constructLiteralPF' (String s) = litTable (string s) item stringT
-  constructLiteralPF' (Double d) = litTable (double d) item doubleT
-  constructLiteralPF' (List _) = $impossible 
-  constructLiteralPF' (Pair _ _) = $impossible
--}
 
 algVal :: Val -> AVal
 algVal (Int i) = int (fromIntegral i)
@@ -435,7 +328,9 @@ algVal (Bool t) = bool t
 algVal Unit = int (-1)
 algVal (String s) = string s
 algVal (Double d) = double d
-
+algVal (List _) = $impossible
+algVal (Pair _ _) = $impossible
+ 
 mkLiteral :: Ty.Type -> Val -> Graph PFAlgebra Plan
 mkLiteral t@(Ty.List _) (List es) = do
                                           ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
@@ -454,19 +349,19 @@ toPlan (descHd, descV) (Ty.List t) c es = case t of
                                                                (desc', l1, c') <- toPlan (descHd, descV) (Ty.List t1) c e1s
                                                                (desc'', l2, c'') <- toPlan desc' (Ty.List t2) c' e2s
                                                                return (desc'', V.Pair l1 l2, c'')
-                                           (Ty.List t') -> do
+                                           (Ty.List _) -> do
                                                             let vs = map fromListVal es
                                                             let d = mkDescriptor $ map length vs
-                                                            ((hd, vs), l, _) <- toPlan d t 1 (concat vs)
+                                                            ((hd, vs'), l, _) <- toPlan d t 1 (concat vs)
                                                             n <- case vs of 
                                                                     [] -> emptyTable (reverse hd)
-                                                                    _ -> flip litTable' (reverse hd) (map reverse vs)
+                                                                    _ -> flip litTable' (reverse hd) (map reverse vs')
                                                             return ((descHd, descV), Nest n l, c)
 
                                            (Ty.Fn _ _) -> error "Function are not db values"
                                            _ -> let (hd, vs) = mkColumn c t es
                                                  in return ((hd:descHd, zipWith (:) vs descV), (InColumn c), c + 1)
-toPlan _ (Ty.Fn _ _) _ _ = undefined
+toPlan _ (Ty.Fn _ _) _ _ = $impossible
 toPlan (descHd, descV) t c v = let (hd, v') = mkColumn c t v
                             in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
@@ -492,22 +387,6 @@ mkDescriptor lengths = let header = [(pos, algTy Ty.Nat),(descr, algTy Ty.Nat)]
                            body = map (\(d, p) -> [nat $ fromIntegral p, nat $ fromIntegral d]) $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
                         in (header, body)
 
-{-
--- listToPlan :: VectorAlgebra a => Typ.Type -> [(Integer, Val)] -> Graph a Plan
-listToPlan :: Ty.Type -> [(Integer, Val)] -> Graph PFAlgebra Plan
-listToPlan (Ty.List t@(Ty.List _)) [] = do
-                                               d <- emptyTable [(descr, natT), (pos, natT)]
-                                               v <- listToPlan t []
-                                               return $ NestedVector d v
-listToPlan (Ty.List t@(Ty.List _)) vs = do
-                                          let (vals, rec) = unzip [([nat i, nat p], zip (repeat p) es) | (p, (i, List es)) <- zip [1..] vs]
-                                          d <- litTable' vals  [(descr, natT), (pos, natT)]
-                                          v <- listToPlan t $ concat rec
-                                          return $ NestedVector d v                                                    
-listToPlan (Ty.List t) [] = ValueVector <$> emptyTable [(descr, natT), (pos, natT), (item, algTy t)]
-listToPlan (Ty.List t) vs = ValueVector <$> litTable' [[nat i, nat p, toAlgVal v] | (p, (i, v)) <- zip [1..] vs] [(descr, natT), (pos, natT), (item, algTy t)]
-listToPlan _ _ = $impossible "Not a list value or type"
--}       
 algTy :: Ty.Type -> ATy
 algTy (Ty.Int) = intT
 algTy (Ty.Double) = doubleT
@@ -519,21 +398,7 @@ algTy (Ty.Var _) = $impossible
 algTy (Ty.Fn _ _) = $impossible
 algTy (Ty.Pair _ _) = $impossible
 algTy (Ty.List _) = $impossible
-{-
-toAlgVal :: Val -> AVal
-toAlgVal (Int i) = int $ fromIntegral i
-toAlgVal (Bool b) = bool b
-toAlgVal Unit = int (-1)
-toAlgVal (String s) = string s
-toAlgVal (Double d) = double d
-toAlgVal (List _) = $impossible "Not a primitive value"
-toAlgVal (Pair _ _) = $impossible
 
--- | Construct a name that represents a lifted variable in the environment.                        
-constrEnvName :: String -> Int -> String
-constrEnvName x 0 = x
-constrEnvName x i = x ++ "<%>" ++ show i
--}
 tableRefPF :: String -> [FKL.TypedColumn] -> [FKL.Key] -> Graph PFAlgebra Plan
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) keyItems
@@ -549,39 +414,3 @@ tableRefPF n cs ks = do
 
 toDescrPF :: DBV -> Graph PFAlgebra DescrVector
 toDescrPF (DBV n _)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
-
-{-
-ifPrimListPF :: Plan -> Plan -> Plan -> Graph PFAlgebra Plan
-ifPrimListPF qb (PrimVal q1) (PrimVal q2) = (\(ValueVector v) -> PrimVal v) <$> ifPrimListPF qb (ValueVector q1) (ValueVector q2)
-ifPrimListPF (PrimVal qb) (ValueVector q1) (ValueVector q2) = ValueVector <$>
-    do
-     projM [(descr, descr), (pos, pos), (item, item)] $ 
-        selectM tmpCol $ 
-            unionM 
-                (crossM (pure q1) (proj [(tmpCol, item)] qb))
-                (crossM (pure q2) (projM [(tmpCol, item')] (notC item' item qb)))
-ifPrimListPF _ _ _ = $impossible
-
--- FIXME abstract and move to VectorPrimitives
-determineResultVector :: Plan -> Graph a (AlgNode -> Plan, AlgNode, ProjInf -> ProjInf)
-determineResultVector e = do
-                             let hasI = isValueVector e
-                             let rf = if hasI then ValueVector else DescrVector
-                             let pf = if hasI then \x -> (item, item):x else \x -> x
-                             let q = if hasI
-                                         then let (ValueVector q') = e in q'
-                                         else let (DescrVector q') = e in q'
-                             return (rf, q, pf)
-
-determineResultVector' :: Plan -> Plan -> Graph a (AlgNode -> Plan, AlgNode, AlgNode, ProjInf -> ProjInf)
-determineResultVector' e1 e2 = do
-                                 let hasI = isValueVector e1
-                                 let rf = if hasI then ValueVector else DescrVector
-                                 let pf = if hasI then \x -> (item, item):x else \x -> x
-                                 let (q1, q2) = if hasI
-                                                 then let (ValueVector q1') = e1
-                                                          (ValueVector q2') = e2 in (q1', q2')
-                                                 else let (DescrVector q1') = e1 
-                                                          (DescrVector q2') = e2 in (q1', q2')
-                                 return (rf, q1, q2, pf)
--}

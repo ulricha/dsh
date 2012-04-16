@@ -64,7 +64,7 @@ class VectorAlgebra a where
   binOpL :: Oper -> DBV -> DBV -> Graph a DBV
   vecSum :: Ty.Type -> DBV -> Graph a DBP
   vecSumLift :: DescrVector -> DBV -> Graph a DBV
-  selectPos :: DBV -> Oper -> Plan -> Graph a (DBV, RenameVector)
+  selectPos :: DBV -> Oper -> DBP -> Graph a (DBV, RenameVector)
   selectPosLift :: DBV -> Oper -> DBV -> Graph a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> Graph a DBV
   projectA :: DBP -> [DBCol] -> Graph a DBP

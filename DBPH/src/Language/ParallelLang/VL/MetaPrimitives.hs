@@ -3,7 +3,6 @@ module Language.ParallelLang.VL.MetaPrimitives where
 import Language.ParallelLang.VL.Data.Vector
 import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.VL.VectorPrimitives
-import Database.Algebra.Dag.Common
 
 import Control.Applicative
 
@@ -16,7 +15,7 @@ fromLayout (Pair l1 l2) = fromLayout l1 ++ fromLayout l2
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
 chainRenameFilter :: VectorAlgebra a => RenameVector -> Layout AlgNode -> Graph a (Layout AlgNode) 
-chainRenameFilter r l@(InColumn _) = return l
+chainRenameFilter _ l@(InColumn _) = return l
 chainRenameFilter r (Nest q lyt) = do
                                     (DBV q' _, r') <- propFilter r (DBV q (fromLayout lyt))
                                     lyt' <- chainRenameFilter r' lyt
@@ -27,20 +26,13 @@ chainRenameFilter r (Pair l1 l2) = Pair <$> chainRenameFilter r l1 <*> chainRena
 -- and propagates these changes to all inner vectors. The propagation vector
 -- may change the order of tuples.
 chainReorder :: VectorAlgebra a => PropVector -> Layout AlgNode -> Graph a (Layout AlgNode)
-chainReorder p l@(InColumn _) = return l
+chainReorder _ l@(InColumn _) = return l
 chainReorder p (Nest q lyt) = do
                                 (DBV q' _, p') <- propReorder p (DBV q (fromLayout lyt))
                                 lyt' <- chainReorder p' lyt
                                 return $ Nest q' lyt'
 chainReorder p (Pair l1 l2) = Pair <$> chainReorder p l1 <*> chainReorder p l2
-{-
 
-data Layout a = InColumn Int
-                | Nest (Query a)
-                | Pair (Layout a) (Layout a)
-    deriving Show
-    
--}
 -- | renameOuter renames and filters a vector according to a propagation vector
 -- Changes are not propagated to inner vectors.
 renameOuter :: VectorAlgebra a => RenameVector -> Plan -> Graph a Plan
@@ -67,3 +59,4 @@ appendR' (InColumn i1) (InColumn i2) | i1 == i2 = return $ InColumn i1
                                      | otherwise = error "appendR': Incompatible vectors"
 appendR' (Nest q1 lyt1) (Nest q2 lyt2) = (\(ValueVector lyt q) -> Nest q lyt) <$> appendR (ValueVector lyt1 q1) (ValueVector lyt2 q2)
 appendR' (Pair ll1 lr1) (Pair ll2 lr2) = Pair <$> appendR' ll1 ll2 <*> appendR' lr1 lr2
+appendR' _ _ = error "appendR': Should not be possible"
