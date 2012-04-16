@@ -441,7 +441,9 @@ algVal (Double d) = double d
 mkLiteral :: Ty.Type -> Val -> Graph PFAlgebra Plan
 mkLiteral t@(Ty.List _) (List es) = do
                                           ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
-                                          (ValueVector layout) <$> (flip litTable' (reverse descHd) $ map reverse descV)
+                                          case descV of
+                                            [] -> (ValueVector layout) <$> emptyTable (reverse descHd)
+                                            _  -> (ValueVector layout) <$> (flip litTable' (reverse descHd) $ map reverse descV)
 mkLiteral (Ty.Fn _ _) _ = error "Not supported"
 mkLiteral t e           = do
                           ((descHd, descV), layout, _) <- toPlan (mkDescriptor [1]) (Ty.List t) 1 [e]
@@ -458,7 +460,9 @@ toPlan (descHd, descV) (Ty.List t) c es = case t of
                                                             let vs = map fromListVal es
                                                             let d = mkDescriptor $ map length vs
                                                             ((hd, vs), l, _) <- toPlan d t 1 (concat vs)
-                                                            n <- flip litTable' (reverse hd) (map reverse vs)
+                                                            n <- case vs of 
+                                                                    [] -> emptyTable (reverse hd)
+                                                                    _ -> flip litTable' (reverse hd) (map reverse vs)
                                                             return ((descHd, descV), Nest n l, c)
 
                                            (Ty.Fn _ _) -> error "Function are not db values"
