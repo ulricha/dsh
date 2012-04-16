@@ -37,7 +37,7 @@ data XML = XML Int String
 
 data SQL = SQL Int Schema String
 
-type Schema = (String, Maybe (String, Int))
+type Schema = (String, [(String, Int)])
 
 instance Show X100 where
     show (X100 _ s) = s

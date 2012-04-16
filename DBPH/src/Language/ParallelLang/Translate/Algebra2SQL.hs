@@ -45,10 +45,7 @@ process _ = $impossible
 
 toSchemeInf :: [(String, Maybe Int)] -> Schema
 toSchemeInf results = let iterName = fst $ head $ filter (\(_, p) -> isNothing p) results
-                          cols = case filter (\(_, p) -> isJust p) results of
-                                    []       -> Nothing
-                                    [(n, v)] -> Just (n, fromJust v)
-                                    _        -> $impossible
+                          cols = map (\(n, v) -> (n, fromJust v)) $ filter (\(_, p) -> isJust p) results
                        in (iterName, cols)
 
 extractCData :: Content i -> String
