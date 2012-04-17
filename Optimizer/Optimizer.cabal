@@ -24,6 +24,7 @@ Library
                        containers,
                        fgl,
                        pretty,
+                       bytestring,
                        TableAlgebra >= 2.0.0
   
   -- Modules not exported by this package.
