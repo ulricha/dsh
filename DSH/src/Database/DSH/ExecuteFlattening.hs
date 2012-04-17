@@ -100,7 +100,7 @@ constructVector :: X100Info -> P.Layout P.X100 -> [(Int, [(Int, [X100Data])])] -
 constructVector _ (P.InColumn i) parted t = do
                                             return $ normaliseX100List t i parted
 constructVector c (P.Nest v lyt) parted t@(ListT t1) = do
-                                        inner <- liftM fromRight $ makeNormX100 c (P.ValueVector lyt v) t1
+                                        inner <- liftM fromRight $ makeNormX100 c (P.ValueVector v lyt) t1
                                         return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
 constructVector c (P.Pair p1 p2) parted (ListT (TupleT t1 t2)) = do
                                                                     v1 <- constructVector c p1 parted $ ListT t1
@@ -113,7 +113,7 @@ constructVectorSQL _ (P.InColumn i) pos parted t = do
                                             let i' = snd $ pos !! (i - 1)
                                             return $ normaliseList t i' parted
 constructVectorSQL c (P.Nest v lyt) _ parted t@(ListT t1) = do
-                                        inner <- liftM fromRight $ makeNormSQL c (P.ValueVector lyt v) t1
+                                        inner <- liftM fromRight $ makeNormSQL c (P.ValueVector v lyt) t1
                                         return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
 constructVectorSQL c (P.Pair p1 p2) pos parted (ListT (TupleT t1 t2)) = do
                                                                     v1 <- constructVectorSQL c p1 pos parted $ ListT t1
@@ -133,32 +133,28 @@ zipNorm (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) = ListN [TupleN e1 e2 (Tup
 zipNorm _ _ = error "zipNorm: Cannot zip"
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormX100 c (P.ValueVector p (P.X100 _ q)) t = do                                                   
+makeNormX100 c (P.ValueVector (P.X100 _ q) p) t = do                                                   
                                                    (X100Res _ res) <- doX100Query c q
                                                    let parted = partByIterX100 res
                                                    Right <$> constructVector c p parted t
-makeNormX100 c (P.PrimVal p (P.X100 _ q)) t = do
+makeNormX100 c (P.PrimVal (P.X100 _ q) p) t = do
                                               (X100Res _ res) <- doX100Query c q
                                               let parted = partByIterX100 res
                                               [(_, (ListN [n] _))] <- constructVector c p parted (ListT t)
                                               return $ Left n
-makeNormX100 _ (P.Closure _ _ _ _ _) _ = $impossible
-makeNormX100 _ (P.AClosure _ _ _ _ _ _ _) _ = $impossible
 
 makeNormSQL :: IConnection conn => conn -> P.Query P.SQL -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormSQL c (P.ValueVector p (P.SQL _ s q)) t = do
+makeNormSQL c (P.ValueVector (P.SQL _ s q) p) t = do
                                                     (r, d) <- doSQLQuery c q
                                                     let (iC, ri) = schemeToResult s d
                                                     let parted = partByIter iC r
                                                     Right <$> constructVectorSQL c p ri parted t
-makeNormSQL c (P.PrimVal p (P.SQL _ s q)) t = do
+makeNormSQL c (P.PrimVal (P.SQL _ s q) p) t = do
                                                 (r, d) <- doSQLQuery c q
                                                 let (iC, ri) = schemeToResult s d
                                                 let parted = partByIter iC r
                                                 [(_, (ListN [n] _))] <- constructVectorSQL c p ri parted (ListT t) 
                                                 return $ Left n
-makeNormSQL _ (P.Closure _ _ _ _ _) _ = $impossible
-makeNormSQL _ (P.AClosure _ _ _ _ _ _ _) _ = $impossible
 
 fromRight :: Either a b -> b
 fromRight (Right x) = x
