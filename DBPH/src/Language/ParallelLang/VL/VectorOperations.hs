@@ -17,12 +17,12 @@ import Control.Applicative
 
 the :: VectorAlgebra a => Plan -> Graph a Plan
 the (ValueVector d lyt@(Nest _ _)) = do
-                                     p <- constructLiteralValue [intT] [PInt 1]
+                                     p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
                                      (_, prop) <- selectPos d Eq p
                                      (Nest q' lyt') <- chainRenameFilter prop lyt
                                      return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-                            p <- constructLiteralValue [intT] [PInt 1]
+                            p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
                             (DBV q' cols, prop) <- selectPos d Eq p
                             lyt' <- chainRenameFilter prop lyt
                             return $ PrimVal (DBP q' cols) lyt'
@@ -31,7 +31,7 @@ the _ = error "the: Should not be possible"
 
 theL :: VectorAlgebra a => Plan -> Graph a Plan
 theL (ValueVector d (Nest q lyt)) = do
-                                      one <- constructLiteralValue [intT] [PInt 1]
+                                      one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
                                       (p, _) <- distPrim one =<< toDescr d
                                       (v, p2) <- selectPosLift q Eq p 
                                       prop <- descToRename =<< toDescr d
