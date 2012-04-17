@@ -19,9 +19,10 @@ import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
-import Language.ParallelLang.VL.Data.Vector hiding (Pair)
-import qualified Language.ParallelLang.VL.Data.Vector as Vec
+import Language.ParallelLang.VL.Data.GraphVector hiding (Pair)
+import qualified Language.ParallelLang.VL.Data.GraphVector as Vec
 import Language.ParallelLang.VL.Data.DBVector
+import qualified Language.ParallelLang.VL.Data.Query as Ext
 import Language.ParallelLang.VL.VectorOperations
 
 import Database.Algebra.Pathfinder(initLoop)
@@ -31,13 +32,13 @@ import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
 
 fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
-fkl2Alg (Table _ n cs ks) = tableRef n cs ks
+fkl2Alg (Table _ n cs ks) = dbTable n cs ks
 --FIXME
-fkl2Alg (Const t v) = constructLiteral t v
+fkl2Alg (Const t v) = mkLiteral t v
 fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
 fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
-fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal lyt p1) <- fkl2Alg e1; (PrimVal _ p2) <- fkl2Alg e2; (DBP p _) <- binOp o (DBP p1 [1]) (DBP p2 [1]); return $ PrimVal lyt p}
-fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector lyt p1) <- fkl2Alg e1; (ValueVector _ p2) <- fkl2Alg e2; (DBV p _) <- binOpL o (DBV p1 [1]) (DBV p2 [1]); return $ ValueVector lyt p} 
+fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2Alg e1; (PrimVal p2 _) <- fkl2Alg e2; p <- binOp o p1 p2; return $ PrimVal p lyt}
+fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2Alg e1; (ValueVector p2 _) <- fkl2Alg e2; p <- binOpL o p1 p2; return $ ValueVector p lyt} 
 fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
@@ -51,8 +52,8 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (SumL _) -> sumLift
                                            (The _) -> the
                                            (TheL _) -> theL
-                                           (NotPrim _) -> (\(PrimVal lyt v) -> (\(DBP v' _) -> PrimVal lyt v') <$> notPrim (DBP v [1]))
-                                           (NotVec _) -> (\(ValueVector lyt v) -> (\(DBV v' _) -> ValueVector lyt v') <$> notVec (DBV v [1]))
+                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> notPrim v)
+                                           (NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> notVec v)
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
@@ -106,42 +107,42 @@ toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
   where
       rootNodes :: Plan -> [AlgNode]
-      rootNodes (ValueVector lyt n) = n : rootNodes' lyt
-      rootNodes (PrimVal lyt n) = n : rootNodes' lyt
+      rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt
+      rootNodes (PrimVal (DBP n _) lyt) = n : rootNodes' lyt
       rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
       rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-      rootNodes' :: Layout AlgNode -> [AlgNode]
+      rootNodes' :: Layout -> [AlgNode]
       rootNodes' (Vec.Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
       rootNodes' (InColumn _) = []
-      rootNodes' (Nest q lyt) = q : rootNodes' lyt
+      rootNodes' (Nest (DBV q _) lyt) = q : rootNodes' lyt
       
-toX100String :: AlgPlan X100Algebra Plan -> Query X100
+toX100String :: AlgPlan X100Algebra Plan -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
  where
     m' :: M.Map AlgNode X100Algebra
     m' = reverseAlgMap m
-    convertQuery :: Plan -> Query X100
-    convertQuery (PrimVal l r') = PrimVal (convertLayout l) $ X100 r' $ generateDumbQuery m' r'
-    convertQuery (ValueVector l r') = ValueVector (convertLayout l) $ X100 r' $ generateDumbQuery m' r'
+    convertQuery :: Plan -> Ext.Query Ext.X100
+    convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
+    convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
     convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
     convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-    convertLayout :: Layout AlgNode -> Layout X100
-    convertLayout (InColumn i) = InColumn i
-    convertLayout (Nest r' l) = Nest (X100 r' $ generateDumbQuery m' r') $ convertLayout l
-    convertLayout (Vec.Pair p1 p2) = Vec.Pair (convertLayout p1) (convertLayout p2)
+    convertLayout :: Layout -> Ext.Layout Ext.X100
+    convertLayout (InColumn i) = Ext.InColumn i
+    convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
+    convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
     
-toXML :: AlgPlan PFAlgebra Plan -> Query XML
+toXML :: AlgPlan PFAlgebra Plan -> Ext.Query Ext.XML
 toXML (g, r, ts) = convertQuery r
     where
-        convertQuery :: Plan -> Query XML
-        convertQuery (PrimVal l r') = PrimVal (convertLayout l) $ XML r' $ toXML' (withItem $ columnsInLayout l) r'
-        convertQuery (ValueVector l r') = ValueVector (convertLayout l) $ XML r' $ toXML' (withItem $ columnsInLayout l) r'
+        convertQuery :: Plan -> Ext.Query Ext.XML
+        convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
+        convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
         convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
         convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-        convertLayout :: Layout AlgNode -> Layout XML
-        convertLayout (InColumn i) = InColumn i
-        convertLayout (Nest r' l) = Nest (XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertLayout (Vec.Pair p1 p2) = Vec.Pair (convertLayout p1) (convertLayout p2)
+        convertLayout :: Layout -> Ext.Layout Ext.XML
+        convertLayout (InColumn i) = Ext.InColumn i
+        convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
+        convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
         itemi :: Int -> Element ()
         itemi i = [attr "name" $ "item" ++ show i, attr "new" "false", attr "function" "item", attr "position" (show i)] `attrsOf` xmlElem "column"
         withItem :: Int -> [Element ()]

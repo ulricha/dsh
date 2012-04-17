@@ -27,7 +27,7 @@ Library
     
     Exposed-modules: Language.ParallelLang.DBPH
                      Language.ParallelLang.Common.Data.Type
-                     Language.ParallelLang.VL.Data.Vector
+                     Language.ParallelLang.VL.Data.Query
                      Language.ParallelLang.NKL.NKLPrimitives
     Other-modules: Language.ParallelLang.Common.Data.Val
                    Language.ParallelLang.Common.Data.Op
@@ -47,3 +47,4 @@ Library
                    Language.ParallelLang.Translate.Algebra2SQL    
                    Language.ParallelLang.VL.X100VectorPrimitives  
                    Language.ParallelLang.VL.Data.DBVector
+                   Language.ParallelLang.VL.Data.GraphVector

@@ -3,7 +3,7 @@ module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 
-import Language.ParallelLang.VL.Data.Vector
+import Language.ParallelLang.VL.Data.Query
 
 import Language.ParallelLang.Translate.Algebra2SQL
 import Language.ParallelLang.Translate.Vec2Algebra
