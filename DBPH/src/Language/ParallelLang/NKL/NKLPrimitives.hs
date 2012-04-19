@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), length, not, concat, sum, the, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), length, not, concat, sum, the, minimum, maximum, head, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -40,10 +40,26 @@ sum e = let (List t) = typeOf e
          in if isNum t
                 then AppE1 t (Sum P.$ List t .-> t) e
                 else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
-                
+
+minimum :: Expr -> Expr
+minimum e = let (List t) = typeOf e
+             in if isNum t
+                 then AppE1 t (Minimum P.$ List t .-> t) e
+                 else P.error P.$ "NKLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+
+maximum :: Expr -> Expr
+maximum e = let (List t) = typeOf e
+             in if isNum t
+                 then AppE1 t (Maximum P.$ List t .-> t) e
+                 else P.error P.$ "NKLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+
 the :: Expr -> Expr
 the e = let (List t) = typeOf e
          in AppE1 t (The P.$ List t .-> t) e
+
+head :: Expr -> Expr
+head e = let (List t) = typeOf e
+          in AppE1 t (Head P.$ List t .-> t) e
          
 fst :: Expr -> Expr
 fst e = let t@(T.Pair t1 _) = typeOf e

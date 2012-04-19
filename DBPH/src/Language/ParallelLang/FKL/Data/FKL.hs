@@ -36,6 +36,10 @@ data Prim1 = LengthPrim Type
            | SndL Type
            | Sum Type
            | SumL Type
+           | Minimum Type
+           | MinimumL Type
+           | Maximum Type
+           | MaximumL Type
            | The Type
            | TheL Type
            | Concat Type
@@ -56,7 +60,10 @@ instance Show Prim1 where
     show (SumL _)       = "sumL"
     show (The _)        = "the"
     show (TheL _)       = "theL"
-    
+    show (Minimum _)    = "minimum"
+    show (MinimumL _)   = "minimumL"
+    show (Maximum _)    = "maximum"
+    show (MaximumL _)   = "maximumL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type
