@@ -94,6 +94,7 @@ prim1Transform (N.Fst t) = fstVal t
 prim1Transform (N.Snd t) = sndVal t
 prim1Transform (N.IntegerToDouble t) = integerToDoubleVal t
 prim1Transform (N.Tail t) = tailVal t
+prim1Transform (N.Reverse t) = reverseVal t
 
 prim2Transform :: N.Prim2 -> F.Expr
 prim2Transform (N.Map t) = mapVal t

@@ -47,6 +47,8 @@ data Prim1 = LengthPrim Type
            | IntegerToDoubleL Type
            | Tail Type
            | TailL Type
+           | Reverse Type
+           | ReverseL Type
     deriving Eq
     
 instance Show Prim1 where
@@ -72,6 +74,8 @@ instance Show Prim1 where
     show (IntegerToDoubleL _) = "integerToDoubleL"
     show (Tail _)       = "tail"
     show (TailL _)      = "tailL"
+    show (Reverse _)    = "reverse"
+    show (ReverseL _)   = "reverseL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type

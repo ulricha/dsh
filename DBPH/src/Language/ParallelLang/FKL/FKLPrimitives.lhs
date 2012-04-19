@@ -146,6 +146,17 @@ tailLPrim :: Expr -> Expr
 tailLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
                 in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
 
+reverseVal :: Type -> Expr
+reverseVal t = singleArgClo t "reverse_v" reversePrim reverseLPrim
+
+reversePrim :: Expr -> Expr
+reversePrim e1 = let t1@(T.List _) = typeOf e1
+               in F.PApp1 t1 (F.Reverse $ t1 .-> t1) e1
+
+reverseLPrim :: Expr -> Expr
+reverseLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+                in F.PApp1 t1 (F.ReverseL $ t1 .-> t1) e1
+
 notVal :: Type -> Expr
 notVal t = singleArgClo t "not_v" notPrim notLPrim
 

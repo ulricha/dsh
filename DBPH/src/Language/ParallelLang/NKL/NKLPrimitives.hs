@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -17,11 +17,21 @@ f $ e = let tf = typeOf f
               then App tr f e
               else P.error P.$ "NKLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
 
+reverse :: Expr -> Expr
+reverse e = let t@(T.List _) = typeOf e
+             in AppE1 t (Reverse P.$ t .-> t) e
+
 length :: Expr -> Expr
 length e = let t = typeOf e
             in if isListT t 
                  then AppE1 intT (Length P.$ t .-> intT) e
                  else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t
+
+unzip :: Expr -> Expr
+unzip e = let (T.List (T.Pair t1 t2)) = typeOf e
+              left  = map (lambda (T.Pair t1 t2 .-> t1) "__*unzl*" (fst (var (T.Pair t1 t2) "__*unzl*"))) e
+              right = map (lambda (T.Pair t1 t2 .-> t2) "__*unzr*" (snd (var (T.Pair t1 t2) "__*unzr*"))) e
+           in pair left right
                  
 not :: Expr -> Expr 
 not e = let t = typeOf e
