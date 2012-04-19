@@ -28,6 +28,13 @@ the (ValueVector d lyt) = do
                             return $ PrimVal (DBP q' cols) lyt'
 the _ = error "the: Should not be possible"
 
+tailS :: VectorAlgebra a => Plan -> Graph a Plan
+tailS (ValueVector d lyt) = do
+                             p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                             (q', prop) <- selectPos d Gt p
+                             lyt' <- chainRenameFilter prop lyt
+                             return $ ValueVector q' lyt'
+tailS _ = error "tailS: Should not be possible"
 
 theL :: VectorAlgebra a => Plan -> Graph a Plan
 theL (ValueVector d (Nest q lyt)) = do
@@ -39,6 +46,15 @@ theL (ValueVector d (Nest q lyt)) = do
                                       (v', _) <- propFilter prop v
                                       return $ ValueVector v' lyt'
 theL _ = error "theL: Should not be possible" 
+
+tailL :: VectorAlgebra a => Plan -> Graph a Plan
+tailL (ValueVector d (Nest q lyt)) = do
+                                      one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                      (p, _) <- distPrim one =<< toDescr d
+                                      (v, p2) <- selectPosLift q Gt p
+                                      lyt' <- chainRenameFilter p2 lyt
+                                      return $ ValueVector d (Nest v lyt')
+tailL _ = error "tailL: Should not be possible"
 
 sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 sortWithS (ValueVector q1 _) (ValueVector q2 lyt2) = do

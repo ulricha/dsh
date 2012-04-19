@@ -43,6 +43,10 @@ data Prim1 = LengthPrim Type
            | The Type
            | TheL Type
            | Concat Type
+           | IntegerToDouble Type
+           | IntegerToDoubleL Type
+           | Tail Type
+           | TailL Type
     deriving Eq
     
 instance Show Prim1 where
@@ -64,6 +68,10 @@ instance Show Prim1 where
     show (MinimumL _)   = "minimumL"
     show (Maximum _)    = "maximum"
     show (MaximumL _)   = "maximumL"
+    show (IntegerToDouble _) = "integerToDouble"
+    show (IntegerToDoubleL _) = "integerToDoubleL"
+    show (Tail _)       = "tail"
+    show (TailL _)      = "tailL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type

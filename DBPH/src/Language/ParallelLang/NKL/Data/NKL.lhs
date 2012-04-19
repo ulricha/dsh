@@ -52,7 +52,8 @@ Unary primitive operations:
 \begin{code}
 data Prim1  =  Length Type  |  Not Type  |  Concat Type
             |  Sum Type | The Type | Fst Type | Snd Type
-            |  Head Type | Minimum Type | Maximum Type
+            |  Head Type | Minimum Type | Maximum Type 
+            |  IntegerToDouble Type | Tail Type
 \end{code}
 
 %if False
