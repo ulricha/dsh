@@ -205,15 +205,28 @@ ifList qb (PrimVal (DBP q1 cols1) lyt1) (PrimVal (DBP q2 cols2) lyt2) = do
                                                    return $ PrimVal (DBP q cols) lyt
 ifList _ _ _ = $impossible
 
+zipOpL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+                                                     q <- zipL q1 q2
+                                                     let lyt = zipLayout lyt1 lyt2
+                                                     return $ ValueVector q lyt
+zipOpL _ _ = $impossible
+
 zipOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 zipOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
                                              q <- zipA q1 q2
                                              let lyt = zipLayout lyt1 lyt2
                                              return $ PrimVal q lyt
 zipOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-                                                    q <- zipL q1 q2
-                                                    let lyt = zipLayout lyt1 lyt2
-                                                    return $ ValueVector q lyt
+                                                    d <- constructLiteralValue [] [PNat 1, PNat 1]
+                                                    let lyt = zipLayout (Nest q1 lyt1) (Nest q2 lyt2)
+                                                    return $ PrimVal d lyt
+zipOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
+                                                 let lyt = zipLayout (Nest q1 lyt1) lyt2
+                                                 return $ PrimVal q2 lyt
+zipOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
+                                                 let lyt = zipLayout lyt1 (Nest q2 lyt2)
+                                                 return $ PrimVal q1 lyt
 zipOp _ _ = $impossible
 
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
