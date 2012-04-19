@@ -150,7 +150,10 @@ tests =
         , testProperty "length tuple list" $ prop_length_tuple
 #ifndef isDBPH
         , testProperty "index" $ prop_index
+#endif
         , testProperty "reverse" $ prop_reverse
+        , testProperty "reverse [[]]" $ prop_reverse_nest
+#ifndef isDBPH
         , testProperty "append" $ prop_append
 #endif
         , testProperty "groupWith" $ prop_groupWith
@@ -182,7 +185,9 @@ tests =
         , testProperty "notElem" $ prop_notElem
         , testProperty "zip" $ prop_zip
         , testProperty "zipWith" $ prop_zipWith
+#endif
         , testProperty "unzip" $ prop_unzip
+#ifndef isDBPH
         , testProperty "nub" $ prop_nub
 #endif
         ]
@@ -229,7 +234,12 @@ tests =
         , testProperty "Lift maximum" $ prop_map_maximum
         , testProperty "map (map maximum)" $ prop_map_map_maximum
         , testProperty "map integer_to_double" $ prop_map_integer_to_double
+#ifdef isX100
         , testProperty "map tail" $ prop_map_tail    
+#endif        
+        , testProperty "map unzip" $ prop_map_unzip
+        , testProperty "map reverse" $ prop_map_reverse
+        , testProperty "map reverse [[]]" $ prop_map_reverse_nest
         ]
     ]
 
@@ -639,6 +649,15 @@ prop_map_length_tuple = makeProp (Q.map Q.length) (map (fromIntegral . length))
 prop_reverse :: [Integer] -> Property
 prop_reverse = makeProp Q.reverse reverse
 
+prop_reverse_nest :: [[Integer]] -> Property
+prop_reverse_nest = makeProp Q.reverse reverse
+
+prop_map_reverse :: [[Integer]] -> Property
+prop_map_reverse = makeProp (Q.map Q.reverse) (map reverse)
+
+prop_map_reverse_nest :: [[[Integer]]] -> Property
+prop_map_reverse_nest = makeProp (Q.map Q.reverse) (map reverse)
+
 prop_and :: [Bool] -> Property
 prop_and = makeProp Q.and and
 
@@ -711,6 +730,9 @@ prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = makeProp Q.unzip unzip
+
+prop_map_unzip :: [[(Integer, Integer)]] -> Property
+prop_map_unzip = makeProp (Q.map Q.unzip) (map unzip)
 
 prop_nub :: [Integer] -> Property
 prop_nub = makeProp Q.nub nub
