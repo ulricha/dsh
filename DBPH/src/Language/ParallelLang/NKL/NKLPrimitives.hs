@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), length, not, concat, sum, the, minimum, maximum, head, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -28,6 +28,12 @@ not e = let t = typeOf e
          in if boolT P.== t
                 then AppE1 boolT (Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
+
+integerToDouble :: Expr -> Expr 
+integerToDouble e = let t = typeOf e
+                     in if intT P.== t
+                         then AppE1 doubleT (IntegerToDouble P.$ t .-> doubleT) e
+                         else P.error P.$ "NKLPrims.integerToDouble: Cannot apply not to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
@@ -60,6 +66,10 @@ the e = let (List t) = typeOf e
 head :: Expr -> Expr
 head e = let (List t) = typeOf e
           in AppE1 t (Head P.$ List t .-> t) e
+
+tail :: Expr -> Expr
+tail e = let (List t) = typeOf e
+          in AppE1 t (Tail P.$ List t .-> List t) e
          
 fst :: Expr -> Expr
 fst e = let t@(T.Pair t1 _) = typeOf e

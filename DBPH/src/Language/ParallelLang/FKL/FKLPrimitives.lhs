@@ -121,11 +121,11 @@ lengthLPrim :: Expr -> Expr
 lengthLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
                   in F.PApp1 (listT intT) (F.LengthLift $ t1 .-> listT intT) e1
     
-theVal :: Type -> Expr
-theVal t = singleArgClo t "the_v" thePrim theLPrim
-
 headVal :: Type -> Expr
 headVal = theVal
+
+theVal :: Type -> Expr
+theVal t = singleArgClo t "the_v" thePrim theLPrim
 
 thePrim :: Expr -> Expr
 thePrim e1 = let t1@(T.List t1') = typeOf e1
@@ -134,6 +134,17 @@ thePrim e1 = let t1@(T.List t1') = typeOf e1
 theLPrim :: Expr -> Expr
 theLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
                in F.PApp1 t (F.TheL $ t1 .-> t) e1
+
+tailVal :: Type -> Expr
+tailVal t = singleArgClo t "tail_v" tailPrim tailLPrim
+
+tailPrim :: Expr -> Expr
+tailPrim e1 = let t1@(T.List _) = typeOf e1
+               in F.PApp1 t1 (F.Tail $ t1 .-> t1) e1
+
+tailLPrim :: Expr -> Expr
+tailLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+                in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
 
 notVal :: Type -> Expr
 notVal t = singleArgClo t "not_v" notPrim notLPrim
@@ -145,6 +156,17 @@ notPrim e1 = let t1@(T.Bool) = typeOf e1
 notLPrim :: Expr -> Expr 
 notLPrim e1 = let t1@(T.List T.Bool) = typeOf e1
                in F.PApp1 t1 (F.NotVec $ t1 .-> t1) e1
+
+integerToDoubleVal :: Type -> Expr
+integerToDoubleVal t = singleArgClo t "integerToDouble_v" integerToDoublePrim integerToDoubleLPrim
+
+integerToDoublePrim :: Expr -> Expr
+integerToDoublePrim e1 = let t1@(T.Int) = typeOf e1
+                          in F.PApp1 T.Double (F.IntegerToDouble $ t1 .-> T.Double) e1
+
+integerToDoubleLPrim :: Expr -> Expr 
+integerToDoubleLPrim e1 = let t1@(T.List T.Int) = typeOf e1
+                          in F.PApp1 (T.List T.Double) (F.IntegerToDoubleL $ t1 .-> T.List T.Double) e1
 
 sumVal :: Type -> Expr
 sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim

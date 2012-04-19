@@ -58,3 +58,5 @@ class VectorAlgebra a where
   projectA :: DBP -> [DBCol] -> GraphM r a DBP
   zipA :: DBP -> DBP -> GraphM r a DBP
   zipL :: DBV -> DBV -> GraphM r a DBV
+  integerToDoubleA :: DBP -> GraphM r a DBP
+  integerToDoubleL :: DBV -> GraphM r a DBV
