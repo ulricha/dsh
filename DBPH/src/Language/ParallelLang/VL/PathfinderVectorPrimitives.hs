@@ -60,7 +60,19 @@ instance VectorAlgebra PFAlgebra where
   zipL (DBV q1 cols1) (DBV q2 cols2) = do
                                         (r, cols') <- doZip (q1, cols1) (q2, cols2)
                                         return $ DBV r cols'
-
+  reverseA (DBV q cols) = do
+                            let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                            q' <- rownum' pos' [(pos, Desc)] Nothing q
+                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
+                            return (r, p)
+  reverseL (DBV q cols) = do
+                            let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                            q' <- rownum' pos' [(descr, Asc), (pos, Desc)] Nothing q
+                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
+                            return (r, p)
+  
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
                                let offSet = length cols1

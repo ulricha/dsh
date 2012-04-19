@@ -67,6 +67,8 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> integerToDoubleL v)
                                            (Tail _) -> tailS
                                            (TailL _) -> tailL
+                                           (Reverse _) -> reversePrim
+                                           (ReverseL _) -> reverseLift
 fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where
         fn = case f of

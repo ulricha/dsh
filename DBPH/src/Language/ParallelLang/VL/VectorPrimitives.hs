@@ -60,3 +60,5 @@ class VectorAlgebra a where
   zipL :: DBV -> DBV -> GraphM r a DBV
   integerToDoubleA :: DBP -> GraphM r a DBP
   integerToDoubleL :: DBV -> GraphM r a DBV
+  reverseA :: DBV -> GraphM r a (DBV, PropVector)
+  reverseL :: DBV -> GraphM r a (DBV, PropVector)

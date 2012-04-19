@@ -15,6 +15,20 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+reversePrim :: VectorAlgebra a => Plan -> Graph a Plan
+reversePrim (ValueVector d lyt) = do
+                                (d', p) <- reverseA d
+                                lyt' <- chainReorder p lyt
+                                return (ValueVector d' lyt')
+reversePrim _ = error "reversePrim: Should not be possible"
+
+reverseLift :: VectorAlgebra a => Plan -> Graph a Plan
+reverseLift (ValueVector d (Nest d1 lyt)) = do
+                                        (d1', p) <- reverseL d1
+                                        lyt' <- chainReorder p lyt
+                                        return (ValueVector d (Nest d1' lyt'))
+reverseLift _ = error "reverseLift: Should not be possible"
+
 the :: VectorAlgebra a => Plan -> Graph a Plan
 the (ValueVector d lyt@(Nest _ _)) = do
                                      p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
