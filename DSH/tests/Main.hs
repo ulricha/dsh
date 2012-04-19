@@ -114,8 +114,8 @@ tests =
         , testProperty "mul_integer" $ prop_mul_integer
         , testProperty "mul_double" $ prop_mul_double
         , testProperty "div_double" $ prop_div_double
-#ifndef isDBPH
         , testProperty "integer_to_double" $ prop_integer_to_double    
+#ifndef isDBPH
         , testProperty "abs_integer" $ prop_abs_integer
         , testProperty "abs_double" $ prop_abs_double
         , testProperty "signum_integer" $ prop_signum_integer
@@ -125,11 +125,9 @@ tests =
 #endif
         ]
     , testGroup "Lists"
-        [ testProperty "head" $ prop_head,
-#ifndef isDBPH 
-          testProperty "tail" $ prop_tail,
-#endif        
-         testProperty "cons" $ prop_cons
+        [ testProperty "head" $ prop_head
+        , testProperty "tail" $ prop_tail
+        , testProperty "cons" $ prop_cons
 #ifndef isDBPH
         , testProperty "snoc" $ prop_snoc
         , testProperty "take" $ prop_take
@@ -230,6 +228,8 @@ tests =
         , testProperty "map (map minimum)" $ prop_map_map_minimum
         , testProperty "Lift maximum" $ prop_map_maximum
         , testProperty "map (map maximum)" $ prop_map_map_maximum
+        , testProperty "map integer_to_double" $ prop_map_integer_to_double
+        , testProperty "map tail" $ prop_map_tail    
         ]
     ]
 
@@ -274,6 +274,24 @@ makePropDouble f1 f2 arg = monadicIO $ do
     let hs = f2 arg
     let eps = 1.0E-8 :: Double;    
     assert (abs (db - hs) < eps)
+
+makePropListDouble :: (QA a, Show a)
+                  => (Q a -> Q [Double])
+                  -> (a -> [Double])
+                  -> a
+                  -> Property
+makePropListDouble f1 f2 arg = monadicIO $ do
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+#else
+    c  <- run $ getConn
+    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    run $ HDBC.disconnect c
+#endif
+    let hs = f2 arg
+    let eps = 1.0E-8 :: Double;    
+    assert $ and [abs (d - h) < eps | (d, h) <- zip db hs]
 
 uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
 uncurryQ f = uncurry f . Q.view
@@ -513,6 +531,12 @@ prop_map_the ps =
   let xss = map (\(n, i) -> replicate n i) ps' in
   makeProp (Q.map Q.the) (map the) xss
 
+prop_map_tail :: [[Integer]] -> Property
+prop_map_tail ps =
+    and [length p > 0 | p <- ps]
+    ==>
+    makeProp (Q.map Q.tail) (map tail) ps
+
 prop_index :: ([Integer], Integer)  -> Property
 prop_index (l, i) =
         i > 0 && i < fromIntegral (length l)
@@ -726,6 +750,9 @@ prop_div_double (x,y) =
 
 prop_integer_to_double :: Integer -> Property
 prop_integer_to_double = makePropDouble Q.integerToDouble fromInteger
+
+prop_map_integer_to_double :: [Integer] -> Property
+prop_map_integer_to_double = makePropListDouble (Q.map Q.integerToDouble) (map fromInteger)
 
 prop_abs_integer :: Integer -> Property
 prop_abs_integer = makeProp Q.abs abs

@@ -132,9 +132,9 @@ translateFun1 :: Fun1 -> NP.Expr -> NP.Expr
 translateFun1 Fst = NP.fst
 translateFun1 Snd = NP.snd
 translateFun1 Not = NP.not
-translateFun1 IntegerToDouble = $impossible
+translateFun1 IntegerToDouble = NP.integerToDouble
 translateFun1 Head = NP.head
-translateFun1 Tail = $impossible
+translateFun1 Tail = NP.tail
 translateFun1 Unzip = $impossible
 translateFun1 Minimum = NP.minimum
 translateFun1 Maximum = NP.maximum
