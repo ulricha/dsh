@@ -48,6 +48,10 @@ class VectorAlgebra a where
   binOpL :: Oper -> DBV -> DBV -> GraphM r a DBV
   vecSum :: Ty.Type -> DBV -> GraphM r a DBP
   vecSumLift :: DescrVector -> DBV -> GraphM r a DBV
+  vecMin :: DBV -> GraphM r a DBP
+  vecMinLift :: DBV -> GraphM r a DBV
+  vecMax :: DBV -> GraphM r a DBP
+  vecMaxLift :: DBV -> GraphM r a DBV 
   selectPos :: DBV -> Oper -> DBP -> GraphM r a (DBV, RenameVector)
   selectPosLift :: DBV -> Oper -> DBV -> GraphM r a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> GraphM r a DBV

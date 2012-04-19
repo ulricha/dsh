@@ -124,6 +124,9 @@ lengthLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
 theVal :: Type -> Expr
 theVal t = singleArgClo t "the_v" thePrim theLPrim
 
+headVal :: Type -> Expr
+headVal = theVal
+
 thePrim :: Expr -> Expr
 thePrim e1 = let t1@(T.List t1') = typeOf e1
               in F.PApp1 t1' (F.The $ t1 .-> t1') e1
@@ -153,6 +156,29 @@ sumPrim e1 = let t1@(T.List t) = typeOf e1
 sumLPrim :: Expr -> Expr
 sumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
                in F.PApp1 t (F.SumL $ t1 .-> t) e1
+
+minimumVal :: Type -> Expr
+minimumVal t = singleArgClo t "minimum_v" minimumPrim minimumLPrim
+
+minimumPrim :: Expr -> Expr
+minimumPrim e1 = let t1@(T.List t) = typeOf e1
+                  in F.PApp1 t (F.Minimum $ t1 .-> t) e1
+
+minimumLPrim :: Expr -> Expr
+minimumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+                   in F.PApp1 t (F.MinimumL $ t1 .-> t) e1
+
+maximumVal :: Type -> Expr
+maximumVal t = singleArgClo t "maximum_v" maximumPrim maximumLPrim
+
+maximumPrim :: Expr -> Expr
+maximumPrim e1 = let t1@(T.List t) = typeOf e1
+                 in F.PApp1 t (F.Maximum $ t1 .-> t) e1
+
+maximumLPrim :: Expr -> Expr
+maximumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+                  in F.PApp1 t (F.MaximumL $ t1 .-> t) e1
+
 
 concatVal :: Type -> Expr
 concatVal t = singleArgClo t "concat_v" concatPrim concatLPrim

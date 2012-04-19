@@ -164,6 +164,26 @@ mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
 
+minPrim :: VectorAlgebra a => Plan -> Graph a Plan
+minPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecMin q
+minPrim _ = $impossible
+
+minLift :: VectorAlgebra a => Plan -> Graph a Plan
+minLift (ValueVector d (Nest q (InColumn 1))) = do
+                                                 r <- descToRename =<< toDescr d
+                                                 flip ValueVector (InColumn 1) <$> (propRename r =<< vecMinLift q)
+minLift _ = $impossible
+
+maxPrim :: VectorAlgebra a => Plan -> Graph a Plan
+maxPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecMax q
+maxPrim _ = $impossible
+
+maxLift :: VectorAlgebra a => Plan -> Graph a Plan
+maxLift (ValueVector d (Nest q (InColumn 1))) = do
+                                                    r <- descToRename =<< toDescr d
+                                                    flip ValueVector (InColumn 1) <$> (propRename r =<< vecMaxLift q)
+maxLift _ = $impossible
+
 sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
 sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecSum t q
 sumPrim _ _ = $impossible

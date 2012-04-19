@@ -59,6 +59,10 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
                                            (Concat _) -> concatV
+                                           (Minimum _) -> minPrim
+                                           (MinimumL _) -> minLift
+                                           (Maximum _)  -> maxPrim
+                                           (MaximumL _) -> maxLift
 
 fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= uncurry fn
     where

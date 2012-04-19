@@ -41,6 +41,10 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   binOpL = binOpLPF
   sortWith = sortWithPF
+  vecMin = vecMinPF
+  vecMinLift = vecMinLiftPF
+  vecMax = vecMaxPF
+  vecMaxLift = vecMaxLiftPF
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF
   selectPos = selectPosPF
@@ -118,6 +122,12 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
 
+vecMinPF :: DBV -> GraphM r PFAlgebra DBP
+vecMinPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggr [(Min, item, Just item)] Nothing q)
+
+vecMaxPF :: DBV -> GraphM r PFAlgebra DBP
+vecMaxPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggr [(Max, item, Just item)] Nothing q)
+
 vecSumPF :: Ty.Type -> DBV -> GraphM r PFAlgebra DBP
 vecSumPF t (DBV q _) =
     do
@@ -133,6 +143,13 @@ vecSumPF t (DBV q _) =
              $ aggrM [(Sum, item, Just item)] Nothing
              $ union q' q
         return $ DBP qs [1]
+
+vecMinLiftPF :: DBV -> GraphM r PFAlgebra DBV
+vecMinLiftPF (DBV qv _) = flip DBV [1] <$> (projM [(descr,descr),(pos,pos),(item,item)] $ rownumM pos [descr] Nothing $ aggr [(Min, item, Just item)] (Just descr) qv)
+
+vecMaxLiftPF :: DBV -> GraphM r PFAlgebra DBV
+vecMaxLiftPF (DBV qv _) = flip DBV [1] <$> (projM [(descr,descr),(pos,pos),(item,item)] $ rownumM pos [descr] Nothing $ aggr [(Max, item, Just item)] (Just descr) qv)
+
 
 vecSumLiftPF :: DescrVector -> DBV -> GraphM r PFAlgebra DBV
 vecSumLiftPF (DescrVector qd) (DBV qv _) =
