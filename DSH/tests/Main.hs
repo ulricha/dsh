@@ -81,12 +81,8 @@ tests =
         , testProperty "[[[Integer]]]" $ prop_list_integer_3
         , testProperty "[(Integer, Integer)]" $ prop_list_tuple_integer
         , testProperty "([], [])" $ prop_tuple_list_integer
-#ifndef isDBPH
-        {-
         , testProperty "Maybe Integer" $ prop_maybe_integer
         , testProperty "Either Integer Integer" $ prop_either_integer
-        -}
-#endif
         ]
     , testGroup "Equality, Boolean Logic and Ordering"
         [ testProperty "&&" $ prop_infix_and
@@ -96,7 +92,7 @@ tests =
         , testProperty "neq" $ prop_neq
         , testProperty "cond" $ prop_cond
         , testProperty "cond tuples" $ prop_cond_tuples
-        --, testProperty "cond ([[Integer]], [[Integer]])" $ prop_cond_list_tuples
+        , testProperty "cond ([[Integer]], [[Integer]])" $ prop_cond_list_tuples
         , testProperty "lt" $ prop_lt
         , testProperty "lte" $ prop_lte
         , testProperty "gt" $ prop_gt
