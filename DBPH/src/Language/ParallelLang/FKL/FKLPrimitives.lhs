@@ -85,6 +85,33 @@ pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
+appendVal :: Type -> Expr
+appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
+
+appendPrim :: Expr -> Expr -> Expr
+appendPrim e1 e2 = let t1 = typeOf e1
+                       t2 = typeOf e2
+                 in F.PApp2 t1 (F.Append (t1 .-> t2 .-> t1)) e1 e2
+
+appendLPrim :: Expr -> Expr -> Expr
+appendLPrim e1 e2 = let t1@(T.List _) = typeOf e1
+                        t2@(T.List _) = typeOf e2
+                  in F.PApp2 t1 (F.AppendL (t1 .-> t2 .-> t1)) e1 e2 
+
+
+indexVal :: Type -> Expr
+indexVal t = doubleArgClo t "index_e1" "index_e2" indexPrim indexLPrim
+
+indexPrim :: Expr -> Expr -> Expr
+indexPrim e1 e2 = let t1@(T.List t) = typeOf e1
+                      t2 = typeOf e2
+                   in F.PApp2 t (F.Index (t1 .-> t2 .-> t)) e1 e2
+
+indexLPrim :: Expr -> Expr -> Expr
+indexLPrim e1 e2 = let t1@(T.List t) = typeOf e1
+                       t2@(T.List _) = typeOf e2
+                    in F.PApp2 t (F.IndexL (t1 .-> t2 .-> t)) e1 e2
+
 filterVal :: Type -> Expr
 filterVal t = doubleArgClo t "filter_f" "filter_xs" filterPrim filterLPrim
 
@@ -284,11 +311,6 @@ cloLApp e1 ea = CloLApp (liftType rt) e1 ea
         
 cloLAppM :: Monad m => m Expr -> m Expr -> m Expr
 cloLAppM = liftM2 cloLApp
-
-indexPrim :: Expr -> Expr -> Expr
-indexPrim e1 e2 = let t1@(T.List t) = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t (F.Index $ t1 .-> t2 .-> t) e1 e2
 
 distPrim :: Expr -> Expr -> Expr
 distPrim e1 e2 = let t1 = typeOf e1

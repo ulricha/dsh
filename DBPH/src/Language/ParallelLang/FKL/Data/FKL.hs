@@ -89,13 +89,16 @@ data Prim2 = GroupWithS Type
            | GroupWithL Type
            | SortWithS Type
            | SortWithL Type
-           | Index Type
            | Dist Type
            | Dist_L Type
            | Restrict Type
            | Unconcat Type
            | Pair Type
            | PairL Type
+           | Append Type
+           | AppendL Type
+           | Index Type
+           | IndexL Type
     deriving Eq
 
 instance Show Prim2 where
@@ -103,13 +106,16 @@ instance Show Prim2 where
     show (GroupWithL _) = "groupWithL"
     show (SortWithS _)  = "sortWithS"
     show (SortWithL _)  = "sortWithL" 
-    show (Index _)      = "index"
     show (Dist _)       = "dist"
     show (Dist_L _)     = "dist_L"
     show (Restrict _)   = "restrict"
     show (Unconcat _)   = "unconcat"
     show (Pair _)       = "pair"
     show (PairL _)      = "pairL"
+    show (Append _)     = "append"
+    show (AppendL _)    = "appendL"
+    show (Index _)      = "index"
+    show (IndexL _)     =" indexL"
     
 data Prim3 = Combine Type
     deriving Eq

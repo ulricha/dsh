@@ -15,6 +15,46 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+indexPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
+                                                           i' <-  binOp Add i =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                           (q, r) <- selectPos qs Eq i'
+                                                           (Nest qr lyt') <- chainRenameFilter r lyt
+                                                           re <- descToRename =<< toDescr q
+                                                           renameOuter re $ ValueVector qr lyt'
+indexPrim (ValueVector qs lyt) (PrimVal i _) = do
+                                                i' <-  binOp Add i =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                (DBV q cols, r) <- selectPos qs Eq i'
+                                                lyt' <- chainRenameFilter r lyt
+                                                return $ PrimVal (DBP q cols) lyt'
+indexPrim _ _ = error "indexPrim: Should not be possible"
+
+indexLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
+                                                                         ds <- toDescr is
+                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                                         is' <- binOpL Add is ones
+                                                                         (qs', r) <- selectPosLift qs Eq is'
+                                                                         lyt' <- chainRenameFilter r lyt
+                                                                         re <- descToRename =<< toDescr qs'
+                                                                         ValueVector d <$> renameOuter' re lyt'
+indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
+                                                                         ds <- toDescr is
+                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                                         is' <- binOpL Add is ones
+                                                                         (qs', r) <- selectPosLift qs Eq is'
+                                                                         lyt' <- chainRenameFilter r lyt
+                                                                         re <- descToRename =<< toDescr d
+                                                                         renameOuter re (ValueVector qs' lyt')
+indexLift _ _ = error "indexLift: Should not be possible"
+
+appendPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+appendPrim = appendR 
+
+appendLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = ValueVector d <$> appendR' lyt1 lyt2
+appendLift _ _ = error "appendLift: Should not be possible"
+    
 reversePrim :: VectorAlgebra a => Plan -> Graph a Plan
 reversePrim (ValueVector d lyt) = do
                                 (d', p) <- reverseA d
