@@ -82,11 +82,14 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (GroupWithL _) -> groupByL
                 (SortWithS _) -> sortWithS
                 (SortWithL _) -> sortWithL
-                (Index _) -> error "Index is not yet defined fkl2Alg"
                 (Restrict _) -> restrict
                 (Unconcat _) -> unconcatV
                 (Pair _) -> zipOp
                 (PairL _) -> zipOpL
+                (Append _) -> appendPrim
+                (AppendL _) -> appendLift
+                (Index _) -> indexPrim
+                (IndexL _) -> indexLift
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do

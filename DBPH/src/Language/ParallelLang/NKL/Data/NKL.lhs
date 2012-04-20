@@ -70,7 +70,8 @@ Binary primitive operations:
 \begin{code}
 data Prim2  =  Map Type | GroupWith Type
             |  SortWith Type | Pair Type
-            |  Filter Type
+            |  Filter Type | Append Type
+            |  Index Type
 \end{code}
 %}
 %if False

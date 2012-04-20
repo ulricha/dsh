@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), index, append, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -138,6 +138,20 @@ pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.Pair v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
+
+append :: Expr -> Expr -> Expr
+append e1 e2 = let t1@(T.List _) = typeOf e1
+                   t2@(T.List _) = typeOf e2
+                in if t1 P.== t2 
+                    then AppE2 t1 (Append P.$ t1 .-> t1 .-> t1) e1 e2
+                    else P.error P.$ "NKLPrims.append: Cannot append two list with different types"
+
+index :: Expr -> Expr -> Expr
+index e1 e2 = let t1@(T.List t) = typeOf e1
+                  t2 = typeOf e2
+                in if intT P.== t2 
+                    then AppE2 t (Index P.$ t1 .-> t2 .-> t) e1 e2
+                    else P.error P.$ "NKLPrims.index: Cannot perform index with given arguments."
 
 add :: Expr -> Expr -> Expr
 add e1 e2 = let t1 = typeOf e1
