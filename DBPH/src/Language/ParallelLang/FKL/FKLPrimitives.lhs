@@ -85,6 +85,17 @@ pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
+filterVal :: Type -> Expr
+filterVal t = doubleArgClo t "filter_f" "filter_xs" filterPrim filterLPrim
+
+filterPrim :: Expr -> Expr -> Expr
+filterPrim f e = let arg1 = mapPrim f e
+                  in restrictPrim e arg1
+                  
+filterLPrim :: Expr -> Expr -> Expr
+filterLPrim f e = let arg1 = concatPrim (mapLPrim f e)
+                   in unconcatPrim e (restrictPrim (concatPrim e) arg1)
+
 --The sortWith combinator
 
 sortWithVal :: Type -> Expr

@@ -103,6 +103,7 @@ prim2Transform (N.Map t) = mapVal t
 prim2Transform (N.SortWith t) = sortWithVal t
 prim2Transform (N.GroupWith t) = groupWithVal t
 prim2Transform (N.Pair t) = pairVal t 
+prim2Transform (N.Filter t) = filterVal t 
 \end{code}
 %endif
 
