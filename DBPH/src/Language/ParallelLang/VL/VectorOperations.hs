@@ -29,6 +29,43 @@ reverseLift (ValueVector d (Nest d1 lyt)) = do
                                         return (ValueVector d (Nest d1' lyt'))
 reverseLift _ = error "reverseLift: Should not be possible"
 
+andPrim :: VectorAlgebra a => Plan -> Graph a Plan
+andPrim (ValueVector d (InColumn 1)) = do
+                                        p <- constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool True]]
+                                        (r, _, _) <- append p d
+                                        v <- vecMin r
+                                        return $ PrimVal v (InColumn 1)
+andPrim _ = error "andPrim: Should not be possible"
+
+andLift :: VectorAlgebra a => Plan -> Graph a Plan
+andLift (ValueVector d (Nest q (InColumn 1))) = do
+                                                 d' <- toDescr d
+                                                 t <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool True]
+                                                 (ts, _) <- distPrim t d'
+                                                 ts' <- segment ts
+                                                 (res, _, _) <- append ts' q
+                                                 minLift (ValueVector d (Nest res (InColumn 1)))
+andLift _ = error "andLift: Should not be possible"
+
+orPrim :: VectorAlgebra a => Plan -> Graph a Plan
+orPrim (ValueVector d (InColumn 1)) = do
+                                        p <- constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]]
+                                        (r, _, _) <- append p d
+                                        v <- vecMax r
+                                        return $ PrimVal v (InColumn 1)
+orPrim _ = error "orPrim: Should not be possible"
+
+orLift :: VectorAlgebra a => Plan -> Graph a Plan
+orLift (ValueVector d (Nest q (InColumn 1))) = do
+                                                 d' <- toDescr d
+                                                 t <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+                                                 (ts, _) <- distPrim t d'
+                                                 ts' <- segment ts
+                                                 (res, _, _) <- append ts' q
+                                                 maxLift (ValueVector d (Nest res (InColumn 1)))
+orLift _ = error "orLift: Should not be possible"
+
+                                        
 the :: VectorAlgebra a => Plan -> Graph a Plan
 the (ValueVector d lyt@(Nest _ _)) = do
                                      p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]

@@ -168,6 +168,29 @@ notLPrim :: Expr -> Expr
 notLPrim e1 = let t1@(T.List T.Bool) = typeOf e1
                in F.PApp1 t1 (F.NotVec $ t1 .-> t1) e1
 
+andVal :: Type -> Expr
+andVal t = singleArgClo t "and_v" andPrim andLPrim
+
+andPrim :: Expr -> Expr
+andPrim e1 = let t1@(T.List T.Bool) = typeOf e1
+             in F.PApp1 T.Bool (F.And $ t1 .-> T.Bool) e1
+
+andLPrim :: Expr -> Expr 
+andLPrim e1 = let t1@(T.List t@(T.List T.Bool)) = typeOf e1
+              in F.PApp1 t (F.AndL $ t1 .-> t) e1
+
+
+orVal :: Type -> Expr
+orVal t = singleArgClo t "or_v" orPrim orLPrim
+
+orPrim :: Expr -> Expr
+orPrim e1 = let t1@(T.List T.Bool) = typeOf e1
+           in F.PApp1 T.Bool (F.Or $ t1 .-> T.Bool) e1
+
+orLPrim :: Expr -> Expr 
+orLPrim e1 = let t1@(T.List t@(T.List T.Bool)) = typeOf e1
+            in F.PApp1 t (F.OrL $ t1 .-> t) e1
+
 integerToDoubleVal :: Type -> Expr
 integerToDoubleVal t = singleArgClo t "integerToDouble_v" integerToDoublePrim integerToDoubleLPrim
 
