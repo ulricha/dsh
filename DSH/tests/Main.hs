@@ -136,10 +136,7 @@ tests =
 #endif
 
         , testProperty "map" $ prop_map
-
-#ifndef isDBPH
         , testProperty "filter" $ prop_filter
-#endif
         , testProperty "the" $ prop_the
 #ifndef isDBPH
         , testProperty "last" $ prop_last
@@ -163,17 +160,13 @@ tests =
         , testProperty "sortWith" $ prop_sortWith
         , testProperty "and" $ prop_and
         , testProperty "or" $ prop_or
-#ifndef isDBPH
         , testProperty "any_zero" $ prop_any_zero
         , testProperty "all_zero" $ prop_all_zero
-#endif
         , testProperty "sum_integer" $ prop_sum_integer
         , testProperty "sum_double" $ prop_sum_double
         , testProperty "concat" $ prop_concat
         , testProperty "concatMap" $ prop_concatMap
-#ifndef isDBPH
         , testProperty "maximum" $ prop_maximum
-#endif
         , testProperty "minimum" $ prop_minimum
 #ifndef isDBPH
         , testProperty "splitAt" $ prop_splitAt
@@ -246,6 +239,9 @@ tests =
         , testProperty "map (map sum)" $ prop_map_map_sum
         , testProperty "map or" $ prop_map_or
         , testProperty "map (map or)" $ prop_map_map_or
+        , testProperty "map any zero" $ prop_map_any_zero
+        , testProperty "map all zero" $ prop_map_all_zero
+        , testProperty "map filter" $ prop_map_filter
         ]
     ]
 
@@ -586,6 +582,9 @@ prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
+prop_map_filter :: [[Integer]] -> Property
+prop_map_filter = makeProp (Q.map (Q.filter (const $ Q.toQ True))) (map (filter $ const True))
+
 prop_groupWith :: [Integer] -> Property
 prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
@@ -682,8 +681,14 @@ prop_map_map_or = makeProp (Q.map (Q.map Q.or)) (map (map or))
 prop_any_zero :: [Integer] -> Property
 prop_any_zero = makeProp (Q.any (Q.== 0)) (any (== 0))
 
+prop_map_any_zero :: [[Integer]] -> Property
+prop_map_any_zero = makeProp (Q.map (Q.any (Q.== 0))) (map (any (== 0)))
+
 prop_all_zero :: [Integer] -> Property
 prop_all_zero = makeProp (Q.all (Q.== 0)) (all (== 0))
+
+prop_map_all_zero :: [[Integer]] -> Property
+prop_map_all_zero = makeProp (Q.map (Q.all (Q.== 0))) (map (all (== 0)))
 
 prop_sum_integer :: [Integer] -> Property
 prop_sum_integer = makeProp Q.sum sum
