@@ -49,6 +49,10 @@ data Prim1 = LengthPrim Type
            | TailL Type
            | Reverse Type
            | ReverseL Type
+           | And Type
+           | AndL Type
+           | Or Type
+           | OrL Type
     deriving Eq
     
 instance Show Prim1 where
@@ -76,6 +80,10 @@ instance Show Prim1 where
     show (TailL _)      = "tailL"
     show (Reverse _)    = "reverse"
     show (ReverseL _)   = "reverseL"
+    show (And _)        = "and"
+    show (AndL _)       = "andL"
+    show (Or _)         = "or"
+    show (OrL _)        = "orL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type

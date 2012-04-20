@@ -54,7 +54,7 @@ data Prim1  =  Length Type  |  Not Type  |  Concat Type
             |  Sum Type | The Type | Fst Type | Snd Type
             |  Head Type | Minimum Type | Maximum Type 
             |  IntegerToDouble Type | Tail Type
-            |  Reverse Type
+            |  Reverse Type | And Type | Or Type
 \end{code}
 
 %if False

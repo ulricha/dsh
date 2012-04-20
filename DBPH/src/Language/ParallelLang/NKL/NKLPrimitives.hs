@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -39,11 +39,23 @@ not e = let t = typeOf e
                 then AppE1 boolT (Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
 
+and :: Expr -> Expr 
+and e = let t = typeOf e
+         in if listT boolT P.== t
+                then AppE1 boolT (And P.$ t .-> boolT) e
+                else P.error P.$ "NKLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
+
+or :: Expr -> Expr 
+or e = let t = typeOf e
+         in if listT boolT P.== t
+                then AppE1 boolT (Or P.$ t .-> boolT) e
+                else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
+
 integerToDouble :: Expr -> Expr 
 integerToDouble e = let t = typeOf e
                      in if intT P.== t
                          then AppE1 doubleT (IntegerToDouble P.$ t .-> doubleT) e
-                         else P.error P.$ "NKLPrims.integerToDouble: Cannot apply not to an argument of type: " P.++ P.show t
+                         else P.error P.$ "NKLPrims.integerToDouble: Cannot apply integerToDouble to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
