@@ -161,9 +161,9 @@ tests =
         , testProperty "groupWith length" $ prop_groupWith_length
 #endif
         , testProperty "sortWith" $ prop_sortWith
-#ifndef isDBPH
         , testProperty "and" $ prop_and
         , testProperty "or" $ prop_or
+#ifndef isDBPH
         , testProperty "any_zero" $ prop_any_zero
         , testProperty "all_zero" $ prop_all_zero
 #endif
@@ -240,6 +240,12 @@ tests =
         , testProperty "map unzip" $ prop_map_unzip
         , testProperty "map reverse" $ prop_map_reverse
         , testProperty "map reverse [[]]" $ prop_map_reverse_nest
+        , testProperty "map and" $ prop_map_and
+        , testProperty "map (map and)" $ prop_map_map_and
+        , testProperty "map sum" $ prop_map_sum
+        , testProperty "map (map sum)" $ prop_map_map_sum
+        , testProperty "map or" $ prop_map_or
+        , testProperty "map (map or)" $ prop_map_map_or
         ]
     ]
 
@@ -355,9 +361,6 @@ prop_infix_and = makeProp (uncurryQ (Q.&&)) (uncurry (&&))
 prop_infix_map_and :: (Bool, [Bool]) -> Property
 prop_infix_map_and = makeProp (\x -> Q.map ((Q.fst x) Q.&&) $ Q.snd x) (\(x,xs) -> map (x &&) xs)
                      
-prop_map_and :: [[Bool]] -> Property
-prop_map_and = makeProp (Q.map Q.and) (map and)
-
 prop_infix_or :: (Bool,Bool) -> Property
 prop_infix_or = makeProp (uncurryQ (Q.||)) (uncurry (||))
 
@@ -661,8 +664,20 @@ prop_map_reverse_nest = makeProp (Q.map Q.reverse) (map reverse)
 prop_and :: [Bool] -> Property
 prop_and = makeProp Q.and and
 
+prop_map_and :: [[Bool]] -> Property
+prop_map_and = makeProp (Q.map Q.and) (map and)
+
+prop_map_map_and :: [[[Bool]]] -> Property
+prop_map_map_and = makeProp (Q.map (Q.map Q.and)) (map (map and))
+
 prop_or :: [Bool] -> Property
 prop_or = makeProp Q.or or
+
+prop_map_or :: [[Bool]] -> Property
+prop_map_or = makeProp (Q.map Q.or) (map or)
+
+prop_map_map_or :: [[[Bool]]] -> Property
+prop_map_map_or = makeProp (Q.map (Q.map Q.or)) (map (map or))
 
 prop_any_zero :: [Integer] -> Property
 prop_any_zero = makeProp (Q.any (Q.== 0)) (any (== 0))
@@ -672,6 +687,12 @@ prop_all_zero = makeProp (Q.all (Q.== 0)) (all (== 0))
 
 prop_sum_integer :: [Integer] -> Property
 prop_sum_integer = makeProp Q.sum sum
+
+prop_map_sum :: [[Integer]] -> Property
+prop_map_sum = makeProp (Q.map Q.sum) (map sum)
+
+prop_map_map_sum :: [[[Integer]]] -> Property
+prop_map_map_sum = makeProp (Q.map (Q.map Q.sum)) (map (map sum))
 
 prop_sum_double :: [Double] -> Property
 prop_sum_double = makePropDouble Q.sum sum
