@@ -195,6 +195,9 @@ map f (Q as) = Q (AppE2 Map (toLam1 f) as $ reify (undefined :: [b]))
 append :: forall a. (QA a) => Q [a] -> Q [a] -> Q [a]
 append (Q as) (Q bs) = Q (AppE2 Append as bs $ reify (undefined :: [a]))
 
+(++) :: forall a. (QA a) => Q [a] -> Q [a] -> Q [a]
+(++) = append 
+
 (><) :: (QA a) => Q [a] -> Q [a] -> Q [a]
 (><) = append
 
@@ -344,7 +347,7 @@ guard :: Q Bool -> Q [()]
 guard c = cond c (singleton unit) nil
 
 infixl 9 !!
-infixr 5 ><, <|, |>
+infixr 5 ><, <|, |>, ++
 infix  4  ==, /=, <, <=, >=, >
 infixr 3  &&
 infixr 2  ||

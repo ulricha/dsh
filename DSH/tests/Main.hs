@@ -145,14 +145,11 @@ tests =
 #endif
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
-#ifndef isDBPH
         , testProperty "index" $ prop_index
-#endif
+        , testProperty "index [[]]" $ prop_index_nest
         , testProperty "reverse" $ prop_reverse
         , testProperty "reverse [[]]" $ prop_reverse_nest
-#ifndef isDBPH
         , testProperty "append" $ prop_append
-#endif
         , testProperty "groupWith" $ prop_groupWith
 #ifdef isX100
         , testProperty "groupWith length" $ prop_groupWith_length
@@ -242,6 +239,9 @@ tests =
         , testProperty "map any zero" $ prop_map_any_zero
         , testProperty "map all zero" $ prop_map_all_zero
         , testProperty "map filter" $ prop_map_filter
+        , testProperty "map append" $ prop_map_append
+        , testProperty "map index" $ prop_map_index
+        , testProperty "map index [[]]" $ prop_map_index_nest
         ]
     ]
 
@@ -553,6 +553,27 @@ prop_index (l, i) =
                  (\(a,b) -> a !! fromIntegral b)
                  (l, i)
 
+prop_index_nest :: ([[Integer]], Integer)  -> Property
+prop_index_nest (l, i) =
+     i > 0 && i < fromIntegral (length l)
+ ==> makeProp (uncurryQ (Q.!!))
+              (\(a,b) -> a !! fromIntegral b)
+              (l, i)
+
+prop_map_index :: ([Integer], [Integer])  -> Property
+prop_map_index (l, is) =
+     and [i > 0 && i < fromIntegral (length l) | i <-  is]
+ ==> makeProp (\z -> Q.map ((Q.fst z) Q.!!) (Q.snd z))
+              (\(a,b) -> map (a !!) (map fromIntegral b))
+              (l, is)
+
+prop_map_index_nest :: ([[Integer]], [Integer])  -> Property
+prop_map_index_nest (l, is) =
+   and [i > 0 && i < fromIntegral (length l) | i <-  is]
+ ==> makeProp (\z -> Q.map ((Q.fst z) Q.!!) (Q.snd z))
+            (\(a,b) -> map (a !!) (map fromIntegral b))
+            (l, is)
+            
 prop_take :: (Integer, [Integer]) -> Property
 prop_take = makeProp (uncurryQ Q.take) (\(n,l) -> take (fromIntegral n) l)
 
@@ -578,6 +599,9 @@ prop_map_map_map_mul = makeProp (Q.map (Q.map (Q.map (*2)))) (map (map (map (*2)
 
 prop_append :: ([Integer], [Integer]) -> Property
 prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
+
+prop_map_append :: ([Integer], [[Integer]]) -> Property
+prop_map_append = makeProp (\z -> Q.map (Q.fst z Q.++) (Q.snd z)) (\(a,b) -> map (a ++) b)
 
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
