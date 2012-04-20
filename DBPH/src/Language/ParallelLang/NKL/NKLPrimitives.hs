@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -38,6 +38,12 @@ not e = let t = typeOf e
          in if boolT P.== t
                 then AppE1 boolT (Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
+
+all :: Expr -> Expr -> Expr
+all f e = and (map f e)
+
+any :: Expr -> Expr -> Expr
+any f e = or (map f e)
 
 and :: Expr -> Expr 
 and e = let t = typeOf e
@@ -107,6 +113,11 @@ map f es = let ft@(Fn ta tr) = typeOf f
             in if t P.== ta
                  then AppE2 (listT tr) (Map P.$ ft .-> te .-> listT tr) f es
                  else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+
+filter :: Expr -> Expr -> Expr
+filter f es = let ft@(Fn _ T.Bool) = typeOf f
+                  te@(List _) = typeOf es
+               in AppE2 te (Filter P.$ ft .-> te .-> te) f es
 
 groupWith :: Expr -> Expr -> Expr
 groupWith f es = let ft@(Fn ta _) = typeOf f
