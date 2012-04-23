@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), length, not, concat, sum, the, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -17,17 +17,51 @@ f $ e = let tf = typeOf f
               then App tr f e
               else P.error P.$ "NKLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
 
+reverse :: Expr -> Expr
+reverse e = let t@(T.List _) = typeOf e
+             in AppE1 t (Reverse P.$ t .-> t) e
+
 length :: Expr -> Expr
 length e = let t = typeOf e
             in if isListT t 
                  then AppE1 intT (Length P.$ t .-> intT) e
                  else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t
+
+unzip :: Expr -> Expr
+unzip e = let (T.List (T.Pair t1 t2)) = typeOf e
+              left  = map (lambda (T.Pair t1 t2 .-> t1) "__*unzl*" (fst (var (T.Pair t1 t2) "__*unzl*"))) e
+              right = map (lambda (T.Pair t1 t2 .-> t2) "__*unzr*" (snd (var (T.Pair t1 t2) "__*unzr*"))) e
+           in pair left right
                  
 not :: Expr -> Expr 
 not e = let t = typeOf e
          in if boolT P.== t
                 then AppE1 boolT (Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
+
+all :: Expr -> Expr -> Expr
+all f e = and (map f e)
+
+any :: Expr -> Expr -> Expr
+any f e = or (map f e)
+
+and :: Expr -> Expr 
+and e = let t = typeOf e
+         in if listT boolT P.== t
+                then AppE1 boolT (And P.$ t .-> boolT) e
+                else P.error P.$ "NKLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
+
+or :: Expr -> Expr 
+or e = let t = typeOf e
+         in if listT boolT P.== t
+                then AppE1 boolT (Or P.$ t .-> boolT) e
+                else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
+
+integerToDouble :: Expr -> Expr 
+integerToDouble e = let t = typeOf e
+                     in if intT P.== t
+                         then AppE1 doubleT (IntegerToDouble P.$ t .-> doubleT) e
+                         else P.error P.$ "NKLPrims.integerToDouble: Cannot apply integerToDouble to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
@@ -40,10 +74,38 @@ sum e = let (List t) = typeOf e
          in if isNum t
                 then AppE1 t (Sum P.$ List t .-> t) e
                 else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
-                
+
+minimum :: Expr -> Expr
+minimum e = let (List t) = typeOf e
+             in if isNum t
+                 then AppE1 t (Minimum P.$ List t .-> t) e
+                 else P.error P.$ "NKLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+
+maximum :: Expr -> Expr
+maximum e = let (List t) = typeOf e
+             in if isNum t
+                 then AppE1 t (Maximum P.$ List t .-> t) e
+                 else P.error P.$ "NKLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+
 the :: Expr -> Expr
 the e = let (List t) = typeOf e
          in AppE1 t (The P.$ List t .-> t) e
+
+head :: Expr -> Expr
+head e = let (List t) = typeOf e
+          in AppE1 t (Head P.$ List t .-> t) e
+
+last :: Expr -> Expr
+last e = let (List t) = typeOf e
+          in AppE1 t (Last P.$ List t .-> t) e
+
+tail :: Expr -> Expr
+tail e = let (List t) = typeOf e
+          in AppE1 t (Tail P.$ List t .-> List t) e
+
+init :: Expr -> Expr
+init e = let (List t) = typeOf e
+        in AppE1 t (Init P.$ List t .-> List t) e
          
 fst :: Expr -> Expr
 fst e = let t@(T.Pair t1 _) = typeOf e
@@ -59,6 +121,11 @@ map f es = let ft@(Fn ta tr) = typeOf f
             in if t P.== ta
                  then AppE2 (listT tr) (Map P.$ ft .-> te .-> listT tr) f es
                  else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+
+filter :: Expr -> Expr -> Expr
+filter f es = let ft@(Fn _ T.Bool) = typeOf f
+                  te@(List _) = typeOf es
+               in AppE2 te (Filter P.$ ft .-> te .-> te) f es
 
 groupWith :: Expr -> Expr -> Expr
 groupWith f es = let ft@(Fn ta _) = typeOf f
@@ -79,6 +146,20 @@ pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.Pair v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
+
+append :: Expr -> Expr -> Expr
+append e1 e2 = let t1@(T.List _) = typeOf e1
+                   t2@(T.List _) = typeOf e2
+                in if t1 P.== t2 
+                    then AppE2 t1 (Append P.$ t1 .-> t1 .-> t1) e1 e2
+                    else P.error P.$ "NKLPrims.append: Cannot append two list with different types"
+
+index :: Expr -> Expr -> Expr
+index e1 e2 = let t1@(T.List t) = typeOf e1
+                  t2 = typeOf e2
+                in if intT P.== t2 
+                    then AppE2 t (Index P.$ t1 .-> t2 .-> t) e1 e2
+                    else P.error P.$ "NKLPrims.index: Cannot perform index with given arguments."
 
 add :: Expr -> Expr -> Expr
 add e1 e2 = let t1 = typeOf e1

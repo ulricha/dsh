@@ -86,15 +86,28 @@ prim1Transform (N.Length t) = lengthVal t
 prim1Transform (N.Not t) = notVal t
 prim1Transform (N.Concat t) = concatVal t
 prim1Transform (N.Sum t) = sumVal t
+prim1Transform (N.Minimum t) = minimumVal t
+prim1Transform (N.Maximum t) = maximumVal t
 prim1Transform (N.The t) = theVal t
+prim1Transform (N.Head t) = headVal t
 prim1Transform (N.Fst t) = fstVal t
 prim1Transform (N.Snd t) = sndVal t
+prim1Transform (N.IntegerToDouble t) = integerToDoubleVal t
+prim1Transform (N.Tail t) = tailVal t
+prim1Transform (N.Reverse t) = reverseVal t
+prim1Transform (N.And t) = andVal t
+prim1Transform (N.Or t) = orVal t
+prim1Transform (N.Init t) = initVal t
+prim1Transform (N.Last t) = lastVal t
 
 prim2Transform :: N.Prim2 -> F.Expr
 prim2Transform (N.Map t) = mapVal t
 prim2Transform (N.SortWith t) = sortWithVal t
 prim2Transform (N.GroupWith t) = groupWithVal t
 prim2Transform (N.Pair t) = pairVal t 
+prim2Transform (N.Filter t) = filterVal t 
+prim2Transform (N.Append t) = appendVal t
+prim2Transform (N.Index t) = indexVal t
 \end{code}
 %endif
 

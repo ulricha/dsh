@@ -36,9 +36,27 @@ data Prim1 = LengthPrim Type
            | SndL Type
            | Sum Type
            | SumL Type
+           | Minimum Type
+           | MinimumL Type
+           | Maximum Type
+           | MaximumL Type
            | The Type
            | TheL Type
            | Concat Type
+           | IntegerToDouble Type
+           | IntegerToDoubleL Type
+           | Tail Type
+           | TailL Type
+           | Reverse Type
+           | ReverseL Type
+           | And Type
+           | AndL Type
+           | Or Type
+           | OrL Type
+           | Init Type
+           | InitL Type
+           | Last Type
+           | LastL Type
     deriving Eq
     
 instance Show Prim1 where
@@ -56,19 +74,39 @@ instance Show Prim1 where
     show (SumL _)       = "sumL"
     show (The _)        = "the"
     show (TheL _)       = "theL"
-    
+    show (Minimum _)    = "minimum"
+    show (MinimumL _)   = "minimumL"
+    show (Maximum _)    = "maximum"
+    show (MaximumL _)   = "maximumL"
+    show (IntegerToDouble _) = "integerToDouble"
+    show (IntegerToDoubleL _) = "integerToDoubleL"
+    show (Tail _)       = "tail"
+    show (TailL _)      = "tailL"
+    show (Reverse _)    = "reverse"
+    show (ReverseL _)   = "reverseL"
+    show (And _)        = "and"
+    show (AndL _)       = "andL"
+    show (Or _)         = "or"
+    show (OrL _)        = "orL"
+    show (Init _)       = "init"
+    show (InitL _)      = "initL"
+    show (Last _)       = "last"
+    show (LastL _)      = "lastL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type
            | SortWithS Type
            | SortWithL Type
-           | Index Type
            | Dist Type
            | Dist_L Type
            | Restrict Type
            | Unconcat Type
            | Pair Type
            | PairL Type
+           | Append Type
+           | AppendL Type
+           | Index Type
+           | IndexL Type
     deriving Eq
 
 instance Show Prim2 where
@@ -76,13 +114,16 @@ instance Show Prim2 where
     show (GroupWithL _) = "groupWithL"
     show (SortWithS _)  = "sortWithS"
     show (SortWithL _)  = "sortWithL" 
-    show (Index _)      = "index"
     show (Dist _)       = "dist"
     show (Dist_L _)     = "dist_L"
     show (Restrict _)   = "restrict"
     show (Unconcat _)   = "unconcat"
     show (Pair _)       = "pair"
     show (PairL _)      = "pairL"
+    show (Append _)     = "append"
+    show (AppendL _)    = "appendL"
+    show (Index _)      = "index"
+    show (IndexL _)     =" indexL"
     
 data Prim3 = Combine Type
     deriving Eq
