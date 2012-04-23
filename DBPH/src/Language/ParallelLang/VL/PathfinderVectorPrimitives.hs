@@ -41,10 +41,16 @@ instance VectorAlgebra PFAlgebra where
   binOp = binOpPF
   binOpL = binOpLPF
   sortWith = sortWithPF
+  vecMin = vecMinPF
+  vecMinLift = vecMinLiftPF
+  vecMax = vecMaxPF
+  vecMaxLift = vecMaxLiftPF
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF
   selectPos = selectPosPF
   selectPosLift = selectPosLiftPF
+  integerToDoubleA (DBP q _) = flip DBP [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
+  integerToDoubleL (DBV q _) = flip DBV [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
   projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   projectL (DBV q _) pc = flip DBV [1..length pc] <$> (tagM "projectL" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   toDescr = toDescrPF
@@ -54,7 +60,19 @@ instance VectorAlgebra PFAlgebra where
   zipL (DBV q1 cols1) (DBV q2 cols2) = do
                                         (r, cols') <- doZip (q1, cols1) (q2, cols2)
                                         return $ DBV r cols'
-
+  reverseA (DBV q cols) = do
+                            let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                            q' <- rownum' pos' [(pos, Desc)] Nothing q
+                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
+                            return (r, p)
+  reverseL (DBV q cols) = do
+                            let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                            q' <- rownum' pos' [(descr, Asc), (pos, Desc)] Nothing q
+                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
+                            return (r, p)
+  
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
                                let offSet = length cols1
@@ -118,6 +136,12 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
 
+vecMinPF :: DBV -> GraphM r PFAlgebra DBP
+vecMinPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggr [(Min, item, Just item)] Nothing q)
+
+vecMaxPF :: DBV -> GraphM r PFAlgebra DBP
+vecMaxPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggr [(Max, item, Just item)] Nothing q)
+
 vecSumPF :: Ty.Type -> DBV -> GraphM r PFAlgebra DBP
 vecSumPF t (DBV q _) =
     do
@@ -133,6 +157,13 @@ vecSumPF t (DBV q _) =
              $ aggrM [(Sum, item, Just item)] Nothing
              $ union q' q
         return $ DBP qs [1]
+
+vecMinLiftPF :: DBV -> GraphM r PFAlgebra DBV
+vecMinLiftPF (DBV qv _) = flip DBV [1] <$> (projM [(descr,descr),(pos,pos),(item,item)] $ rownumM pos [descr] Nothing $ aggr [(Min, item, Just item)] (Just descr) qv)
+
+vecMaxLiftPF :: DBV -> GraphM r PFAlgebra DBV
+vecMaxLiftPF (DBV qv _) = flip DBV [1] <$> (projM [(descr,descr),(pos,pos),(item,item)] $ rownumM pos [descr] Nothing $ aggr [(Max, item, Just item)] (Just descr) qv)
+
 
 vecSumLiftPF :: DescrVector -> DBV -> GraphM r PFAlgebra DBV
 vecSumLiftPF (DescrVector qd) (DBV qv _) =

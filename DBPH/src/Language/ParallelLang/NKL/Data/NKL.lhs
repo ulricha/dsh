@@ -52,6 +52,10 @@ Unary primitive operations:
 \begin{code}
 data Prim1  =  Length Type  |  Not Type  |  Concat Type
             |  Sum Type | The Type | Fst Type | Snd Type
+            |  Head Type | Minimum Type | Maximum Type 
+            |  IntegerToDouble Type | Tail Type
+            |  Reverse Type | And Type | Or Type
+            |  Init Type | Last Type
 \end{code}
 
 %if False
@@ -67,6 +71,8 @@ Binary primitive operations:
 \begin{code}
 data Prim2  =  Map Type | GroupWith Type
             |  SortWith Type | Pair Type
+            |  Filter Type | Append Type
+            |  Index Type
 \end{code}
 %}
 %if False
