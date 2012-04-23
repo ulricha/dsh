@@ -17,6 +17,7 @@ import Control.Concurrent.MVar (MVar,takeMVar,putMVar,newEmptyMVar)
 import qualified System.IO.Unsafe
 
 import qualified Data.Text as T
+import Data.Text.Encoding.Error
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 
@@ -81,9 +82,9 @@ pathfinder xml optimisation output = do
               if ci == 0
                  then do
                    c_string <- peek c_ptr
-                   r <- fmap (T.unpack . T.decodeUtf8) (B.packCString c_string)
+                   r <- fmap (T.unpack . T.decodeUtf8With lenientDecode) (B.packCString c_string)
                    free c_string
                    return (Right r)
-                 else fmap (Left . T.unpack . T.decodeUtf8)  (B.packCString c_err)
+                 else fmap (Left . T.unpack .  T.decodeUtf8With lenientDecode)  (B.packCString c_err)
   takeMVar globalMVar
   return r
