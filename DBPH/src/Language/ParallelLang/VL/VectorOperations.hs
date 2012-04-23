@@ -15,6 +15,14 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+nubPrim :: VectorAlgebra a => Plan -> Graph a Plan
+nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> unique q
+nubPrim _ = error "nubPrim: Should not be possible" 
+
+nubLift :: VectorAlgebra a => Plan -> Graph a Plan
+nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> uniqueL q
+nubLift _ = error "nubLift: Should not be possible"
+
 initPrim :: VectorAlgebra a => Plan -> Graph a Plan
 initPrim (ValueVector q lyt) = do
                                  i <- lengthA =<< toDescr q
