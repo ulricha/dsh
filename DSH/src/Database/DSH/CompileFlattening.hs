@@ -145,8 +145,8 @@ translateFun1 Or = NP.or
 translateFun1 Reverse = NP.reverse
 translateFun1 Length = NP.length
 translateFun1 Null = $impossible
-translateFun1 Init = $impossible
-translateFun1 Last = $impossible
+translateFun1 Init = NP.init
+translateFun1 Last = NP.last
 translateFun1 The = NP.the
 translateFun1 Nub = $impossible
 

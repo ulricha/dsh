@@ -138,9 +138,9 @@ tests =
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
         , testProperty "the" $ prop_the
-#ifndef isDBPH
         , testProperty "last" $ prop_last
         , testProperty "init" $ prop_init
+#ifndef isDBPH
         , testProperty "null" $ prop_null
 #endif
         , testProperty "length" $ prop_length
@@ -242,6 +242,8 @@ tests =
         , testProperty "map append" $ prop_map_append
         , testProperty "map index" $ prop_map_index
         , testProperty "map index [[]]" $ prop_map_index_nest
+        , testProperty "map init" $ prop_map_init
+        , testProperty "map last" $ prop_map_last
         ]
     ]
 
@@ -523,8 +525,16 @@ prop_tail  = makePropNotNull Q.tail tail
 prop_last  :: [Integer] -> Property
 prop_last  = makePropNotNull Q.last last
 
+prop_map_last :: [[Integer]] -> Property
+prop_map_last ps = and (map ((>0) . length) ps) ==> makeProp (Q.map Q.last) (map last) ps
+
 prop_init  :: [Integer] -> Property
 prop_init  = makePropNotNull Q.init init
+
+prop_map_init  :: [[Integer]] -> Property
+prop_map_init  ps = and (map ((>0) . length) ps)
+    ==>
+     makeProp (Q.map Q.init) (map init) ps
 
 prop_the   :: (Int, Integer) -> Property
 prop_the (n, i) = 
