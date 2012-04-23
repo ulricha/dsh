@@ -15,6 +15,54 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+initPrim :: VectorAlgebra a => Plan -> Graph a Plan
+initPrim (ValueVector q lyt) = do
+                                 i <- lengthA =<< toDescr q
+                                 (q', r) <- selectPos q Lt i
+                                 lyt' <- chainRenameFilter r lyt
+                                 return $ ValueVector q' lyt'
+initPrim _ = error "initPrim: Should not be possible"
+
+initLift :: VectorAlgebra a => Plan -> Graph a Plan
+initLift (ValueVector qs (Nest q lyt)) = do
+                                          d <- toDescr qs
+                                          is <- lengthSeg d =<< toDescr q
+                                          (q', r) <- selectPosLift q Lt is
+                                          lyt' <- chainRenameFilter r lyt
+                                          return $ ValueVector qs (Nest q' lyt')
+initLift _ = error "initLift: Should not be possible"
+
+lastPrim :: VectorAlgebra a => Plan -> Graph a Plan
+lastPrim (ValueVector qs lyt@(Nest _ _)) = do
+                                               i <- lengthA =<< toDescr qs
+                                               (q, r) <- selectPos qs Eq i
+                                               (Nest qr lyt') <- chainRenameFilter r lyt
+                                               re <- descToRename =<< toDescr q
+                                               renameOuter re $ ValueVector qr lyt'
+lastPrim (ValueVector qs lyt) = do
+                                    i <- lengthA =<< toDescr qs
+                                    (DBV q cols, r) <- selectPos qs Eq i
+                                    lyt' <- chainRenameFilter r lyt
+                                    return $ PrimVal (DBP q cols) lyt'
+lastPrim _ = error "lastPrim: Should not be possible"
+
+lastLift :: VectorAlgebra a => Plan -> Graph a Plan
+lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
+                                                      ds <- toDescr d
+                                                      is <- lengthSeg ds =<< toDescr qs
+                                                      (qs', r) <- selectPosLift qs Eq is
+                                                      lyt' <- chainRenameFilter r lyt
+                                                      re <- descToRename =<< toDescr qs'
+                                                      ValueVector d <$> renameOuter' re lyt'
+lastLift (ValueVector d (Nest qs lyt)) = do
+                                          ds <- toDescr d
+                                          is <- lengthSeg ds =<< toDescr qs
+                                          (qs', r) <- selectPosLift qs Eq is
+                                          lyt' <- chainRenameFilter r lyt
+                                          re <- descToRename =<< toDescr d
+                                          renameOuter re (ValueVector qs' lyt')
+lastLift _ = error "lastLift: Should not be possible"
+
 indexPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
                                                            i' <-  binOp Add i =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]

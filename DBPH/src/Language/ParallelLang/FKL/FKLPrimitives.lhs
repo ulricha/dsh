@@ -173,6 +173,18 @@ theLPrim :: Expr -> Expr
 theLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
                in F.PApp1 t (F.TheL $ t1 .-> t) e1
 
+lastVal :: Type -> Expr
+lastVal t = singleArgClo t "last_v" lastPrim lastLPrim
+
+lastPrim :: Expr -> Expr
+lastPrim e1 = let t1@(T.List t1') = typeOf e1
+               in F.PApp1 t1' (F.Last $ t1 .-> t1') e1
+
+lastLPrim :: Expr -> Expr
+lastLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+                in F.PApp1 t (F.LastL $ t1 .-> t) e1
+
+
 tailVal :: Type -> Expr
 tailVal t = singleArgClo t "tail_v" tailPrim tailLPrim
 
@@ -183,6 +195,17 @@ tailPrim e1 = let t1@(T.List _) = typeOf e1
 tailLPrim :: Expr -> Expr
 tailLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
                 in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
+
+initVal :: Type -> Expr
+initVal t = singleArgClo t "init_v" initPrim initLPrim
+
+initPrim :: Expr -> Expr
+initPrim e1 = let t1@(T.List _) = typeOf e1
+               in F.PApp1 t1 (F.Init $ t1 .-> t1) e1
+
+initLPrim :: Expr -> Expr
+initLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+                in F.PApp1 t1 (F.InitL $ t1 .-> t1) e1
 
 reverseVal :: Type -> Expr
 reverseVal t = singleArgClo t "reverse_v" reversePrim reverseLPrim

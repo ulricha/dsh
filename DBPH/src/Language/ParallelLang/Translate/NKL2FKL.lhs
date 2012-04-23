@@ -97,6 +97,8 @@ prim1Transform (N.Tail t) = tailVal t
 prim1Transform (N.Reverse t) = reverseVal t
 prim1Transform (N.And t) = andVal t
 prim1Transform (N.Or t) = orVal t
+prim1Transform (N.Init t) = initVal t
+prim1Transform (N.Last t) = lastVal t
 
 prim2Transform :: N.Prim2 -> F.Expr
 prim2Transform (N.Map t) = mapVal t
