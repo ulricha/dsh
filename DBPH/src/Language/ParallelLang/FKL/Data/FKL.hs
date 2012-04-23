@@ -57,6 +57,8 @@ data Prim1 = LengthPrim Type
            | InitL Type
            | Last Type
            | LastL Type
+           | Nub Type
+           | NubL Type
     deriving Eq
     
 instance Show Prim1 where
@@ -92,6 +94,8 @@ instance Show Prim1 where
     show (InitL _)      = "initL"
     show (Last _)       = "last"
     show (LastL _)      = "lastL"
+    show (Nub _)        = "nub"
+    show (NubL _)       = "nubL"
     
 data Prim2 = GroupWithS Type
            | GroupWithL Type

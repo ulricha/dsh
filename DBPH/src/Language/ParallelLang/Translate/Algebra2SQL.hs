@@ -21,7 +21,7 @@ translateLayout (Ext.Nest (Ext.XML i r') lyt) = Ext.Nest ((\(q,s) -> Ext.SQL i s
 translateLayout (Ext.Pair l1 l2) = Ext.Pair (translateLayout l1) (translateLayout l2)
 
 translate :: String -> (String, Ext.Schema)
-translate xml = let r' = unsafePerformIO $ pathfinder xml [] OutputSql
+translate xml = let r' = unsafePerformIO $ pathfinder xml "" OutputSql
                  in case r' of
                      (Right sql) -> extractSQL sql
                      (Left err) -> error $ "Pathfinder compilation for input: \n"

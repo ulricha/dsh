@@ -19,6 +19,8 @@ data PVal = PInt Int
 -- * Vector primitive constructor functions
 
 class VectorAlgebra a where
+  unique :: DBV -> GraphM r a DBV
+  uniqueL :: DBV -> GraphM r a DBV
   groupBy :: DBV -> DBV -> GraphM r a (DescrVector, DBV, PropVector)
   sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
   notPrim :: DBP -> GraphM r a DBP

@@ -196,6 +196,17 @@ tailLPrim :: Expr -> Expr
 tailLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
                 in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
 
+nubVal :: Type -> Expr
+nubVal t = singleArgClo t "nub_v" nubPrim nubLPrim
+
+nubPrim :: Expr -> Expr
+nubPrim e1 = let t1@(T.List _) = typeOf e1
+               in F.PApp1 t1 (F.Nub $ t1 .-> t1) e1
+
+nubLPrim :: Expr -> Expr
+nubLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+                in F.PApp1 t1 (F.NubL $ t1 .-> t1) e1
+
 initVal :: Type -> Expr
 initVal t = singleArgClo t "init_v" initPrim initLPrim
 

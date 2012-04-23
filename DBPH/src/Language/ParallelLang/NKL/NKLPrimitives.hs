@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -44,6 +44,9 @@ all f e = and (map f e)
 
 any :: Expr -> Expr -> Expr
 any f e = or (map f e)
+
+null :: Expr -> Expr 
+null e = length e `eq` int 0
 
 and :: Expr -> Expr 
 and e = let t = typeOf e
@@ -102,6 +105,10 @@ last e = let (List t) = typeOf e
 tail :: Expr -> Expr
 tail e = let (List t) = typeOf e
           in AppE1 t (Tail P.$ List t .-> List t) e
+
+nub :: Expr -> Expr
+nub e = let (List t) = typeOf e
+         in AppE1 t (Nub P.$ List t .-> List t) e
 
 init :: Expr -> Expr
 init e = let (List t) = typeOf e
