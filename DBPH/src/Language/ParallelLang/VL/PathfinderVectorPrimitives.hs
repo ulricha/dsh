@@ -72,7 +72,15 @@ instance VectorAlgebra PFAlgebra where
                             r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
                             p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
                             return (r, p)
-  
+  unique (DBV q cols) = do
+                         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                         f <- rownumM posnew [posold] Nothing $ aggrM [(Min, posold, Just pos)] (Just resCol) $ rank resCol [(itemi i, Asc) | i <- cols] q
+                         flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
+  uniqueL (DBV q cols) = do
+                          let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+                          f <- rownumM posnew [posold] Nothing $ aggrM [(Min, posold, Just pos)] (Just resCol) $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
+                          flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
+
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
                                let offSet = length cols1
@@ -169,13 +177,12 @@ vecSumLiftPF :: DescrVector -> DBV -> GraphM r PFAlgebra DBV
 vecSumLiftPF (DescrVector qd) (DBV qv _) =
     do
         qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...
-              $ attachM pos natT (nat 1)
               $ differenceM
                 (proj [(descr, pos)] qd)
                 (proj [(descr, descr)] qv)
-        qs <- rownumM pos [descr] Nothing
-              $ aggr [(Sum, item, Just item)] (Just descr) qv
-        qr <- union qe qs
+        qs <- aggr [(Sum, item, Just item)] (Just descr) qv
+        qr <- rownumM pos [descr] Nothing
+              $ union qe qs
         -- align the result vector with the original descriptor vector to get
         -- the proper descriptor values (sum removes one list type constructor)
         qa <- projM [(descr, descr'), (pos, pos), (item, item)]
