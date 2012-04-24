@@ -144,11 +144,11 @@ translateFun1 And = NP.and
 translateFun1 Or = NP.or
 translateFun1 Reverse = NP.reverse
 translateFun1 Length = NP.length
-translateFun1 Null = $impossible
+translateFun1 Null = NP.null
 translateFun1 Init = NP.init
 translateFun1 Last = NP.last
 translateFun1 The = NP.the
-translateFun1 Nub = $impossible
+translateFun1 Nub = NP.nub
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of

@@ -140,9 +140,7 @@ tests =
         , testProperty "the" $ prop_the
         , testProperty "last" $ prop_last
         , testProperty "init" $ prop_init
-#ifndef isDBPH
         , testProperty "null" $ prop_null
-#endif
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
         , testProperty "index" $ prop_index
@@ -177,9 +175,7 @@ tests =
         , testProperty "zipWith" $ prop_zipWith
 #endif
         , testProperty "unzip" $ prop_unzip
-#ifndef isDBPH
         , testProperty "nub" $ prop_nub
-#endif
         ]
     , testGroup "Lifted operations"
         [ testProperty "Lifted &&" $ prop_infix_map_and
@@ -244,6 +240,8 @@ tests =
         , testProperty "map index [[]]" $ prop_map_index_nest
         , testProperty "map init" $ prop_map_init
         , testProperty "map last" $ prop_map_last
+        , testProperty "map null" $ prop_map_null
+        , testProperty "map nub" $ prop_map_nub
         ]
     ]
 
@@ -649,6 +647,9 @@ prop_groupWith_length_nest = makeProp (Q.groupWith Q.length) (groupWith length)
 prop_null :: [Integer] -> Property
 prop_null = makeProp Q.null null
 
+prop_map_null :: [[Integer]] -> Property
+prop_map_null = makeProp (Q.map Q.null) (map null)
+
 prop_length :: [Integer] -> Property
 prop_length = makeProp Q.length (fromIntegral . length)
 
@@ -796,6 +797,9 @@ prop_map_unzip = makeProp (Q.map Q.unzip) (map unzip)
 
 prop_nub :: [Integer] -> Property
 prop_nub = makeProp Q.nub nub
+
+prop_map_nub :: [[(Integer, Integer)]] -> Property
+prop_map_nub = makeProp (Q.map Q.nub) (map nub)
 
 -- * Tuples
 
