@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -278,6 +278,12 @@ drop e1 e2 = let t1 = typeOf e1
               in if t1 P.== intT
                     then AppE2 t2 (Drop P.$ t1 .-> t2 .-> t2) e1 e2
                     else P.error P.$ "NKLPrims.drop: Cannot apply take to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+max :: Expr -> Expr -> Expr
+max e1 e2 = cond (e1 `gt` e2) e1 e2
+
+min :: Expr -> Expr -> Expr
+min e1 e2 = cond (e1 `gt` e2) e2 e1
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(List t1') = typeOf e1
