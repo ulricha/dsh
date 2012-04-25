@@ -90,12 +90,18 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (SortWithL _) -> sortWithL
                 (Restrict _) -> restrict
                 (Unconcat _) -> unconcatV
-                (Pair _) -> zipOp
-                (PairL _) -> zipOpL
+                (Pair _) -> pairOp
+                (PairL _) -> pairOpL
                 (Append _) -> appendPrim
                 (AppendL _) -> appendLift
                 (Index _) -> indexPrim
                 (IndexL _) -> indexLift
+                (Take _) -> takePrim
+                (TakeL _) -> takeLift
+                (Drop _) -> dropPrim
+                (DropL _) -> dropLift
+                (Zip _) -> zipPrim
+                (ZipL _) -> zipLift
 fkl2Alg (PApp3 _ (Combine _) arg1 arg2 arg3) = liftM3 (,,) (fkl2Alg arg1) (fkl2Alg arg2) (fkl2Alg arg3) >>= (\(x, y, z) -> combine x y z)
 fkl2Alg (Var _ s) = fromGam s
 fkl2Alg (Clo _ n fvs x f1 f2) = do

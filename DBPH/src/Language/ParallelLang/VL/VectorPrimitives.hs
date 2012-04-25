@@ -58,8 +58,9 @@ class VectorAlgebra a where
   selectPosLift :: DBV -> Oper -> DBV -> GraphM r a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> GraphM r a DBV
   projectA :: DBP -> [DBCol] -> GraphM r a DBP
-  zipA :: DBP -> DBP -> GraphM r a DBP
-  zipL :: DBV -> DBV -> GraphM r a DBV
+  pairA :: DBP -> DBP -> GraphM r a DBP
+  pairL :: DBV -> DBV -> GraphM r a DBV
+  zipL :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   integerToDoubleA :: DBP -> GraphM r a DBP
   integerToDoubleL :: DBV -> GraphM r a DBV
   reverseA :: DBV -> GraphM r a (DBV, PropVector)

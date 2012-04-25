@@ -72,7 +72,8 @@ Binary primitive operations:
 data Prim2  =  Map Type | GroupWith Type
             |  SortWith Type | Pair Type
             |  Filter Type | Append Type
-            |  Index Type
+            |  Index Type | Take Type
+            |  Drop Type | Zip Type
 \end{code}
 %}
 %if False

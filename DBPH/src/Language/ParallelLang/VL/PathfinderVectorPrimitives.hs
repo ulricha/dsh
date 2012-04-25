@@ -54,10 +54,11 @@ instance VectorAlgebra PFAlgebra where
   projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   projectL (DBV q _) pc = flip DBV [1..length pc] <$> (tagM "projectL" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
   toDescr = toDescrPF
-  zipA (DBP q1 cols1) (DBP q2 cols2) = do
+  zipL = undefined
+  pairA (DBP q1 cols1) (DBP q2 cols2) = do
                                         (r, cols') <- doZip (q1, cols1) (q2, cols2)
                                         return $ DBP r cols'
-  zipL (DBV q1 cols1) (DBV q2 cols2) = do
+  pairL (DBV q1 cols1) (DBV q2 cols2) = do
                                         (r, cols') <- doZip (q1, cols1) (q2, cols2)
                                         return $ DBV r cols'
   reverseA (DBV q cols) = do

@@ -111,6 +111,12 @@ data Prim2 = GroupWithS Type
            | AppendL Type
            | Index Type
            | IndexL Type
+           | Take Type
+           | TakeL Type
+           | Drop Type
+           | DropL Type
+           | Zip Type
+           | ZipL Type
     deriving Eq
 
 instance Show Prim2 where
@@ -127,7 +133,13 @@ instance Show Prim2 where
     show (Append _)     = "append"
     show (AppendL _)    = "appendL"
     show (Index _)      = "index"
-    show (IndexL _)     =" indexL"
+    show (IndexL _)     = "indexL"
+    show (Take _)       = "take"
+    show (TakeL _)      = "takeL"
+    show (Drop _)       = "drop"
+    show (DropL _)      = "dropL"
+    show (Zip _)        = "zip"
+    show (ZipL _)       = "zipL"
     
 data Prim3 = Combine Type
     deriving Eq

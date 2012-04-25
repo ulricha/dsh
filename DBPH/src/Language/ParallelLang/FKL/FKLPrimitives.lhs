@@ -85,6 +85,45 @@ pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
+takeVal :: Type -> Expr
+takeVal t = doubleArgClo t "take_e1" "take_e2" takePrim takeLPrim
+
+takePrim :: Expr -> Expr -> Expr
+takePrim e1 e2 = let t1 = typeOf e1
+                     t2 = typeOf e2
+                  in F.PApp2 t2 (F.Take (t1 .-> t2 .-> t2)) e1 e2
+
+takeLPrim :: Expr -> Expr -> Expr
+takeLPrim e1 e2 = let t1 = typeOf e1
+                      t2 = typeOf e2
+                   in F.PApp2 t2 (F.TakeL (t1 .-> t2 .-> t2)) e1 e2
+
+dropVal :: Type -> Expr
+dropVal t = doubleArgClo t "drop_e1" "drop_e2" dropPrim dropLPrim
+
+dropPrim :: Expr -> Expr -> Expr
+dropPrim e1 e2 = let t1 = typeOf e1
+                     t2 = typeOf e2
+                  in F.PApp2 t2 (F.Drop (t1 .-> t2 .-> t2)) e1 e2
+
+dropLPrim :: Expr -> Expr -> Expr
+dropLPrim e1 e2 = let t1 = typeOf e1
+                      t2 = typeOf e2
+                   in F.PApp2 t2 (F.DropL (t1 .-> t2 .-> t2)) e1 e2
+
+zipVal :: Type -> Expr
+zipVal t = doubleArgClo t "zip_e1" "zip_e2" zipPrim zipLPrim
+
+zipPrim :: Expr -> Expr -> Expr
+zipPrim e1 e2 = let t1 = typeOf e1
+                    t2 = typeOf e2
+                 in F.PApp2 t2 (F.Zip (t1 .-> t2 .-> T.Pair t1 t2)) e1 e2
+
+zipLPrim :: Expr -> Expr -> Expr
+zipLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
+                     t2@(T.List t2') = typeOf e2
+                  in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (T.Pair t1' t2'))) e1 e2
+
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
 

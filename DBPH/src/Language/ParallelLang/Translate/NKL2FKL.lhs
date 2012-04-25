@@ -109,6 +109,9 @@ prim2Transform (N.Pair t) = pairVal t
 prim2Transform (N.Filter t) = filterVal t 
 prim2Transform (N.Append t) = appendVal t
 prim2Transform (N.Index t) = indexVal t
+prim2Transform (N.Take t) = takeVal t
+prim2Transform (N.Drop t) = dropVal t
+prim2Transform (N.Zip t) = zipVal t
 \end{code}
 %endif
 

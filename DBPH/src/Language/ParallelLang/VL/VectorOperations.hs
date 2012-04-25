@@ -15,6 +15,48 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+zipPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+                                                       q' <- pairL q1 q2
+                                                       return $ ValueVector q' $ zipLayout lyt1 lyt2
+zipPrim _ _ = error "zipPrim: Should not be possible"
+
+zipLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', r1, r2) <- zipL q1 q2
+    lyt1' <- chainRenameFilter r1 lyt1
+    lyt2' <- chainRenameFilter r2 lyt2
+    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
+zipLift _ _ = error "zipLift: Should not be possible"
+
+takePrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
+                                                         (q', r) <- selectPos q LtE i
+                                                         lyt' <- chainRenameFilter r lyt
+                                                         return $ ValueVector q' lyt'
+takePrim _ _ = error "takePrim: Should not be possible"
+
+takeLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
+                                            (q', r) <- selectPosLift q LtE is
+                                            lyt' <- chainRenameFilter r lyt
+                                            return $ ValueVector d (Nest q' lyt')
+takeLift _ _ = error "takeLift: Should not be possible"
+
+dropPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropPrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
+                                                         (q', r) <- selectPos q Gt i
+                                                         lyt' <- chainRenameFilter r lyt
+                                                         return $ ValueVector q' lyt'
+dropPrim _ _ = error "dropPrim: Should not be possible"
+
+dropLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
+                                            (q', r) <- selectPosLift q Gt is
+                                            lyt' <- chainRenameFilter r lyt
+                                            return $ ValueVector d (Nest q' lyt')
+dropLift _ _ = error "dropLift: Should not be possible"
+
 nubPrim :: VectorAlgebra a => Plan -> Graph a Plan
 nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> unique q
 nubPrim _ = error "nubPrim: Should not be possible" 
@@ -388,29 +430,29 @@ ifList qb (PrimVal (DBP q1 cols1) lyt1) (PrimVal (DBP q2 cols2) lyt2) = do
                                                    return $ PrimVal (DBP q cols) lyt
 ifList _ _ _ = $impossible
 
-zipOpL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-zipOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-                                                     q <- zipL q1 q2
+pairOpL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+pairOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+                                                     q <- pairL q1 q2
                                                      let lyt = zipLayout lyt1 lyt2
                                                      return $ ValueVector q lyt
-zipOpL _ _ = $impossible
+pairOpL _ _ = $impossible
 
-zipOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
-zipOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
-                                             q <- zipA q1 q2
+pairOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
+                                             q <- pairA q1 q2
                                              let lyt = zipLayout lyt1 lyt2
                                              return $ PrimVal q lyt
-zipOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                     d <- constructLiteralValue [] [PNat 1, PNat 1]
                                                     let lyt = zipLayout (Nest q1 lyt1) (Nest q2 lyt2)
                                                     return $ PrimVal d lyt
-zipOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
+pairOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
                                                  let lyt = zipLayout (Nest q1 lyt1) lyt2
                                                  return $ PrimVal q2 lyt
-zipOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
+pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
                                                  let lyt = zipLayout lyt1 (Nest q2 lyt2)
                                                  return $ PrimVal q1 lyt
-zipOp _ _ = $impossible
+pairOp _ _ = $impossible
 
 fstA :: VectorAlgebra a => Plan -> Graph a Plan   
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
