@@ -115,30 +115,27 @@ tests =
         , testProperty "mul_double" $ prop_mul_double
         , testProperty "div_double" $ prop_div_double
         , testProperty "integer_to_double" $ prop_integer_to_double    
-#ifndef isDBPH
         , testProperty "abs_integer" $ prop_abs_integer
         , testProperty "abs_double" $ prop_abs_double
         , testProperty "signum_integer" $ prop_signum_integer
         , testProperty "signum_double" $ prop_signum_double
         , testProperty "negate_integer" $ prop_negate_integer
         , testProperty "negate_double" $ prop_negate_double
-#endif
         ]
     , testGroup "Lists"
         [ testProperty "head" $ prop_head
         , testProperty "tail" $ prop_tail
         , testProperty "cons" $ prop_cons
-#ifndef isDBPH
         , testProperty "snoc" $ prop_snoc
         , testProperty "take" $ prop_take
         , testProperty "drop" $ prop_drop
         , testProperty "take ++ drop" $ prop_takedrop
-#endif
-
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
         , testProperty "the" $ prop_the
+#ifndef isFerry  
         , testProperty "last" $ prop_last
+#endif
         , testProperty "init" $ prop_init
         , testProperty "null" $ prop_null
         , testProperty "length" $ prop_length
@@ -163,15 +160,17 @@ tests =
         , testProperty "concatMap" $ prop_concatMap
         , testProperty "maximum" $ prop_maximum
         , testProperty "minimum" $ prop_minimum
-#ifndef isDBPH
         , testProperty "splitAt" $ prop_splitAt
+#ifndef isDBPH
         , testProperty "takeWhile" $ prop_takeWhile
         , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
         , testProperty "break" $ prop_break
         , testProperty "elem" $ prop_elem
         , testProperty "notElem" $ prop_notElem
+#endif
         , testProperty "zip" $ prop_zip
+#ifndef isDBPH
         , testProperty "zipWith" $ prop_zipWith
 #endif
         , testProperty "unzip" $ prop_unzip
@@ -242,6 +241,10 @@ tests =
         , testProperty "map last" $ prop_map_last
         , testProperty "map null" $ prop_map_null
         , testProperty "map nub" $ prop_map_nub
+        , testProperty "map snoc" $ prop_map_snoc
+        , testProperty "map take" $ prop_map_take
+        , testProperty "map drop" $ prop_map_drop
+        , testProperty "map zip" $ prop_map_zip
         ]
     ]
 
@@ -511,6 +514,9 @@ prop_map_cons = makeProp (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x) (\(x,xs) -> ma
 prop_snoc :: ([Integer], Integer) -> Property
 prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
 
+prop_map_snoc :: ([Integer], [Integer]) -> Property
+prop_map_snoc = makeProp (\z -> Q.map ((Q.fst z) Q.|>) (Q.snd z)) (\(a,b) -> map (\z -> a ++ [z]) b)
+
 prop_singleton :: Integer -> Property
 prop_singleton = makeProp Q.singleton (\x -> [x])
 
@@ -585,8 +591,14 @@ prop_map_index_nest (l, is) =
 prop_take :: (Integer, [Integer]) -> Property
 prop_take = makeProp (uncurryQ Q.take) (\(n,l) -> take (fromIntegral n) l)
 
+prop_map_take :: (Integer, [[Integer]]) -> Property
+prop_map_take = makeProp (\z -> Q.map (Q.take $ Q.fst z) $ Q.snd z) (\(n,l) -> map (take (fromIntegral n)) l)
+
 prop_drop :: (Integer, [Integer]) -> Property
 prop_drop = makeProp (uncurryQ Q.drop) (\(n,l) -> drop (fromIntegral n) l)
+
+prop_map_drop :: (Integer, [[Integer]]) -> Property
+prop_map_drop = makeProp (\z -> Q.map (Q.drop $ Q.fst z) $ Q.snd z) (\(n,l) -> map (drop (fromIntegral n)) l)
 
 prop_takedrop :: (Integer, [Integer]) -> Property
 prop_takedrop = makeProp takedrop_q takedrop
@@ -785,6 +797,10 @@ prop_lookup = makeProp (uncurryQ $ Q.lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
+
+prop_map_zip :: ([Integer], [[Integer]]) -> Property
+prop_map_zip = makeProp (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)
+
 
 prop_zipWith :: ([Integer], [Integer]) -> Property
 prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))

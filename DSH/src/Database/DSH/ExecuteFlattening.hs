@@ -106,7 +106,8 @@ constructVector c (P.Pair p1 p2) parted (ListT (TupleT t1 t2)) = do
                                                                     v1 <- constructVector c p1 parted $ ListT t1
                                                                     v2 <- constructVector c p2 parted $ ListT t2
                                                                     return $ makeTuple v1 v2
-constructVector _ _ _ _ = $impossible
+constructVector _ v _ t = error $ "result " ++ show v ++ " with type: " ++ show t
+-- constructVector _ _ _ _ = $impossible
                                              
 constructVectorSQL :: IConnection conn => conn -> P.Layout P.SQL -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type -> IO [(Int, Norm)]
 constructVectorSQL _ (P.InColumn i) pos parted t = do
