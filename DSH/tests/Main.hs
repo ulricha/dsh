@@ -97,12 +97,10 @@ tests =
         , testProperty "lte" $ prop_lte
         , testProperty "gt" $ prop_gt
         , testProperty "gte" $ prop_gte
-#ifndef isDBPH
         , testProperty "min_integer" $ prop_min_integer
         , testProperty "min_double" $ prop_min_double
         , testProperty "max_integer" $ prop_max_integer
         , testProperty "max_double" $ prop_max_double
-#endif
         ]
     , testGroup "Tuples"
         [ testProperty "fst" $ prop_fst
@@ -166,9 +164,9 @@ tests =
         , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
         , testProperty "break" $ prop_break
+#endif
         , testProperty "elem" $ prop_elem
         , testProperty "notElem" $ prop_notElem
-#endif
         , testProperty "zip" $ prop_zip
 #ifndef isDBPH
         , testProperty "zipWith" $ prop_zipWith

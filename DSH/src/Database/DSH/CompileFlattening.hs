@@ -125,8 +125,8 @@ translateFun2 Lt        = NP.lt
 translateFun2 Lte       = NP.lte
 translateFun2 Gte       = NP.gte
 translateFun2 Gt        = NP.gt
-translateFun2 Max       = $impossible
-translateFun2 Min       = $impossible
+translateFun2 Max       = NP.max
+translateFun2 Min       = NP.min
 
 translateFun1 :: Fun1 -> NP.Expr -> NP.Expr
 translateFun1 Fst = NP.fst
