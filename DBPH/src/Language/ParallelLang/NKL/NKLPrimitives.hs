@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, ($), nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -252,12 +252,40 @@ disj e1 e2 = let t1 = typeOf e1
                    then BinOp boolT Disj e1 e2
                    else P.error P.$ "NKLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
+snoc :: Expr -> Expr -> Expr
+snoc e1 e2 = let t1@(List t) = typeOf e1
+              in if t P.== typeOf e2
+                    then append e1 (cons e2 P.$ nil t1)
+                    else P.error P.$ "NKLPrims.snoc: Cannot apply snoc to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show (typeOf e2)
+
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
                  t@(List t2) = typeOf e2
               in if t1 P.== t2
                    then BinOp t Cons e1 e2
                    else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+take :: Expr -> Expr -> Expr
+take e1 e2 = let t1 = typeOf e1
+                 t2@(List _) = typeOf e2
+              in if t1 P.== intT
+                    then AppE2 t2 (Take P.$ t1 .-> t2 .-> t2) e1 e2
+                    else P.error P.$ "NKLPrims.take: Cannot apply take to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+drop :: Expr -> Expr -> Expr
+drop e1 e2 = let t1 = typeOf e1
+                 t2@(List _) = typeOf e2
+              in if t1 P.== intT
+                    then AppE2 t2 (Drop P.$ t1 .-> t2 .-> t2) e1 e2
+                    else P.error P.$ "NKLPrims.drop: Cannot apply take to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+zip :: Expr -> Expr -> Expr
+zip e1 e2 = let t1@(List t1') = typeOf e1
+                t2@(List t2') = typeOf e2
+             in AppE2 t2 (Zip P.$ t1 .-> t2 .-> List (pairT t1' t2')) e1 e2
+
+splitAt :: Expr -> Expr -> Expr
+splitAt e1 e2 = pair (take e1 e2) (drop e1 e2)
 
 var :: Type -> P.String -> Expr
 var = Var
