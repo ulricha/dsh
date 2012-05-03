@@ -65,3 +65,5 @@ class VectorAlgebra a where
   integerToDoubleL :: DBV -> GraphM r a DBV
   reverseA :: DBV -> GraphM r a (DBV, PropVector)
   reverseL :: DBV -> GraphM r a (DBV, PropVector)
+  falsePositions :: DBV -> GraphM r a DBV
+  

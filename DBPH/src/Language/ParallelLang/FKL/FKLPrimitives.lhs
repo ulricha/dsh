@@ -70,6 +70,21 @@ groupWithLPrim f e = let arg1 = mapLPrim f e
                          t3 = listT t2
                       in F.PApp2 t3 (F.GroupWithL (t1 .-> t2 .-> t3)) arg1 e 
 
+takeWithVal :: Type -> Expr
+takeWithVal t = doubleArgClo t "take_f" "take_xs" takeWithPrim takeWithLPrim
+
+takeWithPrim :: Expr -> Expr -> Expr
+takeWithPrim f e = let arg1 = mapPrim f e
+                       t1 = typeOf arg1
+                       t2 = typeOf e
+                    in F.PApp2 t2 (F.TakeWithS (t1 .-> t2 .-> t2)) arg1 e
+
+takeWithLPrim :: Expr -> Expr -> Expr
+takeWithLPrim f e = let arg1 = mapLPrim f e
+                        t1 = typeOf arg1 
+                        t2 = typeOf e
+                     in F.PApp2 t2 (F.TakeWithL (t1 .-> t2 .-> t2)) arg1 e
+
 pairVal :: Type -> Expr
 pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 

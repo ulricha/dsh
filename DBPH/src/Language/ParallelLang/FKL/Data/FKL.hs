@@ -117,6 +117,8 @@ data Prim2 = GroupWithS Type
            | DropL Type
            | Zip Type
            | ZipL Type
+           | TakeWithS Type
+           | TakeWithL Type
     deriving Eq
 
 instance Show Prim2 where
@@ -140,6 +142,8 @@ instance Show Prim2 where
     show (DropL _)      = "dropL"
     show (Zip _)        = "zip"
     show (ZipL _)       = "zipL"
+    show (TakeWithL _)  = "takeWithL"
+    show (TakeWithS _)  = "takeWithS"
     
 data Prim3 = Combine Type
     deriving Eq
