@@ -159,8 +159,8 @@ tests =
         , testProperty "maximum" $ prop_maximum
         , testProperty "minimum" $ prop_minimum
         , testProperty "splitAt" $ prop_splitAt
-#ifndef isDBPH
         , testProperty "takeWhile" $ prop_takeWhile
+#ifndef isDBPH
         , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
         , testProperty "break" $ prop_break
