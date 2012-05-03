@@ -81,6 +81,7 @@ instance VectorAlgebra PFAlgebra where
                           let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                           f <- rownumM posnew [posold] Nothing $ aggrM [(Min, posold, Just pos)] (Just resCol) $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
                           flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
+  falsePositions = undefined
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do

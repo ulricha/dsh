@@ -15,6 +15,17 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+takeWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
+                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]] 
+                                                               qfs <- falsePositions qb'
+                                                               one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                               (DBV p _, _) <- selectPos qfs Eq one
+                                                               (r, prop) <- selectPos q Lt (DBP p [1])
+                                                               lyt' <- chainRenameFilter prop lyt
+                                                               return $ ValueVector r lyt'
+takeWithS _ _ = error "takeWithS: Should not be possible"
+
 zipPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                        q' <- pairL q1 q2

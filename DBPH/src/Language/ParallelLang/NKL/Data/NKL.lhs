@@ -74,6 +74,7 @@ data Prim2  =  Map Type | GroupWith Type
             |  Filter Type | Append Type
             |  Index Type | Take Type
             |  Drop Type | Zip Type
+            |  TakeWhile Type
 \end{code}
 %}
 %if False
