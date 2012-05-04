@@ -78,6 +78,7 @@ Library
                      Database.DSH.Compiler
 
   Other-modules:     Database.DSH.TH
+                     Database.DSH.DeriveConstructors
                      Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV

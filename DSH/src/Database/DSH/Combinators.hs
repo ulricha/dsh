@@ -315,6 +315,8 @@ fst (Q a) = Q (AppE1 Fst a $ reify (undefined :: a))
 snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE1 Snd a $ reify (undefined :: b))
 
+pair :: forall a b. (QA a, QA b) => Q a -> Q b -> Q (a, b)
+pair (Q a) (Q b) = Q (TupleE a b $ (reify (undefined :: (a, b))))
 
 -- * Conversions between numeric types
 
