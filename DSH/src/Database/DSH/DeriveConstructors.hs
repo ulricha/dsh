@@ -30,6 +30,9 @@ constructorInformation (NormalC n tys) = let constructorName = mkName $ (\(x:xs)
                                                     else TupleT 0
                                           in (constructorName, rt, argTy)
 constructorInformation (RecC n tys) = constructorInformation (NormalC n $ map (\(_, l,t) -> (l, t)) tys)
+constructorInformation (ForallC _ _ _) = error "Cannot derive QA constructors for an existentially typed data-type"
+constructorInformation (InfixC (_, t1) op (_, t2)) = let opName = mkName $ (\(_:xs) -> '.':xs) $ nameBase op
+                                                      in (opName, pairT t1 t2, [t1, t2])     
 
 wrapQ :: Type -> Type
 wrapQ t = AppT (ConT ''D.Q) t
