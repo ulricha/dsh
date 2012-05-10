@@ -23,7 +23,7 @@ import Data.Generics hiding (Generic)
 import Data.Text(Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-
+import Data.Maybe
 import GHC.Exts
 import GHC.Generics
 
@@ -205,8 +205,8 @@ class GenericQA f where
     genericToNorm'  :: f a -> Norm
     genericToNorm' a = ListN [genericToNorm a] (genericReify' (undefined :: f a)) 
     genericFromNorm :: Norm -> f a
-    genericFromNorm' :: Norm -> f a
-    genericFromNorm' (ListN [a] _) = genericFromNorm a
+    genericFromNorm' :: Norm -> Maybe (f a)
+    genericFromNorm' (ListN [a] _) = Just $ genericFromNorm a
 
 -- Constructor without any arguments 
 instance GenericQA U1 where
@@ -237,10 +237,13 @@ instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
                                   (genericToNorm' b)
                                   (genericReify (undefined :: (a :+: b) ()))
     genericToNorm' = genericToNorm
-    genericFromNorm (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
-    genericFromNorm (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
-    genericFromNorm _ = $impossible
-    genericFromNorm' = genericFromNorm
+    genericFromNorm' (TupleN na nb _) = case (genericFromNorm' na, genericFromNorm' nb) of
+                                         (Just v, Nothing) -> Just $ L1 v
+                                         (Nothing, Just v) -> Just $ R1 v
+                                         (Nothing, Nothing) -> Nothing
+                                         (Just _, Just _) -> $impossible
+    genericFromNorm' _ = $impossible
+    genericFromNorm = fromJust . genericFromNorm'
 
 instance (GenericQA a) => GenericQA (M1 i c a) where
     genericReify _ = genericReify (undefined :: a ())
