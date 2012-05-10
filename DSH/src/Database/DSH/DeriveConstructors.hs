@@ -16,7 +16,7 @@ typeInfo v = do
                 
 deriveQAConstructors :: Name -> Q [Dec]
 deriveQAConstructors n = do
-                          (TyConI (DataD ctxt name vars constructors names)) <- reify n
+                          (TyConI (DataD ctxt name vars constructors _)) <- reify n
                           let constructors' = map constructorInformation constructors
                           let allTypes = map (\(_,x,_) -> x) constructors' 
                           liftM concat $ mapM (mkConstructor (length constructors) ctxt name vars allTypes) $ zip [1..] constructors' 
@@ -55,8 +55,8 @@ mkConstructor nrConstructors ctxt typeName vs rtys (i, (cName, _, argTys)) = do
                                                 return [mkTypeSig rt constructorName ctxt' vs argTys, mkConstructorBody nrConstructors constructorName rtys (i, length argTys)]
 
 mkTypeSig :: Type -> Name -> Cxt -> [TyVarBndr] -> [Type] -> Dec
-mkTypeSig rt constrName cxt vars args = SigD constrName $ if length vars > 0
-                                                       then ForallT vars cxt $ foldr arrow rt (map wrapQ args)
+mkTypeSig rt constrName ctxt vars args = SigD constrName $ if length vars > 0
+                                                       then ForallT vars ctxt $ foldr arrow rt (map wrapQ args)
                                                        else foldr arrow rt (map wrapQ args)
 
 mkConstructorBody :: Int -> Name -> [Type] -> (Int, Int) -> Dec
@@ -71,7 +71,7 @@ mkConstructorBody t tn rtys (i, argN) = FunD tn [Clause [VarP n | n <- varNames]
            vars :: [Exp]
            vars = map VarE varNames
            varNames :: [Name]
-           varNames = [mkName $ "var_" ++ show i | i <- [1..argN]]
+           varNames = [mkName $ "var_" ++ show n | n <- [1..argN]]
 
 pair :: Exp -> Exp -> Exp
 pair e1 e2 = AppE (AppE (VarE 'C.pair) e1 ) e2
