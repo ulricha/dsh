@@ -169,6 +169,12 @@ instance QA Integer where
   fromNorm (IntegerN i IntegerT) = i
   fromNorm _ = $impossible
 
+instance QA Int where
+  reify _ = IntegerT
+  toNorm i = IntegerN (fromIntegral i) IntegerT
+  fromNorm (IntegerN i IntegerT) = fromInteger i
+  fromNorm _ = $impossible
+
 instance QA Double where
   reify _ = DoubleT
   toNorm d = DoubleN d DoubleT
