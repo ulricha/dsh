@@ -23,7 +23,7 @@ import Data.Generics hiding (Generic)
 import Data.Text(Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-
+import Data.Maybe
 import GHC.Exts
 import GHC.Generics
 
@@ -168,6 +168,12 @@ instance QA Integer where
   reify _ = IntegerT
   toNorm i = IntegerN i IntegerT
   fromNorm (IntegerN i IntegerT) = i
+  fromNorm _ = $impossible
+
+instance QA Int where
+  reify _ = IntegerT
+  toNorm i = IntegerN (fromIntegral i) IntegerT
+  fromNorm (IntegerN i IntegerT) = fromInteger i
   fromNorm _ = $impossible
 
 instance QA Double where
