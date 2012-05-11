@@ -23,7 +23,7 @@ module Database.DSH
     -- * Type Classes
   , QA
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
-  , View, view, fromView, tuple, record, caseOf
+  , View, view, fromView, tuple, record, caseOf, Case, gCurry
 
     -- * Template Haskell: Creating Table Representations
   , generateDatabaseRecordInstances
@@ -31,7 +31,7 @@ module Database.DSH
   , generateRecordInstances
   , generateTableDeclarations
   , deriveQAConstructors
-  
+
   , module Database.DSH.CSV
   , module Database.DSH.JSON
   , module Database.DSH.XHTML
@@ -43,7 +43,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf)
+import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf, Case, gCurry)
 import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
 import Database.DSH.DeriveConstructors
 

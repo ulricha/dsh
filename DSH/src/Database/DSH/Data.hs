@@ -1,12 +1,12 @@
-{-# LANGUAGE TemplateHaskell, 
+{-# LANGUAGE TemplateHaskell,
              ViewPatterns,
-             ScopedTypeVariables, 
-             MultiParamTypeClasses, 
-             FunctionalDependencies, 
-             FlexibleInstances, 
-             DeriveDataTypeable, 
-             TypeOperators, 
-             DefaultSignatures, 
+             ScopedTypeVariables,
+             MultiParamTypeClasses,
+             FunctionalDependencies,
+             FlexibleInstances,
+             DeriveDataTypeable,
+             TypeOperators,
+             DefaultSignatures,
              FlexibleContexts,
              TypeFamilies,
              UndecidableInstances,
@@ -138,12 +138,13 @@ class QA a where
   toNorm :: a -> Norm
   fromNorm :: Norm -> a
   default reify :: (Generic a, GenericQA (Rep a)) => a -> Type
-  reify a = genericReify (from a)
+  reify a = genericReify False (from a)
   default toNorm :: (Generic a, GenericQA (Rep a)) => a -> Norm
-  toNorm a = genericToNorm (from a)
+  toNorm a = genericToNorm False False (from a)
   default fromNorm :: (Generic a, GenericQA (Rep a)) => Norm -> a
-  fromNorm na = to (genericFromNorm na)
-
+  fromNorm a = case genericFromNorm False a of
+                 Just r  -> to r
+                 Nothing -> $impossible
 
 instance QA () where
   reify _ = UnitT
@@ -187,98 +188,80 @@ instance (QA a) => QA [a] where
   fromNorm (ListN as (ListT _)) = map fromNorm as
   fromNorm _ = $impossible
 
-class GenericQA f where
-    genericReify    :: f a -> Type
-    -- Reification for sum types, for all children of a sum we can use the default EXCEPT for the plus itself
-    genericReify'   :: f a -> Type
-    genericReify' _ = ListT $ genericReify (undefined :: f a)
-    -- An empty alternative is just an empty list in normal representation EXCEPT for the case of plus itself
-    emptyAlternative :: f a -> Norm
-    emptyAlternative _ = ListN [] $ genericReify' (undefined :: f a)
-    genericToNorm   :: f a -> Norm
-    genericToNorm'  :: f a -> Norm
-    genericToNorm' a = ListN [genericToNorm a] (genericReify' (undefined :: f a)) 
-    genericFromNorm :: Norm -> f a
-    genericFromNorm' :: Norm -> f a
-    genericFromNorm' (ListN [a] _) = genericFromNorm a
+class GenericQA a where
+    genericReify    :: Bool -> a p -> Type
+    genericToNorm   :: Bool -> Bool -> a p -> Norm
+    genericFromNorm :: Bool -> Norm -> Maybe (a p)
 
--- Constructor without any arguments 
 instance GenericQA U1 where
-    genericReify _ = UnitT
-    genericToNorm U1 = UnitN UnitT
-    genericFromNorm (UnitN UnitT) = U1
-    genericFromNorm _ = $impossible
-
--- Constructor with two or more arguments (b can be a product itself)
--- As an invariant a can only be a K1 ultimately (might be wrapped in a M1 node)
-instance (GenericQA a, GenericQA b) => GenericQA (a :*: b) where
-    genericReify _ = TupleT (genericReify (undefined :: a ())) (genericReify (undefined :: b ()))
-    genericToNorm (a :*: b) = TupleN (genericToNorm a) (genericToNorm b) (genericReify (a :*: b))
-    genericFromNorm (TupleN a b (TupleT _ _)) = (genericFromNorm a) :*: (genericFromNorm b)
-    genericFromNorm _ = $impossible
-
-instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
-    genericReify _ = TupleT (genericReify' (undefined :: a ()))
-                            (genericReify' (undefined :: b ()))
-    genericReify' _ = genericReify (undefined :: (a :+: b) ())
-    emptyAlternative _ = TupleN (emptyAlternative (undefined :: a ()))
-                                (emptyAlternative (undefined :: b ()))
-                                (genericReify (undefined :: (a :+: b) ()))
-    genericToNorm (L1 a) = TupleN (genericToNorm' a)
-                                  (emptyAlternative (undefined :: b ()))
-                                  (genericReify (undefined :: (a :+: b) ()))
-    genericToNorm (R1 b) = TupleN (emptyAlternative (undefined :: a ()))
-                                  (genericToNorm' b)
-                                  (genericReify (undefined :: (a :+: b) ()))
-    genericToNorm' = genericToNorm
-    genericFromNorm (TupleN na@(ListN [_] _) _ _) = L1 (genericFromNorm' na)
-    genericFromNorm (TupleN (ListN [] _) nb _)  = R1 (genericFromNorm' nb)
-    genericFromNorm _ = $impossible
-    genericFromNorm' = genericFromNorm
-
-instance (GenericQA a) => GenericQA (M1 i c a) where
-    genericReify _ = genericReify (undefined :: a ())
-    genericToNorm (M1 a) = genericToNorm a
-    genericFromNorm na = M1 (genericFromNorm na)
-
+    genericReify False _ = UnitT
+    genericReify True  a = ListT (genericReify False a)
+    genericToNorm False _    U1 = UnitN (genericReify False U1)
+    genericToNorm True False U1 = ListN [genericToNorm False False U1] (genericReify True U1)
+    genericToNorm True True  _  = ListN [] (genericReify True U1)
+    genericFromNorm False (UnitN UnitT) = Just U1
+    genericFromNorm True  (ListN [a] (ListT UnitT)) = genericFromNorm False a
+    genericFromNorm _ _ = Nothing
 
 instance (QA a) => GenericQA (K1 i a) where
-    genericReify _ = reify (undefined :: a)
-    genericToNorm (K1 a) = toNorm a
-    genericFromNorm na = (K1 (fromNorm na))
- 
+    genericReify False _ = reify (undefined :: a)
+    genericReify True  a = ListT (genericReify False a)
+    genericToNorm False _    (K1 a) = toNorm a
+    genericToNorm True False (K1 a) = toNorm [a]
+    genericToNorm True True  _      = toNorm ([] :: [a])
+    genericFromNorm False a = Just (K1 (fromNorm a))
+    genericFromNorm True (ListN [a] _) = Just (K1 (fromNorm a))
+    genericFromNorm True _ = Nothing
+
+instance (GenericQA a) => GenericQA (M1 i c a) where
+    genericReify bf _ = genericReify bf (undefined :: a ())
+    genericToNorm bf1 bf2 (M1 a) = genericToNorm bf1 bf2 a
+    genericFromNorm bf a = fmap M1 (genericFromNorm bf a)
+
+instance (GenericQA a, GenericQA b) => GenericQA (a :*: b) where
+    genericReify False _ = TupleT (genericReify False (undefined :: a ()))
+                                  (genericReify False (undefined :: b ()))
+    genericReify True  a = ListT (genericReify False a)
+    genericToNorm False _    (a :*: b) = TupleN (genericToNorm False False a)
+                                                (genericToNorm False False b)
+                                                (genericReify False (a :*: b))
+    genericToNorm True False (a :*: b) = ListN  [genericToNorm False False (a :*: b)]
+                                                (genericReify True (a :*: b))
+    genericToNorm True True  _         = ListN [] (genericReify True (undefined :: (a :*: b) ()))
+    genericFromNorm False (TupleN a b _) = case (genericFromNorm False a,genericFromNorm False b) of
+                                             (Just ra,Just rb) -> Just (ra :*: rb)
+                                             _                 -> Nothing
+    genericFromNorm True  (ListN [a] _)  = genericFromNorm False a
+    genericFromNorm _ _                  = Nothing
+
+instance (GenericQA a, GenericQA b) => GenericQA (a :+: b) where
+    genericReify _ _ = TupleT (genericReify True (undefined :: a ()))
+                              (genericReify True (undefined :: b ()))
+    genericToNorm _ False (L1 a) = TupleN (genericToNorm True False a)
+                                          (genericToNorm True True  (undefined :: b ()))
+                                          (genericReify True (undefined :: (a :+: b) ()))
+    genericToNorm _ False (R1 b) = TupleN (genericToNorm True True  (undefined :: a ()))
+                                          (genericToNorm True False b)
+                                          (genericReify True (undefined :: (a :+: b) ()))
+    genericToNorm _ True  _      = TupleN (genericToNorm True True  (undefined :: a ()))
+                                          (genericToNorm True True  (undefined :: b ()))
+                                          (genericReify True (undefined :: (a :+: b) ()))
+    genericFromNorm _ (TupleN l r _) = case (genericFromNorm True l,genericFromNorm True r) of
+                                         (Just r1,Nothing) -> Just (L1 r1)
+                                         (Nothing,Just r1) -> Just (R1 r1)
+                                         _                -> Nothing
+    genericFromNorm _ _              = Nothing
+
+-- elim :: forall a r. (Case a r, GCurry (Q a -> Cases a r -> Q r)) => GCurry1 (Q a -> Cases a r -> Q r)
+-- elim = gCurry ((flip caseOf) :: Q a -> Cases a r -> Q r)
+
 class (QA a, QA r) => Case a r where
     caseOf :: Cases a r -> Q a -> Q r
     default caseOf :: (Generic a, GenericCase (Rep a) r, GCase (Rep a) r ~ Cases a r) => Cases a r -> Q a -> Q r
-    caseOf f (Q e) = gcase f (Q e :: Q ((Rep a) ())) 
+    caseOf f (Q e) = gcase f (Q e :: Q ((Rep a) ()))
     type Cases a r
     type Cases a r = GCase (Rep a) r
 
-{-
-class GenericCollect a where
-    type Collect a
-    type Col a
-    collect :: Collect a
-
-    
-instance GenericCollect ((a :+: b) p) where
-    type Collect ((a :+: b) p) = (a p) -> Collect (b p) (a p, Col (b p))
-    type Col ((a :+: b) p) = (a p, Col (b p))
-    collect f = ((,) f) . collect
-
-
-instance GenericCollect (K1 i a p) where
-    type Collect (K1 i a p) = a -> a
-    type Col (K1 i a p) = a
-    collect = id
--}    
-
--- Generic cases
--- The GCase type is the type of the destructor function for a data-type a with result type r.
--- For example for data Example a = Ex a Int gcase should be "a -> Int -> r"
--- The GRep type has to correspond to the internal representation of a datatype in Ferry.
--- All product types are broken down into nested pairs.
--- gcase is essentially the uncurry functions.    
 class (GenericQA a, QA r) => GenericCase a r where
     type GCase a r
     type GRep a
@@ -289,10 +272,8 @@ class (GenericQA a, QA r) => GenericCase a r where
     galtCase :: GCase a r -> Q (a p) -> Q [r]
     galtCase f (Q a) = mapG (gcase f) (Q a :: Q [a p])
 
-
-
 toLamG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Exp
-toLamG fun = LamE (forget . fun . Q) (ArrowT (genericReify (undefined :: (a p))) (reify (undefined :: r)))
+toLamG fun = LamE (forget . fun . Q) (ArrowT (genericReify False (undefined :: (a p))) (reify (undefined :: r)))
 
 mapG :: forall a r p. (GenericQA a, QA r) => (Q (a p) -> Q r) -> Q [(a p)] -> Q [r]
 mapG f (Q arg) = Q $ AppE2 Map (toLamG f) arg (reify (undefined :: [r]))
@@ -301,41 +282,33 @@ instance (GenericCase a r, GenericCase b r, QA r) => GenericCase (a :+: b) r whe
     type GCase (a :+: b) r = (GCase a r, GCase b r)
     type GRep (a :+: b) = (GRep' a, GRep' b)
     type GRep' (a :+: b) = GRep (a :+: b)
-    -- gcollect f = (\x -> (f, x)) . gcollect
     galtCase (f, g) (Q e) = Q $ AppE2 Append (forget first) (forget second) (reify (undefined :: [r]))
        where
         (TupleT t1 t2) = typeExp e
         first :: Q [r]
         first = galtCase f (Q $ AppE1 Fst e t1 :: Q (a ()))
         second :: Q [r]
-        second = galtCase g (Q $ AppE1 Snd e t2 :: Q (b ())) 
-    gcase fs e = Q $ AppE1 Head (forget alts) (reify (undefined :: r)) 
+        second = galtCase g (Q $ AppE1 Snd e t2 :: Q (b ()))
+    gcase fs e = Q $ AppE1 Head (forget alts) (reify (undefined :: r))
         where
           alts :: Q [r]
           alts = galtCase fs e
 
 instance QA r => GenericCase U1 r where
-    type GCase U1 r = Q r
+    type GCase U1 r = Q () -> Q r
     type GRep U1 = ()
-    gcase = const
-    
-    
+    gcase f (Q a) = f (Q a)
+
 instance (GenericCase a r, GenericCase b r) => GenericCase (a :*: b) r where
-    type GCase (a :*: b) r = Q (GRep a) -> GCase b r
+    type GCase (a :*: b) r = Q (GRep a, GRep b) -> Q r
     type GRep (a :*: b) = (GRep a, GRep b)
-    gcase f (Q e) = gcase (f first) second
-        where
-            (TupleT t1 t2) = typeExp e
-            first :: Q (GRep a)
-            first = Q $ AppE1 Fst e t1
-            second :: Q (b p)
-            second = Q $ AppE1 Snd e t2
+    gcase f (Q a) = f (Q a)
 
 instance GenericCase a r => GenericCase (M1 i c a) r where
     type GCase (M1 i c a) r = GCase a r
     type GRep (M1 i c a) = GRep a
     gcase f (Q a) = gcase f (Q a :: Q (a ()))
-    
+
 instance (QA a, QA r) => GenericCase (K1 i a) r where
     type GCase (K1 i a) r = Q a -> Q r
     type GRep  (K1 i a) = a
@@ -348,11 +321,11 @@ instance (QA a, QA b, QA r) => Case (a, b) r where
 instance (QA a, QA b, QA c, QA r) => Case (a, b, c) r where
 
 instance (QA a, QA b, QA r) => Case (Either a b) r where
-    
+
 instance (QA a, QA b) => QA (a, b) where
-    
+
 instance (QA a, QA b, QA c) => QA (a, b, c) where
-    
+
 instance (QA a, QA b, QA c, QA d) => QA (a, b, c, d) where
 
 instance (QA a) => QA (Maybe a) where
@@ -364,6 +337,62 @@ tupleToEither (Q x) = (Q x)
 
 eitherToTuple :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
 eitherToTuple (Q x) = (Q x)
+
+
+-- * Currying
+
+class GCurry a where
+  type GCurry1 a
+  gCurry :: a -> GCurry1 a
+
+-- class GUncurry a where
+--   type GCurry2 a
+--   gUncurry :: GCurry2 a -> a
+
+class GUncurry a where
+  type GCurry2 a
+  gUncurry :: a -> a
+  gUncurry = id
+
+-- instance GCurry (Q r) where
+--   type GCurry1 (Q r) = Q r
+--   gCurry = id
+
+instance GCurry ((a1 -> Q r) -> Q r) where
+  type GCurry1 ((a1 -> Q r) -> Q r) = (a1 -> Q r) -> Q r
+  gCurry = id
+
+instance GCurry ((a1 -> Q r, a2 -> Q r) -> Q r) where
+  type GCurry1 ((a1 -> Q r, a2 -> Q r) -> Q r) = (a1 -> Q r) -> (a2 -> Q r) -> Q r
+  gCurry f = \a1 a2 -> f (a1,a2)
+
+instance GCurry ((a1 -> Q r, (a2 -> Q r, a3 -> Q r)) -> Q r) where
+  type GCurry1 ((a1 -> Q r, (a2 -> Q r, a3 -> Q r)) -> Q r) = (a1 -> Q r) -> (a2 -> Q r) -> (a3 -> Q r) -> Q r
+  gCurry f = \a1 a2 a3 -> f (a1,(a2,a3))
+
+instance (GUncurry (a1 -> Q r), GUncurry (a2 -> Q r), GUncurry (a3 -> Q r), GUncurry (a4 -> Q r)) => GCurry (((a1 -> Q r,a2 -> Q r),(a3 -> Q r, a4 -> Q r)) -> Q r) where
+  type GCurry1 (((a1 -> Q r,a2 -> Q r),(a3 -> Q r, a4 -> Q r)) -> Q r) = (a1 -> Q r) -> (a2 -> Q r) -> (a3 -> Q r) -> (a4 -> Q r) -> Q r
+  gCurry f = \a1 a2 a3 a4 -> f ((a1,a2),(a3,a4))
+
+instance GUncurry a where
+  type GCurry2 a = a
+-- instance GUncurry (Q a1 -> Q r) where
+--   type GCurry2 (Q a1 -> Q r) = Q a1 -> Q r
+--   gUncurry = id
+--
+-- instance GUncurry ((Q a1,Q a2) -> Q r) where
+--   type GCurry2 ((Q a1,Q a2) -> Q r) = Q a1 -> Q a2 -> Q r
+--   gUncurry f = \(a1,a2) -> f a1 a2
+--
+-- instance GUncurry ((Q a1,(Q a2,Q a3)) -> Q r) where
+--   type GCurry2 ((Q a1,(Q a2,Q a3)) -> Q r) = Q a1 -> Q a2 -> Q a3 -> Q r
+--   gUncurry f = \(a1,(a2,a3)) -> f a1 a2 a3
+--
+-- instance GUncurry (((Q a1,Q a2),(Q a3,Q a4)) -> Q r) where
+--   type GCurry2 (((Q a1,Q a2),(Q a3,Q a4)) -> Q r) = Q a1 -> Q a2 -> Q a3 -> Q a4 -> Q r
+--   gUncurry f = \((a1,a2),(a3,a4)) -> f a1 a2 a3 a4
+
+-- * Basic Types
 
 class BasicType a where
 
