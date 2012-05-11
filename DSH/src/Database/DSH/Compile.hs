@@ -158,12 +158,23 @@ processResults i t = do
                                               v1 <- processResults' i 0 vals t
                                               return (it, head v1)) v
 
+nrColsInType :: Type -> Int
+nrColsInType UnitT = 1
+nrColsInType BoolT = 1
+nrColsInType CharT = 1
+nrColsInType IntegerT = 1
+nrColsInType DoubleT = 1
+nrColsInType TextT = 1
+nrColsInType (TupleT t1 t2) = nrColsInType t1 + nrColsInType t2
+nrColsInType (ListT _) = 1
+nrColsInType (ArrowT _ _) = $impossible
+
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
 processResults' q c vals t@(TupleT t1 t2) = do
                                             v1s <- processResults' q c vals t1
-                                            v2s <- processResults' q (c + 1) vals t2
+                                            v2s <- processResults' q (c + nrColsInType t1) vals t2
                                             return $ [TupleN v1 v2 t | v1 <- v1s | v2 <- v2s]
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
