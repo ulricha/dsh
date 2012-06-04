@@ -1,4 +1,0 @@
-let fst :: (a, b) -> a
-    fst x = x@1
-in
-fst ((1,2))
