@@ -143,6 +143,7 @@ tests =
         , testProperty "reverse" $ prop_reverse
         , testProperty "reverse [[]]" $ prop_reverse_nest
         , testProperty "append" $ prop_append
+        , testProperty "append nest" $ prop_append_nest
         , testProperty "groupWith" $ prop_groupWith
 #ifdef isX100
         , testProperty "groupWith length" $ prop_groupWith_length
@@ -574,16 +575,16 @@ prop_index_nest (l, i) =
 
 prop_map_index :: ([Integer], [Integer])  -> Property
 prop_map_index (l, is) =
-     and [i > 0 && i < fromIntegral (length l) | i <-  is]
- ==> makeProp (\z -> Q.map ((Q.fst z) Q.!!) (Q.snd z))
-              (\(a,b) -> map (a !!) (map fromIntegral b))
+     and [i >= 0 && i < 2 * fromIntegral (length l) | i <-  is]
+ ==> makeProp (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!) (Q.snd z))
+              (\(a,b) -> map ((a ++ a ++ a) !!) (map fromIntegral b))
               (l, is)
 
 prop_map_index_nest :: ([[Integer]], [Integer])  -> Property
 prop_map_index_nest (l, is) =
-   and [i > 0 && i < fromIntegral (length l) | i <-  is]
- ==> makeProp (\z -> Q.map ((Q.fst z) Q.!!) (Q.snd z))
-            (\(a,b) -> map (a !!) (map fromIntegral b))
+   and [i >= 0 && i < 3 * fromIntegral (length l) | i <-  is]
+ ==> makeProp (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!) (Q.snd z))
+            (\(a,b) -> map ((a ++ a ++ a) !!) (map fromIntegral b))
             (l, is)
             
 prop_take :: (Integer, [Integer]) -> Property
@@ -617,6 +618,9 @@ prop_map_map_map_mul = makeProp (Q.map (Q.map (Q.map (*2)))) (map (map (map (*2)
 
 prop_append :: ([Integer], [Integer]) -> Property
 prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
+
+prop_append_nest :: ([[Integer]], [[Integer]]) -> Property
+prop_append_nest = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
 
 prop_map_append :: ([Integer], [[Integer]]) -> Property
 prop_map_append = makeProp (\z -> Q.map (Q.fst z Q.++) (Q.snd z)) (\(a,b) -> map (a ++) b)
