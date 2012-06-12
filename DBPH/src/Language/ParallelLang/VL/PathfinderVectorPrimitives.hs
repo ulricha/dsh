@@ -129,19 +129,24 @@ selectPosPF :: DBV -> Oper -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosPF (DBV qe cols) op (DBP qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-        qs <- selectM resCol
-              $ operM (show op) resCol pos' item'
-              $ crossM
-              (proj (pf [(descr, descr), (pos', pos)]) qe)
-              (proj [(item', item)] qi)
-        qn <- case op of 
-                Lt -> 
-                    proj (pf [(descr, descr), (pos, pos'), (pos', pos')]) qs 
-                LtE -> 
-                    proj (pf [(descr, descr), (pos, pos'), (pos', pos')]) qs 
-                _ -> 
+        qx <- crossM
+                (proj (pf [(descr, descr), (pos', pos)]) qe)
+                (proj [(item', item)] qi)
+        qn <- case op of
+                Lt ->
+                    projM (pf [(descr, descr), (pos, pos'), (pos', pos')]) 
+                     $ selectM resCol
+                           $ oper (show op) resCol pos' item' qx
+                LtE ->
+                    projM (pf [(descr, descr), (pos, pos'), (pos', pos')])
+                     $ selectM resCol
+                        $ unionM
+                            (oper (show Lt) resCol pos' item' qx)
+                            (oper (show Eq) resCol pos' item' qx)
+                _ ->
                     projM (pf [(descr, descr), (pos, pos), (pos', pos')])
-                    $ rownum pos [descr, pos'] Nothing qs
+                     $ rownumM pos [descr, pos'] Nothing 
+                        $ oper (show op) resCol pos' item' qx
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
