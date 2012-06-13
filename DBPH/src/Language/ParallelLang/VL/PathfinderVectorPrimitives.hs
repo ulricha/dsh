@@ -130,7 +130,8 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
         qx <- crossM
-                (proj (pf [(descr, descr), (pos', pos)]) qe)
+                (projM (pf [(descr,descr), (pos', pos')]) (cast pos pos' intT qe))
+                -- (proj (pf [(descr, descr), (pos', pos)]) qe)
                 (proj [(item', item)] qi)
         qn <- case op of
                 Lt ->
@@ -146,7 +147,8 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
                 _ ->
                     projM (pf [(descr, descr), (pos, pos), (pos', pos')])
                      $ rownumM pos [descr, pos'] Nothing 
-                        $ oper (show op) resCol pos' item' qx
+                        $ selectM resCol
+                            $ oper (show op) resCol pos' item' qx
         q <- proj (pf [(descr, descr), (pos, pos)]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
