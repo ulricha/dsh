@@ -126,12 +126,14 @@ tests =
         , testProperty "cons" $ prop_cons
         , testProperty "snoc" $ prop_snoc
         , testProperty "take" $ prop_take
+#ifndef isDBPH        
         , testProperty "drop" $ prop_drop
+#endif
         , testProperty "take ++ drop" $ prop_takedrop
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
         , testProperty "the" $ prop_the
-#ifndef isFerry  
+#ifdef isX100  
         , testProperty "last" $ prop_last
 #endif
         , testProperty "init" $ prop_init
@@ -139,7 +141,9 @@ tests =
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
         , testProperty "index" $ prop_index
+#ifdef isX100        
         , testProperty "index [[]]" $ prop_index_nest
+#endif
         , testProperty "reverse" $ prop_reverse
         , testProperty "reverse [[]]" $ prop_reverse_nest
         , testProperty "append" $ prop_append
@@ -601,7 +605,7 @@ prop_map_drop = makeProp (\z -> Q.map (Q.drop $ Q.fst z) $ Q.snd z) (\(n,l) -> m
 
 prop_takedrop :: (Integer, [Integer]) -> Property
 prop_takedrop = makeProp takedrop_q takedrop
-  where takedrop_q p = Q.append ((uncurryQ Q.take) p) ((uncurryQ Q.drop) p)
+  where takedrop_q = \p -> Q.append ((Q.take (Q.fst p)) (Q.snd p)) ((Q.drop (Q.fst p)) (Q.snd p))
         takedrop (n, l) = (take (fromIntegral n) l) ++ (drop (fromIntegral n) l)
 
 prop_map :: [Integer] -> Property
