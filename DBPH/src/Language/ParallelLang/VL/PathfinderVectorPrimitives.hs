@@ -115,12 +115,19 @@ selectPosLiftPF :: DBV -> Oper -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosLiftPF (DBV qe cols) op (DBV qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-        qs <- rownumM posnew [descr, pos] Nothing
-              $ selectM resCol
-              $ operM (show op) resCol pos' item'
-              $ eqJoinM descr pos''
-              (rownum pos' [pos] (Just descr) qe)
-              (proj [(pos'', pos), (item', item)] qi)
+        qx <- castM pos' pos''' intT 
+                $ eqJoinM descr pos''
+                    (rownum pos' [pos] (Just descr) qe)
+                    (proj [(pos'', pos), (item', item)] qi)
+        qs <- case op of
+            LtE -> rownumM posnew [descr, pos] Nothing
+                  $ selectM resCol
+                  $ unionM
+                    (oper (show Eq) resCol pos''' item' qx)
+                    (oper (show Lt) resCol pos''' item' qx)
+            _ -> rownumM posnew [descr, pos] Nothing
+                  $ selectM resCol
+                  $ oper (show op) resCol pos''' item' qx
         q <- proj (pf [(descr, descr), (pos, posnew)]) qs
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ (DBV q cols, RenameVector qp)
