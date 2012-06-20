@@ -26,6 +26,21 @@ takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
                                                                return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
 
+takeWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = 
+            do
+             f <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+             (fs, _) <- distPrim f =<< toDescr qd
+             (qb', _, _) <- append qb =<< segment fs
+             qfs <- falsePositions qb'
+             one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+             (ones, _) <- distPrim one =<< toDescr qd
+             (p, _) <- selectPosLift qfs Eq ones
+             (r, prop) <- selectPosLift q Lt p
+             lyt' <- chainRenameFilter prop lyt
+             return $ ValueVector qd (Nest r lyt')
+takeWithL _ _ = error "takeWithL: Should not be possible"
+
 zipPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                        q' <- pairL q1 q2
