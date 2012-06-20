@@ -248,6 +248,7 @@ tests =
         , testProperty "map take" $ prop_map_take
         , testProperty "map drop" $ prop_map_drop
         , testProperty "map zip" $ prop_map_zip
+        , testProperty "map takeWhile" $ prop_map_takeWhile
         ]
     ]
 
@@ -775,7 +776,11 @@ prop_splitAt = makeProp (uncurryQ Q.splitAt) (\(a,b) -> splitAt (fromIntegral a)
 
 prop_takeWhile :: (Integer, [Integer]) -> Property
 prop_takeWhile = makeProp (uncurryQ $ Q.takeWhile . (Q.==))
-                         (uncurry   $   takeWhile . (==))
+                          (uncurry   $   takeWhile . (==))
+
+prop_map_takeWhile :: (Integer, [[Integer]]) -> Property
+prop_map_takeWhile = makeProp (\z -> Q.map (Q.takeWhile (Q.fst z Q.==)) (Q.snd z)) 
+                              (\z -> map (takeWhile (fst z ==)) (snd z))
 
 prop_dropWhile :: (Integer, [Integer]) -> Property
 prop_dropWhile = makeProp (uncurryQ $ Q.dropWhile . (Q.==))
