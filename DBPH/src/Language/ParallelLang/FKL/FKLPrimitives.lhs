@@ -85,6 +85,21 @@ takeWithLPrim f e = let arg1 = mapLPrim f e
                         t2 = typeOf e
                      in F.PApp2 t2 (F.TakeWithL (t1 .-> t2 .-> t2)) arg1 e
 
+dropWithVal :: Type -> Expr
+dropWithVal t = doubleArgClo t "drop_f" "drop_xs" dropWithPrim dropWithLPrim
+
+dropWithPrim :: Expr -> Expr -> Expr
+dropWithPrim f e = let arg1 = mapPrim f e
+                       t1 = typeOf arg1
+                       t2 = typeOf e
+                    in F.PApp2 t2 (F.DropWithS (t1 .-> t2 .-> t2)) arg1 e
+
+dropWithLPrim :: Expr -> Expr -> Expr
+dropWithLPrim f e = let arg1 = mapLPrim f e
+                        t1 = typeOf arg1 
+                        t2 = typeOf e
+                     in F.PApp2 t2 (F.DropWithL (t1 .-> t2 .-> t2)) arg1 e
+
 pairVal :: Type -> Expr
 pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 

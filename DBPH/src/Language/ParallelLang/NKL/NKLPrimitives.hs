@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -244,6 +244,13 @@ takeWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
                    in if ta P.== tl
                         then AppE2 t2 (TakeWhile P.$ t1 .-> t2 .-> t2) e1 e2
                         else P.error P.$ "NKLPrims.takeWhile: Cannot apply takeWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+dropWhile :: Expr -> Expr -> Expr
+dropWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
+                      t2@(T.List tl) = typeOf e2
+                   in if ta P.== tl
+                        then AppE2 t2 (DropWhile P.$ t1 .-> t2 .-> t2) e1 e2
+                        else P.error P.$ "NKLPrims.dropWhile: Cannot apply takeWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1

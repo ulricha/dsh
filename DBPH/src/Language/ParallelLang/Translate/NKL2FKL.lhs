@@ -113,6 +113,7 @@ prim2Transform (N.Take t) = takeVal t
 prim2Transform (N.Drop t) = dropVal t
 prim2Transform (N.Zip t) = zipVal t
 prim2Transform (N.TakeWhile t) = takeWithVal t
+prim2Transform (N.DropWhile t) = dropWithVal t
 \end{code}
 %endif
 

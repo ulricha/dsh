@@ -26,6 +26,16 @@ takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
                                                                return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
 
+dropWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) =
+    do
+        (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]]
+        minF <- vecMin =<< falsePositions qb'
+        (r, prop) <- selectPos q GtE minF
+        lyt' <- chainRenameFilter prop lyt
+        return $ ValueVector r lyt' 
+dropWithS _ _ = error "dropWithS: Should not be possible"
+
 takeWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = 
             do
@@ -40,6 +50,18 @@ takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
              lyt' <- chainRenameFilter prop lyt
              return $ ValueVector qd (Nest r lyt')
 takeWithL _ _ = error "takeWithL: Should not be possible"
+
+dropWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
+            do
+             f <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+             (fs, _ ) <- distPrim f =<< toDescr qd
+             (qb', _, _) <- append qb =<< segment fs
+             minF <- vecMinLift =<< falsePositions qb'
+             (r, prop) <- selectPosLift q GtE minF
+             lyt' <- chainRenameFilter prop lyt
+             return $ ValueVector qd (Nest r lyt')
+dropWithL _ _ = error "dropWithL: Should not be possible"
 
 zipPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
