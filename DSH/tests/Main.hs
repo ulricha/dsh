@@ -165,6 +165,7 @@ tests =
         , testProperty "minimum" $ prop_minimum
         , testProperty "splitAt" $ prop_splitAt
         , testProperty "takeWhile" $ prop_takeWhile
+        , testProperty "dropWhile" $ prop_dropWhile
 #ifndef isDBPH
         , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
@@ -249,6 +250,7 @@ tests =
         , testProperty "map drop" $ prop_map_drop
         , testProperty "map zip" $ prop_map_zip
         , testProperty "map takeWhile" $ prop_map_takeWhile
+        , testProperty "map dropWhile" $ prop_map_dropWhile
         ]
     ]
 
@@ -776,15 +778,19 @@ prop_splitAt = makeProp (uncurryQ Q.splitAt) (\(a,b) -> splitAt (fromIntegral a)
 
 prop_takeWhile :: (Integer, [Integer]) -> Property
 prop_takeWhile = makeProp (uncurryQ $ Q.takeWhile . (Q.==))
-                          (uncurry   $   takeWhile . (==))
+                          (uncurry  $   takeWhile . (==))
+
+prop_dropWhile :: (Integer, [Integer]) -> Property
+prop_dropWhile = makeProp (uncurryQ $ Q.dropWhile . (Q.==))
+                          (uncurry  $   dropWhile . (==))
 
 prop_map_takeWhile :: (Integer, [[Integer]]) -> Property
 prop_map_takeWhile = makeProp (\z -> Q.map (Q.takeWhile (Q.fst z Q.==)) (Q.snd z)) 
                               (\z -> map (takeWhile (fst z ==)) (snd z))
 
-prop_dropWhile :: (Integer, [Integer]) -> Property
-prop_dropWhile = makeProp (uncurryQ $ Q.dropWhile . (Q.==))
-                         (uncurry   $   dropWhile . (==))
+prop_map_dropWhile :: (Integer, [[Integer]]) -> Property
+prop_map_dropWhile = makeProp (\z -> Q.map (Q.dropWhile (Q.fst z Q.==)) (Q.snd z)) 
+                              (\z -> map (dropWhile (fst z ==)) (snd z))
 
 prop_span :: (Integer, [Integer]) -> Property
 prop_span = makeProp (uncurryQ $ Q.span . (Q.==))
