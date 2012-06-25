@@ -166,11 +166,9 @@ tests =
         , testProperty "splitAt" $ prop_splitAt
         , testProperty "takeWhile" $ prop_takeWhile
         , testProperty "dropWhile" $ prop_dropWhile
-#ifndef isDBPH
         , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
         , testProperty "break" $ prop_break
-#endif
         , testProperty "elem" $ prop_elem
         , testProperty "notElem" $ prop_notElem
         , testProperty "zip" $ prop_zip
@@ -251,6 +249,8 @@ tests =
         , testProperty "map zip" $ prop_map_zip
         , testProperty "map takeWhile" $ prop_map_takeWhile
         , testProperty "map dropWhile" $ prop_map_dropWhile
+        , testProperty "map span" $ prop_map_span
+        , testProperty "map break" $ prop_map_break
         ]
     ]
 
@@ -796,9 +796,17 @@ prop_span :: (Integer, [Integer]) -> Property
 prop_span = makeProp (uncurryQ $ Q.span . (Q.==))
                      (uncurry   $   span . (==) . fromIntegral)
 
+prop_map_span :: (Integer, [[Integer]]) -> Property
+prop_map_span = makeProp (\z -> Q.map (Q.span ((Q.fst z) Q.==)) (Q.snd z))
+                         (\z -> map (span (fst z ==)) (snd z))
+
 prop_break :: (Integer, [Integer]) -> Property
 prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
                      (uncurry   $   break . (==) . fromIntegral)
+
+prop_map_break :: (Integer, [[Integer]]) -> Property
+prop_map_break = makeProp (\z -> Q.map (Q.break ((Q.fst z) Q.==)) (Q.snd z))
+                          (\z -> map (break (fst z ==)) (snd z))
 
 prop_elem :: (Integer, [Integer]) -> Property
 prop_elem = makeProp (uncurryQ $ Q.elem)
