@@ -1,0 +1,30 @@
+Name:                 DSH-Wikipedia
+Version:              0.1
+Synopsis:             A number of queries formulated using Database Supported Haskell (DSH) on the Wikipedia database
+License:              BSD3
+License-file:         LICENSE
+Author:               George Giorgidze
+Maintainer:           giorgidze@gmail.com
+Category:             Database
+Build-type:           Simple
+-- Extra-source-files:
+Cabal-version:        >=1.2
+
+Executable dsh-wikipedia
+  GHC-options: -Wall -O3
+  Build-depends: base >= 4, containers, parallel, text, HDBC-postgresql, postgresql-simple, DSH, igraph
+  Hs-source-dirs: src
+  Main-is: Main.hs
+  Other-Modules: Records Wikipedia
+
+Executable dsh-wikipedia-centralities-day
+  GHC-options: -Wall -O3 -rtsopts
+  Build-depends: base >= 4, containers, directory, postgresql-simple, igraph
+  Hs-source-dirs: src
+  Main-is: CentralitiesDay.hs
+
+Executable dsh-wikipedia-centralities
+  GHC-options: -Wall -O3 -threaded -rtsopts
+  Build-depends: base >= 4, process, parallel-io
+  Hs-source-dirs: src
+  Main-is: Centralities.hs
