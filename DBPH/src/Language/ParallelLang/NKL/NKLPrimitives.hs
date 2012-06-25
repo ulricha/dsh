@@ -1,4 +1,4 @@
-module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Language.ParallelLang.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -238,6 +238,21 @@ lte e1 e2 = let t1 = typeOf e1
                   then BinOp boolT LtE e1 e2
                   else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
+break :: Expr -> Expr -> Expr
+break e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
+                  t2@(T.List tl) = typeOf e2
+                  notF = Lam t1 "break_not_f" (not (e1 $ (var ta "break_not_f")))
+               in if ta P.== tl 
+                   then pair (takeWhile notF e2) (dropWhile notF e2)
+                   else P.error P.$ "NKLPrims.break: Cannot apply break to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
+span :: Expr -> Expr -> Expr
+span e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
+                 t2@(T.List tl) = typeOf e2
+              in if ta P.== tl
+                  then pair (takeWhile e1 e2) (dropWhile e1 e2)
+                  else P.error P.$ "NKLPrims.span: Cannot apply span to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+
 takeWhile :: Expr -> Expr -> Expr
 takeWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
                       t2@(T.List tl) = typeOf e2
@@ -250,7 +265,7 @@ dropWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
                       t2@(T.List tl) = typeOf e2
                    in if ta P.== tl
                         then AppE2 t2 (DropWhile P.$ t1 .-> t2 .-> t2) e1 e2
-                        else P.error P.$ "NKLPrims.dropWhile: Cannot apply takeWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                        else P.error P.$ "NKLPrims.dropWhile: Cannot apply dropWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1
