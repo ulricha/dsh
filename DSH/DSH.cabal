@@ -88,6 +88,7 @@ Library
                      Database.DSH.Compile
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
+                     Database.DSH.TH
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
     Main-is:    tests/Main.hs
