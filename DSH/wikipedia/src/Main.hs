@@ -11,23 +11,21 @@ import Control.Exception
 
 import qualified Data.IGraph as Graph
 
-import Database.DSH (Q,QA,toQ,disconnect,csvExport)
-import Database.DSH.Compiler (fromQ,debugSQL)
+import Database.DSH (Q,QA,toQ,csvExport)
+--import Database.DSH.Compiler (fromQ,debugSQL)
+import Database.X100Client
 
 import Records
 import Wikipedia
 
+getXConn :: IO X100Info
+getXConn = P.return $ x100Info "localhost" "48130" Nothing
+
 runQ :: (QA a) => Q a -> IO a
 runQ q =
-  bracket getConnection
-          disconnect
-          (\conn -> fromQ conn q)
-
-debugQ :: (QA a) => Q a -> IO ()
-debugQ q =
-  bracket getConnection
-          disconnect
-          (\conn -> (debugSQL conn q) >>= putStrLn)
+  bracket getXConn
+          (return ())
+          (\conn -> fromX100 conn q)
 
 resolveRedirects :: [(Integer,Integer)] -> Map Integer (Maybe RevisionStat) -> [(Integer,Integer)]
 resolveRedirects eds revStatsMap = concatMap func eds
@@ -181,4 +179,4 @@ main = do
   -- writeInvHeader
   -- runInv
   writeHeader
-  mapM_ runDay days -- (take 1 days)
+  (take 1 days)

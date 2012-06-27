@@ -12,14 +12,14 @@ Cabal-version:        >=1.2
 
 Executable dsh-wikipedia
   GHC-options: -Wall -O3
-  Build-depends: base >= 4, containers, parallel, text, HDBC-postgresql, postgresql-simple, DSH, igraph
+  Build-depends: base >= 4, containers, parallel, text, DSH, igraph
   Hs-source-dirs: src
   Main-is: Main.hs
   Other-Modules: Records Wikipedia
 
 Executable dsh-wikipedia-centralities-day
   GHC-options: -Wall -O3 -rtsopts
-  Build-depends: base >= 4, containers, directory, postgresql-simple, igraph
+  Build-depends: base >= 4, containers, directory, igraph
   Hs-source-dirs: src
   Main-is: CentralitiesDay.hs
 
