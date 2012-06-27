@@ -1,0 +1,29 @@
+Name:                 DSH-Spiegel
+Version:              0.1
+Synopsis:             A number of queries formulated using Database Supported Haskell (DSH) on the Spiegel online forum database
+License:              BSD3
+License-file:         LICENSE
+Author:               George Giorgidze and Nils Schweinsberg
+Maintainer:           giorgidze@gmail.com
+Category:             Database
+Build-type:           Simple
+Extra-source-files:   dsc/Simple.pdf, dsc/Involved.pdf, sql/Involved.sql
+Cabal-version:        >=1.2
+
+Executable dsh-spiegel-simple
+  GHC-options: -Wall -O3 -fno-warn-unused-matches
+  Build-depends: base >= 4, text, HDBC-postgresql, DSH
+  Hs-source-dirs: src
+  Main-is: Simple.hs
+
+Executable dsh-spiegel-involved
+  GHC-options: -Wall -O3 -fno-warn-unused-matches
+  Build-depends: base >= 4, text, HDBC-postgresql, DSH
+  Hs-source-dirs: src
+  Main-is: Involved.hs
+
+Executable dsh-spiegel-demo
+  GHC-options: -Wall -O3 -fno-warn-unused-matches
+  Build-depends: base >= 4, text, HDBC-postgresql, DSH
+  Hs-source-dirs: src
+  Main-is: Demo.hs
