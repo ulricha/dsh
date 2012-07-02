@@ -11,24 +11,31 @@ import qualified Data.Text as T
 import qualified Data.List as L
 
 -- Helper Functions and Queries
-{-
-threadPosts :: Q [(Thread,[Post])]
+  
+threadPosts :: Q [(Thread, [Post])]
 threadPosts =
-  [tuple (the thread, post)
-      | thread <- threads
-      , post   <- posts
-      , spiegel_thread_urlQ thread == spiegel_post_thread_urlQ post
-      , then group by (spiegel_thread_urlQ thread) ]
+  let threadsAndPosts = 
+        [ (thread, post)
+        | thread <- threads
+        , post   <- posts
+        , spiegel_thread_urlQ thread == spiegel_post_thread_urlQ post ]
+  in
+   [ (the threads, posts)
+   | postsPerThread <- groupWith (spiegel_thread_urlQ . fst) threadsAndPosts
+   , let (threads, posts) = unzip postsPerThread ]
 
-postQuotes :: Q [(Post,[Quote])]
+postQuotes :: Q [(Post, [Quote])]
 postQuotes =
-  [tuple (the post, quote)
-      | post  <- posts
-      , quote <- quotes
-      , spiegel_post_urlQ post == spiegel_quote_urlQ quote
-      , then group by (spiegel_post_urlQ post)
-  ]
--}
+  let postsAndQuotes =
+        [ (post, quote)
+        | post  <- posts
+        , quote <- quotes
+        , spiegel_post_urlQ post == spiegel_quote_urlQ quote ]
+  in 
+   [ (the posts, quotes)
+   | quotesPerPost <- groupWith (spiegel_post_urlQ . fst) postsAndQuotes
+   , let (posts, quotes) = unzip quotesPerPost ]
+
 -- Given a post url retuns Just post creation time
 -- or Nothing if there is no such post
 postTime :: Q Text -> Q (Maybe Double)
@@ -37,7 +44,6 @@ postTime url = listToMaybe
       | post  <- posts
       , spiegel_post_urlQ post == url
   ]
-
 
 -- The remaining queries are from simple.pdf
 
@@ -99,7 +105,7 @@ avarageDurationBetweenPostAndFirstQuotation :: Q [Double]
 avarageDurationBetweenPostAndFirstQuotation = 
   [ sum durations / integerToDouble (length durations)
       | let durations = map snd durationBetweenPostAndFirstQuotation
-  ]
+ ]
 
 {-
 numberOfQuotesReceivedByEachAuthor :: Q [(Text,Integer)]
