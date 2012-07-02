@@ -48,3 +48,5 @@ Library
                    Language.ParallelLang.VL.X100VectorPrimitives  
                    Language.ParallelLang.VL.Data.DBVector
                    Language.ParallelLang.VL.Data.GraphVector
+                   Language.ParallelLang.VL.Data.VectorLanguage
+                   Language.ParallelLang.VL.VLPrimitives

@@ -9,13 +9,6 @@ import Language.ParallelLang.VL.Data.DBVector
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder()
 
-data PVal = PInt Int
-          | PNat Int
-          | PBool Bool
-          | PString String
-          | PDouble Double
-          | PUnit
-
 -- * Vector primitive constructor functions
 
 class VectorAlgebra a where
