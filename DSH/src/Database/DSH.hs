@@ -28,6 +28,7 @@ module Database.DSH
     -- * Template Haskell: Creating Table Representations
   , generateDatabaseRecordInstances
   , generateTableRecordInstances
+  , generateX100TableRecordInstances
   , generateRecordInstances
   , generateTableDeclarations
 
@@ -42,7 +43,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
+import Database.DSH.TH (generateDatabaseRecordInstances, generateX100TableRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf)
 
 import Database.DSH.CSV

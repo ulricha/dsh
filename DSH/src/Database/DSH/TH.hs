@@ -18,6 +18,7 @@ module Database.DSH.TH
 
     , generateDatabaseRecordInstances
     , generateTableRecordInstances
+    , generateX100TableRecordInstances
     , generateRecordInstances
     , generateTableDeclarations
     ) where
@@ -32,6 +33,7 @@ import Data.Convertible
 import Data.Char
 import Data.List
 import Database.HDBC
+import qualified Database.X100Client as X
 import Data.Text (Text)
 -- import Data.Time (UTCTime)
 import GHC.Exts
@@ -512,6 +514,54 @@ generateTableRecordInstances conn t dname dnames = do
                       _           -> $impossible
 
         in return (mkName n, NotStrict, t')
+
+-- | Lookup a database table, create corresponding Haskell record data types
+-- and generate QA and View instances
+--
+-- Example usage:
+--
+-- > $(generateTableRecordInstances myConnection "users" "User" [''Show,''Eq])
+--
+-- Note that the table information is queried at compile time, not at run time!
+generateX100TableRecordInstances  :: (IO X.X100Info)  -- ^ Database connection
+                                     -> String     -- ^ Table name
+                                     -> String     -- ^ Data type name for each row of the table
+                                     -> [Name]     -- ^ Default deriving instances
+                                     -> TH.Q [Dec]
+generateX100TableRecordInstances conn t dname dnames = do
+    tdesc <- runIO $ do c <- conn
+                        r <- X.describeTable' c t
+                        return r
+    let colInfo = sortWith X.colName $ X.columns tdesc
+    generateRecordInstances (createDataType colInfo)
+
+  where
+    createDataType :: [X.ColumnInfo] -> TH.Q [Dec]
+    createDataType [] = error "ferry: Empty table description"
+    createDataType ds = pure `fmap` dataD dCxt
+                                          dName
+                                          []
+                                          [dCon ds]
+                                          dNames
+
+    dName     = mkName dname
+    dNames    = dnames
+
+    dCxt      = return []
+    dCon desc = recC dName (map toVarStrictType desc)
+
+    -- no support for nullable columns yet:
+    -- convert LogicalType -> Type
+    toVarStrictType colInfo =
+        let t' = case convert $ X.logicalType colInfo of
+                      IntegerT    -> ConT ''Integer
+                      BoolT       -> ConT ''Bool
+                      CharT       -> ConT ''Char
+                      DoubleT     -> ConT ''Double
+                      TextT       -> ConT ''Text
+                      _           -> $impossible
+
+        in return (mkName $ X.colName colInfo, NotStrict, t')
 
 
 -- | Derive QA and View instances for record definitions

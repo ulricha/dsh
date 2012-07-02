@@ -19,6 +19,7 @@ import Database.DSH.Impossible
 import Data.Convertible
 import Data.Typeable
 import Database.HDBC
+import Database.X100Client
 import Data.Generics hiding (Generic)
 import Data.Text(Text)
 import qualified Data.Text as T
@@ -626,3 +627,24 @@ instance Convertible Norm SqlValue where
 
 instance IsString (Q Text) where
   fromString s = Q (TextE (T.pack s) TextT)
+  
+instance Convertible LType Type where
+  safeConvert t =
+    case t of
+      LBool                 -> Right $ BoolT
+      LInt1                 -> Right $ IntegerT
+      LUInt1                -> Right $ IntegerT
+      LInt2                 -> Right $ IntegerT
+      LUInt2                -> Right $ IntegerT
+      LInt4                 -> Right $ IntegerT
+      LUInt4                -> Right $ IntegerT
+      LInt8                 -> Right $ IntegerT
+      LUInt8                -> Right $ IntegerT
+      LInt16                -> Right $ IntegerT
+      LUIDX                 -> Right $ IntegerT
+      LDec                  -> Right $ DoubleT
+      LFlt4                 -> Right $ DoubleT
+      LFlt8                 -> Right $ DoubleT
+      LChar                 -> Right $ TextT -- FIXME TextT or CharT
+      LVChar                -> Right $ TextT
+      _                     -> $impossible
