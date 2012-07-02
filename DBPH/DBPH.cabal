@@ -50,3 +50,4 @@ Library
                    Language.ParallelLang.VL.Data.GraphVector
                    Language.ParallelLang.VL.Data.VectorLanguage
                    Language.ParallelLang.VL.VLPrimitives
+                   Language.ParallelLang.VL.Render.Dot
