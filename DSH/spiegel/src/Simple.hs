@@ -1,9 +1,11 @@
-{-# LANGUAGE OverloadedStrings, MonadComprehensions, RebindableSyntax #-}
+{-# LANGUAGE OverloadedStrings, MonadComprehensions, RebindableSyntax, ViewPatterns #-}
 
 module Main where
 
-import Prelude()
+import qualified Prelude as P
 import Database.DSH
+import Database.DSH.Flattening
+import Database.X100Client
 
 import Records
 
@@ -15,26 +17,26 @@ import qualified Data.List as L
 threadPosts :: Q [(Thread, [Post])]
 threadPosts =
   let threadsAndPosts = 
-        [ (thread, post)
+        [ tuple (thread, post)
         | thread <- threads
         , post   <- posts
         , spiegel_thread_urlQ thread == spiegel_post_thread_urlQ post ]
   in
-   [ (the threads, posts)
+   [ tuple (the ts, ps)
    | postsPerThread <- groupWith (spiegel_thread_urlQ . fst) threadsAndPosts
-   , let (threads, posts) = unzip postsPerThread ]
+   , let (view -> (ts, ps)) = unzip postsPerThread ]
 
 postQuotes :: Q [(Post, [Quote])]
 postQuotes =
   let postsAndQuotes =
-        [ (post, quote)
+        [ tuple (post, quote)
         | post  <- posts
         , quote <- quotes
         , spiegel_post_urlQ post == spiegel_quote_urlQ quote ]
   in 
-   [ (the posts, quotes)
+   [ tuple (the posts, quotes)
    | quotesPerPost <- groupWith (spiegel_post_urlQ . fst) postsAndQuotes
-   , let (posts, quotes) = unzip quotesPerPost ]
+   , let (view -> (posts, quotes)) = unzip quotesPerPost ]
 
 -- Given a post url retuns Just post creation time
 -- or Nothing if there is no such post
@@ -53,20 +55,18 @@ postTime url = listToMaybe
 numberOfPostsWithinEachThread :: Q [(Text,Integer)]
 numberOfPostsWithinEachThread =
   [ tuple (spiegel_thread_urlQ thread, length posts)
-      | (thread,posts) <- threadPosts
-  ]
+  | (view -> (thread, posts)) <- threadPosts ]
 
 -- Content lengths are calculated outside the database
 lengthOfEachPost :: Q [(Text,Text)]
 lengthOfEachPost =
   [ tuple (spiegel_post_urlQ p, spiegel_post_contentQ p)
-      | p <- posts
-  ]
+  | p <- posts ]
 
 numberOfDifferentAuthorsThatContributedToEachThread :: Q [(Text,Integer)]
 numberOfDifferentAuthorsThatContributedToEachThread = 
   [ tuple (spiegel_thread_urlQ thread, length (nub userUrls))
-      | (thread,posts) <- threadPosts
+      | (view -> (thread,posts)) <- threadPosts
       , let userUrls = map spiegel_post_user_urlQ posts
   ]
 
@@ -76,7 +76,7 @@ numberOfDifferentAuthorsThatContributedToEachThread =
 densityOfPostsWithinEachThread :: Q [(Text,Double)]
 densityOfPostsWithinEachThread =
   [tuple (spiegel_thread_urlQ thread, density)
-      | (thread,posts) <- threadPosts
+      | (view -> (thread, posts)) <- threadPosts
       , let numberOfPosts = integerToDouble (length posts)
       , let postTimes     = map spiegel_post_timeQ posts
       , let firstPostTime = minimum postTimes
@@ -88,13 +88,13 @@ densityOfPostsWithinEachThread =
 numberOfQuotesForEachPost :: Q [(Text,Integer)]
 numberOfQuotesForEachPost =
   [ tuple (spiegel_post_urlQ post, length quotes)
-      | (post,quotes) <- postQuotes
+      | (view -> (post,quotes)) <- postQuotes
   ]
 
 durationBetweenPostAndFirstQuotation :: Q [(Text,Double)]
 durationBetweenPostAndFirstQuotation = 
   [ tuple (spiegel_post_urlQ post, duration)
-      | (post,quotes) <- postQuotes
+      | (view -> (post, quotes)) <- postQuotes
       , let quotingPostUrls = map spiegel_quote_post_urlQ quotes
       , let quotingPostTimes = mapMaybe postTime quotingPostUrls
       , let firstQuoteTime = minimum quotingPostTimes
@@ -117,7 +117,25 @@ numberOfQuotesReceivedByEachAuthor =
       , then group by postAuthor
   ]
 -}
+  
+  {-
+numberOfQuotesReceivedByEachAuthor :: Q [(Text, Integer)]
+numberOfQuotesReceivedByEachAuthor =
+  [ foo 
+  | (post, quotes) <- postQuotes
+  , let quoteNumber = length quotes
+  ,  foo
+-}
 
+getConn :: IO X100Info
+getConn = P.return $ x100Info "localhost" "48130" Nothing
+
+main :: IO ()
+main = getConn 
+       P.>>= (\conn -> debugX100 conn numberOfDifferentAuthorsThatContributedToEachThread)
+       P.>>= (\res -> putStrLn $ P.show res)
+
+{-
 main :: IO ()
 main = do
   runQ numberOfPostsWithinEachThread
@@ -139,3 +157,4 @@ main = do
   let f :: [(Text,Text)] -> [(Text,Integer)]
       f = L.map (\(u,c) -> (u,fromIntegral (T.length c)))
   csvExport "lengthOfEachPost.csv" (f r)
+-}
