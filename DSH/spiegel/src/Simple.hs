@@ -9,9 +9,6 @@ import Database.X100Client
 
 import Records
 
-import qualified Data.Text as T
-import qualified Data.List as L
-
 -- Helper Functions and Queries
   
 threadPosts :: Q [(Thread, [Post])]
@@ -132,7 +129,8 @@ getConn = P.return $ x100Info "localhost" "48130" Nothing
 
 main :: IO ()
 main = getConn 
-       P.>>= (\conn -> debugX100 conn numberOfDifferentAuthorsThatContributedToEachThread)
+       -- P.>>= (\conn -> debugX100 conn numberOfDifferentAuthorsThatContributedToEachThread)
+       P.>>= (\conn -> debugX100 conn threadPosts)
        P.>>= (\res -> putStrLn $ P.show res)
 
 {-
