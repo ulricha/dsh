@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes, GADTs, TypeSynonymInstances, FlexibleInstances #-}
 module Language.ParallelLang.VL.Data.VectorLanguage where
 
 import Language.ParallelLang.VL.Data.DBVector
@@ -6,7 +6,9 @@ import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Type
 import Language.ParallelLang.FKL.Data.FKL(TypedColumn, Key)
 
-import Database.Algebra.Dag.Common
+import Database.Algebra.Dag.Common as C
+import Database.Algebra.Dag (Operator(..))
+import Database.Algebra.Aux
 
 type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
@@ -64,3 +66,17 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
     
 data TerOp = CombineVec  -- (DBV, RenameVector, RenameVector)
     deriving (Eq, Ord)
+    
+instance Operator VL where
+    opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]
+    opChildren (C.BinOp _ c1 c2) = [c1, c2]
+    opChildren (UnOp _ c) = [c]
+    opChildren (NullaryOp _) = []
+
+    replaceOpChild oper old new = replaceChild old new oper
+     where
+         replaceChild :: forall t b u n c. Eq c => c -> c -> Algebra t b u n c -> Algebra t b u n c
+         replaceChild o n (TerOp op c1 c2 c3) = TerOp op (replace o n c1) (replace o n c2) (replace o n c3)
+         replaceChild o n (C.BinOp op c1 c2) = C.BinOp op (replace o n c1) (replace o n c2)
+         replaceChild o n (UnOp op c) = UnOp op (replace o n c)
+         replaceChild _ _ (NullaryOp op) = NullaryOp op

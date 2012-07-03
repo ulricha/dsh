@@ -4,14 +4,14 @@ import qualified Data.Map as Map
 import Data.List
 
 import Text.PrettyPrint
-import Language.ParallelLang.VL.Data.VectorLanguage
+import Language.ParallelLang.VL.Data.VectorLanguage as V
 
 import Language.ParallelLang.Common.Data.Type
-import Database.Algebra.Dag.Common
+import Database.Algebra.Dag.Common as C
 import qualified Database.Algebra.Dag as Dag
--- import Database.Algebra.X100.Data
--- import Database.Algebra.X100.Render.Common
-{-
+import Language.ParallelLang.FKL.Data.FKL (Key, TypedColumn)
+import Language.ParallelLang.VL.Data.DBVector
+
 nodeToDoc :: AlgNode -> Doc
 nodeToDoc n = (text "id:") <+> (int n)
 
@@ -21,19 +21,8 @@ tagsToDoc ts = vcat $ map text ts
 labelToDoc :: AlgNode -> String -> Doc -> [Tag] -> Doc
 labelToDoc n s as ts = (nodeToDoc n) $$ ((text s) <> (parens as)) $$ (tagsToDoc $ nub ts)
 
-renderJoinArgs :: [(ColID, ColID)] -> Doc
-renderJoinArgs cols = 
-    let (k1, k2) = unzip cols
-    in bracketList renderColID k1 <> comma <+> bracketList renderColID k2
-
 lookupTags :: AlgNode -> NodeMap [Tag] -> [Tag]
 lookupTags n m = Map.findWithDefault [] n m
--}
-
-renderColumnTypes :: [Type] -> Doc
-renderColumnTypes [x] = renderColumnType
-renderColumnTypes (x:xs) = renderColumnType x <> comma <+> renderColumnTypes xs
-renderColumnTypes [] = text "NOTYPE"
 
 renderColumnType :: Type -> Doc
 renderColumnType = text . show
@@ -63,102 +52,78 @@ escape [] = []
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
+renderTableType :: TypedColumn -> Doc
+renderTableType (c, t) = text c <> text "::" <> renderColumnType t
+
+renderTableKeys :: [Key] -> Doc
+renderTableKeys [x] = renderTableKey x
+renderTableKeys (x:xs) = renderTableKey x $$ renderTableKeys xs
+renderTableKeys [] = text "NOKEY"
+
+renderTableKey :: Key -> Doc
+renderTableKey [x] = text x
+renderTableKey (x:xs) = text x <> comma <+> renderTableKey xs
+renderTableKey [] = text "NOKEY"
+
+
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
 opDotLabel tm i (NullaryOp (ConstructLiteralValue tys vals)) = labelToDoc i "ConstructLiteralValue" 
-    (bracketList renderColumnTypes tys <> comma
-    $$ renderData [d]) (lookupTags i tm)
+    (bracketList renderColumnType tys <> comma
+    $$ renderData [vals]) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (ConstructLiteralTable tys vals)) = labelToDoc i "ConstructLiteralValue" 
-        (bracketList renderColumnTypes tys <> comma
-        $$ renderData d) (lookupTags i tm)
+        (bracketList renderColumnType tys <> comma
+        $$ renderData vals) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef n tys ks)) = labelToDoc i "TableRef"
-        (quotes (text n) <> comma <+> bracketList renderScanColumn cols <> comma $$ renderTableKeys ks)
+        (quotes (text n) <> comma <+> bracketList renderTableType tys <> comma $$ renderTableKeys ks)
         (lookupTags i tm)
-        
-        
-opDotLabel tm i (ProjectL info) = 
-     labelToDoc i "Project" (bracketList renderProj info) (lookupTags i tm)
-opDotLabel tm i (AggrL (ks, as)) = 
-     labelToDoc i "Aggr" ((bracketList renderColID ks) <> comma <+> (bracketList renderAggregation as)) (lookupTags i tm)
-opDotLabel tm i (OrdAggrL (ks, as)) = 
-     labelToDoc i "OrdAggr" ((bracketList renderColID ks) <> comma <+> (bracketList renderAggregation as)) (lookupTags i tm)
-opDotLabel tm i (UnionL) =
-     labelToDoc i "Union" empty (lookupTags i tm)
-opDotLabel tm i (InlineLoadL (c, d)) =
-    labelToDoc i "InlineLoad"
-    (bracketList renderColumnName c <> comma
-     $$ renderData d <> comma
-     $$ quotes comma <> comma
-     <+> quotes semi <> comma
-     <+> quotes (text "\"") <> comma
-     <+> quotes (text "\\"))
-    (lookupTags i tm)
-opDotLabel tm i (SelectL info) =
-     labelToDoc i "Select" (renderExpr info) (lookupTags i tm)
-opDotLabel tm i (MergeUnionL info) =
-     labelToDoc i "MergeUnion" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (MergeDiffL info) =
-     labelToDoc i "MergeDiff" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (MergeJoin1L info) =
-     labelToDoc i "MergeJoin1" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (MergeJoinNL info) =
-     labelToDoc i "MergeJoinN" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (HashJoin01L info) = 
-     labelToDoc i "HashJoin01" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (HashJoin1L info) = 
-     labelToDoc i "HashJoin1" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (HashJoinNL info) = 
-     labelToDoc i "HashJoinN" (renderJoinArgs info) (lookupTags i tm)
-opDotLabel tm i (StableSortL info) = 
-     labelToDoc i "StableSort" (bracketList renderSortCol info) (lookupTags i tm)
-opDotLabel tm i (SortL info) = 
-     labelToDoc i "Sort" (bracketList renderSortCol info) (lookupTags i tm)
-opDotLabel tm i (CartProdL (Just card)) = 
-     labelToDoc i "Cartprod" (int card) (lookupTags i tm)
-opDotLabel tm i (CartProdL Nothing) = 
-     labelToDoc i "Cartprod" empty (lookupTags i tm)
-opDotLabel tm i (FlowMatL) =  labelToDoc i "FlowMat" empty (lookupTags i tm)
-opDotLabel tm i (MScanL (t, cols, keys)) =
-     labelToDoc i "MScan" (renderTableName t <> comma <+> bracketList renderScanColumn cols <> comma $$ renderTableKeys keys) (lookupTags i tm)
-opDotLabel tm i (AppendL info) =
-     labelToDoc i "Append" (renderTableName info) (lookupTags i tm)
-opDotLabel tm i NullOpL =
-     labelToDoc i "NullOp" empty (lookupTags i tm) 
-opDotLabel tm i (ReuseL label) =
-     labelToDoc i "Reuse" (text label) (lookupTags i tm)
-{-
-simpleProj :: Proj -> Bool
-simpleProj (ExprProj _ (Column _)) = True
-simpleProj (ExprProj _ _) = False
-simpleProj (ColProj _) = True
+opDotLabel tm i (UnOp Unique _) = labelToDoc i "Unique" empty (lookupTags i tm)        
+opDotLabel tm i (UnOp UniqueL _) = labelToDoc i "UniqueL" empty (lookupTags i tm)
+opDotLabel tm i (UnOp NotPrim _) = labelToDoc i "NotPrim" empty (lookupTags i tm)
+opDotLabel tm i (UnOp NotVec _) = labelToDoc i "NotVec" empty (lookupTags i tm)
+opDotLabel tm i (UnOp LengthA _) = labelToDoc i "LengthA" empty (lookupTags i tm)
+opDotLabel tm i (UnOp DescToRename _) = labelToDoc i "DescToRename" empty (lookupTags i tm)
+opDotLabel tm i (UnOp ToDescr _) = labelToDoc i "ToDescr" empty (lookupTags i tm)
+opDotLabel tm i (UnOp Segment _) = labelToDoc i "Segment" empty (lookupTags i tm)
+opDotLabel tm i (UnOp (VecSum t) _) = labelToDoc i "VecSum" (renderColumnType t) (lookupTags i tm)
+opDotLabel tm i (UnOp VecMin _) = labelToDoc i "VecMin" empty (lookupTags i tm)
+opDotLabel tm i (UnOp VecMinL _) = labelToDoc i "VecMinL" empty (lookupTags i tm)
+opDotLabel tm i (UnOp VecMax _) = labelToDoc i "VecMax" empty (lookupTags i tm)
+opDotLabel tm i (UnOp VecMaxL _) = labelToDoc i "VecMaxL" empty (lookupTags i tm)
+opDotLabel tm i (UnOp (ProjectL cols) _) = labelToDoc i "ProjectL" (bracketList (text . show) cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (ProjectA cols) _) = labelToDoc i "ProjectA" (bracketList (text . show) cols) (lookupTags i tm)
+opDotLabel tm i (UnOp IntegerToDoubleA _) = labelToDoc i "IntegerToDoubleA" empty (lookupTags i tm)
+opDotLabel tm i (UnOp IntegerToDoubleL _) = labelToDoc i "IntegerToDoubleL" empty (lookupTags i tm)
+opDotLabel tm i (UnOp ReverseA _) = labelToDoc i "ReverseA" empty (lookupTags i tm)
+opDotLabel tm i (UnOp ReverseL _) = labelToDoc i "ReverseL" empty (lookupTags i tm)
+opDotLabel tm i (UnOp FalsePositions _) = labelToDoc i "FalsePositions" empty (lookupTags i tm)
+opDotLabel tm i (UnOp R1 _) = labelToDoc i "R1" empty (lookupTags i tm)
+opDotLabel tm i (UnOp R2 _) = labelToDoc i "R2" empty (lookupTags i tm)
+opDotLabel tm i (UnOp R3 _) = labelToDoc i "R3" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp SortWith _ _) = labelToDoc i "SortWith" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp LengthSeg _ _) = labelToDoc i "LengthSeg" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp DistPrim _ _) = labelToDoc i "DistPrim" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp DistDesc _ _) = labelToDoc i "DistDesc" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp DistLift _ _) = labelToDoc i "DistLift" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp PropRename _ _) = labelToDoc i "PropRename" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp PropFilter _ _) = labelToDoc i "PropFilter" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp PropReorder _ _) = labelToDoc i "PropReorder" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp RestrictVec _ _) = labelToDoc i "RestrictVec" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp (V.BinOp o) _ _) = labelToDoc i "BinOp" (text $ show o) (lookupTags i tm)
+opDotLabel tm i (C.BinOp (BinOpL o) _ _) = labelToDoc i "BinOpL" (text $ show o) (lookupTags i tm)
+opDotLabel tm i (C.BinOp VecSumL _ _) = labelToDoc i "VecSumL" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)
+opDotLabel tm i (C.BinOp (SelectPosL o) _ _) = labelToDoc i "GroupBy" (text $ show o) (lookupTags i tm)
+opDotLabel tm i (C.BinOp PairA _ _) = labelToDoc i "PairA" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp PairL _ _) = labelToDoc i "PairL" empty (lookupTags i tm)
+opDotLabel tm i (C.BinOp ZipL _ _) = labelToDoc i "ZipL" empty (lookupTags i tm)
+opDotLabel tm i (TerOp CombineVec _ _ _) = labelToDoc i "CombineVec" empty (lookupTags i tm)
 
-opDotColor :: X100Label -> DotColor
-opDotColor (ProjectL ps) = 
-  if all simpleProj ps
-  then Gray
-  else LightSkyBlue
-opDotColor (AggrL _) = Tomato
-opDotColor (OrdAggrL _) = Salmon
-opDotColor (UnionL) = Gray
-opDotColor (InlineLoadL _) = DimGray
-opDotColor (SelectL _) = Gold
-opDotColor (MergeUnionL _) = Tan
-opDotColor (MergeJoin1L _) = Tan
-opDotColor (MergeJoinNL _) = Tan
-opDotColor (MergeDiffL _) = Tan
-opDotColor (StableSortL _) = Red
-opDotColor (SortL _) = Red
-opDotColor (CartProdL _) = Crimson
-opDotColor (HashJoin01L _) = Green
-opDotColor (HashJoin1L _) = Green
-opDotColor (HashJoinNL _) = Green
-opDotColor (FlowMatL) = DimGray
-opDotColor (MScanL _) = Gray
-opDotColor (AppendL _) = Sienna
-opDotColor NullOpL = Beige
-opDotColor (ReuseL _) = DodgerBlue
--}
+opDotColor :: VL -> DotColor
+opDotColor _ = Gray
 -- Dot colors
 data DotColor = Tomato
               | Salmon
@@ -188,7 +153,7 @@ renderColor Sienna = text "sienna"
 renderColor Beige = text "beige"
 renderColor DodgerBlue = text "dodgerblue"
 renderColor LightSkyBlue = text "lightskyblue"
-{-
+
 escapeLabel :: String -> String
 escapeLabel s = concatMap escapeChar s
 
@@ -197,7 +162,7 @@ escapeChar '\n' = ['\\', 'n']
 escapeChar '\\' = ['\\', '\\']
 escapeChar '\"' = ['\\', '"']
 escapeChar c = [c]
--}
+
 -- Type of Dot style options
 data DotStyle = Solid
 
@@ -256,12 +221,11 @@ constructDotEdge :: (AlgNode, AlgNode) -> DotEdge
 constructDotEdge = uncurry DotEdge
 
 -- | extract the operator descriptions and list of edges from a DAG
-extractGraphStructure :: Dag.Operator a => Dag.AlgebraDag a 
+extractGraphStructure :: Dag.AlgebraDag VL 
                      -> ([(AlgNode, VL)], [(AlgNode, AlgNode)])
-extractGraphStructure toLabel d = (labels, childs)
+extractGraphStructure d = (operators, childs)
     where nodes = Dag.topsort d
           operators = zip nodes $ map (flip Dag.operator d) nodes
-          labels = map (\(n, op) -> (n, toLabel op)) operators
           childs = concat $ map (\(n, op) -> zip (repeat n) (Dag.opChildren op)) operators
 
 -- | Render an VL plan into a dot file (GraphViz).
@@ -274,17 +238,3 @@ renderVLDot ts roots m = render $ renderDot dotNodes dotEdges
                       Nothing  -> d
           dotNodes = map (constructDotNode roots ts) opLabels
           dotEdges = map constructDotEdge edges
-
-{-
-tagOfLink :: X100ReuseAlgebra -> Maybe [Tag]
-tagOfLink (BinOp _ (Label ll) (Label lr)) = Just ["Label: Left = " ++ ll ++ "Right = " ++ lr]
-tagOfLink (BinOp _ (Label l) _)           = Just ["Label: Left = " ++ l]
-tagOfLink (BinOp _ _ (Label l))           = Just ["Label: Right = " ++ l]
-tagOfLink (UnOp _ (Label l))              = Just ["Label: " ++ l]
-tagOfLink _                               = Nothing
-
-addLinkLabels :: NodeMap [Tag] -> NodeMap X100ReuseAlgebra -> NodeMap [Tag]
-addLinkLabels ts ops = Map.unionWith (++) ts $ Map.foldrWithKey (\n o m -> case tagOfLink o of
-                                                                    Just t -> Map.insert n t m
-                                                                    Nothing -> m) Map.empty ops
--}
