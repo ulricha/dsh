@@ -20,7 +20,10 @@ Library
                       TableAlgebra >= 2.0.0,
                       Pathfinder >= 0.5.7,
                       HaXml >= 1.22,
-                      X100Client >= 0.0.2
+                      X100Client >= 0.0.2,
+                      aeson >= 0.6,
+                      bytestring >= 0.9,
+                      ghc-prim
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-orphans -Werror
@@ -51,3 +54,4 @@ Library
                    Language.ParallelLang.VL.Data.VectorLanguage
                    Language.ParallelLang.VL.VLPrimitives
                    Language.ParallelLang.VL.Render.Dot
+                   Language.ParallelLang.VL.Render.JSON

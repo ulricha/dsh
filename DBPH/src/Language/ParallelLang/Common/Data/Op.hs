@@ -1,7 +1,9 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Language.ParallelLang.Common.Data.Op where
 
+import GHC.Generics (Generic) 
 data Op = Op Oper Bool
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
     
 data Oper = Add 
         | Sub 
@@ -16,7 +18,7 @@ data Oper = Add
         | Cons 
         | Conj 
         | Disj 
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
     
 instance Show Oper where
     show Add = "+"

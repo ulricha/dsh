@@ -1,10 +1,12 @@
 %if False
 \begin{code}
-{-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses, DeriveGeneric #-}
 module Language.ParallelLang.Common.Data.Type 
  (isNum, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
 where
-    
+
+import GHC.Generics (Generic)
+  
 instance Show Type where 
     show (Var v) = v
     show (Fn t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
@@ -38,7 +40,7 @@ data Type  =  Fn Type Type
 %}
 %if False
 \begin{code}
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
 
 infixr 6 .->
 

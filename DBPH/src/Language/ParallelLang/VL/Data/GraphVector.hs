@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Language.ParallelLang.VL.Data.GraphVector where
 
 import Language.ParallelLang.VL.Data.DBVector
@@ -5,19 +6,21 @@ import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.FKL.Render.Render()
 import Language.ParallelLang.FKL.Data.FKL hiding (Pair)
 
+import GHC.Generics (Generic)
+
 type Graph a = GraphM Plan a
 
 data Layout = InColumn Int
             | Nest DBV Layout
             | Pair Layout Layout
-    deriving Show
+    deriving (Show, Generic)
 
 data Plan =
          ValueVector DBV Layout
        | PrimVal DBP Layout
        | Closure String [(String, Plan)] String Expr Expr
        | AClosure String Plan Int [(String, Plan)] String Expr Expr
-     deriving Show
+     deriving (Show, Generic)
 
 rootNodes :: Plan -> [AlgNode]
 rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt

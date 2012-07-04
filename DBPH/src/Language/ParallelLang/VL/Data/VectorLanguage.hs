@@ -1,10 +1,12 @@
-{-# LANGUAGE RankNTypes, GADTs, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE RankNTypes, GADTs, TypeSynonymInstances, FlexibleInstances, DeriveGeneric #-}
 module Language.ParallelLang.VL.Data.VectorLanguage where
 
 import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Type
 import Language.ParallelLang.FKL.Data.FKL(TypedColumn, Key)
+
+import GHC.Generics (Generic)
 
 import Database.Algebra.Dag.Common as C
 import Database.Algebra.Dag (Operator(..))
@@ -16,7 +18,7 @@ data NullOp = SingletonDescr
             | ConstructLiteralValue [Type] [PVal]
             | ConstructLiteralTable [Type] [[PVal]]
             | TableRef String [TypedColumn] [Key]
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
 
 data UnOp = Unique
           | UniqueL
@@ -41,7 +43,7 @@ data UnOp = Unique
           | R1 
           | R2
           | R3
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
 
 data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | SortWith   -- (DBV, PropVector)
@@ -62,10 +64,10 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | PairA
            | PairL
            | ZipL       -- (DBV, RenameVector, RenameVector)
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
     
 data TerOp = CombineVec  -- (DBV, RenameVector, RenameVector)
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Generic)
 
 instance Operator VL where
     opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]
