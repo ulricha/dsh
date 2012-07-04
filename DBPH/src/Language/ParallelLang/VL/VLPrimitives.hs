@@ -23,6 +23,9 @@ prop = fmap PropVector
 rename :: GraphM r a AlgNode -> GraphM r a RenameVector
 rename = fmap RenameVector
 
+emptyVL :: VL
+emptyVL = NullaryOp $ TableRef "Null" [] []
+
 instance VectorAlgebra VL where
     -- unique :: DBV -> GraphM r a DBV
     unique (DBV c _) = dbv $ insertNode $ UnOp Unique c

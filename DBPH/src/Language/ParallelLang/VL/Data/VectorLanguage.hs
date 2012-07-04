@@ -66,7 +66,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
     
 data TerOp = CombineVec  -- (DBV, RenameVector, RenameVector)
     deriving (Eq, Ord)
-    
+
 instance Operator VL where
     opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]
     opChildren (C.BinOp _ c1 c2) = [c1, c2]

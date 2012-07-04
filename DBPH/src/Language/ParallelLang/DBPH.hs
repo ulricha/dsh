@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File, nkl2Dot) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
@@ -36,4 +36,6 @@ nkl2Vec' e = runTransform $
 
 nkl2fkl :: NKL.Expr -> String
 nkl2fkl e = show $ runTransform $ flatTransform e
-                 
+
+nkl2Dot :: NKL.Expr -> String
+nkl2Dot e = toVecDot $ runTransform $ flatTransform e                  
