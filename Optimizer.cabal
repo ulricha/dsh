@@ -39,3 +39,10 @@ Executable x100opt
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
   GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices
+
+Executable vlopt
+  Hs-Source-Dirs:   src
+  Main-Is: Optimizer/VL/Tools/Opt.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices
