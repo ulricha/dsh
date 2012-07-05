@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec, TupleSections #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File, toVec, toVecDot) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File, toVec, toVecDot, toVecJSON) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -9,6 +9,7 @@ import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.JSON
 import Database.Algebra.X100.Render
+import Language.ParallelLang.VL.Render.JSON
 
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 
@@ -143,6 +144,10 @@ toVec e = runGraph emptyVL (fkl2Alg e)
 toVecDot :: Expr -> String
 toVecDot e = let (gr,p,ts) = toVec e
              in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
+             
+toVecJSON :: Expr -> String
+toVecJSON e = let p = toVec e
+               in serialisePlan p
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do

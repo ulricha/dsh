@@ -1,7 +1,7 @@
 module Language.ParallelLang.VL.Render.JSON where
 
 import Database.Algebra.Dag.Builder
-import Database.Algebra.Dag.Common()
+import Database.Algebra.Dag.Common
 
 import Language.ParallelLang.VL.Data.DBVector
 import Language.ParallelLang.VL.Data.VectorLanguage
@@ -33,9 +33,10 @@ instance ToJSON Prim2 where
 instance ToJSON Prim3 where
 instance ToJSON Op where
 instance ToJSON Val where
+instance (ToJSON t, ToJSON b, ToJSON u, ToJSON n, ToJSON c) => ToJSON (Algebra t b u n c) where
     
-serialisePlan :: AlgPlan VL Plan -> BL.ByteString
-serialisePlan (m, p, _) = encode (p, M.toList $ reverseAlgMap m)
+serialisePlan :: AlgPlan VL Plan -> String
+serialisePlan (m, p, _) = BL.unpack $ encode (p, M.toList $ reverseAlgMap m)
 
 
     
