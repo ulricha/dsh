@@ -9,12 +9,12 @@ import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.JSON
 import Database.Algebra.X100.Render
-import Language.ParallelLang.VL.Render.JSON
+import qualified Database.Algebra.VL.Data as D
+import Database.Algebra.VL.Render.Dot
+import Database.Algebra.VL.Render.JSON
 
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 
-import Language.ParallelLang.VL.Data.VectorLanguage(VL())
-import Language.ParallelLang.VL.Render.Dot 
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Language.ParallelLang.VL.VLPrimitives
@@ -22,7 +22,8 @@ import Language.ParallelLang.VL.X100VectorPrimitives()
 import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.Common.Data.Op
+import qualified Language.ParallelLang.FKL.Data.FKL as FKL
+import qualified Language.ParallelLang.Common.Data.Op as Op
 import Language.ParallelLang.VL.Data.GraphVector hiding (Pair)
 import qualified Language.ParallelLang.VL.Data.GraphVector as Vec
 import Language.ParallelLang.VL.Data.DBVector
@@ -39,10 +40,10 @@ fkl2Alg :: (VectorAlgebra a) => Expr -> Graph a Plan
 fkl2Alg (Table _ n cs ks) = dbTable n cs ks
 --FIXME
 fkl2Alg (Const t v) = mkLiteral t v
-fkl2Alg (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
-fkl2Alg (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
-fkl2Alg (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2Alg e1; (PrimVal p2 _) <- fkl2Alg e2; p <- binOp o p1 p2; return $ PrimVal p lyt}
-fkl2Alg (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2Alg e1; (ValueVector p2 _) <- fkl2Alg e2; p <- binOpL o p1 p2; return $ ValueVector p lyt} 
+fkl2Alg (BinOp _ (Op.Op Op.Cons False) e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; cons e1' e2'}
+fkl2Alg (BinOp _ (Op.Op Op.Cons True)  e1 e2) = do {e1' <- fkl2Alg e1; e2' <- fkl2Alg e2; consLift e1' e2'}
+fkl2Alg (BinOp _ (Op.Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2Alg e1; (PrimVal p2 _) <- fkl2Alg e2; p <- binOp o p1 p2; return $ PrimVal p lyt}
+fkl2Alg (BinOp _ (Op.Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2Alg e1; (ValueVector p2 _) <- fkl2Alg e2; p <- binOpL o p1 p2; return $ ValueVector p lyt} 
 fkl2Alg (If _ eb e1 e2) = do 
                           eb' <- fkl2Alg eb
                           e1' <- fkl2Alg e1
@@ -56,8 +57,8 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (SumL _) -> sumLift
                                            (The _) -> the
                                            (TheL _) -> theL
-                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> notPrim v)
-                                           (NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> notVec v)
+                                           (FKL.NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> notPrim v)
+                                           (FKL.NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> notVec v)
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL
@@ -67,12 +68,12 @@ fkl2Alg (PApp1 t f arg) = fkl2Alg arg >>= case f of
                                            (MinimumL _) -> minLift
                                            (Maximum _)  -> maxPrim
                                            (MaximumL _) -> maxLift
-                                           (IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> integerToDoubleA v)
-                                           (IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> integerToDoubleL v)
+                                           (FKL.IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> integerToDoubleA v)
+                                           (FKL.IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> integerToDoubleL v)
                                            (Tail _) -> tailS
                                            (TailL _) -> tailL
-                                           (Reverse _) -> reversePrim
-                                           (ReverseL _) -> reverseLift
+                                           (FKL.Reverse _) -> reversePrim
+                                           (FKL.ReverseL _) -> reverseLift
                                            (And _) -> andPrim
                                            (AndL _) -> andLift
                                            (Or _) -> orPrim
@@ -94,18 +95,18 @@ fkl2Alg (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2Alg arg1) (fkl2Alg arg2) >>= unc
                 (SortWithL _) -> sortWithL
                 (Restrict _) -> restrict
                 (Unconcat _) -> unconcatV
-                (Pair _) -> pairOp
-                (PairL _) -> pairOpL
-                (Append _) -> appendPrim
-                (AppendL _) -> appendLift
+                (FKL.Pair _) -> pairOp
+                (FKL.PairL _) -> pairOpL
+                (FKL.Append _) -> appendPrim
+                (FKL.AppendL _) -> appendLift
                 (Index _) -> indexPrim
                 (IndexL _) -> indexLift
                 (Take _) -> takePrim
                 (TakeL _) -> takeLift
                 (Drop _) -> dropPrim
                 (DropL _) -> dropLift
-                (Zip _) -> zipPrim
-                (ZipL _) -> zipLift
+                (FKL.Zip _) -> zipPrim
+                (FKL.ZipL _) -> zipLift
                 (TakeWithS _) -> takeWithS
                 (TakeWithL _) -> takeWithL
                 (DropWithS _) -> dropWithS
@@ -138,7 +139,7 @@ toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 toX100Algebra :: Expr -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
-toVec :: Expr -> AlgPlan VL Plan
+toVec :: Expr -> AlgPlan D.VL Plan
 toVec e = runGraph emptyVL (fkl2Alg e)
 
 toVecDot :: Expr -> String
@@ -146,8 +147,9 @@ toVecDot e = let (gr,p,ts) = toVec e
              in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
              
 toVecJSON :: Expr -> String
-toVecJSON e = let p = toVec e
-               in serialisePlan p
+--toVecJSON = undefined
+toVecJSON e = let (gr,p,ts) = toVec e
+              in renderVLJSON ts (rootNodes p) (reverseAlgMap gr)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
