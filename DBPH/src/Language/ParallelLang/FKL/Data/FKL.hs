@@ -1,8 +1,11 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Language.ParallelLang.FKL.Data.FKL where
 
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val(Val())
 import Language.ParallelLang.Common.Data.Type(Typed, typeOf, Type)
+
+import GHC.Generics (Generic)
 
 type DataColumn = String 
 
@@ -23,7 +26,7 @@ data Expr = Table   Type String [TypedColumn] [Key]
           | Var     Type String  -- | Variable lifted to level i
           | Clo     Type String [String] String Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
           | AClo    Type String [String] String Expr Expr
-    deriving Eq
+    deriving (Eq, Generic)
 
 data Prim1 = LengthPrim Type
            | LengthLift Type
@@ -59,7 +62,7 @@ data Prim1 = LengthPrim Type
            | LastL Type
            | Nub Type
            | NubL Type
-    deriving Eq
+    deriving (Eq, Generic)
     
 instance Show Prim1 where
     show (LengthPrim _) = "lengthPrim"
@@ -121,7 +124,7 @@ data Prim2 = GroupWithS Type
            | TakeWithL Type
            | DropWithS Type
            | DropWithL Type
-    deriving Eq
+    deriving (Eq, Generic)
 
 instance Show Prim2 where
     show (GroupWithS _) = "groupWithS"
@@ -150,7 +153,7 @@ instance Show Prim2 where
     show (DropWithS _)  = "dropWithS"
 
 data Prim3 = Combine Type
-    deriving Eq
+    deriving (Eq, Generic)
 
 instance Show Prim3 where
     show (Combine _) = "combine"

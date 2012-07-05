@@ -1,6 +1,7 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, DeriveGeneric #-}
 module Language.ParallelLang.Common.Data.Val where
 
+import GHC.Generics (Generic)
 {-
 Basic values in both FKL and NKL. 
 -}
@@ -12,4 +13,4 @@ data Val where
     Double :: Double -> Val
     Pair :: Val -> Val -> Val
     Unit :: Val
-    deriving (Eq, Show, Ord)
+    deriving (Eq, Show, Ord, Generic)

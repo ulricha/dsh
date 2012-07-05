@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec, TupleSections #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File, toVec, toVecDot, toVecJSON) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -9,11 +9,15 @@ import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
 import Database.Algebra.X100.JSON
 import Database.Algebra.X100.Render
+import Language.ParallelLang.VL.Render.JSON
 
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 
+import Language.ParallelLang.VL.Data.VectorLanguage(VL())
+import Language.ParallelLang.VL.Render.Dot 
 import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
+import Language.ParallelLang.VL.VLPrimitives
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Database.Algebra.Dag.Common hiding (BinOp)
 import Database.Algebra.Dag.Builder
@@ -134,19 +138,20 @@ toPFAlgebra e = runGraph initLoop (fkl2Alg e)
 toX100Algebra :: Expr -> AlgPlan X100Algebra Plan
 toX100Algebra e = runGraph dummy (fkl2Alg e)
 
+toVec :: Expr -> AlgPlan VL Plan
+toVec e = runGraph emptyVL (fkl2Alg e)
+
+toVecDot :: Expr -> String
+toVecDot e = let (gr,p,ts) = toVec e
+             in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
+             
+toVecJSON :: Expr -> String
+toVecJSON e = let p = toVec e
+               in serialisePlan p
+
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
-  where
-      rootNodes :: Plan -> [AlgNode]
-      rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt
-      rootNodes (PrimVal (DBP n _) lyt) = n : rootNodes' lyt
-      rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
-      rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-      rootNodes' :: Layout -> [AlgNode]
-      rootNodes' (Vec.Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
-      rootNodes' (InColumn _) = []
-      rootNodes' (Nest (DBV q _) lyt) = q : rootNodes' lyt
       
 toX100String :: AlgPlan X100Algebra Plan -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r

@@ -4,3 +4,5 @@ dist/
 *~
 
 DBPH/doc/build/
+DBPH/doc/.DS_Store
+.DS_Store
