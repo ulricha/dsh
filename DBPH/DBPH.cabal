@@ -29,6 +29,7 @@ Library
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.VL.Data.Query
                      Language.ParallelLang.NKL.NKLPrimitives
+                     Language.ParallelLang.VL.Data.VectorLanguage
     Other-modules: Language.ParallelLang.Common.Data.Val
                    Language.ParallelLang.Common.Data.Op
                    Language.ParallelLang.NKL.Data.NKL
@@ -48,6 +49,5 @@ Library
                    Language.ParallelLang.VL.X100VectorPrimitives  
                    Language.ParallelLang.VL.Data.DBVector
                    Language.ParallelLang.VL.Data.GraphVector
-                   Language.ParallelLang.VL.Data.VectorLanguage
                    Language.ParallelLang.VL.VLPrimitives
                    Language.ParallelLang.VL.Render.Dot
