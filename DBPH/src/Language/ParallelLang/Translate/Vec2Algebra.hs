@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec, TupleSections #-}
-module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File, toVec, toVecDot, toVecJSON) where
+module Language.ParallelLang.Translate.Vec2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File, toVec, toVLFile) where
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -7,11 +7,10 @@ import Database.Algebra.Pathfinder(PFAlgebra)
 
 import Database.Algebra.X100.Data(X100Algebra)
 import Database.Algebra.X100.Data.Create(dummy)
-import Database.Algebra.X100.JSON
+import qualified Database.Algebra.X100.JSON as X100JSON
 import Database.Algebra.X100.Render
 import qualified Database.Algebra.VL.Data as D
-import Database.Algebra.VL.Render.Dot
-import Database.Algebra.VL.Render.JSON
+import qualified Database.Algebra.VL.Render.JSON as VLJSON
 
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph)
 
@@ -142,18 +141,13 @@ toX100Algebra e = runGraph dummy (fkl2Alg e)
 toVec :: Expr -> AlgPlan D.VL Plan
 toVec e = runGraph emptyVL (fkl2Alg e)
 
-toVecDot :: Expr -> String
-toVecDot e = let (gr,p,ts) = toVec e
-             in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
-             
-toVecJSON :: Expr -> String
---toVecJSON = undefined
-toVecJSON e = let (gr,p,ts) = toVec e
-              in renderVLJSON ts (rootNodes p) (reverseAlgMap gr)
+toVLFile :: FilePath -> AlgPlan D.VL Plan -> IO ()
+toVLFile f (m, r, t) = do
+    VLJSON.planToFile f (t, rootNodes r, reverseAlgMap m)
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
-    planToFile f (t, rootNodes r, reverseAlgMap m)
+    X100JSON.planToFile f (t, rootNodes r, reverseAlgMap m)
       
 toX100String :: AlgPlan X100Algebra Plan -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
