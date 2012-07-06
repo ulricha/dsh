@@ -14,7 +14,7 @@ pruneEmpty = preOrder inferBottomUp emptyRules
 
 emptyRules :: RuleSet VL BottomUpProps
 emptyRules = [ emptyAppendLeft
-             --, emptyAppendRight 
+             , emptyAppendRight 
              ]
              
 isEmpty :: AlgNode -> Match VL BottomUpProps Bool
@@ -24,7 +24,7 @@ isEmpty q = do
 
 emptyAppendLeft :: Rule VL BottomUpProps
 emptyAppendLeft q =
-  $(pattern [| q |] "(q1) Append _ (q2)"
+  $(pattern [| q |] "(q1) Append (q2)"
     [| do
         predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
         return $ do
@@ -33,7 +33,7 @@ emptyAppendLeft q =
           
 emptyAppendRight :: Rule VL BottomUpProps
 emptyAppendRight q =
-  $(pattern [| q |] "(q1) Append _ (q2)"
+  $(pattern [| q |] "(q1) Append (q2)"
     [| do
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
         return $ do
