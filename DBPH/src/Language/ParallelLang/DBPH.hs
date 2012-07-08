@@ -1,6 +1,7 @@
 module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File, nkl2VLFile) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
+import qualified Language.ParallelLang.NKL.Opt as NKLOpt
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 
 import Language.ParallelLang.VL.Data.Query
@@ -30,7 +31,7 @@ nkl2X100File f e = let (e', _) = nkl2Vec' e
 nkl2Vec' :: NKL.Expr -> (FKL.Expr, Type)
 nkl2Vec' e = runTransform $ 
                  do 
-                  e' <- flatTransform e 
+                  e' <- flatTransform $ NKLOpt.opt e 
                   let t = typeOf e' 
                   return (e', t)
 

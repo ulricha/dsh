@@ -32,6 +32,7 @@ Library
                      Language.ParallelLang.Common.Data.Type
                      Language.ParallelLang.VL.Data.Query
                      Language.ParallelLang.NKL.NKLPrimitives
+                     Language.ParallelLang.NKL.Opt
     Other-modules: Language.ParallelLang.Common.Data.Val
                    Language.ParallelLang.Common.Data.Op
                    Language.ParallelLang.NKL.Data.NKL

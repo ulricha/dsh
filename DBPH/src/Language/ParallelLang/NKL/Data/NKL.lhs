@@ -6,7 +6,8 @@ module Language.ParallelLang.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Val(Val())
 import Language.ParallelLang.Common.Data.Type(Type, Typed, typeOf)
-
+  
+import Data.List
 import qualified Data.Set as S
 
 type Column = (String, Type)
@@ -37,7 +38,23 @@ data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database ta
 
 %if False
 \begin{code}
-deriving instance Show Expr
+sp :: [String] -> String
+sp ss = concat $ intersperse " " ss
+
+ps :: String -> String
+ps s = "(" ++ s ++ ")"
+
+instance Show Expr where
+  show (Table _ n _ _) = sp ["Table", n]
+  show (App _ e1 e2) = sp ["App", show e1, show e2]
+  show (AppE1 _ p1 e) = sp ["AppE1", show p1, ps $ show e]
+  show (AppE2 _ p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
+  show (BinOp _ o e1 e2) = sp ["BinOp", show o, ps $ show e1, ps $ show e2]
+  show (Lam _ v e) = sp ["Lam", ps $ "\\" ++ v ++ " -> " ++ show e]
+  show (If _ c t e) = sp ["If", ps $ show c, ps $ show t, ps $ show e]
+  show (Const _ v) = show v
+  show (Var _ s) = s
+
 deriving instance Eq Expr
 deriving instance Ord Expr
 \end{code}
@@ -60,7 +77,27 @@ data Prim1  =  Length Type  |  Not Type  |  Concat Type
 
 %if False
 \begin{code}
-deriving instance Show Prim1
+
+instance Show Prim1 where
+  show (Length _) = "Length"
+  show (Not _) = "Not"
+  show (Concat _) = "Concat"
+  show (Sum _) = "Sum"
+  show (The _) = "The"
+  show (Fst _) = "Fst"
+  show (Snd _) = "Snd"
+  show (Head _) = "Head"
+  show (Minimum _) = "Minimum"
+  show (Maximum _) = "Maximum"
+  show (IntegerToDouble _) = "IntegerToDouble"
+  show (Tail _) = "Tail"
+  show (Reverse _) = "Reverse"
+  show (And _) = "And"
+  show (Or _) = "Or"
+  show (Init _) = "Init"
+  show (Last _) = "Last"
+  show (Nub _) = "Nub"
+
 deriving instance Eq Prim1
 deriving instance Ord Prim1    
 \end{code}
@@ -80,7 +117,20 @@ data Prim2  =  Map Type | GroupWith Type
 %}
 %if False
 \begin{code}
-deriving instance Show Prim2
+instance Show Prim2 where
+  show (Map _) = "Map"
+  show (GroupWith _) = "GroupWith"
+  show (SortWith _) = "SortWith"
+  show (Pair _) = "Pair"
+  show (Filter _) = "Filter"
+  show (Append _) = "Append"
+  show (Index _) = "Index"
+  show (Take _) = "Take"
+  show (Drop _) = "Drop"
+  show (Zip _) = "Zip"
+  show (TakeWhile _) = "TakeWhile"
+  show (DropWhile _) = "DropWhile"
+
 deriving instance Eq Prim2
 deriving instance Ord Prim2
 \end{code}
