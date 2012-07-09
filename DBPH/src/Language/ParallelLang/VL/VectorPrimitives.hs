@@ -1,9 +1,10 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
-import qualified Language.ParallelLang.Common.Data.Type as Ty
-import Language.ParallelLang.FKL.Data.FKL
-import Language.ParallelLang.Common.Data.Op
+-- import qualified Language.ParallelLang.Common.Data.Type as Ty
+-- import Language.ParallelLang.FKL.Data.FKL
+-- import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.DBVector
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp())
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -36,19 +37,19 @@ class VectorAlgebra a where
   segment :: DBV -> GraphM r a DBV
   restrictVec :: DBV -> DBV -> GraphM r a (DBV, RenameVector)
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
-  constructLiteralValue :: [Ty.Type] -> [PVal] -> GraphM r a DBP
-  constructLiteralTable :: [Ty.Type] -> [[PVal]] -> GraphM r a DBV
+  constructLiteralValue :: [VLType] -> [VLVal] -> GraphM r a DBP
+  constructLiteralTable :: [VLType] -> [[VLVal]] -> GraphM r a DBV
   tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DBV
-  binOp :: Oper -> DBP -> DBP -> GraphM r a DBP
-  binOpL :: Oper -> DBV -> DBV -> GraphM r a DBV
-  vecSum :: Ty.Type -> DBV -> GraphM r a DBP
+  binOp :: VecOp -> DBP -> DBP -> GraphM r a DBP
+  binOpL :: VecOp -> DBV -> DBV -> GraphM r a DBV
+  vecSum :: VLType -> DBV -> GraphM r a DBP
   vecSumLift :: DescrVector -> DBV -> GraphM r a DBV
   vecMin :: DBV -> GraphM r a DBP
   vecMinLift :: DBV -> GraphM r a DBV
   vecMax :: DBV -> GraphM r a DBP
   vecMaxLift :: DBV -> GraphM r a DBV 
-  selectPos :: DBV -> Oper -> DBP -> GraphM r a (DBV, RenameVector)
-  selectPosLift :: DBV -> Oper -> DBV -> GraphM r a (DBV, RenameVector)
+  selectPos :: DBV -> VecOp -> DBP -> GraphM r a (DBV, RenameVector)
+  selectPosLift :: DBV -> VecOp -> DBV -> GraphM r a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> GraphM r a DBV
   projectA :: DBP -> [DBCol] -> GraphM r a DBP
   pairA :: DBP -> DBP -> GraphM r a DBP

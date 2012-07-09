@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Language.ParallelLang.VL.Data.DBVector(DBCol, DBV(..), DBP(..), DescrVector(..), PropVector(..), RenameVector(..), AlgNode, GraphM, PVal(..)) where
+module Language.ParallelLang.VL.Data.DBVector(DBCol, DBV(..), DBP(..), DescrVector(..), PropVector(..), RenameVector(..), AlgNode, GraphM) where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Dag.Builder
@@ -22,6 +22,7 @@ data PropVector = PropVector AlgNode
 data RenameVector = RenameVector AlgNode
     deriving (Generic)
 
+{-
 data PVal = PInt Int
           | PNat Int
           | PBool Bool
@@ -29,3 +30,4 @@ data PVal = PInt Int
           | PDouble Double
           | PUnit
     deriving (Eq, Ord, Generic)
+-}

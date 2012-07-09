@@ -6,11 +6,10 @@ import Data.Maybe
 import Control.Applicative hiding (Const)
 
 import Language.ParallelLang.Common.Impossible
-import Language.ParallelLang.Common.Data.Op
-import qualified Language.ParallelLang.Common.Data.Type as Ty
 import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.DBVector 
 import Language.ParallelLang.VL.VectorPrimitives
+import qualified Database.Algebra.VL.Data as VL
 
 import Database.Algebra.Pathfinder
 import Database.Algebra.Dag.Builder
@@ -111,7 +110,7 @@ resCol    = "item99999001"
 tmpCol    = "item99999002"
 tmpCol'   = "item99999003"
 
-selectPosLiftPF :: DBV -> Oper -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
+selectPosLiftPF :: DBV -> VL.VecOp -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosLiftPF (DBV qe cols) op (DBV qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -120,11 +119,11 @@ selectPosLiftPF (DBV qe cols) op (DBV qi _) =
                     (rownum pos' [pos] (Just descr) qe)
                     (proj [(pos'', pos), (item', item)] qi)
         qs <- case op of
-            LtE -> rownumM posnew [descr, pos] Nothing
+            VL.LtE -> rownumM posnew [descr, pos] Nothing
                   $ selectM resCol
                   $ unionM
-                    (oper (show Eq) resCol pos''' item' qx)
-                    (oper (show Lt) resCol pos''' item' qx)
+                    (oper (show VL.Eq) resCol pos''' item' qx)
+                    (oper (show VL.Lt) resCol pos''' item' qx)
             _ -> rownumM posnew [descr, pos] Nothing
                   $ selectM resCol
                   $ oper (show op) resCol pos''' item' qx
@@ -132,7 +131,7 @@ selectPosLiftPF (DBV qe cols) op (DBV qi _) =
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ (DBV q cols, RenameVector qp)
 
-selectPosPF :: DBV -> Oper -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
+selectPosPF :: DBV -> VL.VecOp -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosPF (DBV qe cols) op (DBP qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -141,16 +140,16 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
                 -- (proj (pf [(descr, descr), (pos', pos)]) qe)
                 (proj [(item', item)] qi)
         qn <- case op of
-                Lt ->
+                VL.Lt ->
                     projM (pf [(descr, descr), (pos, pos'), (pos', pos')]) 
                      $ selectM resCol
                            $ oper (show op) resCol pos' item' qx
-                LtE ->
+                VL.LtE ->
                     projM (pf [(descr, descr), (pos, pos'), (pos', pos')])
                      $ selectM resCol
                         $ unionM
-                            (oper (show Lt) resCol pos' item' qx)
-                            (oper (show Eq) resCol pos' item' qx)
+                            (oper (show VL.Lt) resCol pos' item' qx)
+                            (oper (show VL.Eq) resCol pos' item' qx)
                 _ ->
                     projM (pf [(descr, descr), (pos, pos), (pos', pos')])
                      $ rownumM pos [descr, pos'] Nothing 
@@ -166,15 +165,15 @@ vecMinPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos 
 vecMaxPF :: DBV -> GraphM r PFAlgebra DBP
 vecMaxPF (DBV q _) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggr [(Max, item, Just item)] Nothing q)
 
-vecSumPF :: Ty.Type -> DBV -> GraphM r PFAlgebra DBP
+vecSumPF :: VL.VLType -> DBV -> GraphM r PFAlgebra DBP
 vecSumPF t (DBV q _) =
     do
         q' <- attachM pos natT (nat 1) 
                 $ attachM descr natT (nat 1) $
                  case t of
-                    Ty.Int -> litTable (int 0) item intT
-                    Ty.Nat -> litTable (nat 0) item natT
-                    Ty.Double -> litTable (double 0) item doubleT
+                    VL.Int -> litTable (int 0) item intT
+                    VL.Nat -> litTable (nat 0) item natT
+                    VL.Double -> litTable (double 0) item doubleT
                     _   -> error "This type is not supported by the sum primitive (PF)"
         qs <- attachM descr natT (nat 1)
              $ attachM pos natT (nat 1)
@@ -207,33 +206,33 @@ vecSumLiftPF (DescrVector qd) (DBV qv _) =
                  (return qr))
         return $ DBV qa [1]
 
-applyBinOp :: Oper -> AlgNode -> AlgNode -> GraphM r PFAlgebra AlgNode
+applyBinOp :: VL.VecOp -> AlgNode -> AlgNode -> GraphM r PFAlgebra AlgNode
 applyBinOp op q1 q2 =
   projM [(item, resCol), (descr, descr), (pos, pos)] 
     $ operM (show op) resCol item tmpCol 
     $ eqJoinM pos pos' (return q1) 
     $ proj [(tmpCol, item), (pos', pos)] q2
 
-binOpLPF :: Oper -> DBV -> DBV -> GraphM r PFAlgebra DBV
-binOpLPF op (DBV q1 _) (DBV q2 _) | op == GtE = do
-                                             q1' <- applyBinOp Gt q1 q2
-                                             q2' <- applyBinOp Eq q1 q2
-                                             flip DBV [1] <$> applyBinOp Disj q1' q2'
-                              | op == LtE = do
-                                             q1' <- applyBinOp Lt q1 q2
-                                             q2' <- applyBinOp Eq q1 q2
-                                             flip DBV [1] <$> applyBinOp Disj q1' q2'
+binOpLPF :: VL.VecOp -> DBV -> DBV -> GraphM r PFAlgebra DBV
+binOpLPF op (DBV q1 _) (DBV q2 _) | op == VL.GtE = do
+                                             q1' <- applyBinOp VL.Gt q1 q2
+                                             q2' <- applyBinOp VL.Eq q1 q2
+                                             flip DBV [1] <$> applyBinOp VL.Disj q1' q2'
+                              | op == VL.LtE = do
+                                             q1' <- applyBinOp VL.Lt q1 q2
+                                             q2' <- applyBinOp VL.Eq q1 q2
+                                             flip DBV [1] <$> applyBinOp VL.Disj q1' q2'
                               | otherwise = flip DBV [1] <$> applyBinOp op q1 q2
 
-binOpPF :: Oper -> DBP -> DBP -> GraphM r PFAlgebra DBP
-binOpPF op (DBP q1 _) (DBP q2 _) | op == GtE = do
-                                            q1' <- applyBinOp Gt q1 q2
-                                            q2' <- applyBinOp Eq q1 q2
-                                            flip DBP [1] <$> applyBinOp Disj q1' q2'
-                             | op == LtE = do
-                                           q1' <- applyBinOp Lt q1 q2
-                                           q2' <- applyBinOp Eq q1 q2
-                                           flip DBP [1] <$> applyBinOp Disj q1' q2'
+binOpPF :: VL.VecOp -> DBP -> DBP -> GraphM r PFAlgebra DBP
+binOpPF op (DBP q1 _) (DBP q2 _) | op == VL.GtE = do
+                                            q1' <- applyBinOp VL.Gt q1 q2
+                                            q2' <- applyBinOp VL.Eq q1 q2
+                                            flip DBP [1] <$> applyBinOp VL.Disj q1' q2'
+                             | op == VL.LtE = do
+                                           q1' <- applyBinOp VL.Lt q1 q2
+                                           q2' <- applyBinOp VL.Eq q1 q2
+                                           flip DBP [1] <$> applyBinOp VL.Disj q1' q2'
                              | otherwise = flip DBP [1] <$> applyBinOp op q1 q2
                                              
 sortWithPF :: DBV -> DBV -> GraphM r PFAlgebra (DBV, PropVector)
@@ -358,34 +357,32 @@ combineVecPF (DBV qb _) (DBV q1 cols) (DBV q2 _) = do
 itemi :: Int -> String
 itemi i = "item" ++ show i
 
-algVal :: PVal -> AVal
-algVal (PInt i) = int (fromIntegral i)
-algVal (PBool t) = bool t  
-algVal PUnit = int (-1)
-algVal (PString s) = string s
-algVal (PDouble d) = double d
-algVal (PNat n) = nat $ fromIntegral n
+algVal :: VL.VLVal -> AVal
+algVal (VL.VLInt i) = int (fromIntegral i)
+algVal (VL.VLBool t) = bool t  
+algVal VL.VLUnit = int (-1)
+algVal (VL.VLString s) = string s
+algVal (VL.VLDouble d) = double d
+algVal (VL.VLNat n) = nat $ fromIntegral n
 
-algTy :: Ty.Type -> ATy
-algTy (Ty.Int) = intT
-algTy (Ty.Double) = doubleT
-algTy (Ty.Bool) = boolT
-algTy (Ty.String) = stringT
-algTy (Ty.Unit) = intT
-algTy (Ty.Nat) = natT
-algTy (Ty.Var _) = $impossible
-algTy (Ty.Fn _ _) = $impossible
-algTy (Ty.Pair _ _) = $impossible
-algTy (Ty.List _) = $impossible
+algTy :: VL.VLType -> ATy
+algTy (VL.Int) = intT
+algTy (VL.Double) = doubleT
+algTy (VL.Bool) = boolT
+algTy (VL.String) = stringT
+algTy (VL.Unit) = intT
+algTy (VL.Nat) = natT
+algTy (VL.Pair _ _) = $impossible
+algTy (VL.VLList _) = $impossible
 
-tableRefPF :: String -> [FKL.TypedColumn] -> [FKL.Key] -> GraphM r PFAlgebra DBV
+tableRefPF :: String -> [VL.TypedColumn] -> [FKL.Key] -> GraphM r PFAlgebra DBV
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) keyItems
                      t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
                      cs' <- tagM "table" $ proj ((descr, descr):(pos, pos):[(itemi i, itemi i) | i <- [1..length cs]]) t' 
                      return $ DBV cs' [1..length cs]
   where
-    renameCols :: [FKL.TypedColumn] -> [Column]
+    renameCols :: [VL.TypedColumn] -> [Column]
     renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
     numberedCols = zip cs [1 :: Integer .. ]
     numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols

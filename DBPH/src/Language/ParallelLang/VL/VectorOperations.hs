@@ -3,9 +3,11 @@ module Language.ParallelLang.VL.VectorOperations where
 
 import Language.ParallelLang.Common.Impossible
 
+import Database.Algebra.VL.Data (VL(), VLVal(..))
+
 import Language.ParallelLang.VL.Data.GraphVector
 import Language.ParallelLang.VL.Data.DBVector
-import Language.ParallelLang.VL.VectorPrimitives
+import Language.ParallelLang.VL.VLPrimitives hiding (prop)
 import Language.ParallelLang.VL.MetaPrimitives
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.Common.Data.Type hiding (Pair)
@@ -15,35 +17,35 @@ import Language.ParallelLang.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
-takeWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeWithS ::  Plan -> Plan -> Graph VL Plan
 takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
-                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]] 
+                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]] 
                                                                qfs <- falsePositions qb'
-                                                               one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                               one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                (DBV p _, _) <- selectPos qfs Eq one
                                                                (r, prop) <- selectPos q Lt (DBP p [1])
                                                                lyt' <- chainRenameFilter prop lyt
                                                                return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
 
-dropWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropWithS ::  Plan -> Plan -> Graph VL Plan
 dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) =
     do
-        (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]]
+        (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
         minF <- vecMin =<< falsePositions qb'
         (r, prop) <- selectPos q GtE minF
         lyt' <- chainRenameFilter prop lyt
         return $ ValueVector r lyt' 
 dropWithS _ _ = error "dropWithS: Should not be possible"
 
-takeWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeWithL ::  Plan -> Plan -> Graph VL Plan
 takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = 
             do
-             f <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+             f <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
              (fs, _) <- distPrim f =<< toDescr qd
              (qb', _, _) <- append qb =<< segment fs
              qfs <- falsePositions qb'
-             one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+             one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
              (ones, _) <- distPrim one =<< toDescr qd
              (p, _) <- selectPosLift qfs Eq ones
              (r, prop) <- selectPosLift q Lt p
@@ -51,10 +53,10 @@ takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
              return $ ValueVector qd (Nest r lyt')
 takeWithL _ _ = error "takeWithL: Should not be possible"
 
-dropWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropWithL ::  Plan -> Plan -> Graph VL Plan
 dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
             do
-             f <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+             f <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
              (fs, _ ) <- distPrim f =<< toDescr qd
              (qb', _, _) <- append qb =<< segment fs
              minF <- vecMinLift =<< falsePositions qb'
@@ -63,13 +65,13 @@ dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
              return $ ValueVector qd (Nest r lyt')
 dropWithL _ _ = error "dropWithL: Should not be possible"
 
-zipPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipPrim ::  Plan -> Plan -> Graph VL Plan
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                        q' <- pairL q1 q2
                                                        return $ ValueVector q' $ zipLayout lyt1 lyt2
 zipPrim _ _ = error "zipPrim: Should not be possible"
 
-zipLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+zipLift ::  Plan -> Plan -> Graph VL Plan
 zipLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', r1, r2) <- zipL q1 q2
     lyt1' <- chainRenameFilter r1 lyt1
@@ -77,43 +79,43 @@ zipLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 zipLift _ _ = error "zipLift: Should not be possible"
 
-takePrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takePrim ::  Plan -> Plan -> Graph VL Plan
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
                                                          (q', r) <- selectPos q LtE i
                                                          lyt' <- chainRenameFilter r lyt
                                                          return $ ValueVector q' lyt'
 takePrim _ _ = error "takePrim: Should not be possible"
 
-takeLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+takeLift ::  Plan -> Plan -> Graph VL Plan
 takeLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
                                             (q', r) <- selectPosLift q LtE is
                                             lyt' <- chainRenameFilter r lyt
                                             return $ ValueVector d (Nest q' lyt')
 takeLift _ _ = error "takeLift: Should not be possible"
 
-dropPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropPrim ::  Plan -> Plan -> Graph VL Plan
 dropPrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
                                                          (q', r) <- selectPos q Gt i
                                                          lyt' <- chainRenameFilter r lyt
                                                          return $ ValueVector q' lyt'
 dropPrim _ _ = error "dropPrim: Should not be possible"
 
-dropLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dropLift ::  Plan -> Plan -> Graph VL Plan
 dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
                                             (q', r) <- selectPosLift q Gt is
                                             lyt' <- chainRenameFilter r lyt
                                             return $ ValueVector d (Nest q' lyt')
 dropLift _ _ = error "dropLift: Should not be possible"
 
-nubPrim :: VectorAlgebra a => Plan -> Graph a Plan
+nubPrim ::  Plan -> Graph VL Plan
 nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> unique q
 nubPrim _ = error "nubPrim: Should not be possible" 
 
-nubLift :: VectorAlgebra a => Plan -> Graph a Plan
+nubLift ::  Plan -> Graph VL Plan
 nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> uniqueL q
 nubLift _ = error "nubLift: Should not be possible"
 
-initPrim :: VectorAlgebra a => Plan -> Graph a Plan
+initPrim ::  Plan -> Graph VL Plan
 initPrim (ValueVector q lyt) = do
                                  i <- lengthA =<< toDescr q
                                  (q', r) <- selectPos q Lt i
@@ -121,7 +123,7 @@ initPrim (ValueVector q lyt) = do
                                  return $ ValueVector q' lyt'
 initPrim _ = error "initPrim: Should not be possible"
 
-initLift :: VectorAlgebra a => Plan -> Graph a Plan
+initLift ::  Plan -> Graph VL Plan
 initLift (ValueVector qs (Nest q lyt)) = do
                                           d <- toDescr qs
                                           is <- lengthSeg d =<< toDescr q
@@ -130,7 +132,7 @@ initLift (ValueVector qs (Nest q lyt)) = do
                                           return $ ValueVector qs (Nest q' lyt')
 initLift _ = error "initLift: Should not be possible"
 
-lastPrim :: VectorAlgebra a => Plan -> Graph a Plan
+lastPrim ::  Plan -> Graph VL Plan
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
                                                i <- lengthA =<< toDescr qs
                                                (q, r) <- selectPos qs Eq i
@@ -144,7 +146,7 @@ lastPrim (ValueVector qs lyt) = do
                                     return $ PrimVal (DBP q cols) lyt'
 lastPrim _ = error "lastPrim: Should not be possible"
 
-lastLift :: VectorAlgebra a => Plan -> Graph a Plan
+lastLift ::  Plan -> Graph VL Plan
 lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
                                                       ds <- toDescr d
                                                       is <- lengthSeg ds =<< toDescr qs
@@ -161,24 +163,24 @@ lastLift (ValueVector d (Nest qs lyt)) = do
                                           renameOuter re (ValueVector qs' lyt')
 lastLift _ = error "lastLift: Should not be possible"
 
-indexPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+indexPrim ::  Plan -> Plan -> Graph VL Plan
 indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
-                                                           i' <-  binOp Add i =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                           i' <-  binOp Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                            (q, r) <- selectPos qs Eq i'
                                                            (Nest qr lyt') <- chainRenameFilter r lyt
                                                            re <- descToRename =<< toDescr q
                                                            renameOuter re $ ValueVector qr lyt'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
-                                                i' <-  binOp Add i =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                i' <-  binOp Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                 (DBV q cols, r) <- selectPos qs Eq i'
                                                 lyt' <- chainRenameFilter r lyt
                                                 return $ PrimVal (DBP q cols) lyt'
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
-indexLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+indexLift ::  Plan -> Plan -> Graph VL Plan
 indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
                                                                          ds <- toDescr is
-                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                          is' <- binOpL Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
@@ -186,7 +188,7 @@ indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1))
                                                                          ValueVector d <$> renameOuter' re lyt'
 indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
                                                                          ds <- toDescr is
-                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                          is' <- binOpL Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
@@ -194,57 +196,57 @@ indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
                                                                          renameOuter re (ValueVector qs' lyt')
 indexLift _ _ = error "indexLift: Should not be possible"
 
-appendPrim :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+appendPrim ::  Plan -> Plan -> Graph VL Plan
 appendPrim = appendR 
 
-appendLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+appendLift ::  Plan -> Plan -> Graph VL Plan
 appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = ValueVector d <$> appendR' lyt1 lyt2
 appendLift _ _ = error "appendLift: Should not be possible"
     
-reversePrim :: VectorAlgebra a => Plan -> Graph a Plan
+reversePrim ::  Plan -> Graph VL Plan
 reversePrim (ValueVector d lyt) = do
                                 (d', p) <- reverseA d
                                 lyt' <- chainReorder p lyt
                                 return (ValueVector d' lyt')
 reversePrim _ = error "reversePrim: Should not be possible"
 
-reverseLift :: VectorAlgebra a => Plan -> Graph a Plan
+reverseLift ::  Plan -> Graph VL Plan
 reverseLift (ValueVector d (Nest d1 lyt)) = do
                                         (d1', p) <- reverseL d1
                                         lyt' <- chainReorder p lyt
                                         return (ValueVector d (Nest d1' lyt'))
 reverseLift _ = error "reverseLift: Should not be possible"
 
-andPrim :: VectorAlgebra a => Plan -> Graph a Plan
+andPrim ::  Plan -> Graph VL Plan
 andPrim (ValueVector d (InColumn 1)) = do
-                                        p <- constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool True]]
+                                        p <- constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool True]]
                                         (r, _, _) <- append p d
                                         v <- vecMin r
                                         return $ PrimVal v (InColumn 1)
 andPrim _ = error "andPrim: Should not be possible"
 
-andLift :: VectorAlgebra a => Plan -> Graph a Plan
+andLift ::  Plan -> Graph VL Plan
 andLift (ValueVector d (Nest q (InColumn 1))) = do
                                                  d' <- toDescr d
-                                                 t <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool True]
+                                                 t <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool True]
                                                  (ts, _) <- distPrim t d'
                                                  ts' <- segment ts
                                                  (res, _, _) <- append ts' q
                                                  minLift (ValueVector d (Nest res (InColumn 1)))
 andLift _ = error "andLift: Should not be possible"
 
-orPrim :: VectorAlgebra a => Plan -> Graph a Plan
+orPrim ::  Plan -> Graph VL Plan
 orPrim (ValueVector d (InColumn 1)) = do
-                                        p <- constructLiteralTable [boolT] [[PNat 1, PNat 1, PBool False]]
+                                        p <- constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
                                         (r, _, _) <- append p d
                                         v <- vecMax r
                                         return $ PrimVal v (InColumn 1)
 orPrim _ = error "orPrim: Should not be possible"
 
-orLift :: VectorAlgebra a => Plan -> Graph a Plan
+orLift ::  Plan -> Graph VL Plan
 orLift (ValueVector d (Nest q (InColumn 1))) = do
                                                  d' <- toDescr d
-                                                 t <- constructLiteralValue [boolT] [PNat 1, PNat 1, PBool False]
+                                                 t <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
                                                  (ts, _) <- distPrim t d'
                                                  ts' <- segment ts
                                                  (res, _, _) <- append ts' q
@@ -252,30 +254,30 @@ orLift (ValueVector d (Nest q (InColumn 1))) = do
 orLift _ = error "orLift: Should not be possible"
 
                                         
-the :: VectorAlgebra a => Plan -> Graph a Plan
+the ::  Plan -> Graph VL Plan
 the (ValueVector d lyt@(Nest _ _)) = do
-                                     p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                     p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                      (_, prop) <- selectPos d Eq p
                                      (Nest q' lyt') <- chainRenameFilter prop lyt
                                      return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-                            p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                            p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                             (DBV q' cols, prop) <- selectPos d Eq p
                             lyt' <- chainRenameFilter prop lyt
                             return $ PrimVal (DBP q' cols) lyt'
 the _ = error "the: Should not be possible"
 
-tailS :: VectorAlgebra a => Plan -> Graph a Plan
+tailS ::  Plan -> Graph VL Plan
 tailS (ValueVector d lyt) = do
-                             p <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                             p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                              (q', prop) <- selectPos d Gt p
                              lyt' <- chainRenameFilter prop lyt
                              return $ ValueVector q' lyt'
 tailS _ = error "tailS: Should not be possible"
 
-theL :: VectorAlgebra a => Plan -> Graph a Plan
+theL ::  Plan -> Graph VL Plan
 theL (ValueVector d (Nest q lyt)) = do
-                                      one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                      one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                       (p, _) <- distPrim one =<< toDescr d
                                       (v, p2) <- selectPosLift q Eq p 
                                       prop <- descToRename =<< toDescr d
@@ -284,23 +286,23 @@ theL (ValueVector d (Nest q lyt)) = do
                                       return $ ValueVector v' lyt'
 theL _ = error "theL: Should not be possible" 
 
-tailL :: VectorAlgebra a => Plan -> Graph a Plan
+tailL ::  Plan -> Graph VL Plan
 tailL (ValueVector d (Nest q lyt)) = do
-                                      one <- constructLiteralValue [intT] [PNat 1, PNat 1, PInt 1]
+                                      one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                       (p, _) <- distPrim one =<< toDescr d
                                       (v, p2) <- selectPosLift q Gt p
                                       lyt' <- chainRenameFilter p2 lyt
                                       return $ ValueVector d (Nest v lyt')
 tailL _ = error "tailL: Should not be possible"
 
-sortWithS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+sortWithS ::  Plan -> Plan -> Graph VL Plan
 sortWithS (ValueVector q1 _) (ValueVector q2 lyt2) = do
                                    (v, p) <- sortWith q1 q2
                                    lyt2' <- chainReorder p lyt2
                                    return $ ValueVector v lyt2'
 sortWithS _e1 _e2 = error "sortWithS: Should not be possible" 
 
-sortWithL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+sortWithL ::  Plan -> Plan -> Graph VL Plan
 sortWithL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
                                   (v, p) <- sortWith v1 v2
                                   lyt2' <- chainReorder p lyt2
@@ -308,34 +310,34 @@ sortWithL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
 sortWithL _ _ = error "sortWithL: Should not be possible"
 
 -- move a descriptor from e1 to e2
-unconcatV :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+unconcatV ::  Plan -> Plan -> Graph VL Plan
 unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) = do
                                                          (DescrVector d') <- toDescr d1
                                                          return $ ValueVector (DBV d' []) (Nest d2 lyt2)
 unconcatV _ _ = $impossible
 
-groupByS :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+groupByS ::  Plan -> Plan -> Graph VL Plan
 groupByS (ValueVector q1 _) (ValueVector q2 lyt2) = do
                                             (DescrVector d, v, p) <- groupBy q1 q2
                                             lyt2' <- chainReorder p lyt2
                                             return $ ValueVector (DBV d []) (Nest v lyt2')
 groupByS _e1 _e2 = error $ "groupByS: Should not be possible "
 
-groupByL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+groupByL ::  Plan -> Plan -> Graph VL Plan
 groupByL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
                                         (DescrVector d, v, p) <- groupBy v1 v2
                                         lyt2' <- chainReorder p lyt2
                                         return $ ValueVector d2 (Nest (DBV d []) (Nest v lyt2'))
 groupByL _ _ = error "groupByL: Should not be possible"
 
-concatLift :: VectorAlgebra a => Plan -> Graph a Plan
+concatLift ::  Plan -> Graph VL Plan
 concatLift (ValueVector d (Nest d' vs)) = do
                                                     p <- descToRename =<< (toDescr d')
                                                     vs' <- renameOuter' p vs
                                                     return $ ValueVector d vs'
 concatLift _ = error "concatLift: Should not be possible"
 
-lengthLift :: VectorAlgebra a => Plan -> Graph a Plan
+lengthLift ::  Plan -> Graph VL Plan
 lengthLift (ValueVector q (Nest qi _)) = do
                                             d <- toDescr q
                                             di <- toDescr qi
@@ -345,13 +347,13 @@ lengthLift (ValueVector q (Nest qi _)) = do
                                             return $ ValueVector r (InColumn 1)
 lengthLift _ = $impossible
 
-lengthV :: VectorAlgebra a => Plan -> Graph a Plan
+lengthV ::  Plan -> Graph VL Plan
 lengthV q = do
              v' <- outer q
              v <- lengthA v'
              return $ PrimVal v (InColumn 1)
 
-cons :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+cons ::  Plan -> Plan -> Graph VL Plan
 cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
                                              n <- singletonPrim q1
                                              appendR n q2
@@ -359,7 +361,7 @@ cons q1 q2 = do
                 n <- singletonVec q1
                 appendR n q2
 
-consLift :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+consLift ::  Plan -> Plan -> Graph VL Plan
 consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
                         s <- segment q1
                         (v, p1, p2) <- append s qi
@@ -370,7 +372,7 @@ consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
 consLift _ _ = $impossible
                         
 
-restrict :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+restrict ::  Plan -> Plan -> Graph VL Plan
 restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1))
                   = do
                       (v, p) <- restrictVec q1 q2
@@ -382,7 +384,7 @@ restrict (AClosure n l i env arg e1 e2) bs = do
                                             return $ AClosure n l' i env' arg e1 e2 
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
-combine :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
+combine ::  Plan -> Plan -> Plan -> Graph VL Plan
 combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2) =
                       do
                         (v, p1, p2) <- combineVec qb q1 q2
@@ -393,13 +395,13 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
 combine _ _ _ = $impossible
 
 
-outer :: VectorAlgebra a => Plan -> Graph a DescrVector
+outer ::  Plan -> Graph VL DescrVector
 outer (PrimVal _ _) = $impossible
 outer (ValueVector q _) = toDescr q
 outer (Closure _ _ _ _ _) = $impossible
 outer (AClosure _ v _ _ _ _ _) = outer v
 
-dist :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+dist ::  Plan -> Plan -> Graph VL Plan
 dist (PrimVal q lyt) q2 = do
                            o <- outer q2
                            (v, p) <- distPrim q o
@@ -413,42 +415,42 @@ dist (ValueVector q lyt) q2 = do
 dist (Closure n env x f fl) q2 = (\env' -> AClosure n q2 1 env' x f fl) <$> mapEnv (flip dist q2) env
 dist _ _ = $impossible
 
-mapEnv :: VectorAlgebra a => (Plan -> Graph a Plan) -> [(String, Plan)] -> Graph a [(String, Plan)]
+mapEnv ::  (Plan -> Graph VL Plan) -> [(String, Plan)] -> Graph VL [(String, Plan)]
 mapEnv f  ((x, p):xs) = (\p' xs' -> (x, p'):xs') <$> f p <*> mapEnv f xs
 mapEnv _f []          = return []
 
-minPrim :: VectorAlgebra a => Plan -> Graph a Plan
+minPrim ::  Plan -> Graph VL Plan
 minPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecMin q
 minPrim _ = $impossible
 
-minLift :: VectorAlgebra a => Plan -> Graph a Plan
+minLift ::  Plan -> Graph VL Plan
 minLift (ValueVector d (Nest q (InColumn 1))) = do
                                                  r <- descToRename =<< toDescr d
                                                  flip ValueVector (InColumn 1) <$> (propRename r =<< vecMinLift q)
 minLift _ = $impossible
 
-maxPrim :: VectorAlgebra a => Plan -> Graph a Plan
+maxPrim ::  Plan -> Graph VL Plan
 maxPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecMax q
 maxPrim _ = $impossible
 
-maxLift :: VectorAlgebra a => Plan -> Graph a Plan
+maxLift ::  Plan -> Graph VL Plan
 maxLift (ValueVector d (Nest q (InColumn 1))) = do
                                                     r <- descToRename =<< toDescr d
                                                     flip ValueVector (InColumn 1) <$> (propRename r =<< vecMaxLift q)
 maxLift _ = $impossible
 
-sumPrim :: VectorAlgebra a => Type -> Plan -> Graph a Plan
+sumPrim ::  Type -> Plan -> Graph VL Plan
 sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecSum t q
 sumPrim _ _ = $impossible
 
-sumLift :: VectorAlgebra a =>  Plan -> Graph a Plan
+sumLift ::   Plan -> Graph VL Plan
 sumLift (ValueVector d1 (Nest q (InColumn 1))) = do
                                                   d <- toDescr d1
                                                   flip ValueVector (InColumn 1) <$> vecSumLift d q
 sumLift _ = $impossible
 
 
-distL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+distL ::  Plan -> Plan -> Graph VL Plan
 distL (ValueVector q1 lyt1) (ValueVector d (Nest o _)) = do
                                                           (v, p) <- distLift q1 =<< toDescr o
                                                           lyt1' <- chainReorder p lyt1
@@ -460,7 +462,7 @@ distL (AClosure n v i xs x f fl) q2 = do
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
 
-ifList :: VectorAlgebra a => Plan -> Plan -> Plan -> Graph a Plan
+ifList ::  Plan -> Plan -> Plan -> Graph VL Plan
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) =
     do
      (d1', _) <- distPrim qb =<< toDescr q1
@@ -478,20 +480,20 @@ ifList qb (PrimVal (DBP q1 cols1) lyt1) (PrimVal (DBP q2 cols2) lyt2) = do
                                                    return $ PrimVal (DBP q cols) lyt
 ifList _ _ _ = $impossible
 
-pairOpL :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+pairOpL ::  Plan -> Plan -> Graph VL Plan
 pairOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                      q <- pairL q1 q2
                                                      let lyt = zipLayout lyt1 lyt2
                                                      return $ ValueVector q lyt
 pairOpL _ _ = $impossible
 
-pairOp :: VectorAlgebra a => Plan -> Plan -> Graph a Plan
+pairOp ::  Plan -> Plan -> Graph VL Plan
 pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
                                              q <- pairA q1 q2
                                              let lyt = zipLayout lyt1 lyt2
                                              return $ PrimVal q lyt
 pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-                                                    d <- constructLiteralValue [] [PNat 1, PNat 1]
+                                                    d <- constructLiteralValue [] [VLNat 1, VLNat 1]
                                                     let lyt = zipLayout (Nest q1 lyt1) (Nest q2 lyt2)
                                                     return $ PrimVal d lyt
 pairOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
@@ -502,7 +504,7 @@ pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
                                                  return $ PrimVal q1 lyt
 pairOp _ _ = $impossible
 
-fstA :: VectorAlgebra a => Plan -> Graph a Plan   
+fstA ::  Plan -> Graph VL Plan   
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
 fstA (PrimVal q (Pair p1 _p2)) = do
                                      let (p1', cols) = projectFromPos p1
@@ -510,14 +512,14 @@ fstA (PrimVal q (Pair p1 _p2)) = do
                                      return $ PrimVal proj p1'
 fstA e1 = error $ "fstA: " ++ show e1                                                     
 
-fstL :: VectorAlgebra a => Plan -> Graph a Plan   
+fstL ::  Plan -> Graph VL Plan   
 fstL (ValueVector q (Pair p1 _p2)) = do
                                         let(p1', cols) = projectFromPos p1
                                         proj <- projectL q cols
                                         return $ ValueVector proj p1'
 fstL _ = $impossible
 
-sndA :: VectorAlgebra a => Plan -> Graph a Plan   
+sndA ::  Plan -> Graph VL Plan   
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 sndA (PrimVal q (Pair _p1 p2)) = do
                                     let (p2', cols) = projectFromPos p2
@@ -525,7 +527,7 @@ sndA (PrimVal q (Pair _p1 p2)) = do
                                     return $ PrimVal proj p2'
 sndA _ = $impossible
     
-sndL :: VectorAlgebra a => Plan -> Graph a Plan   
+sndL ::  Plan -> Graph VL Plan   
 sndL (ValueVector q (Pair _p1 p2)) = do
                                         let (p2', cols) = projectFromPos p2
                                         proj <- projectL q cols
@@ -542,7 +544,7 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
                                                 (p2', cols2, c'') = projectFromPosWork c' p2
                                              in (Pair p1' p2', cols1 ++ cols2, c'')
                                              
-concatV :: Plan -> Graph a Plan
+concatV :: Plan -> Graph VL Plan
 concatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
                                                           <*> pure (l - 1) 
@@ -553,22 +555,22 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
 concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 
-singletonVec :: VectorAlgebra a => Plan -> Graph a Plan
+singletonVec ::  Plan -> Graph VL Plan
 singletonVec (ValueVector q lyt) = do
                                  (DescrVector d) <- singletonDescr
                                  return $ ValueVector (DBV d []) (Nest q lyt)
 singletonVec _ = error "singletonVec: Should not be possible"
 
-singletonPrim :: VectorAlgebra a => Plan -> Graph a Plan
+singletonPrim ::  Plan -> Graph VL Plan
 singletonPrim (PrimVal (DBP q1 cols) lyt) = return $ ValueVector (DBV q1 cols) lyt
 singletonPrim _ = error "singletonPrim: Should not be possible"
 
-dbTable :: VectorAlgebra a => String -> [TypedColumn] -> [Key] -> Graph a Plan
+dbTable ::  String -> [TypedColumn] -> [Key] -> Graph VL Plan
 dbTable n cs ks = do
-                    t <- tableRef n cs ks
+                    t <- tableRef n (map (mapSnd typeToVLType) cs) ks
                     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
 
-mkLiteral :: VectorAlgebra a => Type -> V.Val -> Graph a Plan                    
+mkLiteral ::  Type -> V.Val -> Graph VL Plan                    
 mkLiteral t@(List _) (V.List es) = do
                                             ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
                                             (flip ValueVector layout) <$> (constructLiteralTable (reverse descHd) $ map reverse descV) 
@@ -577,9 +579,9 @@ mkLiteral t e           = do
                             ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (List t) 1 [e]
                             flip PrimVal layout <$> constructLiteralValue (reverse descHd) (reverse descV)
                             
-type Table = ([Type], [[PVal]])
+type Table = ([Type], [[VLVal]])
 
-toPlan :: VectorAlgebra a => Table -> Type -> Int -> [V.Val] -> Graph a (Table, Layout, Int)
+toPlan ::  Table -> Type -> Int -> [V.Val] -> Graph VL (Table, Layout, Int)
 toPlan (descHd, descV) (List t) c es = case t of
                                              (T.Pair t1 t2) -> do 
                                                                  let (e1s, e2s) = unzip $ map splitVal es
@@ -609,18 +611,18 @@ splitVal (V.Pair e1 e2) = (e1, e2)
 splitVal _                 = error $ "splitVal: Not a tuple" 
 
 
-pVal :: V.Val -> PVal
-pVal (V.Int i) = PInt i
-pVal (V.Bool b) = PBool b
-pVal (V.String s) = PString s
-pVal (V.Double d) = PDouble d
-pVal V.Unit = PUnit
+pVal :: V.Val -> VLVal
+pVal (V.Int i) = VLInt i
+pVal (V.Bool b) = VLBool b
+pVal (V.String s) = VLString s
+pVal (V.Double d) = VLDouble d
+pVal V.Unit = VLUnit
 pVal _ = error "pVal: Not a supported value"
 
-mkColumn :: Type -> [V.Val] -> (Type, [PVal])
+mkColumn :: Type -> [V.Val] -> (Type, [VLVal])
 mkColumn t vs = (t, [pVal v | v <- vs]) 
                                             
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths = let header = []
-                           body = map (\(d, p) -> [PNat $ fromIntegral p, PNat $ fromIntegral d]) $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
+                           body = map (\(d, p) -> [VLNat $ fromIntegral p, VLNat $ fromIntegral d]) $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
                         in (header, body)

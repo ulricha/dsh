@@ -7,10 +7,11 @@ import qualified Language.ParallelLang.FKL.Data.FKL as FKL
 import Language.ParallelLang.VL.Data.Query
 
 import Language.ParallelLang.Translate.Algebra2SQL
-import Language.ParallelLang.Translate.Vec2Algebra
+import Language.ParallelLang.Translate.FKL2VL
 import Language.ParallelLang.Common.TransM (runTransform)
 import Language.ParallelLang.Translate.NKL2FKL (flatTransform)
 import Language.ParallelLang.Common.Data.Type
+import Language.ParallelLang.Translate.VL2Algebra
 
 nkl2SQL :: NKL.Expr -> (Query SQL, Type)
 nkl2SQL e = let (e', t) = nkl2Alg e
