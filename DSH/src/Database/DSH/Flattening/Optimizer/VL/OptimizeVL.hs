@@ -6,12 +6,15 @@ import Database.Algebra.VL.Data
   
 import Optimizer.VL.Rewrite.PruneEmpty
 import Optimizer.VL.Rewrite.MergeProjections
+--import Optimizer.VL.Rewrite.Card
+import Optimizer.VL.Rewrite.Redundant
 
 type RewriteClass = DagRewrite VL Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty) 
-                 , ('P', mergeProjections) ]
+                 , ('P', mergeProjections)
+                 , ('R', removeRedundancy) ]
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = case assemblePipeline "E" of
