@@ -4,6 +4,7 @@ module Database.DSH.CompileFlattening (toNKL) where
 import Database.DSH.Impossible
 
 import qualified Language.ParallelLang.NKL.NKLPrimitives as NP
+import Language.ParallelLang.NKL.Opt
 -- import qualified Language.ParallelLang.NP.Data.NP as NP
 import qualified Language.ParallelLang.Common.Data.Type as T
 
@@ -46,14 +47,13 @@ freshVar = do
 prefixVar :: Int -> String
 prefixVar i = "*dshVar*" ++ show i
 
-
 getTableInfoFun :: String -> N [(String, T.Type -> Bool)]
 getTableInfoFun n = do
                    (_, _, f) <- get
                    lift $ f n
 
 toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp -> IO NP.Expr
-toNKL f e = runN f $ translate e
+toNKL f e = liftM opt $ runN f $ translate e
 
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from

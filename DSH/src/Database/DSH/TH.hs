@@ -515,6 +515,7 @@ generateTableRecordInstances conn t dname dnames = do
 
         in return (mkName n, NotStrict, t')
 
+-- FIXME this is basically a copy of generateTableRecordInstances. These functions should be merged.
 -- | Lookup a database table, create corresponding Haskell record data types
 -- and generate QA and View instances
 --
