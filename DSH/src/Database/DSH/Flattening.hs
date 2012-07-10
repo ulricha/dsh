@@ -64,6 +64,9 @@ debugX100VL c (Q e) = do
   e' <- toNKL (getX100TableInfo c) e
   nkl2VLFile "query_vl.plan" e'
 
+debugVLJSON :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugVLJSON c (Q e) = liftM nkl2VJSON $ toNKL (getTableInfo c) e
+
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugPlan c (Q e) = liftM (show . fst . nkl2Alg) $ toNKL (getTableInfo c) e
 
