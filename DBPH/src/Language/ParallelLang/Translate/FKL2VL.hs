@@ -5,6 +5,7 @@ import Database.Algebra.VL.Render.JSON
 
 import Database.Algebra.VL.Data(VL())
 import Database.Algebra.VL.Render.Dot
+import Database.Algebra.VL.Render.JSON()
 import Language.ParallelLang.VL.VLPrimitives
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL
@@ -14,6 +15,7 @@ import Language.ParallelLang.VL.VectorOperations
 
 import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
+import Data.ByteString.Lazy.Char8 (unpack)
 
 fkl2VL :: Expr -> Graph VL Plan
 fkl2VL (Table _ n cs ks) = dbTable n cs ks
@@ -120,5 +122,5 @@ toVecDot e = let (gr,p,ts) = toVec e
              
 toVecJSON :: Expr -> String
 toVecJSON e = let (gr,p,ts) = toVec e
-               in renderVLJSON ts (rootNodes p) (reverseAlgMap gr)
+               in unpack $ serializePlan (ts, rootNodes p, reverseAlgMap gr)
 

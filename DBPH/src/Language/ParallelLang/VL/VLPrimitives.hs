@@ -258,4 +258,9 @@ reverseL (DBV c _) = do
 
 falsePositions :: DBV -> GraphM r VL DBV
 falsePositions (DBV c _) = dbv $ insertNode $ UnOp FalsePositions c
-                                
+
+singleton :: DBP -> GraphM r VL DBV
+singleton (DBP c _) = dbv $ insertNode $ UnOp Singleton c
+    
+only :: DBV -> GraphM r VL DBP
+only (DBV c _) = dbp $ insertNode $ UnOp Only c                                

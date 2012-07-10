@@ -67,6 +67,7 @@ fromDBV (DBV n cs) = RDBV n cs
 
 toDBV :: Res -> DBV
 toDBV (RDBV n cs) = DBV n cs
+toDBV (Descr n)   = DBV n []
 toDBV _           = error "toDBV: Not a DBV"
 
 fromDBP :: DBP -> Res
@@ -188,8 +189,18 @@ translateBinOp b c1 c2 = case b of
                                                 (v, r1 ,r2) <- zipL (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
 
+singleton :: Res -> Res
+singleton (RDBP c cs) = RDBV c cs
+singleton _           = error "singleton: Not a DBP"
+
+only :: Res -> Res
+only (RDBV c cs) = RDBP c cs
+only _           = error "only: Not a DBV"
+
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
+                      Singleton     -> return $ singleton c
+                      Only          -> return $ only c
                       Unique        -> liftM fromDBV $ unique (toDBV c)
                       UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
                       NotPrim       -> liftM fromDBP $ notPrim (toDBP c)

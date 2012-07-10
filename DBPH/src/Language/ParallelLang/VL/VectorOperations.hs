@@ -22,8 +22,8 @@ takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
                                                                (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]] 
                                                                qfs <- falsePositions qb'
                                                                one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                                               (DBV p _, _) <- selectPos qfs Eq one
-                                                               (r, prop) <- selectPos q Lt (DBP p [1])
+                                                               (p, _) <- selectPos qfs Eq one
+                                                               (r, prop) <- selectPos q Lt =<< only p 
                                                                lyt' <- chainRenameFilter prop lyt
                                                                return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
@@ -141,9 +141,9 @@ lastPrim (ValueVector qs lyt@(Nest _ _)) = do
                                                renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
                                     i <- lengthA =<< toDescr qs
-                                    (DBV q cols, r) <- selectPos qs Eq i
+                                    (q, r) <- selectPos qs Eq i
                                     lyt' <- chainRenameFilter r lyt
-                                    return $ PrimVal (DBP q cols) lyt'
+                                    flip PrimVal lyt' <$> only q
 lastPrim _ = error "lastPrim: Should not be possible"
 
 lastLift ::  Plan -> Graph VL Plan
@@ -172,9 +172,9 @@ indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
                                                            renameOuter re $ ValueVector qr lyt'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
                                                 i' <-  binOp Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                                (DBV q cols, r) <- selectPos qs Eq i'
+                                                (q, r) <- selectPos qs Eq i'
                                                 lyt' <- chainRenameFilter r lyt
-                                                return $ PrimVal (DBP q cols) lyt'
+                                                flip PrimVal lyt' <$> only q
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
 indexLift ::  Plan -> Plan -> Graph VL Plan
@@ -262,9 +262,9 @@ the (ValueVector d lyt@(Nest _ _)) = do
                                      return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
                             p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                            (DBV q' cols, prop) <- selectPos d Eq p
+                            (q', prop) <- selectPos d Eq p
                             lyt' <- chainRenameFilter prop lyt
-                            return $ PrimVal (DBP q' cols) lyt'
+                            flip PrimVal lyt' <$> only q'
 the _ = error "the: Should not be possible"
 
 tailS ::  Plan -> Graph VL Plan
@@ -475,9 +475,11 @@ ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) =
      lyt' <- appendR' r1 r2
      (d, _, _) <- append d1 d2
      return $ ValueVector d lyt'
-ifList qb (PrimVal (DBP q1 cols1) lyt1) (PrimVal (DBP q2 cols2) lyt2) = do
-                                                   (ValueVector (DBV q cols) lyt) <- ifList qb (ValueVector (DBV q1 cols1) lyt1) (ValueVector (DBV q2 cols2) lyt2)
-                                                   return $ PrimVal (DBP q cols) lyt
+ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
+                                                   q1' <- singleton q1
+                                                   q2' <- singleton q2
+                                                   (ValueVector q lyt) <- ifList qb (ValueVector q1' lyt1) (ValueVector q2' lyt2)
+                                                   flip PrimVal lyt <$> only q
 ifList _ _ _ = $impossible
 
 pairOpL ::  Plan -> Plan -> Graph VL Plan
@@ -562,7 +564,7 @@ singletonVec (ValueVector q lyt) = do
 singletonVec _ = error "singletonVec: Should not be possible"
 
 singletonPrim ::  Plan -> Graph VL Plan
-singletonPrim (PrimVal (DBP q1 cols) lyt) = return $ ValueVector (DBV q1 cols) lyt
+singletonPrim (PrimVal q1 lyt) = flip ValueVector lyt <$> singleton q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
 
 dbTable ::  String -> [TypedColumn] -> [Key] -> Graph VL Plan
