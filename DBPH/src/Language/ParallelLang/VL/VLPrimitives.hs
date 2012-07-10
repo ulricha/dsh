@@ -2,7 +2,6 @@
 module Language.ParallelLang.VL.VLPrimitives where
     
 import Language.ParallelLang.VL.Data.DBVector
--- import Language.ParallelLang.VL.VectorPrimitives
 import qualified Language.ParallelLang.Common.Data.Type as Ty
 import qualified Language.ParallelLang.Common.Data.Op as O
 

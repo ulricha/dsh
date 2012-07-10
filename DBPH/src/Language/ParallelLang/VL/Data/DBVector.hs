@@ -21,13 +21,3 @@ data PropVector = PropVector AlgNode
 
 data RenameVector = RenameVector AlgNode
     deriving (Generic)
-
-{-
-data PVal = PInt Int
-          | PNat Int
-          | PBool Bool
-          | PString String
-          | PDouble Double
-          | PUnit
-    deriving (Eq, Ord, Generic)
--}

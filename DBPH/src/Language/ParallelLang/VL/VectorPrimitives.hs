@@ -1,8 +1,5 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
--- import qualified Language.ParallelLang.Common.Data.Type as Ty
--- import Language.ParallelLang.FKL.Data.FKL
--- import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.DBVector
 import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp())
 

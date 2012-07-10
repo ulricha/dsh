@@ -19,15 +19,15 @@ nkl2SQL e = let (e', t) = nkl2Alg e
 
 nkl2Alg :: NKL.Expr -> (Query XML, Type)
 nkl2Alg e = let (e', t) = nkl2Vec' e
-             in (toXML $ toPFAlgebra e', t)
+             in (toXML $ toPFAlgebra $ toVec e', t)
              
 nkl2X100Alg :: NKL.Expr -> (Query X100, Type)
 nkl2X100Alg e = let (e', t) = nkl2Vec' e
-                in (toX100String $ toX100Algebra e', t)
+                in (toX100String $ toX100Algebra $ toVec e', t)
                 
 nkl2X100File :: FilePath -> NKL.Expr -> IO ()
 nkl2X100File f e = let (e', _) = nkl2Vec' e
-                 in toX100File f $ toX100Algebra e'
+                 in toX100File f $ toX100Algebra $ toVec e'
 
 nkl2Vec' :: NKL.Expr -> (FKL.Expr, Type)
 nkl2Vec' e = runTransform $ 

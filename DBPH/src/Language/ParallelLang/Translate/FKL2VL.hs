@@ -5,7 +5,6 @@ import Database.Algebra.VL.Render.JSON
 
 import Database.Algebra.VL.Data(VL())
 import Database.Algebra.VL.Render.Dot
--- import Language.ParallelLang.VL.VectorPrimitives
 import Language.ParallelLang.VL.VLPrimitives
 import Database.Algebra.Dag.Builder
 import Language.ParallelLang.FKL.Data.FKL

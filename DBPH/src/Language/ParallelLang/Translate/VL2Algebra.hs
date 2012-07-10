@@ -234,12 +234,11 @@ translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLit
 translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks 
 
 
-toPFAlgebra :: (NodeMap VL, Plan) -> AlgPlan PFAlgebra Plan
-toPFAlgebra e = runG initLoop (vl2Algebra e)
+toPFAlgebra :: AlgPlan VL Plan -> AlgPlan PFAlgebra Plan
+toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
 
-toX100Algebra :: (NodeMap VL, Plan) -> AlgPlan X100Algebra Plan
-toX100Algebra e = runG dummy (vl2Algebra e)
-
+toX100Algebra :: AlgPlan VL Plan -> AlgPlan X100Algebra Plan
+toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
 
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
