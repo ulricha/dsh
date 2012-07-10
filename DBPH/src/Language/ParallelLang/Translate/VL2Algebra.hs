@@ -1,4 +1,10 @@
-module Language.ParallelLang.Translate.VL2Algebra (toPFAlgebra, toXML, toX100Algebra, toX100String, toX100File) where
+module Language.ParallelLang.Translate.VL2Algebra 
+       ( toPFAlgebra
+       , toXML
+       , toX100Algebra
+       , toX100String
+       , toX100File
+       , toVLFile) where
 
 import Database.Algebra.Pathfinder(PFAlgebra)
 
@@ -23,6 +29,7 @@ import Database.Algebra.Dag.Builder
 import Language.ParallelLang.VL.Data.GraphVector hiding (Pair)
 import qualified Language.ParallelLang.VL.Data.GraphVector as GV
 import Database.Algebra.VL.Data hiding (DBCol)
+import qualified Database.Algebra.VL.Render.JSON as VLJSON
 import qualified Database.Algebra.VL.Data as V
 
 import Control.Monad.State
@@ -193,6 +200,7 @@ translateBinOp b c1 c2 = case b of
                            ZipL             -> do
                                                 (v, r1 ,r2) <- zipL (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
+                           CartProduct      -> liftM fromDBV $ cartProduct (toDBV c1) (toDBV c2)
 
 singleton :: Res -> Res
 singleton (RDBP c cs) = RDBV c cs
@@ -219,6 +227,8 @@ translateUnOp u c = case u of
                       VecMinL       -> liftM fromDBV $ vecMinLift (toDBV c)
                       VecMax        -> liftM fromDBP $ vecMax (toDBV c)
                       VecMaxL       -> liftM fromDBV $ vecMaxLift (toDBV c)
+                      SelectItem    -> liftM fromDBV $ selectItem (toDBV c)
+                      ProjectRename posnewP posoldP -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
                       ProjectL cols -> liftM fromDBV $ projectL (toDBV c) cols
                       ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
@@ -259,6 +269,10 @@ toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
 toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
+
+toVLFile :: FilePath -> AlgPlan VL Plan -> IO ()
+toVLFile f (m, r, t) = do
+    VLJSON.planToFile f (t, rootNodes r, reverseAlgMap m)
       
 toX100String :: AlgPlan X100Algebra Plan -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
