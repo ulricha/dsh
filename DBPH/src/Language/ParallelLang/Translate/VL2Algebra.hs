@@ -39,6 +39,7 @@ data Res = Prop    AlgNode
          | Descr   AlgNode
          | RPair    Res Res
          | RTriple Res Res Res
+    deriving Show
 
 fromDict :: VectorAlgebra a => AlgNode -> G a (Maybe Res)
 fromDict n = do
@@ -93,9 +94,13 @@ vl2Algebra (nodes, plan) = do
       roots = rootNodes plan
       refreshPlan :: VectorAlgebra a => Plan -> G a Plan
       refreshPlan (ValueVector (DBV n _) lyt) = do
-                                                 (Just (RDBV n' cs)) <- fromDict n
-                                                 lyt' <- refreshLyt lyt
-                                                 return $ ValueVector (DBV n' cs) lyt'
+                                                 
+                                                 v <- fromDict n
+                                                 case v of
+                                                     (Just n') -> do
+                                                                             lyt' <- refreshLyt lyt
+                                                                             return $ ValueVector (toDBV n') lyt'
+                                                     _ -> error $ "Disaster: " ++ show v
       refreshPlan (PrimVal (DBP n _) lyt) = do
                                              (Just (RDBP n' cs)) <- fromDict n
                                              lyt' <- refreshLyt lyt
@@ -104,9 +109,9 @@ vl2Algebra (nodes, plan) = do
       refreshLyt :: VectorAlgebra a => Layout -> G a Layout
       refreshLyt l@(InColumn _) = return l
       refreshLyt (Nest (DBV n _) lyt) = do
-                                         (Just (RDBV n' cs)) <- fromDict n
+                                         (Just n') <- fromDict n
                                          lyt' <- refreshLyt lyt
-                                         return $ Nest (DBV n' cs) lyt'
+                                         return $ Nest (toDBV n') lyt'
       refreshLyt (GV.Pair l1 l2) = do
                                  l1' <- refreshLyt l1
                                  l2' <- refreshLyt l2
