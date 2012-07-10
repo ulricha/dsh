@@ -70,7 +70,7 @@ toDBV (RDBV n cs) = DBV n cs
 toDBV _           = error "toDBV: Not a DBV"
 
 fromDBP :: DBP -> Res
-fromDBP (DBP n cs) = RDBV n cs
+fromDBP (DBP n cs) = RDBP n cs
 
 toDBP :: Res -> DBP
 toDBP (RDBP n cs) = DBP n cs
