@@ -1,8 +1,6 @@
 {-# LANGUAGE TemplateHaskell, RelaxedPolyRec, TupleSections #-}
 module Language.ParallelLang.Translate.FKL2VL (toVec, toVecDot, toVecJSON) where
 
-import Database.Algebra.VL.Render.JSON
-
 import Database.Algebra.VL.Data(VL())
 import Database.Algebra.VL.Render.Dot
 import Database.Algebra.VL.Render.JSON()
@@ -12,10 +10,15 @@ import Language.ParallelLang.FKL.Data.FKL
 import Language.ParallelLang.Common.Data.Op
 import Language.ParallelLang.VL.Data.GraphVector hiding (Pair)
 import Language.ParallelLang.VL.VectorOperations
+import Language.ParallelLang.VL.Data.DBVector
+import Language.ParallelLang.Common.Data.Type(Type())
+import Language.ParallelLang.Common.Data.Val(Val())
 
 import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
 import Data.ByteString.Lazy.Char8 (unpack)
+import Data.Aeson (ToJSON, encode)
+import qualified Data.Map as M
 
 fkl2VL :: Expr -> Graph VL Plan
 fkl2VL (Table _ n cs ks) = dbTable n cs ks
@@ -119,8 +122,20 @@ toVec e = runGraph emptyVL (fkl2VL e)
 toVecDot :: Expr -> String
 toVecDot e = let (gr,p,ts) = toVec e
              in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
-             
-toVecJSON :: Expr -> String
-toVecJSON e = let (gr,p,ts) = toVec e
-               in unpack $ serializePlan (ts, rootNodes p, reverseAlgMap gr)
 
+toVecJSON :: Expr -> String
+toVecJSON e = let (gr,p, _) = toVec e
+               in unpack $ encode (p, M.toList $ reverseAlgMap gr)
+
+instance ToJSON Plan where
+instance ToJSON DBV where
+instance ToJSON DBP where
+instance ToJSON Layout where
+instance ToJSON Expr where
+instance ToJSON Prim1 where
+instance ToJSON Prim2 where
+instance ToJSON Prim3 where
+instance ToJSON Oper where
+instance ToJSON Op where
+instance ToJSON Type where
+instance ToJSON Val where
