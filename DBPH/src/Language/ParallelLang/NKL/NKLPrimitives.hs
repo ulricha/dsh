@@ -25,7 +25,8 @@ length :: Expr -> Expr
 length e = let t = typeOf e
             in if isListT t 
                  then AppE1 intT (Length P.$ t .-> intT) e
-                 else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t
+                 else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++ 
+                                  "\nThe provided argument is: " P.++ P.show e
 
 unzip :: Expr -> Expr
 unzip e = let (T.List (T.Pair t1 t2)) = typeOf e
@@ -104,15 +105,15 @@ last e = let (List t) = typeOf e
 
 tail :: Expr -> Expr
 tail e = let (List t) = typeOf e
-          in AppE1 t (Tail P.$ List t .-> List t) e
+          in AppE1 (List t) (Tail P.$ List t .-> List t) e
 
 nub :: Expr -> Expr
 nub e = let (List t) = typeOf e
-         in AppE1 t (Nub P.$ List t .-> List t) e
+         in AppE1 (List t) (Nub P.$ List t .-> List t) e
 
 init :: Expr -> Expr
 init e = let (List t) = typeOf e
-        in AppE1 t (Init P.$ List t .-> List t) e
+        in AppE1 (List t) (Init P.$ List t .-> List t) e
          
 fst :: Expr -> Expr
 fst e = let t@(T.Pair t1 _) = typeOf e
