@@ -19,7 +19,7 @@ NullOp(
                        'spiegel_user_posts_per_day', 
                        'spiegel_user_registered', 
                        'spiegel_user_last_activity']
-                     ,'/Users/jweijers/spiegel_epoch_csv/spiegel_users.csv'
+                     ,'/home/au/Data/raw/spiegel/spiegel_users.csv'
                      , ',', '\n', '"', '\\'),[spiegel_user_url = spiegel_user_url, 
                                               spiegel_user_name = spiegel_user_name, 
                                               spiegel_user_role = spiegel_user_role, 
@@ -51,7 +51,7 @@ NullOp(
                        'spiegel_thread_hits', 
                        'spiegel_thread_rating', 
                        'spiegel_thread_votes']
-                     ,'/Users/jweijers/spiegel_epoch_csv/spiegel_threads.csv'
+                     ,'/home/au/Data/raw/spiegel/spiegel_threads.csv'
                      , ',', '\n', '"', '\\'),[spiegel_thread_url = spiegel_thread_url, 
                                               spiegel_thread_title = spiegel_thread_title, 
                                               spiegel_thread_description = spiegel_thread_description, 
@@ -82,7 +82,7 @@ NullOp(
                        'spiegel_post_content', 
                        'spiegel_post_user_name', 
                        'spiegel_post_user_url']
-                     ,'/Users/jweijers/spiegel_epoch_csv/spiegel_posts.csv'
+                     ,'/home/au/Data/raw/spiegel/spiegel_posts.csv'
                      , ',', '\n', '"', '\\'),[spiegel_post_url = spiegel_post_url, 
                                               spiegel_post_thread_url = spiegel_post_thread_url, 
                                               spiegel_post_time = dbl(spiegel_post_time), 
@@ -101,7 +101,7 @@ NullOp(
         Project(
             AsciiLoad(['spiegel_quote_url', 
                        'spiegel_quote_post_url']
-                     ,'/Users/jweijers/spiegel_epoch_csv/spiegel_quotes.csv'
+                     ,'/home/au/Data/raw/spiegel/spiegel_quotes.csv'
                      , ',', '\n', '"', '\\'),[spiegel_quote_url = spiegel_quote_url, 
                                               spiegel_quote_post_url = spiegel_quote_post_url])));
 Commit;

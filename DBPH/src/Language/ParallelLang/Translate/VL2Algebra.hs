@@ -19,6 +19,8 @@ import Database.Algebra.Pathfinder(initLoop)
 import qualified Data.Map as M
 
 import Language.ParallelLang.VL.X100VectorPrimitives()
+import Database.Algebra.Aux
+import Database.Algebra.Dag(AlgebraDag, mkDag, nodeMap)
 import Database.Algebra.Dag.Common hiding (BinOp)
 import qualified Database.Algebra.Dag.Common as C
 import Language.ParallelLang.VL.Data.DBVector
@@ -265,6 +267,12 @@ toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
 
 toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
 toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
+                          
+vlDagtoX100Dag :: AlgebraDag VL -> Shape -> AlgebraDag X100Algebra
+vlDagtoX100Dag vlDag shape = 
+  let vlplan = ((reverseMap $ nodeMap vlDag), shape, M.empty)
+      (m, shape', _) = toX100Algebra vlplan
+  in mkDag (reverseMap m) (rootNodes shape')
 
 toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
