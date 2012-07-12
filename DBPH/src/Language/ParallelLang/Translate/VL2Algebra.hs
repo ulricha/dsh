@@ -4,6 +4,7 @@ module Language.ParallelLang.Translate.VL2Algebra
        , toX100Algebra
        , toX100String
        , toX100File
+       , vlDagtoX100Dag
        , toVLFile) where
 
 import Database.Algebra.Pathfinder(PFAlgebra)
@@ -277,7 +278,7 @@ vlDagtoX100Dag vlDag shape =
 toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
-
+    
 toVLFile :: FilePath -> AlgPlan VL Shape -> IO ()
 toVLFile f (m, r, t) = do
     VLJSON.planToFile f (t, rootNodes r, reverseAlgMap m)

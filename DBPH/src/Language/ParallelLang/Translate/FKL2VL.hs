@@ -17,7 +17,7 @@ import Language.ParallelLang.Common.Data.Val(Val())
 import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
 import Data.ByteString.Lazy.Char8 (unpack)
-import Data.Aeson (ToJSON, encode)
+import Data.Aeson (ToJSON, FromJSON, encode)
 import qualified Data.Map as M
 
 fkl2VL :: Expr -> Graph VL Shape
@@ -126,7 +126,7 @@ toVecDot e = let (gr,p,ts) = toVec e
 toVecJSON :: Expr -> String
 toVecJSON e = let (gr,p, _) = toVec e
                in unpack $ encode (p, M.toList $ reverseAlgMap gr)
-
+                  
 instance ToJSON Shape where
 instance ToJSON DBV where
 instance ToJSON DBP where
@@ -139,3 +139,17 @@ instance ToJSON Oper where
 instance ToJSON Op where
 instance ToJSON Type where
 instance ToJSON Val where
+
+instance FromJSON Shape where
+instance FromJSON DBV where
+instance FromJSON DBP where
+instance FromJSON Layout where
+instance FromJSON Expr where
+instance FromJSON Prim1 where
+instance FromJSON Prim2 where
+instance FromJSON Prim3 where
+instance FromJSON Oper where
+instance FromJSON Op where
+instance FromJSON Type where
+instance FromJSON Val where
+
