@@ -92,15 +92,15 @@ toDescrVector :: Res -> DescrVector
 toDescrVector (Descr d) = DescrVector d
 toDescrVector _         = error "toDescrVector: Not a descriptor vector"
 
-vl2Algebra :: VectorAlgebra a => (NodeMap VL, Plan) -> G a Plan
+vl2Algebra :: VectorAlgebra a => (NodeMap VL, Shape) -> G a Shape
 vl2Algebra (nodes, plan) = do 
                             mapM_ translate roots
-                            refreshPlan plan
+                            refreshShape plan
     where
       roots :: [AlgNode]
       roots = rootNodes plan
-      refreshPlan :: VectorAlgebra a => Plan -> G a Plan
-      refreshPlan (ValueVector (DBV n _) lyt) = do
+      refreshShape :: VectorAlgebra a => Shape -> G a Shape
+      refreshShape (ValueVector (DBV n _) lyt) = do
                                                  
                                                  v <- fromDict n
                                                  case v of
@@ -108,11 +108,11 @@ vl2Algebra (nodes, plan) = do
                                                                              lyt' <- refreshLyt lyt
                                                                              return $ ValueVector (toDBV n') lyt'
                                                      _ -> error $ "Disaster: " ++ show v
-      refreshPlan (PrimVal (DBP n _) lyt) = do
+      refreshShape (PrimVal (DBP n _) lyt) = do
                                              (Just (RDBP n' cs)) <- fromDict n
                                              lyt' <- refreshLyt lyt
                                              return $ PrimVal (DBP n' cs) lyt'
-      refreshPlan _ = error "refreshPlan: Closure cannot be translated to algebra"
+      refreshShape _ = error "refreshShape: Closure cannot be translated to algebra"
       refreshLyt :: VectorAlgebra a => Layout -> G a Layout
       refreshLyt l@(InColumn _) = return l
       refreshLyt (Nest (DBV n _) lyt) = do
@@ -260,26 +260,26 @@ translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLit
 translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks 
 
 
-toPFAlgebra :: AlgPlan VL Plan -> AlgPlan PFAlgebra Plan
+toPFAlgebra :: AlgPlan VL Shape -> AlgPlan PFAlgebra Shape
 toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
 
-toX100Algebra :: AlgPlan VL Plan -> AlgPlan X100Algebra Plan
+toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
 toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
 
-toX100File :: FilePath -> AlgPlan X100Algebra Plan -> IO ()
+toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
 
-toVLFile :: FilePath -> AlgPlan VL Plan -> IO ()
+toVLFile :: FilePath -> AlgPlan VL Shape -> IO ()
 toVLFile f (m, r, t) = do
     VLJSON.planToFile f (t, rootNodes r, reverseAlgMap m)
       
-toX100String :: AlgPlan X100Algebra Plan -> Ext.Query Ext.X100
+toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
  where
     m' :: M.Map AlgNode X100Algebra
     m' = reverseAlgMap m
-    convertQuery :: Plan -> Ext.Query Ext.X100
+    convertQuery :: Shape -> Ext.Query Ext.X100
     convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
     convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
     convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
@@ -289,10 +289,10 @@ toX100String (m, r, _t) = convertQuery r
     convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
     convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
     
-toXML :: AlgPlan PFAlgebra Plan -> Ext.Query Ext.XML
+toXML :: AlgPlan PFAlgebra Shape -> Ext.Query Ext.XML
 toXML (g, r, ts) = convertQuery r
     where
-        convertQuery :: Plan -> Ext.Query Ext.XML
+        convertQuery :: Shape -> Ext.Query Ext.XML
         convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
         convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
         convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"

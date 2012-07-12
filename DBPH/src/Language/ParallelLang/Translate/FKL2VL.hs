@@ -20,7 +20,7 @@ import Data.ByteString.Lazy.Char8 (unpack)
 import Data.Aeson (ToJSON, encode)
 import qualified Data.Map as M
 
-fkl2VL :: Expr -> Graph VL Plan
+fkl2VL :: Expr -> Graph VL Shape
 fkl2VL (Table _ n cs ks) = dbTable n cs ks
 fkl2VL (Const t v) = mkLiteral t v
 fkl2VL (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; cons e1' e2'}
@@ -112,11 +112,11 @@ fkl2VL (CloLApp _ c arg) = do
                               arg' <- fkl2VL arg
                               withContext ((n, v):(x, arg'):fvs) undefined $ fkl2VL f2 
 
-constructClosureEnv :: [String] -> Graph a [(String, Plan)]
+constructClosureEnv :: [String] -> Graph a [(String, Shape)]
 constructClosureEnv [] = return []
 constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
-toVec :: Expr -> AlgPlan VL Plan
+toVec :: Expr -> AlgPlan VL Shape
 toVec e = runGraph emptyVL (fkl2VL e)
 
 toVecDot :: Expr -> String
@@ -127,7 +127,7 @@ toVecJSON :: Expr -> String
 toVecJSON e = let (gr,p, _) = toVec e
                in unpack $ encode (p, M.toList $ reverseAlgMap gr)
 
-instance ToJSON Plan where
+instance ToJSON Shape where
 instance ToJSON DBV where
 instance ToJSON DBP where
 instance ToJSON Layout where

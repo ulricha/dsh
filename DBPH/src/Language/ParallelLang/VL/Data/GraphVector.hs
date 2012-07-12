@@ -8,21 +8,20 @@ import Language.ParallelLang.FKL.Data.FKL hiding (Pair)
 
 import GHC.Generics (Generic)
 
-type Graph a = GraphM Plan a
+type Graph a = GraphM Shape a
 
 data Layout = InColumn Int
             | Nest DBV Layout
             | Pair Layout Layout
     deriving (Show, Generic)
 
-data Plan =
-         ValueVector DBV Layout
-       | PrimVal DBP Layout
-       | Closure String [(String, Plan)] String Expr Expr
-       | AClosure String Plan Int [(String, Plan)] String Expr Expr
-     deriving (Show, Generic)
+data Shape = ValueVector DBV Layout
+           | PrimVal DBP Layout
+           | Closure String [(String, Shape)] String Expr Expr
+           | AClosure String Shape Int [(String, Shape)] String Expr Expr
+           deriving (Show, Generic)
 
-rootNodes :: Plan -> [AlgNode]
+rootNodes :: Shape -> [AlgNode]
 rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt
 rootNodes (PrimVal (DBP n _) lyt) = n : rootNodes' lyt
 rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"

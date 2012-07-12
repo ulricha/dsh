@@ -36,7 +36,7 @@ chainReorder p (Pair l1 l2) = Pair <$> chainReorder p l1 <*> chainReorder p l2
 
 -- | renameOuter renames and filters a vector according to a propagation vector
 -- Changes are not propagated to inner vectors.
-renameOuter :: RenameVector -> Plan -> Graph VL Plan
+renameOuter :: RenameVector -> Shape -> Graph VL Shape
 renameOuter p (ValueVector q lyt) = flip ValueVector lyt <$> propRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
 
@@ -46,7 +46,7 @@ renameOuter' r (Nest q lyt) = flip Nest lyt <$> propRename r q
 renameOuter' r (Pair l1 l2) = Pair <$> renameOuter' r l1 <*> renameOuter' r l2
                                 
 -- | Append two vectors
-appendR :: Plan -> Plan -> Graph VL Plan
+appendR :: Shape -> Shape -> Graph VL Shape
 appendR (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                         (v, p1, p2) <- append q1 q2
                                                         lyt1' <- renameOuter' p1 lyt1
