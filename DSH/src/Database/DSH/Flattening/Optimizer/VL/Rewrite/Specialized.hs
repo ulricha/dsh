@@ -63,7 +63,7 @@ cartProd :: Rule VL BottomUpProps
 cartProd q =
   $(pattern [| q |] "R1 ((distInput) DistLift (ToDescr (right=R1 ((leftInput) DistDesc (ToDescr (rightInput))))))"
     [| do
-        trace "match" $ predicate $ $(v "distInput") == $(v "rightInput")
+        predicate $ $(v "distInput") == $(v "rightInput")
 
         leftInputWidth <- liftM widthProp $ properties $(v "leftInput")
         rightInputWidth <- liftM widthProp $ properties $(v "rightInput")
