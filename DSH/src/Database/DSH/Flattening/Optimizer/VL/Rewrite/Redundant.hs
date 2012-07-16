@@ -18,11 +18,10 @@ removeRedundancy = iteratively $ preOrder (return M.empty) redundantRules
 redundantRules :: RuleSet VL ()
 redundantRules = [ mergeStackedDistDesc 
                  , restrictCombineDBV 
-                 , restrictCombinePropLeft
-                 , pullRestrictThroughPair 
-                 , pairedProjections 
+                 , restrictCombinePropLeft 
+                 , pullRestrictThroughPair
+                 , pairedProjections
                  , binOpSameSource
-                 , restrictToSelect 
                  , descriptorFromProject ]
 
 mergeStackedDistDesc :: Rule VL ()
@@ -102,17 +101,6 @@ binOpSameSource q =
           opNode <- insertM $ UnOp (VecBinOpSingle ($(v "op"), c1, c2)) $(v "q2")
           relinkParentsM q opNode |])
         
-restrictToSelect :: Rule VL ()
-restrictToSelect q =
-  $(pattern [| q |] "R1 ((q1) RestrictVec (qo=VecBinOpSingle _ (q2)))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        
-        return $ do
-          logRewriteM "Redundant.RestrictToSelect" q
-          selectNode <- insertM $ UnOp SelectItem $(v "qo")
-          relinkParentsM q selectNode |])
-          
 descriptorFromProject :: Rule VL ()
 descriptorFromProject q =
   $(pattern [| q |] "ToDescr (ProjectL _ (q1))"
