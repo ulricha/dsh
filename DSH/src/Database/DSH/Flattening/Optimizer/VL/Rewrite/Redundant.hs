@@ -19,7 +19,11 @@ redundantRules :: RuleSet VL ()
 redundantRules = [ mergeStackedDistDesc 
                  , restrictCombineDBV 
                  , restrictCombinePropLeft
-                 , pullRestrictThroughPair ]
+                 , pullRestrictThroughPair 
+                 , pairedProjections 
+                 , binOpSameSource
+                 , restrictToSelect 
+                 , descriptorFromProject ]
 
 mergeStackedDistDesc :: Rule VL ()
 mergeStackedDistDesc q = 
@@ -72,3 +76,47 @@ pullRestrictThroughPair q =
           restrictNode <- insertM $ BinOp RestrictVec pairNode $(v "qb1")
           r1Node <- insertM $ UnOp R1 restrictNode
           relinkParentsM q r1Node |])
+  
+-- FIXME ensure that the union of the columns of both projections is the original input vector
+pairedProjections :: Rule VL ()
+pairedProjections q = 
+  $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        
+        return $ do
+          logRewriteM "Redundant.PairedProjections" q
+          relinkParentsM q $(v "q1") |])
+
+binOpSameSource :: Rule VL ()
+binOpSameSource q =
+  $(pattern [| q |] "(ProjectL ps1 (q1)) VecBinOpL op (ProjectL ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        (c1, c2) <- case ($(v "ps1"), $(v "ps2")) of
+          ([c1], [c2]) -> return (c1, c2)
+          _            -> fail ""
+
+        return $ do
+          logRewriteM "Redundant.BinOpSameSource" q
+          opNode <- insertM $ UnOp (VecBinOpSingle ($(v "op"), c1, c2)) $(v "q2")
+          relinkParentsM q opNode |])
+        
+restrictToSelect :: Rule VL ()
+restrictToSelect q =
+  $(pattern [| q |] "R1 ((q1) RestrictVec (qo=VecBinOpSingle _ (q2)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        
+        return $ do
+          logRewriteM "Redundant.RestrictToSelect" q
+          selectNode <- insertM $ UnOp SelectItem $(v "qo")
+          relinkParentsM q selectNode |])
+          
+descriptorFromProject :: Rule VL ()
+descriptorFromProject q =
+  $(pattern [| q |] "ToDescr (ProjectL _ (q1))"
+    [| do
+        return $ do
+          logRewriteM "Redundant.DescriptorFromProject" q
+          replaceM q $ UnOp ToDescr $(v "q1") |])
