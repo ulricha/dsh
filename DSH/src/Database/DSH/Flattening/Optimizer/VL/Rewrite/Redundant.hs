@@ -59,7 +59,7 @@ restrictCombinePropLeft q =
         return $ do
           logRewriteM "Redundant.RestrictCombine.PropLeft" q
           selectNode <- insertM $ UnOp SelectItem $(v "qb") 
-          projectNode <- insertM $ UnOp (ProjectRename PosCol Number) selectNode
+          projectNode <- insertM $ UnOp (ProjectRename (PosCol, Number)) selectNode
           relinkParentsM q projectNode |])
   
 pullRestrictThroughPair :: Rule VL ()
