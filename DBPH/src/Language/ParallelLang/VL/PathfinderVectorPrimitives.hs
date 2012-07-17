@@ -87,6 +87,8 @@ instance VectorAlgebra PFAlgebra where
   selectItem = undefined
   
   projectRename = undefined
+                  
+  projectValue = undefined
   
   binOpSingle = undefined
 

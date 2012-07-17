@@ -236,7 +236,8 @@ translateUnOp u c = case u of
                       VecMax        -> liftM fromDBP $ vecMax (toDBV c)
                       VecMaxL       -> liftM fromDBV $ vecMaxLift (toDBV c)
                       SelectItem    -> liftM fromDBV $ selectItem (toDBV c)
-                      ProjectRename posnewP posoldP -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
+                      ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
+                      ProjectValue (descrP, posP, valPs) -> liftM fromDBV $ projectValue descrP posP valPs (toDBV c)
                       ProjectL cols -> liftM fromDBV $ projectL (toDBV c) cols
                       ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)

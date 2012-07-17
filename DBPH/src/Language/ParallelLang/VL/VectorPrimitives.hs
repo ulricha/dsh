@@ -60,4 +60,5 @@ class VectorAlgebra a where
   cartProduct :: DBV -> DBV -> GraphM r a DBV
   selectItem :: DBV -> GraphM r a DBV
   projectRename :: Projection -> Projection -> DBV -> GraphM r a RenameVector
+  projectValue :: Projection -> Projection -> [Projection] -> DBV -> GraphM r a DBV
   binOpSingle :: (VecOp, DBCol, DBCol) -> DBV -> GraphM r a DBV
