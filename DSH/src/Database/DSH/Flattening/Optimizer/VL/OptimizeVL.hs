@@ -9,6 +9,7 @@ import Optimizer.VL.Rewrite.MergeProjections
 --import Optimizer.VL.Rewrite.Card
 import Optimizer.VL.Rewrite.Redundant
 import Optimizer.VL.Rewrite.Specialized
+import Optimizer.VL.Rewrite.DescriptorModifiers
 
 type RewriteClass = DagRewrite VL Bool
 
@@ -16,7 +17,8 @@ rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty) 
                  , ('P', mergeProjections)
                  , ('R', removeRedundancy) 
-                 , ('S', introduceSpecializedOperators) ]
+                 , ('S', introduceSpecializedOperators) 
+                 , ('D', stripFromRoot) ]
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = case assemblePipeline "EPRSP" of
