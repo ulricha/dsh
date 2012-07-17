@@ -16,9 +16,14 @@ import Database.Algebra.X100.Render
 import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph, node, getNode)
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Database.Algebra.Pathfinder(initLoop)
+  
+import qualified Data.ByteString.Lazy.Char8 as BL
 
 import qualified Data.Map as M
+  
+import Data.Aeson(encode)
 
+import Language.ParallelLang.Translate.FKL2VL()
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Database.Algebra.Aux
 import Database.Algebra.Dag(AlgebraDag, mkDag, nodeMap)
@@ -236,6 +241,7 @@ translateUnOp u c = case u of
                       ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
                       IntegerToDoubleL -> liftM fromDBV $ integerToDoubleL (toDBV c)
+                      VecBinOpSingle o -> liftM fromDBV $ binOpSingle o (toDBV c)
                       ReverseA      -> do
                                         (d, p) <- reverseA (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)
@@ -280,9 +286,12 @@ toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
     
 toVLFile :: FilePath -> AlgPlan VL Shape -> IO ()
-toVLFile f (m, r, t) = do
-    VLJSON.planToFile f (t, rootNodes r, reverseAlgMap m)
-      
+toVLFile prefix (m, r, t) = do
+    let planPath = prefix ++ "_vl.plan"
+        shapePath = prefix ++ "_shape.plan"
+    VLJSON.planToFile planPath (t, rootNodes r, reverseAlgMap m)
+    BL.writeFile shapePath $ encode r
+    
 toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
  where

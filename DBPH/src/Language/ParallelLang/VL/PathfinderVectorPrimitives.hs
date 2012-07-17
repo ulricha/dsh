@@ -87,6 +87,8 @@ instance VectorAlgebra PFAlgebra where
   selectItem = undefined
   
   projectRename = undefined
+  
+  binOpSingle = undefined
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
