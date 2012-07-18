@@ -4,8 +4,6 @@ module Optimizer.VL.Rewrite.DescriptorModifiers where
 
 import Control.Monad
 
-import qualified Data.Map as M
-
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
 
@@ -28,7 +26,7 @@ schemaWidth _               = error "DescriptorModifiers.schemaWidth: non-ValueV
 
 stripFlatRootPropRename :: Rule VL BottomUpProps
 stripFlatRootPropRename q =
-  $(pattern [| q |] "(qp) PropRename (qv)"
+  $(pattern [| q |] "(_) PropRename (qv)"
     [| do
         rs <- rootNodes
         predicate $ (length rs) == 1
@@ -46,7 +44,7 @@ stripFlatRootPropRename q =
 -- descriptor modifiers and then remove the complete chain.
 stripFlatRootPropRenameProject :: Rule VL BottomUpProps
 stripFlatRootPropRenameProject q =
-  $(pattern [| q |] "ProjectValue ps (qpr=(qp) PropRename (qv))"
+  $(pattern [| q |] "ProjectValue ps (qpr=(_) PropRename (qv))"
     [| do
         let (descrProj, _, _) = $(v "ps")
         predicate $ case descrProj of

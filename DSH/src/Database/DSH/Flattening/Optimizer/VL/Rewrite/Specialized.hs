@@ -66,8 +66,12 @@ cartProd q =
     [| do
         predicate $ $(v "distInput") == $(v "rightInput")
 
-        leftInputWidth <- liftM widthProp $ properties $(v "leftInput")
-        rightInputWidth <- liftM widthProp $ properties $(v "rightInput")
+        leftInputSchema <- liftM vectorSchemaProp $ properties $(v "leftInput")
+        rightInputSchema <- liftM vectorSchemaProp $ properties $(v "rightInput")
+        
+        let (leftInputWidth, rightInputWidth) = case (leftInputSchema, rightInputSchema) of
+              (ValueVector w1, ValueVector w2) -> (w1, w2)
+              _                                -> error "Specialized: Inputs of cartProd are not ValueVectors"
 
         return $ do
           logRewriteM "Specialized.CartProd" q
@@ -88,13 +92,13 @@ mapColumnToSide leftWidth rightWidth i =
   
 equiJoin :: Rule VL BottomUpProps
 equiJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (VecBinOpSingle pred (q2=(foo3) CartProduct (foo4))))"
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProduct (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         leftSchema <- liftM vectorSchemaProp $ properties $(v "q1")
         rightSchema <- liftM vectorSchemaProp $ properties $(v "q2")
 
-        let (vecOp, leftArgCol, rightArgCol) = $(v "pred")
+        let (vecOp, leftArgCol, rightArgCol) = $(v "p")
         predicate $ vecOp == Eq
 
         let (w1, w2) = case (leftSchema, rightSchema) of

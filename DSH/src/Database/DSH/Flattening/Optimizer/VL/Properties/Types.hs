@@ -11,5 +11,4 @@ data VectorSchema = ValueVector Int
 
 data BottomUpProps = BUProps { emptyProp :: Bool 
                              , cardOneProp :: Bool 
-                             , widthProp :: Int 
                              , vectorSchemaProp :: VectorSchema } deriving (Show)

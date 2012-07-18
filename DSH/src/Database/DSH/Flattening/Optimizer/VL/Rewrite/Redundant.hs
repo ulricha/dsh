@@ -2,9 +2,6 @@
 
 module Optimizer.VL.Rewrite.Redundant where
 
-import Text.Printf
-import Debug.Trace
-
 import Control.Monad
 import qualified Data.Map as M
 
@@ -26,7 +23,7 @@ redundantRules = [ mergeStackedDistDesc
 
 mergeStackedDistDesc :: Rule VL ()
 mergeStackedDistDesc q = 
-  $(pattern [| q |] "R1 ((valVec1) DistLift (ToDescr (first=R1 ((valVec2) DistLift (ToDescr (foo))))))"
+  $(pattern [| q |] "R1 ((valVec1) DistLift (ToDescr (first=R1 ((valVec2) DistLift (ToDescr (_))))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
@@ -45,7 +42,7 @@ restrictCombineDBV q =
 
 restrictCombinePropLeft :: Rule VL ()
 restrictCombinePropLeft q =
-  $(pattern [| q |] "R2 (c=CombineVec (qb) (a) (b))"
+  $(pattern [| q |] "R2 (c=CombineVec (qb) (_) (_))"
     [| do
         parentNodes <- parents $(v "c")
         parentOps <- mapM operator parentNodes

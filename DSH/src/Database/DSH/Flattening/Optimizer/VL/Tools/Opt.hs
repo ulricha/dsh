@@ -9,7 +9,6 @@ import qualified Data.ByteString.Lazy as B
 
 import Database.Algebra.Dag
 import Database.Algebra.Rewrite(Log)
-import Database.Algebra.X100.Normalize
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
