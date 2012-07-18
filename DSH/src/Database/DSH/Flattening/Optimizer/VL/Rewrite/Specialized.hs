@@ -17,7 +17,8 @@ introduceSpecializedOperators :: DagRewrite VL Bool
 introduceSpecializedOperators = preOrder inferBottomUp specializedRules
                                 
 specializedRules :: RuleSet VL BottomUpProps
-specializedRules = [ cartProd ]
+specializedRules = [ cartProd 
+                   , equiJoin ]
   
 {-
 
@@ -78,6 +79,35 @@ cartProd q =
           projRightNode <- insertM projRight
           relinkParentsM q projRightNode
           relinkParentsM $(v "right") projLeftNode |])
+  
+mapColumnToSide :: Int -> Int -> Int -> Int
+mapColumnToSide leftWidth rightWidth i =
+  if i < leftWidth 
+  then i
+  else i - (leftWidth + 1)
+  
+equiJoin :: Rule VL BottomUpProps
+equiJoin q = 
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (VecBinOpSingle pred (q2=(foo3) CartProduct (foo4))))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        leftSchema <- liftM vectorSchemaProp $ properties $(v "q1")
+        rightSchema <- liftM vectorSchemaProp $ properties $(v "q2")
 
+        let (vecOp, leftArgCol, rightArgCol) = $(v "pred")
+        predicate $ vecOp == Eq
+
+        let (w1, w2) = case (leftSchema, rightSchema) of
+              (ValueVector w1, ValueVector w2) -> (w1, w2)
+              _                                -> error "Specialized: CartProd inputs are not ValueVectors"
+              
+        return $ do
+          logRewriteM "Specialized.EquiJoin" q
+          let mc = mapColumnToSide w1 w2
+              joinOp = BinOp (ThetaJoin (Eq, mc leftArgCol, mc rightArgCol)) $(v "qi1") $(v "qi2")
+          joinNode <- insertM joinOp
+          relinkParentsM q joinNode |])
+                              
+          
        
        
