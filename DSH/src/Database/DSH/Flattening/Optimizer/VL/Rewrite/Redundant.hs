@@ -9,8 +9,14 @@ import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
   
+import Optimizer.VL.Rewrite.MergeProjections
+  
 removeRedundancy :: DagRewrite VL Bool
-removeRedundancy = iteratively $ preOrder (return M.empty) redundantRules
+removeRedundancy = iteratively $ sequenceRewrites [ cleanup
+                                                  , preOrder (return M.empty) redundantRules ]
+                   
+cleanup :: DagRewrite VL Bool
+cleanup = sequenceRewrites [ mergeProjections ]
 
 redundantRules :: RuleSet VL ()
 redundantRules = [ mergeStackedDistDesc 
@@ -20,7 +26,7 @@ redundantRules = [ mergeStackedDistDesc
                  , pairedProjections
                  , binOpSameSource
                  , descriptorFromProject ]
-
+                 
 mergeStackedDistDesc :: Rule VL ()
 mergeStackedDistDesc q = 
   $(pattern [| q |] "R1 ((valVec1) DistLift (ToDescr (first=R1 ((valVec2) DistLift (ToDescr (_))))))"
