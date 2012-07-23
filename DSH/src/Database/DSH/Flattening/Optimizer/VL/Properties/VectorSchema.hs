@@ -71,8 +71,8 @@ inferSchemaBinOp s1 s2 op =
     DistDesc -> Right $ VectorPair s1 PropVector
     DistLift -> Right $ VectorPair s1 PropVector
     PropRename -> Right s2
-    PropFilter -> Right s2
-    PropReorder -> Right s2
+    PropFilter -> Right $ VectorPair s2 RenameVector
+    PropReorder -> Right $ VectorPair s2 PropVector
     Append -> 
       case (s1, s2) of
         (ValueVector w1, ValueVector w2) | w1 == w2 -> Right $ VectorTriple (ValueVector w1) RenameVector RenameVector
