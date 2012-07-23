@@ -28,7 +28,7 @@ emptyAppendLeft :: Rule VL BottomUpProps
 emptyAppendLeft q =
   $(pattern [| q |] "[R1 | R2 | R3] ((q1) Append (q2))"
     [| do
-        trace ("left " ++ (show q)) $ predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
+        predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
         return $ do
           logRewriteM "Empty.Append.Left" q
           replaceRootM q $(v "q2")
@@ -38,9 +38,8 @@ emptyAppendRight :: Rule VL BottomUpProps
 emptyAppendRight q =
   $(pattern [| q |] "[R1 | R2 | R3] ((q1) Append (q2))"
     [| do
-        o <- operator q
-        trace ("match " ++ (show q) ++ " " ++ (show o)) $ predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
-        trace "apply" $ return $ do
+        predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
+        return $ do
           logRewriteM "Empty.Append.Right" q
           replaceRootM q $(v "q1")
           relinkParentsM q $(v "q1") |])
