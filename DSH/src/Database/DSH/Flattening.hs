@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | This module provides the flattening implementation of DSH.
-module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100, debugVL, debugX100VL) where
+module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100, debugVL, debugX100VL, debugX100VLRaw) where
 
 import GHC.Exts
 
@@ -63,6 +63,12 @@ debugX100VL :: QA a => X100Info -> Q a -> IO ()
 debugX100VL c (Q e) = do
   e' <- toNKL (getX100TableInfo c) e
   nkl2VLFile "query_vl.plan" e'
+  
+debugX100VLRaw :: QA a => X100Info -> String -> Q a -> IO ()
+debugX100VLRaw c f (Q e) = do
+    e' <- toNKL (getX100TableInfo c) e
+    let s = nkl2VLRaw e'
+    writeFile f s
 
 debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugPlan c (Q e) = liftM (show . fst . nkl2Alg) $ toNKL (getTableInfo c) e
