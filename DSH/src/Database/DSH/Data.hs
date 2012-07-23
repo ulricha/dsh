@@ -3,6 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 import Data.String
 import Data.Text (Text)
@@ -10,45 +12,47 @@ import qualified Data.Text as T
 
 data Exp a where
   UnitE     :: Exp ()
-  BoolE     :: Bool -> Exp Bool
-  CharE     :: Char -> Exp Char
-  IntegerE  :: Integer -> Exp Integer
-  DoubleE   :: Double -> Exp Double
-  TextE     :: Text -> Exp Text
-  PairE     :: Exp a -> Exp b -> Exp (a,b)
-  NilE      :: Exp [a]
-  ConsE     :: Exp a -> Exp [a] -> Exp [a]
-  AppE      :: Fun (Exp a) (Exp b) -> Exp a -> Exp b
-  LamE      :: (Exp a -> Exp b) -> Exp (a -> b)
-  VarE      :: Integer -> Exp a
-  TableE    :: Table -> Exp [a]
+  BoolE     :: Bool     -> Exp Bool
+  CharE     :: Char     -> Exp Char
+  IntegerE  :: Integer  -> Exp Integer
+  DoubleE   :: Double   -> Exp Double
+  TextE     :: Text     -> Exp Text
+
+  PairE     :: (QA a,QA b)  => Exp a -> Exp b -> Exp (a,b)
+  NilE      :: (QA a)       => Exp [a]
+  ConsE     :: (QA a)       => Exp a -> Exp [a] -> Exp [a]
+  AppE      :: (QA a,QA b)  => Fun (Exp a) (Exp b) -> Exp a -> Exp b
+  LamE      :: (QA a,QA b)  => (Exp a -> Exp b) -> Exp (a -> b)
+  VarE      :: (QA a)       => Integer -> Exp a
+  TableE    :: (QA a)       => Table -> Exp [a]
 
 data Fun a b where
-  Fst     :: Fun (Exp (a,b)) (Exp a)
-  Snd     :: Fun (Exp (a,b)) (Exp b)
-  Add     :: Fun (Exp (a,a)) (Exp a)
-  Mul     :: Fun (Exp (a,a)) (Exp a)
-  Sub     :: Fun (Exp (a,a)) (Exp a)
-  Div     :: Fun (Exp (a,a)) (Exp a)
-  Lt      :: Fun (Exp (a,a)) (Exp Bool)
-  Lte     :: Fun (Exp (a,a)) (Exp Bool)
-  Equ     :: Fun (Exp (a,a)) (Exp Bool)
-  Gte     :: Fun (Exp (a,a)) (Exp Bool)
-  Gt      :: Fun (Exp (a,a)) (Exp Bool)
-  Cond    :: Fun (Exp (Bool,(a,a))) (Exp a)
-  Map     :: Fun (Exp (a -> b),Exp [a]) (Exp b)
-  Concat  :: Fun (Exp [[a]]) (Exp [a])
+  Fst     :: (QA a,QA b)  => Fun (Exp (a,b)) (Exp a)
+  Snd     :: (QA a,QA b)  => Fun (Exp (a,b)) (Exp b)
+  Add     :: (QA a)       => Fun (Exp (a,a)) (Exp a)
+  Mul     :: (QA a)       => Fun (Exp (a,a)) (Exp a)
+  Sub     :: (QA a)       => Fun (Exp (a,a)) (Exp a)
+  Div     :: (QA a)       => Fun (Exp (a,a)) (Exp a)
+  Lt      :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
+  Lte     :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
+  Equ     :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
+  Gte     :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
+  Gt      :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
+  Cond    :: (QA a)       => Fun (Exp (Bool,(a,a))) (Exp a)
+  Map     :: (QA a,QA b)  => Fun (Exp (a -> b),Exp [a]) (Exp b)
+  Concat  :: (QA a)       => Fun (Exp [[a]]) (Exp [a])
              
 data Norm a where
   UnitN     :: Norm ()
-  BoolN     :: Bool -> Norm Bool
-  CharN     :: Char -> Norm Char
-  IntegerN  :: Integer -> Norm Integer
-  DoubleN   :: Double -> Norm Double
-  TextN     :: Text -> Norm Text
-  PairN     :: Norm a -> Norm b -> Norm (a,b)
-  NilN      :: Norm [a]
-  ConsN     :: Norm a -> Norm [a] -> Norm [a]
+  BoolN     :: Bool     -> Norm Bool
+  CharN     :: Char     -> Norm Char
+  IntegerN  :: Integer  -> Norm Integer
+  DoubleN   :: Double   -> Norm Double
+  TextN     :: Text     -> Norm Text
+
+  PairN     :: (QA a,QA b)  => Norm a -> Norm b -> Norm (a,b)
+  NilN      :: (QA a)       => Norm [a]
+  ConsN     :: (QA a)       => Norm a -> Norm [a] -> Norm [a]
 
 normToExp :: Norm a -> Exp a
 normToExp (UnitN) = UnitE
@@ -148,7 +152,7 @@ instance QA Text where
   qToExp (TextQ e) = e
   expToQ = TextQ
 
-instance (QA a,QA b) => QA (a,b) where
+instance (QA a,QA (E a),QA b,QA (E b)) => QA (a,b) where
   data Q (a,b) = PairQ (Exp (E a,E b))
   type E (a,b) = (E a,E b)
   reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
@@ -158,7 +162,7 @@ instance (QA a,QA b) => QA (a,b) where
   qToExp (PairQ e) = e
   expToQ = PairQ
 
-instance (QA a) => QA [a] where
+instance (QA a, QA (E a)) => QA [a] where
   data Q [a] = ListQ (Exp [E a])
   type E [a] = [E a]
   reify _ = ListT (reify (undefined :: a))
@@ -170,7 +174,7 @@ instance (QA a) => QA [a] where
   qToExp (ListQ e) = e 
   expToQ = ListQ
 
-instance (QA a) => QA (Maybe a) where
+instance (QA a, QA (E a)) => QA (Maybe a) where
   data Q (Maybe a) = MaybeQ (Exp [E a])
   type E (Maybe a) = [E a]
   reify _ = ListT (reify (undefined :: a))
@@ -205,25 +209,19 @@ instance TA Double where
 instance TA Text where
 instance (BasicType a, BasicType b) => TA (a,b) where
 
-table :: (QA a, TA a) => String -> Q [a]
+table :: (QA a, QA (E a), TA a) => String -> Q [a]
 table name = ListQ (TableE (TableDB name []))
 
-tableDB :: (QA a, TA a) => String -> Q [a]
+tableDB :: (QA a, QA (E a), TA a) => String -> Q [a]
 tableDB name = ListQ (TableE (TableDB name []))
 
-tableWithKeys :: (QA a, TA a) => String -> [[String]] -> Q [a]
+tableWithKeys :: (QA a, QA (E a), TA a) => String -> [[String]] -> Q [a]
 tableWithKeys name keys = ListQ (TableE (TableDB name keys))
 
-tableCSV :: (QA a, TA a) => String -> Q [a]
+tableCSV :: (QA a, QA (E a), TA a) => String -> Q [a]
 tableCSV filename = ListQ (TableE (TableCSV filename))
 
 -- * Eq, Ord and Num Instances for Databse Queries
-
-instance Eq (Q Integer) where
-  (==) _ _ = error "Eq instance for (Q Integer) must not be used."
-
-instance Eq (Q Double) where
-  (==) _ _ = error "Eq instance for (Q Double) must not be used."
 
 instance Num (Exp Integer) where
   (+) e1 e2 = AppE Add (PairE e1 e2)
@@ -329,7 +327,7 @@ instance View (Q Text) (Q Text) where
   view = id
   fromView = id
 
-instance (QA a,QA b) => View (Q (a,b)) (Q a,Q b) where
+instance (QA a,QA (E a),QA b,QA (E b),QA (E (E a)), QA (E (E b))) => View (Q (a,b)) (Q a,Q b) where
   type ToView (Q (a,b)) = (Q a,Q b)
   type FromView (Q a,Q b) = Q (a,b)
   view (PairQ e) = (expToQ (AppE Fst e), expToQ (AppE Snd e))
