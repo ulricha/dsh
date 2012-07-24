@@ -1,13 +1,18 @@
 module Optimizer.VL.Properties.Types where
 
-data VectorSchema = ValueVector Int
-                  | AtomicVector Int
-                  | DescrVector
-                  | RenameVector
-                  | PropVector
-                  | VectorPair VectorSchema VectorSchema
-                  | VectorTriple VectorSchema VectorSchema VectorSchema
-                    deriving (Show)
+data VectorProp a = VProp a
+                  | VPropPair a a
+                  | VPropTriple a a a
+                    deriving Show
+                    
+data Schema = ValueVector Int
+            | AtomicVector Int
+            | DescrVector
+            | RenameVector
+            | PropVector
+              deriving Show
+                       
+type VectorSchema = VectorProp Schema
 
 data BottomUpProps = BUProps { emptyProp :: Bool 
                              , cardOneProp :: Bool 

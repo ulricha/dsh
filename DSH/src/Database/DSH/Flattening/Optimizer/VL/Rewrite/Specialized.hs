@@ -11,6 +11,7 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
   
 import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.VectorSchema
 import Optimizer.VL.Rewrite.Common
   
 introduceSpecializedOperators :: DagRewrite VL Bool
@@ -19,7 +20,7 @@ introduceSpecializedOperators = preOrder inferBottomUp specializedRules
 specializedRules :: RuleSet VL BottomUpProps
 specializedRules = [ cartProd 
                    , equiJoin ]
-  
+                   
 {-
 
 Introduce a specialized CartProd operator:
@@ -66,19 +67,17 @@ cartProd q =
     [| do
         predicate $ $(v "distInput") == $(v "rightInput")
 
-        leftInputSchema <- liftM vectorSchemaProp $ properties $(v "leftInput")
-        rightInputSchema <- liftM vectorSchemaProp $ properties $(v "rightInput")
+        s1 <- liftM vectorSchemaProp $ properties $(v "leftInput")
+        s2 <- liftM vectorSchemaProp $ properties $(v "rightInput")
         
-        let (leftInputWidth, rightInputWidth) = case (leftInputSchema, rightInputSchema) of
-              (ValueVector w1, ValueVector w2) -> (w1, w2)
-              _                                -> error "Specialized: Inputs of cartProd are not ValueVectors"
+        let (w1, w2) = (schemaWidth s1, schemaWidth s2)
 
         return $ do
           logRewriteM "Specialized.CartProd" q
           let prodOp = BinOp CartProduct $(v "leftInput") $(v "rightInput")
           prodNode <- insertM prodOp
-          let projLeft = UnOp (ProjectL [1 .. leftInputWidth]) prodNode
-              projRight = UnOp (ProjectL [(leftInputWidth + 1) .. (leftInputWidth + rightInputWidth)]) prodNode
+          let projLeft = UnOp (ProjectL [1 .. w1]) prodNode
+              projRight = UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodNode
           projLeftNode <- insertM projLeft
           projRightNode <- insertM projRight
           relinkParentsM q projRightNode
@@ -95,15 +94,13 @@ equiJoin q =
   $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProduct (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        leftSchema <- liftM vectorSchemaProp $ properties $(v "q1")
-        rightSchema <- liftM vectorSchemaProp $ properties $(v "q2")
+        s1 <- liftM vectorSchemaProp $ properties $(v "q1")
+        s2 <- liftM vectorSchemaProp $ properties $(v "q2")
 
         let (vecOp, leftArgCol, rightArgCol) = $(v "p")
         predicate $ vecOp == Eq
 
-        let (w1, w2) = case (leftSchema, rightSchema) of
-              (ValueVector w1, ValueVector w2) -> (w1, w2)
-              _                                -> error "Specialized: CartProd inputs are not ValueVectors"
+        let (w1, w2) = (schemaWidth s1, schemaWidth s2)
               
         return $ do
           logRewriteM "Specialized.EquiJoin" q

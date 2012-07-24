@@ -5,6 +5,7 @@ module Optimizer.VL.Rewrite.DescriptorModifiers where
 import Control.Monad
 
 import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.VectorSchema
 import Optimizer.VL.Rewrite.Common
 
 import Database.Algebra.Rewrite
@@ -20,10 +21,6 @@ stripRootRules = [ stripFlatRootPropRename
                  , stripFlatRootSegment
                  , stripFlatRootSegmentProject ]
                  
-schemaWidth :: VectorSchema -> Int
-schemaWidth (ValueVector w) = w
-schemaWidth _               = error "DescriptorModifiers.schemaWidth: non-ValueVector input"
-
 stripFlatRootPropRename :: Rule VL BottomUpProps
 stripFlatRootPropRename q =
   $(pattern [| q |] "(_) PropRename (qv)"
