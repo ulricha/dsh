@@ -73,12 +73,12 @@ Library
 
   GHC-options:       -O3 -Wall
 
-  Exposed-modules:   Database.DSH
+  Exposed-modules:   
                      Database.DSH.Interpreter
                      Database.DSH.Compiler
+                     Database.DSH
 
-  Other-modules:     Database.DSH.TH
-                     Database.DSH.DeriveConstructors
+  Other-modules:     Database.DSH.DeriveConstructors
                      Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV

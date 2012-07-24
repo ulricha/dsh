@@ -1,8 +1,8 @@
 -- | This module provides the reference implementation of DSH by interpreting
 -- the embedded representation.
 
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, GADTs #-}
+{- # OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 
 module Database.DSH.Interpreter (fromQ) where
 
@@ -10,37 +10,37 @@ import Database.DSH.Data
 import Database.DSH.Impossible (impossible)
 import Database.DSH.CSV (csvImport)
 
-import Data.Convertible
+
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import Database.HDBC
 import GHC.Exts
 import Data.List
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = evaluate c a >>= (return . fromNorm)
+fromQ c a = evaluate c (qToExp a) >>= (return . fromNorm)
 
 evaluate :: IConnection conn
          => conn                -- ^ The HDBC connection
-         -> Exp
-         -> IO Norm
+         -> (Exp a)
+         -> IO (Norm a)
 evaluate c e = case e of
-  UnitE t      -> return (UnitN t)
-  BoolE b t    -> return (BoolN b t)
-  CharE ch t   -> return (CharN ch t)
-  IntegerE i t -> return (IntegerN i t)
-  DoubleE d t  -> return (DoubleN d t)
-  TextE s t    -> return (TextN s t)
-
-  VarE _ _ -> $impossible
-  LamE _ _ -> $impossible
-
-  TupleE e1 e2 t -> do
-    e3 <- evaluate c e1
-    e4 <- evaluate c e2
-    return (TupleN e3 e4 t)
-
-  ListE es t -> do
-      es1 <- mapM (evaluate c) es
-      return (ListN es1 t)
+    UnitE -> return UnitN
+    BoolE b -> return $ BoolN b
+    CharE c -> return $ CharN c
+    IntegerE i -> return $ IntegerN i
+    DoubleE d -> return $ DoubleN d
+    TextE t -> return $ TextN t 
+    VarE _ -> $impossible
+    LamE _ -> $impossible
+    PairE e1 e2 -> do
+                     e1' <- evaluate c e1
+                     e2' <- evaluate c e2
+                     return (PairN e1' e2')
+    ListE es -> do
+                    es1 <- mapM (evaluate c) es
+                    return $ ListN es1 
+{-
 
   AppE3 Cond cond a b _ -> do
       (BoolN c1 _) <- evaluate c cond
@@ -336,7 +336,7 @@ evaluate c e = case e of
       fmap (sqlToNormWithType tName tType) (quickQuery c query [])
   TableE (TableCSV filename) t -> csvImport filename t
   TableE _ _ -> $impossible
-
+-}
 
 snoc :: [a] -> a -> [a]
 snoc [] a = [a]
@@ -347,48 +347,58 @@ escape []                  = []
 escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
-evalLam :: Exp -> (Norm -> Exp)
-evalLam (LamE f _) n = f (convert n)
-evalLam _ _ = $impossible
-
+evalLam :: (QA a, QA b) => Exp (a -> b) -> (Norm a -> Exp b)
+evalLam (LamE f) n = f (normToExp n)
 
 -- | Read SQL values into 'Norm' values
-sqlToNormWithType :: String             -- ^ Table name, used to generate more
+sqlToNormWithType :: QA a => String             -- ^ Table name, used to generate more
                                         -- informative error messages
-                  -> Type
+                  -> Type a
                   -> [[SqlValue]]
-                  -> Norm
-sqlToNormWithType tName ty = (flip ListN) (ListT ty) . map (sqlValueToNorm ty)
-
+                  -> Norm [a]
+sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
   where
-    sqlValueToNorm :: Type -> [SqlValue] -> Norm
+    sqlValueToNorm :: Type a -> [SqlValue] -> Norm a
 
+    sqlValueToNorm (PairT t1 t2) s = PairN (sqlValueToNorm t1 $ take (sizeOfType t1) s)
+                                           (sqlValueToNorm t2 $ drop (sizeOfType t1) s)
     -- On a single value, just compare the 'Type' and convert the 'SqlValue' to
     -- a Norm value on match
     sqlValueToNorm t [s] = if t `typeMatch` s
-                      then convert s
+                      then convert s t
                       else typeError t [s]
-
-    -- On more than one value we need a 'TupleT' type of the exact same length
-    sqlValueToNorm t s | length (unfoldType t) == length s =
-            let f t' s' = if t' `typeMatch` s'
-                             then convert s'
-                             else typeError t s
-            in foldr1 (\a b -> TupleN a b (TupleT (typeNorm a) (typeNorm b)))
-                      (zipWith f (unfoldType t) s)
-
     -- Everything else will raise an error
     sqlValueToNorm t s = typeError t s
 
-    typeError :: Type -> [SqlValue] -> a
+    typeError :: Type a -> [SqlValue] -> b
     typeError t s = error $
         "ferry: Type mismatch on table \"" ++ tName ++ "\":"
         ++ "\n\tExpected table type: " ++ show t
         ++ "\n\tTable entry: " ++ show s
 
 
+convert :: SqlValue -> Type a -> Norm a
+convert SqlNull UnitT = UnitN
+convert (SqlInteger i) IntegerT = IntegerN i 
+convert (SqlDouble d)  DoubleT  = DoubleN d 
+convert (SqlBool b) BoolT       = BoolN b 
+convert (SqlChar c) CharT       = CharN c 
+convert (SqlString t) TextT     = TextN (T.pack t) 
+convert (SqlByteString s) TextT = TextN (T.decodeUtf8 s)
+convert sql                 _     = error "Unsupported `SqlValue'" sql
+
+sizeOfType :: Type a -> Int
+sizeOfType UnitT = 1
+sizeOfType IntegerT = 1
+sizeOfType DoubleT = 1
+sizeOfType BoolT = 1
+sizeOfType CharT = 1
+sizeOfType TextT = 1
+sizeOfType (PairT t1 t2) = sizeOfType t1 + sizeOfType t2
+sizeOfType _ = error "sizeOfType: Not a record type"
+
 -- | Check if a 'SqlValue' matches a 'Type'
-typeMatch :: Type -> SqlValue -> Bool
+typeMatch :: Type a -> SqlValue -> Bool
 typeMatch t s =
     case (t,s) of
          (UnitT         , SqlNull)          -> True

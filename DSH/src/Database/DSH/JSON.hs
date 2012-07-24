@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Database.DSH.JSON (jsonExport, jsonExportHandle, jsonExportStdout) where
 
 import Database.DSH.Data
@@ -17,17 +18,18 @@ jsonExportStdout = jsonExportHandle IO.stdout
 
 jsonExportHandle :: (QA a) => Handle -> [a] -> IO ()
 jsonExportHandle handle as = IO.hPutStr handle (encode $ go $ toNorm as)
-  where go :: Norm -> JSValue
-        go e =  case e of
-                  UnitN _         -> showJSON "()"
-                  BoolN b _       -> showJSON b
-                  CharN c _       -> showJSON c
-                  IntegerN i _    -> showJSON i
-                  DoubleN d _     -> showJSON d
-                  TextN t _       -> showJSON (Text.unpack t)
-                  TupleN e1 e2 _  -> JSArray $ map go (e1 : deTuple e2)
-                  ListN es _      -> JSArray $ map go es
+  
+go :: Norm a -> JSValue
+go e =  case e of
+                  UnitN          -> showJSON "()"
+                  BoolN b        -> showJSON b
+                  CharN c        -> showJSON c
+                  IntegerN i     -> showJSON i
+                  DoubleN d      -> showJSON d
+                  TextN t        -> showJSON (Text.unpack t)
+                  PairN e1 e2    -> JSArray $ go e1 : deTuple e2
+                  ListN es       -> JSArray $ map go es
 
-deTuple :: Norm -> [Norm]
-deTuple (TupleN e1 e2 _) = e1 : deTuple e2
-deTuple n = [n]
+deTuple :: Norm a -> [JSValue]
+deTuple (PairN e1 e2) = go e1 : deTuple e2
+deTuple n             = [go n]

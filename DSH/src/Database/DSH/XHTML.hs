@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Database.DSH.XHTML (xhtmlExport, xhtmlExportHandle, xhtmlExportStdout) where
 
 import Database.DSH.Data hiding (table)
@@ -17,16 +18,19 @@ xhtmlExportStdout = xhtmlExportHandle IO.stdout
 
 xhtmlExportHandle :: (QA a) => Handle -> [a] -> IO ()
 xhtmlExportHandle handle as = IO.hPutStr handle (showHtmlFragment $ go 0 0 $ toNorm as)
-  where go :: Integer -> Integer -> Norm -> Html
+  where go :: Integer -> Integer -> Norm a -> Html
         go tl rl e =  case e of
-                        UnitN _         -> (td $ stringToHtml $ "()")           ! [tdAttr tl rl]
-                        BoolN b _       -> (td $ stringToHtml $ show b)         ! [tdAttr tl rl]
-                        CharN c _       -> (td $ stringToHtml $ [c])            ! [tdAttr tl rl]
-                        IntegerN i _    -> (td $ stringToHtml $ show i)         ! [tdAttr tl rl]
-                        DoubleN d _     -> (td $ stringToHtml $ show d)         ! [tdAttr tl rl]
-                        TextN t _       -> (td $ stringToHtml $ Text.unpack t)  ! [tdAttr tl rl]
-                        TupleN e1 e2 _  -> (concatHtml $ map (go tl rl) (e1 : deTuple e2))
-                        ListN es _      -> td $ (table  $ concatHtml
+                        UnitN         -> (td $ stringToHtml $ "()")           ! [tdAttr tl rl]
+                        BoolN b       -> (td $ stringToHtml $ show b)         ! [tdAttr tl rl]
+                        CharN c       -> (td $ stringToHtml $ [c])            ! [tdAttr tl rl]
+                        IntegerN i    -> (td $ stringToHtml $ show i)         ! [tdAttr tl rl]
+                        DoubleN d     -> (td $ stringToHtml $ show d)         ! [tdAttr tl rl]
+                        TextN t       -> (td $ stringToHtml $ Text.unpack t)  ! [tdAttr tl rl]
+                        -- Not sure whether this is correct:
+                        PairN e1 e2   -> go tl rl e1 +++ go tl rl e2
+                        -- Old code:
+                        -- PairN e1 e2   -> (concatHtml $ map (go tl rl) (e1 : deTuple e2))
+                        ListN es      -> td $ (table  $ concatHtml
                                                         $ map (\(l1,e1) -> tr (go (tl + 1) l1 e1))
                                                         $ zip [0 ..] es
                                                 ) ! [tableAttr]
@@ -40,8 +44,3 @@ xhtmlExportHandle handle as = IO.hPutStr handle (showHtmlFragment $ go 0 0 $ toN
 
         tableAttr :: HtmlAttr
         tableAttr = strAttr "style" "border-spacing:5px;"
-
-
-deTuple :: Norm -> [Norm]
-deTuple (TupleN e1 e2 _) = e1 : deTuple e2
-deTuple n = [n]

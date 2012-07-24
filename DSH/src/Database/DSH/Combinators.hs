@@ -4,7 +4,7 @@
 module Database.DSH.Combinators where
 
 import Database.DSH.Data
-import Database.DSH.TH
+-- import Database.DSH.TH
 
 import Data.Convertible
 
@@ -13,29 +13,30 @@ import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefine
 -- * Unit
 
 unit :: Q ()
-unit = Q (UnitE $ reify (undefined :: ()))
+unit = expToQ UnitE 
 
 -- * Boolean logic
 
 false :: Q Bool
-false = Q (BoolE False BoolT)
+false = expToQ $ BoolE False
 
 true :: Q Bool
-true = Q (BoolE True BoolT)
+true = expToQ $ BoolE True
 
 not :: Q Bool -> Q Bool
-not (Q b) = Q (AppE1 Not b $ reify (undefined :: Bool))
+not = expToQ . (AppE Not) . qToExp
 
 (&&) :: Q Bool -> Q Bool -> Q Bool
-(&&) (Q a) (Q b) = Q (AppE2 Conj a b $ reify (undefined :: Bool))
+(&&) a b = expToQ $ AppE And $ qToExp $ pair a b
+
 
 (||) :: Q Bool -> Q Bool -> Q Bool
-(||) (Q a) (Q b) = Q (AppE2 Disj a b $ reify (undefined :: Bool))
+(||) a b = expToQ $ AppE Or $ qToExp $ pair a b
 
 -- * Equality and Ordering
 
 eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-eq (Q a) (Q b) = Q (AppE2 Equ a b $ reify (undefined :: Bool))
+eq a b = expToQ $ AppE Equ $ qToExp $ pair a b
 
 (==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
 (==) = eq
@@ -47,35 +48,34 @@ neq a b = not (eq a b)
 (/=) = neq
 
 lt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lt (Q a) (Q b) = Q (AppE2 Lt a b $ reify (undefined :: Bool))
+lt a b = expToQ $ AppE Lt $ qToExp $ pair a b
 
 (<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (<) = lt
 
 lte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lte (Q a) (Q b) = Q (AppE2 Lte a b $ reify (undefined :: Bool))
+lte a b = expToQ $ AppE Lte $ qToExp $ pair a b
 
 (<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (<=) = lte
 
 gte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gte (Q a) (Q b) = Q (AppE2 Gte a b $ reify (undefined :: Bool))
+gte a b = expToQ $ AppE Gte $ qToExp $ pair a b
 
 (>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (>=) = gte
 
 gt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gt (Q a) (Q b) = Q (AppE2 Gt a b $ reify (undefined :: Bool))
+gt a b = expToQ $ AppE Gt $ qToExp $ pair a b
 
 (>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
 (>) = gt
 
 min :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
-min (Q a) (Q b) = Q (AppE2 Min a b $ reify (undefined :: a))
+min a b = expToQ $ AppE Min $ qToExp $ pair a b
 
 max :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
-max (Q a) (Q b) = Q (AppE2 Max a b $ reify (undefined :: a))
-
+max a b = expToQ $ AppE Max $ qToExp $ pair a b
 
 -- * Conditionals
 -- | Boolean fold
@@ -86,11 +86,11 @@ bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
 bool f t b = cond b t f
 
 cond :: forall a. (QA a) => Q Bool -> Q a -> Q a -> Q a
-cond (Q c) (Q a) (Q b) = Q (AppE3 Cond c a b $ reify (undefined :: a))
+cond c a b = expToQ $ AppE Cond $ qToExp $ pair c (pair a b)
 
 (?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) c (a,b) = cond c a b
-
+{-
 -- * Maybe
 
 listToMaybe :: QA a => Q [a] -> Q (Maybe a)
@@ -151,23 +151,23 @@ rights = concatMap (snd . eitherToTuple)
 
 partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
 partitionEithers es = tuple (lefts es,rights es)
-
+-}
 -- * List Construction
 
 nil :: forall a. (QA a) => Q [a]
-nil = Q (ListE [] $ reify (undefined :: [a]))
+nil = expToQ $ ListE []
 
 empty :: (QA a) => Q [a]
 empty = nil
 
 cons :: forall a. (QA a) => Q a -> Q [a] -> Q [a]
-cons (Q a) (Q as) = Q (AppE2 Cons a as $ reify (undefined :: [a]))
+cons a as = expToQ $ AppE Cons $ qToExp $ pair a as
 
 (<|) :: (QA a) => Q a -> Q [a] -> Q [a]
 (<|) = cons
 
 snoc :: forall a. (QA a) => Q [a] -> Q a -> Q [a]
-snoc (Q as) (Q a) = Q (AppE2 Snoc as a $ reify (undefined :: [a]))
+snoc as a = expToQ $ AppE Snoc $ qToExp $ pair as a
 
 (|>) :: (QA a) => Q [a] -> Q a -> Q [a]
 (|>) = snoc
@@ -178,20 +178,21 @@ singleton a = cons a nil
 -- * List Operations
 
 head :: forall a. (QA a) => Q [a] -> Q a
-head (Q as) = Q (AppE1 Head as $ reify (undefined :: a))
+head as = expToQ $ AppE Head $ qToExp as 
 
 tail :: forall a. (QA a) => Q [a] -> Q [a]
-tail (Q as) = Q (AppE1 Tail as $ reify (undefined :: [a]))
+tail as = expToQ $ AppE Tail $ qToExp as 
 
 take :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
-take (Q i) (Q as) = Q (AppE2 Take i as $ reify (undefined :: [a]))
+take i as = expToQ $ AppE Take $ qToExp $ pair i as 
 
 drop :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
-drop (Q i) (Q as) = Q (AppE2 Drop i as $ reify (undefined :: [a]))
+drop i as = expToQ $ AppE Drop $ qToExp $ pair i as
 
 map :: forall a b. (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-map f (Q as) = Q (AppE2 Map (toLam1 f) as $ reify (undefined :: [b]))
+map f as = expToQ $ AppE Map $ PairE (toLam1 f) (qToExp as)
 
+{-
 append :: forall a. (QA a) => Q [a] -> Q [a] -> Q [a]
 append (Q as) (Q bs) = Q (AppE2 Append as bs $ reify (undefined :: [a]))
 
@@ -314,10 +315,10 @@ fst (Q a) = Q (AppE1 Fst a $ reify (undefined :: a))
 
 snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
 snd (Q a) = Q (AppE1 Snd a $ reify (undefined :: b))
-
+-}
 pair :: forall a b. (QA a, QA b) => Q a -> Q b -> Q (a, b)
-pair (Q a) (Q b) = Q (TupleE a b $ (reify (undefined :: (a, b))))
-
+pair a b = expToQ (PairE (qToExp a) (qToExp b))
+{-
 -- * Conversions between numeric types
 
 integerToDouble :: Q Integer -> Q Double
@@ -396,4 +397,4 @@ Zipping and unzipping lists:
 > zipWith3
 > unzip3
 
--}
+-} -}

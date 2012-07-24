@@ -3,7 +3,7 @@
 -- FerryCore which is then translated into SQL (through a table algebra). The SQL
 -- code is executed on the database and then processed to form a Haskell value.
 
-{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables, GADTs #-}
 
 module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
 
@@ -76,7 +76,7 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 -- * Convert DB queries into Haskell values
 
 -- | Execute the query on the database
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ :: forall a conn. (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c a = evaluate c a >>= (return . fromNorm)
 
 
@@ -92,14 +92,14 @@ debugPlanOpt q c = do
                     return r
 
 debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCore c (Q a) = do
-                     core <- runN c $ transformE a
+debugCore c a = do
+                     core <- runN c $ transformE $ qToExp a
                      return $ show core
 
 
 debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCoreDot c (Q a) = do
-                        core <- runN c $ transformE a
+debugCoreDot c a = do
+                        core <- runN c $ transformE $ qToExp a
                         return $ (\(Right d) -> d) $ dot core
 
 -- | Convert the query into SQL
@@ -115,7 +115,7 @@ debugSQL q c = do
 evaluate :: forall a. forall conn. (QA a, IConnection conn)
          =>  conn
          -> Q a
-         -> IO Norm
+         -> IO (Norm a)
 evaluate c q = do
                   algPlan' <- doCompile c q
                   let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
@@ -124,13 +124,15 @@ evaluate c q = do
                   return n
 
 -- | Transform a query into an algebraic plan.                   
-doCompile :: IConnection conn => conn -> Q a -> IO String
-doCompile c (Q a) = do 
-                        core <- runN c $ transformE a
+doCompile :: (QA a, IConnection conn) => conn -> Q a -> IO String
+doCompile c a = do 
+                        core <- runN c $ transformE $ qToExp a
                         return $ typedCoreToAlgebra core
 
 -- | Transform the Query into a ferry core program.
-transformE :: IConnection conn => Exp -> N conn CoreExpr
+transformE :: IConnection conn => Exp a -> N conn CoreExpr
+transformE = error "transformE: Not implemented"
+{-
 transformE (UnitE _) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b _) = return $ Constant ([] :=> bool) $ CBool b
 transformE (CharE c _) = return $ Constant ([] :=> string) $ CString [c] 
@@ -270,47 +272,49 @@ transformArg (LamE f ty) = do
                                                      return $ ParAbstr ([] :=> fty) ((prefixVar n):vs) e'
                                     _           -> ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
-
+-}
 -- | Construct a flat-FerryCore type out of a DSH type
 -- A flat type consists out of two tuples, a record is translated as:
 -- {r1 :: t1, r2 :: t2, r3 :: t3, r4 :: t4} (t1, (t2, (t3, t4)))
-flatFTy :: Type -> FType
+flatFTy :: Type a -> FType
 flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
  where
-     flatFTy' :: Int -> Type -> [(RLabel, FType)]
-     flatFTy' i (TupleT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
+     flatFTy' :: Int -> Type a -> [(RLabel, FType)]
+     flatFTy' i (PairT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
      flatFTy' i ty              = [(RLabel $ show i, transformTy ty)]
 flatFTy _         = $impossible
 
 -- Determine the size of a flat type
-sizeOfTy :: Type -> Int
-sizeOfTy (TupleT _ t2) = 1 + sizeOfTy t2
+sizeOfTy :: Type a -> Int
+sizeOfTy (PairT _ t2) = 1 + sizeOfTy t2
 sizeOfTy _              = 1 
 
 -- | Transform an arbitrary DSH-type into a ferry core type 
-transformTy :: Type -> FType
+transformTy :: Type a -> FType
 transformTy UnitT = int
 transformTy BoolT = bool
 transformTy CharT = string
 transformTy TextT = string
 transformTy IntegerT = int
 transformTy DoubleT = float
-transformTy (TupleT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
+transformTy (PairT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 
+{-
 -- | Transform a ferry-core type into a DSH-type
-transformTy' :: FType -> Type
+transformTy' :: FType -> Type a
 transformTy' FUnit = UnitT
 transformTy' FInt  = IntegerT
 transformTy' FFloat = DoubleT
 transformTy' FString = TextT
 transformTy' FBool = BoolT
 transformTy' (FList t) = ListT $ transformTy' t
-transformTy' (FRec [(RLabel "1", t1), (RLabel "2", t2)]) = TupleT (transformTy' t1) (transformTy' t2)
+transformTy' (FRec [(RLabel "1", t1), (RLabel "2", t2)]) = PairT (transformTy' t1) (transformTy' t2)
 transformTy' (FFn t1 t2) = ArrowT (transformTy' t1) (transformTy' t2)
 transformTy' _ = $impossible
-
+-}
+{-
 -- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> Op
 transformOp Add = Op "+"
@@ -325,6 +329,7 @@ transformOp Gt = Op ">"
 transformOp Conj = Op "&&"
 transformOp Disj = Op "||"
 transformOp _ = $impossible
+-}
 
 -- | Transform a DSH-primitive-function (f) with an instantiated typed into a FerryCore
 -- expression
@@ -333,17 +338,18 @@ transformF f t = Var ([] :=> t) $ (\txt -> case txt of
                                             (x:xs) -> toLower x : xs
                                             _      -> $impossible) $ show f
 
+{-
 -- | Retrieve all DB-table names from a DSH program
-getTableNames :: Exp -> [String]
+getTableNames :: Exp a -> [String]
 getTableNames e = let tables = map (\t -> case t of
-                                        (TableE (TableDB n _) _) -> n
+                                        (TableE (TableDB n _)) -> n
                                         _                        -> $impossible) $ listify isTable e
                    in nub tables
     where 
-        isTable :: Exp -> Bool
-        isTable (TableE (TableDB _ _) _) = True
+        isTable :: Exp a -> Bool
+        isTable (TableE (TableDB _ _)) = True
         isTable _                        = False
-
+-}
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.        
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]

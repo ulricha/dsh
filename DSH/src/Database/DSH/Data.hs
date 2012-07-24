@@ -5,10 +5,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
+module Database.DSH.Data where
+
 
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
+import Database.DSH.Impossible
 
 data Exp a where
   UnitE     :: Exp ()
@@ -19,8 +23,9 @@ data Exp a where
   TextE     :: Text     -> Exp Text
 
   PairE     :: (QA a,QA b)  => Exp a -> Exp b -> Exp (a,b)
-  NilE      :: (QA a)       => Exp [a]
-  ConsE     :: (QA a)       => Exp a -> Exp [a] -> Exp [a]
+  ListE     :: (QA a)       => [Exp a] -> Exp [a]
+{-  NilE      :: (QA a)       => Exp [a]
+  ConsE     :: (QA a)       => Exp a -> Exp [a] -> Exp [a] -}
   AppE      :: (QA a,QA b)  => Fun (Exp a) (Exp b) -> Exp a -> Exp b
   LamE      :: (QA a,QA b)  => (Exp a -> Exp b) -> Exp (a -> b)
   VarE      :: (QA a)       => Integer -> Exp a
@@ -39,10 +44,22 @@ data Fun a b where
   Gte     :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
   Gt      :: (QA a)       => Fun (Exp (a,a)) (Exp Bool)
   Cond    :: (QA a)       => Fun (Exp (Bool,(a,a))) (Exp a)
-  Map     :: (QA a,QA b)  => Fun (Exp (a -> b),Exp [a]) (Exp b)
+  Not     ::                 Fun (Exp Bool) (Exp Bool)
+  And     ::                 Fun (Exp (Bool, Bool)) (Exp Bool)
+  Or      ::                 Fun (Exp (Bool, Bool)) (Exp Bool)
+  Min     :: (QA a)       => Fun (Exp (a, a)) (Exp a)
+  Max     :: (QA a)       => Fun (Exp (a, a)) (Exp a)
+  Map     :: (QA a,QA b)  => Fun (Exp ((a -> b), [a])) (Exp [b])
   Concat  :: (QA a)       => Fun (Exp [[a]]) (Exp [a])
+  Cons    :: (QA a)       => Fun (Exp (a, [a])) (Exp [a])
+  Snoc    :: (QA a)       => Fun (Exp ([a], a)) (Exp [a])
+  Head    :: (QA a)       => Fun (Exp [a]) (Exp a)
+  Tail    :: (QA a)       => Fun (Exp [a]) (Exp [a])
+  Take    :: (QA a)       => Fun (Exp (Integer, [a])) (Exp [a])
+  Drop    :: (QA a)       => Fun (Exp (Integer, [a])) (Exp [a])
              
 data Norm a where
+--  Rep       :: (QA a)   => Norm (E a) -> Norm a
   UnitN     :: Norm ()
   BoolN     :: Bool     -> Norm Bool
   CharN     :: Char     -> Norm Char
@@ -51,8 +68,9 @@ data Norm a where
   TextN     :: Text     -> Norm Text
 
   PairN     :: (QA a,QA b)  => Norm a -> Norm b -> Norm (a,b)
-  NilN      :: (QA a)       => Norm [a]
-  ConsN     :: (QA a)       => Norm a -> Norm [a] -> Norm [a]
+  ListN     :: (QA a)       => [Norm a] -> Norm [a]
+{-  NilN      :: (QA a)       => Norm [a]
+  ConsN     :: (QA a)       => Norm a -> Norm [a] -> Norm [a] -}
 
 normToExp :: Norm a -> Exp a
 normToExp (UnitN) = UnitE
@@ -62,20 +80,33 @@ normToExp (IntegerN i) = IntegerE i
 normToExp (DoubleN d) = DoubleE d
 normToExp (TextN t) = TextE t
 normToExp (PairN a b) = PairE (normToExp a) (normToExp b)
+
+{-
 normToExp (NilN) = NilE
 normToExp (ConsN a as) = ConsE (normToExp a) (normToExp as)
+-}
+data Type a where
+    UnitT :: Type ()
+    BoolT :: Type Bool
+    CharT :: Type Char
+    IntegerT :: Type Integer
+    DoubleT :: Type Double
+    TextT :: Type Text
+    PairT :: (QA a, QA b) => Type a -> Type b -> Type (a, b) 
+    ListT :: (QA a) => Type a -> Type [a]
+    ArrowT :: (QA a, QA b) => Type a -> Type b -> Type (a -> b)
+  -- deriving (Eq, Ord, Show)
 
-data Type =
-    UnitT
-  | BoolT
-  | CharT
-  | IntegerT
-  | DoubleT
-  | TextT
-  | PairT Type Type
-  | ListT Type
-  | ArrowT Type Type
-  deriving (Eq, Ord, Show)
+instance Show (Type a) where
+    show UnitT = "()"
+    show BoolT = "Bool"
+    show CharT = "Char"
+    show IntegerT = "Integer"
+    show DoubleT = "Double"
+    show TextT = "Text"
+    show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
+    show (ListT t) = "[" ++ show t ++ "]"
+    show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
 
 data Table =
     TableDB   String [[String]]
@@ -84,108 +115,106 @@ data Table =
 
 class QA a where
   data Q a
-  type E a
-  reify   :: a -> Type
+  reify   :: a -> Type a
   toQ     :: a -> Q a
-  toNorm  :: a -> Norm (E a)
-  frNorm  :: Norm (E a) -> a
-  qToExp  :: Q a -> Exp (E a)
-  expToQ  :: Exp (E a) -> Q a
+  toNorm  :: a -> Norm a
+  fromNorm  :: Norm a -> a
+  qToExp  :: Q a -> Exp a
+  expToQ  :: Exp a -> Q a
 
 instance QA () where
   data Q () = UnitQ (Exp ())
-  type E () = ()
   reify _ = UnitT
   toQ = UnitQ . normToExp . toNorm
   toNorm () = UnitN
-  frNorm UnitN = ()
+  fromNorm UnitN = ()
   qToExp (UnitQ e) = e
   expToQ = UnitQ
 
 instance QA Bool where
   data Q Bool = BoolQ (Exp Bool)
-  type E Bool = Bool
   reify _ = BoolT
   toQ = BoolQ . normToExp . toNorm
   toNorm b = BoolN b
-  frNorm (BoolN b) = b
+  fromNorm (BoolN b) = b
   qToExp (BoolQ e) = e
   expToQ = BoolQ
 
 instance QA Char where
   data Q Char = CharQ (Exp Char)
-  type E Char = Char
   reify _ = CharT
   toQ = CharQ . normToExp . toNorm
   toNorm b = CharN b
-  frNorm (CharN b) = b
+  fromNorm (CharN b) = b
   qToExp (CharQ e) = e
   expToQ = CharQ
 
 instance QA Integer where
   data Q Integer = IntegerQ (Exp Integer)
-  type E Integer = Integer
   reify _ = IntegerT
   toQ = IntegerQ . normToExp . toNorm
   toNorm b = IntegerN b
-  frNorm (IntegerN b) = b
+  fromNorm (IntegerN b) = b
   qToExp (IntegerQ e) = e
   expToQ = IntegerQ
 
 instance QA Double where
   data Q Double = DoubleQ (Exp Double)
-  type E Double = Double
   reify _ = DoubleT
   toQ = DoubleQ . normToExp . toNorm
   toNorm b = DoubleN b
-  frNorm (DoubleN b) = b
+  fromNorm (DoubleN b) = b
   qToExp (DoubleQ e) = e
   expToQ = DoubleQ
 
 instance QA Text where
   data Q Text = TextQ (Exp Text)
-  type E Text = Text
   reify _ = TextT
   toQ = TextQ . normToExp . toNorm
   toNorm t = TextN t
-  frNorm (TextN t) = t
+  fromNorm (TextN t) = t
   qToExp (TextQ e) = e
   expToQ = TextQ
 
-instance (QA a,QA (E a),QA b,QA (E b)) => QA (a,b) where
-  data Q (a,b) = PairQ (Exp (E a,E b))
-  type E (a,b) = (E a,E b)
+instance (QA a, QA b) => QA (a,b) where
+  data Q (a,b) = PairQ (Exp (a, b))
   reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
   toQ = PairQ . normToExp . toNorm
   toNorm (a,b) = PairN (toNorm a) (toNorm b)
-  frNorm (PairN a b) = (frNorm a,frNorm b)
+  fromNorm (PairN a b) = (fromNorm a,fromNorm b)
   qToExp (PairQ e) = e
   expToQ = PairQ
 
-instance (QA a, QA (E a)) => QA [a] where
-  data Q [a] = ListQ (Exp [E a])
-  type E [a] = [E a]
+instance (QA a) => QA [a] where
+  data Q [a] = ListQ (Exp [a])
   reify _ = ListT (reify (undefined :: a))
   toQ = ListQ . normToExp . toNorm
-  toNorm [] = NilN
-  toNorm (a : as) = ConsN (toNorm a) (toNorm as)
-  frNorm NilN = []
-  frNorm (ConsN a as) = frNorm a : frNorm as
+  toNorm xs = ListN (map toNorm xs)
+{-  toNorm [] = NilN
+  toNorm (a : as) = ConsN (toNorm a) (toNorm as) -}
+  fromNorm (ListN xs) = map fromNorm xs
+{-  fromNorm NilN = []
+  fromNorm (ConsN a as) = fromNorm a : fromNorm as -}
   qToExp (ListQ e) = e 
   expToQ = ListQ
 
+{-
 instance (QA a, QA (E a)) => QA (Maybe a) where
   data Q (Maybe a) = MaybeQ (Exp [E a])
   type E (Maybe a) = [E a]
   reify _ = ListT (reify (undefined :: a))
   toQ = MaybeQ . normToExp . toNorm
-  toNorm Nothing = NilN
-  toNorm (Just a) = ConsN (toNorm a) NilN
-  frNorm (NilN) = Nothing
-  frNorm (ConsN a _) = Just (frNorm a)
+  {- toNorm Nothing = NilN
+  toNorm (Just a) = ConsN (toNorm a) NilN -}
+  toNorm Nothing = ListN []
+  toNorm (Just a) = ListN [toNorm a]
+  {- fromNorm (NilN) = Nothing
+  fromNorm (ConsN a _) = Just (fromNorm a) -}
+  fromNorm (ListN []) = Nothing
+  fromNorm (ListN [a]) = Just (fromNorm a)
   qToExp (MaybeQ e) = e
   expToQ = MaybeQ
-
+-}
 -- * Basic Types
 
 class BasicType a where
@@ -209,16 +238,16 @@ instance TA Double where
 instance TA Text where
 instance (BasicType a, BasicType b) => TA (a,b) where
 
-table :: (QA a, QA (E a), TA a) => String -> Q [a]
+table :: (QA a, TA a) => String -> Q [a]
 table name = ListQ (TableE (TableDB name []))
 
-tableDB :: (QA a, QA (E a), TA a) => String -> Q [a]
+tableDB :: (QA a, TA a) => String -> Q [a]
 tableDB name = ListQ (TableE (TableDB name []))
 
-tableWithKeys :: (QA a, QA (E a), TA a) => String -> [[String]] -> Q [a]
+tableWithKeys :: (QA a, TA a) => String -> [[String]] -> Q [a]
 tableWithKeys name keys = ListQ (TableE (TableDB name keys))
 
-tableCSV :: (QA a, QA (E a), TA a) => String -> Q [a]
+tableCSV :: (QA a, TA a) => String -> Q [a]
 tableCSV filename = ListQ (TableE (TableCSV filename))
 
 -- * Eq, Ord and Num Instances for Databse Queries
@@ -327,7 +356,7 @@ instance View (Q Text) (Q Text) where
   view = id
   fromView = id
 
-instance (QA a,QA (E a),QA b,QA (E b),QA (E (E a)), QA (E (E b))) => View (Q (a,b)) (Q a,Q b) where
+instance (QA a,QA b) => View (Q (a,b)) (Q a,Q b) where
   type ToView (Q (a,b)) = (Q a,Q b)
   type FromView (Q a,Q b) = Q (a,b)
   view (PairQ e) = (expToQ (AppE Fst e), expToQ (AppE Snd e))
@@ -345,11 +374,11 @@ instance (QA a,QA (E a),QA b,QA (E b),QA (E (E a)), QA (E (E b))) => View (Q (a,
 -- --              TupleN n1 n2 t -> TupleE (convert n1) (convert n2) t
 -- --              ListN ns t     -> ListE (map convert ns) t
 -- -- 
--- -- forget :: Q a -> Exp
--- -- forget (Q a) = a
 -- -- 
--- -- toLam1 :: forall a b. (QA a, QA b) => (Q a -> Q b) -> Exp
--- -- toLam1 f = LamE (forget . f . Q) (ArrowT (reify (undefined :: a)) (reify (undefined :: b)))
+
+toLam1 :: forall a b. (QA a, QA b) => (Q a -> Q b) -> Exp (a -> b)
+toLam1 f = LamE (qToExp . f . expToQ)
+
 -- -- 
 -- -- toLam2 :: forall a b c. (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Exp
 -- -- toLam2 f =
@@ -398,18 +427,8 @@ instance (QA a,QA (E a),QA b,QA (E b),QA (E (E a)), QA (E (E b))) => View (Q (a,
 -- --           _                  -> convError "Unsupported `SqlTypeId'" n
 -- -- 
 -- -- 
--- -- instance Convertible SqlValue Norm where
--- --     safeConvert sql =
--- --         case sql of
--- --              SqlNull            -> Right $ UnitN UnitT
--- --              SqlInteger i       -> Right $ IntegerN i IntegerT
--- --              SqlDouble d        -> Right $ DoubleN d DoubleT
--- --              SqlBool b          -> Right $ BoolN b BoolT
--- --              SqlChar c          -> Right $ CharN c CharT
--- --              SqlString t        -> Right $ TextN (T.pack t) TextT
--- --              SqlByteString s    -> Right $ TextN (T.decodeUtf8 s) TextT
--- --              _                  -> convError "Unsupported `SqlValue'" sql
--- -- 
+
+
 -- -- instance Convertible (SqlValue, Type) Norm where
 -- --     safeConvert sql =
 -- --         case sql of

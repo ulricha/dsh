@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, GADTs #-}
 module Database.DSH.Compile where
 
 import Database.DSH.Data
@@ -48,7 +48,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
+executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO (Norm a)
 executePlan c p = do
                         sql@(SQL _s) <- algToSQL p
                         runSQL c $ extractSQL sql
@@ -105,7 +105,7 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
         process _ = $impossible
 
 -- | Execute the given SQL queries and assemble the results into one structure
-runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
+runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO (Norm a)
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
@@ -113,7 +113,7 @@ runSQL c (Bundle queries) = do
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
                              return $ case lookup 1 results' of
                                          Just x -> x 
-                                         Nothing -> ListN [] ty
+                                         -- Nothing -> ListN [] ty
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
 -- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
@@ -146,8 +146,9 @@ findQuery (q, c) = do
                                   Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
-processResults :: Int -> Type -> QueryR [(Int, Norm)]
-processResults i ty@(ListT t1) = do
+processResults :: Int -> Type a -> QueryR [(Int, Norm a)]
+processResults = error "ProcessResults not defined yet"
+{-processResults i ty@(ListT t1) = do
                                 v <- getResults i
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
@@ -157,22 +158,24 @@ processResults i t = do
                         mapM (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
                                               return (it, head v1)) v
-
-nrColsInType :: Type -> Int
+-}
+nrColsInType :: Type a -> Int
 nrColsInType UnitT = 1
 nrColsInType BoolT = 1
 nrColsInType CharT = 1
 nrColsInType IntegerT = 1
 nrColsInType DoubleT = 1
 nrColsInType TextT = 1
-nrColsInType (TupleT t1 t2) = nrColsInType t1 + nrColsInType t2
+nrColsInType (PairT t1 t2) = nrColsInType t1 + nrColsInType t2
 nrColsInType (ListT _) = 1
 nrColsInType (ArrowT _ _) = $impossible
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
-processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
+processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Norm a]
+processResults' = error "processResults' not defined"
+{-
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
-processResults' q c vals t@(TupleT t1 t2) = do
+processResults' q c vals t@(PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
                                             v2s <- processResults' q (c + nrColsInType t1) vals t2
                                             return $ [TupleN v1 v2 t | v1 <- v1s | v2 <- v2s]
@@ -193,7 +196,7 @@ processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a funct
 processResults' q c vals t = do
                                     i <- getColResPos q c
                                     return $ map (\val -> convert $ (val !! i, t)) vals
-
+-}
 
 -- | Partition by iter column
 -- The first argument is the position of the iter column.
