@@ -90,5 +90,5 @@ inferBottomUpProperties topOrderedNodes d = foldr (inferWorker $ nodeMap d) M.em
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> Doc
-renderBottomUpProps props = if emptyProp props then text "empty" else empty
+renderBottomUpProps props = text "empty: " <> (text $ show $ emptyProp props)
                             

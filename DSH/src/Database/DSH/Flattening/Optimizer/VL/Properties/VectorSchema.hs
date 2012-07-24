@@ -11,11 +11,11 @@ import Database.Algebra.VL.Data
   
 {- Implement more checks: check the input types for correctness -}
 
-schemaWidth :: VectorSchema -> Int
+schemaWidth :: VectorProp Schema -> Int
 schemaWidth (VProp (ValueVector w)) = w
 schemaWidth _                       = error "schemaWidth: non-ValueVector input"
 
-inferSchemaNullOp :: NullOp -> Either String VectorSchema
+inferSchemaNullOp :: NullOp -> Either String (VectorProp Schema)
 inferSchemaNullOp op =
   case op of
     SingletonDescr              -> Right $ VProp $ DescrVector
@@ -23,11 +23,11 @@ inferSchemaNullOp op =
     ConstructLiteralValue t _   -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
-unpack :: VectorSchema -> Either String Schema
+unpack :: VectorProp Schema -> Either String Schema
 unpack (VProp s) = Right s
 unpack _         = Left "Input is not a single vector property" 
 
-inferSchemaUnOp :: VectorSchema -> UnOp -> Either String VectorSchema
+inferSchemaUnOp :: VectorProp Schema -> UnOp -> Either String (VectorProp Schema)
 inferSchemaUnOp s op = 
   case op of
     Unique -> VProp <$> unpack s
@@ -71,17 +71,17 @@ inferSchemaUnOp s op =
     Singleton -> undefined
     VecBinOpSingle _ -> Right $ VProp $ ValueVector 1
   
-reqValVectors :: VectorSchema 
-                 -> VectorSchema 
-                 -> (Int -> Int -> VectorSchema)
+reqValVectors :: VectorProp Schema 
+                 -> VectorProp Schema 
+                 -> (Int -> Int -> VectorProp Schema)
                  -> String 
-                 -> Either String VectorSchema
+                 -> Either String (VectorProp Schema)
 reqValVectors (VProp (ValueVector w1)) (VProp (ValueVector w2)) f _ =
   Right $ f w1 w2
 reqValVectors _ _ _ e =
   Left $ "Inputs of " ++ e ++ " are not ValueVectors"
       
-inferSchemaBinOp :: VectorSchema -> VectorSchema -> BinOp -> Either String VectorSchema
+inferSchemaBinOp :: VectorProp Schema -> VectorProp Schema -> BinOp -> Either String (VectorProp Schema)
 inferSchemaBinOp s1 s2 op = 
   case op of
     GroupBy -> 
@@ -124,7 +124,7 @@ inferSchemaBinOp s1 s2 op =
     -- FIXME check that the join predicate is compatible with the input schemas.
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "ThetaJoin"
 
-inferSchemaTerOp :: VectorSchema -> VectorSchema -> VectorSchema -> TerOp -> Either String VectorSchema
+inferSchemaTerOp :: VectorProp Schema -> VectorProp Schema -> VectorProp Schema -> TerOp -> Either String (VectorProp Schema)
 inferSchemaTerOp _ s2 s3 op = 
   case op of
     CombineVec -> 

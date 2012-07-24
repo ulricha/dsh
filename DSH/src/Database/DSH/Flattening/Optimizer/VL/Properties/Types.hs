@@ -3,7 +3,11 @@ module Optimizer.VL.Properties.Types where
 data VectorProp a = VProp a
                   | VPropPair a a
                   | VPropTriple a a a
-                    deriving Show
+                    
+instance Show a => Show (VectorProp a) where
+  show (VProp a) = show a
+  show (VPropPair a1 a2) = show (a1, a2)
+  show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
                     
 data Schema = ValueVector Int
             | AtomicVector Int
@@ -12,8 +16,6 @@ data Schema = ValueVector Int
             | PropVector
               deriving Show
                        
-type VectorSchema = VectorProp Schema
-
-data BottomUpProps = BUProps { emptyProp :: Bool 
+data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
                              , cardOneProp :: Bool 
-                             , vectorSchemaProp :: VectorSchema } deriving (Show)
+                             , vectorSchemaProp :: VectorProp Schema } deriving (Show)

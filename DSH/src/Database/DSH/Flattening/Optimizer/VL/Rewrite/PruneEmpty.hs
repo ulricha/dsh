@@ -4,6 +4,8 @@ module Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
 import Debug.Trace
 
+import Control.Monad
+
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
 
@@ -23,8 +25,10 @@ emptyRules = [ emptyAppendLeftR1
              
 isEmpty :: AlgNode -> Match VL BottomUpProps Bool
 isEmpty q = do
-  ps <- properties q
-  return $ emptyProp ps
+  ps <- liftM emptyProp $ properties q
+  case ps of
+    VProp b -> return b
+    _       -> error "PruneEmpty.isEmpty: non-vector input"
 
 {- If the left input is empty and the other is not, the resulting value vector
 is simply the right input. -}
