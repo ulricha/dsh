@@ -25,10 +25,10 @@ emptyRules = [ emptyAppendLeftR1
              
 isEmpty :: AlgNode -> Match VL BottomUpProps Bool
 isEmpty q = do
-  ps <- liftM emptyProp $ properties q
+  ps <- trace (show q) $ liftM emptyProp $ properties q
   case ps of
     VProp b -> return b
-    _       -> error "PruneEmpty.isEmpty: non-vector input"
+    x       -> error $ "PruneEmpty.isEmpty: non-vector input " ++ show x
 
 {- If the left input is empty and the other is not, the resulting value vector
 is simply the right input. -}
@@ -60,7 +60,7 @@ emptyAppendRightR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
-        return $ do
+        trace ("apply R1 " ++ (show q)) $ return $ do
           logRewriteM "Empty.Append.Right.R1" q
           replaceRootM q $(v "q1")
           relinkParentsM q $(v "q1") |])
@@ -70,6 +70,6 @@ emptyAppendRightR2 q =
   $(pattern [| q |] "R2 ((q1) Append (q2))"
     [| do
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
-        return $ do
+        trace ("apply R2 " ++ (show q)) $ return $ do
           logRewriteM "Empty.Append.Right.R2" q
           replaceM q $ UnOp (ProjectRename (PosCol, PosCol)) $(v "q1") |])

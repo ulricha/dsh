@@ -1,77 +1,81 @@
 module Optimizer.VL.Properties.Empty where
 
+import Control.Monad
+
 import Database.Algebra.VL.Data
   
 import Optimizer.VL.Properties.Types
   
-unpack :: VectorProp Bool -> Bool
-unpack (VProp b) = b
-unpack _         = error "no single vector in Properties.Empty"
+unpack :: VectorProp Bool -> Either String Bool
+unpack (VProp b) = Right b
+unpack x         = Left $ "no single vector in Properties.Empty " ++ (show x)
                    
-mapUnpack :: VectorProp Bool -> VectorProp Bool -> (Bool -> Bool -> VectorProp Bool) -> VectorProp Bool
-mapUnpack = undefined
+mapUnpack :: VectorProp Bool -> VectorProp Bool -> (Bool -> Bool -> VectorProp Bool) -> Either String (VectorProp Bool)
+mapUnpack e1 e2 f = let ue1 = unpack e1
+                        ue2 = unpack e2
+                    in liftM2 f ue1 ue2
   
-inferEmptyNullOp :: NullOp -> VectorProp Bool
+inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr              -> VProp False
-    ConstructLiteralTable _ []  -> VProp True
-    ConstructLiteralTable _ _   -> VProp False
-    ConstructLiteralValue _ []  -> VProp True
-    ConstructLiteralValue _ _   -> VProp False
-    TableRef              _ _ _ -> VProp False
+    SingletonDescr              -> Right $ VProp False
+    ConstructLiteralTable _ []  -> Right $ VProp True
+    ConstructLiteralTable _ _   -> Right $ VProp False
+    ConstructLiteralValue _ []  -> Right $ VProp True
+    ConstructLiteralValue _ _   -> Right $ VProp False
+    TableRef              _ _ _ -> Right $ VProp False
     
-inferEmptyUnOp :: VectorProp Bool -> UnOp -> VectorProp Bool
+inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    Unique -> e
-    UniqueL -> e
-    NotPrim -> e
-    NotVec -> e
-    LengthA -> VProp False
-    DescToRename -> e
-    ToDescr -> e
-    Segment -> e
-    VecSum _ -> VProp False
-    VecMin -> e
-    VecMinL -> e
-    VecMax -> e
-    VecMaxL -> e
-    ProjectL _ -> e
-    ProjectA _ -> e
-    IntegerToDoubleA -> e
-    IntegerToDoubleL -> e
-    ReverseA -> let ue = unpack e in VPropPair ue ue
-    ReverseL -> let ue = unpack e in VPropPair ue ue
-    FalsePositions -> e
-    R1 -> 
-      case e of
-        VProp _           -> error "Properties.Empty: not a pair/triple"
-        VPropPair b _     -> VProp b
-        VPropTriple b _ _ -> VProp b
-    R2 ->
-      case e of
-        VProp _           -> error "Properties.Empty: not a pair/triple"
-        VPropPair _ b     -> VProp b
-        VPropTriple _ b _ -> VProp b
-    R3 ->
-      case e of
-        VPropTriple _ _ b -> VProp b
-        _                 -> error "Properties.Empty: not a triple"
-    ProjectRename _  -> e
-    ProjectValue _   -> e
-    SelectItem       -> e
+    Unique -> Right e
+    UniqueL -> Right e
+    NotPrim -> Right e
+    NotVec -> Right e
+    LengthA -> Right $ VProp False
+    DescToRename -> Right e
+    ToDescr -> Right e
+    Segment -> Right e
+    VecSum _ -> Right $ VProp False
+    VecMin -> Right e
+    VecMinL -> Right e
+    VecMax -> Right e
+    VecMaxL -> Right e
+    ProjectL _ -> Right e
+    ProjectA _ -> Right e
+    IntegerToDoubleA -> Right e
+    IntegerToDoubleL -> Right e
+    ReverseA -> let ue = unpack e in liftM2 VPropPair ue ue
+    ReverseL -> let ue = unpack e in liftM2 VPropPair ue ue
+    FalsePositions -> Right e
+    ProjectRename _  -> Right e
+    ProjectValue _   -> Right e
+    SelectItem       -> Right e
     Only             -> undefined
     Singleton        -> undefined
-    VecBinOpSingle _ -> e
+    VecBinOpSingle _ -> Right e
+    R1 -> 
+      case e of
+        VProp _           -> Left "Properties.Empty: not a pair/triple"
+        VPropPair b _     -> Right $ VProp b
+        VPropTriple b _ _ -> Right $ VProp b
+    R2 ->
+      case e of
+        VProp _           -> Left "Properties.Empty: not a pair/triple"
+        VPropPair _ b     -> Right $ VProp b
+        VPropTriple _ b _ -> Right $ VProp b
+    R3 ->
+      case e of
+        VPropTriple _ _ b -> Right $ VProp b
+        _                 -> Left "Properties.Empty: not a triple"
     
-inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> VectorProp Bool
+inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
     GroupBy -> 
       let ue1 = unpack e1 
           ue2 = unpack e2 
-      in VPropTriple ue1 (ue1 || ue2) ue1
+      in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
     SortWith -> undefined
     LengthSeg -> undefined
     DistPrim -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
@@ -83,22 +87,22 @@ inferEmptyBinOp e1 e2 op =
     Append -> mapUnpack e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     RestrictVec -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     VecBinOp _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    VecBinOpL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    VecBinOpL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     VecSumL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
     SelectPos _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PairA -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PairL -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    PairA -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    PairL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     ZipL -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     CartProduct -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     ThetaJoin _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     
-inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> VectorProp Bool
+inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
   case op of
     -- FIXME conjunction holds only for the first component of the output.
     -- the other ones are already empty if their respective input is empty
     CombineVec -> let ue2 = unpack e2
                       ue3 = unpack e3
-                  in VPropTriple (ue2 && ue3) ue2 ue3
+                  in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
     

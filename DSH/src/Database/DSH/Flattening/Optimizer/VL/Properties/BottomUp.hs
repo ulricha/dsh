@@ -45,7 +45,7 @@ inferWorker nm n pm =
        
 inferNullOp :: AlgNode -> NullOp -> Either String BottomUpProps
 inferNullOp _ op = do
-  opEmpty <- Right $ inferEmptyNullOp op
+  opEmpty <- inferEmptyNullOp op
   opCardOne <- Right $ inferCardOneNullOp op
   opSchema <- inferSchemaNullOp op
   return $ BUProps { emptyProp = opEmpty 
@@ -54,7 +54,7 @@ inferNullOp _ op = do
     
 inferUnOp :: AlgNode -> UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp _ op cProps = do
-  opEmpty <- Right $ inferEmptyUnOp (emptyProp cProps) op
+  opEmpty <- inferEmptyUnOp (emptyProp cProps) op
   opCardOne <- Right $ inferCardOneUnOp (cardOneProp cProps) op
   opSchema <- inferSchemaUnOp (vectorSchemaProp cProps) op
   return $ BUProps { emptyProp = opEmpty 
@@ -63,7 +63,7 @@ inferUnOp _ op cProps = do
   
 inferBinOp :: AlgNode -> BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp _ op c1Props c2Props = do
-  opEmpty <- Right $ inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
+  opEmpty <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
   opCardOne <- Right $ inferCardOneBinOp (cardOneProp c1Props) (cardOneProp c2Props) op
   opSchema <- inferSchemaBinOp (vectorSchemaProp c1Props) (vectorSchemaProp c2Props) op
   return $ BUProps { emptyProp = opEmpty 
@@ -77,7 +77,7 @@ inferTerOp :: AlgNode
               -> BottomUpProps
               -> Either String BottomUpProps
 inferTerOp _ op c1Props c2Props c3Props = do
-  opEmpty <- Right $ inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
+  opEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
   opCardOne <- Right $ inferCardOneTerOp (cardOneProp c1Props) (cardOneProp c2Props) (cardOneProp c3Props) op
   opSchema <- inferSchemaTerOp (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) op
   return $ BUProps { emptyProp = opEmpty 
