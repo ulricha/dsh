@@ -10,7 +10,10 @@ unpack :: VectorProp Bool -> Either String Bool
 unpack (VProp b) = Right b
 unpack x         = Left $ "no single vector in Properties.Empty " ++ (show x)
                    
-mapUnpack :: VectorProp Bool -> VectorProp Bool -> (Bool -> Bool -> VectorProp Bool) -> Either String (VectorProp Bool)
+mapUnpack :: VectorProp Bool 
+             -> VectorProp Bool 
+             -> (Bool -> Bool -> VectorProp Bool) 
+             -> Either String (VectorProp Bool)
 mapUnpack e1 e2 f = let ue1 = unpack e1
                         ue2 = unpack e2
                     in liftM2 f ue1 ue2
@@ -86,22 +89,20 @@ inferEmptyBinOp e1 e2 op =
     PropReorder -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Append -> mapUnpack e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     RestrictVec -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    VecBinOp _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    VecBinOp _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     VecBinOpL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     VecSumL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
     SelectPos _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PairA -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     PairL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    ZipL -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    CartProduct -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    ThetaJoin _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    ZipL -> mapUnpack e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    CartProduct -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    ThetaJoin _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
   case op of
-    -- FIXME conjunction holds only for the first component of the output.
-    -- the other ones are already empty if their respective input is empty
     CombineVec -> let ue2 = unpack e2
                       ue3 = unpack e3
                   in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
