@@ -45,7 +45,7 @@ module Database.DSH
 
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf, Case, gCurry)
 -- import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
-import Database.DSH.DeriveConstructors
+-- import Database.DSH.DeriveConstructors
 
 import Database.DSH.CSV
 import Database.DSH.JSON

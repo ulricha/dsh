@@ -78,8 +78,7 @@ Library
                      Database.DSH.Compiler
                      Database.DSH
 
-  Other-modules:     Database.DSH.DeriveConstructors
-                     Database.DSH.Data
+  Other-modules:     Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
                      Database.DSH.JSON
