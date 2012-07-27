@@ -74,7 +74,7 @@ cartProd q =
 
         return $ do
           logRewriteM "Specialized.CartProd" q
-          let prodOp = BinOp CartProduct $(v "leftInput") $(v "rightInput")
+          let prodOp = BinOp CartProductFlat $(v "leftInput") $(v "rightInput")
           prodNode <- insertM prodOp
           let projLeft = UnOp (ProjectL [1 .. w1]) prodNode
               projRight = UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodNode
@@ -91,7 +91,7 @@ mapColumnToSide leftWidth rightWidth i =
   
 equiJoin :: Rule VL BottomUpProps
 equiJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProduct (_))))"
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProductFlat (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         s1 <- liftM vectorSchemaProp $ properties $(v "q1")
@@ -105,7 +105,7 @@ equiJoin q =
         return $ do
           logRewriteM "Specialized.EquiJoin" q
           let mc = mapColumnToSide w1 w2
-              joinOp = BinOp (ThetaJoin (Eq, mc leftArgCol, mc rightArgCol)) $(v "qi1") $(v "qi2")
+              joinOp = BinOp (ThetaJoinFlat (Eq, mc leftArgCol, mc rightArgCol)) $(v "qi1") $(v "qi2")
           joinNode <- insertM joinOp
           relinkParentsM q joinNode |])
                               

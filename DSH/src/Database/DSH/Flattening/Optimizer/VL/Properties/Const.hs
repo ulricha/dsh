@@ -290,3 +290,4 @@ inferConstVecTerOp c1 c2 c3 op =
           renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
 
       return $ VPropTriple (DBVConst d1 constCols) renameVec renameVec
+  

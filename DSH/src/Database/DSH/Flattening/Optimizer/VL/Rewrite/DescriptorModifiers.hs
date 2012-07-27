@@ -32,8 +32,8 @@ stripFlatRootPropRename q =
         
         return $ do
           logRewriteM "DescriptorModifiers.FlatRootPropRename" q
-          let valProjs = map Payload [1..width]
-              projectOp = UnOp (ProjectValue (ConstCol (VLNat 1), PosCol, valProjs)) $(v "qv")
+          let valProjs = map PLCol [1..width]
+              projectOp = UnOp (ProjectValue (DescrConst (N 1), PosIdentity, valProjs)) $(v "qv")
           replaceM q projectOp |])
 
 -- FIXME duplicatin the rule like this to account for the introduced root projection is horrible.
@@ -45,8 +45,8 @@ stripFlatRootPropRenameProject q =
     [| do
         let (descrProj, _, _) = $(v "ps")
         predicate $ case descrProj of
-          ConstCol (VLNat 1) -> True
-          _                  -> False
+          DescrConst (N 1) -> True
+          _                -> False
         rs <- rootNodes
         predicate $ (length rs) == 1
         predicate $ q `elem` rs
@@ -67,8 +67,8 @@ stripFlatRootSegment q =
         
         return $ do
           logRewriteM "DescriptorModifiers.FlatRootSegment" q
-          let valProjs = map Payload [1..width]
-              projectOp = UnOp (ProjectValue (ConstCol (VLNat 1), PosCol, valProjs)) $(v "qv")
+          let valProjs = map PLCol [1..width]
+              projectOp = UnOp (ProjectValue (DescrConst (N 1), PosIdentity, valProjs)) $(v "qv")
           replaceM q projectOp |])
 
 stripFlatRootSegmentProject :: Rule VL BottomUpProps
@@ -77,8 +77,8 @@ stripFlatRootSegmentProject q =
     [| do
         let (descrProj, _, _) = $(v "ps")
         predicate $ case descrProj of
-          ConstCol (VLNat 1) -> True
-          _                  -> False
+          DescrConst (N 1) -> True
+          _                -> False
         rs <- rootNodes
         predicate $ (length rs) == 1
         predicate $ q `elem` rs

@@ -120,9 +120,9 @@ inferSchemaBinOp s1 s2 op =
         -- FIXME check disabled for now
         -- _                                -> Left "Inputs of PairL are not ValueVectors"
     ZipL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
-    CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "CartProduct"
+    CartProductFlat -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "CartProduct"
     -- FIXME check that the join predicate is compatible with the input schemas.
-    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "ThetaJoin"
+    ThetaJoinFlat _ -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "ThetaJoin"
 
 inferSchemaTerOp :: VectorProp Schema -> VectorProp Schema -> VectorProp Schema -> TerOp -> Either String (VectorProp Schema)
 inferSchemaTerOp _ s2 s3 op = 
