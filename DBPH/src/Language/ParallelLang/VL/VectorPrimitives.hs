@@ -1,7 +1,7 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
 import Language.ParallelLang.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp(), Projection)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp(), ISTransProj, DescrProj, PosProj, PayloadProj)
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -59,6 +59,6 @@ class VectorAlgebra a where
   falsePositions :: DBV -> GraphM r a DBV
   cartProduct :: DBV -> DBV -> GraphM r a DBV
   selectItem :: DBV -> GraphM r a DBV
-  projectRename :: Projection -> Projection -> DBV -> GraphM r a RenameVector
-  projectValue :: Projection -> Projection -> [Projection] -> DBV -> GraphM r a DBV
+  projectRename :: ISTransProj -> ISTransProj -> DBV -> GraphM r a RenameVector
+  projectValue :: DescrProj -> PosProj -> [PayloadProj] -> DBV -> GraphM r a DBV
   binOpSingle :: (VecOp, DBCol, DBCol) -> DBV -> GraphM r a DBV
