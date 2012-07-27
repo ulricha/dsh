@@ -12,6 +12,7 @@ import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.Empty
 import Optimizer.VL.Properties.Card
 import Optimizer.VL.Properties.VectorSchema
+import Optimizer.VL.Properties.Const
 -- import Optimizer.VL.Properties.Descriptor
 
 -- | Perform a map lookup and fail with the given error string if the key
@@ -47,28 +48,28 @@ inferWorker nm n pm =
 inferNullOp :: AlgNode -> NullOp -> Either String BottomUpProps
 inferNullOp _ op = do
   opEmpty <- inferEmptyNullOp op
-  opCardOne <- Right $ inferCardOneNullOp op
+  opConst <- inferConstVecNullOp op
   opSchema <- inferSchemaNullOp op
   return $ BUProps { emptyProp = opEmpty 
-                   , cardOneProp = opCardOne
+                   , constProp = opConst
                    , vectorSchemaProp = opSchema }
     
 inferUnOp :: AlgNode -> UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp _ op cProps = do
   opEmpty <- inferEmptyUnOp (emptyProp cProps) op
-  opCardOne <- Right $ inferCardOneUnOp (cardOneProp cProps) op
   opSchema <- inferSchemaUnOp (vectorSchemaProp cProps) op
+  opConst <- inferConstVecUnOp (constProp cProps) op
   return $ BUProps { emptyProp = opEmpty 
-                   , cardOneProp = opCardOne 
+                   , constProp = opConst
                    , vectorSchemaProp = opSchema }
   
 inferBinOp :: AlgNode -> BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp _ op c1Props c2Props = do
   opEmpty <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
-  opCardOne <- Right $ inferCardOneBinOp (cardOneProp c1Props) (cardOneProp c2Props) op
   opSchema <- inferSchemaBinOp (vectorSchemaProp c1Props) (vectorSchemaProp c2Props) op
+  opConst <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
   return $ BUProps { emptyProp = opEmpty 
-                   , cardOneProp = opCardOne 
+                   , constProp = opConst
                    , vectorSchemaProp = opSchema }
   
 inferTerOp :: AlgNode
@@ -79,10 +80,10 @@ inferTerOp :: AlgNode
               -> Either String BottomUpProps
 inferTerOp _ op c1Props c2Props c3Props = do
   opEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
-  opCardOne <- Right $ inferCardOneTerOp (cardOneProp c1Props) (cardOneProp c2Props) (cardOneProp c3Props) op
   opSchema <- inferSchemaTerOp (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) op
+  opConst <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
   return $ BUProps { emptyProp = opEmpty 
-                   , cardOneProp = opCardOne 
+                   , constProp = opConst
                    , vectorSchemaProp = opSchema }
   
 -- | Infer bottom-up properties: visit nodes in reverse topological ordering.

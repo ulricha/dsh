@@ -28,8 +28,8 @@ fromRenameVec = undefined
 fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromPropVec = undefined
 
-inferConstNullOp :: NullOp -> Either String (VectorProp ConstVec)
-inferConstNullOp op = 
+inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
+inferConstVecNullOp op = 
   case op of
     SingletonDescr                    -> return $ VProp $ DescrVecConst $ ConstDescr $ N 1
     ConstructLiteralTable _ _         -> undefined

@@ -1,5 +1,7 @@
 module Optimizer.VL.Properties.Types where
 
+import Text.PrettyPrint
+
 -- import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
@@ -70,5 +72,33 @@ newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
                        
 data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
-                             , cardOneProp :: Bool 
+                             , constProp :: VectorProp ConstVec
                              , vectorSchemaProp :: VectorProp Schema } deriving (Show)
+                                                                                
+class Renderable a where
+  renderProp :: a -> Doc
+  
+c :: Doc -> Doc -> Doc
+c d1 d2 = d1 <> comma <+> d2
+  
+instance Renderable a => Renderable (VectorProp a) where
+  renderProp (VProp p)              = renderProp p
+  renderProp (VPropPair p1 p2)      = parens $ (renderProp p1) `c` (renderProp p2)
+  renderProp (VPropTriple p1 p2 p3) = parens $ (renderProp p1) `c` (renderProp p2) `c` (renderProp p3)
+  
+instance Renderable Bool where
+  renderProp = text . show
+  
+instance Renderable ConstVec where
+  renderProp = text . show
+
+instance Renderable Schema where
+  renderProp = text . show
+  
+instance Renderable BottomUpProps where
+  renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
+                 $$ text "const:" <+> (renderProp $ constProp p)
+                 $$ text "schema:" <+> (renderProp $ vectorSchemaProp p)
+  
+renderBottomUpProps :: BottomUpProps -> [String]
+renderBottomUpProps ps = [render $ renderProp ps]
