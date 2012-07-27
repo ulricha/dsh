@@ -12,6 +12,7 @@ import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.Empty
 import Optimizer.VL.Properties.Card
 import Optimizer.VL.Properties.VectorSchema
+-- import Optimizer.VL.Properties.Descriptor
 
 -- | Perform a map lookup and fail with the given error string if the key
 -- is not present
