@@ -1,9 +1,11 @@
 module Optimizer.VL.Properties.Types where
 
 import Text.PrettyPrint
+  
 
 -- import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
+import Database.Algebra.VL.Render.Dot
 
 data VectorProp a = VProp a
                   | VPropPair a a
@@ -88,9 +90,22 @@ instance Renderable a => Renderable (VectorProp a) where
   
 instance Renderable Bool where
   renderProp = text . show
+
+bracketList :: (a -> Doc) -> [a] -> Doc
+bracketList f = brackets . hsep . punctuate comma . map f
   
 instance Renderable ConstVec where
-  renderProp = text . show
+  renderProp (DBVConst d ps) = (text $ show d) <+> payload
+    where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
+          isConst (_, NonConstPL) vals   = vals
+          isConst (i, (ConstPL v)) vals  = (i, v) : vals
+          
+          renderPL (i, v)  = int i <> colon <> renderTblVal v
+
+          bracketList :: (a -> Doc) -> [a] -> Doc
+          bracketList f = brackets . hsep . punctuate comma . map f
+
+  renderProp c = text $ show c
 
 instance Renderable Schema where
   renderProp = text . show
