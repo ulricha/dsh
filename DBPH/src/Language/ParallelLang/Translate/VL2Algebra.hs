@@ -208,8 +208,8 @@ translateBinOp b c1 c2 = case b of
                            ZipL             -> do
                                                 (v, r1 ,r2) <- zipL (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
-                           CartProduct      -> liftM fromDBV $ cartProduct (toDBV c1) (toDBV c2)
-                           ThetaJoin        _ -> undefined
+                           CartProductFlat  -> liftM fromDBV $ cartProductFlat (toDBV c1) (toDBV c2)
+                           ThetaJoinFlat  _ -> undefined
                                                 
 
 singleton :: Res -> Res
