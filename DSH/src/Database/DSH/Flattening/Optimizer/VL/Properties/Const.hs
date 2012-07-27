@@ -1,5 +1,9 @@
 module Optimizer.VL.Properties.Const where
 
+import Debug.Trace
+
+import Data.List
+
 import Optimizer.VL.Properties.Common
 import Optimizer.VL.Properties.Types
 import Database.Algebra.VL.Data
@@ -14,25 +18,39 @@ mapUnp :: Show a => VectorProp a
 mapUnp = mapUnpack "Properties.Empty"  
          
 fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
-fromDBV = undefined
+fromDBV (DBVConst d ps)   = Right (d, ps)
+fromDBV (DescrVecConst d) = Right (d, [])
+fromDBV x                 = Left $ "Properties.Const fromDBV " ++ (show x)
 
 fromDBP :: ConstVec -> Either String [ConstPayload]
-fromDBP = undefined
+fromDBP (DBPConst ps) = Right ps
+fromDBP _             = Left "Properties.Const fromDBP"
          
 fromDescrVec :: ConstVec -> Either String ConstDescr
-fromDescrVec = undefined
+fromDescrVec (DescrVecConst d) = Right d
+fromDescrVec _                 = Left "Properties.Const fromDescrVec"
                
 fromRenameVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromRenameVec = undefined
+fromRenameVec (RenameVecConst s t) = Right (s, t)
+fromRenameVec x                    = Left ("Properties.Const fromRenameVec " ++ (show x))
 
 fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromPropVec = undefined
+fromPropVec (PropVecConst s t)  = Right (s, t)
+fromPropVec _                   = Left "Properties.Const fromPropVec"
+
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op = 
   case op of
     SingletonDescr                    -> return $ VProp $ DescrVecConst $ ConstDescr $ N 1
-    ConstructLiteralTable _ _         -> undefined
+    ConstructLiteralTable _ rows      -> return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
+      where constCols       = map col $ transpose rows
+            col col@(c : _) = if all (c ==) col 
+                              then ConstPL c 
+                              else NonConstPL
+                                                            
+                                                            
+      
     ConstructLiteralValue _ vals      -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map ConstPL vals
     TableRef              _ cols _    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
 
@@ -53,7 +71,7 @@ inferConstVecUnOp c op =
 
     DescToRename -> do
       d <- unp c >>= fromDescrVec
-      return $ VProp $ DescrVecConst d
+      return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 
     ToDescr -> do
       (d, _) <- unp c >>= fromDBV
@@ -75,7 +93,7 @@ inferConstVecUnOp c op =
 
     ProjectL ps -> do
       (d, cols) <- unp c >>= fromDBV
-      let cols' = map (cols !!) ps
+      let cols' = map (\p -> cols !! (p - 1)) ps
       return $ VProp $ DBVConst d cols'
 
     ProjectA ps -> do
@@ -177,20 +195,20 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
       
     PropRename -> do
-      (_, cols) <- unp c1 >>= fromDBV
-      (SC source, TC target) <- unp c2 >>= fromRenameVec
+      (_, cols) <- unp c2 >>= fromDBV
+      (SC source, TC target) <- unp c1 >>= fromRenameVec
 
       return $ VProp $ DBVConst target cols
       
     PropFilter -> do
-      (_, cols) <- unp c1 >>= fromDBV
-      (SC source, TC target) <- unp c2 >>= fromRenameVec
+      (_, cols) <- unp c2 >>= fromDBV
+      (SC source, TC target) <- unp c1 >>= fromRenameVec
   
       return $ VProp $ DBVConst target cols
 
     PropReorder -> do
-      (_, cols) <- unp c1 >>= fromDBV
-      (SC source, TC target) <- unp c2 >>= fromPropVec
+      (_, cols) <- unp c2 >>= fromDBV
+      (SC source, TC target) <- unp c1 >>= fromPropVec
       
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -272,7 +290,16 @@ inferConstVecBinOp c1 c2 op =
       
       return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
 
-    ThetaJoinFlat _ -> undefined
+    ThetaJoinFlat _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = map sameConst $ zip cols1 cols2
+
+          sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
+          sameConst (_, _)                                  = NonConstPL
+      
+      return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op = 
