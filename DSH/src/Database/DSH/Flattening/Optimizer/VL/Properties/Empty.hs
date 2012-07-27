@@ -1,23 +1,21 @@
 module Optimizer.VL.Properties.Empty where
 
 import Control.Monad
-
+  
 import Database.Algebra.VL.Data
   
 import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.Common
   
-unpack :: VectorProp Bool -> Either String Bool
-unpack (VProp b) = Right b
-unpack x         = Left $ "no single vector in Properties.Empty " ++ (show x)
+unp :: Show a => VectorProp a -> Either String a
+unp = unpack "Properties.Empty"
                    
-mapUnpack :: VectorProp Bool 
-             -> VectorProp Bool 
-             -> (Bool -> Bool -> VectorProp Bool) 
-             -> Either String (VectorProp Bool)
-mapUnpack e1 e2 f = let ue1 = unpack e1
-                        ue2 = unpack e2
-                    in liftM2 f ue1 ue2
-  
+mapUnp :: Show a => VectorProp a
+          -> VectorProp a 
+          -> (a -> a -> VectorProp a) 
+          -> Either String (VectorProp a)
+mapUnp = mapUnpack "Properties.Empty"  
+
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
@@ -48,8 +46,8 @@ inferEmptyUnOp e op =
     ProjectA _ -> Right e
     IntegerToDoubleA -> Right e
     IntegerToDoubleL -> Right e
-    ReverseA -> let ue = unpack e in liftM2 VPropPair ue ue
-    ReverseL -> let ue = unpack e in liftM2 VPropPair ue ue
+    ReverseA -> let ue = unp e in liftM2 VPropPair ue ue
+    ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
     ProjectRename _  -> Right e
     ProjectValue _   -> Right e
@@ -76,34 +74,34 @@ inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String 
 inferEmptyBinOp e1 e2 op =
   case op of
     GroupBy -> 
-      let ue1 = unpack e1 
-          ue2 = unpack e2 
+      let ue1 = unp e1 
+          ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
     SortWith -> undefined
     LengthSeg -> undefined
-    DistPrim -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
-    DistDesc -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    DistLift -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PropRename -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    PropFilter -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PropReorder -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    Append -> mapUnpack e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
-    RestrictVec -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    VecBinOp _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    VecBinOpL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    VecSumL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
-    SelectPos _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    SelectPosL _ -> mapUnpack e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PairA -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    PairL -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    ZipL -> mapUnpack e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    CartProduct -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    ThetaJoin _ -> mapUnpack e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
+    DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    DistLift -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    PropRename -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    PropFilter -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    PropReorder -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
+    RestrictVec -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    VecBinOp _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    VecBinOpL _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    VecSumL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
+    SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    SelectPosL _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    PairA -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    PairL -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    ZipL -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    ThetaJoin _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
   case op of
-    CombineVec -> let ue2 = unpack e2
-                      ue3 = unpack e3
+    CombineVec -> let ue2 = unp e2
+                      ue3 = unp e3
                   in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
     
