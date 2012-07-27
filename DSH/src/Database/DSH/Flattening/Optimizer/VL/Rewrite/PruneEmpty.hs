@@ -53,7 +53,7 @@ emptyAppendLeftR3 q =
         predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
         return $ do
           logRewriteM "Empty.Append.Left.R3" q
-          replaceM q $ UnOp (ProjectRename (PosCol, PosCol)) $(v "q2") |])
+          replaceM q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
           
 emptyAppendRightR1 :: Rule VL BottomUpProps
 emptyAppendRightR1 q =
@@ -72,4 +72,4 @@ emptyAppendRightR2 q =
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
         trace ("apply R2 " ++ (show q)) $ return $ do
           logRewriteM "Empty.Append.Right.R2" q
-          replaceM q $ UnOp (ProjectRename (PosCol, PosCol)) $(v "q1") |])
+          replaceM q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
