@@ -2,8 +2,6 @@
 
 module Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
-import Debug.Trace
-
 import Control.Monad
 
 import Optimizer.VL.Properties.Types
@@ -25,7 +23,7 @@ emptyRules = [ emptyAppendLeftR1
              
 isEmpty :: AlgNode -> Match VL BottomUpProps Bool
 isEmpty q = do
-  ps <- trace (show q) $ liftM emptyProp $ properties q
+  ps <- liftM emptyProp $ properties q
   case ps of
     VProp b -> return b
     x       -> error $ "PruneEmpty.isEmpty: non-vector input " ++ show x
@@ -60,7 +58,7 @@ emptyAppendRightR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
-        trace ("apply R1 " ++ (show q)) $ return $ do
+        return $ do
           logRewriteM "Empty.Append.Right.R1" q
           replaceRootM q $(v "q1")
           relinkParentsM q $(v "q1") |])
@@ -70,6 +68,6 @@ emptyAppendRightR2 q =
   $(pattern [| q |] "R2 ((q1) Append (q2))"
     [| do
         predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
-        trace ("apply R2 " ++ (show q)) $ return $ do
+        return $ do
           logRewriteM "Empty.Append.Right.R2" q
           replaceM q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
