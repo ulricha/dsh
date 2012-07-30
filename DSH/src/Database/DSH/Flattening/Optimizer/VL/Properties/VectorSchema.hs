@@ -12,8 +12,10 @@ import Database.Algebra.VL.Data
 {- Implement more checks: check the input types for correctness -}
 
 schemaWidth :: VectorProp Schema -> Int
-schemaWidth (VProp (ValueVector w)) = w
-schemaWidth _                       = error "schemaWidth: non-ValueVector input"
+schemaWidth (VProp (ValueVector w))  = w
+schemaWidth (VProp (AtomicVector w)) = w
+schemaWidth (VProp DescrVector)      = 0
+schemaWidth _                        = error "schemaWidth: non-ValueVector input"
 
 inferSchemaNullOp :: NullOp -> Either String (VectorProp Schema)
 inferSchemaNullOp op =
