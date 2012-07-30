@@ -2,6 +2,8 @@
 
 module Optimizer.VL.Rewrite.Redundant where
 
+import Debug.Trace
+
 import Control.Monad
 import qualified Data.Map as M
 
@@ -10,10 +12,14 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
   
 import Optimizer.VL.Rewrite.MergeProjections
+import Optimizer.VL.Rewrite.Common
+import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.VectorSchema
   
 removeRedundancy :: DagRewrite VL Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
-                                                  , preOrder (return M.empty) redundantRules ]
+                                                  , preOrder (return M.empty) redundantRules
+                                                  , preOrder inferBottomUp redundantRulesWithProperties ]
                    
 cleanup :: DagRewrite VL Bool
 cleanup = sequenceRewrites [ mergeProjections ]
@@ -26,6 +32,11 @@ redundantRules = [ mergeStackedDistDesc
                  , pairedProjections
                  , binOpSameSource
                  , descriptorFromProject ]
+                 
+redundantRulesWithProperties :: RuleSet VL BottomUpProps
+redundantRulesWithProperties = [ pairFromSameSource 
+                               , noOpProject
+                               , toDescr ]
                  
 mergeStackedDistDesc :: Rule VL ()
 mergeStackedDistDesc q = 
@@ -111,3 +122,45 @@ descriptorFromProject q =
         return $ do
           logRewriteM "Redundant.DescriptorFromProject" q
           replaceM q $ UnOp ToDescr $(v "q1") |])
+  
+-- Remove a PairL operator if both inputs are the same and do not have payload columns
+pairFromSameSource :: Rule VL BottomUpProps
+pairFromSameSource q =
+  $(pattern [| q |] "(q1) PairL (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        schema1 <- liftM vectorSchemaProp $ properties $(v "q1")
+        schema2 <- liftM vectorSchemaProp $ properties $(v "q2")
+        case (schema1, schema2) of
+          (VProp (ValueVector i1), VProp (ValueVector i2)) | i1 == i2 && i1 == 0 -> return ()
+          (VProp DescrVector, VProp DescrVector)                                 -> return ()
+          _                                                                      -> fail "no match"
+        return $ do
+          logRewriteM "Redundant.PairFromSame" q
+          relinkParentsM q $(v "q1") |])
+  
+-- Remove a ProjectL or ProjectA operator that does not change the vector schema
+noOpProject :: Rule VL BottomUpProps
+noOpProject q =
+  $(pattern [| q |] "[ProjectL | ProjectA] ps (q1)"
+    [| do
+        schema <- liftM vectorSchemaProp $ properties $(v "q1")
+        predicate $ schemaWidth schema == length $(v "ps")
+        predicate $ all (uncurry (==)) $ zip ([1..] :: [DBCol]) $(v "ps")
+        
+        return $ do
+          logRewriteM "Redundant.NoOpProject" q
+          relinkParentsM q $(v "q1") |])
+          
+-- Remove a ToDescr operator whose input is already a descriptor vector
+toDescr :: Rule VL BottomUpProps
+toDescr q =
+  $(pattern [| q |] "ToDescr (q1)"
+    [| do
+        schema <- liftM vectorSchemaProp $ properties $(v "q1")
+        case schema of
+          VProp DescrVector -> return ()
+          _                 -> fail "no match"
+        return $ do
+          logRewriteM "Redundant.ToDescr" q
+          relinkParentsM q $(v "q1") |])
