@@ -25,14 +25,16 @@ hasConstDesc (VProp (DBVConst (ConstDescr _) _))      = True
 hasConstDesc (VProp (DescrVecConst (ConstDescr _)))   = True
 hasConstDesc _                                        = False
                  
-traverseChain :: AlgNode -> Match VL BottomUpProps AlgNode
-traverseChain q = do
+-- Walk down a chain of descriptor modifiers and return the first
+-- non-descriptor modifier if it is constant. Otherwise, fail the match.
+searchConstantDescr :: AlgNode -> Match VL BottomUpProps AlgNode
+searchConstantDescr q = do
   op <- operator q
   case op of
-    BinOp PropRename _ c2 -> trace ("at " ++ (show q)) $ traverseChain c2
-    UnOp Segment c -> trace ("at " ++ (show q)) $ traverseChain c
+    BinOp PropRename _ c2 -> searchConstantDescr c2
+    UnOp Segment c -> searchConstantDescr c
     _ -> do
-      trace ("at " ++ (show q)) $ predicateM $ liftM (hasConstDesc . constProp) $ properties q
+      predicateM $ liftM (hasConstDesc . constProp) $ properties q
       return q
                  
 {- Try to find a chain of descriptor-modifying operators (e.g. PropRename, Segment) which
@@ -41,10 +43,10 @@ constantDescriptorChain :: Rule VL BottomUpProps
 constantDescriptorChain q = 
   $(pattern [| q |] "(_) PropRename (qv)"
     [| do
-        trace ("top " ++ (show q)) $ predicateM $ liftM (hasConstDesc . constProp) $ properties q
-        chainStart <- traverseChain $(v "qv")
+        predicateM $ liftM (hasConstDesc . constProp) $ properties q
+        chainStart <- searchConstantDescr $(v "qv")
         
-        trace "match" $ return $ do
+        return $ do
           logRewriteM "DescriptorModifiers.ConstantDescriptorChain" q
           op <- operatorM chainStart
           replaceM q op |])
