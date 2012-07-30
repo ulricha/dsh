@@ -57,7 +57,6 @@ data Const = Const VLVal
              
 data ConstDescr = ConstDescr Nat
                 | NonConstDescr
-                deriving Show 
 
 data ConstPayload = ConstPL VLVal
                   | NonConstPL
@@ -93,6 +92,10 @@ instance Renderable Bool where
 
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
+                
+instance Show ConstDescr where
+  show (ConstDescr v) = render $ renderTblVal (VLNat v)
+  show NonConstDescr  = "NC"
   
 instance Renderable ConstVec where
   renderProp (DBVConst d ps) = (text $ show d) <+> payload
@@ -105,6 +108,18 @@ instance Renderable ConstVec where
           bracketList :: (a -> Doc) -> [a] -> Doc
           bracketList f = brackets . hsep . punctuate comma . map f
 
+  renderProp (DBPConst ps) = payload
+    where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
+          isConst (_, NonConstPL) vals   = vals
+          isConst (i, (ConstPL v)) vals  = (i, v) : vals
+          
+          renderPL (i, v)  = int i <> colon <> renderTblVal v
+
+          bracketList :: (a -> Doc) -> [a] -> Doc
+          bracketList f = brackets . hsep . punctuate comma . map f
+
+  renderProp (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
+  renderProp (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
   renderProp c = text $ show c
 
 instance Renderable Schema where
