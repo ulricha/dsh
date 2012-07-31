@@ -18,7 +18,7 @@ stripFromRoot :: DagRewrite VL Bool
 stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
 
 descriptorNoOps :: RuleSet VL BottomUpProps
-descriptorNoOps = [ constantDescriptorChain ]
+descriptorNoOps = [ constantDescriptorChain, noOpRenaming ]
                  
 hasConstDesc :: VectorProp ConstVec -> Bool
 hasConstDesc (VProp (DBVConst (ConstDescr _) _))      = True
@@ -50,3 +50,20 @@ constantDescriptorChain q =
           logRewriteM "DescriptorModifiers.ConstantDescriptorChain" q
           op <- operatorM chainStart
           replaceM q op |])
+  
+-- FIXME this is a weak version. Use abstract knowledge about index space transformations
+-- to establish the no op property.
+noOpRenaming :: Rule VL BottomUpProps
+noOpRenaming q =
+  $(pattern [| q |] "(ProjectRename p (_)) PropRename (q1)"
+    [| do
+        case $(v "p") of
+          (STPosCol, STPosCol)     -> return ()
+          (STDescrCol, STDescrCol) -> return ()
+          _                        -> fail "no match"
+          
+        return $ do
+          logRewriteM "DescriptorModifiers.NoOpRenaming" q
+          replaceRootM q $(v "q1")
+          relinkParentsM q $(v "q1") |])
+          
