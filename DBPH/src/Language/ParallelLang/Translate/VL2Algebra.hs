@@ -132,7 +132,10 @@ vl2Algebra (nodes, plan) = do
                                  l2' <- refreshLyt l2
                                  return $ GV.Pair l1' l2'
       getNode :: AlgNode -> VL
-      getNode n = nodes M.! n
+      getNode n = case M.lookup n nodes of
+        Just op -> op
+        Nothing -> error $ "getNode: node " ++ (show n) ++ " not in nodes map"
+                       
       translate :: VectorAlgebra a => AlgNode -> G a Res
       translate n = do
                       r <- fromDict n
