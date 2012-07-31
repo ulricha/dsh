@@ -24,12 +24,13 @@ data Exp a where
 
   PairE     :: (QA a,QA b)  => Exp a -> Exp b -> Exp (a,b)
   ListE     :: (QA a)       => [Exp a] -> Exp [a]
-{-  NilE      :: (QA a)       => Exp [a]
-  ConsE     :: (QA a)       => Exp a -> Exp [a] -> Exp [a] -}
-  AppE1     :: QA b => Fun1 (Exp a) (Exp b) -> Exp a -> Exp b
-  AppE2     :: Fun2 (Exp a) (Exp b) (Exp c) -> Exp a -> Exp b -> Exp c
-  AppE3     :: Fun3 (Exp a) (Exp b) (Exp c) (Exp d) -> Exp a -> Exp b -> Exp c -> Exp d 
-  LamE      :: (Exp a -> Exp b) -> Exp (a -> b)
+  App1E     :: (QA a, QA b) => Fun1 (Exp a) (Exp b) -> Exp a -> Exp b
+  App2E     :: (QA a, QA b, QA c) => Fun2 (Exp a) (Exp b) (Exp c) -> Exp a -> Exp b -> Exp c
+  AppH2E    :: (QA a, QA b, QA c, QA d) => HOFun2 (Exp (a -> b)) (Exp c) (Exp d) -> Exp (a -> b) -> Exp c -> Exp d
+  App3E     :: (QA a, QA b, QA c, QA d) => Fun3 (Exp a) (Exp b) (Exp c) (Exp d) -> Exp a -> Exp b -> Exp c -> Exp d
+  AppH3E    :: (QA a, QA b, QA c, QA d, QA e, QA f) => HOFun3 (Exp (a -> b -> c)) (Exp d) (Exp e) (Exp f) -> Exp (a -> b -> c) -> Exp d -> Exp e -> Exp f 
+  Lam1E     :: (QA a, QA b) => (Exp a -> Exp b) -> Exp (a -> b)
+  Lam2E     :: (QA a, QA b, QA c) => (Exp a -> Exp b -> Exp c) -> Exp (a -> b -> c)
   VarE      :: (QA a)       => Integer -> Exp a
   TableE    :: (QA a)       => Table -> Exp [a]
 
@@ -87,8 +88,20 @@ instance Show (Fun1 a b) where
     show IntegerToDouble = "IntegerToDouble"
     
 appE1 :: (QA a, QA b) => (Fun1 (Exp a) (Exp b)) -> Q a -> Q b
-appE1 f e1 = expToQ $ AppE1 f (qToExp e1)
+appE1 f e1 = expToQ $ App1E f (qToExp e1)
 
+data HOFun2 a b c where
+    Map       ::          HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [b])
+    Filter    ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
+    GroupWith ::          HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [[a]])
+    SortWith  :: Ord b => HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [a])
+    Any       ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
+    All       ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
+    TakeWhile ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
+    DropWhile ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
+    Span      ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
+    Break     ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
+        
 data Fun2 a b c where
     Add       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Mul       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
@@ -103,41 +116,32 @@ data Fun2 a b c where
     Disj      ::          Fun2 (Exp Bool)         (Exp Bool)    (Exp Bool)
     Min       :: Ord a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Max       :: Ord a => Fun2 (Exp a)            (Exp a)       (Exp a)
-    Map       ::          Fun2 (Exp (a -> b))     (Exp [a])     (Exp [b])
     Cons      ::          Fun2 (Exp a)            (Exp [a])     (Exp [a])
     Snoc      ::          Fun2 (Exp [a])          (Exp a)       (Exp [a])
     Take      ::          Fun2 (Exp Integer)      (Exp [a])     (Exp [a])
     Drop      ::          Fun2 (Exp Integer)      (Exp [a])     (Exp [a])
     Append    ::          Fun2 (Exp [a])          (Exp [a])     (Exp [a])
-    Filter    ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
-    GroupWith ::          Fun2 (Exp (a -> b))     (Exp [a])     (Exp [[a]])
-    SortWith  :: Ord b => Fun2 (Exp (a -> b))     (Exp [a])     (Exp [a])
     Index     ::          Fun2 (Exp [a])          (Exp Integer) (Exp a)
-    Any       ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
-    All       ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
     SplitAt   ::          Fun2 (Exp Integer)      (Exp [a])     (Exp ([a], [a]))
-    TakeWhile ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
-    DropWhile ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
-    Span      ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
-    Break     ::          Fun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
     Zip       ::          Fun2 (Exp [a])          (Exp [b])     (Exp [(a, b)])
 
-
 appE2 :: (QA a, QA b, QA c) => (Fun2 (Exp a) (Exp b) (Exp c)) -> Q a -> Q b -> Q c
-appE2 f e1 e2 = expToQ $ AppE2 f (qToExp e1) (qToExp e2)
+appE2 f e1 e2 = expToQ $ App2E f (qToExp e1) (qToExp e2)
 
-appE2f :: (QA a, QA b, QA c, QA d) => (Fun2 (Exp (a -> b)) (Exp c) (Exp d)) -> (Q a -> Q b) -> Q c -> Q d
-appE2f f l e1 = expToQ $ AppE2 f (toLam1 l) (qToExp e1) 
+appE2f :: (QA a, QA b, QA c, QA d) => HOFun2 (Exp (a -> b)) (Exp c) (Exp d) -> (Q a -> Q b) -> Q c -> Q d
+appE2f f l e1 = expToQ $ AppH2E f (toLam1 l) (qToExp e1) 
     
 data Fun3 a b c d where
     Cond    :: Fun3 (Exp Bool)          (Exp a) (Exp a) (Exp a)
-    ZipWith :: Fun3 (Exp (a -> b -> c)) (Exp [a]) (Exp [b]) (Exp [c])
+
+data HOFun3 a b c d where
+    ZipWith :: HOFun3 (Exp (a -> b -> c)) (Exp [a]) (Exp [b]) (Exp [c])
 
 appE3 :: (QA a, QA b, QA c, QA d) => (Fun3 (Exp a) (Exp b) (Exp c) (Exp d)) -> Q a -> Q b -> Q c -> Q d
-appE3 f e1 e2 e3 = expToQ $ AppE3 f (qToExp e1) (qToExp e2) (qToExp e3)
+appE3 f e1 e2 e3 = expToQ $ App3E f (qToExp e1) (qToExp e2) (qToExp e3)
 
-appE3f :: (QA a, QA b, QA c, QA d, QA e, QA f) => Fun3 (Exp (a -> b -> c)) (Exp d) (Exp e) (Exp f) -> (Q a -> Q b -> Q c) -> Q d -> Q e -> Q f
-appE3f f l e1 e2 = expToQ $ AppE3 f (toLam2 l) (qToExp e1) (qToExp e2)
+appE3f :: (QA a, QA b, QA c, QA d, QA e, QA f) => HOFun3 (Exp (a -> b -> c)) (Exp d) (Exp e) (Exp f) -> (Q a -> Q b -> Q c) -> Q d -> Q e -> Q f
+appE3f f l e1 e2 = expToQ $ AppH3E f (toLam2 l) (qToExp e1) (qToExp e2)
     
 data Norm a where
 --  Rep       :: (QA a)   => Norm (E a) -> Norm a
@@ -366,19 +370,19 @@ tableCSV filename = ListQ (TableE (TableCSV filename))
 -- * Eq, Ord and Num Instances for Databse Queries
 
 instance Num (Exp Integer) where
-  (+) e1 e2 = AppE2 Add e1 e2
-  (*) e1 e2 = AppE2 Mul e1 e2
-  (-) e1 e2 = AppE2 Sub e1 e2
+  (+) e1 e2 = App2E Add e1 e2
+  (*) e1 e2 = App2E Mul e1 e2
+  (-) e1 e2 = App2E Sub e1 e2
 
   fromInteger = IntegerE
 
-  abs e = let c = AppE2 Lt e 0
-          in  AppE3 Cond c (negate e) e
+  abs e = let c = App2E Lt e 0
+          in  App3E Cond c (negate e) e
       
-  signum e = let c1 = AppE2 Lt  e 0
-                 c2 = AppE2 Equ e 0
-                 e' = AppE3 Cond c2 0 1
-             in  AppE3 Cond c1 (-1) e'
+  signum e = let c1 = App2E Lt  e 0
+                 c2 = App2E Equ e 0
+                 e' = App3E Cond c2 0 1
+             in  App3E Cond c1 (-1) e'
 
 instance Num (Q Integer) where
   (+) q1 q2 = expToQ (qToExp q1 + qToExp q2)
@@ -389,19 +393,19 @@ instance Num (Q Integer) where
   signum = expToQ . signum . qToExp
 
 instance Num (Exp Double) where
-  (+) e1 e2 = AppE2 Add e1 e2
-  (*) e1 e2 = AppE2 Mul e1 e2
-  (-) e1 e2 = AppE2 Sub e1 e2
+  (+) e1 e2 = App2E Add e1 e2
+  (*) e1 e2 = App2E Mul e1 e2
+  (-) e1 e2 = App2E Sub e1 e2
 
   fromInteger = DoubleE . fromInteger
 
-  abs e = let c = AppE2 Lt e 0
-          in  AppE3 Cond c (negate e) e
+  abs e = let c = App2E Lt e 0
+          in  App3E Cond c (negate e) e
       
-  signum e = let c1 = AppE2 Lt  e 0
-                 c2 = AppE2 Equ e 0
-                 e' = AppE3 Cond c2 0 1
-             in  AppE3 Cond c1 (-1) e'
+  signum e = let c1 = App2E Lt  e 0
+                 c2 = App2E Equ e 0
+                 e' = App3E Cond c2 0 1
+             in  App3E Cond c1 (-1) e'
 
 instance Num (Q Double) where
   (+) q1 q2 = expToQ (qToExp q1 + qToExp q2)
@@ -412,7 +416,7 @@ instance Num (Q Double) where
   signum = expToQ . signum . qToExp
 
 instance Fractional (Exp Double) where
-  (/) e1 e2    = AppE2 Div e1 e2
+  (/) e1 e2    = App2E Div e1 e2
   fromRational = DoubleE . fromRational
 
 instance Fractional (Q Double) where
@@ -472,7 +476,7 @@ instance View (Q Text) (Q Text) where
 instance (QA a,QA b) => View (Q (a,b)) (Q a,Q b) where
   type ToView (Q (a,b)) = (Q a,Q b)
   type FromView (Q a,Q b) = Q (a,b)
-  view (PairQ e) = (expToQ (AppE1 Fst e), expToQ (AppE1 Snd e))
+  view (PairQ e) = (expToQ (App1E Fst e), expToQ (App1E Snd e))
   fromView (a,b) = expToQ (PairE (qToExp a) (qToExp b))
 
 -- -- instance Convertible Norm Exp where
@@ -490,14 +494,12 @@ instance (QA a,QA b) => View (Q (a,b)) (Q a,Q b) where
 -- -- 
 
 toLam1 :: forall a b. (QA a, QA b) => (Q a -> Q b) -> Exp (a -> b)
-toLam1 f = LamE (qToExp . f . expToQ)
+toLam1 f = Lam1E (qToExp . f . expToQ)
 
 
 toLam2 :: forall a b c. (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Exp (a -> b -> c)
-toLam2 f =
-  let f1 = \a b -> qToExp (f a b)
-      f2 = \a -> LamE (\b -> f1 (expToQ a) (expToQ b))
-  in  LamE f2
+toLam2 f = Lam2E (\a b -> qToExp $ f (expToQ a) (expToQ b))
+
 -- -- 
 -- -- unfoldType :: Type -> [Type]
 -- -- unfoldType (TupleT t1 t2) = t1 : unfoldType t2
