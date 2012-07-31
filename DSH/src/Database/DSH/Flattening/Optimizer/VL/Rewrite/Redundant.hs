@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Redundant where
+module Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
 import Debug.Trace
 
