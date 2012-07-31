@@ -83,12 +83,6 @@ cartProd q =
           relinkParentsM q projRightNode
           relinkParentsM $(v "right") projLeftNode |])
 
-mapColumnToSide :: Int -> Int -> Int -> Int
-mapColumnToSide leftWidth rightWidth i =
-  if i < leftWidth 
-  then i
-  else i - leftWidth
-  
 equiJoin :: Rule VL BottomUpProps
 equiJoin q = 
   $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProductFlat (_))))"
@@ -104,7 +98,6 @@ equiJoin q =
               
         return $ do
           logRewriteM "Specialized.EquiJoin" q
-          let mc = mapColumnToSide w1 w2
-              joinOp = BinOp (ThetaJoinFlat (Eq, mc leftArgCol, mc rightArgCol)) $(v "qi1") $(v "qi2")
+          let joinOp = BinOp (ThetaJoinFlat (Eq, leftArgCol, rightArgCol)) $(v "qi1") $(v "qi2")
           joinNode <- insertM joinOp
           relinkParentsM q joinNode |])
