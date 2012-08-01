@@ -102,6 +102,18 @@ data HOFun2 a b c where
     Span      ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
     Break     ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp ([a], [a]))
         
+instance Show (HOFun2 a b c) where
+    show Map = "map"
+    show Filter = "filter"
+    show GroupWith = "groupWith"
+    show SortWith = "sortWith"
+    show Any = "any"
+    show All = "all"
+    show TakeWhile = "takeWhile"
+    show DropWhile = "dropWhile"
+    show Span = "span"
+    show Break = "break"
+        
 data Fun2 a b c where
     Add       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Mul       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
@@ -125,6 +137,29 @@ data Fun2 a b c where
     SplitAt   ::          Fun2 (Exp Integer)      (Exp [a])     (Exp ([a], [a]))
     Zip       ::          Fun2 (Exp [a])          (Exp [b])     (Exp [(a, b)])
 
+instance Show (Fun2 a b c) where
+    show Add = "+"
+    show Mul = "*"
+    show Sub = "-"
+    show Div = "/"
+    show Lt  = "<"
+    show Lte = "<="
+    show Equ = "=="
+    show Gte = ">="
+    show Gt  = ">"
+    show Conj = "&&"
+    show Disj = "||"
+    show Min  = "min"
+    show Max  = "max"
+    show Cons = "cons"
+    show Snoc = "snoc"
+    show Take = "take"
+    show Drop = "drop"
+    show Append = "append"
+    show Index = "index"
+    show SplitAt = "splitAt"
+    show Zip = "zip"
+
 appE2 :: (QA a, QA b, QA c) => (Fun2 (Exp a) (Exp b) (Exp c)) -> Q a -> Q b -> Q c
 appE2 f e1 e2 = expToQ $ App2E f (qToExp e1) (qToExp e2)
 
@@ -133,9 +168,15 @@ appE2f f l e1 = expToQ $ AppH2E f (toLam1 l) (qToExp e1)
     
 data Fun3 a b c d where
     Cond    :: Fun3 (Exp Bool)          (Exp a) (Exp a) (Exp a)
+    
+instance Show (Fun3 a b c d) where
+    show Cond = "cond"
 
 data HOFun3 a b c d where
     ZipWith :: HOFun3 (Exp (a -> b -> c)) (Exp [a]) (Exp [b]) (Exp [c])
+
+instance Show (HOFun3 a b c d) where
+    show ZipWith = "zipWith"
 
 appE3 :: (QA a, QA b, QA c, QA d) => (Fun3 (Exp a) (Exp b) (Exp c) (Exp d)) -> Q a -> Q b -> Q c -> Q d
 appE3 f e1 e2 e3 = expToQ $ App3E f (qToExp e1) (qToExp e2) (qToExp e3)
