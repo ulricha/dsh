@@ -24,13 +24,13 @@ true :: Q Bool
 true = expToQ $ BoolE True
 
 not :: Q Bool -> Q Bool
-not = expToQ . (AppE1 Not) . qToExp
+not = expToQ . (App1E Not) . qToExp
 
 (&&) :: Q Bool -> Q Bool -> Q Bool
-(&&) = appE2 InfAnd
+(&&) = appE2 Conj
 
 (||) :: Q Bool -> Q Bool -> Q Bool
-(||) = appE2 InfOr
+(||) = appE2 Disj
 
 -- * Equality and Ordering
 

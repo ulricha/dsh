@@ -130,7 +130,7 @@ doCompile c a = do
                         return $ typedCoreToAlgebra core
 
 -- | Transform the Query into a ferry core program.
-transformE :: IConnection conn => Exp a -> N conn CoreExpr
+transformE :: (IConnection conn, QA a) => Exp a -> N conn CoreExpr
 transformE _ = error "transformE: Not implemented"
 transformE (UnitE ) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b) = return $ Constant ([] :=> bool) $ CBool b
@@ -146,27 +146,26 @@ transformE ((PairE e1 e2) :: Exp t) = do
 transformE ((ListE es) :: Exp t) = let ty = reify (undefined :: t)
                                        qt = ([] :=> transformTy ty) 
                                     in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
-transformE ((AppE1 f1 e1) :: Exp t) = do
+transformE ((App1E f1 e1) :: Exp t) = do
                                       let ty = reify (undefined :: t)
                                       let tr = transformTy ty
                                       e1' <- transformArg e1
                                       let (_ :=> ta) = typeOf e1'
                                       return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
-
--- transformE ((AppE2 GroupWith fn e) ::: ty) = transformE $ ListE [e] ::: ty
-transformE (AppE2 Span f e) = transformE $ PairE (AppE2 TakeWhile f e) (AppE2 DropWhile f e)
-transformE (AppE2 Break (LamE f) e) = let notF = LamE (\x -> AppE1 Not (f x)) 
-                                       in transformE $ AppE2 Span notF e
-{-
-transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
+transformE (AppH2E Span f e) = transformE $ PairE (AppH2E TakeWhile f e) (AppH2E DropWhile f e)
+transformE (AppH2E Break (Lam1E f) e) = let notF = Lam1E (\x -> App1E Not (f x)) 
+                                         in transformE $ AppH2E Span notF e
+transformE ((AppH2E GroupWith (gfn :: Exp (ta -> rt)) (e:: Exp el)) :: Exp t) = do
+                                                let ty = reify (undefined :: [[el]])
+                                                let tel = reify (undefined :: el)
                                                 let tr = transformTy ty
-                                                fn' <- transformArg gfn
+                                                fn' <- transformL1Arg gfn
                                                 let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
                                                 let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
                                                 e' <- transformArg e
                                                 let (_ :=> te) = typeOf e'
-                                                fv <- transformArg (LamE id $ ArrowT tel tel)
-                                                snd' <- transformArg (LamE (\x -> AppE1 Snd x $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel)) $ ArrowT (TupleT (transformTy' rt) (ListT tel)) (ListT tel))
+                                                fv <- transformL1Arg ((Lam1E id) :: Exp (el -> el))
+                                                snd' <- transformL1Arg ((Lam1E (\x -> App1E Snd x) ) :: (Exp ((rt, [el]) -> [el])))
                                                 let (_ :=> sndTy) = typeOf snd'
                                                 let (_ :=> tfv) = typeOf fv
                                                 return $ App ([] :=> tr)
@@ -177,6 +176,7 @@ transformE (AppE2 GroupWith gfn e ty@(ListT (ListT tel))) = do
                                                                     fn'
                                                                 )
                                                                 e')
+{-
 transformE (AppE2 D.Cons e1 e2 _) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
@@ -263,21 +263,35 @@ transformE (TableE (TableDB n ks) ty) = do
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 transformE (LamE _ _) = $impossible
 -}
+{-
+
+
 -- | Transform a function argument
-transformArg :: IConnection conn => Exp a -> N conn Param                                 
+transformArg :: (IConnection conn) => Exp a -> N conn Param                                 
 transformArg ((LamE f) :: Exp t) = do
                                   let ty = reify (undefined :: t)
                                   n <- freshVar
-                                  let (ArrowT t1 _) = ty
                                   let fty = transformTy ty
-                                  let e1 = f $ VarE n t1
+                                  let e1 = f $ VarE $ fromIntegral n 
                                   case e1 of
-                                    l@(LamE _ _) -> do
-                                                     (ParAbstr _ vs e') <- transformArg l
-                                                     return $ ParAbstr ([] :=> fty) ((prefixVar n):vs) e'
+                                    l@(LamE _) -> do
+                                               (ParAbstr _ vs e') <- transformArg l
+                                               return $ ParAbstr ([] :=> fty) ((prefixVar n):vs) e'
                                     _           -> ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e 
+-}
 
+transformL1Arg :: forall conn a b. (IConnection conn, QA a, QA b) => Exp (a -> b) -> N conn Param
+transformL1Arg ((Lam1E f)::Exp (a -> b)) = do 
+                                          let ty = reify (undefined :: (a -> b))
+                                          n <- freshVar
+                                          let fty = transformTy ty
+                                          let e1 = f $ VarE $ fromIntegral n 
+                                          ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
+
+transformArg :: (IConnection conn, QA a) => Exp a -> N conn Param
+transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e
+ 
 -- | Construct a flat-FerryCore type out of a DSH type
 -- A flat type consists out of two tuples, a record is translated as:
 -- {r1 :: t1, r2 :: t2, r3 :: t3, r4 :: t4} (t1, (t2, (t3, t4)))
@@ -306,19 +320,6 @@ transformTy (PairT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", tra
 transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 
-{-
--- | Transform a ferry-core type into a DSH-type
-transformTy' :: FType -> Type a
-transformTy' FUnit = UnitT
-transformTy' FInt  = IntegerT
-transformTy' FFloat = DoubleT
-transformTy' FString = TextT
-transformTy' FBool = BoolT
-transformTy' (FList t) = ListT $ transformTy' t
-transformTy' (FRec [(RLabel "1", t1), (RLabel "2", t2)]) = PairT (transformTy' t1) (transformTy' t2)
-transformTy' (FFn t1 t2) = ArrowT (transformTy' t1) (transformTy' t2)
-transformTy' _ = $impossible
--}
 {-
 -- | Translate the DSH operator to Ferry Core operators
 transformOp :: Fun2 -> Op
