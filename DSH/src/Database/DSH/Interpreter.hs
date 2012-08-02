@@ -159,8 +159,8 @@ evaluate c e = case e of
       (ListN as1) <- evaluate c as
       -- Case analysis is necessary to convince the type checker that we can only have [[a]] here. It is not smart enough that there is just one type valid here...
       case ty of
-          (ListT (ListT _)) -> return $ ListN (concat $ map (\(ListN as2) -> as2) as1)
-          _ -> $impossible 
+          (ListT _) -> return $ ListN (concat $ map (\(ListN as2) -> as2) as1)
+          _ -> error $ show ty -- $impossible 
     App1E Maximum as -> do
       (ListN as1) <- evaluate c as
       return $ maximum as1
@@ -349,14 +349,32 @@ sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
         ++ "\n\tTable entry: " ++ show s
 
 convert :: SqlValue -> Type a -> Norm a
-convert SqlNull UnitT = UnitN
-convert (SqlInteger i) IntegerT = IntegerN i 
-convert (SqlDouble d)  DoubleT  = DoubleN d 
-convert (SqlBool b) BoolT       = BoolN b 
-convert (SqlChar c) CharT       = CharN c 
+convert SqlNull         UnitT    = UnitN
+convert (SqlInteger i)  IntegerT = IntegerN i
+convert (SqlInt32 i)    IntegerT = IntegerN $ fromIntegral i
+convert (SqlInt64 i)    IntegerT = IntegerN $ fromIntegral i
+convert (SqlWord32 i)   IntegerT = IntegerN $ fromIntegral i
+convert (SqlWord64 i)   IntegerT = IntegerN $ fromIntegral i
+-- convert (SqlRational r) IntegerT = IntegerN $ fromRational r
+convert (SqlDouble d)  DoubleT  = DoubleN d
+convert (SqlRational d) DoubleT = DoubleN $ fromRational d
+convert (SqlInteger d)  DoubleT = DoubleN $ fromIntegral d
+convert (SqlInt32 d)    DoubleT = DoubleN $ fromIntegral d
+convert (SqlInt64 d)    DoubleT = DoubleN $ fromIntegral d
+convert (SqlWord32 d)   DoubleT = DoubleN $ fromIntegral d
+convert (SqlWord64 d)   DoubleT = DoubleN $ fromIntegral d
+convert (SqlBool b) BoolT       = BoolN b
+convert (SqlInteger i) BoolT    = BoolN (i /= 0)
+convert (SqlInt32 i)   BoolT    = BoolN (i /= 0)
+convert (SqlInt64 i)   BoolT    = BoolN (i /= 0)
+convert (SqlWord32 i)  BoolT    = BoolN (i /= 0)
+convert (SqlWord64 i)  BoolT    = BoolN (i /= 0) 
+convert (SqlChar c) CharT       = CharN c
+convert (SqlString (c:_)) CharT = CharN c
+convert (SqlByteString c) CharT = CharN (head $ T.unpack $ T.decodeUtf8 c)
 convert (SqlString t) TextT     = TextN (T.pack t) 
 convert (SqlByteString s) TextT = TextN (T.decodeUtf8 s)
-convert sql                 _     = error "Unsupported `SqlValue'" sql
+convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 sizeOfType :: Type a -> Int
 sizeOfType UnitT = 1

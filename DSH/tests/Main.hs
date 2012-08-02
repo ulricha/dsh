@@ -5,8 +5,8 @@ module Main where
 import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
--- import Database.DSH.Interpreter (fromQ)
-import Database.DSH.Compiler (fromQ)
+import Database.DSH.Interpreter (fromQ)
+-- import Database.DSH.Compiler (fromQ)
 
 import qualified Database.HDBC as HDBC
 import Database.HDBC.PostgreSQL

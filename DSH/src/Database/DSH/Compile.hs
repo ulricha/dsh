@@ -17,7 +17,8 @@ import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
-import Data.Convertible
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -147,18 +148,17 @@ findQuery (q, c) = do
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
 processResults :: Int -> Type a -> QueryR [(Int, Norm a)]
-processResults = error "ProcessResults not defined yet"
-{-processResults i ty@(ListT t1) = do
+processResults i (ListT t1) = do
                                 v <- getResults i
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1 ty)) v
+                                                        return (it, ListN v1)) v
 processResults i t = do
                         v <- getResults i
                         mapM (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
                                               return (it, head v1)) v
--}
+
 nrColsInType :: Type a -> Int
 nrColsInType UnitT = 1
 nrColsInType BoolT = 1
@@ -172,18 +172,16 @@ nrColsInType (ArrowT _ _) = $impossible
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Norm a]
-processResults' = error "processResults' not defined"
-{-
-processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
+processResults' _ _ vals UnitT = return $ map (\_ -> UnitN) vals
 processResults' q c vals t@(PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
                                             v2s <- processResults' q (c + nrColsInType t1) vals t2
-                                            return $ [TupleN v1 v2 t | v1 <- v1s | v2 <- v2s]
+                                            return $ [PairN v1 v2 | v1 <- v1s | v2 <- v2s]
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
                                         i <- getColResPos q c
-                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = (convert $ v !! i)::Int 
+                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = sqlValueToInt $ (v !! i)
                                                                                  in (m `max` v', v':vs))  (1,[]) vals
                                         let maxI = if null list
                                                     then 1
@@ -191,12 +189,43 @@ processResults' q c vals t@(ListT _) = do
                                         let lA = (A.accumArray ($impossible) Nothing (1,maxI `max` maxV) []) A.// map (\(x,y) -> (x, Just y)) list
                                         return $ map (\val -> case lA A.! val of
                                                                 Just x -> x
-                                                                Nothing -> ListN [] t) vals'
+                                                                Nothing -> ListN []) vals'
 processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
 processResults' q c vals t = do
                                     i <- getColResPos q c
-                                    return $ map (\val -> convert $ (val !! i, t)) vals
--}
+                                    return $ map (\val -> convert (val !! i) t) vals
+
+sqlValueToInt :: SqlValue -> Int
+sqlValueToInt (SqlInteger i) = fromIntegral i
+sqlValueToInt _ = $impossible
+
+convert :: SqlValue -> Type a -> Norm a
+convert SqlNull         UnitT    = UnitN
+convert (SqlInteger i)  IntegerT = IntegerN i
+convert (SqlInt32 i)    IntegerT = IntegerN $ fromIntegral i
+convert (SqlInt64 i)    IntegerT = IntegerN $ fromIntegral i
+convert (SqlWord32 i)   IntegerT = IntegerN $ fromIntegral i
+convert (SqlWord64 i)   IntegerT = IntegerN $ fromIntegral i
+-- convert (SqlRational r) IntegerT = IntegerN $ fromRational r
+convert (SqlDouble d)  DoubleT  = DoubleN d
+convert (SqlRational d) DoubleT = DoubleN $ fromRational d
+convert (SqlInteger d)  DoubleT = DoubleN $ fromIntegral d
+convert (SqlInt32 d)    DoubleT = DoubleN $ fromIntegral d
+convert (SqlInt64 d)    DoubleT = DoubleN $ fromIntegral d
+convert (SqlWord32 d)   DoubleT = DoubleN $ fromIntegral d
+convert (SqlWord64 d)   DoubleT = DoubleN $ fromIntegral d
+convert (SqlBool b) BoolT       = BoolN b
+convert (SqlInteger i) BoolT    = BoolN (i /= 0)
+convert (SqlInt32 i)   BoolT    = BoolN (i /= 0)
+convert (SqlInt64 i)   BoolT    = BoolN (i /= 0)
+convert (SqlWord32 i)  BoolT    = BoolN (i /= 0)
+convert (SqlWord64 i)  BoolT    = BoolN (i /= 0) 
+convert (SqlChar c) CharT       = CharN c
+convert (SqlString (c:_)) CharT = CharN c
+convert (SqlByteString c) CharT = CharN (head $ T.unpack $ T.decodeUtf8 c)
+convert (SqlString t) TextT     = TextN (T.pack t) 
+convert (SqlByteString s) TextT = TextN (T.decodeUtf8 s)
+convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 -- | Partition by iter column
 -- The first argument is the position of the iter column.
