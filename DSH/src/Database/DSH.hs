@@ -21,7 +21,7 @@ module Database.DSH
   , Q
 
     -- * Type Classes
-  , QA
+  , QA(..)
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
   , View, view, fromView, tuple, record -- , caseOf, Case, gCurry
 
@@ -43,7 +43,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record {-, caseOf, Case, gCurry -})
+import Database.DSH.Data (Q, QA(..), TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record {-, caseOf, Case, gCurry -})
 -- import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
 -- import Database.DSH.DeriveConstructors
 

@@ -207,6 +207,7 @@ instance Eq a => Eq (Norm a) where
   (TextN t1) == (TextN t2) = t1 == t2
   (PairN l1 r1) == (PairN l2 r2) = l1 == l2 && r1 == r2
   (ListN as) == (ListN bs) = as == bs
+  _ == _ = $impossible
  
 instance Ord a => Ord (Norm a) where
     compare UnitN UnitN = EQ
@@ -217,6 +218,7 @@ instance Ord a => Ord (Norm a) where
     compare (TextN t1) (TextN t2) = compare t1 t2
     compare (PairN l1 r1) (PairN l2 r2) = compare (l1, r1) (l2, r2)
     compare (ListN as) (ListN bs) = compare as bs
+    compare _ _ = $impossible
 
 normToExp :: Norm a -> Exp a
 normToExp (UnitN) = UnitE
@@ -226,6 +228,7 @@ normToExp (IntegerN i) = IntegerE i
 normToExp (DoubleN d) = DoubleE d
 normToExp (TextN t) = TextE t
 normToExp (PairN a b) = PairE (normToExp a) (normToExp b)
+normToExp (ListN as) = ListE (map normToExp as)
 
 {-
 normToExp (NilN) = NilE

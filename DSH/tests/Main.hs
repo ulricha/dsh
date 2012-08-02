@@ -58,11 +58,12 @@ main = do
     qc prop_list_integer_2
     putStrPad "[[[Integer]]]"
     qc prop_list_integer_3
+{-
     putStrPad "Maybe Integer"
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
-    
+-}
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
     putStrLn "------------------------------------"
@@ -130,7 +131,7 @@ main = do
     qc prop_negate_integer
     putStrPad "negate_double"
     qc prop_negate_double
-    
+{-    
     putStrLn ""
     putStrLn "Maybe"
     putStrLn "-----"
@@ -174,7 +175,7 @@ main = do
     qc prop_rights
     putStrPad "partitionEithers"
     qc prop_partitionEithers
-    
+-}
     putStrLn ""
     putStrLn "Lists"
     putStrLn "-----"
@@ -248,8 +249,8 @@ main = do
     qc prop_elem
     putStrPad "notElem"
     qc prop_notElem
-    putStrPad "lookup"
-    qc prop_lookup
+    -- putStrPad "lookup"
+    -- qc prop_lookup
     putStrPad "zip"
     qc prop_zip
     putStrPad "zipWith"
@@ -322,13 +323,13 @@ prop_list_integer_2 = makeProp id id
 
 prop_list_integer_3 :: [[[Integer]]] -> Property
 prop_list_integer_3 = makeProp id id
-
+{-
 prop_maybe_integer :: Maybe Integer -> Property
 prop_maybe_integer = makeProp id id
 
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
-
+-}
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
@@ -374,7 +375,7 @@ prop_max_double :: (Double,Double) -> Property
 prop_max_double = makePropDouble (uncurryQ Q.max) (uncurry max)
 
 -- * Maybe
-
+{-
 prop_maybe :: (Integer, Maybe Integer) -> Property
 prop_maybe =  makeProp (\a -> Q.maybe (Q.fst a) id (Q.snd a)) (\(i,mi) -> maybe i id mi)
 
@@ -430,7 +431,7 @@ prop_rights =  makeProp Q.rights rights
 
 prop_partitionEithers :: [Either Integer Integer] -> Property
 prop_partitionEithers =  makeProp Q.partitionEithers partitionEithers
-
+-}
 -- * Lists
 
 prop_cons :: (Integer, [Integer]) -> Property
@@ -556,10 +557,11 @@ prop_notElem :: (Integer, [Integer]) -> Property
 prop_notElem = makeProp (uncurryQ $ Q.notElem)
                         (uncurry  $   notElem)
 
+{-
 prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
 prop_lookup = makeProp (uncurryQ $ Q.lookup)
                        (uncurry  $   lookup)
-
+-}
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
 
