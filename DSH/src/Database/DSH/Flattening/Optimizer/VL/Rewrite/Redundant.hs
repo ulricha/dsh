@@ -29,6 +29,8 @@ redundantRules = [ mergeStackedDistDesc
                  , restrictCombineDBV 
                  , restrictCombinePropLeft 
                  , pullRestrictThroughPair
+                 , pushRestrictVecThroughProjectL
+                 , pushRestrictVecThroughProjectValue
                  , binOpSameSource
                  , descriptorFromProject ]
                  
@@ -89,6 +91,40 @@ pullRestrictThroughPair q =
           restrictNode <- insertM $ BinOp RestrictVec pairNode $(v "qb1")
           r1Node <- insertM $ UnOp R1 restrictNode
           relinkParentsM q r1Node |])
+
+-- Push a RestrictVec through its left input, if this input is a
+-- projection operator (ProjectL).
+pushRestrictVecThroughProjectL :: Rule VL ()
+pushRestrictVecThroughProjectL q =
+  $(pattern [| q |] "R1 ((ProjectL p (q1)) RestrictVec (qb))"
+    [| do
+
+        return $ do
+          logRewriteM "Redundant.PushRestrictVecThroughProjectL" q
+          restrictNode <- insertM $ BinOp RestrictVec $(v "q1") $(v "qb")
+          r1Node <- insertM $ UnOp R1 restrictNode
+          projectNode <- insertM $ UnOp (ProjectL $(v "p")) r1Node
+          relinkParentsM q projectNode |])
+
+-- Push a RestrictVec through its left input, if this input is a
+-- projection operator (ProjectValue).
+pushRestrictVecThroughProjectValue :: Rule VL ()
+pushRestrictVecThroughProjectValue q =
+  $(pattern [| q |] "R1 ((ProjectValue p (q1)) RestrictVec (qb))"
+    [| do
+        -- Guard against projections that modify descriptors or positions.
+        -- This is to ensure that R2/R3 outputs of the RestrictVec do not 
+        -- need to change.
+        case $(v "p") of
+          (DescrIdentity, PosIdentity, _) -> return ()
+          _                               -> fail "no match"
+          
+        return $ do
+          logRewriteM "Redundant.PushRestrictVecThroughProjectValue" q
+          restrictNode <- insertM $ BinOp RestrictVec $(v "q1") $(v "qb")
+          r1Node <- insertM $ UnOp R1 restrictNode
+          projectNode <- insertM $ UnOp (ProjectValue $(v "p")) r1Node
+          relinkParentsM q projectNode |])
   
 binOpSameSource :: Rule VL ()
 binOpSameSource q =
