@@ -17,9 +17,6 @@ module Database.DSH
   (
     module Database.DSH.Combinators
 
-    -- * Data Types
-  , Q
-
     -- * Type Classes
   , QA(..)
   , TA, table, tableDB, tableCSV, tableWithKeys, BasicType

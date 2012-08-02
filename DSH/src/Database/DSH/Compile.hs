@@ -173,7 +173,7 @@ nrColsInType (ArrowT _ _) = $impossible
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
 processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Norm a]
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitN) vals
-processResults' q c vals t@(PairT t1 t2) = do
+processResults' q c vals (PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
                                             v2s <- processResults' q (c + nrColsInType t1) vals t2
                                             return $ [PairN v1 v2 | v1 <- v1s | v2 <- v2s]

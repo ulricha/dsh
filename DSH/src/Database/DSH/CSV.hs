@@ -3,7 +3,6 @@
 module Database.DSH.CSV (csvImport, csvExport, csvExportHandle, csvExportStdout) where
 
 import Database.DSH.Data
-import Database.DSH.Impossible
 
 import Text.CSV
 import Data.Text (Text)

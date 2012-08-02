@@ -6,8 +6,6 @@ module Database.DSH.Combinators where
 import Database.DSH.Data
 -- import Database.DSH.TH
 
-import Data.Convertible
-
 import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, ($), (.))
 
 -- * Unit
