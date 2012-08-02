@@ -8,7 +8,7 @@ import Database.Pathfinder
 
 import qualified Data.Array as A
 import qualified Data.List as L
-import Data.Maybe (fromJust, isNothing, isJust)
+import Data.Maybe (fromJust, isNothing, isJust, fromMaybe)
 import Data.List (sortBy)
 import Control.Monad.Reader
 import Control.Exception (evaluate)
@@ -112,9 +112,9 @@ runSQL c (Bundle queries) = do
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
                              let ty = reify (undefined :: a)
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
-                             return $ case lookup 1 results' of
-                                         Just x -> x 
-                                         -- Nothing -> ListN [] ty
+                             case ty of
+                                 (ListT _) -> return $ fromMaybe (ListN []) (lookup 1 results')
+                                 _         -> return $ fromJust (lookup 1 results')
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
 -- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
