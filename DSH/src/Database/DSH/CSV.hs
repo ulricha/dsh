@@ -46,8 +46,6 @@ csvExportHandle handle as = T.hPutStr handle csvContent
 
 
 csvImport :: (QA a) => FilePath -> Type [a] -> IO (Norm [a])
-csvImport = error "csvImport: To be done"
-{-
 csvImport filepath csvType = do
   let rType = recordType csvType
   contents <- readFile filepath
@@ -63,7 +61,7 @@ csvImport filepath csvType = do
 
         csvRecordToNorm :: QA a => Type a -> [String] -> Norm a
         csvRecordToNorm UnitT  [] = UnitN 
-        csvRecordToNorm t      [] = csvError ("When converting record '" ++ show [] ++ "' to a value of type '" ++ show t ++ "'")
+        csvRecordToNorm t      [] = csvError ("When converting record '" ++ "[]" ++ "' to a value of type '" ++ show t ++ "'")
         csvRecordToNorm t1     [bs] = csvFieldToNorm t1 bs
         csvRecordToNorm (PairT (t1:: Type b) (t2:: Type c)) (bs : bss) = PairN ((csvFieldToNorm t1 bs):: Norm b) (csvRecordToNorm t2 bss)
         csvRecordToNorm t           rs       = csvError ("When converting record '" ++ show rs ++ "' to a value of type '" ++ show t ++ "'")
@@ -77,8 +75,5 @@ csvImport filepath csvType = do
           IntegerT   -> IntegerN (read s) 
           DoubleT    -> DoubleN  (read s) 
           TextT      -> TextN    (T.pack s) 
-          PairT _ _  -> er
-          ListT _    -> er
-          ArrowT _ _ -> er
+          _          -> er
           where er = csvError ("When converting CSV field'" ++ s ++ "' to a value of type '" ++ show t ++ "'")
--}
