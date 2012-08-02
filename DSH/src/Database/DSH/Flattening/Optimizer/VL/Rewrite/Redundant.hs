@@ -29,12 +29,12 @@ redundantRules = [ mergeStackedDistDesc
                  , restrictCombineDBV 
                  , restrictCombinePropLeft 
                  , pullRestrictThroughPair
-                 , pairedProjections
                  , binOpSameSource
                  , descriptorFromProject ]
                  
 redundantRulesWithProperties :: RuleSet VL BottomUpProps
 redundantRulesWithProperties = [ pairFromSameSource 
+                               , pairedProjections
                                , noOpProject
                                , toDescr ]
                  
@@ -90,17 +90,6 @@ pullRestrictThroughPair q =
           r1Node <- insertM $ UnOp R1 restrictNode
           relinkParentsM q r1Node |])
   
--- FIXME ensure that the union of the columns of both projections is the original input vector
-pairedProjections :: Rule VL ()
-pairedProjections q = 
-  $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        
-        return $ do
-          logRewriteM "Redundant.PairedProjections" q
-          relinkParentsM q $(v "q1") |])
-
 binOpSameSource :: Rule VL ()
 binOpSameSource q =
   $(pattern [| q |] "(ProjectL ps1 (q1)) VecBinOpL op (ProjectL ps2 (q2))"
@@ -164,3 +153,23 @@ toDescr q =
         return $ do
           logRewriteM "Redundant.ToDescr" q
           relinkParentsM q $(v "q1") |])
+
+pairedProjections :: Rule VL BottomUpProps
+pairedProjections q = 
+  $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (schemaWidth . vectorSchemaProp) $ properties $(v "q1")
+        
+        return $ do
+          if ($(v "ps1") ++ $(v "ps2")) == [1 .. w] 
+            then do
+              logRewriteM "Redundant.PairedProjections.NoOp" q
+              relinkParentsM q $(v "q1")
+            else do
+              logRewriteM "Redundant.PairedProjections.Reorder" q
+              let op = UnOp (ProjectValue (DescrIdentity, PosIdentity, map PLCol $ $(v "ps1") ++ $(v "ps2"))) $(v "q1")
+              projectNode <- insertM op
+              relinkParentsM q projectNode |])
+  
+              
