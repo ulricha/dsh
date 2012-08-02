@@ -93,7 +93,7 @@ appE1 f e1 = expToQ $ App1E f (qToExp e1)
 data HOFun2 a b c where
     Map       ::          HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [b])
     Filter    ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp [a])
-    GroupWith ::          HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [[a]])
+    GroupWith :: Ord b => HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [[a]])
     SortWith  :: Ord b => HOFun2 (Exp (a -> b))     (Exp [a])     (Exp [a])
     Any       ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
     All       ::          HOFun2 (Exp (a -> Bool))  (Exp [a])     (Exp Bool)
@@ -118,7 +118,7 @@ data Fun2 a b c where
     Add       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Mul       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Sub       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
-    Div       :: Num a => Fun2 (Exp a)            (Exp a)       (Exp a)
+    Div       :: Fractional a => Fun2 (Exp a)            (Exp a)       (Exp a)
     Lt        :: Ord a => Fun2 (Exp a)            (Exp a)       (Exp Bool)
     Lte       :: Ord a => Fun2 (Exp a)            (Exp a)       (Exp Bool)
     Equ       :: Eq a  => Fun2 (Exp a)            (Exp a)       (Exp Bool)
@@ -193,10 +193,30 @@ data Norm a where
   DoubleN   :: Double   -> Norm Double
   TextN     :: Text     -> Norm Text
 
-  PairN     :: (QA a,QA b)  => Norm a -> Norm b -> Norm (a,b)
-  ListN     :: (QA a)       => [Norm a] -> Norm [a]
+  PairN     :: (Ord a, Ord b, QA a,QA b)  => Norm a -> Norm b -> Norm (a,b)
+  ListN     :: (Ord a, QA a)       => [Norm a] -> Norm [a]
 {-  NilN      :: (QA a)       => Norm [a]
   ConsN     :: (QA a)       => Norm a -> Norm [a] -> Norm [a] -}
+
+instance Eq a => Eq (Norm a) where
+  UnitN == UnitN = True
+  (BoolN b1) == (BoolN b2) = b1 == b2
+  (CharN c1) == (CharN c2) = c1 == c2
+  (IntegerN i1) == (IntegerN i2) = i1 == i2
+  (DoubleN d1) == (DoubleN d2) = d1 == d2
+  (TextN t1) == (TextN t2) = t1 == t2
+  (PairN l1 r1) == (PairN l2 r2) = l1 == l2 && r1 == r2
+  (ListN as) == (ListN bs) = as == bs
+ 
+instance Ord a => Ord (Norm a) where
+    compare UnitN UnitN = EQ
+    compare (BoolN b1) (BoolN b2) = compare b1 b2
+    compare (CharN c1) (CharN c2) = compare c1 c2
+    compare (IntegerN i1) (IntegerN i2) = compare i1 i2
+    compare (DoubleN d1) (DoubleN d2) = compare d1 d2
+    compare (TextN t1) (TextN t2) = compare t1 t2
+    compare (PairN l1 r1) (PairN l2 r2) = compare (l1, r1) (l2, r2)
+    compare (ListN as) (ListN bs) = compare as bs
 
 normToExp :: Norm a -> Exp a
 normToExp (UnitN) = UnitE
@@ -218,8 +238,8 @@ data Type a where
     IntegerT :: Type Integer
     DoubleT :: Type Double
     TextT :: Type Text
-    PairT :: (DSHInternals a, DSHInternals b) => Type a -> Type b -> Type (a, b) 
-    ListT :: DSHInternals a => Type a -> Type [a]
+    PairT :: (QA a, QA b) => Type a -> Type b -> Type (a, b) 
+    ListT :: QA a => Type a -> Type [a]
     ArrowT :: (DSHInternals a, DSHInternals b) => Type a -> Type b -> Type (a -> b)
   -- deriving (Eq, Ord, Show)
 
@@ -239,7 +259,7 @@ data Table =
   | TableCSV  String
   deriving (Eq, Ord, Show)
 
-class (DSHInternals a) => QA a where
+class (DSHInternals a, Ord a) => QA a where
   data Q a
 --  reify   :: a -> Type a
   toQ     :: a -> Q a
@@ -325,7 +345,7 @@ instance QA Text where
   qToExp (TextQ e) = e
   expToQ = TextQ
 
-instance (DSHInternals a, DSHInternals b) => DSHInternals (a, b) where
+instance (QA a, QA b) => DSHInternals (a, b) where
     reify _ = PairT (reify undefined) (reify undefined)
 
 instance (QA a, QA b) => QA (a,b) where
@@ -337,7 +357,7 @@ instance (QA a, QA b) => QA (a,b) where
   qToExp (PairQ e) = e
   expToQ = PairQ
 
-instance (DSHInternals a) => DSHInternals [a] where
+instance (QA a) => DSHInternals [a] where
     reify _ = ListT (reify undefined)
 
 instance (QA a) => QA [a] where
