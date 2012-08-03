@@ -91,7 +91,7 @@ inferSchemaBinOp s1 s2 op =
         VProp vv@(ValueVector _) -> Right $ VPropTriple DescrVector vv PropVector -- FIXME double-check
         _                        -> Left "Input of GroupBy is not a value vector"
     SortWith -> undefined
-    LengthSeg -> undefined
+    LengthSeg -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistLift -> liftM2 VPropPair (unpack s1) (Right PropVector)

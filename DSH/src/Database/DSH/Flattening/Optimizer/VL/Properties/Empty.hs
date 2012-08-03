@@ -1,6 +1,7 @@
 module Optimizer.VL.Properties.Empty where
 
 import Control.Monad
+import Data.Functor
   
 import Database.Algebra.VL.Data
   
@@ -78,7 +79,7 @@ inferEmptyBinOp e1 e2 op =
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
     SortWith -> undefined
-    LengthSeg -> undefined
+    LengthSeg -> VProp <$> unp e1
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     DistLift -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))

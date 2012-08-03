@@ -174,7 +174,9 @@ inferConstVecBinOp c1 c2 op =
       (d, cols) <- unp c2 >>= fromDBV
       return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    LengthSeg -> undefined
+    -- FIXME use cardinality property to infer the length if possible
+    LengthSeg -> do
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
       d <- unp c2 >>= fromDescrVec
