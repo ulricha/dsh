@@ -85,13 +85,16 @@ cartProd q =
 
 equiJoin :: Rule VL BottomUpProps
 equiJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (VecBinOpSingle p (q2=(_) CartProductFlat (_))))"
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1 expr (q2=(_) CartProductFlat (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         s1 <- liftM vectorSchemaProp $ properties $(v "qi1")
         s2 <- liftM vectorSchemaProp $ properties $(v "qi2")
 
-        let (vecOp, leftArgCol, rightArgCol) = $(v "p")
+        (vecOp, leftArgCol, rightArgCol) <- case $(v "expr") of
+          App1 o (Column1 c1) (Column1 c2) -> return (o, c1, c2)
+          _                                -> fail "no match"
+          
         predicate $ vecOp == Eq
 
         let (w1, w2) = (schemaWidth s1, schemaWidth s2)
