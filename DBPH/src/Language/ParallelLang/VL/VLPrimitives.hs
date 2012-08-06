@@ -178,11 +178,15 @@ constructLiteralTable tys vals = dbv $ insertNode $ NullaryOp $ ConstructLiteral
 tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DBV
 tableRef n tys ks = dbv $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typeToVLType)-} tys) ks
 
-binOp :: O.Oper -> DBP -> DBP -> GraphM r VL DBP
-binOp o (DBP c1 _) (DBP c2 _) = dbp $ insertNode $ BinOp (VecBinOp (operToVecOp o)) c1 c2
+compExpr2 :: O.Oper -> DBP -> DBP -> GraphM r VL DBP
+compExpr2 o (DBP c1 _) (DBP c2 _) = dbp 
+                                    $ insertNode 
+                                    $ BinOp (CompExpr2 (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
-binOpL :: O.Oper -> DBV -> DBV -> GraphM r VL DBV
-binOpL o (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp (VecBinOpL (operToVecOp o)) c1 c2
+compExpr2L :: O.Oper -> DBV -> DBV -> GraphM r VL DBV
+compExpr2L o (DBV c1 _) (DBV c2 _) = dbv 
+                                     $ insertNode 
+                                     $ BinOp (CompExpr2L (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 vecSum :: Ty.Type -> DBV -> GraphM r VL DBP
 vecSum ty (DBV c _) = dbp $ insertNode $ UnOp (VecSum (typeToVLType ty)) c

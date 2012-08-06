@@ -37,8 +37,6 @@ instance VectorAlgebra PFAlgebra where
   constructLiteralValue t v = (\(DBV v' cols) -> DBP v' cols) <$> constructLiteralTable t [v]
   
   tableRef = tableRefPF
-  binOp = binOpPF
-  binOpL = binOpLPF
   sortWith = sortWithPF
   vecMin = vecMinPF
   vecMinLift = vecMinLiftPF
@@ -92,7 +90,9 @@ instance VectorAlgebra PFAlgebra where
                   
   projectValue = undefined
   
-  binOpSingle = undefined
+  compExpr1 = undefined
+  compExpr2 = undefined
+  compExpr2L = undefined
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do

@@ -7,6 +7,8 @@ module Language.ParallelLang.Translate.VL2Algebra
        , vlDagtoX100Dag
        , toVLFile) where
 
+import Data.List(intercalate)
+
 import Database.Algebra.Pathfinder(PFAlgebra)
 
 import Database.Algebra.X100.Data(X100Algebra)
@@ -134,7 +136,9 @@ vl2Algebra (nodes, plan) = do
       getNode :: AlgNode -> VL
       getNode n = case M.lookup n nodes of
         Just op -> op
-        Nothing -> error $ "getNode: node " ++ (show n) ++ " not in nodes map"
+        Nothing -> error $ "getNode: node " ++ (show n) ++ " not in nodes map " ++ (pp nodes)
+        
+      pp m = intercalate ",\n" $ map show $ M.toList m
                        
       translate :: VectorAlgebra a => AlgNode -> G a Res
       translate n = do
@@ -197,8 +201,8 @@ translateBinOp b c1 c2 = case b of
                            RestrictVec      -> do
                                                 (v, r) <- restrictVec (toDBV c1) (toDBV c2)
                                                 return $ RPair (fromDBV v) (fromRenameVector r)
-                           VecBinOp o       -> liftM fromDBP $ binOp o (toDBP c1) (toDBP c2)
-                           VecBinOpL o      -> liftM fromDBV $ binOpL o (toDBV c1) (toDBV c2)
+                           CompExpr2 e      -> liftM fromDBP $ compExpr2 e (toDBP c1) (toDBP c2)
+                           CompExpr2L e     -> liftM fromDBV $ compExpr2L e (toDBV c1) (toDBV c2)
                            VecSumL          -> liftM fromDBV $ vecSumLift (toDescrVector c1) (toDBV c2)
                            SelectPos o      -> do
                                                 (v, r) <- selectPos (toDBV c1) o (toDBP c2)
@@ -247,7 +251,7 @@ translateUnOp u c = case u of
                       ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
                       IntegerToDoubleL -> liftM fromDBV $ integerToDoubleL (toDBV c)
-                      VecBinOpSingle o -> liftM fromDBV $ binOpSingle o (toDBV c)
+                      CompExpr1 e   -> liftM fromDBV $ compExpr1 e (toDBV c)
                       ReverseA      -> do
                                         (d, p) <- reverseA (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)

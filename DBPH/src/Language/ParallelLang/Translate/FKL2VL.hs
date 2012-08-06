@@ -25,8 +25,8 @@ fkl2VL (Table _ n cs ks) = dbTable n cs ks
 fkl2VL (Const t v) = mkLiteral t v
 fkl2VL (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; cons e1' e2'}
 fkl2VL (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; consLift e1' e2'}
-fkl2VL (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2VL e1; (PrimVal p2 _) <- fkl2VL e2; p <- binOp o p1 p2; return $ PrimVal p lyt}
-fkl2VL (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2VL e1; (ValueVector p2 _) <- fkl2VL e2; p <- binOpL o p1 p2; return $ ValueVector p lyt} 
+fkl2VL (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2VL e1; (PrimVal p2 _) <- fkl2VL e2; p <- compExpr2 o p1 p2; return $ PrimVal p lyt}
+fkl2VL (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2VL e1; (ValueVector p2 _) <- fkl2VL e2; p <- compExpr2L o p1 p2; return $ ValueVector p lyt} 
 fkl2VL (If _ eb e1 e2) = do 
                           eb' <- fkl2VL eb
                           e1' <- fkl2VL e1

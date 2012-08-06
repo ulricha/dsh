@@ -1,7 +1,7 @@
 module Language.ParallelLang.VL.VectorPrimitives where
 
 import Language.ParallelLang.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp(), ISTransProj, DescrProj, PosProj, PayloadProj)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecOp(), ISTransProj, DescrProj, PosProj, PayloadProj, Expr1, Expr2)
 
 -- FIXME this should import a module from TableAlgebra which defines 
 -- common types like schema info and abstract column types.
@@ -37,8 +37,8 @@ class VectorAlgebra a where
   constructLiteralValue :: [VLType] -> [VLVal] -> GraphM r a DBP
   constructLiteralTable :: [VLType] -> [[VLVal]] -> GraphM r a DBV
   tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DBV
-  binOp :: VecOp -> DBP -> DBP -> GraphM r a DBP
-  binOpL :: VecOp -> DBV -> DBV -> GraphM r a DBV
+  compExpr2 :: Expr2 -> DBP -> DBP -> GraphM r a DBP
+  compExpr2L :: Expr2 -> DBV -> DBV -> GraphM r a DBV
   vecSum :: VLType -> DBV -> GraphM r a DBP
   vecSumLift :: DescrVector -> DBV -> GraphM r a DBV
   vecMin :: DBV -> GraphM r a DBP
@@ -62,4 +62,4 @@ class VectorAlgebra a where
   selectItem :: DBV -> GraphM r a DBV
   projectRename :: ISTransProj -> ISTransProj -> DBV -> GraphM r a RenameVector
   projectValue :: DescrProj -> PosProj -> [PayloadProj] -> DBV -> GraphM r a DBV
-  binOpSingle :: (VecOp, DBCol, DBCol) -> DBV -> GraphM r a DBV
+  compExpr1 :: Expr1 -> DBV -> GraphM r a DBV

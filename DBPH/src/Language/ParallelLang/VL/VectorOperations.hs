@@ -165,13 +165,13 @@ lastLift _ = error "lastLift: Should not be possible"
 
 indexPrim ::  Shape -> Shape -> Graph VL Shape
 indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
-                                                           i' <-  binOp Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
+                                                           i' <-  compExpr2 Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                            (q, r) <- selectPos qs Eq i'
                                                            (Nest qr lyt') <- chainRenameFilter r lyt
                                                            re <- descToRename =<< toDescr q
                                                            renameOuter re $ ValueVector qr lyt'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
-                                                i' <-  binOp Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
+                                                i' <-  compExpr2 Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                 (q, r) <- selectPos qs Eq i'
                                                 lyt' <- chainRenameFilter r lyt
                                                 flip PrimVal lyt' <$> only q
@@ -181,7 +181,7 @@ indexLift ::  Shape -> Shape -> Graph VL Shape
 indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
                                                                          ds <- toDescr is
                                                                          (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                                                         is' <- binOpL Add is ones
+                                                                         is' <- compExpr2L Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
                                                                          re <- descToRename =<< toDescr qs'
@@ -189,7 +189,7 @@ indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1))
 indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
                                                                          ds <- toDescr is
                                                                          (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                                                         is' <- binOpL Add is ones
+                                                                         is' <- compExpr2L Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
                                                                          re <- descToRename =<< toDescr d
