@@ -141,7 +141,7 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    VecBinOpSingle _ -> do
+    CompExpr1 _ -> do
       (d, cols) <- unp c >>= fromDBV
       -- FIXME This is not precise: implement constant folding 
       return $ VProp $ DBVConst d [NonConstPL]
@@ -232,14 +232,14 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
       
     -- FIXME implement constant folding
-    VecBinOp _ -> do
+    CompExpr2 _ -> do
       cols1 <- unp c1 >>= fromDBP
       cols2 <- unp c2 >>= fromDBP
       
       return $ VProp $ DBPConst [NonConstPL]
       
     
-    VecBinOpL _ -> do
+    CompExpr2L _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
       

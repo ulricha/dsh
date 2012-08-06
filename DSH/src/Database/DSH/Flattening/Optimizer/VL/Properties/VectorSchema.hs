@@ -71,7 +71,7 @@ inferSchemaUnOp s op =
     SelectItem -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
-    VecBinOpSingle _ -> Right $ VProp $ ValueVector 1
+    CompExpr1 _ -> Right $ VProp $ ValueVector 1
   
 reqValVectors :: VectorProp Schema 
                  -> VectorProp Schema 
@@ -108,8 +108,8 @@ inferSchemaBinOp s1 s2 op =
           Left "Input of Append is not a ValueVector"
 
     RestrictVec -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    VecBinOp _ -> Right $ VProp $ AtomicVector 1
-    VecBinOpL _ -> Right $ VProp $ ValueVector 1
+    CompExpr2 _ -> Right $ VProp $ AtomicVector 1
+    CompExpr2L _ -> Right $ VProp $ ValueVector 1
     VecSumL -> Right $ VProp $ ValueVector 1
     SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPosL _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)

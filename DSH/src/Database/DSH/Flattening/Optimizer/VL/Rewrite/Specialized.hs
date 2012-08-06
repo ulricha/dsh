@@ -63,7 +63,7 @@ inputs.
 -}
 cartProd :: Rule VL BottomUpProps
 cartProd q =
-  $(pattern [| q |] "R1 ((distInput) DistLift (ToDescr (right=R1 ((leftInput) DistDesc (ToDescr (rightInput))))))"
+  $(pattern [| q |] "R1 ((distInput) DistLift (d=ToDescr (right=R1 ((leftInput) DistDesc (ToDescr (rightInput))))))"
     [| do
         predicate $ $(v "distInput") == $(v "rightInput")
 

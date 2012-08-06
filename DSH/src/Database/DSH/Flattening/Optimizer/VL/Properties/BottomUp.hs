@@ -10,7 +10,6 @@ import Database.Algebra.VL.Data
 
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.Empty
-import Optimizer.VL.Properties.Card
 import Optimizer.VL.Properties.VectorSchema
 import Optimizer.VL.Properties.Const
 -- import Optimizer.VL.Properties.Descriptor

@@ -55,7 +55,7 @@ inferEmptyUnOp e op =
     SelectItem       -> Right e
     Only             -> undefined
     Singleton        -> undefined
-    VecBinOpSingle _ -> Right e
+    CompExpr1 _ -> Right e
     R1 -> 
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
@@ -88,8 +88,8 @@ inferEmptyBinOp e1 e2 op =
     PropReorder -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     RestrictVec -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    VecBinOp _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    VecBinOpL _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    CompExpr2 _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    CompExpr2L _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     VecSumL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosL _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))

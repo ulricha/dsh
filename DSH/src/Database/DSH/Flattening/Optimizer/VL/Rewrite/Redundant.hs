@@ -31,7 +31,6 @@ redundantRules = [ mergeStackedDistDesc
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectValue
-                 , binOpSameSource
                  , descriptorFromProject ]
                  
 redundantRulesWithProperties :: RuleSet VL BottomUpProps
@@ -42,11 +41,12 @@ redundantRulesWithProperties = [ pairFromSameSource
                  
 mergeStackedDistDesc :: Rule VL ()
 mergeStackedDistDesc q = 
-  $(pattern [| q |] "R1 ((valVec1) DistLift (ToDescr (first=R1 ((valVec2) DistLift (ToDescr (_))))))"
+  $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
           logRewriteM "Redundant.MergeStackedDistDesc" q
+          relinkParentsM $(v "d1") $(v "d2")
           relinkParentsM q $(v "first") |])
   
 restrictCombineDBV :: Rule VL ()
@@ -126,19 +126,6 @@ pushRestrictVecThroughProjectValue q =
           projectNode <- insertM $ UnOp (ProjectValue $(v "p")) r1Node
           relinkParentsM q projectNode |])
   
-binOpSameSource :: Rule VL ()
-binOpSameSource q =
-  $(pattern [| q |] "(ProjectL ps1 (q1)) VecBinOpL op (ProjectL ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        (c1, c2) <- case ($(v "ps1"), $(v "ps2")) of
-          ([c1], [c2]) -> return (c1, c2)
-          _            -> fail ""
-
-        return $ do
-          logRewriteM "Redundant.BinOpSameSource" q
-          opNode <- insertM $ UnOp (VecBinOpSingle ($(v "op"), c1, c2)) $(v "q2")
-          relinkParentsM q opNode |])
         
 descriptorFromProject :: Rule VL ()
 descriptorFromProject q =
