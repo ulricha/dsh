@@ -19,7 +19,7 @@ introduceSpecializedOperators = preOrder inferBottomUp specializedRules
                                 
 specializedRules :: RuleSet VL BottomUpProps
 specializedRules = [ cartProd 
-                   , equiJoin ]
+                   , thetaJoin ]
                    
 {-
 
@@ -83,24 +83,41 @@ cartProd q =
           relinkParentsM q projRightNode
           relinkParentsM $(v "right") projLeftNode |])
 
-equiJoin :: Rule VL BottomUpProps
-equiJoin q = 
+{- 
+
+Introduce a specialized join operator to replace a cartesian product
+with a selection (RestrictVec) on top.
+
+                    RestrictVec
+                      |     \
+                      |      \
+                      |   CompExpr1(pred)
+                      |       /
+                      |      /
+                      |     /
+                  CartProductFlat
+                        /\
+                       /  \
+                      /    \
+                     q1     q2 
+
+is rewritten into
+
+                 ThetaJoinFlat(pred)
+                        /\
+                       /  \
+                      /    \
+                     q1     q2 
+-}
+
+thetaJoin :: Rule VL BottomUpProps
+thetaJoin q = 
   $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1 expr (q2=(_) CartProductFlat (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        s1 <- liftM vectorSchemaProp $ properties $(v "qi1")
-        s2 <- liftM vectorSchemaProp $ properties $(v "qi2")
 
-        (vecOp, leftArgCol, rightArgCol) <- case $(v "expr") of
-          App1 o (Column1 c1) (Column1 c2) -> return (o, c1, c2)
-          _                                -> fail "no match"
-          
-        predicate $ vecOp == Eq
-
-        let (w1, w2) = (schemaWidth s1, schemaWidth s2)
-              
         return $ do
           logRewriteM "Specialized.EquiJoin" q
-          let joinOp = BinOp (ThetaJoinFlat (Eq, leftArgCol, rightArgCol)) $(v "qi1") $(v "qi2")
+          let joinOp = BinOp (ThetaJoinFlat $(v "expr")) $(v "qi1") $(v "qi2")
           joinNode <- insertM joinOp
           relinkParentsM q joinNode |])

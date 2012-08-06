@@ -185,12 +185,12 @@ mergeExpr11 :: Rule VL BottomUpProps
 mergeExpr11 q =
   $(pattern [| q |] "(CompExpr1 e1 (q1)) CompExpr2L e (CompExpr1 e2 (q2))"
     [| do
-        trace "match" $ predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "q1") == $(v "q2")
        
         return $ do
           logRewriteM "Expr.Merge.11" q
-          let e' = trace (show $(v "e")) $ updateRightCol (expr1ToExpr2 $(v "e2")) $(v "e")
+          let e' = updateRightCol (expr1ToExpr2 $(v "e2")) $(v "e")
        
-          let e'' = trace (show e') $ expr2ToExpr1 $ updateLeftCol (expr1ToExpr2 $(v "e1")) e'
+          let e'' = expr2ToExpr1 $ updateLeftCol (expr1ToExpr2 $(v "e1")) e'
           replaceM q $ UnOp (CompExpr1 e'') $(v "q1") |])
            
