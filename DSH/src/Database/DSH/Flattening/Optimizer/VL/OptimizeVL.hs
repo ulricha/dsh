@@ -9,9 +9,9 @@ import Database.Algebra.VL.Data
   
 import Optimizer.VL.Rewrite.PruneEmpty
 import Optimizer.VL.Rewrite.MergeProjections
---import Optimizer.VL.Rewrite.Card
 import Optimizer.VL.Rewrite.Redundant
 import Optimizer.VL.Rewrite.Specialized
+import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Rewrite.DescriptorModifiers
 
 type RewriteClass = DagRewrite VL Bool
@@ -20,6 +20,7 @@ rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty) 
                  , ('P', mergeProjections)
                  , ('R', removeRedundancy) 
+                 , ('C', optExpressions)
                  , ('S', introduceSpecializedOperators) 
                  , ('D', stripFromRoot) ]
 
