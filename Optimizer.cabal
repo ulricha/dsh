@@ -45,7 +45,7 @@ Executable vlopt
   Main-Is: Optimizer/VL/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices
+  GHC-Options: -rtsopts -O3 -Wall -ddump-splices
 
 Executable vlprop
   Hs-Source-Dirs:   src
