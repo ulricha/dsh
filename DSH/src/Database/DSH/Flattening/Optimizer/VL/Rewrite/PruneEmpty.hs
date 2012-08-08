@@ -3,6 +3,7 @@
 module Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
 import Control.Monad
+import Control.Applicative
 
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
@@ -34,7 +35,8 @@ emptyAppendLeftR1 :: Rule VL BottomUpProps
 emptyAppendLeftR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
-        predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
+        predicate <$> ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
+
         return $ do
           logRewriteM "Empty.Append.Left.R1" q
           replaceRootM q $(v "q2")
@@ -48,7 +50,7 @@ emptyAppendLeftR3 :: Rule VL BottomUpProps
 emptyAppendLeftR3 q =
   $(pattern [| q |] "R3 ((q1) Append (q2))"
     [| do
-        predicateM $ (isEmpty $(v "q1")) <&&> (notM $ isEmpty $(v "q2"))
+        predicate <$> ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
           logRewriteM "Empty.Append.Left.R3" q
           replaceM q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
@@ -57,7 +59,7 @@ emptyAppendRightR1 :: Rule VL BottomUpProps
 emptyAppendRightR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
-        predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
+        predicate <$> ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewriteM "Empty.Append.Right.R1" q
           replaceRootM q $(v "q1")
@@ -67,7 +69,7 @@ emptyAppendRightR2 :: Rule VL BottomUpProps
 emptyAppendRightR2 q =
   $(pattern [| q |] "R2 ((q1) Append (q2))"
     [| do
-        predicateM $ (isEmpty $(v "q2")) <&&> (notM $ isEmpty $(v "q1"))
+        predicate <$> ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewriteM "Empty.Append.Right.R2" q
           replaceM q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
