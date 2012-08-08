@@ -34,6 +34,7 @@ redundantRules = [ mergeStackedDistDesc
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectValue
                  , pullPropRenameThroughCompExpr2L
+                 , mergeDescToRenames
                  , descriptorFromProject ]
                  
 redundantRulesWithProperties :: RuleSet VL BottomUpProps
@@ -154,6 +155,33 @@ pullPropRenameThroughCompExpr2L q =
          logRewriteM "Redundant.PullPropRenameThroughCompExpr2L" q
          compNode <- insertM $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
          replaceM q $ BinOp PropRename $(v "qr1") compNode |])
+  
+-- Try to merge multiple DescToRename operators which reference the same
+-- descriptor vector
+mergeDescToRenames :: Rule VL ()
+mergeDescToRenames q =
+  $(pattern [| q |] "DescToRename (d)"
+    [| do
+        ps <- parents $(v "d")
+
+        let isDescToRename n = do
+              op <- operator n
+              case op of 
+                UnOp DescToRename _ -> return True
+                _                   -> return False
+       
+        redundantNodes <- liftM (filter (/= q)) $ filterM isDescToRename ps
+        
+        predicate $ not $ null $ redundantNodes
+        
+        return $ do
+          logRewriteM "Redundant.MergeDescToRenames" q
+          mapM_ (\n -> relinkParentsM n q) redundantNodes
+
+          -- We have to clean up the graph to remove all now unreferenced DescToRename operators.
+          -- If they were not removed, the same rewrite would be executed again, leading to an
+          -- infinite loop.
+          pruneUnusedM |])
   
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
 pairFromSameSource :: Rule VL BottomUpProps
