@@ -33,6 +33,7 @@ redundantRules = [ mergeStackedDistDesc
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectValue
+                 , pullPropRenameThroughCompExpr2L
                  , descriptorFromProject ]
                  
 redundantRulesWithProperties :: RuleSet VL BottomUpProps
@@ -136,6 +137,23 @@ descriptorFromProject q =
         return $ do
           logRewriteM "Redundant.DescriptorFromProject" q
           replaceM q $ UnOp ToDescr $(v "q1") |])
+
+-- Pull PropRename operators through a CompExpr2L operator if both
+-- inputs of the CompExpr2L operator are renamed according to the same
+-- rename vector.
+
+-- This rewrite is sound because CompExpr2L does not care about the
+-- descriptor but aligns its inputs based on the positions.
+pullPropRenameThroughCompExpr2L :: Rule VL ()
+pullPropRenameThroughCompExpr2L q =
+  $(pattern [| q |] "((qr1) PropRename (q1)) CompExpr2L e ((qr2) PropRename (q2))"
+    [| do
+       predicate  $ $(v "qr1") == $(v "qr2")
+       
+       return $ do
+         logRewriteM "Redundant.PullPropRenameThroughCompExpr2L" q
+         compNode <- insertM $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
+         replaceM q $ BinOp PropRename $(v "qr1") compNode |])
   
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
 pairFromSameSource :: Rule VL BottomUpProps
@@ -197,4 +215,3 @@ pairedProjections q =
               projectNode <- insertM op
               relinkParentsM q projectNode |])
   
-              
