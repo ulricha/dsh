@@ -26,7 +26,8 @@ expressionRules = [ mergeCompWithProjectLeft
                   , constInputLeft
                   , constInputRight 
                   , sameInput
-                  , mergeExpr11 ]
+                  , mergeExpr11 
+                  , mergeExpr12 ]
 
 updateLeftCol :: Expr2 -> Expr2 -> Expr2
 updateLeftCol c' (App2 o e1 e2)      = App2 o (updateLeftCol c' e1) (updateLeftCol c' e2)
@@ -55,7 +56,7 @@ leftCol e =
   in 
    case leftCol' e of
     Just c -> c
-    Nothing -> error "CompExpr2(L) expression does not reference its left input"
+    Nothing -> error $ "CompExpr2(L) expression does not reference its left input" ++ (show e)
 
 rightCol :: Expr2 -> DBCol
 rightCol e = 
@@ -68,7 +69,7 @@ rightCol e =
   in 
    case rightCol' e of
     Just c -> c
-    Nothing -> error "CompExpr2(L) expression does not reference its right input"
+    Nothing -> error $ "CompExpr2(L) expression does not reference its right input" ++ (show e)
    
 col :: Expr1 -> DBCol
 col e = 
@@ -193,4 +194,15 @@ mergeExpr11 q =
        
           let e'' = expr2ToExpr1 $ updateLeftCol (expr1ToExpr2 $(v "e1")) e'
           replaceM q $ UnOp (CompExpr1 e'') $(v "q1") |])
+  
+mergeExpr12 :: Rule VL BottomUpProps  
+mergeExpr12 q =
+  $(pattern [| q |] "CompExpr1 e1 ((q1) CompExpr2L e2 (q2))"
+    [| do
+        return $ do
+          logRewriteM "Expr.Merge.12" q
+          let e1' = expr1ToExpr2 $(v "e1")
+              e' = updateRightCol $(v "e2") e1'
+              op = BinOp (CompExpr2L e') $(v "q1") $(v "q2")
+          replaceM q op |])
            
