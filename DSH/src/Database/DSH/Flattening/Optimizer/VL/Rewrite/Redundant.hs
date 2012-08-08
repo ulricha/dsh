@@ -13,6 +13,7 @@ import Database.Algebra.VL.Data
   
 import Optimizer.VL.Rewrite.MergeProjections
 import Optimizer.VL.Rewrite.Common
+import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorSchema
   
@@ -22,7 +23,8 @@ removeRedundancy = iteratively $ sequenceRewrites [ cleanup
                                                   , preOrder inferBottomUp redundantRulesWithProperties ]
                    
 cleanup :: DagRewrite VL Bool
-cleanup = sequenceRewrites [ mergeProjections ]
+cleanup = sequenceRewrites [ mergeProjections
+                           , optExpressions ]
 
 redundantRules :: RuleSet VL ()
 redundantRules = [ mergeStackedDistDesc 
