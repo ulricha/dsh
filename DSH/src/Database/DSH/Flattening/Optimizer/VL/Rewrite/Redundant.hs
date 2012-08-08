@@ -34,6 +34,7 @@ redundantRules = [ mergeStackedDistDesc
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectValue
                  , pullPropRenameThroughCompExpr2L
+                 , pullPropRenameThroughIntegerToDouble
                  , mergeDescToRenames
                  , descriptorFromProject ]
                  
@@ -155,6 +156,16 @@ pullPropRenameThroughCompExpr2L q =
          logRewriteM "Redundant.PullPropRenameThroughCompExpr2L" q
          compNode <- insertM $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
          replaceM q $ BinOp PropRename $(v "qr1") compNode |])
+  
+-- Pull PropRename operators through a IntegerToDoubleL operator.
+pullPropRenameThroughIntegerToDouble :: Rule VL ()
+pullPropRenameThroughIntegerToDouble q =
+  $(pattern [| q |] "IntegerToDoubleL ((qr) PropRename (qv))"
+    [| do
+        return $ do
+          logRewriteM "Redundant.PullPropRenameThroughIntegerToDouble" q
+          castNode <- insertM $ UnOp IntegerToDoubleL $(v "qv")
+          replaceM q $ BinOp PropRename $(v "qr") castNode |])
   
 -- Try to merge multiple DescToRename operators which reference the same
 -- descriptor vector
