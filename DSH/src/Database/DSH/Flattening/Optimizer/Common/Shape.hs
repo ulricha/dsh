@@ -3,16 +3,18 @@ module Optimizer.Common.Shape where
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data(DBCol)
 
-data DBV = DBV AlgNode [DBCol]
+data DBV = DBV AlgNode [DBCol] deriving (Show, Read)
 
-data DBP = DBP AlgNode [DBCol]
+data DBP = DBP AlgNode [DBCol] deriving (Show, Read)
   
 data Layout = InColumn Int
             | Nest DBV Layout
             | Pair Layout Layout
+            deriving (Show, Read)
               
 data Shape = ValueVector DBV Layout
            | PrimVal DBP Layout
+           deriving (Show, Read)
              
 rootsFromLayout :: Layout -> [AlgNode]
 rootsFromLayout (InColumn _)         = []

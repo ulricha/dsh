@@ -7,14 +7,15 @@ import System.Console.GetOpt
 import qualified Data.Map as M
 import qualified Data.ByteString.Lazy as B
   
-import Database.Algebra.Dag
-import Database.Algebra.Rewrite(Log, runDefaultRewrite)
+import qualified Database.Algebra.Dag as Dag
+import Database.Algebra.Dag.Common
+import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
 import Optimizer.VL.OptimizeVL
-import Optimizer.VL.Rewrite.Common
 import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.BottomUp
   
 data Options = Options { optInput :: IO B.ByteString }
                
@@ -36,9 +37,13 @@ options =
       "Show help"
   ]
   
-optimize :: AlgebraDag VL -> [RewriteClass]-> (AlgebraDag VL, Log)
-optimize = runPipeline
-       
+inferBottomUp :: DefaultRewrite VL (NodeMap BottomUpProps)
+inferBottomUp = do
+  to <- topsort
+  props <- infer (inferBottomUpProperties to)
+  return props
+  
+  
 main :: IO ()
 main = do
     args <- getArgs
@@ -49,6 +54,6 @@ main = do
     plan <- input
     
     let (_, rs, m) = deserializePlan plan
-        (_, propertyMap, _) = runDefaultRewrite inferBottomUp (mkDag m rs)
+        (_, propertyMap, _) = runDefaultRewrite inferBottomUp (Dag.mkDag m rs)
         tagMap = M.map renderBottomUpProps propertyMap
     B.putStr $ serializePlan (tagMap, rs, m)

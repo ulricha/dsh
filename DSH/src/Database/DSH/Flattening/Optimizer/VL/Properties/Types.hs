@@ -130,5 +130,6 @@ instance Renderable BottomUpProps where
                  $$ text "const:" <+> (renderProp $ constProp p)
                  $$ text "schema:" <+> (renderProp $ vectorSchemaProp p)
   
+-- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]
 renderBottomUpProps ps = [render $ renderProp ps]

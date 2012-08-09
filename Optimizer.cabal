@@ -21,6 +21,7 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:       base,
                        mtl,
+                       transformers,
                        containers,
                        fgl,
                        pretty,

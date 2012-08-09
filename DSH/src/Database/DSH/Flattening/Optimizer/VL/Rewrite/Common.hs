@@ -2,16 +2,18 @@ module Optimizer.VL.Rewrite.Common where
 
 import Database.Algebra.Dag.Common
 
-import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
+import Database.Algebra.Rewrite
 
+import Optimizer.Common.Match
+import Optimizer.Common.Rewrite
 import Optimizer.VL.Properties.BottomUp
 import Optimizer.VL.Properties.Types
   
--- Type abbreviation for convenience
-type VLRewrite a = DefaultRewrite VL a
-type VLRule a = Rule DefaultRewrite VL a
-type VLRuleSet a = RuleSet DefaultRewrite VL a
+  -- Type abbreviations for convenience
+type VLRewrite a = OptRewrite VL a
+type VLRule a = Rule OptRewrite VL a
+type VLRuleSet a = RuleSet OptRewrite VL a
   
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do

@@ -2,8 +2,6 @@
 
 module Optimizer.Common.Match where
 
-import Data.Functor
-
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Trans.Reader

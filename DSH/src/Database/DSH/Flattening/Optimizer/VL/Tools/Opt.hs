@@ -6,22 +6,26 @@ import System.Environment
 import System.Console.GetOpt
 import qualified Data.Foldable as F
 import qualified Data.ByteString.Lazy as B
+import Data.Functor
 
 import Database.Algebra.Dag
 import Database.Algebra.Rewrite(Log)
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
+import Optimizer.Common.Shape
 import Optimizer.VL.OptimizeVL
   
 data Options = Options { optVerbose        :: Bool
                        , optInput          :: IO B.ByteString
+                       , optShape          :: String
                        , optPipelineString :: Maybe String
                        }
                
 startOptions :: Options
 startOptions = Options { optVerbose          = False
                        , optInput            = B.getContents
+                       , optShape            = "query_shape.plan"
                        , optPipelineString   = Nothing
                        }
                
@@ -34,6 +38,10 @@ options =
       (ReqArg (\arg opt -> return opt { optInput = B.readFile arg })
        "FILE")
       "Input file"
+  , Option "s" ["shape"]
+      (ReqArg (\arg opt -> return opt { optShape = arg })
+       "FILE")
+      "Shape input file"
   , Option "p" ["pipeline"]
       (ReqArg (\arg opt -> return opt { optPipelineString = Just arg })
        "PIPELINE")
@@ -47,7 +55,7 @@ options =
       "Show help"
   ]
   
-optimize :: AlgebraDag VL -> [RewriteClass]-> (AlgebraDag VL, Log)
+optimize :: AlgebraDag VL -> Shape -> [RewriteClass]-> (AlgebraDag VL, Log, Shape)
 optimize = runPipeline
        
 main :: IO ()
@@ -57,9 +65,11 @@ main = do
     opts <- foldl (>>=) (return startOptions) actions
     let Options { optVerbose = verbose
                 , optInput = input
+                , optShape = shapeFile
                 , optPipelineString = mPipelineString } = opts
     
     plan <- input
+    shape <- read <$> readFile shapeFile
     let pipeline = case mPipelineString of
           Just s ->
             case assemblePipeline s of
@@ -68,10 +78,11 @@ main = do
           Nothing -> defaultPipeline
     
     let (tags, rs, m) = deserializePlan plan
-        (dag', rewriteLog) = optimize (mkDag m rs) pipeline 
+        (dag', rewriteLog, shape') = optimize (mkDag m rs) shape pipeline 
         m' = nodeMap dag'
         rs' = rootNodes dag'
     if verbose then F.mapM_ (\l -> hPutStrLn stderr l) rewriteLog else return ()
     B.putStr $ serializePlan (tags, rs', m')
+    writeFile shapeFile $ show shape'
 
 

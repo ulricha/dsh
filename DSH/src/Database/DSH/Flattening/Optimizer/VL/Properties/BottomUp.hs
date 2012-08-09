@@ -88,8 +88,3 @@ inferTerOp _ op c1Props c2Props c3Props = do
 -- | Infer bottom-up properties: visit nodes in reverse topological ordering.
 inferBottomUpProperties :: [AlgNode] -> AlgebraDag VL -> NodeMap BottomUpProps
 inferBottomUpProperties topOrderedNodes d = foldr (inferWorker $ nodeMap d) M.empty topOrderedNodes 
-
--- | Rendering function for the bottom-up properties container.
-renderBottomUpProps :: BottomUpProps -> Doc
-renderBottomUpProps props = text "empty: " <> (text $ show $ emptyProp props)
-                            
