@@ -16,10 +16,10 @@ import Database.Algebra.VL.Data
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
   
-optExpressions :: DagRewrite VL Bool
+optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ postOrder inferBottomUp expressionRules
 
-expressionRules :: RuleSet VL BottomUpProps
+expressionRules :: VLRuleSet BottomUpProps
 expressionRules = [ mergeCompWithProjectLeft
                   , mergeCompWithProjectRight
                   , mergeCompExpr1WithProject
@@ -92,52 +92,52 @@ expr2ToExpr1 (Constant2 v)           = Constant1 v
                                        
 -- Rewrite rules
                                        
-sameInput :: Rule VL BottomUpProps
+sameInput :: VLRule BottomUpProps
 sameInput q =
   $(pattern [| q |] "(q1) CompExpr2L expr (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         return $ do
-          logRewriteM "Expr.SameInput" q
-          replaceM q $ UnOp (CompExpr1 (expr2ToExpr1 $(v "expr"))) $(v "q1") |])
+          logRewrite "Expr.SameInput" q
+          replace q $ UnOp (CompExpr1 (expr2ToExpr1 $(v "expr"))) $(v "q1") |])
   
 -- Merge CompExpr operators with input projections in various combinations
     
-mergeCompWithProjectLeft :: Rule VL BottomUpProps
+mergeCompWithProjectLeft :: VLRule BottomUpProps
 mergeCompWithProjectLeft q =
   $(pattern [| q |] "(ProjectL ps (q1)) CompExpr2L expr (q2)"
     [| do
         return $ do
-          logRewriteM "Expr.Merge.Project.Left" q
+          logRewrite "Expr.Merge.Project.Left" q
           let c1 = leftCol $(v "expr")
               c1' = $(v "ps") !! (c1 - 1)
               expr' = updateLeftCol (Column2Left (L c1')) $(v "expr")
-          replaceM q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
+          replace q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
 
-mergeCompWithProjectRight :: Rule VL BottomUpProps
+mergeCompWithProjectRight :: VLRule BottomUpProps
 mergeCompWithProjectRight q =
   $(pattern [| q |] "(q1) CompExpr2L expr (ProjectL ps (q2))"
     [| do
         return $ do
-          logRewriteM "Expr.Merge.Project.Right" q
+          logRewrite "Expr.Merge.Project.Right" q
           let c2 = rightCol $(v "expr")
               c2' = $(v "ps") !! (c2 - 1)
               expr' = updateRightCol (Column2Right (R c2')) $(v "expr")
-          replaceM q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
+          replace q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
 
-mergeCompExpr1WithProject :: Rule VL BottomUpProps
+mergeCompExpr1WithProject :: VLRule BottomUpProps
 mergeCompExpr1WithProject q =
   $(pattern [| q |] "CompExpr1 expr (ProjectL ps (q1))"
     [| do
         return $ do
-          logRewriteM "Expr.Merge.Project" q
+          logRewrite "Expr.Merge.Project" q
           let c = col $(v "expr")
               c' = $(v "ps") !! (c - 1)
               expr' = updateCol (Column1 c') $(v "expr")
-          replaceM q $ UnOp (CompExpr1 expr') $(v "q1")|])
+          replace q $ UnOp (CompExpr1 expr') $(v "q1")|])
   
 -- Remove the left input from a CompExpr operator if the input is constant
-constInputLeft :: Rule VL BottomUpProps
+constInputLeft :: VLRule BottomUpProps
 constInputLeft q =
   $(pattern [| q |] "(q1) CompExpr2L expr (q2)"
     [| do
@@ -150,12 +150,12 @@ constInputLeft q =
                           NonConstPL -> fail "no match"
                       _ -> fail "no match"
         return $ do
-          logRewriteM "Expr.Const.Left" q
+          logRewrite "Expr.Const.Left" q
           let expr' = expr2ToExpr1 $ updateLeftCol (Constant2 constVal) $(v "expr")
-          replaceM q $ UnOp (CompExpr1 expr') $(v "q2") |])
+          replace q $ UnOp (CompExpr1 expr') $(v "q2") |])
                      
 -- Remove the right input from a CompExpr operator if the input is constant
-constInputRight :: Rule VL BottomUpProps
+constInputRight :: VLRule BottomUpProps
 constInputRight q =
   $(pattern [| q |] "(q1) CompExpr2L expr (q2)"
     [| do
@@ -168,9 +168,9 @@ constInputRight q =
                           NonConstPL -> fail "no match"
                       _ -> fail "no match"
         return $ do
-          logRewriteM "Expr.Const.Right" q
+          logRewrite "Expr.Const.Right" q
           let expr' = expr2ToExpr1 $ updateRightCol (Constant2 constVal) $(v "expr")
-          replaceM q $ UnOp (CompExpr1 expr') $(v "q1") |])
+          replace q $ UnOp (CompExpr1 expr') $(v "q1") |])
   
                      
 -- Merge multiple stacked CompExpr operators if they have the same input.
@@ -182,27 +182,27 @@ expr1ToExpr2 (App1 o e1 e2) = App2 o (expr1ToExpr2 e1) (expr1ToExpr2 e2)
 expr1ToExpr2 (Column1 c)    = Column2Right (R c)
 expr1ToExpr2 (Constant1 v)  = Constant2 v
 
-mergeExpr11 :: Rule VL BottomUpProps
+mergeExpr11 :: VLRule BottomUpProps
 mergeExpr11 q =
   $(pattern [| q |] "(CompExpr1 e1 (q1)) CompExpr2L e (CompExpr1 e2 (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
        
         return $ do
-          logRewriteM "Expr.Merge.11" q
+          logRewrite "Expr.Merge.11" q
           let e' = updateRightCol (expr1ToExpr2 $(v "e2")) $(v "e")
        
           let e'' = expr2ToExpr1 $ updateLeftCol (expr1ToExpr2 $(v "e1")) e'
-          replaceM q $ UnOp (CompExpr1 e'') $(v "q1") |])
+          replace q $ UnOp (CompExpr1 e'') $(v "q1") |])
   
-mergeExpr12 :: Rule VL BottomUpProps  
+mergeExpr12 :: VLRule BottomUpProps  
 mergeExpr12 q =
   $(pattern [| q |] "CompExpr1 e1 ((q1) CompExpr2L e2 (q2))"
     [| do
         return $ do
-          logRewriteM "Expr.Merge.12" q
+          logRewrite "Expr.Merge.12" q
           let e1' = expr1ToExpr2 $(v "e1")
               e' = updateRightCol $(v "e2") e1'
               op = BinOp (CompExpr2L e') $(v "q1") $(v "q2")
-          replaceM q op |])
+          replace q op |])
            

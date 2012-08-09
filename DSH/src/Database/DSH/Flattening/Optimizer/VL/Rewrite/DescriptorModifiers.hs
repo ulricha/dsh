@@ -4,6 +4,7 @@ module Optimizer.VL.Rewrite.DescriptorModifiers where
 
 import Debug.Trace
 
+import Data.Functor
 import Control.Monad
 
 import Optimizer.VL.Properties.Types
@@ -14,10 +15,10 @@ import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
   
-stripFromRoot :: DagRewrite VL Bool
+stripFromRoot :: VLRewrite Bool
 stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
 
-descriptorNoOps :: RuleSet VL BottomUpProps
+descriptorNoOps :: VLRuleSet BottomUpProps
 descriptorNoOps = [ constantDescriptorChain, noOpRenaming ]
                  
 hasConstDesc :: VectorProp ConstVec -> Bool
@@ -29,31 +30,31 @@ hasConstDesc _                                        = False
 -- non-descriptor modifier if it is constant. Otherwise, fail the match.
 searchConstantDescr :: AlgNode -> Match VL BottomUpProps AlgNode
 searchConstantDescr q = do
-  op <- operator q
+  op <- getOperator q
   case op of
     BinOp PropRename _ c2 -> searchConstantDescr c2
     UnOp Segment c -> searchConstantDescr c
     _ -> do
-      predicateM $ liftM (hasConstDesc . constProp) $ properties q
+      predicate <$> (hasConstDesc . constProp) <$> properties q
       return q
                  
 {- Try to find a chain of descriptor-modifying operators (e.g. PropRename, Segment) which
 form a noop because the desccriptor is constant at the beginning of the chain and at the end. -}
-constantDescriptorChain :: Rule VL BottomUpProps
+constantDescriptorChain :: VLRule BottomUpProps
 constantDescriptorChain q = 
   $(pattern [| q |] "(_) PropRename (qv)"
     [| do
-        predicateM $ liftM (hasConstDesc . constProp) $ properties q
+        predicate <$> (hasConstDesc . constProp) <$> properties q
         chainStart <- searchConstantDescr $(v "qv")
         
         return $ do
-          logRewriteM "DescriptorModifiers.ConstantDescriptorChain" q
-          op <- operatorM chainStart
-          replaceM q op |])
+          logRewrite "DescriptorModifiers.ConstantDescriptorChain" q
+          op <- operator chainStart
+          replace q op |])
   
 -- FIXME this is a weak version. Use abstract knowledge about index space transformations
 -- to establish the no op property.
-noOpRenaming :: Rule VL BottomUpProps
+noOpRenaming :: VLRule BottomUpProps
 noOpRenaming q =
   $(pattern [| q |] "(ProjectRename p (_)) PropRename (q1)"
     [| do
@@ -63,7 +64,7 @@ noOpRenaming q =
           _                        -> fail "no match"
           
         return $ do
-          logRewriteM "DescriptorModifiers.NoOpRenaming" q
-          replaceRootM q $(v "q1")
-          relinkParentsM q $(v "q1") |])
+          logRewrite "DescriptorModifiers.NoOpRenaming" q
+          replaceRoot q $(v "q1")
+          relinkParents q $(v "q1") |])
           

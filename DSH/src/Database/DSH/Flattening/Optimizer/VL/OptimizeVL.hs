@@ -3,7 +3,7 @@ module Optimizer.VL.OptimizeVL where
 import Data.Functor
 import Control.Applicative
 
-import Database.Algebra.Dag
+import qualified Database.Algebra.Dag as Dag
 import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
   
@@ -14,7 +14,7 @@ import Optimizer.VL.Rewrite.Specialized
 import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Rewrite.DescriptorModifiers
 
-type RewriteClass = DagRewrite VL Bool
+type RewriteClass = DefaultRewrite VL Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty) 
@@ -29,12 +29,12 @@ defaultPipeline = case assemblePipeline "ERSRSD" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
   
-cleanup :: DagRewrite VL Bool
-cleanup = pruneUnusedM >> return True
+cleanup :: DefaultRewrite VL Bool
+cleanup = pruneUnused >> return True
   
-runPipeline :: AlgebraDag VL -> [RewriteClass] -> (AlgebraDag VL, Log)
+runPipeline :: Dag.AlgebraDag VL -> [RewriteClass] -> (Dag.AlgebraDag VL, Log)
 runPipeline d pipeline = (d', rewriteLog)
-  where (d', _, rewriteLog) = runRewrite (sequence_ pipeline) d
+  where (d', _, rewriteLog) = runDefaultRewrite (sequence_ pipeline) d
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = (++) <$> (mapM (flip lookup rewriteClasses) s) <*> (pure [cleanup])

@@ -17,16 +17,16 @@ import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorSchema
   
-removeRedundancy :: DagRewrite VL Bool
+removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
                                                   , preOrder (return M.empty) redundantRules
                                                   , preOrder inferBottomUp redundantRulesWithProperties ]
                    
-cleanup :: DagRewrite VL Bool
+cleanup :: VLRewrite Bool
 cleanup = sequenceRewrites [ mergeProjections
                            , optExpressions ]
 
-redundantRules :: RuleSet VL ()
+redundantRules :: VLRuleSet ()
 redundantRules = [ mergeStackedDistDesc 
                  , restrictCombineDBV 
                  , restrictCombinePropLeft 
@@ -38,52 +38,52 @@ redundantRules = [ mergeStackedDistDesc
                  , mergeDescToRenames
                  , descriptorFromProject ]
                  
-redundantRulesWithProperties :: RuleSet VL BottomUpProps
+redundantRulesWithProperties :: VLRuleSet BottomUpProps
 redundantRulesWithProperties = [ pairFromSameSource 
                                , pairedProjections
                                , noOpProject
                                , toDescr ]
                  
-mergeStackedDistDesc :: Rule VL ()
+mergeStackedDistDesc :: VLRule ()
 mergeStackedDistDesc q = 
   $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
-          logRewriteM "Redundant.MergeStackedDistDesc" q
-          relinkParentsM $(v "d1") $(v "d2")
-          relinkParentsM q $(v "first") |])
+          logRewrite "Redundant.MergeStackedDistDesc" q
+          relinkParents $(v "d1") $(v "d2")
+          relinkParents q $(v "first") |])
   
-restrictCombineDBV :: Rule VL ()
+restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
   $(pattern [| q |] "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
-          logRewriteM "Redundant.RestrictCombine.DBV" q
-          relinkParentsM q $(v "q1") |])
+          logRewrite "Redundant.RestrictCombine.DBV" q
+          relinkParents q $(v "q1") |])
 
-restrictCombinePropLeft :: Rule VL ()
+restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
   $(pattern [| q |] "R2 (c=CombineVec (qb) (_) (_))"
     [| do
-        parentNodes <- parents $(v "c")
-        parentOps <- mapM operator parentNodes
+        parentNodes <- getParents $(v "c")
+        parentOps <- mapM getOperator parentNodes
         let r1 = filter (\(_, op) -> case op of { UnOp R1 _ -> True; _ -> False }) $ zip parentNodes parentOps
         r1Parents <-
           case r1 of
-            [(r1Node, _)] -> liftM length $ parents r1Node
+            [(r1Node, _)] -> liftM length $ getParents r1Node
             _ -> fail ""
         predicate $ r1Parents == 0
 
         return $ do
-          logRewriteM "Redundant.RestrictCombine.PropLeft" q
-          selectNode <- insertM $ UnOp SelectItem $(v "qb") 
-          projectNode <- insertM $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
-          relinkParentsM q projectNode |])
+          logRewrite "Redundant.RestrictCombine.PropLeft" q
+          selectNode <- insert $ UnOp SelectItem $(v "qb") 
+          projectNode <- insert $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
+          relinkParents q projectNode |])
   
-pullRestrictThroughPair :: Rule VL ()
+pullRestrictThroughPair :: VLRule ()
 pullRestrictThroughPair q =
   $(pattern [| q |] "(R1 ((qp1=ProjectL _ (q1)) RestrictVec (qb1))) PairL (R1 ((qp2=ProjectL _ (q2)) RestrictVec (qb2)))"
     [| do
@@ -91,29 +91,29 @@ pullRestrictThroughPair q =
         predicate $ $(v "q1") == $(v "q2")
         
         return $ do
-          logRewriteM "Redundant.PullRestrictThroughPair" q
-          pairNode <- insertM $ BinOp PairL $(v "qp1") $(v "qp2")
-          restrictNode <- insertM $ BinOp RestrictVec pairNode $(v "qb1")
-          r1Node <- insertM $ UnOp R1 restrictNode
-          relinkParentsM q r1Node |])
+          logRewrite "Redundant.PullRestrictThroughPair" q
+          pairNode <- insert $ BinOp PairL $(v "qp1") $(v "qp2")
+          restrictNode <- insert $ BinOp RestrictVec pairNode $(v "qb1")
+          r1Node <- insert $ UnOp R1 restrictNode
+          relinkParents q r1Node |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectL).
-pushRestrictVecThroughProjectL :: Rule VL ()
+pushRestrictVecThroughProjectL :: VLRule ()
 pushRestrictVecThroughProjectL q =
   $(pattern [| q |] "R1 ((ProjectL p (q1)) RestrictVec (qb))"
     [| do
 
         return $ do
-          logRewriteM "Redundant.PushRestrictVecThroughProjectL" q
-          restrictNode <- insertM $ BinOp RestrictVec $(v "q1") $(v "qb")
-          r1Node <- insertM $ UnOp R1 restrictNode
-          projectNode <- insertM $ UnOp (ProjectL $(v "p")) r1Node
-          relinkParentsM q projectNode |])
+          logRewrite "Redundant.PushRestrictVecThroughProjectL" q
+          restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
+          r1Node <- insert $ UnOp R1 restrictNode
+          projectNode <- insert $ UnOp (ProjectL $(v "p")) r1Node
+          relinkParents q projectNode |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectValue).
-pushRestrictVecThroughProjectValue :: Rule VL ()
+pushRestrictVecThroughProjectValue :: VLRule ()
 pushRestrictVecThroughProjectValue q =
   $(pattern [| q |] "R1 ((ProjectValue p (q1)) RestrictVec (qb))"
     [| do
@@ -125,20 +125,20 @@ pushRestrictVecThroughProjectValue q =
           _                               -> fail "no match"
           
         return $ do
-          logRewriteM "Redundant.PushRestrictVecThroughProjectValue" q
-          restrictNode <- insertM $ BinOp RestrictVec $(v "q1") $(v "qb")
-          r1Node <- insertM $ UnOp R1 restrictNode
-          projectNode <- insertM $ UnOp (ProjectValue $(v "p")) r1Node
-          relinkParentsM q projectNode |])
+          logRewrite "Redundant.PushRestrictVecThroughProjectValue" q
+          restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
+          r1Node <- insert $ UnOp R1 restrictNode
+          projectNode <- insert $ UnOp (ProjectValue $(v "p")) r1Node
+          relinkParents q projectNode |])
   
         
-descriptorFromProject :: Rule VL ()
+descriptorFromProject :: VLRule ()
 descriptorFromProject q =
   $(pattern [| q |] "ToDescr (ProjectL _ (q1))"
     [| do
         return $ do
-          logRewriteM "Redundant.DescriptorFromProject" q
-          replaceM q $ UnOp ToDescr $(v "q1") |])
+          logRewrite "Redundant.DescriptorFromProject" q
+          replace q $ UnOp ToDescr $(v "q1") |])
 
 -- Pull PropRename operators through a CompExpr2L operator if both
 -- inputs of the CompExpr2L operator are renamed according to the same
@@ -146,37 +146,37 @@ descriptorFromProject q =
 
 -- This rewrite is sound because CompExpr2L does not care about the
 -- descriptor but aligns its inputs based on the positions.
-pullPropRenameThroughCompExpr2L :: Rule VL ()
+pullPropRenameThroughCompExpr2L :: VLRule ()
 pullPropRenameThroughCompExpr2L q =
   $(pattern [| q |] "((qr1) PropRename (q1)) CompExpr2L e ((qr2) PropRename (q2))"
     [| do
        predicate  $ $(v "qr1") == $(v "qr2")
        
        return $ do
-         logRewriteM "Redundant.PullPropRenameThroughCompExpr2L" q
-         compNode <- insertM $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
-         replaceM q $ BinOp PropRename $(v "qr1") compNode |])
+         logRewrite "Redundant.PullPropRenameThroughCompExpr2L" q
+         compNode <- insert $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
+         replace q $ BinOp PropRename $(v "qr1") compNode |])
   
 -- Pull PropRename operators through a IntegerToDoubleL operator.
-pullPropRenameThroughIntegerToDouble :: Rule VL ()
+pullPropRenameThroughIntegerToDouble :: VLRule ()
 pullPropRenameThroughIntegerToDouble q =
   $(pattern [| q |] "IntegerToDoubleL ((qr) PropRename (qv))"
     [| do
         return $ do
-          logRewriteM "Redundant.PullPropRenameThroughIntegerToDouble" q
-          castNode <- insertM $ UnOp IntegerToDoubleL $(v "qv")
-          replaceM q $ BinOp PropRename $(v "qr") castNode |])
+          logRewrite "Redundant.PullPropRenameThroughIntegerToDouble" q
+          castNode <- insert $ UnOp IntegerToDoubleL $(v "qv")
+          replace q $ BinOp PropRename $(v "qr") castNode |])
   
 -- Try to merge multiple DescToRename operators which reference the same
 -- descriptor vector
-mergeDescToRenames :: Rule VL ()
+mergeDescToRenames :: VLRule ()
 mergeDescToRenames q =
   $(pattern [| q |] "DescToRename (d)"
     [| do
-        ps <- parents $(v "d")
+        ps <- getParents $(v "d")
 
         let isDescToRename n = do
-              op <- operator n
+              op <- getOperator n
               case op of 
                 UnOp DescToRename _ -> return True
                 _                   -> return False
@@ -186,16 +186,16 @@ mergeDescToRenames q =
         predicate $ not $ null $ redundantNodes
         
         return $ do
-          logRewriteM "Redundant.MergeDescToRenames" q
-          mapM_ (\n -> relinkParentsM n q) redundantNodes
+          logRewrite "Redundant.MergeDescToRenames" q
+          mapM_ (\n -> relinkParents n q) redundantNodes
 
           -- We have to clean up the graph to remove all now unreferenced DescToRename operators.
           -- If they were not removed, the same rewrite would be executed again, leading to an
           -- infinite loop.
-          pruneUnusedM |])
+          pruneUnused |])
   
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
-pairFromSameSource :: Rule VL BottomUpProps
+pairFromSameSource :: VLRule BottomUpProps
 pairFromSameSource q =
   $(pattern [| q |] "(q1) PairL (q2)"
     [| do
@@ -207,11 +207,11 @@ pairFromSameSource q =
           (VProp DescrVector, VProp DescrVector)                                 -> return ()
           _                                                                      -> fail "no match"
         return $ do
-          logRewriteM "Redundant.PairFromSame" q
-          relinkParentsM q $(v "q1") |])
+          logRewrite "Redundant.PairFromSame" q
+          relinkParents q $(v "q1") |])
   
 -- Remove a ProjectL or ProjectA operator that does not change the vector schema
-noOpProject :: Rule VL BottomUpProps
+noOpProject :: VLRule BottomUpProps
 noOpProject q =
   $(pattern [| q |] "[ProjectL | ProjectA] ps (q1)"
     [| do
@@ -220,11 +220,11 @@ noOpProject q =
         predicate $ all (uncurry (==)) $ zip ([1..] :: [DBCol]) $(v "ps")
         
         return $ do
-          logRewriteM "Redundant.NoOpProject" q
-          relinkParentsM q $(v "q1") |])
+          logRewrite "Redundant.NoOpProject" q
+          relinkParents q $(v "q1") |])
           
 -- Remove a ToDescr operator whose input is already a descriptor vector
-toDescr :: Rule VL BottomUpProps
+toDescr :: VLRule BottomUpProps
 toDescr q =
   $(pattern [| q |] "ToDescr (q1)"
     [| do
@@ -233,10 +233,10 @@ toDescr q =
           VProp DescrVector -> return ()
           _                 -> fail "no match"
         return $ do
-          logRewriteM "Redundant.ToDescr" q
-          relinkParentsM q $(v "q1") |])
+          logRewrite "Redundant.ToDescr" q
+          relinkParents q $(v "q1") |])
 
-pairedProjections :: Rule VL BottomUpProps
+pairedProjections :: VLRule BottomUpProps
 pairedProjections q = 
   $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
     [| do
@@ -246,11 +246,11 @@ pairedProjections q =
         return $ do
           if ($(v "ps1") ++ $(v "ps2")) == [1 .. w] 
             then do
-              logRewriteM "Redundant.PairedProjections.NoOp" q
-              relinkParentsM q $(v "q1")
+              logRewrite "Redundant.PairedProjections.NoOp" q
+              relinkParents q $(v "q1")
             else do
-              logRewriteM "Redundant.PairedProjections.Reorder" q
+              logRewrite "Redundant.PairedProjections.Reorder" q
               let op = UnOp (ProjectValue (DescrIdentity, PosIdentity, map PLCol $ $(v "ps1") ++ $(v "ps2"))) $(v "q1")
-              projectNode <- insertM op
-              relinkParentsM q projectNode |])
+              projectNode <- insert op
+              relinkParents q projectNode |])
   

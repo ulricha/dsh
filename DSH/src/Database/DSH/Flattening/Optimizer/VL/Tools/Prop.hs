@@ -8,7 +8,7 @@ import qualified Data.Map as M
 import qualified Data.ByteString.Lazy as B
   
 import Database.Algebra.Dag
-import Database.Algebra.Rewrite(Log, runRewrite)
+import Database.Algebra.Rewrite(Log, runDefaultRewrite)
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
@@ -49,6 +49,6 @@ main = do
     plan <- input
     
     let (_, rs, m) = deserializePlan plan
-        (_, propertyMap, _) = runRewrite inferBottomUp (mkDag m rs)
+        (_, propertyMap, _) = runDefaultRewrite inferBottomUp (mkDag m rs)
         tagMap = M.map renderBottomUpProps propertyMap
     B.putStr $ serializePlan (tagMap, rs, m)

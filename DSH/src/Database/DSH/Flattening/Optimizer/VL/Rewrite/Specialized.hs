@@ -14,10 +14,10 @@ import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorSchema
 import Optimizer.VL.Rewrite.Common
   
-introduceSpecializedOperators :: DagRewrite VL Bool
+introduceSpecializedOperators :: VLRewrite Bool
 introduceSpecializedOperators = preOrder inferBottomUp specializedRules
                                 
-specializedRules :: RuleSet VL BottomUpProps
+specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProd 
                    , thetaJoin ]
                    
@@ -61,7 +61,7 @@ inputs.
            q1   q2
               
 -}
-cartProd :: Rule VL BottomUpProps
+cartProd :: VLRule BottomUpProps
 cartProd q =
   $(pattern [| q |] "R1 ((distInput) DistLift (d=ToDescr (right=R1 ((leftInput) DistDesc (ToDescr (rightInput))))))"
     [| do
@@ -73,15 +73,15 @@ cartProd q =
         let (w1, w2) = (schemaWidth s1, schemaWidth s2)
 
         return $ do
-          logRewriteM "Specialized.CartProd" q
+          logRewrite "Specialized.CartProd" q
           let prodOp = BinOp CartProductFlat $(v "leftInput") $(v "rightInput")
-          prodNode <- insertM prodOp
+          prodNode <- insert prodOp
           let projLeft = UnOp (ProjectL [1 .. w1]) prodNode
               projRight = UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodNode
-          projLeftNode <- insertM projLeft
-          projRightNode <- insertM projRight
-          relinkParentsM q projRightNode
-          relinkParentsM $(v "right") projLeftNode |])
+          projLeftNode <- insert projLeft
+          projRightNode <- insert projRight
+          relinkParents q projRightNode
+          relinkParents $(v "right") projLeftNode |])
 
 {- 
 
@@ -110,14 +110,14 @@ is rewritten into
                      q1     q2 
 -}
 
-thetaJoin :: Rule VL BottomUpProps
+thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
   $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1 expr (q2=(_) CartProductFlat (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewriteM "Specialized.EquiJoin" q
+          logRewrite "Specialized.EquiJoin" q
           let joinOp = BinOp (ThetaJoinFlat $(v "expr")) $(v "qi1") $(v "qi2")
-          joinNode <- insertM joinOp
-          relinkParentsM q joinNode |])
+          joinNode <- insert joinOp
+          relinkParents q joinNode |])
