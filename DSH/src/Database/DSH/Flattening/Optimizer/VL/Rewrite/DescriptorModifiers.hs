@@ -7,6 +7,10 @@ import Debug.Trace
 import Data.Functor
 import Control.Monad
 
+import Optimizer.Common.Match
+import Optimizer.Common.Traversal
+
+import Optimizer.Common.Shape
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorSchema
 import Optimizer.VL.Rewrite.Common
@@ -28,7 +32,7 @@ hasConstDesc _                                        = False
                  
 -- Walk down a chain of descriptor modifiers and return the first
 -- non-descriptor modifier if it is constant. Otherwise, fail the match.
-searchConstantDescr :: AlgNode -> Match VL BottomUpProps AlgNode
+searchConstantDescr :: AlgNode -> OptMatch VL BottomUpProps AlgNode
 searchConstantDescr q = do
   op <- getOperator q
   case op of

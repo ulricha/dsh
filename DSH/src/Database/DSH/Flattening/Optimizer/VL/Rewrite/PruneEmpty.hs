@@ -7,9 +7,12 @@ import Control.Applicative
 
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
+  
+import Optimizer.Common.Match
+import Optimizer.Common.Traversal
 
-import Database.Algebra.Dag.Common
 import Database.Algebra.Rewrite
+import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
 pruneEmpty :: VLRewrite Bool
@@ -22,7 +25,7 @@ emptyRules = [ emptyAppendLeftR1
              , emptyAppendRightR2
              ]
              
-isEmpty :: AlgNode -> Match VL BottomUpProps Bool
+isEmpty :: AlgNode -> OptMatch VL BottomUpProps Bool
 isEmpty q = do
   ps <- liftM emptyProp $ properties q
   case ps of

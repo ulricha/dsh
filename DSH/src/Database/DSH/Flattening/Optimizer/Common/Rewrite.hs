@@ -7,10 +7,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.State
   
-import qualified Data.Set as S
-
 import Database.Algebra.Dag
-import Database.Algebra.Dag.Common
 import qualified Database.Algebra.Rewrite as DR
   
 import Optimizer.Common.Shape
@@ -62,3 +59,4 @@ instance DR.DagRewrite (OptRewrite o) o where
     s <- get
     put $ updateShape oldRoot newRoot s
     lift $ DR.replaceRoot oldRoot newRoot
+
