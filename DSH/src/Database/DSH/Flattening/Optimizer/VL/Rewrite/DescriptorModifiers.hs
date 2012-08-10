@@ -55,6 +55,34 @@ constantDescriptorChain q =
           logRewrite "DescriptorModifiers.ConstantDescriptorChain" q
           op <- operator chainStart
           replace q op |])
+
+-- Remove a Segment operator if the node represents the outermost
+-- query. In this case, the descriptor is irrelevant and any operator
+-- which just modifies the descriptor can safely be removed.
+outerMostRootSegment :: VLRule BottomUpProps
+outerMostRootSegment q =
+  $(pattern [| q |] "Segment (q1)"
+    [| do
+        predicate <$> isOuterMost q <$> getShape
+        
+        return $ do
+          logRewrite "DescriptorModifiers.OuterMostRootSegment" q
+          relinkParents q $(v "q1")
+          replaceRoot q $(v "q1") |])
+  
+-- Remove a PropRename operator if the node represents the outermost
+-- query. In this case, the descriptor is irrelevant and any operator
+-- which just modifies the descriptor can safely be removed.
+outerMostRootPropRename :: VLRule BottomUpProps
+outerMostRootPropRename q =
+  $(pattern [| q |] "(_) PropRename (q1)"
+    [| do
+        predicate <$> isOuterMost q <$> getShape
+        
+        return $ do
+          logRewrite "DescriptorModifiers.OuterMostRootPropRename" q
+          relinkParents q $(v "q1")
+          replaceRoot q $(v "q1") |])
   
 -- FIXME this is a weak version. Use abstract knowledge about index space transformations
 -- to establish the no op property.
