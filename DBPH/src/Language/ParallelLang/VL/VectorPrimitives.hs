@@ -58,7 +58,7 @@ class VectorAlgebra a where
   reverseL :: DBV -> GraphM r a (DBV, PropVector)
   falsePositions :: DBV -> GraphM r a DBV
   cartProductFlat :: DBV -> DBV -> GraphM r a DBV
-  thetaJoinFlat :: (VecOp, DBCol, DBCol) -> DBV -> DBV -> GraphM r a DBV
+  thetaJoinFlat :: Expr1 -> DBV -> DBV -> GraphM r a DBV
   selectItem :: DBV -> GraphM r a DBV
   projectRename :: ISTransProj -> ISTransProj -> DBV -> GraphM r a RenameVector
   projectValue :: DescrProj -> PosProj -> [PayloadProj] -> DBV -> GraphM r a DBV

@@ -23,7 +23,8 @@ Library
                       X100Client >= 0.0.2,
                       aeson >= 0.6,
                       bytestring >= 0.9,
-                      ghc-prim
+                      ghc-prim,
+                      Optimizer
     Hs-Source-Dirs:   src
     
     GHC-Options:       -O3 -Wall -fno-warn-type-defaults -fno-warn-orphans -Werror
@@ -74,4 +75,5 @@ executable vltox100
                       X100Client >= 0.0.2,
                       aeson >= 0.6,
                       bytestring >= 0.9,
+                      Optimizer,
                       ghc-prim

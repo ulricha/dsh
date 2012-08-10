@@ -19,12 +19,8 @@ import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph, node, getNode)
 import Language.ParallelLang.VL.PathfinderVectorPrimitives()
 import Database.Algebra.Pathfinder(initLoop)
   
-import qualified Data.ByteString.Lazy.Char8 as BL
-
 import qualified Data.Map as M
   
-import Data.Aeson(encode)
-
 import Language.ParallelLang.Translate.FKL2VL()
 import Language.ParallelLang.VL.X100VectorPrimitives()
 import Database.Algebra.Aux
@@ -41,6 +37,8 @@ import qualified Language.ParallelLang.VL.Data.GraphVector as GV
 import Database.Algebra.VL.Data hiding (DBCol)
 import qualified Database.Algebra.VL.Render.JSON as VLJSON
 import qualified Database.Algebra.VL.Data as V
+  
+import qualified Optimizer.Common.Shape as S
 
 import Control.Monad.State
 
@@ -300,7 +298,17 @@ toVLFile prefix (m, r, t) = do
     let planPath = prefix ++ "_vl.plan"
         shapePath = prefix ++ "_shape.plan"
     VLJSON.planToFile planPath (t, rootNodes r, reverseAlgMap m)
-    BL.writeFile shapePath $ encode r
+    writeFile shapePath $ show $ exportShape r
+    
+exportShape :: Shape -> S.Shape
+exportShape (Vec.ValueVector (DBV n cols) lyt) = S.ValueVector (S.DBV n cols) (exportLayout lyt)
+exportShape (Vec.PrimVal (DBP n cols) lyt)     = S.PrimVal (S.DBP n cols) (exportLayout lyt)
+exportShape s                              = error $ "exportShape: impossible top-level shape " ++ (show s)
+
+exportLayout :: Layout -> S.Layout
+exportLayout (Vec.InColumn i)            = S.InColumn i
+exportLayout (Vec.Nest (DBV n cols) lyt) = S.Nest (S.DBV n cols) (exportLayout lyt)
+exportLayout (Vec.Pair lyt1 lyt2)        = S.Pair (exportLayout lyt1) (exportLayout lyt2)
     
 toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
