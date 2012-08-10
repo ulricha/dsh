@@ -16,7 +16,9 @@ Cabal-version:       >=1.2
 Library
   Hs-Source-Dirs:   src
   -- Modules exported by the library.
-  Exposed-modules:     Optimizer.X100.OptimizeX100
+  Exposed-modules:     Optimizer.X100.OptimizeX100,
+                       Optimizer.VL.OptimizeVL,
+                       Optimizer.Common.Shape
   
   -- Packages needed in order to build this package.
   Build-depends:       base,
@@ -29,8 +31,33 @@ Library
                        TableAlgebra >= 2.0.0
   
   -- Modules not exported by this package.
-  Other-modules:       Optimizer.X100.Rewrite.PruneEmpty
+  Other-modules:       Optimizer.Common.Match
+                       Optimizer.Common.Rewrite
+                       Optimizer.Common.Traversal
+
                        Optimizer.X100.Rewrite.Common
+                       Optimizer.X100.Rewrite.ConstOpt
+                       Optimizer.X100.Rewrite.JoinPushdown
+                       Optimizer.X100.Rewrite.Key
+                       Optimizer.X100.Rewrite.ProjectionMerge
+                       Optimizer.X100.Rewrite.PruneColumns
+                       Optimizer.X100.Rewrite.PruneEmpty
+                       Optimizer.X100.Rewrite.PruneJoins
+
+                       Optimizer.VL.Properties.BottomUp
+                       Optimizer.VL.Properties.Types
+                       Optimizer.VL.Properties.Common
+                       Optimizer.VL.Properties.Const
+                       Optimizer.VL.Properties.Empty
+                       Optimizer.VL.Properties.VectorSchema
+
+                       Optimizer.VL.Rewrite.Common
+                       Optimizer.VL.Rewrite.DescriptorModifiers
+                       Optimizer.VL.Rewrite.Expressions
+                       Optimizer.VL.Rewrite.MergeProjections
+                       Optimizer.VL.Rewrite.PruneEmpty
+                       Optimizer.VL.Rewrite.Redundant
+                       Optimizer.VL.Rewrite.Specialized
 
   GHC-Options: -O3 -Wall
 
