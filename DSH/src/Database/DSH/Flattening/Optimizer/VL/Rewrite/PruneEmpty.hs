@@ -21,6 +21,7 @@ pruneEmpty = postOrder inferBottomUp emptyRules
 emptyRules :: VLRuleSet BottomUpProps
 emptyRules = [ emptyAppendLeftR1
              , emptyAppendLeftR3
+             , emptyAppendRightR3
              , emptyAppendRightR1
              , emptyAppendRightR2
              ]
@@ -47,7 +48,7 @@ emptyAppendLeftR1 q =
   
 {- If the left input is empty, a propagation vector for the right side
 needs to be generated nevertheless. However, since no input comes from
-the right side, the propagation vector is simply a NOOP because it
+the left side, the propagation vector is simply a NOOP because it
 maps pos (posold) to pos (posnew). -}
 emptyAppendLeftR3 :: VLRule BottomUpProps
 emptyAppendLeftR3 q =
@@ -55,8 +56,21 @@ emptyAppendLeftR3 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
-          logRewrite "Empty.Append.Left.R3" q
+          logRewrite "Empty.Append.Right.R3" q
           replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
+
+{- If the right input is empty, a propagation vector for the left side
+needs to be generated nevertheless. However, since no input comes from
+the right side, the propagation vector is simply a NOOP because it
+maps pos (posold) to pos (posnew). -}
+emptyAppendRightR3 :: VLRule BottomUpProps
+emptyAppendRightR3 q =
+  $(pattern [| q |] "R3 ((q1) Append (q2))"
+    [| do
+        predicate =<< ((&&) <$> (not <$> isEmpty $(v "q1")) <*> (isEmpty $(v "q2")))
+        return $ do
+          logRewrite "Empty.Append.Right.R3" q
+          replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
           
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
