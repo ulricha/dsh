@@ -39,7 +39,7 @@ searchConstantDescr q = do
     BinOp PropRename _ c2 -> searchConstantDescr c2
     UnOp Segment c -> searchConstantDescr c
     _ -> do
-      predicate <$> (hasConstDesc . constProp) <$> properties q
+      predicate =<< (hasConstDesc . constProp) <$> properties q
       return q
                  
 {- Try to find a chain of descriptor-modifying operators (e.g. PropRename, Segment) which
@@ -48,7 +48,7 @@ constantDescriptorChain :: VLRule BottomUpProps
 constantDescriptorChain q = 
   $(pattern [| q |] "(_) PropRename (qv)"
     [| do
-        predicate <$> (hasConstDesc . constProp) <$> properties q
+        predicate =<< (hasConstDesc . constProp) <$> properties q
         chainStart <- searchConstantDescr $(v "qv")
         
         return $ do
@@ -63,7 +63,7 @@ outerMostRootSegment :: VLRule BottomUpProps
 outerMostRootSegment q =
   $(pattern [| q |] "Segment (q1)"
     [| do
-        predicate <$> isOuterMost q <$> getShape
+        predicate =<<isOuterMost q <$> getShape
         
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootSegment" q
@@ -77,7 +77,7 @@ outerMostRootPropRename :: VLRule BottomUpProps
 outerMostRootPropRename q =
   $(pattern [| q |] "(_) PropRename (q1)"
     [| do
-        predicate <$> isOuterMost q <$> getShape
+        predicate =<< isOuterMost q <$> getShape
         
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootPropRename" q
