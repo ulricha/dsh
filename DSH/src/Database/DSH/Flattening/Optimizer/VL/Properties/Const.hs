@@ -42,12 +42,18 @@ inferConstVecNullOp op =
   case op of
     SingletonDescr                    -> return $ VProp $ DescrVecConst $ ConstDescr $ N 1
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    ConstructLiteralTable _ rows      -> return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
-      where constCols       = map col $ drop 2 $ transpose rows
-            col col@(c : _) = if all (c ==) col 
-                              then ConstPL c 
-                              else NonConstPL
-    ConstructLiteralValue _ vals      -> return $ VProp $ DBPConst $ map ConstPL $ drop 2 vals
+    ConstructLiteralTable colTypes rows      -> 
+      if null rows
+      then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
+      else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
+        where constCols       = map col $ drop 2 $ transpose rows
+              col col@(c : _) = if all (c ==) col 
+                                then ConstPL c 
+                                else NonConstPL
+    ConstructLiteralValue colTypes vals      -> 
+      if null vals
+      then return $ VProp $ DBPConst $ map (const NonConstPL) colTypes
+      else return $ VProp $ DBPConst $ map ConstPL $ drop 2 vals
     TableRef              _ cols _    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
   
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
