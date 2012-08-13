@@ -38,7 +38,7 @@ emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
-        predicate <$> ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
+        predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do
           logRewrite "Empty.Append.Left.R1" q
@@ -53,7 +53,7 @@ emptyAppendLeftR3 :: VLRule BottomUpProps
 emptyAppendLeftR3 q =
   $(pattern [| q |] "R3 ((q1) Append (q2))"
     [| do
-        predicate <$> ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
+        predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
           logRewrite "Empty.Append.Left.R3" q
           replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
@@ -62,7 +62,7 @@ emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
   $(pattern [| q |] "R1 ((q1) Append (q2))"
     [| do
-        predicate <$> ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
+        predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewrite "Empty.Append.Right.R1" q
           replaceRoot q $(v "q1")
@@ -72,7 +72,7 @@ emptyAppendRightR2 :: VLRule BottomUpProps
 emptyAppendRightR2 q =
   $(pattern [| q |] "R2 ((q1) Append (q2))"
     [| do
-        predicate <$> ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
+        predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewrite "Empty.Append.Right.R2" q
           replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
