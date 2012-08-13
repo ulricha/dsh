@@ -23,7 +23,10 @@ stripFromRoot :: VLRewrite Bool
 stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
 
 descriptorNoOps :: VLRuleSet BottomUpProps
-descriptorNoOps = [ constantDescriptorChain, noOpRenaming ]
+descriptorNoOps = [ constantDescriptorChain
+                  , noOpRenaming
+                  , outerMostRootSegment
+                  , outerMostRootPropRename ]
                  
 hasConstDesc :: VectorProp ConstVec -> Bool
 hasConstDesc (VProp (DBVConst (ConstDescr _) _))      = True
