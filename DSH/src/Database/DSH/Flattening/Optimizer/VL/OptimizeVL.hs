@@ -35,7 +35,7 @@ cleanup :: OptRewrite VL Bool
 cleanup = pruneUnused >> return True
   
 runPipeline :: Dag.AlgebraDag VL -> Shape -> [RewriteClass] -> (Dag.AlgebraDag VL, Log, Shape)
-runPipeline d sh pipeline = (d', rewriteLog, sh)
+runPipeline d sh pipeline = (d', rewriteLog, sh')
   where (d', sh', rewriteLog) = runOptRewrite (sequence_ pipeline) sh d
 
 assemblePipeline :: String -> Maybe [RewriteClass]
