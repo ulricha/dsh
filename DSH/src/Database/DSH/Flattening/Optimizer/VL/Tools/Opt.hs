@@ -83,6 +83,6 @@ main = do
         rs' = rootNodes dag'
     if verbose then F.mapM_ (\l -> hPutStrLn stderr l) rewriteLog else return ()
     B.putStr $ serializePlan (tags, rs', m')
-    writeFile shapeFile $ show shape'
+    writeFile ("opt_" ++ shapeFile) $ show shape'
 
 
