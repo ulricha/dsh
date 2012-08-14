@@ -3,7 +3,7 @@ module Language.ParallelLang.VL.VectorOperations where
 
 import Language.ParallelLang.Common.Impossible
 
-import Database.Algebra.VL.Data (VL(), VLVal(..))
+import Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
 
 import Language.ParallelLang.VL.Data.GraphVector
 import Language.ParallelLang.VL.Data.DBVector
@@ -256,13 +256,11 @@ orLift _ = error "orLift: Should not be possible"
                                         
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
-                                     p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                     (_, prop) <- selectPos d Eq p
+                                     (_, prop) <- selectPos1 d Eq (N 1)
                                      (Nest q' lyt') <- chainRenameFilter prop lyt
                                      return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-                            p <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                            (q', prop) <- selectPos d Eq p
+                            (q', prop) <- selectPos1 d Eq (N 1)
                             lyt' <- chainRenameFilter prop lyt
                             flip PrimVal lyt' <$> only q'
 the _ = error "the: Should not be possible"
@@ -277,9 +275,7 @@ tailS _ = error "tailS: Should not be possible"
 
 theL ::  Shape -> Graph VL Shape
 theL (ValueVector d (Nest q lyt)) = do
-                                      one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                      (p, _) <- distPrim one =<< toDescr d
-                                      (v, p2) <- selectPosLift q Eq p 
+                                      (v, p2) <- selectPos1Lift q Eq (N 1)
                                       prop <- descToRename =<< toDescr d
                                       lyt' <- chainRenameFilter p2 lyt
                                       (v', _) <- propFilter prop v

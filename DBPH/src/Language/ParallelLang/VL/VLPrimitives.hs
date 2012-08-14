@@ -218,9 +218,23 @@ selectPos (DBV c1 _) op (DBP c2 _) = do
                                         r2 <- rename $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
+selectPos1 :: DBV -> O.Oper -> Nat -> GraphM r VL (DBV, RenameVector)
+selectPos1 (DBV c1 _) op posConst = do
+                                        r <- insertNode $ UnOp (SelectPos1 (operToCompOp op) posConst) c1
+                                        r1 <- dbv $ insertNode $ UnOp R1 r
+                                        r2 <- rename $ insertNode $ UnOp R2 r
+                                        return (r1, r2)
+
 selectPosLift :: DBV -> O.Oper -> DBV -> GraphM r VL (DBV, RenameVector)
 selectPosLift (DBV c1 _) op (DBV c2 _) = do
                                           r <- insertNode $ BinOp (SelectPosL (operToCompOp op)) c1 c2
+                                          r1 <- dbv $ insertNode $ UnOp R1 r
+                                          r2 <- rename $ insertNode $ UnOp R2 r
+                                          return (r1, r2)
+
+selectPos1Lift :: DBV -> O.Oper -> Nat -> GraphM r VL (DBV, RenameVector)
+selectPos1Lift (DBV c1 _) op posConst = do
+                                          r <- insertNode $ UnOp (SelectPos1L (operToCompOp op) posConst) c1
                                           r1 <- dbv $ insertNode $ UnOp R1 r
                                           r2 <- rename $ insertNode $ UnOp R2 r
                                           return (r1, r2)
