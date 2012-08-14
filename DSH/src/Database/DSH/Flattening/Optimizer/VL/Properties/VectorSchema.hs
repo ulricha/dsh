@@ -52,6 +52,8 @@ inferSchemaUnOp s op =
     ReverseA -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseL -> liftM2 VPropPair (unpack s) (Right PropVector)
     FalsePositions -> Right $ VProp $ ValueVector 1
+    SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SelectPos1L _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1

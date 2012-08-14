@@ -93,6 +93,14 @@ inferConstVecUnOp c op =
 
     VecMaxL -> return c
 
+    SelectPos1 _ _ -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+
+    SelectPos1L _ _ -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+
     ProjectL ps -> do
       (d, cols) <- unp c >>= fromDBV
       let cols' = map (\p -> cols !! (p - 1)) ps

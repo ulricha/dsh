@@ -56,6 +56,8 @@ inferEmptyUnOp e op =
     Only             -> undefined
     Singleton        -> undefined
     CompExpr1 _ -> Right e
+    SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
+    SelectPos1L _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     R1 -> 
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
