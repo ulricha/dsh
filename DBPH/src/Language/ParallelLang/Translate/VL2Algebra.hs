@@ -259,6 +259,12 @@ translateUnOp u c = case u of
                                         (d, p) <- reverseL (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)
                       FalsePositions -> liftM fromDBV $ falsePositions (toDBV c)
+                      SelectPos1 op pos -> do
+                                         (d, p) <- selectPos1 (toDBV c) op pos
+                                         return $ RPair (fromDBV d) (fromRenameVector p)
+                      SelectPos1L op pos -> do
+                                          (d, p) <- selectPos1Lift (toDBV c) op pos
+                                          return $ RPair (fromDBV d) (fromRenameVector p)
                       R1            -> case c of
                                          (RPair c1 _)     -> return c1
                                          (RTriple c1 _ _) -> return c1

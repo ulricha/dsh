@@ -46,19 +46,24 @@ typeToVLType t = case t of
   
 operToVecOp :: O.Oper -> D.VecOp
 operToVecOp op = case op of
-  O.Add -> D.Add
-  O.Sub  -> D.Sub 
-  O.Div  -> D.Div 
-  O.Mul  -> D.Mul 
-  O.Mod  -> D.Mod 
+  O.Add -> D.NOp D.Add
+  O.Sub  -> D.NOp D.Sub 
+  O.Div  -> D.NOp D.Div 
+  O.Mul  -> D.NOp D.Mul 
+  O.Mod  -> D.NOp D.Mod 
+  O.Cons  -> D.Cons 
+  O.Conj  -> D.BOp D.Conj 
+  O.Disj  -> D.BOp D.Disj 
+  _       -> D.COp $ operToCompOp op
+  
+operToCompOp :: O.Oper -> D.VecCompOp
+operToCompOp op = case op of
   O.Eq   -> D.Eq  
   O.Gt   -> D.Gt  
   O.GtE  -> D.GtE 
   O.Lt   -> D.Lt  
   O.LtE  -> D.LtE 
-  O.Cons  -> D.Cons 
-  O.Conj  -> D.Conj 
-  O.Disj  -> D.Disj 
+  _      -> error "VLPrimitives.operToComOp: not a comparison operator"
   
 unique :: DBV -> GraphM r VL DBV
 unique (DBV c _) = dbv $ insertNode $ UnOp Unique c
@@ -208,14 +213,14 @@ vecMaxLift (DBV c _) = dbv $ insertNode $ UnOp VecMaxL c
 
 selectPos :: DBV -> O.Oper -> DBP -> GraphM r VL (DBV, RenameVector)
 selectPos (DBV c1 _) op (DBP c2 _) = do
-                                        r <- insertNode $ BinOp (SelectPos (operToVecOp op)) c1 c2
+                                        r <- insertNode $ BinOp (SelectPos (operToCompOp op)) c1 c2
                                         r1 <- dbv $ insertNode $ UnOp R1 r
                                         r2 <- rename $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
 selectPosLift :: DBV -> O.Oper -> DBV -> GraphM r VL (DBV, RenameVector)
 selectPosLift (DBV c1 _) op (DBV c2 _) = do
-                                          r <- insertNode $ BinOp (SelectPosL (operToVecOp op)) c1 c2
+                                          r <- insertNode $ BinOp (SelectPosL (operToCompOp op)) c1 c2
                                           r1 <- dbv $ insertNode $ UnOp R1 r
                                           r2 <- rename $ insertNode $ UnOp R2 r
                                           return (r1, r2)

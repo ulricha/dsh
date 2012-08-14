@@ -45,7 +45,9 @@ instance VectorAlgebra PFAlgebra where
   vecSum = vecSumPF
   vecSumLift = vecSumLiftPF
   selectPos = selectPosPF
+  selectPos1 = undefined
   selectPosLift = selectPosLiftPF
+  selectPos1Lift = undefined
   integerToDoubleA (DBP q _) = flip DBP [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
   integerToDoubleL (DBV q _) = flip DBV [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
   projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
@@ -122,7 +124,7 @@ resCol    = "item99999001"
 tmpCol    = "item99999002"
 tmpCol'   = "item99999003"
 
-selectPosLiftPF :: DBV -> VL.VecOp -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
+selectPosLiftPF :: DBV -> VL.VecCompOp -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosLiftPF (DBV qe cols) op (DBV qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -143,7 +145,7 @@ selectPosLiftPF (DBV qe cols) op (DBV qi _) =
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ (DBV q cols, RenameVector qp)
 
-selectPosPF :: DBV -> VL.VecOp -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
+selectPosPF :: DBV -> VL.VecCompOp -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
 selectPosPF (DBV qe cols) op (DBP qi _) =
     do
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -226,25 +228,25 @@ applyBinOp op q1 q2 =
     $ proj [(tmpCol, item), (pos', pos)] q2
 
 binOpLPF :: VL.VecOp -> DBV -> DBV -> GraphM r PFAlgebra DBV
-binOpLPF op (DBV q1 _) (DBV q2 _) | op == VL.GtE = do
-                                             q1' <- applyBinOp VL.Gt q1 q2
-                                             q2' <- applyBinOp VL.Eq q1 q2
-                                             flip DBV [1] <$> applyBinOp VL.Disj q1' q2'
-                              | op == VL.LtE = do
-                                             q1' <- applyBinOp VL.Lt q1 q2
-                                             q2' <- applyBinOp VL.Eq q1 q2
-                                             flip DBV [1] <$> applyBinOp VL.Disj q1' q2'
+binOpLPF op (DBV q1 _) (DBV q2 _) | op == (VL.COp VL.GtE) = do
+                                             q1' <- applyBinOp (VL.COp VL.Gt) q1 q2
+                                             q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
+                                             flip DBV [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
+                              | op == (VL.COp VL.LtE) = do
+                                             q1' <- applyBinOp (VL.COp VL.Lt) q1 q2
+                                             q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
+                                             flip DBV [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
                               | otherwise = flip DBV [1] <$> applyBinOp op q1 q2
 
 binOpPF :: VL.VecOp -> DBP -> DBP -> GraphM r PFAlgebra DBP
-binOpPF op (DBP q1 _) (DBP q2 _) | op == VL.GtE = do
-                                            q1' <- applyBinOp VL.Gt q1 q2
-                                            q2' <- applyBinOp VL.Eq q1 q2
-                                            flip DBP [1] <$> applyBinOp VL.Disj q1' q2'
-                             | op == VL.LtE = do
-                                           q1' <- applyBinOp VL.Lt q1 q2
-                                           q2' <- applyBinOp VL.Eq q1 q2
-                                           flip DBP [1] <$> applyBinOp VL.Disj q1' q2'
+binOpPF op (DBP q1 _) (DBP q2 _) | op == (VL.COp VL.GtE) = do
+                                            q1' <- applyBinOp (VL.COp VL.Gt) q1 q2
+                                            q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
+                                            flip DBP [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
+                             | op == (VL.COp VL.LtE) = do
+                                           q1' <- applyBinOp (VL.COp VL.Lt) q1 q2
+                                           q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
+                                           flip DBP [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
                              | otherwise = flip DBP [1] <$> applyBinOp op q1 q2
                                              
 sortWithPF :: DBV -> DBV -> GraphM r PFAlgebra (DBV, PropVector)

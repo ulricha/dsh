@@ -11,7 +11,7 @@ import System.Console.GetOpt
 import qualified Data.Map as M
   
 import qualified Data.ByteString.Lazy.Char8 as BL
-
+  
 import Language.ParallelLang.Translate.VL2Algebra
 import Language.ParallelLang.Translate.FKL2VL()
   
