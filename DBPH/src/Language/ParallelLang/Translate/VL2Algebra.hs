@@ -5,6 +5,8 @@ module Language.ParallelLang.Translate.VL2Algebra
        , toX100String
        , toX100File
        , vlDagtoX100Dag
+       , importShape
+       , exportShape
        , toVLFile) where
 
 import Data.List(intercalate)
@@ -283,11 +285,11 @@ toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
 toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
 toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
                           
-vlDagtoX100Dag :: AlgebraDag VL -> Shape -> AlgebraDag X100Algebra
+vlDagtoX100Dag :: AlgebraDag VL -> Shape -> (AlgebraDag X100Algebra, Shape)
 vlDagtoX100Dag vlDag shape = 
   let vlplan = ((reverseMap $ nodeMap vlDag), shape, M.empty)
       (m, shape', _) = toX100Algebra vlplan
-  in mkDag (reverseMap m) (rootNodes shape')
+  in (mkDag (reverseMap m) (rootNodes shape'), shape')
 
 toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
@@ -299,6 +301,14 @@ toVLFile prefix (m, r, t) = do
         shapePath = prefix ++ "_shape.plan"
     VLJSON.planToFile planPath (t, rootNodes r, reverseAlgMap m)
     writeFile shapePath $ show $ exportShape r
+importShape :: S.Shape -> Shape
+importShape (S.ValueVector (S.DBV n cols) lyt) = Vec.ValueVector (DBV n cols) (importLayout lyt)
+importShape (S.PrimVal (S.DBP n cols) lyt)     = Vec.PrimVal (DBP n cols) (importLayout lyt)
+
+importLayout :: S.Layout -> Layout
+importLayout (S.InColumn i)              = Vec.InColumn i
+importLayout (S.Nest (S.DBV n cols) lyt) = Vec.Nest (DBV n cols) (importLayout lyt)
+importLayout (S.Pair lyt1 lyt2)          = Vec.Pair (importLayout lyt1) (importLayout lyt2)
     
 exportShape :: Shape -> S.Shape
 exportShape (Vec.ValueVector (DBV n cols) lyt) = S.ValueVector (S.DBV n cols) (exportLayout lyt)
