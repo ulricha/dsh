@@ -31,8 +31,8 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ mergeStackedDistDesc 
-                 -- , restrictCombineDBV 
-                 -- , restrictCombinePropLeft 
+                 , restrictCombineDBV 
+                 , restrictCombinePropLeft 
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectPayload
@@ -45,6 +45,7 @@ redundantRulesWithProperties :: VLRuleSet BottomUpProps
 redundantRulesWithProperties = [ pairFromSameSource 
                                , pairedProjections
                                , noOpProject
+                               , distDescCardOne
                                , toDescr ]
                  
 mergeStackedDistDesc :: VLRule ()
@@ -248,4 +249,30 @@ pairedProjections q =
               let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
               relinkParents q projectNode |])
+
+-- If we encounter a DistDesc which distributes a vector of size one
+-- over a descriptor (that is, the cardinality of the descriptor
+-- vector does not change), replace the DistDesc by a projection which
+-- just adds the (constant) values from the value vector
+distDescCardOne :: VLRule BottomUpProps
+distDescCardOne q =
+  $(pattern [| q |] "R1 ((qc) DistDesc (ToDescr (qv)))"
+    [| do
+        qvProps <- properties $(v "qc")
+        predicate $ case card1Prop qvProps of
+                      VProp c -> c
+                      _       -> error "distDescCardOne: no single property"
+       
+        let constVal (ConstPL v) = return $ PLConst v
+            constVal _           = fail "no match"
+       
+        
+        constProjs <- case constProp qvProps of
+          VProp (DBVConst _ cols) -> mapM constVal cols
+          _                       -> fail "no match"
+          
+        return $ do
+          logRewrite "distDescCardOne" q
+          replace q $ UnOp (ProjectPayload constProjs) $(v "qv") |])
+          
   
