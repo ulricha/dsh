@@ -40,11 +40,17 @@ inferCardOneUnOp c op =
     VecMaxL -> Right c
     ProjectL _ -> Right c
     ProjectA _ -> Right c
+    ProjectPayload _ -> Right c
+    ProjectAdmin _ -> Right c
+    ProjectRename _ -> Right c
     IntegerToDoubleA -> Right c
     IntegerToDoubleL -> Right c
     ReverseA -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseL -> unp c >>= (\uc -> return $ VPropPair uc uc)
     FalsePositions -> Right c
+    SelectPos1 _ _ -> Right $ VPropPair False False
+    SelectPos1L _ _ -> Right $ VPropPair False False
+    SelectItem -> Right $ VProp False
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -66,15 +72,15 @@ inferCardOneBinOp c1 c2 op =
     GroupBy -> return $ VPropTriple False False False
     SortWith -> return $ VPropPair False False
     LengthSeg -> return $ VProp False
-    DistPrim -> return $ VProp False
-    DistDesc -> return $ VProp False
-    DistLift -> return $ VProp False
+    DistPrim -> return $ VPropPair False False
+    DistDesc -> return $ VPropPair False False
+    DistLift -> return $ VPropPair False False
     PropRename -> return $ VProp False
-    PropFilter -> return $ VProp False
-    PropReorder -> return $ VProp False
+    PropFilter -> return $ VPropPair False False
+    PropReorder -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
-    Append -> Right $ VProp False
-    RestrictVec -> Right $ VProp False
+    Append -> Right $ VPropTriple False False False
+    RestrictVec -> Right $ VPropPair False False
     CompExpr2 _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CompExpr2L _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     VecSumL -> Right c1
