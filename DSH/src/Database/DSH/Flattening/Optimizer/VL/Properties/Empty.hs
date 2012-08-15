@@ -51,7 +51,8 @@ inferEmptyUnOp e op =
     ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
     ProjectRename _  -> Right e
-    ProjectValue _   -> Right e
+    ProjectPayload _   -> Right e
+    ProjectAdmin _   -> Right e
     SelectItem       -> Right e
     Only             -> undefined
     Singleton        -> undefined

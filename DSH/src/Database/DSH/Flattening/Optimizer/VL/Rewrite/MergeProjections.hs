@@ -13,7 +13,7 @@ import Optimizer.Common.Traversal
 import Optimizer.VL.Rewrite.Common
   
 mergeProjections :: VLRewrite Bool
-mergeProjections = preOrder (return M.empty) mergeRules
+mergeProjections = iteratively $ preOrder (return M.empty) mergeRules
 
 mergeRules :: VLRuleSet ()
 mergeRules = [ mergeProjectL ]

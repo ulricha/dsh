@@ -74,6 +74,7 @@ newtype TargetConstDescr = TC ConstDescr deriving Show
                        
 data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
                              , constProp :: VectorProp ConstVec
+                             , card1Prop :: VectorProp Bool
                              , vectorSchemaProp :: VectorProp Schema } deriving (Show)
                                                                                 
 class Renderable a where

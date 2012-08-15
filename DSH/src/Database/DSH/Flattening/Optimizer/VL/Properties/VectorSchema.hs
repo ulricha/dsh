@@ -69,7 +69,8 @@ inferSchemaUnOp s op =
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
     ProjectRename _ -> Right $ VProp RenameVector
-    ProjectValue (_, _, valProjs) -> Right $ VProp $ ValueVector $ length valProjs
+    ProjectPayload valProjs -> Right $ VProp $ ValueVector $ length valProjs
+    ProjectAdmin _ -> VProp <$> unpack s
     SelectItem -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined

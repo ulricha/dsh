@@ -26,16 +26,16 @@ removeRedundancy = iteratively $ sequenceRewrites [ cleanup
                                                   , preOrder inferBottomUp redundantRulesWithProperties ]
                    
 cleanup :: VLRewrite Bool
-cleanup = sequenceRewrites [ mergeProjections
-                           , optExpressions ]
+cleanup = iteratively $ sequenceRewrites [ mergeProjections
+                                         , optExpressions ]
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ mergeStackedDistDesc 
-                 , restrictCombineDBV 
-                 , restrictCombinePropLeft 
+                 -- , restrictCombineDBV 
+                 -- , restrictCombinePropLeft 
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
-                 , pushRestrictVecThroughProjectValue
+                 , pushRestrictVecThroughProjectPayload
                  , pullPropRenameThroughCompExpr2L
                  , pullPropRenameThroughIntegerToDouble
                  , mergeDescToRenames
@@ -116,24 +116,16 @@ pushRestrictVecThroughProjectL q =
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectValue).
-pushRestrictVecThroughProjectValue :: VLRule ()
-pushRestrictVecThroughProjectValue q =
-  $(pattern [| q |] "R1 ((ProjectValue p (q1)) RestrictVec (qb))"
+pushRestrictVecThroughProjectPayload :: VLRule ()
+pushRestrictVecThroughProjectPayload q =
+  $(pattern [| q |] "R1 ((ProjectPayload p (q1)) RestrictVec (qb))"
     [| do
-        -- Guard against projections that modify descriptors or positions.
-        -- This is to ensure that R2/R3 outputs of the RestrictVec do not 
-        -- need to change.
-        case $(v "p") of
-          (DescrIdentity, PosIdentity, _) -> return ()
-          _                               -> fail "no match"
-          
         return $ do
           logRewrite "Redundant.PushRestrictVecThroughProjectValue" q
           restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
           r1Node <- insert $ UnOp R1 restrictNode
-          projectNode <- insert $ UnOp (ProjectValue $(v "p")) r1Node
+          projectNode <- insert $ UnOp (ProjectPayload $(v "p")) r1Node
           relinkParents q projectNode |])
-  
         
 descriptorFromProject :: VLRule ()
 descriptorFromProject q =
@@ -253,7 +245,7 @@ pairedProjections q =
               relinkParents q $(v "q1")
             else do
               logRewrite "Redundant.PairedProjections.Reorder" q
-              let op = UnOp (ProjectValue (DescrIdentity, PosIdentity, map PLCol $ $(v "ps1") ++ $(v "ps2"))) $(v "q1")
+              let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
               relinkParents q projectNode |])
   

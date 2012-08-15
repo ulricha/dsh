@@ -136,18 +136,22 @@ inferConstVecUnOp c op =
             STNumber -> NonConstDescr
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
 
-    ProjectValue (dp, _, vps)   -> do
+    ProjectPayload vps   -> do
+      (constDescr, constCols) <- unp c >>= fromDBV
+            
+      let constProj (PLConst v)  = ConstPL v
+          constProj (PLCol i)    = constCols !! (i - 1)
+      
+      return $ VProp $ DBVConst constDescr $ map constProj vps
+
+    ProjectAdmin (dp, _)   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
       let constDescr' = case dp of
             DescrConst n  -> ConstDescr n
             DescrIdentity -> constDescr
             DescrPosCol   -> NonConstDescr
             
-          constProj PLNumber     = NonConstPL
-          constProj (PLConst v)  = ConstPL v
-          constProj (PLCol i)    = constCols !! (i - 1)
-      
-      return $ VProp $ DBVConst constDescr' $ map constProj vps
+      return $ VProp $ DBVConst constDescr' constCols
 
     SelectItem       -> do
       (d, _) <- unp c >>= fromDBV
