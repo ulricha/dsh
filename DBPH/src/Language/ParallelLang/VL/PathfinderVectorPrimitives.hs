@@ -90,7 +90,8 @@ instance VectorAlgebra PFAlgebra where
   
   projectRename = undefined
                   
-  projectValue = undefined
+  projectPayload = undefined
+  projectAdmin = undefined
   
   compExpr1 = undefined
   compExpr2 = undefined
