@@ -4,7 +4,7 @@ module Optimizer.VL.Rewrite.Specialized where
 
 import Debug.Trace
 
-import Control.Monad
+import Control.Applicative
 
 import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
@@ -14,7 +14,7 @@ import Optimizer.Common.Match
 import Optimizer.Common.Traversal
   
 import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.VectorSchema
+import Optimizer.VL.Properties.VectorType
 import Optimizer.VL.Rewrite.Common
   
 introduceSpecializedOperators :: VLRewrite Bool
@@ -70,10 +70,10 @@ cartProd q =
     [| do
         predicate $ $(v "distInput") == $(v "rightInput")
 
-        s1 <- liftM vectorSchemaProp $ properties $(v "leftInput")
-        s2 <- liftM vectorSchemaProp $ properties $(v "rightInput")
+        s1 <- vectorTypeProp <$> properties $(v "leftInput")
+        s2 <- vectorTypeProp <$> properties $(v "rightInput")
         
-        let (w1, w2) = (schemaWidth s1, schemaWidth s2)
+        let (w1, w2) = (vectorWidth s1, vectorWidth s2)
 
         return $ do
           logRewrite "Specialized.CartProd" q

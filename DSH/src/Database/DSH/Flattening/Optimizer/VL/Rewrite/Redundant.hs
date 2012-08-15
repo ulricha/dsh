@@ -18,7 +18,7 @@ import Optimizer.VL.Rewrite.MergeProjections
 import Optimizer.VL.Rewrite.Common
 import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.VectorSchema
+import Optimizer.VL.Properties.VectorType
   
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -196,9 +196,9 @@ pairFromSameSource q =
   $(pattern [| q |] "(q1) PairL (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        schema1 <- liftM vectorSchemaProp $ properties $(v "q1")
-        schema2 <- liftM vectorSchemaProp $ properties $(v "q2")
-        case (schema1, schema2) of
+        vt1 <- liftM vectorTypeProp $ properties $(v "q1")
+        vt2 <- liftM vectorTypeProp $ properties $(v "q2")
+        case (vt1, vt2) of
           (VProp (ValueVector i1), VProp (ValueVector i2)) | i1 == i2 && i1 == 0 -> return ()
           (VProp DescrVector, VProp DescrVector)                                 -> return ()
           _                                                                      -> fail "no match"
@@ -206,13 +206,13 @@ pairFromSameSource q =
           logRewrite "Redundant.PairFromSame" q
           relinkParents q $(v "q1") |])
   
--- Remove a ProjectL or ProjectA operator that does not change the vector schema
+-- Remove a ProjectL or ProjectA operator that does not change the width
 noOpProject :: VLRule BottomUpProps
 noOpProject q =
   $(pattern [| q |] "[ProjectL | ProjectA] ps (q1)"
     [| do
-        schema <- liftM vectorSchemaProp $ properties $(v "q1")
-        predicate $ schemaWidth schema == length $(v "ps")
+        vt <- liftM vectorTypeProp $ properties $(v "q1")
+        predicate $ vectorWidth vt == length $(v "ps")
         predicate $ all (uncurry (==)) $ zip ([1..] :: [DBCol]) $(v "ps")
         
         return $ do
@@ -224,8 +224,8 @@ toDescr :: VLRule BottomUpProps
 toDescr q =
   $(pattern [| q |] "ToDescr (q1)"
     [| do
-        schema <- liftM vectorSchemaProp $ properties $(v "q1")
-        case schema of
+        vt <- liftM vectorTypeProp $ properties $(v "q1")
+        case vt of
           VProp DescrVector -> return ()
           _                 -> fail "no match"
         return $ do
@@ -237,7 +237,7 @@ pairedProjections q =
   $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (schemaWidth . vectorSchemaProp) $ properties $(v "q1")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         
         return $ do
           if ($(v "ps1") ++ $(v "ps2")) == [1 .. w] 
@@ -273,6 +273,6 @@ distDescCardOne q =
           
         return $ do
           logRewrite "distDescCardOne" q
-          replace q $ UnOp (ProjectPayload constProjs) $(v "qv") |])
-          
+          projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
+          replace q $ UnOp Segment projNode |])
   

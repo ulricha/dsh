@@ -1,6 +1,6 @@
 -- FIXME introduce consistency checks for schema inference
 
-module Optimizer.VL.Properties.VectorSchema where
+module Optimizer.VL.Properties.VectorType where
 
 import Data.Functor
 import Control.Monad
@@ -11,26 +11,26 @@ import Database.Algebra.VL.Data
   
 {- Implement more checks: check the input types for correctness -}
 
-schemaWidth :: VectorProp Schema -> Int
-schemaWidth (VProp (ValueVector w))  = w
-schemaWidth (VProp (AtomicVector w)) = w
-schemaWidth (VProp DescrVector)      = 0
-schemaWidth _                        = error "schemaWidth: non-ValueVector input"
+vectorWidth :: VectorProp VectorType -> Int
+vectorWidth (VProp (ValueVector w))  = w
+vectorWidth (VProp (AtomicVector w)) = w
+vectorWidth (VProp DescrVector)      = 0
+vectorWidth _                        = error "vectorWidth: non-ValueVector input"
 
-inferSchemaNullOp :: NullOp -> Either String (VectorProp Schema)
-inferSchemaNullOp op =
+inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
+inferVectorTypeNullOp op =
   case op of
     SingletonDescr              -> Right $ VProp $ DescrVector
     ConstructLiteralTable t _   -> Right $ VProp $ ValueVector $ length t
     ConstructLiteralValue t _   -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
-unpack :: VectorProp Schema -> Either String Schema
+unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
 unpack _         = Left "Input is not a single vector property" 
 
-inferSchemaUnOp :: VectorProp Schema -> UnOp -> Either String (VectorProp Schema)
-inferSchemaUnOp s op = 
+inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
+inferVectorTypeUnOp s op = 
   case op of
     Unique -> VProp <$> unpack s
     UniqueL -> VProp <$> unpack s
@@ -76,18 +76,18 @@ inferSchemaUnOp s op =
     Singleton -> undefined
     CompExpr1 _ -> Right $ VProp $ ValueVector 1
   
-reqValVectors :: VectorProp Schema 
-                 -> VectorProp Schema 
-                 -> (Int -> Int -> VectorProp Schema)
+reqValVectors :: VectorProp VectorType 
+                 -> VectorProp VectorType 
+                 -> (Int -> Int -> VectorProp VectorType)
                  -> String 
-                 -> Either String (VectorProp Schema)
+                 -> Either String (VectorProp VectorType)
 reqValVectors (VProp (ValueVector w1)) (VProp (ValueVector w2)) f _ =
   Right $ f w1 w2
 reqValVectors _ _ _ e =
   Left $ "Inputs of " ++ e ++ " are not ValueVectors"
       
-inferSchemaBinOp :: VectorProp Schema -> VectorProp Schema -> BinOp -> Either String (VectorProp Schema)
-inferSchemaBinOp s1 s2 op = 
+inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
+inferVectorTypeBinOp s1 s2 op = 
   case op of
     GroupBy -> 
       case s1 of
@@ -129,8 +129,8 @@ inferSchemaBinOp s1 s2 op =
     -- FIXME check that the join predicate is compatible with the input schemas.
     ThetaJoinFlat _ -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "ThetaJoin"
 
-inferSchemaTerOp :: VectorProp Schema -> VectorProp Schema -> VectorProp Schema -> TerOp -> Either String (VectorProp Schema)
-inferSchemaTerOp _ s2 s3 op = 
+inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
+inferVectorTypeTerOp _ s2 s3 op = 
   case op of
     CombineVec -> 
       case (s2, s3) of

@@ -49,7 +49,8 @@ Library
                        Optimizer.VL.Properties.Common
                        Optimizer.VL.Properties.Const
                        Optimizer.VL.Properties.Empty
-                       Optimizer.VL.Properties.VectorSchema
+                       Optimizer.VL.Properties.Card
+                       Optimizer.VL.Properties.VectorType
 
                        Optimizer.VL.Rewrite.Common
                        Optimizer.VL.Rewrite.DescriptorModifiers
@@ -59,25 +60,25 @@ Library
                        Optimizer.VL.Rewrite.Redundant
                        Optimizer.VL.Rewrite.Specialized
 
-  GHC-Options: -O3 -Wall
+  GHC-Options: -O3 -Wall -fprof-auto
 
 Executable x100opt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/X100/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices -fprof-auto
 
 Executable vlopt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/VL/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -O3 -Wall -ddump-splices
+  GHC-Options: -rtsopts -O3 -Wall -ddump-splices -fprof-auto
 
 Executable vlprop
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/VL/Tools/Prop.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -auto-all -O3 -Wall
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto

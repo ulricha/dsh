@@ -88,6 +88,8 @@ inferCardOneBinOp c1 c2 op =
     SelectPosL _ -> Right c1
     PairA -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     PairL -> VProp <$> ((||) <$> unp c1 <*> unp c2)
+    CartProductFlat -> return $ VProp False
+    ThetaJoinFlat _ -> return $ VProp False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

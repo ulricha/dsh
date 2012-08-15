@@ -10,7 +10,7 @@ import Database.Algebra.VL.Data
 
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.Empty
-import Optimizer.VL.Properties.VectorSchema
+import Optimizer.VL.Properties.VectorType
 import Optimizer.VL.Properties.Const
 import Optimizer.VL.Properties.Card
 -- import Optimizer.VL.Properties.Descriptor
@@ -49,34 +49,34 @@ inferNullOp :: AlgNode -> NullOp -> Either String BottomUpProps
 inferNullOp _ op = do
   opEmpty <- inferEmptyNullOp op
   opConst <- inferConstVecNullOp op
-  opSchema <- inferSchemaNullOp op
+  opType <- inferVectorTypeNullOp op
   opCard <- inferCardOneNullOp op
   return $ BUProps { emptyProp = opEmpty 
                    , constProp = opConst
                    , card1Prop = opCard
-                   , vectorSchemaProp = opSchema }
+                   , vectorTypeProp = opType }
     
 inferUnOp :: AlgNode -> UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp _ op cProps = do
   opEmpty <- inferEmptyUnOp (emptyProp cProps) op
-  opSchema <- inferSchemaUnOp (vectorSchemaProp cProps) op
+  opType <- inferVectorTypeUnOp (vectorTypeProp cProps) op
   opConst <- inferConstVecUnOp (constProp cProps) op
   opCard <- inferCardOneUnOp (card1Prop cProps) op
   return $ BUProps { emptyProp = opEmpty 
                    , constProp = opConst
                    , card1Prop = opCard
-                   , vectorSchemaProp = opSchema }
+                   , vectorTypeProp = opType }
   
 inferBinOp :: AlgNode -> BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp _ op c1Props c2Props = do
   opEmpty <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
-  opSchema <- inferSchemaBinOp (vectorSchemaProp c1Props) (vectorSchemaProp c2Props) op
+  opType <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
   opConst <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
   opCard <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
   return $ BUProps { emptyProp = opEmpty 
                    , constProp = opConst
                    , card1Prop = opCard
-                   , vectorSchemaProp = opSchema }
+                   , vectorTypeProp = opType }
   
 inferTerOp :: AlgNode
               -> TerOp
@@ -86,13 +86,13 @@ inferTerOp :: AlgNode
               -> Either String BottomUpProps
 inferTerOp _ op c1Props c2Props c3Props = do
   opEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
-  opSchema <- inferSchemaTerOp (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) (vectorSchemaProp c1Props) op
+  opType <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c1Props) (vectorTypeProp c1Props) op
   opConst <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
   opCard <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
   return $ BUProps { emptyProp = opEmpty 
                    , constProp = opConst
                    , card1Prop = opCard
-                   , vectorSchemaProp = opSchema }
+                   , vectorTypeProp = opType }
   
 -- | Infer bottom-up properties: visit nodes in reverse topological ordering.
 inferBottomUpProperties :: [AlgNode] -> AlgebraDag VL -> NodeMap BottomUpProps

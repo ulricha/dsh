@@ -16,12 +16,12 @@ instance Show a => Show (VectorProp a) where
   show (VPropPair a1 a2) = show (a1, a2)
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
                     
-data Schema = ValueVector Int
-            | AtomicVector Int
-            | DescrVector
-            | RenameVector
-            | PropVector
-              deriving Show
+data VectorType = ValueVector Int
+                | AtomicVector Int
+                | DescrVector
+                | RenameVector
+                | PropVector
+                deriving Show
                        
 {-
 -- newtype PredExpr = VecOp AlgNode AlgNode
@@ -75,7 +75,9 @@ newtype TargetConstDescr = TC ConstDescr deriving Show
 data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
                              , constProp :: VectorProp ConstVec
                              , card1Prop :: VectorProp Bool
-                             , vectorSchemaProp :: VectorProp Schema } deriving (Show)
+                             , vectorTypeProp :: VectorProp VectorType } deriving (Show)
+                                                                                
+data TopDownProps = TDProps { reqType :: VectorType }
                                                                                 
 class Renderable a where
   renderProp :: a -> Doc
@@ -123,13 +125,13 @@ instance Renderable ConstVec where
   renderProp (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
   renderProp c = text $ show c
 
-instance Renderable Schema where
+instance Renderable VectorType where
   renderProp = text . show
   
 instance Renderable BottomUpProps where
   renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
                  $$ text "const:" <+> (renderProp $ constProp p)
-                 $$ text "schema:" <+> (renderProp $ vectorSchemaProp p)
+                 $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
   
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]
