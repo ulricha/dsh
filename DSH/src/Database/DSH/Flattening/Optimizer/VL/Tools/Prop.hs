@@ -16,6 +16,7 @@ import Database.Algebra.VL.Render.JSON
 import Optimizer.VL.OptimizeVL
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.BottomUp
+import Optimizer.VL.Properties.TopDown
   
 data Options = Options { optInput :: IO B.ByteString }
                
@@ -37,12 +38,12 @@ options =
       "Show help"
   ]
   
-inferBottomUp :: DefaultRewrite VL (NodeMap BottomUpProps)
-inferBottomUp = do
+inferProperties :: DefaultRewrite VL (NodeMap Properties)
+inferProperties = do
   to <- topsort
-  props <- infer (inferBottomUpProperties to)
-  return props
-  
+  bu <- infer (inferBottomUpProperties to)
+  td <- infer (inferTopDownProperties to)
+  return $ M.intersectionWith P bu td
   
 main :: IO ()
 main = do
@@ -54,6 +55,7 @@ main = do
     plan <- input
     
     let (_, rs, m) = deserializePlan plan
-        (_, propertyMap, _) = runDefaultRewrite inferBottomUp (Dag.mkDag m rs)
-        tagMap = M.map renderBottomUpProps propertyMap
+        d = Dag.mkDag m rs
+        (_, propertyMap, _) = runDefaultRewrite inferProperties d
+        tagMap = M.map renderProperties propertyMap
     B.putStr $ serializePlan (tagMap, rs, m)

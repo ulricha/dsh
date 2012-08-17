@@ -1,5 +1,7 @@
 module Optimizer.VL.Rewrite.Common where
 
+import qualified Data.Map as M
+
 import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 
@@ -9,6 +11,7 @@ import qualified Database.Algebra.Rewrite as R
 import Optimizer.Common.Match
 import Optimizer.Common.Rewrite
 import Optimizer.VL.Properties.BottomUp
+import Optimizer.VL.Properties.TopDown
 import Optimizer.VL.Properties.Types
   
   -- Type abbreviations for convenience
@@ -22,3 +25,14 @@ inferBottomUp = do
   props <- R.infer (inferBottomUpProperties to)
   return props
   
+inferTopDown :: VLRewrite (NodeMap TopDownProps)
+inferTopDown = do
+  to <- R.topsort
+  props <- R.infer (inferTopDownProperties to)
+  return props
+  
+inferProperties :: VLRewrite (NodeMap Properties)
+inferProperties = do
+  bu <- inferBottomUp
+  td <- inferTopDown
+  return $ M.intersectionWith P bu td

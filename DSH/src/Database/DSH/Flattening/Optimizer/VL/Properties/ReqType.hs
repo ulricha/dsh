@@ -1,4 +1,3 @@
-
 module Optimizer.VL.Properties.ReqType where
 
 import Data.Maybe
@@ -11,121 +10,120 @@ unp :: VectorProp a -> a
 unp (VProp x) = x
 unp _         = error "foo"
   
-updateValueVector :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType
-updateValueVector (VProp (ValueVector w)) (VProp (ValueVector w')) = VProp $ ValueVector $ max w w'
-updateValueVector (VProp DescrVector)     (VProp (ValueVector w))  = VProp $ ValueVector w
-updateValueVector (VProp (ValueVector w)) (VProp DescrVector)      = VProp $ ValueVector w
-updateValueVector (VProp DescrVector)     (VProp DescrVector)      = VProp DescrVector
-
-maxProjectCol :: [PayloadProj] -> DBCol
-maxProjectCol ps = 
-  case mapMaybe onlyCols ps of
-    cs@(_ : _) -> maximum cs
-    []         -> 0
-  where onlyCols (PLConst _) = Nothing
-        onlyCols (PLCol c)   = Just c
-        
-maxInputCol :: Expr1 -> DBCol
-maxInputCol (App1 _ e1 e2) = max (maxInputCol e1) (maxInputCol e2)
-maxInputCol (Column1 c)    = c
-maxInputCol (Constant1 _)  = 0
-
-
-inferReqTypeUnOp :: VectorProp VectorType 
-                    -> VectorProp VectorType 
-                    -> VectorProp VectorType
-                    -> UnOp 
-                    -> VectorProp VectorType
-inferReqTypeUnOp ownrt crt ct op = 
+inferToDescrUnOp :: VectorProp (Maybe Bool)
+                -> VectorProp (Maybe Bool)
+                -> UnOp
+                -> VectorProp (Maybe Bool)
+inferToDescrUnOp ownToDescr childToDescr op = 
   case op of
-    ProjectL ps      -> updateValueVector (VProp (ValueVector $ length ps)) crt
-    ProjectA ps      -> undefined
-    NotPrim          -> VProp $ AtomicVector 1
-    NotVec           -> VProp $ ValueVector 1
-    LengthA          -> VProp $ DescrVector
-    DescToRename     -> VProp $ DescrVector
-    ToDescr          -> VProp $ ValueVector 0
-    Segment          -> ownrt
-    VecSum _         -> VProp $ ValueVector 1
-    VecMin           -> VProp $ ValueVector 1
-    VecMinL          -> VProp $ ValueVector 1
-    VecMax           -> VProp $ ValueVector 1
-    VecMaxL          -> VProp $ ValueVector 1
-    IntegerToDoubleA -> VProp $ ValueVector 1
-    IntegerToDoubleL -> VProp $ ValueVector 1
-    ReverseA         -> ownrt
-    ReverseL         -> ownrt
-    FalsePositions   -> VProp $ ValueVector 1
-    ProjectRename _  -> VProp $ ValueVector 0
-    ProjectPayload p -> VProp $ ValueVector $ maxProjectCol p
-    ProjectAdmin _   -> ownrt
-    SelectItem       -> VProp $ ValueVector 1
-    Only             -> undefined
-    Singleton        -> undefined
-    CompExpr1 e      -> VProp $ ValueVector $ maxInputCol e
-    SelectPos1 _ _   -> ownrt
-    SelectPos1L _ _  -> ownrt
+    ToDescr          -> VProp $ Just True
+
+    SelectPos1 _ _   ->
+      case ownToDescr of
+        VPropPair childToDescr _ -> VProp childToDescr
+        _                    -> error "foo"
+
+    SelectPos1L _ _   ->
+      case ownToDescr of
+        VPropPair childToDescr _ -> VProp childToDescr
+        _                    -> error "foo"
+
     R1               -> 
-      case ct of
+      case ownToDescr of
         VProp _             -> error "foo"
-        VPropPair _ t2      -> VPropPair (unp ownrt) t2
-        VPropTriple _ t2 t3 -> VPropTriple (unp ownrt) t2 t3
+        VPropPair t1 t2     -> VPropPair (unp (andToDescr (VProp t1) ownToDescr)) t2
+        VPropTriple t1 t2 t3 -> VPropTriple (unp (andToDescr (VProp t1) ownToDescr)) t2 t3
     R2               -> 
-      case ct of
-        VProp _             -> error "foo"
-        VPropPair t1 _      -> VPropPair t1 (unp ownrt)
-        VPropTriple t1 t2 _ -> VPropTriple t1 t2 (unp ownrt)
+      case ownToDescr of
+        VProp _              -> error "foo"
+        VPropPair t1 t2      -> VPropPair t1 (unp (andToDescr (VProp t2) ownToDescr))
+        VPropTriple t1 t2 t3 -> VPropTriple t1 (unp (andToDescr (VProp t2) ownToDescr)) t3
     R3               -> 
-      case ct of
-        VProp _             -> error "foo"
-        VPropPair _ _       -> error "bar"
-        VPropTriple t1 t2 _ -> VPropTriple t1 t2 (unp ownrt)
+      case ownToDescr of
+        VProp _              -> error "foo"
+        VPropPair _ _        -> error "bar"
+        VPropTriple t1 t2 t3 -> VPropTriple t1 t2 (unp (andToDescr (VProp t3) ownToDescr))
+    _                        -> andToDescr ownToDescr childToDescr
   
-inferReqTypeBinOp :: VectorProp VectorType 
-                     -> VectorProp VectorType 
-                     -> VectorProp VectorType 
-                     -> VectorProp VectorType 
-                     -> VectorProp VectorType 
-                     -> VectorProp VectorType 
-                     -> UnOp 
-                     -> (VectorProp VectorType, VectorProp VectorType)
-inferReqTypeBinOp ownrt ownt crt1 ct1 crt2 ct2 op = 
+
+andToDescr :: VectorProp (Maybe Bool) -> VectorProp (Maybe Bool) -> VectorProp (Maybe Bool)
+andToDescr (VProp (Just b1)) (VProp (Just b2)) = VProp $ Just $ b1 && b2
+andToDescr (VProp Nothing)   (VProp Nothing)   = VProp Nothing
+andToDescr (VProp Nothing)   (VProp (Just b))  = VProp $ Just b
+andToDescr (VProp (Just b))  (VProp Nothing)   = VProp $ Just b
+                                             
+no :: VectorProp (Maybe Bool)
+no = VProp $ Just False
+
+yes :: VectorProp (Maybe Bool)
+yes = VProp $ Just True
+
+na :: VectorProp (Maybe Bool)
+na = VProp Nothing
+  
+inferToDescrBinOp :: VectorProp (Maybe Bool) 
+                 -> VectorProp (Maybe Bool) 
+                 -> VectorProp (Maybe Bool)
+                 -> BinOp 
+                 -> (VectorProp (Maybe Bool), VectorProp (Maybe Bool))
+inferToDescrBinOp ownToDescr childToDescr1 childToDescr2 op = 
   case op of
     GroupBy         -> 
-      case ownrt of
-        VectorTriple _ t2 _ -> (ct1, t2)
+      case ownToDescr of
+        VPropTriple _ t2 _ -> (no, andToDescr childToDescr2 ownToDescr)
         _                   -> undefined
     SortWith        ->
-      case ownrt of
-        VectorPair t1 _  -> (ct1, t1)
+      case ownToDescr of
+        VPropPair t1 _  -> (no, andToDescr childToDescr2 ownToDescr)
         _                -> undefined
-    LengthSeg       -> (VProp DescrVector, VProp DescrVector)
-    DistPrim        -> 
-      case ownt of
-        VPropPair (ValueVector w) PropVector -> (AtomicVector w, DescrVector)
+    LengthSeg -> (no, no)
+    DistPrim -> (na, na)
+    DistDesc ->
+      case ownToDescr of
+        VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, na)
         _                                      -> error "foo"
-    DistDesc        ->
-      case ownt of
-        VPropPair (ValueVector w) PropVector -> (ValueVector w, DescrVector)
-        _                                      -> error "foo"
-    DistLift        ->
-      case ownt of
-        VPropPair (ValueVector w) PropVector -> (ValueVector w, DescrVector)
-    PropRename      -> (RenameVector, ownrt)
+    DistLift ->
+      case ownToDescr of
+        VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, VProp Nothing)
+        _              -> error "foo"
+    PropRename      -> (na, andToDescr childToDescr2 ownToDescr)
     PropFilter      ->
-      case ownrt of
-        (VProp
-      
+      case ownToDescr of
+        VPropPair t1 _ -> (na, VProp t1)
+        _              -> error "foo"
         
-    
-{-
-inferReqTypeBinOp :: VectorType 
-                     -> VectorType 
-                     -> VectorType 
-                     -> VectorType 
-                     -> VectorType 
-                     -> VectorType 
-                     -> UnOp 
-                     -> (VectorProp VectorType, VectorProp VectorType, VectorProp VectorType)
-inferReqTypeBinOp ownType crt1 ct1 crt2 ct2 op = undefined
--}
+    PropReorder ->
+      case ownToDescr of
+        VPropPair t1 _ -> (na, andToDescr (VProp t1) childToDescr2)
+        _              -> error "foo"
+        
+    Append ->
+      case ownToDescr of
+        VPropTriple t1 _ _ -> (andToDescr (VProp t1) childToDescr1, andToDescr (VProp t1) childToDescr2)
+        _                  -> error "foo"
+    RestrictVec ->
+      case ownToDescr of
+        VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, no)
+    CompExpr2 _ -> (na, na)
+    CompExpr2L _ -> (no, no)
+    VecSumL -> (na, no)
+    SelectPos _ -> 
+      case ownToDescr of
+        VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, na)
+        _              -> error "foo"
+    SelectPosL _ -> 
+      case ownToDescr of
+        VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, na)
+        _              -> error "foo"
+    PairA -> (na, na)
+    PairL -> (andToDescr ownToDescr childToDescr1, andToDescr ownToDescr childToDescr2)
+    CartProductFlat -> (no, no)
+    ThetaJoinFlat _ -> (no, no)
+        
+inferToDescrTerOp :: VectorProp (Maybe Bool)
+                 -> VectorProp (Maybe Bool)
+                 -> VectorProp (Maybe Bool)
+                 -> VectorProp (Maybe Bool)
+                 -> TerOp
+                 -> (VectorProp (Maybe Bool), VectorProp (Maybe Bool), VectorProp (Maybe Bool))
+inferToDescrTerOp _ _ _ _ _ = (no, no, no)

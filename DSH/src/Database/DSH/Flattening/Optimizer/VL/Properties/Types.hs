@@ -77,8 +77,11 @@ data BottomUpProps = BUProps { emptyProp :: VectorProp Bool
                              , card1Prop :: VectorProp Bool
                              , vectorTypeProp :: VectorProp VectorType } deriving (Show)
                                                                                 
-data TopDownProps = TDProps { reqType :: VectorType }
-                                                                                
+data TopDownProps = TDProps { toDescrProp :: VectorProp (Maybe Bool) }
+                    
+data Properties = P { bu :: BottomUpProps
+                    , td :: TopDownProps }
+                  
 class Renderable a where
   renderProp :: a -> Doc
   
@@ -132,7 +135,16 @@ instance Renderable BottomUpProps where
   renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
                  $$ text "const:" <+> (renderProp $ constProp p)
                  $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
+                 
+instance Renderable TopDownProps where
+  renderProp p = text "toDescr:" <+> (text $ show $ toDescrProp p)
   
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]
 renderBottomUpProps ps = [render $ renderProp ps]
+                         
+renderTopDownProps :: TopDownProps -> [String]
+renderTopDownProps ps = [render $ renderProp ps]
+                         
+renderProperties  :: Properties -> [String]
+renderProperties ps = (renderBottomUpProps $ bu ps) ++ (renderTopDownProps $ td ps)
