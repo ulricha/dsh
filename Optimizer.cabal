@@ -45,12 +45,14 @@ Library
                        Optimizer.X100.Rewrite.PruneJoins
 
                        Optimizer.VL.Properties.BottomUp
+                       Optimizer.VL.Properties.TopDown
                        Optimizer.VL.Properties.Types
                        Optimizer.VL.Properties.Common
                        Optimizer.VL.Properties.Const
                        Optimizer.VL.Properties.Empty
                        Optimizer.VL.Properties.Card
                        Optimizer.VL.Properties.VectorType
+                       Optimizer.VL.Properties.ToDescr
 
                        Optimizer.VL.Rewrite.Common
                        Optimizer.VL.Rewrite.DescriptorModifiers
@@ -59,6 +61,7 @@ Library
                        Optimizer.VL.Rewrite.PruneEmpty
                        Optimizer.VL.Rewrite.Redundant
                        Optimizer.VL.Rewrite.Specialized
+                       Optimizer.VL.Rewrite.ToDescr
 
   GHC-Options: -O3 -Wall -fprof-auto
 

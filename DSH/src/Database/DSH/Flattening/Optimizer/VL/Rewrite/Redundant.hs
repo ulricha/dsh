@@ -47,7 +47,7 @@ redundantRulesWithProperties = [ pairFromSameSource
                                , noOpProject
                                , distDescCardOne
                                , toDescr ]
-                 
+                               
 mergeStackedDistDesc :: VLRule ()
 mergeStackedDistDesc q = 
   $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"

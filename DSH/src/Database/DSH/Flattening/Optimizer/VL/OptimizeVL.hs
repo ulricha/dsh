@@ -15,6 +15,7 @@ import Optimizer.VL.Rewrite.Redundant
 import Optimizer.VL.Rewrite.Specialized
 import Optimizer.VL.Rewrite.Expressions
 import Optimizer.VL.Rewrite.DescriptorModifiers
+import Optimizer.VL.Rewrite.ToDescr
 
 type RewriteClass = OptRewrite VL Bool
 
@@ -24,6 +25,7 @@ rewriteClasses = [ ('E', pruneEmpty)
                  , ('R', removeRedundancy) 
                  , ('C', optExpressions)
                  , ('S', introduceSpecializedOperators) 
+                 , ('T', pruneColumns)
                  , ('D', stripFromRoot) ]
 
 defaultPipeline :: [RewriteClass]
