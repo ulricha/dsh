@@ -115,7 +115,7 @@ is rewritten into
 
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1 expr (q2=(_) CartProductFlat (_))))"
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProductFlat (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 

@@ -160,7 +160,7 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    CompExpr1 _ -> do
+    CompExpr1L _ -> do
       (d, cols) <- unp c >>= fromDBV
       -- FIXME This is not precise: implement constant folding 
       return $ VProp $ DBVConst d [NonConstPL]

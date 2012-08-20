@@ -57,7 +57,7 @@ seed (UnOp op _) =
     ProjectRename _    -> vPropSeed
     ProjectAdmin _     -> vPropSeed
     ProjectPayload _   -> vPropSeed
-    CompExpr1 _        -> vPropSeed
+    CompExpr1L _        -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed

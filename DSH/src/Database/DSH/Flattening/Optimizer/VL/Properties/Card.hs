@@ -51,7 +51,7 @@ inferCardOneUnOp c op =
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1L _ _ -> Right $ VPropPair False False
     SelectExpr _ -> Right $ VProp False
-    CompExpr1 _ -> Right c
+    CompExpr1L _ -> Right c
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"

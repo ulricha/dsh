@@ -74,7 +74,7 @@ inferVectorTypeUnOp s op =
     SelectExpr _ -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
-    CompExpr1 _ -> Right $ VProp $ ValueVector 1
+    CompExpr1L _ -> Right $ VProp $ ValueVector 1
   
 reqValVectors :: VectorProp VectorType 
                  -> VectorProp VectorType 
