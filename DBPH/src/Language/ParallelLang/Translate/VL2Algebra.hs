@@ -244,7 +244,7 @@ translateUnOp u c = case u of
                       VecMinL       -> liftM fromDBV $ vecMinLift (toDBV c)
                       VecMax        -> liftM fromDBP $ vecMax (toDBV c)
                       VecMaxL       -> liftM fromDBV $ vecMaxLift (toDBV c)
-                      SelectItem    -> liftM fromDBV $ selectItem (toDBV c)
+                      SelectExpr e  -> liftM fromDBV $ selectExpr e (toDBV c)
                       ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
                       ProjectPayload valPs -> liftM fromDBV $ projectPayload valPs (toDBV c)
                       ProjectAdmin (descrP, posP) -> liftM fromDBV $ projectAdmin descrP posP (toDBV c)
@@ -252,7 +252,7 @@ translateUnOp u c = case u of
                       ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
                       IntegerToDoubleL -> liftM fromDBV $ integerToDoubleL (toDBV c)
-                      CompExpr1 e   -> liftM fromDBV $ compExpr1 e (toDBV c)
+                      CompExpr1L e   -> liftM fromDBV $ compExpr1 e (toDBV c)
                       ReverseA      -> do
                                         (d, p) <- reverseA (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)

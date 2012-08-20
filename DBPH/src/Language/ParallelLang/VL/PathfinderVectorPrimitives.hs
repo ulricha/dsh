@@ -86,7 +86,7 @@ instance VectorAlgebra PFAlgebra where
   
   thetaJoinFlat = undefined
   
-  selectItem = undefined
+  selectExpr = undefined
   
   projectRename = undefined
                   
