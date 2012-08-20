@@ -3,8 +3,6 @@
 -- FerryCore which is then translated into SQL (through a table algebra). The SQL
 -- code is executed on the database and then processed to form a Haskell value.
 
-{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, ScopedTypeVariables, GADTs #-}
-
 module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
 
 import Database.DSH.Data as D
@@ -73,61 +71,56 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 -- * Convert DB queries into Haskell values
 
 -- | Execute the query on the database
-fromQ :: forall a conn. (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c a = evaluate c a >>= (return . fromNorm)
-
+fromQ :: (QA a, IConnection conn) => conn -> Exp (Q a) -> IO a
+fromQ c a = evaluate c a >>= (return . frExp)
 
 -- | Convert the query into unoptimised algebraic plan
-debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlan :: (IConnection conn,Reify (Exp a)) => conn -> Exp a -> IO String
 debugPlan = doCompile
 
 -- | Convert the query into optimised algebraic plan
-debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugPlanOpt :: (IConnection conn,Reify (Exp a)) => conn -> Exp a -> IO String
 debugPlanOpt q c = do
                     p <- doCompile q c
                     (C.Algebra r) <- algToAlg ((C.Algebra p)::AlgebraXML a)
                     return r
 
-debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCore c a = do
-                     core <- runN c $ transformE $ qToExp a
-                     return $ show core
+debugCore :: (IConnection conn,Reify (Exp a)) => conn -> Exp a -> IO String
+debugCore c a = do core <- runN c $ transformE a
+                   return $ show core
 
 
-debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCoreDot c a = do
-                        core <- runN c $ transformE $ qToExp a
-                        return $ (\(Right d) -> d) $ dot core
+debugCoreDot :: (IConnection conn,Reify (Exp a)) => conn -> Exp a -> IO String
+debugCoreDot c a = do core <- runN c $ transformE a
+                      return $ (\(Right d) -> d) $ dot core
 
 -- | Convert the query into SQL
-debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugSQL q c = do
-                p <- doCompile q c
-                (C.SQL r) <- algToSQL ((C.Algebra p)::AlgebraXML a)
-                return r
+debugSQL :: (IConnection conn,Reify (Exp a)) => conn -> Exp a -> IO String
+debugSQL q c = do p <- doCompile q c
+                  (C.SQL r) <- algToSQL ((C.Algebra p)::AlgebraXML a)
+                  return r
 
 -- | evaluate compiles the given Q query into an executable plan, executes this and returns 
 -- the result as norm. For execution it uses the given connection. If the boolean flag is set
 -- to true it outputs the intermediate algebraic plan to disk.
-evaluate :: forall a. forall conn. (QA a, IConnection conn)
+evaluate :: (Reify (Exp a), IConnection conn)
          =>  conn
-         -> Q a
-         -> IO (Norm a)
+         -> Exp a
+         -> IO (Exp a)
 evaluate c q = do
                   algPlan' <- doCompile c q
-                  let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
+                  let algPlan = ((C.Algebra algPlan') :: AlgebraXML (Exp a))
                   n <- executePlan c algPlan
                   disconnect c
                   return n
 
 -- | Transform a query into an algebraic plan.                   
-doCompile :: (QA a, IConnection conn) => conn -> Q a -> IO String
-doCompile c a = do 
-                        core <- runN c $ transformE $ qToExp a
-                        return $ typedCoreToAlgebra core
+doCompile :: (IConnection conn, Reify (Exp a)) => conn -> Exp a -> IO String
+doCompile c a = do core <- runN c $ transformE a
+                   return $ typedCoreToAlgebra core
 
 -- | Transform the Query into a ferry core program.
-transformE :: (IConnection conn, QA a) => Exp a -> N conn CoreExpr
+transformE :: (IConnection conn, Reify (Exp a)) => Exp a -> N conn CoreExpr
 transformE (UnitE ) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b) = return $ Constant ([] :=> bool) $ CBool b
 transformE (CharE c) = return $ Constant ([] :=> string) $ CString [c] 
@@ -135,108 +128,105 @@ transformE (IntegerE i) = return $ Constant ([] :=> int) $ CInt i
 transformE (DoubleE d) = return $ Constant ([] :=> float) $ CFloat d
 transformE (TextE t) = return $ Constant ([] :=> string) $ CString $ unpack t
 transformE ((PairE e1 e2) :: Exp t) = do
-                            let ty = reify (undefined :: t)
+                            let ty = reify (undefined :: Exp t)
                             c1 <- transformE e1
                             c2 <- transformE e2
                             return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
-transformE ((ListE es) :: Exp t) = let ty = reify (undefined :: t)
+transformE ((ListE es) :: Exp t) = let ty = reify (undefined :: Exp t)
                                        qt = ([] :=> transformTy ty) 
-                                    in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
-transformE ((App1E f1 e1) :: Exp t) = do
-                                      let ty = reify (undefined :: t)
-                                      let tr = transformTy ty
-                                      e1' <- transformArg e1
-                                      let (_ :=> ta) = typeOf e1'
-                                      return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
-transformE (AppH2E Span f e) = transformE $ PairE (AppH2E TakeWhile f e) (AppH2E DropWhile f e)
-transformE (AppH2E Break (Lam1E f) e) = let notF = Lam1E (\x -> App1E Not (f x)) 
-                                         in transformE $ AppH2E Span notF e
-transformE ((AppH2E GroupWith (gfn :: Exp (ta -> rt)) (e:: Exp el)) :: Exp t) = do
-                                                let ty = reify (undefined :: [[el]])
-                                                let tel = reify (undefined :: el)
-                                                let tr = transformTy ty
-                                                fn' <- transformL1Arg gfn
-                                                let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
-                                                let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
-                                                e' <- transformArg e
-                                                let (_ :=> te) = typeOf e'
-                                                fv <- transformL1Arg ((Lam1E id) :: Exp (el -> el))
-                                                snd' <- transformL1Arg ((Lam1E (\x -> App1E Snd x) ) :: (Exp ((rt, [el]) -> [el])))
-                                                let (_ :=> sndTy) = typeOf snd'
-                                                let (_ :=> tfv) = typeOf fv
-                                                return $ App ([] :=> tr)
-                                                            (App ([] :=> gtr .-> tr) (Var ([] :=> sndTy .-> gtr .-> tr) "map") snd') 
-                                                            (ParExpr ([] :=> gtr) $ App ([] :=> gtr)
-                                                                (App ([] :=> te .-> gtr)
-                                                                    (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
-                                                                    fn'
-                                                                )
-                                                                e')
-transformE (AppH2E Any f e) = transformE $ App1E Or (AppH2E Map f e)
-transformE (AppH2E All f e) = transformE $ App1E And (AppH2E Map f e)
-transformE ((AppH2E f2  f e) :: Exp ty) = do
-                                let ty = reify (undefined :: ty)
-                                let tr = transformTy ty
-                                f' <- transformL1Arg f
-                                e' <- transformArg e
-                                let (_ :=> t1) = typeOf f'
-                                let (_ :=> t2) = typeOf e'
-                                return $ App ([] :=> tr)
-                                            (App ([] :=> t2 .-> tr) (transformF f2 (t1 .-> t2 .-> tr)) f')
-                                            e'
-transformE (App2E D.Cons e1 e2) = do
+                                   in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
+transformE (AppE GroupWith (PairE (gfn :: Exp (Exp ta -> Exp rt)) (e :: Exp el))) = do
+  let ty = reify (AppE GroupWith (PairE gfn e))
+  let tel = reify (undefined :: Exp el)
+  let tr = transformTy ty
+  fn' <- transformLamArg gfn
+  let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
+  let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
+  e' <- transformArg e
+  let (_ :=> te) = typeOf e'
+  fv <- transformLamArg ((LamE id) :: Exp (Exp el -> Exp el))
+  snd' <- transformLamArg (LamE (\(x :: Exp (Exp rt, Exp [Exp el])) -> AppE Snd x))
+  let (_ :=> sndTy) = typeOf snd'
+  let (_ :=> tfv) = typeOf fv
+  return $ App ([] :=> tr)
+              (App ([] :=> gtr .-> tr) (Var ([] :=> sndTy .-> gtr .-> tr) "map") snd') 
+              (ParExpr ([] :=> gtr) $ App ([] :=> gtr)
+                  (App ([] :=> te .-> gtr)
+                      (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
+                      fn'
+                  )
+                  e')
+transformE (AppE D.Cons (PairE e1 e2)) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
                                             let (_ :=> t) = typeOf e1'
                                             return $ F.Cons ([] :=> list t) e1' e2'
-transformE (App2E Append e1 e2) = transformE $ App1E Concat (ListE [e1, e2])
-transformE (App2E Snoc e1 e2) = transformE $ App2E Append e1 (ListE [e2])
-transformE ((App2E f2 e1 e2) :: Exp ty) = do
-                                        let ty = reify (undefined :: ty)
-                                        let tr = transformTy ty
-                                        case isOp f2 of
-                                            True  -> do
-                                                      e1' <- transformE e1
-                                                      e2' <- transformE e2
-                                                      return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
-                                            False -> do
-                                                      e1' <- transformArg e1
-                                                      e2' <- transformArg e2
-                                                      let (_ :=> ta1) = typeOf e1'
-                                                      let (_ :=> ta2) = typeOf e2'
-                                                      return $ App ([] :=> tr) 
-                                                                (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
-                                                                e2'
-transformE (App3E Cond e1 e2 e3) = do
+transformE (AppE Cond (PairE e1 (PairE e2 e3))) = do
                                              e1' <- transformE e1
                                              e2' <- transformE e2
                                              e3' <- transformE e3
                                              let (_ :=> t) = typeOf e2'
                                              return $ If ([] :=> t) e1' e2' e3'
-transformE ((AppH3E f3 e1 e2 e3) :: Exp ty) = do
-                                           let ty = reify (undefined :: ty)
-                                           let tr = transformTy ty
-                                           e1' <- transformL2Arg e1
-                                           e2' <- transformArg e2
-                                           e3' <- transformArg e3
-                                           let (_ :=> ta1) = typeOf e1'
-                                           let (_ :=> ta2) = typeOf e2'
-                                           let (_ :=> ta3) = typeOf e3'
-                                           return $ App ([] :=> tr)
-                                                        (App ([] :=> ta3 .-> tr)
-                                                             (App ([] :=> ta2 .-> ta3 .-> tr) (transformF f3 (ta1 .-> ta2 .-> ta3 .-> tr)) e1')
-                                                             e2')
-                                                        e3'
-transformE ((VarE i) :: Exp ty) = let ty = reify (undefined :: ty)
-                                   in return $ Var ([] :=> transformTy ty) $ prefixVar $ fromIntegral i
+transformE (AppE Fst (PairE e1 e2)) = do
+  let ty = reify (AppE Fst (PairE e1 e2))
+  let tr = transformTy ty
+  e1' <- transformArg (PairE e1 e2)
+  let (_ :=> ta) = typeOf e1'
+  return $ App ([] :=> tr) (transformF Fst (ta .-> tr)) e1'
+
+transformE (AppE Snd (PairE e1 e2)) = do
+  let ty = reify (AppE Fst (PairE e1 e2))
+  let tr = transformTy ty
+  e1' <- transformArg (PairE e1 e2)
+  let (_ :=> ta) = typeOf e1'
+  return $ App ([] :=> tr) (transformF Snd (ta .-> tr)) e1'
+
+transformE (AppE f2 (PairE (LamE f) e)) = do
+  let ty = reify (AppE f2 (PairE (LamE f) e))
+  let tr = transformTy ty
+  f' <- transformLamArg (LamE f)
+  e' <- transformArg e
+  let (_ :=> t1) = typeOf f'
+  let (_ :=> t2) = typeOf e'
+  return $ App ([] :=> tr)
+              (App ([] :=> t2 .-> tr) (transformF f2 (t1 .-> t2 .-> tr)) f')
+              e'
+
+transformE (AppE f2 (PairE e1 e2)) = do
+  let ty = reify (AppE f2 (PairE e1 e2))
+  let tr = transformTy ty
+  case isOp f2 of
+      True  -> do e1' <- transformE e1
+                  e2' <- transformE e2
+                  return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
+      False -> do e1' <- transformArg e1
+                  e2' <- transformArg e2
+                  let (_ :=> ta1) = typeOf e1'
+                  let (_ :=> ta2) = typeOf e2'
+                  return $ App ([] :=> tr) 
+                             (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
+                             e2'
+
+transformE (AppE f1 e1) = do
+  let ty = reify (AppE f1 e1)
+  let tr = transformTy ty
+  e1' <- transformArg e1
+  let (_ :=> ta) = typeOf e1'
+  return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
+
+transformE ((VarE i) :: Exp ty) = do
+  let ty = reify (undefined :: Exp ty)
+  return $ Var ([] :=> transformTy ty) $ prefixVar $ fromIntegral i
+  
 transformE ((TableE (TableCSV filepath)) :: Exp ty) = do
-                                              let ty = reify (undefined :: ty)
-                                              norm1 <- lift (csvImport filepath ty)
-                                              transformE (normToExp norm1)
+  let ty = reify (undefined :: Exp ty)
+  e1 <- lift (csvImport filepath ty)
+  transformE e1
+
 -- When a table node is encountered check that the given description
 -- matches the actual table information in the database.
 transformE ((TableE (TableDB n ks)) :: Exp ty) = do
-                                    let ty = reify (undefined :: ty)
+                                    let ty = reify (undefined :: Exp ty)
                                     fv <- freshVar
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
@@ -271,30 +261,20 @@ transformE ((TableE (TableDB n ks)) :: Exp ty) = do
                                 True -> True
                                 False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
                                                     ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
-transformE (Lam1E _) = $impossible
-transformE (Lam2E _) = $impossible
+transformE (LamE _) = $impossible
+
+transformLamArg :: (IConnection conn) => Exp (Exp a -> Exp b) -> N conn Param
+transformLamArg (LamE f) = do 
+  let ty = reify (LamE f)
+  n <- freshVar
+  let fty = transformTy ty
+  let e1 = f $ VarE $ fromIntegral n 
+  ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
+transformLamArg (AppE _ _) = $impossible
+transformLamArg (VarE _)   = $impossible
 
 
-transformL2Arg :: forall conn a b c. (IConnection conn, QA a, QA b, QA c) => Exp (a -> b -> c) -> N conn Param
-transformL2Arg ((Lam2E f) :: Exp (a -> b -> c)) = do
-                                                    let ty = reify (undefined :: (a -> b -> c))
-                                                    n <- freshVar
-                                                    let fty = transformTy ty
-                                                    let e1 = f $ VarE $ fromIntegral n
-                                                    (ParAbstr _ vs e') <- transformL1Arg (Lam1E e1)
-                                                    return $ ParAbstr ([] :=> fty) ((prefixVar n):vs) e'
-transformL2Arg _ = $impossible -- The compiler should be a bit more clever here, there are no other options here...
-
-transformL1Arg :: forall conn a b. (IConnection conn, QA a, QA b) => Exp (a -> b) -> N conn Param
-transformL1Arg ((Lam1E f)::Exp (a -> b)) = do 
-                                          let ty = reify (undefined :: (a -> b))
-                                          n <- freshVar
-                                          let fty = transformTy ty
-                                          let e1 = f $ VarE $ fromIntegral n 
-                                          ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
-transformL1Arg _ = $impossible -- The compiler should be a bit more clever here, there are no other options here...
-
-transformArg :: (IConnection conn, QA a) => Exp a -> N conn Param
+transformArg :: (IConnection conn,Reify (Exp a)) => Exp a -> N conn Param
 transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e
  
 -- | Construct a flat-FerryCore type out of a DSH type
@@ -326,7 +306,7 @@ transformTy (ListT t1) = FList $ transformTy t1
 transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
 
 
-isOp :: Fun2 a b c -> Bool
+isOp :: Fun a b -> Bool
 isOp Add  = True
 isOp Sub  = True
 isOp Mul  = True
@@ -341,19 +321,19 @@ isOp Disj = True
 isOp _    = False
 
 -- | Translate the DSH operator to Ferry Core operators
-transformOp :: Fun2 a b c -> Op
-transformOp Add = Op "+"
-transformOp Sub = Op "-"
-transformOp Mul = Op "*"
-transformOp Div = Op "/"
-transformOp Equ = Op "=="
-transformOp Lt = Op "<"
-transformOp Lte = Op "<="
-transformOp Gte = Op ">="
-transformOp Gt = Op ">"
+transformOp :: Fun a b -> Op
+transformOp Add  = Op "+"
+transformOp Sub  = Op "-"
+transformOp Mul  = Op "*"
+transformOp Div  = Op "/"
+transformOp Equ  = Op "=="
+transformOp Lt   = Op "<"
+transformOp Lte  = Op "<="
+transformOp Gte  = Op ">="
+transformOp Gt   = Op ">"
 transformOp Conj = Op "&&"
 transformOp Disj = Op "||"
-transformOp _ = $impossible
+transformOp _    = $impossible
 
 
 -- | Transform a DSH-primitive-function (f) with an instantiated typed into a FerryCore

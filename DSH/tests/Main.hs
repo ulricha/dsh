@@ -1,9 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
 
 import qualified Database.DSH as Q
-import Database.DSH (Q, QA)
+import Database.DSH (Q, QA, Exp, Reify)
 
 -- import Database.DSH.Interpreter (fromQ)
 import Database.DSH.Compiler (fromQ)
@@ -15,8 +16,8 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
 import Data.List
-import Data.Maybe
-import Data.Either
+-- import Data.Maybe
+-- import Data.Either
 import GHC.Exts
 
 import Data.Text (Text)
@@ -28,7 +29,7 @@ instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'postgres'"
+getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
 
 qc:: Testable prop => prop -> IO ()
 qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
@@ -103,7 +104,7 @@ main = do
     qc prop_fst
     putStrPad "snd"
     qc prop_snd
-    
+
     putStrLn ""
     putStrLn "Numerics:"
     putStrLn "-----------"
@@ -261,7 +262,7 @@ main = do
     qc prop_nub
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
-            => (Q a -> Q b)
+            => (Exp (Q a) -> Exp (Q b))
             -> (a -> b)
             -> a
             -> Property
@@ -272,15 +273,15 @@ makeProp f1 f2 arg = monadicIO $ do
     let hs = f2 arg
     assert (db == hs)
 
-makePropNotNull ::  (Eq b, Q.QA a, Q.QA b, Show a, Show b)
-                    => (Q.Q [a] -> Q.Q b)
+makePropNotNull ::  (Eq b, QA a, QA b, Show a, Show b)
+                    => (Exp [Exp (Q a)] -> Exp (Q b))
                     -> ([a] -> b)
                     -> [a]
                     -> Property
 makePropNotNull q f arg = not (null arg) ==> makeProp q f arg
 
 makePropDouble :: (QA a, Show a)
-                  => (Q a -> Q Double)
+                  => (Exp (Q a) -> Exp Double)
                   -> (a -> Double)
                   -> a
                   -> Property
@@ -292,7 +293,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
     let eps = 1.0E-8 :: Double;    
     assert (abs (db - hs) < eps)
 
-uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
+uncurryQ :: (Reify (Exp a), Reify (Exp b)) => (Exp a -> Exp b -> Exp c) -> Exp (Exp a,Exp b) -> Exp c
 uncurryQ f = uncurry f . Q.view
 
 -- * Supported Types
@@ -348,7 +349,7 @@ prop_neq :: (Integer,Integer) -> Property
 prop_neq = makeProp (uncurryQ (Q./=)) (uncurry (/=))
 
 prop_cond :: Bool -> Property
-prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else 1)
+prop_cond = makeProp (\b -> Q.cond b 0 1) (\b -> if b then (0 :: Integer) else 1)
 
 prop_lt :: (Integer, Integer) -> Property
 prop_lt = makeProp (uncurryQ (Q.<)) (uncurry (<))
@@ -495,7 +496,7 @@ prop_null :: [Integer] -> Property
 prop_null = makeProp Q.null null
 
 prop_length :: [Integer] -> Property
-prop_length = makeProp Q.length (fromIntegral . length)
+prop_length = makeProp Q.length ((fromIntegral :: Int -> Integer) . length)
 
 prop_reverse :: [Integer] -> Property
 prop_reverse = makeProp Q.reverse reverse

@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Database.DSH.Combinators where
@@ -10,330 +9,333 @@ import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefine
 
 -- * Unit
 
-unit :: Q ()
-unit = expToQ UnitE 
+unit :: Exp ()
+unit = UnitE 
 
 -- * Boolean logic
 
-false :: Q Bool
-false = expToQ $ BoolE False
+false :: Exp Bool
+false = BoolE False
 
-true :: Q Bool
-true = expToQ $ BoolE True
+true :: Exp Bool
+true = BoolE True
 
-not :: Q Bool -> Q Bool
-not = expToQ . (App1E Not) . qToExp
+not :: Exp Bool -> Exp Bool
+not = AppE Not
 
-(&&) :: Q Bool -> Q Bool -> Q Bool
-(&&) = appE2 Conj
+(&&) :: Exp Bool -> Exp Bool -> Exp Bool
+(&&) a b = AppE Conj (PairE a b)
 
-(||) :: Q Bool -> Q Bool -> Q Bool
-(||) = appE2 Disj
+(||) :: Exp Bool -> Exp Bool -> Exp Bool
+(||) a b = AppE Disj (PairE a b)
 
 -- * Equality and Ordering
 
-eq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
-eq = appE2 Equ
+eq :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
+eq a b = AppE Equ (PairE a b)
 
-(==) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+(==) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (==) = eq
 
-neq :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+neq :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 neq a b = not (eq a b)
 
-(/=) :: (Eq a,QA a) => Q a -> Q a -> Q Bool
+(/=) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (/=) = neq
 
-lt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lt = appE2 Lt
+lt :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
+lt a b = AppE Lt (PairE a b)
 
-(<) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(<) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (<) = lt
 
-lte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-lte = appE2 Lte 
+lte :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
+lte a b = AppE Lte (PairE a b)
 
-(<=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(<=) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (<=) = lte
 
-gte :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gte = appE2 Gte
+gte :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
+gte a b = AppE Gte (PairE a b)
 
-(>=) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(>=) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (>=) = gte
 
-gt :: (Ord a,QA a) => Q a -> Q a -> Q Bool
-gt = appE2 Gt
+gt :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
+gt a b = AppE Gt (PairE a b)
 
-(>) :: (Ord a,QA a) => Q a -> Q a -> Q Bool
+(>) :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool
 (>) = gt
 
-min :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
-min = appE2 Min
+min :: (Reify (Exp a)) => Exp a -> Exp a -> Exp a
+min a b = AppE Min (PairE a b)
 
-max :: forall a. (Ord a, QA a) => Q a -> Q a -> Q a
-max = appE2 Max
+max :: (Reify (Exp a)) => Exp a -> Exp a -> Exp a
+max a b = AppE Max (PairE a b)
 
 -- * Conditionals
+
 -- | Boolean fold
 -- | It's first argument is used in the case of False
 -- | It's second argument is used in the case of True
 -- | The third argument is the boolean
-bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
+bool :: (Reify (Exp a)) => Exp a -> Exp a -> Exp Bool -> Exp a
 bool f t b = cond b t f
 
-cond :: forall a. (QA a) => Q Bool -> Q a -> Q a -> Q a
-cond = appE3 Cond
+cond :: (Reify (Exp a)) => Exp Bool -> Exp a -> Exp a -> Exp a
+cond c a b = AppE Cond (PairE c (PairE a b))
 
-(?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
+(?) :: (Reify (Exp a)) => Exp Bool -> (Exp a,Exp a) -> Exp a
 (?) c (a,b) = cond c a b
-{-
--- * Maybe
 
-listToMaybe :: QA a => Q [a] -> Q (Maybe a)
-listToMaybe (Q as) = (Q as) 
-
-maybeToList :: QA a => Q (Maybe a) -> Q [a]
-maybeToList (Q ma) = (Q ma)
-
-nothing :: QA a => Q (Maybe a)
-nothing = listToMaybe nil
-
-just :: QA a => Q a -> Q (Maybe a)
-just a = listToMaybe (singleton a)
-
-isNothing :: QA a => Q (Maybe a) -> Q Bool
-isNothing ma = null (maybeToList ma)
-
-isJust :: QA a => Q (Maybe a) -> Q Bool
-isJust ma = not (isNothing ma)
-
-fromJust :: QA a => Q (Maybe a) -> Q a
-fromJust ma = head (maybeToList ma)
-
-maybe :: (QA a, QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
-maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
-
-fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
-fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
-
-catMaybes :: QA a => Q [Maybe a] -> Q [a]
-catMaybes mas = concatMap maybeToList mas
-
-mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
-mapMaybe f as = concatMap (maybeToList . f) as
-
--- * Either
-
-left :: (QA a,QA b) => Q a -> Q (Either a b)
-left a = tupleToEither (tuple ((singleton a),nil))
-
-right :: (QA a,QA b) => Q b -> Q (Either a b)
-right a = tupleToEither (tuple (nil,(singleton a)))
-
-isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
-isLeft = null . snd . eitherToTuple
-
-isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
-isRight = null . fst . eitherToTuple
-
-either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
-either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToTuple) e,(rf . head . snd . eitherToTuple) e)
-
-lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
-lefts = concatMap (fst . eitherToTuple)
-
-rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
-rights = concatMap (snd . eitherToTuple)
-
-partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
-partitionEithers es = tuple (lefts es,rights es)
--}
+-- {-
+-- -- * Maybe
+-- 
+-- listToMaybe :: QA a => Q [a] -> Q (Maybe a)
+-- listToMaybe (Q as) = (Q as) 
+-- 
+-- maybeToList :: QA a => Q (Maybe a) -> Q [a]
+-- maybeToList (Q ma) = (Q ma)
+-- 
+-- nothing :: QA a => Q (Maybe a)
+-- nothing = listToMaybe nil
+-- 
+-- just :: QA a => Q a -> Q (Maybe a)
+-- just a = listToMaybe (singleton a)
+-- 
+-- isNothing :: QA a => Q (Maybe a) -> Q Bool
+-- isNothing ma = null (maybeToList ma)
+-- 
+-- isJust :: QA a => Q (Maybe a) -> Q Bool
+-- isJust ma = not (isNothing ma)
+-- 
+-- fromJust :: QA a => Q (Maybe a) -> Q a
+-- fromJust ma = head (maybeToList ma)
+-- 
+-- maybe :: (QA a, QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
+-- maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
+-- 
+-- fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
+-- fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
+-- 
+-- catMaybes :: QA a => Q [Maybe a] -> Q [a]
+-- catMaybes mas = concatMap maybeToList mas
+-- 
+-- mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
+-- mapMaybe f as = concatMap (maybeToList . f) as
+-- 
+-- -- * Either
+-- 
+-- left :: (QA a,QA b) => Q a -> Q (Either a b)
+-- left a = tupleToEither (tuple ((singleton a),nil))
+-- 
+-- right :: (QA a,QA b) => Q b -> Q (Either a b)
+-- right a = tupleToEither (tuple (nil,(singleton a)))
+-- 
+-- isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
+-- isLeft = null . snd . eitherToTuple
+-- 
+-- isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
+-- isRight = null . fst . eitherToTuple
+-- 
+-- either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
+-- either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToTuple) e,(rf . head . snd . eitherToTuple) e)
+-- 
+-- lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
+-- lefts = concatMap (fst . eitherToTuple)
+-- 
+-- rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
+-- rights = concatMap (snd . eitherToTuple)
+-- 
+-- partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
+-- partitionEithers es = tuple (lefts es,rights es)
+-- -}
 -- * List Construction
 
-nil :: forall a. (QA a) => Q [a]
-nil = expToQ $ ListE []
+nil :: (Reify (Exp a)) => Exp [Exp a]
+nil = ListE []
 
-empty :: (QA a) => Q [a]
+empty :: (Reify (Exp a)) => Exp [Exp a]
 empty = nil
 
-cons :: forall a. (QA a) => Q a -> Q [a] -> Q [a]
-cons = appE2 Cons
+cons :: (Reify (Exp a)) => Exp a -> Exp [Exp a] -> Exp [Exp a]
+cons a as = AppE Cons (PairE a as)
 
-(<|) :: (QA a) => Q a -> Q [a] -> Q [a]
+(<|) :: (Reify (Exp a)) => Exp a -> Exp [Exp a] -> Exp [Exp a]
 (<|) = cons
 
-snoc :: forall a. (QA a) => Q [a] -> Q a -> Q [a]
-snoc = appE2 Snoc
+snoc :: (Reify (Exp a)) => Exp [Exp a] -> Exp a -> Exp [Exp a]
+snoc as a = append as (singleton a)
 
-(|>) :: (QA a) => Q [a] -> Q a -> Q [a]
+(|>) :: (Reify (Exp a)) => Exp [Exp a] -> Exp a -> Exp [Exp a]
 (|>) = snoc
 
-singleton :: (QA a) => Q a -> Q [a]
+singleton :: (Reify (Exp a)) => Exp a -> Exp [Exp a]
 singleton a = cons a nil
 
 -- * List Operations
 
-head :: forall a. (QA a) => Q [a] -> Q a
-head = appE1 Head
+head :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+head = AppE Head
 
-tail :: forall a. (QA a) => Q [a] -> Q [a]
-tail = appE1 Tail
+tail :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a]
+tail = AppE Tail
 
-take :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
-take = appE2 Take
+take :: (Reify (Exp a)) => Exp Integer -> Exp [Exp a] -> Exp [Exp a]
+take i as = AppE Take (PairE i as)
 
-drop :: forall a. (QA a) => Q Integer -> Q [a] -> Q [a]
-drop = appE2 Drop
+drop :: (Reify (Exp a)) => Exp Integer -> Exp [Exp a] -> Exp [Exp a]
+drop i as = AppE Drop (PairE i as)
 
-map :: forall a b. (QA a, QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-map = appE2f Map 
+map :: (Reify (Exp a),Reify (Exp b)) => (Exp a -> Exp b) ->  Exp [Exp a] -> Exp [Exp b]
+map f as = AppE Map (PairE (LamE f) as)
 
-append :: forall a. (QA a) => Q [a] -> Q [a] -> Q [a]
-append = appE2 Append
+append :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a] -> Exp [Exp a]
+append as bs = concat (ListE [as,bs])
 
-(><) :: (QA a) => Q [a] -> Q [a] -> Q [a]
+(><) :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a] -> Exp [Exp a]
 (><) = append
 
-filter :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-filter = appE2f Filter
+filter :: (Reify (Exp a)) => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp [Exp a]
+filter f as = AppE Filter (PairE (LamE f) as)
 
-groupWith :: forall a b. (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
-groupWith = appE2f GroupWith
+groupWith :: (Reify (Exp a),Reify (Exp b)) => (Exp a -> Exp b) -> Exp [Exp a] -> Exp [Exp [Exp a]]
+groupWith f as = AppE GroupWith (PairE (LamE f) as)
 
-sortWith :: forall a b. (Ord b, QA a, QA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-sortWith = appE2f SortWith
+sortWith :: (Reify (Exp a),Reify (Exp b)) => (Exp a -> Exp b) -> Exp [Exp a] -> Exp [Exp a]
+sortWith f as = AppE SortWith (PairE (LamE f) as)
 
-the :: forall a. (Eq a, QA a) => Q [a] -> Q a
-the = appE1 The
+the :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+the = AppE The
 
-last :: forall a. (QA a) => Q [a] -> Q a
-last = appE1 Last
+last :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+last = AppE Last
 
-init :: forall a. (QA a) => Q [a] -> Q [a]
-init = appE1 Init
+init :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a]
+init = AppE Init
 
-null :: (QA a) => Q [a] -> Q Bool
-null = appE1 Null
+null :: (Reify (Exp a)) => Exp [Exp a] -> Exp Bool
+null = AppE Null
 
-length :: (QA a) => Q [a] -> Q Integer
-length = appE1 Length
+length :: (Reify (Exp a)) => Exp [Exp a] -> Exp Integer
+length = AppE Length
 
-index :: forall a. (QA a) => Q [a] -> Q Integer -> Q a
-index = appE2 Index
+index :: (Reify (Exp a)) => Exp [Exp a] -> Exp Integer -> Exp a
+index as i = AppE Index (PairE as i)
 
-(!!) :: (QA a) => Q [a] -> Q Integer -> Q a
+(!!) :: (Reify (Exp a)) => Exp [Exp a] -> Exp Integer -> Exp a
 (!!) = index
 
-reverse :: forall a. (QA a) => Q [a] -> Q [a]
-reverse = appE1 Reverse
+reverse :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a]
+reverse = AppE Reverse
 
 
 -- * Special folds
 
-and :: Q [Bool] -> Q Bool
-and = appE1 And
+and :: Exp ([Exp Bool]) -> Exp Bool
+and = AppE And
 
-or :: Q [Bool] -> Q Bool
-or = appE1 Or
+or :: Exp ([Exp Bool]) -> Exp Bool
+or = AppE Or
 
-any :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-any = appE2f Any 
+any :: (Reify (Exp a))  => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp Bool
+any f = or . map f
 
-all :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q Bool
-all = appE2f All 
+all :: (Reify (Exp a))  => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp Bool
+all f = and . map f
 
-sum :: forall a. (QA a, Num a) => Q [a] -> Q a
-sum = appE1 Sum
+sum :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+sum = AppE Sum
 
-concat :: forall a. (QA a) => Q [[a]] -> Q [a]
-concat = appE1 Concat
+concat :: (Reify (Exp a)) => Exp [Exp [Exp a]] -> Exp [Exp a]
+concat = AppE Concat
 
-concatMap :: (QA a, QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
+concatMap :: (Reify (Exp a),Reify (Exp b)) => (Exp a -> Exp [Exp b]) -> Exp [Exp a] -> Exp [Exp b]
 concatMap f as = concat (map f as)
 
-maximum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
-maximum = appE1 Maximum
+maximum :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+maximum = AppE Maximum
 
-minimum   :: forall a. (QA a, Ord a) => Q [a] -> Q a
-minimum = appE1 Minimum
+minimum :: (Reify (Exp a)) => Exp [Exp a] -> Exp a
+minimum = AppE Minimum
 
 -- * Sublists
 
-splitAt   :: forall a. (QA a) => Q Integer -> Q [a] -> Q ([a], [a])
-splitAt = appE2 SplitAt
+splitAt :: (Reify (Exp a)) => Exp Integer -> Exp [Exp a] -> Exp (Exp [Exp a], Exp [Exp a])
+splitAt i as = AppE SplitAt (PairE i as)
 
-takeWhile :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile = appE2f TakeWhile
+takeWhile :: (Reify (Exp a)) => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp [Exp a]
+takeWhile f as = AppE TakeWhile (PairE (LamE f) as)
 
-dropWhile :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile = appE2f DropWhile
+dropWhile :: (Reify (Exp a)) => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp [Exp a]
+dropWhile f as = AppE DropWhile (PairE (LamE f) as)
 
-span :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-span = appE2f Span
+span :: (Reify (Exp a)) => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp (Exp [Exp a],Exp [Exp a])
+span f as = pair (takeWhile f as) (dropWhile f as)
 
-break :: forall a. (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-break = appE2f Break
+break :: (Reify (Exp a)) => (Exp a -> Exp Bool) -> Exp [Exp a] -> Exp (Exp [Exp a],Exp [Exp a])
+break f as = span (not . f) as
 
 -- * Searching Lists
 
-elem :: forall a. (Eq a, QA a) => Q a -> Q [a] -> Q Bool
+elem :: (Reify (Exp a)) => Exp a -> Exp [Exp a] -> Exp Bool
 elem a as = (null (filter (a ==) as)) ? (false,true)
 
-notElem :: forall a. (Eq a, QA a) => Q a -> Q [a] -> Q Bool
+notElem :: (Reify (Exp a)) => Exp a -> Exp [Exp a] -> Exp Bool
 notElem a as = not (elem a as)
 
 {-
 lookup :: (QA a,QA b,Eq a) => Q a -> Q [(a, b)] -> Q (Maybe b)
 lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
 -}
+
 -- * Zipping and Unzipping Lists
 
-zip :: forall a b. (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-zip = appE2 Zip
+zip :: (Reify (Exp a),Reify (Exp b)) => Exp [Exp a] -> Exp [Exp b] -> Exp [Exp (Exp a,Exp b)]
+zip as bs = AppE Zip (PairE as bs)
 
-zipWith   :: forall a b c. (QA a, QA b, QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
-zipWith = appE3f ZipWith
+zipWith   :: (Reify (Exp a),Reify (Exp b),Reify (Exp c)) => (Exp a -> Exp b -> Exp c) -> Exp [Exp a] -> Exp [Exp b] -> Exp [Exp c]
+zipWith f as bs = map (\e -> f (fst e) (snd e)) (zip as bs)
 
-unzip :: forall a b. (QA a, QA b) => Q [(a,b)] -> Q ([a], [b])
-unzip = appE1 Unzip
+unzip :: (Reify (Exp a),Reify (Exp b)) => Exp [Exp (Exp a,Exp b)] -> Exp (Exp [Exp a], Exp [Exp b])
+unzip = AppE Unzip
 
 -- * "Set" operations
 
-nub :: forall a. (Eq a,QA a) => Q [a] -> Q [a]
-nub = appE1 Nub
+nub :: (Reify (Exp a)) => Exp [Exp a] -> Exp [Exp a]
+nub = AppE Nub
 
 -- * Tuple Projection Functions
 
-fst :: forall a b. (QA a, QA b) => Q (a,b) -> Q a
-fst = appE1 Fst
+fst :: (Reify (Exp a),Reify (Exp b)) => Exp (Exp a,Exp b) -> Exp a
+fst = AppE Fst
 
-snd :: forall a b. (QA a, QA b) => Q (a,b) -> Q b
-snd = appE1 Snd
+snd :: (Reify (Exp a),Reify (Exp b)) => Exp (Exp a,Exp b) -> Exp b
+snd = AppE Snd
 
-pair :: forall a b. (QA a, QA b) => Q a -> Q b -> Q (a, b)
-pair a b = expToQ (PairE (qToExp a) (qToExp b))
+pair :: (Reify (Exp a),Reify (Exp b)) => Exp a -> Exp b -> Exp (Exp a,Exp b)
+pair = PairE
 
 -- * Conversions between numeric types
 
-integerToDouble :: Q Integer -> Q Double
-integerToDouble = appE1 IntegerToDouble
+integerToDouble :: Exp Integer -> Exp Double
+integerToDouble = AppE IntegerToDouble
 
 -- * Rebind Monadic Combinators
 
-return :: (QA a) => Q a -> Q [a]
+return :: (Reify (Exp a)) => Exp a -> Exp [Exp a]
 return = singleton
 
-(>>=) :: (QA a, QA b) => Q [a] -> (Q a -> Q [b]) -> Q [b]
+(>>=) :: (Reify (Exp a),Reify (Exp b)) => Exp [Exp a] -> (Exp a -> Exp [Exp b]) -> Exp [Exp b]
 (>>=) ma f = concatMap f ma
 
-(>>) :: (QA a, QA b) => Q [a] -> Q [b] -> Q [b]
+(>>) :: (Reify (Exp a),Reify (Exp b)) => Exp [Exp a] -> Exp [Exp b] -> Exp [Exp b]
 (>>) ma mb = concatMap (\_ -> mb) ma
 
-mzip :: (QA a, QA b) => Q [a] -> Q [b] -> Q [(a,b)]
+mzip :: (Reify (Exp a),Reify (Exp b)) => Exp [Exp a] -> Exp [Exp b] -> Exp [Exp (Exp a,Exp b)]
 mzip = zip
 
-guard :: Q Bool -> Q [()]
+guard :: Exp Bool -> Exp [Exp ()]
 guard c = cond c (singleton unit) nil
 
 infixl 9 !!

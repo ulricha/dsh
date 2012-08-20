@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
-
 module Database.DSH.TH
     (
       deriveTupleQA

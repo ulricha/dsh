@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, GADTs #-}
 module Database.DSH.Compile where
 
 import Database.DSH.Data
@@ -49,7 +48,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO (Norm a)
+executePlan :: forall a. forall conn. (Reify (Exp a), IConnection conn) => conn -> AlgebraXML (Exp a) -> IO (Exp a)
 executePlan c p = do
                         sql@(SQL _s) <- algToSQL p
                         runSQL c $ extractSQL sql
@@ -106,14 +105,14 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
         process _ = $impossible
 
 -- | Execute the given SQL queries and assemble the results into one structure
-runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO (Norm a)
+runSQL :: forall a. forall conn. (Reify (Exp a), IConnection conn) => conn -> QueryBundle (Exp a) -> IO (Exp a)
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
-                             let ty = reify (undefined :: a)
+                             let ty = reify (undefined :: Exp a)
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
                              case ty of
-                                 (ListT _) -> return $ fromMaybe (ListN []) (lookup 1 results')
+                                 (ListT _) -> return $ fromMaybe (ListE []) (lookup 1 results')
                                  _         -> return $ fromJust (lookup 1 results')
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
@@ -147,12 +146,12 @@ findQuery (q, c) = do
                                   Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
-processResults :: Int -> Type a -> QueryR [(Int, Norm a)]
+processResults :: Int -> Type (Exp a) -> QueryR [(Int, Exp a)]
 processResults i (ListT t1) = do
                                 v <- getResults i
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1)) v
+                                                        return (it, ListE v1)) v
 processResults i t = do
                         v <- getResults i
                         mapM (\(it, vals) -> do
@@ -171,12 +170,12 @@ nrColsInType (ListT _) = 1
 nrColsInType (ArrowT _ _) = $impossible
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
-processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Norm a]
-processResults' _ _ vals UnitT = return $ map (\_ -> UnitN) vals
+processResults' :: Int -> Int -> [[SqlValue]] -> Type (Exp a) -> QueryR [Exp a]
+processResults' _ _ vals UnitT = return $ map (\_ -> UnitE) vals
 processResults' q c vals (PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
                                             v2s <- processResults' q (c + nrColsInType t1) vals t2
-                                            return $ [PairN v1 v2 | v1 <- v1s | v2 <- v2s]
+                                            return (zipWith PairE v1s v2s)
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
@@ -189,8 +188,8 @@ processResults' q c vals t@(ListT _) = do
                                         let lA = (A.accumArray ($impossible) Nothing (1,maxI `max` maxV) []) A.// map (\(x,y) -> (x, Just y)) list
                                         return $ map (\val -> case lA A.! val of
                                                                 Just x -> x
-                                                                Nothing -> ListN []) vals'
-processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
+                                                                Nothing -> ListE []) vals'
+processResults' _ _ _ (ArrowT _ _) = $impossible
 processResults' q c vals t = do
                                     i <- getColResPos q c
                                     return $ map (\val -> convert (val !! i) t) vals
@@ -199,32 +198,31 @@ sqlValueToInt :: SqlValue -> Int
 sqlValueToInt (SqlInteger i) = fromIntegral i
 sqlValueToInt _ = $impossible
 
-convert :: SqlValue -> Type a -> Norm a
-convert SqlNull         UnitT    = UnitN
-convert (SqlInteger i)  IntegerT = IntegerN i
-convert (SqlInt32 i)    IntegerT = IntegerN $ fromIntegral i
-convert (SqlInt64 i)    IntegerT = IntegerN $ fromIntegral i
-convert (SqlWord32 i)   IntegerT = IntegerN $ fromIntegral i
-convert (SqlWord64 i)   IntegerT = IntegerN $ fromIntegral i
--- convert (SqlRational r) IntegerT = IntegerN $ fromRational r
-convert (SqlDouble d)  DoubleT  = DoubleN d
-convert (SqlRational d) DoubleT = DoubleN $ fromRational d
-convert (SqlInteger d)  DoubleT = DoubleN $ fromIntegral d
-convert (SqlInt32 d)    DoubleT = DoubleN $ fromIntegral d
-convert (SqlInt64 d)    DoubleT = DoubleN $ fromIntegral d
-convert (SqlWord32 d)   DoubleT = DoubleN $ fromIntegral d
-convert (SqlWord64 d)   DoubleT = DoubleN $ fromIntegral d
-convert (SqlBool b) BoolT       = BoolN b
-convert (SqlInteger i) BoolT    = BoolN (i /= 0)
-convert (SqlInt32 i)   BoolT    = BoolN (i /= 0)
-convert (SqlInt64 i)   BoolT    = BoolN (i /= 0)
-convert (SqlWord32 i)  BoolT    = BoolN (i /= 0)
-convert (SqlWord64 i)  BoolT    = BoolN (i /= 0) 
-convert (SqlChar c) CharT       = CharN c
-convert (SqlString (c:_)) CharT = CharN c
-convert (SqlByteString c) CharT = CharN (head $ T.unpack $ T.decodeUtf8 c)
-convert (SqlString t) TextT     = TextN (T.pack t) 
-convert (SqlByteString s) TextT = TextN (T.decodeUtf8 s)
+convert :: SqlValue -> Type (Exp a) -> Exp a
+convert SqlNull         UnitT    = UnitE
+convert (SqlInteger i)  IntegerT = IntegerE i
+convert (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlDouble d)  DoubleT  = DoubleE d
+convert (SqlRational d) DoubleT = DoubleE $ fromRational d
+convert (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlBool b) BoolT       = BoolE b
+convert (SqlInteger i) BoolT    = BoolE (i /= 0)
+convert (SqlInt32 i)   BoolT    = BoolE (i /= 0)
+convert (SqlInt64 i)   BoolT    = BoolE (i /= 0)
+convert (SqlWord32 i)  BoolT    = BoolE (i /= 0)
+convert (SqlWord64 i)  BoolT    = BoolE (i /= 0) 
+convert (SqlChar c) CharT       = CharE c
+convert (SqlString (c:_)) CharT = CharE c
+convert (SqlByteString c) CharT = CharE (head $ T.unpack $ T.decodeUtf8 c)
+convert (SqlString t) TextT     = TextE (T.pack t) 
+convert (SqlByteString s) TextT = TextE (T.decodeUtf8 s)
 convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 -- | Partition by iter column

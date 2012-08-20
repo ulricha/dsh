@@ -51,6 +51,15 @@ Extra-source-files:  examples/Example01.hs
 Cabal-version:       >= 1.2
 
 Library
+  Extensions:        TemplateHaskell,
+                     ScopedTypeVariables,
+                     FlexibleContexts,
+                     FlexibleInstances,
+                     MultiParamTypeClasses,
+                     TypeFamilies,
+                     GADTs,
+                     OverloadedStrings
+
   Build-depends:     base               >= 4.3.1.0 && < 5,
                      ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
@@ -81,7 +90,5 @@ Library
   Other-modules:     Database.DSH.Data
                      Database.DSH.Combinators
                      Database.DSH.CSV
-                     Database.DSH.JSON
-                     Database.DSH.XHTML
                      Database.DSH.Impossible
                      Database.DSH.Compile

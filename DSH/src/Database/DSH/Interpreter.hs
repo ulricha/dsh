@@ -1,339 +1,335 @@
 -- | This module provides the reference implementation of DSH by interpreting
 -- the embedded representation.
 
-{-# LANGUAGE TemplateHaskell, ViewPatterns, ScopedTypeVariables, GADTs #-}
-{- # OPTIONS_GHC -fno-warn-incomplete-patterns #-}
-
 module Database.DSH.Interpreter (fromQ) where
 
 import Database.DSH.Data
 import Database.DSH.Impossible (impossible)
 import Database.DSH.CSV (csvImport)
 
-
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Database.HDBC
-import GHC.Exts
 import Data.List
 
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c a = evaluate c (qToExp a) >>= (return . fromNorm)
+fromQ :: (QA a, IConnection conn) => conn -> Exp (Q a) -> IO a
+fromQ c a = evaluate c a >>= (return . frExp)
 
-evaluate :: IConnection conn
-         => conn                -- ^ The HDBC connection
-         -> (Exp a)
-         -> IO (Norm a)
+evaluate :: (Reify (Exp a), IConnection conn)
+         => conn
+         -> Exp a
+         -> IO (Exp a)
 evaluate c e = case e of
-    UnitE -> return UnitN
-    BoolE b -> return $ BoolN b
-    CharE ch -> return $ CharN ch
-    IntegerE i -> return $ IntegerN i
-    DoubleE d -> return $ DoubleN d
-    TextE t -> return $ TextN t 
+    UnitE -> return UnitE
+    BoolE b -> return $ BoolE b
+    CharE ch -> return $ CharE ch
+    IntegerE i -> return $ IntegerE i
+    DoubleE d -> return $ DoubleE d
+    TextE t -> return $ TextE t 
     VarE _ -> $impossible
-    Lam1E _ -> $impossible
-    Lam2E _ -> $impossible
+    LamE _ -> $impossible
     PairE e1 e2 -> do
                      e1' <- evaluate c e1
                      e2' <- evaluate c e2
-                     return (PairN e1' e2')
+                     return (PairE e1' e2')
     ListE es -> do
                     es1 <- mapM (evaluate c) es
-                    return $ ListN es1 
-    App3E Cond cond a b -> do
-      (BoolN c1) <- evaluate c cond
+                    return $ ListE es1 
+    AppE Cond (PairE cond (PairE a b)) -> do
+      (BoolE c1) <- evaluate c cond
       if c1 then evaluate c a else evaluate c b
-    AppH3E ZipWith lam as bs -> do
-        (ListN as1) <- evaluate c as
-        (ListN bs1) <- evaluate c bs
-        evaluate c $ ListE (zipWith (\a b -> evalLam2 lam a b) as1 bs1)
-    App2E Cons a as -> do
+    AppE Cons (PairE a as) -> do
       a1 <- evaluate c a
-      (ListN as1) <- evaluate c as
-      return $ ListN (a1 : as1)
-    App2E Snoc as a -> do
-      a1 <- evaluate c a
-      (ListN as1) <- evaluate c as
-      return $ ListN (snoc as1 a1)
-    App1E Head as -> do
-      (ListN as1) <- evaluate c as
+      (ListE as1) <- evaluate c as
+      return $ ListE (a1 : as1)
+    AppE Head as -> do
+      (ListE as1) <- evaluate c as
       return $ head as1
-    App1E Tail as -> do
-      (ListN as1) <- evaluate c as
-      return $ ListN (tail as1)
-    App2E Take i as -> do
-      (IntegerN i1) <- evaluate c i
-      (ListN as1) <- evaluate c as
-      return $ ListN (take (fromIntegral i1) as1)
-    App2E Drop i as -> do
-      (IntegerN i1) <- evaluate c i
-      (ListN as1) <- evaluate c as
-      return $ ListN (drop (fromIntegral i1) as1)
-    AppH2E Map lam as -> do
-      (ListN as1) <- evaluate c as
-      evaluate c $ ListE (map (evalLam1 lam) as1)
-    App2E Append as bs -> do
-      (ListN as1) <- evaluate c as
-      (ListN bs1) <- evaluate c bs
-      return $ ListN (as1 ++ bs1)
-    AppH2E Filter lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ ListN (map fst (filter (\(_,(BoolN b)) -> b) (zip as1 as2))) 
-    AppH2E GroupWith lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ ListN (map (ListN . (map fst)) $ groupWith snd $ zip as1 as2) 
-    AppH2E SortWith (lam :: Exp (a -> b)) as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c $ ListE (map (evalLam1 lam) as1) 
-      return $ ListN (map fst $ sortWith snd $ zip as1 as2)
-    ((App2E Max e1 e2) :: Exp ty) -> do
-      case reify (undefined :: ty) of
+    AppE Tail as -> do
+      (ListE as1) <- evaluate c as
+      return $ ListE (tail as1)
+    AppE Take (PairE i as) -> do
+      (IntegerE i1) <- evaluate c i
+      (ListE as1) <- evaluate c as
+      return $ ListE (take (fromIntegral i1) as1)
+    AppE Drop (PairE i as) -> do
+      (IntegerE i1) <- evaluate c i
+      (ListE as1) <- evaluate c as
+      return $ ListE (drop (fromIntegral i1) as1)
+    AppE Map (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      evaluate c $ ListE (map f as1)
+    AppE Filter (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      (ListE as2) <- evaluate c (ListE (map f as1))
+      return $ ListE (map fst (filter (\(_,(BoolE b)) -> b) (zip as1 as2))) 
+    AppE GroupWith (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      (ListE as2) <- evaluate c (ListE (map f as1))
+      return $ ListE
+             $ map (ListE . (map fst))
+             $ groupBy (\(_,a1) (_,a2) -> equExp a1 a2)
+             $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
+             $ zip as1 as2
+    AppE SortWith (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      (ListE as2) <- evaluate c $ ListE (map f as1) 
+      return $ ListE 
+             $ map fst
+             $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
+             $ zip as1 as2
+    ((AppE Max (PairE e1 e2)) :: Exp ty) -> do
+      case reify (undefined :: Exp ty) of
           IntegerT -> do
-                        (IntegerN v1) <- evaluate c e1
-                        (IntegerN v2) <- evaluate c e2
-                        return $ IntegerN (max v1 v2)
+                        (IntegerE v1) <- evaluate c e1
+                        (IntegerE v2) <- evaluate c e2
+                        return $ IntegerE (max v1 v2)
           DoubleT -> do 
-                        (DoubleN v1) <- evaluate c e1
-                        (DoubleN v2) <- evaluate c e2
-                        return $ DoubleN (max v1 v2)
+                        (DoubleE v1) <- evaluate c e1
+                        (DoubleE v2) <- evaluate c e2
+                        return $ DoubleE (max v1 v2)
           _ -> $impossible
-    ((App2E Min e1 e2) :: Exp ty) -> do
-      case reify (undefined :: ty) of
+    ((AppE Min (PairE e1 e2)) :: Exp ty) -> do
+      case reify (undefined :: Exp ty) of
           IntegerT -> do
-                        (IntegerN v1) <- evaluate c e1
-                        (IntegerN v2) <- evaluate c e2
-                        return $ IntegerN (min v1 v2)
+                        (IntegerE v1) <- evaluate c e1
+                        (IntegerE v2) <- evaluate c e2
+                        return $ IntegerE (min v1 v2)
           DoubleT -> do
-                        (DoubleN v1) <- evaluate c e1
-                        (DoubleN v2) <- evaluate c e2
-                        return $ DoubleN (min v1 v2)
+                        (DoubleE v1) <- evaluate c e1
+                        (DoubleE v2) <- evaluate c e2
+                        return $ DoubleE (min v1 v2)
           _ -> $impossible
-    App1E The as -> do
-      (ListN as1) <- evaluate c as
-      return $ the as1
-    App1E Last as -> do
-      (ListN as1) <- evaluate c as
+    AppE The as -> do
+      (ListE as1) <- evaluate c as
+      case as1 of
+        [] -> error "Database.DSH.Interpreter.the: empty list"
+        (x : xs) -> return $ if all (equExp x) xs
+                                then x
+                                else error "Database.DSH.Interpreter.the: non-identical elements"
+    AppE Last as -> do
+      (ListE as1) <- evaluate c as
       return $ last as1
-    App1E Init as -> do
-      (ListN as1) <- evaluate c as
-      return $ ListN (init as1)
-    App1E Null as -> do
-      (ListN as1) <- evaluate c as
-      return $ BoolN (null as1)
-    App1E Length as -> do
-     (ListN as1) <- evaluate c as
-     return $ IntegerN (fromIntegral $ length as1)
-    App2E Index as i -> do
-     (IntegerN i1) <- evaluate c i
-     (ListN as1) <- evaluate c as
+    AppE Init as -> do
+      (ListE as1) <- evaluate c as
+      return $ ListE (init as1)
+    AppE Null as -> do
+      (ListE as1) <- evaluate c as
+      return $ BoolE (null as1)
+    AppE Length as -> do
+     (ListE as1) <- evaluate c as
+     return $ IntegerE (fromIntegral $ length as1)
+    AppE Index (PairE as i) -> do
+     (IntegerE i1) <- evaluate c i
+     (ListE as1) <- evaluate c as
      return $ as1 !! (fromIntegral i1)
-    App1E Reverse as -> do
-      (ListN as1) <- evaluate c as
-      return $ ListN (reverse as1)
-    App1E And as -> do
-      (ListN as1) <- evaluate c as
-      return $ BoolN (and $ map (\(BoolN b) -> b) as1)
-    App1E Or as -> do
-      (ListN as1) <- evaluate c as
-      return $ BoolN (or $ map (\(BoolN b) -> b) as1)
-    AppH2E Any lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1)) 
-      return $ BoolN (any id $ map (\(BoolN b) -> b) as2) 
-    AppH2E All lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ BoolN (all id $ map (\(BoolN b) -> b) as2)
-    (App1E Sum as :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
-      (ListN as1) <- evaluate c as
+    AppE Reverse as -> do
+      (ListE as1) <- evaluate c as
+      return $ ListE (reverse as1)
+    AppE And as -> do
+      (ListE as1) <- evaluate c as
+      return $ BoolE (and $ map (\(BoolE b) -> b) as1)
+    AppE Or as -> do
+      (ListE as1) <- evaluate c as
+      return $ BoolE (or $ map (\(BoolE b) -> b) as1)
+    (AppE Sum as :: Exp ty) -> do
+      let ty = reify (undefined :: Exp ty)
+      (ListE as1) <- evaluate c as
       case ty of
-          IntegerT -> return $ IntegerN (sum $ map (\(IntegerN i) -> i) as1)
-          DoubleT  -> return $ DoubleN (sum $ map (\(DoubleN d) -> d) as1)
+          IntegerT -> return $ IntegerE (sum $ map (\(IntegerE i) -> i) as1)
+          DoubleT  -> return $ DoubleE (sum $ map (\(DoubleE d) -> d) as1)
           _ -> $impossible
-    ((App1E Concat as) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
-      (ListN as1) <- evaluate c as
-      -- Case analysis is necessary to convince the type checker that we can only have [[a]] here. It is not smart enough that there is just one type valid here...
-      case ty of
-          (ListT _) -> return $ ListN (concat $ map (\(ListN as2) -> as2) as1)
-          _ -> error $ show ty -- $impossible 
-    App1E Maximum as -> do
-      (ListN as1) <- evaluate c as
-      return $ maximum as1
-    App1E Minimum as -> do
-      (ListN as1) <- evaluate c as
-      return $ minimum as1
-    App2E SplitAt i as -> do
-      (IntegerN i1) <- evaluate c i
-      (ListN as1) <- evaluate c as
+    AppE Concat as -> do
+      (ListE as1) <- evaluate c as
+      return $  ListE (concat $ map (\(ListE as2) -> as2) as1)
+    AppE Maximum as -> do
+      (ListE as1) <- evaluate c as
+      return $ maximumBy compareExp as1
+    AppE Minimum as -> do
+      (ListE as1) <- evaluate c as
+      return $ minimumBy compareExp as1
+    AppE SplitAt (PairE i as) -> do
+      (IntegerE i1) <- evaluate c i
+      (ListE as1) <- evaluate c as
       let r = splitAt (fromIntegral i1) as1
-      return $ PairN (ListN (fst r)) (ListN (snd r)) 
-    AppH2E TakeWhile lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ ListN (map fst $ takeWhile (\(_,BoolN b) -> b) $ zip as1 as2)
-    AppH2E DropWhile lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ ListN (map fst $ dropWhile (\(_,BoolN b) -> b) $ zip as1 as2)
-    AppH2E Span lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ (\(a,b) -> PairN a b)
-             $ (\(a,b) -> (ListN (map fst a), ListN (map fst b)))
-             $ span (\(_,BoolN b) -> b)
-             $ zip as1 as2
-    AppH2E Break lam as -> do
-      (ListN as1) <- evaluate c as
-      (ListN as2) <- evaluate c (ListE (map (evalLam1 lam) as1))
-      return $ (\(a,b) -> PairN a b)
-             $ (\(a,b) -> (ListN (map fst a), ListN (map fst b)))
-             $ break (\(_,BoolN b) -> b)
-             $ zip as1 as2
-    App2E Zip as bs -> do
-      (ListN as1) <- evaluate c as
-      (ListN bs1) <- evaluate c bs
-      return $ ListN (zipWith (\a b -> PairN a b) as1 bs1)
-    ((App1E Unzip as) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
-      (ListN as1) <- evaluate c as
-      -- Case analysis to convince the type checker
-      case ty of
-          (PairT (ListT _) (ListT _)) -> return $ PairN (ListN (map (\(PairN a _) -> a) as1))
-                                                (ListN (map (\(PairN _ b) -> b) as1)) 
-          _ -> $impossible
-    App1E Nub as -> do
-      (ListN as1) <- evaluate c as
-      return $ ListN (nub as1)
-    App1E Fst a -> do
-      (PairN a1 _) <- evaluate c a
+      return $ PairE (ListE (fst r)) (ListE (snd r)) 
+    AppE TakeWhile (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      (ListE as2) <- evaluate c (ListE (map f as1))
+      return $ ListE (map fst $ takeWhile (\(_,BoolE b) -> b) $ zip as1 as2)
+    AppE DropWhile (PairE (LamE f) as) -> do
+      (ListE as1) <- evaluate c as
+      (ListE as2) <- evaluate c (ListE (map f as1))
+      return $ ListE (map fst $ dropWhile (\(_,BoolE b) -> b) $ zip as1 as2)
+    AppE Zip (PairE as bs) -> do
+      (ListE as1) <- evaluate c as
+      (ListE bs1) <- evaluate c bs
+      return $ ListE (zipWith (\a b -> PairE a b) as1 bs1)
+    AppE Unzip as -> do
+      (ListE as1) <- evaluate c as
+      return $ PairE (ListE (map (\(PairE a _) -> a) as1)) (ListE (map (\(PairE _ b) -> b) as1))
+    AppE Nub as -> do
+      (ListE as1) <- evaluate c as
+      return $ ListE (nubBy equExp as1)
+    AppE Fst a -> do
+      (PairE a1 _) <- evaluate c a
       return a1
-    App1E Snd a -> do
-      (PairN _ a1) <- evaluate c a
+    AppE Snd a -> do
+      (PairE _ a1) <- evaluate c a
       return a1
-    ((App2E Add e1 e2) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
+    ((AppE Add (PairE e1 e2)) :: Exp ty) -> do
+      let ty = reify (undefined :: Exp ty)
       case ty of
          IntegerT -> do
-                      (IntegerN i1) <- evaluate c e1
-                      (IntegerN i2) <- evaluate c e2
-                      return $ IntegerN (i1 + i2)
+                      (IntegerE i1) <- evaluate c e1
+                      (IntegerE i2) <- evaluate c e2
+                      return $ IntegerE (i1 + i2)
          DoubleT  -> do
-                      (DoubleN d1) <- evaluate c e1
-                      (DoubleN d2) <- evaluate c e2
-                      return $ DoubleN (d1 + d2)
+                      (DoubleE d1) <- evaluate c e1
+                      (DoubleE d2) <- evaluate c e2
+                      return $ DoubleE (d1 + d2)
          _ -> $impossible
-    ((App2E Sub e1 e2) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
+    ((AppE Sub (PairE e1 e2)) :: Exp ty) -> do
+      let ty = reify (undefined :: Exp ty)
       case ty of
          IntegerT -> do
-                      (IntegerN i1) <- evaluate c e1
-                      (IntegerN i2) <- evaluate c e2
-                      return $ IntegerN (i1 - i2)
+                      (IntegerE i1) <- evaluate c e1
+                      (IntegerE i2) <- evaluate c e2
+                      return $ IntegerE (i1 - i2)
          DoubleT  -> do
-                      (DoubleN d1) <- evaluate c e1
-                      (DoubleN d2) <- evaluate c e2
-                      return $ DoubleN (d1 - d2)
+                      (DoubleE d1) <- evaluate c e1
+                      (DoubleE d2) <- evaluate c e2
+                      return $ DoubleE (d1 - d2)
          _ -> $impossible
-    ((App2E Mul e1 e2) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
+    ((AppE Mul (PairE e1 e2)) :: Exp ty) -> do
+      let ty = reify (undefined :: Exp ty)
       case ty of
          IntegerT -> do
-                      (IntegerN i1) <- evaluate c e1
-                      (IntegerN i2) <- evaluate c e2
-                      return $ IntegerN (i1 * i2)
+                      (IntegerE i1) <- evaluate c e1
+                      (IntegerE i2) <- evaluate c e2
+                      return $ IntegerE (i1 * i2)
          DoubleT  -> do
-                      (DoubleN d1) <- evaluate c e1
-                      (DoubleN d2) <- evaluate c e2
-                      return $ DoubleN (d1 * d2)
+                      (DoubleE d1) <- evaluate c e1
+                      (DoubleE d2) <- evaluate c e2
+                      return $ DoubleE (d1 * d2)
          _ -> $impossible
-    ((App2E Div e1 e2) :: Exp ty) -> do
-      let ty = reify (undefined :: ty)
+    ((AppE Div (PairE e1 e2)) :: Exp ty) -> do
+      let ty = reify (undefined :: Exp ty)
       case ty of
          DoubleT  -> do
-                      (DoubleN d1) <- evaluate c e1
-                      (DoubleN d2) <- evaluate c e2
-                      return $ DoubleN (d1 / d2)
+                      (DoubleE d1) <- evaluate c e1
+                      (DoubleE d2) <- evaluate c e2
+                      return $ DoubleE (d1 / d2)
          _ -> $impossible
-    App1E IntegerToDouble e1 -> do
-      (IntegerN i1) <- evaluate c e1
-      return $ DoubleN (fromInteger i1)
-    App2E Equ e1 e2 -> do
+    AppE IntegerToDouble e1 -> do
+      (IntegerE i1) <- evaluate c e1
+      return $ DoubleE (fromInteger i1)
+    AppE Equ (PairE e1 e2) -> do
       e3 <- evaluate c e1
       e4 <- evaluate c e2
-      return $ BoolN (e3 == e4)
-    App2E Lt e1 e2 -> do
+      return $ BoolE $ equExp e3 e4
+    AppE Lt (PairE e1 e2) -> do
       e3 <- evaluate c e1
       e4 <- evaluate c e2
-      return $ BoolN (e3 < e4) 
-    App2E Lte e1 e2 -> do
+      return $ BoolE $ ltExp e3 e4
+    AppE Lte (PairE e1 e2) -> do
       e3 <- evaluate c e1
       e4 <- evaluate c e2
-      return $ BoolN (e3 <= e4)
-    App2E Gte e1 e2 -> do
+      return $ BoolE $ lteExp e3 e4
+    AppE Gte (PairE e1 e2) -> do
       e3 <- evaluate c e1
       e4 <- evaluate c e2
-      return $ BoolN (e3 >= e4) 
-    App2E Gt e1 e2 -> do
+      return $ BoolE $ gteExp e3 e4
+    AppE Gt (PairE e1 e2) -> do
       e3 <- evaluate c e1
       e4 <- evaluate c e2
-      return $ BoolN (e3 > e4) 
-    App1E Not e1 -> do
-      (BoolN b1) <- evaluate c e1
-      return $ BoolN (not b1)
-    App2E Conj e1 e2 -> do
-      (BoolN b1) <- evaluate c e1
-      (BoolN b2) <- evaluate c e2
-      return $ BoolN (b1 && b2)
-    App2E Disj e1 e2 -> do
-      (BoolN b1) <- evaluate c e1
-      (BoolN b2) <- evaluate c e2
-      return $ BoolN (b1 || b2) 
-    ((TableE (TableDB (escape -> tName) _)) :: Exp ty) -> 
-      let ty = reify (undefined :: ty)
+      return $ BoolE $ gtExp e3 e4
+    AppE Not e1 -> do
+      (BoolE b1) <- evaluate c e1
+      return $ BoolE (not b1)
+    AppE Conj (PairE e1 e2) -> do
+      (BoolE b1) <- evaluate c e1
+      (BoolE b2) <- evaluate c e2
+      return $ BoolE (b1 && b2)
+    AppE Disj (PairE e1 e2) -> do
+      (BoolE b1) <- evaluate c e1
+      (BoolE b2) <- evaluate c e2
+      return $ BoolE (b1 || b2) 
+    ((TableE (TableDB tName _)) :: Exp ty) -> 
+      let ty = reify (undefined :: Exp ty)
       in case ty of
           ListT tType -> do
-            tDesc <- describeTable c tName
+            tDesc <- describeTable c (escape tName)
             let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
-            let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ tName ++ "\""
+            let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ escape tName ++ "\""
             -- print query
-            fmap (sqlToNormWithType tName tType) (quickQuery c query [])
+            fmap (sqlToExpWithType (escape tName) tType) (quickQuery c query [])
           _ -> $impossible
-    ((TableE (TableCSV filename)) :: Exp ty) -> csvImport filename (reify (undefined :: ty))
+    ((TableE (TableCSV filename)) :: Exp ty) -> csvImport filename (reify (undefined :: Exp ty))
+    _ -> $impossible
 
-snoc :: [a] -> a -> [a]
-snoc [] a = [a]
-snoc (b : bs) a = b : snoc bs a
+compareExp :: Exp a -> Exp a -> Ordering
+compareExp UnitE UnitE                       = EQ
+compareExp (BoolE v1) (BoolE v2)             = compare v1 v2
+compareExp (CharE v1) (CharE v2)             = compare v1 v2
+compareExp (IntegerE v1) (IntegerE v2)       = compare v1 v2
+compareExp (DoubleE v1) (DoubleE v2)         = compare v1 v2
+compareExp (TextE v1) (TextE v2)             = compare v1 v2
+compareExp (PairE a1 b1) (PairE a2 b2)       = case compareExp a1 a2 of
+                                                 EQ -> compareExp b1 b2
+                                                 LT -> LT
+                                                 GT -> GT
+compareExp (ListE []) (ListE [])             = EQ
+compareExp (ListE (_ : _)) (ListE [])        = GT
+compareExp (ListE []) (ListE (_ : _))        = LT
+compareExp (ListE (a : as)) (ListE (b : bs)) = case compareExp a b of
+                                                 EQ -> compareExp (ListE as) (ListE bs)
+                                                 LT -> LT
+                                                 GT -> GT
+compareExp _ _ = $impossible
+
+equExp :: Exp a -> Exp a -> Bool
+equExp a b = case compareExp a b of
+              EQ -> True
+              _  -> False
+
+ltExp :: Exp a -> Exp a -> Bool
+ltExp a b = case compareExp a b of
+              LT -> True
+              _  -> False
+
+lteExp :: Exp a -> Exp a -> Bool
+lteExp a b = case compareExp a b of
+               GT -> False
+               _  -> True
+
+gteExp :: Exp a -> Exp a -> Bool
+gteExp a b = case compareExp a b of
+               LT -> False
+               _  -> True
+
+gtExp :: Exp a -> Exp a -> Bool
+gtExp a b = case compareExp a b of
+               GT -> True
+               _  -> False
 
 escape :: String -> String
 escape []                  = []
 escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
-evalLam1 :: (QA a, QA b) => Exp (a -> b) -> (Norm a -> Exp b)
-evalLam1 (Lam1E f) n = f (normToExp n)
-evalLam1 _ _ = $impossible
-
-evalLam2 :: (QA a, QA b, QA c) => Exp (a -> b -> c) -> Norm a -> Norm b -> Exp c
-evalLam2 (Lam2E f) n1 n2 = f (normToExp n1) (normToExp n2)
-evalLam2 _ _ _ = $impossible
-
 -- | Read SQL values into 'Norm' values
-sqlToNormWithType :: QA a => String             -- ^ Table name, used to generate more
-                                        -- informative error messages
-                  -> Type a
-                  -> [[SqlValue]]
-                  -> Norm [a]
-sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
+sqlToExpWithType :: (Reify (Exp a))
+                 => String  -- ^ Table name, used to generate more informative error messages
+                 -> Type (Exp a)
+                 -> [[SqlValue]]
+                 -> Exp [Exp a]
+sqlToExpWithType tName ty = ListE . map (sqlValueToNorm ty)
   where
-    sqlValueToNorm :: QA a => Type a -> [SqlValue] -> Norm a
+    sqlValueToNorm :: Type (Exp a) -> [SqlValue] -> Exp a
     sqlValueToNorm (PairT t1 t2) s = let v1 = sqlValueToNorm t1 $ take (sizeOfType t1) s
                                          v2 = sqlValueToNorm t2 $ drop (sizeOfType t1) s
-                                      in PairN v1 v2
+                                      in PairE v1 v2
     -- On a single value, just compare the 'Type' and convert the 'SqlValue' to
     -- a Norm value on match
     sqlValueToNorm t [s] = if t `typeMatch` s
@@ -348,32 +344,31 @@ sqlToNormWithType tName ty = ListN . map (sqlValueToNorm ty)
         ++ "\n\tExpected table type: " ++ show t
         ++ "\n\tTable entry: " ++ show s
 
-convert :: SqlValue -> Type a -> Norm a
-convert SqlNull         UnitT    = UnitN
-convert (SqlInteger i)  IntegerT = IntegerN i
-convert (SqlInt32 i)    IntegerT = IntegerN $ fromIntegral i
-convert (SqlInt64 i)    IntegerT = IntegerN $ fromIntegral i
-convert (SqlWord32 i)   IntegerT = IntegerN $ fromIntegral i
-convert (SqlWord64 i)   IntegerT = IntegerN $ fromIntegral i
--- convert (SqlRational r) IntegerT = IntegerN $ fromRational r
-convert (SqlDouble d)  DoubleT  = DoubleN d
-convert (SqlRational d) DoubleT = DoubleN $ fromRational d
-convert (SqlInteger d)  DoubleT = DoubleN $ fromIntegral d
-convert (SqlInt32 d)    DoubleT = DoubleN $ fromIntegral d
-convert (SqlInt64 d)    DoubleT = DoubleN $ fromIntegral d
-convert (SqlWord32 d)   DoubleT = DoubleN $ fromIntegral d
-convert (SqlWord64 d)   DoubleT = DoubleN $ fromIntegral d
-convert (SqlBool b) BoolT       = BoolN b
-convert (SqlInteger i) BoolT    = BoolN (i /= 0)
-convert (SqlInt32 i)   BoolT    = BoolN (i /= 0)
-convert (SqlInt64 i)   BoolT    = BoolN (i /= 0)
-convert (SqlWord32 i)  BoolT    = BoolN (i /= 0)
-convert (SqlWord64 i)  BoolT    = BoolN (i /= 0) 
-convert (SqlChar c) CharT       = CharN c
-convert (SqlString (c:_)) CharT = CharN c
-convert (SqlByteString c) CharT = CharN (head $ T.unpack $ T.decodeUtf8 c)
-convert (SqlString t) TextT     = TextN (T.pack t) 
-convert (SqlByteString s) TextT = TextN (T.decodeUtf8 s)
+convert :: SqlValue -> Type (Exp a) -> Exp a
+convert SqlNull         UnitT    = UnitE
+convert (SqlInteger i)  IntegerT = IntegerE i
+convert (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlDouble d)  DoubleT  = DoubleE d
+convert (SqlRational d) DoubleT = DoubleE $ fromRational d
+convert (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlBool b) BoolT       = BoolE b
+convert (SqlInteger i) BoolT    = BoolE (i /= 0)
+convert (SqlInt32 i)   BoolT    = BoolE (i /= 0)
+convert (SqlInt64 i)   BoolT    = BoolE (i /= 0)
+convert (SqlWord32 i)  BoolT    = BoolE (i /= 0)
+convert (SqlWord64 i)  BoolT    = BoolE (i /= 0) 
+convert (SqlChar c) CharT       = CharE c
+convert (SqlString (c:_)) CharT = CharE c
+convert (SqlByteString c) CharT = CharE (head $ T.unpack $ T.decodeUtf8 c)
+convert (SqlString t) TextT     = TextE (T.pack t) 
+convert (SqlByteString s) TextT = TextE (T.decodeUtf8 s)
 convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 sizeOfType :: Type a -> Int

@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.DeriveConstructors where
 
 import qualified Database.DSH.Data as D

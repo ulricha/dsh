@@ -10,7 +10,7 @@ hpc: cabal
 		hpc markup Main
 
 cabal: clean
-		cd ..; cabal clean; cabal install; cd tests;
+		cd ..; cabal install; cd tests;
 
 clean:
 		rm -rf tmp .hpc *.html *.tix *.o *.hi Main

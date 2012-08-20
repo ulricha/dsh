@@ -18,20 +18,19 @@ module Database.DSH
     module Database.DSH.Combinators
 
     -- * Type Classes
+  , Exp, Reify
   , QA(..)
-  , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
-  , View, view, fromView, tuple, record -- , caseOf, Case, gCurry
+  , TA, toQ, table, tableDB, tableCSV, tableWithKeys, BasicType
+  , View, view, fromView, tuple, record
 
 {-    -- * Template Haskell: Creating Table Representations
   , generateDatabaseRecordInstances
   , generateTableRecordInstances
   , generateRecordInstances
   , generateTableDeclarations
-  , deriveQAConstructors -}
-
+  , deriveQAConstructors
+-}
   , module Database.DSH.CSV
-  , module Database.DSH.JSON
-  , module Database.DSH.XHTML
 
   , module Data.String
   , module Data.Text
@@ -40,13 +39,11 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Q, QA(..), TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record {-, caseOf, Case, gCurry -})
+import Database.DSH.Data (Exp, Q, QA(..), Reify, TA, toQ, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
 -- import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
 -- import Database.DSH.DeriveConstructors
 
 import Database.DSH.CSV
-import Database.DSH.JSON
-import Database.DSH.XHTML
 
 import Database.DSH.Combinators
 
