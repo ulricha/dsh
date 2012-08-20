@@ -61,20 +61,15 @@ Library
                      OverloadedStrings
 
   Build-depends:     base               >= 4.3.1.0 && < 5,
-                     ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
                      array              >= 0.3.0.2,
-                     syb                >= 0.3,
                      mtl                >= 2.0.1.0,
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
-                     convertible        >= 1.0.11.0,
                      template-haskell   >= 2.5.0.0,
                      HaXml              >= 1.22.5,
                      csv                >= 0.1.2,
-                     json               >= 0.5,
-                     xhtml              >= 3000.2.0.1,
                      Pathfinder         >= 0.5.10,
                      FerryCore          >= 0.4.6.4
 
