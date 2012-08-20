@@ -53,7 +53,7 @@ seed (UnOp op _) =
     IntegerToDoubleA   -> vPropSeed
     IntegerToDoubleL   -> vPropSeed
     FalsePositions     -> vPropSeed
-    SelectItem         -> vPropSeed
+    SelectExpr _       -> vPropSeed
     ProjectRename _    -> vPropSeed
     ProjectAdmin _     -> vPropSeed
     ProjectPayload _   -> vPropSeed

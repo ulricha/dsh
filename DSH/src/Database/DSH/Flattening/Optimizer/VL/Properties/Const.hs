@@ -153,9 +153,9 @@ inferConstVecUnOp c op =
             
       return $ VProp $ DBVConst constDescr' constCols
 
-    SelectItem       -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [ConstPL $ VLBool True]
+    SelectExpr _       -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d cols
       
     Only             -> undefined
     Singleton        -> undefined

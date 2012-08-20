@@ -53,7 +53,7 @@ inferEmptyUnOp e op =
     ProjectRename _  -> Right e
     ProjectPayload _   -> Right e
     ProjectAdmin _   -> Right e
-    SelectItem       -> Right e
+    SelectExpr _       -> Right e
     Only             -> undefined
     Singleton        -> undefined
     CompExpr1 _ -> Right e

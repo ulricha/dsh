@@ -71,7 +71,7 @@ inferVectorTypeUnOp s op =
     ProjectRename _ -> Right $ VProp RenameVector
     ProjectPayload valProjs -> Right $ VProp $ ValueVector $ length valProjs
     ProjectAdmin _ -> VProp <$> unpack s
-    SelectItem -> VProp <$> unpack s
+    SelectExpr _ -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
     CompExpr1 _ -> Right $ VProp $ ValueVector 1

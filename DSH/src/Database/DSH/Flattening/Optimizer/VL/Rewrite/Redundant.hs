@@ -58,6 +58,8 @@ mergeStackedDistDesc q =
           relinkParents $(v "d1") $(v "d2")
           relinkParents q $(v "first") |])
   
+-- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
+  
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
   $(pattern [| q |] "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
@@ -83,7 +85,7 @@ restrictCombinePropLeft q =
 
         return $ do
           logRewrite "Redundant.RestrictCombine.PropLeft" q
-          selectNode <- insert $ UnOp SelectItem $(v "qb") 
+          selectNode <- insert $ UnOp (SelectExpr (Column1 1)) $(v "qb") 
           projectNode <- insert $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
           relinkParents q projectNode |])
   
