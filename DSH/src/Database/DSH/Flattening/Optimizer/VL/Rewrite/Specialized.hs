@@ -4,6 +4,7 @@ module Optimizer.VL.Rewrite.Specialized where
 
 import Debug.Trace
 
+import Control.Monad
 import Control.Applicative
 
 import Database.Algebra.Rewrite
@@ -16,7 +17,7 @@ import Optimizer.Common.Traversal
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorType
 import Optimizer.VL.Rewrite.Common
-import Optimizer.VL.Rewrite.Redundant(mergeStackedDistDesc)
+import Optimizer.VL.Rewrite.Redundant
   
 introduceSpecializedOperators :: VLRewrite Bool
 introduceSpecializedOperators = iteratively $ sequenceRewrites [ normalize
@@ -27,7 +28,7 @@ normalize = sequenceRewrites [ preOrder noProps normalizeRules
                              , preOrder inferBottomUp normalizePropRules ]
             
 normalizeRules :: VLRuleSet ()
-normalizeRules = [ redundantProjectL
+normalizeRules = [ descriptorFromProject
                  , mergeStackedDistDesc
                  , pullProjectLThroughDistLift ]
                  
@@ -42,16 +43,6 @@ specializedRules = [ cartProd
 modifications (projections, general expressions) as high as possible
 -}
                    
--- Eliminate a projection if the vector is turned into a descriptor vector anyway.
--- FIXME: this could be done in a more general way using property ToDescr.
-redundantProjectL :: VLRule ()
-redundantProjectL q =
-  $(pattern [| q |] "ToDescr (ProjectL _ (qv))"
-    [| do
-        return $ do
-          logRewrite "Specialized.Foo" q
-          replace q $ UnOp ToDescr $(v "qv") |])
-                   
 -- If a DistLift lifts the output of a projection, apply the projection after
 -- the DistLift. This is necessary to keep all payload data as long as necessary
 -- and thereby normalize cartesian product patterns.
@@ -65,7 +56,7 @@ pullProjectLThroughDistLift q =
           logRewrite "Specialized.PullProjectLThroughDistLift" q
           liftNode <- insert $ BinOp DistLift $(v "qv") $(v "qd")
           r1Node   <- insert $ UnOp R1 liftNode
-          relinkToNew q $ UnOp (ProjectL $(v "p")) r1Node |])
+          void $ relinkToNew q $ UnOp (ProjectL $(v "p")) r1Node |])
   
 -- Eliminate a common pattern where the output of a cartesian product is turned into a
 -- descriptor vector and used to lift one of the product inputs. This is redundant because
@@ -79,19 +70,19 @@ redundantDistLift q =
         vt1 <- vectorTypeProp <$> properties $(v "qv1")
         let w1 = case vt1 of
                    VProp (ValueVector w) -> w
-                   _                     -> error "foo2: no ValueVector on the left side"
+                   _                     -> error "redundantDistLift: no ValueVector on the left side"
 
         vt2 <- vectorTypeProp <$> properties $(v "qv2")
         let w2 = case vt2 of
                    VProp (ValueVector w) -> w
-                   _                     -> error "foo2: no ValueVector on the right side"
+                   _                     -> error "redundantDistLift: no ValueVector on the right side"
                 
         return $ do
           let (p, log) = if $(v "qv") == $(v "qv1")
                          then ([1 .. w1], "Specialized.RedundantDistLift.Left")
                          else ([(w1 + 1) .. w2], "Specialized.RedundantDistLift.Right")
           logRewrite log q
-          relinkToNew q $ UnOp (ProjectL p) $(v "qp") |])
+          void $ relinkToNew q $ UnOp (ProjectL p) $(v "qp") |])
           
                    
 {-

@@ -2,6 +2,7 @@
 
 module Optimizer.VL.Rewrite.ToDescr where
 
+import Control.Monad
 import Control.Applicative
   
 import Database.Algebra.Dag.Common
@@ -32,6 +33,6 @@ insertToDescrForProjectPayload q =
         
         return $ do
           logRewrite "ToDescr.ProjectPayload" q
-          relinkToNew q $ UnOp ToDescr $(v "q1") |])
+          void $ relinkToNew q $ UnOp ToDescr $(v "q1") |])
 
 
