@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
+module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc) where
 
 import Debug.Trace
 
@@ -32,7 +32,7 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
 redundantRules :: VLRuleSet ()
 redundantRules = [ mergeStackedDistDesc 
                  , restrictCombineDBV 
-                 , restrictCombinePropLeft 
+                 -- , restrictCombinePropLeft 
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectPayload
@@ -59,6 +59,19 @@ mergeStackedDistDesc q =
           relinkParents q $(v "first") |])
   
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
+  
+{-
+introduceSelectExpr :: VLRule ()
+introduceSelectExpr q =
+  $(pattern [| q |] "R1 ((q1) RestrictVec (CompExpr1L e (q2)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        
+        return $ do
+          logRewrite "Redundant.SelectExpr" q
+          selectNode <- UnOp (SelectExpr $(v "e")) $(v "q1")
+          relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
+-}
   
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
@@ -89,6 +102,18 @@ restrictCombinePropLeft q =
           projectNode <- insert $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
           relinkParents q projectNode |])
   
+{-
+foo :: VLRule ()
+foo q =
+  $(pattern [| q |] "(R2 (CombineVec (_) (qs1=SelectExpr e (q1)) (_))) PropRename (qs2)"
+    [| do
+        predicate $ $(v "qs1") == $(v "qs2")
+        
+        return $ do
+          logRewrite "Redundant.foo" q
+-}
+          
+  
 pullRestrictThroughPair :: VLRule ()
 pullRestrictThroughPair q =
   $(pattern [| q |] "(R1 ((qp1=ProjectL _ (q1)) RestrictVec (qb1))) PairL (R1 ((qp2=ProjectL _ (q2)) RestrictVec (qb2)))"
@@ -118,7 +143,7 @@ pushRestrictVecThroughProjectL q =
           relinkParents q projectNode |])
 
 -- Push a RestrictVec through its left input, if this input is a
--- projection operator (ProjectValue).
+-- projection operator (ProjectPayload).
 pushRestrictVecThroughProjectPayload :: VLRule ()
 pushRestrictVecThroughProjectPayload q =
   $(pattern [| q |] "R1 ((ProjectPayload p (q1)) RestrictVec (qb))"
