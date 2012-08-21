@@ -68,7 +68,7 @@ restrictCombineDBV q =
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
-          relinkParents q $(v "q1") |])
+          relinkToNew q $ UnOp ToDescr $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
