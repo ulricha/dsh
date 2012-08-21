@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc) where
+module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc, descriptorFromProject) where
 
 import Debug.Trace
 
@@ -33,11 +33,14 @@ redundantRules :: VLRuleSet ()
 redundantRules = [ mergeStackedDistDesc 
                  , restrictCombineDBV 
                  -- , restrictCombinePropLeft 
+                 , introduceSelectExpr
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectPayload
                  , pullPropRenameThroughCompExpr2L
                  , pullPropRenameThroughIntegerToDouble
+                 , pullProjectPayloadThroughSegment
+                 , pullProjectPayloadThroughPropRename
                  , mergeDescToRenames
                  , descriptorFromProject ]
                  
@@ -60,7 +63,6 @@ mergeStackedDistDesc q =
   
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
   
-{-
 introduceSelectExpr :: VLRule ()
 introduceSelectExpr q =
   $(pattern [| q |] "R1 ((q1) RestrictVec (CompExpr1L e (q2)))"
@@ -69,9 +71,8 @@ introduceSelectExpr q =
         
         return $ do
           logRewrite "Redundant.SelectExpr" q
-          selectNode <- UnOp (SelectExpr $(v "e")) $(v "q1")
-          relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
--}
+          selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
+          void $ relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
   
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
@@ -81,7 +82,7 @@ restrictCombineDBV q =
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
-          relinkToNew q $ UnOp ToDescr $(v "q1") |])
+          void $ relinkToNew q $ UnOp ToDescr $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
@@ -155,6 +156,8 @@ pushRestrictVecThroughProjectPayload q =
           projectNode <- insert $ UnOp (ProjectPayload $(v "p")) r1Node
           relinkParents q projectNode |])
         
+-- Eliminate a projection if the vector is turned into a descriptor vector anyway.
+-- FIXME: this could be done in a more general way using property ToDescr.
 descriptorFromProject :: VLRule ()
 descriptorFromProject q =
   $(pattern [| q |] "ToDescr (ProjectL _ (q1))"
@@ -303,3 +306,22 @@ distDescCardOne q =
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
           replace q $ UnOp Segment projNode |])
   
+pullProjectPayloadThroughSegment :: VLRule ()
+pullProjectPayloadThroughSegment q = 
+  $(pattern [| q |] "Segment (ProjectPayload p (q1))"
+    [| do
+        return $ do
+          logRewrite "Redundant.PullProjectPayload.Segment" q
+          segmentNode <- insert $ UnOp Segment $(v "q1")
+          void $ relinkToNew q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
+  
+pullProjectPayloadThroughPropRename :: VLRule ()
+pullProjectPayloadThroughPropRename q =
+  $(pattern [| q |] "(qr) PropRename (ProjectPayload p (qv))"
+    [| do
+        trace ("match " ++ (show q)) $ return $ do
+          logRewrite "Redundant.PullProjectPayload.PropRename" q
+          renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
+          newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
+          replaceRoot q newNode |])
+                                        
