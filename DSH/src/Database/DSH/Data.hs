@@ -36,15 +36,15 @@ data Type a where
   ArrowT    :: (Reify (Exp a),Reify (Exp b))  => Type (Exp a) -> Type (Exp b) -> Type (Exp (Exp a -> Exp b))
 
 instance Show (Type a) where
-    show UnitT = "()"
-    show BoolT = "Bool"
-    show CharT = "Char"
-    show IntegerT = "Integer"
-    show DoubleT = "Double"
-    show TextT = "Text"
-    show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
-    show (ListT t) = "[" ++ show t ++ "]"
-    show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+  show UnitT = "()"
+  show BoolT = "Bool"
+  show CharT = "Char"
+  show IntegerT = "Integer"
+  show DoubleT = "Double"
+  show TextT = "Text"
+  show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
+  show (ListT t) = "[" ++ show t ++ "]"
+  show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
 
 class Reify a where
   reify :: a -> Type a
