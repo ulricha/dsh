@@ -5,6 +5,7 @@ module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc, d
 import Debug.Trace
 
 import Control.Monad
+import Control.Applicative
 import qualified Data.Map as M
 
 import Database.Algebra.Rewrite
@@ -23,7 +24,8 @@ import Optimizer.VL.Properties.VectorType
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
                                                   , preOrder (return M.empty) redundantRules
-                                                  , preOrder inferBottomUp redundantRulesWithProperties ]
+                                                  , preOrder inferBottomUp redundantRulesBottomUp ]
+                                                  -- , preOrder inferTopDown redundantRulesTopDown ]
                    
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ mergeProjections
@@ -44,12 +46,16 @@ redundantRules = [ mergeStackedDistDesc
                  , mergeDescToRenames
                  , descriptorFromProject ]
                  
-redundantRulesWithProperties :: VLRuleSet BottomUpProps
-redundantRulesWithProperties = [ pairFromSameSource 
-                               , pairedProjections
-                               , noOpProject
-                               , distDescCardOne
-                               , toDescr ]
+redundantRulesBottomUp :: VLRuleSet BottomUpProps
+redundantRulesBottomUp = [ pairFromSameSource 
+                         , pairedProjections
+                         , noOpProject
+                         , distDescCardOne
+                         , toDescr ]
+                         
+redundantRulesTopDown :: VLRuleSet TopDownProps
+redundantRulesTopDown = [ pruneProjectL
+                        , pruneProjectPayload ]
                                
 mergeStackedDistDesc :: VLRule ()
 mergeStackedDistDesc q = 
@@ -103,6 +109,13 @@ restrictCombinePropLeft q =
           projectNode <- insert $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
           relinkParents q projectNode |])
   
+{- 
+ifToSelect :: VLRule ()
+ifToSelect q =
+  $(pattern [| q |] "(R2 (CombineVec (CompExpr1 e1) (SelectExpr e2 (_)) ())) PropRename (Segment (ProjectAdmin p (SelectExpr e (qv2))))"
+  
+-}
+
 {-
 foo :: VLRule ()
 foo q =
@@ -306,6 +319,33 @@ distDescCardOne q =
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
           replace q $ UnOp Segment projNode |])
   
+-- Rewrite is UNSOUND: need to ensure that columns are not referenced
+-- between the projection and the ToDescr operator.
+pruneProjectL :: VLRule TopDownProps
+pruneProjectL q =
+  $(pattern [| q |] "ProjectL _ (q1)"
+    [| do
+        p <- toDescrProp <$> properties q
+        case p of
+          VProp (Just True) -> return ()
+          _                 -> fail "no match"
+
+        return $ do
+          logRewrite "Redundant.PruneProjectL" q
+          relinkParents q $(v "q1") |])
+
+pruneProjectPayload :: VLRule TopDownProps
+pruneProjectPayload q =
+  $(pattern [| q |] "ProjectPayload _ (q1)"
+    [| do
+        p <- toDescrProp <$> properties q
+        case p of
+          VProp (Just True) -> return ()
+          _                 -> fail "no match"
+        return $ do
+          logRewrite "Redundant.PruneProjectPayload" q
+          relinkParents q $(v "q1") |])
+  
 pullProjectPayloadThroughSegment :: VLRule ()
 pullProjectPayloadThroughSegment q = 
   $(pattern [| q |] "Segment (ProjectPayload p (q1))"
@@ -325,3 +365,4 @@ pullProjectPayloadThroughPropRename q =
           newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
           replaceRoot q newNode |])
                                         
+  
