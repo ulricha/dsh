@@ -28,7 +28,8 @@ inferBottomUp = do
 inferTopDown :: VLRewrite (NodeMap TopDownProps)
 inferTopDown = do
   to <- R.topsort
-  props <- R.infer (inferTopDownProperties to)
+  buPropMap <- R.infer (inferBottomUpProperties to)
+  props <- R.infer (inferTopDownProperties buPropMap to)
   return props
   
 inferProperties :: VLRewrite (NodeMap Properties)

@@ -42,7 +42,7 @@ inferProperties :: DefaultRewrite VL (NodeMap Properties)
 inferProperties = do
   to <- topsort
   bu <- infer (inferBottomUpProperties to)
-  td <- infer (inferTopDownProperties to)
+  td <- infer (inferTopDownProperties bu to)
   return $ M.intersectionWith P bu td
   
 main :: IO ()

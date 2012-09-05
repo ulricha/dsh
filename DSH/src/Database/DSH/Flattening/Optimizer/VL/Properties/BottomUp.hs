@@ -8,20 +8,13 @@ import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
+import Optimizer.Common.Aux
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.Empty
 import Optimizer.VL.Properties.VectorType
 import Optimizer.VL.Properties.Const
 import Optimizer.VL.Properties.Card
 -- import Optimizer.VL.Properties.Descriptor
-
--- | Perform a map lookup and fail with the given error string if the key
--- is not present
-lookupUnsafe :: (Ord k, Show k, Show a) => M.Map k a -> String -> k -> a
-lookupUnsafe m s u = 
-    case M.lookup u m of
-        Just p -> p
-        Nothing -> error $ s ++ " " ++ (show u) ++ " in " ++ (show m)
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: NodeMap VL -> AlgNode -> NodeMap BottomUpProps -> NodeMap BottomUpProps
