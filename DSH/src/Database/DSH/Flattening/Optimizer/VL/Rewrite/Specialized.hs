@@ -65,7 +65,7 @@ redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
   $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=(qv1) CartProductFlat (qv2))))"
     [| do
-        trace "match" $ predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
+        predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
 
         vt1 <- vectorTypeProp <$> properties $(v "qv1")
         let w1 = case vt1 of
