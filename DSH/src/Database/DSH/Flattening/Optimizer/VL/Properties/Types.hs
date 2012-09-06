@@ -3,10 +3,10 @@ module Optimizer.VL.Properties.Types where
 import Text.PrettyPrint
   
 
--- import Database.Algebra.Dag.Common
+import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.Dot
-
+  
 data VectorProp a = VProp a
                   | VPropPair a a
                   | VPropTriple a a a
@@ -50,6 +50,10 @@ data IS = DBVSpace DescrIS PosIS
         | PropVectorTransform
           deriving Show
 -}
+                         
+-- The Untainted property tracks the list of upstream nodes from which
+-- on the payload has not been modified horizontally.
+type Untainted = Maybe [AlgNode]
                        
 data Const = Const VLVal
            | NoConst
@@ -75,7 +79,8 @@ newtype TargetConstDescr = TC ConstDescr deriving Show
 data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
                              , constProp :: VectorProp ConstVec
                              , card1Prop :: VectorProp Bool
-                             , vectorTypeProp :: VectorProp VectorType } deriving (Show)
+                             , vectorTypeProp :: VectorProp VectorType
+                             , untaintedProp :: VectorProp Untainted } deriving (Show)
                                                                                 
                                                                                   
 type ReqCols = Maybe [DBCol]
