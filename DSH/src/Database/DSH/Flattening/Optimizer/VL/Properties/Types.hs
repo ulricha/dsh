@@ -5,7 +5,11 @@ import Text.PrettyPrint
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.Dot
+-- FIXME the functionality imported from TableAlgebra should be moved
+-- to a more general place in the module hierarchy. Having the VL
+-- optimizer part import X100 stuff clearly is not acceptable.
 import Database.Algebra.X100.Properties.AbstractDomains
+import Database.Algebra.X100.Render.Common(renderDomain)
   
 data VectorProp a = VProp a
                   | VPropPair a a
@@ -110,11 +114,21 @@ instance Renderable a => Renderable (VectorProp a) where
   renderProp (VPropPair p1 p2)      = parens $ (renderProp p1) `c` (renderProp p2)
   renderProp (VPropTriple p1 p2 p3) = parens $ (renderProp p1) `c` (renderProp p2) `c` (renderProp p3)
   
+instance Renderable a => Renderable (Maybe a) where
+  renderProp (Just x) = renderProp x
+  renderProp Nothing  = text "na"
+  
 instance Renderable Bool where
   renderProp = text . show
 
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
+
+instance Renderable Int where
+  renderProp = text . show
+
+instance Renderable a => Renderable [a] where
+  renderProp = bracketList renderProp
                 
 instance Show ConstDescr where
   show (ConstDescr v) = render $ renderTblVal (VLNat v)
@@ -148,10 +162,31 @@ instance Renderable ConstVec where
 instance Renderable VectorType where
   renderProp = text . show
   
+instance Renderable DescrIndexSpace where
+  renderProp (D is) = text "d:" <+> renderDomain is
+
+instance Renderable PosIndexSpace where
+  renderProp (P is) = text "p:" <+> renderDomain is
+
+instance Renderable SourceIndexSpace where
+  renderProp (S is) = text "s:" <+> renderDomain is
+
+instance Renderable TargetIndexSpace where
+  renderProp (T is) = text "t:" <+> renderDomain is
+  
+instance Renderable IndexSpace where
+  renderProp (DBVSpace dis pis)              = renderProp dis $$ renderProp pis
+  renderProp (DescrVectorSpace dis pis)      = renderProp dis $$ renderProp pis
+  renderProp (DBPSpace pis)                  = renderProp pis
+  renderProp (RenameVectorTransform sis tis) = renderProp sis $$ renderProp tis
+  renderProp (PropVectorTransform sis tis)   = renderProp sis $$ renderProp tis
+  
 instance Renderable BottomUpProps where
   renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
                  $$ text "const:" <+> (renderProp $ constProp p)
                  $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
+                 $$ text "indexspaces:" <+> (renderProp $ indexSpaceProp p)
+                 $$ text "untainted:" <+> (renderProp $ untaintedProp p)
                  
 instance Renderable TopDownProps where
   renderProp p = text "toDescr:" <+> (text $ show $ toDescrProp p)
