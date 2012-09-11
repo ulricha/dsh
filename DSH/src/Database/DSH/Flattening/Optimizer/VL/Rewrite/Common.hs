@@ -36,7 +36,7 @@ inferProperties :: VLRewrite (NodeMap Properties)
 inferProperties = do
   bu <- inferBottomUp
   td <- inferTopDown
-  return $ M.intersectionWith P bu td
+  return $ M.intersectionWith Properties bu td
   
 noProps :: Monad m => m (M.Map k a)
 noProps = return M.empty

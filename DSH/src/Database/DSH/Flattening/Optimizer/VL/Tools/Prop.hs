@@ -43,7 +43,7 @@ inferProperties = do
   to <- topsort
   bu <- infer (inferBottomUpProperties to)
   td <- infer (inferTopDownProperties bu to)
-  return $ M.intersectionWith P bu td
+  return $ M.intersectionWith Properties bu td
   
 main :: IO ()
 main = do

@@ -1,11 +1,11 @@
 module Optimizer.VL.Properties.Types where
 
 import Text.PrettyPrint
-  
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.Dot
+import Database.Algebra.X100.Properties.AbstractDomains
   
 data VectorProp a = VProp a
                   | VPropPair a a
@@ -38,11 +38,6 @@ data ISTrans = PredT Predicate ISTrans
              | DescrSeed AlgNode
              deriving Show
                       
-newtype PosIS = P ISTrans deriving Show
-newtype DescrIS = D ISTrans deriving Show
-newtype SourceIS = S ISTrans deriving Show
-newtype TargetIS = T ISTrans deriving Show
-                      
 data IS = DBVSpace DescrIS PosIS
         | DBPSpace
         | DescrVectorSpace DescrIS PosIS
@@ -50,7 +45,19 @@ data IS = DBVSpace DescrIS PosIS
         | PropVectorTransform
           deriving Show
 -}
-                         
+
+newtype PosIndexSpace = P Domain deriving Show
+newtype DescrIndexSpace = D Domain deriving Show
+newtype SourceIndexSpace = S Domain deriving Show
+newtype TargetIndexSpace = T Domain deriving Show
+
+data IndexSpace = DBVSpace DescrIndexSpace PosIndexSpace
+                | DBPSpace PosIndexSpace
+                | DescrVectorSpace DescrIndexSpace PosIndexSpace
+                | RenameVectorTransform SourceIndexSpace TargetIndexSpace
+                | PropVectorTransform SourceIndexSpace TargetIndexSpace
+                  deriving (Show)
+                  
 -- The Untainted property tracks the list of upstream nodes from which
 -- on the payload has not been modified horizontally.
 type Untainted = Maybe [AlgNode]
@@ -76,11 +83,12 @@ data ConstVec = DBVConst ConstDescr [ConstPayload]
 newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
                        
-data BottomUpProps = BUProps { emptyProp :: VectorProp Bool 
-                             , constProp :: VectorProp ConstVec
-                             , card1Prop :: VectorProp Bool
+data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool 
+                             , constProp      :: VectorProp ConstVec
+                             , card1Prop      :: VectorProp Bool
                              , vectorTypeProp :: VectorProp VectorType
-                             , untaintedProp :: VectorProp Untainted } deriving (Show)
+                             , indexSpaceProp :: VectorProp IndexSpace
+                             , untaintedProp  :: VectorProp Untainted } deriving (Show)
                                                                                 
                                                                                   
 type ReqCols = Maybe [DBCol]
@@ -88,8 +96,8 @@ type ReqCols = Maybe [DBCol]
 data TopDownProps = TDProps { toDescrProp    :: VectorProp (Maybe Bool) 
                             , reqColumnsProp :: VectorProp ReqCols }
                     
-data Properties = P { bu :: BottomUpProps
-                    , td :: TopDownProps }
+data Properties = Properties { bu :: BottomUpProps
+                             , td :: TopDownProps }
                   
 class Renderable a where
   renderProp :: a -> Doc
