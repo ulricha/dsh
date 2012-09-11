@@ -70,14 +70,14 @@ Executable x100opt
   Main-Is: Optimizer/X100/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -auto-all -O3 -Wall -ddump-splices -fprof-auto
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto
 
 Executable vlopt
   Hs-Source-Dirs:   src
   Main-Is: Optimizer/VL/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0
-  GHC-Options: -rtsopts -O3 -Wall -ddump-splices -fprof-auto
+  GHC-Options: -rtsopts -O3 -Wall -fprof-auto
 
 Executable vlprop
   Hs-Source-Dirs:   src
