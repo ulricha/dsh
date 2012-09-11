@@ -102,7 +102,7 @@ inferIndexSpaceUnOp is n op =
 
       Right $ VProp $ RenameVectorTransform src dst
             
-    ProjectPayload valProjs -> undefined
+    ProjectPayload _ -> Right is
     CompExpr1L _ -> Right is
 
     ProjectAdmin (descrProj, posProj) -> do
