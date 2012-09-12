@@ -5,8 +5,6 @@ module Optimizer.VL.Rewrite.Expressions where
 -- This module contains rewrites which aim to simplify and merge complex expressions
 -- which are expressed through multiple operators.
 
-import Debug.Trace
-
 import Control.Monad
 
 import Database.Algebra.Rewrite
@@ -34,19 +32,19 @@ expressionRules = [ mergeCompWithProjectLeft
                   , mergeExpr21Right ]
 
 updateLeftCol :: Expr2 -> Expr2 -> Expr2
-updateLeftCol c' (App2 o e1 e2)      = App2 o (updateLeftCol c' e1) (updateLeftCol c' e2)
-updateLeftCol c' (Column2Left (L _)) = c'
-updateLeftCol _  e                   = e
+updateLeftCol col' (App2 o e1 e2)      = App2 o (updateLeftCol col' e1) (updateLeftCol col' e2)
+updateLeftCol col' (Column2Left (L _)) = col'
+updateLeftCol _    e                   = e
 
 updateRightCol :: Expr2 -> Expr2 -> Expr2
-updateRightCol c' (App2 o e1 e2)       = App2 o (updateRightCol c' e1) (updateRightCol c' e2)
-updateRightCol c' (Column2Right (R c)) = c'
-updateRightCol _  e                    = e
+updateRightCol col' (App2 o e1 e2)         = App2 o (updateRightCol col' e1) (updateRightCol col' e2)
+updateRightCol col' (Column2Right (R _))   = col'
+updateRightCol _    e                      = e
                                          
 updateCol :: Expr1 -> Expr1 -> Expr1
-updateCol c' (App1 o e1 e2) = App1 o (updateCol c' e1) (updateCol c' e2)
-updateCol c' (Column1 c)    = c'
-updateCol _  e              = e
+updateCol col' (App1 o e1 e2)   = App1 o (updateCol col' e1) (updateCol col' e2)
+updateCol col' (Column1 _)      = col'
+updateCol _    e                = e
                                          
 leftCol :: Expr2 -> DBCol
 leftCol e = 
@@ -89,10 +87,10 @@ col e =
     Nothing -> error "CompExpr1L expression does not reference its right input"
    
 expr2ToExpr1 :: Expr2 -> Expr1
-expr2ToExpr1 (App2 o e1 e2)          = App1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
-expr2ToExpr1 (Column2Left (L c))     = Column1 c
-expr2ToExpr1 (Column2Right (R c))    = Column1 c
-expr2ToExpr1 (Constant2 v)           = Constant1 v
+expr2ToExpr1 (App2 o e1 e2)       = App1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
+expr2ToExpr1 (Column2Left (L c))  = Column1 c
+expr2ToExpr1 (Column2Right (R c)) = Column1 c
+expr2ToExpr1 (Constant2 val)      = Constant1 val
                                        
 -- Rewrite rules
                                        
@@ -150,8 +148,8 @@ constInputLeft q =
         constVal <- case constCols of
                       VProp (DBVConst _ plc) -> 
                         case plc !! (c - 1) of
-                          ConstPL v -> return v
-                          NonConstPL -> fail "no match"
+                          ConstPL val -> return val
+                          NonConstPL  -> fail "no match"
                       _ -> fail "no match"
         return $ do
           logRewrite "Expr.Const.Left" q
@@ -163,13 +161,13 @@ constInputRight :: VLRule BottomUpProps
 constInputRight q =
   $(pattern [| q |] "(q1) CompExpr2L expr (q2)"
     [| do
-        const <- liftM constProp $ properties $(v "q2")
+        constant <- liftM constProp $ properties $(v "q2")
         let c = rightCol $(v "expr")
-        constVal <- case const of
+        constVal <- case constant of
                       VProp (DBVConst _ constPayload) -> 
                         case constPayload !! (c - 1) of
-                          ConstPL v -> return v
-                          NonConstPL -> fail "no match"
+                          ConstPL val -> return val
+                          NonConstPL  -> fail "no match"
                       _ -> fail "no match"
         return $ do
           logRewrite "Expr.Const.Right" q
@@ -182,14 +180,14 @@ constInputRight q =
 -- FIXME this is way too hackish. Implement a clean solution to insert expressions into
 -- other expressions
 expr1ToExpr2Right :: Expr1 -> Expr2
-expr1ToExpr2Right (App1 o e1 e2) = App2 o (expr1ToExpr2Right e1) (expr1ToExpr2Right e2)
-expr1ToExpr2Right (Column1 c)    = Column2Right (R c)
-expr1ToExpr2Right (Constant1 v)  = Constant2 v
+expr1ToExpr2Right (App1 o e1 e2)   = App2 o (expr1ToExpr2Right e1) (expr1ToExpr2Right e2)
+expr1ToExpr2Right (Column1 c)      = Column2Right (R c)
+expr1ToExpr2Right (Constant1 val)  = Constant2 val
 
 expr1ToExpr2Left :: Expr1 -> Expr2
-expr1ToExpr2Left (App1 o e1 e2) = App2 o (expr1ToExpr2Left e1) (expr1ToExpr2Left e2)
-expr1ToExpr2Left (Column1 c)    = Column2Left (L c)
-expr1ToExpr2Left (Constant1 v)  = Constant2 v
+expr1ToExpr2Left (App1 o e1 e2)   = App2 o (expr1ToExpr2Left e1) (expr1ToExpr2Left e2)
+expr1ToExpr2Left (Column1 c)      = Column2Left (L c)
+expr1ToExpr2Left (Constant1 val)  = Constant2 val
 
 mergeExpr11 :: VLRule BottomUpProps
 mergeExpr11 q =

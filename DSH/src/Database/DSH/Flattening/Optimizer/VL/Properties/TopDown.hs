@@ -2,10 +2,7 @@ module Optimizer.VL.Properties.TopDown(inferTopDownProperties) where
 
 import Control.Monad.State
   
-import Text.PrettyPrint
-
 import qualified Data.Map as M
-import qualified Data.Set as S
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Dag
@@ -35,8 +32,8 @@ vPropTripleSeed = TDProps { toDescrProp = VPropTriple toDescrSeed toDescrSeed to
                           , reqColumnsProp = VPropTriple reqColumnsSeed reqColumnsSeed reqColumnsSeed }
                   
 seed :: VL -> TopDownProps
-seed (NullaryOp op) = vPropSeed
-seed (UnOp op _) =
+seed (NullaryOp _) = vPropSeed
+seed (UnOp op _)   =
   case op of
     SelectPos1 _ _     -> vPropPairSeed
     SelectPos1L _ _    -> vPropPairSeed 
@@ -68,6 +65,8 @@ seed (UnOp op _) =
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed
+    Only               -> undefined
+    Singleton          -> undefined
 
 seed (BinOp op _ _) = 
   case op of

@@ -83,13 +83,13 @@ data Properties = Properties { bu :: BottomUpProps
 class Renderable a where
   renderProp :: a -> Doc
   
-c :: Doc -> Doc -> Doc
-c d1 d2 = d1 <> comma <+> d2
+insertComma :: Doc -> Doc -> Doc
+insertComma d1 d2 = d1 <> comma <+> d2
   
 instance Renderable a => Renderable (VectorProp a) where
   renderProp (VProp p)              = renderProp p
-  renderProp (VPropPair p1 p2)      = parens $ (renderProp p1) `c` (renderProp p2)
-  renderProp (VPropTriple p1 p2 p3) = parens $ (renderProp p1) `c` (renderProp p2) `c` (renderProp p3)
+  renderProp (VPropPair p1 p2)      = parens $ (renderProp p1) `insertComma` (renderProp p2)
+  renderProp (VPropTriple p1 p2 p3) = parens $ (renderProp p1) `insertComma` (renderProp p2) `insertComma` (renderProp p3)
   
 instance Renderable a => Renderable (Maybe a) where
   renderProp (Just x) = renderProp x
@@ -119,18 +119,12 @@ instance Renderable ConstVec where
           
           renderPL (i, v)  = int i <> colon <> renderTblVal v
 
-          bracketList :: (a -> Doc) -> [a] -> Doc
-          bracketList f = brackets . hsep . punctuate comma . map f
-
   renderProp (DBPConst ps) = payload
     where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
           isConst (_, NonConstPL) vals   = vals
           isConst (i, (ConstPL v)) vals  = (i, v) : vals
           
           renderPL (i, v)  = int i <> colon <> renderTblVal v
-
-          bracketList :: (a -> Doc) -> [a] -> Doc
-          bracketList f = brackets . hsep . punctuate comma . map f
 
   renderProp (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
   renderProp (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)

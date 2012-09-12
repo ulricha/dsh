@@ -53,8 +53,6 @@ pullProjectLThroughDistLift :: VLRule ()
 pullProjectLThroughDistLift q =
   $(pattern [| q |] "R1 ((ProjectL p (qv)) DistLift (qd))"
     [| do
-        op <- getOperator $(v "qv")
-        op2 <- getOperator $(v "qd")
         return $ do
           logRewrite "Specialized.PullProjectLThroughDistLift" q
           liftNode <- insert $ BinOp DistLift $(v "qv") $(v "qd")
@@ -83,10 +81,10 @@ redundantDistLift q =
                    _                     -> error "redundantDistLift: no ValueVector on the right side"
                 
         return $ do
-          let (p, log) = if $(v "qv") == $(v "qv1")
+          let (p, msg) = if $(v "qv") == $(v "qv1")
                          then ([1 .. w1], "Specialized.RedundantDistLift.Left")
                          else ([(w1 + 1) .. w2], "Specialized.RedundantDistLift.Right")
-          logRewrite log q
+          logRewrite msg q
           void $ relinkToNew q $ UnOp (ProjectL p) $(v "qp") |])
   
 -- FIXME This matches only a special case: If DistLift is to be
@@ -99,7 +97,6 @@ pruneFilteringDistLift q =
     [| do
         props1 <- trace "match pattern" $ properties $(v "q1")
         propsp <- properties $(v "qp")
-        props2 <- properties $(v "q2")
         
         {- The following properties need to hold:
            1. q2.descr must be a subdomain of the domain of q1.pos

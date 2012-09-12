@@ -1,8 +1,5 @@
 module Optimizer.VL.Properties.IndexSpace where
 
-import Control.Monad
-import Control.Applicative
-
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.X100.Properties.AbstractDomains
@@ -16,6 +13,7 @@ unp = unpack "Properties.IndexSpace"
 fromDBV :: IndexSpace -> Either String (DescrIndexSpace, PosIndexSpace)
 fromDBV (DBVSpace dis pis)         = Right (dis, pis)
 fromDBV (DescrVectorSpace dis pis) = Right (dis, pis)
+fromDBV _                          = Left "IndexSpace.fromDBV: not a Value vector/descriptor vector"
 
 freshSpace :: Show a => AlgNode -> a -> Domain
 freshSpace n c = makeSubDomain n c UniverseDom
@@ -65,8 +63,8 @@ inferIndexSpaceUnOp is n op =
       return $ VProp $ DescrVectorSpace dis pis
       
     Segment -> do
-      (_, (P is)) <- unp is >>= fromDBV
-      return $ VProp $ DBVSpace (D is) (P is)
+      (_, (P pis)) <- unp is >>= fromDBV
+      return $ VProp $ DBVSpace (D pis) (P pis)
       
     VecSum _ -> Right $ VProp $ freshDBVSpace n 
     VecMin -> Right $ VProp $ freshDBVSpace n
@@ -74,8 +72,8 @@ inferIndexSpaceUnOp is n op =
     VecMax -> Right $ VProp $ freshDBVSpace n
     VecMaxL -> Right $ VProp $ freshDBVSpace n
 
-    ProjectL ps -> Right is
-    ProjectA ps -> Right is
+    ProjectL _ -> Right is
+    ProjectA _ -> Right is
 
     IntegerToDoubleA -> Right is
     IntegerToDoubleL -> Right is
@@ -146,7 +144,7 @@ inferIndexSpaceBinOp :: VectorProp IndexSpace
                         -> AlgNode 
                         -> BinOp 
                         -> Either String (VectorProp IndexSpace)
-inferIndexSpaceBinOp is1 is2 n op = 
+inferIndexSpaceBinOp _ _ n op = 
   case op of
     GroupBy ->  
       let ddis = D $ freshSpace n "d/d"
@@ -209,7 +207,7 @@ inferIndexSpaceTerOp :: VectorProp IndexSpace
                         -> AlgNode 
                         -> TerOp 
                         -> Either String (VectorProp IndexSpace)
-inferIndexSpaceTerOp is1 is2 is3 n op = 
+inferIndexSpaceTerOp _ _ _ n op = 
   case op of
     CombineVec ->
       let d1sis = S $ freshSpace n "d1/s"

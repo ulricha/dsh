@@ -1,12 +1,10 @@
 module Optimizer.VL.Properties.BottomUp where
-import Text.PrettyPrint
 
 import qualified Data.Map as M
 
 import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
-import Database.Algebra.X100.Properties.AbstractDomains
 
 import Optimizer.Common.Aux
 import Optimizer.VL.Properties.Types
@@ -16,7 +14,6 @@ import Optimizer.VL.Properties.Const
 import Optimizer.VL.Properties.Card
 import Optimizer.VL.Properties.Untainted
 import Optimizer.VL.Properties.IndexSpace
--- import Optimizer.VL.Properties.Descriptor
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: NodeMap VL -> AlgNode -> NodeMap BottomUpProps -> NodeMap BottomUpProps

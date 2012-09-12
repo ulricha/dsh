@@ -46,10 +46,13 @@ inferConstVecNullOp op =
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
       else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
-        where constCols       = map col $ drop 2 $ transpose rows
-              col col@(c : _) = if all (c ==) col 
-                                then ConstPL c 
-                                else NonConstPL
+        where constCols       = map toConstPayload $ drop 2 $ transpose rows
+
+              toConstPayload col@(c : _) = if all (c ==) col 
+                                           then ConstPL c 
+                                           else NonConstPL
+              toConstPayload []          = NonConstPL
+
     ConstructLiteralValue colTypes vals      -> 
       if null vals
       then return $ VProp $ DBPConst $ map (const NonConstPL) colTypes
@@ -68,7 +71,6 @@ inferConstVecUnOp c op =
     NotVec -> return c
 
     LengthA -> do
-      d <- unp c >>= fromDescrVec
       return $ VProp $ DBPConst [NonConstPL]
 
     DescToRename -> do
@@ -124,10 +126,10 @@ inferConstVecUnOp c op =
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     FalsePositions -> do
-      (d, cs) <- unp c >>= fromDBV
+      (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d [NonConstPL]
 
-    ProjectRename (targetIS, sourceIS)  -> do
+    ProjectRename (targetIS, _)  -> do
       -- FIXME this is not precise -- take care of of the source space.
       (d, _) <- unp c >>= fromDBV
       let d' = case targetIS of
@@ -161,7 +163,7 @@ inferConstVecUnOp c op =
     Singleton        -> undefined
 
     CompExpr1L _ -> do
-      (d, cols) <- unp c >>= fromDBV
+      (d, _) <- unp c >>= fromDBV
       -- FIXME This is not precise: implement constant folding 
       return $ VProp $ DBVConst d [NonConstPL]
 
@@ -185,8 +187,8 @@ inferConstVecBinOp c1 c2 op =
   case op of
     GroupBy -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
-      (dq, cols1) <- unp c1 >>= fromDBV
-      (de, cols2) <- unp c2 >>= fromDBV
+      (dq, _) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
       return $ VPropTriple (DescrVecConst dq) (DBVConst NonConstDescr cols2) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SortWith -> do
@@ -213,19 +215,19 @@ inferConstVecBinOp c1 c2 op =
       
     PropRename -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC source, TC target) <- unp c1 >>= fromRenameVec
+      (SC _, TC target) <- unp c1 >>= fromRenameVec
 
       return $ VProp $ DBVConst target cols
       
     PropFilter -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC source, TC target) <- unp c1 >>= fromRenameVec
+      (SC _, TC target) <- unp c1 >>= fromRenameVec
   
       return $ VPropPair (DBVConst target cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     PropReorder -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC source, TC target) <- unp c1 >>= fromPropVec
+      (SC _, TC target) <- unp c1 >>= fromPropVec
       
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -252,15 +254,11 @@ inferConstVecBinOp c1 c2 op =
       
     -- FIXME implement constant folding
     CompExpr2 _ -> do
-      cols1 <- unp c1 >>= fromDBP
-      cols2 <- unp c2 >>= fromDBP
-      
       return $ VProp $ DBPConst [NonConstPL]
-      
     
     CompExpr2L _ -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
+      (d1, _) <- unp c1 >>= fromDBV
+      (_, _) <- unp c2 >>= fromDBV
       
       return $ VProp $ DBVConst d1 [NonConstPL]
 
@@ -322,11 +320,11 @@ inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorP
 inferConstVecTerOp c1 c2 c3 op = 
   case op of
     CombineVec -> do
-      (d1, cols1) <- unp c1 >>= fromDBV
+      (d1, _) <- unp c1 >>= fromDBV
       (_, cols2)  <- unp c2 >>= fromDBV
       (_, cols3)  <- unp c3 >>= fromDBV
 
-      let constCols = map sameConst $ zip cols1 cols2
+      let constCols = map sameConst $ zip cols2 cols3
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL

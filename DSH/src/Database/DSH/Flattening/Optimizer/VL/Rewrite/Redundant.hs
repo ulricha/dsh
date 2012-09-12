@@ -2,8 +2,6 @@
 
 module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc, descriptorFromProject) where
 
-import Debug.Trace
-
 import Control.Monad
 import Control.Applicative
 import qualified Data.Map as M
@@ -347,8 +345,8 @@ distDescCardOne q =
                       VProp c -> c
                       _       -> error "distDescCardOne: no single property"
        
-        let constVal (ConstPL v) = return $ PLConst v
-            constVal _           = fail "no match"
+        let constVal (ConstPL val) = return $ PLConst val
+            constVal _             = fail "no match"
        
         
         constProjs <- case constProp qvProps of

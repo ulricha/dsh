@@ -5,9 +5,6 @@ module Optimizer.VL.Properties.Untainted where
 -- tracks the upstream operators from which on the payload is
 -- untainted.
 
-import Data.Functor
-import Control.Monad
-  
 import Database.Algebra.Dag.Common
 
 import Optimizer.VL.Properties.Types
@@ -28,9 +25,9 @@ inferUntaintedNullOp :: NullOp -> VectorProp Untainted
 inferUntaintedNullOp op =
   case op of
     SingletonDescr              -> VProp empty
-    ConstructLiteralTable t _   -> VProp empty
-    ConstructLiteralValue t _   -> VProp empty
-    TableRef              _ cs _ -> VProp empty
+    ConstructLiteralTable _ _   -> VProp empty
+    ConstructLiteralValue _ _   -> VProp empty
+    TableRef              _ _ _ -> VProp empty
   
 inferUntaintedUnOp :: VectorProp Untainted -> AlgNode -> UnOp -> VectorProp Untainted
 inferUntaintedUnOp u n op = 
@@ -48,8 +45,8 @@ inferUntaintedUnOp u n op =
     VecMinL -> VProp empty
     VecMax -> VProp empty
     VecMaxL -> VProp empty
-    ProjectL ps -> VProp empty -- FIXME check for identity projections
-    ProjectA ps -> VProp empty -- FIXME check for identity projections
+    ProjectL _ -> VProp empty -- FIXME check for identity projections
+    ProjectA _ -> VProp empty -- FIXME check for identity projections
     IntegerToDoubleA -> VProp empty
     IntegerToDoubleL -> VProp empty
     ReverseA -> VPropPair (add u n) na
@@ -72,7 +69,7 @@ inferUntaintedUnOp u n op =
         VPropTriple s3 _ _ -> VProp s3
         _ -> error "Input of R3 is not a tuple"
     ProjectRename _ -> VProp na
-    ProjectPayload valProjs -> VProp empty -- FIXME check for identity projections
+    ProjectPayload _ -> VProp empty -- FIXME check for identity projections
     ProjectAdmin _ -> VProp $ add u n
     SelectExpr _ -> VProp $ add u n
     Only -> undefined
@@ -80,7 +77,7 @@ inferUntaintedUnOp u n op =
     CompExpr1L _ -> VProp empty
   
 inferUntaintedBinOp :: VectorProp Untainted -> VectorProp Untainted -> AlgNode -> AlgNode -> BinOp -> VectorProp Untainted
-inferUntaintedBinOp _ _ n1 n2 op = 
+inferUntaintedBinOp _ _ _ _ op = 
   case op of
     GroupBy -> VPropTriple na empty na
     SortWith -> VPropPair empty na

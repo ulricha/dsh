@@ -2,7 +2,6 @@ module Optimizer.VL.Rewrite.Common where
 
 import qualified Data.Map as M
 
-import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 
 import Database.Algebra.VL.Data
@@ -34,9 +33,9 @@ inferTopDown = do
   
 inferProperties :: VLRewrite (NodeMap Properties)
 inferProperties = do
-  bu <- inferBottomUp
-  td <- inferTopDown
-  return $ M.intersectionWith Properties bu td
+  buMap <- inferBottomUp
+  tdMap <- inferTopDown
+  return $ M.intersectionWith Properties buMap tdMap
   
 noProps :: Monad m => m (M.Map k a)
 noProps = return M.empty

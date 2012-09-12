@@ -25,8 +25,8 @@ insertToDescrForProjectPayload :: VLRule TopDownProps
 insertToDescrForProjectPayload q =
   $(pattern [| q |] "ProjectPayload _ (q1)"
     [| do
-        td <- toDescrProp <$> properties q
-        predicate $ case td of
+        tdProps <- toDescrProp <$> properties q
+        predicate $ case tdProps of
           VProp (Just b)  -> b
           VProp Nothing   -> False
           _               -> error "insertToDescrForProjectPayload"

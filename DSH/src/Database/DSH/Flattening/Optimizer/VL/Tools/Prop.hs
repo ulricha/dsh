@@ -13,7 +13,6 @@ import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
-import Optimizer.VL.OptimizeVL
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.BottomUp
 import Optimizer.VL.Properties.TopDown
@@ -41,9 +40,9 @@ options =
 inferProperties :: DefaultRewrite VL (NodeMap Properties)
 inferProperties = do
   to <- topsort
-  bu <- infer (inferBottomUpProperties to)
-  td <- infer (inferTopDownProperties bu to)
-  return $ M.intersectionWith Properties bu td
+  buMap <- infer (inferBottomUpProperties to)
+  tdMap <- infer (inferTopDownProperties buMap to)
+  return $ M.intersectionWith Properties buMap tdMap
   
 main :: IO ()
 main = do

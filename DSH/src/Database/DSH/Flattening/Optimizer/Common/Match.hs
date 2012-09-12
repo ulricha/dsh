@@ -6,7 +6,7 @@ import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Trans.Reader
 
-import Database.Algebra.Dag(AlgebraDag, Operator)
+import Database.Algebra.Dag(AlgebraDag)
 import Database.Algebra.Dag.Common
 import qualified Database.Algebra.Rewrite.Match as RM
 import Database.Algebra.Rewrite()

@@ -2,8 +2,6 @@
 
 module Optimizer.VL.Properties.Card where
 
-import Debug.Trace
-  
 import Control.Applicative
 
 import Database.Algebra.VL.Data
@@ -66,6 +64,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
+    Only -> undefined
+    Singleton -> undefined
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
