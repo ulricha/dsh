@@ -27,29 +27,6 @@ data VectorType = ValueVector Int
                 | PropVector
                 deriving Show
                        
-{-
--- newtype PredExpr = VecOp AlgNode AlgNode
-                       
-data Predicate = Pred VecOp DBCol DBCol
-                 deriving (Show, Eq)
-                       
-{- Index space transformation -}
-data ISTrans = PredT Predicate ISTrans
-             | SelectT ISTrans
-             | NumberT ISTrans
-             | ConstT ISTrans
-             | PosSeed AlgNode
-             | DescrSeed AlgNode
-             deriving Show
-                      
-data IS = DBVSpace DescrIS PosIS
-        | DBPSpace
-        | DescrVectorSpace DescrIS PosIS
-        | RenameVectorTransform SourceIS TargetIS
-        | PropVectorTransform
-          deriving Show
--}
-
 newtype PosIndexSpace = P Domain deriving Show
 newtype DescrIndexSpace = D Domain deriving Show
 newtype SourceIndexSpace = S Domain deriving Show

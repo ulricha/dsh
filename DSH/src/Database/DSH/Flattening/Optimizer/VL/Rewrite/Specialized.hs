@@ -7,9 +7,11 @@ import Debug.Trace
 import Control.Monad
 import Control.Applicative
 
-import Database.Algebra.Rewrite
+-- FIXME hiding is not acceptable, fix names
+import Database.Algebra.Rewrite hiding (D)
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
+import Database.Algebra.X100.Properties.AbstractDomains
 
 import Optimizer.Common.Match
 import Optimizer.Common.Traversal
@@ -33,7 +35,8 @@ normalizeRules = [ descriptorFromProject
                  , pullProjectLThroughDistLift ]
                  
 normalizePropRules :: VLRuleSet BottomUpProps
-normalizePropRules = [ redundantDistLift ]
+normalizePropRules = [ redundantDistLift
+                     , pruneFilteringDistLift ]
                                 
 specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProd 
@@ -61,6 +64,8 @@ pullProjectLThroughDistLift q =
 -- Eliminate a common pattern where the output of a cartesian product is turned into a
 -- descriptor vector and used to lift one of the product inputs. This is redundant because
 -- the CartProduct operator already provides the data originating from the lift.
+
+-- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
   $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=(qv1) CartProductFlat (qv2))))"
@@ -83,7 +88,48 @@ redundantDistLift q =
                          else ([(w1 + 1) .. w2], "Specialized.RedundantDistLift.Right")
           logRewrite log q
           void $ relinkToNew q $ UnOp (ProjectL p) $(v "qp") |])
-          
+  
+-- FIXME This matches only a special case: If DistLift is to be
+-- replaced by the right input, the original descriptor before it is
+-- overwritten with the positions to align with the left side must be
+-- kept/restored.
+pruneFilteringDistLift :: VLRule BottomUpProps
+pruneFilteringDistLift q =
+  $(pattern [| q |] "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (q2))))"
+    [| do
+        props1 <- trace "match pattern" $ properties $(v "q1")
+        propsp <- properties $(v "qp")
+        props2 <- properties $(v "q2")
+        
+        {- The following properties need to hold:
+           1. q2.descr must be a subdomain of the domain of q1.pos
+           2. q2 payload must be untainted with respect to the node 
+              from where the q1.pos domain originates
+        -}
+       
+        let q1Pos = case indexSpaceProp props1 of
+              VProp (DBVSpace _ (P pis)) -> pis
+              _                          -> error "foo"
+              
+            qpDescr = case indexSpaceProp propsp of
+              VProp (DBVSpace (D dis) _) -> dis
+              _                          -> error "foo"
+              
+            untaintedNodes = case untaintedProp propsp of
+              VProp (Just nodes) -> nodes
+              _                  -> []
+        
+        let q1OriginNode = case domainNode q1Pos of
+              Just n  -> n
+              Nothing -> error "foo"
+              
+        predicate $ subDomain qpDescr q1Pos
+        
+        predicate $ q1OriginNode `elem` untaintedNodes
+        
+        return $ do
+          logRewrite "Specialized.PruneFilteringDistLift" q
+          relinkParents q $(v "q2") |])
                    
 {-
 

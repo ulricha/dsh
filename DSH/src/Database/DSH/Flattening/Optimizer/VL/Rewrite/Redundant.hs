@@ -356,7 +356,7 @@ distDescCardOne q =
           _                       -> fail "no match"
           
         return $ do
-          logRewrite "distDescCardOne" q
+          logRewrite "Redundant.DistDescCardOne" q
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
           replace q $ UnOp Segment projNode |])
   
@@ -402,7 +402,7 @@ pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
   $(pattern [| q |] "(qr) PropRename (ProjectPayload p (qv))"
     [| do
-        trace ("match " ++ (show q)) $ return $ do
+        return $ do
           logRewrite "Redundant.PullProjectPayload.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
           newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
