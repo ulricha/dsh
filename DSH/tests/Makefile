@@ -1,5 +1,5 @@
 all: cabal
-		ghc -Wall -O3 --make Main.hs -o Main
+		ghc -Wall -O3 -fno-warn-orphans --make Main.hs -o Main
 		./Main
 
 hpc: cabal

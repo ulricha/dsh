@@ -74,7 +74,7 @@ Library
 
   Hs-source-dirs:    src
 
-  GHC-options:       -O3 -Wall
+  GHC-options:       -O3 -Wall -fno-warn-orphans
 
   Exposed-modules:   
                      Database.DSH.Interpreter

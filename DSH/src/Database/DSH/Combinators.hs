@@ -1,9 +1,6 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Database.DSH.Combinators where
 
 import Database.DSH.Data
--- import Database.DSH.TH
 
 import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, ($), (.))
 
@@ -90,68 +87,72 @@ cond (Q c) (Q a) (Q b) = Q (AppE Cond (PairE c (PairE a b)))
 (?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) c (a,b) = cond c a b
 
--- {-
--- -- * Maybe
--- 
--- listToMaybe :: QA a => Q [a] -> Q (Maybe a)
--- listToMaybe (Q as) = (Q as) 
--- 
--- maybeToList :: QA a => Q (Maybe a) -> Q [a]
--- maybeToList (Q ma) = (Q ma)
--- 
--- nothing :: QA a => Q (Maybe a)
--- nothing = listToMaybe nil
--- 
--- just :: QA a => Q a -> Q (Maybe a)
--- just a = listToMaybe (singleton a)
--- 
--- isNothing :: QA a => Q (Maybe a) -> Q Bool
--- isNothing ma = null (maybeToList ma)
--- 
--- isJust :: QA a => Q (Maybe a) -> Q Bool
--- isJust ma = not (isNothing ma)
--- 
--- fromJust :: QA a => Q (Maybe a) -> Q a
--- fromJust ma = head (maybeToList ma)
--- 
--- maybe :: (QA a, QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
--- maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
--- 
--- fromMaybe :: QA a => Q a -> Q (Maybe a) -> Q a
--- fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
--- 
--- catMaybes :: QA a => Q [Maybe a] -> Q [a]
--- catMaybes mas = concatMap maybeToList mas
--- 
--- mapMaybe :: (QA a, QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
--- mapMaybe f as = concatMap (maybeToList . f) as
--- 
--- -- * Either
--- 
--- left :: (QA a,QA b) => Q a -> Q (Either a b)
--- left a = tupleToEither (tuple ((singleton a),nil))
--- 
--- right :: (QA a,QA b) => Q b -> Q (Either a b)
--- right a = tupleToEither (tuple (nil,(singleton a)))
--- 
--- isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
--- isLeft = null . snd . eitherToTuple
--- 
--- isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
--- isRight = null . fst . eitherToTuple
--- 
--- either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
--- either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToTuple) e,(rf . head . snd . eitherToTuple) e)
--- 
--- lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
--- lefts = concatMap (fst . eitherToTuple)
--- 
--- rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
--- rights = concatMap (snd . eitherToTuple)
--- 
--- partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
--- partitionEithers es = tuple (lefts es,rights es)
--- -}
+-- * Maybe
+
+listToMaybe :: (QA a) => Q [a] -> Q (Maybe a)
+listToMaybe (Q as) = (Q as) 
+
+maybeToList :: (QA a) => Q (Maybe a) -> Q [a]
+maybeToList (Q ma) = (Q ma)
+
+nothing :: (QA a) => Q (Maybe a)
+nothing = listToMaybe nil
+
+just :: (QA a) => Q a -> Q (Maybe a)
+just a = listToMaybe (singleton a)
+
+isNothing :: (QA a) => Q (Maybe a) -> Q Bool
+isNothing ma = null (maybeToList ma)
+
+isJust :: (QA a) => Q (Maybe a) -> Q Bool
+isJust ma = not (isNothing ma)
+
+fromJust :: (QA a) => Q (Maybe a) -> Q a
+fromJust ma = head (maybeToList ma)
+
+maybe :: (QA a,QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
+maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
+
+fromMaybe :: (QA a) => Q a -> Q (Maybe a) -> Q a
+fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
+
+catMaybes :: (QA a) => Q [Maybe a] -> Q [a]
+catMaybes mas = concatMap maybeToList mas
+
+mapMaybe :: (QA a,QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
+mapMaybe f as = concatMap (maybeToList . f) as
+
+-- * Either
+
+pairToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
+pairToEither (Q a) = (Q a) 
+
+eitherToPair :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
+eitherToPair (Q a) = (Q a)
+
+left :: (QA a,QA b) => Q a -> Q (Either a b)
+left a = pairToEither (tuple ((singleton a),nil))
+
+right :: (QA a,QA b) => Q b -> Q (Either a b)
+right a = pairToEither (tuple (nil,(singleton a)))
+
+isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
+isLeft = null . snd . eitherToPair
+
+isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
+isRight = null . fst . eitherToPair
+
+either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
+either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToPair) e,(rf . head . snd . eitherToPair) e)
+
+lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
+lefts = concatMap (fst . eitherToPair)
+
+rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
+rights = concatMap (snd . eitherToPair)
+
+partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
+partitionEithers es = tuple (lefts es,rights es)
 
 -- * List Construction
 
@@ -286,10 +287,8 @@ elem a as = (null (filter (a ==) as)) ? (false,true)
 notElem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
 notElem a as = not (elem a as)
 
-{-
 lookup :: (QA a,QA b,Eq a) => Q a -> Q [(a, b)] -> Q (Maybe b)
 lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
--}
 
 -- * Zipping and Unzipping Lists
 

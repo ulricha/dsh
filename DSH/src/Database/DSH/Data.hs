@@ -233,6 +233,22 @@ instance (QA a) => QA [a] where
   frExp (ListE as) = map frExp as
   frExp _ = $impossible
 
+instance (QA a) => QA (Maybe a) where
+  type Rep (Maybe a) = [Rep a]
+  toExp Nothing = ListE []
+  toExp (Just a) = ListE [toExp a]
+  frExp (ListE []) = Nothing
+  frExp (ListE (a : _)) = Just (frExp a)
+  frExp _ = $impossible
+
+instance (QA a,QA b) => QA (Either a b) where
+  type Rep (Either a b) = ([Rep a],[Rep b])
+  toExp (Left a) = PairE (ListE [toExp a]) (ListE [])
+  toExp (Right b) = PairE (ListE []) (ListE [toExp b])
+  frExp (PairE (ListE (a : _)) _) = Left (frExp a)
+  frExp (PairE _ (ListE (a : _))) = Right (frExp a)
+  frExp _ = $impossible
+
 -- * Basic Types
 
 class BasicType a where
