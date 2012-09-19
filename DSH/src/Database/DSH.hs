@@ -18,18 +18,9 @@ module Database.DSH
     module Database.DSH.Combinators
 
     -- * Type Classes
-  , Exp, Reify
-  , QA(..)
-  , TA, toQ, table, tableDB, tableCSV, tableWithKeys, BasicType
+  , Q, QA, TA, table, tableDB, tableCSV, tableWithKeys
   , View, view, fromView, tuple, record
 
-{-    -- * Template Haskell: Creating Table Representations
-  , generateDatabaseRecordInstances
-  , generateTableRecordInstances
-  , generateRecordInstances
-  , generateTableDeclarations
-  , deriveQAConstructors
--}
   , module Database.DSH.CSV
 
   , module Data.String
@@ -39,9 +30,7 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Data (Exp, Q, QA(..), Reify, TA, toQ, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record)
--- import Database.DSH.TH (generateDatabaseRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
--- import Database.DSH.DeriveConstructors
+import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record)
 
 import Database.DSH.CSV
 
@@ -74,6 +63,7 @@ import Prelude hiding (
   , null
   , length
   , (!!)
+  , (++)
   , reverse
   , and
   , or

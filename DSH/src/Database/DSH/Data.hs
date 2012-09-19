@@ -7,33 +7,32 @@ import Database.DSH.Impossible
 
 data Exp a where
   UnitE     :: Exp ()
-  BoolE     :: Bool -> Exp Bool
-  CharE     :: Char -> Exp Char
-  IntegerE  :: Integer -> Exp Integer
-  DoubleE   :: Double -> Exp Double
-  TextE     :: Text -> Exp Text
-  PairE     :: (Reify (Exp a),Reify (Exp b))  => Exp a -> Exp b -> Exp (Exp a,Exp b)
-  ListE     :: (Reify (Exp a))                => [Exp a] -> Exp [Exp a]
-  AppE      :: (Reify (Exp a),Reify (Exp b))  => Fun (Exp a) (Exp b) -> Exp a -> Exp b
-  LamE      :: (Reify (Exp a),Reify (Exp b))  => (Exp a -> Exp b) -> Exp (Exp a -> Exp b)
-  VarE      :: (Reify (Exp a))                => Integer -> Exp a
-  TableE    :: (Reify (Exp a))                => Table -> Exp [Exp a]
 
-data Table =
-    TableDB   String [[String]]
-  | TableCSV  String
-  deriving (Eq, Ord, Show)
+  BoolE     :: Bool    -> Exp Bool
+  CharE     :: Char    -> Exp Char
+  IntegerE  :: Integer -> Exp Integer
+  DoubleE   :: Double  -> Exp Double
+  TextE     :: Text    -> Exp Text
+
+  PairE     :: (Reify a, Reify b)  => Exp a -> Exp b -> Exp (a,b)
+  ListE     :: (Reify a)           => [Exp a] -> Exp [a]
+  AppE      :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
+  LamE      :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
+  VarE      :: (Reify a)           => Integer -> Exp a
+  TableE    :: (Reify a)           => Table -> Exp [a]
+
+data Table = TableDB String [[String]] | TableCSV  String deriving (Eq, Ord, Show)
 
 data Type a where
-  UnitT     :: Type (Exp ())
-  BoolT     :: Type (Exp Bool)
-  CharT     :: Type (Exp Char)
-  IntegerT  :: Type (Exp Integer)
-  DoubleT   :: Type (Exp Double)
-  TextT     :: Type (Exp Text)
-  PairT     :: (Reify (Exp a),Reify (Exp b))  => Type (Exp a) -> Type (Exp b) -> Type (Exp (Exp a,Exp b))
-  ListT     :: (Reify (Exp a))                => Type (Exp a) -> Type (Exp [Exp a])
-  ArrowT    :: (Reify (Exp a),Reify (Exp b))  => Type (Exp a) -> Type (Exp b) -> Type (Exp (Exp a -> Exp b))
+  UnitT     :: Type ()
+  BoolT     :: Type Bool
+  CharT     :: Type Char
+  IntegerT  :: Type Integer
+  DoubleT   :: Type Double
+  TextT     :: Type Text
+  PairT     :: (Reify a,Reify b)  => Type a -> Type b -> Type (a,b)
+  ListT     :: (Reify a)          => Type a -> Type [a]
+  ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
 
 instance Show (Type a) where
   show UnitT = "()"
@@ -49,83 +48,80 @@ instance Show (Type a) where
 class Reify a where
   reify :: a -> Type a
 
-instance Reify (Exp ()) where
+instance Reify () where
   reify _ = UnitT
 
-instance Reify (Exp Bool) where
+instance Reify Bool where
   reify _ = BoolT
 
-instance Reify (Exp Char) where
+instance Reify Char where
   reify _ = CharT
 
-instance Reify (Exp Integer) where
+instance Reify Integer where
   reify _ = IntegerT
 
-instance Reify (Exp Double) where
+instance Reify Double where
   reify _ = DoubleT
 
-instance Reify (Exp Text) where
+instance Reify Text where
   reify _ = TextT
 
-instance (Reify (Exp a),Reify (Exp b)) => Reify (Exp (Exp a,Exp b)) where
-  reify _ = PairT (reify (undefined :: Exp a)) (reify (undefined :: Exp b))
+instance (Reify a, Reify b) => Reify (a,b) where
+  reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
 
-instance (Reify (Exp a)) => Reify (Exp [Exp a]) where
-  reify _ = ListT (reify (undefined :: Exp a))
+instance (Reify a) => Reify [a] where
+  reify _ = ListT (reify (undefined :: a))
 
-instance (Reify (Exp a),Reify (Exp b)) => Reify (Exp (Exp a -> Exp b)) where
-  reify _ = ArrowT (reify (undefined :: Exp a)) (reify (undefined :: Exp b))
+instance (Reify a, Reify b) => Reify (a -> b) where
+  reify _ = ArrowT (reify (undefined :: a)) (reify (undefined :: b))
 
 data Fun a b where
-    Fst             :: Fun (Exp (Exp a,Exp b))       (Exp a)
-    Snd             :: Fun (Exp (Exp a,Exp b))       (Exp b)
-    Not             :: Fun (Exp Bool)                (Exp Bool)
-    Concat          :: (Reify (Exp a)) => Fun (Exp [Exp [Exp a]])       (Exp [Exp a])
-    Head            :: Fun (Exp [Exp a])             (Exp a)
-    Tail            :: Fun (Exp [Exp a])             (Exp [Exp a])
-    The             :: Fun (Exp [Exp a])             (Exp a)
-    Init            :: Fun (Exp [Exp a])             (Exp [Exp a])
-    Last            :: Fun (Exp [Exp a])             (Exp a)
-    Null            :: Fun (Exp [Exp a])             (Exp Bool)
-    Length          :: Fun (Exp [Exp a])             (Exp Integer)
-    Reverse         :: Fun (Exp [Exp a])             (Exp [Exp a])
-    And             :: Fun (Exp [Exp Bool])          (Exp Bool)
-    Or              :: Fun (Exp [Exp Bool])          (Exp Bool)
-    Sum             :: Fun (Exp [Exp a])             (Exp a)
-    Maximum         :: Fun (Exp [Exp a])             (Exp a)
-    Minimum         :: Fun (Exp [Exp a])             (Exp a)
-    Unzip           :: (Reify (Exp a), Reify (Exp b)) => Fun (Exp [Exp (Exp a,Exp b)]) (Exp (Exp [Exp a], Exp [Exp b]))
-    Nub             :: Fun (Exp [Exp a])             (Exp [Exp a])
-    IntegerToDouble :: Fun (Exp Integer)             (Exp Double)
-
-    Add       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Mul       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Sub       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Div       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Lt        :: Fun (Exp (Exp a,Exp a))               (Exp Bool)
-    Lte       :: Fun (Exp (Exp a,Exp a))               (Exp Bool)
-    Equ       :: Fun (Exp (Exp a,Exp a))               (Exp Bool)
-    Gte       :: Fun (Exp (Exp a,Exp a))               (Exp Bool)
-    Gt        :: Fun (Exp (Exp a,Exp a))               (Exp Bool)
-    Conj      :: Fun (Exp (Exp Bool,Exp Bool))         (Exp Bool)
-    Disj      :: Fun (Exp (Exp Bool,Exp Bool))         (Exp Bool)
-    Min       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Max       :: Fun (Exp (Exp a,Exp a))               (Exp a)
-    Cons      :: Fun (Exp (Exp a,Exp [Exp a]))         (Exp [Exp a])
-    Take      :: Fun (Exp (Exp Integer,Exp [Exp a]))   (Exp [Exp a])
-    Drop      :: Fun (Exp (Exp Integer,Exp [Exp a]))   (Exp [Exp a])
-    Index     :: Fun (Exp (Exp [Exp a],Exp Integer))   (Exp a)
-    SplitAt   :: Fun (Exp (Exp Integer,Exp [Exp a]))   (Exp (Exp [Exp a], Exp [Exp a]))
-    Zip       :: Fun (Exp (Exp [Exp a],Exp [Exp b]))   (Exp [Exp (Exp a,Exp b)])
-                 
-    Map       :: Fun (Exp (Exp (Exp a -> Exp b),Exp [Exp a]))        (Exp [Exp b])
-    Filter    :: Fun (Exp (Exp (Exp a -> Exp Bool),(Exp [Exp a])))   (Exp [Exp a])
-    GroupWith :: (Reify (Exp a),Reify (Exp b)) => Fun (Exp (Exp (Exp a -> Exp b),Exp [Exp a]))        (Exp [Exp [Exp a]])
-    SortWith  :: Fun (Exp (Exp (Exp a -> Exp b),Exp [Exp a]))        (Exp [Exp a])
-    TakeWhile :: Fun (Exp (Exp (Exp a -> Exp Bool),Exp [Exp a]))     (Exp [Exp a])
-    DropWhile :: Fun (Exp (Exp (Exp a -> Exp Bool),Exp [Exp a]))     (Exp [Exp a])
-    Cond      :: Fun (Exp (Exp Bool,Exp (Exp a,Exp a))) (Exp a)
-
+    Not             :: Fun Bool Bool
+    IntegerToDouble :: Fun Integer Double
+    And             :: Fun [Bool] Bool
+    Or              :: Fun [Bool] Bool
+    Concat          :: (Reify a) => Fun [[a]] [a]
+    Head            :: Fun [a] a
+    Tail            :: Fun [a] [a]
+    The             :: Fun [a] a
+    Init            :: Fun [a] [a]
+    Last            :: Fun [a] a
+    Null            :: Fun [a] Bool
+    Length          :: Fun [a] Integer
+    Reverse         :: Fun [a] [a]
+    Fst             :: Fun (a,b) a
+    Snd             :: Fun (a,b) b
+    Sum             :: Fun [a] a
+    Maximum         :: Fun [a] a
+    Minimum         :: Fun [a] a
+    Unzip           :: (Reify a,Reify b) => Fun [(a,b)] ([a],[b])
+    Nub             :: Fun [a] [a]
+    Add             :: Fun (a,a) a
+    Mul             :: Fun (a,a) a
+    Sub             :: Fun (a,a) a
+    Div             :: Fun (a,a) a
+    Lt              :: Fun (a,a) Bool
+    Lte             :: Fun (a,a) Bool
+    Equ             :: Fun (a,a) Bool
+    Gte             :: Fun (a,a) Bool
+    Gt              :: Fun (a,a) Bool
+    Conj            :: Fun (Bool,Bool) Bool
+    Disj            :: Fun (Bool,Bool) Bool
+    Min             :: Fun (a,a) a
+    Max             :: Fun (a,a) a
+    Cons            :: Fun (a,[a]) [a]
+    Take            :: Fun (Integer,[a]) [a]
+    Drop            :: Fun (Integer,[a]) [a]
+    Index           :: Fun ([a],Integer) a
+    SplitAt         :: Fun (Integer,[a]) ([a],[a])
+    Zip             :: Fun ([a],[b]) [(a,b)]
+    Map             :: Fun (a -> b,[a]) [b]
+    Filter          :: Fun (a -> Bool,[a]) [a]
+    GroupWith       :: (Reify b) => Fun (a -> b,[a]) [[a]]
+    SortWith        :: Fun (a -> b,[a]) [a]
+    TakeWhile       :: Fun ((a -> Bool),[a]) [a]
+    DropWhile       :: Fun ((a -> Bool),[a]) [a]
+    Cond            :: Fun (Bool,(a,a)) a
 
 instance Show (Fun a b) where
     show Fst = "fst"
@@ -175,59 +171,64 @@ instance Show (Fun a b) where
     show DropWhile = "dropWhile"
     show Cond = "cond"
 
+data Q a where
+  Q :: Exp (Rep a) -> Q a
 
-toQ :: (QA a) => a -> Exp (Q a)
-toQ = toExp
+unQ :: Q a -> Exp (Rep a)
+unQ (Q e) = e
 
-class (Reify (Exp (Q a))) => QA a where
-  type Q a
-  toExp :: a -> Exp (Q a)
-  frExp :: Exp (Q a) -> a
+toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
+toLam f = unQ . f . Q
+
+class (Reify (Rep a)) => QA a where
+  type Rep a
+  toExp :: a -> Exp (Rep a)
+  frExp :: Exp (Rep a) -> a
 
 instance QA () where
-  type Q () = ()
-  toExp _ = UnitE
+  type Rep () = ()
+  toExp () = UnitE
   frExp UnitE = ()
   frExp _ = $impossible
 
 instance QA Bool where
-  type Q Bool = Bool
+  type Rep Bool = Bool
   toExp = BoolE
   frExp (BoolE b) = b
   frExp _ = $impossible
 
 instance QA Char where
-  type Q Char = Char
+  type Rep Char = Char
   toExp = CharE
   frExp (CharE c) = c
   frExp _ = $impossible
 
 instance QA Integer where
-  type Q Integer = Integer
+  type Rep Integer = Integer
   toExp = IntegerE
-  frExp (IntegerE e) = e
+  frExp (IntegerE i) = i
   frExp _ = $impossible
 
 instance QA Double where
-  type Q Double = Double
+  type Rep Double = Double
   toExp = DoubleE
   frExp (DoubleE d) = d
   frExp _ = $impossible
 
 instance QA Text where
-  type Q Text = Text
+  type Rep Text = Text
   toExp = TextE
   frExp (TextE t) = t
   frExp _ = $impossible
 
 instance (QA a, QA b) => QA (a,b) where
-  type Q (a,b) = (Exp (Q a),Exp (Q b))
+  type Rep (a,b) = (Rep a,Rep b)
   toExp (a,b) = PairE (toExp a) (toExp b)
   frExp (PairE a b) = (frExp a,frExp b)
   frExp _ = $impossible
 
 instance (QA a) => QA [a] where
-  type Q [a] = [Exp (Q a)]
+  type Rep [a] = [Rep a]
   toExp as = ListE (map toExp as)
   frExp (ListE as) = map frExp as
   frExp _ = $impossible
@@ -255,17 +256,17 @@ instance TA Double where
 instance TA Text where
 instance (BasicType a, BasicType b) => TA (a,b) where
 
-table :: (QA a, TA a) => String -> Exp [Exp (Q a)]
-table name = TableE (TableDB name [])
+table :: (QA a, TA a) => String -> Q [a]
+table name = Q (TableE (TableDB name []))
 
-tableDB :: (QA a, TA a) => String -> Exp [Exp (Q a)]
-tableDB name = TableE (TableDB name [])
+tableDB :: (QA a, TA a) => String -> Q [a]
+tableDB name = Q (TableE (TableDB name []))
 
-tableWithKeys :: (QA a, TA a) => String -> [[String]] -> Exp [Exp (Q a)]
-tableWithKeys name keys = TableE (TableDB name keys)
+tableWithKeys :: (QA a, TA a) => String -> [[String]] -> Q [a]
+tableWithKeys name keys = Q (TableE (TableDB name keys))
 
-tableCSV :: (QA a, TA a) => String -> Exp [Exp (Q a)]
-tableCSV filename = TableE (TableCSV filename)
+tableCSV :: (QA a, TA a) => String -> Q [a]
+tableCSV filename = Q (TableE (TableCSV filename))
 
 -- * Eq, Ord and Num Instances for Databse Queries
 
@@ -278,7 +279,7 @@ instance Num (Exp Integer) where
 
   abs e = let c = AppE Lt (PairE e 0)
           in  AppE Cond (PairE c (PairE (negate e) e))
-      
+
   signum e = let c1 = AppE Lt  (PairE e 0)
                  c2 = AppE Equ (PairE e 0)
                  e' = AppE Cond (PairE c2 (PairE 0 1))
@@ -293,7 +294,7 @@ instance Num (Exp Double) where
 
   abs e = let c = AppE Lt (PairE e 0)
           in  AppE Cond (PairE c (PairE (negate e) e))
-      
+
   signum e = let c1 = AppE Lt  (PairE e 0)
                  c2 = AppE Equ (PairE e 0)
                  e' = AppE Cond (PairE c2 (PairE 0 1))
@@ -302,6 +303,26 @@ instance Num (Exp Double) where
 instance Fractional (Exp Double) where
   (/) e1 e2    = AppE Div (PairE e1 e2)
   fromRational = DoubleE . fromRational
+
+instance Num (Q Integer) where
+  (+) (Q e1) (Q e2) = Q (e1 + e2)
+  (*) (Q e1) (Q e2) = Q (e1 * e2)
+  (-) (Q e1) (Q e2) = Q (e1 - e2)
+  fromInteger       = Q . IntegerE
+  abs (Q e)         = Q (abs e)
+  signum (Q e)      = Q (signum e)
+
+instance Num (Q Double) where
+  (+) (Q e1) (Q e2) = Q (e1 + e2)
+  (*) (Q e1) (Q e2) = Q (e1 * e2)
+  (-) (Q e1) (Q e2) = Q (e1 - e2)
+  fromInteger       = Q . DoubleE . fromInteger
+  abs (Q e)         = Q (abs e)
+  signum (Q e)      = Q (signum e)
+
+instance Fractional (Q Double) where
+  (/) (Q e1) (Q e2) = Q (e1 / e2)
+  fromRational = Q . DoubleE . fromRational
 
 -- * Support for View Patterns
 
@@ -317,47 +338,47 @@ tuple = fromView
 record :: (View a b) => b -> a
 record = fromView
 
-instance View (Exp ()) (Exp ()) where
-  type ToView (Exp ()) = Exp ()
-  type FromView (Exp ()) = Exp ()
+instance View (Q ()) (Q ()) where
+  type ToView (Q ()) = Q ()
+  type FromView (Q ()) = Q ()
   view = id
   fromView = id
 
-instance View (Exp Bool) (Exp Bool) where
-  type ToView (Exp Bool) = Exp Bool
-  type FromView (Exp Bool) = Exp Bool
+instance View (Q Bool) (Q Bool) where
+  type ToView (Q Bool) = Q Bool
+  type FromView (Q Bool) = Q Bool
   view = id
   fromView = id
 
-instance View (Exp Char) (Exp Char) where
-  type ToView (Exp Char) = Exp Char
-  type FromView (Exp Char) = Exp Char
+instance View (Q Char) (Q Char) where
+  type ToView (Q Char) = Q Char
+  type FromView (Q Char) = Q Char
   view = id
   fromView = id
 
-instance View (Exp Integer) (Exp Integer) where
-  type ToView (Exp Integer) = Exp Integer
-  type FromView (Exp Integer) = Exp Integer
+instance View (Q Integer) (Q Integer) where
+  type ToView (Q Integer) = Q Integer
+  type FromView (Q Integer) = Q Integer
   view = id
   fromView = id
 
-instance View (Exp Double) (Exp Double) where
-  type ToView (Exp Double) = Exp Double
-  type FromView (Exp Double) = Exp Double
+instance View (Q Double) (Q Double) where
+  type ToView (Q Double) = Q Double
+  type FromView (Q Double) = Q Double
   view = id
   fromView = id
 
-instance View (Exp Text) (Exp Text) where
-  type ToView (Exp Text) = Exp Text
-  type FromView (Exp Text) = Exp Text
+instance View (Q Text) (Q Text) where
+  type ToView (Q Text) = Q Text
+  type FromView (Q Text) = Q Text
   view = id
   fromView = id
 
-instance (Reify (Exp b), Reify (Exp a)) => View (Exp (Exp a,Exp b)) (Exp a,Exp b) where
-  type ToView (Exp (Exp a,Exp b)) = (Exp a,Exp b)
-  type FromView (Exp a,Exp b) = Exp (Exp a,Exp b)
-  view e = (AppE Fst e,AppE Snd e)
-  fromView (a,b) = PairE a b
+instance (QA a, QA b) => View (Q (a,b)) (Q a,Q b) where
+  type ToView (Q (a,b)) = (Q a,Q b)
+  type FromView (Q a,Q b) = (Q (a,b))
+  view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
+  fromView (Q a,Q b) = Q (PairE a b)
 
-instance IsString (Exp Text) where
-  fromString = TextE . T.pack
+instance IsString (Q Text) where
+  fromString = Q . TextE . T.pack

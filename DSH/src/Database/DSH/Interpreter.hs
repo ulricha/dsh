@@ -12,13 +12,10 @@ import qualified Data.Text.Encoding as T
 import Database.HDBC
 import Data.List
 
-fromQ :: (QA a, IConnection conn) => conn -> Exp (Q a) -> IO a
-fromQ c a = evaluate c a >>= (return . frExp)
+fromQ :: (QA a, IConnection conn) => conn -> (Q a) -> IO a
+fromQ c (Q e) = evaluate c e >>= (return . frExp)
 
-evaluate :: (Reify (Exp a), IConnection conn)
-         => conn
-         -> Exp a
-         -> IO (Exp a)
+evaluate :: forall a conn. (Reify a, IConnection conn) => conn -> Exp a -> IO (Exp a)
 evaluate c e = case e of
     UnitE -> return UnitE
     BoolE b -> return $ BoolE b
@@ -78,8 +75,8 @@ evaluate c e = case e of
              $ map fst
              $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
              $ zip as1 as2
-    ((AppE Max (PairE e1 e2)) :: Exp ty) -> do
-      case reify (undefined :: Exp ty) of
+    (AppE Max (PairE e1 e2)) -> do
+      case reify (undefined :: a) of
           IntegerT -> do
                         (IntegerE v1) <- evaluate c e1
                         (IntegerE v2) <- evaluate c e2
@@ -89,8 +86,8 @@ evaluate c e = case e of
                         (DoubleE v2) <- evaluate c e2
                         return $ DoubleE (max v1 v2)
           _ -> $impossible
-    ((AppE Min (PairE e1 e2)) :: Exp ty) -> do
-      case reify (undefined :: Exp ty) of
+    (AppE Min (PairE e1 e2)) -> do
+      case reify (undefined :: a) of
           IntegerT -> do
                         (IntegerE v1) <- evaluate c e1
                         (IntegerE v2) <- evaluate c e2
@@ -132,8 +129,8 @@ evaluate c e = case e of
     AppE Or as -> do
       (ListE as1) <- evaluate c as
       return $ BoolE (or $ map (\(BoolE b) -> b) as1)
-    (AppE Sum as :: Exp ty) -> do
-      let ty = reify (undefined :: Exp ty)
+    (AppE Sum as) -> do
+      let ty = reify (undefined :: a)
       (ListE as1) <- evaluate c as
       case ty of
           IntegerT -> return $ IntegerE (sum $ map (\(IntegerE i) -> i) as1)
@@ -177,8 +174,8 @@ evaluate c e = case e of
     AppE Snd a -> do
       (PairE _ a1) <- evaluate c a
       return a1
-    ((AppE Add (PairE e1 e2)) :: Exp ty) -> do
-      let ty = reify (undefined :: Exp ty)
+    (AppE Add (PairE e1 e2)) -> do
+      let ty = reify (undefined :: a)
       case ty of
          IntegerT -> do
                       (IntegerE i1) <- evaluate c e1
@@ -189,8 +186,8 @@ evaluate c e = case e of
                       (DoubleE d2) <- evaluate c e2
                       return $ DoubleE (d1 + d2)
          _ -> $impossible
-    ((AppE Sub (PairE e1 e2)) :: Exp ty) -> do
-      let ty = reify (undefined :: Exp ty)
+    (AppE Sub (PairE e1 e2)) -> do
+      let ty = reify (undefined :: a)
       case ty of
          IntegerT -> do
                       (IntegerE i1) <- evaluate c e1
@@ -201,8 +198,8 @@ evaluate c e = case e of
                       (DoubleE d2) <- evaluate c e2
                       return $ DoubleE (d1 - d2)
          _ -> $impossible
-    ((AppE Mul (PairE e1 e2)) :: Exp ty) -> do
-      let ty = reify (undefined :: Exp ty)
+    (AppE Mul (PairE e1 e2)) -> do
+      let ty = reify (undefined :: a)
       case ty of
          IntegerT -> do
                       (IntegerE i1) <- evaluate c e1
@@ -213,8 +210,8 @@ evaluate c e = case e of
                       (DoubleE d2) <- evaluate c e2
                       return $ DoubleE (d1 * d2)
          _ -> $impossible
-    ((AppE Div (PairE e1 e2)) :: Exp ty) -> do
-      let ty = reify (undefined :: Exp ty)
+    (AppE Div (PairE e1 e2)) -> do
+      let ty = reify (undefined :: a)
       case ty of
          DoubleT  -> do
                       (DoubleE d1) <- evaluate c e1
@@ -255,8 +252,8 @@ evaluate c e = case e of
       (BoolE b1) <- evaluate c e1
       (BoolE b2) <- evaluate c e2
       return $ BoolE (b1 || b2) 
-    ((TableE (TableDB tName _)) :: Exp ty) -> 
-      let ty = reify (undefined :: Exp ty)
+    (TableE (TableDB tName _)) -> 
+      let ty = reify (undefined :: a)
       in case ty of
           ListT tType -> do
             tDesc <- describeTable c (escape tName)
@@ -265,7 +262,7 @@ evaluate c e = case e of
             -- print query
             fmap (sqlToExpWithType (escape tName) tType) (quickQuery c query [])
           _ -> $impossible
-    ((TableE (TableCSV filename)) :: Exp ty) -> csvImport filename (reify (undefined :: Exp ty))
+    (TableE (TableCSV filename)) -> csvImport filename (reify (undefined :: a))
     _ -> $impossible
 
 compareExp :: Exp a -> Exp a -> Ordering
@@ -319,14 +316,14 @@ escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
 
 -- | Read SQL values into 'Norm' values
-sqlToExpWithType :: (Reify (Exp a))
+sqlToExpWithType :: (Reify a)
                  => String  -- ^ Table name, used to generate more informative error messages
-                 -> Type (Exp a)
+                 -> Type a
                  -> [[SqlValue]]
-                 -> Exp [Exp a]
+                 -> Exp [a]
 sqlToExpWithType tName ty = ListE . map (sqlValueToNorm ty)
   where
-    sqlValueToNorm :: Type (Exp a) -> [SqlValue] -> Exp a
+    sqlValueToNorm :: Type a -> [SqlValue] -> Exp a
     sqlValueToNorm (PairT t1 t2) s = let v1 = sqlValueToNorm t1 $ take (sizeOfType t1) s
                                          v2 = sqlValueToNorm t2 $ drop (sizeOfType t1) s
                                       in PairE v1 v2
@@ -344,7 +341,7 @@ sqlToExpWithType tName ty = ListE . map (sqlValueToNorm ty)
         ++ "\n\tExpected table type: " ++ show t
         ++ "\n\tTable entry: " ++ show s
 
-convert :: SqlValue -> Type (Exp a) -> Exp a
+convert :: SqlValue -> Type a -> Exp a
 convert SqlNull         UnitT    = UnitE
 convert (SqlInteger i)  IntegerT = IntegerE i
 convert (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i

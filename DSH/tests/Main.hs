@@ -4,7 +4,7 @@
 module Main where
 
 import qualified Database.DSH as Q
-import Database.DSH (Q, QA, Exp, Reify)
+import Database.DSH (Q, QA)
 
 -- import Database.DSH.Interpreter (fromQ)
 import Database.DSH.Compiler (fromQ)
@@ -262,7 +262,7 @@ main = do
     qc prop_nub
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
-            => (Exp (Q a) -> Exp (Q b))
+            => (Q a -> Q b)
             -> (a -> b)
             -> a
             -> Property
@@ -274,14 +274,14 @@ makeProp f1 f2 arg = monadicIO $ do
     assert (db == hs)
 
 makePropNotNull ::  (Eq b, QA a, QA b, Show a, Show b)
-                    => (Exp [Exp (Q a)] -> Exp (Q b))
+                    => (Q [a] -> Q b)
                     -> ([a] -> b)
                     -> [a]
                     -> Property
 makePropNotNull q f arg = not (null arg) ==> makeProp q f arg
 
 makePropDouble :: (QA a, Show a)
-                  => (Exp (Q a) -> Exp Double)
+                  => (Q a -> Q Double)
                   -> (a -> Double)
                   -> a
                   -> Property
@@ -293,7 +293,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
     let eps = 1.0E-8 :: Double;    
     assert (abs (db - hs) < eps)
 
-uncurryQ :: (Reify (Exp a), Reify (Exp b)) => (Exp a -> Exp b -> Exp c) -> Exp (Exp a,Exp b) -> Exp c
+uncurryQ :: (QA a, QA b) => (Q a -> Q b -> Q c) -> Q (a,b) -> Q c
 uncurryQ f = uncurry f . Q.view
 
 -- * Supported Types
@@ -481,7 +481,7 @@ prop_map :: [Integer] -> Property
 prop_map = makeProp (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
-prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
+prop_append = makeProp (uncurryQ (Q.++)) (\(a,b) -> a ++ b)
 
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)

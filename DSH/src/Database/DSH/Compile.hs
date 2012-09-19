@@ -48,7 +48,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (Reify (Exp a), IConnection conn) => conn -> AlgebraXML (Exp a) -> IO (Exp a)
+executePlan :: forall a. forall conn. (Reify a, IConnection conn) => conn -> AlgebraXML a -> IO (Exp a)
 executePlan c p = do
                         sql@(SQL _s) <- algToSQL p
                         runSQL c $ extractSQL sql
@@ -105,11 +105,11 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
         process _ = $impossible
 
 -- | Execute the given SQL queries and assemble the results into one structure
-runSQL :: forall a. forall conn. (Reify (Exp a), IConnection conn) => conn -> QueryBundle (Exp a) -> IO (Exp a)
+runSQL :: forall a. forall conn. (Reify a, IConnection conn) => conn -> QueryBundle a -> IO (Exp a)
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
-                             let ty = reify (undefined :: Exp a)
+                             let ty = reify (undefined :: a)
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
                              case ty of
                                  (ListT _) -> return $ fromMaybe (ListE []) (lookup 1 results')
@@ -146,7 +146,7 @@ findQuery (q, c) = do
                                   Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
-processResults :: Int -> Type (Exp a) -> QueryR [(Int, Exp a)]
+processResults :: Int -> Type a -> QueryR [(Int, Exp a)]
 processResults i (ListT t1) = do
                                 v <- getResults i
                                 mapM (\(it, vals) -> do
@@ -170,7 +170,7 @@ nrColsInType (ListT _) = 1
 nrColsInType (ArrowT _ _) = $impossible
 
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
-processResults' :: Int -> Int -> [[SqlValue]] -> Type (Exp a) -> QueryR [Exp a]
+processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Exp a]
 processResults' _ _ vals UnitT = return $ map (\_ -> UnitE) vals
 processResults' q c vals (PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
@@ -198,7 +198,7 @@ sqlValueToInt :: SqlValue -> Int
 sqlValueToInt (SqlInteger i) = fromIntegral i
 sqlValueToInt _ = $impossible
 
-convert :: SqlValue -> Type (Exp a) -> Exp a
+convert :: SqlValue -> Type a -> Exp a
 convert SqlNull         UnitT    = UnitE
 convert (SqlInteger i)  IntegerT = IntegerE i
 convert (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i

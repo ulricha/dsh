@@ -5,7 +5,7 @@ import Database.DSH.Data
 import qualified Data.Text as T
 import Text.CSV
 
-csvImport :: (Reify (Exp a)) => FilePath -> Type (Exp [Exp a]) -> IO (Exp [Exp a])
+csvImport :: (Reify a) => FilePath -> Type [a] -> IO (Exp [a])
 csvImport filepath csvType = do
   let rType = recordType csvType
   contents <- readFile filepath
@@ -16,18 +16,18 @@ csvImport filepath csvType = do
   where csvError :: String -> a
         csvError s = error ("Error in '" ++ filepath ++ "': " ++ s)
 
-        recordType :: Type (Exp [Exp a]) -> Type (Exp a)
+        recordType :: Type [a] -> Type a
         recordType (ListT rType) = rType
 
-        csvRecordToNorm :: Type (Exp a) -> [String] -> Exp a
+        csvRecordToNorm :: Type a -> [String] -> Exp a
         csvRecordToNorm UnitT  [] = UnitE
         csvRecordToNorm t      [] = csvError ("When converting record '" ++ "[]" ++ "' to a value of type '" ++ show t ++ "'")
         csvRecordToNorm t1     [bs] = csvFieldToNorm t1 bs
-        csvRecordToNorm (PairT (t1 :: Type (Exp b)) (t2 :: Type (Exp c))) (bs : bss) = PairE ((csvFieldToNorm t1 bs) :: Exp b) (csvRecordToNorm t2 bss)
+        csvRecordToNorm (PairT (t1 :: Type b) (t2 :: Type c)) (bs : bss) = PairE ((csvFieldToNorm t1 bs) :: Exp b) (csvRecordToNorm t2 bss)
         csvRecordToNorm t           rs       = csvError ("When converting record '" ++ show rs ++ "' to a value of type '" ++ show t ++ "'")
 
 
-        csvFieldToNorm :: Type (Exp a) -> String -> Exp a
+        csvFieldToNorm :: Type a -> String -> Exp a
         csvFieldToNorm t s = case t of
           UnitT      -> UnitE
           BoolT      -> BoolE    (read s) 
