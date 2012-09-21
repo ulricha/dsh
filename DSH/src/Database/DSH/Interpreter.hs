@@ -12,8 +12,8 @@ import qualified Data.Text.Encoding as T
 import Database.HDBC
 import Data.List
 
-fromQ :: (QA a, IConnection conn) => conn -> (Q a) -> IO a
-fromQ c (Q e) = evaluate c e >>= (return . frExp)
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q e) = fmap frExp (evaluate c e)
 
 evaluate :: forall a conn. (Reify a, IConnection conn) => conn -> Exp a -> IO (Exp a)
 evaluate c e = case e of
@@ -26,12 +26,12 @@ evaluate c e = case e of
     VarE _ -> $impossible
     LamE _ -> $impossible
     PairE e1 e2 -> do
-                     e1' <- evaluate c e1
-                     e2' <- evaluate c e2
-                     return (PairE e1' e2')
+      e1' <- evaluate c e1
+      e2' <- evaluate c e2
+      return (PairE e1' e2')
     ListE es -> do
-                    es1 <- mapM (evaluate c) es
-                    return $ ListE es1 
+       es1 <- mapM (evaluate c) es
+       return $ ListE es1 
     AppE Cond (PairE cond (PairE a b)) -> do
       (BoolE c1) <- evaluate c cond
       if c1 then evaluate c a else evaluate c b
@@ -59,12 +59,12 @@ evaluate c e = case e of
     AppE Filter (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE as2) <- evaluate c (ListE (map f as1))
-      return $ ListE (map fst (filter (\(_,(BoolE b)) -> b) (zip as1 as2))) 
+      return $ ListE (map fst (filter (\(_,BoolE b) -> b) (zip as1 as2))) 
     AppE GroupWith (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE as2) <- evaluate c (ListE (map f as1))
       return $ ListE
-             $ map (ListE . (map fst))
+             $ map (ListE . map fst)
              $ groupBy (\(_,a1) (_,a2) -> equExp a1 a2)
              $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
              $ zip as1 as2
@@ -75,7 +75,7 @@ evaluate c e = case e of
              $ map fst
              $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
              $ zip as1 as2
-    (AppE Max (PairE e1 e2)) -> do
+    (AppE Max (PairE e1 e2)) ->
       case reify (undefined :: a) of
           IntegerT -> do
                         (IntegerE v1) <- evaluate c e1
@@ -86,7 +86,7 @@ evaluate c e = case e of
                         (DoubleE v2) <- evaluate c e2
                         return $ DoubleE (max v1 v2)
           _ -> $impossible
-    (AppE Min (PairE e1 e2)) -> do
+    (AppE Min (PairE e1 e2)) ->
       case reify (undefined :: a) of
           IntegerT -> do
                         (IntegerE v1) <- evaluate c e1
@@ -119,16 +119,16 @@ evaluate c e = case e of
     AppE Index (PairE as i) -> do
      (IntegerE i1) <- evaluate c i
      (ListE as1) <- evaluate c as
-     return $ as1 !! (fromIntegral i1)
+     return $ as1 !! fromIntegral i1
     AppE Reverse as -> do
       (ListE as1) <- evaluate c as
       return $ ListE (reverse as1)
     AppE And as -> do
       (ListE as1) <- evaluate c as
-      return $ BoolE (and $ map (\(BoolE b) -> b) as1)
+      return $ BoolE (all (\(BoolE b) -> b) as1)
     AppE Or as -> do
       (ListE as1) <- evaluate c as
-      return $ BoolE (or $ map (\(BoolE b) -> b) as1)
+      return $ BoolE (any (\(BoolE b) -> b) as1)
     (AppE Sum as) -> do
       let ty = reify (undefined :: a)
       (ListE as1) <- evaluate c as
@@ -138,7 +138,7 @@ evaluate c e = case e of
           _ -> $impossible
     AppE Concat as -> do
       (ListE as1) <- evaluate c as
-      return $  ListE (concat $ map (\(ListE as2) -> as2) as1)
+      return $ ListE (concatMap (\(ListE as2) -> as2) as1)
     AppE Maximum as -> do
       (ListE as1) <- evaluate c as
       return $ maximumBy compareExp as1
@@ -161,7 +161,7 @@ evaluate c e = case e of
     AppE Zip (PairE as bs) -> do
       (ListE as1) <- evaluate c as
       (ListE bs1) <- evaluate c bs
-      return $ ListE (zipWith (\a b -> PairE a b) as1 bs1)
+      return $ ListE (zipWith PairE as1 bs1)
     AppE Unzip as -> do
       (ListE as1) <- evaluate c as
       return $ PairE (ListE (map (\(PairE a _) -> a) as1)) (ListE (map (\(PairE _ b) -> b) as1))
@@ -257,7 +257,7 @@ evaluate c e = case e of
       in case ty of
           ListT tType -> do
             tDesc <- describeTable c (escape tName)
-            let columnNames = concat $ intersperse " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
+            let columnNames = intercalate " , " $ map (\s -> "\"" ++ s ++ "\"") $ sort $ map fst tDesc
             let query = "SELECT " ++ columnNames ++ " FROM " ++ "\"" ++ escape tName ++ "\""
             -- print query
             fmap (sqlToExpWithType (escape tName) tType) (quickQuery c query [])

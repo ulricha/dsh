@@ -119,8 +119,8 @@ data Fun a b where
     Filter          :: Fun (a -> Bool,[a]) [a]
     GroupWith       :: (Reify b) => Fun (a -> b,[a]) [[a]]
     SortWith        :: Fun (a -> b,[a]) [a]
-    TakeWhile       :: Fun ((a -> Bool),[a]) [a]
-    DropWhile       :: Fun ((a -> Bool),[a]) [a]
+    TakeWhile       :: Fun (a -> Bool,[a]) [a]
+    DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
 
 instance Show (Fun a b) where
@@ -311,8 +311,8 @@ instance Num (Exp Double) where
   abs e = let c = AppE Lt (PairE e 0)
           in  AppE Cond (PairE c (PairE (negate e) e))
 
-  signum e = let c1 = AppE Lt  (PairE e 0)
-                 c2 = AppE Equ (PairE e 0)
+  signum e = let c1 = AppE Lt  (PairE e 0.0)
+                 c2 = AppE Equ (PairE e 0.0)
                  e' = AppE Cond (PairE c2 (PairE 0 1))
              in  AppE Cond (PairE c1 (PairE (-1) e'))
 

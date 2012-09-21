@@ -282,7 +282,7 @@ makePropDouble :: (QA a, Show a)
                   -> a
                   -> Property
 makePropDouble f1 f2 arg = monadicIO $ do
-    c  <- run $ getConn
+    c  <- run getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
     let hs = f2 arg
@@ -417,7 +417,7 @@ prop_isLeft = makeProp Q.isLeft (\e -> case e of {Left _ -> True; Right _ -> Fal
 prop_isRight :: Either Integer Integer -> Property
 prop_isRight = makeProp Q.isRight (\e -> case e of {Left _ -> False; Right _ -> True;})
 
-prop_either :: (Either Integer Integer) -> Property
+prop_either :: Either Integer Integer -> Property
 prop_either =  makeProp (Q.either id id) (either id id)
 
 prop_lefts :: [Either Integer Integer] -> Property
@@ -438,7 +438,7 @@ prop_snoc :: ([Integer], Integer) -> Property
 prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
 
 prop_singleton :: Integer -> Property
-prop_singleton = makeProp Q.singleton (\x -> [x])
+prop_singleton = makeProp Q.singleton (: [])
 
 prop_head  :: [Integer] -> Property
 prop_head  = makePropNotNull Q.head head
@@ -477,7 +477,7 @@ prop_map :: [Integer] -> Property
 prop_map = makeProp (Q.map id) (map id)
 
 prop_append :: ([Integer], [Integer]) -> Property
-prop_append = makeProp (uncurryQ (Q.++)) (\(a,b) -> a ++ b)
+prop_append = makeProp (uncurryQ (Q.++)) (uncurry (++))
 
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
@@ -519,7 +519,7 @@ prop_concat :: [[Integer]] -> Property
 prop_concat = makeProp Q.concat concat
 
 prop_concatMap :: [Integer] -> Property
-prop_concatMap = makeProp (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
+prop_concatMap = makeProp (Q.concatMap Q.singleton) (concatMap (: []))
 
 prop_maximum :: [Integer] -> Property
 prop_maximum = makePropNotNull Q.maximum maximum
@@ -547,16 +547,16 @@ prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
                      (uncurry   $   break . (==) . fromIntegral)
 
 prop_elem :: (Integer, [Integer]) -> Property
-prop_elem = makeProp (uncurryQ $ Q.elem)
-                     (uncurry  $   elem)
+prop_elem = makeProp (uncurryQ Q.elem)
+                     (uncurry    elem)
 
 prop_notElem :: (Integer, [Integer]) -> Property
-prop_notElem = makeProp (uncurryQ $ Q.notElem)
-                        (uncurry  $   notElem)
+prop_notElem = makeProp (uncurryQ Q.notElem)
+                        (uncurry    notElem)
 
 prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
-prop_lookup = makeProp (uncurryQ $ Q.lookup)
-                       (uncurry  $   lookup)
+prop_lookup = makeProp (uncurryQ Q.lookup)
+                       (uncurry    lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)

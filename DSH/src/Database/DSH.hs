@@ -14,33 +14,19 @@
 -- by Database.DSH.
 
 module Database.DSH
-  (
-    module Database.DSH.Combinators
-
-    -- * Type Classes
-  , Q, QA, TA, table, tableDB, tableCSV, tableWithKeys
-  , View, view, fromView, tuple, record
-
-  , module Database.DSH.CSV
-
-  , module Data.String
-  , module Data.Text
-  , module Database.HDBC
-  , module Prelude
+  ( module Database.DSH.Combinators
+  , Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record
+  , module X
   )
   where
 
 import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record)
-
-import Database.DSH.CSV
-
 import Database.DSH.Combinators
 
-import Data.String(IsString,fromString)
-import Data.Text (Text)
-import Database.HDBC
-
-import Prelude hiding (
+import Data.String   as X (IsString,fromString)
+import Data.Text     as X (Text)
+import Database.HDBC as X
+import Prelude       as X hiding (
     not
   , (&&)
   , (||)

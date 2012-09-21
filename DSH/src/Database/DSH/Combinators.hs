@@ -5,7 +5,6 @@ import Database.DSH.TH
 
 import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, ($), (.))
 
-
 -- * toQ
 
 toQ :: (QA a) => a -> Q a
@@ -91,10 +90,10 @@ cond (Q c) (Q a) (Q b) = Q (AppE Cond (PairE c (PairE a b)))
 -- * Maybe
 
 listToMaybe :: (QA a) => Q [a] -> Q (Maybe a)
-listToMaybe (Q as) = (Q as) 
+listToMaybe (Q as) = Q as
 
 maybeToList :: (QA a) => Q (Maybe a) -> Q [a]
-maybeToList (Q ma) = (Q ma)
+maybeToList (Q ma) = Q ma
 
 nothing :: (QA a) => Q (Maybe a)
 nothing = listToMaybe nil
@@ -112,30 +111,30 @@ fromJust :: (QA a) => Q (Maybe a) -> Q a
 fromJust ma = head (maybeToList ma)
 
 maybe :: (QA a,QA b) => Q b -> (Q a -> Q b) -> Q (Maybe a) -> Q b
-maybe b f ma = (isNothing ma) ? (b, f (fromJust (ma)))
+maybe b f ma = isNothing ma ? (b,f (fromJust ma))
 
 fromMaybe :: (QA a) => Q a -> Q (Maybe a) -> Q a
-fromMaybe a ma = (isNothing ma) ? (a, fromJust (ma))
+fromMaybe a ma = isNothing ma ? (a,fromJust ma)
 
 catMaybes :: (QA a) => Q [Maybe a] -> Q [a]
-catMaybes mas = concatMap maybeToList mas
+catMaybes = concatMap maybeToList
 
 mapMaybe :: (QA a,QA b) => (Q a -> Q (Maybe b)) -> Q [a] -> Q [b]
-mapMaybe f as = concatMap (maybeToList . f) as
+mapMaybe f = concatMap (maybeToList . f)
 
 -- * Either
 
 pairToEither :: (QA a,QA b) => Q ([a],[b]) -> Q (Either a b)
-pairToEither (Q a) = (Q a) 
+pairToEither (Q a) = Q a
 
 eitherToPair :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
-eitherToPair (Q a) = (Q a)
+eitherToPair (Q a) = Q a
 
 left :: (QA a,QA b) => Q a -> Q (Either a b)
-left a = pairToEither (tuple ((singleton a),nil))
+left a = pairToEither (tuple (singleton a,nil))
 
 right :: (QA a,QA b) => Q b -> Q (Either a b)
-right a = pairToEither (tuple (nil,(singleton a)))
+right a = pairToEither (tuple (nil,singleton a))
 
 isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
 isLeft = null . snd . eitherToPair
@@ -144,7 +143,7 @@ isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
 isRight = null . fst . eitherToPair
 
 either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
-either lf rf e = (isLeft e) ? ((lf . head . fst . eitherToPair) e,(rf . head . snd . eitherToPair) e)
+either lf rf e = isLeft e ? ((lf . head . fst . eitherToPair) e,(rf . head . snd . eitherToPair) e)
 
 lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
 lefts = concatMap (fst . eitherToPair)
@@ -278,15 +277,15 @@ span :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
 span f as = pair (takeWhile f as) (dropWhile f as)
 
 break :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
-break f as = span (not . f) as
+break f = span (not . f)
 
 -- * Searching Lists
 
 elem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
-elem a as = (null (filter (a ==) as)) ? (false,true)
+elem a as = null (filter (a ==) as) ? (false,true)
 
 notElem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
-notElem a as = not (elem a as)
+notElem a as = not (a `elem` as)
 
 lookup :: (QA a,QA b,Eq a) => Q a -> Q [(a, b)] -> Q (Maybe b)
 lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
@@ -302,7 +301,7 @@ zipWith f as bs = map (\e -> f (fst e) (snd e)) (zip as bs)
 unzip :: (QA a,QA b) => Q [(a,b)] -> Q ([a],[b])
 unzip (Q as) = Q (AppE Unzip as)
 
--- * "Set" operations
+-- * Set-oriented operations
 
 nub :: (QA a,Eq a) => Q [a] -> Q [a]
 nub (Q as) = Q (AppE Nub as)
@@ -347,20 +346,9 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
--- | 'QA', 'TA' and 'View' instances for tuples up to the defined length.
-
 deriveTupleRangeQA 3 8
 
-data D1 a b c = C1 a Integer | C2 c | C3 a Bool c | C4
-
-deriveQA ''D1
-
-{-
-$(generateDeriveTupleQARange   5 7)
-$(generateDeriveTupleTARange   3 7)
-$(generateDeriveTupleViewRange 3 7)
--}
--- * Missing Combinators
+-- * Missing functions
 
 -- $missing
 {- $missing

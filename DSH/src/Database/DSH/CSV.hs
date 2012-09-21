@@ -23,7 +23,7 @@ csvImport filepath csvType = do
         csvRecordToNorm UnitT  [] = UnitE
         csvRecordToNorm t      [] = csvError ("When converting record '" ++ "[]" ++ "' to a value of type '" ++ show t ++ "'")
         csvRecordToNorm t1     [bs] = csvFieldToNorm t1 bs
-        csvRecordToNorm (PairT (t1 :: Type b) (t2 :: Type c)) (bs : bss) = PairE ((csvFieldToNorm t1 bs) :: Exp b) (csvRecordToNorm t2 bss)
+        csvRecordToNorm (PairT (t1 :: Type b) (t2 :: Type c)) (bs : bss) = PairE (csvFieldToNorm t1 bs :: Exp b) (csvRecordToNorm t2 bss)
         csvRecordToNorm t           rs       = csvError ("When converting record '" ++ show rs ++ "' to a value of type '" ++ show t ++ "'")
 
 

@@ -29,7 +29,7 @@ import qualified Data.List as L
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-type N conn = StateT (conn, Int, M.Map String [(String, (FType -> Bool))]) IO
+type N conn = StateT (conn, Int, M.Map String [(String,FType -> Bool)]) IO
 
 -- | Provide a fresh identifier name during compilation
 freshVar :: N conn Int
@@ -47,7 +47,7 @@ getConnection = do
 -- | Lookup information that describes a table. If the information is 
 -- not present in the state then the connection is used to retrieve the
 -- table information from the Database.
-tableInfo :: IConnection conn => String -> N conn [(String, (FType -> Bool))]
+tableInfo :: IConnection conn => String -> N conn [(String,FType -> Bool)]
 tableInfo t = do
                (c, i, env) <- get
                case M.lookup t env of
@@ -59,7 +59,7 @@ tableInfo t = do
 
 -- | Turn a given integer into a variable beginning with prefix "__fv_"                    
 prefixVar :: Int -> String
-prefixVar = ((++) "__fv_") . show
+prefixVar = (++) "__fv_" . show
      
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from
@@ -72,7 +72,7 @@ runN c  = liftM fst . flip runStateT (c, 1, M.empty)
 
 -- | Execute the query on the database
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q e) = evaluate c e >>= (return . frExp)
+fromQ c (Q e) = fmap frExp (evaluate c e)
 
 -- | Convert the query into unoptimised algebraic plan
 debugPlan :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
@@ -82,7 +82,7 @@ debugPlan = doCompile
 debugPlanOpt :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
 debugPlanOpt q c = do
                     p <- doCompile q c
-                    (C.Algebra r) <- algToAlg ((C.Algebra p)::AlgebraXML a)
+                    (C.Algebra r) <- algToAlg (C.Algebra p :: AlgebraXML a)
                     return r
 
 debugCore :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
@@ -97,7 +97,7 @@ debugCoreDot c a = do core <- runN c $ transformE a
 -- | Convert the query into SQL
 debugSQL :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
 debugSQL q c = do p <- doCompile q c
-                  (C.SQL r) <- algToSQL ((C.Algebra p)::AlgebraXML a)
+                  (C.SQL r) <- algToSQL (C.Algebra p :: AlgebraXML a)
                   return r
 
 -- | evaluate compiles the given Q query into an executable plan, executes this and returns 
@@ -105,7 +105,7 @@ debugSQL q c = do p <- doCompile q c
 -- to true it outputs the intermediate algebraic plan to disk.
 evaluate :: (Reify a, IConnection conn) => conn -> Exp a -> IO (Exp a)
 evaluate c q = do algPlan' <- doCompile c q
-                  let algPlan = ((C.Algebra algPlan') :: AlgebraXML a)
+                  let algPlan = C.Algebra algPlan' :: AlgebraXML a
                   n <- executePlan c algPlan
                   disconnect c
                   return n
@@ -129,7 +129,7 @@ transformE (PairE e1 e2) = do let ty = reify (undefined :: a)
                               return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
 transformE (ListE es) = let ty = reify (undefined :: a)
                             qt = ([] :=> transformTy ty) 
-                        in foldr (\h t -> F.Cons qt h t) (Nil qt) <$> mapM transformE es
+                        in foldr (F.Cons qt) (Nil qt) <$> mapM transformE es
 transformE (AppE GroupWith (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
   let ty = reify (undefined :: a)
   let tel = reify (undefined :: el)
@@ -139,7 +139,7 @@ transformE (AppE GroupWith (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
   let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
   e' <- transformArg e
   let (_ :=> te) = typeOf e'
-  fv <- transformLamArg ((LamE id) :: Exp (el -> el))
+  fv <- transformLamArg (LamE id :: Exp (el -> el))
   snd' <- transformLamArg (LamE (\(x :: Exp (rt,[el])) -> AppE Snd x))
   let (_ :=> sndTy) = typeOf snd'
   let (_ :=> tfv) = typeOf fv
@@ -190,17 +190,15 @@ transformE (AppE f2 (PairE (LamE f) e)) = do
 transformE (AppE f2 (PairE e1 e2)) = do
   let ty = reify (undefined :: a)
   let tr = transformTy ty
-  case isOp f2 of
-      True  -> do e1' <- transformE e1
-                  e2' <- transformE e2
-                  return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
-      False -> do e1' <- transformArg e1
-                  e2' <- transformArg e2
-                  let (_ :=> ta1) = typeOf e1'
-                  let (_ :=> ta2) = typeOf e2'
-                  return $ App ([] :=> tr) 
-                             (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1')
-                             e2'
+  if isOp f2
+     then do e1' <- transformE e1
+             e2' <- transformE e2
+             return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
+     else do e1' <- transformArg e1
+             e2' <- transformArg e2
+             let (_ :=> ta1) = typeOf e1'
+             let (_ :=> ta2) = typeOf e2'
+             return $ App ([] :=> tr) (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1') e2'
 
 transformE (AppE f1 e1) = do
   let ty = reify (undefined :: a)
@@ -226,15 +224,15 @@ transformE (TableE (TableDB n ks)) = do
                                     let tTy@(FList (FRec ts)) = flatFTy ty
                                     let varB = Var ([] :=> FRec ts) $ prefixVar fv
                                     tableDescr <- tableInfo n
-                                    let tyDescr = case length tableDescr == length ts of
-                                                    True -> zip tableDescr ts
-                                                    False -> error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
-                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty 
+                                    let tyDescr = if length tableDescr == length ts
+                                                    then zip tableDescr ts
+                                                    else error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
+                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ show (map fst tableDescr) ++ ". " ++ show ty 
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
-                                    let keyCols = (nub $ concat ks) L.\\ (map fst tableDescr)
-                                    let keys = if (keyCols == [])
-                                                    then if (ks /= []) then map Key ks else [Key $ map (\(Column n' _) -> n') cols]
-                                                    else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
+                                    let keyCols = nub (concat ks) L.\\ map fst tableDescr
+                                    let keys = if keyCols == []
+                                                  then if ks /= [] then map Key ks else [Key $ map (\(Column n' _) -> n') cols]
+                                                  else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
                                     let table' = Table ([] :=> tTy) n cols keys
                                     let pattern = [prefixVar fv]
                                     let nameType = map (\(Column name t) -> (name, t)) cols 
@@ -252,10 +250,10 @@ transformE (TableE (TableDB n ks)) = do
                                     return expr
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
-        legalType tn cn nr t f = case f t of
-                                True -> True
-                                False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ nr
-                                                    ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
+        legalType tn cn nr t f = f t || error ( "The type: "
+                                                ++ show t
+                                                ++ "\nis not compatible with the type of column nr: " ++ nr
+                                                ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ ".")
 transformE (LamE _) = $impossible
 
 transformLamArg :: forall a b conn. (IConnection conn) => Exp (a -> b) -> N conn Param
@@ -279,8 +277,8 @@ flatFTy :: Type a -> FType
 flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
  where
      flatFTy' :: Int -> Type a -> [(RLabel, FType)]
-     flatFTy' i (PairT t1 t2) = (RLabel $ show i, transformTy t1) : (flatFTy' (i + 1) t2)
-     flatFTy' i ty              = [(RLabel $ show i, transformTy ty)]
+     flatFTy' i (PairT t1 t2) = (RLabel $ show i, transformTy t1) : flatFTy' (i + 1) t2
+     flatFTy' i ty            = [(RLabel $ show i, transformTy ty)]
 flatFTy _         = $impossible
 
 -- Determine the size of a flat type
@@ -298,7 +296,7 @@ transformTy IntegerT = int
 transformTy DoubleT = float
 transformTy (PairT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
 transformTy (ListT t1) = FList $ transformTy t1
-transformTy (ArrowT t1 t2) = (transformTy t1) .-> (transformTy t2)
+transformTy (ArrowT t1 t2) = transformTy t1 .-> transformTy t2
 
 
 isOp :: Fun a b -> Bool
@@ -340,19 +338,19 @@ transformF f t = Var ([] :=> t) $ (\txt -> case txt of
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.        
-getTableInfo :: IConnection conn => conn -> String -> IO [(String, (FType -> Bool))]
+getTableInfo :: IConnection conn => conn -> String -> IO [(String,FType -> Bool)]
 getTableInfo c n = do
                     info <- describeTable c n
                     return $ toTableDescr info
                     
         where
-          toTableDescr :: [(String, SqlColDesc)] -> [(String, (FType -> Bool))]
+          toTableDescr :: [(String, SqlColDesc)] -> [(String,FType -> Bool)]
           toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
           compatibleType :: SqlTypeId -> FType -> Bool
           compatibleType dbT hsT = case hsT of
-                                        FUnit -> True
-                                        FBool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                        FString -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
-                                        FInt -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                        FFloat -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                        FUnit   -> True
+                                        FBool   -> dbT `L.elem` [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                        FString -> dbT `L.elem` [SqlCharT, SqlWCharT, SqlVarCharT]
+                                        FInt    -> dbT `L.elem` [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                        FFloat  -> dbT `L.elem` [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                         t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n

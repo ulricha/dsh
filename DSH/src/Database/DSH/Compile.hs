@@ -9,6 +9,8 @@ import qualified Data.Array as A
 import qualified Data.List as L
 import Data.Maybe (fromJust, isNothing, isJust, fromMaybe)
 import Data.List (sortBy)
+import Data.Function
+import Control.Arrow
 import Control.Monad.Reader
 import Control.Exception (evaluate)
 
@@ -75,28 +77,26 @@ extractSQL :: SQLXML a -> QueryBundle a
 extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
                       in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r $impossible)
     where
-        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup (X.N "id") attrs of
-                                                                    Just x -> x
-                                                                    Nothing -> $impossible
+        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = maybe ($impossible) attrToInt (lookup (X.N "id") attrs)
                                                            rId = fmap attrToInt $ lookup (X.N "idref") attrs
                                                            cId = fmap attrToInt $ lookup (X.N "colref") attrs
                                                            ref = liftM2 (,) rId cId
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
-                                                           schema = toSchemeInf $ map process $ concatMap (\x -> deep (tag "column") x) $ deep (tag "schema") c
+                                                           schema = toSchemeInf $ map process $ concatMap (deep (tag "column")) $ deep (tag "schema") c
                                                         in (qId, (query, schema, ref))
         extractQuery _ = $impossible
         attrToInt :: AttValue -> Int
-        attrToInt (AttValue [(Left i)]) = read i
+        attrToInt (AttValue [Left i]) = read i
         attrToInt _ = $impossible
         attrToString :: AttValue -> String
-        attrToString (AttValue [(Left i)]) = i
+        attrToString (AttValue [Left i]) = i
         attrToString _ = $impossible
         extractCData :: Content i -> String
         extractCData (CString _ d _) = d
         extractCData _ = $impossible
         toSchemeInf :: [(String, Maybe Int)] -> SchemaInfo
         toSchemeInf results = let iterName = fst $ head $ filter (\(_, p) -> isNothing p) results
-                                  cols = map (\(n, v) -> (n, fromJust v)) $ filter (\(_, p) -> isJust p) results
+                                  cols = map (second fromJust) $ filter (\(_, p) -> isJust p) results
                                in SchemaInfo iterName cols
         process :: Content i -> (String, Maybe Int)
         process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup (X.N "name") attrs
@@ -141,9 +141,7 @@ getColResPos q i = do
 findQuery :: (Int, Int) -> QueryR Int
 findQuery (q, c) = do
                     env <- ask
-                    return $ (\x -> case x of
-                                  Just x' -> x'
-                                  Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
+                    return $ fromMaybe (error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
 processResults :: Int -> Type a -> QueryR [(Int, Exp a)]
@@ -180,15 +178,13 @@ processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
                                         i <- getColResPos q c
-                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = sqlValueToInt $ (v !! i)
-                                                                                 in (m `max` v', v':vs))  (1,[]) vals
+                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = sqlValueToInt (v !! i)
+                                                                                in (m `max` v', v':vs))  (1,[]) vals
                                         let maxI = if null list
                                                     then 1
-                                                    else fst $ L.maximumBy (\x y -> fst x `compare` fst y) list
-                                        let lA = (A.accumArray ($impossible) Nothing (1,maxI `max` maxV) []) A.// map (\(x,y) -> (x, Just y)) list
-                                        return $ map (\val -> case lA A.! val of
-                                                                Just x -> x
-                                                                Nothing -> ListE []) vals'
+                                                    else fst $ L.maximumBy (compare `on` fst) list
+                                        let lA = A.accumArray ($impossible) Nothing (1,maxI `max` maxV) [] A.// map (second Just) list
+                                        return $ map (\val -> fromMaybe (ListE []) (lA A.! val)) vals'
 processResults' _ _ _ (ArrowT _ _) = $impossible
 processResults' q c vals t = do
                                     i <- getColResPos q c
@@ -235,7 +231,7 @@ partByIter n (v:vs) = let i = getIter n v
                        in (i, v:vi) : partByIter n vr
        where
            getIter :: Int -> [SqlValue] -> Int
-           getIter n' vals = ((fromSql (vals !! n'))::Int)
+           getIter n' vals = fromSql (vals !! n') :: Int
 partByIter _ [] = []
 
 
@@ -265,11 +261,11 @@ dshFetchAllRowsStrict stmt = go []
 -- | Transform algebraic plan scheme info into resultinfo
 schemeToResult :: SchemaInfo -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (_, c2) -> compare c1 c2) cols
-                                                    resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
+                                                    resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (/= '_') c) resDescr
                                                     itC = fromJust $ lookup itN resColumns
                                                  in ResultInfo itC $ map (\(n, _) -> (n, fromJust $ lookup n resColumns)) ordCols
 
 -- | 
 buildRefMap :: (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
-buildRefMap (q, (r, ri, (Just (t, c)))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
+buildRefMap (q, (r, ri, Just (t, c))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)
