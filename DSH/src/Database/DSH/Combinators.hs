@@ -1,6 +1,7 @@
 module Database.DSH.Combinators where
 
 import Database.DSH.Data
+import Database.DSH.TH
 
 import Prelude (Eq, Ord, Num, Bool(..), Integer, Double, Maybe, Either, undefined, ($), (.))
 
@@ -13,7 +14,7 @@ toQ = Q . toExp
 -- * Unit
 
 unit :: Q ()
-unit = Q UnitE 
+unit = Q UnitE
 
 -- * Boolean logic
 
@@ -346,7 +347,14 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
--- 'QA', 'TA' and 'View' instances for tuples up to the defined length.
+-- | 'QA', 'TA' and 'View' instances for tuples up to the defined length.
+
+deriveTupleRangeQA 3 8
+
+data D1 a b c = C1 a Integer | C2 c | C3 a Bool c | C4
+
+deriveQA ''D1
+
 {-
 $(generateDeriveTupleQARange   5 7)
 $(generateDeriveTupleTARange   3 7)

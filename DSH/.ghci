@@ -1,0 +1,8 @@
+:set -XTemplateHaskell
+:set -XScopedTypeVariables
+:set -XFlexibleContexts
+:set -XFlexibleInstances
+:set -XMultiParamTypeClasses
+:set -XTypeFamilies
+:set -XGADTs
+:set -isrc

@@ -86,3 +86,4 @@ Library
                      Database.DSH.CSV
                      Database.DSH.Impossible
                      Database.DSH.Compile
+                     Database.DSH.TH

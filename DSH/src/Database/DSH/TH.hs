@@ -1,548 +1,140 @@
-module Database.DSH.TH
-    (
-      deriveTupleQA
-    , generateDeriveTupleQARange
-    , deriveTupleTA
-    , generateDeriveTupleTARange
-    , deriveTupleView
-    , generateDeriveTupleViewRange
-
-    , deriveQAForRecord
-    , deriveQAForRecord'
-    , deriveViewForRecord
-    , deriveViewForRecord'
-    , deriveTAForRecord
-    , deriveTAForRecord'
-
-    , generateDatabaseRecordInstances
-    , generateTableRecordInstances
-    , generateRecordInstances
-    , generateTableDeclarations
-    ) where
-
-
-import Database.DSH.Data
-import Database.DSH.Impossible
-
-import Control.Applicative
-import Control.Monad
-import Data.Convertible
-import Data.Char
-import Data.List
-import Database.HDBC
-import Data.Text (Text)
--- import Data.Time (UTCTime)
-import GHC.Exts
-
-import Language.Haskell.TH hiding (Q, TupleT, tupleT, AppE, VarE, reify, Type, ListT)
-import qualified Language.Haskell.TH as TH
-import Language.Haskell.TH.Syntax (sequenceQ)
-
-
--- Create a "a -> b -> ..." type
-arrowChainT :: [TypeQ] -> TypeQ
-arrowChainT [] = $impossible
-arrowChainT as = foldr1 (\a b -> arrowT `appT` a `appT` b) as
-
--- Apply a list of 'TypeQ's to a type constructor
-applyChainT :: TypeQ -> [TypeQ] -> TypeQ
-applyChainT t ts = foldl' appT t ts
-
--- Apply a list of 'Exp's to a some 'Exp'
-applyChainE :: ExpQ -> [ExpQ] -> ExpQ
-applyChainE e es = foldl' appE e es
-
-applyChainTupleP :: [PatQ] -> PatQ
-applyChainTupleP = foldr1 (\p1 p2 -> conP 'TupleN [p1,p2,wildP])
-
-applyChainTupleE :: Name -> [ExpQ] -> ExpQ
-applyChainTupleE n = foldr1 (\e1 e2 -> appE (appE (conE n) e1) e2)
-
-
---------------------------------------------------------------------------------
--- * QA instances
---
-
--- Original Code
--- instance (QA a,QA b) => QA (a,b) where
-
-deriveTupleQA :: Int -> TH.Q [Dec]
-deriveTupleQA l
-    | l < 2     = $impossible
-    | otherwise = pure `fmap` instanceD qaCxts
-                                        qaType
-                                        qaDecs
-
-  where
-    names@(a:b:rest) = [ mkName $ "a" ++ show i | i <- [1..l] ]
-
-    qaCxts = return [ ClassP ''QA [VarT n] | n <- names ]
-    qaType = conT ''QA `appT` applyChainT (TH.tupleT l) (map varT names)
-    qaDecs = []
-
-
--- | Generate all 'QA' instances for tuples within range.
-generateDeriveTupleQARange :: Int -> Int -> TH.Q [Dec]
-generateDeriveTupleQARange from to =
-    concat `fmap` sequenceQ [ deriveTupleQA n | n <- reverse [from..to] ]
-
-
---------------------------------------------------------------------------------
--- * TA instances
---
-
--- Original code:
--- instance (BasicType a, BasicType b, QA a, QA b) => TA (a,b) where
-
-deriveTupleTA :: Int -> TH.Q [Dec]
-deriveTupleTA l
-    | l < 2     = $impossible
-    | otherwise = pure `fmap` instanceD taCxts
-                                        taType
-                                        taDecs
-
-  where
-    names = [ mkName $ "a" ++ show i | i <- [1..l] ]
-
-    taCxts = return $ concat [ [ClassP ''QA [VarT n], ClassP ''BasicType [VarT n]] | n <- names ]
-    taType = conT ''TA `appT` applyChainT (TH.tupleT l) (map varT names)
-    taDecs = []
-
--- | Generate all 'TA' instances for tuples within range.
-generateDeriveTupleTARange :: Int -> Int -> TH.Q [Dec]
-generateDeriveTupleTARange from to =
-    concat `fmap` sequenceQ [ deriveTupleTA n | n <- reverse [from..to] ]
-
-
---------------------------------------------------------------------------------
--- * View pattern
---
-
--- Original code:
--- instance (QA a,QA b) => View (Q (a,b)) (Q a, Q b) where
---   view (Q a) = (Q (AppE (VarE "proj_2_1") a), Q (AppE (VarE "proj_2_1") a))
-
-deriveTupleView :: Int -> TH.Q [Dec]
-deriveTupleView l
-    | l < 2     = $impossible
-    | otherwise = pure `fmap` instanceD viewCxts
-                                        viewType
-                                        viewDecs
-
-  where
-    names = [ mkName $ "a" ++ show i | i <- [1..l] ]
-    a = mkName "a"
-
-    first  p = [| AppE1 Fst $p (typeTupleFst (typeExp $p)) |]
-    second p = [| AppE1 Snd $p (typeTupleSnd (typeExp $p)) |]
-
-    viewCxts = return [ ClassP ''QA [VarT n] | n <- names ]
-    viewType = conT ''View `appT` (conT ''Q `appT` applyChainT (TH.tupleT l) (map varT names))
-                           `appT` applyChainT (TH.tupleT l) [ conT ''Q `appT` varT n | n <- names ]
-
-    viewDecs = [ viewDec, fromViewDec ]
-
-    viewDec    = funD 'view [viewClause]
-    viewClause = clause [ conP 'Q [varP a] ]
-                        ( normalB $ TH.tupE [ if pos == l then [| Q $(f (varE a)) |] else [| Q $(first (f (varE a))) |]
-                                            | pos <- [1..l]
-                                            , let f = foldr (.) id (replicate (pos - 1) second)
-                                            ])
-                        []
-
-    fromViewDec = funD 'fromView [fromViewClause]
-    fromViewClause = clause [ fromViewClausePattern ]
-                            ( normalB [| Q  $(fst $ fromViewClauseBody (map varE names)) |] )
-                            []
-
-    fromViewClausePattern = tupP (map (\n -> conP 'Q [varP n]) names)
-
-    fromViewClauseBody [a1,b1] =
-      let t1 = [| TupleT (typeExp $a1) (typeExp $b1) |]
-          e1 = [| TupleE ($a1) ($b1) ($t1) |]
-      in  (e1,t1)
-    fromViewClauseBody (a1 : as1) =
-      let (e1,t1) = fromViewClauseBody as1
-          t2 = [| TupleT (typeExp $a1) ($t1) |]
-          e2 = [| TupleE ($a1) ($e1) ($t2) |]
-      in  (e2,t2)
-    fromViewClauseBody _ = $impossible
-
-
--- | Generate all 'View' instances for tuples within range.
-generateDeriveTupleViewRange :: Int -> Int -> TH.Q [Dec]
-generateDeriveTupleViewRange from to =
-    concat `fmap` sequenceQ [ deriveTupleView n | n <- reverse [from..to] ]
-
-
---------------------------------------------------------------------------------
--- * Deriving Instances for Records
---
-
--- | Derive the 'QA' instance for a record definition.
-deriveQAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveQAForRecord q = do 
-  records <- q
-  instances <- deriveQAForRecord' q
-  return (records ++ instances)
-
--- | Add 'QA' instance to a record without adding the actual data definition.
--- Usefull in combination with 'deriveQAForRecord''
-deriveQAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
-deriveQAForRecord' q = do
-    d <- q
-    mapM addInst d
-  where
-    addInst d@(DataD [] dName [] [RecC rName rVar@(_:_)] _) | dName == rName = do
-
-         let rCxt  = return []
-             rType = conT ''QA `appT` conT dName
-             rDec  = [ reifyDec
-                     , toNormDec
-                     , fromNormDec
-                     ]
-
-             reifyDec    = funD 'reify [reifyClause]
-             reifyClause = clause [ wildP ]
-                                  ( normalB $ applyChainTupleE 'TupleT [ [| reify (undefined :: $(return _t)) |] | (_,_,_t) <- rVar] )
-                                  []
-
-             names = [ mkName $ "a" ++ show i | i <- [1..length rVar] ]
-
-             fromNormDec    = funD 'fromNorm [fromNormClause, failClause]
-             fromNormClause = clause [ applyChainTupleP (map varP names) ]
-                                     ( normalB $ (conE dName) `applyChainE` [ [| fromNorm $(varE n) |]
-                                                                            | n <- names
-                                                                            ]
-                                     )
-                                     []
-
-             -- Fail with a verbose message where this happened
-             failClause = clause [ wildP ]
-                                 ( do loc <- location
-                                      let pos = show (TH.loc_filename loc, fst (TH.loc_start loc), snd (TH.loc_start loc))
-                                      normalB [| error $ "ferry: Impossible `fromNorm' at location " ++ pos |]
-                                 )
-                                 []
-
-             toNormDec    = funD 'toNorm [toNormClause]
-             toNormClause = clause [ conP dName (map varP names) ]
-                                   ( normalB $ fst $ toNormClauseBody $ [ varE n | n <- names ] )
-                                   []
-                                   
-             toNormClauseBody [a1,b1] =
-                let t1 = [| TupleT (reify $a1) (reify $b1) |]
-                    e1 = [| TupleN (toNorm $a1) (toNorm $b1) ($t1) |]
-                in  (e1,t1)
-             toNormClauseBody (a1 : as1) =
-                let (e1,t1) = toNormClauseBody as1
-                    t2 = [| TupleT (reify $a1) ($t1) |]
-                    e2 = [| TupleN (toNorm $a1) ($e1) ($t2) |]
-                in  (e2,t2)
-             toNormClauseBody _ = $impossible
-
-
-         instanceD rCxt
-                   rType
-                   rDec
-
-    addInst _ = error "ferry: Failed to derive 'QA' - Invalid record definition"
-
--- | Derive the 'View' instance for a record definition. See
--- 'deriveQAForRecord' for an example.
-deriveViewForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveViewForRecord q = do
-  recrods <- q
-  instances <- deriveViewForRecord' q
-  return (recrods ++ instances)
-
--- | Add 'View' instance to a record without adding the actual data definition.
--- Usefull in combination with 'deriveQAForRecord''
-deriveViewForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
-deriveViewForRecord' q = do
-    d <- q
-    concat `fmap` mapM addView d
-  where
-    addView (DataD [] dName [] [RecC rName rVar@(_:_)] dNames) | dName == rName = do
-
-        -- The "View" record definition
-
-        let vName  = mkName $ nameBase dName ++ "V"
-            vRec   = recC vName [ return (prefixV n, s, makeQ t) | (n,s,t) <- rVar ]
-
-            prefixV :: Name -> Name
-            prefixV n = mkName $ nameBase n ++ "V"
-
-            makeQ :: TH.Type -> TH.Type
-            makeQ t = ConT ''Q `AppT` t
-
-            vNames = [] --dNames
-
-        v <- dataD (return [])
-                   vName
-                   []
-                   [vRec]
-                   vNames
-
-        -- The instance definition
-
-        let rCxt  = return []
-            rType = conT ''View `appT` (conT ''Q `appT` conT dName)
-                                `appT` (conT vName)
-            rDec  = [ viewDec
-                    , fromViewDec
-                    ]
-
-            a = mkName "a"
-
-            first  p = [| AppE1 Fst $p (typeTupleFst (typeExp $p)) |]
-            second p = [| AppE1 Snd $p (typeTupleSnd (typeExp $p)) |]
-
-            viewDec    = funD 'view [viewClause]
-            viewClause = clause [ conP 'Q [varP a] ]
-                                ( normalB $ applyChainE (conE vName)
-                                          $ map (appE (conE 'Q))
-                                          $ [ if pos == length rVar then (f (varE a)) else (first (f (varE a)))
-                                            | pos <- [1 .. length rVar]
-                                            , let f = foldr (.) id (replicate (pos - 1) second)
-                                            ] )
-                                []
-
-            -- names for variables used in the `fromView' function
-            qs = [ mkName $ "q" ++ show i | i <- [1.. length rVar] ]
-
-            fromViewDec    = funD 'fromView [fromViewClause] --, failClause]
-            fromViewClause = clause [ conP vName [ conP 'Q [varP q1] | q1 <- qs ] ]
-                                    ( normalB [| Q  $(fst $ fromViewClauseBody (map varE qs)) |] )
-                                    []
-
-            fromViewClauseBody [a1,b1] =
-              let t1 = [| TupleT (typeExp $a1) (typeExp $b1) |]
-                  e1 = [| TupleE ($a1) ($b1) ($t1) |]
-              in  (e1,t1)
-            fromViewClauseBody (a1 : as1) =
-              let (e1,t1) = fromViewClauseBody as1
-                  t2 = [| TupleT (typeExp $a1) ($t1) |]
-                  e2 = [| TupleE ($a1) ($e1) ($t2) |]
-              in  (e2,t2)
-            fromViewClauseBody _ = $impossible
-
-
-
-            -- Fail with a verbose message where this happened
-            failClause = clause [ wildP ]
-                                ( do loc <- location
-                                     let pos = show (TH.loc_filename loc, fst (TH.loc_start loc), snd (TH.loc_start loc))
-                                     normalB [| error $ "ferry: Impossible `fromView' at location " ++ pos |]
-                                )
-                                []
-
-        i <- instanceD rCxt
-                       rType
-                       rDec
-
-        return [v,i]
-
-    addView _ = error "ferry: Failed to derive 'View' - Invalid record definition"
-
-
--- | Derive 'TA' instances
-deriveTAForRecord :: TH.Q [Dec] -> TH.Q [Dec]
-deriveTAForRecord q = do
-  records <- q
-  instances <- deriveTAForRecord' q
-  return (records ++ instances)
-
-deriveTAForRecord' :: TH.Q [Dec] -> TH.Q [Dec]
-deriveTAForRecord' q = q >>= mapM addTA
-  where
-    addTA (DataD [] dName [] [RecC rName (_:_)] _) | dName == rName =
-
-        let taCxt  = return []
-            taType = conT ''TA `appT` conT dName
-            taDec  = [ ]
-
-        in instanceD taCxt
-                     taType
-                     taDec
-
-    addTA _ = error "ferry: Failed to derive 'TA' - Invalid record definition"
-
-
--- | Create lifted record selectors
-recordQSelectors :: TH.Q [Dec] -> TH.Q [Dec]
-recordQSelectors q = do
-  recrods <- q
-  selectors <- recordQSelectors' q
-  return (recrods ++ selectors)
-
-recordQSelectors' :: TH.Q [Dec] -> TH.Q [Dec]
-recordQSelectors' q = q >>= fmap join . mapM addSel
-  where
-    addSel :: Dec -> TH.Q [Dec]
-    addSel (DataD [] dName [] [RecC rName vst] _) | dName == rName && not (null vst) =
-
-        let namesAndTypes = [ (n, t')
-                            | (n, _, t) <- vst
-                            , let t' = arrowChainT [ conT ''Q `appT` conT dName
-                                                   , conT ''Q `appT` return t
-                                                   ]
-                            ]
-
-            addFunD (n,t) = let qn = mkName $ nameBase n ++ "Q"
-                                vn = mkName $ nameBase n ++ "V"
-                             in sequenceQ [ sigD qn t
-                                          , funD qn [ clause []
-                                                             (normalB [| $(varE vn) . view |])
-                                                             []
-                                                    ]
-                                          ]
-
-         in if null namesAndTypes
-               then error "woot?"
-               else concat `fmap` mapM addFunD namesAndTypes
-
-    addSel _ = error "ferry: Failed to create record selectors - Invalid record definition"
-
-
---------------------------------------------------------------------------------
--- * Exported enduser functions
---
-
--- | Generate table declarations for all tables in the database. This function
--- should be used in conjunction with generateDatabaseRecordInstances. For
--- example, this function generates the following code for the table 'users':
---
--- > users :: Q [User]
--- > users = table "users"
---
-generateTableDeclarations :: (IConnection conn)
-                             => (IO conn)  -- ^ Database connection
-                             -> TH.Q [Dec]
-generateTableDeclarations conn = do
-  tables <- runIO $ do  c <- conn
-                        r <- getTables c
-                        disconnect c
-                        return r
-  declss <- mapM generateTableDeclaration tables
-  return (concat declss)
-
-generateTableDeclaration :: String -> TH.Q [Dec]
-generateTableDeclaration s = return
-  [ TH.SigD (mkName s) (TH.AppT (TH.ConT ''Q) (TH.AppT TH.ListT (TH.ConT (mkName (dataTypeName s)))))
-  , TH.FunD (mkName s) [TH.Clause [] (TH.NormalB (TH.AppE (TH.VarE (mkName "table")) (TH.LitE (TH.StringL s)))) []]
-  ]
-
--- | Create corresponding Haskell record data types and generate QA and View
--- instances for all tables in the database (except for system tables).
---
--- Example usage:
---
--- > $(generateDatabaseRecordInstances myConnection)
---
--- Note that the database information is queried at compile time, not at run time!
-generateDatabaseRecordInstances :: (IConnection conn)
-                             => (IO conn)  -- ^ Database connection
-                             -> TH.Q [Dec]
-generateDatabaseRecordInstances conn = do
-  tables <- runIO $ do  c <- conn
-                        r <- getTables c
-                        disconnect c
-                        return r
-  decss <- mapM (\t -> generateTableRecordInstances conn t (dataTypeName t) [''Show,''Eq]) tables
-  return (concat decss)
-
-dataTypeName :: String -> String
-dataTypeName []       = []
-dataTypeName [c]      = map toUpper (cleanUnderscores [c])
-dataTypeName (c : cs) = toUpper c : cleanUnderscores (init cs)
-
-cleanUnderscores :: String -> String
-cleanUnderscores []             = []
-cleanUnderscores ['_']          = [] 
-cleanUnderscores ('_' : c : cs) = toUpper c : cleanUnderscores cs
-cleanUnderscores (c : cs)       = c : cleanUnderscores cs
-
--- | Lookup a database table, create corresponding Haskell record data types
--- and generate QA and View instances
---
--- Example usage:
---
--- > $(generateTableRecordInstances myConnection "users" "User" [''Show,''Eq])
---
--- Note that the table information is queried at compile time, not at run time!
-generateTableRecordInstances  :: (IConnection conn)
-                              => (IO conn)  -- ^ Database connection
-                              -> String     -- ^ Table name
-                              -> String     -- ^ Data type name for each row of the table
-                              -> [Name]     -- ^ Default deriving instances
-                              -> TH.Q [Dec]
-generateTableRecordInstances conn t dname dnames = do
-    tdesc <- runIO $ do c <- conn
-                        r <- describeTable c t
-                        disconnect c
-                        return r
-    generateRecordInstances (createDataType (sortWith fst tdesc))
-
-  where
-    createDataType :: [(String, SqlColDesc)] -> TH.Q [Dec]
-    createDataType [] = error "ferry: Empty table description"
-    createDataType ds = pure `fmap` dataD dCxt
-                                          dName
-                                          []
-                                          [dCon ds]
-                                          dNames
-
-    dName     = mkName dname
-    dNames    = dnames
-
-    dCxt      = return []
-    dCon desc = recC dName (map toVarStrictType desc)
-
-    -- no support for nullable columns yet:
-    toVarStrictType (n,SqlColDesc { colType = ty, colNullable = _ }) =
-        let t' = case convert ty of
-                      IntegerT    -> ConT ''Integer
-                      BoolT       -> ConT ''Bool
-                      CharT       -> ConT ''Char
-                      DoubleT     -> ConT ''Double
-                      TextT       -> ConT ''Text
-                      _           -> $impossible
-
-        in return (mkName n, NotStrict, t')
-
-
--- | Derive QA and View instances for record definitions
---
--- Example usage:
---
--- > $(generateRecordInstances [d|
--- >
--- >     data User = User
--- >         { userId    :: Int
--- >         , userName  :: String
--- >         }
--- >
--- >   |])
---
--- This generates the following record type, which can be used in view patterns
---
--- > data UserV = UserV
--- >     { userIdV    :: Q Int
--- >     , userNameV  :: Q String
--- >     }
---
--- > instance View (Q User) UserV
---
--- and the liftet record selectors:
---
--- > userIdQ      :: Q User -> Q Int
--- > userNameQ    :: Q User -> Q String
-generateRecordInstances :: TH.Q [Dec] -> TH.Q [Dec]
-generateRecordInstances q = do
-    d  <- q
-    qa <- deriveQAForRecord' q
-    v  <- deriveViewForRecord' q
-    ta <- deriveTAForRecord' q
-    rs <- recordQSelectors' q
-    return (d ++ qa ++ v ++ ta ++ rs)
+module Database.DSH.TH (deriveQA,deriveTupleRangeQA) where
+
+import qualified Database.DSH.Impossible as DSH
+import qualified Database.DSH.Data as DSH
+
+import Language.Haskell.TH
+
+-- Deriving QA
+
+deriveQA :: Name -> Q [Dec]
+deriveQA name = do
+  info <- reify name
+  case info of
+    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) -> deriveTyConQA name1 tyVarBndrs cons
+    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) -> deriveTyConQA name1 tyVarBndrs [con]
+    _ -> fail errMsgExoticType
+
+deriveTyConQA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
+deriveTyConQA name tyVarBndrs cons = do
+  let context = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
+  let typ = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
+  let instanceHead = AppT (ConT ''DSH.QA) typ
+  let repDec = deriveRep typ cons
+  toExpDec <- deriveToExp cons
+  frExpDex <- deriveFrExp cons
+  return [InstanceD context instanceHead [repDec,toExpDec,frExpDex]]
+
+deriveTupleRangeQA :: Int -> Int -> Q [Dec]
+deriveTupleRangeQA x y = fmap concat (mapM (deriveQA . tupleTypeName) [x .. y])
+
+-- Derive the Rep type function
+
+deriveRep :: Type -> [Con] -> Dec
+deriveRep typ cons = TySynInstD ''DSH.Rep [typ] (deriveRepCons cons)
+
+deriveRepCons :: [Con] -> Type
+deriveRepCons []  = error errMsgExoticType
+deriveRepCons [c] = deriveRepCon c
+deriveRepCons cs  = foldr1 (AppT . AppT (ConT ''(,))) (map (AppT (ConT ''[]) . deriveRepCon) cs)
+
+deriveRepCon :: Con -> Type
+deriveRepCon con = case conToTypes con of
+  [] -> ConT ''()
+  ts -> foldr1 (AppT . AppT (ConT ''(,))) (map (AppT (ConT ''DSH.Rep)) ts)
+
+-- Derive the toExp function of the QA class
+
+deriveToExp :: [Con] -> Q Dec
+deriveToExp [] = fail errMsgExoticType
+deriveToExp cons = do
+  clauses <- sequence (zipWith3 deriveToExpClause (repeat (length cons)) [0 .. ] cons)
+  return (FunD 'DSH.toExp clauses)
+
+deriveToExpClause :: Int -> Int -> Con -> Q Clause
+deriveToExpClause 0 _ _ = fail errMsgExoticType
+deriveToExpClause 1 _ con = do
+  (pat1,names1) <- conToPattern con
+  let exp1 = deriveToExpMainExp names1
+  let body1 = NormalB exp1
+  return (Clause [pat1] body1 [])
+deriveToExpClause n i con = do
+  (pat1,names1) <- conToPattern con
+  let exp1 = deriveToExpMainExp names1
+  expList1 <- [| DSH.ListE [ $(return exp1) ] |]
+  expEmptyList <- [| DSH.ListE [] |]
+  let lists = replicate i expEmptyList ++ [expList1] ++ replicate (n - i - 1) expEmptyList
+  let exp2 = foldr1 (AppE . AppE (ConE 'DSH.PairE)) lists
+  let body1 = NormalB exp2
+  return (Clause [pat1] body1 [])
+
+deriveToExpMainExp :: [Name] -> Exp
+deriveToExpMainExp []     = ConE 'DSH.UnitE
+deriveToExpMainExp [name] = AppE (VarE 'DSH.toExp) (VarE name)
+deriveToExpMainExp names  = foldr1 (AppE . AppE (ConE 'DSH.PairE))
+                                   (map (AppE (VarE 'DSH.toExp) . VarE) names)
+-- Derive to frExp function of the QA class
+
+deriveFrExp :: [Con] -> Q Dec
+deriveFrExp cons = do
+  clauses <- sequence (zipWith3 deriveFrExpClause (repeat (length cons)) [0 .. ] cons)
+  imp <- DSH.impossible
+  let lastClause = Clause [WildP] (NormalB imp) []
+  return (FunD 'DSH.frExp (clauses ++ [lastClause]))
+
+deriveFrExpClause :: Int -> Int -> Con -> Q Clause
+deriveFrExpClause 1 _ con = do
+  (_,names1) <- conToPattern con
+  let pat1 = deriveFrExpMainPat names1
+  let exp1 = foldl AppE (ConE (conToName con)) (map (AppE (VarE 'DSH.frExp) . VarE) names1)
+  let body1 = NormalB exp1
+  return (Clause [pat1] body1 [])
+deriveFrExpClause n i con = do
+  (_,names1) <- conToPattern con
+  let pat1 = deriveFrExpMainPat names1
+  let patList1 = ConP 'DSH.ListE [ConP '(:) [pat1,WildP]]
+  let lists = replicate i WildP ++ [patList1] ++ replicate (n - i - 1) WildP
+  let pat2 = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) lists
+  let exp1 = foldl AppE (ConE (conToName con)) (map (AppE (VarE 'DSH.frExp) . VarE) names1)
+  let body1 = NormalB exp1
+  return (Clause [pat2] body1 [])
+
+deriveFrExpMainPat :: [Name] -> Pat
+deriveFrExpMainPat [] = ConP 'DSH.UnitE []
+deriveFrExpMainPat [name] = VarP name
+deriveFrExpMainPat names  = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) (map VarP names)
+
+-- Helper Functions
+
+conToTypes :: Con -> [Type]
+conToTypes (NormalC _name strictTypes) = map snd strictTypes
+conToTypes (RecC _name varStrictTypes) = map (\(_,_,t) -> t) varStrictTypes
+conToTypes (InfixC st1 _name st2) = [snd st1,snd st2]
+conToTypes (ForallC _tyVarBndrs _cxt con) = conToTypes con
+
+tyVarBndrToName :: TyVarBndr -> Name
+tyVarBndrToName (PlainTV name) = name
+tyVarBndrToName (KindedTV name _kind) = name
+
+conToPattern :: Con -> Q (Pat,[Name])
+conToPattern (NormalC name strictTypes) = do
+  ns <- mapM (\ _ -> newName "x") strictTypes
+  return (ConP name (map VarP ns),ns)
+conToPattern (RecC name varStrictTypes) = do
+  ns <- mapM (\ _ -> newName "x") varStrictTypes
+  return (ConP name (map VarP ns),ns)
+conToPattern (InfixC st1 name st2) = do
+  ns <- mapM (\ _ -> newName "x") [st1,st2]
+  return (ConP name (map VarP ns),ns)
+conToPattern (ForallC _tyVarBndr _cxt con) = conToPattern con
+
+conToName :: Con -> Name
+conToName (NormalC name _) = name
+conToName (RecC name _) = name
+conToName (InfixC _ name _) = name
+conToName (ForallC _ _ con)	= conToName con
+
+-- Error messages
+
+errMsgExoticType :: String
+errMsgExoticType =  "Derivation of QA is only possible for Haskell 98 types types."
