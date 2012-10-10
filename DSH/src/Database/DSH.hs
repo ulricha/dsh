@@ -15,7 +15,7 @@
 
 module Database.DSH
   ( module Database.DSH.Externals
-  , module Database.DSH.Internals
+  , Q, QA, Elim, elim, View, view, fromView
   , module Data.String
   , module Data.Text
   , module Database.HDBC

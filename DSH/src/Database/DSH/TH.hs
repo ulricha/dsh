@@ -209,15 +209,15 @@ deriveElimFunClauseExp e fs = go e fs
   where
   go :: Exp -> [Exp] -> [Exp]
   go _ []  = error errMsgExoticType
-  go e [f] =
-    let paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f)) e
+  go e1 [f1] =
+    let paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) e1
     in  [AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Map)) paire]
-  go e (f : fs) =
-    let fste  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e
-        snde  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e
-        paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f)) fste
+  go e1 (f1 : fs1) =
+    let fste  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e1
+        snde  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e1
+        paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) fste
         mape  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Map)) paire
-    in  mape : go snde fs
+    in  mape : go snde fs1
 
 -- Helper Functions
 

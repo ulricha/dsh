@@ -46,7 +46,6 @@ Category:            Database
 Build-type:          Simple
 
 Extra-source-files:  examples/Example01.hs
-                     examples/Example02.hs
                      examples/Makefile
                      tests/Main.hs
                      tests/Makefile

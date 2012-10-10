@@ -1,7 +1,5 @@
 module Database.DSH.Internals where
 
-import Database.DSH.Impossible
-
 import Data.Text (Text)
 
 data Exp a where
