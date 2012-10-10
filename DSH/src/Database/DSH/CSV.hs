@@ -1,6 +1,6 @@
 module Database.DSH.CSV (csvImport) where
 
-import Database.DSH.Data
+import Database.DSH.Internals
 
 import qualified Data.Text as T
 import Text.CSV

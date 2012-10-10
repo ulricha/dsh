@@ -3,9 +3,9 @@
 
 module Database.DSH.Interpreter (fromQ) where
 
-import Database.DSH.Data
-import Database.DSH.Impossible (impossible)
-import Database.DSH.CSV (csvImport)
+import Database.DSH.Internals
+import Database.DSH.Impossible
+import Database.DSH.CSV
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T

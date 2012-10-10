@@ -5,9 +5,9 @@
 
 module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
 
-import Database.DSH.Data as D
-import Database.DSH.Impossible (impossible)
-import Database.DSH.CSV (csvImport)
+import Database.DSH.Internals as D
+import Database.DSH.Impossible
+import Database.DSH.CSV
 
 import Database.DSH.Compile as C
 

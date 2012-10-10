@@ -1,7 +1,7 @@
 module Database.DSH.Compile where
 
-import Database.DSH.Data
-import Database.DSH.Impossible (impossible)
+import Database.DSH.Internals
+import Database.DSH.Impossible
 
 import Database.Pathfinder
 

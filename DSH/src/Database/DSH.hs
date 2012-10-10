@@ -14,19 +14,22 @@
 -- by Database.DSH.
 
 module Database.DSH
-  ( module Database.DSH.Combinators
-  , Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record
-  , module X
+  ( module Database.DSH.Externals
+  , module Database.DSH.Internals
+  , module Data.String
+  , module Data.Text
+  , module Database.HDBC
+  , module Prelude
   )
   where
 
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, View, view, fromView, tuple, record)
-import Database.DSH.Combinators
+import Database.DSH.Externals
+import Database.DSH.Internals (Q,QA,Elim,elim,View,view,fromView)
 
-import Data.String   as X (IsString,fromString)
-import Data.Text     as X (Text)
-import Database.HDBC as X
-import Prelude       as X hiding (
+import Data.String (IsString,fromString)
+import Data.Text (Text)
+import Database.HDBC
+import Prelude hiding (
     not
   , (&&)
   , (||)

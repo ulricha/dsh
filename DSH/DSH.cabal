@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.8
+Version:             0.8.0.1
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -31,6 +31,9 @@ Description:
   Database-supported program execution for Haskell" [1] is a recommended
   reading. The package includes a couple of examples that demonstrate how to
   use DSH.
+  .
+  This is a highly experimental realise supporting our work-in-progress paper on
+  "Algebraic Data Types for Language-Integrated Queries".
   .
   1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
 
@@ -76,13 +79,13 @@ Library
 
   GHC-options:       -O3 -Wall -fno-warn-orphans
 
-  Exposed-modules:   
+  Exposed-modules:
                      Database.DSH.Interpreter
                      Database.DSH.Compiler
                      Database.DSH
 
-  Other-modules:     Database.DSH.Data
-                     Database.DSH.Combinators
+  Other-modules:     Database.DSH.Internals
+                     Database.DSH.Externals
                      Database.DSH.CSV
                      Database.DSH.Impossible
                      Database.DSH.Compile
