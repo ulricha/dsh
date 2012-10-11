@@ -3,7 +3,8 @@ all: cabal
 		./Main
 
 cabal: clean
-		cabal install HDBC-PostgreSQL
+		cabal install quickcheck
+		cabal install hdbc-postgresql
 		cabal install derive
 		cd ..; cabal install; cd tests;
 
