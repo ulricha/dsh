@@ -37,7 +37,6 @@ data Fun a b where
     Concat          :: (Reify a) => Fun [[a]] [a]
     Head            :: Fun [a] a
     Tail            :: Fun [a] [a]
-    The             :: Fun [a] a
     Init            :: Fun [a] [a]
     Last            :: Fun [a] a
     Null            :: Fun [a] Bool
@@ -48,7 +47,6 @@ data Fun a b where
     Sum             :: Fun [a] a
     Maximum         :: Fun [a] a
     Minimum         :: Fun [a] a
-    Unzip           :: (Reify a,Reify b) => Fun [(a,b)] ([a],[b])
     Nub             :: Fun [a] [a]
     Add             :: Fun (a,a) a
     Mul             :: Fun (a,a) a
@@ -124,7 +122,6 @@ instance Show (Fun a b) where
     show Concat = "concat"
     show Head = "head"
     show Tail = "tail"
-    show The = "the"
     show Init = "init"
     show Last = "last"
     show Null = "null"
@@ -135,7 +132,6 @@ instance Show (Fun a b) where
     show Sum = "sum"
     show Maximum = "maximum"
     show Minimum = "minimum"
-    show Unzip = "unzip"
     show Nub = "nub"
     show IntegerToDouble = "integerToDouble"
     show Add = "+"

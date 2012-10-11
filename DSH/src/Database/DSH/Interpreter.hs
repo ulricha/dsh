@@ -77,33 +77,22 @@ evaluate c e = case e of
              $ zip as1 as2
     (AppE Max (PairE e1 e2)) ->
       case reify (undefined :: a) of
-          IntegerT -> do
-                        (IntegerE v1) <- evaluate c e1
-                        (IntegerE v2) <- evaluate c e2
-                        return $ IntegerE (max v1 v2)
-          DoubleT -> do 
-                        (DoubleE v1) <- evaluate c e1
-                        (DoubleE v2) <- evaluate c e2
-                        return $ DoubleE (max v1 v2)
+          IntegerT -> do (IntegerE v1) <- evaluate c e1
+                         (IntegerE v2) <- evaluate c e2
+                         return $ IntegerE (max v1 v2)
+          DoubleT  -> do (DoubleE v1) <- evaluate c e1
+                         (DoubleE v2) <- evaluate c e2
+                         return $ DoubleE (max v1 v2)
           _ -> $impossible
     (AppE Min (PairE e1 e2)) ->
       case reify (undefined :: a) of
-          IntegerT -> do
-                        (IntegerE v1) <- evaluate c e1
-                        (IntegerE v2) <- evaluate c e2
-                        return $ IntegerE (min v1 v2)
-          DoubleT -> do
-                        (DoubleE v1) <- evaluate c e1
-                        (DoubleE v2) <- evaluate c e2
-                        return $ DoubleE (min v1 v2)
+          IntegerT -> do (IntegerE v1) <- evaluate c e1
+                         (IntegerE v2) <- evaluate c e2
+                         return $ IntegerE (min v1 v2)
+          DoubleT  -> do (DoubleE v1) <- evaluate c e1
+                         (DoubleE v2) <- evaluate c e2
+                         return $ DoubleE (min v1 v2)
           _ -> $impossible
-    AppE The as -> do
-      (ListE as1) <- evaluate c as
-      case as1 of
-        [] -> error "Database.DSH.Interpreter.the: empty list"
-        (x : xs) -> return $ if all (equExp x) xs
-                                then x
-                                else error "Database.DSH.Interpreter.the: non-identical elements"
     AppE Last as -> do
       (ListE as1) <- evaluate c as
       return $ last as1
@@ -162,9 +151,6 @@ evaluate c e = case e of
       (ListE as1) <- evaluate c as
       (ListE bs1) <- evaluate c bs
       return $ ListE (zipWith PairE as1 bs1)
-    AppE Unzip as -> do
-      (ListE as1) <- evaluate c as
-      return $ PairE (ListE (map (\(PairE a _) -> a) as1)) (ListE (map (\(PairE _ b) -> b) as1))
     AppE Nub as -> do
       (ListE as1) <- evaluate c as
       return $ ListE (nubBy equExp as1)

@@ -469,9 +469,6 @@ groupWith f (Q as) = Q (AppE GroupWith (PairE (LamE (toLam f)) as))
 sortWith :: (QA a,QA b,Ord b) => (Q a -> Q b) -> Q [a] -> Q [a]
 sortWith f (Q as) = Q (AppE SortWith (PairE (LamE (toLam f)) as))
 
-the :: (QA a,Eq a) => Q [a] -> Q a
-the (Q as) = Q (AppE The as)
-
 last :: (QA a) => Q [a] -> Q a
 last (Q as) = Q (AppE Last as)
 
@@ -559,7 +556,7 @@ zipWith :: (QA a,QA b,QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
 zipWith f as bs = map (\e -> f (fst e) (snd e)) (zip as bs)
 
 unzip :: (QA a,QA b) => Q [(a,b)] -> Q ([a],[b])
-unzip (Q as) = Q (AppE Unzip as)
+unzip as = pair (map fst as) (map snd as)
 
 zip3 :: (QA a,QA b,QA c) => Q [a] -> Q [b] -> Q [c] -> Q [(a,b,c)]
 zip3 as bs cs = map (\abc -> fromView (fst abc,fst (snd abc),snd (snd abc))) (zip as (zip bs cs))
