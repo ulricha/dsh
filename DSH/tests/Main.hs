@@ -192,8 +192,6 @@ main = do
     qc prop_map
     putStrPad "filter"
     qc prop_filter
-    putStrPad "the"
-    qc prop_the
     putStrPad "last"
     qc prop_last
     putStrPad "init"
@@ -452,14 +450,6 @@ prop_last  = makePropNotNull Q.last last
 prop_init  :: [Integer] -> Property
 prop_init  = makePropNotNull Q.init init
 
-prop_the   :: [Integer] -> Property
-prop_the l =
-        allEqual l
-    ==> makeProp Q.the the l
-  where
-    allEqual []     = False
-    allEqual (x:xs) = all (x ==) xs
-
 prop_index :: ([Integer], Integer)  -> Property
 prop_index (l, i) =
         i > 0 && i < fromIntegral (length l)
@@ -544,7 +534,7 @@ prop_span = makeProp (uncurryQ $ Q.span . (Q.==))
 
 prop_break :: (Integer, [Integer]) -> Property
 prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
-                     (uncurry   $   break . (==) . fromIntegral)
+                      (uncurry   $   break . (==) . fromIntegral)
 
 prop_elem :: (Integer, [Integer]) -> Property
 prop_elem = makeProp (uncurryQ Q.elem)

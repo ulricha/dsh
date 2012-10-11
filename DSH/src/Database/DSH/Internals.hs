@@ -69,7 +69,7 @@ data Fun a b where
     Zip             :: Fun ([a],[b]) [(a,b)]
     Map             :: Fun (a -> b,[a]) [b]
     Filter          :: Fun (a -> Bool,[a]) [a]
-    GroupWith       :: (Reify b) => Fun (a -> b,[a]) [[a]]
+    GroupWithKey    :: Fun (a -> b,[a]) [(b,[a])]
     SortWith        :: Fun (a -> b,[a]) [a]
     TakeWhile       :: Fun (a -> Bool,[a]) [a]
     DropWhile       :: Fun (a -> Bool,[a]) [a]
@@ -155,7 +155,7 @@ instance Show (Fun a b) where
     show Zip = "zip"
     show Map = "map"
     show Filter = "filter"
-    show GroupWith = "groupWith"
+    show GroupWithKey = "groupWithKey"
     show SortWith = "sortWith"
     show TakeWhile = "takeWhile"
     show DropWhile = "dropWhile"

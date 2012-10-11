@@ -130,27 +130,20 @@ transformE (PairE e1 e2) = do let ty = reify (undefined :: a)
 transformE (ListE es) = let ty = reify (undefined :: a)
                             qt = ([] :=> transformTy ty) 
                         in foldr (F.Cons qt) (Nil qt) <$> mapM transformE es
-transformE (AppE GroupWith (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
-  let ty = reify (undefined :: a)
+transformE (AppE GroupWithKey (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
   let tel = reify (undefined :: el)
-  let tr = transformTy ty
   fn' <- transformLamArg gfn
   let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
   let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
   e' <- transformArg e
   let (_ :=> te) = typeOf e'
   fv <- transformLamArg (LamE id :: Exp (el -> el))
-  snd' <- transformLamArg (LamE (\(x :: Exp (rt,[el])) -> AppE Snd x))
-  let (_ :=> sndTy) = typeOf snd'
   let (_ :=> tfv) = typeOf fv
-  return $ App ([] :=> tr)
-              (App ([] :=> gtr .-> tr) (Var ([] :=> sndTy .-> gtr .-> tr) "map") snd') 
-              (ParExpr ([] :=> gtr) $ App ([] :=> gtr)
-                  (App ([] :=> te .-> gtr)
-                      (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
-                      fn'
-                  )
-                  e')
+  return $ App ([] :=> gtr)
+               (App ([] :=> te .-> gtr)
+                    (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
+                    fn')
+               e'
 transformE (AppE D.Cons (PairE e1 e2)) = do
                                             e1' <- transformE e1
                                             e2' <- transformE e2
