@@ -334,6 +334,9 @@ bool f t b = cond b t f
 cond :: (QA a) => Q Bool -> Q a -> Q a -> Q a
 cond (Q c) (Q a) (Q b) = Q (AppE Cond (PairE c (PairE a b)))
 
+ifThenElse :: (QA a) => Q Bool -> Q a -> Q a -> Q a
+ifThenElse = cond
+
 (?) :: (QA a) => Q Bool -> (Q a,Q a) -> Q a
 (?) c (a,b) = cond c a b
 
