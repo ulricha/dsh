@@ -236,6 +236,13 @@ instance (QA a, QA b) => View (Q (a,b)) (Q a,Q b) where
   view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
   fromView (Q a,Q b) = Q (PairE a b)
 
+instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a,Q b,Q c) where
+  type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
+  type FromView (Q a,Q b,Q c) = (Q (a,b,c))
+  view (Q e) = (Q (AppE Fst e),Q (AppE Fst (AppE Snd e)),Q (AppE Snd (AppE Snd e)))
+  fromView (Q a,Q b,Q c) = Q (PairE a (PairE b c))
+
+
 -- IsString instances
 
 instance IsString (Q Text) where
@@ -554,6 +561,18 @@ zipWith f as bs = map (\e -> f (fst e) (snd e)) (zip as bs)
 unzip :: (QA a,QA b) => Q [(a,b)] -> Q ([a],[b])
 unzip (Q as) = Q (AppE Unzip as)
 
+zip3 :: (QA a,QA b,QA c) => Q [a] -> Q [b] -> Q [c] -> Q [(a,b,c)]
+zip3 as bs cs = map (\abc -> fromView (fst abc,fst (snd abc),snd (snd abc))) (zip as (zip bs cs))
+
+zipWith3 :: (QA a,QA b,QA c,QA d) => (Q a -> Q b -> Q c -> Q d) -> Q [a] -> Q [b] -> Q [c] -> Q [d]
+zipWith3 f as bs cs = map (\e -> (case view e of (a,b,c) -> f a b c))
+                          (zip3 as bs cs)
+
+unzip3 :: (QA a,QA b,QA c) => Q [(a,b,c)] -> Q ([a],[b],[c])
+unzip3 abcs = fromView ( map (\e -> (case view e of (a,_,_) -> a)) abcs
+                       , map (\e -> (case view e of (_,b,_) -> b)) abcs
+                       , map (\e -> (case view e of (_,_,c) -> c)) abcs)
+
 -- * Set-oriented operations
 
 nub :: (QA a,Eq a) => Q [a] -> Q [a]
@@ -640,11 +659,5 @@ String functions:
 > words
 > unlines
 > unwords
-
-Zipping and unzipping lists:
-
-> zip3
-> zipWith3
-> unzip3
 
 -}

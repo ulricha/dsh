@@ -74,6 +74,9 @@ import Prelude hiding (
   , zip
   , zipWith
   , unzip
+  , zip3
+  , zipWith3
+  , unzip3
   , fst
   , snd
   , maybe
