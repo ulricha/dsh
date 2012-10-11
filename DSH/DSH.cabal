@@ -32,7 +32,7 @@ Description:
   reading. The package includes a couple of examples that demonstrate how to
   use DSH.
   .
-  This is a highly experimental realise supporting our work-in-progress paper on
+  This is a highly experimental release supporting our work-in-progress paper on
   "Algebraic Data Types for Language-Integrated Queries".
   .
   1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
