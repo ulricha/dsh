@@ -1,9 +1,19 @@
-module Database.DSH.TH (deriveQA, deriveTupleRangeQA, deriveElim) where
+module Database.DSH.TH (deriveDSH, deriveQA, deriveTupleRangeQA, deriveElim) where
 
 import qualified Database.DSH.Internals  as DSH
 import qualified Database.DSH.Impossible as DSH
 
 import Language.Haskell.TH
+
+----------------------------------------
+-- Deriving all DSH relevant instance --
+----------------------------------------
+
+deriveDSH :: Name -> Q [Dec]
+deriveDSH n = do
+  qa <- deriveQA n
+  el <- deriveElim n
+  return (qa ++ el)
 
 -----------------
 -- Deriving QA --

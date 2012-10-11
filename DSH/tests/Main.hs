@@ -1,3 +1,6 @@
+{-# LANGUAGE TemplateHaskell, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -Wall -O3 -fno-warn-orphans #-}
+
 module Main where
 
 import qualified Database.DSH as Q
@@ -12,6 +15,8 @@ import Database.HDBC.PostgreSQL
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
+import Data.DeriveTH
+
 import Data.List
 import Data.Maybe
 import Data.Either
@@ -24,6 +29,26 @@ import Data.Char
 
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
+
+data D1 = C11 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D1
+Q.deriveDSH ''D1
+
+data D2 = C21 | C22 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D2
+Q.deriveDSH ''D2
+
+data D3 a = C31 a | C32 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D3
+Q.deriveDSH ''D3
+
+data D4 a = C41 a | C42 | C43 a a | C44 a a a deriving (Eq,Ord,Show)
+derive makeArbitrary ''D4
+Q.deriveDSH ''D4
+
+data D5 a b c d e = C51 { c511 :: a, c512 :: (a,b,c,d) } | C52 | C53 a b | C54 (a,b,c) | C55 a b c d e deriving (Eq,Ord,Show)
+derive makeArbitrary ''D5
+Q.deriveDSH ''D5
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
@@ -60,6 +85,16 @@ main = do
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
+    putStrPad "D1: "
+    qc prop_d1
+    putStrPad "D2: "
+    qc prop_d2
+    putStrPad "D3: "
+    qc prop_d3
+    putStrPad "D4: "
+    qc prop_d4
+    putStrPad "D5: "
+    qc prop_d5
 
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
@@ -330,6 +365,21 @@ prop_maybe_integer = makeProp id id
 
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
+
+prop_d1 :: D1 -> Property
+prop_d1 = makeProp id id
+
+prop_d2 :: D2 -> Property
+prop_d2 = makeProp id id
+
+prop_d3 :: D3 Integer -> Property
+prop_d3 = makeProp id id
+
+prop_d4 :: D4 Integer -> Property
+prop_d4 = makeProp id id
+
+prop_d5 :: D5 Integer Integer Integer Integer Integer -> Property
+prop_d5 = makeProp id id
 
 -- * Equality, Boolean Logic and Ordering
 
