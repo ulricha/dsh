@@ -41,7 +41,7 @@ deriveTyConQA name tyVarBndrs cons = do
 deriveTupleRangeQA :: Int -> Int -> Q [Dec]
 deriveTupleRangeQA x y = fmap concat (mapM (deriveQA . tupleTypeName) [x .. y])
 
--- Derive the Rep type function
+-- Deriving the Rep type function
 
 deriveRep :: Type -> [Con] -> Dec
 deriveRep typ cons = TySynInstD ''DSH.Rep [typ] (deriveRepCons cons)
@@ -58,7 +58,7 @@ deriveRepCon con = case conToTypes con of
   ts -> foldr1 (AppT . AppT (ConT ''(,)))
                (map (AppT (ConT ''DSH.Rep)) ts)
 
--- Derive the toExp function of the QA class
+-- Deriving the toExp function of the QA class
 
 deriveToExp :: [Con] -> Q Dec
 deriveToExp [] = fail errMsgExoticType
@@ -91,7 +91,7 @@ deriveToExpMainExp []     = ConE 'DSH.UnitE
 deriveToExpMainExp [name] = AppE (VarE 'DSH.toExp) (VarE name)
 deriveToExpMainExp names  = foldr1 (AppE . AppE (ConE 'DSH.PairE))
                                    (map (AppE (VarE 'DSH.toExp) . VarE) names)
--- Derive to frExp function of the QA class
+-- Deriving to frExp function of the QA class
 
 deriveFrExp :: [Con] -> Q Dec
 deriveFrExp cons = do
@@ -149,7 +149,7 @@ deriveTyConElim name tyVarBndrs cons = do
   elimDec <- deriveElimFun cons
   return [InstanceD context instanceHead [eliminatorDec,elimDec]]
 
--- Derive the Eliminator type function
+-- Deriving the Eliminator type function
 
 deriveEliminator :: Type -> Type -> [Con] -> Dec
 deriveEliminator typ resTy cons = TySynInstD ''DSH.Eliminator [typ,resTy] (deriveEliminatorCons resTy cons)
@@ -167,7 +167,7 @@ deriveEliminatorCon resTy con =
         (AppT (ConT ''DSH.Q) resTy)
         (conToTypes con)
 
--- Derive the elim function of the Elim type class
+-- Deriving the elim function of the Elim type class
 
 deriveElimFun :: [Con] -> Q Dec
 deriveElimFun cons = do
