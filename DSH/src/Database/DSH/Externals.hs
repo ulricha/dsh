@@ -402,7 +402,9 @@ isRight :: (QA a,QA b) => Q (Either a b) -> Q Bool
 isRight = null . fst . eitherToPair
 
 either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
-either lf rf e = isLeft e ? ((lf . head . fst . eitherToPair) e,(rf . head . snd . eitherToPair) e)
+either lf rf e =
+  let p = eitherToPair e
+  in  head (map lf (fst p) ++ map rf (snd p))
 
 lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
 lefts = concatMap (fst . eitherToPair)

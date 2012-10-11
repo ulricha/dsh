@@ -190,7 +190,6 @@ instance (Reify a) => Reify [a] where
 instance (Reify a, Reify b) => Reify (a -> b) where
   reify _ = ArrowT (reify (undefined :: a)) (reify (undefined :: b))
 
-
 -- Utility functions
 
 unQ :: Q a -> Exp (Rep a)
