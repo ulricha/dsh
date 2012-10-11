@@ -248,10 +248,16 @@ main = do
     qc prop_lookup
     putStrPad "zip"
     qc prop_zip
+    putStrPad "zip3"
+    qc prop_zip3
     putStrPad "zipWith"
     qc prop_zipWith
+    putStrPad "zipWith3"
+    qc prop_zipWith3
     putStrPad "unzip"
     qc prop_unzip
+    putStrPad "unzip3"
+    qc prop_unzip3
     putStrPad "nub"
     qc prop_nub
 
@@ -556,6 +562,17 @@ prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = makeProp Q.unzip unzip
+
+prop_zip3 :: ([Integer], [Integer],[Integer]) -> Property
+prop_zip3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zip3 as bs cs))
+                     (\(as,bs,cs) -> zip3 as bs cs)
+
+prop_zipWith3 :: ([Integer], [Integer],[Integer]) -> Property
+prop_zipWith3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zipWith3 (\a b c -> a + b + c) as bs cs))
+                         (\(as,bs,cs) -> zipWith3 (\a b c -> a + b + c) as bs cs)
+
+prop_unzip3 :: [(Integer, Integer, Integer)] -> Property
+prop_unzip3 = makeProp Q.unzip3 unzip3
 
 prop_nub :: [Integer] -> Property
 prop_nub = makeProp Q.nub nub
