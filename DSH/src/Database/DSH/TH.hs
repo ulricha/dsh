@@ -4,10 +4,11 @@ import qualified Database.DSH.Internals  as DSH
 import qualified Database.DSH.Impossible as DSH
 
 import Language.Haskell.TH
+import Control.Monad
 
-----------------------------------------
--- Deriving all DSH relevant instance --
-----------------------------------------
+-----------------------------------------
+-- Deriving all DSH-relevant instances --
+-----------------------------------------
 
 deriveDSH :: Name -> Q [Dec]
 deriveDSH n = do
@@ -141,8 +142,7 @@ deriveTyConElim name tyVarBndrs cons = do
   resultTyName <- newName "r"
   let resTy = VarT resultTyName
   let ty = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
-  let context = (ClassP ''DSH.QA [ty])    :
-                (ClassP ''DSH.QA [resTy]) :
+  let context = ClassP ''DSH.QA [resTy] :
                 map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
   let instanceHead = AppT (AppT (ConT ''DSH.Elim) ty) resTy
   let eliminatorDec = deriveEliminator ty resTy cons
@@ -157,15 +157,15 @@ deriveEliminator typ resTy cons = TySynInstD ''DSH.Eliminator [typ,resTy] (deriv
 deriveEliminatorCons :: Type -> [Con] -> Type
 deriveEliminatorCons _ []  = error errMsgExoticType
 deriveEliminatorCons resTy cs  =
-  foldr (AppT . AppT ArrowT)
+  foldr (AppT . AppT ArrowT . deriveEliminatorCon resTy)
         (AppT (ConT ''DSH.Q) resTy)
-        (map (deriveEliminatorCon resTy) cs)
+        cs
 
 deriveEliminatorCon :: Type -> Con -> Type
 deriveEliminatorCon resTy con =
-  foldr (AppT . AppT ArrowT)
+  foldr (AppT . AppT ArrowT . AppT (ConT ''DSH.Q))
         (AppT (ConT ''DSH.Q) resTy)
-        (map (AppT (ConT ''DSH.Q)) (conToTypes con))
+        (conToTypes con)
 
 -- Derive the elim function of the Elim type class
 
@@ -179,9 +179,9 @@ deriveElimFunClause cons = do
   en  <- newName "e"
   fns <- mapM (\ _ -> newName "f") cons
   let fes = map VarE fns
-  let pats1 = (ConP 'DSH.Q [VarP en]) : map VarP fns
+  let pats1 = ConP 'DSH.Q [VarP en] : map VarP fns
 
-  fes2 <- sequence (zipWith deriveElimToLamExp fes (map (length . conToTypes) cons))
+  fes2 <- zipWithM deriveElimToLamExp fes (map (length . conToTypes) cons)
 
   let e       = VarE en
   let liste   = AppE (ConE 'DSH.ListE) (ListE (deriveElimFunClauseExp e fes2))

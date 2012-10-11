@@ -30,4 +30,4 @@ runQ :: (Show a,QA a) => Q a -> IO ()
 runQ q = getConn P.>>= \conn -> (fromQ conn q P.>>= P.print) P.>> disconnect conn
 
 main :: IO ()
-main = (runQ ints) P.>> (runQ query1) P.>> (runQ query2)
+main = runQ ints P.>> runQ query1 P.>> runQ query2
