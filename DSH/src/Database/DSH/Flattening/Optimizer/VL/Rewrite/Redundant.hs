@@ -358,8 +358,6 @@ distDescCardOne q =
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
           replace q $ UnOp Segment projNode |])
   
--- Rewrite is UNSOUND: need to ensure that columns are not referenced
--- between the projection and the ToDescr operator.
 pruneProjectL :: VLRule TopDownProps
 pruneProjectL q =
   $(pattern [| q |] "ProjectL _ (q1)"
