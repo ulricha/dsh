@@ -126,7 +126,7 @@ pruneFilteringDistLift q =
         
         return $ do
           logRewrite "Specialized.PruneFilteringDistLift" q
-          relinkParents q $(v "q2") |])
+          relinkParents q $(v "qp") |])
                    
 {-
 
