@@ -59,6 +59,7 @@ Library
                      FlexibleInstances,
                      MultiParamTypeClasses,
                      TypeFamilies,
+                     DefaultSignatures,
                      GADTs
 
   Build-depends:     base               >= 4.5 && < 5,

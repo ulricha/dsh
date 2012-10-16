@@ -200,53 +200,37 @@ instance Fractional (Q Double) where
 
 -- View instances
 
-instance View (Q ()) (Q ()) where
+instance View (Q ()) where
   type ToView (Q ()) = Q ()
-  type FromView (Q ()) = Q ()
   view = id
-  fromView = id
 
-instance View (Q Bool) (Q Bool) where
+instance View (Q Bool) where
   type ToView (Q Bool) = Q Bool
-  type FromView (Q Bool) = Q Bool
   view = id
-  fromView = id
 
-instance View (Q Char) (Q Char) where
+instance View (Q Char) where
   type ToView (Q Char) = Q Char
-  type FromView (Q Char) = Q Char
   view = id
-  fromView = id
 
-instance View (Q Integer) (Q Integer) where
+instance View (Q Integer) where
   type ToView (Q Integer) = Q Integer
-  type FromView (Q Integer) = Q Integer
   view = id
-  fromView = id
 
-instance View (Q Double) (Q Double) where
+instance View (Q Double) where
   type ToView (Q Double) = Q Double
-  type FromView (Q Double) = Q Double
   view = id
-  fromView = id
 
-instance View (Q Text) (Q Text) where
+instance View (Q Text) where
   type ToView (Q Text) = Q Text
-  type FromView (Q Text) = Q Text
   view = id
-  fromView = id
 
-instance (QA a, QA b) => View (Q (a,b)) (Q a,Q b) where
+instance (QA a, QA b) => View (Q (a,b)) where
   type ToView (Q (a,b)) = (Q a,Q b)
-  type FromView (Q a,Q b) = (Q (a,b))
   view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
-  fromView (Q a,Q b) = Q (PairE a b)
 
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) (Q a,Q b,Q c) where
+instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
   type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
-  type FromView (Q a,Q b,Q c) = (Q (a,b,c))
   view (Q e) = (Q (AppE Fst e),Q (AppE Fst (AppE Snd e)),Q (AppE Snd (AppE Snd e)))
-  fromView (Q a,Q b,Q c) = Q (PairE a (PairE b c))
 
 -- IsString instances
 
@@ -396,10 +380,10 @@ eitherToPair :: (QA a,QA b) => Q (Either a b) -> Q ([a],[b])
 eitherToPair (Q a) = Q a
 
 left :: (QA a,QA b) => Q a -> Q (Either a b)
-left a = pairToEither (tuple (singleton a,nil))
+left a = pairToEither (pair (singleton a) nil)
 
 right :: (QA a,QA b) => Q b -> Q (Either a b)
-right a = pairToEither (tuple (nil,singleton a))
+right a = pairToEither (pair nil (singleton a))
 
 isLeft :: (QA a,QA b) => Q (Either a b) -> Q Bool
 isLeft = null . snd . eitherToPair
@@ -419,7 +403,7 @@ rights :: (QA a,QA b) => Q [Either a b] -> Q [b]
 rights = concatMap (snd . eitherToPair)
 
 partitionEithers :: (QA a,QA b) => Q [Either a b] -> Q ([a], [b])
-partitionEithers es = tuple (lefts es,rights es)
+partitionEithers es = pair (lefts es) (rights es)
 
 -- * List Construction
 
@@ -569,16 +553,16 @@ unzip :: (QA a,QA b) => Q [(a,b)] -> Q ([a],[b])
 unzip as = pair (map fst as) (map snd as)
 
 zip3 :: (QA a,QA b,QA c) => Q [a] -> Q [b] -> Q [c] -> Q [(a,b,c)]
-zip3 as bs cs = map (\abc -> fromView (fst abc,fst (snd abc),snd (snd abc))) (zip as (zip bs cs))
+zip3 as bs cs = map (\abc -> triple (fst abc) (fst (snd abc)) (snd (snd abc))) (zip as (zip bs cs))
 
 zipWith3 :: (QA a,QA b,QA c,QA d) => (Q a -> Q b -> Q c -> Q d) -> Q [a] -> Q [b] -> Q [c] -> Q [d]
 zipWith3 f as bs cs = map (\e -> (case view e of (a,b,c) -> f a b c))
                           (zip3 as bs cs)
 
 unzip3 :: (QA a,QA b,QA c) => Q [(a,b,c)] -> Q ([a],[b],[c])
-unzip3 abcs = fromView ( map (\e -> (case view e of (a,_,_) -> a)) abcs
-                       , map (\e -> (case view e of (_,b,_) -> b)) abcs
-                       , map (\e -> (case view e of (_,_,c) -> c)) abcs)
+unzip3 abcs = triple (map (\e -> (case view e of (a,_,_) -> a)) abcs)
+                     (map (\e -> (case view e of (_,b,_) -> b)) abcs)
+                     (map (\e -> (case view e of (_,_,c) -> c)) abcs)
 
 -- * Set-oriented operations
 
@@ -592,9 +576,6 @@ fst (Q e) = Q (AppE Fst e)
 
 snd :: (QA a,QA b) => Q (a,b) -> Q b
 snd (Q e) = Q (AppE Snd e)
-
-pair :: (QA a,QA b) => Q a -> Q b -> Q (a,b)
-pair (Q a) (Q b) = Q (PairE a b)
 
 -- * Conversions between numeric types
 
@@ -618,13 +599,13 @@ mzip = zip
 guard :: Q Bool -> Q [()]
 guard c = cond c (singleton unit) nil
 
--- * Construction of tuples and records
+-- * Construction of tuples
 
-tuple :: (View a b) => b -> a
-tuple = fromView
+pair :: (QA a,QA b) => Q a -> Q b -> Q (a,b)
+pair (Q a) (Q b) = Q (PairE a b)
 
-record :: (View a b) => b -> a
-record = fromView
+triple :: (QA a,QA b,QA c) => Q a -> Q b -> Q c -> Q (a,b,c)
+triple (Q a) (Q b) (Q c)= Q (PairE a (PairE b c))
 
 infixl 9  !!
 infixr 5  ++, <|, |>

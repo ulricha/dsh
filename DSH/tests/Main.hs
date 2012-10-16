@@ -34,25 +34,29 @@ data D0 = C01 deriving (Eq,Ord,Show)
 derive makeArbitrary ''D0
 Q.deriveDSH ''D0
 
-data D1 a b= C11 a b b a deriving (Eq,Ord,Show)
+data D1 a = C11 a deriving (Eq,Ord,Show)
 derive makeArbitrary ''D1
 Q.deriveDSH ''D1
 
-data D2 = C21 | C22 deriving (Eq,Ord,Show)
+data D2 a b = C21 a b b a deriving (Eq,Ord,Show)
 derive makeArbitrary ''D2
 Q.deriveDSH ''D2
 
-data D3 a = C31 a | C32 deriving (Eq,Ord,Show)
+data D3 = C31 | C32 deriving (Eq,Ord,Show)
 derive makeArbitrary ''D3
 Q.deriveDSH ''D3
 
-data D4 a = C41 a | C42 | C43 a a | C44 a a a deriving (Eq,Ord,Show)
+data D4 a = C41 a | C42 deriving (Eq,Ord,Show)
 derive makeArbitrary ''D4
 Q.deriveDSH ''D4
 
-data D5 a b c d e = C51 { c511 :: a, c512 :: (a,b,c,d) } | C52 | C53 a b | C54 (a,b,c) | C55 a b c d e deriving (Eq,Ord,Show)
+data D5 a = C51 a | C52 | C53 a a | C54 a a a deriving (Eq,Ord,Show)
 derive makeArbitrary ''D5
 Q.deriveDSH ''D5
+
+data D6 a b c d e = C61 { c611 :: a, c612 :: (a,b,c,d) } | C62 | C63 a b | C64 (a,b,c) | C65 a b c d e deriving (Eq,Ord,Show)
+derive makeArbitrary ''D6
+Q.deriveDSH ''D6
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'giorgidz' password = '' host = 'localhost' dbname = 'giorgidz'"
@@ -101,6 +105,8 @@ main = do
     qc prop_d4
     putStrPad "D5: "
     qc prop_d5
+    putStrPad "D6: "
+    qc prop_d6
 
     putStrLn ""
     putStrLn "Equality, Boolean Logic and Ordering"
@@ -375,20 +381,23 @@ prop_either_integer = makeProp id id
 prop_d0 :: D0 -> Property
 prop_d0 = makeProp id id
 
-prop_d1 :: D1 Integer Integer -> Property
+prop_d1 :: D1 Integer -> Property
 prop_d1 = makeProp id id
 
-prop_d2 :: D2 -> Property
+prop_d2 :: D2 Integer Integer -> Property
 prop_d2 = makeProp id id
 
-prop_d3 :: D3 Integer -> Property
+prop_d3 :: D3 -> Property
 prop_d3 = makeProp id id
 
 prop_d4 :: D4 Integer -> Property
 prop_d4 = makeProp id id
 
-prop_d5 :: D5 Integer Integer Integer Integer Integer -> Property
+prop_d5 :: D5 Integer -> Property
 prop_d5 = makeProp id id
+
+prop_d6 :: D6 Integer Integer Integer Integer Integer -> Property
+prop_d6 = makeProp id id
 
 -- * Equality, Boolean Logic and Ordering
 

@@ -166,20 +166,15 @@ deriveTyConView name tyVarBndrs con = do
   let context = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
   let typ1 = AppT (ConT ''DSH.Q)
                   (foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs))
+  let instanceHead = AppT (ConT ''DSH.View) typ1
   let typs = conToTypes con
-  let typ2 = foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
-  let instanceHead = foldl AppT (ConT ''DSH.View) [typ1,typ2]
-
-  let toViewDecTF   = TySynInstD ''DSH.ToView   [typ1] typ2
-  let fromViewDecTF = TySynInstD ''DSH.FromView [typ2] typ1
-
-  viewDec <- deriveToView (length typs)
-  fromViewDec <- deriveFromView (length typs)
-  return [InstanceD context instanceHead [ toViewDecTF
-                                         , fromViewDecTF
-                                         , viewDec
-                                         , fromViewDec
-                                         ]]
+  if null typs
+     then return [InstanceD context instanceHead []]
+     else do
+       let typ2 = foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
+       let toViewDecTF = TySynInstD ''DSH.ToView [typ1] typ2
+       viewDec <- deriveToView (length typs)
+       return [InstanceD context instanceHead [toViewDecTF, viewDec]]
 
 deriveToView :: Int -> Q Dec
 deriveToView n = do
@@ -196,17 +191,6 @@ deriveToView n = do
   let body1 = TupE (fAux n (VarE en))
   let clause1 = Clause [pat1] (NormalB body1) []
   return (FunD 'DSH.view [clause1])
-
-deriveFromView :: Int -> Q Dec
-deriveFromView n = do
-  ens <- replicateM n (newName "e")
-  let eps = map VarP ens
-  let es = map VarE ens
-  let pat1 = TupP (map (\p1 -> ConP 'DSH.Q [p1]) eps)
-  let fAux e1 e2 = AppE (AppE (ConE 'DSH.PairE) e1) e2
-  let body1 = AppE (ConE 'DSH.Q) (foldr1 fAux es)
-  let clause1 = Clause [pat1] (NormalB body1) []
-  return (FunD 'DSH.fromView [clause1])
 
 -------------------
 -- Deriving Elim --

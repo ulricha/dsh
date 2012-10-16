@@ -15,7 +15,7 @@
 
 module Database.DSH
   ( module Database.DSH.Externals
-  , Q, QA, Elim, elim, View, view, fromView
+  , Q, QA, Elim, elim, View, view
   , module Database.DSH.TH
   , module Data.String
   , module Data.Text
@@ -25,7 +25,7 @@ module Database.DSH
   where
 
 import Database.DSH.Externals
-import Database.DSH.Internals (Q,QA,Elim,elim,View,view,fromView)
+import Database.DSH.Internals (Q,QA,Elim,elim,View,view)
 import Database.DSH.TH
 
 import Data.String (IsString,fromString)

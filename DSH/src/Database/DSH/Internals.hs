@@ -96,11 +96,12 @@ class BasicType a where
 
 class TA a where
 
-class (ToView a ~ b, FromView b ~ a) => View a b where
+class View a where
   type ToView a
-  type FromView b
-  view :: a -> b
-  fromView :: b -> a
+  type ToView a = a
+  view :: a -> ToView a
+  default view :: a -> a
+  view a = a
 
 -- Show instances
 
