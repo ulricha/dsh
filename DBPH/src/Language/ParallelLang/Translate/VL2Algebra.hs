@@ -215,7 +215,9 @@ translateBinOp b c1 c2 = case b of
                            ZipL             -> do
                                                 (v, r1 ,r2) <- zipL (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
-                           CartProductFlat  -> liftM fromDBV $ cartProductFlat (toDBV c1) (toDBV c2)
+                           CartProduct      -> do
+                                                (v, p1, p2) <- cartProduct (toDBV c1) (toDBV c2)
+                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
                            ThetaJoinFlat js -> liftM fromDBV $ thetaJoinFlat js (toDBV c1) (toDBV c2)
                                                 
 

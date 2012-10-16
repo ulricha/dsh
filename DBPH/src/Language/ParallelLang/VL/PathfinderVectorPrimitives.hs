@@ -82,7 +82,7 @@ instance VectorAlgebra PFAlgebra where
                           flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
   falsePositions = undefined
   
-  cartProductFlat = undefined
+  cartProduct = undefined
   
   thetaJoinFlat = undefined
   
