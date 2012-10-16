@@ -66,7 +66,7 @@ pullProjectLThroughDistLift q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
-  $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=(qv1) CartProductFlat (qv2))))"
+  $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=(qv1) CartProduct (qv2))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
 
@@ -93,7 +93,7 @@ redundantDistLift q =
 -- kept/restored.
 pruneFilteringDistLift :: VLRule BottomUpProps
 pruneFilteringDistLift q =
-  $(pattern [| q |] "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (q2))))"
+  $(pattern [| q |] "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (_))))"
     [| do
         props1 <- trace "match pattern" $ properties $(v "q1")
         propsp <- properties $(v "qp")
@@ -181,7 +181,7 @@ cartProd q =
 
         return $ do
           logRewrite "Specialized.CartProd" q
-          let prodOp = BinOp CartProductFlat $(v "leftInput") $(v "rightInput")
+          let prodOp = BinOp CartProduct $(v "leftInput") $(v "rightInput")
           prodNode <- insert prodOp
           let projLeft = UnOp (ProjectL [1 .. w1]) prodNode
               projRight = UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodNode
@@ -202,7 +202,7 @@ with a selection (RestrictVec) on top.
                       |       /
                       |      /
                       |     /
-                  CartProductFlat
+                  CartProduct
                         /\
                        /  \
                       /    \
@@ -219,7 +219,7 @@ is rewritten into
 
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProductFlat (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProductFlat (_))))"
+  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProduct (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 

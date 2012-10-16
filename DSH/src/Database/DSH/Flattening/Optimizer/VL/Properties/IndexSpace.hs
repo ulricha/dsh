@@ -198,7 +198,7 @@ inferIndexSpaceBinOp _ _ n op =
           d2v   = RenameVectorTransform d2sis d2tis
       in Right $ VPropTriple (freshDBVSpace n) d1v d2v
 
-    CartProductFlat -> Right $ VProp $ freshDBVSpace n
+    CartProduct -> Right $ VProp $ freshDBVSpace n
     ThetaJoinFlat _ -> Right $ VProp $ freshDBVSpace n
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace 

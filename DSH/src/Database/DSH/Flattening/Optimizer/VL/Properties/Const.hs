@@ -300,7 +300,7 @@ inferConstVecBinOp c1 c2 op =
           
       return $ VPropTriple (DBVConst d1 cols) renameVec renameVec
   
-    CartProductFlat -> do
+    CartProduct -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 

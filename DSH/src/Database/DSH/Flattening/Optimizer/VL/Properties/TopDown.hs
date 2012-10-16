@@ -89,7 +89,7 @@ seed (BinOp op _ _) =
     VecSumL            -> vPropSeed
     PairA              -> vPropSeed
     PairL              -> vPropSeed
-    CartProductFlat    -> vPropSeed
+    CartProduct    -> vPropSeed
     ThetaJoinFlat _    -> vPropSeed
     
 seed (TerOp op _ _ _) =
