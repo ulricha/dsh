@@ -29,6 +29,9 @@ freshTransformSpaces :: AlgNode -> (SourceIndexSpace, TargetIndexSpace)
 freshTransformSpaces n = 
   (S $ makeSubDomain n "s" UniverseDom, T $ makeSubDomain n "t" UniverseDom)
   
+freshPropSpace :: AlgNode -> IndexSpace
+freshPropSpace n = uncurry PropVectorTransform $ freshTransformSpaces n
+  
 freshValuePropPair :: AlgNode -> (IndexSpace, IndexSpace)
 freshValuePropPair n = 
   (freshDBVSpace n, uncurry PropVectorTransform $ freshTransformSpaces n)
@@ -198,7 +201,7 @@ inferIndexSpaceBinOp _ _ n op =
           d2v   = RenameVectorTransform d2sis d2tis
       in Right $ VPropTriple (freshDBVSpace n) d1v d2v
 
-    CartProduct -> Right $ VProp $ freshDBVSpace n
+    CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
     ThetaJoinFlat _ -> Right $ VProp $ freshDBVSpace n
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace 
