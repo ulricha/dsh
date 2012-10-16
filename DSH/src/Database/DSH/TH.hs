@@ -18,9 +18,13 @@ import Control.Monad
 
 deriveDSH :: Name -> Q [Dec]
 deriveDSH n = do
-  qa <- deriveQA n
-  el <- deriveElim n
-  return (qa ++ el)
+  qaDecs <- deriveQA n
+  elimDecs <- deriveElim n
+  cc <- countConstructors n
+  viewDecs <- if cc == 1
+                 then deriveView n
+                 else return []
+  return (qaDecs ++ elimDecs ++ viewDecs)
 
 -----------------
 -- Deriving QA --
@@ -340,6 +344,14 @@ conToName (NormalC name _) = name
 conToName (RecC name _) = name
 conToName (InfixC _ name _) = name
 conToName (ForallC _ _ con)	= conToName con
+
+countConstructors :: Name -> Q Int
+countConstructors name = do
+  info <- reify name
+  case info of
+    TyConI (DataD    _ _ _ cons _) -> return (length cons)
+    TyConI (NewtypeD _ _ _ _    _) -> return 1
+    _ -> fail errMsgExoticType
 
 -- Error messages
 
