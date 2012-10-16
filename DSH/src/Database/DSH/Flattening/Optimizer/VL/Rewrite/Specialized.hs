@@ -39,7 +39,7 @@ normalizePropRules = [ redundantDistLift
                      , pruneFilteringDistLift ]
                                 
 specializedRules :: VLRuleSet BottomUpProps
-specializedRules = [ cartProd 
+specializedRules = [ cartProduct
                    , thetaJoin ]
                    
 {- Normalize the cartesian product pattern by pulling horizontal
@@ -168,27 +168,63 @@ inputs.
            q1   q2
               
 -}
-cartProd :: VLRule BottomUpProps
-cartProd q =
-  $(pattern [| q |] "R1 ((distInput) DistLift (d=ToDescr (right=R1 ((leftInput) DistDesc (ToDescr (rightInput))))))"
+cartProduct :: VLRule BottomUpProps
+cartProduct q =
+  $(pattern [| q |] "R1 (qLift=(liftInput) DistLift (qd=ToDescr (right=R1 (qDesc=(rightInput) DistDesc (ToDescr (leftInput))))))"
     [| do
-        predicate $ $(v "distInput") == $(v "rightInput")
+        predicate $ $(v "liftInput") == $(v "leftInput")
 
         s1 <- vectorTypeProp <$> properties $(v "leftInput")
         s2 <- vectorTypeProp <$> properties $(v "rightInput")
         
         let (w1, w2) = (vectorWidth s1, vectorWidth s2)
-
+        
         return $ do
-          logRewrite "Specialized.CartProd" q
-          let prodOp = BinOp CartProduct $(v "leftInput") $(v "rightInput")
-          prodNode <- insert prodOp
-          let projLeft = UnOp (ProjectL [1 .. w1]) prodNode
-              projRight = UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodNode
-          projLeftNode <- insert projLeft
-          projRightNode <- insert projRight
-          relinkParents q projRightNode
-          relinkParents $(v "right") projLeftNode |])
+          logRewrite "Specialized.CartProduct" q
+
+          -- Auxilliary function to find all R2 operators which reference a given node
+                
+          -- The CartProduct operator itself
+          prodNode <- insert $ BinOp CartProduct $(v "leftInput") $(v "rightInput")
+
+          prodR1 <- insert $ UnOp R1 prodNode
+
+          -- relink operators which reference the product result with the payload from
+          -- left and right input to the respective projections.
+          projLeftNode <- insert $ UnOp (ProjectL [1 .. w1]) prodR1
+          projRightNode <- insert $ UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodR1
+
+          relinkParents q projLeftNode
+          relinkParents $(v "right") projRightNode 
+          
+          -- relink all operators which reference the descriptor originating from DistDesc
+          prodDescr <- insert $ UnOp ToDescr prodR1
+          relinkParents $(v "qd") prodDescr
+          
+          -- check if the R2 outputs (propagation vectors) of DistDesc and DistLift are
+          -- referenced and relink them to the corresponding R2 and R3 outputs of CartProduct
+          -- if necessary.
+          
+          let r2Parents n = do
+                let isR2 (UnOp R2 _) = True
+                    isR2 _           = False
+                ps <- parents n
+                ops <- mapM operator ps
+                return $ map fst $ filter (\(_, o) -> isR2 o) $ zip ps ops
+              
+          liftR2s <- r2Parents $(v "qLift")
+          case liftR2s of
+            [liftR2] -> do
+                          prodR2 <- insert $ UnOp R2 prodNode
+                          relinkParents liftR2 prodR2
+            _        -> return ()
+
+          descR2s <- r2Parents $(v "qDesc")
+          case descR2s of
+            [descR2] -> do
+                          prodR3 <- insert $ UnOp R3 prodNode
+                          relinkParents descR2 prodR3
+            _        -> return () |])
 
 {- 
 
