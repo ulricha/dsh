@@ -12,13 +12,13 @@ ints :: Q [Integer]
 ints = toQ [1 .. 10]
 
 query1 :: Q [(Integer,Integer)]
-query1 =  [ tuple (i1,i2)
+query1 =  [ pair i1 i2
           | i1 <- ints
           , i2 <- ints
           ]
 
 query2 :: Q [(Integer,Integer)]
-query2 =  [ tuple (i1,i2)
+query2 =  [ pair i1 i2
           | (view -> (i1,i2)) <- query1
           , i1 == i2
           ]
