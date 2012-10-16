@@ -34,6 +34,7 @@ Library
   Other-modules:       Optimizer.Common.Match
                        Optimizer.Common.Rewrite
                        Optimizer.Common.Traversal
+                       Optimizer.Common.Aux
 
                        Optimizer.X100.Rewrite.Common
                        Optimizer.X100.Rewrite.ConstOpt
@@ -53,6 +54,9 @@ Library
                        Optimizer.VL.Properties.Card
                        Optimizer.VL.Properties.VectorType
                        Optimizer.VL.Properties.ToDescr
+                       Optimizer.VL.Properties.Untainted
+                       Optimizer.VL.Properties.IndexSpace
+                       Optimizer.VL.Properties.ReqColumns
 
                        Optimizer.VL.Rewrite.Common
                        Optimizer.VL.Rewrite.DescriptorModifiers
