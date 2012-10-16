@@ -42,10 +42,24 @@ specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProduct
                    , thetaJoin ]
                    
+-- We often see a pattern around cartesian products where the same vector is
+-- lifted two times in a row with the same descriptor vector. The second lift
+-- is completely redundant.
+mergeStackedDistDesc :: VLRule ()
+mergeStackedDistDesc q = 
+  $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
+    [| do
+        predicate $ $(v "valVec1") == $(v "valVec2")
+        return $ do
+          logRewrite "Specialized.MergeStackedDistDesc" q
+          relinkParents $(v "d1") $(v "d2")
+          relinkParents q $(v "first") |])
+  
+                   
 {- Normalize the cartesian product pattern by pulling horizontal
 modifications (projections, general expressions) as high as possible
 -}
-                   
+
 -- If a DistLift lifts the output of a projection, apply the projection after
 -- the DistLift. This is necessary to keep all payload data as long as necessary
 -- and thereby normalize cartesian product patterns.

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Redundant (removeRedundancy, mergeStackedDistDesc, descriptorFromProject) where
+module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
 
 import Control.Monad
 import Control.Applicative
@@ -30,8 +30,7 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
                                          , optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ mergeStackedDistDesc 
-                 , restrictCombineDBV 
+redundantRules = [ restrictCombineDBV 
                  -- , restrictCombinePropLeft 
                  , restrictCombinePropLeft2
                  , cleanupSelect
@@ -57,16 +56,6 @@ redundantRulesTopDown :: VLRuleSet TopDownProps
 redundantRulesTopDown = [ pruneProjectL
                         , pruneProjectPayload ]
                                
-mergeStackedDistDesc :: VLRule ()
-mergeStackedDistDesc q = 
-  $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
-    [| do
-        predicate $ $(v "valVec1") == $(v "valVec2")
-        return $ do
-          logRewrite "Redundant.MergeStackedDistDesc" q
-          relinkParents $(v "d1") $(v "d2")
-          relinkParents q $(v "first") |])
-  
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
   
 introduceSelectExpr :: VLRule ()
