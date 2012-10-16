@@ -31,8 +31,7 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ restrictCombineDBV 
-                 -- , restrictCombinePropLeft 
-                 , restrictCombinePropLeft2
+                 , restrictCombinePropLeft
                  , cleanupSelect
                  , introduceSelectExpr
                  , pullRestrictThroughPair
@@ -81,26 +80,6 @@ restrictCombineDBV q =
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
-  $(pattern [| q |] "R2 (c=CombineVec (qb) (_) (_))"
-    [| do
-        parentNodes <- getParents $(v "c")
-        parentOps <- mapM getOperator parentNodes
-        -- only apply this rewrite if the R1 exit of CombineVec is not used.
-        let r1 = filter (\(_, op) -> case op of { UnOp R1 _ -> True; _ -> False }) $ zip parentNodes parentOps
-        r1Parents <-
-          case r1 of
-            [(r1Node, _)] -> liftM length $ getParents r1Node
-            _ -> fail ""
-        predicate $ r1Parents == 0
-
-        return $ do
-          logRewrite "Redundant.RestrictCombine.PropLeft" q
-          selectNode <- insert $ UnOp (SelectExpr (Column1 1)) $(v "qb") 
-          projectNode <- insert $ UnOp (ProjectRename (STPosCol, STNumber)) selectNode
-          relinkParents q projectNode |])
-  
-restrictCombinePropLeft2 :: VLRule ()
-restrictCombinePropLeft2 q =
   $(pattern [| q |] "R2 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
     [| do
         -- all selections and predicates must be performed on the same input
@@ -110,7 +89,7 @@ restrictCombinePropLeft2 q =
         
         case $(v "p1") of
           (DescrIdentity, PosNumber) -> return ()
-          _                      -> fail "no match"
+          _                          -> fail "no match"
         
         return $ do
           logRewrite "Redundant.RestrictCombine.PropLeft/2" q
