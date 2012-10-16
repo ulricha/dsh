@@ -4,6 +4,8 @@ module Optimizer.VL.Properties.Untainted where
 -- ValueVector the column content has not been modified. The property
 -- tracks the upstream operators from which on the payload is
 -- untainted.
+   
+import Data.Functor
 
 import Database.Algebra.Dag.Common
 
@@ -56,17 +58,17 @@ inferUntaintedUnOp u n op =
     SelectPos1L _ _ -> VPropPair (add u n) na
     R1 -> 
       case u of
-        VPropPair s1 _ -> VProp s1
-        VPropTriple s1 _ _ -> VProp s1
+        VPropPair s1 _ -> VProp $ (:) n <$> s1
+        VPropTriple s1 _ _ -> VProp $ (:) n <$> s1
         _ -> error "Input of R1 is not a tuple"
     R2 -> 
       case u of
-        VPropPair _ s2 -> VProp s2
-        VPropTriple _ s2 _ -> VProp s2
+        VPropPair _ s2 -> VProp $ (:) n <$> s2
+        VPropTriple _ s2 _ -> VProp $ (:) n <$> s2
         _ -> error "Input of R2 is not a tuple"
     R3 -> 
       case u of
-        VPropTriple s3 _ _ -> VProp s3
+        VPropTriple s3 _ _ -> VProp $ (:) n <$> s3
         _ -> error "Input of R3 is not a tuple"
     ProjectRename _ -> VProp na
     ProjectPayload _ -> VProp empty -- FIXME check for identity projections

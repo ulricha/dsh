@@ -145,7 +145,7 @@ cleanupSelect q =
           _                          -> fail "no match"
         
         return $ do
-          logRewrite "Redundant.foo" q
+          logRewrite "Redundant.CleanupSelect" q
           void $ relinkToNew q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
   
 {- 
