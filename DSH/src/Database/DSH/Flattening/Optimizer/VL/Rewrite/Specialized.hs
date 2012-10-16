@@ -66,7 +66,7 @@ pullProjectLThroughDistLift q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
-  $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=(qv1) CartProduct (qv2))))"
+  $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
 
