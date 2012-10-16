@@ -30,7 +30,11 @@ import Data.Char
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
 
-data D1 = C11 deriving (Eq,Ord,Show)
+data D0 = C01 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D0
+Q.deriveDSH ''D0
+
+data D1 a b= C11 a b b a deriving (Eq,Ord,Show)
 derive makeArbitrary ''D1
 Q.deriveDSH ''D1
 
@@ -85,6 +89,8 @@ main = do
     qc prop_maybe_integer
     putStrPad "Either Integer Integer: "
     qc prop_either_integer
+    putStrPad "D0: "
+    qc prop_d0
     putStrPad "D1: "
     qc prop_d1
     putStrPad "D2: "
@@ -366,7 +372,10 @@ prop_maybe_integer = makeProp id id
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
 
-prop_d1 :: D1 -> Property
+prop_d0 :: D0 -> Property
+prop_d0 = makeProp id id
+
+prop_d1 :: D1 Integer Integer -> Property
 prop_d1 = makeProp id id
 
 prop_d2 :: D2 -> Property
