@@ -1,4 +1,10 @@
-module Database.DSH.TH (deriveDSH, deriveQA, deriveTupleRangeQA, deriveElim) where
+module Database.DSH.TH ( deriveDSH
+                       , deriveQA
+                       , deriveTupleRangeQA
+                       , deriveView
+                       , deriveTupleRangeView
+                       , deriveElim
+                       ) where
 
 import qualified Database.DSH.Internals  as DSH
 import qualified Database.DSH.Impossible as DSH
@@ -24,22 +30,25 @@ deriveQA :: Name -> Q [Dec]
 deriveQA name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) -> deriveTyConQA name1 tyVarBndrs cons
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) -> deriveTyConQA name1 tyVarBndrs [con]
-    _                                                   -> fail errMsgExoticType
+    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+      deriveTyConQA name1 tyVarBndrs cons
+    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+      deriveTyConQA name1 tyVarBndrs [con]
+    _ -> fail errMsgExoticType
+
+deriveTupleRangeQA :: Int -> Int -> Q [Dec]
+deriveTupleRangeQA x y = fmap concat (mapM (deriveQA . tupleTypeName) [x .. y])
 
 deriveTyConQA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConQA name tyVarBndrs cons = do
-  let context       = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
+  let context       = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)])
+                          tyVarBndrs
   let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
   let instanceHead  = AppT (ConT ''DSH.QA) typ
   let repDec        = deriveRep typ cons
   toExpDec <- deriveToExp cons
   frExpDec <- deriveFrExp cons
   return [InstanceD context instanceHead [repDec,toExpDec,frExpDec]]
-
-deriveTupleRangeQA :: Int -> Int -> Q [Dec]
-deriveTupleRangeQA x y = fmap concat (mapM (deriveQA . tupleTypeName) [x .. y])
 
 -- Deriving the Rep type function
 
@@ -81,7 +90,9 @@ deriveToExpClause n i con = do
   let exp1 = deriveToExpMainExp names1
   expList1 <- [| DSH.ListE [ $(return exp1) ] |]
   expEmptyList <- [| DSH.ListE [] |]
-  let lists = replicate i expEmptyList ++ [expList1] ++ replicate (n - i - 1) expEmptyList
+  let lists = concat [ replicate i expEmptyList
+                     , [expList1]
+                     , replicate (n - i - 1) expEmptyList]
   let exp2 = foldr1 (AppE . AppE (ConE 'DSH.PairE)) lists
   let body1 = NormalB exp2
   return (Clause [pat1] body1 [])
@@ -107,7 +118,9 @@ deriveFrExpClause :: Int -- Total number of constructors
 deriveFrExpClause 1 _ con = do
   (_,names1) <- conToPattern con
   let pat1 = deriveFrExpMainPat names1
-  let exp1 = foldl AppE (ConE (conToName con)) (map (AppE (VarE 'DSH.frExp) . VarE) names1)
+  let exp1 = foldl AppE
+                   (ConE (conToName con))
+                   (map (AppE (VarE 'DSH.frExp) . VarE) names1)
   let body1 = NormalB exp1
   return (Clause [pat1] body1 [])
 deriveFrExpClause n i con = do
@@ -116,7 +129,9 @@ deriveFrExpClause n i con = do
   let patList1 = ConP 'DSH.ListE [ConP '(:) [pat1,WildP]]
   let lists = replicate i WildP ++ [patList1] ++ replicate (n - i - 1) WildP
   let pat2 = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) lists
-  let exp1 = foldl AppE (ConE (conToName con)) (map (AppE (VarE 'DSH.frExp) . VarE) names1)
+  let exp1 = foldl AppE
+                   (ConE (conToName con))
+                   (map (AppE (VarE 'DSH.frExp) . VarE) names1)
   let body1 = NormalB exp1
   return (Clause [pat2] body1 [])
 
@@ -126,6 +141,70 @@ deriveFrExpMainPat [name] = VarP name
 deriveFrExpMainPat names  = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) (map VarP names)
 
 -------------------
+-- Deriving View --
+-------------------
+
+deriveView :: Name -> Q [Dec]
+deriveView name = do
+  info <- reify name
+  case info of
+    TyConI (DataD    _cxt name1 tyVarBndrs [con] _names) ->
+      deriveTyConView name1 tyVarBndrs con
+    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+      deriveTyConView name1 tyVarBndrs con
+    _ -> fail errMsgExoticType
+
+deriveTupleRangeView :: Int -> Int -> Q [Dec]
+deriveTupleRangeView x y = fmap concat (mapM (deriveView . tupleTypeName) [x .. y])
+
+deriveTyConView :: Name -> [TyVarBndr] -> Con -> Q [Dec]
+deriveTyConView name tyVarBndrs con = do
+  let context = map (\tv -> ClassP ''DSH.QA [VarT (tyVarBndrToName tv)]) tyVarBndrs
+  let typ1 = AppT (ConT ''DSH.Q)
+                  (foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs))
+  let typs = conToTypes con
+  let typ2 = foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
+  let instanceHead = foldl AppT (ConT ''DSH.View) [typ1,typ2]
+
+  let toViewDecTF   = TySynInstD ''DSH.ToView   [typ1] typ2
+  let fromViewDecTF = TySynInstD ''DSH.FromView [typ2] typ1
+
+  viewDec <- deriveToView (length typs)
+  fromViewDec <- deriveFromView (length typs)
+  return [InstanceD context instanceHead [ toViewDecTF
+                                         , fromViewDecTF
+                                         , viewDec
+                                         , fromViewDec
+                                         ]]
+
+deriveToView :: Int -> Q Dec
+deriveToView n = do
+  en <- newName "e"
+  let ep = VarP en
+  let pat1 = ConP 'DSH.Q [ep]
+
+  let fAux 0  _  = error errMsgExoticType
+      fAux 1  e1 = [AppE (ConE 'DSH.Q) e1]
+      fAux n1 e1 = let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e1
+                       snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e1
+                   in  AppE (ConE 'DSH.Q) fste : fAux (n1 - 1) snde
+
+  let body1 = TupE (fAux n (VarE en))
+  let clause1 = Clause [pat1] (NormalB body1) []
+  return (FunD 'DSH.view [clause1])
+
+deriveFromView :: Int -> Q Dec
+deriveFromView n = do
+  ens <- replicateM n (newName "e")
+  let eps = map VarP ens
+  let es = map VarE ens
+  let pat1 = TupP (map (\p1 -> ConP 'DSH.Q [p1]) eps)
+  let fAux e1 e2 = AppE (AppE (ConE 'DSH.PairE) e1) e2
+  let body1 = AppE (ConE 'DSH.Q) (foldr1 fAux es)
+  let clause1 = Clause [pat1] (NormalB body1) []
+  return (FunD 'DSH.fromView [clause1])
+
+-------------------
 -- Deriving Elim --
 -------------------
 
@@ -133,8 +212,10 @@ deriveElim :: Name -> Q [Dec]
 deriveElim name = do
   info <- reify name
   case info of
-    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) -> deriveTyConElim name1 tyVarBndrs cons
-    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) -> deriveTyConElim name1 tyVarBndrs [con]
+    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+      deriveTyConElim name1 tyVarBndrs cons
+    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+      deriveTyConElim name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
 
 deriveTyConElim :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
@@ -152,7 +233,8 @@ deriveTyConElim name tyVarBndrs cons = do
 -- Deriving the Eliminator type function
 
 deriveEliminator :: Type -> Type -> [Con] -> Dec
-deriveEliminator typ resTy cons = TySynInstD ''DSH.Eliminator [typ,resTy] (deriveEliminatorCons resTy cons)
+deriveEliminator typ resTy cons =
+  TySynInstD ''DSH.Eliminator [typ,resTy] (deriveEliminatorCons resTy cons)
 
 deriveEliminatorCons :: Type -> [Con] -> Type
 deriveEliminatorCons _ []  = error errMsgExoticType
@@ -262,4 +344,7 @@ conToName (ForallC _ _ con)	= conToName con
 -- Error messages
 
 errMsgExoticType :: String
-errMsgExoticType =  "Automatic derivation of DSH related type class instances only works for Haskell 98 types."
+errMsgExoticType =
+  "Automatic derivation of DSH related type class instances only works for Haskell 98\
+   \ types. Derivation of View patters is only supported for single-constructor data\
+   \ types."

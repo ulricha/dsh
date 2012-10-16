@@ -51,10 +51,16 @@ instance QA Text where
   frExp (TextE t) = t
   frExp _ = $impossible
 
-instance (QA a, QA b) => QA (a,b) where
+instance (QA a,QA b) => QA (a,b) where
   type Rep (a,b) = (Rep a,Rep b)
   toExp (a,b) = PairE (toExp a) (toExp b)
   frExp (PairE a b) = (frExp a,frExp b)
+  frExp _ = $impossible
+
+instance (QA a,QA b,QA c) => QA (a,b,c) where
+  type Rep (a,b,c) = (Rep a,(Rep b,Rep c))
+  toExp (a,b,c) = PairE (toExp a) (PairE (toExp b) (toExp c))
+  frExp (PairE a (PairE b c)) = (frExp a,frExp b,frExp c)
   frExp _ = $impossible
 
 instance (QA a) => QA [a] where
@@ -627,7 +633,8 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
-deriveTupleRangeQA 3 16
+deriveTupleRangeQA   4 8
+deriveTupleRangeView 4 8
 
 -- * Missing functions
 
