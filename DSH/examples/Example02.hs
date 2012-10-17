@@ -1,4 +1,7 @@
-{-# LANGUAGE MonadComprehensions, RebindableSyntax, ViewPatterns, OverloadedStrings #-}
+{-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RebindableSyntax    #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Main where
 
