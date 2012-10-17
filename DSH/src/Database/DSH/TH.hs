@@ -172,13 +172,12 @@ deriveTyConView name tyVarBndrs con = do
                   (foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs))
   let instanceHead = AppT (ConT ''DSH.View) typ1
   let typs = conToTypes con
-  if null typs
-     then return [InstanceD context instanceHead []]
-     else do
-       let typ2 = foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
-       let toViewDecTF = TySynInstD ''DSH.ToView [typ1] typ2
-       viewDec <- deriveToView (length typs)
-       return [InstanceD context instanceHead [toViewDecTF, viewDec]]
+  let typ2 = if null typs
+                then AppT (ConT ''DSH.Q) (ConT ''())
+                else foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
+  let toViewDecTF = TySynInstD ''DSH.ToView [typ1] typ2
+  viewDec <- deriveToView (length typs)
+  return [InstanceD context instanceHead [toViewDecTF, viewDec]]
 
 deriveToView :: Int -> Q Dec
 deriveToView n = do
@@ -186,7 +185,7 @@ deriveToView n = do
   let ep = VarP en
   let pat1 = ConP 'DSH.Q [ep]
 
-  let fAux 0  _  = error errMsgExoticType
+  let fAux 0  e1 = [AppE (ConE 'DSH.Q) e1]
       fAux 1  e1 = [AppE (ConE 'DSH.Q) e1]
       fAux n1 e1 = let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e1
                        snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e1

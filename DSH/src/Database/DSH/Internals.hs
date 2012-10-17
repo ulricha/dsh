@@ -98,11 +98,8 @@ class TA a where
 
 class View a where
   type ToView a
-  type ToView a = a
   view :: a -> ToView a
-  default view :: a -> a
-  view a = a
-
+ 
 -- Show instances
 
 instance Show (Type a) where
