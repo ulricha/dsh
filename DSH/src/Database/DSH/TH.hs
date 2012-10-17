@@ -4,6 +4,8 @@ module Database.DSH.TH ( deriveDSH
                        , deriveView
                        , deriveTupleRangeView
                        , deriveElim
+                       , deriveSmartConstructors
+                       , deriveTupleRangeSmartConstructors
                        ) where
 
 import qualified Database.DSH.Internals  as DSH
@@ -11,6 +13,7 @@ import qualified Database.DSH.Impossible as DSH
 
 import Language.Haskell.TH
 import Control.Monad
+import Data.Char
 
 -----------------------------------------
 -- Deriving all DSH-relevant instances --
@@ -18,13 +21,14 @@ import Control.Monad
 
 deriveDSH :: Name -> Q [Dec]
 deriveDSH n = do
-  qaDecs <- deriveQA n
-  elimDecs <- deriveElim n
-  cc <- countConstructors n
-  viewDecs <- if cc == 1
-                 then deriveView n
-                 else return []
-  return (qaDecs ++ elimDecs ++ viewDecs)
+  qaDecs    <- deriveQA n
+  elimDecs  <- deriveElim n
+  cc        <- countConstructors n
+  viewDecs  <- if cc == 1
+                  then deriveView n
+                  else return []
+  scDecs    <- deriveSmartConstructors n
+  return (qaDecs ++ elimDecs ++ viewDecs ++ scDecs)
 
 -----------------
 -- Deriving QA --
@@ -299,6 +303,81 @@ deriveElimFunClauseExp e fs = go e fs
         mape  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Map)) paire
     in  mape : go snde fs1
 
+---------------------------------
+-- Deriving Smart Constructors --
+---------------------------------
+
+deriveSmartConstructors :: Name -> Q [Dec]
+deriveSmartConstructors name = do
+  info <- reify name
+  case info of
+    TyConI (DataD    _cxt typConName tyVarBndrs cons _names) -> do
+      decss <- zipWithM (deriveSmartConstructor typConName tyVarBndrs (length cons))
+                        [0 .. ]
+                        cons
+      return (concat decss)
+    TyConI (NewtypeD _cxt typConName tyVarBndrs con  _names) ->
+      deriveSmartConstructor typConName tyVarBndrs 1 0 con
+    _ -> fail errMsgExoticType
+
+deriveTupleRangeSmartConstructors :: Int -> Int -> Q [Dec]
+deriveTupleRangeSmartConstructors x y =
+  fmap concat (mapM (deriveSmartConstructors . tupleTypeName) [x .. y])
+
+deriveSmartConstructor :: Name -> [TyVarBndr] -> Int -> Int -> Con -> Q [Dec]
+deriveSmartConstructor typConName tyVarBndrs n i con = do
+  let smartConName = toSmartConName (conToName con)
+  
+  let boundTyps = map (VarT . tyVarBndrToName) tyVarBndrs
+
+  let resTyp = AppT (ConT ''DSH.Q) (foldl AppT (ConT typConName) boundTyps)
+
+  let smartConContext = map (ClassP ''DSH.QA . return) boundTyps
+  
+  let smartConTyp = foldr (AppT . AppT ArrowT . AppT (ConT ''DSH.Q))
+                          resTyp
+                          (conToTypes con)
+  
+  let smartConDec = SigD smartConName (ForallT tyVarBndrs smartConContext smartConTyp)
+
+  ns <- mapM (\_ -> newName "e") (conToTypes con)
+  let es = map VarE ns
+  
+  let smartConPat = map (ConP 'DSH.Q . return . VarP) ns
+  
+  let smartConExp = if null es
+                       then (ConE 'DSH.UnitE)
+                       else foldr1 (AppE . AppE (ConE 'DSH.PairE)) es
+  smartConBody <- deriveSmartConBody n i smartConExp
+  let smartConClause = Clause smartConPat (NormalB smartConBody) []
+  
+  let funDec = FunD smartConName [smartConClause]
+  
+  return [smartConDec,funDec]
+
+deriveSmartConBody :: Int -- Total number of constructors
+                   -> Int -- Index of the constructor
+                   -> Exp
+                   -> Q Exp
+deriveSmartConBody 0 _ _ = fail errMsgExoticType
+deriveSmartConBody 1 _ e = return (AppE (ConE 'DSH.Q) e)
+deriveSmartConBody n i e = do
+  listExp <- [| DSH.ListE [ $(return e) ] |]
+  emptyListExp <- [| DSH.ListE [] |]
+  let lists = concat [ replicate i emptyListExp
+                     , [listExp]
+                     , replicate (n - i - 1) emptyListExp
+                     ]
+  let pairExp = foldr1 (AppE . AppE (ConE 'DSH.PairE)) lists
+  return (AppE (ConE 'DSH.Q) pairExp)
+
+toSmartConName :: Name -> Name
+toSmartConName name1 = case nameBase name1 of
+  "()"                -> mkName "unit"
+  '(' : cs            -> mkName ("tuple" ++ show (length (filter (== ',') cs) + 1))
+  c : cs | isAlpha c  -> mkName (toLower c : cs)
+  cs                  -> mkName (':' : cs)
+
 -- Helper Functions
 
 conToTypes :: Con -> [Type]
@@ -333,8 +412,8 @@ countConstructors :: Name -> Q Int
 countConstructors name = do
   info <- reify name
   case info of
-    TyConI (DataD    _ _ _ cons _) -> return (length cons)
-    TyConI (NewtypeD _ _ _ _    _) -> return 1
+    TyConI (DataD    _ _ _ cons _)  -> return (length cons)
+    TyConI (NewtypeD {})            -> return 1
     _ -> fail errMsgExoticType
 
 -- Error messages
