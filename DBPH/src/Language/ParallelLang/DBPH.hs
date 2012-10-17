@@ -1,4 +1,4 @@
-module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File, nkl2VLFile) where
+module Language.ParallelLang.DBPH (nkl2SQL, nkl2Alg, nkl2fkl, Query(..), Layout(..), SQL(..), Schema, nkl2X100Alg, X100(..), nkl2X100File, nkl2VLFile, nkl2VLRaw) where
 
 import qualified Language.ParallelLang.NKL.Data.NKL as NKL
 import qualified Language.ParallelLang.NKL.Opt as NKLOpt
@@ -42,3 +42,7 @@ nkl2fkl e = show $ runTransform $ flatTransform e
 nkl2VLFile :: FilePath -> NKL.Expr -> IO ()
 nkl2VLFile f e = let (e', _) = nkl2Vec' e
                  in toVLFile f $ toVec e'
+                 
+nkl2VLRaw :: NKL.Expr -> String
+nkl2VLRaw e = let (e', _) = nkl2Vec' e
+               in toVecJSON e'
