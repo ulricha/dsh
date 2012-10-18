@@ -6,7 +6,7 @@ Description:
   this library a relational database management system (RDBMS) can be used as
   a coprocessor for the Haskell programming language, especially for those
   program fragments that carry out data-intensive and data-parallel
-  computation.
+  computations.
   . 
   Database executable program fragments can be written using the monad
   comprehension notation [2] and list processing combinators from the Haskell
@@ -26,8 +26,8 @@ Description:
   . 
   Note that this package is flagged experimental and therefore is not suited
   for production use. This is a proof of concept implementation only. To learn
-  more about DSH, our paper entitled as "Haskell boards the Ferry: Database-
-  supported program execution for Haskell" [1] is a recommended reading. The
+  more about DSH, our paper entitled as "Haskell Boards the Ferry: Database-
+  Supported Program Execution for Haskell" [1] is a recommended reading. The
   package includes a couple of examples that demonstrate how to use DSH.
   .
   The latest release implements new features described in our work-in-
