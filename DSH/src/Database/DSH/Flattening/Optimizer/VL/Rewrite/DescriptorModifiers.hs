@@ -24,7 +24,7 @@ stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
 
 descriptorNoOps :: VLRuleSet BottomUpProps
 descriptorNoOps = [ noOpRenamingProjRename
-                  , noOpRenamingProjAdmin ]
+                  -- , noOpRenamingProjAdmin ]
 --                  , constantDescriptorChain
 --                  , outerMostRootSegment
 --                  , outerMostRootPropRename ]
@@ -107,6 +107,8 @@ noOpRenamingProjRename q =
 
 -- Eliminate a NOOP PropRename operator which updates the descriptor column
 -- with the same values it had before.
+-- Beware: this rewrite propably interferes with Join removal: the PropRename
+-- must be eliminated in a larger context.
 noOpRenamingProjAdmin :: VLRule BottomUpProps
 noOpRenamingProjAdmin q =
   $(pattern [| q |] "(DescToRename (ToDescr (qd))) PropRename (ProjectAdmin ps (qv))"
