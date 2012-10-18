@@ -1,4 +1,6 @@
-{-# LANGUAGE MonadComprehensions, RebindableSyntax, ViewPatterns #-}
+{-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE RebindableSyntax    #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module Main where
 
@@ -12,13 +14,13 @@ ints :: Q [Integer]
 ints = toQ [1 .. 10]
 
 query1 :: Q [(Integer,Integer)]
-query1 =  [ tuple (i1,i2)
+query1 =  [ pair i1 i2
           | i1 <- ints
           , i2 <- ints
           ]
 
 query2 :: Q [(Integer,Integer)]
-query2 =  [ tuple (i1,i2)
+query2 =  [ pair i1 i2
           | (view -> (i1,i2)) <- query1
           , i1 == i2
           ]
@@ -30,4 +32,4 @@ runQ :: (Show a,QA a) => Q a -> IO ()
 runQ q = getConn P.>>= \conn -> (fromQ conn q P.>>= P.print) P.>> disconnect conn
 
 main :: IO ()
-main = (runQ ints) P.>> (runQ query1) P.>> (runQ query2)
+main = runQ ints P.>> runQ query1 P.>> runQ query2

@@ -1,17 +1,17 @@
 all: cabal
-		ghc -Wall -O3 -cpp --make Main.hs -o Main 
+		ghc -Wall -O3 -cpp --make Main.hs -o Main
 		./Main -s5
 
 dbph: cabal
-		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main 
+		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main
 		./Main -s5
 
 x100: cabal
-		ghc -Wall -O3 -cpp -DisX100 --make Main.hs -o Main 
+		ghc -Wall -O3 -cpp -DisX100 --make Main.hs -o Main
 		./Main -s5
 map: clean
 		cd ..; cabal clean; cabal install -fmap; cd tests;
-		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main 
+		ghc -Wall -O3 -cpp -DisDBPH --make Main.hs -o Main
 		./Main -s5
 
 hpc: cabal

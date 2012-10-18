@@ -14,48 +14,25 @@
 -- by Database.DSH.
 
 module Database.DSH
-  (
-    module Database.DSH.Combinators
-
-    -- * Data Types
-  , Q
-
-    -- * Type Classes
-  , QA
-  , TA, table, tableDB, tableCSV, tableWithKeys, BasicType
-  , View, view, fromView, tuple, record, caseOf
-
-    -- * Template Haskell: Creating Table Representations
-  , generateDatabaseRecordInstances
-  , generateTableRecordInstances
-  , generateX100TableRecordInstances
-  , generateRecordInstances
-  , generateTableDeclarations
-
-  , module Database.DSH.CSV
-  , module Database.DSH.JSON
-  , module Database.DSH.XHTML
-
+  ( module Database.DSH.Externals
+  , Q, QA, Elim, elim, View, view
+  , module Database.DSH.TH
   , module Data.String
   , module Data.Text
   , module Database.HDBC
   , module Prelude
+  , module Database.DSH.JSON
   )
   where
 
-import Database.DSH.TH (generateDatabaseRecordInstances, generateX100TableRecordInstances, generateTableRecordInstances, generateRecordInstances, generateTableDeclarations)
-import Database.DSH.Data (Q, QA, TA, table, tableDB, tableCSV, tableWithKeys, BasicType, View, view, fromView, tuple, record, caseOf)
-
-import Database.DSH.CSV
 import Database.DSH.JSON
-import Database.DSH.XHTML
+import Database.DSH.Externals
+import Database.DSH.Internals (Q,QA,Elim,elim,View,view)
+import Database.DSH.TH
 
-import Database.DSH.Combinators
-
-import Data.String(IsString,fromString)
+import Data.String (IsString,fromString)
 import Data.Text (Text)
 import Database.HDBC
-
 import Prelude hiding (
     not
   , (&&)
@@ -80,6 +57,7 @@ import Prelude hiding (
   , null
   , length
   , (!!)
+  , (++)
   , reverse
   , and
   , or
@@ -101,6 +79,9 @@ import Prelude hiding (
   , zip
   , zipWith
   , unzip
+  , zip3
+  , zipWith3
+  , unzip3
   , fst
   , snd
   , maybe

@@ -1,15 +1,16 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp #-}
 module Database.DSH.Compile where
 
-import Database.DSH.Data
-import Database.DSH.Impossible (impossible)
+import Database.DSH.Internals
+import Database.DSH.Impossible
 
 import Database.Pathfinder
 
 import qualified Data.Array as A
 import qualified Data.List as L
-import Data.Maybe (fromJust, isNothing, isJust)
+import Data.Maybe (fromJust, isNothing, isJust, fromMaybe)
 import Data.List (sortBy)
+import Data.Function
+import Control.Arrow
 import Control.Monad.Reader
 import Control.Exception (evaluate)
 
@@ -17,7 +18,8 @@ import qualified Text.XML.HaXml as X
 import Text.XML.HaXml (Content(..), AttValue(..), tag, deep, children, xmlParse, Document(..))
 
 import Database.HDBC
-import Data.Convertible
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- | Wrapper type with phantom type for algebraic plan
 -- The type variable represents the type of the result of the plan
@@ -48,7 +50,7 @@ data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
 -- | Translate the algebraic plan to SQL and then execute it using the provided 
 -- DB connection. If debug is switchd on the SQL code is written to a file 
 -- named query.sql
-executePlan :: forall a. forall conn. (QA a, IConnection conn) => conn -> AlgebraXML a -> IO Norm
+executePlan :: forall a. forall conn. (Reify a, IConnection conn) => conn -> AlgebraXML a -> IO (Exp a)
 executePlan c p = do
                         sql@(SQL _s) <- algToSQL p
                         runSQL c $ extractSQL sql
@@ -75,28 +77,26 @@ extractSQL :: SQLXML a -> QueryBundle a
 extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
                       in Bundle $ map extractQuery $ (deep $ tag "query_plan") (CElem r $impossible)
     where
-        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = case fmap attrToInt $ lookup (X.N "id") attrs of
-                                                                    Just x -> x
-                                                                    Nothing -> $impossible
+        extractQuery c@(CElem (X.Elem n attrs cs) _) = let qId = maybe ($impossible) attrToInt (lookup (X.N "id") attrs)
                                                            rId = fmap attrToInt $ lookup (X.N "idref") attrs
                                                            cId = fmap attrToInt $ lookup (X.N "colref") attrs
                                                            ref = liftM2 (,) rId cId
                                                            query = extractCData $  head $ concatMap children $ deep (tag "query") c
-                                                           schema = toSchemeInf $ map process $ concatMap (\x -> deep (tag "column") x) $ deep (tag "schema") c
+                                                           schema = toSchemeInf $ map process $ concatMap (deep (tag "column")) $ deep (tag "schema") c
                                                         in (qId, (query, schema, ref))
         extractQuery _ = $impossible
         attrToInt :: AttValue -> Int
-        attrToInt (AttValue [(Left i)]) = read i
+        attrToInt (AttValue [Left i]) = read i
         attrToInt _ = $impossible
         attrToString :: AttValue -> String
-        attrToString (AttValue [(Left i)]) = i
+        attrToString (AttValue [Left i]) = i
         attrToString _ = $impossible
         extractCData :: Content i -> String
         extractCData (CString _ d _) = d
         extractCData _ = $impossible
         toSchemeInf :: [(String, Maybe Int)] -> SchemaInfo
         toSchemeInf results = let iterName = fst $ head $ filter (\(_, p) -> isNothing p) results
-                                  cols = map (\(n, v) -> (n, fromJust v)) $ filter (\(_, p) -> isJust p) results
+                                  cols = map (second fromJust) $ filter (\(_, p) -> isJust p) results
                                in SchemaInfo iterName cols
         process :: Content i -> (String, Maybe Int)
         process (CElem (X.Elem _ attrs _) _) = let name = fromJust $ fmap attrToString $ lookup (X.N "name") attrs
@@ -105,15 +105,15 @@ extractSQL (SQL q) = let (Document _ _ r _) = xmlParse "query" q
         process _ = $impossible
 
 -- | Execute the given SQL queries and assemble the results into one structure
-runSQL :: forall a. forall conn. (QA a, IConnection conn) => conn -> QueryBundle a -> IO Norm
+runSQL :: forall a. forall conn. (Reify a, IConnection conn) => conn -> QueryBundle a -> IO (Exp a)
 runSQL c (Bundle queries) = do
                              results <- mapM (runQuery c) queries
                              let (queryMap, valueMap) = foldr buildRefMap ([],[]) results
                              let ty = reify (undefined :: a)
                              let results' = runReader (processResults 0 ty) (queryMap, valueMap)
-                             return $ case lookup 1 results' of
-                                         Just x -> x 
-                                         Nothing -> ListN [] ty
+                             case ty of
+                                 (ListT _) -> return $ fromMaybe (ListE []) (lookup 1 results')
+                                 _         -> return $ fromJust (lookup 1 results')
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
 -- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
@@ -141,48 +141,85 @@ getColResPos q i = do
 findQuery :: (Int, Int) -> QueryR Int
 findQuery (q, c) = do
                     env <- ask
-                    return $ (\x -> case x of
-                                  Just x' -> x'
-                                  Nothing -> error $ show $ fst env) $ lookup (q, c + 1) $ fst env
+                    return $ fromMaybe (error $ show $ fst env) $ lookup (q, c + 1) $ fst env
 
 -- | Reconstruct the haskell value out of the result of query i with type ty.
-processResults :: Int -> Type -> QueryR [(Int, Norm)]
-processResults i ty@(ListT t1) = do
+processResults :: Int -> Type a -> QueryR [(Int, Exp a)]
+processResults i (ListT t1) = do
                                 v <- getResults i
                                 mapM (\(it, vals) -> do
                                                         v1 <- processResults' i 0 vals t1
-                                                        return (it, ListN v1 ty)) v
+                                                        return (it, ListE v1)) v
 processResults i t = do
                         v <- getResults i
                         mapM (\(it, vals) -> do
                                               v1 <- processResults' i 0 vals t
                                               return (it, head v1)) v
 
+nrColsInType :: Type a -> Int
+nrColsInType UnitT = 1
+nrColsInType BoolT = 1
+nrColsInType CharT = 1
+nrColsInType IntegerT = 1
+nrColsInType DoubleT = 1
+nrColsInType TextT = 1
+nrColsInType (PairT t1 t2) = nrColsInType t1 + nrColsInType t2
+nrColsInType (ListT _) = 1
+nrColsInType (ArrowT _ _) = $impossible
+
 -- | Reconstruct the values for column c of query q out of the rawData vals with type t.
-processResults' :: Int -> Int -> [[SqlValue]] -> Type -> QueryR [Norm]
-processResults' _ _ vals UnitT = return $ map (\_ -> UnitN UnitT) vals
-processResults' q c vals t@(TupleT t1 t2) = do
+processResults' :: Int -> Int -> [[SqlValue]] -> Type a -> QueryR [Exp a]
+processResults' _ _ vals UnitT = return $ map (\_ -> UnitE) vals
+processResults' q c vals (PairT t1 t2) = do
                                             v1s <- processResults' q c vals t1
-                                            v2s <- processResults' q (c + 1) vals t2
-                                            return $ [TupleN v1 v2 t | v1 <- v1s | v2 <- v2s]
+                                            v2s <- processResults' q (c + nrColsInType t1) vals t2
+                                            return (zipWith PairE v1s v2s)
 processResults' q c vals t@(ListT _) = do
                                         nestQ <- findQuery (q, c)
                                         list <- processResults nestQ t
                                         i <- getColResPos q c
-                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = (convert $ v !! i)::Int 
-                                                                                 in (m `max` v', v':vs))  (1,[]) vals
+                                        let (maxV, vals') = foldr (\v (m,vs) -> let v' = sqlValueToInt (v !! i)
+                                                                                in (m `max` v', v':vs))  (1,[]) vals
                                         let maxI = if null list
                                                     then 1
-                                                    else fst $ L.maximumBy (\x y -> fst x `compare` fst y) list
-                                        let lA = (A.accumArray ($impossible) Nothing (1,maxI `max` maxV) []) A.// map (\(x,y) -> (x, Just y)) list
-                                        return $ map (\val -> case lA A.! val of
-                                                                Just x -> x
-                                                                Nothing -> ListN [] t) vals'
-processResults' _ _ _ (ArrowT _ _) = $impossible -- The result cannot be a function
+                                                    else fst $ L.maximumBy (compare `on` fst) list
+                                        let lA = A.accumArray ($impossible) Nothing (1,maxI `max` maxV) [] A.// map (second Just) list
+                                        return $ map (\val -> fromMaybe (ListE []) (lA A.! val)) vals'
+processResults' _ _ _ (ArrowT _ _) = $impossible
 processResults' q c vals t = do
                                     i <- getColResPos q c
-                                    return $ map (\val -> convert $ (val !! i, t)) vals
+                                    return $ map (\val -> convert (val !! i) t) vals
 
+sqlValueToInt :: SqlValue -> Int
+sqlValueToInt (SqlInteger i) = fromIntegral i
+sqlValueToInt _ = $impossible
+
+convert :: SqlValue -> Type a -> Exp a
+convert SqlNull         UnitT    = UnitE
+convert (SqlInteger i)  IntegerT = IntegerE i
+convert (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
+convert (SqlDouble d)  DoubleT  = DoubleE d
+convert (SqlRational d) DoubleT = DoubleE $ fromRational d
+convert (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
+convert (SqlBool b) BoolT       = BoolE b
+convert (SqlInteger i) BoolT    = BoolE (i /= 0)
+convert (SqlInt32 i)   BoolT    = BoolE (i /= 0)
+convert (SqlInt64 i)   BoolT    = BoolE (i /= 0)
+convert (SqlWord32 i)  BoolT    = BoolE (i /= 0)
+convert (SqlWord64 i)  BoolT    = BoolE (i /= 0) 
+convert (SqlChar c) CharT       = CharE c
+convert (SqlString (c:_)) CharT = CharE c
+convert (SqlByteString c) CharT = CharE (head $ T.unpack $ T.decodeUtf8 c)
+convert (SqlString t) TextT     = TextE (T.pack t) 
+convert (SqlByteString s) TextT = TextE (T.decodeUtf8 s)
+convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 -- | Partition by iter column
 -- The first argument is the position of the iter column.
@@ -194,7 +231,7 @@ partByIter n (v:vs) = let i = getIter n v
                        in (i, v:vi) : partByIter n vr
        where
            getIter :: Int -> [SqlValue] -> Int
-           getIter n' vals = ((fromSql (vals !! n'))::Int)
+           getIter n' vals = fromSql (vals !! n') :: Int
 partByIter _ [] = []
 
 
@@ -224,11 +261,11 @@ dshFetchAllRowsStrict stmt = go []
 -- | Transform algebraic plan scheme info into resultinfo
 schemeToResult :: SchemaInfo -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (_, c2) -> compare c1 c2) cols
-                                                    resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
+                                                    resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (/= '_') c) resDescr
                                                     itC = fromJust $ lookup itN resColumns
                                                  in ResultInfo itC $ map (\(n, _) -> (n, fromJust $ lookup n resColumns)) ordCols
 
 -- | 
 buildRefMap :: (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
-buildRefMap (q, (r, ri, (Just (t, c)))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
+buildRefMap (q, (r, ri, Just (t, c))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)

@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.8
+Version:             0.8.2.1
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -32,11 +32,14 @@ Description:
   reading. The package includes a couple of examples that demonstrate how to
   use DSH.
   .
-  1. <http://www-db.informatik.uni-tuebingen.de/files/publications/ferryhaskell.pdf>
+  This is a highly experimental release supporting our work-in-progress paper on
+  "Algebraic Data Types for Language-Integrated Queries".
+  .
+  1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
 
 License:             BSD3
 License-file:        LICENSE
-Author:              George Giorgidze, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
+Author:              George Giorgidze, Alexander Ulrich, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
 Maintainer:          giorgidze@gmail.com, jeroen.weijers@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
@@ -44,11 +47,12 @@ Build-type:          Simple
 
 Extra-source-files:  examples/Example01.hs
                      examples/Example02.hs
+                     examples/Example03.hs
                      examples/Makefile
                      tests/Main.hs
                      tests/Makefile
 
-Cabal-version:       >= 1.9
+Cabal-version:       >= 1.4
 
 Library
   Build-depends:     base               >= 4.3.1.0 && < 5,
@@ -72,7 +76,7 @@ Library
                      X100Client         >= 0.0.2
 
   Hs-source-dirs:    src
-  GHC-Options:       -O3 -Wall -Werror
+  GHC-Options:       -O3 -Wall -Werror -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -81,14 +85,15 @@ Library
 
   Other-modules:     Database.DSH.Data
                      Database.DSH.Combinators
+                     Database.DSH.Internals
+                     Database.DSH.Externals
                      Database.DSH.CSV
-                     Database.DSH.JSON
-                     Database.DSH.XHTML
                      Database.DSH.Impossible
                      Database.DSH.Compile
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
                      Database.DSH.TH
+
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
     Main-is:    tests/Main.hs

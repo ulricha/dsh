@@ -1,6 +1,5 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE ViewPatterns #-}
-
+{-# LANGUAGE TemplateHaskell, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -Wall -O3 -fno-warn-orphans #-}
 module Main where
 
 import qualified Database.DSH as Q
@@ -11,11 +10,11 @@ import Database.DSH (Q, QA)
 #endif
 
 -- import Database.DSH.Interpreter (fromQ)
-#ifdef isDBPH 
+#ifdef isDBPH
 import Database.DSH.Flattening (fromQ)
 #elif isX100
 import Database.DSH.Flattening (fromX100)
-#define isDBPH 
+#define isDBPH
 #else
 import Database.DSH.Compiler (fromQ)
 #endif
@@ -36,6 +35,8 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
+import Data.DeriveTH
+
 import Data.List
 import Data.Maybe
 import Data.Either
@@ -51,11 +52,45 @@ instance Arbitrary Text where
 
 #ifdef isX100
 getConn :: IO X100Info
-getConn = return $ x100Info "localhost" "48130" Nothing    
+getConn = return $ x100Info "localhost" "48130" Nothing
 #else
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
 #endif
+
+qc:: Testable prop => prop -> IO ()
+qc = quickCheckWith stdArgs{maxSuccess = 100, maxSize = 5}
+
+putStrPad :: String -> IO ()
+putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
+
+data D0 = C01 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D0
+Q.deriveDSH ''D0
+
+data D1 a = C11 a deriving (Eq,Ord,Show)
+derive makeArbitrary ''D1
+Q.deriveDSH ''D1
+
+data D2 a b = C21 a b b a deriving (Eq,Ord,Show)
+derive makeArbitrary ''D2
+Q.deriveDSH ''D2
+
+data D3 = C31 | C32 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D3
+Q.deriveDSH ''D3
+
+data D4 a = C41 a | C42 deriving (Eq,Ord,Show)
+derive makeArbitrary ''D4
+Q.deriveDSH ''D4
+
+data D5 a = C51 a | C52 | C53 a a | C54 a a a deriving (Eq,Ord,Show)
+derive makeArbitrary ''D5
+Q.deriveDSH ''D5
+
+data D6 a b c d e = C61 { c611 :: a, c612 :: (a,b,c,d) } | C62 | C63 a b | C64 (a,b,c) | C65 a b c d e deriving (Eq,Ord,Show)
+derive makeArbitrary ''D6
+Q.deriveDSH ''D6
 
 main :: IO ()
 main = do
@@ -66,11 +101,10 @@ main = do
             defaultMainWithArgs tests args'
 
 tests :: [Test]
-tests = 
+tests =
     [
       testGroup "Supported Types"
         [ testProperty "()" $ prop_unit
-        , testProperty "()" $ prop_unit
         , testProperty "Bool" $ prop_bool
         , testProperty "Char" $ prop_char
         , testProperty "Text" $ prop_text
@@ -83,6 +117,13 @@ tests =
         , testProperty "([], [])" $ prop_tuple_list_integer
         , testProperty "Maybe Integer" $ prop_maybe_integer
         , testProperty "Either Integer Integer" $ prop_either_integer
+        , testProperty "D0" $ prop_d0
+        , testProperty "D1" $ prop_d1
+        , testProperty "D2" $ prop_d2
+        , testProperty "D3" $ prop_d3
+        , testProperty "D4" $ prop_d4
+        , testProperty "D5" $ prop_d5
+        , testProperty "D6" $ prop_d6
         ]
     , testGroup "Equality, Boolean Logic and Ordering"
         [ testProperty "&&" $ prop_infix_and
@@ -112,7 +153,7 @@ tests =
         , testProperty "mul_integer" $ prop_mul_integer
         , testProperty "mul_double" $ prop_mul_double
         , testProperty "div_double" $ prop_div_double
-        , testProperty "integer_to_double" $ prop_integer_to_double    
+        , testProperty "integer_to_double" $ prop_integer_to_double
         , testProperty "abs_integer" $ prop_abs_integer
         , testProperty "abs_double" $ prop_abs_double
         , testProperty "signum_integer" $ prop_signum_integer
@@ -120,20 +161,42 @@ tests =
         , testProperty "negate_integer" $ prop_negate_integer
         , testProperty "negate_double" $ prop_negate_double
         ]
+    , testGroup "Maybe"
+        [ testProperty "maybe" $ prop_maybe
+        , testProperty "just" $ prop_just
+        , testProperty "isJust" $ prop_isJust
+        , testProperty "isNothing" $ prop_isNothing
+        , testProperty "fromJust" $ prop_fromJust
+        , testProperty "fromMaybe" $ prop_fromMaybe
+        , testProperty "listToMaybe" $ prop_listToMaybe
+        , testProperty "maybeToList" $ prop_maybeToList
+        , testProperty "catMaybes" $ prop_catMaybes
+        , testProperty "mapMaybe" $ prop_mapMaybe
+        ]
+    , testGroup "Either"
+        [ testProperty "left" $ prop_left
+        , testProperty "right" $ prop_right
+        , testProperty "isLeft" $ prop_isLeft
+        , testProperty "isRight" $ prop_isRight
+        , testProperty "either" $ prop_either
+        , testProperty "lefts" $ prop_lefts
+        , testProperty "rights" $ prop_rights
+        , testProperty "partitionEithers" $ prop_partitionEithers
+        ]
     , testGroup "Lists"
         [ testProperty "head" $ prop_head
         , testProperty "tail" $ prop_tail
         , testProperty "cons" $ prop_cons
         , testProperty "snoc" $ prop_snoc
         , testProperty "take" $ prop_take
-#ifndef isDBPH        
+#ifndef isDBPH
         , testProperty "drop" $ prop_drop
 #endif
         , testProperty "take ++ drop" $ prop_takedrop
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
         , testProperty "the" $ prop_the
-#ifdef isX100  
+#ifdef isX100
         , testProperty "last" $ prop_last
 #endif
         , testProperty "init" $ prop_init
@@ -141,7 +204,7 @@ tests =
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
         , testProperty "index" $ prop_index
-#ifdef isX100        
+#ifdef isX100
         , testProperty "index [[]]" $ prop_index_nest
 #endif
         , testProperty "reverse" $ prop_reverse
@@ -166,16 +229,19 @@ tests =
         , testProperty "splitAt" $ prop_splitAt
         , testProperty "takeWhile" $ prop_takeWhile
         , testProperty "dropWhile" $ prop_dropWhile
-        , testProperty "dropWhile" $ prop_dropWhile
         , testProperty "span" $ prop_span
         , testProperty "break" $ prop_break
         , testProperty "elem" $ prop_elem
         , testProperty "notElem" $ prop_notElem
+        , testProperty "lookup" $ prop_lookup
         , testProperty "zip" $ prop_zip
+        , testProperty "zip3" $ prop_zip3
 #ifndef isDBPH
         , testProperty "zipWith" $ prop_zipWith
+        , testProperty "zipWith3" $ prop_zipWith3
 #endif
         , testProperty "unzip" $ prop_unzip
+        , testProperty "unzip3" $ prop_unzip3
         , testProperty "nub" $ prop_nub
         ]
     , testGroup "Lifted operations"
@@ -186,7 +252,7 @@ tests =
         , testProperty "Lifted neq" $ prop_map_neq
         , testProperty "Lifted cond" $ prop_map_cond
         , testProperty "Lifted cond tuples" $ prop_map_cond_tuples
-#ifndef isFerry        
+#ifndef isFerry
         , testProperty "Lifted cond + concat" $ prop_concatmapcond
 #endif
         , testProperty "Lifted lt" $ prop_map_lt
@@ -207,9 +273,9 @@ tests =
         , testProperty "Lifted groupWith" $ prop_map_groupWith
         , testProperty "Lifted sortWith" $ prop_map_sortWith
         , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
-#ifdef isX100        
+#ifdef isX100
         , testProperty "Lifted groupWith length" $ prop_map_groupWith_length
-#endif        
+#endif
         , testProperty "Lifted length" $ prop_map_length
         , testProperty "Lifted length on [[(a,b)]]" $ prop_map_length_tuple
         , testProperty "Sortwith length nested" $ prop_sortWith_length_nest
@@ -222,8 +288,8 @@ tests =
         , testProperty "map (map maximum)" $ prop_map_map_maximum
         , testProperty "map integer_to_double" $ prop_map_integer_to_double
 #ifdef isX100
-        , testProperty "map tail" $ prop_map_tail    
-#endif        
+        , testProperty "map tail" $ prop_map_tail
+#endif
         , testProperty "map unzip" $ prop_map_unzip
         , testProperty "map reverse" $ prop_map_reverse
         , testProperty "map reverse [[]]" $ prop_map_reverse_nest
@@ -271,8 +337,8 @@ makeProp f1 f2 arg = monadicIO $ do
     let hs = f2 arg
     assert (db == hs)
 
-makePropNotNull ::  (Eq b, Q.QA a, Q.QA b, Show a, Show b)
-                    => (Q.Q [a] -> Q.Q b)
+makePropNotNull ::  (Eq b, QA a, QA b, Show a, Show b)
+                    => (Q [a] -> Q b)
                     -> ([a] -> b)
                     -> [a]
                     -> Property
@@ -293,7 +359,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
-    let eps = 1.0E-8 :: Double;    
+    let eps = 1.0E-8 :: Double;
     assert (abs (db - hs) < eps)
 
 makePropListDouble :: (QA a, Show a)
@@ -311,10 +377,10 @@ makePropListDouble f1 f2 arg = monadicIO $ do
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
-    let eps = 1.0E-8 :: Double;    
+    let eps = 1.0E-8 :: Double;
     assert $ and [abs (d - h) < eps | (d, h) <- zip db hs]
 
-uncurryQ :: (Q.QA a, Q.QA b) => (Q.Q a -> Q.Q b -> Q.Q c) -> Q.Q (a,b) -> Q.Q c
+uncurryQ :: (QA a, QA b) => (Q a -> Q b -> Q c) -> Q (a,b) -> Q c
 uncurryQ f = uncurry f . Q.view
 
 -- * Supported Types
@@ -358,6 +424,27 @@ prop_tuple_list_integer = makeProp id id
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
 
+prop_d0 :: D0 -> Property
+prop_d0 = makeProp id id
+
+prop_d1 :: D1 Integer -> Property
+prop_d1 = makeProp id id
+
+prop_d2 :: D2 Integer Integer -> Property
+prop_d2 = makeProp id id
+
+prop_d3 :: D3 -> Property
+prop_d3 = makeProp id id
+
+prop_d4 :: D4 Integer -> Property
+prop_d4 = makeProp id id
+
+prop_d5 :: D5 Integer -> Property
+prop_d5 = makeProp id id
+
+prop_d6 :: D6 Integer Integer Integer Integer Integer -> Property
+prop_d6 = makeProp id id
+
 -- * Equality, Boolean Logic and Ordering
 
 prop_infix_and :: (Bool,Bool) -> Property
@@ -365,7 +452,7 @@ prop_infix_and = makeProp (uncurryQ (Q.&&)) (uncurry (&&))
 
 prop_infix_map_and :: (Bool, [Bool]) -> Property
 prop_infix_map_and = makeProp (\x -> Q.map ((Q.fst x) Q.&&) $ Q.snd x) (\(x,xs) -> map (x &&) xs)
-                     
+
 prop_infix_or :: (Bool,Bool) -> Property
 prop_infix_or = makeProp (uncurryQ (Q.||)) (uncurry (||))
 
@@ -391,7 +478,7 @@ prop_map_neq :: (Integer, [Integer]) -> Property
 prop_map_neq = makeProp (\x -> Q.map ((Q.fst x) Q./=) $ Q.snd x) (\(x,xs) -> map (x /=) xs)
 
 prop_cond :: Bool -> Property
-prop_cond = makeProp (\b -> Q.cond b (0 :: Q Integer) 1) (\b -> if b then 0 else 1)
+prop_cond = makeProp (\b -> Q.cond b 0 1) (\b -> if b then (0 :: Integer) else 1)
 
 prop_cond_tuples :: (Bool, (Integer, Integer)) -> Property
 prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.tuple ((Q.fst $ Q.snd b), (Q.fst $ Q.snd b))) (Q.tuple ((Q.snd $ Q.snd b), (Q.snd $ Q.snd b)))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
@@ -406,11 +493,11 @@ prop_map_cond_tuples :: [Bool] -> Property
 prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b (Q.toQ (0, 10) :: Q (Integer, Integer)) (Q.toQ (1, 11)))) (map (\b -> if b then (0, 10) else (1, 11)))
 
 prop_concatmapcond :: [Integer] -> Property
-prop_concatmapcond l1 = 
+prop_concatmapcond l1 =
         -- FIXME remove precondition as soon as X100 is fixed
-	(not $ null l1)
-	==>
-	makeProp q n l1
+    (not $ null l1)
+    ==>
+    makeProp q n l1
         where q l = Q.concatMap (\x -> Q.cond ((Q.>) x (Q.toQ 0)) (x Q.<| el) el) l
               n l = concatMap (\x -> if x > 0 then [x] else []) l
               el = Q.toQ []
@@ -497,7 +584,7 @@ prop_isLeft = makeProp Q.isLeft (\e -> case e of {Left _ -> True; Right _ -> Fal
 prop_isRight :: Either Integer Integer -> Property
 prop_isRight = makeProp Q.isRight (\e -> case e of {Left _ -> False; Right _ -> True;})
 
-prop_either :: (Either Integer Integer) -> Property
+prop_either :: Either Integer Integer -> Property
 prop_either =  makeProp (Q.either id id) (either id id)
 
 prop_lefts :: [Either Integer Integer] -> Property
@@ -524,7 +611,7 @@ prop_map_snoc :: ([Integer], [Integer]) -> Property
 prop_map_snoc = makeProp (\z -> Q.map ((Q.fst z) Q.|>) (Q.snd z)) (\(a,b) -> map (\z -> a ++ [z]) b)
 
 prop_singleton :: Integer -> Property
-prop_singleton = makeProp Q.singleton (\x -> [x])
+prop_singleton = makeProp Q.singleton (: [])
 
 prop_head  :: [Integer] -> Property
 prop_head  = makePropNotNull Q.head head
@@ -547,11 +634,11 @@ prop_map_init  ps = and (map ((>0) . length) ps)
      makeProp (Q.map Q.init) (map init) ps
 
 prop_the   :: (Int, Integer) -> Property
-prop_the (n, i) = 
+prop_the (n, i) =
   n > 0
   ==>
   let l = replicate n i in makeProp Q.the the l
-                           
+
 prop_map_the :: [(Int, Integer)] -> Property
 prop_map_the ps =
   let ps' = filter ((>0) . fst) ps in
@@ -593,7 +680,7 @@ prop_map_index_nest (l, is) =
  ==> makeProp (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!) (Q.snd z))
             (\(a,b) -> map ((a ++ a ++ a) !!) (map fromIntegral b))
             (l, is)
-            
+
 prop_take :: (Integer, [Integer]) -> Property
 prop_take = makeProp (uncurryQ Q.take) (\(n,l) -> take (fromIntegral n) l)
 
@@ -619,12 +706,12 @@ prop_map_map_mul = makeProp (Q.map (Q.map (*2))) (map (map (*2)))
 
 prop_map_map_add :: ([Integer], [Integer]) -> Property
 prop_map_map_add = makeProp (\z -> Q.map (\x -> (Q.map (\y -> x + y) $ Q.snd z)) $ Q.fst z) (\(l,r) -> map (\x -> map (\y -> x + y) r) l)
-                   
+
 prop_map_map_map_mul :: [[[Integer]]] -> Property
 prop_map_map_map_mul = makeProp (Q.map (Q.map (Q.map (*2)))) (map (map (map (*2))))
 
 prop_append :: ([Integer], [Integer]) -> Property
-prop_append = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
+prop_append = makeProp (uncurryQ (Q.++)) (uncurry (++))
 
 prop_append_nest :: ([[Integer]], [[Integer]]) -> Property
 prop_append_nest = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
@@ -643,7 +730,7 @@ prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
 prop_map_groupWith :: [[Integer]] -> Property
 prop_map_groupWith = makeProp (Q.map (Q.groupWith id)) (map (groupWith id))
-                     
+
 prop_groupWith_length :: [[Integer]] -> Property
 prop_groupWith_length = makeProp (Q.groupWith Q.length) (groupWith length)
 
@@ -655,13 +742,13 @@ prop_map_sortWith = makeProp (Q.map (Q.sortWith id)) (map (sortWith id))
 
 prop_map_sortWith_length :: [[[Integer]]] -> Property
 prop_map_sortWith_length = makeProp (Q.map (Q.sortWith Q.length)) (map (sortWith length))
-                           
+
 prop_map_groupWith_length :: [[[Integer]]] -> Property
 prop_map_groupWith_length = makeProp (Q.map (Q.groupWith Q.length)) (map (groupWith length))
 
 prop_sortWith_length_nest  :: [[[Integer]]] -> Property
 prop_sortWith_length_nest = makeProp (Q.sortWith Q.length) (sortWith length)
-                            
+
 prop_groupWith_length_nest :: [[[Integer]]] -> Property
 prop_groupWith_length_nest = makeProp (Q.groupWith Q.length) (groupWith length)
 
@@ -672,7 +759,7 @@ prop_map_null :: [[Integer]] -> Property
 prop_map_null = makeProp (Q.map Q.null) (map null)
 
 prop_length :: [Integer] -> Property
-prop_length = makeProp Q.length (fromIntegral . length)
+prop_length = makeProp Q.length ((fromIntegral :: Int -> Integer) . length)
 
 prop_length_tuple :: [(Integer, Integer)] -> Property
 prop_length_tuple = makeProp Q.length (fromIntegral . length)
@@ -681,22 +768,22 @@ prop_map_length :: [[Integer]] -> Property
 prop_map_length = makeProp (Q.map Q.length) (map (fromIntegral . length))
 
 prop_map_minimum :: [[Integer]] -> Property
-prop_map_minimum ps = and (map (\p -> length p > 0) ps)  
+prop_map_minimum ps = and (map (\p -> length p > 0) ps)
         ==>
     makeProp (Q.map Q.minimum) (map (fromIntegral . minimum)) ps
 
 prop_map_maximum :: [[Integer]] -> Property
-prop_map_maximum ps = and (map (\p -> length p > 0) ps)  
+prop_map_maximum ps = and (map (\p -> length p > 0) ps)
         ==>
     makeProp (Q.map Q.maximum) (map (fromIntegral . maximum)) ps
 
 prop_map_map_minimum :: [[[Integer]]] -> Property
-prop_map_map_minimum ps = and (map (and . map (\p -> length p > 0)) ps)  
+prop_map_map_minimum ps = and (map (and . map (\p -> length p > 0)) ps)
         ==>
     makeProp (Q.map (Q.map Q.minimum)) (map (map(fromIntegral . minimum))) ps
 
 prop_map_map_maximum :: [[[Integer]]] -> Property
-prop_map_map_maximum ps = and (map (and . map (\p -> length p > 0)) ps)  
+prop_map_map_maximum ps = and (map (and . map (\p -> length p > 0)) ps)
         ==>
     makeProp (Q.map (Q.map Q.maximum)) (map (map(fromIntegral . maximum))) ps
 
@@ -760,12 +847,12 @@ prop_sum_double = makePropDouble Q.sum sum
 
 prop_concat :: [[Integer]] -> Property
 prop_concat = makeProp Q.concat concat
-              
+
 prop_map_concat :: [[[Integer]]] -> Property
 prop_map_concat = makeProp (Q.map Q.concat) (map concat)
 
 prop_concatMap :: [Integer] -> Property
-prop_concatMap = makeProp (Q.concatMap Q.singleton) (concatMap (\a -> [a]))
+prop_concatMap = makeProp (Q.concatMap Q.singleton) (concatMap (: []))
 
 prop_maximum :: [Integer] -> Property
 prop_maximum = makePropNotNull Q.maximum maximum
@@ -785,11 +872,11 @@ prop_dropWhile = makeProp (uncurryQ $ Q.dropWhile . (Q.==))
                           (uncurry  $   dropWhile . (==))
 
 prop_map_takeWhile :: (Integer, [[Integer]]) -> Property
-prop_map_takeWhile = makeProp (\z -> Q.map (Q.takeWhile (Q.fst z Q.==)) (Q.snd z)) 
+prop_map_takeWhile = makeProp (\z -> Q.map (Q.takeWhile (Q.fst z Q.==)) (Q.snd z))
                               (\z -> map (takeWhile (fst z ==)) (snd z))
 
 prop_map_dropWhile :: (Integer, [[Integer]]) -> Property
-prop_map_dropWhile = makeProp (\z -> Q.map (Q.dropWhile (Q.fst z Q.==)) (Q.snd z)) 
+prop_map_dropWhile = makeProp (\z -> Q.map (Q.dropWhile (Q.fst z Q.==)) (Q.snd z))
                               (\z -> map (dropWhile (fst z ==)) (snd z))
 
 prop_span :: (Integer, [Integer]) -> Property
@@ -802,23 +889,23 @@ prop_map_span = makeProp (\z -> Q.map (Q.span ((Q.fst z) Q.==)) (Q.snd z))
 
 prop_break :: (Integer, [Integer]) -> Property
 prop_break = makeProp (uncurryQ $ Q.break . (Q.==))
-                     (uncurry   $   break . (==) . fromIntegral)
+                      (uncurry   $   break . (==) . fromIntegral)
 
 prop_map_break :: (Integer, [[Integer]]) -> Property
 prop_map_break = makeProp (\z -> Q.map (Q.break ((Q.fst z) Q.==)) (Q.snd z))
                           (\z -> map (break (fst z ==)) (snd z))
 
 prop_elem :: (Integer, [Integer]) -> Property
-prop_elem = makeProp (uncurryQ $ Q.elem)
-                     (uncurry  $   elem)
+prop_elem = makeProp (uncurryQ Q.elem)
+                     (uncurry    elem)
 
 prop_notElem :: (Integer, [Integer]) -> Property
-prop_notElem = makeProp (uncurryQ $ Q.notElem)
-                        (uncurry  $   notElem)
+prop_notElem = makeProp (uncurryQ Q.notElem)
+                        (uncurry    notElem)
 
 prop_lookup :: (Integer, [(Integer,Integer)]) -> Property
-prop_lookup = makeProp (uncurryQ $ Q.lookup)
-                       (uncurry  $   lookup)
+prop_lookup = makeProp (uncurryQ Q.lookup)
+                       (uncurry    lookup)
 
 prop_zip :: ([Integer], [Integer]) -> Property
 prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
@@ -833,8 +920,21 @@ prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = makeProp Q.unzip unzip
 
+<<<<<<< HEAD
 prop_map_unzip :: [[(Integer, Integer)]] -> Property
 prop_map_unzip = makeProp (Q.map Q.unzip) (map unzip)
+=======
+prop_zip3 :: ([Integer], [Integer],[Integer]) -> Property
+prop_zip3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zip3 as bs cs))
+                     (\(as,bs,cs) -> zip3 as bs cs)
+
+prop_zipWith3 :: ([Integer], [Integer],[Integer]) -> Property
+prop_zipWith3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zipWith3 (\a b c -> a + b + c) as bs cs))
+                         (\(as,bs,cs) -> zipWith3 (\a b c -> a + b + c) as bs cs)
+
+prop_unzip3 :: [(Integer, Integer, Integer)] -> Property
+prop_unzip3 = makeProp Q.unzip3 unzip3
+>>>>>>> origin/master
 
 prop_nub :: [Integer] -> Property
 prop_nub = makeProp Q.nub nub
@@ -846,13 +946,13 @@ prop_map_nub = makeProp (Q.map Q.nub) (map nub)
 
 prop_fst :: (Integer, Integer) -> Property
 prop_fst = makeProp Q.fst fst
-           
+
 prop_map_fst :: [(Integer, Integer)] -> Property
 prop_map_fst = makeProp (Q.map Q.fst) (map fst)
 
 prop_snd :: (Integer, Integer) -> Property
 prop_snd = makeProp Q.snd snd
-           
+
 prop_map_snd :: [(Integer, Integer)] -> Property
 prop_map_snd = makeProp (Q.map Q.snd) (map snd)
 
