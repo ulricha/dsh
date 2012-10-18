@@ -15,6 +15,16 @@ fromDBV (DBVSpace dis pis)         = Right (dis, pis)
 fromDBV (DescrVectorSpace dis pis) = Right (dis, pis)
 fromDBV _                          = Left "IndexSpace.fromDBV: not a Value vector/descriptor vector"
 
+-- Non-Either IndexSpace accessors
+descrSpaceDBV :: VectorProp IndexSpace -> Domain
+descrSpaceDBV (VProp (DBVSpace (D d) _)) = d
+descrSpaceDBV _                          = error "IndexSpace.descrSpaceDBV: not a DBVSpace"
+
+posSpaceDBV :: VectorProp IndexSpace -> Domain
+posSpaceDBV (VProp (DBVSpace _ (P p))) = p
+posSpaceDBV _                          = error "IndexSpace.posSpaceDBV: not a DBVSpace"
+
+
 freshSpace :: Show a => AlgNode -> a -> Domain
 freshSpace n c = makeSubDomain n c UniverseDom
 
