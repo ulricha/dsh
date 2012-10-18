@@ -30,7 +30,7 @@ Description:
   supported program execution for Haskell" [1] is a recommended reading. The
   package includes a couple of examples that demonstrate how to use DSH.
   .
-  The latest release implements new features described in our our work-in-
+  The latest release implements new features described in our work-in-
   progress paper entitled as "Algebraic Data Types for Language-Integrated
   Queries" [3].
   .
