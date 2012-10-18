@@ -1,3 +1,8 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
+
 module Database.DSH.Internals where
 
 import Data.Text (Text)

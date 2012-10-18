@@ -1,3 +1,6 @@
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Database.DSH.CSV (csvImport) where
 
 import Database.DSH.Internals

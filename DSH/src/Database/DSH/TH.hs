@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.TH ( deriveDSH
                        , deriveQA
                        , deriveTupleRangeQA
