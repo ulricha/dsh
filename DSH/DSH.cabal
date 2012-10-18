@@ -83,12 +83,10 @@ Library
                      Database.DSH.Compiler
                      Database.DSH.Flattening
 
-  Other-modules:     Database.DSH.Data
-                     Database.DSH.Combinators
-                     Database.DSH.Internals
+  Other-modules:     Database.DSH.Internals
                      Database.DSH.Externals
-                     Database.DSH.CSV
                      Database.DSH.Impossible
+                     Database.DSH.CSV
                      Database.DSH.Compile
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening

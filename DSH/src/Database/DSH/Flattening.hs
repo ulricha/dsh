@@ -9,7 +9,7 @@ import Language.ParallelLang.DBPH hiding (SQL, X100)
 import Database.DSH.ExecuteFlattening
 import Database.DSH.CompileFlattening
 
-import Database.DSH.Data
+import Database.DSH.Internals
 import Database.HDBC
 import qualified Database.HDBC as H
 
@@ -78,7 +78,7 @@ debugSQL c (Q e) = liftM (show . fst . nkl2SQL) $ toNKL (getTableInfo c) e
 
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
--- which name is given as the second argument.        
+-- which name is given as the second argument.
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
 getTableInfo c n = do
                  info <- H.describeTable c n

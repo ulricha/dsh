@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
 module Database.DSH.Compile where
 
 import Database.DSH.Internals
@@ -35,7 +36,7 @@ newtype SQLXML a = SQL String
 -- Each query consists of the query itself, a schema explaining its types.
 -- If the query is a nested value in the result of another query the optional attribute
 -- represents (queryID, columnID). The queryId refers to the number of the query in the bundle
--- the columnID refers 
+-- the columnID refers
 newtype QueryBundle a = Bundle [(Int, (String, SchemaInfo, Maybe (Int, Int)))]
 
 -- | Description of a table. The field iterN contains the name of the iter column
@@ -47,8 +48,8 @@ data SchemaInfo = SchemaInfo {iterN :: String, items :: [(String, Int)]}
 data ResultInfo = ResultInfo {iterR :: Int, resCols :: [(String, Int)]}
  deriving Show
 
--- | Translate the algebraic plan to SQL and then execute it using the provided 
--- DB connection. If debug is switchd on the SQL code is written to a file 
+-- | Translate the algebraic plan to SQL and then execute it using the provided
+-- DB connection. If debug is switchd on the SQL code is written to a file
 -- named query.sql
 executePlan :: forall a. forall conn. (Reify a, IConnection conn) => conn -> AlgebraXML a -> IO (Exp a)
 executePlan c p = do
@@ -116,7 +117,7 @@ runSQL c (Bundle queries) = do
                                  _         -> return $ fromJust (lookup 1 results')
 
 -- | Type of the environment under which we reconstruct ordinary haskell data from the query result.
--- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to 
+-- The first component of the reader monad contains a mapping from (queryNumber, columnNumber) to
 -- the number of a nested query. The second component is a tuple consisting of query number associated
 -- with a pair of the raw result data partitioned by iter, and a description of this result data.
 type QueryR = Reader ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
@@ -213,18 +214,18 @@ convert (SqlInteger i) BoolT    = BoolE (i /= 0)
 convert (SqlInt32 i)   BoolT    = BoolE (i /= 0)
 convert (SqlInt64 i)   BoolT    = BoolE (i /= 0)
 convert (SqlWord32 i)  BoolT    = BoolE (i /= 0)
-convert (SqlWord64 i)  BoolT    = BoolE (i /= 0) 
+convert (SqlWord64 i)  BoolT    = BoolE (i /= 0)
 convert (SqlChar c) CharT       = CharE c
 convert (SqlString (c:_)) CharT = CharE c
 convert (SqlByteString c) CharT = CharE (head $ T.unpack $ T.decodeUtf8 c)
-convert (SqlString t) TextT     = TextE (T.pack t) 
+convert (SqlString t) TextT     = TextE (T.pack t)
 convert (SqlByteString s) TextT = TextE (T.decodeUtf8 s)
 convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 -- | Partition by iter column
 -- The first argument is the position of the iter column.
 -- The second argument the raw data
--- It returns a list of pairs (iterVal, rawdata within iter) 
+-- It returns a list of pairs (iterVal, rawdata within iter)
 partByIter :: Int -> [[SqlValue]] -> [(Int, [[SqlValue]])]
 partByIter n (v:vs) = let i = getIter n v
                           (vi, vr) = span (\v' -> i == getIter n v') vs
@@ -236,7 +237,7 @@ partByIter _ [] = []
 
 
 -- | Execute the given query plan bundle, over the provided connection.
--- It returns the raw data for each query along with a description on how to reconstruct 
+-- It returns the raw data for each query along with a description on how to reconstruct
 -- ordinary haskell data
 runQuery :: IConnection conn => conn -> (Int, (String, SchemaInfo, Maybe (Int, Int))) -> IO (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int)))
 runQuery c (qId, (query, schema, ref)) = do
@@ -245,7 +246,7 @@ runQuery c (qId, (query, schema, ref)) = do
                                                 res <- dshFetchAllRowsStrict sth
                                                 resDescr <- describeResult sth
                                                 let ri = schemeToResult schema resDescr
-                                                let res' = partByIter (iterR ri) res 
+                                                let res' = partByIter (iterR ri) res
                                                 return (qId, (res', ri, ref))
 
 dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
@@ -265,7 +266,7 @@ schemeToResult (SchemaInfo itN cols) resDescr = let ordCols = sortBy (\(_, c1) (
                                                     itC = fromJust $ lookup itN resColumns
                                                  in ResultInfo itC $ map (\(n, _) -> (n, fromJust $ lookup n resColumns)) ordCols
 
--- | 
+-- |
 buildRefMap :: (Int, ([(Int, [[SqlValue]])], ResultInfo, Maybe (Int, Int))) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))]) -> ([((Int, Int), Int)] ,[(Int, ([(Int, [[SqlValue]])], ResultInfo))])
 buildRefMap (q, (r, ri, Just (t, c))) (qm, rm) = (((t, c), q):qm, (q, (r, ri)):rm)
 buildRefMap (q, (r, ri, _)) (qm, rm) = (qm, (q, (r, ri)):rm)

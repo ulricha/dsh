@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, TypeFamilies, FlexibleContexts, MultiParamTypeClasses #-}
 module Database.DSH.Internals where
 
 import Data.Text (Text)

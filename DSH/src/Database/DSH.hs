@@ -25,7 +25,6 @@ module Database.DSH
   )
   where
 
-import Database.DSH.JSON
 import Database.DSH.Externals
 import Database.DSH.Internals (Q,QA,Elim,elim,View,view)
 import Database.DSH.TH

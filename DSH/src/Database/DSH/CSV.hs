@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, GADTs #-}
 module Database.DSH.CSV (csvImport) where
 
 import Database.DSH.Internals
@@ -30,10 +31,10 @@ csvImport filepath csvType = do
         csvFieldToNorm :: Type a -> String -> Exp a
         csvFieldToNorm t s = case t of
           UnitT      -> UnitE
-          BoolT      -> BoolE    (read s) 
-          CharT      -> CharE    (head s) 
-          IntegerT   -> IntegerE (read s) 
-          DoubleT    -> DoubleE  (read s) 
-          TextT      -> TextE    (T.pack s) 
+          BoolT      -> BoolE    (read s)
+          CharT      -> CharE    (head s)
+          IntegerT   -> IntegerE (read s)
+          DoubleT    -> DoubleE  (read s)
+          TextT      -> TextE    (T.pack s)
           _          -> er
           where er = csvError ("When converting CSV field'" ++ s ++ "' to a value of type '" ++ show t ++ "'")

@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.Impossible (impossible) where
 
 import qualified Language.Haskell.TH as TH

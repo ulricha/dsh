@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
 -- | DSH compiler module exposes the function fromQ that can be used to
 -- execute DSH programs on a database. It transform the DSH program into
 -- FerryCore which is then translated into SQL (through a table algebra). The SQL
@@ -38,13 +39,13 @@ freshVar = do
              put (c, i + 1, env)
              return i
 
--- | Get from the state the connection to the database                
+-- | Get from the state the connection to the database
 getConnection :: IConnection conn => N conn conn
 getConnection = do
                  (c, _, _) <- get
                  return c
 
--- | Lookup information that describes a table. If the information is 
+-- | Lookup information that describes a table. If the information is
 -- not present in the state then the connection is used to retrieve the
 -- table information from the Database.
 tableInfo :: IConnection conn => String -> N conn [(String,FType -> Bool)]
@@ -54,17 +55,17 @@ tableInfo t = do
                      Nothing -> do
                                  inf <- lift $ getTableInfo c t
                                  put (c, i, M.insert t inf env)
-                                 return inf                                      
+                                 return inf
                      Just v -> return v
 
--- | Turn a given integer into a variable beginning with prefix "__fv_"                    
+-- | Turn a given integer into a variable beginning with prefix "__fv_"
 prefixVar :: Int -> String
 prefixVar = (++) "__fv_" . show
      
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from
 -- the database, therefor the result is wrapped in the IO
--- Monad.      
+-- Monad.
 runN :: IConnection conn => conn -> N conn a -> IO a
 runN c  = liftM fst . flip runStateT (c, 1, M.empty)
             
@@ -100,7 +101,7 @@ debugSQL q c = do p <- doCompile q c
                   (C.SQL r) <- algToSQL (C.Algebra p :: AlgebraXML a)
                   return r
 
--- | evaluate compiles the given Q query into an executable plan, executes this and returns 
+-- | evaluate compiles the given Q query into an executable plan, executes this and returns
 -- the result as norm. For execution it uses the given connection. If the boolean flag is set
 -- to true it outputs the intermediate algebraic plan to disk.
 evaluate :: (Reify a, IConnection conn) => conn -> Exp a -> IO (Exp a)
@@ -110,7 +111,7 @@ evaluate c q = do algPlan' <- doCompile c q
                   disconnect c
                   return n
 
--- | Transform a query into an algebraic plan.                   
+-- | Transform a query into an algebraic plan.
 doCompile :: (IConnection conn, Reify a) => conn -> Exp a -> IO String
 doCompile c a = do core <- runN c $ transformE a
                    return $ typedCoreToAlgebra core
@@ -119,16 +120,16 @@ doCompile c a = do core <- runN c $ transformE a
 transformE :: forall a conn. (IConnection conn, Reify a) => Exp a -> N conn CoreExpr
 transformE (UnitE ) = return $ Constant ([] :=> int) $ CInt 1
 transformE (BoolE b) = return $ Constant ([] :=> bool) $ CBool b
-transformE (CharE c) = return $ Constant ([] :=> string) $ CString [c] 
+transformE (CharE c) = return $ Constant ([] :=> string) $ CString [c]
 transformE (IntegerE i) = return $ Constant ([] :=> int) $ CInt i
 transformE (DoubleE d) = return $ Constant ([] :=> float) $ CFloat d
 transformE (TextE t) = return $ Constant ([] :=> string) $ CString $ unpack t
 transformE (PairE e1 e2) = do let ty = reify (undefined :: a)
                               c1 <- transformE e1
                               c2 <- transformE e2
-                              return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2] 
+                              return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2]
 transformE (ListE es) = let ty = reify (undefined :: a)
-                            qt = ([] :=> transformTy ty) 
+                            qt = ([] :=> transformTy ty)
                         in foldr (F.Cons qt) (Nil qt) <$> mapM transformE es
 transformE (AppE GroupWithKey (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
   let tel = reify (undefined :: el)
@@ -219,8 +220,8 @@ transformE (TableE (TableDB n ks)) = do
                                     tableDescr <- tableInfo n
                                     let tyDescr = if length tableDescr == length ts
                                                     then zip tableDescr ts
-                                                    else error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \"" 
-                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ show (map fst tableDescr) ++ ". " ++ show ty 
+                                                    else error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \""
+                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ show (map fst tableDescr) ++ ". " ++ show ty
                                     let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
                                     let keyCols = nub (concat ks) L.\\ map fst tableDescr
                                     let keys = if keyCols == []
@@ -228,18 +229,18 @@ transformE (TableE (TableDB n ks)) = do
                                                   else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
                                     let table' = Table ([] :=> tTy) n cols keys
                                     let pattern = [prefixVar fv]
-                                    let nameType = map (\(Column name t) -> (name, t)) cols 
-                                    let body = foldr (\(nr, t) b -> 
+                                    let nameType = map (\(Column name t) -> (name, t)) cols
+                                    let body = foldr (\(nr, t) b ->
                                                     let (_ :=> bt) = typeOf b
                                                      in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (F.Elem ([] :=> t) varB nr), RecElem ([] :=> bt) "2" b])
                                                   ((\(nr,t) -> F.Elem ([] :=> t) varB nr) $ last nameType)
                                                   (init nameType)
                                     let ([] :=> rt) = typeOf body
                                     let lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
-                                    let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt) 
-                                                                    (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map") 
+                                    let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt)
+                                                                    (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map")
                                                                     lambda)
-                                                                   (ParExpr (typeOf table') table') 
+                                                                   (ParExpr (typeOf table') table')
                                     return expr
     where
         legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
@@ -250,11 +251,11 @@ transformE (TableE (TableDB n ks)) = do
 transformE (LamE _) = $impossible
 
 transformLamArg :: forall a b conn. (IConnection conn) => Exp (a -> b) -> N conn Param
-transformLamArg (LamE f) = do 
+transformLamArg (LamE f) = do
   let ty = reify (undefined :: a -> b)
   n <- freshVar
   let fty = transformTy ty
-  let e1 = f $ VarE $ fromIntegral n 
+  let e1 = f $ VarE $ fromIntegral n
   ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
 transformLamArg (AppE _ _) = $impossible
 transformLamArg (VarE _)   = $impossible
@@ -277,9 +278,9 @@ flatFTy _         = $impossible
 -- Determine the size of a flat type
 sizeOfTy :: Type a -> Int
 sizeOfTy (PairT _ t2) = 1 + sizeOfTy t2
-sizeOfTy _              = 1 
+sizeOfTy _              = 1
 
--- | Transform an arbitrary DSH-type into a ferry core type 
+-- | Transform an arbitrary DSH-type into a ferry core type
 transformTy :: Type a -> FType
 transformTy UnitT = int
 transformTy BoolT = bool
@@ -330,7 +331,7 @@ transformF f t = Var ([] :=> t) $ (\txt -> case txt of
                                             _      -> $impossible) $ show f
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
--- which name is given as the second argument.        
+-- which name is given as the second argument.
 getTableInfo :: IConnection conn => conn -> String -> IO [(String,FType -> Bool)]
 getTableInfo c n = do
                     info <- describeTable c n

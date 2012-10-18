@@ -5,7 +5,7 @@ module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..)
 import qualified Language.ParallelLang.DBPH as P
 import qualified Language.ParallelLang.Common.Data.Type as T
 
-import Database.DSH.Data
+import Database.DSH.Internals
 import Database.DSH.Impossible
 
 import Database.X100Client hiding (X100)
@@ -38,12 +38,12 @@ fromFType (T.Double) = DoubleT
 fromFType (T.String) = TextT
 fromFType (T.Unit) = UnitT
 fromFType (T.Nat) = IntegerT
-fromFType (T.Pair e1 e2) = TupleT (fromFType e1) (fromFType e2)  
+fromFType (T.Pair e1 e2) = TupleT (fromFType e1) (fromFType e2)
 fromFType (T.List t) = ListT (fromFType t)
 
 typeReconstructor :: Type -> Type -> (Type, Norm -> Norm)
 typeReconstructor o ex | o == ex = (o, id)
-                       | o == TextT && ex == CharT = (ex, textToChar) 
+                       | o == TextT && ex == CharT = (ex, textToChar)
                        | otherwise = case ex of
                                         ListT _ -> let (t1, f1) = pushIn ex
                                                        (t2, f2) = typeReconstructor o t1
@@ -57,12 +57,12 @@ typeReconstructor o ex | o == ex = (o, id)
                                         t -> error $ "This type cannot be reconstructed: " ++ show t ++ " provided: " ++ show o
 
 textToChar :: Norm -> Norm
-textToChar (TextN t TextT) = CharN (Txt.head t) CharT 
+textToChar (TextN t TextT) = CharN (Txt.head t) CharT
 textToChar _               = error $ "textToChar: Not a char value"
 
 onPair :: (Type, Norm -> Norm) -> (Type, Norm -> Norm) -> Norm -> Norm
-onPair (t1, f1) (t2, f2) (TupleN e1 e2 _) = TupleN (f1 e1) (f2 e2) (TupleT t1 t2) 
-onPair _ _ _ = error "onPair: Not a pair value"  
+onPair (t1, f1) (t2, f2) (TupleN e1 e2 _) = TupleN (f1 e1) (f2 e2) (TupleT t1 t2)
+onPair _ _ _ = error "onPair: Not a pair value"
                                                          
 pushIn :: Type -> (Type, Norm -> Norm)
 pushIn (ListT (TupleT e1 e2)) = (TupleT (ListT e1) (ListT e2), zipN)
@@ -134,7 +134,7 @@ zipNorm (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) = ListN [TupleN e1 e2 (Tup
 zipNorm _ _ = error "zipNorm: Cannot zip"
 
 makeNormX100 :: X100Info -> P.Query P.X100 -> Type -> IO (Either Norm [(Int, Norm)])
-makeNormX100 c (P.ValueVector (P.X100 _ q) p) t = do                                                   
+makeNormX100 c (P.ValueVector (P.X100 _ q) p) t = do
                                                    (X100Res _ res) <- doX100Query c q
                                                    let parted = partByIterX100 res
                                                    Right <$> constructVector c p parted t
@@ -154,7 +154,7 @@ makeNormSQL c (P.PrimVal (P.SQL _ s q) p) t = do
                                                 (r, d) <- doSQLQuery c q
                                                 let (iC, ri) = schemeToResult s d
                                                 let parted = partByIter iC r
-                                                [(_, (ListN [n] _))] <- constructVectorSQL c p ri parted (ListT t) 
+                                                [(_, (ListN [n] _))] <- constructVectorSQL c p ri parted (ListT t)
                                                 return $ Left n
 
 fromRight :: Either a b -> b
@@ -163,7 +163,7 @@ fromRight _         = error "fromRight"
 
 fromEither :: Type -> Either Norm [(Int, Norm)] -> Norm
 fromEither _ (Left n) = n
-fromEither t (Right ns) = concatN t $ reverse $ map snd ns 
+fromEither t (Right ns) = concatN t $ reverse $ map snd ns
 
 constructDescriptor :: Type -> [(Int, [Int])] -> [(Int, Norm)] -> [(Int, Norm)]
 constructDescriptor t@(ListT t1) ((i, vs):outers) inners = let (r, inners') = nestList t1 vs inners
@@ -177,7 +177,7 @@ nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lis
                                        | p <  d = ListN [] t `combine` (nestList t ps ls)
                                        | p >  d = nestList t ps' lists
 nestList t (_:ps)     []                         = ListN [] t `combine` (nestList t ps [])
-nestList _ []         ls                         = ([], ls) 
+nestList _ []         ls                         = ([], ls)
 nestList _ _ _ = error "nestList $ Not a neted list"
 
 combine :: Norm -> ([Norm], [(Int, Norm)]) -> ([Norm], [(Int, Norm)])
@@ -251,7 +251,7 @@ dshFetchAllRowsStrict stmt = go []
                                  go (row : acc)
 
 partByIterX100 :: [X100Column] -> [(Int, [(Int, [X100Data])])]
-partByIterX100 d = pbi d'  
+partByIterX100 d = pbi d'
     where
         d' :: [(Int, Int, [X100Data])]
         d' = case d of

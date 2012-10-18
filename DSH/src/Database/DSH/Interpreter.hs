@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
 -- | This module provides the reference implementation of DSH by interpreting
 -- the embedded representation.
 
@@ -22,7 +23,7 @@ evaluate c e = case e of
     CharE ch -> return $ CharE ch
     IntegerE i -> return $ IntegerE i
     DoubleE d -> return $ DoubleE d
-    TextE t -> return $ TextE t 
+    TextE t -> return $ TextE t
     VarE _ -> $impossible
     LamE _ -> $impossible
     PairE e1 e2 -> do
@@ -31,7 +32,7 @@ evaluate c e = case e of
       return (PairE e1' e2')
     ListE es -> do
        es1 <- mapM (evaluate c) es
-       return $ ListE es1 
+       return $ ListE es1
     AppE Cond (PairE cond (PairE a b)) -> do
       (BoolE c1) <- evaluate c cond
       if c1 then evaluate c a else evaluate c b
@@ -59,7 +60,7 @@ evaluate c e = case e of
     AppE Filter (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE as2) <- evaluate c (ListE (map f as1))
-      return $ ListE (map fst (filter (\(_,BoolE b) -> b) (zip as1 as2))) 
+      return $ ListE (map fst (filter (\(_,BoolE b) -> b) (zip as1 as2)))
     AppE GroupWithKey (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE ks1) <- evaluate c (ListE (map f as1))
@@ -70,8 +71,8 @@ evaluate c e = case e of
              $ zip ks1 as1
     AppE SortWith (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
-      (ListE as2) <- evaluate c $ ListE (map f as1) 
-      return $ ListE 
+      (ListE as2) <- evaluate c $ ListE (map f as1)
+      return $ ListE
              $ map fst
              $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
              $ zip as1 as2
@@ -138,7 +139,7 @@ evaluate c e = case e of
       (IntegerE i1) <- evaluate c i
       (ListE as1) <- evaluate c as
       let r = splitAt (fromIntegral i1) as1
-      return $ PairE (ListE (fst r)) (ListE (snd r)) 
+      return $ PairE (ListE (fst r)) (ListE (snd r))
     AppE TakeWhile (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE as2) <- evaluate c (ListE (map f as1))
@@ -237,8 +238,8 @@ evaluate c e = case e of
     AppE Disj (PairE e1 e2) -> do
       (BoolE b1) <- evaluate c e1
       (BoolE b2) <- evaluate c e2
-      return $ BoolE (b1 || b2) 
-    (TableE (TableDB tName _)) -> 
+      return $ BoolE (b1 || b2)
+    (TableE (TableDB tName _)) ->
       let ty = reify (undefined :: a)
       in case ty of
           ListT tType -> do
@@ -346,11 +347,11 @@ convert (SqlInteger i) BoolT    = BoolE (i /= 0)
 convert (SqlInt32 i)   BoolT    = BoolE (i /= 0)
 convert (SqlInt64 i)   BoolT    = BoolE (i /= 0)
 convert (SqlWord32 i)  BoolT    = BoolE (i /= 0)
-convert (SqlWord64 i)  BoolT    = BoolE (i /= 0) 
+convert (SqlWord64 i)  BoolT    = BoolE (i /= 0)
 convert (SqlChar c) CharT       = CharE c
 convert (SqlString (c:_)) CharT = CharE c
 convert (SqlByteString c) CharT = CharE (head $ T.unpack $ T.decodeUtf8 c)
-convert (SqlString t) TextT     = TextE (T.pack t) 
+convert (SqlString t) TextT     = TextE (T.pack t)
 convert (SqlByteString s) TextT = TextE (T.decodeUtf8 s)
 convert sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 

@@ -8,7 +8,7 @@ import Language.ParallelLang.NKL.Opt
 -- import qualified Language.ParallelLang.NP.Data.NP as NP
 import qualified Language.ParallelLang.Common.Data.Type as T
 
-import Database.DSH.Data as D
+import Database.DSH.Internals as D
 import Data.Text (unpack)
 
 import qualified Data.Map as M
@@ -24,7 +24,7 @@ N monad, version of the state monad that can provide fresh variable names.
 -}
 type N = StateT (Int, M.Map String [(String, (T.Type -> Bool))], String -> IO [(String, T.Type -> Bool)]) IO
 
--- | Lookup information that describes a table. If the information is 
+-- | Lookup information that describes a table. If the information is
 -- not present in the state then the connection is used to retrieve the
 -- table information from the Database.
 tableInfo :: String -> N [(String, (T.Type -> Bool))]
@@ -34,7 +34,7 @@ tableInfo t = do
                      Nothing -> do
                                  inf <- getTableInfoFun t
                                  put (i, M.insert t inf env, f)
-                                 return inf                                      
+                                 return inf
                      Just v -> return v
 
 -- | Provide a fresh identifier name during compilation
@@ -58,7 +58,7 @@ toNKL f e = liftM opt $ runN f $ translate e
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from
 -- the database, therefor the result is wrapped in the IO
--- Monad.      
+-- Monad.
 runN :: (String -> IO [(String, T.Type -> Bool)]) -> N a -> IO a
 runN f = liftM fst . flip runStateT (1, M.empty, f)
 
@@ -68,15 +68,15 @@ translate (UnitE _) = return $ NP.unit
 translate (BoolE b _) = return $ NP.bool b
 translate (CharE c _) = return $ NP.string [c]
 translate (IntegerE i _) = return $ NP.int (fromInteger i)
-translate (DoubleE d _) = return $ NP.double d 
-translate (TextE t _) = return $ NP.string (unpack t) 
+translate (DoubleE d _) = return $ NP.double d
+translate (TextE t _) = return $ NP.string (unpack t)
 translate (VarE i ty) = return $ NP.var (translateType ty) (prefixVar i)
 translate (TableE (TableDB n ks) ty) = do
                                         let ts = zip [1..] $ tableTypes ty
                                         tableDescr <- liftM (sortWith fst) $ tableInfo n
                                         let tyDescr = if length tableDescr == length ts
                                                         then zip tableDescr ts
-                                                        else error $ "Inferred typed: " ++ show ts ++ " \n doesn't match type of table: \"" 
+                                                        else error $ "Inferred typed: " ++ show ts ++ " \n doesn't match type of table: \""
                                                                 ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty
                                         let cols = [(cn, t) | ((cn, f), (i, t)) <- tyDescr, legalType n cn i t f]
                                         let ks' = if ks == []
@@ -88,7 +88,7 @@ translate (ListE es ty) = NP.list (translateType ty) <$> mapM translate es
 translate (LamE f ty) = do
                         v <- freshVar
                         let (ArrowT t1 _) = ty
-                        NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v t1)) 
+                        NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v t1))
 translate (AppE1 f e _) = translateFun1 f <$> translate e
 translate (AppE2 f2 e1 e2 _) = translateFun2 f2 <$> translate e1 <*> translate e2
 translate (AppE3 Cond e1 e2 e3 _) = NP.cond <$> translate e1 <*> translate e2 <*> translate e3
@@ -159,7 +159,7 @@ legalType tn cn nr t f = case f t of
 translateType :: Type -> T.Type
 translateType UnitT = T.unitT
 translateType BoolT = T.boolT
-translateType CharT = T.stringT 
+translateType CharT = T.stringT
 translateType IntegerT = T.intT
 translateType DoubleT = T.doubleT
 translateType TextT = T.stringT
