@@ -33,6 +33,7 @@ redundantRules :: VLRuleSet ()
 redundantRules = [ restrictCombineDBV 
                  , restrictCombinePropLeft
                  , cleanupSelect
+                 , splitProjectAdmin
                  , introduceSelectExpr
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
@@ -115,6 +116,20 @@ cleanupSelect q =
         return $ do
           logRewrite "Redundant.CleanupSelect" q
           void $ relinkToNew q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
+          
+-- Split up a ProjectAdmin operator whichm modifies both positions and descriptor.
+-- Purpose: Make it easier to merge ProjectAdmin(id, #) with SelectExpr
+-- FIXME this could be avoided by splitting ProjectAdmin into two operators.
+splitProjectAdmin :: VLRule ()
+splitProjectAdmin q =
+  $(pattern [| q |] "ProjectAdmin ps (q1)"
+    [| do
+         let (descrProj, posProj) = $(v "ps")
+         predicate $ posProj /= PosIdentity && descrProj /= DescrIdentity
+         return $ do
+           logRewrite "Redundant.SplitProjectAdmin" q
+           posNode   <- insert $ UnOp (ProjectAdmin (descrProj, PosIdentity)) $(v "q1")
+           void $ relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, posProj)) posNode |])
   
 {- 
 ifToSelect :: VLRule ()
