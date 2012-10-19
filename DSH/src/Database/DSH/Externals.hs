@@ -446,7 +446,7 @@ map :: (QA a,QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
 map f (Q as) = Q (AppE Map (PairE (LamE (toLam f)) as))
 
 append :: (QA a) => Q [a] -> Q [a] -> Q [a]
-append (Q as) (Q bs) = Q (AppE Concat (ListE [as,bs]))
+append (Q as) (Q bs) = Q (AppE Append (PairE as bs))
 
 (++) :: (QA a) => Q [a] -> Q [a] -> Q [a]
 (++) = append

@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE TemplateHaskell, GADTs, ScopedTypeVariables, FlexibleContexts  #-}
 module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
@@ -22,7 +22,7 @@ import GHC.Exts(sortWith)
 {-
 N monad, version of the state monad that can provide fresh variable names.
 -}
-type N = StateT (Int, M.Map String [(String, (T.Type -> Bool))], String -> IO [(String, T.Type -> Bool)]) IO
+type N = StateT (Integer, M.Map String [(String, (T.Type -> Bool))], String -> IO [(String, T.Type -> Bool)]) IO
 
 -- | Lookup information that describes a table. If the information is
 -- not present in the state then the connection is used to retrieve the
@@ -38,13 +38,13 @@ tableInfo t = do
                      Just v -> return v
 
 -- | Provide a fresh identifier name during compilation
-freshVar :: N Int
+freshVar :: N Integer
 freshVar = do
              (i, m, f) <- get
              put (i + 1, m, f)
              return i
 
-prefixVar :: Int -> String
+prefixVar :: Integer -> String
 prefixVar i = "*dshVar*" ++ show i
 
 getTableInfoFun :: String -> N [(String, T.Type -> Bool)]
@@ -52,7 +52,7 @@ getTableInfoFun n = do
                    (_, _, f) <- get
                    lift $ f n
 
-toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp -> IO NP.Expr
+toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp a -> IO NP.Expr
 toNKL f e = liftM opt $ runN f $ translate e
 
 -- | Execute the transformation computation. During
@@ -63,15 +63,28 @@ runN :: (String -> IO [(String, T.Type -> Bool)]) -> N a -> IO a
 runN f = liftM fst . flip runStateT (1, M.empty, f)
 
 
-translate ::  Exp -> N NP.Expr
-translate (UnitE _) = return $ NP.unit
-translate (BoolE b _) = return $ NP.bool b
-translate (CharE c _) = return $ NP.string [c]
-translate (IntegerE i _) = return $ NP.int (fromInteger i)
-translate (DoubleE d _) = return $ NP.double d
-translate (TextE t _) = return $ NP.string (unpack t)
-translate (VarE i ty) = return $ NP.var (translateType ty) (prefixVar i)
-translate (TableE (TableDB n ks) ty) = do
+translate ::  forall a. Exp a -> N NP.Expr
+translate UnitE = return $ NP.unit
+translate (BoolE b) = return $ NP.bool b
+translate (CharE c) = return $ NP.string [c]
+translate (IntegerE i) = return $ NP.int (fromInteger i)
+translate (DoubleE d) = return $ NP.double d
+translate (TextE t) = return $ NP.string (unpack t)
+translate (PairE e1 e2) = NP.pair <$> translate e1 <*> translate e2
+translate (VarE i) = do
+                      let ty = reify (undefined :: a)
+                      return $ NP.var (translateType ty) (prefixVar i)
+translate (ListE es) = do
+                        let ty = reify (undefined :: a)
+                        NP.list (translateType ty) <$> mapM translate es
+translate (e@(LamE _)) = case e of
+                             (LamE f :: Exp (b -> c)) -> do
+                                 v <- freshVar
+                                 let ty = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
+                                 NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
+                             _ -> $impossible
+translate (TableE (TableDB n ks)) = do
+                                        let ty = reify (undefined :: a)
                                         let ts = zip [1..] $ tableTypes ty
                                         tableDescr <- liftM (sortWith fst) $ tableInfo n
                                         let tyDescr = if length tableDescr == length ts
@@ -83,72 +96,67 @@ translate (TableE (TableDB n ks) ty) = do
                                                     then [map fst tableDescr]
                                                     else ks
                                         return $ NP.table (translateType ty) n cols ks'
-translate (TupleE e1 e2 _) = NP.pair <$> translate e1 <*> translate e2
-translate (ListE es ty) = NP.list (translateType ty) <$> mapM translate es
-translate (LamE f ty) = do
-                        v <- freshVar
-                        let (ArrowT t1 _) = ty
-                        NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v t1))
-translate (AppE1 f e _) = translateFun1 f <$> translate e
-translate (AppE2 f2 e1 e2 _) = translateFun2 f2 <$> translate e1 <*> translate e2
-translate (AppE3 Cond e1 e2 e3 _) = NP.cond <$> translate e1 <*> translate e2 <*> translate e3
-translate (TableE (TableCSV _) _) = $impossible
-translate (AppE3 ZipWith _ _ _ _) = $impossible
+translate (TableE (TableCSV _)) = $impossible
+translate (AppE f args) = compileApp f args
 
-translateFun2 :: Fun2 -> NP.Expr -> NP.Expr -> NP.Expr
-translateFun2 Add       = NP.add
-translateFun2 Mul       = NP.mul
-translateFun2 Sub       = NP.sub
-translateFun2 Div       = NP.div
-translateFun2 All       = NP.all
-translateFun2 Any       = NP.any
-translateFun2 Index     = NP.index
-translateFun2 SortWith  = NP.sortWith
-translateFun2 Cons      = NP.consOpt
-translateFun2 Snoc      = NP.snoc
-translateFun2 Take      = NP.take
-translateFun2 Drop      = NP.drop
-translateFun2 Map       = NP.map
-translateFun2 Append    = NP.append
-translateFun2 Filter    = NP.filter
-translateFun2 GroupWith = NP.groupWith
-translateFun2 Zip       = NP.zip
-translateFun2 Break     = NP.break
-translateFun2 Span      = NP.span
-translateFun2 DropWhile = NP.dropWhile
-translateFun2 TakeWhile = NP.takeWhile
-translateFun2 SplitAt   = NP.splitAt
-translateFun2 Equ       = NP.eq
-translateFun2 Conj      = NP.conj
-translateFun2 Disj      = NP.disj
-translateFun2 Lt        = NP.lt
-translateFun2 Lte       = NP.lte
-translateFun2 Gte       = NP.gte
-translateFun2 Gt        = NP.gt
-translateFun2 Max       = NP.max
-translateFun2 Min       = NP.min
+compileApp3 :: (NP.Expr -> NP.Expr -> NP.Expr -> NP.Expr) -> Exp (a, (b, c)) -> N NP.Expr
+compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
+compileApp3 _ _ = $impossible
 
-translateFun1 :: Fun1 -> NP.Expr -> NP.Expr
-translateFun1 Fst = NP.fst
-translateFun1 Snd = NP.snd
-translateFun1 Not = NP.not
-translateFun1 IntegerToDouble = NP.integerToDouble
-translateFun1 Head = NP.head
-translateFun1 Tail = NP.tail
-translateFun1 Unzip = NP.unzip
-translateFun1 Minimum = NP.minimum
-translateFun1 Maximum = NP.maximum
-translateFun1 Concat = NP.concat
-translateFun1 Sum = NP.sum
-translateFun1 And = NP.and
-translateFun1 Or = NP.or
-translateFun1 Reverse = NP.reverse
-translateFun1 Length = NP.length
-translateFun1 Null = NP.null
-translateFun1 Init = NP.init
-translateFun1 Last = NP.last
-translateFun1 The = NP.the
-translateFun1 Nub = NP.nub
+compileApp2 :: (NP.Expr -> NP.Expr -> NP.Expr) -> Exp (a, b) -> N NP.Expr
+compileApp2 f (PairE e1 e2) = f <$> translate e1 <*> translate e2
+compileApp2 _ _ = $impossible
+
+compileApp1 :: (NP.Expr -> NP.Expr) -> Exp a -> N NP.Expr
+compileApp1 f e = f <$> translate e
+
+compileApp :: Fun a b -> Exp a -> N NP.Expr
+compileApp f args = case f of
+                        Cond -> compileApp3 NP.cond args
+                        Add       -> compileApp2 NP.add args
+                        Mul       -> compileApp2 NP.mul args
+                        Sub       -> compileApp2 NP.sub args
+                        Div       -> compileApp2 NP.div args
+                        Index     -> compileApp2 NP.index args
+                        SortWith  -> compileApp2 NP.sortWith args
+                        Cons      -> compileApp2 NP.consOpt args
+                        Take      -> compileApp2 NP.take args
+                        Drop      -> compileApp2 NP.drop args
+                        Map       -> compileApp2 NP.map args
+                        Append    -> compileApp2 NP.append args
+                        Filter    -> compileApp2 NP.filter args
+                        GroupWithKey -> $impossible -- compileApp2 NP.groupWith args
+                        Zip       -> compileApp2 NP.zip args
+                        DropWhile -> compileApp2 NP.dropWhile args
+                        TakeWhile -> compileApp2 NP.takeWhile args
+                        SplitAt   -> compileApp2 NP.splitAt args
+                        Equ       -> compileApp2 NP.eq args
+                        Conj      -> compileApp2 NP.conj args
+                        Disj      -> compileApp2 NP.disj args
+                        Lt        -> compileApp2 NP.lt args
+                        Lte       -> compileApp2 NP.lte args
+                        Gte       -> compileApp2 NP.gte args
+                        Gt        -> compileApp2 NP.gt args
+                        Max       -> compileApp2 NP.max args
+                        Min       -> compileApp2 NP.min args
+                        Fst             -> compileApp1 NP.fst args
+                        Snd             -> compileApp1 NP.snd args
+                        Not             -> compileApp1 NP.not args
+                        IntegerToDouble -> compileApp1 NP.integerToDouble args
+                        Head            -> compileApp1 NP.head args
+                        Tail            -> compileApp1 NP.tail args
+                        Minimum         -> compileApp1 NP.minimum args
+                        Maximum         -> compileApp1 NP.maximum args
+                        Concat          -> compileApp1 NP.concat args
+                        Sum             -> compileApp1 NP.sum args
+                        And             -> compileApp1 NP.and args
+                        Or              -> compileApp1 NP.or args
+                        Reverse         -> compileApp1 NP.reverse args
+                        Length          -> compileApp1 NP.length args
+                        Null            -> compileApp1 NP.null args
+                        Init            -> compileApp1 NP.init args
+                        Last            -> compileApp1 NP.last args
+                        Nub             -> compileApp1 NP.nub args
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
@@ -156,21 +164,20 @@ legalType tn cn nr t f = case f t of
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 
-translateType :: Type -> T.Type
+translateType :: Type a -> T.Type
 translateType UnitT = T.unitT
 translateType BoolT = T.boolT
 translateType CharT = T.stringT
 translateType IntegerT = T.intT
 translateType DoubleT = T.doubleT
 translateType TextT = T.stringT
-translateType (TupleT t1 t2) = T.pairT (translateType t1) (translateType t2)
+translateType (PairT t1 t2) = T.pairT (translateType t1) (translateType t2)
 translateType (ListT t) = T.listT (translateType t)
 translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
 
-tableTypes :: Type -> [T.Type]
+tableTypes :: Type [a] -> [T.Type]
 tableTypes (ListT t) = fromTuples t
     where
-        fromTuples :: Type -> [T.Type]
-        fromTuples (TupleT t1 t2) = translateType t1 : fromTuples t2
+        fromTuples :: Type a -> [T.Type]
+        fromTuples (PairT t1 t2) = translateType t1 : fromTuples t2
         fromTuples t'              = [translateType t']
-tableTypes _         = $impossible

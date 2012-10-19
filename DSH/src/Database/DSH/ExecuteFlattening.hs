@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, TransformListComp, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, ParallelListComp, TransformListComp, FlexibleInstances, MultiParamTypeClasses, GADTs #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..), X100(..)) where
 
@@ -18,7 +18,7 @@ import Control.Monad(liftM)
 import GHC.Exts
 
 import Data.Convertible
-import Data.Text (pack)
+import Data.Text (pack, Text())
 import qualified Data.Text as Txt
 import Data.List (foldl', transpose)
 import Data.Maybe (fromJust)
@@ -29,6 +29,7 @@ data SQL a = SQL (P.Query P.SQL)
 
 data X100 a = X100 (P.Query P.X100)
 
+{-
 fromFType :: T.Type -> Type
 fromFType (T.Var _) = $impossible
 fromFType (T.Fn _ _)  = $impossible
@@ -38,9 +39,10 @@ fromFType (T.Double) = DoubleT
 fromFType (T.String) = TextT
 fromFType (T.Unit) = UnitT
 fromFType (T.Nat) = IntegerT
-fromFType (T.Pair e1 e2) = TupleT (fromFType e1) (fromFType e2)
+fromFType (T.Pair e1 e2) = PairT (fromFType e1) (fromFType e2)
 fromFType (T.List t) = ListT (fromFType t)
-
+-}
+{-
 typeReconstructor :: Type -> Type -> (Type, Norm -> Norm)
 typeReconstructor o ex | o == ex = (o, id)
                        | o == TextT && ex == CharT = (ex, textToChar)
@@ -55,15 +57,17 @@ typeReconstructor o ex | o == ex = (o, id)
                                                          _ -> error "cannot reconstruct type"
                                         CharT -> (CharT, textToChar)
                                         t -> error $ "This type cannot be reconstructed: " ++ show t ++ " provided: " ++ show o
-
-textToChar :: Norm -> Norm
-textToChar (TextN t TextT) = CharN (Txt.head t) CharT
+-}
+textToChar :: Exp Text -> Exp Char
+textToChar (TextE t) = CharE (Txt.head t)
 textToChar _               = error $ "textToChar: Not a char value"
 
+{-
 onPair :: (Type, Norm -> Norm) -> (Type, Norm -> Norm) -> Norm -> Norm
 onPair (t1, f1) (t2, f2) (TupleN e1 e2 _) = TupleN (f1 e1) (f2 e2) (TupleT t1 t2)
 onPair _ _ _ = error "onPair: Not a pair value"
-                                                         
+-}
+{-
 pushIn :: Type -> (Type, Norm -> Norm)
 pushIn (ListT (TupleT e1 e2)) = (TupleT (ListT e1) (ListT e2), zipN)
 pushIn ty@(ListT v@(ListT _)) = let (t, f) = pushIn v
@@ -81,6 +85,7 @@ retuple t te v = let (_, f) = typeReconstructor t te
 zipN :: Norm -> Norm
 zipN (TupleN (ListN es1 (ListT t1)) (ListN es2 (ListT t2)) _) = ListN [TupleN e1 e2 (TupleT t1 t2) | e1 <- es1 | e2 <- es2] (ListT (TupleT t1 t2))
 zipN e = error $ "zipN: " ++ show e -- $impossible
+-}
 
 executeSQLQuery :: forall a. forall conn. (QA a, IConnection conn) => conn -> T.Type -> SQL a -> IO a
 executeSQLQuery c vt (SQL q) = do
@@ -89,6 +94,7 @@ executeSQLQuery c vt (SQL q) = do
                                 n <- makeNormSQL c q (fromFType vt)
                                 return $ fromNorm $ retuple gt et $ fromEither (fromFType vt) n
 
+{-
 executeX100Query :: forall a. QA a => X100Info -> T.Type -> X100 a -> IO a
 executeX100Query c vt (X100 q) = do
                                   let et = reify (undefined :: a)
@@ -280,3 +286,4 @@ schemeToResult :: P.Schema -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (itN, col) resDescr = let resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
                                          itC = fromJust $ lookup itN resColumns
                                       in (itC, map (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)
+-}

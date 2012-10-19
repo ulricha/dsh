@@ -49,6 +49,7 @@ data Fun a b where
     Maximum         :: Fun [a] a
     Minimum         :: Fun [a] a
     Nub             :: Fun [a] [a]
+    Append          :: Fun ([a], [a]) [a]
     Add             :: Fun (a,a) a
     Mul             :: Fun (a,a) a
     Sub             :: Fun (a,a) a
@@ -159,6 +160,7 @@ instance Show (Fun a b) where
     show TakeWhile = "takeWhile"
     show DropWhile = "dropWhile"
     show Cond = "cond"
+    show Append = "append"
 
 -- Reify instances
 

@@ -6,8 +6,8 @@ import GHC.Exts
 
 import Language.ParallelLang.DBPH hiding (SQL, X100)
 
-import Database.DSH.ExecuteFlattening
 import Database.DSH.CompileFlattening
+import Database.DSH.ExecuteFlattening
 
 import Database.DSH.Internals
 import Database.HDBC
