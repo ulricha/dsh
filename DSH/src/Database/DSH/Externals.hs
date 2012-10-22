@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell, FlexibleInstances, TypeFamilies, MultiParamTypeClasses, GADTs #-}
 module Database.DSH.Externals where
 
 import Database.DSH.Internals

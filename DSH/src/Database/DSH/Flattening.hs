@@ -23,16 +23,20 @@ import qualified Data.List as L
 import Control.Monad.State
 
 import Data.Convertible()
+{-
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q e) = fmap frExp (evaluate c e)
+-}
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
-                   (q, t) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
-                   executeSQLQuery c t $ SQL q
+                   (q, _) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
+                   fmap frExp $ executeSQLQuery c $ SQL q
 
 fromX100 :: QA a => X100Info -> Q a -> IO a
 fromX100 c (Q a) =  do
-                  (q, t) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
-                  executeX100Query c t $ X100 q
+                  (q, _) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
+                  fmap frExp $ executeX100Query c $ X100 q
                    
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
@@ -127,11 +131,3 @@ getX100TableInfo c n = do
                                                 LIntervalYM -> t == T.Int
                                                 LUnknown s  -> error $ "Unknown DB type" ++ show s)
                                                 
-{-
-Nat :: Type
-Int :: Type
-Bool :: Type
-Double :: Type
-String :: Type
-Unit :: Type
--}

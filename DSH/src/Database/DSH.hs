@@ -21,7 +21,6 @@ module Database.DSH
   , module Data.Text
   , module Database.HDBC
   , module Prelude
-  , module Database.DSH.JSON
   )
   where
 
