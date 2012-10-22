@@ -61,10 +61,11 @@ evaluate c e = case e of
       (ListE as1) <- evaluate c as
       (ListE as2) <- evaluate c (ListE (map f as1))
       return $ ListE (map fst (filter (\(_,BoolE b) -> b) (zip as1 as2)))
-    AppE GroupWithKey (PairE (LamE f) as) -> do
+    AppE GroupWith (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       (ListE ks1) <- evaluate c (ListE (map f as1))
       return $ ListE
+             $ map (\(PairE _ v) -> v)
              $ map (\kas1 -> PairE (fst (head kas1)) (ListE (map snd kas1)))
              $ groupBy (\(k1,_) (k2,_) -> equExp k1 k2)
              $ sortBy (\(k1,_) (k2,_) -> compareExp k1 k2)
