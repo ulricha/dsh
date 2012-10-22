@@ -1,4 +1,4 @@
-module Language.ParallelLang.Translate.VL2Algebra 
+module Language.ParallelLang.Translate.VL2Algebra
        ( toPFAlgebra
        , toXML
        , toX100Algebra
@@ -47,7 +47,7 @@ import Control.Monad.State
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
 runG :: VectorAlgebra a => a -> G a r -> AlgPlan a r
-runG i c = runGraph i $ liftM fst $ runStateT c M.empty 
+runG i c = runGraph i $ liftM fst $ runStateT c M.empty
 
 data Res = Prop    AlgNode
          | Rename  AlgNode
@@ -64,7 +64,7 @@ fromDict n = do
                 return $ M.lookup n dict
                 
 insertTranslation :: VectorAlgebra a => AlgNode -> Res -> G a ()
-insertTranslation n res = modify (M.insert n res)                            
+insertTranslation n res = modify (M.insert n res)
 
 fromProp :: PropVector -> Res
 fromProp (PropVector p) = Prop p
@@ -103,7 +103,7 @@ toDescrVector (Descr d) = DescrVector d
 toDescrVector _         = error "toDescrVector: Not a descriptor vector"
 
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, Shape) -> G a Shape
-vl2Algebra (nodes, plan) = do 
+vl2Algebra (nodes, plan) = do
                             mapM_ translate roots
                             refreshShape plan
     where
@@ -145,7 +145,7 @@ vl2Algebra (nodes, plan) = do
                       r <- fromDict n
                       case r of
                         Just res -> return $ res
-                        Nothing -> do                      
+                        Nothing -> do
                                     let node = getNode n
                                     r' <- case node of
                                         TerOp t c1 c2 c3 -> do
@@ -285,7 +285,7 @@ translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
 translateNullary SingletonDescr                   = liftM fromDescrVector $ singletonDescr
 translateNullary (ConstructLiteralValue tys vals) = liftM fromDBP $ constructLiteralValue tys vals
 translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLiteralTable tys vals
-translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks 
+translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks
 
 
 toPFAlgebra :: AlgPlan VL Shape -> AlgPlan PFAlgebra Shape
@@ -295,7 +295,7 @@ toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
 toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
                           
 vlDagtoX100Dag :: AlgebraDag VL -> Shape -> (AlgebraDag X100Algebra, Shape)
-vlDagtoX100Dag vlDag shape = 
+vlDagtoX100Dag vlDag shape =
   let vlplan = ((reverseMap $ nodeMap vlDag), shape, M.empty)
       (m, shape', _) = toX100Algebra vlplan
   in (mkDag (reverseMap m) (rootNodes shape'), shape')
@@ -362,7 +362,7 @@ toXML (g, r, ts) = convertQuery r
         withItem i = (iterCol:posCol:[ itemi i' | i' <- [1..i]])
         nodeTable = M.fromList $ map (\(a, b) -> (b, a)) $ M.toList g
         toXML' :: [Element ()] -> AlgNode -> String
-        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $ 
+        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $
                         runXML False M.empty M.empty $
-                            mkQueryPlan Nothing (xmlElem "property") $ 
+                            mkQueryPlan Nothing (xmlElem "property") $
                                 runXML True nodeTable ts $ serializeAlgebra cs n

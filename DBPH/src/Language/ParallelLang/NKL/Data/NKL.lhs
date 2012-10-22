@@ -18,7 +18,7 @@ type Key = [String]
 %{
 %include syntaxdef.fmt
 %include nkl.fmt
-The following syntax diagram describes our input language, the Nested Kernel Language. 
+The following syntax diagram describes our input language, the Nested Kernel Language.
 % The code below defines the NKL grammar
 \newcommand{\NKLGrammar}{
 \begin{code}
@@ -48,7 +48,7 @@ instance Show Expr where
   show (Table _ n _ _) = sp ["Table", n]
   show (App _ e1 e2) = sp ["App", show e1, show e2]
   show (AppE1 _ p1 e) = sp ["AppE1", show p1, ps $ show e]
-  show (AppE2 _ p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
+  show (AppE2 t p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
   show (BinOp _ o e1 e2) = sp ["BinOp", show o, ps $ show e1, ps $ show e2]
   show (Lam _ v e) = sp ["Lam", ps $ "\\" ++ v ++ " -> " ++ show e]
   show (If _ c t e) = sp ["If", ps $ show c, ps $ show t, ps $ show e]
@@ -69,7 +69,7 @@ Unary primitive operations:
 \begin{code}
 data Prim1  =  Length Type  |  Not Type  |  Concat Type
             |  Sum Type | The Type | Fst Type | Snd Type
-            |  Head Type | Minimum Type | Maximum Type 
+            |  Head Type | Minimum Type | Maximum Type
             |  IntegerToDouble Type | Tail Type
             |  Reverse Type | And Type | Or Type
             |  Init Type | Last Type | Nub Type
@@ -99,7 +99,7 @@ instance Show Prim1 where
   show (Nub _) = "Nub"
 
 deriving instance Eq Prim1
-deriving instance Ord Prim1    
+deriving instance Ord Prim1
 \end{code}
 %endif
 

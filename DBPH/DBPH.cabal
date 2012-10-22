@@ -4,19 +4,18 @@ Version:        0.5.1.4
 Description:    Experiments with flattening and algebraic compilation
 License:             GPL
 License-file:   LICENSE
-Author:			Jeroen Weijers <jeroen.weijers@uni-tuebingen.de> 
+Author:			Jeroen Weijers <jeroen.weijers@uni-tuebingen.de>
 Maintainer:		Jeroen Weijers <jeroen.weijers@uni-tuebingen.de>
 Build-Type:     Simple
 Library
-    build-depends:    base >= 4.2, 
-                      mtl >= 2.0, 
-                      containers >= 0.3.0.0, 
+    build-depends:    base >= 4.2,
+                      mtl >= 2.0,
+                      containers >= 0.3.0.0,
                       template-haskell,
-                      parsec >= 3.1, 
-                      pretty >= 1.0.1.1, 
+                      parsec >= 3.1,
+                      pretty >= 1.0.1.1,
                       filepath >= 1.1.0.4,
-                      haskell-src-exts >=1.11, 
-                      hint >= 0.3.3.2,
+                      haskell-src-exts >=1.11,
                       TableAlgebra >= 2.0.0,
                       Pathfinder >= 0.5.7,
                       HaXml >= 1.22,
@@ -49,8 +48,8 @@ Library
                    Language.ParallelLang.VL.MetaPrimitives
                    Language.ParallelLang.VL.VectorOperations
                    Language.ParallelLang.VL.VectorPrimitives
-                   Language.ParallelLang.Translate.Algebra2SQL    
-                   Language.ParallelLang.VL.X100VectorPrimitives  
+                   Language.ParallelLang.Translate.Algebra2SQL
+                   Language.ParallelLang.VL.X100VectorPrimitives
                    Language.ParallelLang.VL.Data.DBVector
                    Language.ParallelLang.VL.Data.GraphVector
                    Language.ParallelLang.VL.VLPrimitives
@@ -60,15 +59,14 @@ executable vltox100
     Main-is: Language/ParallelLang/Tools/VLToX100.hs
     GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind -Werror
     hs-source-dirs:   src
-    build-depends:    base >= 4.2, 
-                      mtl >= 2.0, 
-                      containers >= 0.3.0.0, 
+    build-depends:    base >= 4.2,
+                      mtl >= 2.0,
+                      containers >= 0.3.0.0,
                       template-haskell,
-                      parsec >= 3.1, 
-                      pretty >= 1.0.1.1, 
+                      parsec >= 3.1,
+                      pretty >= 1.0.1.1,
                       filepath >= 1.1.0.4,
-                      haskell-src-exts >=1.11, 
-                      hint >= 0.3.3.2,
+                      haskell-src-exts >=1.11,
                       TableAlgebra >= 2.0.0,
                       Pathfinder >= 0.5.7,
                       HaXml >= 1.22,

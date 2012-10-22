@@ -13,7 +13,7 @@ import qualified Language.ParallelLang.Common.Data.Val as V
 f $ e = let tf = typeOf f
             te = typeOf e
             (ta, tr) = splitType tf
-         in if ta P.== te 
+         in if ta P.== te
               then App tr f e
               else P.error P.$ "NKLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
 
@@ -23,9 +23,9 @@ reverse e = let t@(T.List _) = typeOf e
 
 length :: Expr -> Expr
 length e = let t = typeOf e
-            in if isListT t 
+            in if isListT t
                  then AppE1 intT (Length P.$ t .-> intT) e
-                 else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++ 
+                 else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++
                                   "\nThe provided argument is: " P.++ P.show e
 
 unzip :: Expr -> Expr
@@ -34,7 +34,7 @@ unzip e = let (T.List (T.Pair t1 t2)) = typeOf e
               right = map (lambda (T.Pair t1 t2 .-> t2) "__*unzr*" (snd (var (T.Pair t1 t2) "__*unzr*"))) e
            in pair left right
                  
-not :: Expr -> Expr 
+not :: Expr -> Expr
 not e = let t = typeOf e
          in if boolT P.== t
                 then AppE1 boolT (Not P.$ t .-> t) e
@@ -46,22 +46,22 @@ all f e = and (map f e)
 any :: Expr -> Expr -> Expr
 any f e = or (map f e)
 
-null :: Expr -> Expr 
+null :: Expr -> Expr
 null e = length e `eq` int 0
 
-and :: Expr -> Expr 
+and :: Expr -> Expr
 and e = let t = typeOf e
          in if listT boolT P.== t
                 then AppE1 boolT (And P.$ t .-> boolT) e
                 else P.error P.$ "NKLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
 
-or :: Expr -> Expr 
+or :: Expr -> Expr
 or e = let t = typeOf e
          in if listT boolT P.== t
                 then AppE1 boolT (Or P.$ t .-> boolT) e
                 else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
 
-integerToDouble :: Expr -> Expr 
+integerToDouble :: Expr -> Expr
 integerToDouble e = let t = typeOf e
                      in if intT P.== t
                          then AppE1 doubleT (IntegerToDouble P.$ t .-> doubleT) e
@@ -158,14 +158,14 @@ pair e1 e2 = let t1 = typeOf e1
 append :: Expr -> Expr -> Expr
 append e1 e2 = let t1@(T.List _) = typeOf e1
                    t2@(T.List _) = typeOf e2
-                in if t1 P.== t2 
+                in if t1 P.== t2
                     then AppE2 t1 (Append P.$ t1 .-> t1 .-> t1) e1 e2
                     else P.error P.$ "NKLPrims.append: Cannot append two list with different types"
 
 index :: Expr -> Expr -> Expr
 index e1 e2 = let t1@(T.List t) = typeOf e1
                   t2 = typeOf e2
-                in if intT P.== t2 
+                in if intT P.== t2
                     then AppE2 t (Index P.$ t1 .-> t2 .-> t) e1 e2
                     else P.error P.$ "NKLPrims.index: Cannot perform index with given arguments."
 
@@ -243,7 +243,7 @@ break :: Expr -> Expr -> Expr
 break e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
                   t2@(T.List tl) = typeOf e2
                   notF = Lam t1 "break_not_f" (not (e1 $ (var ta "break_not_f")))
-               in if ta P.== tl 
+               in if ta P.== tl
                    then pair (takeWhile notF e2) (dropWhile notF e2)
                    else P.error P.$ "NKLPrims.break: Cannot apply break to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
@@ -318,7 +318,7 @@ min e1 e2 = cond (e1 `gt` e2) e2 e1
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(List t1') = typeOf e1
                 t2@(List t2') = typeOf e2
-             in AppE2 t2 (Zip P.$ t1 .-> t2 .-> List (pairT t1' t2')) e1 e2
+             in AppE2 (listT P.$ pairT t1' t2') (Zip P.$ t1 .-> t2 .-> List (pairT t1' t2')) e1 e2
 
 splitAt :: Expr -> Expr -> Expr
 splitAt e1 e2 = pair (take e1 e2) (drop e1 e2)
@@ -356,7 +356,7 @@ double :: P.Double -> Expr
 double d = Const doubleT (V.Double d)
 
 nil :: Type -> Expr
-nil t = Const t (V.List []) 
+nil t = Const t (V.List [])
 
 list :: Type -> [Expr] -> Expr
 list t es = toList (nil t) es
@@ -365,7 +365,7 @@ consOpt :: Expr -> Expr -> Expr
 consOpt e1 e2 = toList e2 [e1]
 
 toList :: Expr -> [Expr] -> Expr
-toList n es = primList (P.reverse es) n 
+toList n es = primList (P.reverse es) n
     where
         primList :: [Expr] -> Expr -> Expr
         primList ((Const _ v):vs) (Const ty (V.List xs)) = primList vs (Const ty (V.List (v:xs)))
