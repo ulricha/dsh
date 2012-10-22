@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
-{-# OPTIONS_GHC -Wall -O3 -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall -O3 -fno-warn-orphans -fno-warn-overlapping-patterns #-}
 module Main where
 
 import qualified Database.DSH as Q
@@ -481,10 +481,10 @@ prop_cond :: Bool -> Property
 prop_cond = makeProp (\b -> Q.cond b 0 1) (\b -> if b then (0 :: Integer) else 1)
 
 prop_cond_tuples :: (Bool, (Integer, Integer)) -> Property
-prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.tuple ((Q.fst $ Q.snd b), (Q.fst $ Q.snd b))) (Q.tuple ((Q.snd $ Q.snd b), (Q.snd $ Q.snd b)))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
+prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
 
 prop_cond_list_tuples :: (Bool, ([[Integer]], [[Integer]])) -> Property
-prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.tuple ((Q.fst $ Q.snd b), (Q.fst $ Q.snd b))) (Q.tuple ((Q.snd $ Q.snd b), (Q.snd $ Q.snd b)))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
+prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
 
 prop_map_cond :: [Bool] -> Property
 prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
@@ -637,7 +637,7 @@ prop_the   :: (Int, Integer) -> Property
 prop_the (n, i) =
   n > 0
   ==>
-  let l = replicate n i in makeProp Q.the the l
+  let l = replicate n i in makeProp Q.head the l
 
 prop_map_the :: [(Int, Integer)] -> Property
 prop_map_the ps =
@@ -645,7 +645,7 @@ prop_map_the ps =
   (length ps') > 0
   ==>
   let xss = map (\(n, i) -> replicate n i) ps' in
-  makeProp (Q.map Q.the) (map the) xss
+  makeProp (Q.map Q.head) (map the) xss
 
 prop_map_tail :: [[Integer]] -> Property
 prop_map_tail ps =
@@ -714,7 +714,7 @@ prop_append :: ([Integer], [Integer]) -> Property
 prop_append = makeProp (uncurryQ (Q.++)) (uncurry (++))
 
 prop_append_nest :: ([[Integer]], [[Integer]]) -> Property
-prop_append_nest = makeProp (uncurryQ (Q.><)) (\(a,b) -> a ++ b)
+prop_append_nest = makeProp (uncurryQ (Q.append)) (\(a,b) -> a ++ b)
 
 prop_map_append :: ([Integer], [[Integer]]) -> Property
 prop_map_append = makeProp (\z -> Q.map (Q.fst z Q.++) (Q.snd z)) (\(a,b) -> map (a ++) b)
@@ -920,10 +920,9 @@ prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 prop_unzip :: [(Integer, Integer)] -> Property
 prop_unzip = makeProp Q.unzip unzip
 
-<<<<<<< HEAD
 prop_map_unzip :: [[(Integer, Integer)]] -> Property
 prop_map_unzip = makeProp (Q.map Q.unzip) (map unzip)
-=======
+
 prop_zip3 :: ([Integer], [Integer],[Integer]) -> Property
 prop_zip3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zip3 as bs cs))
                      (\(as,bs,cs) -> zip3 as bs cs)
@@ -934,7 +933,6 @@ prop_zipWith3 = makeProp (\q -> (case Q.view q of (as,bs,cs) -> Q.zipWith3 (\a b
 
 prop_unzip3 :: [(Integer, Integer, Integer)] -> Property
 prop_unzip3 = makeProp Q.unzip3 unzip3
->>>>>>> origin/master
 
 prop_nub :: [Integer] -> Property
 prop_nub = makeProp Q.nub nub

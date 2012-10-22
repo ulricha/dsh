@@ -52,29 +52,27 @@ Extra-source-files:  examples/Example01.hs
                      tests/Main.hs
                      tests/Makefile
 
-Cabal-version:       >= 1.4
+Cabal-version:       >= 1.8
 
 Library
-  Build-depends:     base               >= 4.3.1.0 && < 5,
+  Build-depends:     base               >= 4.5 && < 5,
                      ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
-                     array              >= 0.3.0.2,
+                     array              >= 0.4,
                      syb                >= 0.3,
-                     mtl                >= 2.0.1.0,
+                     mtl                >= 2.1,
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
                      convertible        >= 1.0.11.0,
-                     template-haskell   >= 2.5.0.0,
-                     HaXml              >= 1.22.5,
+                     template-haskell   >= 2.7,
+                     HaXml              >= 1.23,
                      csv                >= 0.1.2,
-                     json               >= 0.5,
-                     xhtml              >= 3000.2.0.1,
                      Pathfinder         >= 0.5.10,
                      FerryCore          >= 0.4.6.4,
                      DBPH               >= 0.5.1.4,
                      X100Client         >= 0.0.2
-
+                     
   Hs-source-dirs:    src
   GHC-Options:       -O3 -Wall -Werror -fno-warn-orphans
 
@@ -100,6 +98,7 @@ Test-Suite Flattening_x100
                    DSH                >= 0.7.8.1,
                    text               >= 0.11,
                    X100Client         >= 0.0.2,
+                   derive             >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
     cpp-options: -DisX100
@@ -115,6 +114,7 @@ Test-Suite Flattening_TA
                    text               >= 0.11,
                    HDBC-postgresql    >= 2.3,
                    HDBC               >= 2.3,
+                   derive             >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
     cpp-options: -DisDBPH
@@ -130,6 +130,7 @@ Test-Suite Ferry_DSH
                    text               >= 0.11,
                    HDBC-postgresql    >= 2.3,
                    HDBC               >= 2.3,
+                   derive             >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework >= 0.6
     GHC-Options:       -O3 -Wall -Werror
