@@ -48,7 +48,7 @@ instance Show Expr where
   show (Table _ n _ _) = sp ["Table", n]
   show (App _ e1 e2) = sp ["App", show e1, show e2]
   show (AppE1 _ p1 e) = sp ["AppE1", show p1, ps $ show e]
-  show (AppE2 t p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
+  show (AppE2 _ p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
   show (BinOp _ o e1 e2) = sp ["BinOp", show o, ps $ show e1, ps $ show e2]
   show (Lam _ v e) = sp ["Lam", ps $ "\\" ++ v ++ " -> " ++ show e]
   show (If _ c t e) = sp ["If", ps $ show c, ps $ show t, ps $ show e]
