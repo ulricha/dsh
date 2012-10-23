@@ -241,6 +241,7 @@ translateUnOp u c = case u of
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDescrVector c)
                       ToDescr       -> liftM fromDescrVector $ toDescr (toDBV c)
                       Segment       -> liftM fromDBV $ segment (toDBV c)
+                      Unsegment     -> liftM fromDBV $ unsegment (toDBV c)
                       VecSum ty     -> liftM fromDBP $ vecSum ty (toDBV c)
                       VecMin        -> liftM fromDBP $ vecMin (toDBV c)
                       VecMinL       -> liftM fromDBV $ vecMinLift (toDBV c)

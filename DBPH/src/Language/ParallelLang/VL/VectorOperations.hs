@@ -19,11 +19,11 @@ import Control.Applicative
 
 takeWithS ::  Shape -> Shape -> Graph VL Shape
 takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
-                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]] 
+                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
                                                                qfs <- falsePositions qb'
                                                                one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                (p, _) <- selectPos qfs Eq one
-                                                               (r, prop) <- selectPos q Lt =<< only p 
+                                                               (r, prop) <- selectPos q Lt =<< only p
                                                                lyt' <- chainRenameFilter prop lyt
                                                                return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
@@ -35,11 +35,11 @@ dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) =
         minF <- vecMin =<< falsePositions qb'
         (r, prop) <- selectPos q GtE minF
         lyt' <- chainRenameFilter prop lyt
-        return $ ValueVector r lyt' 
+        return $ ValueVector r lyt'
 dropWithS _ _ = error "dropWithS: Should not be possible"
 
 takeWithL ::  Shape -> Shape -> Graph VL Shape
-takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = 
+takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
             do
              f <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
              (fs, _) <- distPrim f =<< toDescr qd
@@ -109,7 +109,7 @@ dropLift _ _ = error "dropLift: Should not be possible"
 
 nubPrim ::  Shape -> Graph VL Shape
 nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> unique q
-nubPrim _ = error "nubPrim: Should not be possible" 
+nubPrim _ = error "nubPrim: Should not be possible"
 
 nubLift ::  Shape -> Graph VL Shape
 nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> uniqueL q
@@ -197,7 +197,7 @@ indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
 indexLift _ _ = error "indexLift: Should not be possible"
 
 appendPrim ::  Shape -> Shape -> Graph VL Shape
-appendPrim = appendR 
+appendPrim = appendR
 
 appendLift ::  Shape -> Shape -> Graph VL Shape
 appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = ValueVector d <$> appendR' lyt1 lyt2
@@ -280,7 +280,7 @@ theL (ValueVector d (Nest q lyt)) = do
                                       lyt' <- chainRenameFilter p2 lyt
                                       (v', _) <- propFilter prop v
                                       return $ ValueVector v' lyt'
-theL _ = error "theL: Should not be possible" 
+theL _ = error "theL: Should not be possible"
 
 tailL ::  Shape -> Graph VL Shape
 tailL (ValueVector d (Nest q lyt)) = do
@@ -296,7 +296,7 @@ sortWithS (ValueVector q1 _) (ValueVector q2 lyt2) = do
                                    (v, p) <- sortWith q1 q2
                                    lyt2' <- chainReorder p lyt2
                                    return $ ValueVector v lyt2'
-sortWithS _e1 _e2 = error "sortWithS: Should not be possible" 
+sortWithS _e1 _e2 = error "sortWithS: Should not be possible"
 
 sortWithL ::  Shape -> Shape -> Graph VL Shape
 sortWithL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
@@ -377,7 +377,7 @@ restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1))
 restrict (AClosure n l i env arg e1 e2) bs = do
                                             l' <- restrict l bs
                                             env' <- mapEnv (flip restrict bs) env
-                                            return $ AClosure n l' i env' arg e1 e2 
+                                            return $ AClosure n l' i env' arg e1 e2
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine ::  Shape -> Shape -> Shape -> Graph VL Shape
@@ -492,32 +492,36 @@ pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
                                              return $ PrimVal q lyt
 pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                                     d <- constructLiteralValue [] [VLNat 1, VLNat 1]
-                                                    let lyt = zipLayout (Nest q1 lyt1) (Nest q2 lyt2)
+                                                    q1' <- unsegment q1
+                                                    q2' <- unsegment q2
+                                                    let lyt = zipLayout (Nest q1' lyt1) (Nest q2' lyt2)
                                                     return $ PrimVal d lyt
 pairOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
-                                                 let lyt = zipLayout (Nest q1 lyt1) lyt2
+                                                 q1' <- unsegment q1
+                                                 let lyt = zipLayout (Nest q1' lyt1) lyt2
                                                  return $ PrimVal q2 lyt
 pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
-                                                 let lyt = zipLayout lyt1 (Nest q2 lyt2)
+                                                 q2' <- unsegment q2
+                                                 let lyt = zipLayout lyt1 (Nest q2' lyt2)
                                                  return $ PrimVal q1 lyt
 pairOp _ _ = $impossible
 
-fstA ::  Shape -> Graph VL Shape   
+fstA ::  Shape -> Graph VL Shape
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
 fstA (PrimVal q (Pair p1 _p2)) = do
                                      let (p1', cols) = projectFromPos p1
                                      proj <- projectA q cols
                                      return $ PrimVal proj p1'
-fstA e1 = error $ "fstA: " ++ show e1                                                     
+fstA e1 = error $ "fstA: " ++ show e1
 
-fstL ::  Shape -> Graph VL Shape   
+fstL ::  Shape -> Graph VL Shape
 fstL (ValueVector q (Pair p1 _p2)) = do
                                         let(p1', cols) = projectFromPos p1
                                         proj <- projectL q cols
                                         return $ ValueVector proj p1'
 fstL _ = $impossible
 
-sndA ::  Shape -> Graph VL Shape   
+sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 sndA (PrimVal q (Pair _p1 p2)) = do
                                     let (p2', cols) = projectFromPos p2
@@ -525,7 +529,7 @@ sndA (PrimVal q (Pair _p1 p2)) = do
                                     return $ PrimVal proj p2'
 sndA _ = $impossible
     
-sndL ::  Shape -> Graph VL Shape   
+sndL ::  Shape -> Graph VL Shape
 sndL (ValueVector q (Pair _p1 p2)) = do
                                         let (p2', cols) = projectFromPos p2
                                         proj <- projectL q cols
@@ -544,8 +548,8 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
                                              
 concatV :: Shape -> Graph VL Shape
 concatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
-concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v) 
-                                                          <*> pure (l - 1) 
+concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
+                                                          <*> pure (l - 1)
                                                           <*> (mapM (\(y, val) -> do
                                                                                      val' <- concatV val
                                                                                      return (y, val')) fvs)
@@ -568,10 +572,10 @@ dbTable n cs ks = do
                     t <- tableRef n (map (mapSnd typeToVLType) cs) ks
                     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
 
-mkLiteral ::  Type -> V.Val -> Graph VL Shape                    
+mkLiteral ::  Type -> V.Val -> Graph VL Shape
 mkLiteral t@(List _) (V.List es) = do
                                             ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
-                                            (flip ValueVector layout) <$> (constructLiteralTable (reverse descHd) $ map reverse descV) 
+                                            (flip ValueVector layout) <$> (constructLiteralTable (reverse descHd) $ map reverse descV)
 mkLiteral (Fn _ _) _ = error "Not supported"
 mkLiteral t e           = do
                             ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (List t) 1 [e]
@@ -581,7 +585,7 @@ type Table = ([Type], [[VLVal]])
 
 toPlan ::  Table -> Type -> Int -> [V.Val] -> Graph VL (Table, Layout, Int)
 toPlan (descHd, descV) (List t) c es = case t of
-                                             (T.Pair t1 t2) -> do 
+                                             (T.Pair t1 t2) -> do
                                                                  let (e1s, e2s) = unzip $ map splitVal es
                                                                  (desc', l1, c') <- toPlan (descHd, descV) (List t1) c e1s
                                                                  (desc'', l2, c'') <- toPlan desc' (List t2) c' e2s
@@ -606,7 +610,7 @@ fromListVal _              = error "fromListVal: Not a list"
 
 splitVal :: V.Val -> (V.Val, V.Val)
 splitVal (V.Pair e1 e2) = (e1, e2)
-splitVal _                 = error $ "splitVal: Not a tuple" 
+splitVal _                 = error $ "splitVal: Not a tuple"
 
 
 pVal :: V.Val -> VLVal
@@ -618,7 +622,7 @@ pVal V.Unit = VLUnit
 pVal _ = error "pVal: Not a supported value"
 
 mkColumn :: Type -> [V.Val] -> (Type, [VLVal])
-mkColumn t vs = (t, [pVal v | v <- vs]) 
+mkColumn t vs = (t, [pVal v | v <- vs])
                                             
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths = let header = []

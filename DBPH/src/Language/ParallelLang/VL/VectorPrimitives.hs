@@ -3,7 +3,7 @@ module Language.ParallelLang.VL.VectorPrimitives where
 import Language.ParallelLang.VL.Data.DBVector
 import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, PayloadProj, Expr1, Expr2, Nat)
 
--- FIXME this should import a module from TableAlgebra which defines 
+-- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder()
 
@@ -23,11 +23,12 @@ class VectorAlgebra a where
   descToRename :: DescrVector -> GraphM r a RenameVector
   toDescr :: DBV -> GraphM r a DescrVector
   segment :: DBV -> GraphM r a DBV
+  unsegment :: DBV -> GraphM r a DBV
   vecSum :: VLType -> DBV -> GraphM r a DBP
   vecMin :: DBV -> GraphM r a DBP
   vecMinLift :: DBV -> GraphM r a DBV
   vecMax :: DBV -> GraphM r a DBP
-  vecMaxLift :: DBV -> GraphM r a DBV 
+  vecMaxLift :: DBV -> GraphM r a DBV
   selectPos1 :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> GraphM r a DBV

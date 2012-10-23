@@ -47,22 +47,22 @@ typeToVLType t = case t of
 operToVecOp :: O.Oper -> D.VecOp
 operToVecOp op = case op of
   O.Add -> D.NOp D.Add
-  O.Sub  -> D.NOp D.Sub 
-  O.Div  -> D.NOp D.Div 
-  O.Mul  -> D.NOp D.Mul 
-  O.Mod  -> D.NOp D.Mod 
-  O.Cons  -> D.Cons 
-  O.Conj  -> D.BOp D.Conj 
-  O.Disj  -> D.BOp D.Disj 
+  O.Sub  -> D.NOp D.Sub
+  O.Div  -> D.NOp D.Div
+  O.Mul  -> D.NOp D.Mul
+  O.Mod  -> D.NOp D.Mod
+  O.Cons  -> D.Cons
+  O.Conj  -> D.BOp D.Conj
+  O.Disj  -> D.BOp D.Disj
   _       -> D.COp $ operToCompOp op
   
 operToCompOp :: O.Oper -> D.VecCompOp
 operToCompOp op = case op of
-  O.Eq   -> D.Eq  
-  O.Gt   -> D.Gt  
-  O.GtE  -> D.GtE 
-  O.Lt   -> D.Lt  
-  O.LtE  -> D.LtE 
+  O.Eq   -> D.Eq
+  O.Gt   -> D.Gt
+  O.GtE  -> D.GtE
+  O.Lt   -> D.Lt
+  O.LtE  -> D.LtE
   _      -> error "VLPrimitives.operToComOp: not a comparison operator"
   
 unique :: DBV -> GraphM r VL DBV
@@ -77,7 +77,7 @@ groupBy (DBV c1 _) (DBV c2 _) = do
                                   r1 <- descr $ insertNode $ UnOp R1 r
                                   r2 <- dbv $ insertNode $ UnOp R2 r
                                   r3 <- prop $ insertNode $ UnOp R3 r
-                                  return (r1, r2, r3) 
+                                  return (r1, r2, r3)
 
 sortWith :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
 sortWith (DBV c1 _) (DBV c2 _) = do
@@ -87,7 +87,7 @@ sortWith (DBV c1 _) (DBV c2 _) = do
                                   return (r1, r2)
 
 notPrim :: DBP -> GraphM r VL DBP
-notPrim (DBP c _) = dbp $ insertNode $ UnOp NotPrim c    
+notPrim (DBP c _) = dbp $ insertNode $ UnOp NotPrim c
 
 notVec :: DBV -> GraphM r VL DBV
 notVec (DBV c _) = dbv $ insertNode $ UnOp NotVec c
@@ -134,7 +134,7 @@ propFilter :: RenameVector -> DBV -> GraphM r VL (DBV, RenameVector)
 propFilter (RenameVector c1) (DBV c2 _) = do
                                             r <- insertNode $ BinOp PropFilter c1 c2
                                             r1 <- dbv $ insertNode $ UnOp R1 r
-                                            r2 <- rename $ insertNode $ UnOp R2 r 
+                                            r2 <- rename $ insertNode $ UnOp R2 r
                                             return (r1, r2)
 
 -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
@@ -158,6 +158,9 @@ append (DBV c1 _) (DBV c2 _) = do
 
 segment :: DBV -> GraphM r VL DBV
 segment (DBV c _) = dbv $ insertNode $ UnOp Segment c
+
+unsegment :: DBV -> GraphM r VL DBV
+unsegment (DBV c _) = dbv $ insertNode $ UnOp Unsegment c 
 
 restrictVec :: DBV -> DBV -> GraphM r VL (DBV, RenameVector)
 restrictVec (DBV c1 _) (DBV c2 _) = do
@@ -184,13 +187,13 @@ tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DBV
 tableRef n tys ks = dbv $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typeToVLType)-} tys) ks
 
 compExpr2 :: O.Oper -> DBP -> DBP -> GraphM r VL DBP
-compExpr2 o (DBP c1 _) (DBP c2 _) = dbp 
-                                    $ insertNode 
+compExpr2 o (DBP c1 _) (DBP c2 _) = dbp
+                                    $ insertNode
                                     $ BinOp (CompExpr2 (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 compExpr2L :: O.Oper -> DBV -> DBV -> GraphM r VL DBV
-compExpr2L o (DBV c1 _) (DBV c2 _) = dbv 
-                                     $ insertNode 
+compExpr2L o (DBV c1 _) (DBV c2 _) = dbv
+                                     $ insertNode
                                      $ BinOp (CompExpr2L (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 vecSum :: Ty.Type -> DBV -> GraphM r VL DBP
@@ -208,7 +211,7 @@ vecMinLift (DBV c _) = dbv $ insertNode $ UnOp VecMinL c
 vecMax :: DBV -> GraphM r VL DBP
 vecMax (DBV c _) = dbp $ insertNode $ UnOp VecMax c
 
-vecMaxLift :: DBV -> GraphM r VL DBV 
+vecMaxLift :: DBV -> GraphM r VL DBV
 vecMaxLift (DBV c _) = dbv $ insertNode $ UnOp VecMaxL c
 
 selectPos :: DBV -> O.Oper -> DBP -> GraphM r VL (DBV, RenameVector)
@@ -286,4 +289,4 @@ singleton :: DBP -> GraphM r VL DBV
 singleton (DBP c _) = dbv $ insertNode $ UnOp Singleton c
     
 only :: DBV -> GraphM r VL DBP
-only (DBV c _) = dbp $ insertNode $ UnOp Only c                                
+only (DBV c _) = dbp $ insertNode $ UnOp Only c
