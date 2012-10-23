@@ -1,6 +1,0 @@
-%format (F.Table (t) (x) (c) (k)) = " \textbf{table}(n) "
-%format (F.BinOp (t) (o) (e1) (e2)) = e1 "~" o "~" e2
-%format (F.If (t) (e1) (e2) (e3)) = " \textbf{if}~" e1 "~\textbf{then}~" e2 " ~\textbf{else}~ " e3 
-%format (F.Const (t) (c)) = c
-%format (F.Var (t) (s)) = s
-

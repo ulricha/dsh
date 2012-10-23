@@ -1,7 +1,0 @@
-let
-in
-let ***_FV2 = (singletonPrim 2)
-  in let ***_FV0 = let ***_FV3 = (singletonPrim 1)
-                     in ((distDesc ***_FV3 (outer ***_FV2)))@1
-       in let ***_FV1 = (***_FV2 +^1 (distPrim 1 (outer ***_FV2)))
-            in (insert (distPrim ***_FV1 (outer (extract ***_FV0 1))) ***_FV0 1)

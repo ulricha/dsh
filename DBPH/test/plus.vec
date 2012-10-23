@@ -1,3 +1,0 @@
-let
-in
-((append (singletonPrim 1) ((append (singletonPrim 2) (singletonPrim 3)))@1))@1
