@@ -4,7 +4,7 @@ module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, 
 
 import GHC.Exts
 
-import Language.ParallelLang.DBPH hiding (SQL, X100)
+import Database.DSH.Flattening.DBPH hiding (SQL, X100)
 
 import Database.DSH.CompileFlattening
 import Database.DSH.ExecuteFlattening
@@ -16,7 +16,7 @@ import qualified Database.HDBC as H
 import Database.X100Client hiding (X100)
 import qualified Database.X100Client as X
 
-import qualified Language.ParallelLang.Common.Data.Type as T
+import qualified Database.DSH.Flattening.Common.Data.Type as T
 
 import qualified Data.List as L
 

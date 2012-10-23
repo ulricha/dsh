@@ -3,10 +3,10 @@ module Database.DSH.CompileFlattening (toNKL) where
 
 import Database.DSH.Impossible
 
-import qualified Language.ParallelLang.NKL.NKLPrimitives as NP
-import Language.ParallelLang.NKL.Opt
--- import qualified Language.ParallelLang.NP.Data.NP as NP
-import qualified Language.ParallelLang.Common.Data.Type as T
+import qualified Database.DSH.Flattening.NKL.NKLPrimitives as NP
+import Database.DSH.Flattening.NKL.Opt
+-- import qualified Database.DSH.Flattening.NP.Data.NP as NP
+import qualified Database.DSH.Flattening.Common.Data.Type as T
 
 import Database.DSH.Internals as D
 import Data.Text (unpack)

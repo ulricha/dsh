@@ -70,11 +70,15 @@ Library
                      csv                >= 0.1.2,
                      Pathfinder         >= 0.5.10,
                      FerryCore          >= 0.4.6.4,
-                     DBPH               >= 0.5.1.4,
-                     X100Client         >= 0.0.2
+                     X100Client         >= 0.0.2,
+                     pretty >= 1.0.1.1,
+                     aeson >= 0.6.0.0,
+                     Optimizer,
+                     X100Client >= 0.0.2,
+                     TableAlgebra >= 2.0.0
                      
   Hs-source-dirs:    src
-  GHC-Options:       -O3 -Wall -Werror -fno-warn-orphans
+  GHC-Options:       -O3 -Wall -Werror -fno-warn-orphans  -fno-warn-type-defaults
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -89,7 +93,47 @@ Library
                      Database.DSH.CompileFlattening
                      Database.DSH.ExecuteFlattening
                      Database.DSH.TH
+                     Database.DSH.Flattening.DBPH
+                     Database.DSH.Flattening.Common.Data.Type
+                     Database.DSH.Flattening.VL.Data.Query
+                     Database.DSH.Flattening.NKL.NKLPrimitives
+                     Database.DSH.Flattening.NKL.Opt
+                     Database.DSH.Flattening.Common.Data.Val
+                     Database.DSH.Flattening.Common.Data.Op
+                     Database.DSH.Flattening.NKL.Data.NKL
+                     Database.DSH.Flattening.FKL.Data.FKL
+                     Database.DSH.Flattening.FKL.FKLPrimitives
+                     Database.DSH.Flattening.Translate.NKL2FKL
+                     Database.DSH.Flattening.FKL.Render.Render
+                     Database.DSH.Flattening.Common.Impossible
+                     Database.DSH.Flattening.Common.TransM
+                     Database.DSH.Flattening.VL.VectorPrimitives
+                     Database.DSH.Flattening.VL.PathfinderVectorPrimitives
+                     Database.DSH.Flattening.Translate.FKL2VL
+                     Database.DSH.Flattening.VL.MetaPrimitives
+                     Database.DSH.Flattening.VL.VectorOperations
+                     Database.DSH.Flattening.VL.VectorPrimitives
+                     Database.DSH.Flattening.Translate.Algebra2SQL
+                     Database.DSH.Flattening.VL.X100VectorPrimitives
+                     Database.DSH.Flattening.VL.Data.DBVector
+                     Database.DSH.Flattening.VL.Data.GraphVector
+                     Database.DSH.Flattening.VL.VLPrimitives
+                     Database.DSH.Flattening.Translate.VL2Algebra
 
+executable vltox100
+  Main-is: Database/DSH/Flattening/Tools/VLToX100.hs
+  GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind -Werror
+  hs-source-dirs:   src
+  build-depends:    base >= 4.5,
+                    mtl >= 2.1,
+                    containers >= 0.4.0.0,
+                    template-haskell >= 2.7,
+                    TableAlgebra >= 2.0.0,
+                    aeson >= 0.6,
+                    bytestring >= 0.9.1.10,
+                    pretty >= 1.0.1.1,
+                    Optimizer
+                  
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
     Main-is:    tests/Main.hs

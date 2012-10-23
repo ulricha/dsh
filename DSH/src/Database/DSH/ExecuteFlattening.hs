@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..), X100(..)) where
 
-import qualified Language.ParallelLang.DBPH as P
+import qualified Database.DSH.Flattening.DBPH as P
 
 import Database.DSH.Internals
 import Database.DSH.Impossible
