@@ -37,7 +37,7 @@ isEmpty q = do
 is simply the right input. -}
 emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
-  $(pattern [| q |] "R1 ((q1) Append (q2))"
+  $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
@@ -52,7 +52,7 @@ the left side, the propagation vector is simply a NOOP because it
 maps pos (posold) to pos (posnew). -}
 emptyAppendLeftR3 :: VLRule BottomUpProps
 emptyAppendLeftR3 q =
-  $(pattern [| q |] "R3 ((q1) Append (q2))"
+  $(pattern 'q "R3 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
@@ -65,7 +65,7 @@ the right side, the propagation vector is simply a NOOP because it
 maps pos (posold) to pos (posnew). -}
 emptyAppendRightR3 :: VLRule BottomUpProps
 emptyAppendRightR3 q =
-  $(pattern [| q |] "R3 ((q1) Append (q2))"
+  $(pattern 'q "R3 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (not <$> isEmpty $(v "q1")) <*> (isEmpty $(v "q2")))
         return $ do
@@ -74,7 +74,7 @@ emptyAppendRightR3 q =
           
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
-  $(pattern [| q |] "R1 ((q1) Append (q2))"
+  $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
@@ -84,7 +84,7 @@ emptyAppendRightR1 q =
 
 emptyAppendRightR2 :: VLRule BottomUpProps
 emptyAppendRightR2 q =
-  $(pattern [| q |] "R2 ((q1) Append (q2))"
+  $(pattern 'q "R2 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do

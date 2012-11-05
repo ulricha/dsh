@@ -23,7 +23,7 @@ pruneRules = [ insertToDescrForProjectPayload ]
 
 insertToDescrForProjectPayload :: VLRule TopDownProps
 insertToDescrForProjectPayload q =
-  $(pattern [| q |] "ProjectPayload _ (q1)"
+  $(pattern 'q "ProjectPayload _ (q1)"
     [| do
         tdProps <- toDescrProp <$> properties q
         predicate $ case tdProps of

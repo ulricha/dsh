@@ -47,7 +47,7 @@ specializedRules = [ cartProduct
 -- is completely redundant.
 mergeStackedDistDesc :: VLRule ()
 mergeStackedDistDesc q = 
-  $(pattern [| q |] "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
+  $(pattern 'q "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
@@ -65,7 +65,7 @@ modifications (projections, general expressions) as high as possible
 -- and thereby normalize cartesian product patterns.
 pullProjectLThroughDistLift :: VLRule ()
 pullProjectLThroughDistLift q =
-  $(pattern [| q |] "R1 ((ProjectL p (qv)) DistLift (qd))"
+  $(pattern 'q "R1 ((ProjectL p (qv)) DistLift (qd))"
     [| do
         return $ do
           logRewrite "Specialized.PullProjectLThroughDistLift" q
@@ -80,7 +80,7 @@ pullProjectLThroughDistLift q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
-  $(pattern [| q |] "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
+  $(pattern 'q "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
 
@@ -107,7 +107,7 @@ redundantDistLift q =
 -- kept/restored.
 pruneFilteringDistLift :: VLRule BottomUpProps
 pruneFilteringDistLift q =
-  $(pattern [| q |] "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (_))))"
+  $(pattern 'q "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (_))))"
     [| do
         props1 <- trace "match pattern" $ properties $(v "q1")
         propsp <- properties $(v "qp")
@@ -184,7 +184,7 @@ inputs.
 -}
 cartProduct :: VLRule BottomUpProps
 cartProduct q =
-  $(pattern [| q |] "R1 (qLift=(liftInput) DistLift (qd=ToDescr (right=R1 (qDesc=(rightInput) DistDesc (ToDescr (leftInput))))))"
+  $(pattern 'q "R1 (qLift=(liftInput) DistLift (qd=ToDescr (right=R1 (qDesc=(rightInput) DistDesc (ToDescr (leftInput))))))"
     [| do
         predicate $ $(v "liftInput") == $(v "leftInput")
 
@@ -269,7 +269,7 @@ is rewritten into
 
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
-  $(pattern [| q |] "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProduct (_))))"
+  $(pattern 'q "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProduct (_))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 

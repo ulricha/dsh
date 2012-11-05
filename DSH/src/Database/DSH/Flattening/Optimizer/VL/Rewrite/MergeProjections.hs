@@ -29,7 +29,7 @@ mapCols mapping cols = map (lookupCol mapping) cols
 
 mergeProjectL :: VLRule ()
 mergeProjectL q =
-  $(pattern [| q |] "ProjectL cols1 (ProjectL cols2 (q1))"
+  $(pattern 'q "ProjectL cols1 (ProjectL cols2 (q1))"
     [| do
         return ()
         return $ do

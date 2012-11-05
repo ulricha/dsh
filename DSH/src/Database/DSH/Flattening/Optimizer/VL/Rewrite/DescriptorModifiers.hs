@@ -23,7 +23,7 @@ stripFromRoot :: VLRewrite Bool
 stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
 
 descriptorNoOps :: VLRuleSet BottomUpProps
-descriptorNoOps = [ noOpRenamingProjRename
+descriptorNoOps = [ noOpRenamingProjRename ]
                   -- , noOpRenamingProjAdmin ]
 --                  , constantDescriptorChain
 --                  , outerMostRootSegment
@@ -50,7 +50,7 @@ searchConstantDescr q = do
 form a noop because the desccriptor is constant at the beginning of the chain and at the end. -}
 constantDescriptorChain :: VLRule BottomUpProps
 constantDescriptorChain q =
-  $(pattern [| q |] "(_) PropRename (qv)"
+  $(pattern 'q "(_) PropRename (qv)"
     [| do
         predicate =<< (hasConstDesc . constProp) <$> properties q
         chainStart <- searchConstantDescr $(v "qv")
@@ -65,7 +65,7 @@ constantDescriptorChain q =
 -- which just modifies the descriptor can safely be removed.
 outerMostRootSegment :: VLRule BottomUpProps
 outerMostRootSegment q =
-  $(pattern [| q |] "Segment (q1)"
+  $(pattern 'q "Segment (q1)"
     [| do
         predicate =<<isOuterMost q <$> getShape
 
@@ -79,7 +79,7 @@ outerMostRootSegment q =
 -- which just modifies the descriptor can safely be removed.
 outerMostRootPropRename :: VLRule BottomUpProps
 outerMostRootPropRename q =
-  $(pattern [| q |] "(_) PropRename (q1)"
+  $(pattern 'q "(_) PropRename (q1)"
     [| do
         predicate =<< isOuterMost q <$> getShape
 
@@ -92,7 +92,7 @@ outerMostRootPropRename q =
 -- to establish the no op property.
 noOpRenamingProjRename :: VLRule BottomUpProps
 noOpRenamingProjRename q =
-  $(pattern [| q |] "(ProjectRename p (_)) PropRename (q1)"
+  $(pattern 'q "(ProjectRename p (_)) PropRename (q1)"
     [| do
         case $(v "p") of
           (STPosCol, STPosCol)     -> return ()
@@ -111,7 +111,7 @@ noOpRenamingProjRename q =
 -- must be eliminated in a larger context.
 noOpRenamingProjAdmin :: VLRule BottomUpProps
 noOpRenamingProjAdmin q =
-  $(pattern [| q |] "(DescToRename (ToDescr (qd))) PropRename (ProjectAdmin ps (qv))"
+  $(pattern 'q "(DescToRename (ToDescr (qd))) PropRename (ProjectAdmin ps (qv))"
     [| do
          posProj <- case $(v "ps") of
                       (DescrPosCol, posProj) -> return posProj

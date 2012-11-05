@@ -21,7 +21,7 @@ cardRules = [ distDescCardOneRight ]
             
 distDescCardOneRight :: Rule VL BottomUpProps
 distDescCardOneRight q =
-  $(pattern [| q |] "R1 ((q1) DistDesc (q2))"
+  $(pattern 'q "R1 ((q1) DistDesc (q2))"
     [| do
         predicateM $ liftM cardOneProp $ properties $(v "q2")
         return $ do

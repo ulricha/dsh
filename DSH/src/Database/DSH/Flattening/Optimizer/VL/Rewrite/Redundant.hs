@@ -59,7 +59,7 @@ redundantRulesTopDown = [ pruneProjectL
   
 introduceSelectExpr :: VLRule ()
 introduceSelectExpr q =
-  $(pattern [| q |] "R1 ((q1) RestrictVec (CompExpr1L e (q2)))"
+  $(pattern 'q "R1 ((q1) RestrictVec (CompExpr1L e (q2)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         
@@ -70,7 +70,7 @@ introduceSelectExpr q =
   
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
-  $(pattern [| q |] "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
+  $(pattern 'q "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
@@ -80,7 +80,7 @@ restrictCombineDBV q =
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
-  $(pattern [| q |] "R2 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
+  $(pattern 'q "R2 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
     [| do
         -- all selections and predicates must be performed on the same input
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
@@ -99,7 +99,7 @@ restrictCombinePropLeft q =
 -- part has been removed by rule Redundant.RestrictCombine.PropLeft
 cleanupSelect :: VLRule ()
 cleanupSelect q =
-  $(pattern [| q |] "(ProjectRename p1 (qs=SelectExpr e1 (q1))) PropRename (Segment (ProjectAdmin p2 (SelectExpr e2 (q2))))"
+  $(pattern 'q "(ProjectRename p1 (qs=SelectExpr e1 (q1))) PropRename (Segment (ProjectAdmin p2 (SelectExpr e2 (q2))))"
     [| do
         predicate $ $(v "e1") == $(v "e2")
         predicate $ $(v "q1") == $(v "q2")
@@ -119,14 +119,14 @@ cleanupSelect q =
 {- 
 ifToSelect :: VLRule ()
 ifToSelect q =
-  $(pattern [| q |] "(R2 (CombineVec (CompExpr1 e1) (SelectExpr e2 (_)) ())) PropRename (Segment (ProjectAdmin p (SelectExpr e (qv2))))"
+  $(pattern 'q "(R2 (CombineVec (CompExpr1 e1) (SelectExpr e2 (_)) ())) PropRename (Segment (ProjectAdmin p (SelectExpr e (qv2))))"
   
 -}
 
 {-
 foo :: VLRule ()
 foo q =
-  $(pattern [| q |] "(R2 (CombineVec (_) (qs1=SelectExpr e (q1)) (_))) PropRename (qs2)"
+  $(pattern 'q "(R2 (CombineVec (_) (qs1=SelectExpr e (q1)) (_))) PropRename (qs2)"
     [| do
         predicate $ $(v "qs1") == $(v "qs2")
         
@@ -137,7 +137,7 @@ foo q =
   
 pullRestrictThroughPair :: VLRule ()
 pullRestrictThroughPair q =
-  $(pattern [| q |] "(R1 ((qp1=ProjectL _ (q1)) RestrictVec (qb1))) PairL (R1 ((qp2=ProjectL _ (q2)) RestrictVec (qb2)))"
+  $(pattern 'q "(R1 ((qp1=ProjectL _ (q1)) RestrictVec (qb1))) PairL (R1 ((qp2=ProjectL _ (q2)) RestrictVec (qb2)))"
     [| do
         predicate $ $(v "qb1") == $(v "qb2")
         predicate $ $(v "q1") == $(v "q2")
@@ -153,7 +153,7 @@ pullRestrictThroughPair q =
 -- projection operator (ProjectL).
 pushRestrictVecThroughProjectL :: VLRule ()
 pushRestrictVecThroughProjectL q =
-  $(pattern [| q |] "R1 ((ProjectL p (q1)) RestrictVec (qb))"
+  $(pattern 'q "R1 ((ProjectL p (q1)) RestrictVec (qb))"
     [| do
 
         return $ do
@@ -167,7 +167,7 @@ pushRestrictVecThroughProjectL q =
 -- projection operator (ProjectPayload).
 pushRestrictVecThroughProjectPayload :: VLRule ()
 pushRestrictVecThroughProjectPayload q =
-  $(pattern [| q |] "R1 ((ProjectPayload p (q1)) RestrictVec (qb))"
+  $(pattern 'q "R1 ((ProjectPayload p (q1)) RestrictVec (qb))"
     [| do
         return $ do
           logRewrite "Redundant.PushRestrictVecThroughProjectValue" q
@@ -180,7 +180,7 @@ pushRestrictVecThroughProjectPayload q =
 -- FIXME: this could be done in a more general way using property ToDescr.
 descriptorFromProject :: VLRule ()
 descriptorFromProject q =
-  $(pattern [| q |] "ToDescr (ProjectL _ (q1))"
+  $(pattern 'q "ToDescr (ProjectL _ (q1))"
     [| do
         return $ do
           logRewrite "Redundant.DescriptorFromProject" q
@@ -194,7 +194,7 @@ descriptorFromProject q =
 -- descriptor but aligns its inputs based on the positions.
 pullPropRenameThroughCompExpr2L :: VLRule ()
 pullPropRenameThroughCompExpr2L q =
-  $(pattern [| q |] "((qr1) PropRename (q1)) CompExpr2L e ((qr2) PropRename (q2))"
+  $(pattern 'q "((qr1) PropRename (q1)) CompExpr2L e ((qr2) PropRename (q2))"
     [| do
        predicate  $ $(v "qr1") == $(v "qr2")
        
@@ -206,7 +206,7 @@ pullPropRenameThroughCompExpr2L q =
 -- Pull PropRename operators through a IntegerToDoubleL operator.
 pullPropRenameThroughIntegerToDouble :: VLRule ()
 pullPropRenameThroughIntegerToDouble q =
-  $(pattern [| q |] "IntegerToDoubleL ((qr) PropRename (qv))"
+  $(pattern 'q "IntegerToDoubleL ((qr) PropRename (qv))"
     [| do
         return $ do
           logRewrite "Redundant.PullPropRenameThroughIntegerToDouble" q
@@ -217,7 +217,7 @@ pullPropRenameThroughIntegerToDouble q =
 -- descriptor vector
 mergeDescToRenames :: VLRule ()
 mergeDescToRenames q =
-  $(pattern [| q |] "DescToRename (d)"
+  $(pattern 'q "DescToRename (d)"
     [| do
         ps <- getParents $(v "d")
 
@@ -243,7 +243,7 @@ mergeDescToRenames q =
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
 pairFromSameSource :: VLRule BottomUpProps
 pairFromSameSource q =
-  $(pattern [| q |] "(q1) PairL (q2)"
+  $(pattern 'q "(q1) PairL (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         vt1 <- liftM vectorTypeProp $ properties $(v "q1")
@@ -259,7 +259,7 @@ pairFromSameSource q =
 -- Remove a ProjectL or ProjectA operator that does not change the width
 noOpProject :: VLRule BottomUpProps
 noOpProject q =
-  $(pattern [| q |] "[ProjectL | ProjectA] ps (q1)"
+  $(pattern 'q "[ProjectL | ProjectA] ps (q1)"
     [| do
         vt <- liftM vectorTypeProp $ properties $(v "q1")
         predicate $ vectorWidth vt == length $(v "ps")
@@ -272,7 +272,7 @@ noOpProject q =
 -- Remove a ToDescr operator whose input is already a descriptor vector
 toDescr :: VLRule BottomUpProps
 toDescr q =
-  $(pattern [| q |] "ToDescr (q1)"
+  $(pattern 'q "ToDescr (q1)"
     [| do
         vt <- liftM vectorTypeProp $ properties $(v "q1")
         case vt of
@@ -284,7 +284,7 @@ toDescr q =
 
 pairedProjections :: VLRule BottomUpProps
 pairedProjections q = 
-  $(pattern [| q |] "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
+  $(pattern 'q "(ProjectL ps1 (q1)) PairL (ProjectL ps2 (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -306,7 +306,7 @@ pairedProjections q =
 -- just adds the (constant) values from the value vector
 distDescCardOne :: VLRule BottomUpProps
 distDescCardOne q =
-  $(pattern [| q |] "R1 ((qc) DistDesc (ToDescr (qv)))"
+  $(pattern 'q "R1 ((qc) DistDesc (ToDescr (qv)))"
     [| do
         qvProps <- properties $(v "qc")
         predicate $ case card1Prop qvProps of
@@ -328,7 +328,7 @@ distDescCardOne q =
   
 pruneProjectL :: VLRule TopDownProps
 pruneProjectL q =
-  $(pattern [| q |] "ProjectL _ (q1)"
+  $(pattern 'q "ProjectL _ (q1)"
     [| do
         reqCols <- reqColumnsProp <$> properties q
         case reqCols of
@@ -342,7 +342,7 @@ pruneProjectL q =
 
 pruneProjectPayload :: VLRule TopDownProps
 pruneProjectPayload q =
-  $(pattern [| q |] "ProjectPayload _ (q1)"
+  $(pattern 'q "ProjectPayload _ (q1)"
     [| do
         reqCols <- reqColumnsProp <$> properties q
         case reqCols of
@@ -355,7 +355,7 @@ pruneProjectPayload q =
   
 pullProjectPayloadThroughSegment :: VLRule ()
 pullProjectPayloadThroughSegment q = 
-  $(pattern [| q |] "Segment (ProjectPayload p (q1))"
+  $(pattern 'q "Segment (ProjectPayload p (q1))"
     [| do
         return $ do
           logRewrite "Redundant.PullProjectPayload.Segment" q
@@ -364,7 +364,7 @@ pullProjectPayloadThroughSegment q =
   
 pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
-  $(pattern [| q |] "(qr) PropRename (ProjectPayload p (qv))"
+  $(pattern 'q "(qr) PropRename (ProjectPayload p (qv))"
     [| do
         return $ do
           logRewrite "Redundant.PullProjectPayload.PropRename" q
