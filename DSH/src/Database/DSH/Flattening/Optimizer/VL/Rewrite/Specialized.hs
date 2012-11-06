@@ -257,13 +257,14 @@ with a selection (RestrictVec) on top.
 
 is rewritten into
 
-                 ThetaJoinFlat(pred)
+                 ThetaJoin(pred)
                         /\
                        /  \
                       /    \
                      q1     q2 
 -}
 
+{-
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
   $(pattern 'q "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProduct (_))))"
@@ -272,6 +273,31 @@ thetaJoin q =
 
         return $ do
           logRewrite "Specialized.EquiJoin" q
-          let joinOp = BinOp (ThetaJoinFlat $(v "expr")) $(v "qi1") $(v "qi2")
+          let joinOp = BinOp (ThetaJoin $(v "expr")) $(v "qi1") $(v "qi2")
           joinNode <- insert joinOp
           relinkParents q joinNode |])
+-}
+
+thetaJoin :: VLRule BottomUpProps
+thetaJoin q =
+  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr12=R1 (_))))"
+    [| do
+        predicate $ $(v "qr11") == $(v "qr12")
+  
+        -- FIXME this ugly extraction of operator semantic information could be removed if
+        -- non-AlgNode types where supported in sub-hole patterns.
+        selectOp <- getOperator $(v "qs")
+        selectExpr <- case selectOp of
+                        UnOp (SelectExpr e) _ -> return e
+                        _                     -> fail "no match"
+               
+        projOp <- getOperator $(v "qp")
+        case projOp of
+          UnOp (ProjectAdmin (DescrPosCol, PosNumber)) _ -> return ()
+          _                                              -> fail "no match"
+        
+        return $ do
+          logRewrite "Specialized.ThetaJoin" q
+          joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
+          relinkParents $(v "qp") joinNode
+          relinkParents q $(v "qh") |])
