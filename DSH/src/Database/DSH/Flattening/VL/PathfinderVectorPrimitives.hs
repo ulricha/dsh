@@ -85,7 +85,7 @@ instance VectorAlgebra PFAlgebra where
   
   cartProduct = undefined
   
-  thetaJoinFlat = undefined
+  thetaJoin = undefined
   
   selectExpr = undefined
   
