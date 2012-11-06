@@ -213,7 +213,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
     CartProduct -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
 
-    ThetaJoinFlat _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    ThetaJoin _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
     
     ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXE recheck for correctness
   

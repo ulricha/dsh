@@ -118,7 +118,7 @@ inferToDescrBinOp ownToDescr childToDescr1 childToDescr2 op =
     PairA -> (na, na)
     PairL -> (andToDescr ownToDescr childToDescr1, andToDescr ownToDescr childToDescr2)
     CartProduct -> (no, no)
-    ThetaJoinFlat _ -> (no, no)
+    ThetaJoin _ -> (no, no)
     ZipL -> (andToDescr ownToDescr childToDescr1, andToDescr ownToDescr childToDescr2)
         
 inferToDescrTerOp :: VectorProp (Maybe Bool)

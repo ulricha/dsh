@@ -212,7 +212,7 @@ inferIndexSpaceBinOp _ _ n op =
       in Right $ VPropTriple (freshDBVSpace n) d1v d2v
 
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
-    ThetaJoinFlat _ -> Right $ VProp $ freshDBVSpace n
+    ThetaJoin _ -> Right $ VProp $ freshDBVSpace n
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace 
                         -> VectorProp IndexSpace
