@@ -31,10 +31,7 @@ Library
                        TableAlgebra >= 2.0.0
   
   -- Modules not exported by this package.
-  Other-modules:       Optimizer.Common.Match
-                       Optimizer.Common.Rewrite
-                       Optimizer.Common.Traversal
-                       Optimizer.Common.Aux
+  Other-modules:       Optimizer.Common.Aux
 
                        Optimizer.X100.Rewrite.Common
                        Optimizer.X100.Rewrite.ConstOpt

@@ -37,8 +37,8 @@ options =
       "Show help"
   ]
   
-inferProperties :: DefaultRewrite VL (NodeMap Properties)
-inferProperties = do
+inferAllProperties :: Rewrite VL () (NodeMap Properties)
+inferAllProperties = do
   to <- topsort
   buMap <- infer (inferBottomUpProperties to)
   tdMap <- infer (inferTopDownProperties buMap to)
@@ -55,6 +55,6 @@ main = do
     
     let (_, rs, m) = deserializePlan plan
         d = Dag.mkDag m rs
-        (_, propertyMap, _) = runDefaultRewrite inferProperties d
+        (_, _, propertyMap, _) = runRewrite inferAllProperties d ()
         tagMap = M.map renderProperties propertyMap
     B.putStr $ serializePlan (tagMap, rs, m)

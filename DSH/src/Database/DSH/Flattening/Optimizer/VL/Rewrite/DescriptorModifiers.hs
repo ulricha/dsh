@@ -5,9 +5,6 @@ module Optimizer.VL.Rewrite.DescriptorModifiers where
 import           Control.Monad
 import           Data.Functor
 
-import           Optimizer.Common.Match
-import           Optimizer.Common.Traversal
-
 import           Optimizer.Common.Shape
 import           Optimizer.VL.Properties.IndexSpace
 import           Optimizer.VL.Properties.Types
@@ -36,7 +33,7 @@ hasConstDesc _                                        = False
 
 -- Walk down a chain of descriptor modifiers and return the first
 -- non-descriptor modifier if it is constant. Otherwise, fail the match.
-searchConstantDescr :: AlgNode -> OptMatch VL BottomUpProps AlgNode
+searchConstantDescr :: AlgNode -> Match VL BottomUpProps Shape AlgNode
 searchConstantDescr q = do
   op <- getOperator q
   case op of
@@ -67,12 +64,12 @@ outerMostRootSegment :: VLRule BottomUpProps
 outerMostRootSegment q =
   $(pattern 'q "Segment (q1)"
     [| do
-        predicate =<<isOuterMost q <$> getShape
+        predicate =<<isOuterMost q <$> lookupExtras
 
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootSegment" q
           relinkParents q $(v "q1")
-          replaceRoot q $(v "q1") |])
+          replaceRootWithShape q $(v "q1") |])
 
 -- Remove a PropRename operator if the node represents the outermost
 -- query. In this case, the descriptor is irrelevant and any operator
@@ -81,12 +78,12 @@ outerMostRootPropRename :: VLRule BottomUpProps
 outerMostRootPropRename q =
   $(pattern 'q "(_) PropRename (q1)"
     [| do
-        predicate =<< isOuterMost q <$> getShape
+        predicate =<< isOuterMost q <$> lookupExtras
 
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootPropRename" q
           relinkParents q $(v "q1")
-          replaceRoot q $(v "q1") |])
+          replaceRootWithShape q $(v "q1") |])
 
 -- FIXME this is a weak version. Use abstract knowledge about index space transformations
 -- to establish the no op property.
@@ -101,7 +98,7 @@ noOpRenamingProjRename q =
 
         return $ do
           logRewrite "DescriptorModifiers.NoOpRenaming.ProjectRename" q
-          replaceRoot q $(v "q1")
+          replaceRootWithShape q $(v "q1")
           relinkParents q $(v "q1") |])
 
 

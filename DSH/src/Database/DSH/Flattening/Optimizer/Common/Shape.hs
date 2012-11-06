@@ -25,7 +25,6 @@ rootsFromShape :: Shape -> [AlgNode]
 rootsFromShape (ValueVector (DBV n _) lyt) = n : rootsFromLayout lyt
 rootsFromShape (PrimVal (DBP n _) lyt)     = n : rootsFromLayout lyt
                                              
-                                             
 updateShape :: AlgNode -> AlgNode -> Shape -> Shape
 updateShape old new shape = 
   let updateDBV (DBV n cols) = DBV (if n == old then new else n) cols

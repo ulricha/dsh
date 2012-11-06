@@ -8,14 +8,11 @@ import Control.Monad
 import Control.Applicative
 
 -- FIXME hiding is not acceptable, fix names
-import Database.Algebra.Rewrite hiding (D)
+import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.X100.Properties.AbstractDomains
 
-import Optimizer.Common.Match
-import Optimizer.Common.Traversal
-  
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorType
 import Optimizer.VL.Rewrite.Common

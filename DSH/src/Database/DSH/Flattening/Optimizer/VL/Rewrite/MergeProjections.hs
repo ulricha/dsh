@@ -7,9 +7,6 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
   
-import Optimizer.Common.Match
-import Optimizer.Common.Traversal
-  
 import Optimizer.VL.Rewrite.Common
   
 mergeProjections :: VLRewrite Bool

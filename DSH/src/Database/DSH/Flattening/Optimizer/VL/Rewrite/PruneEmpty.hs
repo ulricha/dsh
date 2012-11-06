@@ -5,12 +5,10 @@ module Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 import Control.Monad
 import Control.Applicative
 
+import Optimizer.Common.Shape
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
   
-import Optimizer.Common.Match
-import Optimizer.Common.Traversal
-
 import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
@@ -26,7 +24,7 @@ emptyRules = [ emptyAppendLeftR1
              , emptyAppendRightR2
              ]
              
-isEmpty :: AlgNode -> OptMatch VL BottomUpProps Bool
+isEmpty :: AlgNode -> Match VL BottomUpProps Shape Bool
 isEmpty q = do
   ps <- liftM emptyProp $ properties q
   case ps of
@@ -43,7 +41,7 @@ emptyAppendLeftR1 q =
 
         return $ do
           logRewrite "Empty.Append.Left.R1" q
-          replaceRoot q $(v "q2")
+          replaceRootWithShape q $(v "q2")
           relinkParents q $(v "q2") |])
   
 {- If the left input is empty, a propagation vector for the right side
@@ -79,7 +77,7 @@ emptyAppendRightR1 q =
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewrite "Empty.Append.Right.R1" q
-          replaceRoot q $(v "q1")
+          replaceRootWithShape q $(v "q1")
           relinkParents q $(v "q1") |])
 
 emptyAppendRightR2 :: VLRule BottomUpProps

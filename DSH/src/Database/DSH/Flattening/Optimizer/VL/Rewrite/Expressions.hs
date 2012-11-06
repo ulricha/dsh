@@ -11,9 +11,6 @@ import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.Common.Match
-import Optimizer.Common.Traversal
-  
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Rewrite.Common
   

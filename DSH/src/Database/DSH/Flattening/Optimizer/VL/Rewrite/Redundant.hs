@@ -10,9 +10,6 @@ import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.Common.Match
-import Optimizer.Common.Traversal
-  
 import Optimizer.VL.Rewrite.MergeProjections
 import Optimizer.VL.Rewrite.Common
 import Optimizer.VL.Rewrite.Expressions
@@ -370,6 +367,6 @@ pullProjectPayloadThroughPropRename q =
           logRewrite "Redundant.PullProjectPayload.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
           newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
-          replaceRoot q newNode |])
+          replaceRootWithShape q newNode |])
                                         
   
