@@ -43,4 +43,4 @@ replaceRootWithShape :: AlgNode -> AlgNode -> VLRewrite ()
 replaceRootWithShape oldRoot newRoot = do
   sh <- getExtras                             
   updateExtras $ updateShape oldRoot newRoot sh
-  replaceRootWithShape oldRoot newRoot
+  replaceRoot oldRoot newRoot
