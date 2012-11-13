@@ -157,7 +157,7 @@ inferIndexSpaceBinOp :: VectorProp IndexSpace
                         -> AlgNode 
                         -> BinOp 
                         -> Either String (VectorProp IndexSpace)
-inferIndexSpaceBinOp _ _ n op = 
+inferIndexSpaceBinOp is1 _ n op = 
   case op of
     GroupBy ->  
       let ddis = D $ freshSpace n "d/d"
@@ -211,8 +211,15 @@ inferIndexSpaceBinOp _ _ n op =
           d2v   = RenameVectorTransform d2sis d2tis
       in Right $ VPropTriple (freshDBVSpace n) d1v d2v
 
+    -- FIXME d \in p(q1)
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
-    ThetaJoin _ -> Right $ VProp $ freshDBVSpace n
+
+    ThetaJoin _ -> do 
+      (_, (P pis)) <- unp is1 >>= fromDBV
+      let dis' = D $ makeSubDomain n "d" pis
+          pis' = P $ freshSpace n "p"
+      Right $ VProp $ DBVSpace dis' pis'
+      
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace 
                         -> VectorProp IndexSpace

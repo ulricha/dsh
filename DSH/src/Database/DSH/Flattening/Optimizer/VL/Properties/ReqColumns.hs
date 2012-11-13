@@ -8,7 +8,7 @@ import Optimizer.VL.Properties.Types
   
 unp :: Show a => VectorProp a -> a
 unp (VProp x) = x
-unp x         = error $ "unp " ++ (show x)
+unp x         = error $ "ReqColumns.unp " ++ (show x)
 
 colUnion :: VectorProp ReqCols -> VectorProp ReqCols -> VectorProp ReqCols
 colUnion (VProp (Just cols1)) (VProp (Just cols2)) = VProp $ Just $ cols1 `union` cols2
@@ -108,23 +108,23 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     SelectPos1L _ _   ->
       case ownReqColumns of
         VPropPair cols _ -> colUnion childReqColumns (VProp cols)
-        _                    -> error "SelectPos1L"
+        _                -> error "SelectPos1L"
 
     R1               -> 
       case childReqColumns of
-        VProp _                       -> error $ "R1 " ++ (show childReqColumns)
+        VProp _                       -> error $ "ReqColumns.R1 " ++ (show childReqColumns)
         VPropPair cols1 cols2         -> VPropPair (unp (colUnion (VProp cols1) ownReqColumns)) cols2
         VPropTriple cols1 cols2 cols3 -> VPropTriple (unp (colUnion (VProp cols1) ownReqColumns)) cols2 cols3
 
     R2               -> 
       case childReqColumns of
-        VProp _              -> error "R2"
+        VProp _              -> error "ReqColumns.R2"
         VPropPair cols1 cols2      -> VPropPair cols1 (unp (colUnion (VProp cols2) ownReqColumns))
         VPropTriple cols1 cols2 cols3 -> VPropTriple cols1 (unp (colUnion (VProp cols2) ownReqColumns)) cols3
     R3               -> 
       case childReqColumns of
-        VProp _              -> error "R3/1"
-        VPropPair _ _        -> error "R3/2"
+        VProp _              -> error "ReqColumns.R3/1"
+        VPropPair _ _        -> error "ReqColumns.R3/2"
         VPropTriple cols1 cols2 cols3 -> VPropTriple cols1 cols2 (unp (colUnion (VProp cols3) ownReqColumns))
         
     Only -> undefined
@@ -211,11 +211,14 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
     PairL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
 
-    CartProduct -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    CartProduct -> 
+      case ownReqColumns of
+        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
+        _                     -> error "ReqColumns.CartProduct"
 
     ThetaJoin _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
     
-    ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXE recheck for correctness
+    ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
   
 partitionCols :: BottomUpProps -> BottomUpProps -> ReqCols -> (VectorProp ReqCols, VectorProp ReqCols)
 partitionCols childBUProps1 childBUProps2 ownReqCols =
