@@ -37,7 +37,9 @@ normalizePropRules = [ redundantDistLift
                                 
 specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProduct
-                   , thetaJoin ]
+                   , thetaJoin'
+                   , cartProductRenaming
+                   ]
                    
 -- We often see a pattern around cartesian products where the same vector is
 -- lifted two times in a row with the same descriptor vector. The second lift
@@ -301,3 +303,44 @@ thetaJoin q =
           joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
           relinkParents $(v "qp") joinNode
           relinkParents q $(v "qh") |])
+  
+thetaJoin' :: VLRule BottomUpProps
+thetaJoin' q =
+  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (ProjectAdmin proj (SelectExpr e (qr12)))"
+    [| do
+        predicate $ $(v "qr11") == $(v "qr12")
+        
+        case $(v "proj") of
+          (DescrPosCol, PosNumber) -> return ()
+          _                        -> fail "no match"
+          
+        return $ do
+          logRewrite "Specialized.ThetaJoin2" q
+          void $ relinkToNewWithShape q $ BinOp (ThetaJoin $(v "e")) $(v "q1") $(v "q2") |])
+  
+-- FIXME should go to another module -> cleanup phase
+cartProductRenaming :: VLRule BottomUpProps
+cartProductRenaming q =
+  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((_) CartProduct (_))))) PropRename (qh={ } qr12=R1 ((_) CartProduct (_)))"
+    [| do
+        predicate $ $(v "qr11") == $(v "qr12")
+  
+        propsHole <- properties $(v "qh")
+        propsR1   <- properties $(v "qr11")
+        
+        let holeDescr = case indexSpaceProp propsHole of
+                        VProp (DBVSpace (D dis) _) -> dis
+                        _                          -> error "foo"
+                        
+            r1Pos = case indexSpaceProp propsR1 of
+                      VProp (DBVSpace _ (P pis)) -> pis
+                      _                          -> error "foo"
+                      
+        predicate $ subDomain holeDescr r1Pos
+        
+        return $ do
+          logRewrite "Specialized.CartProductRenaming" q
+          relinkParents q $(v "qh")
+          replaceRootWithShape q $(v "qh") |])
+          
+          

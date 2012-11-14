@@ -44,3 +44,10 @@ replaceRootWithShape oldRoot newRoot = do
   sh <- getExtras                             
   updateExtras $ updateShape oldRoot newRoot sh
   replaceRoot oldRoot newRoot
+  
+relinkToNewWithShape :: AlgNode -> VL -> Rewrite VL Shape AlgNode
+relinkToNewWithShape oldNode newOp = do
+  sh <- getExtras                             
+  newNode <- relinkToNew oldNode newOp
+  updateExtras $ updateShape oldNode newNode sh
+  return newNode
