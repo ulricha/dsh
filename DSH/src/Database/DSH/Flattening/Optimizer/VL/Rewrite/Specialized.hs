@@ -37,8 +37,8 @@ normalizePropRules = [ redundantDistLift
                                 
 specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProduct
-                   , thetaJoin'
-                   , cartProductRenaming
+                   --, thetaJoin
+                   --, thetaJoin'
                    ]
                    
 -- We often see a pattern around cartesian products where the same vector is
@@ -70,7 +70,7 @@ pullProjectLThroughDistLift q =
           logRewrite "Specialized.PullProjectLThroughDistLift" q
           liftNode <- insert $ BinOp DistLift $(v "qv") $(v "qd")
           r1Node   <- insert $ UnOp R1 liftNode
-          void $ relinkToNew q $ UnOp (ProjectL $(v "p")) r1Node |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) r1Node |])
   
 -- Eliminate a common pattern where the output of a cartesian product is turned into a
 -- descriptor vector and used to lift one of the product inputs. This is redundant because
@@ -98,7 +98,7 @@ redundantDistLift q =
                          then ([1 .. w1], "Specialized.RedundantDistLift.Left")
                          else ([(w1 + 1) .. w2], "Specialized.RedundantDistLift.Right")
           logRewrite msg q
-          void $ relinkToNew q $ UnOp (ProjectL p) $(v "qp") |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectL p) $(v "qp") |])
   
 -- FIXME This matches only a special case: If DistLift is to be
 -- replaced by the right input, the original descriptor before it is
@@ -302,7 +302,8 @@ thetaJoin q =
           logRewrite "Specialized.ThetaJoin" q
           joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
           relinkParents $(v "qp") joinNode
-          relinkParents q $(v "qh") |])
+          relinkParents q $(v "qh")
+          replaceRootWithShape q $(v "qh") |])
   
 thetaJoin' :: VLRule BottomUpProps
 thetaJoin' q =
@@ -318,29 +319,28 @@ thetaJoin' q =
           logRewrite "Specialized.ThetaJoin2" q
           void $ relinkToNewWithShape q $ BinOp (ThetaJoin $(v "e")) $(v "q1") $(v "q2") |])
   
--- FIXME should go to another module -> cleanup phase
-cartProductRenaming :: VLRule BottomUpProps
-cartProductRenaming q =
-  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((_) CartProduct (_))))) PropRename (qh={ } qr12=R1 ((_) CartProduct (_)))"
+-- Rewrite is UNSOUND: Need to change the operator which copies positions over the descriptor
+-- -> specialized versions required.
+{-
+foo :: VLRule BottomUpProps
+foo q = 
+  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename (q2={ } eq(q1))"
     [| do
-        predicate $ $(v "qr11") == $(v "qr12")
-  
-        propsHole <- properties $(v "qh")
-        propsR1   <- properties $(v "qr11")
+        propsHole   <- properties $(v "q2")
+        propsCommon <- properties $(v "q1")
         
         let holeDescr = case indexSpaceProp propsHole of
                         VProp (DBVSpace (D dis) _) -> dis
                         _                          -> error "foo"
                         
-            r1Pos = case indexSpaceProp propsR1 of
-                      VProp (DBVSpace _ (P pis)) -> pis
-                      _                          -> error "foo"
+            commonPos = case indexSpaceProp propsCommon of
+                          VProp (DBVSpace _ (P pis)) -> pis
+                          _                          -> error "foo"
                       
-        predicate $ subDomain holeDescr r1Pos
+        predicate $ subDomain holeDescr commonPos
         
         return $ do
-          logRewrite "Specialized.CartProductRenaming" q
-          relinkParents q $(v "qh")
-          replaceRootWithShape q $(v "qh") |])
-          
-          
+          logRewrite "Specialized.Foo" q 
+          relinkParents q $ $(v "q2")
+          replaceRootWithShape q $(v "q2") |])
+-}
