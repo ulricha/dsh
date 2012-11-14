@@ -216,7 +216,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
 
-    ThetaJoin _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    ThetaJoinPos _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    ThetaJoin    _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
     
     ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
   

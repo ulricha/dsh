@@ -214,9 +214,15 @@ inferIndexSpaceBinOp is1 _ n op =
     -- FIXME d \in p(q1)
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
 
-    ThetaJoin _ -> do 
+    ThetaJoinPos _ -> do 
       (_, (P pis)) <- unp is1 >>= fromDBV
       let dis' = D $ makeSubDomain n "d" pis
+          pis' = P $ freshSpace n "p"
+      Right $ VProp $ DBVSpace dis' pis'
+
+    ThetaJoin    _ -> do 
+      ((D dis), _) <- unp is1 >>= fromDBV
+      let dis' = D $ makeSubDomain n "d" dis
           pis' = P $ freshSpace n "p"
       Right $ VProp $ DBVSpace dis' pis'
       

@@ -310,6 +310,14 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME check propVec components for correctness/preciseness
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
+    ThetaJoinPos _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
+
     ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV

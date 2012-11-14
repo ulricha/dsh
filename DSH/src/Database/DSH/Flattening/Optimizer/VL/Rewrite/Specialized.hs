@@ -37,8 +37,9 @@ normalizePropRules = [ redundantDistLift
                                 
 specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProduct
-                   --, thetaJoin
-                   --, thetaJoin'
+                   , thetaJoin
+                   , thetaJoin'
+                   , thetaJoinRenaming
                    ]
                    
 -- We often see a pattern around cartesian products where the same vector is
@@ -259,7 +260,7 @@ with a selection (RestrictVec) on top.
 
 is rewritten into
 
-                 ThetaJoin(pred)
+                 ThetaJoinPos(pred)
                         /\
                        /  \
                       /    \
@@ -275,16 +276,19 @@ thetaJoin q =
 
         return $ do
           logRewrite "Specialized.EquiJoin" q
-          let joinOp = BinOp (ThetaJoin $(v "expr")) $(v "qi1") $(v "qi2")
+          let joinOp = BinOp (ThetaJoinPos $(v "expr")) $(v "qi1") $(v "qi2")
           joinNode <- insert joinOp
           relinkParents q joinNode |])
 -}
 
 thetaJoin :: VLRule BottomUpProps
-thetaJoin q =
+thetaJoin q = 
   $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr12=R1 (_))))"
     [| do
         predicate $ $(v "qr11") == $(v "qr12")
+        
+        -- ensure that the hole is not empty
+        predicate $ $(v "qh") /= $(v "qp")
   
         -- FIXME this ugly extraction of operator semantic information could be removed if
         -- non-AlgNode types where supported in sub-hole patterns.
@@ -299,8 +303,8 @@ thetaJoin q =
           _                                              -> fail "no match"
         
         return $ do
-          logRewrite "Specialized.ThetaJoin" q
-          joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
+          logRewrite "Specialized.ThetaJoinPos" q
+          joinNode <- insert $ BinOp (ThetaJoinPos selectExpr) $(v "q1") $(v "q2")
           relinkParents $(v "qp") joinNode
           relinkParents q $(v "qh")
           replaceRootWithShape q $(v "qh") |])
@@ -316,31 +320,15 @@ thetaJoin' q =
           _                        -> fail "no match"
           
         return $ do
-          logRewrite "Specialized.ThetaJoin2" q
-          void $ relinkToNewWithShape q $ BinOp (ThetaJoin $(v "e")) $(v "q1") $(v "q2") |])
+          logRewrite "Specialized.ThetaJoinPos2" q
+          void $ relinkToNewWithShape q $ BinOp (ThetaJoinPos $(v "e")) $(v "q1") $(v "q2") |])
   
--- Rewrite is UNSOUND: Need to change the operator which copies positions over the descriptor
--- -> specialized versions required.
-{-
-foo :: VLRule BottomUpProps
-foo q = 
-  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename (q2={ } eq(q1))"
+thetaJoinRenaming :: VLRule BottomUpProps
+thetaJoinRenaming q = 
+  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename ((joinInput1) ThetaJoinPos e (joinInput2))"
     [| do
-        propsHole   <- properties $(v "q2")
-        propsCommon <- properties $(v "q1")
+       predicate $ $(v "q1") == $(v "joinInput1")
         
-        let holeDescr = case indexSpaceProp propsHole of
-                        VProp (DBVSpace (D dis) _) -> dis
-                        _                          -> error "foo"
-                        
-            commonPos = case indexSpaceProp propsCommon of
-                          VProp (DBVSpace _ (P pis)) -> pis
-                          _                          -> error "foo"
-                      
-        predicate $ subDomain holeDescr commonPos
-        
-        return $ do
-          logRewrite "Specialized.Foo" q 
-          relinkParents q $ $(v "q2")
-          replaceRootWithShape q $(v "q2") |])
--}
+       return $ do
+         logRewrite "Specialized.ThetaJoinRenaming" q 
+         void $ relinkToNewWithShape q $ BinOp (ThetaJoin $(v "e")) $(v "joinInput1") $(v "joinInput2") |])
