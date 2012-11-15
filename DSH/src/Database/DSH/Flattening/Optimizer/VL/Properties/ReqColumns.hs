@@ -130,6 +130,11 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
         
     Only -> undefined
     Singleton -> undefined
+  
+allCols :: BottomUpProps -> VectorProp ReqCols
+allCols props = case vectorTypeProp props of
+                 (VProp (ValueVector w)) -> VProp $ Just [1 .. w]
+                 _                       -> error "ReqColumns.allCols: ValueVector expected"
 
 inferReqColumnsBinOp :: BottomUpProps
                         -> BottomUpProps
@@ -142,13 +147,13 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
   trace (show op) $ case op of
     GroupBy         -> 
       case ownReqColumns of
-        VPropTriple _ cols _ -> (none, colUnion childReqColumns2 (VProp cols))
-        _                    -> undefined
+        VPropTriple _ cols _ -> (allCols childBUProps1, colUnion childReqColumns2 (VProp cols))
+        _                    -> undefined -- FIXME
 
     SortWith        ->
       case ownReqColumns of
-        VPropPair cols _  -> (none, colUnion childReqColumns2 (VProp cols))
-        _                 -> undefined
+        VPropPair cols _  -> (allCols childBUProps1, colUnion childReqColumns2 (VProp cols))
+        _                 -> undefined -- FIXME
 
     LengthSeg -> (none, none)
 
