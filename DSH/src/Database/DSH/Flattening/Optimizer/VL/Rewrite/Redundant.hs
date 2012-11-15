@@ -38,19 +38,23 @@ redundantRules = [ restrictCombineDBV
                  , pullPropRenameThroughIntegerToDouble
                  , pullProjectPayloadThroughSegment
                  , pullProjectPayloadThroughPropRename
+                 , pullSelectThroughPairL
                  , mergeDescToRenames
-                 , descriptorFromProject ]
+                 , descriptorFromProject
+                 ]
                  
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ pairFromSameSource 
                          , pairedProjections
                          , noOpProject
                          , distDescCardOne
-                         , toDescr ]
+                         , toDescr
+                         ]
                          
 redundantRulesTopDown :: VLRuleSet TopDownProps
 redundantRulesTopDown = [ pruneProjectL
-                        , pruneProjectPayload ]
+                        , pruneProjectPayload
+                        ]
                                
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
   
@@ -145,6 +149,19 @@ pullRestrictThroughPair q =
           restrictNode <- insert $ BinOp RestrictVec pairNode $(v "qb1")
           r1Node <- insert $ UnOp R1 restrictNode
           relinkParents q r1Node |])
+          
+-- FIXME this rewrite is way too specific.
+pullSelectThroughPairL :: VLRule ()
+pullSelectThroughPairL q =
+  $(pattern 'q "(qp=ProjectAdmin p1 (SelectExpr e1 (q1))) PairL (ProjectAdmin p2 (SelectExpr e2 (q2)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "p1") == $(v "p2")
+        predicate $ $(v "e1") == $(v "e2")
+        
+        return $ do
+          logRewrite "Redundant.PullSelectThroughPairL" q
+          relinkParents q $(v "qp") |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectL).
