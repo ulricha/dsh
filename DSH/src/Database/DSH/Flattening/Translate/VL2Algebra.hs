@@ -218,7 +218,8 @@ translateBinOp b c1 c2 = case b of
                            CartProduct      -> do
                                                 (v, p1, p2) <- cartProduct (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
-                           ThetaJoin     js -> liftM fromDBV $ thetaJoin js (toDBV c1) (toDBV c2)
+                           ThetaJoinPos     js -> liftM fromDBV $ thetaJoinPos js (toDBV c1) (toDBV c2)
+                           ThetaJoin        _ -> liftM fromDBV $ undefined -- FIXME thetaJoin js (toDBV c1) (toDBV c2)
                                                 
 
 singleton :: Res -> Res
