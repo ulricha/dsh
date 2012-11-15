@@ -1,5 +1,6 @@
 module Optimizer.VL.Properties.ReqColumns where
 
+import Debug.Trace
 import Data.List
 
 import Database.Algebra.VL.Data
@@ -138,7 +139,7 @@ inferReqColumnsBinOp :: BottomUpProps
                         -> BinOp 
                         -> (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op = 
-  case op of
+  trace (show op) $ case op of
     GroupBy         -> 
       case ownReqColumns of
         VPropTriple _ cols _ -> (none, colUnion childReqColumns2 (VProp cols))
@@ -229,11 +230,21 @@ partitionCols childBUProps1 childBUProps2 ownReqCols =
    case ownReqCols of
      Just cols -> 
        case (childType1, childType2) of
+         -- If both inputs are ValueVectors, map the required columns to the respective inputs
          (ValueVector w1, ValueVector w2) -> 
            let leftReqCols  = cols `intersect` [1 .. w1]
                rightReqCols = cols `intersect` [(w1 + 1) .. (w1 + w2)]
            in (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
-         _                                -> error "partitionCols"
+         -- If only one input is a ValueVector, map the required columns to this input.
+         (ValueVector w1, DescrVector) -> 
+           let leftReqCols  = cols `intersect` [1 .. w1]
+           -- FIXME should the right side be na or none?
+           in (VProp $ Just leftReqCols, na)
+         (DescrVector, ValueVector w2) -> 
+           let rightReqCols = cols `intersect` [1 .. w2]
+           -- FIXME should the left side be na or none?
+           in (na, VProp $ Just rightReqCols)
+         _                                -> error ("partitionCols " ++ (show childType1) ++ " " ++ (show childType2))
      Nothing -> (na, na)
       
       
