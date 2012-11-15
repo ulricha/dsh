@@ -61,12 +61,12 @@ debugX100Plan c (Q e) = liftM (show . fst . nkl2X100Alg) $ toNKL (getX100TableIn
 debugVL :: (QA a, IConnection conn) => conn -> Q a -> IO ()
 debugVL c (Q e) = do
   e' <- toNKL (getTableInfo c) e
-  nkl2VLFile "query_vl.plan" e'
+  nkl2VLFile "query" e'
   
 debugX100VL :: QA a => X100Info -> Q a -> IO ()
 debugX100VL c (Q e) = do
   e' <- toNKL (getX100TableInfo c) e
-  nkl2VLFile "query_vl.plan" e'
+  nkl2VLFile "query" e'
   
 debugX100VLRaw :: QA a => X100Info -> String -> Q a -> IO ()
 debugX100VLRaw c f (Q e) = do
