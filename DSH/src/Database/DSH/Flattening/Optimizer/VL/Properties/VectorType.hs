@@ -105,10 +105,17 @@ inferVectorTypeBinOp s1 s2 op =
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
+        -- FIXME this is ugly. Treat DescrVectors and ValueVector 0 in a sane way
+        (VProp (ValueVector 0), VProp DescrVector) ->
+          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
+        (VProp DescrVector, VProp (ValueVector 0)) ->
+          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
+        (VProp DescrVector, VProp DescrVector) ->
+          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
         (VProp (ValueVector _), VProp (ValueVector _)) -> 
           Left "Inputs of Append do not have the same width"
-        _ -> 
-          Left "Input of Append is not a ValueVector"
+        v -> 
+          Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     RestrictVec -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     CompExpr2 _ -> Right $ VProp $ AtomicVector 1
