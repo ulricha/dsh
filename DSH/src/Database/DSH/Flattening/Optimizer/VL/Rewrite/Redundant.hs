@@ -2,19 +2,19 @@
 
 module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
 
-import Control.Monad
-import Control.Applicative
+import           Control.Applicative
+import           Control.Monad
 import qualified Data.Map as M
 
-import Database.Algebra.Rewrite
-import Database.Algebra.Dag.Common
-import Database.Algebra.VL.Data
+import           Database.Algebra.Rewrite
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.VL.Data
 
-import Optimizer.VL.Rewrite.MergeProjections
-import Optimizer.VL.Rewrite.Common
-import Optimizer.VL.Rewrite.Expressions
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.VectorType
+import           Optimizer.VL.Rewrite.MergeProjections
+import           Optimizer.VL.Rewrite.Common
+import           Optimizer.VL.Rewrite.Expressions
+import           Optimizer.VL.Properties.Types
+import           Optimizer.VL.Properties.VectorType
   
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -41,6 +41,7 @@ redundantRules = [ restrictCombineDBV
                  , pullSelectThroughPairL
                  , mergeDescToRenames
                  , descriptorFromProject
+                 , noOpPropRename
                  ]
                  
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -386,4 +387,20 @@ pullProjectPayloadThroughPropRename q =
           newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
           replaceRootWithShape q newNode |])
                                         
-  
+-- Elimiante PropRename operators which map from one index space to the same
+-- index space. Since PropRename maps from the positions of the left side, both
+-- index spaces must be STPosCol. This pattern originates from the pruning of empty
+-- Append inputs in VL.Rewrite.PruneEmpty.
+-- FIXME rewrite needs a better name.
+noOpPropRename :: VLRule ()
+noOpPropRename q =
+  $(pattern 'q "(ProjectRename proj (_)) PropRename (q1)"
+    [| do
+        let s = fst $(v "proj")
+            t = snd $(v "proj")
+
+        predicate $ (s == STPosCol) && (s == t)
+
+        return $ do
+          logRewrite "Redundant.NoOpPropRename" q
+          relinkParents q $(v "q1") |])
