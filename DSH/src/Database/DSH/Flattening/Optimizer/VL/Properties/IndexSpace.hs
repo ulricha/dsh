@@ -100,12 +100,12 @@ inferIndexSpaceUnOp is n op =
     ProjectRename (p1, p2) -> do
       ((D dis), (P pis)) <- unp is >>= fromDBV
 
-      let src = case p1 of
+      let src = case p2 of
             STDescrCol -> S dis
             STPosCol   -> S pis
             STNumber   -> S $ NumberDom pis
 
-      let dst = case p2 of
+      let dst = case p1 of
             STDescrCol -> T dis
             STPosCol   -> T pis
             STNumber   -> T $ NumberDom pis
@@ -213,17 +213,14 @@ inferIndexSpaceBinOp is1 _ n op =
     -- FIXME d \in p(q1)
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
 
-    ThetaJoinPos _ -> do 
+    ThetaJoin _ -> do 
       (_, (P pis)) <- unp is1 >>= fromDBV
-      let dis' = D $ makeSubDomain n "d" pis
-          pis' = P $ freshSpace n "p"
-      Right $ VProp $ DBVSpace dis' pis'
-
-    ThetaJoin    _ -> do 
-      ((D dis), _) <- unp is1 >>= fromDBV
-      let dis' = D $ makeSubDomain n "d" dis
-          pis' = P $ freshSpace n "p"
-      Right $ VProp $ DBVSpace dis' pis'
+      let -- descr: descriptor of the left input on the first output
+          dis'  = D $ makeSubDomain n "d" dis
+          -- descr: positions of the left input on the second output
+          dis'' = D $ makeSubDomain n "d" pis
+          pis'  = P $ freshSpace n "p"
+      Right $ VPropPair (DBVSpace dis' pis') (DBVSpace dis'' pis')
       
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace 

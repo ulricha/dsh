@@ -167,6 +167,10 @@ makeUnionSubDomain n c d1 d2 =
   if d1 == d2 
   then makeSubDomain n c d1
   else SubUnionDom (domainID n c) d1 d2
+  
+numberedFrom :: Domain -> Domain -> Bool
+numberedFrom (NumberDom d1) d2 = d1 == d2
+numberedFrom _              _  = False
                       
 -- | Rendering function for a single domain.
 renderDomain :: Domain -> Doc

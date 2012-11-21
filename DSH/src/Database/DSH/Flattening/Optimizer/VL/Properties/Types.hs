@@ -157,6 +157,7 @@ instance Renderable BottomUpProps where
                  $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
                  $$ text "indexspaces:" <+> (renderProp $ indexSpaceProp p)
                  $$ text "untainted:" <+> (renderProp $ untaintedProp p)
+                 $$ text "vert_intact:" <+> (renderProp $ verticallyIntactProp p)
                  
 instance Renderable TopDownProps where
   renderProp p = text "toDescr:" <+> (text $ show $ toDescrProp p)
