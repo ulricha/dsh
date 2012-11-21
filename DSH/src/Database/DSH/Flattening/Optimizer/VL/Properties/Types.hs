@@ -42,6 +42,8 @@ data IndexSpace = DBVSpace DescrIndexSpace PosIndexSpace
 -- The Untainted property tracks the list of upstream nodes from which
 -- on the payload has not been modified horizontally.
 type Untainted = Maybe [AlgNode]
+
+type IntactSince = [AlgNode]
                        
 data Const = Const VLVal
            | NoConst
@@ -64,12 +66,13 @@ data ConstVec = DBVConst ConstDescr [ConstPayload]
 newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
                        
-data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool 
-                             , constProp      :: VectorProp ConstVec
-                             , card1Prop      :: VectorProp Bool
-                             , vectorTypeProp :: VectorProp VectorType
-                             , indexSpaceProp :: VectorProp IndexSpace
-                             , untaintedProp  :: VectorProp Untainted } deriving (Show)
+data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool 
+                             , constProp            :: VectorProp ConstVec
+                             , card1Prop            :: VectorProp Bool
+                             , vectorTypeProp       :: VectorProp VectorType
+                             , indexSpaceProp       :: VectorProp IndexSpace
+                             , verticallyIntactProp :: VectorProp IntactSince
+                             , untaintedProp        :: VectorProp Untainted } deriving (Show)
                                                                                 
                                                                                   
 type ReqCols = Maybe [DBCol]
