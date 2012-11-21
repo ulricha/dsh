@@ -5,11 +5,7 @@ import Text.PrettyPrint
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.Dot
--- FIXME the functionality imported from TableAlgebra should be moved
--- to a more general place in the module hierarchy. Having the VL
--- optimizer part import X100 stuff clearly is not acceptable.
-import Database.Algebra.X100.Properties.AbstractDomains
-import Database.Algebra.X100.Render.Common(renderDomain)
+import Optimizer.VL.Properties.AbstractDomains
   
 data VectorProp a = VProp a
                   | VPropPair a a

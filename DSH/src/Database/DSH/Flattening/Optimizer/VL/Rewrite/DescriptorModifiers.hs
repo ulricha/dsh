@@ -10,7 +10,7 @@ import           Optimizer.VL.Properties.IndexSpace
 import           Optimizer.VL.Properties.Types
 import           Optimizer.VL.Rewrite.Common
 
-import           Database.Algebra.X100.Properties.AbstractDomains
+import           Optimizer.VL.Properties.AbstractDomains
 
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.Rewrite

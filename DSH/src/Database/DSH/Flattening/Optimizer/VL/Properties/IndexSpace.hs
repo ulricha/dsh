@@ -2,10 +2,10 @@ module Optimizer.VL.Properties.IndexSpace where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
-import Database.Algebra.X100.Properties.AbstractDomains
 
 import Optimizer.VL.Properties.Common
 import Optimizer.VL.Properties.Types
+import Optimizer.VL.Properties.AbstractDomains
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.IndexSpace"
@@ -23,7 +23,6 @@ descrSpaceDBV _                          = error "IndexSpace.descrSpaceDBV: not 
 posSpaceDBV :: VectorProp IndexSpace -> Domain
 posSpaceDBV (VProp (DBVSpace _ (P p))) = p
 posSpaceDBV _                          = error "IndexSpace.posSpaceDBV: not a DBVSpace"
-
 
 freshSpace :: Show a => AlgNode -> a -> Domain
 freshSpace n c = makeSubDomain n c UniverseDom
@@ -99,17 +98,17 @@ inferIndexSpaceUnOp is n op =
     SelectPos1 _ _ -> Right $ VPropPair (freshDBVSpace n) (uncurry RenameVectorTransform $ freshTransformSpaces n)
     SelectPos1L _ _ -> Right $ VPropPair (freshDBVSpace n) (uncurry RenameVectorTransform $ freshTransformSpaces n)
     ProjectRename (p1, p2) -> do
-      ((D pis), (P dis)) <- unp is >>= fromDBV
+      ((D dis), (P pis)) <- unp is >>= fromDBV
 
       let src = case p1 of
             STDescrCol -> S dis
             STPosCol   -> S pis
-            STNumber   -> S $ freshSpace n "s"
+            STNumber   -> S $ NumberDom pis
 
       let dst = case p2 of
             STDescrCol -> T dis
             STPosCol   -> T pis
-            STNumber   -> T $ freshSpace n "t"
+            STNumber   -> T $ NumberDom pis
 
       Right $ VProp $ RenameVectorTransform src dst
             
@@ -123,7 +122,7 @@ inferIndexSpaceUnOp is n op =
             DescrIdentity -> dis
             DescrPosCol   -> D pis
       let pis' = case posProj of
-            PosNumber   -> P $ freshSpace n "p"
+            PosNumber   -> P $ NumberDom pis
             PosConst _  -> P $ freshSpace n "p"
             PosIdentity -> P pis
       return $ VProp $ DBVSpace dis' pis'

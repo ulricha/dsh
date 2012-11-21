@@ -11,7 +11,7 @@ import Control.Applicative
 import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
-import Database.Algebra.X100.Properties.AbstractDomains
+import Optimizer.VL.Properties.AbstractDomains
 
 import Optimizer.VL.Properties.Types
 import Optimizer.VL.Properties.VectorType
