@@ -5,16 +5,18 @@ module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) 
 import           Control.Applicative
 import           Control.Monad
 import qualified Data.Map as M
+import           Debug.Trace
 
 import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 
-import           Optimizer.VL.Rewrite.MergeProjections
-import           Optimizer.VL.Rewrite.Common
-import           Optimizer.VL.Rewrite.Expressions
+import           Optimizer.VL.Properties.AbstractDomains
 import           Optimizer.VL.Properties.Types
 import           Optimizer.VL.Properties.VectorType
+import           Optimizer.VL.Rewrite.Common
+import           Optimizer.VL.Rewrite.Expressions
+import           Optimizer.VL.Rewrite.MergeProjections
   
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -41,7 +43,7 @@ redundantRules = [ restrictCombineDBV
                  , pullSelectThroughPairL
                  , mergeDescToRenames
                  , descriptorFromProject
-                 , noOpPropRename
+                 , noOpPropRename1
                  ]
                  
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -50,6 +52,7 @@ redundantRulesBottomUp = [ pairFromSameSource
                          , noOpProject
                          , distDescCardOne
                          , toDescr
+                         , noOpPropRename2
                          ]
                          
 redundantRulesTopDown :: VLRuleSet TopDownProps
@@ -392,8 +395,8 @@ pullProjectPayloadThroughPropRename q =
 -- index spaces must be STPosCol. This pattern originates from the pruning of empty
 -- Append inputs in VL.Rewrite.PruneEmpty.
 -- FIXME rewrite needs a better name.
-noOpPropRename :: VLRule ()
-noOpPropRename q =
+noOpPropRename1 :: VLRule ()
+noOpPropRename1 q =
   $(pattern 'q "(ProjectRename proj (_)) PropRename (q1)"
     [| do
         let s = fst $(v "proj")
@@ -402,5 +405,86 @@ noOpPropRename q =
         predicate $ (s == STPosCol) && (s == t)
 
         return $ do
-          logRewrite "Redundant.NoOpPropRename" q
+          logRewrite "Redundant.NoOpPropRename1" q
           relinkParents q $(v "q1") |])
+  
+unpackProp :: VectorProp a -> a
+unpackProp (VProp p) = p
+unpackProp _         = error "unpackProp"
+  
+-- FIXME clean up and document the rewrite, especially the property extraction
+noOpPropRename2 :: VLRule BottomUpProps
+noOpPropRename2 q =
+  $(pattern 'q "(qi1={ } qs1=SelectExpr _ (_)) PropRename (qi2={ } qs2=SelectExpr _ (_))"
+    [| do
+        -- left and right inputs must originate from the same source.
+        predicate $ $(v "qs1") == $(v "qs2")
+
+        propsLeft <- trace ("pattern matched " ++ (show q)) $ properties $(v "qi1")
+        propsRight <- properties $(v "qi2")
+        propsSource <- properties $(v "qs1")
+  
+        -- the right input must not have changed its vertical shape
+        case verticallyIntactProp propsRight of
+          VProp nodes -> predicate $ $(v "qs1") `elem` nodes
+          _           -> error "Redundant.NoOpPropRename2: no single vector input"
+        
+        -- extract the vector type of the right input
+        let vt = case vectorTypeProp propsRight of
+                   VProp t -> t
+                   p       -> error ("foo " ++ (show p))
+          
+        
+        -- if the right input is a value vector, it must be untainted
+        case vt of
+          ValueVector _ -> 
+            case untaintedProp propsRight of
+              VProp (Just nodes) -> predicate $ $(v "qs1") `elem` nodes
+              VProp Nothing      -> fail "no match"
+              _                  -> error "Redundant.NoOpPropRename2: foo"
+                                   
+          DescrVector     -> return ()
+          _               -> error "Redundant.NoOpPropRename2: non-Value/non-Descr vector as input of PropRename"
+          
+        -- TODO check alignment for PropRename?
+  
+            -- extract the index space that the PropRename maps to.
+        let descrTargetSpace = case unpackProp $ indexSpaceProp propsLeft of
+              RenameVectorTransform _ (T tis) -> tis
+              _                               -> error "Redundant.NoOpPropRename2: non-Rename index spaces"
+              
+            -- extract the position space of the result (equals the pos space of the right input,
+            -- because it's not changed by PropRename.
+            resultPosSpace = case unpackProp $ indexSpaceProp propsRight of
+              DBVSpace _ (P pis)         -> pis
+              DescrVectorSpace _ (P pis) -> pis
+              _                          -> error "Redundant.NoOpPropRename2: non VV/DV index spaces"
+            
+            -- extract the descr and pos index spaces of the input (SelectExpr).
+            (sourceDescrSpace, sourcePosSpace) = case unpackProp $ indexSpaceProp propsSource of
+              DBVSpace (D dis) (P pis) -> (dis, pis)
+              _                        -> error "Redundant.NoOpPropRename2: non-DBV index spaces"
+            
+        descrProj <- case descrTargetSpace of
+            s | s == sourceDescrSpace -> return DescrIdentity  
+            s | s == sourcePosSpace   -> return DescrPosCol
+            _ | otherwise             -> fail "no match"
+            
+        posProj <- case resultPosSpace of
+            s | s == sourcePosSpace             -> return PosNumber
+            s | s `numberedFrom` sourcePosSpace -> return PosNumber
+            _ | otherwise                       -> fail "no match"
+  
+        return $ do
+          logRewrite "Redundant.NoOpPropRename2" q
+          let projOp = UnOp (ProjectAdmin (descrProj, posProj)) $(v "qs1")
+          case vt of
+            -- if the right PropRename input is a ValueVector, we just modify positions and descriptors
+            ValueVector _ -> void $ relinkToNew q projOp
+            -- for a DescrVector, we insert an additional ToDescr cast on top
+            DescrVector   -> do
+              projNode <- insert projOp
+              void $ relinkToNew q $ UnOp ToDescr projNode
+            _ -> error "impossible" |])
+        
+          
