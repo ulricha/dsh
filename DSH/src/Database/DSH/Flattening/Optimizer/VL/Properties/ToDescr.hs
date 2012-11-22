@@ -7,14 +7,19 @@ import Optimizer.VL.Properties.Types
 unp :: Show a => VectorProp a -> a
 unp (VProp x) = x
 unp x         = error $ "unp " ++ (show x)
-  
+    
+maybeSet :: VectorProp (Maybe Bool) -> VectorProp (Maybe Bool)
+maybeSet (VProp (Just b)) = VProp $ Just b
+maybeSet (VProp Nothing)  = VProp $ Just True
+maybeSet _                = error "maybeSet"
+
 inferToDescrUnOp :: VectorProp (Maybe Bool)
                 -> VectorProp (Maybe Bool)
                 -> UnOp
                 -> VectorProp (Maybe Bool)
 inferToDescrUnOp ownToDescr childToDescr op = 
   case op of
-    ToDescr          -> VProp $ Just True
+    ToDescr          -> maybeSet childToDescr
 
     SelectPos1 _ _   ->
       case ownToDescr of
