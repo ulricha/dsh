@@ -5,7 +5,6 @@ module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) 
 import           Control.Applicative
 import           Control.Monad
 import qualified Data.Map as M
-import           Debug.Trace
 
 import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
@@ -420,7 +419,7 @@ noOpPropRename2 q =
         -- left and right inputs must originate from the same source.
         predicate $ $(v "qs1") == $(v "qs2")
 
-        propsLeft <- trace ("pattern matched " ++ (show q)) $ properties $(v "qi1")
+        propsLeft <- properties $(v "qi1")
         propsRight <- properties $(v "qi2")
         propsSource <- properties $(v "qs1")
   
