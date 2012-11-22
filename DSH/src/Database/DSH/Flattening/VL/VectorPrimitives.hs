@@ -67,7 +67,6 @@ class VectorAlgebra a where
   pairL :: DBV -> DBV -> GraphM r a DBV
   zipL :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   cartProduct :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
-  thetaJoinPos :: Expr1 -> DBV -> DBV -> GraphM r a DBV
-  thetaJoin :: Expr1 -> DBV -> DBV -> GraphM r a DBV
+  thetaJoin :: Expr1 -> DBV -> DBV -> GraphM r a (DBV, DBV)
 
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
