@@ -301,12 +301,41 @@ thetaJoin q =
         case projOp of
           UnOp (ProjectAdmin (DescrPosCol, PosNumber)) _ -> return ()
           _                                              -> fail "no match"
+
+        selectParents <- getParents $(v "qs")
+        selectIndexSpace <- indexSpaceProp <$> properties $(v "qs")
+        let selectDescrIS = case selectIndexSpace of
+                              (VProp (DBVSpace (D dis) _)) -> dis
+                              _                            -> error "ThetaJoin foo"
+          
+
+        -- find all operators which expect the join descriptor to be the left input descriptor
+        let refersToDescr n = do
+                                reachable <- isReachable n
+                                if reachable 
+                                  then do
+                                    parentIndexSpace <- indexSpaceProp <$> properties n
+          
+                                    case parentIndexSpace of
+                                      (VProp (DBVSpace (D dis) _)) -> return $ dis == selectDescrIS
+                                      _                            -> fail "no match"
+                                  else return False
+
+        descrNodes <- filterM refersToDescr selectParents
         
         return $ do
-          logRewrite "Specialized.ThetaJoinPos" q
-          joinNode <- insert $ BinOp (ThetaJoinPos selectExpr) $(v "q1") $(v "q2")
-          relinkParents $(v "qp") joinNode
+          logRewrite "Specialized.ThetaJoin" q
+          -- insert the join operator
+          joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
+          -- relink all operators which expect the join descriptor to be the left input positions
+          r2Node <- insert $ UnOp R2 joinNode
+          relinkParents $(v "qp") r2Node
           relinkParents q $(v "qh")
+  
+          r1Node <- insert $ UnOp R1 joinNode
+          -- relink all operators which expect the join descriptor to be the left input descriptor
+          forM_ descrNodes (\n -> replaceChild n $(v "qs") r1Node)
+          
           replaceRootWithShape q $(v "qh") |])
   
 thetaJoin' :: VLRule BottomUpProps
@@ -320,15 +349,16 @@ thetaJoin' q =
           _                        -> fail "no match"
           
         return $ do
-          logRewrite "Specialized.ThetaJoinPos2" q
-          void $ relinkToNewWithShape q $ BinOp (ThetaJoinPos $(v "e")) $(v "q1") $(v "q2") |])
+          logRewrite "Specialized.ThetaJoin2" q
+          joinNode <- insert $ BinOp (ThetaJoin $(v "e")) $(v "q1") $(v "q2")
+          void $ relinkToNewWithShape q $ UnOp R2 joinNode |])
   
 thetaJoinRenaming :: VLRule BottomUpProps
 thetaJoinRenaming q = 
-  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename ((joinInput1) ThetaJoinPos e (joinInput2))"
+  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename (R2 (qj=(joinInput1) ThetaJoin _ (_)))"
     [| do
        predicate $ $(v "q1") == $(v "joinInput1")
         
        return $ do
          logRewrite "Specialized.ThetaJoinRenaming" q 
-         void $ relinkToNewWithShape q $ BinOp (ThetaJoin $(v "e")) $(v "joinInput1") $(v "joinInput2") |])
+         void $ relinkToNewWithShape q $ UnOp R1 $(v "qj") |])
