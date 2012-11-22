@@ -10,3 +10,6 @@ DSH/tests/Main
 *.hi
 *.o
 DSH/test/
+DSH/spiegel/
+
+Pathfinder/pathfinder
