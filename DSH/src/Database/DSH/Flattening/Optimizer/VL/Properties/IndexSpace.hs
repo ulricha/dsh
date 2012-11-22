@@ -214,7 +214,7 @@ inferIndexSpaceBinOp is1 _ n op =
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
 
     ThetaJoin _ -> do 
-      (_, (P pis)) <- unp is1 >>= fromDBV
+      ((D dis), (P pis)) <- unp is1 >>= fromDBV
       let -- descr: descriptor of the left input on the first output
           dis'  = D $ makeSubDomain n "d" dis
           -- descr: positions of the left input on the second output
