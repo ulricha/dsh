@@ -219,7 +219,17 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
 
-    ThetaJoin    _ -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    -- FIXME The last case seems rather fishy
+    ThetaJoin    _ -> 
+      case ownReqColumns of
+        VPropPair (Just cols1) (Just cols2) -> 
+          let reqCols = Just $ intersect cols1 cols2
+          in partitionCols childBUProps1 childBUProps2 reqCols
+        VPropPair (Just cols1) Nothing -> 
+          partitionCols childBUProps1 childBUProps2 (Just cols1)
+        VPropPair Nothing (Just cols2) -> 
+          partitionCols childBUProps1 childBUProps2 (Just cols2)
+        p                              -> (VProp Nothing, VProp Nothing)-- error ("ReqColumns.ThetaJoin " ++ (show p))
 
     ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
 
