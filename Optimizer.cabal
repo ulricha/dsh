@@ -54,6 +54,8 @@ Library
                        Optimizer.VL.Properties.Untainted
                        Optimizer.VL.Properties.IndexSpace
                        Optimizer.VL.Properties.ReqColumns
+                       Optimizer.VL.Properties.VerticalForm
+                       Optimizer.VL.Properties.AbstractDomains
 
                        Optimizer.VL.Rewrite.Common
                        Optimizer.VL.Rewrite.DescriptorModifiers
