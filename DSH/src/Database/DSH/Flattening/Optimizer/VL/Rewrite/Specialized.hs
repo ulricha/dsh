@@ -23,17 +23,21 @@ introduceSpecializedOperators = iteratively $ sequenceRewrites [ normalize
                                                                , preOrder inferBottomUp specializedRules ]
 
 normalize :: VLRewrite Bool
-normalize = sequenceRewrites [ preOrder noProps normalizeRules
-                             , preOrder inferBottomUp normalizePropRules ]
+normalize = iteratively $ sequenceRewrites [ preOrder noProps normalizeRules
+                                           , preOrder inferBottomUp normalizePropRules ]
             
 normalizeRules :: VLRuleSet ()
 normalizeRules = [ descriptorFromProject
                  , mergeStackedDistDesc
-                 , pullProjectLThroughDistLift ]
+                 , pullProjectLThroughDistLift
+                 ]
                  
 normalizePropRules :: VLRuleSet BottomUpProps
 normalizePropRules = [ redundantDistLift
-                     , pruneFilteringDistLift ]
+                     , pruneFilteringDistLift 
+                     , pullProjectLThroughCartProductRight
+                     , pullProjectLThroughCartProductLeft
+                     ]
                                 
 specializedRules :: VLRuleSet BottomUpProps
 specializedRules = [ cartProduct
@@ -72,6 +76,42 @@ pullProjectLThroughDistLift q =
           liftNode <- insert $ BinOp DistLift $(v "qv") $(v "qd")
           r1Node   <- insert $ UnOp R1 liftNode
           void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) r1Node |])
+  
+pullProjectLThroughCartProductLeft :: VLRule BottomUpProps
+pullProjectLThroughCartProductLeft q =
+  $(pattern 'q "R1 ((ProjectL p (q1)) CartProduct (q2))"
+    [| do
+        propsLeft <- properties $(v "q1")
+        propsRight <- properties $(v "q2")
+        let leftWidth = case vectorTypeProp propsLeft of
+                          VProp (ValueVector w) -> w
+                          _                     -> error "not a value vector"
+            rightWidth = case vectorTypeProp propsRight of
+                           VProp (ValueVector w) -> w
+                           _                     -> error "not a value vector"
+
+        return $ do
+          logRewrite "Specialized.PullProjectLThroughCartProduct.Left" q
+          prodNode <- insert $ BinOp CartProduct $(v "q1") $(v "q2")
+          r1Node <- insert $ UnOp R1 prodNode
+          let p' = $(v "p") ++ (map (+ leftWidth) [1 .. rightWidth])
+          void $ relinkToNewWithShape q $ UnOp (ProjectL p') r1Node |])
+
+pullProjectLThroughCartProductRight :: VLRule BottomUpProps
+pullProjectLThroughCartProductRight q =
+  $(pattern 'q "R1 ((q1) CartProduct (ProjectL p (q2)))"
+    [| do
+        propsLeft <- properties $(v "q1")
+        let leftWidth = case vectorTypeProp propsLeft of
+                          VProp (ValueVector w) -> w
+                          _                     -> error "not a value vector"
+
+        return $ do
+          logRewrite "Specialized.PullProjectLThroughCartProduct.Right" q
+          prodNode <- insert $ BinOp CartProduct $(v "q1") $(v "q2")
+          r1Node <- insert $ UnOp R1 prodNode
+          let p' = [1 .. leftWidth] ++ (map (+ leftWidth) $(v "p"))
+          void $ relinkToNewWithShape q $ UnOp (ProjectL p') r1Node |])
   
 -- Eliminate a common pattern where the output of a cartesian product is turned into a
 -- descriptor vector and used to lift one of the product inputs. This is redundant because
@@ -281,6 +321,7 @@ thetaJoin q =
           relinkParents q joinNode |])
 -}
 
+-- FIXME handle the R2/R3 outputs of CartProduct.
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q = 
   $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr12=R1 (_))))"
