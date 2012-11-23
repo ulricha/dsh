@@ -3,8 +3,11 @@
 module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
 
 import           Control.Applicative
+import           Control.Exception.Base
 import           Control.Monad
 import qualified Data.Map as M
+import           Data.Maybe
+import qualified Data.Set as S
 
 import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
@@ -38,7 +41,9 @@ redundantRules = [ restrictCombineDBV
                  , pullPropRenameThroughCompExpr2L
                  , pullPropRenameThroughIntegerToDouble
                  , pullProjectPayloadThroughSegment
+                 , pullProjectLThroughSegment
                  , pullProjectPayloadThroughPropRename
+                 , pullProjectLThroughPropRename
                  , pullSelectThroughPairL
                  , mergeDescToRenames
                  , descriptorFromProject
@@ -55,9 +60,12 @@ redundantRulesBottomUp = [ pairFromSameSource
                          ]
                          
 redundantRulesTopDown :: VLRuleSet TopDownProps
+redundantRulesTopDown = []
+{-
 redundantRulesTopDown = [ pruneProjectL
                         , pruneProjectPayload
                         ]
+-}
                                
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
   
@@ -273,7 +281,7 @@ pairFromSameSource q =
           logRewrite "Redundant.PairFromSame" q
           relinkParents q $(v "q1") |])
   
--- Remove a ProjectL or ProjectA operator that does not change the width
+-- Remove a ProjectL or ProjectA operator that does not change the column layout
 noOpProject :: VLRule BottomUpProps
 noOpProject q =
   $(pattern 'q "[ProjectL | ProjectA] ps (q1)"
@@ -343,6 +351,158 @@ distDescCardOne q =
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
           replace q $ UnOp Segment projNode |])
   
+
+type ColMapping = [(DBCol, DBCol)]  
+
+data Direction = SingleOutput (Maybe ColMapping)
+               | PairOutput   (Maybe ColMapping) (Maybe ColMapping)
+               | TripleOutput (Maybe ColMapping) (Maybe ColMapping) (Maybe ColMapping)
+     
+type Edge = (AlgNode, AlgNode)
+               
+data EdgeBlock = Block Edge
+               | BlockTwo Edge Edge
+               | BlockThree Edge Edge Edge
+     
+stopUnarySingle :: Edge -> (Direction, EdgeBlock)
+stopUnarySingle edge = (SingleOutput Nothing, Block edge)
+
+stopUnaryPair :: Edge -> (Direction, EdgeBlock)
+stopUnaryPair edge = (PairOutput Nothing Nothing, Block edge)
+              
+continueUnarySingle :: Edge -> ColMapping -> (Direction, EdgeBlock)
+continueUnarySingle edge offsets = (SingleOutput Nothing, Block edge)
+
+filterParents :: UnOp -> [AlgNode] -> VLRewrite [AlgNode]
+filterParents reqOp parents = filterM filterOp parents
+  where filterOp p = do
+        op <- operator p
+        case op of
+          UnOp op _ | op == reqOp -> return True
+          UnOp _  _ | otherwise   -> return False
+          _                       -> error "filterParents"
+
+fixExpr1 :: ColMapping -> Expr1 -> Expr1
+fixExpr1 colMapping (App1 op e1 e2) = App1 op (fixExpr1 colMapping e1) (fixExpr1 colMapping e2)
+fixExpr1 _          (Constant1 b)   = Constant1 b
+fixExpr1 colMapping (Column1 col)   = let col' = case lookup col colMapping of
+                                                   Just col' -> col'
+                                                   Nothing   -> error "fixExpr1: no mapping"
+                                      in Column1 col'
+
+fixOp :: AlgNode -> Edge -> ColMapping -> VL -> VLRewrite (Direction, EdgeBlock)
+fixOp _    _    _          (NullaryOp _)       = error "foo" -- hard to encounter downstream
+fixOp node edge colMapping (UnOp op c)      = 
+  case op of
+    Unique -> return $ continueUnarySingle edge colMapping
+    UniqueL -> return $ continueUnarySingle edge colMapping
+    NotPrim -> return $ stopUnarySingle edge
+    NotVec -> return $ stopUnarySingle edge
+    LengthA -> return $ stopUnarySingle edge
+    DescToRename -> return $ stopUnarySingle edge
+    ToDescr -> return $ stopUnarySingle edge
+    Segment -> return $ continueUnarySingle edge colMapping
+    Unsegment -> return $ continueUnarySingle edge colMapping
+    VecSum _ -> return $ stopUnarySingle edge
+    VecMin -> return $ stopUnarySingle edge
+    VecMinL -> return $ stopUnarySingle edge
+    VecMax -> return $ stopUnarySingle edge
+    VecMaxL -> return $ stopUnarySingle edge
+    SelectPos1 _ _ -> return (PairOutput (Just colMapping) Nothing, Block edge)
+    SelectPos1L _ _ -> return (PairOutput (Just colMapping) Nothing, Block edge)
+    ProjectL ps -> do 
+                     let ps' = catMaybes $ map (flip lookup colMapping) ps
+                     assert (length ps == length ps') $ replace node (UnOp (ProjectL ps') c)
+                     return (SingleOutput Nothing, Block edge)
+    ProjectA ps -> do
+                     let ps' = catMaybes $ map (flip lookup colMapping) ps
+                     assert (length ps == length ps') $ replace node (UnOp (ProjectL ps') c)
+                     return (SingleOutput Nothing, Block edge)
+    IntegerToDoubleA -> return $ stopUnarySingle edge
+    IntegerToDoubleL -> return $ stopUnarySingle edge
+    ReverseA -> return (PairOutput (Just colMapping) Nothing, Block edge) 
+    ReverseL -> return (PairOutput (Just colMapping) Nothing, Block edge)
+    FalsePositions -> return $ stopUnarySingle edge
+    R1 -> return $ continueUnarySingle edge colMapping
+    R2 -> return $ continueUnarySingle edge colMapping
+    R3 -> return $ continueUnarySingle edge colMapping
+    SelectExpr expr -> do
+                         let expr' = fixExpr1 colMapping expr
+                         replace node $ UnOp (SelectExpr expr') c
+                         return (SingleOutput $ Just colMapping, Block edge)
+    ProjectRename _ -> return $ stopUnarySingle edge
+    ProjectPayload ps -> do
+                           let ps' = map update ps 
+                                     where update p@(PLConst _) = p
+                                           update (PLCol c)     = case lookup c colMapping of
+                                                                    Just c' -> PLCol c'
+                                                                    Nothing -> error "fixOp.update: no mapping"
+                           replace node $ UnOp (ProjectPayload ps') c
+                           return (SingleOutput Nothing, Block edge)
+                                                        
+    ProjectAdmin _ -> return $ continueUnarySingle edge colMapping
+    Only -> error "foo"
+    Singleton -> error "foo"
+    CompExpr1L expr -> do
+                         let expr' = fixExpr1 colMapping expr
+                         replace node $ UnOp (CompExpr1L expr') c
+                         return (SingleOutput Nothing, Block edge)
+
+fixOp node edge colMapping (BinOp op c1 c2) = 
+  case op of
+    GroupBy -> undefined
+    SortWith -> undefined
+    LengthSeg -> undefined
+    DistPrim -> undefined
+    DistDesc -> undefined
+    DistLift -> undefined
+    PropRename -> undefined
+    PropFilter -> undefined
+    PropReorder -> undefined
+    Append -> undefined
+    RestrictVec -> undefined
+    CompExpr2 expr -> undefined
+    CompExpr2L expr -> undefined
+    VecSumL -> undefined
+    SelectPos _ -> undefined
+    SelectPosL _ -> undefined
+    PairA -> undefined
+    PairL -> undefined
+    ZipL -> undefined
+    CartProduct -> undefined
+    ThetaJoin _ -> undefined
+    
+fixOp node edge colMapping (TerOp op c1 c2 c3) = undefined
+
+
+fixDownstreamIndexes :: AlgNode -> [(DBCol, Int)] -> VLRewrite ()
+fixDownstreamIndexes = undefined
+{-
+  -- fix the current node and update columns and offsets
+  if null colOffsets
+    then return ()
+    else do
+  
+           colOffsets' <- undefined
+
+           -- recurse over the parents until we reach the DAG top or all relevant columns
+           -- are eliminated
+           roots <- rootNodes
+
+           if startNode `elem` roots || null colOffsets'
+             then return ()
+             else do
+                    parentNodes <- parents
+  
+                    let traverseDownsteam parent = do
+                      if parent `S.member` visited'
+                        then return visited'
+                        else return $ fixDownstreamIndexes parent colOffsets'
+                    
+                    forM_ parentNodes (\p -> do
+                      traverseDownstream parentNodes 
+-}
+
 pruneProjectL :: VLRule TopDownProps
 pruneProjectL q =
   $(pattern 'q "ProjectL _ (q1)"
@@ -378,6 +538,15 @@ pullProjectPayloadThroughSegment q =
           logRewrite "Redundant.PullProjectPayload.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
           void $ relinkToNew q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
+          
+pullProjectLThroughSegment :: VLRule ()
+pullProjectLThroughSegment q =
+  $(pattern 'q "Segment (ProjectL p (q1))"
+    [| do
+        return $ do
+          logRewrite "Redundant.PullProjectL.Segment" q
+          segmentNode <- insert $ UnOp Segment $(v "q1")
+          void $ relinkToNew q $ UnOp (ProjectL $(v "p")) segmentNode |])
   
 pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
@@ -386,9 +555,17 @@ pullProjectPayloadThroughPropRename q =
         return $ do
           logRewrite "Redundant.PullProjectPayload.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
-          newNode    <- relinkToNew q $ UnOp (ProjectPayload $(v "p")) renameNode 
-          replaceRootWithShape q newNode |])
-                                        
+          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) renameNode |])
+
+pullProjectLThroughPropRename :: VLRule ()
+pullProjectLThroughPropRename q =
+  $(pattern 'q "(qr) PropRename (ProjectL p (qv))"
+    [| do
+        return $ do
+          logRewrite "Redundant.PullProjectL.PropRename" q
+          renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
+          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) renameNode |])
+
 -- Elimiante PropRename operators which map from one index space to the same
 -- index space. Since PropRename maps from the positions of the left side, both
 -- index spaces must be STPosCol. This pattern originates from the pruning of empty
