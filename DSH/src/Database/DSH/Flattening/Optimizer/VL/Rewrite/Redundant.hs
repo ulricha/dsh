@@ -61,11 +61,6 @@ redundantRulesBottomUp = [ pairFromSameSource
                          
 redundantRulesTopDown :: VLRuleSet TopDownProps
 redundantRulesTopDown = []
-{-
-redundantRulesTopDown = [ pruneProjectL
-                        , pruneProjectPayload
-                        ]
--}
                                
 -- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
   
@@ -503,33 +498,6 @@ fixDownstreamIndexes = undefined
                       traverseDownstream parentNodes 
 -}
 
-pruneProjectL :: VLRule TopDownProps
-pruneProjectL q =
-  $(pattern 'q "ProjectL _ (q1)"
-    [| do
-        reqCols <- reqColumnsProp <$> properties q
-        case reqCols of
-          VProp (Just []) -> return ()
-          VProp Nothing   -> return ()
-          _               -> fail "no match"
-
-        return $ do
-          logRewrite "Redundant.PruneProjectL" q
-          relinkParents q $(v "q1") |])
-
-pruneProjectPayload :: VLRule TopDownProps
-pruneProjectPayload q =
-  $(pattern 'q "ProjectPayload _ (q1)"
-    [| do
-        reqCols <- reqColumnsProp <$> properties q
-        case reqCols of
-          VProp (Just []) -> return ()
-          VProp Nothing   -> return ()
-          _               -> fail "no match"
-        return $ do
-          logRewrite "Redundant.PruneProjectPayload" q
-          relinkParents q $(v "q1") |])
-  
 pullProjectPayloadThroughSegment :: VLRule ()
 pullProjectPayloadThroughSegment q = 
   $(pattern 'q "Segment (ProjectPayload p (q1))"
