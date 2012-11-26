@@ -104,7 +104,7 @@ inferTerOp :: AlgNode
               -> Either String BottomUpProps
 inferTerOp n c1 c2 c3 op c1Props c2Props c3Props = do
   opEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
-  opType <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c1Props) (vectorTypeProp c1Props) op
+  opType <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) (vectorTypeProp c3Props) op
   opConst <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
   opCard <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
   opVerticallyIntact <- inferVerticallyIntactTerOp (verticallyIntactProp c1Props) 

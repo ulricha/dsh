@@ -2,8 +2,9 @@
 
 module Optimizer.VL.Properties.VectorType where
 
-import Data.Functor
 import Control.Monad
+import Data.Functor
+import Debug.Trace
 
 import Optimizer.VL.Properties.Types
   
@@ -145,7 +146,13 @@ inferVectorTypeTerOp _ s2 s3 op =
       case (s2, s3) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector _), VProp (ValueVector _)) ->
+        (VProp (ValueVector w1), VProp DescrVector)                 -> 
+          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
+        (VProp DescrVector, VProp (ValueVector w2))                 -> 
+          Right $ VPropTriple (ValueVector w2) RenameVector RenameVector
+        (VProp DescrVector, VProp DescrVector)                 -> 
+          Right $ VPropTriple DescrVector RenameVector RenameVector
+        (VProp (ValueVector _), VProp (ValueVector _))              -> 
           Left $ "Inputs of CombineVec do not have the same width"
-        _                                           -> 
-          Left $ "Inputs of CombineVec are not ValueVectors"
+        _                                                           -> 
+          Left $ "Inputs of CombineVec are not ValueVectors/DescrVectors " ++ (show (s2, s3))
