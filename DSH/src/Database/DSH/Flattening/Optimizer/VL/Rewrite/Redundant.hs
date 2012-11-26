@@ -8,6 +8,7 @@ import           Control.Monad
 import qualified Data.Map as M
 import           Data.Maybe
 import qualified Data.Set as S
+import           Debug.Trace
 
 import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
@@ -73,7 +74,7 @@ introduceSelectExpr q =
         return $ do
           logRewrite "Redundant.SelectExpr" q
           selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
-          void $ relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
   
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
@@ -83,7 +84,7 @@ restrictCombineDBV q =
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
-          void $ relinkToNew q $ UnOp ToDescr $(v "q1") |])
+          void $ relinkToNewWithShape q $ UnOp ToDescr $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
@@ -100,7 +101,7 @@ restrictCombinePropLeft q =
         
         return $ do
           logRewrite "Redundant.RestrictCombine.PropLeft/2" q
-          void $ relinkToNew q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
   
 -- Clean up the remains of a selection pattern after the CombineVec
 -- part has been removed by rule Redundant.RestrictCombine.PropLeft
@@ -121,7 +122,7 @@ cleanupSelect q =
         
         return $ do
           logRewrite "Redundant.CleanupSelect" q
-          void $ relinkToNew q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
   
 {- 
 ifToSelect :: VLRule ()
@@ -153,8 +154,7 @@ pullRestrictThroughPair q =
           logRewrite "Redundant.PullRestrictThroughPair" q
           pairNode <- insert $ BinOp PairL $(v "qp1") $(v "qp2")
           restrictNode <- insert $ BinOp RestrictVec pairNode $(v "qb1")
-          r1Node <- insert $ UnOp R1 restrictNode
-          relinkParents q r1Node |])
+          void $ relinkToNewWithShape q $ UnOp R1 restrictNode |])
           
 -- FIXME this rewrite is way too specific.
 pullSelectThroughPairL :: VLRule ()
@@ -167,7 +167,7 @@ pullSelectThroughPairL q =
         
         return $ do
           logRewrite "Redundant.PullSelectThroughPairL" q
-          relinkParents q $(v "qp") |])
+          relinkParentsWithShape q $(v "qp") |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectL).
@@ -180,8 +180,7 @@ pushRestrictVecThroughProjectL q =
           logRewrite "Redundant.PushRestrictVecThroughProjectL" q
           restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
           r1Node <- insert $ UnOp R1 restrictNode
-          projectNode <- insert $ UnOp (ProjectL $(v "p")) r1Node
-          relinkParents q projectNode |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) r1Node |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectPayload).
@@ -193,8 +192,7 @@ pushRestrictVecThroughProjectPayload q =
           logRewrite "Redundant.PushRestrictVecThroughProjectValue" q
           restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
           r1Node <- insert $ UnOp R1 restrictNode
-          projectNode <- insert $ UnOp (ProjectPayload $(v "p")) r1Node
-          relinkParents q projectNode |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) r1Node |])
         
 -- Eliminate a projection if the vector is turned into a descriptor vector anyway.
 -- FIXME: this could be done in a more general way using property ToDescr.
@@ -242,7 +240,8 @@ mergeDescToRenames q =
         ps <- getParents $(v "d")
 
         let isDescToRename n = do
-              op <- getOperator n
+                           
+              op <- trace "foo" $ getOperator n
               case op of 
                 UnOp DescToRename _ -> return True
                 _                   -> return False
@@ -253,7 +252,7 @@ mergeDescToRenames q =
         
         return $ do
           logRewrite "Redundant.MergeDescToRenames" q
-          mapM_ (\n -> relinkParents n q) redundantNodes
+          mapM_ (\n -> relinkParentsWithShape n q) redundantNodes
 
           -- We have to clean up the graph to remove all now unreferenced DescToRename operators.
           -- If they were not removed, the same rewrite would be executed again, leading to an
@@ -274,7 +273,7 @@ pairFromSameSource q =
           _                                                                      -> fail "no match"
         return $ do
           logRewrite "Redundant.PairFromSame" q
-          relinkParents q $(v "q1") |])
+          relinkParentsWithShape q $(v "q1") |])
   
 -- Remove a ProjectL or ProjectA operator that does not change the column layout
 noOpProject :: VLRule BottomUpProps
@@ -287,7 +286,7 @@ noOpProject q =
         
         return $ do
           logRewrite "Redundant.NoOpProject" q
-          relinkParents q $(v "q1") |])
+          relinkParentsWithShape q $(v "q1") |])
           
 -- Remove a ToDescr operator whose input is already a descriptor vector
 toDescr :: VLRule BottomUpProps
@@ -300,7 +299,7 @@ toDescr q =
           _                 -> fail "no match"
         return $ do
           logRewrite "Redundant.ToDescr" q
-          relinkParents q $(v "q1") |])
+          relinkParentsWithShape q $(v "q1") |])
 
 pairedProjections :: VLRule BottomUpProps
 pairedProjections q = 
@@ -313,12 +312,12 @@ pairedProjections q =
           if ($(v "ps1") ++ $(v "ps2")) == [1 .. w] 
             then do
               logRewrite "Redundant.PairedProjections.NoOp" q
-              relinkParents q $(v "q1")
+              relinkParentsWithShape q $(v "q1")
             else do
               logRewrite "Redundant.PairedProjections.Reorder" q
               let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
-              relinkParents q projectNode |])
+              relinkParentsWithShape q projectNode |])
 
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
@@ -353,7 +352,7 @@ pullProjectPayloadThroughSegment q =
         return $ do
           logRewrite "Redundant.PullProjectPayload.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
-          void $ relinkToNew q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
           
 pullProjectLThroughSegment :: VLRule ()
 pullProjectLThroughSegment q =
@@ -362,7 +361,7 @@ pullProjectLThroughSegment q =
         return $ do
           logRewrite "Redundant.PullProjectL.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
-          void $ relinkToNew q $ UnOp (ProjectL $(v "p")) segmentNode |])
+          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) segmentNode |])
   
 pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
@@ -398,7 +397,7 @@ noOpPropRename1 q =
 
         return $ do
           logRewrite "Redundant.NoOpPropRename1" q
-          relinkParents q $(v "q1") |])
+          relinkParentsWithShape q $(v "q1") |])
   
 unpackProp :: VectorProp a -> a
 unpackProp (VProp p) = p
@@ -472,11 +471,11 @@ noOpPropRename2 q =
           let projOp = UnOp (ProjectAdmin (descrProj, posProj)) $(v "qs1")
           case vt of
             -- if the right PropRename input is a ValueVector, we just modify positions and descriptors
-            ValueVector _ -> void $ relinkToNew q projOp
+            ValueVector _ -> void $ relinkToNewWithShape q projOp
             -- for a DescrVector, we insert an additional ToDescr cast on top
             DescrVector   -> do
               projNode <- insert projOp
-              void $ relinkToNew q $ UnOp ToDescr projNode
+              void $ relinkToNewWithShape q $ UnOp ToDescr projNode
             _ -> error "impossible" |])
         
           

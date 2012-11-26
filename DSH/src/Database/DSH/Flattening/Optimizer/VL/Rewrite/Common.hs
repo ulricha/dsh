@@ -51,3 +51,8 @@ relinkToNewWithShape oldNode newOp = do
   newNode <- relinkToNew oldNode newOp
   updateExtras $ updateShape oldNode newNode sh
   return newNode
+  
+relinkParentsWithShape :: AlgNode -> AlgNode -> Rewrite VL Shape ()
+relinkParentsWithShape old new = do
+  replaceRootWithShape old new
+  relinkParents old new

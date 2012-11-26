@@ -55,6 +55,6 @@ main = do
     
     let (_, rs, m) = deserializePlan plan
         d = Dag.mkDag m rs
-        (_, _, propertyMap, _) = runRewrite inferAllProperties d ()
+        (_, _, propertyMap, _) = runRewrite inferAllProperties d () False
         tagMap = M.map renderProperties propertyMap
     B.putStr $ serializePlan (tagMap, rs, m)

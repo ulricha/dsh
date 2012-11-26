@@ -56,8 +56,8 @@ mergeStackedDistDesc q =
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
           logRewrite "Specialized.MergeStackedDistDesc" q
-          relinkParents $(v "d1") $(v "d2")
-          relinkParents q $(v "first") |])
+          relinkParentsWithShape $(v "d1") $(v "d2")
+          relinkParentsWithShape q $(v "first") |])
   
                    
 {- Normalize the cartesian product pattern by pulling horizontal
@@ -180,7 +180,7 @@ pruneFilteringDistLift q =
         
         return $ do
           logRewrite "Specialized.PruneFilteringDistLift" q
-          relinkParents q $(v "qp") |])
+          relinkParentsWithShape q $(v "qp") |])
                    
 {-
 
@@ -248,12 +248,12 @@ cartProduct q =
           projLeftNode <- insert $ UnOp (ProjectL [1 .. w1]) prodR1
           projRightNode <- insert $ UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodR1
 
-          relinkParents q projLeftNode
-          relinkParents $(v "right") projRightNode 
+          relinkParentsWithShape q projLeftNode
+          relinkParentsWithShape $(v "right") projRightNode 
           
           -- relink all operators which reference the descriptor originating from DistDesc
           prodDescr <- insert $ UnOp ToDescr prodR1
-          relinkParents $(v "qd") prodDescr
+          relinkParentsWithShape $(v "qd") prodDescr
           
           -- check if the R2 outputs (propagation vectors) of DistDesc and DistLift are
           -- referenced and relink them to the corresponding R2 and R3 outputs of CartProduct
@@ -270,14 +270,14 @@ cartProduct q =
           case liftR2s of
             [liftR2] -> do
                           prodR2 <- insert $ UnOp R2 prodNode
-                          relinkParents liftR2 prodR2
+                          relinkParentsWithShape liftR2 prodR2
             _        -> return ()
 
           descR2s <- r2Parents $(v "qDesc")
           case descR2s of
             [descR2] -> do
                           prodR3 <- insert $ UnOp R3 prodNode
-                          relinkParents descR2 prodR3
+                          relinkParentsWithShape descR2 prodR3
             _        -> return () |])
 
 {- 
@@ -305,20 +305,6 @@ is rewritten into
                        /  \
                       /    \
                      q1     q2 
--}
-
-{-
-thetaJoin :: VLRule BottomUpProps
-thetaJoin q = 
-  $(pattern 'q "R1 ((q1=(qi1) CartProduct (qi2)) RestrictVec (CompExpr1L expr (q2=(_) CartProduct (_))))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Specialized.EquiJoin" q
-          let joinOp = BinOp (ThetaJoinPos $(v "expr")) $(v "qi1") $(v "qi2")
-          joinNode <- insert joinOp
-          relinkParents q joinNode |])
 -}
 
 -- FIXME handle the R2/R3 outputs of CartProduct.
@@ -352,15 +338,11 @@ thetaJoin q =
 
         -- find all operators which expect the join descriptor to be the left input descriptor
         let refersToDescr n = do
-                                reachable <- isReachable n
-                                if reachable 
-                                  then do
-                                    parentIndexSpace <- indexSpaceProp <$> properties n
+                                parentIndexSpace <- indexSpaceProp <$> properties n
           
-                                    case parentIndexSpace of
-                                      (VProp (DBVSpace (D dis) _)) -> return $ dis == selectDescrIS
-                                      _                            -> fail "no match"
-                                  else return False
+                                case parentIndexSpace of
+                                  (VProp (DBVSpace (D dis) _)) -> return $ dis == selectDescrIS
+                                  _                            -> fail "no match"
 
         descrNodes <- filterM refersToDescr selectParents
         
@@ -370,8 +352,8 @@ thetaJoin q =
           joinNode <- insert $ BinOp (ThetaJoin selectExpr) $(v "q1") $(v "q2")
           -- relink all operators which expect the join descriptor to be the left input positions
           r2Node <- insert $ UnOp R2 joinNode
-          relinkParents $(v "qp") r2Node
-          relinkParents q $(v "qh")
+          relinkParentsWithShape $(v "qp") r2Node
+          relinkParentsWithShape q $(v "qh")
   
           r1Node <- insert $ UnOp R1 joinNode
           -- relink all operators which expect the join descriptor to be the left input descriptor

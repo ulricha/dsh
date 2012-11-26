@@ -17,6 +17,7 @@ import Optimizer.Common.Shape
 import Optimizer.VL.OptimizeVL
   
 data Options = Options { optVerbose        :: Bool
+                       , optDebug          :: Bool
                        , optInput          :: IO B.ByteString
                        , optShape          :: String
                        , optPipelineString :: Maybe String
@@ -24,6 +25,7 @@ data Options = Options { optVerbose        :: Bool
                
 startOptions :: Options
 startOptions = Options { optVerbose          = False
+                       , optDebug            = False
                        , optInput            = B.getContents
                        , optShape            = "query_shape.plan"
                        , optPipelineString   = Nothing
@@ -33,6 +35,9 @@ options :: [OptDescr (Options -> IO Options)]
 options =
   [ Option "v" ["verbose"]
       (NoArg (\opt -> return opt { optVerbose = True })) 
+      "Enable verbose messages"
+  , Option "" ["debug"]
+      (NoArg (\opt -> return opt { optDebug = True })) 
       "Enable verbose messages"
   , Option "i" ["input"]
       (ReqArg (\arg opt -> return opt { optInput = B.readFile arg })
@@ -55,7 +60,7 @@ options =
       "Show help"
   ]
   
-optimize :: AlgebraDag VL -> Shape -> [RewriteClass]-> (AlgebraDag VL, Log, Shape)
+optimize :: AlgebraDag VL -> Shape -> [RewriteClass]-> Bool -> (AlgebraDag VL, Log, Shape)
 optimize = runPipeline
        
 main :: IO ()
@@ -65,6 +70,7 @@ main = do
     opts <- foldl (>>=) (return startOptions) actions
     let Options { optVerbose = verbose
                 , optInput = input
+                , optDebug = debugFlag
                 , optShape = shapeFile
                 , optPipelineString = mPipelineString } = opts
     
@@ -78,7 +84,7 @@ main = do
           Nothing -> defaultPipeline
     
     let (tags, rs, m) = deserializePlan plan
-        (dag', rewriteLog, shape') = optimize (mkDag m rs) shape pipeline 
+        (dag', rewriteLog, shape') = optimize (mkDag m rs) shape pipeline debugFlag
         m' = nodeMap dag'
         rs' = rootNodes dag'
     if verbose then F.mapM_ (\l -> hPutStrLn stderr l) rewriteLog else return ()

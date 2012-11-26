@@ -34,9 +34,9 @@ defaultPipeline = case assemblePipeline "ERSRSD" of
 cleanup :: Rewrite VL Shape Bool
 cleanup = pruneUnused >> return True
 
-runPipeline :: Dag.AlgebraDag VL -> Shape -> [RewriteClass] -> (Dag.AlgebraDag VL, Log, Shape)
-runPipeline d sh pipeline = (d', rewriteLog, sh')
-  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh
+runPipeline :: Dag.AlgebraDag VL -> Shape -> [RewriteClass] -> Bool -> (Dag.AlgebraDag VL, Log, Shape)
+runPipeline d sh pipeline debug = (d', rewriteLog, sh')
+  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = (++) <$> (mapM (flip lookup rewriteClasses) s) <*> (pure [cleanup])
