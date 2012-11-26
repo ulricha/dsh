@@ -112,8 +112,8 @@ inferVectorTypeBinOp s1 s2 op =
           Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
         (VProp DescrVector, VProp DescrVector) ->
           Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
-        (VProp (ValueVector _), VProp (ValueVector _)) -> 
-          Left "Inputs of Append do not have the same width"
+        (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
+          Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
@@ -128,6 +128,8 @@ inferVectorTypeBinOp s1 s2 op =
     PairL ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
+        (VProp (ValueVector w1), VProp DescrVector)      -> Right $ VProp $ ValueVector w1
+        (VProp DescrVector, VProp (ValueVector w2))      -> Right $ VProp $ ValueVector w2
         _                                                -> Right $ VProp $ ValueVector 0
         -- FIXME check disabled for now
         -- _                                -> Left "Inputs of PairL are not ValueVectors"
