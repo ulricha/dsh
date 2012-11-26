@@ -49,6 +49,8 @@ redundantRules = [ restrictCombineDBV
                  , mergeDescToRenames
                  , descriptorFromProject
                  , noOpPropRename1
+                 , pairFromSameSourceToDescrLeft
+                 , pairFromSameSourceToDescrRight
                  ]
                  
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -274,6 +276,25 @@ pairFromSameSource q =
         return $ do
           logRewrite "Redundant.PairFromSame" q
           relinkParentsWithShape q $(v "q1") |])
+
+pairFromSameSourceToDescrLeft :: VLRule ()
+pairFromSameSourceToDescrLeft q =
+  $(pattern 'q "(ToDescr (q1)) PairL (ProjectL ps (q2))"
+    [| do
+         predicate $ $(v "q1") == $(v "q2")
+         return $ do
+           logRewrite "Redundant.PairFromSame.ToDescr.Left" q
+           void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "ps")) $(v "q2") |])
+
+pairFromSameSourceToDescrRight :: VLRule ()
+pairFromSameSourceToDescrRight q =
+  $(pattern 'q "(ProjectL ps (q1)) PairL (ToDescr (q2))"
+    [| do
+         predicate $ $(v "q1") == $(v "q2")
+         return $ do
+           logRewrite "Redundant.PairFromSame.ToDescr.Right" q
+           void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "ps")) $(v "q1") |])
+
   
 -- Remove a ProjectL or ProjectA operator that does not change the column layout
 noOpProject :: VLRule BottomUpProps
@@ -318,7 +339,7 @@ pairedProjections q =
               let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
               relinkParentsWithShape q projectNode |])
-
+              
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
 -- vector does not change), replace the DistDesc by a projection which
