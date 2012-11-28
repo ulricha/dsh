@@ -17,6 +17,8 @@ import Database.DSH.Flattening.FKL.Data.FKL (TypedColumn, Key)
 
 import Control.Applicative
 
+
+
 takeWithS ::  Shape -> Shape -> Graph VL Shape
 takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
                                                                (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
@@ -545,9 +547,19 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
       projectFromPosWork c (Pair p1 p2)   = let (p1', cols1, c') = projectFromPosWork c p1
                                                 (p2', cols2, c'') = projectFromPosWork c' p2
                                              in (Pair p1' p2', cols1 ++ cols2, c'')
+
+quickConcatV :: Shape -> Graph VL Shape
+quickConcatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
+quickConcatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (quickConcatV v)
+                                                          <*> pure (l - 1)
+                                                          <*> (mapM (\(y, val) -> do
+                                                                                     val' <- quickConcatV val
+                                                                                     return (y, val')) fvs)
+                                                          <*> pure x <*> pure f1 <*> pure f2
+quickConcatV e                  = error $ "Not supported by quickConcatV: " ++ show e
                                              
 concatV :: Shape -> Graph VL Shape
-concatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
+concatV (ValueVector _ (Nest q lyt)) = flip ValueVector lyt <$> unsegment q
 concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                           <*> pure (l - 1)
                                                           <*> (mapM (\(y, val) -> do

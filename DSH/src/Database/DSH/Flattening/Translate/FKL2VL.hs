@@ -47,6 +47,7 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (FstL _) -> fstL
                                            (SndL _) -> sndL
                                            (Concat _) -> concatV
+                                           (QuickConcat _) -> quickConcatV
                                            (Minimum _) -> minPrim
                                            (MinimumL _) -> minLift
                                            (Maximum _)  -> maxPrim

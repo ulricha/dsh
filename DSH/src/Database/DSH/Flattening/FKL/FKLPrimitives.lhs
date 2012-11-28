@@ -35,7 +35,7 @@ mapPrim :: Expr -> Expr -> Expr
 mapPrim f e = cloLApp (distPrim f e) e
 
 mapLPrim :: Expr -> Expr -> Expr
-mapLPrim f e = unconcatPrim e $ cloLApp (concatPrim (distLPrim f e)) (concatPrim e)
+mapLPrim f e = unconcatPrim e $ cloLApp (qConcatPrim (distLPrim f e)) (qConcatPrim e)
 \end{code}
 
 \begin{code}
@@ -189,8 +189,8 @@ filterPrim f e = let arg1 = mapPrim f e
                   in restrictPrim e arg1
                   
 filterLPrim :: Expr -> Expr -> Expr
-filterLPrim f e = let arg1 = concatPrim (mapLPrim f e)
-                   in unconcatPrim e (restrictPrim (concatPrim e) arg1)
+filterLPrim f e = let arg1 = qConcatPrim (mapLPrim f e)
+                   in unconcatPrim e (restrictPrim (qConcatPrim e) arg1)
 
 --The sortWith combinator
 
@@ -379,6 +379,11 @@ maximumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
 
 concatVal :: Type -> Expr
 concatVal t = singleArgClo t "concat_v" concatPrim concatLPrim
+
+qConcatPrim :: Expr -> Expr
+qConcatPrim e = let t1@(T.List rt@(T.List _)) = typeOf e
+                    ft = t1 .-> rt
+                 in F.PApp1 rt (F.QuickConcat ft) e
 
 concatPrim :: Expr -> Expr
 concatPrim e = let t1@(T.List rt@(T.List _)) = typeOf e

@@ -46,6 +46,7 @@ data Prim1 = LengthPrim Type
            | The Type
            | TheL Type
            | Concat Type
+           | QuickConcat Type
            | IntegerToDouble Type
            | IntegerToDoubleL Type
            | Tail Type
@@ -75,6 +76,7 @@ instance Show Prim1 where
     show (FstL _)       = "fstL"
     show (SndL _)       = "sndL"
     show (Concat _)     = "concat"
+    show (QuickConcat _) = "quickConcat"
     show (Sum _)        = "sum"
     show (SumL _)       = "sumL"
     show (The _)        = "the"
