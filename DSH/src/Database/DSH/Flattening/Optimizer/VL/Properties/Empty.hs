@@ -38,6 +38,7 @@ inferEmptyUnOp e op =
     DescToRename -> Right e
     ToDescr -> Right e
     Segment -> Right e
+    Unsegment -> Right e
     VecSum _ -> Right $ VProp False
     VecMin -> Right e
     VecMinL -> Right e

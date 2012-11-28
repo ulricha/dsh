@@ -78,6 +78,10 @@ inferIndexSpaceUnOp is n op =
       (_, (P pis)) <- unp is >>= fromDBV
       return $ VProp $ DBVSpace (D pis) (P pis)
       
+    Unsegment -> do
+      (_, pis) <- unp is >>= fromDBV
+      return $ VProp $ DBVSpace (D $ freshSpace n "d") pis
+      
     VecSum _ -> Right $ VProp $ freshDBVSpace n 
     VecMin -> Right $ VProp $ freshDBVSpace n
     VecMinL -> Right $ VProp $ freshDBVSpace n

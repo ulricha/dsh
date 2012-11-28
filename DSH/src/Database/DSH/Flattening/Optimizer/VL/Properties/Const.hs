@@ -85,6 +85,10 @@ inferConstVecUnOp c op =
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
 
+    Unsegment -> do
+      (_, constCols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst NonConstDescr constCols
+
     VecSum _ -> return c
 
     VecMin -> return c
@@ -315,8 +319,8 @@ inferConstVecBinOp c1 c2 op =
       (_, cols2) <- unp c2 >>= fromDBV
 
       let constCols = cols1 ++ cols2
-          constProp = DBVConst (ConstDescr $ N 1) constCols
-      return $ VPropPair constProp constProp
+          constProperty = DBVConst (ConstDescr $ N 1) constCols
+      return $ VPropPair constProperty constProperty
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op = 

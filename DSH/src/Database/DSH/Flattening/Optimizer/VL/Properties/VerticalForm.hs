@@ -42,6 +42,7 @@ inferVerticallyIntactUnOp childIntact c op =
     DescToRename -> yes childIntact c
     ToDescr -> yes childIntact c
     Segment -> yes childIntact c
+    Unsegment -> yes childIntact c
     VecSum _ -> no
     VecMin -> no
     VecMinL -> no
@@ -84,7 +85,7 @@ inferVerticallyIntactBinOp :: VectorProp IntactSince
                            -> AlgNode 
                            -> BinOp 
                            -> Either String (VectorProp IntactSince)
-inferVerticallyIntactBinOp _ rightChildIntact c1 c2 op =
+inferVerticallyIntactBinOp _ rightChildIntact _ c2 op =
   case op of
     GroupBy -> noTriple
     SortWith -> noPair

@@ -67,6 +67,7 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     DescToRename -> na
 
     Segment -> colUnion ownReqColumns childReqColumns
+    Unsegment -> colUnion ownReqColumns childReqColumns
 
     VecSum _ -> one
 
@@ -229,7 +230,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           partitionCols childBUProps1 childBUProps2 (Just cols1)
         VPropPair Nothing (Just cols2) -> 
           partitionCols childBUProps1 childBUProps2 (Just cols2)
-        p                              -> (VProp Nothing, VProp Nothing)-- error ("ReqColumns.ThetaJoin " ++ (show p))
+        _                              -> (VProp Nothing, VProp Nothing)-- error ("ReqColumns.ThetaJoin " ++ (show p))
 
     ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
 

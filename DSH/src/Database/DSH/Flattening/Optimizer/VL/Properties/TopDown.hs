@@ -47,6 +47,7 @@ seed (UnOp op _)   =
     DescToRename       -> vPropSeed
     ToDescr            -> vPropSeed
     Segment            -> vPropSeed
+    Unsegment          -> vPropSeed
     VecSum _           -> vPropSeed
     VecMin             -> vPropSeed
     VecMinL            -> vPropSeed

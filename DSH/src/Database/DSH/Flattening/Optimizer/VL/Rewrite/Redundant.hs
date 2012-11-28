@@ -2,13 +2,8 @@
 
 module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
 
-import           Control.Applicative
-import           Control.Exception.Base
 import           Control.Monad
 import qualified Data.Map as M
-import           Data.Maybe
-import qualified Data.Set as S
-import           Debug.Trace
 
 import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
@@ -243,7 +238,7 @@ mergeDescToRenames q =
 
         let isDescToRename n = do
                            
-              op <- trace "foo" $ getOperator n
+              op <- getOperator n
               case op of 
                 UnOp DescToRename _ -> return True
                 _                   -> return False

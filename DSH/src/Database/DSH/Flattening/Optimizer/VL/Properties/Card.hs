@@ -31,6 +31,7 @@ inferCardOneUnOp c op =
     DescToRename -> Right c
     ToDescr -> Right c
     Segment -> Right c
+    Unsegment -> Right c
     VecSum _ -> Right $ VProp True
     VecMin -> Right $ VProp True
     VecMinL -> Right c

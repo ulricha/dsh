@@ -4,7 +4,6 @@ module Optimizer.VL.Properties.VectorType where
 
 import Control.Monad
 import Data.Functor
-import Debug.Trace
 
 import Optimizer.VL.Properties.Types
   
@@ -41,6 +40,7 @@ inferVectorTypeUnOp s op =
     DescToRename -> Right $ VProp $ RenameVector
     ToDescr -> Right $ VProp $ DescrVector
     Segment -> VProp <$> unpack s
+    Unsegment -> VProp <$> unpack s
     VecSum _ -> Right $ VProp $ AtomicVector 1
     VecMin -> Right $ VProp $ AtomicVector 1
     VecMinL -> Right $ VProp $ ValueVector 1
