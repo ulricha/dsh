@@ -1,4 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+
 module Database.DSH.Compile where
 
 import Database.DSH.Internals

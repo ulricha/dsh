@@ -1,4 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+
 -- | DSH compiler module exposes the function fromQ that can be used to
 -- execute DSH programs on a database. It transform the DSH program into
 -- FerryCore which is then translated into SQL (through a table algebra). The SQL

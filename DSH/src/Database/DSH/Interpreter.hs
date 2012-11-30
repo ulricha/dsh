@@ -1,4 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell, GADTs #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+
 -- | This module provides the reference implementation of DSH by interpreting
 -- the embedded representation.
 
