@@ -81,8 +81,7 @@ data Fun a b where
     DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
 
-data Q a where
-  Q :: Exp (Rep a) -> Q a
+newtype Q a = Q (Exp (Rep a))
 
 -- Classes
 
@@ -105,7 +104,7 @@ class TA a where
 class View a where
   type ToView a
   view :: a -> ToView a
- 
+
 -- Show instances
 
 instance Show (Type a) where

@@ -3,6 +3,8 @@
 module Database.DSH.TH ( deriveDSH
                        , deriveQA
                        , deriveTupleRangeQA
+                       , deriveTA
+                       , deriveTupleRangeTA
                        , deriveView
                        , deriveTupleRangeView
                        , deriveElim
@@ -149,6 +151,31 @@ deriveFrExpMainPat :: [Name] -> Pat
 deriveFrExpMainPat [] = ConP 'DSH.UnitE []
 deriveFrExpMainPat [name] = VarP name
 deriveFrExpMainPat names  = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) (map VarP names)
+
+-----------------
+-- Deriving TA --
+-----------------
+
+deriveTA :: Name -> Q [Dec]
+deriveTA name = do
+  info <- reify name
+  case info of
+    TyConI (DataD    _cxt name1 tyVarBndrs cons _names) ->
+      deriveTyConTA name1 tyVarBndrs cons
+    TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
+      deriveTyConTA name1 tyVarBndrs [con]
+    _ -> fail errMsgExoticType
+
+deriveTupleRangeTA :: Int -> Int -> Q [Dec]
+deriveTupleRangeTA x y = fmap concat (mapM (deriveTA . tupleTypeName) [x .. y])
+
+deriveTyConTA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
+deriveTyConTA name tyVarBndrs _cons = do
+  let context       = map (\tv -> ClassP ''DSH.BasicType [VarT (tyVarBndrToName tv)])
+                          tyVarBndrs
+  let typ           = foldl AppT (ConT name) (map (VarT . tyVarBndrToName) tyVarBndrs)
+  let instanceHead  = AppT (ConT ''DSH.TA) typ
+  return [InstanceD context instanceHead []]
 
 -------------------
 -- Deriving View --
@@ -328,32 +355,32 @@ deriveTupleRangeSmartConstructors x y =
 deriveSmartConstructor :: Name -> [TyVarBndr] -> Int -> Int -> Con -> Q [Dec]
 deriveSmartConstructor typConName tyVarBndrs n i con = do
   let smartConName = toSmartConName (conToName con)
-  
+
   let boundTyps = map (VarT . tyVarBndrToName) tyVarBndrs
 
   let resTyp = AppT (ConT ''DSH.Q) (foldl AppT (ConT typConName) boundTyps)
 
   let smartConContext = map (ClassP ''DSH.QA . return) boundTyps
-  
+
   let smartConTyp = foldr (AppT . AppT ArrowT . AppT (ConT ''DSH.Q))
                           resTyp
                           (conToTypes con)
-  
+
   let smartConDec = SigD smartConName (ForallT tyVarBndrs smartConContext smartConTyp)
 
   ns <- mapM (\_ -> newName "e") (conToTypes con)
   let es = map VarE ns
-  
+
   let smartConPat = map (ConP 'DSH.Q . return . VarP) ns
-  
+
   let smartConExp = if null es
                        then (ConE 'DSH.UnitE)
                        else foldr1 (AppE . AppE (ConE 'DSH.PairE)) es
   smartConBody <- deriveSmartConBody n i smartConExp
   let smartConClause = Clause smartConPat (NormalB smartConBody) []
-  
+
   let funDec = FunD smartConName [smartConClause]
-  
+
   return [smartConDec,funDec]
 
 deriveSmartConBody :: Int -- Total number of constructors

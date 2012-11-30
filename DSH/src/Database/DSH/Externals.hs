@@ -147,6 +147,7 @@ instance TA Integer where
 instance TA Double where
 instance TA Text where
 instance (BasicType a, BasicType b) => TA (a,b) where
+instance (BasicType a, BasicType b, BasicType c) => TA (a,b,c) where
 
 -- Num and Fractional instances
 
@@ -618,6 +619,7 @@ infixr 2  ||
 infix  0  ?
 
 deriveTupleRangeQA                4 7
+deriveTupleRangeTA                4 7
 deriveTupleRangeView              4 7
 deriveTupleRangeSmartConstructors 2 7
 
