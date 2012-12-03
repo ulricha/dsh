@@ -1,8 +1,8 @@
-module Optimizer.VL.Properties.Common where
+module Database.DSH.Flattening.Optimizer.VL.Properties.Common where
 
 import Control.Monad
 
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
 
 unpack :: Show a => String -> VectorProp a -> Either String a
 unpack _ (VProp b)  = Right b

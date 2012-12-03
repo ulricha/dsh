@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Optimizer.Infrastructure where
+module Database.DSH.Flattening.Optimizer.Infrastructure where
 
 import Control.Applicative
 import Control.Monad.Trans.State

@@ -1,11 +1,11 @@
 -- FIXME introduce consistency checks for schema inference
 
-module Optimizer.VL.Properties.VectorType where
+module Database.DSH.Flattening.Optimizer.VL.Properties.VectorType where
 
 import Control.Monad
 import Data.Functor
 
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
   
 import Database.Algebra.VL.Data
   

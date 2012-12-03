@@ -1,4 +1,4 @@
-module Optimizer.VL.Properties.BottomUp where
+module Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp where
 
 import qualified Data.Map as M
 
@@ -6,15 +6,15 @@ import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.Common.Aux
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.Empty
-import Optimizer.VL.Properties.VectorType
-import Optimizer.VL.Properties.Const
-import Optimizer.VL.Properties.Card
-import Optimizer.VL.Properties.Untainted
-import Optimizer.VL.Properties.IndexSpace
-import Optimizer.VL.Properties.VerticalForm
+import Database.DSH.Flattening.Optimizer.Common.Aux
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Empty
+import Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
+import Database.DSH.Flattening.Optimizer.VL.Properties.Const
+import Database.DSH.Flattening.Optimizer.VL.Properties.Card
+import Database.DSH.Flattening.Optimizer.VL.Properties.Untainted
+import Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
+import Database.DSH.Flattening.Optimizer.VL.Properties.VerticalForm
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: NodeMap VL -> AlgNode -> NodeMap BottomUpProps -> NodeMap BottomUpProps

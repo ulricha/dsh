@@ -1,8 +1,8 @@
-module Optimizer.VL.Properties.ReqColumns where
+module Database.DSH.Flattening.Optimizer.VL.Properties.ReqColumns where
 
 import           Data.List
 import           Database.Algebra.VL.Data
-import           Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> a
 unp (VProp x) = x

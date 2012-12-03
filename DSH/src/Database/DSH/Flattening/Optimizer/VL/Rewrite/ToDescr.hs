@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.ToDescr where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr where
 
 import Control.Monad
 import Control.Applicative
@@ -9,8 +9,8 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
 
-import Optimizer.VL.Rewrite.Common
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
   
 pruneColumns :: VLRewrite Bool
 pruneColumns = preOrder inferTopDown pruneRules

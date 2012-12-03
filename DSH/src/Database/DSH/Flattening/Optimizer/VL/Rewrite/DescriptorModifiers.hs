@@ -1,16 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.DescriptorModifiers where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers where
 
 import           Control.Monad
 import           Data.Functor
 
-import           Optimizer.Common.Shape
-import           Optimizer.VL.Properties.IndexSpace
-import           Optimizer.VL.Properties.Types
-import           Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.Common.Shape
+import Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
-import           Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
 
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.Rewrite

@@ -1,4 +1,4 @@
-module Optimizer.VL.Properties.Untainted where
+module Database.DSH.Flattening.Optimizer.VL.Properties.Untainted where
 
 -- Infer if the payload is untainted, that is for every tuple of a
 -- ValueVector the column content has not been modified. The property
@@ -9,7 +9,7 @@ import Data.Functor
 
 import Database.Algebra.Dag.Common
 
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
   
 import Database.Algebra.VL.Data
   

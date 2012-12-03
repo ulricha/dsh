@@ -1,9 +1,9 @@
-module Optimizer.VL.Properties.Const where
+module Database.DSH.Flattening.Optimizer.VL.Properties.Const where
 
 import Data.List
 
-import Optimizer.VL.Properties.Common
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import Database.Algebra.VL.Data
   
 unp :: Show a => VectorProp a -> Either String a

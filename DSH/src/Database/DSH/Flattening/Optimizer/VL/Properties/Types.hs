@@ -1,11 +1,11 @@
-module Optimizer.VL.Properties.Types where
+module Database.DSH.Flattening.Optimizer.VL.Properties.Types where
 
 import Text.PrettyPrint
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.Dot
-import Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
   
 data VectorProp a = VProp a
                   | VPropPair a a

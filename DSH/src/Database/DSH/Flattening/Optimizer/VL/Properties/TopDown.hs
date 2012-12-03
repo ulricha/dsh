@@ -1,4 +1,4 @@
-module Optimizer.VL.Properties.TopDown(inferTopDownProperties) where
+module Database.DSH.Flattening.Optimizer.VL.Properties.TopDown(inferTopDownProperties) where
 
 import Control.Monad.State
   
@@ -8,10 +8,10 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.Dag
 import Database.Algebra.VL.Data
 
-import Optimizer.Common.Aux
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.ToDescr
-import Optimizer.VL.Properties.ReqColumns
+import Database.DSH.Flattening.Optimizer.Common.Aux
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.ToDescr
+import Database.DSH.Flattening.Optimizer.VL.Properties.ReqColumns
   
 toDescrSeed :: Maybe Bool
 toDescrSeed = Nothing

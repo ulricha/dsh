@@ -1,4 +1,4 @@
-module Optimizer.Common.Aux where
+module Database.DSH.Flattening.Optimizer.Common.Aux where
 
 import qualified Data.Map as M
 

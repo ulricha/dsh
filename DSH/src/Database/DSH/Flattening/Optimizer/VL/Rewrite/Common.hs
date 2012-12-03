@@ -1,4 +1,4 @@
-module Optimizer.VL.Rewrite.Common where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Common where
 
 import qualified Data.Map as M
 
@@ -7,10 +7,10 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 import Database.Algebra.Rewrite
 
-import Optimizer.Common.Shape
-import Optimizer.VL.Properties.BottomUp
-import Optimizer.VL.Properties.TopDown
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.Common.Shape
+import Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp
+import Database.DSH.Flattening.Optimizer.VL.Properties.TopDown
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
   
   -- Type abbreviations for convenience
 type VLRewrite p = Rewrite VL Shape p

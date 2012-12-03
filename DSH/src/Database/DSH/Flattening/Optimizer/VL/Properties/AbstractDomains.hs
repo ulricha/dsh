@@ -1,4 +1,4 @@
-module Optimizer.VL.Properties.AbstractDomains where
+module Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains where
 
 import           Data.List
 import qualified Data.Set as S

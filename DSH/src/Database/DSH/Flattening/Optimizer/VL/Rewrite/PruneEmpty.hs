@@ -1,13 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
 import Control.Monad
 import Control.Applicative
 
-import Optimizer.Common.Shape
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.Common.Shape
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
   
 import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common

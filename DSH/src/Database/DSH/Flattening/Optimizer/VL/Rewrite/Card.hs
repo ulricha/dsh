@@ -1,13 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Card(optCard) where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Card(optCard) where
 
 import Debug.Trace
 
 import Control.Monad
 
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Rewrite

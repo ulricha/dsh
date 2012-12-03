@@ -1,4 +1,4 @@
-module Optimizer.VL.OptimizeVL where
+module Database.DSH.Flattening.Optimizer.VL.OptimizeVL where
 
 import           Control.Applicative
 
@@ -6,14 +6,14 @@ import qualified Database.Algebra.Dag                     as Dag
 import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
-import           Optimizer.Common.Shape
-import           Optimizer.VL.Rewrite.DescriptorModifiers
-import           Optimizer.VL.Rewrite.Expressions
-import           Optimizer.VL.Rewrite.MergeProjections
-import           Optimizer.VL.Rewrite.PruneEmpty
-import           Optimizer.VL.Rewrite.Redundant
-import           Optimizer.VL.Rewrite.Specialized
-import           Optimizer.VL.Rewrite.ToDescr
+import Database.DSH.Flattening.Optimizer.Common.Shape
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr
 
 type RewriteClass = Rewrite VL Shape Bool
 

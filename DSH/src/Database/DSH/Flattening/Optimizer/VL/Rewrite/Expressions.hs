@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Expressions where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions where
 
 -- This module contains rewrites which aim to simplify and merge complex expressions
 -- which are expressed through multiple operators.
@@ -11,8 +11,8 @@ import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
   
 optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ postOrder inferBottomUp expressionRules

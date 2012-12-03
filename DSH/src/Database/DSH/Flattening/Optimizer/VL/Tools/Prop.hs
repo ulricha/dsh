@@ -13,9 +13,9 @@ import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.BottomUp
-import Optimizer.VL.Properties.TopDown
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp
+import Database.DSH.Flattening.Optimizer.VL.Properties.TopDown
   
 data Options = Options { optInput :: IO B.ByteString }
                

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
 
 import           Control.Monad
 import qualified Data.Map as M
@@ -9,12 +9,12 @@ import           Database.Algebra.Rewrite
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 
-import           Optimizer.VL.Properties.AbstractDomains
-import           Optimizer.VL.Properties.Types
-import           Optimizer.VL.Properties.VectorType
-import           Optimizer.VL.Rewrite.Common
-import           Optimizer.VL.Rewrite.Expressions
-import           Optimizer.VL.Rewrite.MergeProjections
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
   
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup

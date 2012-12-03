@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Optimizer.VL.Rewrite.MergeProjections where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections where
 
 import qualified Data.Map as M
 
@@ -7,7 +7,7 @@ import Database.Algebra.Dag.Common
 import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
   
-import Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
   
 mergeProjections :: VLRewrite Bool
 mergeProjections = iteratively $ preOrder (return M.empty) mergeRules

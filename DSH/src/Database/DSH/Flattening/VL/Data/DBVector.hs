@@ -8,10 +8,10 @@ import GHC.Generics (Generic)
 type DBCol = Int
 
 data DBV = DBV AlgNode [DBCol]
-    deriving (Show, Generic)
+    deriving (Show, Generic, Read)
 
 data DBP = DBP AlgNode [DBCol] 
-    deriving (Show, Generic)
+    deriving (Show, Generic, Read)
     
 data DescrVector = DescrVector AlgNode
     deriving (Generic)

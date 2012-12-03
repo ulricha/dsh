@@ -1,11 +1,11 @@
-module Optimizer.VL.Properties.IndexSpace where
+module Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.VL.Properties.Common
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.IndexSpace"

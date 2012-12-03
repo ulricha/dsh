@@ -39,9 +39,9 @@ import qualified Database.DSH.Flattening.VL.Data.GraphVector as GV
 import Database.Algebra.VL.Data hiding (DBCol)
 import qualified Database.Algebra.VL.Render.JSON as VLJSON
 import qualified Database.Algebra.VL.Data as V
+       
+import qualified Database.DSH.Flattening.VL.Data.TopShape as TS
   
-import qualified Optimizer.Common.Shape as S
-
 import Control.Monad.State
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
@@ -296,12 +296,12 @@ toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
 
 toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
 toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
-                          
-vlDagtoX100Dag :: AlgebraDag VL -> Shape -> (AlgebraDag X100Algebra, Shape)
+
+vlDagtoX100Dag :: AlgebraDag VL -> TS.TopShape -> (AlgebraDag X100Algebra, TS.TopShape)
 vlDagtoX100Dag vlDag shape =
-  let vlplan = ((reverseMap $ nodeMap vlDag), shape, M.empty)
+  let vlplan = ((reverseMap $ nodeMap vlDag), importShape shape, M.empty)
       (m, shape', _) = toX100Algebra vlplan
-  in (mkDag (reverseMap m) (rootNodes shape'), shape')
+  in (mkDag (reverseMap m) (rootNodes shape'), exportShape shape')
 
 toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
@@ -313,24 +313,25 @@ toVLFile prefix (m, r, t) = do
         shapePath = prefix ++ "_shape.plan"
     VLJSON.planToFile planPath (t, rootNodes r, reverseAlgMap m)
     writeFile shapePath $ show $ exportShape r
-importShape :: S.Shape -> Shape
-importShape (S.ValueVector (S.DBV n cols) lyt) = Vec.ValueVector (DBV n cols) (importLayout lyt)
-importShape (S.PrimVal (S.DBP n cols) lyt)     = Vec.PrimVal (DBP n cols) (importLayout lyt)
 
-importLayout :: S.Layout -> Layout
-importLayout (S.InColumn i)              = Vec.InColumn i
-importLayout (S.Nest (S.DBV n cols) lyt) = Vec.Nest (DBV n cols) (importLayout lyt)
-importLayout (S.Pair lyt1 lyt2)          = Vec.Pair (importLayout lyt1) (importLayout lyt2)
+importShape :: TS.TopShape -> Shape
+importShape (TS.ValueVector (DBV n cols) lyt) = Vec.ValueVector (DBV n cols) (importLayout lyt)
+importShape (TS.PrimVal (DBP n cols) lyt)     = Vec.PrimVal (DBP n cols) (importLayout lyt)
+
+importLayout :: TS.TopLayout -> Layout
+importLayout (TS.InColumn i)              = Vec.InColumn i
+importLayout (TS.Nest (DBV n cols) lyt) = Vec.Nest (DBV n cols) (importLayout lyt)
+importLayout (TS.Pair lyt1 lyt2)          = Vec.Pair (importLayout lyt1) (importLayout lyt2)
     
-exportShape :: Shape -> S.Shape
-exportShape (Vec.ValueVector (DBV n cols) lyt) = S.ValueVector (S.DBV n cols) (exportLayout lyt)
-exportShape (Vec.PrimVal (DBP n cols) lyt)     = S.PrimVal (S.DBP n cols) (exportLayout lyt)
-exportShape s                              = error $ "exportShape: impossible top-level shape " ++ (show s)
+exportShape :: Shape -> TS.TopShape
+exportShape (Vec.ValueVector (DBV n cols) lyt) = TS.ValueVector (DBV n cols) (exportLayout lyt)
+exportShape (Vec.PrimVal (DBP n cols) lyt)     = TS.PrimVal (DBP n cols) (exportLayout lyt)
+exportShape s                                  = error $ "exportShape: impossible top-level shape " ++ (show s)
 
-exportLayout :: Layout -> S.Layout
-exportLayout (Vec.InColumn i)            = S.InColumn i
-exportLayout (Vec.Nest (DBV n cols) lyt) = S.Nest (S.DBV n cols) (exportLayout lyt)
-exportLayout (Vec.Pair lyt1 lyt2)        = S.Pair (exportLayout lyt1) (exportLayout lyt2)
+exportLayout :: Layout -> TS.TopLayout
+exportLayout (Vec.InColumn i)            = TS.InColumn i
+exportLayout (Vec.Nest (DBV n cols) lyt) = TS.Nest (DBV n cols) (exportLayout lyt)
+exportLayout (Vec.Pair lyt1 lyt2)        = TS.Pair (exportLayout lyt1) (exportLayout lyt2)
     
 toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r

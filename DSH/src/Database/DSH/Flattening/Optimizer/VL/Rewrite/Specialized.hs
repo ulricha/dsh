@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Optimizer.VL.Rewrite.Specialized where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized where
 
 import Debug.Trace
 
@@ -11,12 +11,12 @@ import Control.Applicative
 import Database.Algebra.Rewrite
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
-import Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
 
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.VectorType
-import Optimizer.VL.Rewrite.Common
-import Optimizer.VL.Rewrite.Redundant
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
   
 introduceSpecializedOperators :: VLRewrite Bool
 introduceSpecializedOperators = iteratively $ sequenceRewrites [ normalize

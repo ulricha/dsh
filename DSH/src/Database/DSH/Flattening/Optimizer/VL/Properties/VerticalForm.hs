@@ -1,10 +1,10 @@
-module Optimizer.VL.Properties.VerticalForm where
+module Database.DSH.Flattening.Optimizer.VL.Properties.VerticalForm where
        
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
 
-import Optimizer.VL.Properties.Common
-import Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
 
 no :: Either String (VectorProp IntactSince)
 no = Right $ VProp []

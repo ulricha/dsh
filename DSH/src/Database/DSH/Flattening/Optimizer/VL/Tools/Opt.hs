@@ -13,8 +13,8 @@ import Database.Algebra.Rewrite(Log)
 import Database.Algebra.VL.Data
 import Database.Algebra.VL.Render.JSON
 
-import Optimizer.Common.Shape
-import Optimizer.VL.OptimizeVL
+import Database.DSH.Flattening.Optimizer.Common.Shape
+import Database.DSH.Flattening.Optimizer.VL.OptimizeVL
   
 data Options = Options { optVerbose        :: Bool
                        , optDebug          :: Bool

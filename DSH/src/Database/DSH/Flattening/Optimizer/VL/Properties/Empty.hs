@@ -1,12 +1,12 @@
-module Optimizer.VL.Properties.Empty where
+module Database.DSH.Flattening.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
 import Data.Functor
   
 import Database.Algebra.VL.Data
   
-import Optimizer.VL.Properties.Types
-import Optimizer.VL.Properties.Common
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.Common
   
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Empty"

@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Optimizer.Rewrite where
+module Database.DSH.Flattening.Optimizer.Rewrite where
 
 import Control.Applicative
 import Control.Monad.Trans.State

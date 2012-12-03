@@ -1,4 +1,4 @@
-module Optimizer.Common.Shape where
+module Database.DSH.Flattening.Optimizer.Common.Shape where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data(DBCol)
