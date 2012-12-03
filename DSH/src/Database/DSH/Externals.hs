@@ -618,10 +618,10 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
-deriveTupleRangeQA                4 7
-deriveTupleRangeTA                4 7
-deriveTupleRangeView              4 7
-deriveTupleRangeSmartConstructors 2 7
+deriveTupleRangeQA                4 16
+deriveTupleRangeTA                4 16
+deriveTupleRangeView              4 16
+deriveTupleRangeSmartConstructors 2 16
 
 -- * Missing functions
 
