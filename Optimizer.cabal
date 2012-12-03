@@ -1,0 +1,90 @@
+Name:                Optimizer
+Version:             0.0.1
+Synopsis:            Algebraic optimizer for X100
+-- Description:         
+License:             BSD3
+License-file:        LICENSE
+Author:              Alexander Ulrich
+Maintainer:          alexander.ulrich@uni-tuebingen.de
+Category:            Database
+Build-type:          Simple
+
+-- Constraint on the version of Cabal needed to build this package.
+Cabal-version:       >=1.2
+
+
+Library
+  Hs-Source-Dirs:   src
+  -- Modules exported by the library.
+  Exposed-modules:     Optimizer.X100.OptimizeX100,
+                       Optimizer.VL.OptimizeVL,
+                       Optimizer.Common.Shape
+  
+  -- Packages needed in order to build this package.
+  Build-depends:       base,
+                       mtl,
+                       transformers,
+                       containers,
+                       fgl,
+                       pretty,
+                       bytestring,
+                       TableAlgebra >= 2.0.0
+  
+  -- Modules not exported by this package.
+  Other-modules:       Optimizer.Common.Aux
+
+                       Optimizer.X100.Rewrite.Common
+                       Optimizer.X100.Rewrite.ConstOpt
+                       Optimizer.X100.Rewrite.JoinPushdown
+                       Optimizer.X100.Rewrite.Key
+                       Optimizer.X100.Rewrite.ProjectionMerge
+                       Optimizer.X100.Rewrite.PruneColumns
+                       Optimizer.X100.Rewrite.PruneEmpty
+                       Optimizer.X100.Rewrite.PruneJoins
+
+                       Optimizer.VL.Properties.BottomUp
+                       Optimizer.VL.Properties.TopDown
+                       Optimizer.VL.Properties.Types
+                       Optimizer.VL.Properties.Common
+                       Optimizer.VL.Properties.Const
+                       Optimizer.VL.Properties.Empty
+                       Optimizer.VL.Properties.Card
+                       Optimizer.VL.Properties.VectorType
+                       Optimizer.VL.Properties.ToDescr
+                       Optimizer.VL.Properties.Untainted
+                       Optimizer.VL.Properties.IndexSpace
+                       Optimizer.VL.Properties.ReqColumns
+                       Optimizer.VL.Properties.VerticalForm
+                       Optimizer.VL.Properties.AbstractDomains
+
+                       Optimizer.VL.Rewrite.Common
+                       Optimizer.VL.Rewrite.DescriptorModifiers
+                       Optimizer.VL.Rewrite.Expressions
+                       Optimizer.VL.Rewrite.MergeProjections
+                       Optimizer.VL.Rewrite.PruneEmpty
+                       Optimizer.VL.Rewrite.Redundant
+                       Optimizer.VL.Rewrite.Specialized
+                       Optimizer.VL.Rewrite.ToDescr
+
+  GHC-Options: -O3 -Wall -fprof-auto 
+
+Executable x100opt
+  Hs-Source-Dirs:   src
+  Main-Is: Optimizer/X100/Tools/Opt.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
+
+Executable vlopt
+  Hs-Source-Dirs:   src
+  Main-Is: Optimizer/VL/Tools/Opt.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0
+  GHC-Options: -rtsopts -O3 -Wall -fprof-auto 
+
+Executable vlprop
+  Hs-Source-Dirs:   src
+  Main-Is: Optimizer/VL/Tools/Prop.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0
+  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
