@@ -64,7 +64,7 @@ isSuperDomain dom1 dom2@(SubUnionDom _ superDom1 superDom2) = dom1 == dom2
                                                              || isSuperDomain dom1 superDom1
                                                              || isSuperDomain dom1 superDom2
 isSuperDomain _ UniverseDom   = False
-isSuperDomain _ (NumberDom _) = False
+isSuperDomain d1 d2@(NumberDom _) = d1 == d2
                               
 -- | disjoint d returns all domains which are disjoint to d or disjoint to an ancestor of d.
 disjointDomains :: Domain -> S.Set Domain
