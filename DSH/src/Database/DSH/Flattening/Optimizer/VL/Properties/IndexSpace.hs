@@ -2,6 +2,7 @@ module Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
+import Debug.Trace
 
 import Database.DSH.Flattening.Optimizer.VL.Properties.Common
 import Database.DSH.Flattening.Optimizer.VL.Properties.Types
@@ -68,7 +69,9 @@ inferIndexSpaceUnOp is n op =
     NotPrim -> Right is
     NotVec -> Right is
     LengthA -> Right $ VProp $ DBPSpace $ P $ freshSpace n "p"
-    DescToRename -> Right $ VProp $ uncurry RenameVectorTransform $ freshTransformSpaces n
+    DescToRename -> do
+      ((D dis), (P pis)) <- unp is >>= fromDBV
+      return $ VProp $ RenameVectorTransform (S pis) (T dis)
     
     ToDescr -> do
       (dis, pis) <- unp is >>= fromDBV
@@ -160,7 +163,7 @@ inferIndexSpaceBinOp :: VectorProp IndexSpace
                         -> AlgNode 
                         -> BinOp 
                         -> Either String (VectorProp IndexSpace)
-inferIndexSpaceBinOp is1 _ n op = 
+inferIndexSpaceBinOp is1 is2 n op = 
   case op of
     GroupBy ->  
       let ddis = D $ freshSpace n "d/d"
@@ -181,7 +184,17 @@ inferIndexSpaceBinOp is1 _ n op =
           dbv  = DBVSpace vdis vpis
       in Right $ VPropPair dv dbv
 
-    LengthSeg -> Right $ VProp $ freshDBVSpace n
+    LengthSeg -> do
+      (_, (P pis1)) <- unp is1 >>= fromDBV
+      ((D dis2), _) <- unp is2 >>= fromDBV
+      -- if the inner descriptor is a subdomain of the outer positions,
+      -- the descriptor of the result is just the outer positions.
+      -- This property holds because LengthSeg uses the outer positions
+      -- to fill out any gaps in the inner descriptor.
+      if dis2 `subDomain` pis1
+        then return $ VProp $ DBVSpace (D pis1) (P $ freshSpace n "p")
+        else return $ VProp $ freshDBVSpace n
+
     DistPrim -> Right $ uncurry VPropPair $ freshValuePropPair n
     DistDesc -> Right $ uncurry VPropPair $ freshValuePropPair n
     DistLift -> Right $ uncurry VPropPair $ freshValuePropPair n
