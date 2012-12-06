@@ -21,7 +21,7 @@ na = Nothing
      
 add :: VectorProp Untainted -> AlgNode -> Untainted
 add (VProp (Just nodes)) n = Just (n : nodes)
-add _                    _ = error "Untainted.add"
+add x                    _ = error $ "Untainted.add " ++ (show x)
 
 inferUntaintedNullOp :: NullOp -> VectorProp Untainted
 inferUntaintedNullOp op =
@@ -40,7 +40,7 @@ inferUntaintedUnOp u n op =
     NotVec -> VProp empty
     LengthA -> VProp empty
     DescToRename -> VProp na
-    ToDescr -> VProp na
+    ToDescr -> VProp empty
     Segment -> VProp $ add u n
     Unsegment -> VProp $ add u n
     VecSum _ -> VProp empty
@@ -83,12 +83,12 @@ inferUntaintedUnOp u n op =
 inferUntaintedBinOp :: VectorProp Untainted -> VectorProp Untainted -> AlgNode -> AlgNode -> BinOp -> VectorProp Untainted
 inferUntaintedBinOp _ _ _ _ op = 
   case op of
-    GroupBy -> VPropTriple na empty na
+    GroupBy -> VPropTriple empty empty na
     SortWith -> VPropPair empty na
     LengthSeg -> VProp empty
     DistPrim -> VPropPair empty na
     DistDesc -> VPropPair empty na
-    DistLift -> VPropPair empty na
+    DistLift -> VPropPair empty  na
     PropRename -> VProp empty
     PropFilter -> VPropPair empty na
     PropReorder -> VPropPair empty na
