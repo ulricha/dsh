@@ -2,7 +2,6 @@ module Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace where
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
-import Debug.Trace
 
 import Database.DSH.Flattening.Optimizer.VL.Properties.Common
 import Database.DSH.Flattening.Optimizer.VL.Properties.Types
@@ -15,6 +14,10 @@ fromDBV :: IndexSpace -> Either String (DescrIndexSpace, PosIndexSpace)
 fromDBV (DBVSpace dis pis)         = Right (dis, pis)
 fromDBV (DescrVectorSpace dis pis) = Right (dis, pis)
 fromDBV _                          = Left "IndexSpace.fromDBV: not a Value vector/descriptor vector"
+        
+fromRenameVector :: IndexSpace -> Either String (SourceIndexSpace, TargetIndexSpace)
+fromRenameVector (RenameVectorTransform sis tis) = Right (sis, tis)
+fromRenameVector _                               = Left "IndexSpace.fromRenameVector: not a rename vector"
 
 -- Non-Either IndexSpace accessors
 descrSpaceDBV :: VectorProp IndexSpace -> Domain
@@ -198,7 +201,11 @@ inferIndexSpaceBinOp is1 is2 n op =
     DistPrim -> Right $ uncurry VPropPair $ freshValuePropPair n
     DistDesc -> Right $ uncurry VPropPair $ freshValuePropPair n
     DistLift -> Right $ uncurry VPropPair $ freshValuePropPair n
-    PropRename -> Right $ VProp $ freshDBVSpace n
+    PropRename -> do
+      (_, (T tis)) <- unp is1 >>= fromRenameVector
+      (_, (P pis)) <- unp is2 >>= fromDBV
+      return $ VProp $ DBVSpace (D tis) (P pis)
+      
     PropFilter -> Right $ uncurry VPropPair $ freshValueRenamePair n
     PropReorder -> Right $ uncurry VPropPair $ freshValuePropPair n
     Append -> 
