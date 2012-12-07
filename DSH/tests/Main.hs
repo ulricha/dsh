@@ -69,7 +69,7 @@ putStrPad s = putStr (s ++ replicate (32 - length s) ' ' )
 
 main :: IO ()
 main = do
-    putStrLn "Supprted Types"
+    putStrLn "Supported Types"
     putStrLn "--------------"
     putStrPad "()"
     qc prop_unit
@@ -139,7 +139,7 @@ main = do
     qc prop_max_integer
     putStrPad "max_double"
     qc prop_max_double
-    
+
     putStrLn ""
     putStrLn "Tuples"
     putStrLn "------"
@@ -162,7 +162,7 @@ main = do
     putStrPad "div_double"
     qc prop_div_double
     putStrPad "integer_to_double: "
-    qc prop_integer_to_double    
+    qc prop_integer_to_double
     putStrPad "abs_integer"
     qc prop_abs_integer
     putStrPad "abs_double"
@@ -199,7 +199,7 @@ main = do
     qc prop_catMaybes
     putStrPad "mapMaybe"
     qc prop_mapMaybe
-    
+
     putStrLn ""
     putStrLn "Either"
     putStrLn "-----"
@@ -337,7 +337,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
     db <- run $ fromQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
     let hs = f2 arg
-    let eps = 1.0E-8 :: Double;    
+    let eps = 1.0E-8 :: Double;
     assert (abs (db - hs) < eps)
 
 uncurryQ :: (QA a, QA b) => (Q a -> Q b -> Q c) -> Q (a,b) -> Q c
