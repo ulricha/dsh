@@ -1,0 +1,10 @@
+Pathfinder/pathfinder/
+Pathfinder/pathfinder_post_build.sh
+Pathfinder/pathfinder_pre_build.sh
+Pathfinder/dist/
+DSH/dist/
+TAGS
+
+*~
+*.swp
+*#
