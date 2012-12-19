@@ -19,14 +19,13 @@ type VLRuleSet p = RuleSet VL p Shape
 
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do
-  to <- topsort
-  props <- infer (inferBottomUpProperties to)
+  props <- infer inferBottomUpProperties
   return props
 
 inferTopDown :: VLRewrite (NodeMap TopDownProps)
 inferTopDown = do
   to <- topsort
-  buPropMap <- infer (inferBottomUpProperties to)
+  buPropMap <- infer inferBottomUpProperties
   props <- infer (inferTopDownProperties buPropMap to)
   return props
 
