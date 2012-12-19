@@ -1,11 +1,8 @@
 module Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp where
 
-import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Data.IntMap                                                  as M
-
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
+import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
 import           Database.DSH.Flattening.Optimizer.Common.Aux
@@ -126,31 +123,5 @@ inferTerOp n c1 c2 c3 op c1Props c2Props c3Props = do
                    , verticallyIntactProp = opVerticallyIntact
                    , vectorTypeProp = opType }
 
-type Inference a = StateT (NodeMap BottomUpProps) (Reader (AlgebraDag VL)) a
-
-hasBeenVisited :: AlgNode -> Inference Bool
-hasBeenVisited n = do
-  pm <- get
-  return $ M.member n pm
-
-putProperty :: AlgNode -> BottomUpProps -> Inference ()
-putProperty n p = do
-  pm <- get
-  put $ M.insert n p pm
-
 inferBottomUpProperties :: AlgebraDag VL -> NodeMap BottomUpProps
-inferBottomUpProperties dag = runReader (execStateT infer M.empty) dag
-  where infer = mapM_ traverse (rootNodes dag)
-
-traverse :: AlgNode -> Inference ()
-traverse n = do
-  visited <- hasBeenVisited n
-  if visited
-    then return ()
-    else do
-      dag <- lift ask
-      let op = operator n dag
-      mapM_ traverse (opChildren op)
-      pm <- get
-      putProperty n (inferWorker op n pm)
-
+inferBottomUpProperties dag = inferBottomUpGeneral inferWorker dag
