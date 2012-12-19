@@ -2,7 +2,7 @@ module Database.DSH.Flattening.Optimizer.VL.Properties.TopDown(inferTopDownPrope
 
 import Control.Monad.State
   
-import qualified Data.Map as M
+import qualified Data.IntMap as M
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Dag

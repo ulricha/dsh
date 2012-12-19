@@ -1,6 +1,6 @@
 module Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp where
 
-import qualified Data.Map as M
+import qualified Data.IntMap as M
 
 import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
