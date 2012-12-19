@@ -19,7 +19,8 @@ removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
                                                   , preOrder noProps redundantRules
                                                   , preOrder inferBottomUp redundantRulesBottomUp
-                                                  , preOrder inferTopDown redundantRulesTopDown ]
+                                                  -- , preOrder inferTopDown redundantRulesTopDown
+                                                  ]
 
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ mergeProjections
