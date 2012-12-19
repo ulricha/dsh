@@ -1,20 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections where
 
-import qualified Data.Map as M
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.Rewrite
+import           Database.Algebra.VL.Data
 
-import Database.Algebra.Dag.Common
-import Database.Algebra.Rewrite
-import Database.Algebra.VL.Data
-  
-import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-  
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+
 mergeProjections :: VLRewrite Bool
-mergeProjections = iteratively $ preOrder (return M.empty) mergeRules
+mergeProjections = iteratively $ preOrder noProps mergeRules
 
 mergeRules :: VLRuleSet ()
 mergeRules = [ mergeProjectL ]
-             
+
 colMap :: [DBCol] -> [(DBCol, DBCol)]
 colMap cols = zip [1 .. length cols] cols
 
@@ -34,4 +32,4 @@ mergeProjectL q =
           let cols = mapCols (colMap $(v "cols2")) $(v "cols1")
               projectOp = UnOp (ProjectL $(v "cols")) $(v "q1")
           replace q projectOp |])
-              
+
