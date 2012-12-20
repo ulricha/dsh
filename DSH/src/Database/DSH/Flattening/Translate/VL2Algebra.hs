@@ -9,40 +9,41 @@ module Database.DSH.Flattening.Translate.VL2Algebra
        , exportShape
        , toVLFile) where
 
-import Data.List(intercalate)
+import           Data.List                                             (intercalate)
 
-import Database.Algebra.Pathfinder(PFAlgebra)
+import           Database.Algebra.Pathfinder                           (PFAlgebra)
 
-import Database.Algebra.X100.Data(X100Algebra)
-import Database.Algebra.X100.Data.Create(dummy)
-import Database.Algebra.X100.JSON
-import Database.Algebra.X100.Render
-import Database.Algebra.Pathfinder.Render.XML hiding (XML, Graph, node, getNode)
-import Database.DSH.Flattening.VL.PathfinderVectorPrimitives()
-import Database.Algebra.Pathfinder(initLoop)
-  
-import qualified Data.Map as M
-  
-import Database.DSH.Flattening.Translate.FKL2VL()
-import Database.DSH.Flattening.VL.X100VectorPrimitives()
-import Database.Algebra.Aux
-import Database.Algebra.Dag(AlgebraDag, mkDag, nodeMap)
-import Database.Algebra.Dag.Common hiding (BinOp)
-import qualified Database.Algebra.Dag.Common as C
-import Database.DSH.Flattening.VL.Data.DBVector
-import qualified Database.DSH.Flattening.VL.Data.Query as Ext
-import qualified Database.DSH.Flattening.VL.Data.GraphVector as Vec
-import Database.DSH.Flattening.VL.VectorPrimitives
-import Database.Algebra.Dag.Builder
-import Database.DSH.Flattening.VL.Data.GraphVector hiding (Pair)
-import qualified Database.DSH.Flattening.VL.Data.GraphVector as GV
-import Database.Algebra.VL.Data hiding (DBCol)
-import qualified Database.Algebra.VL.Render.JSON as VLJSON
-import qualified Database.Algebra.VL.Data as V
-       
-import qualified Database.DSH.Flattening.VL.Data.TopShape as TS
-  
-import Control.Monad.State
+import           Database.Algebra.Pathfinder                           (initLoop)
+import           Database.Algebra.Pathfinder.Render.XML                hiding (Graph, XML, getNode, node)
+import           Database.Algebra.X100.Data                            (X100Algebra)
+import           Database.Algebra.X100.Data.Create                     (dummy)
+import           Database.Algebra.X100.JSON
+import           Database.Algebra.X100.Render
+import           Database.DSH.Flattening.VL.PathfinderVectorPrimitives ()
+
+import qualified Data.IntMap                                           as IM
+import qualified Data.Map                                              as M
+
+import           Database.Algebra.Aux
+import           Database.Algebra.Dag                                  (AlgebraDag, mkDag, nodeMap)
+import           Database.Algebra.Dag.Builder
+import           Database.Algebra.Dag.Common                           hiding (BinOp)
+import qualified Database.Algebra.Dag.Common                           as C
+import           Database.Algebra.VL.Data                              hiding (DBCol)
+import qualified Database.Algebra.VL.Data                              as V
+import qualified Database.Algebra.VL.Render.JSON                       as VLJSON
+import           Database.DSH.Flattening.Translate.FKL2VL              ()
+import           Database.DSH.Flattening.VL.Data.DBVector
+import           Database.DSH.Flattening.VL.Data.GraphVector           hiding (Pair)
+import qualified Database.DSH.Flattening.VL.Data.GraphVector           as Vec
+import qualified Database.DSH.Flattening.VL.Data.GraphVector           as GV
+import qualified Database.DSH.Flattening.VL.Data.Query                 as Ext
+import           Database.DSH.Flattening.VL.VectorPrimitives
+import           Database.DSH.Flattening.VL.X100VectorPrimitives       ()
+
+import qualified Database.DSH.Flattening.VL.Data.TopShape              as TS
+
+import           Control.Monad.State
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
@@ -62,7 +63,7 @@ fromDict :: VectorAlgebra a => AlgNode -> G a (Maybe Res)
 fromDict n = do
                 dict <- get
                 return $ M.lookup n dict
-                
+
 insertTranslation :: VectorAlgebra a => AlgNode -> Res -> G a ()
 insertTranslation n res = modify (M.insert n res)
 
@@ -111,7 +112,7 @@ vl2Algebra (nodes, plan) = do
       roots = rootNodes plan
       refreshShape :: VectorAlgebra a => Shape -> G a Shape
       refreshShape (ValueVector (DBV n _) lyt) = do
-                                                 
+
                                                  v <- fromDict n
                                                  case v of
                                                      (Just n') -> do
@@ -134,12 +135,12 @@ vl2Algebra (nodes, plan) = do
                                  l2' <- refreshLyt l2
                                  return $ GV.Pair l1' l2'
       getNode :: AlgNode -> VL
-      getNode n = case M.lookup n nodes of
+      getNode n = case IM.lookup n nodes of
         Just op -> op
         Nothing -> error $ "getNode: node " ++ (show n) ++ " not in nodes map " ++ (pp nodes)
-        
-      pp m = intercalate ",\n" $ map show $ M.toList m
-                       
+
+      pp m = intercalate ",\n" $ map show $ IM.toList m
+
       translate :: VectorAlgebra a => AlgNode -> G a Res
       translate n = do
                       r <- fromDict n
@@ -163,7 +164,7 @@ vl2Algebra (nodes, plan) = do
                                         NullaryOp o      -> lift $ translateNullary o
                                     insertTranslation n r'
                                     return r'
-                         
+
 translateTerOp :: VectorAlgebra a => TerOp -> Res -> Res -> Res -> GraphM () a Res
 translateTerOp t c1 c2 c3 = case t of
                              CombineVec -> do
@@ -219,9 +220,9 @@ translateBinOp b c1 c2 = case b of
                                                 (v, p1, p2) <- cartProduct (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
                            ThetaJoin     js -> do
-                                                (v1, v2) <- thetaJoin js (toDBV c1) (toDBV c2) 
+                                                (v1, v2) <- thetaJoin js (toDBV c1) (toDBV c2)
                                                 return $ RPair (fromDBV v1) (fromDBV v2)
-                                                
+
 
 singleton :: Res -> Res
 singleton (RDBP c cs) = RDBV c cs
@@ -282,7 +283,7 @@ translateUnOp u c = case u of
                       R3            -> case c of
                                         (RTriple _ _ c3) -> return c3
                                         _                -> error "R3: Not a tuple"
-                      
+
 
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
 translateNullary SingletonDescr                   = liftM fromDescrVector $ singletonDescr
@@ -299,14 +300,15 @@ toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
 
 vlDagtoX100Dag :: AlgebraDag VL -> TS.TopShape -> (AlgebraDag X100Algebra, TS.TopShape)
 vlDagtoX100Dag vlDag shape =
-  let vlplan = ((reverseMap $ nodeMap vlDag), importShape shape, M.empty)
+  -- FIXME the conversion of IntMap to Map sucks big time.
+  let vlplan = ((reverseMap $ M.fromList . IM.toList $ nodeMap vlDag), importShape shape, IM.empty)
       (m, shape', _) = toX100Algebra vlplan
-  in (mkDag (reverseMap m) (rootNodes shape'), exportShape shape')
+  in (mkDag (reverseToIntMap m) (rootNodes shape'), exportShape shape')
 
 toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
 toX100File f (m, r, t) = do
     planToFile f (t, rootNodes r, reverseAlgMap m)
-    
+
 toVLFile :: FilePath -> AlgPlan VL Shape -> IO ()
 toVLFile prefix (m, r, t) = do
     let planPath = prefix ++ "_vl.plan"
@@ -322,7 +324,7 @@ importLayout :: TS.TopLayout -> Layout
 importLayout (TS.InColumn i)              = Vec.InColumn i
 importLayout (TS.Nest (DBV n cols) lyt) = Vec.Nest (DBV n cols) (importLayout lyt)
 importLayout (TS.Pair lyt1 lyt2)          = Vec.Pair (importLayout lyt1) (importLayout lyt2)
-    
+
 exportShape :: Shape -> TS.TopShape
 exportShape (Vec.ValueVector (DBV n cols) lyt) = TS.ValueVector (DBV n cols) (exportLayout lyt)
 exportShape (Vec.PrimVal (DBP n cols) lyt)     = TS.PrimVal (DBP n cols) (exportLayout lyt)
@@ -332,11 +334,11 @@ exportLayout :: Layout -> TS.TopLayout
 exportLayout (Vec.InColumn i)            = TS.InColumn i
 exportLayout (Vec.Nest (DBV n cols) lyt) = TS.Nest (DBV n cols) (exportLayout lyt)
 exportLayout (Vec.Pair lyt1 lyt2)        = TS.Pair (exportLayout lyt1) (exportLayout lyt2)
-    
+
 toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
 toX100String (m, r, _t) = convertQuery r
  where
-    m' :: M.Map AlgNode X100Algebra
+    m' :: NodeMap X100Algebra
     m' = reverseAlgMap m
     convertQuery :: Shape -> Ext.Query Ext.X100
     convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
@@ -347,7 +349,7 @@ toX100String (m, r, _t) = convertQuery r
     convertLayout (InColumn i) = Ext.InColumn i
     convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
     convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
-    
+
 toXML :: AlgPlan PFAlgebra Shape -> Ext.Query Ext.XML
 toXML (g, r, ts) = convertQuery r
     where
@@ -367,6 +369,6 @@ toXML (g, r, ts) = convertQuery r
         nodeTable = M.fromList $ map (\(a, b) -> (b, a)) $ M.toList g
         toXML' :: [Element ()] -> AlgNode -> String
         toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $
-                        runXML False M.empty M.empty $
+                        runXML False M.empty IM.empty $
                             mkQueryPlan Nothing (xmlElem "property") $
                                 runXML True nodeTable ts $ serializeAlgebra cs n

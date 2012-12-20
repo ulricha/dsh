@@ -18,7 +18,7 @@ import Control.Monad (liftM, liftM2, liftM3)
 import Control.Applicative hiding (Const)
 import Data.ByteString.Lazy.Char8 (unpack)
 import Data.Aeson (ToJSON, FromJSON, encode)
-import qualified Data.Map as M
+import qualified Data.IntMap as M
 
 fkl2VL :: Expr -> Graph VL Shape
 fkl2VL (Table _ n cs ks) = dbTable n cs ks

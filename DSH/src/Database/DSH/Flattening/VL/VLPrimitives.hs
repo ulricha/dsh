@@ -1,21 +1,25 @@
-{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Database.DSH.Flattening.VL.VLPrimitives where
-    
-import Database.DSH.Flattening.VL.Data.DBVector
-import qualified Database.DSH.Flattening.Common.Data.Type as Ty
-import qualified Database.DSH.Flattening.Common.Data.Op as O
 
-import Database.Algebra.Dag.Common
-import Database.Algebra.Dag.Builder
-import Database.Algebra.VL.Data hiding (DBCol)
-import qualified Database.Algebra.VL.Data as D
+import qualified Database.DSH.Flattening.Common.Data.Op   as O
+import qualified Database.DSH.Flattening.Common.Data.Type as Ty
+import           Database.DSH.Flattening.VL.Data.DBVector
+
+import           Database.DSH.Flattening.Common.Impossible
+
+import           Database.Algebra.Dag.Builder
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.VL.Data                 hiding (DBCol)
+import qualified Database.Algebra.VL.Data                 as D
 
 dbv :: GraphM r a AlgNode -> GraphM r a DBV
 dbv = fmap (flip DBV [])
 
 dbp :: GraphM r a AlgNode -> GraphM r a DBP
 dbp = fmap (flip DBP [])
-         
+
 descr :: GraphM r a AlgNode -> GraphM r a DescrVector
 descr = fmap DescrVector
 
@@ -27,7 +31,7 @@ rename = fmap RenameVector
 
 emptyVL :: VL
 emptyVL = NullaryOp $ TableRef "Null" [] []
-          
+
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
@@ -43,7 +47,7 @@ typeToVLType t = case t of
   Ty.List t' -> D.VLList (typeToVLType t')
   Ty.Fn _ _ -> error "VLPrimitives: Functions can not occur in operator plans"
   Ty.Var _ -> error "VLPrimitives: Variables can not occur in operator plans"
-  
+
 operToVecOp :: O.Oper -> D.VecOp
 operToVecOp op = case op of
   O.Add -> D.NOp D.Add
@@ -51,11 +55,11 @@ operToVecOp op = case op of
   O.Div  -> D.NOp D.Div
   O.Mul  -> D.NOp D.Mul
   O.Mod  -> D.NOp D.Mod
-  O.Cons  -> D.Cons
+  O.Cons  -> $impossible
   O.Conj  -> D.BOp D.Conj
   O.Disj  -> D.BOp D.Disj
   _       -> D.COp $ operToCompOp op
-  
+
 operToCompOp :: O.Oper -> D.VecCompOp
 operToCompOp op = case op of
   O.Eq   -> D.Eq
@@ -64,7 +68,7 @@ operToCompOp op = case op of
   O.Lt   -> D.Lt
   O.LtE  -> D.LtE
   _      -> error "VLPrimitives.operToComOp: not a comparison operator"
-  
+
 unique :: DBV -> GraphM r VL DBV
 unique (DBV c _) = dbv $ insertNode $ UnOp Unique c
 
@@ -160,7 +164,7 @@ segment :: DBV -> GraphM r VL DBV
 segment (DBV c _) = dbv $ insertNode $ UnOp Segment c
 
 unsegment :: DBV -> GraphM r VL DBV
-unsegment (DBV c _) = dbv $ insertNode $ UnOp Unsegment c 
+unsegment (DBV c _) = dbv $ insertNode $ UnOp Unsegment c
 
 restrictVec :: DBV -> DBV -> GraphM r VL (DBV, RenameVector)
 restrictVec (DBV c1 _) (DBV c2 _) = do
@@ -287,6 +291,6 @@ falsePositions (DBV c _) = dbv $ insertNode $ UnOp FalsePositions c
 
 singleton :: DBP -> GraphM r VL DBV
 singleton (DBP c _) = dbv $ insertNode $ UnOp Singleton c
-    
+
 only :: DBV -> GraphM r VL DBP
 only (DBV c _) = dbp $ insertNode $ UnOp Only c
