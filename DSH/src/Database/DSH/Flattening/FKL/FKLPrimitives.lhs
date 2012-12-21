@@ -496,7 +496,10 @@ ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
 ifPrimM = liftM3 ifPrim
     
 opPrim :: Type -> Oper -> Expr -> Expr -> Expr     
-opPrim t o = BinOp t (Op o False)
+opPrim t o e1 e2 = let t' = typeOf e1
+                    in case (t', o) of
+                        (T.Pair _ _, Eq) -> opPrim t Conj (opPrim t Eq (fstPrim e1) (fstPrim e2)) (opPrim t Eq (sndPrim e1) (sndPrim e2))
+                        _ -> BinOp t (Op o False) e1 e2
 
 opPrimM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
 opPrimM t o = liftM2 (opPrim t o)
