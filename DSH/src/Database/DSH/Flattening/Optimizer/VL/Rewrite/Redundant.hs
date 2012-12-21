@@ -249,12 +249,7 @@ mergeDescToRenames q =
 
         return $ do
           logRewrite "Redundant.MergeDescToRenames" q
-          mapM_ (\n -> relinkParentsWithShape n q) redundantNodes
-
-          -- We have to clean up the graph to remove all now unreferenced DescToRename operators.
-          -- If they were not removed, the same rewrite would be executed again, leading to an
-          -- infinite loop.
-          pruneUnused |])
+          mapM_ (\n -> relinkParentsWithShape n q) redundantNodes |])
 
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
 pairFromSameSource :: VLRule BottomUpProps
