@@ -5,15 +5,15 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers where
 import           Control.Monad
 import           Data.Functor
 
-import Database.DSH.Flattening.Optimizer.Common.Shape
-import Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
-import Database.DSH.Flattening.Optimizer.VL.Properties.Types
-import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import           Database.DSH.Flattening.Optimizer.Common.Shape
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
+import           Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
+import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
-import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
+import           Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
 
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
 stripFromRoot :: VLRewrite Bool
@@ -55,7 +55,7 @@ constantDescriptorChain q =
         return $ do
           logRewrite "DescriptorModifiers.ConstantDescriptorChain" q
           op <- operator chainStart
-          replace q op |])
+          void $ replaceWithNew q op |])
 
 -- Remove a Segment operator if the node represents the outermost
 -- query. In this case, the descriptor is irrelevant and any operator
@@ -68,8 +68,7 @@ outerMostRootSegment q =
 
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootSegment" q
-          relinkParents q $(v "q1")
-          replaceRootWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 -- Remove a PropRename operator if the node represents the outermost
 -- query. In this case, the descriptor is irrelevant and any operator
@@ -82,8 +81,7 @@ outerMostRootPropRename q =
 
         return $ do
           logRewrite "DescriptorModifiers.OuterMostRootPropRename" q
-          relinkParents q $(v "q1")
-          replaceRootWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 -- FIXME this is a weak version. Use abstract knowledge about index space transformations
 -- to establish the no op property.
@@ -98,8 +96,7 @@ noOpRenamingProjRename q =
 
         return $ do
           logRewrite "DescriptorModifiers.NoOpRenaming.ProjectRename" q
-          replaceRootWithShape q $(v "q1")
-          relinkParents q $(v "q1") |])
+          replace q $(v "q1") |])
 
 
 -- Eliminate a NOOP PropRename operator which updates the descriptor column
@@ -128,6 +125,6 @@ noOpRenamingProjAdmin q =
          return $ do
            logRewrite "DescriptorModifiers.NoOpRenaming.ProjectAdmin" q
            if posProj == PosIdentity
-             then relinkParents q $(v "qv")
-             else void $ relinkToNew q $ UnOp (ProjectAdmin (DescrIdentity, posProj)) $(v "qv") |])
+             then replace q $(v "qv")
+             else void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrIdentity, posProj)) $(v "qv") |])
 

@@ -2,10 +2,10 @@ module Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp where
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
 import           Database.DSH.Flattening.Optimizer.Common.Aux
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Card
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Const
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Empty

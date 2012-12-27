@@ -1,12 +1,12 @@
 module Database.DSH.Flattening.Optimizer.VL.OptimizeVL where
-       
+
 import           Debug.Trace
 
 import qualified Database.Algebra.Dag                                             as Dag
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
 import           Database.DSH.Flattening.Optimizer.Common.Shape
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections

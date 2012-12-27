@@ -5,9 +5,9 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant (removeRedundancy,
 import           Control.Monad
 
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
@@ -71,7 +71,7 @@ introduceSelectExpr q =
         return $ do
           logRewrite "Redundant.SelectExpr" q
           selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
-          void $ relinkToNewWithShape q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
+          void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
 
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
@@ -81,7 +81,7 @@ restrictCombineDBV q =
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
-          void $ relinkToNewWithShape q $ UnOp ToDescr $(v "q1") |])
+          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
@@ -98,7 +98,7 @@ restrictCombinePropLeft q =
 
         return $ do
           logRewrite "Redundant.RestrictCombine.PropLeft/2" q
-          void $ relinkToNewWithShape q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
+          void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
 
 -- Clean up the remains of a selection pattern after the CombineVec
 -- part has been removed by rule Redundant.RestrictCombine.PropLeft
@@ -119,7 +119,7 @@ cleanupSelect q =
 
         return $ do
           logRewrite "Redundant.CleanupSelect" q
-          void $ relinkToNewWithShape q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
+          void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
 
 {-
 ifToSelect :: VLRule ()
@@ -151,7 +151,7 @@ pullRestrictThroughPair q =
           logRewrite "Redundant.PullRestrictThroughPair" q
           pairNode <- insert $ BinOp PairL $(v "qp1") $(v "qp2")
           restrictNode <- insert $ BinOp RestrictVec pairNode $(v "qb1")
-          void $ relinkToNewWithShape q $ UnOp R1 restrictNode |])
+          void $ replaceWithNew q $ UnOp R1 restrictNode |])
 
 -- FIXME this rewrite is way too specific.
 pullSelectThroughPairL :: VLRule ()
@@ -164,7 +164,7 @@ pullSelectThroughPairL q =
 
         return $ do
           logRewrite "Redundant.PullSelectThroughPairL" q
-          relinkParentsWithShape q $(v "qp") |])
+          replace q $(v "qp") |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectL).
@@ -177,7 +177,7 @@ pushRestrictVecThroughProjectL q =
           logRewrite "Redundant.PushRestrictVecThroughProjectL" q
           restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
           r1Node <- insert $ UnOp R1 restrictNode
-          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) r1Node |])
+          void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) r1Node |])
 
 -- Push a RestrictVec through its left input, if this input is a
 -- projection operator (ProjectPayload).
@@ -189,7 +189,7 @@ pushRestrictVecThroughProjectPayload q =
           logRewrite "Redundant.PushRestrictVecThroughProjectValue" q
           restrictNode <- insert $ BinOp RestrictVec $(v "q1") $(v "qb")
           r1Node <- insert $ UnOp R1 restrictNode
-          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) r1Node |])
+          void $ replaceWithNew q $ UnOp (ProjectPayload $(v "p")) r1Node |])
 
 -- Eliminate a projection if the vector is turned into a descriptor vector anyway.
 -- FIXME: this could be done in a more general way using property ToDescr.
@@ -199,7 +199,7 @@ descriptorFromProject q =
     [| do
         return $ do
           logRewrite "Redundant.DescriptorFromProject" q
-          replace q $ UnOp ToDescr $(v "q1") |])
+          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
 
 -- Pull PropRename operators through a CompExpr2L operator if both
 -- inputs of the CompExpr2L operator are renamed according to the same
@@ -216,7 +216,7 @@ pullPropRenameThroughCompExpr2L q =
        return $ do
          logRewrite "Redundant.PullPropRenameThroughCompExpr2L" q
          compNode <- insert $ BinOp (CompExpr2L $(v "e")) $(v "q1") $(v "q2")
-         replace q $ BinOp PropRename $(v "qr1") compNode |])
+         void $ replaceWithNew q $ BinOp PropRename $(v "qr1") compNode |])
 
 -- Pull PropRename operators through a IntegerToDoubleL operator.
 pullPropRenameThroughIntegerToDouble :: VLRule ()
@@ -226,7 +226,7 @@ pullPropRenameThroughIntegerToDouble q =
         return $ do
           logRewrite "Redundant.PullPropRenameThroughIntegerToDouble" q
           castNode <- insert $ UnOp IntegerToDoubleL $(v "qv")
-          replace q $ BinOp PropRename $(v "qr") castNode |])
+          void $ replaceWithNew q $ BinOp PropRename $(v "qr") castNode |])
 
 -- Try to merge multiple DescToRename operators which reference the same
 -- descriptor vector
@@ -249,7 +249,7 @@ mergeDescToRenames q =
 
         return $ do
           logRewrite "Redundant.MergeDescToRenames" q
-          mapM_ (\n -> relinkParentsWithShape n q) redundantNodes |])
+          mapM_ (\n -> replace n q) redundantNodes |])
 
 -- Remove a PairL operator if both inputs are the same and do not have payload columns
 pairFromSameSource :: VLRule BottomUpProps
@@ -265,7 +265,7 @@ pairFromSameSource q =
           _                                                                      -> fail "no match"
         return $ do
           logRewrite "Redundant.PairFromSame" q
-          relinkParentsWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 pairFromSameSourceToDescrLeft :: VLRule ()
 pairFromSameSourceToDescrLeft q =
@@ -274,7 +274,7 @@ pairFromSameSourceToDescrLeft q =
          predicate $ $(v "q1") == $(v "q2")
          return $ do
            logRewrite "Redundant.PairFromSame.ToDescr.Left" q
-           void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "ps")) $(v "q2") |])
+           void $ replaceWithNew q $ UnOp (ProjectL $(v "ps")) $(v "q2") |])
 
 pairFromSameSourceToDescrRight :: VLRule ()
 pairFromSameSourceToDescrRight q =
@@ -283,7 +283,7 @@ pairFromSameSourceToDescrRight q =
          predicate $ $(v "q1") == $(v "q2")
          return $ do
            logRewrite "Redundant.PairFromSame.ToDescr.Right" q
-           void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "ps")) $(v "q1") |])
+           void $ replaceWithNew q $ UnOp (ProjectL $(v "ps")) $(v "q1") |])
 
 
 -- Remove a ProjectL or ProjectA operator that does not change the column layout
@@ -297,7 +297,7 @@ noOpProject q =
 
         return $ do
           logRewrite "Redundant.NoOpProject" q
-          relinkParentsWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 -- Remove a ToDescr operator whose input is already a descriptor vector
 toDescr :: VLRule BottomUpProps
@@ -310,7 +310,7 @@ toDescr q =
           _                 -> fail "no match"
         return $ do
           logRewrite "Redundant.ToDescr" q
-          relinkParentsWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 pairedProjections :: VLRule BottomUpProps
 pairedProjections q =
@@ -323,12 +323,12 @@ pairedProjections q =
           if ($(v "ps1") ++ $(v "ps2")) == [1 .. w]
             then do
               logRewrite "Redundant.PairedProjections.NoOp" q
-              relinkParentsWithShape q $(v "q1")
+              replace q $(v "q1")
             else do
               logRewrite "Redundant.PairedProjections.Reorder" q
               let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
-              relinkParentsWithShape q projectNode |])
+              replace q projectNode |])
 
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
@@ -354,7 +354,7 @@ distDescCardOne q =
         return $ do
           logRewrite "Redundant.DistDescCardOne" q
           projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
-          replace q $ UnOp Segment projNode |])
+          void $ replaceWithNew q $ UnOp Segment projNode |])
 
 pullProjectPayloadThroughSegment :: VLRule ()
 pullProjectPayloadThroughSegment q =
@@ -363,7 +363,7 @@ pullProjectPayloadThroughSegment q =
         return $ do
           logRewrite "Redundant.PullProjectPayload.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
-          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
+          void $ replaceWithNew q $ UnOp (ProjectPayload $(v "p")) segmentNode |])
 
 pullProjectLThroughSegment :: VLRule ()
 pullProjectLThroughSegment q =
@@ -372,7 +372,7 @@ pullProjectLThroughSegment q =
         return $ do
           logRewrite "Redundant.PullProjectL.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
-          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) segmentNode |])
+          void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) segmentNode |])
 
 pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
@@ -381,7 +381,7 @@ pullProjectPayloadThroughPropRename q =
         return $ do
           logRewrite "Redundant.PullProjectPayload.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
-          void $ relinkToNewWithShape q $ UnOp (ProjectPayload $(v "p")) renameNode |])
+          void $ replaceWithNew q $ UnOp (ProjectPayload $(v "p")) renameNode |])
 
 pullProjectLThroughPropRename :: VLRule ()
 pullProjectLThroughPropRename q =
@@ -390,7 +390,7 @@ pullProjectLThroughPropRename q =
         return $ do
           logRewrite "Redundant.PullProjectL.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
-          void $ relinkToNewWithShape q $ UnOp (ProjectL $(v "p")) renameNode |])
+          void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) renameNode |])
 
 -- Elimiante PropRename operators which map from one index space to the same
 -- index space. Since PropRename maps from the positions of the left side, both
@@ -408,7 +408,7 @@ noOpPropRename1 q =
 
         return $ do
           logRewrite "Redundant.NoOpPropRename1" q
-          relinkParentsWithShape q $(v "q1") |])
+          replace q $(v "q1") |])
 
 unpackProp :: VectorProp a -> a
 unpackProp (VProp p) = p
@@ -482,11 +482,11 @@ noOpPropRename2 q =
           let projOp = UnOp (ProjectAdmin (descrProj, posProj)) $(v "qs1")
           case vt of
             -- if the right PropRename input is a ValueVector, we just modify positions and descriptors
-            ValueVector _ -> void $ relinkToNewWithShape q projOp
+            ValueVector _ -> void $ replaceWithNew q projOp
             -- for a DescrVector, we insert an additional ToDescr cast on top
             DescrVector   -> do
               projNode <- insert projOp
-              void $ relinkToNewWithShape q $ UnOp ToDescr projNode
+              void $ replaceWithNew q $ UnOp ToDescr projNode
             _ -> error "impossible" |])
 
 

@@ -4,7 +4,7 @@ import qualified Data.IntMap                                              as M
 
 import           Database.Algebra.Dag.Common
 
-import           Database.Algebra.Rewrite
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.Algebra.VL.Data
 
 import           Database.DSH.Flattening.Optimizer.Common.Shape
@@ -37,21 +37,3 @@ inferProperties = do
 
 noProps :: Monad m => m (M.IntMap a)
 noProps = return M.empty
-
-replaceRootWithShape :: AlgNode -> AlgNode -> VLRewrite ()
-replaceRootWithShape oldRoot newRoot = do
-  sh <- getExtras
-  updateExtras $ updateShape oldRoot newRoot sh
-  replaceRoot oldRoot newRoot
-
-relinkToNewWithShape :: AlgNode -> VL -> Rewrite VL Shape AlgNode
-relinkToNewWithShape oldNode newOp = do
-  sh <- getExtras
-  newNode <- relinkToNew oldNode newOp
-  updateExtras $ updateShape oldNode newNode sh
-  return newNode
-
-relinkParentsWithShape :: AlgNode -> AlgNode -> Rewrite VL Shape ()
-relinkParentsWithShape old new = do
-  replaceRootWithShape old new
-  relinkParents old new

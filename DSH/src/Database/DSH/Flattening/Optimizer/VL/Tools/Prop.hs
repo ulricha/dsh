@@ -9,10 +9,10 @@ import           System.IO
 
 import qualified Database.Algebra.Dag                                     as Dag
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 import           Database.Algebra.VL.Render.JSON
 
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp
 import           Database.DSH.Flattening.Optimizer.VL.Properties.TopDown
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types

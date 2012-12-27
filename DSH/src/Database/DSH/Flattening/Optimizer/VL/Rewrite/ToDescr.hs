@@ -2,16 +2,16 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr where
 
-import Control.Monad
-import Control.Applicative
-  
-import Database.Algebra.Dag.Common
-import Database.Algebra.Rewrite
-import Database.Algebra.VL.Data
+import           Control.Applicative
+import           Control.Monad
 
-import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-import Database.DSH.Flattening.Optimizer.VL.Properties.Types
-  
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.VL.Data
+
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
+import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+
 pruneColumns :: VLRewrite Bool
 pruneColumns = preOrder inferTopDown pruneRules
 
@@ -27,9 +27,9 @@ insertToDescrForProjectPayload q =
           VProp (Just b)  -> b
           VProp Nothing   -> False
           _               -> error "insertToDescrForProjectPayload"
-        
+
         return $ do
           logRewrite "ToDescr.ProjectPayload" q
-          void $ relinkToNew q $ UnOp ToDescr $(v "q1") |])
+          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
 
 

@@ -8,9 +8,9 @@ import Control.Monad
 
 import Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.Common.Rewrite
 
 import Database.Algebra.Dag.Common
-import Database.Algebra.Rewrite
 import Database.Algebra.VL.Data
 
 optCard :: DagRewrite VL Bool

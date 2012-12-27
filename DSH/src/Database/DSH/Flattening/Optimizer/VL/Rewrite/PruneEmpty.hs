@@ -2,16 +2,18 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
-import Control.Monad
-import Control.Applicative
+import           Debug.Trace
 
-import Database.DSH.Flattening.Optimizer.Common.Shape
-import Database.DSH.Flattening.Optimizer.VL.Properties.Types
-import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-  
-import Database.Algebra.Rewrite
-import Database.Algebra.Dag.Common
-import Database.Algebra.VL.Data
+import           Control.Applicative
+import           Control.Monad
+
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
+import           Database.DSH.Flattening.Optimizer.Common.Shape
+import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.VL.Data
 
 pruneEmpty :: VLRewrite Bool
 pruneEmpty = postOrder inferBottomUp emptyRules
@@ -23,7 +25,7 @@ emptyRules = [ emptyAppendLeftR1
              , emptyAppendRightR1
              , emptyAppendRightR2
              ]
-             
+
 isEmpty :: AlgNode -> Match VL BottomUpProps Shape Bool
 isEmpty q = do
   ps <- liftM emptyProp $ properties q
@@ -40,10 +42,9 @@ emptyAppendLeftR1 q =
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do
-          logRewrite "Empty.Append.Left.R1" q
-          replaceRootWithShape q $(v "q2")
-          relinkParents q $(v "q2") |])
-  
+          trace ("Empty.Append.Left.R1 " ++ (show q)) $ logRewrite "Empty.Append.Left.R1" q
+          replace q $(v "q2") |])
+
 {- If the left input is empty, a propagation vector for the right side
 needs to be generated nevertheless. However, since no input comes from
 the left side, the propagation vector is simply a NOOP because it
@@ -54,8 +55,8 @@ emptyAppendLeftR3 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
-          logRewrite "Empty.Append.Right.R3" q
-          replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
+          trace ("Empty.Append.Left.R3 " ++ (show q)) $ logRewrite "Empty.Append.Left.R3" q
+          void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
 
 {- If the right input is empty, a propagation vector for the left side
 needs to be generated nevertheless. However, since no input comes from
@@ -67,18 +68,17 @@ emptyAppendRightR3 q =
     [| do
         predicate =<< ((&&) <$> (not <$> isEmpty $(v "q1")) <*> (isEmpty $(v "q2")))
         return $ do
-          logRewrite "Empty.Append.Right.R3" q
-          replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
-          
+          trace ("Empty.Append.Right.R3 " ++ (show q)) $ logRewrite "Empty.Append.Right.R3" q
+          void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
+
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
   $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
-          logRewrite "Empty.Append.Right.R1" q
-          replaceRootWithShape q $(v "q1")
-          relinkParents q $(v "q1") |])
+          trace ("Empty.Append.Right.R1 " ++ (show q)) $ logRewrite "Empty.Append.Right.R1" q
+          replace q $(v "q1") |])
 
 emptyAppendRightR2 :: VLRule BottomUpProps
 emptyAppendRightR2 q =
@@ -86,5 +86,5 @@ emptyAppendRightR2 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
-          logRewrite "Empty.Append.Right.R2" q
-          replace q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
+          trace ("Empty.Append.Right.R2 " ++ (show q)) $ logRewrite "Empty.Append.Right.R2" q
+          void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])

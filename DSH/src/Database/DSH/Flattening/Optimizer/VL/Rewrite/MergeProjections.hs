@@ -1,10 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections where
 
+import           Control.Monad
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Rewrite
 import           Database.Algebra.VL.Data
 
+import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
 mergeProjections :: VLRewrite Bool
@@ -31,5 +32,5 @@ mergeProjectL q =
           logRewrite "Merge.Project.Narrowing" q
           let cols = mapCols (colMap $(v "cols2")) $(v "cols1")
               projectOp = UnOp (ProjectL $(v "cols")) $(v "q1")
-          replace q projectOp |])
+          void $ replaceWithNew q projectOp |])
 
