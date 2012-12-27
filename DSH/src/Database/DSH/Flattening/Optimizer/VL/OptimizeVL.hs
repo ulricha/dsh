@@ -1,4 +1,6 @@
 module Database.DSH.Flattening.Optimizer.VL.OptimizeVL where
+       
+import           Debug.Trace
 
 import qualified Database.Algebra.Dag                                             as Dag
 import           Database.Algebra.Rewrite
@@ -25,13 +27,13 @@ rewriteClasses = [ ('E', pruneEmpty)
                  , ('D', stripFromRoot) ]
 
 defaultPipeline :: [RewriteClass]
-defaultPipeline = case assemblePipeline "ERSRSD" of
+defaultPipeline = case assemblePipeline "ESRSRSR" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
 runPipeline :: Dag.AlgebraDag VL -> Shape -> [RewriteClass] -> Bool -> (Dag.AlgebraDag VL, Log, Shape)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
-  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
+  where (d', sh', _, rewriteLog) = trace (show $ Dag.refCountMap d) $ runRewrite (sequence_ pipeline) d sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s
