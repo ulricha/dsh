@@ -2,8 +2,6 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized where
 
-import           Debug.Trace
-
 import           Control.Applicative
 import           Control.Monad
 
@@ -28,7 +26,7 @@ normalize = iteratively $ sequenceRewrites [ preOrder noProps normalizeRules
 
 normalizeRules :: VLRuleSet ()
 normalizeRules = [ descriptorFromProject
-                 , mergeStackedDistDesc
+                 , mergeStackedDistLift
                  , pullProjectLThroughDistLift
                  ]
 
@@ -49,16 +47,15 @@ specializedRules = [ cartProduct
 -- We often see a pattern around cartesian products where the same vector is
 -- lifted two times in a row with the same descriptor vector. The second lift
 -- is completely redundant.
-mergeStackedDistDesc :: VLRule ()
-mergeStackedDistDesc q =
+mergeStackedDistLift :: VLRule ()
+mergeStackedDistLift q =
   $(pattern 'q "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
-          logRewrite "Specialized.MergeStackedDistDesc" q
+          logRewrite "Specialized.MergeStackedDistLift" q
           replace $(v "d1") $(v "d2")
           replace q $(v "first") |])
-
 
 {- Normalize the cartesian product pattern by pulling horizontal
 modifications (projections, general expressions) as high as possible
@@ -149,7 +146,7 @@ pruneFilteringDistLift :: VLRule BottomUpProps
 pruneFilteringDistLift q =
   $(pattern 'q "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (_))))"
     [| do
-        props1 <- trace "match pattern" $ properties $(v "q1")
+        props1 <- properties $(v "q1")
         propsp <- properties $(v "qp")
 
         {- The following properties need to hold:

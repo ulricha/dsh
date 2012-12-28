@@ -86,5 +86,6 @@ emptyAppendRightR2 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
-          trace ("Empty.Append.Right.R2 " ++ (show q)) $ logRewrite "Empty.Append.Right.R2" q
+          logRewrite "Empty.Append.Right.R2" q
           void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
+
