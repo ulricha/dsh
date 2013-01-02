@@ -2,9 +2,6 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized where
 
-import           Debug.Trace
-import           Text.Printf
-
 import           Control.Applicative
 import           Control.Monad
 
@@ -120,7 +117,6 @@ pullProjectLThroughCartProductRight q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
-  trace (printf "matching RedundantDistLift at %d" q) $
   $(pattern 'q "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")

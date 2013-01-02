@@ -1,33 +1,28 @@
 module Database.DSH.Flattening.Optimizer.VL.Properties.Const where
 
-import Data.List
+import           Data.List
 
-import Database.DSH.Flattening.Optimizer.VL.Properties.Common
-import Database.DSH.Flattening.Optimizer.VL.Properties.Types
-import Database.Algebra.VL.Data
-  
+import           Database.Algebra.VL.Data
+import           Database.DSH.Flattening.Optimizer.VL.Properties.Common
+import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
+
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
 
 mapUnp :: Show a => VectorProp a
-          -> VectorProp a 
-          -> (a -> a -> VectorProp a) 
+          -> VectorProp a
+          -> (a -> a -> VectorProp a)
           -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.Empty"  
-         
+mapUnp = mapUnpack "Properties.Empty"
+
 fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)
-fromDBV (DescrVecConst d) = Right (d, [])
 fromDBV x                 = Left $ "Properties.Const fromDBV " ++ (show x)
 
 fromDBP :: ConstVec -> Either String [ConstPayload]
 fromDBP (DBPConst ps) = Right ps
 fromDBP _             = Left "Properties.Const fromDBP"
-         
-fromDescrVec :: ConstVec -> Either String ConstDescr
-fromDescrVec (DescrVecConst d) = Right d
-fromDescrVec _                 = Left "Properties.Const fromDescrVec"
-               
+
 fromRenameVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromRenameVec (RenameVecConst s t) = Right (s, t)
 fromRenameVec x                    = Left ("Properties.Const fromRenameVec " ++ (show x))
@@ -38,29 +33,29 @@ fromPropVec _                   = Left "Properties.Const fromPropVec"
 
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
-inferConstVecNullOp op = 
+inferConstVecNullOp op =
   case op of
-    SingletonDescr                    -> return $ VProp $ DescrVecConst $ ConstDescr $ N 1
+    SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    ConstructLiteralTable colTypes rows      -> 
+    ConstructLiteralTable colTypes rows      ->
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
       else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
         where constCols       = map toConstPayload $ drop 2 $ transpose rows
 
-              toConstPayload col@(c : _) = if all (c ==) col 
-                                           then ConstPL c 
+              toConstPayload col@(c : _) = if all (c ==) col
+                                           then ConstPL c
                                            else NonConstPL
               toConstPayload []          = NonConstPL
 
-    ConstructLiteralValue colTypes vals      -> 
+    ConstructLiteralValue colTypes vals      ->
       if null vals
       then return $ VProp $ DBPConst $ map (const NonConstPL) colTypes
       else return $ VProp $ DBPConst $ map ConstPL $ drop 2 vals
     TableRef              _ cols _    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
-  
+
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
-inferConstVecUnOp c op = 
+inferConstVecUnOp c op =
   case op of
     Unique -> return c
 
@@ -74,12 +69,12 @@ inferConstVecUnOp c op =
       return $ VProp $ DBPConst [NonConstPL]
 
     DescToRename -> do
-      d <- unp c >>= fromDescrVec
+      (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 
     ToDescr -> do
       (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DescrVecConst d
+      return $ VProp $ DBVConst d []
 
     Segment -> do
       (_, constCols) <- unp c >>= fromDBV
@@ -144,10 +139,10 @@ inferConstVecUnOp c op =
 
     ProjectPayload vps   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
-            
+
       let constProj (PLConst v)  = ConstPL v
           constProj (PLCol i)    = constCols !! (i - 1)
-      
+
       return $ VProp $ DBVConst constDescr $ map constProj vps
 
     ProjectAdmin (dp, _)   -> do
@@ -156,22 +151,22 @@ inferConstVecUnOp c op =
             DescrConst n  -> ConstDescr n
             DescrIdentity -> constDescr
             DescrPosCol   -> NonConstDescr
-            
+
       return $ VProp $ DBVConst constDescr' constCols
 
     SelectExpr _       -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
-      
+
     Only             -> undefined
     Singleton        -> undefined
 
     CompExpr1L _ -> do
       (d, _) <- unp c >>= fromDBV
-      -- FIXME This is not precise: implement constant folding 
+      -- FIXME This is not precise: implement constant folding
       return $ VProp $ DBVConst d [NonConstPL]
 
-    R1 -> 
+    R1 ->
       case c of
         VProp _           -> Left "Properties.Const: not a pair/triple"
         VPropPair b _     -> Right $ VProp b
@@ -187,13 +182,13 @@ inferConstVecUnOp c op =
         _                 -> Left "Properties.Const: not a triple"
 
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
-inferConstVecBinOp c1 c2 op = 
+inferConstVecBinOp c1 c2 op =
   case op of
     GroupBy -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
       (dq, _) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropTriple (DescrVecConst dq) (DBVConst NonConstDescr cols2) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropTriple (DBVConst dq []) (DBVConst NonConstDescr cols2) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SortWith -> do
       (d, cols) <- unp c2 >>= fromDBV
@@ -204,7 +199,7 @@ inferConstVecBinOp c1 c2 op =
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
-      d <- unp c2 >>= fromDescrVec
+      (d, _) <- unp c2 >>= fromDBV
       cols <- unp c1 >>= fromDBP
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -213,57 +208,57 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     DistLift -> do
-      d <- unp c2 >>= fromDescrVec
+      (d, _) <- unp c2 >>= fromDBV
       (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-      
+
     PropRename -> do
       (_, cols) <- unp c2 >>= fromDBV
       (SC _, TC target) <- unp c1 >>= fromRenameVec
 
       return $ VProp $ DBVConst target cols
-      
+
     PropFilter -> do
       (_, cols) <- unp c2 >>= fromDBV
       (SC _, TC target) <- unp c1 >>= fromRenameVec
-  
+
       return $ VPropPair (DBVConst target cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     PropReorder -> do
       (_, cols) <- unp c2 >>= fromDBV
       (SC _, TC target) <- unp c1 >>= fromPropVec
-      
+
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     Append -> do
       (d1, cols1) <- unp c1 >>= fromDBV
       (d2, cols2) <- unp c2 >>= fromDBV
-      
+
       let constCols = map sameConst $ zip cols1 cols2
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
-          
+
           d = case (d1, d2) of
             (ConstDescr n1, ConstDescr n2) | n1 == n2 -> ConstDescr n1
             _                                         -> NonConstDescr
-            
+
           propVecs = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-          
+
       return $ VPropTriple (DBVConst d constCols) propVecs propVecs
 
     RestrictVec -> do
       (d, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-      
+
     -- FIXME implement constant folding
     CompExpr2 _ -> do
       return $ VProp $ DBPConst [NonConstPL]
-    
+
     CompExpr2L _ -> do
       (d1, _) <- unp c1 >>= fromDBV
       (_, _) <- unp c2 >>= fromDBV
-      
+
       return $ VProp $ DBVConst d1 [NonConstPL]
 
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
@@ -271,39 +266,39 @@ inferConstVecBinOp c1 c2 op =
 
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
-      
+
       return $ VPropPair (DBVConst d1 cols1) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPosL _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
-      
+
       return $ VPropPair (DBVConst d1 cols1) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     PairA -> do
       cols1 <- unp c1 >>= fromDBP
       cols2 <- unp c2 >>= fromDBP
-      
+
       let cols = cols1 ++ cols2
-          
+
       return $ VProp $ DBPConst cols
 
     PairL -> do
       (d1, cols1) <- unp c1 >>= fromDBV
       (_, cols2)  <- unp c2 >>= fromDBV
-      
+
       let cols = cols1 ++ cols2
-          
+
       return $ VProp $ DBVConst d1 cols
 
     ZipL -> do
       (d1, cols1) <- unp c1 >>= fromDBV
       (_, cols2)  <- unp c2 >>= fromDBV
-      
+
       let cols = cols1 ++ cols2
           renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-          
+
       return $ VPropTriple (DBVConst d1 cols) renameVec renameVec
-  
+
     CartProduct -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
@@ -323,7 +318,7 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair constProperty constProperty
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
-inferConstVecTerOp c1 c2 c3 op = 
+inferConstVecTerOp c1 c2 c3 op =
   case op of
     CombineVec -> do
       (d1, _) <- unp c1 >>= fromDBV
@@ -334,8 +329,8 @@ inferConstVecTerOp c1 c2 c3 op =
 
           sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
           sameConst (_, _)                                  = NonConstPL
-          
+
           renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
 
       return $ VPropTriple (DBVConst d1 constCols) renameVec renameVec
-  
+

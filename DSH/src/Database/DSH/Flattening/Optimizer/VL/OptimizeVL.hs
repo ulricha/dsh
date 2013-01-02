@@ -1,12 +1,10 @@
 module Database.DSH.Flattening.Optimizer.VL.OptimizeVL where
 
-import           Debug.Trace
-
 import qualified Database.Algebra.Dag                                             as Dag
 import           Database.Algebra.VL.Data
 
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.Common.Rewrite
+import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
@@ -33,7 +31,7 @@ defaultPipeline = case assemblePipeline "ESRSRSR" of
 
 runPipeline :: Dag.AlgebraDag VL -> Shape -> [RewriteClass] -> Bool -> (Dag.AlgebraDag VL, Log, Shape)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
-  where (d', sh', _, rewriteLog) = trace (show $ Dag.refCountMap d) $ runRewrite (sequence_ pipeline) d sh debug
+  where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s

@@ -2,8 +2,6 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 
-import           Debug.Trace
-
 import           Control.Applicative
 import           Control.Monad
 
@@ -42,7 +40,7 @@ emptyAppendLeftR1 q =
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do
-          trace ("Empty.Append.Left.R1 " ++ (show q)) $ logRewrite "Empty.Append.Left.R1" q
+          logRewrite "Empty.Append.Left.R1" q
           replace q $(v "q2") |])
 
 {- If the left input is empty, a propagation vector for the right side
@@ -55,7 +53,7 @@ emptyAppendLeftR3 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
         return $ do
-          trace ("Empty.Append.Left.R3 " ++ (show q)) $ logRewrite "Empty.Append.Left.R3" q
+          logRewrite "Empty.Append.Left.R3" q
           void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q2") |])
 
 {- If the right input is empty, a propagation vector for the left side
@@ -68,7 +66,7 @@ emptyAppendRightR3 q =
     [| do
         predicate =<< ((&&) <$> (not <$> isEmpty $(v "q1")) <*> (isEmpty $(v "q2")))
         return $ do
-          trace ("Empty.Append.Right.R3 " ++ (show q)) $ logRewrite "Empty.Append.Right.R3" q
+          logRewrite "Empty.Append.Right.R3" q
           void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
 
 emptyAppendRightR1 :: VLRule BottomUpProps
@@ -77,7 +75,7 @@ emptyAppendRightR1 q =
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
-          trace ("Empty.Append.Right.R1 " ++ (show q)) $ logRewrite "Empty.Append.Right.R1" q
+          logRewrite "Empty.Append.Right.R1" q
           replace q $(v "q1") |])
 
 emptyAppendRightR2 :: VLRule BottomUpProps

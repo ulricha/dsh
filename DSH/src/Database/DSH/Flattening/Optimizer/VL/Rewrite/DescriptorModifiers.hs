@@ -5,8 +5,8 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers where
 import           Control.Monad
 import           Data.Functor
 
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.Common.Rewrite
+import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
@@ -28,7 +28,6 @@ descriptorNoOps = [ noOpRenamingProjRename ]
 
 hasConstDesc :: VectorProp ConstVec -> Bool
 hasConstDesc (VProp (DBVConst (ConstDescr _) _))      = True
-hasConstDesc (VProp (DescrVecConst (ConstDescr _)))   = True
 hasConstDesc _                                        = False
 
 -- Walk down a chain of descriptor modifiers and return the first
