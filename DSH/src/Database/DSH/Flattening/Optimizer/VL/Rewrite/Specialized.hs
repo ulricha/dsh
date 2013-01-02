@@ -2,6 +2,9 @@
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized where
 
+import           Debug.Trace
+import           Text.Printf
+
 import           Control.Applicative
 import           Control.Monad
 
@@ -117,6 +120,7 @@ pullProjectLThroughCartProductRight q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
+  trace (printf "matching RedundantDistLift at %d" q) $
   $(pattern 'q "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
@@ -242,15 +246,11 @@ cartProduct q =
 
           -- relink operators which reference the product result with the payload from
           -- left and right input to the respective projections.
-          projLeftNode <- insert $ UnOp (ProjectL [1 .. w1]) prodR1
-          projRightNode <- insert $ UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodR1
-
-          replace q projLeftNode
-          replace $(v "right") projRightNode
+          void $ replaceWithNew q $ UnOp (ProjectL [1 .. w1]) prodR1
+          void $ replaceWithNew $(v "right") $ UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodR1
 
           -- relink all operators which reference the descriptor originating from DistDesc
-          prodDescr <- insert $ UnOp ToDescr prodR1
-          replace $(v "qd") prodDescr
+          void $ replaceWithNew $(v "qd") $ UnOp ToDescr prodR1
 
           -- check if the R2 outputs (propagation vectors) of DistDesc and DistLift are
           -- referenced and relink them to the corresponding R2 and R3 outputs of CartProduct
@@ -265,16 +265,12 @@ cartProduct q =
 
           liftR2s <- r2Parents $(v "qLift")
           case liftR2s of
-            [liftR2] -> do
-                          prodR2 <- insert $ UnOp R2 prodNode
-                          replace liftR2 prodR2
+            [liftR2] -> void $ replaceWithNew liftR2 $ UnOp R2 prodNode
             _        -> return ()
 
           descR2s <- r2Parents $(v "qDesc")
           case descR2s of
-            [descR2] -> do
-                          prodR3 <- insert $ UnOp R3 prodNode
-                          replace descR2 prodR3
+            [descR2] -> void $ replaceWithNew descR2 $ UnOp R3 prodNode
             _        -> return () |])
 
 {-

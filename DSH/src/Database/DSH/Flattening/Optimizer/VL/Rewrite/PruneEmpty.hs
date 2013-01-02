@@ -88,4 +88,3 @@ emptyAppendRightR2 q =
         return $ do
           logRewrite "Empty.Append.Right.R2" q
           void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STPosCol)) $(v "q1") |])
-
