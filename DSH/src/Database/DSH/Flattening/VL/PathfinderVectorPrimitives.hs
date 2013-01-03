@@ -357,7 +357,14 @@ instance VectorAlgebra PFAlgebra where
              (return qr))
     return $ DBV qa [1]
 
-  selectExpr = undefined
+  selectExpr expr (DBV q cols) = do
+    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+    (qe, ce) <- compileExpr1 q expr
+    qr <- projM (pf [colP descr, colP pos])
+          $ eqJoinM pos pos'
+              (return q)
+              (proj [(pos', pos), colP ce] qe)
+    return $ DBV qr cols
 
   -- FIXME CHECK BARRIER operator implementations above this line have been checked
   -- to conform to the X100 implementations
