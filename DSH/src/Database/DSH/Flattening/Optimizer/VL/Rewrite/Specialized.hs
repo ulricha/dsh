@@ -18,11 +18,11 @@ import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
 
 introduceSpecializedOperators :: VLRewrite Bool
 introduceSpecializedOperators = iteratively $ sequenceRewrites [ normalize
-                                                               , preOrder inferBottomUp specializedRules ]
+                                                               , applyToAll inferBottomUp specializedRules ]
 
 normalize :: VLRewrite Bool
-normalize = iteratively $ sequenceRewrites [ preOrder noProps normalizeRules
-                                           , preOrder inferBottomUp normalizePropRules ]
+normalize = iteratively $ sequenceRewrites [ applyToAll noProps normalizeRules
+                                           , applyToAll inferBottomUp normalizePropRules ]
 
 normalizeRules :: VLRuleSet ()
 normalizeRules = [ descriptorFromProject

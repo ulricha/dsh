@@ -17,9 +17,9 @@ import           Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
 
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
-                                                  , preOrder noProps redundantRules
-                                                  , preOrder inferBottomUp redundantRulesBottomUp
-                                                  -- , preOrder inferTopDown redundantRulesTopDown
+                                                  , applyToAll noProps redundantRules
+                                                  , applyToAll inferBottomUp redundantRulesBottomUp
+                                                  -- , applyToAll inferTopDown redundantRulesTopDown
                                                   ]
 
 cleanup :: VLRewrite Bool
@@ -73,6 +73,9 @@ introduceSelectExpr q =
           selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
           void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
 
+-- Eliminate the value vector output of a CombineVec whose inputs are restricted
+-- based on negated and unnegated versions of the same expression. This is
+-- basically a NOOP.
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
   $(pattern 'q "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
@@ -99,6 +102,7 @@ restrictCombinePropLeft q =
         return $ do
           logRewrite "Redundant.RestrictCombine.PropLeft/2" q
           void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
+
 
 -- Clean up the remains of a selection pattern after the CombineVec
 -- part has been removed by rule Redundant.RestrictCombine.PropLeft

@@ -9,7 +9,7 @@ import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
 mergeProjections :: VLRewrite Bool
-mergeProjections = iteratively $ preOrder noProps mergeRules
+mergeProjections = iteratively $ applyToAll noProps mergeRules
 
 mergeRules :: VLRuleSet ()
 mergeRules = [ mergeProjectL ]

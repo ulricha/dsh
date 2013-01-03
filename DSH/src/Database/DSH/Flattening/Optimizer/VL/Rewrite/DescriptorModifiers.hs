@@ -17,7 +17,7 @@ import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 
 stripFromRoot :: VLRewrite Bool
-stripFromRoot = iteratively $ preOrder inferBottomUp descriptorNoOps
+stripFromRoot = iteratively $ applyToAll inferBottomUp descriptorNoOps
 
 descriptorNoOps :: VLRuleSet BottomUpProps
 descriptorNoOps = [ noOpRenamingProjRename ]

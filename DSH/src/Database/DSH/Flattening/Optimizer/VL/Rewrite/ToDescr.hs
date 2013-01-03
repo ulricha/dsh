@@ -13,7 +13,7 @@ import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
 pruneColumns :: VLRewrite Bool
-pruneColumns = preOrder inferTopDown pruneRules
+pruneColumns = applyToAll inferTopDown pruneRules
 
 pruneRules :: VLRuleSet TopDownProps
 pruneRules = [ insertToDescrForProjectPayload ]
