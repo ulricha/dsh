@@ -27,21 +27,13 @@ freshCol = do
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1000000000
 
-pfType :: VL.VLVal -> ATy
-pfType (VL.VLInt _)    = AInt
-pfType (VL.VLNat _)    = ANat
-pfType (VL.VLBool _)   = ABool
-pfType (VL.VLString _) = AStr
-pfType (VL.VLDouble _) = ADouble
-pfType VL.VLUnit       = ANat
-
-pfVal :: VL.VLVal -> AVal
-pfVal (VL.VLInt i)        = VInt $ fromIntegral i
-pfVal (VL.VLNat (VL.N n)) = VNat $ fromIntegral n
-pfVal (VL.VLBool b)       = VBool b
-pfVal (VL.VLString s)     = VStr s
-pfVal (VL.VLDouble d)     = VDouble d
-pfVal VL.VLUnit           = VNat 1
+algConstType :: VL.VLVal -> ATy
+algConstType (VL.VLInt _)    = AInt
+algConstType (VL.VLNat _)    = ANat
+algConstType (VL.VLBool _)   = ABool
+algConstType (VL.VLString _) = AStr
+algConstType (VL.VLDouble _) = ADouble
+algConstType VL.VLUnit       = ANat
 
 compileExpr1' :: AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
 compileExpr1' n (VL.App1 op e1 e2)   = do
@@ -55,8 +47,8 @@ compileExpr1' n (VL.App1 op e1 e2)   = do
 compileExpr1' n (VL.Column1 dbcol)   = return (n, itemi dbcol)
 compileExpr1' n (VL.Constant1 constVal) = do
   col <- freshCol
-  let ty  = pfType constVal
-      val = pfVal constVal
+  let ty  = algConstType constVal
+      val = algVal constVal
   nr <- lift $ attach col ty val n
   return (nr, col)
 
@@ -74,8 +66,8 @@ compileExpr2' n (VL.Column2Left (VL.L c))  = return (n, itemi c)
 compileExpr2' n (VL.Column2Right (VL.R c)) = return (n, itemi' c)
 compileExpr2' n (VL.Constant2 constVal)    = do
   col <- freshCol
-  let ty  = pfType constVal
-      val = pfVal constVal
+  let ty  = algConstType constVal
+      val = algVal constVal
   nr <- lift $ attach col ty val n
   return (nr, col)
 
@@ -86,7 +78,7 @@ instance VectorAlgebra PFAlgebra where
 
   compExpr1 expr (DBV q _) = do
     (qr, cr) <- compileExpr1 q expr
-    qp <- proj [(descr, descr), (pos, pos), (item, cr)] qr
+    qp <- proj [colP descr, colP pos, (item, cr)] qr
     return $ DBV qp [1]
 
   compExpr2 expr (DBP q1 _) (DBP q2 cols2) = do
@@ -97,9 +89,48 @@ instance VectorAlgebra PFAlgebra where
     q <- applyBinExpr (length cols2) expr q1 q2
     return $ DBV q [1]
 
+  pairA (DBP q1 cols1) (DBP q2 cols2) = do
+    (r, cols') <- doZip (q1, cols1) (q2, cols2)
+    return $ DBP r cols'
+
+  pairL (DBV q1 cols1) (DBV q2 cols2) = do
+    (r, cols') <- doZip (q1, cols1) (q2, cols2)
+    return $ DBV r cols'
+
+  constructLiteralTable tys [] = do
+    qr <- emptyTable ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
+    return $ DBV qr [1..length tys]
+
+  constructLiteralTable tys vs = do
+    qr <- flip litTable' ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
+                                 $ map (map algVal) vs
+    return $ DBV qr [1..length tys]
+
+  constructLiteralValue t v = (\(DBV v' cols) -> DBP v' cols) <$> constructLiteralTable t [v]
+
+  integerToDoubleA (DBP q _) = do
+    qr <- projM [colP descr, colP pos, (item, resCol)]
+            $ cast item resCol doubleT q
+    return $ DBP qr [1]
+
+  integerToDoubleL (DBV q _) = do
+    qr <- projM [colP descr, colP pos, (item, resCol)]
+            $ cast item resCol doubleT q
+    return $ DBV qr [1]
+
+  projectA (DBP q _) pc = do
+    qr <- tagM "projectA"
+            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
+    return $ DBP qr [1..length pc]
+
+  projectL (DBV q _) pc = do
+    qr <- tagM "projectL"
+            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
+    return $ DBV qr [1..length pc]
+
   -- FIXME CHECK BARRIER operator implementations above this line have been checked
   -- to conform to the X100 implementations
-  
+
   groupBy = groupByPF
   notPrim = notPrimPF
   notVec = notVecPF
@@ -119,15 +150,6 @@ instance VectorAlgebra PFAlgebra where
   restrictVec = restrictVecPF
   combineVec = combineVecPF
 
-  constructLiteralTable tys [] = flip DBV [1..length tys]
-                                 <$> emptyTable ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
-
-  constructLiteralTable tys vs = flip DBV [1..length tys]
-                                 <$> (flip litTable' ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
-                                 $ map (map algVal) vs)
-
-  constructLiteralValue t v = (\(DBV v' cols) -> DBP v' cols) <$> constructLiteralTable t [v]
-
   tableRef = tableRefPF
   sortWith = sortWithPF
   vecMin = vecMinPF
@@ -141,30 +163,22 @@ instance VectorAlgebra PFAlgebra where
   selectPosLift = selectPosLiftPF
   selectPos1Lift = undefined
 
-  integerToDoubleA (DBP q _) = flip DBP [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
-  integerToDoubleL (DBV q _) = flip DBV [1] <$> (projM [(descr, descr), (pos, pos), (item, resCol)] $ cast item resCol doubleT q)
-  projectA (DBP q _) pc = flip DBP [1..length pc] <$> (tagM "projectA" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
-  projectL (DBV q _) pc = flip DBV [1..length pc] <$> (tagM "projectL" $ proj ([(descr, descr), (pos, pos)] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q)
+
+
   toDescr = toDescrPF
   zipL = undefined
 
-  pairA (DBP q1 cols1) (DBP q2 cols2) = do
-                                        (r, cols') <- doZip (q1, cols1) (q2, cols2)
-                                        return $ DBP r cols'
-  pairL (DBV q1 cols1) (DBV q2 cols2) = do
-                                        (r, cols') <- doZip (q1, cols1) (q2, cols2)
-                                        return $ DBV r cols'
   reverseA (DBV q cols) = do
                             let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                             q' <- rownum' pos' [(pos, Desc)] Nothing q
-                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            r <- flip DBV cols <$> proj (pf [colP descr, (pos, pos')]) q'
                             p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
                             return (r, p)
 
   reverseL (DBV q cols) = do
                             let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                             q' <- rownum' pos' [(descr, Asc), (pos, Desc)] Nothing q
-                            r <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos')]) q'
+                            r <- flip DBV cols <$> proj (pf [colP descr, (pos, pos')]) q'
                             p <- PropVector <$> proj [(posold, pos), (posnew, pos')] q'
                             return (r, p)
   unique (DBV q cols) = do
@@ -173,14 +187,14 @@ instance VectorAlgebra PFAlgebra where
                                 $ aggrM [(Min, posold, Just pos)] (Just resCol)
                                 $ rank resCol [(itemi i, Asc) | i <- cols] q
 
-                         flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
+                         flip DBV cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
 
   uniqueL (DBV q cols) = do
                           let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                           f <- rownumM posnew [posold] Nothing
                                  $ aggrM [(Min, posold, Just pos)] (Just resCol)
                                  $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
-                          flip DBV cols <$> (projM (pf [(descr, descr), (pos, posnew)]) $ eqJoin pos posold q f)
+                          flip DBV cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
 
   falsePositions = undefined
 
@@ -195,16 +209,18 @@ instance VectorAlgebra PFAlgebra where
   projectPayload = undefined
   projectAdmin = undefined
 
+colP :: AttrName -> (AttrName, AttrName)
+colP a = (a, a)
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
-                               let offSet = length cols1
-                               let cols' = cols1 ++ map (+offSet) cols2
-                               r <- projM ((descr, descr):(pos, pos):[ (itemi i, itemi i) | i <- cols']) $
-                                 eqJoinM pos pos'
-                                  (return q1)
-                                  $ proj ((pos', pos):[ (itemi $ i + offSet, itemi i) | i <- cols2 ]) q2
-                               return (r, cols')
+  let offset = length cols1
+  let cols' = cols1 ++ map (+offset) cols2
+  r <- projM (colP descr : colP pos : map (colP . itemi) cols')
+         $ eqJoinM pos pos'
+           (return q1)
+           (proj ((pos', pos):[ (itemi $ i + offset, itemi i) | i <- cols2 ]) q2)
+  return (r, cols')
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
@@ -241,7 +257,7 @@ selectPosLiftPF (DBV qe cols) op (DBV qi _) =
             _ -> rownumM posnew [descr, pos] Nothing
                   $ selectM resCol
                   $ oper (show op) resCol pos''' item' qx
-        q <- proj (pf [(descr, descr), (pos, posnew)]) qs
+        q <- proj (pf [colP descr, (pos, posnew)]) qs
         qp <- proj [(posold, pos), (posnew, posnew)] qs
         return $ (DBV q cols, RenameVector qp)
 
@@ -251,25 +267,25 @@ selectPosPF (DBV qe cols) op (DBP qi _) =
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
         qx <- crossM
                 (projM (pf [(descr,descr), (pos', pos')]) (cast pos pos' intT qe))
-                -- (proj (pf [(descr, descr), (pos', pos)]) qe)
+                -- (proj (pf [colP descr, (pos', pos)]) qe)
                 (proj [(item', item)] qi)
         qn <- case op of
                 VL.Lt ->
-                    projM (pf [(descr, descr), (pos, pos'), (pos', pos')])
+                    projM (pf [colP descr, (pos, pos'), (pos', pos')])
                      $ selectM resCol
                            $ oper (show op) resCol pos' item' qx
                 VL.LtE ->
-                    projM (pf [(descr, descr), (pos, pos'), (pos', pos')])
+                    projM (pf [colP descr, (pos, pos'), (pos', pos')])
                      $ selectM resCol
                         $ unionM
                             (oper (show VL.Lt) resCol pos' item' qx)
                             (oper (show VL.Eq) resCol pos' item' qx)
                 _ ->
-                    projM (pf [(descr, descr), (pos, pos), (pos', pos')])
+                    projM (pf [colP descr, colP pos, (pos', pos')])
                      $ rownumM pos [descr, pos'] Nothing
                         $ selectM resCol
                             $ oper (show op) resCol pos' item' qx
-        q <- proj (pf [(descr, descr), (pos, pos)]) qn
+        q <- proj (pf [colP descr, colP pos]) qn
         qp <- proj [(posnew, pos), (posold, pos')] qn
         return $ (DBV q cols, RenameVector qp)
 
@@ -308,13 +324,13 @@ vecSumLiftPF (DescrVector qd) (DBV qv _) =
         qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...
               $ differenceM
                 (proj [(descr, pos)] qd)
-                (proj [(descr, descr)] qv)
+                (proj [colP descr] qv)
         qs <- aggr [(Sum, item, Just item)] (Just descr) qv
         qr <- rownumM pos [descr] Nothing
               $ union qe qs
         -- align the result vector with the original descriptor vector to get
         -- the proper descriptor values (sum removes one list type constructor)
-        qa <- projM [(descr, descr'), (pos, pos), (item, item)]
+        qa <- projM [(descr, descr'), colP pos, (item, item)]
               $ (eqJoinM pos' descr
                  (proj [(descr', descr), (pos', pos)] qd)
                  (return qr))
@@ -322,7 +338,7 @@ vecSumLiftPF (DescrVector qd) (DBV qv _) =
 
 applyBinOp :: VL.VecOp -> AlgNode -> AlgNode -> GraphM r PFAlgebra AlgNode
 applyBinOp op q1 q2 =
-  projM [(item, resCol), (descr, descr), (pos, pos)]
+  projM [(item, resCol), colP descr, colP pos]
     $ operM (show op) resCol item tmpCol
     $ eqJoinM pos pos' (return q1)
     $ proj [(tmpCol, item), (pos', pos)] q2
@@ -334,7 +350,7 @@ applyBinExpr rightWidth e q1 q2 = do
                -- shift the column names on the rigth to avoid name collisions
                $ proj ((pos', pos) : colShift) q2
   (qr, cr) <- compileExpr2 qCombined e
-  proj [(descr, descr), (pos, pos), (item, cr)] qr
+  proj [colP descr, colP pos, (item, cr)] qr
 
 binOpLPF :: VL.VecOp -> DBV -> DBV -> GraphM r PFAlgebra DBV
 binOpLPF op (DBV q1 _) (DBV q2 _) | op == (VL.COp VL.GtE) = do
@@ -364,35 +380,35 @@ sortWithPF (DBV qs colss) (DBV qe colse) =
         let pf = \x -> x ++ [(itemi i, itemi i) | i <- colse]
         q <- tagM "sortWith"
              $ eqJoinM pos pos''
-               (projM [(pos, pos), (pos', pos')]
+               (projM [colP pos, (pos', pos')]
                 $ rownum pos' (descr : [itemi i | i <- colss] ++ [pos]) Nothing qs)
-               (proj (pf [(descr, descr), (pos'', pos)]) qe)
-        qv <- proj (pf [(descr, descr), (pos, pos')]) q
+               (proj (pf [colP descr, (pos'', pos)]) qe)
+        qv <- proj (pf [colP descr, (pos, pos')]) q
         qp <- proj [(posold, pos''), (posnew, pos')] q
         return $ (DBV qv colse, PropVector qp)
 
 groupByPF :: DBV -> DBV -> GraphM r PFAlgebra (DescrVector, DBV, PropVector)
 groupByPF (DBV v1 colsg) (DBV v2 colse) = do
                                              q' <- rownumM pos' [resCol, pos] Nothing $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
-                                             d1 <- distinctM $ proj [(descr, descr), (pos, resCol)] q'
+                                             d1 <- distinctM $ proj [colP descr, (pos, resCol)] q'
                                              p <- proj [(posold, pos), (posnew, pos')] q'
-                                             v <- tagM "groupBy ValueVector" $ projM [(descr, descr), (pos, pos), (item, item)]
+                                             v <- tagM "groupBy ValueVector" $ projM [colP descr, colP pos, (item, item)]
                                                     $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                                                          (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
                                              return $ (DescrVector d1, DBV v colse, PropVector p)
 
 notPrimPF :: DBP -> GraphM r PFAlgebra DBP
-notPrimPF (DBP q _) = flip DBP [1] <$> (projM [(pos, pos), (descr, descr), (item, tmpCol)] $ notC tmpCol item q)
+notPrimPF (DBP q _) = flip DBP [1] <$> (projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q)
 
 
 notVecPF :: DBV -> GraphM r PFAlgebra DBV
-notVecPF (DBV d _) = flip DBV [1] <$> (projM [(pos, pos), (descr, descr), (item, tmpCol)] $ notC tmpCol item d)
+notVecPF (DBV d _) = flip DBV [1] <$> (projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item d)
 
 lengthAPF :: DescrVector -> GraphM r PFAlgebra DBP
-lengthAPF (DescrVector d) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [(pos, pos)] d))
+lengthAPF (DescrVector d) = flip DBP [1] <$> (attachM descr natT (nat 1) $ attachM pos natT (nat 1) $ aggrM [(Max, item, Just item)] Nothing $ (litTable (int 0) item intT) `unionM` (aggrM [(Count, item, Nothing)] Nothing $ proj [colP pos] d))
 
 lengthSegPF :: DescrVector -> DescrVector -> GraphM r PFAlgebra DBV
-lengthSegPF (DescrVector q1) (DescrVector d) = flip DBV [1] <$> (rownumM pos [descr] Nothing $ aggrM [(Max, item, Just item)] (Just descr) $ (attachM item intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, item, Nothing)] (Just descr) $ proj [(descr, descr)] d))
+lengthSegPF (DescrVector q1) (DescrVector d) = flip DBV [1] <$> (rownumM pos [descr] Nothing $ aggrM [(Max, item, Just item)] (Just descr) $ (attachM item intT (int 0) $ proj [(descr, pos)] q1) `unionM` (aggrM [(Count, item, Nothing)] (Just descr) $ proj [colP descr] d))
 
 descToRenamePF :: DescrVector -> GraphM r PFAlgebra RenameVector
 descToRenamePF (DescrVector q1) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
@@ -406,8 +422,8 @@ distPrimPF (DBP q1 cols) (DescrVector q2) = do
 distDescPF :: DBV -> DescrVector -> GraphM r PFAlgebra (DBV, PropVector)
 distDescPF (DBV q1 cols) (DescrVector q2) = do
                    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols ]
-                   q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [(pos, pos)] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
-                   qr1 <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos)]) q
+                   q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)]) $ rownumM pos'' [pos, pos'] Nothing $ crossM (proj [colP pos] q2) (proj (pf [(pos', pos), (posold, pos)]) q1)
+                   qr1 <- flip DBV cols <$> proj (pf [colP descr, colP pos]) q
                    qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
                    return $ (qr1, qr2)
 
@@ -415,14 +431,14 @@ distLiftPF :: DBV -> DescrVector -> GraphM r PFAlgebra (DBV, PropVector)
 distLiftPF (DBV q1 cols) (DescrVector q2) = do
                     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                     q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
-                    qr1 <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos)]) q
+                    qr1 <- flip DBV cols <$> proj (pf [colP descr, colP pos]) q
                     qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
                     return $ (qr1, qr2)
 
 propRenamePF :: RenameVector -> DBV -> GraphM r PFAlgebra DBV
 propRenamePF (RenameVector q1) (DBV q2 cols) = do
                 let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-                q <- tagM "propRenamePF" $ projM (pf [(descr, posnew), (pos, pos)]) $ eqJoin posold descr q1 q2
+                q <- tagM "propRenamePF" $ projM (pf [(descr, posnew), colP pos]) $ eqJoin posold descr q1 q2
                 return $ DBV q cols
 
 propFilterPF :: RenameVector -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
@@ -447,7 +463,7 @@ appendPF :: DBV -> DBV -> GraphM r PFAlgebra (DBV, RenameVector, RenameVector)
 appendPF (DBV q1 cols) (DBV q2 _) = do
                 let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                 q <- rownumM pos' [descr, ordCol, pos] Nothing $ attach ordCol natT (nat 1) q1 `unionM` attach ordCol natT (nat 2) q2
-                qv <- flip DBV cols <$> tagM "append r" (proj (pf [(pos, pos'), (descr, descr)]) q)
+                qv <- flip DBV cols <$> tagM "append r" (proj (pf [(pos, pos'), colP descr]) q)
                 qp1 <- RenameVector <$> (tagM "append r1" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 1) q)
                 qp2 <- RenameVector <$> (tagM "append r2" $ projM [(posold, pos), (posnew, pos')] $ selectM resCol $ operM "==" resCol ordCol tmpCol $ attach tmpCol natT (nat 2) q)
                 return $ (qv, qp1, qp2)
@@ -456,29 +472,29 @@ segmentPF :: DBV -> GraphM r PFAlgebra DBV
 segmentPF (DBV q cols) =
     do
      let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-     flip DBV cols <$> proj (pf [(descr, pos), (pos, pos)]) q
+     flip DBV cols <$> proj (pf [(descr, pos), colP pos]) q
 
 unsegmentPF :: DBV -> GraphM r PFAlgebra DBV
 unsegmentPF (DBV q cols) =
     do
      let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-     flip DBV cols <$> (attachM descr natT (nat 1) $ proj (pf [(pos, pos)]) q)
+     flip DBV cols <$> (attachM descr natT (nat 1) $ proj (pf [colP pos]) q)
 
 restrictVecPF :: DBV -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
 restrictVecPF (DBV q1 cols) (DBV qm _) = do
                     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
                     q <- rownumM pos'' [pos] Nothing $ selectM resCol $ eqJoinM pos pos' (return q1) $ proj [(pos', pos), (resCol, item)] qm
-                    qr <- flip DBV cols <$> proj (pf [(pos, pos''), (descr, descr)]) q
+                    qr <- flip DBV cols <$> proj (pf [(pos, pos''), colP descr]) q
                     qp <- RenameVector <$> proj [(posold, pos), (posnew, pos'')] q
                     return $ (qr, qp)
 
 combineVecPF :: DBV -> DBV -> DBV -> GraphM r PFAlgebra (DBV, RenameVector, RenameVector)
 combineVecPF (DBV qb _) (DBV q1 cols) (DBV q2 _) = do
                         let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-                        d1 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ select item qb
-                        d2 <- projM [(pos', pos'), (pos, pos)] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item qb
-                        q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), (descr, descr)]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), (descr, descr)]) q2)
-                        qr <- flip DBV cols <$> proj (pf [(descr, descr), (pos, pos)]) q
+                        d1 <- projM [(pos', pos'), colP pos] $ rownumM pos' [pos] Nothing $ select item qb
+                        d2 <- projM [(pos', pos'), colP pos] $ rownumM pos' [pos] Nothing $ selectM resCol $ notC resCol item qb
+                        q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), colP descr]) q1) `unionM` eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), colP descr]) q2)
+                        qr <- flip DBV cols <$> proj (pf [colP descr, colP pos]) q
                         qp1 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d1
                         qp2 <- RenameVector <$> proj [(posnew, pos), (posold, pos')] d2
                         return $ (qr, qp1, qp2)
@@ -511,7 +527,7 @@ tableRefPF :: String -> [VL.TypedColumn] -> [FKL.Key] -> GraphM r PFAlgebra DBV
 tableRefPF n cs ks = do
                      table <- dbTable n (renameCols cs) keyItems
                      t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
-                     cs' <- tagM "table" $ proj ((descr, descr):(pos, pos):[(itemi i, itemi i) | i <- [1..length cs]]) t'
+                     cs' <- tagM "table" $ proj (colP descr:colP pos:[(itemi i, itemi i) | i <- [1..length cs]]) t'
                      return $ DBV cs' [1..length cs]
   where
     renameCols :: [VL.TypedColumn] -> [Column]
@@ -521,4 +537,4 @@ tableRefPF n cs ks = do
     keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
 
 toDescrPF :: DBV -> GraphM r PFAlgebra DescrVector
-toDescrPF (DBV n _)   = DescrVector <$> tagM "toDescr" (proj [(descr, descr), (pos, pos)] n)
+toDescrPF (DBV n _)   = DescrVector <$> tagM "toDescr" (proj [colP descr, colP pos] n)
