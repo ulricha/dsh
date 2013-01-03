@@ -28,6 +28,7 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ restrictCombineDBV
+                 , restrictCombineDBV'
                  , restrictCombinePropLeft
                  , cleanupSelect
                  , introduceSelectExpr
@@ -84,6 +85,24 @@ restrictCombineDBV q =
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
+          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
+
+-- Alternative version of Redundant.RestrictCombine.DBV: Consider the case in
+-- which the unnegated RestrictVec operator has already been turned into a
+-- SelectExpr.
+restrictCombineDBV' :: VLRule ()
+restrictCombineDBV' q =
+  $(pattern 'q "R1 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
+        predicate $ $(v "e1") == $(v "e2") && $(v "e1") == $(v "e3")
+
+        case $(v "p1") of
+          (DescrIdentity, PosNumber) -> return ()
+          _                          -> fail "no match"
+
+        return $ do
+          logRewrite "Redundant.RestrictCombine.DBV2" q
           void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
