@@ -205,9 +205,9 @@ instance VectorAlgebra PFAlgebra where
 
   toDescr (DBV n _) = DescrVector <$> tagM "toDescr" (proj [colP descr, colP pos] n)
 
-  notPrim (DBP q _) = flip DBP [1] <$> (projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q)
+  notPrim (DBP q _) = flip DBP [1] <$> doNot q
 
-  notVec (DBV d _) = flip DBV [1] <$> (projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item d)
+  notVec (DBV d _) = flip DBV [1] <$> doNot d
 
   distPrim (DBP q1 cols) (DescrVector q2) = do
     qr <- crossM (proj [(itemi i, itemi i) | i <- cols] q1) (return q2)
@@ -366,6 +366,14 @@ instance VectorAlgebra PFAlgebra where
               (proj [(pos', pos), colP ce] qe)
     return $ DBV qr cols
 
+  falsePositions (DBV q1 _) = do
+    qr <- projM [colP descr, (pos, pos''), (item, pos')]
+          $ rownumM pos'' [pos] Nothing
+          $ selectM item
+          $ rownumM pos' [pos] (Just descr)
+          $ doNot q1
+    return $ DBV qr [1]
+
   -- FIXME CHECK BARRIER operator implementations above this line have been checked
   -- to conform to the X100 implementations
 
@@ -380,9 +388,6 @@ instance VectorAlgebra PFAlgebra where
 
   zipL = undefined
 
-
-  falsePositions = undefined
-
   cartProduct = undefined
 
   thetaJoin = undefined
@@ -395,6 +400,9 @@ instance VectorAlgebra PFAlgebra where
 
 colP :: AttrName -> (AttrName, AttrName)
 colP a = (a, a)
+
+doNot :: AlgNode -> GraphM r PFAlgebra AlgNode
+doNot q = projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
