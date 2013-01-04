@@ -98,6 +98,7 @@ Library
                      Database.DSH.Flattening.Common.Data.Val
                      Database.DSH.Flattening.Common.Impossible
                      Database.DSH.Flattening.Common.TransM
+                     Database.DSH.Flattening.Common.Data.QueryPlan
                      Database.DSH.Flattening.DBPH
                      Database.DSH.Flattening.FKL.Data.FKL
                      Database.DSH.Flattening.FKL.FKLPrimitives
@@ -112,7 +113,6 @@ Library
                      Database.DSH.Flattening.VL.Data.DBVector
                      Database.DSH.Flattening.VL.Data.GraphVector
                      Database.DSH.Flattening.VL.Data.Query
-                     Database.DSH.Flattening.VL.Data.TopShape
                      Database.DSH.Flattening.VL.MetaPrimitives
                      Database.DSH.Flattening.VL.PathfinderVectorPrimitives
                      Database.DSH.Flattening.VL.VectorOperations
