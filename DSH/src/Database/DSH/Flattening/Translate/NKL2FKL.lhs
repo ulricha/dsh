@@ -10,7 +10,7 @@ In this chapter we describe how the flattening transformation is performed. The 
 %if False
 \begin{code}
 {-# LANGUAGE TemplateHaskell, TupleSections #-}
-module Database.DSH.Flattening.Translate.NKL2FKL (flatTransform) where
+module Database.DSH.Flattening.Translate.NKL2FKL (flatten) where
 
 import qualified Database.DSH.Flattening.FKL.Data.FKL as F
 import qualified Database.DSH.Flattening.NKL.Data.NKL as N
@@ -78,6 +78,12 @@ cloLAppM (AClo ((n, x1, ..., xn)) f f') x == f' n x1 ... xn x
 
 %if False
 \begin{code}
+        
+flatten :: N.Expr -> (F.Expr, Type)
+flatten e = runTransform $ do e' <- flatTransform e
+                              let t = typeOf e'
+                              return (e', t)
+
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
 

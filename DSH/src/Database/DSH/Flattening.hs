@@ -2,27 +2,28 @@
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100, debugVL, debugX100VL, debugX100VLRaw) where
 
-import GHC.Exts
+import           GHC.Exts
 
-import Database.DSH.Flattening.DBPH hiding (SQL, X100)
+import           Database.DSH.Flattening.DBPH              hiding (SQL, X100)
 
-import Database.DSH.CompileFlattening
-import Database.DSH.ExecuteFlattening
+import           Database.DSH.CompileFlattening
+import           Database.DSH.ExecuteFlattening
 
-import Database.DSH.Internals
-import Database.HDBC
-import qualified Database.HDBC as H
+import           Database.DSH.Internals
+import           Database.HDBC
+import qualified Database.HDBC                             as H
 
-import Database.X100Client hiding (X100)
-import qualified Database.X100Client as X
+import           Database.X100Client                       hiding (X100)
+import qualified Database.X100Client                       as X
 
-import qualified Database.DSH.Flattening.Common.Data.Type as T
+import qualified Database.DSH.Flattening.Common.Data.Type  as T
+import           Database.DSH.Flattening.Translate.NKL2FKL
 
-import qualified Data.List as L
+import qualified Data.List                                 as L
 
-import Control.Monad.State
+import           Control.Monad.State
 
-import Data.Convertible()
+import           Data.Convertible                          ()
 {-
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q e) = fmap frExp (evaluate c e)
@@ -37,24 +38,24 @@ fromX100 :: QA a => X100Info -> Q a -> IO a
 fromX100 c (Q a) =  do
                   (q, _) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
                   fmap frExp $ executeX100Query c $ X100 q
-                   
+
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
 
 debugNKLX100 :: QA a => X100Info -> Q a -> IO String
-debugNKLX100 c (Q e) = liftM show $ toNKL (getX100TableInfo c) e
+debugNKLX100 c (Q e) = liftM (show . flatten) $ toNKL (getX100TableInfo c) e
 
 debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = liftM nkl2fkl $ toNKL (getTableInfo c) e
+debugFKL c (Q e) = liftM (show . flatten) $ toNKL (getTableInfo c) e
 
 debugFKLX100 :: QA a => X100Info -> Q a -> IO String
-debugFKLX100 c (Q e) = liftM nkl2fkl $ toNKL (getX100TableInfo c) e
+debugFKLX100 c (Q e) = liftM (show . flatten) $ toNKL (getX100TableInfo c) e
 
 debugX100 :: QA a => X100Info -> Q a -> IO ()
 debugX100 c (Q e) = do
               e' <- toNKL (getX100TableInfo c) e
               nkl2X100File "query.plan" e'
-              
+
 debugX100Plan :: QA a => X100Info -> Q a -> IO String
 debugX100Plan c (Q e) = liftM (show . fst . nkl2X100Alg) $ toNKL (getX100TableInfo c) e
 
@@ -62,12 +63,12 @@ debugVL :: (QA a, IConnection conn) => conn -> Q a -> IO ()
 debugVL c (Q e) = do
   e' <- toNKL (getTableInfo c) e
   nkl2VLFile "query" e'
-  
+
 debugX100VL :: QA a => X100Info -> Q a -> IO ()
 debugX100VL c (Q e) = do
   e' <- toNKL (getX100TableInfo c) e
   nkl2VLFile "query" e'
-  
+
 debugX100VLRaw :: QA a => X100Info -> String -> Q a -> IO ()
 debugX100VLRaw c f (Q e) = do
     e' <- toNKL (getX100TableInfo c) e
@@ -130,4 +131,4 @@ getX100TableInfo c n = do
                                                 LIntervalDS -> t == T.Int
                                                 LIntervalYM -> t == T.Int
                                                 LUnknown s  -> error $ "Unknown DB type" ++ show s)
-                                                
+
