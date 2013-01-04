@@ -50,6 +50,14 @@ algVal (VL.VLString s) = string s
 algVal (VL.VLDouble d) = double d
 algVal (VL.VLNat n) = nat $ fromIntegral n
 
+algConstType :: VL.VLVal -> ATy
+algConstType (VL.VLInt _)    = AInt
+algConstType (VL.VLNat _)    = ANat
+algConstType (VL.VLBool _)   = ABool
+algConstType (VL.VLString _) = AStr
+algConstType (VL.VLDouble _) = ADouble
+algConstType VL.VLUnit       = ANat
+
 algTy :: VL.VLType -> ATy
 algTy (VL.Int) = intT
 algTy (VL.Double) = doubleT
@@ -63,6 +71,11 @@ algTy (VL.VLList _) = $impossible
 colP :: AttrName -> (AttrName, AttrName)
 colP a = (a, a)
 
+transProj :: AttrName -> VL.ISTransProj -> (AttrName, AttrName)
+transProj target VL.STPosCol   = (target, pos)
+transProj target VL.STDescrCol = (target, descr)
+transProj _      VL.STNumber   = $impossible
+
 -- Compilation of VL expressions (Expr1, Expr2)
 
 type ExprComp r a = StateT Int (GraphM r PFAlgebra) a
@@ -75,14 +88,6 @@ freshCol = do
 
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1000000000
-
-algConstType :: VL.VLVal -> ATy
-algConstType (VL.VLInt _)    = AInt
-algConstType (VL.VLNat _)    = ANat
-algConstType (VL.VLBool _)   = ABool
-algConstType (VL.VLString _) = AStr
-algConstType (VL.VLDouble _) = ADouble
-algConstType VL.VLUnit       = ANat
 
 compileExpr1' :: AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
 compileExpr1' n (VL.App1 op e1 e2)   = do
@@ -477,71 +482,179 @@ instance VectorAlgebra PFAlgebra where
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
 
+  thetaJoin joinExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    let leftWidth  = length cols1
+        rightWidth = length cols2
+        itemProj1  = map (colP . itemi) cols1
+        cols2'     = [(leftWidth + 1) .. (leftWidth + rightWidth)]
+        shiftProj2 = zip (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (colP . itemi) cols2'
+
+        allResultColumns = cols1 ++ cols2'
+
+    -- FIXME handle arbitrary join expressions with a post-join selection
+    case joinExpr of
+      (VL.App1 op (VL.Column1 col1) (VL.Column1 col2)) -> do
+        qj <- thetaJoinM (itemi col1) (show op) (itemi col2)
+                (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
+                (proj ((pos'', pos) : shiftProj2) q2)
+        qp <- rownum pos [pos', pos''] Nothing qj
+        qr1 <- proj ([colP descr, colP pos] ++ itemProj1 ++ itemProj2) qp
+        qr2 <- proj ([(descr, pos'), colP pos] ++ itemProj1 ++ itemProj2) qp
+        return (DBV qr1 allResultColumns, DBV qr2 allResultColumns)
+      _                                                ->
+        error "arbitrary join expressions not supported"
+
+  selectPos (DBV qe cols) op (DBP qi _) = do
+    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+    qx <- crossM
+            (projM (pf [colP descr, colP pos']) (cast pos pos' intT qe))
+            -- (proj (pf [colP descr, (pos', pos)]) qe)
+            (proj [(item', item)] qi)
+    qn <- case op of
+            VL.Lt ->
+                projM (pf [colP descr, (pos, pos'), colP pos'])
+                  $ selectM resCol
+                  $ oper (show op) resCol pos' item' qx
+            VL.LtE ->
+                projM (pf [colP descr, (pos, pos'), colP pos'])
+                  $ selectM resCol
+                  $ unionM
+                    (oper (show VL.Lt) resCol pos' item' qx)
+                    (oper (show VL.Eq) resCol pos' item' qx)
+            _ ->
+                projM (pf [colP descr, colP pos, colP pos'])
+                 $ rownumM pos [descr, pos'] Nothing
+                    $ selectM resCol
+                        $ oper (show op) resCol pos' item' qx
+    q <- proj (pf [colP descr, colP pos]) qn
+    qp <- proj [(posnew, pos), (posold, pos')] qn
+    return $ (DBV q cols, RenameVector qp)
+
+  selectPosLift (DBV qe cols) op (DBV qi _) = do
+    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+    qx <- castM pos' pos''' intT
+            $ eqJoinM descr pos''
+                (rownum pos' [pos] (Just descr) qe)
+                (proj [(pos'', pos), (item', item)] qi)
+    qs <- case op of
+        VL.LtE -> rownumM posnew [descr, pos] Nothing
+              $ selectM resCol
+              $ unionM
+                (oper (show VL.Eq) resCol pos''' item' qx)
+                (oper (show VL.Lt) resCol pos''' item' qx)
+        _ -> rownumM posnew [descr, pos] Nothing
+              $ selectM resCol
+              $ oper (show op) resCol pos''' item' qx
+    q <- proj (pf [colP descr, (pos, posnew)]) qs
+    qp <- proj [(posold, pos), (posnew, posnew)] qs
+    return $ (DBV q cols, RenameVector qp)
+
+  selectPos1 (DBV qe cols) op (VL.N posConst) = do
+    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
+    qi <- attach pos' ANat (VNat $ fromIntegral posConst) qe
+    q' <- case op of
+            VL.Lt -> do
+              projM (pf [colP descr, colP pos, (pos', pos)])
+              $ selectM resCol
+              $ oper (show op) resCol pos pos' qi
+            VL.LtE -> do
+              projM (pf [colP descr, colP pos, (pos', pos)])
+                $ selectM resCol
+                $ (oper (show VL.Eq) resCol pos pos') qi
+                  `unionM`
+                  (oper (show VL.Lt) resCol pos pos') qi
+            _ -> do
+              projM (pf [colP descr, colP pos, colP pos'])
+                $ rownumM pos' [pos] Nothing
+                $ selectM resCol
+                $ oper (show op) resCol pos pos' qi
+    qr <- proj (pf [colP descr, (pos, pos')]) q'
+    qp <- proj [(posold, pos), (posnew, pos')] q'
+    return $ (DBV qr cols, RenameVector qp)
+
+  selectPos1Lift (DBV qe cols) op (VL.N posConst) = do
+    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
+    qi <- rownumM pos'' [pos] (Just descr)
+            $ attach pos' ANat (VNat $ fromIntegral posConst) qe
+    q' <- case op of
+            VL.Lt -> do
+              projM (pf [colP descr, colP pos, (pos', pos)])
+                $ selectM resCol
+                $ oper (show op) resCol pos'' pos' qi
+            VL.LtE -> do
+              projM (pf [colP descr, colP pos, (pos', pos)])
+                $ selectM resCol
+                $ (oper (show VL.Eq) resCol pos'' pos') qi
+                  `unionM`
+                  (oper (show VL.Lt) resCol pos'' pos') qi
+            _ -> do
+              projM (pf [colP descr, colP pos, colP pos'])
+                $ rownumM pos' [descr, pos] Nothing
+                $ selectM resCol
+                $ oper (show op) resCol pos'' pos' qi
+    qr <- proj (pf [colP descr, (pos, pos')]) q'
+    qp <- proj [(posold, pos), (posnew, pos')] q'
+    return $ (DBV qr cols, RenameVector qp)
+
+  projectRename posnewProj posoldProj (DBV q _) = do
+    qn <- rownum pos'' [descr, pos] Nothing q
+    qr <- case (posnewProj, posoldProj) of
+            (VL.STNumber, VL.STNumber) -> proj [(posnew, pos''), (posold, pos'')] qn
+            (VL.STNumber, p)           -> proj [(posnew, pos''), transProj posold p] qn
+            (p, VL.STNumber)           -> proj [transProj posnew p, (posold, pos'')] qn
+            (p1, p2)                   -> proj [transProj posnew p1, transProj posold p2] qn
+
+    return $ RenameVector qr
+
+  projectPayload valProjs (DBV q _) = do
+
+    let createPayloadProj :: [VL.PayloadProj]
+                          -> [(AttrName, AttrName)]
+                          -> Int
+                          -> AlgNode
+                          -> GraphM r PFAlgebra ([(AttrName, AttrName)], AlgNode)
+        createPayloadProj ((VL.PLConst c) : vps) projections colIndex q' = do
+          qa <- attach (itemi' colIndex) (algConstType c) (algVal c) q'
+          createPayloadProj vps ((itemi colIndex, itemi' colIndex) : projections) (colIndex + 1) qa
+
+        createPayloadProj ((VL.PLCol col) : vps) projections colIndex q' =
+          createPayloadProj vps ((itemi colIndex, itemi col) : projections) (colIndex + 1) q'
+
+        createPayloadProj []                     projections _        q' =
+          return (projections, q')
+
+    (ps, qp) <- createPayloadProj valProjs [] 1 q
+    qr <- proj ([colP descr, colP pos] ++ ps) qp
+    return $ DBV qr [1 .. (length valProjs)]
+
+  projectAdmin descrProj posProj (DBV q cols) = do
+    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
+    (pd, qd) <- case descrProj of
+                 VL.DescrConst (VL.N c) -> do
+                   qa <- attach descr ANat (VNat $ fromIntegral c) q
+                   return ((descr, descr), qa)
+                 VL.DescrIdentity       -> return ((descr, descr), q)
+                 VL.DescrPosCol         -> return ((descr, pos), q)
+
+    qp <- case posProj of
+            VL.PosNumber         -> do
+              -- FIXME we might want to consider the case that the descriptor has just been overwritten
+              -- what to generate numbers from then?
+              qn <- rownum pos [descr, pos] Nothing qd
+              return qn
+            VL.PosConst (VL.N c) -> do
+              qa <- attach pos ANat (VNat $ fromIntegral c) qd
+              return qa
+            VL.PosIdentity       -> return qd
+
+    qr <- proj (pf [pd, colP pos]) qp
+    return $ DBV qr cols
+
   -- FIXME CHECK BARRIER operator implementations above this line have been checked
   -- to conform to the X100 implementations
 
-  selectPos = selectPosPF
-  selectPos1 = undefined
-  selectPosLift = selectPosLiftPF
-  selectPos1Lift = undefined
-
   zipL = undefined
-
-  thetaJoin = undefined
-
-  projectRename = undefined
-
-  projectPayload = undefined
-  projectAdmin = undefined
-
-selectPosLiftPF :: DBV -> VL.VecCompOp -> DBV -> GraphM r PFAlgebra (DBV, RenameVector)
-selectPosLiftPF (DBV qe cols) op (DBV qi _) =
-    do
-        let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-        qx <- castM pos' pos''' intT
-                $ eqJoinM descr pos''
-                    (rownum pos' [pos] (Just descr) qe)
-                    (proj [(pos'', pos), (item', item)] qi)
-        qs <- case op of
-            VL.LtE -> rownumM posnew [descr, pos] Nothing
-                  $ selectM resCol
-                  $ unionM
-                    (oper (show VL.Eq) resCol pos''' item' qx)
-                    (oper (show VL.Lt) resCol pos''' item' qx)
-            _ -> rownumM posnew [descr, pos] Nothing
-                  $ selectM resCol
-                  $ oper (show op) resCol pos''' item' qx
-        q <- proj (pf [colP descr, (pos, posnew)]) qs
-        qp <- proj [(posold, pos), (posnew, posnew)] qs
-        return $ (DBV q cols, RenameVector qp)
-
-selectPosPF :: DBV -> VL.VecCompOp -> DBP -> GraphM r PFAlgebra (DBV, RenameVector)
-selectPosPF (DBV qe cols) op (DBP qi _) =
-    do
-        let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-        qx <- crossM
-                (projM (pf [colP descr, colP pos']) (cast pos pos' intT qe))
-                -- (proj (pf [colP descr, (pos', pos)]) qe)
-                (proj [(item', item)] qi)
-        qn <- case op of
-                VL.Lt ->
-                    projM (pf [colP descr, (pos, pos'), colP pos'])
-                     $ selectM resCol
-                           $ oper (show op) resCol pos' item' qx
-                VL.LtE ->
-                    projM (pf [colP descr, (pos, pos'), colP pos'])
-                     $ selectM resCol
-                        $ unionM
-                            (oper (show VL.Lt) resCol pos' item' qx)
-                            (oper (show VL.Eq) resCol pos' item' qx)
-                _ ->
-                    projM (pf [colP descr, colP pos, colP pos'])
-                     $ rownumM pos [descr, pos'] Nothing
-                        $ selectM resCol
-                            $ oper (show op) resCol pos' item' qx
-        q <- proj (pf [colP descr, colP pos]) qn
-        qp <- proj [(posnew, pos), (posold, pos')] qn
-        return $ (DBV q cols, RenameVector qp)
 
 
 {-
@@ -567,18 +680,4 @@ binOpPF op (DBP q1 _) (DBP q2 _) | op == (VL.COp VL.GtE) = do
                                            flip DBP [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
                              | otherwise = flip DBP [1] <$> applyBinOp op q1 q2
 -}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
