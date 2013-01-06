@@ -1,47 +1,29 @@
-module Database.DSH.Flattening.Translate.VL2Algebra
-       ( toPFAlgebra
-       , toXML
-       , toX100Algebra
-       , toX100String
-       , toX100File
-       , vlDagtoX100Dag
-       , TS.importShape
-       , TS.exportShape
-       , toVLFile) where
+module Database.DSH.Flattening.Translate.VL2Algebra(implementVectorOpsX100 , implementVectorOpsPF) where
 
 import           Data.List                                             (intercalate)
 
 import           Database.Algebra.Pathfinder                           (PFAlgebra)
 
 import           Database.Algebra.Pathfinder                           (initLoop)
-import           Database.Algebra.Pathfinder.Render.XML                hiding (Graph, XML, getNode, node)
 import           Database.Algebra.X100.Data                            (X100Algebra)
 import           Database.Algebra.X100.Data.Create                     (dummy)
-import           Database.Algebra.X100.JSON
-import           Database.Algebra.X100.Render
 import           Database.DSH.Flattening.VL.PathfinderVectorPrimitives ()
 
 import qualified Data.IntMap                                           as IM
 import qualified Data.Map                                              as M
 
-import           Database.Algebra.Aux
-import           Database.Algebra.Dag                                  (AlgebraDag, mkDag, nodeMap)
+import           Database.Algebra.Dag                                  (AlgebraDag, nodeMap)
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common                           hiding (BinOp)
 import qualified Database.Algebra.Dag.Common                           as C
-import           Database.Algebra.VL.Data                              hiding (DBCol)
+import           Database.Algebra.VL.Data                              hiding (DBCol, Pair)
 import qualified Database.Algebra.VL.Data                              as V
-import qualified Database.Algebra.VL.Render.JSON                       as VLJSON
 import           Database.DSH.Flattening.Translate.FKL2VL              ()
 import           Database.DSH.Flattening.VL.Data.DBVector
-import           Database.DSH.Flattening.VL.Data.GraphVector           hiding (Pair)
-import qualified Database.DSH.Flattening.VL.Data.GraphVector           as Vec
-import qualified Database.DSH.Flattening.VL.Data.GraphVector           as GV
-import qualified Database.DSH.Flattening.VL.Data.Query                 as Ext
 import           Database.DSH.Flattening.VL.VectorPrimitives
 import           Database.DSH.Flattening.VL.X100VectorPrimitives       ()
 
-import qualified Database.DSH.Flattening.Common.Data.QueryPlan         as TS
+import           Database.DSH.Flattening.Common.Data.QueryPlan
 
 import           Control.Monad.State
 
@@ -103,14 +85,15 @@ toDescrVector :: Res -> DescrVector
 toDescrVector (Descr d) = DescrVector d
 toDescrVector _         = error "toDescrVector: Not a descriptor vector"
 
-vl2Algebra :: VectorAlgebra a => (NodeMap VL, Shape) -> G a Shape
+vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
 vl2Algebra (nodes, plan) = do
                             mapM_ translate roots
                             refreshShape plan
     where
       roots :: [AlgNode]
-      roots = rootNodes plan
-      refreshShape :: VectorAlgebra a => Shape -> G a Shape
+      roots = rootsFromTopShape plan
+
+      refreshShape :: VectorAlgebra a => TopShape -> G a TopShape
       refreshShape (ValueVector (DBV n _) lyt) = do
 
                                                  v <- fromDict n
@@ -123,17 +106,17 @@ vl2Algebra (nodes, plan) = do
                                              (Just (RDBP n' cs)) <- fromDict n
                                              lyt' <- refreshLyt lyt
                                              return $ PrimVal (DBP n' cs) lyt'
-      refreshShape _ = error "refreshShape: Closure cannot be translated to algebra"
-      refreshLyt :: VectorAlgebra a => Layout -> G a Layout
+
+      refreshLyt :: VectorAlgebra a => TopLayout -> G a TopLayout
       refreshLyt l@(InColumn _) = return l
       refreshLyt (Nest (DBV n _) lyt) = do
                                          (Just n') <- fromDict n
                                          lyt' <- refreshLyt lyt
                                          return $ Nest (toDBV n') lyt'
-      refreshLyt (GV.Pair l1 l2) = do
+      refreshLyt (Pair l1 l2) = do
                                  l1' <- refreshLyt l1
                                  l2' <- refreshLyt l2
-                                 return $ GV.Pair l1' l2'
+                                 return $ Pair l1' l2'
       getNode :: AlgNode -> VL
       getNode n = case IM.lookup n nodes of
         Just op -> op
@@ -291,65 +274,14 @@ translateNullary (ConstructLiteralValue tys vals) = liftM fromDBP $ constructLit
 translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLiteralTable tys vals
 translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks
 
+implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
+implementVectorOpsX100 vlPlan =
+  let (opMap, shape, tagMap)= runG dummy (vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan))
+  in mkQueryPlan opMap shape tagMap
 
-toPFAlgebra :: AlgPlan VL Shape -> AlgPlan PFAlgebra Shape
-toPFAlgebra (n, r, _) = runG initLoop (vl2Algebra (reverseAlgMap n, r))
+implementVectorOpsPF :: QueryPlan VL -> QueryPlan PFAlgebra
+implementVectorOpsPF vlPlan =
+  let (opMap, shape, tagMap)= runG initLoop (vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan))
+  in mkQueryPlan opMap shape tagMap
 
-toX100Algebra :: AlgPlan VL Shape -> AlgPlan X100Algebra Shape
-toX100Algebra (n, r, _) = runG dummy (vl2Algebra (reverseAlgMap n, r))
 
-vlDagtoX100Dag :: AlgebraDag VL -> TS.TopShape -> (AlgebraDag X100Algebra, TS.TopShape)
-vlDagtoX100Dag vlDag shape =
-  -- FIXME the conversion of IntMap to Map sucks big time.
-  let vlplan = ((reverseMap $ M.fromList . IM.toList $ nodeMap vlDag), TS.importShape shape, IM.empty)
-      (m, shape', _) = toX100Algebra vlplan
-  in (mkDag (reverseToIntMap m) (rootNodes shape'), TS.exportShape shape')
-
-toX100File :: FilePath -> AlgPlan X100Algebra Shape -> IO ()
-toX100File f (m, r, t) = do
-    planToFile f (t, rootNodes r, reverseAlgMap m)
-
-toVLFile :: FilePath -> AlgPlan VL Shape -> IO ()
-toVLFile prefix (m, r, t) = do
-    let planPath = prefix ++ "_vl.plan"
-        shapePath = prefix ++ "_shape.plan"
-    VLJSON.planToFile planPath (t, rootNodes r, reverseAlgMap m)
-    writeFile shapePath $ show $ TS.exportShape r
-
-toX100String :: AlgPlan X100Algebra Shape -> Ext.Query Ext.X100
-toX100String (m, r, _t) = convertQuery r
- where
-    m' :: NodeMap X100Algebra
-    m' = reverseAlgMap m
-    convertQuery :: Shape -> Ext.Query Ext.X100
-    convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
-    convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
-    convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
-    convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-    convertLayout :: Layout -> Ext.Layout Ext.X100
-    convertLayout (InColumn i) = Ext.InColumn i
-    convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.X100 r' $ generateDumbQuery m' r') $ convertLayout l
-    convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
-
-toXML :: AlgPlan PFAlgebra Shape -> Ext.Query Ext.XML
-toXML (g, r, ts) = convertQuery r
-    where
-        convertQuery :: Shape -> Ext.Query Ext.XML
-        convertQuery (PrimVal (DBP r' _) l) = Ext.PrimVal (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertQuery (ValueVector (DBV r' _) l) = Ext.ValueVector (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertQuery (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
-        convertQuery (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
-        convertLayout :: Layout -> Ext.Layout Ext.XML
-        convertLayout (InColumn i) = Ext.InColumn i
-        convertLayout (Nest (DBV r' _) l) = Ext.Nest (Ext.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertLayout (Vec.Pair p1 p2) = Ext.Pair (convertLayout p1) (convertLayout p2)
-        itemi :: Int -> Element ()
-        itemi i = [attr "name" $ "item" ++ show i, attr "new" "false", attr "function" "item", attr "position" (show i)] `attrsOf` xmlElem "column"
-        withItem :: Int -> [Element ()]
-        withItem i = (iterCol:posCol:[ itemi i' | i' <- [1..i]])
-        nodeTable = M.fromList $ map (\(a, b) -> (b, a)) $ M.toList g
-        toXML' :: [Element ()] -> AlgNode -> String
-        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $
-                        runXML False M.empty IM.empty $
-                            mkQueryPlan Nothing (xmlElem "property") $
-                                runXML True nodeTable ts $ serializeAlgebra cs n

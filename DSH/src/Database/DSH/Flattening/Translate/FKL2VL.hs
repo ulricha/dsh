@@ -1,28 +1,21 @@
 {-# LANGUAGE RelaxedPolyRec  #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections   #-}
-module Database.DSH.Flattening.Translate.FKL2VL (specializeVectorOps, toVec, toVecDot, toVecJSON) where
 
-import qualified Database.Algebra.Dag                          as Dag
+module Database.DSH.Flattening.Translate.FKL2VL (specializeVectorOps) where
+
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.VL.Data                      (VL())
-import           Database.Algebra.VL.Render.Dot
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Flattening.Common.Data.Op
 import qualified Database.DSH.Flattening.Common.Data.QueryPlan as QP
-import           Database.DSH.Flattening.Common.Data.Type      (Type())
-import           Database.DSH.Flattening.Common.Data.Val       (Val())
 import           Database.DSH.Flattening.FKL.Data.FKL
-import           Database.DSH.Flattening.VL.Data.DBVector
 import           Database.DSH.Flattening.VL.Data.GraphVector   hiding (Pair)
 import           Database.DSH.Flattening.VL.VLPrimitives
 import           Database.DSH.Flattening.VL.VectorOperations
 
 import           Control.Applicative                           hiding (Const)
 import           Control.Monad                                 (liftM, liftM2, liftM3)
-import           Data.Aeson                                    (FromJSON, ToJSON, encode)
-import           Data.ByteString.Lazy.Char8                    (unpack)
-import qualified Data.IntMap                                   as M
 
 fkl2VL :: Expr -> Graph VL Shape
 fkl2VL (Table _ n cs ks) = dbTable n cs ks
@@ -121,49 +114,8 @@ constructClosureEnv :: [String] -> Graph a [(String, Shape)]
 constructClosureEnv [] = return []
 constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
-toVec :: Expr -> AlgPlan VL Shape
-toVec e = runGraph emptyVL (fkl2VL e)
-
+-- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL
 specializeVectorOps e =
   let (opMap, shape, tagMap) = runGraph emptyVL (fkl2VL e)
-
-      topShape               = QP.exportShape shape
-      rs                     = QP.rootsFromTopShape topShape
-      d                      = Dag.mkDag (reverseAlgMap opMap) rs
-  in QP.QueryPlan { QP.queryDag = d, QP.queryShape = topShape, QP.queryTags = tagMap }
-
-toVecDot :: Expr -> String
-toVecDot e = let (gr,p,ts) = toVec e
-             in renderVLDot ts (rootNodes p) (reverseAlgMap gr)
-
-toVecJSON :: Expr -> String
-toVecJSON e = let (gr,p, _) = toVec e
-               in unpack $ encode (p, M.toList $ reverseAlgMap gr)
-
-instance ToJSON Shape where
-instance ToJSON DBV where
-instance ToJSON DBP where
-instance ToJSON Layout where
-instance ToJSON Expr where
-instance ToJSON Prim1 where
-instance ToJSON Prim2 where
-instance ToJSON Prim3 where
-instance ToJSON Oper where
-instance ToJSON Op where
-instance ToJSON Type where
-instance ToJSON Val where
-
-instance FromJSON Shape where
-instance FromJSON DBV where
-instance FromJSON DBP where
-instance FromJSON Layout where
-instance FromJSON Expr where
-instance FromJSON Prim1 where
-instance FromJSON Prim2 where
-instance FromJSON Prim3 where
-instance FromJSON Oper where
-instance FromJSON Op where
-instance FromJSON Type where
-instance FromJSON Val where
-
+  in QP.mkQueryPlan opMap (QP.exportShape shape) tagMap

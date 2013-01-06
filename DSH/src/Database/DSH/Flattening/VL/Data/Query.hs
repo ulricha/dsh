@@ -1,3 +1,5 @@
+-- FIXME this module contains lots of stuff which does not belong under Flattening.VL
+
 module Database.DSH.Flattening.VL.Data.Query where
     
 data Query a =
