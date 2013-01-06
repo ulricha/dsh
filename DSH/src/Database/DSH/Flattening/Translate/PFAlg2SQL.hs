@@ -1,15 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Database.DSH.Flattening.Translate.Algebra2SQL (toSQL) where
+module Database.DSH.Flattening.Translate.PFAlg2SQL (toSQL) where
 
-import Text.XML.HaXml (Content(..), tag, deep, children, xmlParse, Document(..), AttValue(..))
-import qualified Text.XML.HaXml as X
+import           Text.XML.HaXml                            (AttValue(..), Content(..), Document(..), children, deep, tag,
+ xmlParse)
+import qualified Text.XML.HaXml                            as X
 
-import Data.Maybe
-import qualified Database.DSH.Flattening.VL.Data.Query as Ext
-import Database.Pathfinder
-import Database.DSH.Flattening.Common.Impossible
+import           Data.Maybe
+import           Database.DSH.Flattening.Common.Impossible
+import qualified Database.DSH.Flattening.VL.Data.Query     as Ext
+import           Database.Pathfinder
 
-import System.IO.Unsafe
+import           System.IO.Unsafe
 
 toSQL :: Ext.Query Ext.XML -> Ext.Query Ext.SQL
 toSQL (Ext.ValueVector (Ext.XML i r') lyt) = Ext.ValueVector ((\(q, s) -> Ext.SQL i s q) $ translate r') $ translateLayout lyt
@@ -26,8 +27,8 @@ translate xml = let r' = unsafePerformIO $ pathfinder xml "" OutputSql
                      (Right sql) -> extractSQL sql
                      (Left err) -> error $ "Pathfinder compilation for input: \n"
                                              ++ xml ++ "\n failed with error: \n"
-                                             ++ err 
-                                                 
+                                             ++ err
+
 extractSQL :: String -> (String, Ext.Schema)
 extractSQL xml = let (Document _ _ r _) = xmlParse "query" xml
                      q = extractCData $ head $ concatMap children $ (deep $ tag "query") (CElem r undefined)

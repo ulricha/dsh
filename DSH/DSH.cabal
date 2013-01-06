@@ -107,7 +107,7 @@ Library
                      Database.DSH.Flattening.NKL.Data.NKL
                      Database.DSH.Flattening.NKL.NKLPrimitives
                      Database.DSH.Flattening.NKL.Opt
-                     Database.DSH.Flattening.Translate.Algebra2SQL
+                     Database.DSH.Flattening.Translate.PFAlg2SQL
                      Database.DSH.Flattening.Translate.FKL2VL
                      Database.DSH.Flattening.Translate.NKL2FKL
                      Database.DSH.Flattening.Translate.VL2Algebra

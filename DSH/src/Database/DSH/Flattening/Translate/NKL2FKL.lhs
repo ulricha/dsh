@@ -79,10 +79,8 @@ cloLAppM (AClo ((n, x1, ..., xn)) f f') x == f' n x1 ... xn x
 %if False
 \begin{code}
         
-flatten :: N.Expr -> (F.Expr, Type)
-flatten e = runTransform $ do e' <- flatTransform e
-                              let t = typeOf e'
-                              return (e', t)
+flatten :: N.Expr -> F.Expr
+flatten e = runTransform (flatTransform e)
 
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
