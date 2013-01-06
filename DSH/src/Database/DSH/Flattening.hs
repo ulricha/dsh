@@ -1,41 +1,115 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 -- | This module provides the flattening implementation of DSH.
-module Database.DSH.Flattening (fromQ, debugPlan, debugSQL, debugNKL, debugFKL, fromX100, debugX100, debugX100Plan, debugNKLX100, debugFKLX100, debugVL, debugX100VL) where
+module Database.DSH.Flattening
+  ( fromQSQL
+  , debugSQL
+  , debugNKL
+  , debugFKL
+  , fromQX100
+  , debugX100
+  , debugX100Plan
+  , debugNKLX100
+  , debugFKLX100
+  , debugVL
+  , debugX100VL
+  , debugPFXML
+  ) where
 
 import           GHC.Exts
-
-import           Database.DSH.Flattening.DBPH              hiding (SQL, X100)
 
 import           Database.DSH.CompileFlattening
 import           Database.DSH.ExecuteFlattening
 
 import           Database.DSH.Internals
 import           Database.HDBC
-import qualified Database.HDBC                             as H
+import qualified Database.HDBC                                   as H
 
-import           Database.X100Client                       hiding (X100)
-import qualified Database.X100Client                       as X
+import           Database.X100Client                             hiding (X100)
+import qualified Database.X100Client                             as X
 
-import qualified Database.DSH.Flattening.Common.Data.Type  as T
+import qualified Database.DSH.Flattening.Common.Data.Type        as T
+import           Database.DSH.Flattening.Export
+import qualified Database.DSH.Flattening.NKL.Data.NKL            as NKL
+import qualified Database.DSH.Flattening.NKL.Opt                 as NKLOpt
+import           Database.DSH.Flattening.Translate.Algebra2Query
+import           Database.DSH.Flattening.Translate.FKL2VL
 import           Database.DSH.Flattening.Translate.NKL2FKL
+import           Database.DSH.Flattening.Translate.VL2Algebra
+import qualified Database.DSH.Flattening.VL.Data.Query           as Q
 
-import qualified Data.List                                 as L
+import qualified Data.List                                       as L
 
 import           Control.Monad.State
 
-import           Data.Convertible                          ()
-{-
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q e) = fmap frExp (evaluate c e)
--}
+import           Data.Convertible                                ()
 
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) =  do
+(|>) :: a -> (a -> b) -> b
+(|>) = flip ($)
+
+-- Different versions of the flattening compiler pipeline
+
+nkl2SQL :: NKL.Expr -> (Q.Query Q.SQL, T.Type)
+nkl2SQL e = let (e', t) = nkl2Alg e
+            in (generateSQL e', t)
+
+nkl2Alg :: NKL.Expr -> (Q.Query Q.XML, T.Type)
+nkl2Alg e = let q       = NKLOpt.opt e
+                          |> flatten
+                          |> specializeVectorOps
+                          |> implementVectorOpsPF
+                          |> generatePFXML
+                t       = T.typeOf e
+            in (q, t)
+
+nkl2X100Alg :: NKL.Expr -> (Q.Query Q.X100, T.Type)
+nkl2X100Alg e = let q = NKLOpt.opt e
+                        |> flatten
+                        |> specializeVectorOps
+                        |> implementVectorOpsX100
+                        |> generateX100Query
+                    t = T.typeOf e
+                in (q, t)
+
+nkl2X100File :: String -> NKL.Expr -> IO ()
+nkl2X100File prefix e = NKLOpt.opt e
+                        |> flatten
+                        |> specializeVectorOps
+                        |> implementVectorOpsX100
+                        |> (exportX100Plan prefix)
+
+nkl2SQLFile :: String -> NKL.Expr -> IO ()
+nkl2SQLFile prefix e = NKLOpt.opt e
+                       |> flatten
+                       |> specializeVectorOps
+                       |> implementVectorOpsPF
+                       |> generatePFXML
+                       |> generateSQL
+                       |> (exportSQL prefix)
+
+nkl2XMLFile :: String -> NKL.Expr -> IO ()
+nkl2XMLFile prefix e = NKLOpt.opt e
+                       |> flatten
+                       |> specializeVectorOps
+                       |> implementVectorOpsPF
+                       |> generatePFXML
+                       |> (exportPFXML prefix)
+
+nkl2VLFile :: String -> NKL.Expr -> IO ()
+nkl2VLFile prefix e = NKLOpt.opt e
+                      |> flatten
+                      |> specializeVectorOps
+                      |> exportVLPlan prefix
+
+-- Functions for executing and debugging DSH queries via the Flattening backend
+
+fromQSQL :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQSQL c (Q a) =  do
                    (q, _) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
                    fmap frExp $ executeSQLQuery c $ SQL q
 
-fromX100 :: QA a => X100Info -> Q a -> IO a
-fromX100 c (Q a) =  do
+fromQX100 :: QA a => X100Info -> Q a -> IO a
+fromQX100 c (Q a) =  do
                   (q, _) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
                   fmap frExp $ executeX100Query c $ X100 q
 
@@ -69,19 +143,15 @@ debugX100VL c (Q e) = do
   e' <- toNKL (getX100TableInfo c) e
   nkl2VLFile "query" e'
 
-{-
-debugX100VLRaw :: QA a => X100Info -> String -> Q a -> IO ()
-debugX100VLRaw c f (Q e) = do
-    e' <- toNKL (getX100TableInfo c) e
-    let s = nkl2VLRaw e'
-    writeFile f s
--}
+debugPFXML :: (QA a, IConnection conn) => conn -> Q a -> IO ()
+debugPFXML c (Q e) = do
+  e' <- toNKL (getTableInfo c) e
+  nkl2XMLFile "query" e'
 
-debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugPlan c (Q e) = liftM (show . fst . nkl2Alg) $ toNKL (getTableInfo c) e
-
-debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugSQL c (Q e) = liftM (show . fst . nkl2SQL) $ toNKL (getTableInfo c) e
+debugSQL :: (QA a, IConnection conn) => conn -> Q a -> IO ()
+debugSQL c (Q e) = do
+  e' <- toNKL (getTableInfo c) e
+  nkl2SQLFile "query" e'
 
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
