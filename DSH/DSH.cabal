@@ -107,7 +107,7 @@ Library
                      Database.DSH.Flattening.NKL.Data.NKL
                      Database.DSH.Flattening.NKL.NKLPrimitives
                      Database.DSH.Flattening.NKL.Opt
-                     Database.DSH.Flattening.Translate.PFAlg2SQL
+                     Database.DSH.Flattening.Translate.Algebra2Query
                      Database.DSH.Flattening.Translate.FKL2VL
                      Database.DSH.Flattening.Translate.NKL2FKL
                      Database.DSH.Flattening.Translate.VL2Algebra
@@ -171,7 +171,9 @@ executable vltox100
                     TableAlgebra >= 2.0.0,
                     aeson >= 0.6,
                     bytestring >= 0.9.1.10,
-                    pretty >= 1.0.1.1
+                    pretty >= 1.0.1.1,
+                    Pathfinder         >= 0.5.10,
+                    HaXml              >= 1.23
 
 Executable x100opt
   Hs-Source-Dirs:   src

@@ -1,18 +1,16 @@
-module Database.DSH.Flattening.Export where
-
-import qualified Data.IntMap                                   as IM
-import qualified Data.Map                                      as M
+module Database.DSH.Flattening.Export
+  ( exportVLPlan
+  , exportX100Plan
+  , exportX100Code
+  , exportPFXML
+  , exportSQL
+  ) where
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Common
-import           Database.Algebra.Pathfinder.Data.Algebra
-import           Database.Algebra.Pathfinder.Render.XML        hiding (Graph, XML, getNode, node)
 import           Database.Algebra.VL.Data                      hiding (Pair)
 import           Database.Algebra.X100.Data
-import           Database.Algebra.X100.Render
 
 import           Database.DSH.Flattening.Common.Data.QueryPlan hiding (mkQueryPlan)
-import           Database.DSH.Flattening.VL.Data.DBVector
 import qualified Database.DSH.Flattening.VL.Data.Query         as Q
 
 import qualified Database.Algebra.VL.Render.JSON               as VLJSON
@@ -40,46 +38,43 @@ exportX100Plan prefix x100Plan = do
                                )
   writeFile shapePath $ show $ queryShape x100Plan
 
-exportPFPlan :: FilePath -> QueryPlan PFAlgebra -> IO ()
-exportPFPlan = undefined
+query :: String -> String -> (a -> (Int, String)) -> Q.Query a -> IO ()
+query prefix suffix extract (Q.ValueVector q l) = do
+  let (i, s) = extract q
+      f      = prefix ++ "_" ++ (show i) ++ suffix
+  writeFile f s
+  layout prefix suffix extract l
+query prefix suffix extract (Q.PrimVal q l)     = do
+  let (i, s) = extract q
+      f      = prefix ++ "_" ++ (show i) ++ suffix
+  writeFile f s
+  layout prefix suffix extract l
 
-generateX100Code :: QueryPlan X100Algebra -> Q.Query Q.X100
-generateX100Code x100Plan = convertQuery $ queryShape x100Plan
- where
-    m' :: NodeMap X100Algebra
-    m' = nodeMap $ queryDag x100Plan
+layout :: String -> String -> (a -> (Int, String)) -> Q.Layout a -> IO ()
+layout _      _      _        (Q.InColumn _) = return ()
+layout prefix suffix extract (Q.Nest q l)   = do
+  let (i, s) = extract q
+      f      = prefix ++ "_" ++ (show i) ++ suffix
+  writeFile f s
+  layout prefix suffix extract l
+layout prefix suffix extract (Q.Pair l1 l2) = do
+  layout prefix suffix extract l1
+  layout prefix suffix extract l2
 
-    convertQuery :: TopShape -> Q.Query Q.X100
-    convertQuery (PrimVal (DBP r' _) l)     = Q.PrimVal (Q.X100 r' $ generateQuery m' r') $ convertLayout l
-    convertQuery (ValueVector (DBV r' _) l) = Q.ValueVector (Q.X100 r' $ generateQuery m' r') $ convertLayout l
+fromXML :: Q.XML -> (Int, String)
+fromXML (Q.XML i s) = (i, s)
 
-    convertLayout :: TopLayout -> Q.Layout Q.X100
-    convertLayout (InColumn i)        = Q.InColumn i
-    convertLayout (Nest (DBV r' _) l) = Q.Nest (Q.X100 r' $ generateQuery m' r') $ convertLayout l
-    convertLayout (Pair p1 p2)        = Q.Pair (convertLayout p1) (convertLayout p2)
+fromX100 :: Q.X100 -> (Int, String)
+fromX100 (Q.X100 i s) = (i, s)
 
-generatePathfinderCode :: QueryPlan PFAlgebra -> Q.Query Q.XML
-generatePathfinderCode pfPlan = convertQuery $ queryShape pfPlan
-    where
-        convertQuery :: TopShape -> Q.Query Q.XML
-        convertQuery (PrimVal (DBP r' _) l) = Q.PrimVal (Q.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertQuery (ValueVector (DBV r' _) l) = Q.ValueVector (Q.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
+fromSQL :: Q.SQL -> (Int, String)
+fromSQL (Q.SQL i _ s) = (i, s)
 
-        convertLayout :: TopLayout -> Q.Layout Q.XML
-        convertLayout (InColumn i)        = Q.InColumn i
-        convertLayout (Nest (DBV r' _) l) = Q.Nest (Q.XML r' $ toXML' (withItem $ columnsInLayout l) r') $ convertLayout l
-        convertLayout (Pair p1 p2)        = Q.Pair (convertLayout p1) (convertLayout p2)
+exportX100Code :: String -> Q.Query Q.X100 -> IO ()
+exportX100Code prefix q = query prefix ".vwq" fromX100 q
 
-        itemi :: Int -> Element ()
-        itemi i = [attr "name" $ "item" ++ show i, attr "new" "false", attr "function" "item", attr "position" (show i)] `attrsOf` xmlElem "column"
+exportPFXML :: String -> Q.Query Q.XML -> IO ()
+exportPFXML prefix q = query prefix ".xml" fromXML q
 
-        withItem :: Int -> [Element ()]
-        withItem i = (iterCol:posCol:[ itemi i' | i' <- [1..i]])
-
-        nodeTable = M.fromList $ IM.toList $ nodeMap $ queryDag pfPlan
-
-        toXML' :: [Element ()] -> AlgNode -> String
-        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $
-                        runXML False M.empty IM.empty $
-                            mkQueryPlan Nothing (xmlElem "property") $
-                                runXML True nodeTable (queryTags pfPlan) $ serializeAlgebra cs n
+exportSQL :: String -> Q.Query Q.SQL -> IO ()
+exportSQL prefix q = query prefix ".sql" fromSQL q
