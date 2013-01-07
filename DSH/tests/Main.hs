@@ -9,11 +9,11 @@ import Database.DSH (Q, QA)
 #define isFerry
 #endif
 
--- import Database.DSH.Interpreter (fromQ)
+-- import Database.DSH.Interpreter (fromQSQL)
 #ifdef isDBPH
 import Database.DSH.Flattening (fromQ)
 #elif isX100
-import Database.DSH.Flattening (fromX100)
+import Database.DSH.Flattening (fromQX100)
 #define isDBPH
 #else
 import Database.DSH.Compiler (fromQ)
@@ -328,7 +328,7 @@ makeProp :: (Eq b, QA a, QA b, Show a, Show b)
 makeProp f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)
@@ -352,7 +352,7 @@ makePropDouble :: (QA a, Show a)
 makePropDouble f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)
@@ -370,7 +370,7 @@ makePropListDouble :: (QA a, Show a)
 makePropListDouble f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromX100 c $ f1 (Q.toQ arg)
+    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
     db <- run $ fromQ c $ f1 (Q.toQ arg)

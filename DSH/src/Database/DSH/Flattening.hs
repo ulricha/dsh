@@ -3,7 +3,7 @@
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Flattening
   ( -- * Running queries via the Flattening backend
-    fromQSQL
+    fromQ
   , fromQX100
     -- * Debug functions
   , debugSQL
@@ -105,8 +105,8 @@ nkl2VLFile prefix e = NKLOpt.opt e
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
 -- | Compile a DSH query to SQL and run it on the database given by 'c'.
-fromQSQL :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQSQL c (Q a) =  do
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) =  do
                    (q, _) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
                    fmap frExp $ executeSQLQuery c $ SQL q
 
