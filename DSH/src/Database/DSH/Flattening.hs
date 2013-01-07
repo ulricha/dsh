@@ -15,6 +15,7 @@ module Database.DSH.Flattening
   , debugVL
   , debugX100VL
   , debugPFXML
+  , dumpVLMem
   ) where
 
 import           GHC.Exts
@@ -29,6 +30,9 @@ import qualified Database.HDBC                                   as H
 import           Database.X100Client                             hiding (X100)
 import qualified Database.X100Client                             as X
 
+import           Database.Algebra.Dag
+
+import           Database.DSH.Flattening.Common.Data.QueryPlan
 import qualified Database.DSH.Flattening.Common.Data.Type        as T
 import           Database.DSH.Flattening.Export
 import qualified Database.DSH.Flattening.NKL.Data.NKL            as NKL
@@ -39,6 +43,10 @@ import           Database.DSH.Flattening.Translate.NKL2FKL
 import           Database.DSH.Flattening.Translate.VL2Algebra
 import qualified Database.DSH.Flattening.VL.Data.Query           as Q
 
+import           Data.Aeson                                      (encode)
+import           Data.ByteString.Lazy.Char8                      (unpack)
+
+import qualified Data.IntMap                                     as M
 import qualified Data.List                                       as L
 
 import           Control.Monad.State
@@ -101,6 +109,7 @@ nkl2VLFile prefix e = NKLOpt.opt e
                       |> flatten
                       |> specializeVectorOps
                       |> exportVLPlan prefix
+
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
@@ -165,6 +174,16 @@ debugSQL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugSQL prefix c (Q e) = do
   e' <- toNKL (getTableInfo c) e
   nkl2SQLFile prefix e'
+
+-- | Dump a VL plan in the JSON format expected by the in-memory implementation (Tobias Müller)
+dumpVLMem :: QA a => FilePath -> X100Info -> Q a -> IO ()
+dumpVLMem f c (Q q) = do
+  nkl <- toNKL (getX100TableInfo c) q
+  let plan = NKLOpt.opt nkl
+             |> flatten
+             |> specializeVectorOps
+      json = unpack $ encode (queryShape plan, M.toList $ nodeMap $ queryDag plan)
+  writeFile f json
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.

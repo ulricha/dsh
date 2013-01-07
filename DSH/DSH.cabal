@@ -183,7 +183,8 @@ Executable x100opt
                        containers,
                        pretty,
                        mtl,
-                       bytestring
+                       bytestring,
+                       aeson
   GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
 
 Executable vlopt

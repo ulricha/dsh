@@ -1,4 +1,10 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Database.DSH.Flattening.Common.Data.QueryPlan where
+       
+import GHC.Generics(Generic)
+
+import           Data.Aeson                                  (ToJSON)
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Builder
@@ -7,14 +13,18 @@ import           Database.Algebra.Dag.Common
 import           Database.DSH.Flattening.VL.Data.DBVector
 import qualified Database.DSH.Flattening.VL.Data.GraphVector as GV
 
+
 data TopLayout = InColumn Int
                | Nest DBV TopLayout
                | Pair TopLayout TopLayout
-               deriving (Show, Read)
+               deriving (Show, Read, Generic)
 
 data TopShape = ValueVector DBV TopLayout
               | PrimVal DBP TopLayout
-              deriving (Show, Read)
+              deriving (Show, Read, Generic)
+
+instance ToJSON TopLayout where
+instance ToJSON TopShape where
 
 rootsFromTopLayout :: TopLayout -> [AlgNode]
 rootsFromTopLayout (InColumn _)         = []
