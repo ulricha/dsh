@@ -29,31 +29,32 @@ module Database.DSH.Flattening.Optimizer.Common.Rewrite
 
 where
 
-import qualified Database.Algebra.Dag                           as D
+import qualified Database.Algebra.Dag                          as D
 import           Database.Algebra.Dag.Common
-import qualified Database.Algebra.Rewrite.DagRewrite            as R
+import qualified Database.Algebra.Rewrite.DagRewrite           as R
 import           Database.Algebra.Rewrite.Match
-import           Database.Algebra.Rewrite.PatternConstruction   (pattern, v)
+import           Database.Algebra.Rewrite.PatternConstruction  (pattern, v)
 import           Database.Algebra.Rewrite.Properties
 import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 
-replaceRoot :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o Shape ()
+import           Database.DSH.Flattening.Common.Data.QueryPlan
+
+replaceRoot :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o TopShape ()
 replaceRoot oldRoot newRoot = do
   sh <- R.getExtras
-  R.updateExtras $ updateShape oldRoot newRoot sh
+  R.updateExtras $ updateTopShape oldRoot newRoot sh
   R.replaceRoot oldRoot newRoot
 
-replaceWithNew :: (D.Operator o, Show o) => AlgNode -> o -> R.Rewrite o Shape AlgNode
+replaceWithNew :: (D.Operator o, Show o) => AlgNode -> o -> R.Rewrite o TopShape AlgNode
 replaceWithNew oldNode newOp = do
   sh <- R.getExtras
   newNode <- R.replaceWithNew oldNode newOp
-  R.updateExtras $ updateShape oldNode newNode sh
+  R.updateExtras $ updateTopShape oldNode newNode sh
   return newNode
 
-replace :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o Shape ()
+replace :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o TopShape ()
 replace oldNode newNode = do
   sh <- R.getExtras
   R.replace oldNode newNode
-  R.updateExtras $ updateShape oldNode newNode sh
+  R.updateExtras $ updateTopShape oldNode newNode sh

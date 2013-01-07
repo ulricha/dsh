@@ -5,8 +5,9 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers where
 import           Control.Monad
 import           Data.Functor
 
+import           Database.DSH.Flattening.Common.Data.QueryPlan
+
 import           Database.DSH.Flattening.Optimizer.Common.Rewrite
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
@@ -32,7 +33,7 @@ hasConstDesc _                                        = False
 
 -- Walk down a chain of descriptor modifiers and return the first
 -- non-descriptor modifier if it is constant. Otherwise, fail the match.
-searchConstantDescr :: AlgNode -> Match VL BottomUpProps Shape AlgNode
+searchConstantDescr :: AlgNode -> Match VL BottomUpProps TopShape AlgNode
 searchConstantDescr q = do
   op <- getOperator q
   case op of

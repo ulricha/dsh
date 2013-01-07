@@ -12,14 +12,14 @@ import qualified Database.Algebra.Dag                             as D
 import           Database.Algebra.VL.Data
 import           Database.Algebra.VL.Render.JSON
 
+import           Database.DSH.Flattening.Common.Data.QueryPlan
 import           Database.DSH.Flattening.Optimizer.Common.Rewrite
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.VL.OptimizeVL
 
 data Options = Options { optVerbose        :: Bool
                        , optDebug          :: Bool
                        , optInput          :: IO B.ByteString
-                       , optShape          :: String
+                       , optTopShape          :: String
                        , optPipelineString :: Maybe String
                        }
 
@@ -27,7 +27,7 @@ startOptions :: Options
 startOptions = Options { optVerbose          = False
                        , optDebug            = False
                        , optInput            = B.getContents
-                       , optShape            = "query_shape.plan"
+                       , optTopShape            = "query_shape.plan"
                        , optPipelineString   = Nothing
                        }
 
@@ -44,9 +44,9 @@ options =
        "FILE")
       "Input file"
   , Option "s" ["shape"]
-      (ReqArg (\arg opt -> return opt { optShape = arg })
+      (ReqArg (\arg opt -> return opt { optTopShape = arg })
        "FILE")
-      "Shape input file"
+      "TopShape input file"
   , Option "p" ["pipeline"]
       (ReqArg (\arg opt -> return opt { optPipelineString = Just arg })
        "PIPELINE")
@@ -60,7 +60,7 @@ options =
       "Show help"
   ]
 
-optimize :: D.AlgebraDag VL -> Shape -> [RewriteClass]-> Bool -> (D.AlgebraDag VL, Log, Shape)
+optimize :: D.AlgebraDag VL -> TopShape -> [RewriteClass]-> Bool -> (D.AlgebraDag VL, Log, TopShape)
 optimize = runPipeline
 
 main :: IO ()
@@ -71,7 +71,7 @@ main = do
     let Options { optVerbose = verbose
                 , optInput = input
                 , optDebug = debugFlag
-                , optShape = shapeFile
+                , optTopShape = shapeFile
                 , optPipelineString = mPipelineString } = opts
 
     plan <- input

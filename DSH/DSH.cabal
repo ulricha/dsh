@@ -150,7 +150,6 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Properties.VerticalForm
 		     
                      Database.DSH.Flattening.Optimizer.Common.Rewrite
-                     Database.DSH.Flattening.Optimizer.Common.Shape
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
@@ -195,7 +194,8 @@ Executable vlopt
                        containers,
                        pretty,
                        bytestring,
-                       mtl		       
+                       mtl,
+                       aeson
   GHC-Options: -rtsopts -O3 -Wall -fprof-auto -auto-all
 
 Executable vlprop
@@ -206,7 +206,8 @@ Executable vlprop
                        containers,
                        mtl,
                        bytestring,
-                       pretty		       
+                       pretty,
+                       aeson
   GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
                   
 Test-Suite Flattening_x100

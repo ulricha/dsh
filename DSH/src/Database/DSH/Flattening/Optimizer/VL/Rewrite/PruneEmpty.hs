@@ -5,8 +5,9 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 import           Control.Applicative
 import           Control.Monad
 
+import           Database.DSH.Flattening.Common.Data.QueryPlan
+
 import           Database.DSH.Flattening.Optimizer.Common.Rewrite
-import           Database.DSH.Flattening.Optimizer.Common.Shape
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 
@@ -24,7 +25,7 @@ emptyRules = [ emptyAppendLeftR1
              , emptyAppendRightR2
              ]
 
-isEmpty :: AlgNode -> Match VL BottomUpProps Shape Bool
+isEmpty :: AlgNode -> Match VL BottomUpProps TopShape Bool
 isEmpty q = do
   ps <- liftM emptyProp $ properties q
   case ps of
