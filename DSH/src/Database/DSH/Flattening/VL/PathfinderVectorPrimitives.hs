@@ -1,6 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Database.DSH.Flattening.VL.PathfinderVectorPrimitives() where
 
@@ -500,9 +500,9 @@ instance VectorAlgebra PFAlgebra where
         qj <- thetaJoinM (itemi col1) (show op) (itemi col2)
                 (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
                 (proj ((pos'', pos) : shiftProj2) q2)
-        qp <- rownum pos [pos', pos''] Nothing qj
-        qr1 <- proj ([colP descr, colP pos] ++ itemProj1 ++ itemProj2) qp
-        qr2 <- proj ([(descr, pos'), colP pos] ++ itemProj1 ++ itemProj2) qp
+        qp <- rownum pos''' [pos', pos''] Nothing qj
+        qr1 <- proj ([colP descr, (pos, pos''')] ++ itemProj1 ++ itemProj2) qp
+        qr2 <- proj ([(descr, pos'), (pos, pos''')] ++ itemProj1 ++ itemProj2) qp
         return (DBV qr1 allResultColumns, DBV qr2 allResultColumns)
       _                                                ->
         error "arbitrary join expressions not supported"
@@ -643,14 +643,14 @@ instance VectorAlgebra PFAlgebra where
             VL.PosNumber         -> do
               -- FIXME we might want to consider the case that the descriptor has just been overwritten
               -- what to generate numbers from then?
-              qn <- rownum pos [descr, pos] Nothing qd
+              qn <- rownum pos''' [descr, pos] Nothing qd
               return qn
             VL.PosConst (VL.N c) -> do
               qa <- attach pos ANat (VNat $ fromIntegral c) qd
               return qa
             VL.PosIdentity       -> return qd
 
-    qr <- proj (pf [pd, colP pos]) qp
+    qr <- proj (pf [pd, (pos, pos''')]) qp
     return $ DBV qr cols
 
   -- FIXME CHECK BARRIER operator implementations above this line have been checked

@@ -150,6 +150,7 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Properties.VerticalForm
 		     
                      Database.DSH.Flattening.Optimizer.Common.Rewrite
+                     Database.DSH.Flattening.Optimizer.VL.OptimizeVL
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
