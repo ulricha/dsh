@@ -21,10 +21,11 @@ import           Database.Algebra.Pathfinder
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
+pos, item', item'', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
 item      = "item1"
 item'     = "item99999991"
+item''    = "item99999992"
 descr     = "iter"
 descr'    = "item99999501"
 descr''   = "item99999502"
@@ -537,37 +538,37 @@ instance VectorAlgebra PFAlgebra where
   selectPos (DBV qe cols) op (DBP qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     qx <- crossM
-            (projM (pf [colP descr, (posold, pos), colP pos']) (cast pos pos' intT qe))
-            (proj [(item', item)] qi)
+            (proj (pf [colP descr, (posold, pos), colP pos]) qe)
+            (projM [colP item'] $ cast item item' natT qi)
     qn <- case op of
             VL.Eq ->
                 attachM posnew ANat (VNat 1)
                 $ selectM resCol
-                $ oper (show op) resCol pos' item' qx
+                $ oper (show op) resCol pos item' qx
             VL.Lt ->
                 projM (pf [colP descr, colP posold, (posnew, posold)])
                   $ selectM resCol
-                  $ oper (show op) resCol pos' item' qx
+                  $ oper (show op) resCol pos item' qx
             VL.LtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' "<"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos item' "<"
                 projM (pf [colP descr, (posnew, posold), colP posold])
                   $ select compCol compNode
             VL.GtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' ">"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos item' ">"
 
                 rownumM posnew [posold] Nothing
                   $ select compCol compNode
             _ ->
                 rownumM posnew [posold] Nothing
                  $ selectM resCol
-                 $ oper (show op) resCol pos' item' qx
+                 $ oper (show op) resCol pos item' qx
     q <- proj (pf [colP descr, (pos, posnew)]) qn
     qp <- proj [colP posnew, colP posold] qn
     return $ (DBV q cols, RenameVector qp)
 
   selectPosLift (DBV qe cols) op (DBV qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    qx <- castM pos' pos''' intT
+    qx <- castM item' item'' natT
             $ eqJoinM descr pos''
                 (rownum pos' [pos] (Just descr) qe)
                 (proj [(pos'', pos), (item', item)] qi)
@@ -575,14 +576,14 @@ instance VectorAlgebra PFAlgebra where
         VL.Lt -> do
                 projM (pf [colP descr, (posnew, pos), (posold, pos)])
                 $ selectM resCol
-                $ oper "==" resCol pos''' item' qx
+                $ oper "==" resCol pos' item'' qx
         VL.LtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' "<"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item'' "<"
                 projM (pf [colP descr, (posnew, pos), (posold, pos)])
                   $ select compCol compNode
 
         VL.GtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' ">"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item'' ">"
                 projM (pf [colP descr, colP posnew, (posold, pos)])
                   $ rownumM posnew [descr, pos] Nothing
                   $ select compCol compNode
@@ -590,7 +591,7 @@ instance VectorAlgebra PFAlgebra where
         _ -> projM (pf [colP descr, colP posnew, (posold, pos)])
               $ rownumM posnew [pos] Nothing
               $ selectM resCol
-              $ oper (show op) resCol pos''' item' qx
+              $ oper (show op) resCol pos' item'' qx
     q <- proj (pf [colP descr, (pos, posnew)]) qs
     qp <- proj [colP posold, colP posnew] qs
     return $ (DBV q cols, RenameVector qp)
