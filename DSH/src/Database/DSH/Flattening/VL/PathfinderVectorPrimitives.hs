@@ -42,7 +42,7 @@ itemi :: Int -> AttrName
 itemi i = "item" ++ show i
 
 itemi' :: Int -> AttrName
-itemi' i = "item" ++ show i ++ "x"
+itemi' i = "item9999910" ++ show i
 
 algVal :: VL.VLVal -> AVal
 algVal (VL.VLInt i) = int (fromIntegral i)
@@ -86,7 +86,7 @@ freshCol :: ExprComp r AttrName
 freshCol = do
   i <- get
   put $ i + 1
-  return $ "item" ++ (show i)
+  return $ itemi' i
 
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1000000000

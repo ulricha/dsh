@@ -2,8 +2,9 @@
 
 module Database.DSH.Flattening.Translate.Algebra2Query (generateX100Query, generatePFXML, generateSQL) where
 
-import           Text.XML.HaXml                                (children, deep, tag,
- xmlParse)
+import           Text.PrettyPrint.HughesPJ
+
+import           Text.XML.HaXml                                (children, deep, tag, xmlParse)
 import qualified Text.XML.HaXml                                as X
 
 import qualified Data.IntMap                                   as IM
@@ -62,10 +63,10 @@ generatePFXML pfPlan = convertQuery $ queryShape pfPlan
         nodeTable = M.fromList $ IM.toList $ nodeMap $ queryDag pfPlan
 
         toXML' :: [Element ()] -> AlgNode -> String
-        toXML' cs n = show $ document $ mkXMLDocument $ mkPlanBundle $
+        toXML' cs n = render $ document $ mkXMLDocument $ mkPlanBundle $
                         runXML False M.empty IM.empty $
-                            mkQueryPlan Nothing (xmlElem "property") $
-                                runXML True nodeTable (queryTags pfPlan) $ serializeAlgebra cs n
+                        mkQueryPlan Nothing (xmlElem "property") $
+                        runXML True nodeTable (queryTags pfPlan) $ serializeAlgebra cs n
 
 generateSQL :: Ext.Query Ext.XML -> Ext.Query Ext.SQL
 generateSQL (Ext.ValueVector (Ext.XML i r') lyt) = Ext.ValueVector ((\(q, s) -> Ext.SQL i s q) $ translate r') $ translateLayout lyt

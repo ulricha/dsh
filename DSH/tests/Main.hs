@@ -55,7 +55,7 @@ getConn :: IO X100Info
 getConn = return $ x100Info "localhost" "48130" Nothing
 #else
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' port = '5432' dbname = 'ferry'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' dbname = 'test'"
 #endif
 
 qc:: Testable prop => prop -> IO ()
