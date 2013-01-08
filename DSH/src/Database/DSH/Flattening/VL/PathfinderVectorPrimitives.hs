@@ -594,10 +594,10 @@ instance VectorAlgebra PFAlgebra where
                   (oper (show VL.Lt) resCol pos pos') qi
             _ -> do
               projM (pf [colP descr, colP pos, colP pos'])
-                $ rownumM pos' [pos] Nothing
+                $ rownumM pos'' [pos] Nothing
                 $ selectM resCol
                 $ oper (show op) resCol pos pos' qi
-    qr <- proj (pf [colP descr, (pos, pos')]) q'
+    qr <- proj (pf [colP descr, (pos, pos'')]) q'
     qp <- proj [(posold, pos), (posnew, pos')] q'
     return $ (DBV qr cols, RenameVector qp)
 
@@ -618,10 +618,10 @@ instance VectorAlgebra PFAlgebra where
                   (oper (show VL.Lt) resCol pos'' pos') qi
             _ -> do
               projM (pf [colP descr, colP pos, colP pos'])
-                $ rownumM pos' [descr, pos] Nothing
+                $ rownumM pos''' [descr, pos] Nothing
                 $ selectM resCol
                 $ oper (show op) resCol pos'' pos' qi
-    qr <- proj (pf [colP descr, (pos, pos')]) q'
+    qr <- proj (pf [colP descr, (pos, pos''')]) q'
     qp <- proj [(posold, pos), (posnew, pos')] q'
     return $ (DBV qr cols, RenameVector qp)
 
