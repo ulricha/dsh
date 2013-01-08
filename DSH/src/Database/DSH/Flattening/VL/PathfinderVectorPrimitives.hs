@@ -91,13 +91,30 @@ freshCol = do
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1000000000
 
+specialComparison :: AlgNode -> AttrName -> AttrName -> String -> ExprComp r (AlgNode, AttrName)
+specialComparison n leftArg rightArg op = do
+  opCol    <- freshCol
+  opNode   <- lift $ oper op opCol leftArg rightArg n
+  eqCol    <- freshCol
+  eqNode   <- lift $ oper "==" eqCol leftArg rightArg opNode
+  orCol    <- freshCol
+  andNode  <- lift $ oper "||" orCol opCol eqCol eqNode
+  return (andNode, orCol)
+
 compileExpr1' :: AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
+compileExpr1' n (VL.App1 (VL.COp VL.LtE) e1 e2) = do
+  (n1, c1) <- compileExpr1' n e1
+  (n2, c2) <- compileExpr1' n1 e2
+  specialComparison n2 c1 c2 "<"
+compileExpr1' n (VL.App1 (VL.COp VL.GtE) e1 e2) = do
+  (n1, c1) <- compileExpr1' n e1
+  (n2, c2) <- compileExpr1' n1 e2
+  specialComparison n2 c1 c2 ">"
+
 compileExpr1' n (VL.App1 op e1 e2)   = do
   col      <- freshCol
   (n1, c1) <- compileExpr1' n e1
   (n2, c2) <- compileExpr1' n1 e2
-  -- FIXME certain operators (<= etc.) need to be implemented in a
-  -- special way
   nr <- lift $ oper (show op) col c1 c2 n2
   return (nr, col)
 compileExpr1' n (VL.Column1 dbcol)   = return (n, itemi dbcol)
@@ -112,6 +129,16 @@ compileExpr1 :: AlgNode -> VL.Expr1 -> GraphM r PFAlgebra (AlgNode, AttrName)
 compileExpr1 n e = runExprComp (compileExpr1' n e)
 
 compileExpr2' :: AlgNode -> VL.Expr2 -> ExprComp r (AlgNode, AttrName)
+compileExpr2' n (VL.App2 (VL.COp VL.LtE) e1 e2) = do
+  (n1, c1) <- compileExpr2' n e1
+  (n2, c2) <- compileExpr2' n1 e2
+  specialComparison n2 c1 c2 "<"
+
+compileExpr2' n (VL.App2 (VL.COp VL.GtE) e1 e2) = do
+  (n1, c1) <- compileExpr2' n e1
+  (n2, c2) <- compileExpr2' n1 e2
+  specialComparison n2 c1 c2 ">"
+
 compileExpr2' n (VL.App2 op e1 e2)         = do
   col <- freshCol
   (n1, c1) <- compileExpr2' n e1
@@ -518,12 +545,10 @@ instance VectorAlgebra PFAlgebra where
                 projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ selectM resCol
                   $ oper (show op) resCol pos' item' qx
-            VL.LtE ->
+            VL.LtE -> do
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' "<"
                 projM (pf [colP descr, (pos, pos'), colP pos'])
-                  $ selectM resCol
-                  $ unionM
-                    (oper (show VL.Lt) resCol pos' item' qx)
-                    (oper (show VL.Eq) resCol pos' item' qx)
+                  $ select compCol compNode
             _ ->
                 projM (pf [colP descr, colP pos, colP pos'])
                  $ rownumM pos [descr, pos'] Nothing
@@ -540,11 +565,12 @@ instance VectorAlgebra PFAlgebra where
                 (rownum pos' [pos] (Just descr) qe)
                 (proj [(pos'', pos), (item', item)] qi)
     qs <- case op of
-        VL.LtE -> rownumM posnew [descr, pos] Nothing
-              $ selectM resCol
-              $ unionM
-                (oper (show VL.Eq) resCol pos''' item' qx)
-                (oper (show VL.Lt) resCol pos''' item' qx)
+        VL.LtE -> do
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' "<"
+                rownumM posnew [descr, pos] Nothing
+                  $ projM (pf [colP descr, (pos, pos'), colP pos'])
+                  $ select compCol compNode
+
         _ -> rownumM posnew [descr, pos] Nothing
               $ selectM resCol
               $ oper (show op) resCol pos''' item' qx
