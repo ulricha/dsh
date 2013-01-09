@@ -524,7 +524,7 @@ instance VectorAlgebra PFAlgebra where
     -- FIXME handle arbitrary join expressions with a post-join selection
     case joinExpr of
       (VL.App1 op (VL.Column1 col1) (VL.Column1 col2)) -> do
-        qj <- thetaJoinM (itemi col1) (show op) (itemi col2)
+        qj <- thetaJoinM [(itemi col1, itemi col2, show op)]
                 (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
                 (proj ((pos'', pos) : shiftProj2) q2)
         qp <- rownum pos''' [pos', pos''] Nothing qj
@@ -550,7 +550,7 @@ instance VectorAlgebra PFAlgebra where
                 projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
             VL.GtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' ">"
+                (compNode, compCol) <- runExprComp $ specialComparison qx item' pos' "<"
                 projM (pf [colP descr, (pos, pos''), colP pos'])
                   $ rownumM pos'' [pos'] Nothing
                   $ select compCol compNode
@@ -684,33 +684,21 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj (pf [pd, (pos, pos''')]) qp
     return $ DBV qr cols
 
-  -- FIXME CHECK BARRIER operator implementations above this line have been checked
-  -- to conform to the X100 implementations
+  zipL (DBV q1 cols1) (DBV q2 cols2) = do
+    q1' <- rownum pos'' [pos] (Just descr) q1
+    q2' <- rownum pos''' [pos] (Just descr) q2
+    let offset      = length cols1
+        cols2'      = map (+ offset) cols2
+        allCols     = cols1 ++ cols2'
+        allColsProj = map (colP . itemi) allCols
+        shiftProj   = zip (map itemi cols2') (map itemi cols2)
+    qz <- rownumM posnew [descr, pos''] Nothing
+          $ projM ([colP pos', colP pos, colP descr] ++ allColsProj)
+          $ thetaJoinM [(descr, descr', "=="), (pos'', pos''', "==")]
+              (return q1')
+              (proj ([(descr', descr), (pos', pos), colP pos'''] ++ shiftProj) q2')
 
-  zipL = undefined
-
-
-{-
-binOpLPF :: VL.VecOp -> DBV -> DBV -> GraphM r PFAlgebra DBV
-binOpLPF op (DBV q1 _) (DBV q2 _) | op == (VL.COp VL.GtE) = do
-                                             q1' <- applyBinOp (VL.COp VL.Gt) q1 q2
-                                             q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
-                                             flip DBV [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
-                              | op == (VL.COp VL.LtE) = do
-                                             q1' <- applyBinOp (VL.COp VL.Lt) q1 q2
-                                             q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
-                                             flip DBV [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
-                              | otherwise = flip DBV [1] <$> applyBinOp op q1 q2
-
-binOpPF :: VL.VecOp -> DBP -> DBP -> GraphM r PFAlgebra DBP
-binOpPF op (DBP q1 _) (DBP q2 _) | op == (VL.COp VL.GtE) = do
-                                            q1' <- applyBinOp (VL.COp VL.Gt) q1 q2
-                                            q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
-                                            flip DBP [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
-                             | op == (VL.COp VL.LtE) = do
-                                           q1' <- applyBinOp (VL.COp VL.Lt) q1 q2
-                                           q2' <- applyBinOp (VL.COp VL.Eq) q1 q2
-                                           flip DBP [1] <$> applyBinOp (VL.BOp VL.Disj) q1' q2'
-                             | otherwise = flip DBP [1] <$> applyBinOp op q1 q2
--}
-
+    r1 <- proj [(posold, pos''), colP posnew] qz
+    r2 <- proj [(posold, pos'''), colP posnew] qz
+    qr <- proj ([colP descr, (pos, posnew)] ++ allColsProj) qz
+    return (DBV qr allCols, RenameVector r1, RenameVector r2)
