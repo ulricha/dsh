@@ -583,22 +583,22 @@ instance VectorAlgebra PFAlgebra where
     qi <- attach pos' ANat (VNat $ fromIntegral posConst) qe
     q' <- case op of
             VL.Lt -> do
-              projM (pf [colP descr, colP pos, (pos', pos)])
+              projM (pf [colP descr, colP pos, (pos'', pos)])
               $ selectM resCol
               $ oper (show op) resCol pos pos' qi
             VL.LtE -> do
-              projM (pf [colP descr, colP pos, (pos', pos)])
+              projM (pf [colP descr, colP pos, (pos'', pos)])
                 $ selectM resCol
                 $ (oper (show VL.Eq) resCol pos pos') qi
                   `unionM`
                   (oper (show VL.Lt) resCol pos pos') qi
             _ -> do
-              projM (pf [colP descr, colP pos, colP pos'])
+              projM (pf [colP descr, colP pos, colP pos''])
                 $ rownumM pos'' [pos] Nothing
                 $ selectM resCol
                 $ oper (show op) resCol pos pos' qi
     qr <- proj (pf [colP descr, (pos, pos'')]) q'
-    qp <- proj [(posold, pos), (posnew, pos')] q'
+    qp <- proj [(posold, pos), (posnew, pos'')] q'
     return $ (DBV qr cols, RenameVector qp)
 
   selectPos1Lift (DBV qe cols) op (VL.N posConst) = do

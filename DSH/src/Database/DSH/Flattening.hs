@@ -43,8 +43,6 @@ import           Database.DSH.Flattening.Translate.NKL2FKL
 import           Database.DSH.Flattening.Translate.VL2Algebra
 import qualified Database.DSH.Flattening.VL.Data.Query           as Q
 
-import           Database.DSH.Flattening.Optimizer.VL.OptimizeVL
-
 import           Data.Aeson                                      (encode)
 import           Data.ByteString.Lazy.Char8                      (unpack)
 
@@ -102,7 +100,6 @@ nkl2XMLFile :: String -> NKL.Expr -> IO ()
 nkl2XMLFile prefix e = NKLOpt.opt e
                        |> flatten
                        |> specializeVectorOps
-                       |> optimizeVLDefault
                        |> implementVectorOpsPF
                        |> generatePFXML
                        |> (exportPFXML prefix)
