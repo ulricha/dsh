@@ -549,6 +549,11 @@ instance VectorAlgebra PFAlgebra where
                 (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' "<"
                 projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
+            VL.GtE -> do
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' ">"
+                projM (pf [colP descr, (pos, pos''), colP pos'])
+                  $ rownumM pos'' [pos] Nothing
+                  $ select compCol compNode
             _ ->
                 projM (pf [colP descr, colP pos, colP pos'])
                  $ rownumM pos [descr, pos'] Nothing
