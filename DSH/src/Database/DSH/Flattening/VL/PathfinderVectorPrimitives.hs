@@ -537,9 +537,9 @@ instance VectorAlgebra PFAlgebra where
   selectPos (DBV qe cols) op (DBP qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     qx <- crossM
-            (projM (pf [colP descr, colP pos']) (cast pos pos' intT qe))
+            (proj (pf [colP descr, (pos', pos)]) qe)
             -- (proj (pf [colP descr, (pos', pos)]) qe)
-            (proj [(item', item)] qi)
+            (projM [colP item'] $ cast item item' natT qi)
     qn <- case op of
             VL.Lt ->
                 projM (pf [colP descr, (pos, pos'), colP pos'])
@@ -552,7 +552,7 @@ instance VectorAlgebra PFAlgebra where
             VL.GtE -> do
                 (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' ">"
                 projM (pf [colP descr, (pos, pos''), colP pos'])
-                  $ rownumM pos'' [pos] Nothing
+                  $ rownumM pos'' [pos'] Nothing
                   $ select compCol compNode
             _ ->
                 projM (pf [colP descr, colP pos, colP pos'])
