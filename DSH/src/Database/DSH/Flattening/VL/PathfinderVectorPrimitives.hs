@@ -524,7 +524,12 @@ instance VectorAlgebra PFAlgebra where
     -- FIXME handle arbitrary join expressions with a post-join selection
     case joinExpr of
       (VL.App1 op (VL.Column1 col1) (VL.Column1 col2)) -> do
-        qj <- thetaJoinM [(itemi col1, itemi col2, show op)]
+        let (leftJoinCol, rightJoinCol) = if col1 `elem` cols1 && col2 `elem` cols2'
+                                          then (col1, col2)
+                                          else if col1 `elem` cols2' && col2 `elem` cols1
+                                               then (col2, col1)
+                                               else error "Pathfinder.ThetaJoin: could not map join columns to inputs"
+        qj <- thetaJoinM [(itemi leftJoinCol, itemi rightJoinCol, show op)]
                 (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
                 (proj ((pos'', pos) : shiftProj2) q2)
         qp <- rownum pos''' [pos', pos''] Nothing qj
