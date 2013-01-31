@@ -79,8 +79,8 @@ fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q e) = fmap frExp (evaluate c e)
 
 -- | Convert the query into unoptimised algebraic plan
-debugPlan :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
-debugPlan = doCompile
+debugPlan :: (IConnection conn,QA a) => conn -> Q a -> IO String
+debugPlan c (Q e) = doCompile c e
 
 -- | Convert the query into optimised algebraic plan
 debugPlanOpt :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
