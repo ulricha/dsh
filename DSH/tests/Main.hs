@@ -100,68 +100,74 @@ main = do
                          else "-s5":args
             defaultMainWithArgs tests args'
 
-tests :: [Test]
-tests =
-    [
-      testGroup "Supported Types"
-        [ testProperty "()" $ prop_unit
-        , testProperty "Bool" $ prop_bool
-        , testProperty "Char" $ prop_char
-        , testProperty "Text" $ prop_text
-        , testProperty "Integer" $ prop_integer
-        , testProperty "Double" $ prop_double
-        , testProperty "[Integer]" $ prop_list_integer_1
-        , testProperty "[[Integer]]" $ prop_list_integer_2
-        , testProperty "[[[Integer]]]" $ prop_list_integer_3
-        , testProperty "[(Integer, Integer)]" $ prop_list_tuple_integer
-        , testProperty "([], [])" $ prop_tuple_list_integer
-        , testProperty "Maybe Integer" $ prop_maybe_integer
-        , testProperty "Either Integer Integer" $ prop_either_integer
-        , testProperty "D0" $ prop_d0
-        , testProperty "D1" $ prop_d1
-        , testProperty "D2" $ prop_d2
-        , testProperty "D3" $ prop_d3
-        , testProperty "D4" $ prop_d4
-        , testProperty "D5" $ prop_d5
-        , testProperty "D6" $ prop_d6
-        ]
-    , testGroup "Equality, Boolean Logic and Ordering"
-        [ testProperty "&&" $ prop_infix_and
-        , testProperty "||" $ prop_infix_or
-        , testProperty "not" $ prop_not
-        , testProperty "eq" $ prop_eq
-        , testProperty "neq" $ prop_neq
-        , testProperty "cond" $ prop_cond
-        , testProperty "cond tuples" $ prop_cond_tuples
-        , testProperty "cond ([[Integer]], [[Integer]])" $ prop_cond_list_tuples
-        , testProperty "lt" $ prop_lt
-        , testProperty "lte" $ prop_lte
-        , testProperty "gt" $ prop_gt
-        , testProperty "gte" $ prop_gte
-        , testProperty "min_integer" $ prop_min_integer
-        , testProperty "min_double" $ prop_min_double
-        , testProperty "max_integer" $ prop_max_integer
-        , testProperty "max_double" $ prop_max_double
-        ]
-    , testGroup "Tuples"
-        [ testProperty "fst" $ prop_fst
-        , testProperty "snd" $ prop_snd
-        ]
-    , testGroup "Numerics"
-        [ testProperty "add_integer" $ prop_add_integer
-        , testProperty "add_double" $ prop_add_double
-        , testProperty "mul_integer" $ prop_mul_integer
-        , testProperty "mul_double" $ prop_mul_double
-        , testProperty "div_double" $ prop_div_double
-        , testProperty "integer_to_double" $ prop_integer_to_double
-        , testProperty "abs_integer" $ prop_abs_integer
-        , testProperty "abs_double" $ prop_abs_double
-        , testProperty "signum_integer" $ prop_signum_integer
-        , testProperty "signum_double" $ prop_signum_double
-        , testProperty "negate_integer" $ prop_negate_integer
-        , testProperty "negate_double" $ prop_negate_double
-        ]
-    , testGroup "Maybe"
+tests_types :: Test
+tests_types = testGroup "Supported Types"
+  [ testProperty "()" $ prop_unit
+  , testProperty "Bool" $ prop_bool
+  , testProperty "Char" $ prop_char
+  , testProperty "Text" $ prop_text
+  , testProperty "Integer" $ prop_integer
+  , testProperty "Double" $ prop_double
+  , testProperty "[Integer]" $ prop_list_integer_1
+  , testProperty "[[Integer]]" $ prop_list_integer_2
+  , testProperty "[[[Integer]]]" $ prop_list_integer_3
+  , testProperty "[(Integer, Integer)]" $ prop_list_tuple_integer
+  , testProperty "([], [])" $ prop_tuple_list_integer
+  , testProperty "Maybe Integer" $ prop_maybe_integer
+  , testProperty "Either Integer Integer" $ prop_either_integer
+  , testProperty "D0" $ prop_d0
+  , testProperty "D1" $ prop_d1
+  , testProperty "D2" $ prop_d2
+  , testProperty "D3" $ prop_d3
+  , testProperty "D4" $ prop_d4
+  , testProperty "D5" $ prop_d5
+  , testProperty "D6" $ prop_d6
+  ]
+
+tests_boolean :: Test
+tests_boolean = testGroup "Equality, Boolean Logic and Ordering"
+  [ testProperty "&&" $ prop_infix_and
+  , testProperty "||" $ prop_infix_or
+  , testProperty "not" $ prop_not
+  , testProperty "eq" $ prop_eq
+  , testProperty "neq" $ prop_neq
+  , testProperty "cond" $ prop_cond
+  , testProperty "cond tuples" $ prop_cond_tuples
+  , testProperty "cond ([[Integer]], [[Integer]])" $ prop_cond_list_tuples
+  , testProperty "lt" $ prop_lt
+  , testProperty "lte" $ prop_lte
+  , testProperty "gt" $ prop_gt
+  , testProperty "gte" $ prop_gte
+  , testProperty "min_integer" $ prop_min_integer
+  , testProperty "min_double" $ prop_min_double
+  , testProperty "max_integer" $ prop_max_integer
+  , testProperty "max_double" $ prop_max_double
+  ]
+
+tests_tuples :: Test
+tests_tuples = testGroup "Tuples"
+  [ testProperty "fst" $ prop_fst
+  , testProperty "snd" $ prop_snd
+  ]
+
+tests_numerics :: Test
+tests_numerics = testGroup "Numerics"
+  [ testProperty "add_integer" $ prop_add_integer
+  , testProperty "add_double" $ prop_add_double
+  , testProperty "mul_integer" $ prop_mul_integer
+  , testProperty "mul_double" $ prop_mul_double
+  , testProperty "div_double" $ prop_div_double
+  , testProperty "integer_to_double" $ prop_integer_to_double
+  , testProperty "abs_integer" $ prop_abs_integer
+  , testProperty "abs_double" $ prop_abs_double
+  , testProperty "signum_integer" $ prop_signum_integer
+  , testProperty "signum_double" $ prop_signum_double
+  , testProperty "negate_integer" $ prop_negate_integer
+  , testProperty "negate_double" $ prop_negate_double
+  ]
+
+tests_maybe :: Test
+tests_maybe = testGroup "Maybe"
         [ testProperty "maybe" $ prop_maybe
         , testProperty "just" $ prop_just
         , testProperty "isJust" $ prop_isJust
@@ -173,7 +179,9 @@ tests =
         , testProperty "catMaybes" $ prop_catMaybes
         , testProperty "mapMaybe" $ prop_mapMaybe
         ]
-    , testGroup "Either"
+
+tests_either :: Test
+tests_either = testGroup "Either"
         [ testProperty "left" $ prop_left
         , testProperty "right" $ prop_right
         , testProperty "isLeft" $ prop_isLeft
@@ -183,7 +191,9 @@ tests =
         , testProperty "rights" $ prop_rights
         , testProperty "partitionEithers" $ prop_partitionEithers
         ]
-    , testGroup "Lists"
+
+tests_lists :: Test
+tests_lists = testGroup "Lists"
         [ testProperty "head" $ prop_head
         , testProperty "tail" $ prop_tail
         , testProperty "cons" $ prop_cons
@@ -244,7 +254,9 @@ tests =
         , testProperty "unzip3" $ prop_unzip3
         , testProperty "nub" $ prop_nub
         ]
-    , testGroup "Lifted operations"
+
+tests_lifted :: Test
+tests_lifted = testGroup "Lifted operations"
         [ testProperty "Lifted &&" $ prop_infix_map_and
         , testProperty "Lifted ||" $ prop_infix_map_or
         , testProperty "Lifted not" $ prop_map_not
@@ -318,7 +330,20 @@ tests =
         , testProperty "map span" $ prop_map_span
         , testProperty "map break" $ prop_map_break
         ]
+
+tests :: [Test]
+tests =
+    [ 
+      tests_types
+    , tests_boolean
+    , tests_tuples
+    , tests_numerics
+    , tests_maybe
+    , tests_either
+    , tests_lists
+    , tests_lifted
     ]
+
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
