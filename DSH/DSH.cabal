@@ -185,7 +185,7 @@ Executable x100opt
                        mtl,
                        bytestring,
                        aeson
-  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
+  GHC-Options: -rtsopts -auto-all -O3 -Werror -fno-warn-orphans -fprof-auto 
 
 Executable vlopt
   Hs-Source-Dirs:   src
@@ -197,7 +197,7 @@ Executable vlopt
                        bytestring,
                        mtl,
                        aeson
-  GHC-Options: -rtsopts -O3 -Wall -fprof-auto -auto-all
+  GHC-Options: -rtsopts -O3 -Werror -fno-warn-orphans -fprof-auto -auto-all
 
 Executable vlprop
   Hs-Source-Dirs:   src
@@ -209,7 +209,7 @@ Executable vlprop
                        bytestring,
                        pretty,
                        aeson
-  GHC-Options: -rtsopts -auto-all -O3 -Wall -fprof-auto 
+  GHC-Options: -rtsopts -auto-all -O3 -Werror -fno-warn-orphans -fprof-auto 
                   
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
