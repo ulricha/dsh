@@ -14,24 +14,22 @@ import Data.Text (Text(..), pack)
 
 import Database.X100Client
 
-getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'postgres' password = 'haskell98' host = 'localhost' dbname = 'ferry'"
 
 getXConn :: IO X100Info
-getXConn = P.return $ x100Info "localhost" 48130 Nothing
+getXConn = P.return $ x100Info "localhost" "48130" Nothing
 
-expr :: Q [[[Integer]]]
-expr = map (sortWith length) $ toQ [] -- toQ [[[0], [0::Integer]],[[1]],[[2],[2],[3]]]
+expr :: Q Bool
+expr = (0 :: Q Integer) /= 0  -- toQ [[[0], [0::Integer]],[[1]],[[2],[2],[3]]]
 
 t' :: IO ()
 t' = do
       conn <- getXConn
-      I.debugX100 conn expr
-      r <- I.debugNKLX100 conn expr
-      putStrLn r
-      r <- I.fromX100 conn expr
+      r <- I.fromQX100 conn expr
       putStrLn $ show r
       P.return ()
+
+main = t'
+
 {-
 t :: IO ()
 t = do
