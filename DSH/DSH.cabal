@@ -43,7 +43,7 @@ Description:
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Alexander Ulrich, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          giorgidze@gmail.com, jeroen.weijers@uni-tuebingen.de
+Maintainer:          alexander.ulrich@uni-tuebingen.de, jeroen.weijers@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
