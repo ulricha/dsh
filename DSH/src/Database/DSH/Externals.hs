@@ -461,8 +461,11 @@ append (Q as) (Q bs) = Q (AppE Append (PairE as bs))
 filter :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
 filter f (Q as) = Q (AppE Filter (PairE (LamE (toLam f)) as))
 
+groupWithKey :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [(b,[a])]
+groupWithKey f (Q as) = Q (AppE GroupWithKey (PairE (LamE (toLam f)) as))
+
 groupWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
-groupWith f (Q as) = Q (AppE GroupWith (PairE (LamE $ toLam f) as))
+groupWith f as = map snd (groupWithKey f as)
 
 sortWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [a]
 sortWith f (Q as) = Q (AppE SortWith (PairE (LamE (toLam f)) as))

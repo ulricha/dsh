@@ -486,15 +486,16 @@ instance VectorAlgebra PFAlgebra where
     qp <- proj [(posold, pos''), (posnew, pos')] q
     return $ (DBV qv colse, PropVector qp)
 
-  groupBy (DBV v1 colsg) (DBV v2 colse) = do
+  groupByKey (DBV v1 colsg) (DBV v2 colse) = do 
     q' <- rownumM pos' [resCol, pos] Nothing
             $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
-    d1 <- distinctM $ proj [colP descr, (pos, resCol)] q'
+    d1 <- distinctM 
+          $ proj ([colP descr, (pos, resCol)] ++ [ (itemi i, itemi i) | i <- colsg ]) q'
     p <- proj [(posold, pos), (posnew, pos')] q'
     v <- tagM "groupBy ValueVector" $ projM [colP descr, colP pos, (item, item)]
            $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                 (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
-    return $ (DescrVector d1, DBV v colse, PropVector p)
+    return $ (DBV d1 colsg, DBV v colse, PropVector p)
 
   cartProduct (DBV q1 cols1) (DBV q2 cols2) = do
     let itemProj1  = map (colP . itemi) cols1

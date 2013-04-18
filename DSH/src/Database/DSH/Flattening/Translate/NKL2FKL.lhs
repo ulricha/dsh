@@ -108,7 +108,7 @@ prim1Transform (N.Nub t) = nubVal t
 prim2Transform :: N.Prim2 -> F.Expr
 prim2Transform (N.Map t) = mapVal t
 prim2Transform (N.SortWith t) = sortWithVal t
-prim2Transform (N.GroupWith t) = groupWithVal t
+prim2Transform (N.GroupWithKey t) = groupWithKeyVal t
 prim2Transform (N.Pair t) = pairVal t 
 prim2Transform (N.Filter t) = filterVal t 
 prim2Transform (N.Append t) = appendVal t
@@ -123,11 +123,21 @@ prim2Transform (N.DropWhile t) = dropWithVal t
 
 \section{The Flattening Transformation}
 
-The flattening transformation transforms a nested program into a flat program, in order to achieve this we transform all lambdas and replace all primitive operations by their flat counterparts (described in the next chapter).
+The flattening transformation transforms a nested program into a flat program,
+in order to achieve this we transform all lambdas and replace all primitive
+operations by their flat counterparts (described in the next chapter).
 
-The transformation described in this section is very similar to the transformation described in \cite{Jones08}. Our implementation is somewhat  different from the transformation described in \cite{Jones08} to make the result more suitable for our execution platform, databases. As we are targeting databases instead of GPUs or C-vector libraries. For instance it is better for us to avoid the use index operations as these are very costly on a database. We can, luckily, avoid the introduction of index operations. 
+The transformation described in this section is very similar to the
+transformation described in \cite{Jones08}. Our implementation is somewhat
+different from the transformation described in \cite{Jones08} to make the result
+more suitable for our execution platform, databases. As we are targeting
+databases instead of GPUs or C-vector libraries. For instance it is better for
+us to avoid the use index operations as these are very costly on a database. We
+can, luckily, avoid the introduction of index operations.
 
-The transformation consists out of two functions, the first merely translates a part of an NKL tree into an FKL tree. The second however lifts such a tree into a vector form (which is included in every function).
+The transformation consists out of two functions, the first merely translates a
+part of an NKL tree into an FKL tree. The second however lifts such a tree into
+a vector form (which is included in every function).
 
 \begin{code} 
 transform :: N.Expr            ->  TransM F.Expr

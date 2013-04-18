@@ -125,7 +125,7 @@ compileApp f args = case f of
                         Map       -> compileApp2 NP.map args
                         Append    -> compileApp2 NP.append args
                         Filter    -> compileApp2 NP.filter args
-                        GroupWith -> compileApp2 NP.groupWith args
+                        GroupWithKey -> compileApp2 NP.groupWithKey args
                         Zip       -> compileApp2 NP.zip args
                         DropWhile -> compileApp2 NP.dropWhile args
                         TakeWhile -> compileApp2 NP.takeWhile args

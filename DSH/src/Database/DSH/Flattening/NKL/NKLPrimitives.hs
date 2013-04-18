@@ -1,4 +1,4 @@
-module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWith, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -135,12 +135,12 @@ filter f es = let ft@(Fn _ T.Bool) = typeOf f
                   te@(List _) = typeOf es
                in AppE2 te (Filter P.$ ft .-> te .-> te) f es
 
-groupWith :: Expr -> Expr -> Expr
-groupWith f es = let ft@(Fn ta _) = typeOf f
-                     te@(List t) = typeOf es
-                  in if t P.== ta
-                       then AppE2 (listT te) (GroupWith P.$ ft .-> te .-> listT te) f es
-                       else P.error P.$ "NKLPrims.groupWith: Cannot apply groupWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+groupWithKey :: Expr -> Expr -> Expr
+groupWithKey f es = let ft@(Fn ta _) = typeOf f
+                        te@(List t) = typeOf es
+                    in if t P.== ta
+                       then AppE2 (listT te) (GroupWithKey P.$ ft .-> te .-> listT te) f es
+                       else P.error P.$ "NKLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 sortWith :: Expr -> Expr -> Expr
 sortWith f es = let ft@(Fn ta _) = typeOf f

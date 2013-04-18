@@ -222,8 +222,10 @@ tests_lists = testGroup "Lists"
         , testProperty "append" $ prop_append
         , testProperty "append nest" $ prop_append_nest
         , testProperty "groupWith" $ prop_groupWith
+        , testProperty "groupWithKey" $ prop_groupWithKey
 #ifdef isX100
         , testProperty "groupWith length" $ prop_groupWith_length
+        , testProperty "groupWithKey length" $ prop_groupWithKey_length
 #endif
         , testProperty "sortWith" $ prop_sortWith
         , testProperty "and" $ prop_and
@@ -283,16 +285,17 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map (map (map (*2)))" $ prop_map_map_map_mul
         , testProperty "map (\\x -> map (\\y -> x + y) ..) .." $ prop_map_map_add
         , testProperty "Lifted groupWith" $ prop_map_groupWith
+        , testProperty "Lifted groupWithKey" $ prop_map_groupWithKey
         , testProperty "Lifted sortWith" $ prop_map_sortWith
         , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
 #ifdef isX100
-        , testProperty "Lifted groupWith length" $ prop_map_groupWith_length
+        , testProperty "Lifted groupWithKey length" $ prop_map_groupWithKey_length
 #endif
         , testProperty "Lifted length" $ prop_map_length
         , testProperty "Lifted length on [[(a,b)]]" $ prop_map_length_tuple
         , testProperty "Sortwith length nested" $ prop_sortWith_length_nest
 #ifdef isX100
-        , testProperty "GroupWith length nested" $ prop_groupWith_length_nest
+        , testProperty "GroupWithKey length nested" $ prop_groupWithKey_length_nest
 #endif
         , testProperty "Lift minimum" $ prop_map_minimum
         , testProperty "map (map minimum)" $ prop_map_map_minimum
@@ -753,11 +756,23 @@ prop_map_filter = makeProp (Q.map (Q.filter (const $ Q.toQ True))) (map (filter 
 prop_groupWith :: [Integer] -> Property
 prop_groupWith = makeProp (Q.groupWith id) (groupWith id)
 
+groupWithKey :: Ord b => (a -> b) -> [a] -> [(b, [a])]
+groupWithKey p as = map (\g -> (the $ map p g, g)) $ groupWith p as
+
+prop_groupWithKey :: [Integer] -> Property
+prop_groupWithKey = makeProp (Q.groupWithKey id) (groupWithKey id)
+
 prop_map_groupWith :: [[Integer]] -> Property
 prop_map_groupWith = makeProp (Q.map (Q.groupWith id)) (map (groupWith id))
 
+prop_map_groupWithKey :: [[Integer]] -> Property
+prop_map_groupWithKey = makeProp (Q.map (Q.groupWithKey id)) (map (groupWithKey id))
+
 prop_groupWith_length :: [[Integer]] -> Property
 prop_groupWith_length = makeProp (Q.groupWith Q.length) (groupWith length)
+
+prop_groupWithKey_length :: [[Integer]] -> Property
+prop_groupWithKey_length = makeProp (Q.groupWithKey Q.length) (groupWithKey (fromIntegral . length))
 
 prop_sortWith  :: [Integer] -> Property
 prop_sortWith = makeProp (Q.sortWith id) (sortWith id)
@@ -771,11 +786,17 @@ prop_map_sortWith_length = makeProp (Q.map (Q.sortWith Q.length)) (map (sortWith
 prop_map_groupWith_length :: [[[Integer]]] -> Property
 prop_map_groupWith_length = makeProp (Q.map (Q.groupWith Q.length)) (map (groupWith length))
 
+prop_map_groupWithKey_length :: [[[Integer]]] -> Property
+prop_map_groupWithKey_length = makeProp (Q.map (Q.groupWithKey Q.length)) (map (groupWithKey (fromIntegral . length)))
+
 prop_sortWith_length_nest  :: [[[Integer]]] -> Property
 prop_sortWith_length_nest = makeProp (Q.sortWith Q.length) (sortWith length)
 
 prop_groupWith_length_nest :: [[[Integer]]] -> Property
 prop_groupWith_length_nest = makeProp (Q.groupWith Q.length) (groupWith length)
+
+prop_groupWithKey_length_nest :: [[[Integer]]] -> Property
+prop_groupWithKey_length_nest = makeProp (Q.groupWithKey Q.length) (groupWithKey (fromIntegral . length))
 
 prop_null :: [Integer] -> Property
 prop_null = makeProp Q.null null

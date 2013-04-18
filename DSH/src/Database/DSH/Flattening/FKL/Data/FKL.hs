@@ -102,8 +102,8 @@ instance Show Prim1 where
     show (Nub _)        = "nub"
     show (NubL _)       = "nubL"
     
-data Prim2 = GroupWithS Type
-           | GroupWithL Type
+data Prim2 = GroupWithKeyS Type
+           | GroupWithKeyL Type
            | SortWithS Type
            | SortWithL Type
            | Dist Type
@@ -129,8 +129,8 @@ data Prim2 = GroupWithS Type
     deriving (Eq, Generic)
 
 instance Show Prim2 where
-    show (GroupWithS _) = "groupWithS"
-    show (GroupWithL _) = "groupWithL"
+    show (GroupWithKeyS _) = "groupWithKeyS"
+    show (GroupWithKeyL _) = "groupWithKeyL"
     show (SortWithS _)  = "sortWithS"
     show (SortWithL _)  = "sortWithL" 
     show (Dist _)       = "dist"

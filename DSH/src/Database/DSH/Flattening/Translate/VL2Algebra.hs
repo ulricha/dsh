@@ -157,8 +157,8 @@ translateTerOp t c1 c2 c3 = case t of
 translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> GraphM () a Res
 translateBinOp b c1 c2 = case b of
                            GroupBy          -> do
-                                                (d, v, p) <- groupBy (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDescrVector d) (fromDBV v) (fromProp p)
+                                                (d, v, p) <- groupByKey (toDBV c1) (toDBV c2)
+                                                return $ RTriple (fromDBV d) (fromDBV v) (fromProp p)
                            SortWith         -> do
                                                 (d, p) <- sortWith (toDBV c1) (toDBV c2)
                                                 return $ RPair (fromDBV d) (fromProp p)

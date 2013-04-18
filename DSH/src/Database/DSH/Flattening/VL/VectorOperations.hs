@@ -314,19 +314,19 @@ unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) = do
                                                          return $ ValueVector (DBV d' []) (Nest d2 lyt2)
 unconcatV _ _ = $impossible
 
-groupByS ::  Shape -> Shape -> Graph VL Shape
-groupByS (ValueVector q1 _) (ValueVector q2 lyt2) = do
-                                            (DescrVector d, v, p) <- groupBy q1 q2
+groupByKeyS ::  Shape -> Shape -> Graph VL Shape
+groupByKeyS (ValueVector q1 _) (ValueVector q2 lyt2) = do
+                                            (d, v, p) <- groupByKey q1 q2
                                             lyt2' <- chainReorder p lyt2
-                                            return $ ValueVector (DBV d []) (Nest v lyt2')
-groupByS _e1 _e2 = error $ "groupByS: Should not be possible "
+                                            return $ ValueVector d (Nest v lyt2')
+groupByKeyS _e1 _e2 = error $ "groupByKeyS: Should not be possible "
 
-groupByL ::  Shape -> Shape -> Graph VL Shape
-groupByL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
-                                        (DescrVector d, v, p) <- groupBy v1 v2
+groupByKeyL ::  Shape -> Shape -> Graph VL Shape
+groupByKeyL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
+                                        (d, v, p) <- groupByKey v1 v2
                                         lyt2' <- chainReorder p lyt2
-                                        return $ ValueVector d2 (Nest (DBV d []) (Nest v lyt2'))
-groupByL _ _ = error "groupByL: Should not be possible"
+                                        return $ ValueVector d2 (Nest d (Nest v lyt2'))
+groupByKeyL _ _ = error "groupByKeyL: Should not be possible"
 
 concatLift ::  Shape -> Graph VL Shape
 concatLift (ValueVector d (Nest d' vs)) = do

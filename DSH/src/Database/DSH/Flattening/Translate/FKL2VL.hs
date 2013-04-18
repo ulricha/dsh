@@ -70,8 +70,8 @@ fkl2VL (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2VL arg1) (fkl2VL arg2) >>= uncurr
         fn = case f of
                 (Dist _) -> \x y -> dist x y
                 (Dist_L _) -> distL
-                (GroupWithS _) -> groupByS
-                (GroupWithL _) -> groupByL
+                (GroupWithKeyS _) -> groupByKeyS
+                (GroupWithKeyL _) -> groupByKeyL
                 (SortWithS _) -> sortWithS
                 (SortWithL _) -> sortWithL
                 (Restrict _) -> restrict

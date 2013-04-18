@@ -44,7 +44,7 @@ class VectorAlgebra a where
   projectPayload :: [PayloadProj] -> DBV -> GraphM r a DBV
   compExpr1 :: Expr1 -> DBV -> GraphM r a DBV
 
-  groupBy :: DBV -> DBV -> GraphM r a (DescrVector, DBV, PropVector)
+  groupByKey :: DBV -> DBV -> GraphM r a (DBV, DBV, PropVector)
   sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
   lengthSeg :: DescrVector -> DescrVector -> GraphM r a DBV
   distPrim :: DBP -> DescrVector -> GraphM r a (DBV, PropVector)

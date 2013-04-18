@@ -106,7 +106,7 @@ deriving instance Ord Prim1
 Binary primitive operations:
 
 \begin{code}
-data Prim2  =  Map Type | GroupWith Type
+data Prim2  =  Map Type | GroupWithKey Type
             |  SortWith Type | Pair Type
             |  Filter Type | Append Type
             |  Index Type | Take Type
@@ -119,7 +119,7 @@ data Prim2  =  Map Type | GroupWith Type
 \begin{code}
 instance Show Prim2 where
   show (Map _) = "Map"
-  show (GroupWith _) = "GroupWith"
+  show (GroupWithKey _) = "GroupWithKey"
   show (SortWith _) = "SortWith"
   show (Pair _) = "Pair"
   show (Filter _) = "Filter"

@@ -25,7 +25,10 @@ import Control.Monad
 \end{code}
 %endif
 
-The map combinator is build up out of multiple nested closures. This comes from the fact that the function map takes two arguments (a function and a list value) and can be applied partially. The result of a partial application can also be manipulated as an ordinary value.
+The map combinator is build up out of multiple nested closures. This comes from
+the fact that the function map takes two arguments (a function and a list value)
+and can be applied partially. The result of a partial application can also be
+manipulated as an ordinary value.
 
 \begin{code}
 mapVal :: Type -> Expr
@@ -53,22 +56,22 @@ doubleArgClo t v1 v2 e1 e2 = Clo t "n" [] arg1 f1 f2
         f1 = Clo r1 "n" [arg1] arg2 body1 body2
         f2 = AClo (liftType r1) "n" [arg1] arg2 body1 body2
 
-groupWithVal :: Type -> Expr
-groupWithVal t = doubleArgClo t "group_f" "group_xs" groupWithPrim groupWithLPrim
+groupWithKeyVal :: Type -> Expr
+groupWithKeyVal t = doubleArgClo t "group_f" "group_xs" groupWithKeyPrim groupWithKeyLPrim
 
-groupWithPrim :: Expr -> Expr -> Expr
-groupWithPrim f e = let arg1 = mapPrim f e
-                        t1 = typeOf arg1
-                        t2 = typeOf e
-                        t3 = listT t2
-                     in F.PApp2 t3 (F.GroupWithS (t1 .-> t2 .-> t3)) arg1 e
+groupWithKeyPrim :: Expr -> Expr -> Expr
+groupWithKeyPrim f e = let arg1 = mapPrim f e
+                           t1 = typeOf arg1
+                           t2 = typeOf e
+                           t3 = listT t2
+                       in F.PApp2 t3 (F.GroupWithKeyS (t1 .-> t2 .-> t3)) arg1 e
 
-groupWithLPrim :: Expr -> Expr -> Expr
-groupWithLPrim f e = let arg1 = mapLPrim f e
-                         t1 = typeOf arg1 
-                         t2 = typeOf e
-                         t3 = listT t2
-                      in F.PApp2 t3 (F.GroupWithL (t1 .-> t2 .-> t3)) arg1 e 
+groupWithKeyLPrim :: Expr -> Expr -> Expr
+groupWithKeyLPrim f e = let arg1 = mapLPrim f e
+                            t1 = typeOf arg1 
+                            t2 = typeOf e
+                            t3 = listT t2
+                        in F.PApp2 t3 (F.GroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 
 takeWithVal :: Type -> Expr
 takeWithVal t = doubleArgClo t "take_f" "take_xs" takeWithPrim takeWithLPrim
