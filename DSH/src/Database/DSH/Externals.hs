@@ -508,6 +508,9 @@ all f = and . map f
 sum :: (QA a,Num a) => Q [a] -> Q a
 sum (Q as) = Q (AppE Sum as)
 
+avg :: (QA a,Num a) => Q [a] -> Q Double
+avg (Q as) = Q (AppE Avg as)
+
 concat :: (QA a) => Q [[a]] -> Q [a]
 concat (Q ass) = Q (AppE Concat ass)
 
