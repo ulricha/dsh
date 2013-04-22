@@ -10,14 +10,17 @@ module Database.DSH.TH ( deriveDSH
                        , deriveElim
                        , deriveSmartConstructors
                        , deriveTupleRangeSmartConstructors
+                       , generateTableSelectors
                        ) where
 
 import qualified Database.DSH.Internals  as DSH
 import qualified Database.DSH.Impossible as DSH
 
-import Language.Haskell.TH
 import Control.Monad
+import Control.Applicative
 import Data.Char
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 
 -----------------------------------------
 -- Deriving all DSH-relevant instances --
@@ -405,6 +408,59 @@ toSmartConName name1 = case nameBase name1 of
   '(' : cs            -> mkName ("tuple" ++ show (length (filter (== ',') cs) + 1))
   c : cs | isAlpha c  -> mkName (toLower c : cs)
   cs                  -> mkName (':' : cs)
+  
+----------------------------------------
+-- Generating lifted record selectors --
+----------------------------------------
+   
+{-
+
+For a record declaration like
+
+data R = R { a :: Integer, b :: Text }
+
+we generate the following lifted selectors:
+
+aQ :: Q R -> Integer
+aQ (view -> (a, _)) = a
+
+bQ :: Q R -> Text
+bQ (view -> (_, b)) = b
+
+-}
+  
+-- | Create lifted record selectors
+generateTableSelectors :: Name -> Q [Dec]
+generateTableSelectors name = do
+  info <- reify name
+  case info of
+    TyConI (DataD _ typName [] [RecC _ fields] _) -> concat <$> mapM instSelectors fields
+      where fieldNames    = map (\(f, _, _) -> f) fields
+            instSelectors = generateTableSelector typName fieldNames
+    _ -> fail errMsgBaseRecCons
+    
+generateTableSelector :: Name -> [Name] -> VarStrictType -> Q [Dec]
+generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
+  let selName = case fieldName of
+                  Name (OccName n) _ -> mkName $ n ++ "Q"
+  
+  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName))) (AppT (ConT ''DSH.Q) typ)
+      sigDec  = SigD selName selType
+  
+  fieldVarName <- newName "x"
+  let projectField f | f == fieldName = VarP fieldVarName
+      projectField _                  = WildP
+  
+      tupPat   = map projectField allFieldNames
+
+      argPat   = ViewP (VarE 'DSH.view) (TupP tupPat)
+      
+      bodyExp  = NormalB $ VarE fieldVarName
+      
+      funDec   = FunD selName [Clause [argPat] bodyExp []]
+      
+  
+  return [sigDec, funDec]
 
 -- Helper Functions
 
@@ -451,3 +507,7 @@ errMsgExoticType =
   "Automatic derivation of DSH related type class instances only works for Haskell 98\
    \ types. Derivation of View patters is only supported for single-constructor data\
    \ types."
+
+errMsgBaseRecCons :: String
+errMsgBaseRecCons =
+  "Generation of lifted record selectors is only supported for records of base types"
