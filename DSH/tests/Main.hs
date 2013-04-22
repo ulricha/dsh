@@ -234,6 +234,8 @@ tests_lists = testGroup "Lists"
         , testProperty "all_zero" $ prop_all_zero
         , testProperty "sum_integer" $ prop_sum_integer
         , testProperty "sum_double" $ prop_sum_double
+        , testProperty "avg_integer" $ prop_avg_integer
+        , testProperty "avg_double" $ prop_avg_double
         , testProperty "concat" $ prop_concat
         , testProperty "concatMap" $ prop_concatMap
         , testProperty "maximum" $ prop_maximum
@@ -311,6 +313,7 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map and" $ prop_map_and
         , testProperty "map (map and)" $ prop_map_map_and
         , testProperty "map sum" $ prop_map_sum
+        , testProperty "map avg" $ prop_map_avg
         , testProperty "map (map sum)" $ prop_map_map_sum
         , testProperty "map or" $ prop_map_or
         , testProperty "map (map or)" $ prop_map_map_or
@@ -881,15 +884,33 @@ prop_map_all_zero = makeProp (Q.map (Q.all (Q.== 0))) (map (all (== 0)))
 
 prop_sum_integer :: [Integer] -> Property
 prop_sum_integer = makeProp Q.sum sum
+                 
+avgInt :: [Integer] -> Double
+avgInt is = (realToFrac $ sum is) / (fromIntegral $ length is)
+
+prop_avg_integer :: [Integer] -> Property
+prop_avg_integer is = (not $ null is) ==> makeProp Q.avg avgInt is
 
 prop_map_sum :: [[Integer]] -> Property
 prop_map_sum = makeProp (Q.map Q.sum) (map sum)
 
+prop_map_avg :: [[Integer]] -> Property
+prop_map_avg is = (not $ any null is) ==> makeProp (Q.map Q.avg) (map avgInt) is
+
 prop_map_map_sum :: [[[Integer]]] -> Property
 prop_map_map_sum = makeProp (Q.map (Q.map Q.sum)) (map (map sum))
 
+prop_map_map_avg :: [[[Integer]]] -> Property
+prop_map_map_avg is = (not $ any (any null) is) ==> makeProp (Q.map (Q.map Q.avg)) (map (map avgInt))
+
 prop_sum_double :: [Double] -> Property
 prop_sum_double = makePropDouble Q.sum sum
+
+avgDouble :: [Double] -> Double
+avgDouble ds = sum ds / (fromIntegral $ length ds)
+
+prop_avg_double :: [Double] -> Property
+prop_avg_double ds = (not $ null ds) ==> makePropDouble Q.avg avgDouble ds
 
 prop_concat :: [[Integer]] -> Property
 prop_concat = makeProp Q.concat concat
