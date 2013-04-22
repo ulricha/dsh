@@ -421,10 +421,10 @@ data R = R { a :: Integer, b :: Text }
 
 we generate the following lifted selectors:
 
-aQ :: Q R -> Integer
+aQ :: Q R -> Q Integer
 aQ (view -> (a, _)) = a
 
-bQ :: Q R -> Text
+bQ :: Q R -> Q Text
 bQ (view -> (_, b)) = b
 
 -}
