@@ -430,9 +430,16 @@ instance VectorAlgebra PFAlgebra where
          $ union q' q
     return $ DBP qs [1]
     
-  vecAvg (DBV _q _) = undefined
+  vecAvg (DBV q _) = do
+    qa <- attachM descr natT (nat 1)
+          $ attachM pos natT (nat 1)
+          $ aggr [(Avg, item, Just item)] Nothing q
+    return $ DBP qa [1] 
   
-  vecAvgLift (DescrVector _qd) (DBV _qv _) = undefined
+  vecAvgLift (DescrVector _qd) (DBV qv _) = do
+    qa <- attachM pos natT (nat 1)
+          $ aggr [(Avg, item, Just item)] (Just descr) qv
+    return $ DBV qa [1]
 
   vecSumLift (DescrVector qd) (DBV qv _) = do
     qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...
