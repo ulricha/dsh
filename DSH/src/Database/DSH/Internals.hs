@@ -50,6 +50,7 @@ data Fun a b where
     Fst             :: Fun (a,b) a
     Snd             :: Fun (a,b) b
     Sum             :: Fun [a] a
+    Avg             :: Fun [a] Double
     Maximum         :: Fun [a] a
     Minimum         :: Fun [a] a
     Nub             :: Fun [a] [a]
@@ -132,6 +133,7 @@ instance Show (Fun a b) where
     show And = "and"
     show Or = "or"
     show Sum = "sum"
+    show Avg = "avg"
     show Maximum = "maximum"
     show Minimum = "minimum"
     show Nub = "nub"

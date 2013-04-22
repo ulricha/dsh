@@ -129,6 +129,7 @@ evaluate c e = case e of
           IntegerT -> return $ IntegerE (sum $ map (\(IntegerE i) -> i) as1)
           DoubleT  -> return $ DoubleE (sum $ map (\(DoubleE d) -> d) as1)
           _ -> $impossible
+    (AppE Avg _) -> undefined
     AppE Concat as -> do
       (ListE as1) <- evaluate c as
       return $ ListE (concatMap (\(ListE as2) -> as2) as1)
