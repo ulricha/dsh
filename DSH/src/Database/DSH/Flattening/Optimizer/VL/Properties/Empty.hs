@@ -40,6 +40,9 @@ inferEmptyUnOp e op =
     Segment -> Right e
     Unsegment -> Right e
     VecSum _ -> Right $ VProp False
+    -- If the input is empty, the avg output will actually be empty
+    -- too. However, this is an error case which we would like to avoid
+    VecAvg -> Right $ VProp False
     VecMin -> Right e
     VecMinL -> Right e
     VecMax -> Right e
@@ -95,6 +98,7 @@ inferEmptyBinOp e1 e2 op =
     CompExpr2 _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     CompExpr2L _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     VecSumL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
+    VecAvgL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosL _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PairA -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))

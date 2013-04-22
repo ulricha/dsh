@@ -1,4 +1,4 @@
-module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
 import Prelude (Bool(..))
@@ -78,6 +78,12 @@ sum e = let (List t) = typeOf e
          in if isNum t
                 then AppE1 t (Sum P.$ List t .-> t) e
                 else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+
+avg :: Expr -> Expr
+avg e = let (List t) = typeOf e
+         in if isNum t
+                then AppE1 t (Sum P.$ List t .-> t) e
+                else P.error P.$ "NKLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (List t)
 
 minimum :: Expr -> Expr
 minimum e = let (List t) = typeOf e

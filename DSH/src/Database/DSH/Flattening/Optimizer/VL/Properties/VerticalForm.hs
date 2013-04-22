@@ -44,6 +44,7 @@ inferVerticallyIntactUnOp childIntact c op =
     Segment -> yes childIntact c
     Unsegment -> yes childIntact c
     VecSum _ -> no
+    VecAvg -> no
     VecMin -> no
     VecMinL -> no
     VecMax -> no
@@ -101,6 +102,7 @@ inferVerticallyIntactBinOp _ rightChildIntact _ c2 op =
     CompExpr2 _ -> no
     CompExpr2L _ -> no
     VecSumL -> no
+    VecAvgL -> no
     SelectPos _ -> noPair
     SelectPosL _ -> noPair
     PairA -> no

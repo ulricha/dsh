@@ -149,6 +149,7 @@ compileApp f args = case f of
                         Maximum         -> compileApp1 NP.maximum args
                         Concat          -> compileApp1 NP.concat args
                         Sum             -> compileApp1 NP.sum args
+                        Avg             -> compileApp1 NP.avg args
                         And             -> compileApp1 NP.and args
                         Or              -> compileApp1 NP.or args
                         Reverse         -> compileApp1 NP.reverse args

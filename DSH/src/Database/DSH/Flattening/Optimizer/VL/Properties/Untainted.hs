@@ -44,6 +44,7 @@ inferUntaintedUnOp u n op =
     Segment -> VProp $ add u n
     Unsegment -> VProp $ add u n
     VecSum _ -> VProp empty
+    VecAvg -> VProp empty
     VecMin -> VProp empty
     VecMinL -> VProp empty
     VecMax -> VProp empty
@@ -97,6 +98,7 @@ inferUntaintedBinOp _ _ _ _ op =
     CompExpr2 _ -> VProp empty
     CompExpr2L _ -> VProp empty
     VecSumL -> VProp empty
+    VecAvgL -> VProp empty
     SelectPos _ -> VPropPair empty na
     SelectPosL _ -> VPropPair empty na
     PairA -> VProp empty

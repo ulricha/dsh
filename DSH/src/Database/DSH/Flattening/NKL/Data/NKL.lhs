@@ -68,7 +68,7 @@ Unary primitive operations:
 %include NKLPrims.fmt
 \begin{code}
 data Prim1  =  Length Type  |  Not Type  |  Concat Type
-            |  Sum Type | The Type | Fst Type | Snd Type
+            |  Sum Type | Avg Type | The Type | Fst Type | Snd Type
             |  Head Type | Minimum Type | Maximum Type
             |  IntegerToDouble Type | Tail Type
             |  Reverse Type | And Type | Or Type
@@ -83,6 +83,7 @@ instance Show Prim1 where
   show (Not _) = "Not"
   show (Concat _) = "Concat"
   show (Sum _) = "Sum"
+  show (Avg _) = "Avg"
   show (The _) = "The"
   show (Fst _) = "Fst"
   show (Snd _) = "Snd"

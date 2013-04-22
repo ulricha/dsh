@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Flattening.VL.VectorOperations where
 
 import Database.DSH.Flattening.Common.Impossible
@@ -441,12 +442,21 @@ sumPrim ::  Type -> Shape -> Graph VL Shape
 sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecSum t q
 sumPrim _ _ = $impossible
 
+avgPrim :: Shape -> Graph VL Shape
+avgPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vecAvg q
+avgPrim _ = $impossible
+
 sumLift ::   Shape -> Graph VL Shape
 sumLift (ValueVector d1 (Nest q (InColumn 1))) = do
                                                   d <- toDescr d1
                                                   flip ValueVector (InColumn 1) <$> vecSumLift d q
 sumLift _ = $impossible
 
+avgLift :: Shape -> Graph VL Shape
+avgLift (ValueVector d1 (Nest q (InColumn 1))) = do
+  d <- toDescr d1
+  flip ValueVector (InColumn 1) <$> vecAvgLift d q
+avgLift _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape
 distL (ValueVector q1 lyt1) (ValueVector d (Nest o _)) = do

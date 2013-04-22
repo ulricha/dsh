@@ -203,8 +203,14 @@ compExpr2L o (DBV c1 _) (DBV c2 _) = dbv
 vecSum :: Ty.Type -> DBV -> GraphM r VL DBP
 vecSum ty (DBV c _) = dbp $ insertNode $ UnOp (VecSum (typeToVLType ty)) c
 
+vecAvg :: DBV -> GraphM r VL DBP
+vecAvg (DBV c _) = dbp $ insertNode $ UnOp VecAvg c
+
 vecSumLift :: DescrVector -> DBV -> GraphM r VL DBV
 vecSumLift (DescrVector c1) (DBV c2 _) = dbv $ insertNode $ BinOp VecSumL c1 c2
+
+vecAvgLift :: DescrVector -> DBV -> GraphM r VL DBV
+vecAvgLift (DescrVector c1) (DBV c2 _) = dbv $ insertNode $ BinOp VecAvgL c1 c2
 
 vecMin :: DBV -> GraphM r VL DBP
 vecMin (DBV c _) = dbp $ insertNode $ UnOp VecMin c

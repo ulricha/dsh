@@ -33,6 +33,7 @@ inferCardOneUnOp c op =
     Segment -> Right c
     Unsegment -> Right c
     VecSum _ -> Right $ VProp True
+    VecAvg -> Right $ VProp True
     VecMin -> Right $ VProp True
     VecMinL -> Right c
     VecMax -> Right $ VProp True
@@ -86,6 +87,7 @@ inferCardOneBinOp c1 c2 op =
     CompExpr2 _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CompExpr2L _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     VecSumL -> Right c1
+    VecAvgL -> Right c1
     SelectPos _ -> Right c1
     SelectPosL _ -> Right c1
     PairA -> VProp <$> ((||) <$> unp c1 <*> unp c2)

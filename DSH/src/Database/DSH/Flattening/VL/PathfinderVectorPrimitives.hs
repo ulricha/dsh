@@ -429,6 +429,10 @@ instance VectorAlgebra PFAlgebra where
          $ aggrM [(Sum, item, Just item)] Nothing
          $ union q' q
     return $ DBP qs [1]
+    
+  vecAvg (DBV _q _) = undefined
+  
+  vecAvgLift (DescrVector _qd) (DBV _qv _) = undefined
 
   vecSumLift (DescrVector qd) (DBV qv _) = do
     qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...

@@ -89,6 +89,7 @@ inferIndexSpaceUnOp is n op =
       return $ VProp $ DBVSpace (D $ freshSpace n "d") pis
 
     VecSum _ -> Right $ VProp $ freshDBVSpace n
+    VecAvg -> Right $ VProp $ freshDBVSpace n
     VecMin -> Right $ VProp $ freshDBVSpace n
     VecMinL -> Right $ VProp $ freshDBVSpace n
     VecMax -> Right $ VProp $ freshDBVSpace n
@@ -221,6 +222,7 @@ inferIndexSpaceBinOp is1 is2 n op =
     CompExpr2 _ -> Right $ VProp $ freshDBVSpace n
     CompExpr2L _ -> Right $ VProp $ freshDBVSpace n
     VecSumL -> Right $ VProp $ freshDBVSpace n
+    VecAvgL -> Right $ VProp $ freshDBVSpace n
     SelectPos _ -> Right $ uncurry VPropPair $ freshValueRenamePair n
     SelectPosL _ -> Right $ uncurry VPropPair $ freshValueRenamePair n
     PairA -> Right $ VProp $ DBPSpace $ P $ freshSpace n "p"

@@ -112,6 +112,7 @@ inferToDescrBinOp ownToDescr childToDescr1 childToDescr2 op =
     CompExpr2 _ -> (na, na)
     CompExpr2L _ -> (no, no)
     VecSumL -> (na, no)
+    VecAvgL -> (na, no)
     SelectPos _ -> 
       case ownToDescr of
         VPropPair t1 _ -> (andToDescr (VProp t1) childToDescr1, na)

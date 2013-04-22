@@ -188,6 +188,7 @@ translateBinOp b c1 c2 = case b of
                            CompExpr2 e      -> liftM fromDBP $ compExpr2 e (toDBP c1) (toDBP c2)
                            CompExpr2L e     -> liftM fromDBV $ compExpr2L e (toDBV c1) (toDBV c2)
                            VecSumL          -> liftM fromDBV $ vecSumLift (toDescrVector c1) (toDBV c2)
+                           VecAvgL          -> liftM fromDBV $ vecAvgLift (toDescrVector c1) (toDBV c2)
                            SelectPos o      -> do
                                                 (v, r) <- selectPos (toDBV c1) o (toDBP c2)
                                                 return $ RPair (fromDBV v) (fromRenameVector r)
@@ -229,6 +230,7 @@ translateUnOp u c = case u of
                       Segment       -> liftM fromDBV $ segment (toDBV c)
                       Unsegment     -> liftM fromDBV $ unsegment (toDBV c)
                       VecSum ty     -> liftM fromDBP $ vecSum ty (toDBV c)
+                      VecAvg        -> liftM fromDBP $ vecAvg (toDBV c)
                       VecMin        -> liftM fromDBP $ vecMin (toDBV c)
                       VecMinL       -> liftM fromDBV $ vecMinLift (toDBV c)
                       VecMax        -> liftM fromDBP $ vecMax (toDBV c)

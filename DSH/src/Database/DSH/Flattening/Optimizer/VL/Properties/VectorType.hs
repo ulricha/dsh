@@ -42,6 +42,7 @@ inferVectorTypeUnOp s op =
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     VecSum _ -> Right $ VProp $ AtomicVector 1
+    VecAvg -> Right $ VProp $ AtomicVector 1
     VecMin -> Right $ VProp $ AtomicVector 1
     VecMinL -> Right $ VProp $ ValueVector 1
     VecMax -> Right $ VProp $ AtomicVector 1
@@ -122,6 +123,7 @@ inferVectorTypeBinOp s1 s2 op =
     CompExpr2 _ -> Right $ VProp $ AtomicVector 1
     CompExpr2L _ -> Right $ VProp $ ValueVector 1
     VecSumL -> Right $ VProp $ ValueVector 1
+    VecAvgL -> Right $ VProp $ ValueVector 1
     SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPosL _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     PairA -> reqValVectors s1 s2 (\w1 w2 -> VProp $ AtomicVector $ w1 + w2) "PairA"

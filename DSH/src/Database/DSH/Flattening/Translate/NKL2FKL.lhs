@@ -90,6 +90,7 @@ prim1Transform (N.Length t) = lengthVal t
 prim1Transform (N.Not t) = notVal t
 prim1Transform (N.Concat t) = concatVal t
 prim1Transform (N.Sum t) = sumVal t
+prim1Transform (N.Avg t) = avgVal t
 prim1Transform (N.Minimum t) = minimumVal t
 prim1Transform (N.Maximum t) = maximumVal t
 prim1Transform (N.The t) = theVal t

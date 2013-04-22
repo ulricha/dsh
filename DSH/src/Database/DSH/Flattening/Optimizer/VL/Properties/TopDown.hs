@@ -49,6 +49,7 @@ seed (UnOp op _)   =
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     VecSum _           -> vPropSeed
+    VecAvg             -> vPropSeed
     VecMin             -> vPropSeed
     VecMinL            -> vPropSeed
     VecMax             -> vPropSeed
@@ -88,6 +89,7 @@ seed (BinOp op _ _) =
     CompExpr2 _        -> vPropSeed
     CompExpr2L _       -> vPropSeed
     VecSumL            -> vPropSeed
+    VecAvgL            -> vPropSeed
     PairA              -> vPropSeed
     PairL              -> vPropSeed
     CartProduct        -> vPropTripleSeed

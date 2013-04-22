@@ -84,7 +84,9 @@ inferConstVecUnOp c op =
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
 
-    VecSum _ -> return c
+    VecSum _ -> return $ VProp $ DBVConst (ConstDescr $ N 1) [NonConstPL]
+    
+    VecAvg -> return c
 
     VecMin -> return c
 
@@ -263,6 +265,7 @@ inferConstVecBinOp c1 c2 op =
 
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     VecSumL -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+    VecAvgL -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV

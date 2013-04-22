@@ -4,7 +4,13 @@
 %include setQual.fmt
 %include fklQual.fmt
 \chapter{Functions in the flat languages}
-In this chapter we describe how our primitive functions are encoded. Most notable function of which is the map function. The flattening transformation is aimed at removing all occurrences of this function and in particular nested occurrences as to exploit potential parallelism. We describe a version of this particular function that transforms function and values as described in the previous section in both normal and nested occurrences.
+
+In this chapter we describe how our primitive functions are encoded. Most
+notable function of which is the map function. The flattening transformation is
+aimed at removing all occurrences of this function and in particular nested
+occurrences as to exploit potential parallelism. We describe a version of this
+particular function that transforms function and values as described in the
+previous section in both normal and nested occurrences.
 
 %if False
 \begin{code}
@@ -349,13 +355,24 @@ integerToDoubleLPrim e1 = let t1@(T.List T.Int) = typeOf e1
 sumVal :: Type -> Expr
 sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim
 
+avgVal :: Type -> Expr
+avgVal t = singleArgClo t "avg_v" avgPrim avgLPrim
+
 sumPrim :: Expr -> Expr
 sumPrim e1 = let t1@(T.List t) = typeOf e1
               in F.PApp1 t (F.Sum $ t1 .-> t) e1
+              
+avgPrim :: Expr -> Expr
+avgPrim e1 = let t1 = typeOf e1
+             in F.PApp1 T.Double (F.Avg $ t1 .-> T.Double) e1
 
 sumLPrim :: Expr -> Expr
 sumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
                in F.PApp1 t (F.SumL $ t1 .-> t) e1
+               
+avgLPrim :: Expr -> Expr
+avgLPrim e1 = let t1@(T.List _) = typeOf e1
+              in F.PApp1 (T.List T.Double) (F.AvgL $ t1 .-> (T.List T.Double)) e1
 
 minimumVal :: Type -> Expr
 minimumVal t = singleArgClo t "minimum_v" minimumPrim minimumLPrim

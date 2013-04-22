@@ -35,6 +35,8 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (ConcatLift _) -> concatLift
                                            (Sum _) -> sumPrim t
                                            (SumL _) -> sumLift
+                                           (Avg _) -> avgPrim
+                                           (AvgL _) -> avgLift
                                            (The _) -> the
                                            (TheL _) -> theL
                                            (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> notPrim v)

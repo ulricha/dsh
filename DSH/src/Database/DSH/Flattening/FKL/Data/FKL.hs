@@ -38,7 +38,9 @@ data Prim1 = LengthPrim Type
            | FstL Type
            | SndL Type
            | Sum Type
+           | Avg Type
            | SumL Type
+           | AvgL Type
            | Minimum Type
            | MinimumL Type
            | Maximum Type
@@ -78,7 +80,9 @@ instance Show Prim1 where
     show (Concat _)     = "concat"
     show (QuickConcat _) = "quickConcat"
     show (Sum _)        = "sum"
+    show (Avg _)        = "avg"
     show (SumL _)       = "sumL"
+    show (AvgL _)       = "avgL"
     show (The _)        = "the"
     show (TheL _)       = "theL"
     show (Minimum _)    = "minimum"

@@ -70,6 +70,7 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Unsegment -> colUnion ownReqColumns childReqColumns
 
     VecSum _ -> one
+    VecAvg -> one
 
     VecMin -> one
 
@@ -201,6 +202,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
       in (reqColsLeft, reqColsRight)
 
     VecSumL -> (na, one)
+    VecAvgL -> (na, one)
 
     SelectPos _ ->
       case ownReqColumns of

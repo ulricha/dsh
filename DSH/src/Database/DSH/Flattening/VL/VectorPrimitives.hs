@@ -25,6 +25,9 @@ class VectorAlgebra a where
   segment :: DBV -> GraphM r a DBV
   unsegment :: DBV -> GraphM r a DBV
   vecSum :: VLType -> DBV -> GraphM r a DBP
+  -- Avg is unsafe! Empty lists will disappear, as average does not have a
+  -- default value (in contrast to sum).
+  vecAvg :: DBV -> GraphM r a DBP
   vecMin :: DBV -> GraphM r a DBP
   vecMinLift :: DBV -> GraphM r a DBV
   vecMax :: DBV -> GraphM r a DBP
@@ -61,6 +64,9 @@ class VectorAlgebra a where
   compExpr2 :: Expr2 -> DBP -> DBP -> GraphM r a DBP
   compExpr2L :: Expr2 -> DBV -> DBV -> GraphM r a DBV
   vecSumLift :: DescrVector -> DBV -> GraphM r a DBV
+  -- Avg is unsafe! Empty lists will disappear, as average does not have a
+  -- default value (in contrast to sum).
+  vecAvgLift :: DescrVector -> DBV -> GraphM r a DBV
   selectPos :: DBV -> VecCompOp -> DBP -> GraphM r a (DBV, RenameVector)
   selectPosLift :: DBV -> VecCompOp -> DBV -> GraphM r a (DBV, RenameVector)
   pairA :: DBP -> DBP -> GraphM r a DBP
