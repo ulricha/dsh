@@ -2,22 +2,21 @@
 
 module Database.DSH.Flattening.VL.VectorOperations where
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
-import Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
+import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
 
-import Database.DSH.Flattening.VL.Data.GraphVector
-import Database.DSH.Flattening.VL.Data.DBVector
-import Database.DSH.Flattening.VL.VLPrimitives hiding (prop)
-import Database.DSH.Flattening.VL.MetaPrimitives
-import Database.DSH.Flattening.Common.Data.Op
-import Database.DSH.Flattening.Common.Data.Type hiding (Pair)
+import           Database.DSH.Flattening.VL.Data.GraphVector
+import           Database.DSH.Flattening.VL.Data.DBVector
+import           Database.DSH.Flattening.VL.VLPrimitives hiding (prop)
+import           Database.DSH.Flattening.VL.MetaPrimitives
+import           Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Type hiding (Pair)
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 import qualified Database.DSH.Flattening.Common.Data.Val as V
-import Database.DSH.Flattening.FKL.Data.FKL (TypedColumn, Key)
+import           Database.DSH.Flattening.FKL.Data.FKL (TypedColumn, Key)
 
-import Control.Applicative
-
+import           Control.Applicative
 
 
 takeWithS ::  Shape -> Shape -> Graph VL Shape
@@ -316,17 +315,17 @@ unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) = do
 unconcatV _ _ = $impossible
 
 groupByKeyS ::  Shape -> Shape -> Graph VL Shape
-groupByKeyS (ValueVector q1 _) (ValueVector q2 lyt2) = do
+groupByKeyS (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
                                             (d, v, p) <- groupByKey q1 q2
                                             lyt2' <- chainReorder p lyt2
-                                            return $ ValueVector d (Nest v lyt2')
+                                            return $ ValueVector d (Pair lyt1 (Nest v lyt2') )
 groupByKeyS _e1 _e2 = error $ "groupByKeyS: Should not be possible "
 
 groupByKeyL ::  Shape -> Shape -> Graph VL Shape
-groupByKeyL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
+groupByKeyL (ValueVector _ (Nest v1 lyt1)) (ValueVector d2 (Nest v2 lyt2)) = do
                                         (d, v, p) <- groupByKey v1 v2
                                         lyt2' <- chainReorder p lyt2
-                                        return $ ValueVector d2 (Nest d (Nest v lyt2'))
+                                        return $ ValueVector d2 (Nest d (Pair lyt1 (Nest v lyt2')))
 groupByKeyL _ _ = error "groupByKeyL: Should not be possible"
 
 concatLift ::  Shape -> Graph VL Shape

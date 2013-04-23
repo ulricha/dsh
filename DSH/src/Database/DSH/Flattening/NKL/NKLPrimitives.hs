@@ -1,12 +1,12 @@
 module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
     
 import qualified Prelude as P
-import Prelude (Bool(..))
+import           Prelude (Bool(..))
 
-import Database.DSH.Flattening.NKL.Data.NKL
-import Database.DSH.Flattening.Common.Data.Type(unitT, splitType, intT, boolT, listT, stringT, doubleT, pairT, isListT, (.->), listDepth, unliftType, Type(List, Fn), isNum)
+import           Database.DSH.Flattening.NKL.Data.NKL
+import           Database.DSH.Flattening.Common.Data.Type(unitT, splitType, intT, boolT, listT, stringT, doubleT, pairT, isListT, (.->), listDepth, unliftType, Type(List, Fn), isNum)
 import qualified Database.DSH.Flattening.Common.Data.Type as T
-import Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Op
 import qualified Database.DSH.Flattening.Common.Data.Val as V
 
 ($) :: Expr -> Expr -> Expr
@@ -148,9 +148,10 @@ filter f es = let ft@(Fn _ T.Bool) = typeOf f
 
 groupWithKey :: Expr -> Expr -> Expr
 groupWithKey f es = let ft@(Fn ta tk) = typeOf f
-                        te@(List t) = typeOf es
+                        te@(List t)   = typeOf es
+                        tr            = listT P.$ pairT tk te
                     in if t P.== ta
-                       then AppE2 (listT P.$ pairT tk te) (GroupWithKey P.$ ft .-> te .-> (listT P.$ pairT tk te)) f es
+                       then AppE2 tr (GroupWithKey P.$ ft .-> te .-> tr) f es
                        else P.error P.$ "NKLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 sortWith :: Expr -> Expr -> Expr
