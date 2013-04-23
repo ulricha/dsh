@@ -26,6 +26,7 @@ import           Data.Maybe                            (fromJust)
 import           Data.Text                             (Text(), pack)
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
+import           Text.Printf
 
 import qualified Database.DSH.Flattening.VL.Data.Query as Q
 
@@ -214,7 +215,7 @@ instance Convertible (X100Data, Type a) (Exp a) where
     safeConvert (ULng i, IntegerT) = Right $ IntegerE i
     safeConvert (UIDX i, IntegerT) = Right $ IntegerE i
     safeConvert (Dbl d, DoubleT) = Right $ DoubleE d
-    safeConvert _                = error $ "cannot convert (X100Data, Type) to Norm"
+    safeConvert (d, t) = error $ printf "cannot convert (%s, %s) to Norm" (show d) (show t)
 
 doSQLQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])
 doSQLQuery c q = do
