@@ -80,7 +80,7 @@ Library
                      TableAlgebra >= 2.0.0
                      
   Hs-source-dirs:    src
-  GHC-Options:       -O3 -Wall -Werror -fno-warn-orphans  -fno-warn-type-defaults
+  GHC-Options:       -Wall -Werror -fno-warn-orphans  -fno-warn-type-defaults
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
