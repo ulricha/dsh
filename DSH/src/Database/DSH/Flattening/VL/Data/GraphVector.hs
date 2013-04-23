@@ -26,6 +26,7 @@ rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt
 rootNodes (PrimVal (DBP n _) lyt) = n : rootNodes' lyt
 rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
 rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
+
 rootNodes' :: Layout -> [AlgNode]
 rootNodes' (Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
 rootNodes' (InColumn _) = []

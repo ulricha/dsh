@@ -134,7 +134,12 @@ map f es = let ft@(Fn ta tr) = typeOf f
                te@(List t) = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Map P.$ ft .-> te .-> listT tr) f es
-                 else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+                 else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: \n" 
+                                  P.++ P.show ft 
+                                  P.++ "\n and an argument of type: \n" 
+                                  P.++ P.show te
+                                  P.++ "\n"
+                                  P.++ P.show f
 
 filter :: Expr -> Expr -> Expr
 filter f es = let ft@(Fn _ T.Bool) = typeOf f
@@ -142,10 +147,10 @@ filter f es = let ft@(Fn _ T.Bool) = typeOf f
                in AppE2 te (Filter P.$ ft .-> te .-> te) f es
 
 groupWithKey :: Expr -> Expr -> Expr
-groupWithKey f es = let ft@(Fn ta _) = typeOf f
+groupWithKey f es = let ft@(Fn ta tk) = typeOf f
                         te@(List t) = typeOf es
                     in if t P.== ta
-                       then AppE2 (listT te) (GroupWithKey P.$ ft .-> te .-> listT te) f es
+                       then AppE2 (listT P.$ pairT tk te) (GroupWithKey P.$ ft .-> te .-> (listT P.$ pairT tk te)) f es
                        else P.error P.$ "NKLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 sortWith :: Expr -> Expr -> Expr

@@ -1,23 +1,25 @@
 {-# LANGUAGE TemplateHaskell, GADTs, ScopedTypeVariables, FlexibleContexts  #-}
 module Database.DSH.CompileFlattening (toNKL) where
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
 import qualified Database.DSH.Flattening.NKL.NKLPrimitives as NP
-import Database.DSH.Flattening.NKL.Opt
+import           Database.DSH.Flattening.NKL.Opt
 -- import qualified Database.DSH.Flattening.NP.Data.NP as NP
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 
-import Database.DSH.Internals as D
-import Data.Text (unpack)
+import           Database.DSH.Internals as D
+import           Data.Text (unpack)
 
 import qualified Data.Map as M
 
-import Control.Monad
-import Control.Monad.State
-import Control.Applicative
+import           Control.Monad
+import           Control.Monad.State
+import           Control.Applicative
+       
+import           Text.Printf
   
-import GHC.Exts(sortWith)
+import           GHC.Exts(sortWith)
 
 {-
 N monad, version of the state monad that can provide fresh variable names.
@@ -89,8 +91,7 @@ translate (TableE (TableDB n ks)) = do
                                         tableDescr <- liftM (sortWith fst) $ tableInfo n
                                         let tyDescr = if length tableDescr == length ts
                                                         then zip tableDescr ts
-                                                        else error $ "Inferred typed: " ++ show ts ++ " \n doesn't match type of table: \""
-                                                                ++ n ++ "\" in the database. The table has the shape: " ++ (show $ map fst tableDescr) ++ ". " ++ show ty
+                                                        else error $ printf "Inferred type\n%s doesn't match type of table %s\n%s\n%d %d" (show ts) n (show $ map fst tableDescr) (length tableDescr) (length ts)
                                         let cols = [(cn, t) | ((cn, f), (i, t)) <- tyDescr, legalType n cn i t f]
                                         let ks' = if ks == []
                                                     then [map fst tableDescr]

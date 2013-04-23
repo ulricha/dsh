@@ -21,13 +21,13 @@ All of these are helper functions for the flattening transformation
 -}
 module Database.DSH.Flattening.FKL.FKLPrimitives where
     
-import Database.DSH.Flattening.FKL.Data.FKL as F
-import Database.DSH.Flattening.Common.Data.Val
-import Database.DSH.Flattening.Common.Data.Op
-import Database.DSH.Flattening.Common.Data.Type (intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
+import           Database.DSH.Flattening.FKL.Data.FKL as F
+import           Database.DSH.Flattening.Common.Data.Val
+import           Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Type (Type(Fn), intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 
-import Control.Monad
+import           Control.Monad
 \end{code}
 %endif
 
@@ -67,16 +67,16 @@ groupWithKeyVal t = doubleArgClo t "group_f" "group_xs" groupWithKeyPrim groupWi
 
 groupWithKeyPrim :: Expr -> Expr -> Expr
 groupWithKeyPrim f e = let arg1 = mapPrim f e
-                           t1 = typeOf arg1
-                           t2 = typeOf e
-                           t3 = listT t2
+                           t1@(Fn _ tk) = typeOf arg1
+                           t2           = typeOf e
+                           t3           = listT $ pairT tk t2
                        in F.PApp2 t3 (F.GroupWithKeyS (t1 .-> t2 .-> t3)) arg1 e
 
 groupWithKeyLPrim :: Expr -> Expr -> Expr
 groupWithKeyLPrim f e = let arg1 = mapLPrim f e
-                            t1 = typeOf arg1 
-                            t2 = typeOf e
-                            t3 = listT t2
+                            t1@(Fn _ tk) = typeOf arg1 
+                            t2           = typeOf e
+                            t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.GroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 
 takeWithVal :: Type -> Expr
