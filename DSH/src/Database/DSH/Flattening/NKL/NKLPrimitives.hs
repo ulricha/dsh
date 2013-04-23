@@ -82,7 +82,7 @@ sum e = let (List t) = typeOf e
 avg :: Expr -> Expr
 avg e = let (List t) = typeOf e
          in if isNum t
-                then AppE1 t (Sum P.$ List t .-> t) e
+                then AppE1 t (Avg P.$ List t .-> t) e
                 else P.error P.$ "NKLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (List t)
 
 minimum :: Expr -> Expr
