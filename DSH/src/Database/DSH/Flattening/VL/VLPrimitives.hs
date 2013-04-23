@@ -7,7 +7,7 @@ import qualified Database.DSH.Flattening.Common.Data.Op   as O
 import qualified Database.DSH.Flattening.Common.Data.Type as Ty
 import           Database.DSH.Flattening.VL.Data.DBVector
 
-import           Database.DSH.Flattening.Common.Impossible
+import           Database.DSH.Impossible
 
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common

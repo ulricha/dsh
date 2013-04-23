@@ -19,7 +19,7 @@ import           Database.Algebra.X100.Data
 import           Database.Algebra.X100.Render
 
 import           Database.DSH.Flattening.Common.Data.QueryPlan hiding (mkQueryPlan)
-import           Database.DSH.Flattening.Common.Impossible
+import           Database.DSH.Impossible
 import           Database.DSH.Flattening.VL.Data.DBVector
 import qualified Database.DSH.Flattening.VL.Data.Query         as Ext
 import qualified Database.DSH.Flattening.VL.Data.Query         as Q

@@ -2,7 +2,7 @@
 
 module Database.DSH.Flattening.VL.VectorOperations where
 
-import Database.DSH.Flattening.Common.Impossible
+import Database.DSH.Impossible
 
 import Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
 

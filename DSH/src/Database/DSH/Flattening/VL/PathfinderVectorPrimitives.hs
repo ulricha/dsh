@@ -11,7 +11,7 @@ import           Control.Applicative                         hiding (Const)
 import           Control.Monad.State
 
 import qualified Database.Algebra.VL.Data                    as VL
-import           Database.DSH.Flattening.Common.Impossible
+import           Database.DSH.Impossible
 import           Database.DSH.Flattening.VL.Data.DBVector
 import           Database.DSH.Flattening.VL.VectorPrimitives
 
