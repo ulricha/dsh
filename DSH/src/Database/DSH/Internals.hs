@@ -80,6 +80,7 @@ data Fun a b where
     TakeWhile       :: Fun (a -> Bool,[a]) [a]
     DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
+    Like            :: Fun (Text,Text) Bool
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -164,6 +165,7 @@ instance Show (Fun a b) where
     show TakeWhile = "takeWhile"
     show DropWhile = "dropWhile"
     show Cond = "cond"
+    show Like = "like"
 
 -- Reify instances
 

@@ -243,6 +243,10 @@ evaluate c e = case e of
       (BoolE b1) <- evaluate c e1
       (BoolE b2) <- evaluate c e2
       return $ BoolE (b1 || b2) 
+    AppE Like (PairE te pe) -> do
+      (TextE t) <- evaluate c te
+      (TextE p) <- evaluate c pe
+      return $ BoolE (matchPat t p)
     (TableE (TableDB tName _)) -> 
       let ty = reify (undefined :: a)
       in case ty of
@@ -305,6 +309,10 @@ escape :: String -> String
 escape []                  = []
 escape (c : cs) | c == '"' = '\\' : '"' : escape cs
 escape (c : cs)            =          c : escape cs
+
+-- Pattern matching as provided by the SQL LIKE construct
+matchPat :: T.Text -> T.Text -> Bool
+matchPat = undefined
 
 -- | Read SQL values into 'Norm' values
 sqlToExpWithType :: (Reify a)
