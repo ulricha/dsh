@@ -330,7 +330,7 @@ instance VectorAlgebra PFAlgebra where
               (aggrM [(Count, item, Nothing)] Nothing $ proj [colP pos] d)
     return $ DBP qr [1]
 
-  lengthSeg (DescrVector q1) (DescrVector d) = do
+  lengthSeg (DBV q1 _) (DBV d _) = do
     qr <- rownumM pos [descr] Nothing
             $ aggrM [(Max, item, Just item)] (Just descr)
             $ (attachM item intT (int 0) $ proj [(descr, pos)] q1)
@@ -391,7 +391,7 @@ instance VectorAlgebra PFAlgebra where
             $ aggr [(Max, item, Just item)] (Just descr) qv
     return $ DBV qr [1]
 
-  descToRename (DescrVector q1) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
+  descToRename (DBV q1 _) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
 
   singletonDescr = DescrVector <$> (attachM pos natT (nat 1) $ litTable (nat 1) descr natT)
 
@@ -436,12 +436,12 @@ instance VectorAlgebra PFAlgebra where
           $ aggr [(Avg, item, Just item)] Nothing q
     return $ DBP qa [1] 
   
-  vecAvgLift (DescrVector _qd) (DBV qv _) = do
+  vecAvgLift (DBV _qd _) (DBV qv _) = do
     qa <- attachM pos natT (nat 1)
           $ aggr [(Avg, item, Just item)] (Just descr) qv
     return $ DBV qa [1]
 
-  vecSumLift (DescrVector qd) (DBV qv _) = do
+  vecSumLift (DBV qd _) (DBV qv _) = do
     qe <- attachM item intT (int 0) -- TODO: In general you do not know that it should be an int, it might be double or nat...
           $ differenceM
             (proj [(descr, pos)] qd)

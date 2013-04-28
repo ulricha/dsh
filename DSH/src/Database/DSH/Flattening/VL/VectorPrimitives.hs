@@ -20,7 +20,7 @@ class VectorAlgebra a where
   notPrim :: DBP -> GraphM r a DBP
   notVec :: DBV -> GraphM r a DBV
   lengthA :: DescrVector -> GraphM r a DBP
-  descToRename :: DescrVector -> GraphM r a RenameVector
+  descToRename :: DBV -> GraphM r a RenameVector
   toDescr :: DBV -> GraphM r a DescrVector
   segment :: DBV -> GraphM r a DBV
   unsegment :: DBV -> GraphM r a DBV
@@ -49,7 +49,7 @@ class VectorAlgebra a where
 
   groupByKey :: DBV -> DBV -> GraphM r a (DBV, DBV, PropVector)
   sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
-  lengthSeg :: DescrVector -> DescrVector -> GraphM r a DBV
+  lengthSeg :: DBV -> DBV -> GraphM r a DBV
   distPrim :: DBP -> DescrVector -> GraphM r a (DBV, PropVector)
   distDesc :: DBV -> DescrVector -> GraphM r a (DBV, PropVector)
   distLift :: DBV -> DescrVector -> GraphM r a (DBV, PropVector)
@@ -63,10 +63,10 @@ class VectorAlgebra a where
   restrictVec :: DBV -> DBV -> GraphM r a (DBV, RenameVector)
   compExpr2 :: Expr2 -> DBP -> DBP -> GraphM r a DBP
   compExpr2L :: Expr2 -> DBV -> DBV -> GraphM r a DBV
-  vecSumLift :: DescrVector -> DBV -> GraphM r a DBV
+  vecSumLift :: DBV -> DBV -> GraphM r a DBV
   -- Avg is unsafe! Empty lists will disappear, as average does not have a
   -- default value (in contrast to sum).
-  vecAvgLift :: DescrVector -> DBV -> GraphM r a DBV
+  vecAvgLift :: DBV -> DBV -> GraphM r a DBV
   selectPos :: DBV -> VecCompOp -> DBP -> GraphM r a (DBV, RenameVector)
   selectPosLift :: DBV -> VecCompOp -> DBV -> GraphM r a (DBV, RenameVector)
   pairA :: DBP -> DBP -> GraphM r a DBP
