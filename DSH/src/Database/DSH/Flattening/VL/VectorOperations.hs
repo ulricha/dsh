@@ -340,9 +340,7 @@ lengthLift (ValueVector q (Nest qi _)) = do
                                             d <- toDescr q
                                             di <- toDescr qi
                                             ls <- lengthSeg d di
-                                            p <- descToRename d
-                                            r <- propRename p ls
-                                            return $ ValueVector r (InColumn 1)
+                                            return $ ValueVector ls (InColumn 1)
 lengthLift _ = $impossible
 
 lengthV ::  Shape -> Graph VL Shape
