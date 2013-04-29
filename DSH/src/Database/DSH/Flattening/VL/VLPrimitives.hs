@@ -50,15 +50,16 @@ typeToVLType t = case t of
 
 operToVecOp :: O.Oper -> D.VecOp
 operToVecOp op = case op of
-  O.Add -> D.NOp D.Add
+  O.Add  -> D.NOp D.Add
   O.Sub  -> D.NOp D.Sub
   O.Div  -> D.NOp D.Div
   O.Mul  -> D.NOp D.Mul
   O.Mod  -> D.NOp D.Mod
-  O.Cons  -> $impossible
-  O.Conj  -> D.BOp D.Conj
-  O.Disj  -> D.BOp D.Disj
-  _       -> D.COp $ operToCompOp op
+  O.Cons -> $impossible
+  O.Conj -> D.BOp D.Conj
+  O.Disj -> D.BOp D.Disj
+  O.Like -> D.Like
+  _      -> D.COp $ operToCompOp op
 
 operToCompOp :: O.Oper -> D.VecCompOp
 operToCompOp op = case op of

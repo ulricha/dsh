@@ -592,6 +592,14 @@ snd (Q e) = Q (AppE Snd e)
 integerToDouble :: Q Integer -> Q Double
 integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 
+-- * Text Functions
+
+-- | 'like' matches a string (first argument) against a pattern (second
+-- argument). The pattern must be a SQL LIKE pattern, that is use '_' for single
+-- character wildcards and '_' for multi-character wildcards.
+like :: Q Text -> Q Text -> Q Bool
+like (Q t) (Q p) = Q (AppE Like (PairE t p))
+
 -- * Rebind Monadic Combinators
 
 return :: (QA a) => Q a -> Q [a]

@@ -18,6 +18,7 @@ data Oper = Add
         | Cons 
         | Conj 
         | Disj 
+        | Like
     deriving (Eq, Ord, Generic)
     
 instance Show Oper where
@@ -34,6 +35,7 @@ instance Show Oper where
     show Cons = ":"
     show Conj = "&&"
     show Disj = "||"
+    show Like = "LIKE"
 
     
 instance Show Op where
