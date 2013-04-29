@@ -167,6 +167,10 @@ inferConstVecUnOp c op =
       (d, _) <- unp c >>= fromDBV
       -- FIXME This is not precise: implement constant folding
       return $ VProp $ DBVConst d [NonConstPL]
+      
+    VecAggr g as -> do
+      (d, _) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
 
     R1 ->
       case c of

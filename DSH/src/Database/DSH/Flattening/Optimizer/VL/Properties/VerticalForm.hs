@@ -65,6 +65,7 @@ inferVerticallyIntactUnOp childIntact c op =
     CompExpr1L _ -> yes childIntact c
     SelectPos1 _ _ -> noPair 
     SelectPos1L _ _ -> noPair
+    VecAggr _ _ -> no
     R1 -> 
       case childIntact of
         VProp _           -> Left "Properties.VerticallyIntact: not a pair/triple"
