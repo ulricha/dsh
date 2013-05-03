@@ -156,6 +156,7 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
+                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr
 
