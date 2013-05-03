@@ -15,6 +15,7 @@ import           Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation
 
 type RewriteClass = Rewrite VL TopShape Bool
 
@@ -25,6 +26,7 @@ rewriteClasses = [ ('E', pruneEmpty)
                  , ('C', optExpressions)
                  , ('S', introduceSpecializedOperators)
                  , ('T', pruneColumns)
+                 , ('G', groupingToAggregation)
                  , ('D', stripFromRoot) ]
 
 defaultPipeline :: [RewriteClass]

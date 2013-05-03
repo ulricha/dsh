@@ -192,6 +192,7 @@ Executable vlopt
   Build-depends:       base,
                        TableAlgebra >= 2.0.0,
                        containers,
+                       template-haskell,
                        pretty,
                        bytestring,
                        mtl,

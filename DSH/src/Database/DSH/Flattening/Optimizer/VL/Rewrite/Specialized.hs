@@ -268,7 +268,7 @@ cartProduct q =
           case descR2s of
             [descR2] -> void $ replaceWithNew descR2 $ UnOp R3 prodNode
             _        -> return () |])
-
+  
 {-
 
 Introduce a specialized join operator to replace a cartesian product

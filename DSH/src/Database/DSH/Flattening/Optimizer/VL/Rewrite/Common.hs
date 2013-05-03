@@ -17,6 +17,7 @@ import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 type VLRewrite p = Rewrite VL TopShape p
 type VLRule p = Rule VL p TopShape
 type VLRuleSet p = RuleSet VL p TopShape
+type VLMatch p = Match VL p TopShape
 
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do
