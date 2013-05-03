@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
-
+       
+import Control.Applicative
 import Control.Monad
 
 import Database.Algebra.VL.Data
@@ -20,7 +21,9 @@ aggregationRulesBottomUp :: VLRuleSet BottomUpProps
 aggregationRulesBottomUp = [ pushExprThroughGroupBy ]
 
 groupingToAggregation :: VLRewrite Bool
-groupingToAggregation = iteratively $ applyToAll inferBottomUp aggregationRulesBottomUp
+groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
+                                                       , applyToAll noProps aggregationRules
+                                                       ]
 
 -- If an expression operator is applied to the R2 output of GroupBy, push
 -- the expression below the GroupBy operator. This rewrite assists in turning
@@ -29,7 +32,7 @@ groupingToAggregation = iteratively $ applyToAll inferBottomUp aggregationRulesB
 -- any harm
 pushExprThroughGroupBy :: VLRule BottomUpProps
 pushExprThroughGroupBy q =
-  $(pattern 'q "CompExpr1L e (R2 (qg=(qc) GroupBy (qp)))"
+  $(pattern 'q "CompExpr1L e (qr2=R2 (qg=(qc) GroupBy (qp)))"
     [| do
         -- get vector type of right grouping input to determine the
         -- width of the vector
@@ -47,9 +50,10 @@ pushExprThroughGroupBy q =
           
           -- Link the GroupBy operator to the new projection
           groupNode   <- replaceWithNew $(v "qg") $ BinOp GroupBy $(v "qc") projectNode
+          r2Node      <- replaceWithNew $(v "qr2") $ UnOp R2 groupNode
           
           -- Replace the CompExpr1L operator with a projection on the new column
-          void $ replaceWithNew q $ UnOp (ProjectL [width + 1]) groupNode |])
+          void $ replaceWithNew q $ UnOp (ProjectL [width + 1]) r2Node |])
           
 -- | Turn an aggregate operator into the corrresponding aggregate function for VecAggr
 aggrOpToFun :: DBCol -> VL -> VLMatch () AggrFun
@@ -61,7 +65,7 @@ aggrOpToFun _ _                   = fail "no match"
 
 -- | Check if we have an operator combination which is eligible for moving to a
 -- VecAggr operator.
-matchAggr :: AlgNode -> VLMatch () (AggrFun, AlgNode)
+matchAggr :: AlgNode -> VLMatch () [(AggrFun, AlgNode)]
 matchAggr q = do
   op1 <- getOperator q
   
@@ -70,22 +74,19 @@ matchAggr q = do
     -- either a VecMaxL (ProjectL (R2 GroupBy)) combinaton
     UnOp (ProjectL [c]) _ -> do
       ps <- getParents q
-      case ps of
-        [p] -> do
-          o <- getOperator p
-          f <- aggrOpToFun c o
-          return (f, p)
-        _   -> fail "no match"
+      forM ps $ \p -> do
+        o <- getOperator p
+        f <- aggrOpToFun c o
+        return (f, p)
+
     -- or LengthSeg (ToDescr (R2 GroupBy))
     UnOp ToDescr _ -> do
       ps <- getParents q
-      case ps of
-        [p] -> do
-          o <- getOperator p
-          case o of
-            BinOp LengthSeg _ _ -> return (Count, p)
-            _                   -> fail "no match"
-        _ -> fail "no match"
+      forM ps $ \p -> do
+         o <- getOperator p
+         case o of
+           BinOp LengthSeg _ _ -> return (Count, p)
+           _                   -> fail "no match"
     _                   -> fail "no match"
     
 projectionCol :: PayloadProj -> VLMatch () DBCol
@@ -118,13 +119,14 @@ groupingToAggr q =
         
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions
-        funs <- mapM matchAggr groupByParents
+        funs <- concat <$> mapM matchAggr groupByParents
         
         -- Check if the grouping criteria are simple columns. Extract the
         -- grouping cols from the left GroupBy input
         groupingCols <- mapM projectionCol $(v "ps")
         
         return $ do
+          logRewrite "Aggregation.GroupingToAggr" q
           -- The output format of the new VecAggr operator is 
           -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the 
           -- grouping columns and a1, ..., am are the aggregates 
