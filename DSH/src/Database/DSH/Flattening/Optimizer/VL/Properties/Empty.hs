@@ -36,7 +36,6 @@ inferEmptyUnOp e op =
     NotVec -> Right e
     LengthA -> Right $ VProp False
     DescToRename -> Right e
-    ToDescr -> Right e
     Segment -> Right e
     Unsegment -> Right e
     VecSum _ -> Right $ VProp False

@@ -72,10 +72,6 @@ inferConstVecUnOp c op =
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 
-    ToDescr -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d []
-
     Segment -> do
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols

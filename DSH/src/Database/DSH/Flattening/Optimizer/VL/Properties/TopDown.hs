@@ -10,7 +10,6 @@ import Database.Algebra.VL.Data
 
 import Database.DSH.Flattening.Optimizer.Common.Aux
 import Database.DSH.Flattening.Optimizer.VL.Properties.Types
-import Database.DSH.Flattening.Optimizer.VL.Properties.ToDescr
 import Database.DSH.Flattening.Optimizer.VL.Properties.ReqColumns
   
 toDescrSeed :: Maybe Bool
@@ -20,16 +19,13 @@ reqColumnsSeed :: ReqCols
 reqColumnsSeed = Nothing
 
 vPropSeed :: TopDownProps
-vPropSeed = TDProps { toDescrProp  = VProp toDescrSeed 
-                    , reqColumnsProp = VProp reqColumnsSeed }
+vPropSeed = TDProps { reqColumnsProp = VProp reqColumnsSeed }
 
 vPropPairSeed :: TopDownProps
-vPropPairSeed = TDProps { toDescrProp  = VPropPair toDescrSeed toDescrSeed 
-                        , reqColumnsProp = VPropPair reqColumnsSeed reqColumnsSeed }
+vPropPairSeed = TDProps { reqColumnsProp = VPropPair reqColumnsSeed reqColumnsSeed }
 
 vPropTripleSeed :: TopDownProps
-vPropTripleSeed = TDProps { toDescrProp = VPropTriple toDescrSeed toDescrSeed toDescrSeed 
-                          , reqColumnsProp = VPropTriple reqColumnsSeed reqColumnsSeed reqColumnsSeed }
+vPropTripleSeed = TDProps { reqColumnsProp = VPropTriple reqColumnsSeed reqColumnsSeed reqColumnsSeed }
                   
 seed :: VL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
@@ -45,7 +41,6 @@ seed (UnOp op _)   =
     NotVec             -> vPropSeed
     LengthA            -> vPropSeed
     DescToRename       -> vPropSeed
-    ToDescr            -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     VecSum _           -> vPropSeed
@@ -115,8 +110,7 @@ replaceProps n p = modify (M.insert n p)
 
 inferUnOp :: TopDownProps -> TopDownProps -> UnOp -> TopDownProps
 inferUnOp ownProps cp op =
-    TDProps { toDescrProp    = inferToDescrUnOp (toDescrProp ownProps) (toDescrProp cp) op ,
-              reqColumnsProp = inferReqColumnsUnOp (reqColumnsProp ownProps) (reqColumnsProp cp) op }
+    TDProps { reqColumnsProp = inferReqColumnsUnOp (reqColumnsProp ownProps) (reqColumnsProp cp) op }
 
 inferBinOp :: BottomUpProps 
               -> BottomUpProps
@@ -126,10 +120,9 @@ inferBinOp :: BottomUpProps
               -> BinOp 
               -> (TopDownProps, TopDownProps)
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op =
-  let (ctd1', ctd2') = inferToDescrBinOp (toDescrProp ownProps) (toDescrProp cp1) (toDescrProp cp2) op
-      (crc1', crc2') = inferReqColumnsBinOp childBUProps1 childBUProps2 (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) op
-      cp1' = TDProps { toDescrProp = ctd1', reqColumnsProp = crc1' }
-      cp2' = TDProps { toDescrProp = ctd2', reqColumnsProp = crc2' }
+  let (crc1', crc2') = inferReqColumnsBinOp childBUProps1 childBUProps2 (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) op
+      cp1' = TDProps { reqColumnsProp = crc1' }
+      cp2' = TDProps { reqColumnsProp = crc2' }
   in (cp1', cp2')
 
 inferTerOp :: TopDownProps 
@@ -139,11 +132,10 @@ inferTerOp :: TopDownProps
               -> TerOp 
               -> (TopDownProps, TopDownProps, TopDownProps)
 inferTerOp ownProps cp1 cp2 cp3 op =
-  let (ctd1', ctd2', ctd3') = inferToDescrTerOp (toDescrProp ownProps) (toDescrProp cp1) (toDescrProp cp2) (toDescrProp cp3) op
-      (crc1', crc2', crc3') = inferReqColumnsTerOp (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) (reqColumnsProp cp3) op
-      cp1' = TDProps { toDescrProp = ctd1', reqColumnsProp = crc1' }
-      cp2' = TDProps { toDescrProp = ctd2', reqColumnsProp = crc2' }
-      cp3' = TDProps { toDescrProp = ctd3', reqColumnsProp = crc3' }
+  let (crc1', crc2', crc3') = inferReqColumnsTerOp (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) (reqColumnsProp cp3) op
+      cp1' = TDProps { reqColumnsProp = crc1' }
+      cp2' = TDProps { reqColumnsProp = crc2' }
+      cp3' = TDProps { reqColumnsProp = crc3' }
   in (cp1', cp2', cp3')
 
 inferChildProperties :: NodeMap BottomUpProps -> AlgebraDag VL -> AlgNode -> State InferenceState ()

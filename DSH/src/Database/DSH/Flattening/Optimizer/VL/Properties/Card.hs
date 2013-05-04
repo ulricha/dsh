@@ -29,7 +29,6 @@ inferCardOneUnOp c op =
     NotVec -> Right c
     LengthA -> Right $ VProp True
     DescToRename -> Right c
-    ToDescr -> Right c
     Segment -> Right c
     Unsegment -> Right c
     VecSum _ -> Right $ VProp True

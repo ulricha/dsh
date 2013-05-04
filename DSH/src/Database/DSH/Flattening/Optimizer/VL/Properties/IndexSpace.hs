@@ -12,7 +12,6 @@ unp = unpack "Properties.IndexSpace"
 
 fromDBV :: IndexSpace -> Either String (DescrIndexSpace, PosIndexSpace)
 fromDBV (DBVSpace dis pis)         = Right (dis, pis)
-fromDBV (DescrVectorSpace dis pis) = Right (dis, pis)
 fromDBV _                          = Left "IndexSpace.fromDBV: not a Value vector/descriptor vector"
 
 fromRenameVector :: IndexSpace -> Either String (SourceIndexSpace, TargetIndexSpace)
@@ -56,7 +55,7 @@ freshValueRenamePair n =
 inferIndexSpaceNullOp :: AlgNode -> NullOp -> Either String (VectorProp IndexSpace)
 inferIndexSpaceNullOp n op =
   case op of
-    SingletonDescr              -> Right $ VProp $ uncurry DescrVectorSpace $ freshSpaces n
+    SingletonDescr              -> Right $ VProp $ freshDBVSpace n
     ConstructLiteralTable _ _   -> Right $ VProp $ freshDBVSpace n
     ConstructLiteralValue _ _   -> Right $ VProp $ DBPSpace $ snd $ freshSpaces n
     TableRef              _ _ _ -> Right $ VProp $ freshDBVSpace n
@@ -75,10 +74,6 @@ inferIndexSpaceUnOp is n op =
     DescToRename -> do
       ((D dis), (P pis)) <- unp is >>= fromDBV
       return $ VProp $ RenameVectorTransform (S pis) (T dis)
-
-    ToDescr -> do
-      (dis, pis) <- unp is >>= fromDBV
-      return $ VProp $ DescrVectorSpace dis pis
 
     Segment -> do
       (_, (P pis)) <- unp is >>= fromDBV
@@ -180,7 +175,7 @@ inferIndexSpaceBinOp is1 is2 n op =
           dpis = P $ freshSpace n "d/p"
           vdis = D $ freshSpace n "v/d"
           vpis = P $ freshSpace n "v/p"
-          dv   = DescrVectorSpace ddis dpis
+          dv   = DBVSpace ddis dpis
           dbv  = DBVSpace vdis vpis
           pv   = uncurry PropVectorTransform $ freshTransformSpaces n
       in Right $ VPropTriple dv dbv pv
@@ -190,7 +185,7 @@ inferIndexSpaceBinOp is1 is2 n op =
           dpis = P $ freshSpace n "d/p"
           vdis = D $ freshSpace n "v/d"
           vpis = P $ freshSpace n "v/p"
-          dv   = DescrVectorSpace ddis dpis
+          dv   = DBVSpace ddis dpis
           dbv  = DBVSpace vdis vpis
       in Right $ VPropPair dv dbv
 

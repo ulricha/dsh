@@ -40,7 +40,6 @@ inferUntaintedUnOp u n op =
     NotVec -> VProp empty
     LengthA -> VProp empty
     DescToRename -> VProp na
-    ToDescr -> VProp empty
     Segment -> VProp $ add u n
     Unsegment -> VProp $ add u n
     VecSum _ -> VProp empty

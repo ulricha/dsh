@@ -14,15 +14,14 @@ import Database.Algebra.VL.Data
 vectorWidth :: VectorProp VectorType -> Int
 vectorWidth (VProp (ValueVector w))  = w
 vectorWidth (VProp (AtomicVector w)) = w
-vectorWidth (VProp DescrVector)      = 0
 vectorWidth _                        = error "vectorWidth: non-ValueVector input"
 
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr              -> Right $ VProp $ DescrVector
-    ConstructLiteralTable t _   -> Right $ VProp $ ValueVector $ length t
-    ConstructLiteralValue t _   -> Right $ VProp $ ValueVector $ length t
+    SingletonDescr               -> Right $ VProp $ ValueVector 0
+    ConstructLiteralTable t _    -> Right $ VProp $ ValueVector $ length t
+    ConstructLiteralValue t _    -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
@@ -38,7 +37,6 @@ inferVectorTypeUnOp s op =
     NotVec -> Right $ VProp $ ValueVector 1
     LengthA -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector
-    ToDescr -> Right $ VProp $ DescrVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     VecSum _ -> Right $ VProp $ AtomicVector 1
@@ -93,9 +91,9 @@ inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp 
 inferVectorTypeBinOp s1 s2 op = 
   case op of
     GroupBy -> 
-      case s1 of
-        VProp vv@(ValueVector _) -> Right $ VPropTriple DescrVector vv PropVector -- FIXME double-check
-        _                        -> Left "Input of GroupBy is not a value vector"
+      case (s1, s2) of
+        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> Right $ VPropTriple t1 t2 PropVector
+        _                                                    -> Left "Input of GroupBy is not a value vector"
     SortWith -> undefined
     LengthSeg -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
@@ -108,13 +106,6 @@ inferVectorTypeBinOp s1 s2 op =
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        -- FIXME this is ugly. Treat DescrVectors and ValueVector 0 in a sane way
-        (VProp (ValueVector 0), VProp DescrVector) ->
-          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
-        (VProp DescrVector, VProp (ValueVector 0)) ->
-          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
-        (VProp DescrVector, VProp DescrVector) ->
-          Right $ VPropTriple (ValueVector 0) RenameVector RenameVector
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
         v -> 
@@ -132,11 +123,7 @@ inferVectorTypeBinOp s1 s2 op =
     PairL ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
-        (VProp (ValueVector w1), VProp DescrVector)      -> Right $ VProp $ ValueVector w1
-        (VProp DescrVector, VProp (ValueVector w2))      -> Right $ VProp $ ValueVector w2
-        _                                                -> Right $ VProp $ ValueVector 0
-        -- FIXME check disabled for now
-        -- _                                -> Left "Inputs of PairL are not ValueVectors"
+        _                                                -> Left "Inputs of PairL are not ValueVectors"
     ZipL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
     -- FIXME check that the join predicate is compatible with the input schemas.
@@ -149,12 +136,6 @@ inferVectorTypeTerOp _ s2 s3 op =
       case (s2, s3) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector w1), VProp DescrVector)                 -> 
-          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp DescrVector, VProp (ValueVector w2))                 -> 
-          Right $ VPropTriple (ValueVector w2) RenameVector RenameVector
-        (VProp DescrVector, VProp DescrVector)                 -> 
-          Right $ VPropTriple DescrVector RenameVector RenameVector
         (VProp (ValueVector _), VProp (ValueVector _))              -> 
           Left $ "Inputs of CombineVec do not have the same width"
         _                                                           -> 

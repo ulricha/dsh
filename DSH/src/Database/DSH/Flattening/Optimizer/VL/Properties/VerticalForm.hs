@@ -40,7 +40,6 @@ inferVerticallyIntactUnOp childIntact c op =
     NotVec -> yes childIntact c
     LengthA -> no
     DescToRename -> yes childIntact c
-    ToDescr -> yes childIntact c
     Segment -> yes childIntact c
     Unsegment -> yes childIntact c
     VecSum _ -> no

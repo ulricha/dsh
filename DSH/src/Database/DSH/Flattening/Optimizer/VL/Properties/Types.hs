@@ -18,7 +18,6 @@ instance Show a => Show (VectorProp a) where
 
 data VectorType = ValueVector Int
                 | AtomicVector Int
-                | DescrVector
                 | RenameVector
                 | PropVector
                 deriving Show
@@ -30,7 +29,6 @@ newtype TargetIndexSpace = T Domain deriving Show
 
 data IndexSpace = DBVSpace DescrIndexSpace PosIndexSpace
                 | DBPSpace PosIndexSpace
-                | DescrVectorSpace DescrIndexSpace PosIndexSpace
                 | RenameVectorTransform SourceIndexSpace TargetIndexSpace
                 | PropVectorTransform SourceIndexSpace TargetIndexSpace
                   deriving (Show)
@@ -72,8 +70,7 @@ data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
 
 type ReqCols = Maybe [DBCol]
 
-data TopDownProps = TDProps { toDescrProp    :: VectorProp (Maybe Bool)
-                            , reqColumnsProp :: VectorProp ReqCols }
+data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols }
 
 data Properties = Properties { bu :: BottomUpProps
                              , td :: TopDownProps }
@@ -144,7 +141,6 @@ instance Renderable TargetIndexSpace where
 
 instance Renderable IndexSpace where
   renderProp (DBVSpace dis pis)              = renderProp dis $$ renderProp pis
-  renderProp (DescrVectorSpace dis pis)      = renderProp dis $$ renderProp pis
   renderProp (DBPSpace pis)                  = renderProp pis
   renderProp (RenameVectorTransform sis tis) = renderProp sis $$ renderProp tis
   renderProp (PropVectorTransform sis tis)   = renderProp sis $$ renderProp tis
@@ -158,8 +154,7 @@ instance Renderable BottomUpProps where
                  $$ text "vert_intact:" <+> (renderProp $ verticallyIntactProp p)
 
 instance Renderable TopDownProps where
-  renderProp p = text "toDescr:" <+> (text $ show $ toDescrProp p)
-                 $$ text "reqCols:" <+> (text $ show $ reqColumnsProp p)
+  renderProp p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]

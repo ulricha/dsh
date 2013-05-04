@@ -52,8 +52,6 @@ inferReqColumnsUnOp :: VectorProp ReqCols
                 -> VectorProp ReqCols
 inferReqColumnsUnOp ownReqColumns childReqColumns op =
   case op of
-    ToDescr          -> colUnion childReqColumns none
-
     Unique -> colUnion ownReqColumns childReqColumns
 
     UniqueL -> colUnion ownReqColumns childReqColumns
@@ -257,15 +255,6 @@ partitionCols childBUProps1 childBUProps2 ownReqCols =
            let leftReqCols  = cols `intersect` [1 .. w1]
                rightReqCols = cols `intersect` [(w1 + 1) .. (w1 + w2)]
            in (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
-         -- If only one input is a ValueVector, map the required columns to this input.
-         (ValueVector w1, DescrVector) ->
-           let leftReqCols  = cols `intersect` [1 .. w1]
-           -- FIXME should the right side be na or none?
-           in (VProp $ Just leftReqCols, na)
-         (DescrVector, ValueVector w2) ->
-           let rightReqCols = cols `intersect` [1 .. w2]
-           -- FIXME should the left side be na or none?
-           in (na, VProp $ Just rightReqCols)
          _                                -> error ("partitionCols " ++ (show childType1) ++ " " ++ (show childType2))
      Nothing -> (na, na)
 
