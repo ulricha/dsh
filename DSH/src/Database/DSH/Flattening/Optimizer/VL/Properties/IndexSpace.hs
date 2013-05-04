@@ -143,6 +143,12 @@ inferIndexSpaceUnOp is n op =
       let dis' = makeSubDomain n "d" dis
           pis' = makeSubDomain n "p" pis
       return $ VProp $ DBVSpace (D dis') (P pis')
+      
+    VecAggr _ _ -> do
+      (dis, _) <- unp is >>= fromDBV
+      let pis = P $ freshSpace n "p"
+      return $ VProp $ DBVSpace dis pis
+
     Only -> undefined
     Singleton -> undefined
 

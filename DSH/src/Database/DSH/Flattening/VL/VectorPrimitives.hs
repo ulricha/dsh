@@ -1,7 +1,7 @@
 module Database.DSH.Flattening.VL.VectorPrimitives where
 
 import Database.DSH.Flattening.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, PayloadProj, Expr1, Expr2, Nat)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, PayloadProj, Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -36,6 +36,8 @@ class VectorAlgebra a where
   selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   projectL :: DBV -> [DBCol] -> GraphM r a DBV
   projectA :: DBP -> [DBCol] -> GraphM r a DBP
+  
+  -- FIXME this should be a generic cast operator
   integerToDoubleA :: DBP -> GraphM r a DBP
   integerToDoubleL :: DBV -> GraphM r a DBV
   reverseA :: DBV -> GraphM r a (DBV, PropVector)
@@ -48,6 +50,12 @@ class VectorAlgebra a where
   compExpr1 :: Expr1 -> DBV -> GraphM r a DBV
 
   groupByKey :: DBV -> DBV -> GraphM r a (DBV, DBV, PropVector)
+
+  -- | The VL aggregation operator groups the input vector by the given columns
+  -- and then performs the list of aggregations described by the second
+  -- argument. The result is a flat vector, since all groups are reduced via
+  -- aggregation.
+  vecAggr :: [DBCol] -> [AggrFun] -> DBV -> GraphM r a DBV
   sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
   lengthSeg :: DBV -> DBV -> GraphM r a DBV
   distPrim :: DBP -> DescrVector -> GraphM r a (DBV, PropVector)
@@ -76,3 +84,4 @@ class VectorAlgebra a where
   thetaJoin :: Expr1 -> DBV -> DBV -> GraphM r a (DBV, DBV)
 
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
+  

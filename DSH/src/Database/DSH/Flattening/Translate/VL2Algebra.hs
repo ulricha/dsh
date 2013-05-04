@@ -257,6 +257,7 @@ translateUnOp u c = case u of
                       SelectPos1L op pos -> do
                                           (d, p) <- selectPos1Lift (toDBV c) op pos
                                           return $ RPair (fromDBV d) (fromRenameVector p)
+                      VecAggr g as -> liftM fromDBV $ vecAggr g as (toDBV c)
                       R1            -> case c of
                                          (RPair c1 _)     -> return c1
                                          (RTriple c1 _ _) -> return c1

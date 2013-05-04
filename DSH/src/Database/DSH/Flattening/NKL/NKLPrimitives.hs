@@ -1,4 +1,4 @@
-module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt)where
+module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like) where
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
@@ -293,6 +293,13 @@ disj e1 e2 = let t1 = typeOf e1
               in if t1 P.== boolT P.&& t1 P.== t2
                    then BinOp boolT Disj e1 e2
                    else P.error P.$ "NKLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                   
+like :: Expr -> Expr -> Expr
+like e1 e2 = let t1 = typeOf e1
+                 t2 = typeOf e2
+             in if t1 P.== stringT P.&& t2 P.== stringT
+                then BinOp boolT Like e1 e2
+                else P.error P.$ "NKLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
 
 snoc :: Expr -> Expr -> Expr
 snoc e1 e2 = let t1@(List t) = typeOf e1
@@ -375,7 +382,7 @@ list t es = toList (nil t) es
 
 consOpt :: Expr -> Expr -> Expr
 consOpt e1 e2 = toList e2 [e1]
-
+        
 toList :: Expr -> [Expr] -> Expr
 toList n es = primList (P.reverse es) n
     where

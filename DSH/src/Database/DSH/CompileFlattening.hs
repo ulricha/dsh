@@ -140,6 +140,7 @@ compileApp f args = case f of
                         Gt        -> compileApp2 NP.gt args
                         Max       -> compileApp2 NP.max args
                         Min       -> compileApp2 NP.min args
+                        Like      -> compileApp2 NP.like args
                         Fst             -> compileApp1 NP.fst args
                         Snd             -> compileApp1 NP.snd args
                         Not             -> compileApp1 NP.not args

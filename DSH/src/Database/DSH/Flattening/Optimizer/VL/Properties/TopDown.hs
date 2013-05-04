@@ -64,6 +64,7 @@ seed (UnOp op _)   =
     ProjectAdmin _     -> vPropSeed
     ProjectPayload _   -> vPropSeed
     CompExpr1L _       -> vPropSeed
+    VecAggr _ _        -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed

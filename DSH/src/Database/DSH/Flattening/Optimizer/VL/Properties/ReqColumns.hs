@@ -109,6 +109,14 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
       case ownReqColumns of
         VPropPair cols _ -> colUnion childReqColumns (VProp cols)
         _                -> error "SelectPos1L"
+        
+    VecAggr gs as -> colUnion childReqColumns (VProp $ Just $ nub $ gs ++ concatMap aggrInputCol as)
+
+      where aggrInputCol :: AggrFun -> [DBCol]
+            aggrInputCol (Max c) = [c]
+            aggrInputCol (Min c) = [c]
+            aggrInputCol (Sum c) = [c]
+            aggrInputCol Count   = []
 
     R1               ->
       case childReqColumns of

@@ -77,6 +77,7 @@ inferVectorTypeUnOp s op =
     Only -> undefined
     Singleton -> undefined
     CompExpr1L _ -> Right $ VProp $ ValueVector 1
+    VecAggr g as -> Right $ VProp $ ValueVector (length g + length as)
   
 reqValVectors :: VectorProp VectorType 
                  -> VectorProp VectorType 

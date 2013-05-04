@@ -719,3 +719,5 @@ instance VectorAlgebra PFAlgebra where
     r2 <- proj [(posold, pos'''), colP posnew] qz
     qr <- proj ([colP descr, (pos, posnew)] ++ allColsProj) qz
     return (DBV qr allCols, RenameVector r1, RenameVector r2)
+  
+  vecAggr _ _ _ = undefined

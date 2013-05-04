@@ -63,6 +63,8 @@ inferEmptyUnOp e op =
     CompExpr1L _ -> Right e
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     SelectPos1L _ _ -> let ue = unp e in liftM2 VPropPair ue ue
+    -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
+    VecAggr _ _ -> Right $ VProp False
     R1 -> 
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
