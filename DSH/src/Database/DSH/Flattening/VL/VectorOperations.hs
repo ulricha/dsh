@@ -21,13 +21,13 @@ import           Control.Applicative
 
 takeWithS ::  Shape -> Shape -> Graph VL Shape
 takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
-                                                               (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
-                                                               qfs <- falsePositions qb'
-                                                               one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                                               (p, _) <- selectPos qfs Eq one
-                                                               (r, prop) <- selectPos q Lt =<< only p
-                                                               lyt' <- chainRenameFilter prop lyt
-                                                               return $ ValueVector r lyt'
+  (qb', _, _) <- (qb `append`) =<< constructLiteralTable [boolT] [[VLNat 1, VLNat 1, VLBool False]]
+  qfs         <- falsePositions qb'
+  one         <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
+  (p, _)      <- selectPos qfs Eq one
+  (r, prop)   <- selectPos q Lt =<< only p
+  lyt'        <- chainRenameFilter prop lyt
+  return $ ValueVector r lyt'
 takeWithS _ _ = error "takeWithS: Should not be possible"
 
 dropWithS ::  Shape -> Shape -> Graph VL Shape
@@ -44,11 +44,11 @@ takeWithL ::  Shape -> Shape -> Graph VL Shape
 takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
             do
              f <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
-             (fs, _) <- distPrim f =<< toDescr qd
+             (fs, _) <- distPrim f qd
              (qb', _, _) <- append qb =<< segment fs
              qfs <- falsePositions qb'
              one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-             (ones, _) <- distPrim one =<< toDescr qd
+             (ones, _) <- distPrim one qd
              (p, _) <- selectPosLift qfs Eq ones
              (r, prop) <- selectPosLift q Lt p
              lyt' <- chainRenameFilter prop lyt
@@ -59,7 +59,7 @@ dropWithL ::  Shape -> Shape -> Graph VL Shape
 dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
             do
              f <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
-             (fs, _ ) <- distPrim f =<< toDescr qd
+             (fs, _ ) <- distPrim f qd
              (qb', _, _) <- append qb =<< segment fs
              minF <- vecMinLift =<< falsePositions qb'
              (r, prop) <- selectPosLift q GtE minF
@@ -119,7 +119,7 @@ nubLift _ = error "nubLift: Should not be possible"
 
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
-                                 i <- lengthA =<< toDescr q
+                                 i <- lengthA q
                                  (q', r) <- selectPos q Lt i
                                  lyt' <- chainRenameFilter r lyt
                                  return $ ValueVector q' lyt'
@@ -127,8 +127,7 @@ initPrim _ = error "initPrim: Should not be possible"
 
 initLift ::  Shape -> Graph VL Shape
 initLift (ValueVector qs (Nest q lyt)) = do
-                                          d <- toDescr qs
-                                          is <- lengthSeg d =<< toDescr q
+                                          is <- lengthSeg qs q
                                           (q', r) <- selectPosLift q Lt is
                                           lyt' <- chainRenameFilter r lyt
                                           return $ ValueVector qs (Nest q' lyt')
@@ -136,13 +135,13 @@ initLift _ = error "initLift: Should not be possible"
 
 lastPrim ::  Shape -> Graph VL Shape
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
-                                               i <- lengthA =<< toDescr qs
+                                               i <- lengthA qs
                                                (q, r) <- selectPos qs Eq i
                                                (Nest qr lyt') <- chainRenameFilter r lyt
-                                               re <- descToRename =<< toDescr q
+                                               re <- descToRename q
                                                renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
-                                    i <- lengthA =<< toDescr qs
+                                    i <- lengthA qs
                                     (q, r) <- selectPos qs Eq i
                                     lyt' <- chainRenameFilter r lyt
                                     flip PrimVal lyt' <$> only q
@@ -150,18 +149,16 @@ lastPrim _ = error "lastPrim: Should not be possible"
 
 lastLift ::  Shape -> Graph VL Shape
 lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
-                                                      ds <- toDescr d
-                                                      is <- lengthSeg ds =<< toDescr qs
+                                                      is <- lengthSeg d qs
                                                       (qs', r) <- selectPosLift qs Eq is
                                                       lyt' <- chainRenameFilter r lyt
-                                                      re <- descToRename =<< toDescr qs'
+                                                      re <- descToRename qs'
                                                       ValueVector d <$> renameOuter' re lyt'
 lastLift (ValueVector d (Nest qs lyt)) = do
-                                          ds <- toDescr d
-                                          is <- lengthSeg ds =<< toDescr qs
+                                          is <- lengthSeg d qs
                                           (qs', r) <- selectPosLift qs Eq is
                                           lyt' <- chainRenameFilter r lyt
-                                          re <- descToRename =<< toDescr d
+                                          re <- descToRename d
                                           renameOuter re (ValueVector qs' lyt')
 lastLift _ = error "lastLift: Should not be possible"
 
@@ -170,7 +167,7 @@ indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
                                                            i' <-  compExpr2 Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                            (q, r) <- selectPos qs Eq i'
                                                            (Nest qr lyt') <- chainRenameFilter r lyt
-                                                           re <- descToRename =<< toDescr q
+                                                           re <- descToRename q
                                                            renameOuter re $ ValueVector qr lyt'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
                                                 i' <-  compExpr2 Add i =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
@@ -181,20 +178,18 @@ indexPrim _ _ = error "indexPrim: Should not be possible"
 
 indexLift ::  Shape -> Shape -> Graph VL Shape
 indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
-                                                                         ds <- toDescr is
-                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
+                                                                         (ones, _) <- (flip distPrim is) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                          is' <- compExpr2L Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
-                                                                         re <- descToRename =<< toDescr qs'
+                                                                         re <- descToRename qs'
                                                                          ValueVector d <$> renameOuter' re lyt'
 indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
-                                                                         ds <- toDescr is
-                                                                         (ones, _) <- (flip distPrim ds) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
+                                                                         (ones, _) <- (flip distPrim is) =<< constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
                                                                          is' <- compExpr2L Add is ones
                                                                          (qs', r) <- selectPosLift qs Eq is'
                                                                          lyt' <- chainRenameFilter r lyt
-                                                                         re <- descToRename =<< toDescr d
+                                                                         re <- descToRename d
                                                                          renameOuter re (ValueVector qs' lyt')
 indexLift _ _ = error "indexLift: Should not be possible"
 
@@ -229,9 +224,8 @@ andPrim _ = error "andPrim: Should not be possible"
 
 andLift ::  Shape -> Graph VL Shape
 andLift (ValueVector d (Nest q (InColumn 1))) = do
-                                                 d' <- toDescr d
                                                  t <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool True]
-                                                 (ts, _) <- distPrim t d'
+                                                 (ts, _) <- distPrim t d
                                                  ts' <- segment ts
                                                  (res, _, _) <- append ts' q
                                                  minLift (ValueVector d (Nest res (InColumn 1)))
@@ -247,9 +241,8 @@ orPrim _ = error "orPrim: Should not be possible"
 
 orLift ::  Shape -> Graph VL Shape
 orLift (ValueVector d (Nest q (InColumn 1))) = do
-                                                 d' <- toDescr d
                                                  t <- constructLiteralValue [boolT] [VLNat 1, VLNat 1, VLBool False]
-                                                 (ts, _) <- distPrim t d'
+                                                 (ts, _) <- distPrim t d
                                                  ts' <- segment ts
                                                  (res, _, _) <- append ts' q
                                                  maxLift (ValueVector d (Nest res (InColumn 1)))
@@ -278,7 +271,7 @@ tailS _ = error "tailS: Should not be possible"
 theL ::  Shape -> Graph VL Shape
 theL (ValueVector d (Nest q lyt)) = do
                                       (v, p2) <- selectPos1Lift q Eq (N 1)
-                                      prop <- descToRename =<< toDescr d
+                                      prop <- descToRename d
                                       lyt' <- chainRenameFilter p2 lyt
                                       (v', _) <- propFilter prop v
                                       return $ ValueVector v' lyt'
@@ -287,7 +280,7 @@ theL _ = error "theL: Should not be possible"
 tailL ::  Shape -> Graph VL Shape
 tailL (ValueVector d (Nest q lyt)) = do
                                       one <- constructLiteralValue [intT] [VLNat 1, VLNat 1, VLInt 1]
-                                      (p, _) <- distPrim one =<< toDescr d
+                                      (p, _) <- distPrim one d
                                       (v, p2) <- selectPosLift q Gt p
                                       lyt' <- chainRenameFilter p2 lyt
                                       return $ ValueVector d (Nest v lyt')
@@ -309,10 +302,8 @@ sortWithL _ _ = error "sortWithL: Should not be possible"
 
 -- move a descriptor from e1 to e2
 unconcatV ::  Shape -> Shape -> Graph VL Shape
-unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) = do
-                                                         (DescrVector d') <- toDescr d1
-                                                         return $ ValueVector (DBV d' []) (Nest d2 lyt2)
-unconcatV _ _ = $impossible
+unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) = return $ ValueVector d1 (Nest d2 lyt2)
+unconcatV _ _                                      = $impossible
 
 groupByKeyS ::  Shape -> Shape -> Graph VL Shape
 groupByKeyS (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -330,16 +321,14 @@ groupByKeyL _ _ = error "groupByKeyL: Should not be possible"
 
 concatLift ::  Shape -> Graph VL Shape
 concatLift (ValueVector d (Nest d' vs)) = do
-                                                    p <- descToRename =<< (toDescr d')
+                                                    p <- descToRename d'
                                                     vs' <- renameOuter' p vs
                                                     return $ ValueVector d vs'
 concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift ::  Shape -> Graph VL Shape
 lengthLift (ValueVector q (Nest qi _)) = do
-                                            d <- toDescr q
-                                            di <- toDescr qi
-                                            ls <- lengthSeg d di
+                                            ls <- lengthSeg q qi
                                             return $ ValueVector ls (InColumn 1)
 lengthLift _ = $impossible
 
@@ -391,10 +380,10 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
 combine _ _ _ = $impossible
 
 
-outer ::  Shape -> Graph VL DescrVector
-outer (PrimVal _ _) = $impossible
-outer (ValueVector q _) = toDescr q
-outer (Closure _ _ _ _ _) = $impossible
+outer ::  Shape -> Graph VL DBV
+outer (PrimVal _ _)            = $impossible
+outer (ValueVector q _)        = return q
+outer (Closure _ _ _ _ _)      = $impossible
 outer (AClosure _ v _ _ _ _ _) = outer v
 
 dist ::  Shape -> Shape -> Graph VL Shape
@@ -404,7 +393,7 @@ dist (PrimVal q lyt) q2 = do
                            lyt' <- chainReorder p lyt
                            return $ ValueVector v lyt'
 dist (ValueVector q lyt) q2 = do
-                               o@(DescrVector qo) <- outer q2
+                               o@(DBV qo _) <- outer q2
                                (d, p) <- distDesc q o
                                lyt' <- chainReorder p lyt
                                return $ ValueVector (DBV qo []) (Nest d lyt')
@@ -421,7 +410,7 @@ minPrim _ = $impossible
 
 minLift ::  Shape -> Graph VL Shape
 minLift (ValueVector d (Nest q (InColumn 1))) = do
-                                                 r <- descToRename =<< toDescr d
+                                                 r <- descToRename d
                                                  flip ValueVector (InColumn 1) <$> (propRename r =<< vecMinLift q)
 minLift _ = $impossible
 
@@ -431,7 +420,7 @@ maxPrim _ = $impossible
 
 maxLift ::  Shape -> Graph VL Shape
 maxLift (ValueVector d (Nest q (InColumn 1))) = do
-                                                    r <- descToRename =<< toDescr d
+                                                    r <- descToRename d
                                                     flip ValueVector (InColumn 1) <$> (propRename r =<< vecMaxLift q)
 maxLift _ = $impossible
 
@@ -445,19 +434,17 @@ avgPrim _ = $impossible
 
 sumLift ::   Shape -> Graph VL Shape
 sumLift (ValueVector d1 (Nest q (InColumn 1))) = do
-                                                  d <- toDescr d1
-                                                  flip ValueVector (InColumn 1) <$> vecSumLift d q
+                                                  flip ValueVector (InColumn 1) <$> vecSumLift d1 q
 sumLift _ = $impossible
 
 avgLift :: Shape -> Graph VL Shape
 avgLift (ValueVector d1 (Nest q (InColumn 1))) = do
-  d <- toDescr d1
-  flip ValueVector (InColumn 1) <$> vecAvgLift d q
+  flip ValueVector (InColumn 1) <$> vecAvgLift d1 q
 avgLift _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape
 distL (ValueVector q1 lyt1) (ValueVector d (Nest o _)) = do
-                                                          (v, p) <- distLift q1 =<< toDescr o
+                                                          (v, p) <- distLift q1 o
                                                           lyt1' <- chainReorder p lyt1
                                                           return $ ValueVector d (Nest v lyt1')
 distL (AClosure n v i xs x f fl) q2 = do
@@ -470,10 +457,10 @@ distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ s
 ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) =
     do
-     (d1', _) <- distPrim qb =<< toDescr q1
+     (d1', _) <- distPrim qb q1
      (d1, p1) <- restrictVec q1 d1'
      qb' <- notPrim qb
-     (d2', _) <- distPrim qb' =<< toDescr q2
+     (d2', _) <- distPrim qb' q2
      (d2, p2) <- restrictVec q2 d2'
      r1 <- renameOuter' p1 lyt1
      r2 <- renameOuter' p2 lyt2
@@ -578,7 +565,7 @@ concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 singletonVec ::  Shape -> Graph VL Shape
 singletonVec (ValueVector q lyt) = do
-                                 (DescrVector d) <- singletonDescr
+                                 (DBV d _) <- singletonDescr
                                  return $ ValueVector (DBV d []) (Nest q lyt)
 singletonVec _ = error "singletonVec: Should not be possible"
 

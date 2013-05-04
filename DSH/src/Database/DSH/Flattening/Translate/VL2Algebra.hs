@@ -36,7 +36,6 @@ data Res = Prop    AlgNode
          | Rename  AlgNode
          | RDBV    AlgNode [DBCol]
          | RDBP    AlgNode [DBCol]
-         | Descr   AlgNode
          | RPair    Res Res
          | RTriple Res Res Res
     deriving Show
@@ -68,7 +67,6 @@ fromDBV (DBV n cs) = RDBV n cs
 
 toDBV :: Res -> DBV
 toDBV (RDBV n cs) = DBV n cs
-toDBV (Descr n)   = DBV n []
 toDBV _           = error "toDBV: Not a DBV"
 
 fromDBP :: DBP -> Res
@@ -77,13 +75,6 @@ fromDBP (DBP n cs) = RDBP n cs
 toDBP :: Res -> DBP
 toDBP (RDBP n cs) = DBP n cs
 toDBP _           = error "toDBP: Not a DBP"
-
-fromDescrVector :: DescrVector -> Res
-fromDescrVector (DescrVector d) = Descr d
-
-toDescrVector :: Res -> DescrVector
-toDescrVector (Descr d) = DescrVector d
-toDescrVector v         = error $ "toDescrVector: Not a descriptor vector" ++ (show v)
 
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
 vl2Algebra (nodes, plan) = do
@@ -164,13 +155,13 @@ translateBinOp b c1 c2 = case b of
                                                 return $ RPair (fromDBV d) (fromProp p)
                            LengthSeg        -> liftM fromDBV $ lengthSeg (toDBV c1) (toDBV c2)
                            DistPrim         -> do
-                                                (v, p) <- distPrim (toDBP c1) (toDescrVector c2)
+                                                (v, p) <- distPrim (toDBP c1) (toDBV c2)
                                                 return $ RPair (fromDBV v) (fromProp p)
                            DistDesc         -> do
-                                                (v, p) <- distDesc (toDBV c1) (toDescrVector c2)
+                                                (v, p) <- distDesc (toDBV c1) (toDBV c2)
                                                 return $ RPair (fromDBV v) (fromProp p)
                            DistLift         -> do
-                                                (v, p) <- distLift (toDBV c1) (toDescrVector c2)
+                                                (v, p) <- distLift (toDBV c1) (toDBV c2)
                                                 return $ RPair (fromDBV v) (fromProp p)
                            PropRename       -> liftM fromDBV $ propRename (toRenameVector c1) (toDBV c2)
                            PropFilter       -> do
@@ -224,9 +215,8 @@ translateUnOp u c = case u of
                       UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
                       NotPrim       -> liftM fromDBP $ notPrim (toDBP c)
                       NotVec        -> liftM fromDBV $ notVec (toDBV c)
-                      LengthA       -> liftM fromDBP $ lengthA (toDescrVector c)
+                      LengthA       -> liftM fromDBP $ lengthA (toDBV c)
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDBV c)
-                      ToDescr       -> liftM fromDescrVector $ toDescr (toDBV c)
                       Segment       -> liftM fromDBV $ segment (toDBV c)
                       Unsegment     -> liftM fromDBV $ unsegment (toDBV c)
                       VecSum ty     -> liftM fromDBP $ vecSum ty (toDBV c)
@@ -272,7 +262,7 @@ translateUnOp u c = case u of
 
 
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
-translateNullary SingletonDescr                   = liftM fromDescrVector $ singletonDescr
+translateNullary SingletonDescr                   = liftM fromDBV $ singletonDescr
 translateNullary (ConstructLiteralValue tys vals) = liftM fromDBP $ constructLiteralValue tys vals
 translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLiteralTable tys vals
 translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks

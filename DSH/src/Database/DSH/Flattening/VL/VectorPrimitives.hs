@@ -10,7 +10,7 @@ import Database.Algebra.Pathfinder()
 -- * Vector primitive constructor functions
 
 class VectorAlgebra a where
-  singletonDescr :: GraphM r a DescrVector
+  singletonDescr :: GraphM r a DBV
   constructLiteralValue :: [VLType] -> [VLVal] -> GraphM r a DBP
   constructLiteralTable :: [VLType] -> [[VLVal]] -> GraphM r a DBV
   tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DBV
@@ -19,9 +19,8 @@ class VectorAlgebra a where
   uniqueL :: DBV -> GraphM r a DBV
   notPrim :: DBP -> GraphM r a DBP
   notVec :: DBV -> GraphM r a DBV
-  lengthA :: DescrVector -> GraphM r a DBP
+  lengthA :: DBV -> GraphM r a DBP
   descToRename :: DBV -> GraphM r a RenameVector
-  toDescr :: DBV -> GraphM r a DescrVector
   segment :: DBV -> GraphM r a DBV
   unsegment :: DBV -> GraphM r a DBV
   vecSum :: VLType -> DBV -> GraphM r a DBP
@@ -58,9 +57,9 @@ class VectorAlgebra a where
   vecAggr :: [DBCol] -> [AggrFun] -> DBV -> GraphM r a DBV
   sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
   lengthSeg :: DBV -> DBV -> GraphM r a DBV
-  distPrim :: DBP -> DescrVector -> GraphM r a (DBV, PropVector)
-  distDesc :: DBV -> DescrVector -> GraphM r a (DBV, PropVector)
-  distLift :: DBV -> DescrVector -> GraphM r a (DBV, PropVector)
+  distPrim :: DBP -> DBV -> GraphM r a (DBV, PropVector)
+  distDesc :: DBV -> DBV -> GraphM r a (DBV, PropVector)
+  distLift :: DBV -> DBV -> GraphM r a (DBV, PropVector)
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
   propRename :: RenameVector -> DBV -> GraphM r a DBV
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).

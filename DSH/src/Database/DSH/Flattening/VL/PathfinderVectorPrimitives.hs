@@ -292,18 +292,16 @@ instance VectorAlgebra PFAlgebra where
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     flip DBV cols <$> (attachM descr natT (nat 1) $ proj (pf [colP pos]) q)
 
-  toDescr (DBV n _) = DescrVector <$> tagM "toDescr" (proj [colP descr, colP pos] n)
-
   notPrim (DBP q _) = flip DBP [1] <$> doNot q
 
   notVec (DBV d _) = flip DBV [1] <$> doNot d
 
-  distPrim (DBP q1 cols) (DescrVector q2) = do
+  distPrim (DBP q1 cols) (DBV q2 _) = do
     qr <- crossM (proj [(itemi i, itemi i) | i <- cols] q1) (return q2)
     r <- proj [(posnew, pos), (posold, descr)] q2
     return (DBV qr cols, PropVector r)
 
-  distDesc (DBV q1 cols) (DescrVector q2) = do
+  distDesc (DBV q1 cols) (DBV q2 _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols ]
     q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)])
            $ rownumM pos'' [pos, pos'] Nothing
@@ -314,14 +312,16 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- PropVector <$> proj [(posold, posold), (posnew, pos)] q
     return $ (qr1, qr2)
 
-  distLift (DBV q1 cols) (DescrVector q2) = do
+  distLift (DBV q1 cols) (DBV q2 _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    q <- eqJoinM pos' descr (proj (pf [(pos', pos)]) q1) $ return q2
+    q <- eqJoinM pos' descr 
+           (proj (pf [(pos', pos)]) q1) 
+           (proj [(descr, descr), (pos, pos)] q2)
     qr1 <- flip DBV cols <$> proj (pf [colP descr, colP pos]) q
     qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
     return $ (qr1, qr2)
 
-  lengthA (DescrVector d) = do
+  lengthA (DBV d _) = do
     qr <- attachM descr natT (nat 1)
             $ attachM pos natT (nat 1)
             $ aggrM [(Max, item, Just item)] Nothing
@@ -393,7 +393,9 @@ instance VectorAlgebra PFAlgebra where
 
   descToRename (DBV q1 _) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
 
-  singletonDescr = DescrVector <$> (attachM pos natT (nat 1) $ litTable (nat 1) descr natT)
+  singletonDescr = do
+    q <- attachM pos natT (nat 1) $ litTable (nat 1) descr natT
+    return $ DBV q []
 
   append (DBV q1 cols) (DBV q2 _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]

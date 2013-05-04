@@ -20,9 +20,6 @@ dbv = fmap (flip DBV [])
 dbp :: GraphM r a AlgNode -> GraphM r a DBP
 dbp = fmap (flip DBP [])
 
-descr :: GraphM r a AlgNode -> GraphM r a DescrVector
-descr = fmap DescrVector
-
 prop :: GraphM r a AlgNode -> GraphM r a PropVector
 prop = fmap PropVector
 
@@ -97,34 +94,31 @@ notPrim (DBP c _) = dbp $ insertNode $ UnOp NotPrim c
 notVec :: DBV -> GraphM r VL DBV
 notVec (DBV c _) = dbv $ insertNode $ UnOp NotVec c
 
-lengthA :: DescrVector -> GraphM r VL DBP
-lengthA (DescrVector c) = dbp $ insertNode $ UnOp LengthA c
+lengthA :: DBV -> GraphM r VL DBP
+lengthA (DBV c _) = dbp $ insertNode $ UnOp LengthA c
 
-lengthSeg :: DescrVector -> DescrVector -> GraphM r VL DBV
-lengthSeg (DescrVector c1) (DescrVector c2) = dbv $ insertNode $ BinOp LengthSeg c1 c2
+lengthSeg :: DBV -> DBV -> GraphM r VL DBV
+lengthSeg (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp LengthSeg c1 c2
 
-descToRename :: DescrVector -> GraphM r VL RenameVector
-descToRename (DescrVector c) = rename $ insertNode $ UnOp DescToRename c
+descToRename :: DBV -> GraphM r VL RenameVector
+descToRename (DBV c _) = rename $ insertNode $ UnOp DescToRename c
 
-toDescr :: DBV -> GraphM r VL DescrVector
-toDescr (DBV c _) = descr $ insertNode $ UnOp ToDescr c
-
-distPrim :: DBP -> DescrVector -> GraphM r VL (DBV, PropVector)
-distPrim (DBP c1 _) (DescrVector c2) = do
+distPrim :: DBP -> DBV -> GraphM r VL (DBV, PropVector)
+distPrim (DBP c1 _) (DBV c2 _) = do
                                         r <- insertNode $ BinOp DistPrim c1 c2
                                         r1 <- dbv $ insertNode $ UnOp R1 r
                                         r2 <- prop $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-distDesc :: DBV -> DescrVector -> GraphM r VL (DBV, PropVector)
-distDesc (DBV c1 _) (DescrVector c2) = do
+distDesc :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
+distDesc (DBV c1 _) (DBV c2 _) = do
                                         r <- insertNode $ BinOp DistDesc c1 c2
                                         r1 <- dbv $ insertNode $ UnOp R1 r
                                         r2 <- prop $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-distLift :: DBV -> DescrVector -> GraphM r VL (DBV, PropVector)
-distLift (DBV c1 _) (DescrVector c2) = do
+distLift :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
+distLift (DBV c1 _) (DBV c2 _) = do
                                         r <- insertNode $ BinOp DistLift c1 c2
                                         r1 <- dbv $ insertNode $ UnOp R1 r
                                         r2 <- prop $ insertNode $ UnOp R2 r
@@ -150,8 +144,8 @@ propReorder (PropVector c1) (DBV c2 _) = do
                                            r2 <- prop $ insertNode $ UnOp R2 r
                                            return (r1, r2)
 
-singletonDescr :: GraphM r VL DescrVector
-singletonDescr = descr $ insertNode $ NullaryOp SingletonDescr
+singletonDescr :: GraphM r VL DBV
+singletonDescr = dbv $ insertNode $ NullaryOp SingletonDescr
 
 append :: DBV -> DBV -> GraphM r VL (DBV, RenameVector, RenameVector)
 append (DBV c1 _) (DBV c2 _) = do
@@ -207,11 +201,11 @@ vecSum ty (DBV c _) = dbp $ insertNode $ UnOp (VecSum (typeToVLType ty)) c
 vecAvg :: DBV -> GraphM r VL DBP
 vecAvg (DBV c _) = dbp $ insertNode $ UnOp VecAvg c
 
-vecSumLift :: DescrVector -> DBV -> GraphM r VL DBV
-vecSumLift (DescrVector c1) (DBV c2 _) = dbv $ insertNode $ BinOp VecSumL c1 c2
+vecSumLift :: DBV -> DBV -> GraphM r VL DBV
+vecSumLift (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp VecSumL c1 c2
 
-vecAvgLift :: DescrVector -> DBV -> GraphM r VL DBV
-vecAvgLift (DescrVector c1) (DBV c2 _) = dbv $ insertNode $ BinOp VecAvgL c1 c2
+vecAvgLift :: DBV -> DBV -> GraphM r VL DBV
+vecAvgLift (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp VecAvgL c1 c2
 
 vecMin :: DBV -> GraphM r VL DBP
 vecMin (DBV c _) = dbp $ insertNode $ UnOp VecMin c
