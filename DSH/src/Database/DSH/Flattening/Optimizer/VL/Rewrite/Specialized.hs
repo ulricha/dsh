@@ -5,7 +5,6 @@ module Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized where
 import           Control.Applicative
 import           Control.Monad
 
--- FIXME hiding is not acceptable, fix names
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 import           Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
