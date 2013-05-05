@@ -141,7 +141,6 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Properties.Empty
                      Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
                      Database.DSH.Flattening.Optimizer.VL.Properties.ReqColumns
-                     Database.DSH.Flattening.Optimizer.VL.Properties.ToDescr
                      Database.DSH.Flattening.Optimizer.VL.Properties.TopDown
                      Database.DSH.Flattening.Optimizer.VL.Properties.Types
                      Database.DSH.Flattening.Optimizer.VL.Properties.Untainted
@@ -158,7 +157,6 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.ToDescr
 
 executable vltox100
   Main-is: Database/DSH/Flattening/Tools/VLToX100.hs

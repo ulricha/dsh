@@ -105,7 +105,7 @@ noOpRenamingProjRename q =
 -- must be eliminated in a larger context.
 noOpRenamingProjAdmin :: VLRule BottomUpProps
 noOpRenamingProjAdmin q =
-  $(pattern 'q "(DescToRename (ToDescr (qd))) PropRename (ProjectAdmin ps (qv))"
+  $(pattern 'q "(DescToRename (qd)) PropRename (ProjectAdmin ps (qv))"
     [| do
          posProj <- case $(v "ps") of
                       (DescrPosCol, posProj) -> return posProj

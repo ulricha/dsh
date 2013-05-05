@@ -80,13 +80,7 @@ matchAggr q = do
         return (f, p)
 
     -- or LengthSeg (ToDescr (R2 GroupBy))
-    UnOp ToDescr _ -> do
-      ps <- getParents q
-      forM ps $ \p -> do
-         o <- getOperator p
-         case o of
-           BinOp LengthSeg _ _ -> return (Count, p)
-           _                   -> fail "no match"
+    BinOp LengthSeg _ _ -> return [(Count, q)]
     _                   -> fail "no match"
     
 projectionCol :: PayloadProj -> VLMatch () DBCol

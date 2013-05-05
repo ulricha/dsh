@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant (removeRedundancy, descriptorFromProject) where
+module Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
 import           Control.Monad
 
@@ -43,10 +43,7 @@ redundantRules = [ restrictCombineDBV
                  , pullProjectLThroughPropRename
                  , pullSelectThroughPairL
                  , mergeDescToRenames
-                 , descriptorFromProject
                  , noOpPropRename1
-                 , pairFromSameSourceToDescrLeft
-                 , pairFromSameSourceToDescrRight
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -54,7 +51,6 @@ redundantRulesBottomUp = [ pairFromSameSource
                          , pairedProjections
                          , noOpProject
                          , distDescCardOne
-                         , toDescr
                          , noOpPropRename2
                          ]
 
@@ -79,20 +75,20 @@ introduceSelectExpr q =
 -- basically a NOOP.
 restrictCombineDBV :: VLRule ()
 restrictCombineDBV q =
-  $(pattern 'q "R1 (CombineVec (qb1) (ToDescr (R1 ((q1) RestrictVec (qb2)))) (ToDescr (R1 ((q2) RestrictVec (NotVec (qb3))))))"
+  $(pattern 'q "R1 (CombineVec (qb1) (R1 ((q1) RestrictVec (qb2))) (R1 ((q2) RestrictVec (NotVec (qb3)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV" q
-          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
+          replace q $(v "q1") |])
 
 -- Alternative version of Redundant.RestrictCombine.DBV: Consider the case in
 -- which the unnegated RestrictVec operator has already been turned into a
 -- SelectExpr.
 restrictCombineDBV' :: VLRule ()
 restrictCombineDBV' q =
-  $(pattern 'q "R1 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
+  $(pattern 'q "R1 (CombineVec (CompExpr1L e1 (q1)) (ProjectAdmin p1 (qs=SelectExpr e2 (q2))) (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
         predicate $ $(v "e1") == $(v "e2") && $(v "e1") == $(v "e3")
@@ -103,11 +99,11 @@ restrictCombineDBV' q =
 
         return $ do
           logRewrite "Redundant.RestrictCombine.DBV2" q
-          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
+          replace q $(v "q1") |])
 
 restrictCombinePropLeft :: VLRule ()
 restrictCombinePropLeft q =
-  $(pattern 'q "R2 (CombineVec (CompExpr1L e1 (q1)) (ToDescr (ProjectAdmin p1 (qs=SelectExpr e2 (q2)))) (ToDescr (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4)))))))"
+  $(pattern 'q "R2 (CombineVec (CompExpr1L e1 (q1)) (ProjectAdmin p1 (qs=SelectExpr e2 (q2))) (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4))))))"
     [| do
         -- all selections and predicates must be performed on the same input
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
@@ -214,16 +210,6 @@ pushRestrictVecThroughProjectPayload q =
           r1Node <- insert $ UnOp R1 restrictNode
           void $ replaceWithNew q $ UnOp (ProjectPayload $(v "p")) r1Node |])
 
--- Eliminate a projection if the vector is turned into a descriptor vector anyway.
--- FIXME: this could be done in a more general way using property ToDescr.
-descriptorFromProject :: VLRule ()
-descriptorFromProject q =
-  $(pattern 'q "ToDescr (ProjectL _ (q1))"
-    [| do
-        return $ do
-          logRewrite "Redundant.DescriptorFromProject" q
-          void $ replaceWithNew q $ UnOp ToDescr $(v "q1") |])
-
 -- Pull PropRename operators through a CompExpr2L operator if both
 -- inputs of the CompExpr2L operator are renamed according to the same
 -- rename vector.
@@ -284,30 +270,10 @@ pairFromSameSource q =
         vt2 <- liftM vectorTypeProp $ properties $(v "q2")
         case (vt1, vt2) of
           (VProp (ValueVector i1), VProp (ValueVector i2)) | i1 == i2 && i1 == 0 -> return ()
-          (VProp DescrVector, VProp DescrVector)                                 -> return ()
           _                                                                      -> fail "no match"
         return $ do
           logRewrite "Redundant.PairFromSame" q
           replace q $(v "q1") |])
-
-pairFromSameSourceToDescrLeft :: VLRule ()
-pairFromSameSourceToDescrLeft q =
-  $(pattern 'q "(ToDescr (q1)) PairL (ProjectL ps (q2))"
-    [| do
-         predicate $ $(v "q1") == $(v "q2")
-         return $ do
-           logRewrite "Redundant.PairFromSame.ToDescr.Left" q
-           void $ replaceWithNew q $ UnOp (ProjectL $(v "ps")) $(v "q2") |])
-
-pairFromSameSourceToDescrRight :: VLRule ()
-pairFromSameSourceToDescrRight q =
-  $(pattern 'q "(ProjectL ps (q1)) PairL (ToDescr (q2))"
-    [| do
-         predicate $ $(v "q1") == $(v "q2")
-         return $ do
-           logRewrite "Redundant.PairFromSame.ToDescr.Right" q
-           void $ replaceWithNew q $ UnOp (ProjectL $(v "ps")) $(v "q1") |])
-
 
 -- Remove a ProjectL or ProjectA operator that does not change the column layout
 noOpProject :: VLRule BottomUpProps
@@ -320,19 +286,6 @@ noOpProject q =
 
         return $ do
           logRewrite "Redundant.NoOpProject" q
-          replace q $(v "q1") |])
-
--- Remove a ToDescr operator whose input is already a descriptor vector
-toDescr :: VLRule BottomUpProps
-toDescr q =
-  $(pattern 'q "ToDescr (q1)"
-    [| do
-        vt <- liftM vectorTypeProp $ properties $(v "q1")
-        case vt of
-          VProp DescrVector -> return ()
-          _                 -> fail "no match"
-        return $ do
-          logRewrite "Redundant.ToDescr" q
           replace q $(v "q1") |])
 
 pairedProjections :: VLRule BottomUpProps
@@ -359,7 +312,7 @@ pairedProjections q =
 -- just adds the (constant) values from the value vector
 distDescCardOne :: VLRule BottomUpProps
 distDescCardOne q =
-  $(pattern 'q "R1 ((qc) DistDesc (ToDescr (qv)))"
+  $(pattern 'q "R1 ((qc) DistDesc (qv))"
     [| do
         qvProps <- properties $(v "qc")
         predicate $ case card1Prop qvProps of
@@ -468,8 +421,7 @@ noOpPropRename2 q =
               VProp Nothing      -> fail "no match"
               _                  -> error "Redundant.NoOpPropRename2: foo"
 
-          DescrVector     -> return ()
-          _               -> error "Redundant.NoOpPropRename2: non-Value/non-Descr vector as input of PropRename"
+          _               -> error "Redundant.NoOpPropRename2: non-Value vector as input of PropRename"
 
         -- TODO check alignment for PropRename?
 
@@ -482,8 +434,7 @@ noOpPropRename2 q =
             -- because it's not changed by PropRename.
             resultPosSpace = case unpackProp $ indexSpaceProp propsRight of
               DBVSpace _ (P pis)         -> pis
-              DescrVectorSpace _ (P pis) -> pis
-              _                          -> error "Redundant.NoOpPropRename2: non VV/DV index spaces"
+              _                          -> error "Redundant.NoOpPropRename2: non VV index spaces"
 
             -- extract the descr and pos index spaces of the input (SelectExpr).
             (sourceDescrSpace, sourcePosSpace) = case unpackProp $ indexSpaceProp propsSource of
@@ -503,13 +454,6 @@ noOpPropRename2 q =
         return $ do
           logRewrite "Redundant.NoOpPropRename2" q
           let projOp = UnOp (ProjectAdmin (descrProj, posProj)) $(v "qs1")
-          case vt of
-            -- if the right PropRename input is a ValueVector, we just modify positions and descriptors
-            ValueVector _ -> void $ replaceWithNew q projOp
-            -- for a DescrVector, we insert an additional ToDescr cast on top
-            DescrVector   -> do
-              projNode <- insert projOp
-              void $ replaceWithNew q $ UnOp ToDescr projNode
-            _ -> error "impossible" |])
+          void $ replaceWithNew q projOp |])
 
 

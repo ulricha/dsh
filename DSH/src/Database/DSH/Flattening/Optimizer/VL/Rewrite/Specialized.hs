@@ -14,7 +14,6 @@ import           Database.DSH.Flattening.Optimizer.Common.Rewrite
 import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
 import           Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
 
 introduceSpecializedOperators :: VLRewrite Bool
 introduceSpecializedOperators = iteratively $ sequenceRewrites [ normalize
@@ -25,8 +24,7 @@ normalize = iteratively $ sequenceRewrites [ applyToAll noProps normalizeRules
                                            , applyToAll inferBottomUp normalizePropRules ]
 
 normalizeRules :: VLRuleSet ()
-normalizeRules = [ descriptorFromProject
-                 , mergeStackedDistLift
+normalizeRules = [ mergeStackedDistLift
                  , pullProjectLThroughDistLift
                  ]
 
@@ -49,12 +47,11 @@ specializedRules = [ cartProduct
 -- is completely redundant.
 mergeStackedDistLift :: VLRule ()
 mergeStackedDistLift q =
-  $(pattern 'q "R1 ((valVec1) DistLift (d1=ToDescr (first=R1 ((valVec2) DistLift (d2=ToDescr (_))))))"
+  $(pattern 'q "R1 ((valVec1) DistLift (first=R1 ((valVec2) DistLift (_))))"
     [| do
         predicate $ $(v "valVec1") == $(v "valVec2")
         return $ do
           logRewrite "Specialized.MergeStackedDistLift" q
-          replace $(v "d1") $(v "d2")
           replace q $(v "first") |])
 
 {- Normalize the cartesian product pattern by pulling horizontal
@@ -117,7 +114,7 @@ pullProjectLThroughCartProductRight q =
 -- FIXME this is propably just a special case of rule pruneFilteringDistLift
 redundantDistLift:: VLRule BottomUpProps
 redundantDistLift q =
-  $(pattern 'q "R1 ((qv) DistLift (ToDescr (qp=R1 ((qv1) CartProduct (qv2)))))"
+  $(pattern 'q "R1 ((qv) DistLift (qp=R1 ((qv1) CartProduct (qv2))))"
     [| do
         predicate $ $(v "qv") == $(v "qv1") || $(v "qv") == $(v "qv2")
 
@@ -144,7 +141,7 @@ redundantDistLift q =
 -- kept/restored.
 pruneFilteringDistLift :: VLRule BottomUpProps
 pruneFilteringDistLift q =
-  $(pattern 'q "R1 ((q1) DistLift (ToDescr (qp=ProjectAdmin _ (_))))"
+  $(pattern 'q "R1 ((q1) DistLift (qp=ProjectAdmin _ (_)))"
     [| do
         props1 <- properties $(v "q1")
         propsp <- properties $(v "qp")
@@ -221,7 +218,7 @@ inputs.
 -}
 cartProduct :: VLRule BottomUpProps
 cartProduct q =
-  $(pattern 'q "R1 (qLift=(liftInput) DistLift (qd=ToDescr (right=R1 (qDesc=(rightInput) DistDesc (ToDescr (leftInput))))))"
+  $(pattern 'q "R1 (qLift=(liftInput) DistLift (right=R1 (qDesc=(rightInput) DistDesc (leftInput))))"
     [| do
         predicate $ $(v "liftInput") == $(v "leftInput")
 
@@ -244,9 +241,6 @@ cartProduct q =
           -- left and right input to the respective projections.
           void $ replaceWithNew q $ UnOp (ProjectL [1 .. w1]) prodR1
           void $ replaceWithNew $(v "right") $ UnOp (ProjectL [(w1 + 1) .. (w1 + w2)]) prodR1
-
-          -- relink all operators which reference the descriptor originating from DistDesc
-          void $ replaceWithNew $(v "qd") $ UnOp ToDescr prodR1
 
           -- check if the R2 outputs (propagation vectors) of DistDesc and DistLift are
           -- referenced and relink them to the corresponding R2 and R3 outputs of CartProduct
@@ -299,7 +293,7 @@ is rewritten into
 -- FIXME handle the R2/R3 outputs of CartProduct.
 thetaJoin :: VLRule BottomUpProps
 thetaJoin q =
-  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr12=R1 (_))))"
+  $(pattern 'q "(DescToRename (qr11=R1 ((q1) CartProduct (q2)))) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr12=R1 (_))))"
     [| do
         predicate $ $(v "qr11") == $(v "qr12")
 
@@ -350,7 +344,7 @@ thetaJoin q =
 
 thetaJoin' :: VLRule BottomUpProps
 thetaJoin' q =
-  $(pattern 'q "(DescToRename (ToDescr (qr11=R1 ((q1) CartProduct (q2))))) PropRename (ProjectAdmin proj (qs=SelectExpr e (qr12)))"
+  $(pattern 'q "(DescToRename (qr11=R1 ((q1) CartProduct (q2)))) PropRename (ProjectAdmin proj (qs=SelectExpr e (qr12)))"
     [| do
         predicate $ $(v "qr11") == $(v "qr12")
 
@@ -384,7 +378,7 @@ thetaJoin' q =
 
 thetaJoinRenaming :: VLRule BottomUpProps
 thetaJoinRenaming q =
-  $(pattern 'q "(DescToRename (ToDescr (q1))) PropRename (R2 (qj=(joinInput1) ThetaJoin _ (_)))"
+  $(pattern 'q "(DescToRename (q1)) PropRename (R2 (qj=(joinInput1) ThetaJoin _ (_)))"
     [| do
        predicate $ $(v "q1") == $(v "joinInput1")
 
