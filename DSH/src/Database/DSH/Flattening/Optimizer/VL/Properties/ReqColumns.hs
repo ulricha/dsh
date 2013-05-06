@@ -114,6 +114,7 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
             aggrInputCol (Max c) = [c]
             aggrInputCol (Min c) = [c]
             aggrInputCol (Sum c) = [c]
+            aggrInputCol (Avg c) = [c]
             aggrInputCol Count   = []
 
     R1               ->
