@@ -1,20 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
+       
+import Debug.Trace
+import Text.Printf
 
-import           Control.Monad
+import Control.Monad
 
-import           Database.Algebra.Dag.Common
-import           Database.Algebra.VL.Data
+import Database.Algebra.Dag.Common
+import Database.Algebra.VL.Data
 
-import           Database.DSH.Flattening.Optimizer.Common.Rewrite
-import           Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
-import           Database.DSH.Flattening.Optimizer.VL.Properties.Types
-import           Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
-import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
-import           Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
-import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Unused
+import Database.DSH.Flattening.Optimizer.Common.Rewrite
+import Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
+import Database.DSH.Flattening.Optimizer.VL.Properties.Types
+import Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
+import Database.DSH.Flattening.Optimizer.VL.Rewrite.Unused
 
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -40,13 +43,21 @@ redundantRules = [ restrictCombineDBV
                  , pushRestrictVecThroughProjectPayload
                  , pullPropRenameThroughCompExpr2L
                  , pullPropRenameThroughIntegerToDouble
+
+                 -- These rewrites normalize the remains of a cond pattern (see
+                 -- rule cleanupSelect) by moving operators which only modify
+                 -- data columns out of the pattern.
                  , pullProjectPayloadThroughSegment
                  , pullProjectLThroughSegment
+                 , pullCompExpr1LThroughSegment
                  , pullProjectPayloadThroughPropRename
                  , pullProjectLThroughPropRename
+                 , pullCompExpr1LThroughPropRename
+
                  , pullSelectThroughPairL
                  , mergeDescToRenames
                  , noOpPropRename1
+                 , noOpPropRename3
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -352,6 +363,15 @@ pullProjectLThroughSegment q =
           logRewrite "Redundant.PullProjectL.Segment" q
           segmentNode <- insert $ UnOp Segment $(v "q1")
           void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) segmentNode |])
+          
+pullCompExpr1LThroughSegment :: VLRule ()
+pullCompExpr1LThroughSegment q =
+  $(pattern 'q "Segment (CompExpr1L e (q1))"
+    [| do
+        return $ do
+          logRewrite "Redundant.PullProjectL.Segment" q
+          segmentNode <- insert $ UnOp Segment $(v "q1")
+          void $ replaceWithNew q $ UnOp (CompExpr1L $(v "e")) segmentNode |])
 
 pullProjectPayloadThroughPropRename :: VLRule ()
 pullProjectPayloadThroughPropRename q =
@@ -370,6 +390,15 @@ pullProjectLThroughPropRename q =
           logRewrite "Redundant.PullProjectL.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
           void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) renameNode |])
+
+pullCompExpr1LThroughPropRename :: VLRule ()
+pullCompExpr1LThroughPropRename q =
+  $(pattern 'q "(qr) PropRename (CompExpr1L p (qv))"
+    [| do
+        return $ do
+          logRewrite "Redundant.PullCompExpr1L.PropRename" q
+          renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
+          void $ replaceWithNew q $ UnOp (CompExpr1L $(v "p")) renameNode |])
           
 -- Elimiante PropRename operators which map from one index space to the same
 -- index space. Since PropRename maps from the positions of the left side, both
@@ -386,7 +415,7 @@ noOpPropRename1 q =
         predicate $ (s == STPosCol) && (s == t)
 
         return $ do
-          logRewrite "Redundant.NoOpPropRename1" q
+          logRewrite "Redundant.PropRename.1" q
           replace q $(v "q1") |])
 
 unpackProp :: VectorProp a -> a
@@ -455,8 +484,49 @@ noOpPropRename2 q =
             _ | otherwise                       -> fail "no match"
 
         return $ do
-          logRewrite "Redundant.NoOpPropRename2" q
+          logRewrite "Redundant.PropRename.2" q
           let projOp = UnOp (ProjectAdmin (descrProj, posProj)) $(v "qs1")
           void $ replaceWithNew q projOp |])
 
+
+-- FIXME this should trigger three times in TPC-H Q6, but it doesn't. 
+noOpPropRename3 :: VLRule ()
+noOpPropRename3 q =
+  $(pattern 'q "(DescToRename (ql)) PropRename (qh={ } qp=ProjectAdmin _ (qs=SelectExpr _ (qr)))"
+    [| do
+        trace (printf "m1(%d): %d, %d" q $(v "ql") $(v "qr")) $ predicate $ $(v "ql") == $(v "qr")
+
+        -- We could simply assume that the code in the hole did not modify the
+        -- descriptor. Otherwise, the inputs of the PropRename would not be
+        -- aligned and the plan would be screwed anyway.
+        
+        -- In order for the PropRename inputs to be aligned, the old positions
+        -- must be copied to the descriptor.  
+        -- FIXME: this sucks: hole patterns
+        -- do not allow to reference operator payload.
+        opProj <- trace "matched 2" $ getOperator $(v "qp")
+        case opProj of
+          UnOp (ProjectAdmin (DescrPosCol, _)) _ -> return ()
+          _                                      -> fail "no match"
+          
+        -- FIXME This sucks: If we can't get a reference to the last node above
+        -- the sub-hole pattern, we need to make sure that the sub-hole pattern
+        -- is not referenced otherwise.
+        ps <- trace "matched 3" $ getParents $(v "qp")
+        predicate $ length ps == 1
+        
+        return $ do
+          logRewrite "Redundant.PropRename.3" q
+  
+          qp' <- replaceWithNew $(v "qp") $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) $(v "qs")
+          
+          -- Relink nodes referencing the PropRename operator to the start of
+          -- the hole.
+          -- Beware: if the hole is empty, don't overwrite the new node.
+          if $(v "qh") == $(v "qp")
+            then replace q qp'
+            else replace q $(v "qh") 
+
+          trace (printf "%s -> %s" (show $(v "qp")) (show qp')) $ return () |])
+          
 
