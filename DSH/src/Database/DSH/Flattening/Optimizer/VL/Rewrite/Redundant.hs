@@ -14,6 +14,7 @@ import           Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
+import           Database.DSH.Flattening.Optimizer.VL.Rewrite.Unused
 
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -24,7 +25,9 @@ removeRedundancy = iteratively $ sequenceRewrites [ cleanup
 
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ mergeProjections
-                                         , optExpressions ]
+                                         , optExpressions
+                                         , pruneUnused 
+                                         ]
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ restrictCombineDBV
@@ -367,7 +370,7 @@ pullProjectLThroughPropRename q =
           logRewrite "Redundant.PullProjectL.PropRename" q
           renameNode <- insert $ BinOp PropRename $(v "qr") $(v "qv")
           void $ replaceWithNew q $ UnOp (ProjectL $(v "p")) renameNode |])
-
+          
 -- Elimiante PropRename operators which map from one index space to the same
 -- index space. Since PropRename maps from the positions of the left side, both
 -- index spaces must be STPosCol. This pattern originates from the pruning of empty

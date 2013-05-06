@@ -156,6 +156,7 @@ Library
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation
+                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Unused
                      Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
 
 executable vltox100
