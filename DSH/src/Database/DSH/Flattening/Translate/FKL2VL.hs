@@ -5,19 +5,22 @@
 module Database.DSH.Flattening.Translate.FKL2VL (specializeVectorOps) where
 
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.VL.Data                      (VL())
+import qualified Database.Algebra.Dag.Common as A
+import qualified Database.Algebra.VL.Data as VL                (VL(), UnOp(ProjectL, ProjectA))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Flattening.Common.Data.Op
 import qualified Database.DSH.Flattening.Common.Data.QueryPlan as QP
 import           Database.DSH.Flattening.FKL.Data.FKL
+import           Database.DSH.Flattening.VL.Data.DBVector
 import           Database.DSH.Flattening.VL.Data.GraphVector   hiding (Pair)
 import           Database.DSH.Flattening.VL.VLPrimitives
 import           Database.DSH.Flattening.VL.VectorOperations
 
 import           Control.Applicative                           hiding (Const)
 import           Control.Monad                                 (liftM, liftM2, liftM3)
+import qualified Data.Map as M
 
-fkl2VL :: Expr -> Graph VL Shape
+fkl2VL :: Expr -> Graph VL.VL Shape
 fkl2VL (Table _ n cs ks) = dbTable n cs ks
 fkl2VL (Const t v) = mkLiteral t v
 fkl2VL (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; cons e1' e2'}
@@ -117,7 +120,39 @@ constructClosureEnv [] = return []
 constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QP.QueryPlan VL
+specializeVectorOps :: Expr -> QP.QueryPlan VL.VL
 specializeVectorOps e =
   let (opMap, shape, tagMap) = runGraph emptyVL (fkl2VL e)
-  in QP.mkQueryPlan opMap (QP.exportShape shape) tagMap
+      topShape               = QP.exportShape shape
+      (topShape', opMap')       = insertTopProjections topShape opMap
+  in QP.mkQueryPlan opMap' topShape' tagMap
+  
+-- For every top node, we insert an identity projection. This projection just
+-- expresses the final shape on the operator level and ensures that columns
+-- needed at the top level are not dropped.
+insertTopProjections :: QP.TopShape -> A.AlgMap VL.VL -> (QP.TopShape, A.AlgMap VL.VL)
+insertTopProjections s am = traverseShape (1 + (maximum $ M.elems am)) am s
+
+  where traverseShape :: AlgNode -> A.AlgMap VL.VL -> QP.TopShape -> (QP.TopShape, A.AlgMap VL.VL)
+        traverseShape nextID m (QP.ValueVector (DBV n cols) lyt) = 
+          let m'                   = M.insert (A.UnOp (VL.ProjectL cols) n) nextID m
+              (_, lyt', m'') = traverseLayout (nextID + 1) m' lyt 
+          in (QP.ValueVector (DBV nextID cols) lyt', m'')
+
+        traverseShape nextID m (QP.PrimVal (DBP n cols) lyt) =
+          let m' = M.insert (A.UnOp (VL.ProjectA cols) n) nextID m
+              (_, lyt', m'') = traverseLayout (nextID + 1) m' lyt
+          in (QP.PrimVal (DBP nextID cols) lyt', m'')
+          
+        traverseLayout :: AlgNode -> A.AlgMap VL.VL -> QP.TopLayout -> (AlgNode, QP.TopLayout, A.AlgMap VL.VL)
+        traverseLayout nextID m (QP.InColumn c) = 
+          (nextID, QP.InColumn c, m)
+        traverseLayout nextID m (QP.Nest (DBV n cols) lyt) = 
+          let m' = M.insert (A.UnOp (VL.ProjectL cols) n) nextID m
+              (nextID', lyt', m'') = traverseLayout (nextID + 1) m' lyt
+          in (nextID', QP.Nest (DBV nextID cols) lyt', m'')
+        traverseLayout nextID m (QP.Pair lyt1 lyt2) =
+          let (nextID', lyt1', m')    = traverseLayout nextID m lyt1
+              (nextID'', lyt2', m'') = traverseLayout nextID' m' lyt2
+          in (nextID'', QP.Pair lyt1' lyt2', m'')
+          
