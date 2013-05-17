@@ -1,4 +1,4 @@
--- |
+-- |  
 -- This module is intended to be imported @qualified@, to avoid name clashes
 -- with "Prelude" functions. For example:
 --
