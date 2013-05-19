@@ -5,12 +5,14 @@
 module Database.DSH.Flattening.Translate.FKL2VL (specializeVectorOps) where
 
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.VL.Data                      (VL())
+import           Database.Algebra.Dag.Common(Algebra(UnOp))
+import           Database.Algebra.VL.Data                      (VL(), UnOp(ProjectL, ProjectA))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Flattening.Common.Data.Op
 import qualified Database.DSH.Flattening.Common.Data.QueryPlan as QP
 import           Database.DSH.Flattening.FKL.Data.FKL
 import           Database.DSH.Flattening.VL.Data.GraphVector   hiding (Pair)
+import           Database.DSH.Flattening.VL.Data.DBVector
 import           Database.DSH.Flattening.VL.VLPrimitives
 import           Database.DSH.Flattening.VL.VectorOperations
 
@@ -116,8 +118,48 @@ constructClosureEnv :: [String] -> Graph a [(String, Shape)]
 constructClosureEnv [] = return []
 constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
+-- For each top node, determine the number of columns the vector has and insert
+-- a dummy projection which just copies those columns. This is to ensure that
+-- columns which are required from the top are not pruned by optimizations.
+insertTopProjections :: Graph VL Shape -> Graph VL QP.TopShape
+insertTopProjections g = do
+  shape <- g
+  let shape' = QP.exportShape shape
+  traverseShape shape'
+  
+  where 
+  traverseShape :: QP.TopShape -> Graph VL QP.TopShape
+  traverseShape (QP.ValueVector (DBV q _) lyt) = 
+    insertProj lyt q ProjectL DBV QP.ValueVector
+  traverseShape (QP.PrimVal (DBP q _) lyt)     = 
+    insertProj lyt q ProjectA DBP QP.PrimVal
+  
+  traverseLayout :: QP.TopLayout -> Graph VL QP.TopLayout
+  traverseLayout (QP.InColumn c) = 
+    return $ QP.InColumn c
+  traverseLayout (QP.Pair lyt1 lyt2) = do
+    lyt1' <- traverseLayout lyt1
+    lyt2' <- traverseLayout lyt2
+    return $ QP.Pair lyt1' lyt2'
+  traverseLayout (QP.Nest (DBV q _) lyt) = 
+    insertProj lyt q ProjectL DBV QP.Nest
+    
+  insertProj 
+    :: QP.TopLayout               -- The node's layout
+    -> AlgNode                    -- The top node to consider
+    -> ([DBCol] -> UnOp)            -- Constructor for the projection op
+    -> (AlgNode -> [DBCol] -> v)  -- DBVector constructor
+    -> (v -> QP.TopLayout -> t)   -- Layout/Shape constructor
+    -> Graph VL t
+  insertProj lyt q project vector describe = do
+    let width = QP.columnsInLayout lyt
+        cols  = [1 .. width]
+    qp   <- insertNode $ UnOp (project cols) q
+    lyt' <- traverseLayout lyt
+    return $ describe (vector qp cols) lyt'
+
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL
 specializeVectorOps e =
-  let (opMap, shape, tagMap) = runGraph emptyVL (fkl2VL e)
-  in QP.mkQueryPlan opMap (QP.exportShape shape) tagMap
+  let (opMap, shape, tagMap) = runGraph emptyVL (insertTopProjections $ fkl2VL e)
+  in QP.mkQueryPlan opMap shape tagMap

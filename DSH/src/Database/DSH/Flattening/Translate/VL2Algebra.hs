@@ -36,7 +36,7 @@ data Res = Prop    AlgNode
          | Rename  AlgNode
          | RDBV    AlgNode [DBCol]
          | RDBP    AlgNode [DBCol]
-         | RPair    Res Res
+         | RPair   Res Res
          | RTriple Res Res Res
     deriving Show
 
