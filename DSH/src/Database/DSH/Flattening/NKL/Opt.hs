@@ -38,28 +38,20 @@ opt' e =
                 (Lam (elemTy .-> boolT) var c)
                 (opt' xs)
 
-        -- Monad comprehension guard craziness:
-        -- concat $ map (\_ -> [x]) (if p [()] [])
-        body'@(BinOp bodyTy Cons _ (Const _ (List []))) ->
-            case opt' xs of
-              -- if p [x] []
-              If _ p (Const _ (List [Unit])) (Const _ (List [])) -> 
-                -- Less craziness: if p [x] []
-                If t p body (Const bodyTy (List []))
-              xs' -> 
-                AppE1 t
-                      (Concat concatTy)
-                      (AppE2 innerTy
-                             (Map mapTy) 
-                             (Lam (Fn elemTy resTy) var body') xs')
-              
-        -- We could not do anything smart
         body' -> 
-          AppE1 t
-                (Concat concatTy)
-                (AppE2 innerTy
-                       (Map mapTy) 
-                       (Lam (Fn elemTy resTy) var body') (opt' xs))
+          case opt' xs of
+            -- if p [x] []
+            If _ p (Const _ (List [Unit])) (Const _ (List [])) -> 
+              -- Less craziness: if p [x] [] 
+              -- FIXME to be really sound here, we need to check wether body'
+              -- references var.
+              If t p body' (Const t (List []))
+            -- We could not do anything smart
+            xs' -> AppE1 t
+                       (Concat concatTy)
+                       (AppE2 innerTy
+                              (Map mapTy) 
+                              (Lam (Fn elemTy resTy) var body') xs')
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
