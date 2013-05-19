@@ -33,10 +33,10 @@ opt' e =
            (Const _ (List [])) | var == var' ->
 
           -- Turns into: filter (\x -> e) xs
-          AppE2 t
-                (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
-                (Lam (elemTy .-> boolT) var c)
-                (opt' xs)
+          opt' $ AppE2 t
+                       (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
+                       (Lam (elemTy .-> boolT) var c)
+                       (opt' xs)
 
         body' -> 
           case opt' xs of
@@ -45,7 +45,7 @@ opt' e =
               -- Less craziness: if p [x] [] 
               -- FIXME to be really sound here, we need to check wether body'
               -- references var.
-              If t p body' (Const t (List []))
+              opt' $ If t p body' (Const t (List []))
             -- We could not do anything smart
             xs' -> AppE1 t
                        (Concat concatTy)
@@ -56,6 +56,23 @@ opt' e =
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
     Lam t v e1 -> Lam t v (opt' e1)
+  
+    -- Merge nested conditionals:
+    -- if c1 (if c2 t []) []
+    -- -> if c1 && c2 t []
+    If t1
+       c1
+       (If _
+           c2
+           t
+           (Const _ (List [])))
+       (Const _ (List [])) ->
+
+      opt' $ If t1 
+                (BinOp boolT Conj c1 c2)
+                t
+                (Const t1 (List []))
+           
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
     var@(Var _ _) -> var
