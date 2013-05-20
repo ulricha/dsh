@@ -92,9 +92,16 @@ inferVectorTypeBinOp s1 s2 op =
   case op of
     GroupBy -> 
       case (s1, s2) of
-        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> Right $ VPropTriple t1 t2 PropVector
-        _                                                    -> Left "Input of GroupBy is not a value vector"
-    SortWith -> undefined
+        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
+          Right $ VPropTriple t1 t2 PropVector
+        _                                                    -> 
+          Left "Input of GroupBy is not a value vector"
+    SortWith ->
+      case (s1, s2) of
+        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
+          Right $ VPropPair t2 PropVector
+        _                                                    -> 
+          Left "Input of SortWith is not a value vector"
     LengthSeg -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)

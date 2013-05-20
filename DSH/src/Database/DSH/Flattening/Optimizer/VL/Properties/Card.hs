@@ -88,8 +88,8 @@ inferCardOneBinOp c1 c2 op =
     CompExpr2L _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     VecSumL -> Right c1
     VecAvgL -> Right c1
-    SelectPos _ -> Right c1
-    SelectPosL _ -> Right c1
+    SelectPos _ -> return $ VPropPair False False
+    SelectPosL _ -> return $ VPropPair False False
     PairA -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     PairL -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False

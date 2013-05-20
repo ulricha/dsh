@@ -1,7 +1,7 @@
 module Database.DSH.Flattening.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
-import Data.Functor
+import Control.Applicative
   
 import Database.Algebra.VL.Data
   
@@ -86,7 +86,12 @@ inferEmptyBinOp e1 e2 op =
       let ue1 = unp e1 
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
-    SortWith -> undefined
+    SortWith -> do
+      ue1 <- unp e1
+      ue2 <- unp e2
+      let e   = ue1 && ue2
+      return $ VPropPair e e
+
     LengthSeg -> VProp <$> unp e1
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
