@@ -21,48 +21,73 @@ opt' e =
           (AppE2 innerTy
                  (Map mapTy) 
                  (Lam (Fn elemTy resTy) var body) xs) ->
-      -- Try to do smart things depending on what is mapped over the list
-      case opt' body of
-        -- Singleton list construction cancelled out by concat:
-        -- concatMap (\x -> [e]) xs => map (\x -> e) xs
-        BinOp _ Cons singletonExpr (Const _ (List [])) ->
-          
-          opt' $ AppE2 t 
-                       (Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
-                       (Lam (elemTy .-> (typeOf body))
-                            var
-                            singletonExpr)
-                       (opt' xs)
-          
-        -- Filter pattern: concat (map  (\x -> if e [x] []) xs)
-        If _
-           -- the filter condition
-           c 
-           -- then-branch: singleton list
-           (BinOp _ Cons (Var _ var') (Const _ (List [])))
-           -- else-branch: empty list
-           (Const _ (List [])) | var == var' ->
+      -- We first test wether the mapped-over list matches a certain pattern:
+      -- if p [()] []
+      case opt' xs of
+        -- In that case, the following rewrite applies
+        -- concat $ map (\x -> e) (if p then [()] else [])
+        -- => if p then [e] else []
+        -- FIXME to be really sound here, we need to check wether body'
+        -- references var.
+        If _ p (Const _ (List [Unit])) (Const _ (List [])) -> 
+          trace ("r1 " ++ (show e)) $ opt' $ If t p (opt' body) (Const t (List []))
 
-          -- Turns into: filter (\x -> e) xs
-          opt' $ AppE2 t
-                       (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
-                       (Lam (elemTy .-> boolT) var c)
-                       (opt' xs)
+        -- Try to do smart things depending on what is mapped over the list
+        xs' ->
+            case opt' body of
+              BinOp _ Cons singletonExpr (Const _ (List [])) ->
+                -- Singleton list construction cancelled out by concat:
+                -- concatMap (\x -> [e]) xs => map (\x -> e) xs
+                trace ("r2 " ++ (show e)) $ opt' $ AppE2 t 
+                         -- FIXME typeOf is potentially dangerous since the type
+                         -- language includes variables.
+                         (Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
+                         (Lam (elemTy .-> (typeOf body))
+                              var
+                              singletonExpr)
+                         (opt' xs)
 
-        body' -> 
-          case opt' xs of
-            -- if p [x] []
-            If _ p (Const _ (List [Unit])) (Const _ (List [])) -> 
-              -- Less craziness: if p [x] [] 
-              -- FIXME to be really sound here, we need to check wether body'
-              -- references var.
-              opt' $ If t p body' (Const t (List []))
-            -- We could not do anything smart
-            xs' -> AppE1 t
-                       (Concat concatTy)
-                       (AppE2 innerTy
-                              (Map mapTy) 
-                              (Lam (Fn elemTy resTy) var body') xs')
+              -- Filter pattern: concat (map  (\x -> if p [x] []) xs)
+              If _
+                 -- the filter condition
+                 p 
+                 -- then-branch: singleton list
+                 (BinOp _ Cons (Var _ var') (Const _ (List [])))
+                 -- else-branch: empty list
+                 (Const _ (List [])) | var == var' ->
+
+                -- Turns into: filter (\x -> e) xs
+                trace ("r3 " ++ (show e)) $ opt' $ AppE2 t
+                             (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
+                             (Lam (elemTy .-> boolT) var p)
+                             (opt' xs)
+
+              -- More general filter pattern:
+              -- concat (map (\x -> if p [e] []) xs)
+              -- => map (\x -> e) (filter (\x -> p) xs)
+              If _
+                 -- the filter condition
+                 p 
+                 -- then-branch: singleton list over an arbitrary expression
+                 (BinOp _ Cons bodyExpr (Const _ (List [])))
+                 -- else-branch: empty list
+                 (Const _ (List [])) ->
+
+                trace ("r4 " ++ (show e)) $ opt' $ AppE2 t
+                             (Map ((elemTy .-> (elemT resTy)) .-> ((listT elemTy) .-> t)))
+                             (Lam (elemTy .-> (elemT resTy)) var bodyExpr)
+                             (AppE2 t
+                                    (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
+                                    (Lam (elemTy .-> boolT) var p)
+                                    (opt' xs))
+
+              body' -> 
+                  -- We could not do anything smart
+                  AppE1 t
+                        (Concat concatTy)
+                        (AppE2 innerTy
+                               (Map mapTy) 
+                               (Lam (Fn elemTy resTy) var body') xs')
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
@@ -79,7 +104,7 @@ opt' e =
            (Const _ (List [])))
        (Const _ (List [])) ->
 
-      opt' $ If t1 
+      trace ("r5 " ++ (show e)) $ opt' $ If t1 
                 (BinOp boolT Conj c1 c2)
                 t
                 (Const t1 (List []))

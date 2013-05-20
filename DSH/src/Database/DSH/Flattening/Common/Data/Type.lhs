@@ -2,7 +2,34 @@
 \begin{code}
 {-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses, DeriveGeneric #-}
 module Database.DSH.Flattening.Common.Data.Type 
- (isNum, extractPair, isListT, splitType, varsInType, listDepth, pairT, containsTuple, pairComponents, splitTypeArgsRes, extractFnRes, extractFnArgs, extractShape, unliftTypeN, unliftType, liftType, liftTypeN, Type(..), intT, boolT, unitT, stringT, doubleT, listT, (.->), Typed (..), isFuns)
+ ( isNum
+ , extractPair
+ , isListT
+ , elemT
+ , splitType
+ , varsInType
+ , listDepth
+ , pairT
+ , containsTuple
+ , pairComponents
+ , splitTypeArgsRes
+ , extractFnRes
+ , extractFnArgs
+ , extractShape
+ , unliftTypeN
+ , unliftType
+ , liftType
+ , liftTypeN
+ , Type(..)
+ , intT
+ , boolT
+ , unitT
+ , stringT
+ , doubleT
+ , listT
+ , (.->)
+ , Typed (..)
+ , isFuns)
 where
 
 import GHC.Generics (Generic)
@@ -90,6 +117,10 @@ listT = List
 isListT :: Type -> Bool
 isListT (List _) = True
 isListT _        = False
+
+elemT :: Type -> Type
+elemT (List t) = t
+elemT _        = error "elemT: argument is not a list type"
 
 listDepth :: Type -> Int
 listDepth (List t1) = 1 + listDepth t1
