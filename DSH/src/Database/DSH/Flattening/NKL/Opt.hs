@@ -23,6 +23,17 @@ opt' e =
                  (Lam (Fn elemTy resTy) var body) xs) ->
       -- Try to do smart things depending on what is mapped over the list
       case opt' body of
+        -- Singleton list construction cancelled out by concat:
+        -- concatMap (\x -> [e]) xs => map (\x -> e) xs
+        BinOp _ Cons singletonExpr (Const _ (List [])) ->
+          
+          opt' $ AppE2 t 
+                       (Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
+                       (Lam (elemTy .-> (typeOf body))
+                            var
+                            singletonExpr)
+                       (opt' xs)
+          
         -- Filter pattern: concat (map  (\x -> if e [x] []) xs)
         If _
            -- the filter condition
