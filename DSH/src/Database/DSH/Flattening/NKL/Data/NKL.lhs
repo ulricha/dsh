@@ -112,6 +112,7 @@ data Prim2  = Map Type | GroupWithKey Type
             | Drop Type | Zip Type
             | TakeWhile Type
             | DropWhile Type
+            | CartProduct Type
 \end{code}
 %}
 %if False
@@ -129,6 +130,7 @@ instance Show Prim2 where
   show (Zip _) = "zip"
   show (TakeWhile _) = "takeWhile"
   show (DropWhile _) = "dropWhile"
+  show (CartProduct _) = "cartProduct"
 
 deriving instance Eq Prim2
 deriving instance Ord Prim2
