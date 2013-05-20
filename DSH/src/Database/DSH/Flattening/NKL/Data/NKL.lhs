@@ -3,11 +3,12 @@
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving  #-}
 module Database.DSH.Flattening.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key) where
 
-import Database.DSH.Flattening.Common.Data.Op
-import Database.DSH.Flattening.Common.Data.Val(Val())
-import Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
+import           Text.PrettyPrint.HughesPJ
+
+import           Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Val(Val())
+import           Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
   
-import Data.List
 import qualified Data.Set as S
 
 type Column = (String, Type)
@@ -38,22 +39,19 @@ data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database ta
 
 %if False
 \begin{code}
-sp :: [String] -> String
-sp ss = concat $ intersperse " " ss
-
-ps :: String -> String
-ps s = "(" ++ s ++ ")"
-
 instance Show Expr where
-  show (Table _ n _ _) = sp ["Table", n]
-  show (App _ e1 e2) = sp ["App", show e1, show e2]
-  show (AppE1 _ p1 e) = sp ["AppE1", show p1, ps $ show e]
-  show (AppE2 _ p2 e1 e2) = sp ["AppE2", show p2, ps $ show e1, ps $ show e2]
-  show (BinOp _ o e1 e2) = sp ["BinOp", show o, ps $ show e1, ps $ show e2]
-  show (Lam _ v e) = sp ["Lam", ps $ "\\" ++ v ++ " -> " ++ show e]
-  show (If _ c t e) = sp ["If", ps $ show c, ps $ show t, ps $ show e]
-  show (Const _ v) = show v
-  show (Var _ s) = s
+  show e = render $ pp e
+  
+pp :: Expr -> Doc
+pp (Table _ n _ _)    = text "table" <+> text n
+pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
+pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
+pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
+pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
+pp (Const _ v)        = text $ show v
+pp (Var _ s)          = text s
 
 deriving instance Eq Expr
 deriving instance Ord Expr
@@ -79,25 +77,25 @@ data Prim1  =  Length Type  |  Not Type  |  Concat Type
 \begin{code}
 
 instance Show Prim1 where
-  show (Length _) = "Length"
-  show (Not _) = "Not"
-  show (Concat _) = "Concat"
-  show (Sum _) = "Sum"
-  show (Avg _) = "Avg"
-  show (The _) = "The"
-  show (Fst _) = "Fst"
-  show (Snd _) = "Snd"
-  show (Head _) = "Head"
-  show (Minimum _) = "Minimum"
-  show (Maximum _) = "Maximum"
-  show (IntegerToDouble _) = "IntegerToDouble"
-  show (Tail _) = "Tail"
-  show (Reverse _) = "Reverse"
-  show (And _) = "And"
-  show (Or _) = "Or"
-  show (Init _) = "Init"
-  show (Last _) = "Last"
-  show (Nub _) = "Nub"
+  show (Length _) = "length"
+  show (Not _) = "not"
+  show (Concat _) = "concat"
+  show (Sum _) = "sum"
+  show (Avg _) = "avg"
+  show (The _) = "the"
+  show (Fst _) = "fst"
+  show (Snd _) = "snd"
+  show (Head _) = "head"
+  show (Minimum _) = "minimum"
+  show (Maximum _) = "maximum"
+  show (IntegerToDouble _) = "integerToDouble"
+  show (Tail _) = "tail"
+  show (Reverse _) = "reverse"
+  show (And _) = "and"
+  show (Or _) = "or"
+  show (Init _) = "init"
+  show (Last _) = "last"
+  show (Nub _) = "nub"
 
 deriving instance Eq Prim1
 deriving instance Ord Prim1
@@ -107,30 +105,30 @@ deriving instance Ord Prim1
 Binary primitive operations:
 
 \begin{code}
-data Prim2  =  Map Type | GroupWithKey Type
-            |  SortWith Type | Pair Type
-            |  Filter Type | Append Type
-            |  Index Type | Take Type
-            |  Drop Type | Zip Type
-            |  TakeWhile Type
-            |  DropWhile Type
+data Prim2  = Map Type | GroupWithKey Type
+            | SortWith Type | Pair Type
+            | Filter Type | Append Type
+            | Index Type | Take Type
+            | Drop Type | Zip Type
+            | TakeWhile Type
+            | DropWhile Type
 \end{code}
 %}
 %if False
 \begin{code}
 instance Show Prim2 where
-  show (Map _) = "Map"
-  show (GroupWithKey _) = "GroupWithKey"
-  show (SortWith _) = "SortWith"
-  show (Pair _) = "Pair"
-  show (Filter _) = "Filter"
-  show (Append _) = "Append"
-  show (Index _) = "Index"
-  show (Take _) = "Take"
-  show (Drop _) = "Drop"
-  show (Zip _) = "Zip"
-  show (TakeWhile _) = "TakeWhile"
-  show (DropWhile _) = "DropWhile"
+  show (Map _) = "map"
+  show (GroupWithKey _) = "groupWithKey"
+  show (SortWith _) = "sortWith"
+  show (Pair _) = "pair"
+  show (Filter _) = "filter"
+  show (Append _) = "append"
+  show (Index _) = "index"
+  show (Take _) = "take"
+  show (Drop _) = "drop"
+  show (Zip _) = "zip"
+  show (TakeWhile _) = "takeWhile"
+  show (DropWhile _) = "dropWhile"
 
 deriving instance Eq Prim2
 deriving instance Ord Prim2
