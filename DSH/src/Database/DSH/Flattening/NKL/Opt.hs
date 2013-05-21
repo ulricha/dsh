@@ -6,7 +6,7 @@ import Text.Printf
 import qualified Data.Set as S
 
 import Database.DSH.Flattening.NKL.Data.NKL
-import Database.DSH.Flattening.Common.Data.Val
+import Database.DSH.Flattening.Common.Data.Val hiding(Pair)
 import Database.DSH.Flattening.Common.Data.Op
 import Database.DSH.Flattening.Common.Data.Type
 
@@ -60,11 +60,9 @@ opt' e =
               -- 
               -- Note that we re-use x to avoid the need for fresh variables,
               -- which is fine here.
-              AppE2 _ (Map _) (Lam (Fn elemTy2 resTy2) innerVar innerBody) ys ->
+              AppE2 _ (Map _) (Lam (FunT elemTy2 resTy2) innerVar innerBody) ys ->
                 let productType = T.Pair elemTy elemTy2
 
-                    tupleComponent :: (Type -> Prim1) -> Type -> Expr
-                    tupleComponent f ty = (AppE1 ty (f (productType .-> ty)) (Var productType var))
 
                     innerBody' = subst innerVar 
                                        (tupleComponent Snd elemTy2) 
@@ -89,6 +87,47 @@ opt' e =
               -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) (filter (\x2 -> p) ys) xs
               -- => filter (\x1 -> p[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
               
+              -- map::t1 (\x::t2 -> (pair::t3 x1::t4 x2::t5)::t6) (filter::t7 (\x2::t8 -> $p)::t9 $ys) $xs
+              -- => filter::t1 (\x1::t2 -> subst...) (concat::t3 (map::t4 (\x1 -> (map::t6 (\x2 -> (pair::t (x1::t) (x2::t))::t))::t5
+              AppE2 _
+                    (Map mapTy)
+                    -- (\(x2 -> (x1, x2)))
+                    (Lam (FunT _ _) 
+                         innerVar
+                         -- (x1, x2)
+                         (AppE2 pairTy
+                                (Pair (FunT _ (FunT _ _)))
+                                (Var elemTy1 var')
+                                (Var elemTy2 innerVar')))
+                    -- filter (\x -> p) ys
+                    (AppE2 _
+                           (Filter filterTy)
+                           (Lam filterLamTy filterVar p)
+                           ys)
+                        | var == var' && innerVar == innerVar' ->
+                    
+                AppE2 (listT pairTy)
+                      (Filter ((pairTy .-> boolT) .-> (listT pairTy .-> listT pairTy)))
+                      (Lam (pairTy .-> boolT)
+                           var
+                           (tuplify (var, elemTy1) (innerVar, elemTy2) p))
+                      (AppE1 (listT pairTy)
+                             (Concat (listT (listT pairTy) .-> listT pairTy))
+                             (AppE2 (listT (listT pairTy))
+                                    (Map ((elemTy1 .-> listT (listT pairTy)) .-> (listT elemTy1 .-> listT (listT pairTy))))
+                                    (Lam (elemTy1 .-> listT (listT pairTy)) 
+                                         var 
+                                         (AppE2 (listT pairTy)
+                                                (Map ((elemTy2 .-> pairTy) .-> (listT elemTy2 .-> listT pairTy)))
+                                                (Lam (elemTy2 .-> pairTy) 
+                                                     innerVar 
+                                                     (AppE2 pairTy
+                                                            (Pair (elemTy1 .-> (elemTy2 .-> pairTy)))
+                                                            (Var elemTy1 var)
+                                                            (Var elemTy2 innerVar)))
+                                                ys))
+                                    xs))
+                    
               -- Turn a nested iteration into a cartesian product.
               -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
               -- => (x1 × x2)
@@ -188,7 +227,16 @@ subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
 
 freeVars :: Expr -> S.Set String
 freeVars e = undefined
+         
+-- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
+tuplify :: (String, Type) -> (String, Type) -> Expr -> Expr
+tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
 
+  where v1'    = Var pairTy v1
+        pairTy = pairT t1 t2
+        v1Rep  = AppE1 t1 (Fst (pairTy .-> t1)) v1'
+        v2Rep  = AppE1 t2 (Snd (pairTy .-> t2)) v1'
+                       
 opt :: Expr -> Expr
 opt e = if (e /= e') 
         then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
