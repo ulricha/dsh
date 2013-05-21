@@ -197,11 +197,11 @@ getTableInfo c n = do
        toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
        compatibleType :: SqlTypeId -> T.Type -> Bool
        compatibleType dbT hsT = case hsT of
-                                     T.Unit -> True
-                                     T.Bool -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                     T.String -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
-                                     T.Int -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                     T.Double -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                     T.UnitT -> True
+                                     T.BoolT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                     T.StringT -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+                                     T.IntT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                     T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
                                      t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
 
 getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
@@ -211,27 +211,27 @@ getX100TableInfo c n = do
         where
             col2Val :: ColumnInfo -> (String, T.Type -> Bool)
             col2Val col = (colName col, \t -> case logicalType col of
-                                                LBool       -> t == T.Bool || t == T.Unit
-                                                LInt1       -> t == T.Int  || t == T.Unit
-                                                LUInt1      -> t == T.Int  || t == T.Unit
-                                                LInt2       -> t == T.Int  || t == T.Unit
-                                                LUInt2      -> t == T.Int  || t == T.Unit
-                                                LInt4       -> t == T.Int  || t == T.Unit
-                                                LUInt4      -> t == T.Int  || t == T.Unit
-                                                LInt8       -> t == T.Int  || t == T.Unit
-                                                LUInt8      -> t == T.Int  || t == T.Unit
-                                                LInt16      -> t == T.Int  || t == T.Unit
-                                                LUIDX       -> t == T.Nat  || t == T.Unit
-                                                LDec        -> t == T.Double
-                                                LFlt4       -> t == T.Double
-                                                LFlt8       -> t == T.Double
-                                                LMoney      -> t == T.Double
-                                                LChar       -> t == T.String
-                                                LVChar      -> t == T.String
-                                                LDate       -> t == T.Int
-                                                LTime       -> t == T.Int
-                                                LTimeStamp  -> t == T.Int
-                                                LIntervalDS -> t == T.Int
-                                                LIntervalYM -> t == T.Int
+                                                LBool       -> t == T.BoolT || t == T.UnitT
+                                                LInt1       -> t == T.IntT  || t == T.UnitT
+                                                LUInt1      -> t == T.IntT  || t == T.UnitT
+                                                LInt2       -> t == T.IntT  || t == T.UnitT
+                                                LUInt2      -> t == T.IntT  || t == T.UnitT
+                                                LInt4       -> t == T.IntT  || t == T.UnitT
+                                                LUInt4      -> t == T.IntT  || t == T.UnitT
+                                                LInt8       -> t == T.IntT  || t == T.UnitT
+                                                LUInt8      -> t == T.IntT  || t == T.UnitT
+                                                LInt16      -> t == T.IntT  || t == T.UnitT
+                                                LUIDX       -> t == T.NatT  || t == T.UnitT
+                                                LDec        -> t == T.DoubleT
+                                                LFlt4       -> t == T.DoubleT
+                                                LFlt8       -> t == T.DoubleT
+                                                LMoney      -> t == T.DoubleT
+                                                LChar       -> t == T.StringT
+                                                LVChar      -> t == T.StringT
+                                                LDate       -> t == T.IntT
+                                                LTime       -> t == T.IntT
+                                                LTimeStamp  -> t == T.IntT
+                                                LIntervalDS -> t == T.IntT
+                                                LIntervalYM -> t == T.IntT
                                                 LUnknown s  -> error $ "Unknown DB type" ++ show s)
 

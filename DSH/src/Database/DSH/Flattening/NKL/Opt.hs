@@ -8,11 +8,7 @@ import qualified Data.Set as S
 import Database.DSH.Flattening.NKL.Data.NKL
 import Database.DSH.Flattening.Common.Data.Val
 import Database.DSH.Flattening.Common.Data.Op
--- FIXME rename Type data constructors in Common.Data.Type to get rid of naming
--- conflicts
-import Database.DSH.Flattening.Common.Data.Type hiding(Var, List, Unit, Pair)
-import qualified Database.DSH.Flattening.Common.Data.Type as T
-
+import Database.DSH.Flattening.Common.Data.Type
 
 -- Perform simple optimizations on the NKL
 opt' :: Expr -> Expr
@@ -26,7 +22,7 @@ opt' e =
           (Concat concatTy)
           (AppE2 innerTy
                  (Map mapTy) 
-                 (Lam (Fn elemTy resTy) var body) xs) ->
+                 (Lam (FunT elemTy resTy) var body) xs) ->
       -- We first test wether the mapped-over list matches a certain pattern:
       -- if p [()] []
       case opt' xs of
@@ -148,7 +144,7 @@ opt' e =
                         (Concat concatTy)
                         (AppE2 innerTy
                                (Map mapTy) 
-                               (Lam (Fn elemTy resTy) var body') xs')
+                               (Lam (FunT elemTy resTy) var body') xs')
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)

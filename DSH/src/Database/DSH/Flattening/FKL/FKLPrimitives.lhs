@@ -24,8 +24,7 @@ module Database.DSH.Flattening.FKL.FKLPrimitives where
 import           Database.DSH.Flattening.FKL.Data.FKL as F
 import           Database.DSH.Flattening.Common.Data.Val
 import           Database.DSH.Flattening.Common.Data.Op
-import           Database.DSH.Flattening.Common.Data.Type (Type(Fn), intT, Typed(..), (.->), boolT, listT, unliftType, splitType, liftType, Type(), pairT)
-import qualified Database.DSH.Flattening.Common.Data.Type as T
+import           Database.DSH.Flattening.Common.Data.Type
 
 import           Control.Monad
 \end{code}
@@ -67,14 +66,14 @@ groupWithKeyVal t = doubleArgClo t "group_f" "group_xs" groupWithKeyPrim groupWi
 
 groupWithKeyPrim :: Expr -> Expr -> Expr
 groupWithKeyPrim f e = let arg1 = mapPrim f e
-                           t1@(Fn _ tk) = typeOf arg1
+                           t1@(FunT _ tk) = typeOf arg1
                            t2           = typeOf e
                            t3           = listT $ pairT tk t2
                        in F.PApp2 t3 (F.GroupWithKeyS (t1 .-> t2 .-> t3)) arg1 e
 
 groupWithKeyLPrim :: Expr -> Expr -> Expr
 groupWithKeyLPrim f e = let arg1 = mapLPrim f e
-                            t1@(Fn _ tk) = typeOf arg1 
+                            t1@(FunT _ tk) = typeOf arg1 
                             t2           = typeOf e
                             t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.GroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
@@ -119,8 +118,8 @@ pairPrim e1 e2 = let t1 = typeOf e1
                   in F.PApp2 rt (F.Pair (t1 .-> t2 .-> rt)) e1 e2
 
 pairLPrim :: Expr -> Expr -> Expr
-pairLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
-                      t2@(T.List t2') = typeOf e2
+pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
+                      t2@(ListT t2') = typeOf e2
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
@@ -156,12 +155,12 @@ zipVal t = doubleArgClo t "zip_e1" "zip_e2" zipPrim zipLPrim
 zipPrim :: Expr -> Expr -> Expr
 zipPrim e1 e2 = let t1 = typeOf e1
                     t2 = typeOf e2
-                 in F.PApp2 t2 (F.Zip (t1 .-> t2 .-> T.Pair t1 t2)) e1 e2
+                 in F.PApp2 t2 (F.Zip (t1 .-> t2 .-> PairT t1 t2)) e1 e2
 
 zipLPrim :: Expr -> Expr -> Expr
-zipLPrim e1 e2 = let t1@(T.List t1') = typeOf e1
-                     t2@(T.List t2') = typeOf e2
-                  in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (T.Pair t1' t2'))) e1 e2
+zipLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
+                     t2@(ListT t2') = typeOf e2
+                  in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
@@ -172,8 +171,8 @@ appendPrim e1 e2 = let t1 = typeOf e1
                  in F.PApp2 t1 (F.Append (t1 .-> t2 .-> t1)) e1 e2
 
 appendLPrim :: Expr -> Expr -> Expr
-appendLPrim e1 e2 = let t1@(T.List _) = typeOf e1
-                        t2@(T.List _) = typeOf e2
+appendLPrim e1 e2 = let t1@(ListT _) = typeOf e1
+                        t2@(ListT _) = typeOf e2
                   in F.PApp2 t1 (F.AppendL (t1 .-> t2 .-> t1)) e1 e2 
 
 
@@ -181,13 +180,13 @@ indexVal :: Type -> Expr
 indexVal t = doubleArgClo t "index_e1" "index_e2" indexPrim indexLPrim
 
 indexPrim :: Expr -> Expr -> Expr
-indexPrim e1 e2 = let t1@(T.List t) = typeOf e1
+indexPrim e1 e2 = let t1@(ListT t) = typeOf e1
                       t2 = typeOf e2
                    in F.PApp2 t (F.Index (t1 .-> t2 .-> t)) e1 e2
 
 indexLPrim :: Expr -> Expr -> Expr
-indexLPrim e1 e2 = let t1@(T.List t) = typeOf e1
-                       t2@(T.List _) = typeOf e2
+indexLPrim e1 e2 = let t1@(ListT t) = typeOf e1
+                       t2@(ListT _) = typeOf e2
                     in F.PApp2 t (F.IndexL (t1 .-> t2 .-> t)) e1 e2
 
 filterVal :: Type -> Expr
@@ -208,14 +207,14 @@ sortWithVal t = doubleArgClo t "sort_f" "sort_xs" sortWithPrim sortWithLPrim
 
 sortWithPrim :: Expr -> Expr -> Expr
 sortWithPrim f e = let arg1 = mapPrim f e
-                       t1@(T.List _) = typeOf arg1
-                       t2@(T.List _) = typeOf e
+                       t1@(ListT _) = typeOf arg1
+                       t2@(ListT _) = typeOf e
                     in F.PApp2 t2 (F.SortWithS (t1 .-> t2 .-> t2)) arg1 e
 
 sortWithLPrim :: Expr -> Expr -> Expr
 sortWithLPrim f e = let arg1 = mapLPrim f e
-                        t1@(T.List (T.List _)) = typeOf arg1 
-                        t2@(T.List (T.List _)) = typeOf e
+                        t1@(ListT (ListT _)) = typeOf arg1 
+                        t2@(ListT (ListT _)) = typeOf e
                      in F.PApp2 t2 (F.SortWithL (t1 .-> t2 .-> t2)) arg1 e
 
 singleArgClo :: Type -> String -> (Expr -> Expr) -> (Expr -> Expr) -> Expr
@@ -230,11 +229,11 @@ lengthVal :: Type -> Expr
 lengthVal t = singleArgClo t "length_v" lengthPrim lengthLPrim
 
 lengthPrim :: Expr -> Expr
-lengthPrim e1 = let t1@(T.List _) = typeOf e1
+lengthPrim e1 = let t1@(ListT _) = typeOf e1
                  in F.PApp1 intT (F.LengthPrim $ t1 .-> intT) e1
 
 lengthLPrim :: Expr -> Expr
-lengthLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+lengthLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                   in F.PApp1 (listT intT) (F.LengthLift $ t1 .-> listT intT) e1
     
 headVal :: Type -> Expr
@@ -244,22 +243,22 @@ theVal :: Type -> Expr
 theVal t = singleArgClo t "the_v" thePrim theLPrim
 
 thePrim :: Expr -> Expr
-thePrim e1 = let t1@(T.List t1') = typeOf e1
+thePrim e1 = let t1@(ListT t1') = typeOf e1
               in F.PApp1 t1' (F.The $ t1 .-> t1') e1
 
 theLPrim :: Expr -> Expr
-theLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+theLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
                in F.PApp1 t (F.TheL $ t1 .-> t) e1
 
 lastVal :: Type -> Expr
 lastVal t = singleArgClo t "last_v" lastPrim lastLPrim
 
 lastPrim :: Expr -> Expr
-lastPrim e1 = let t1@(T.List t1') = typeOf e1
+lastPrim e1 = let t1@(ListT t1') = typeOf e1
                in F.PApp1 t1' (F.Last $ t1 .-> t1') e1
 
 lastLPrim :: Expr -> Expr
-lastLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+lastLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
                 in F.PApp1 t (F.LastL $ t1 .-> t) e1
 
 
@@ -267,66 +266,66 @@ tailVal :: Type -> Expr
 tailVal t = singleArgClo t "tail_v" tailPrim tailLPrim
 
 tailPrim :: Expr -> Expr
-tailPrim e1 = let t1@(T.List _) = typeOf e1
+tailPrim e1 = let t1@(ListT _) = typeOf e1
                in F.PApp1 t1 (F.Tail $ t1 .-> t1) e1
 
 tailLPrim :: Expr -> Expr
-tailLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+tailLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
 
 nubVal :: Type -> Expr
 nubVal t = singleArgClo t "nub_v" nubPrim nubLPrim
 
 nubPrim :: Expr -> Expr
-nubPrim e1 = let t1@(T.List _) = typeOf e1
+nubPrim e1 = let t1@(ListT _) = typeOf e1
                in F.PApp1 t1 (F.Nub $ t1 .-> t1) e1
 
 nubLPrim :: Expr -> Expr
-nubLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+nubLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.NubL $ t1 .-> t1) e1
 
 initVal :: Type -> Expr
 initVal t = singleArgClo t "init_v" initPrim initLPrim
 
 initPrim :: Expr -> Expr
-initPrim e1 = let t1@(T.List _) = typeOf e1
+initPrim e1 = let t1@(ListT _) = typeOf e1
                in F.PApp1 t1 (F.Init $ t1 .-> t1) e1
 
 initLPrim :: Expr -> Expr
-initLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+initLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.InitL $ t1 .-> t1) e1
 
 reverseVal :: Type -> Expr
 reverseVal t = singleArgClo t "reverse_v" reversePrim reverseLPrim
 
 reversePrim :: Expr -> Expr
-reversePrim e1 = let t1@(T.List _) = typeOf e1
+reversePrim e1 = let t1@(ListT _) = typeOf e1
                in F.PApp1 t1 (F.Reverse $ t1 .-> t1) e1
 
 reverseLPrim :: Expr -> Expr
-reverseLPrim e1 = let t1@(T.List (T.List _)) = typeOf e1
+reverseLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.ReverseL $ t1 .-> t1) e1
 
 notVal :: Type -> Expr
 notVal t = singleArgClo t "not_v" notPrim notLPrim
 
 notPrim :: Expr -> Expr
-notPrim e1 = let t1@(T.Bool) = typeOf e1
+notPrim e1 = let t1@(BoolT) = typeOf e1
               in F.PApp1 t1 (F.NotPrim $ t1 .-> t1) e1
               
 notLPrim :: Expr -> Expr 
-notLPrim e1 = let t1@(T.List T.Bool) = typeOf e1
+notLPrim e1 = let t1@(ListT BoolT) = typeOf e1
                in F.PApp1 t1 (F.NotVec $ t1 .-> t1) e1
 
 andVal :: Type -> Expr
 andVal t = singleArgClo t "and_v" andPrim andLPrim
 
 andPrim :: Expr -> Expr
-andPrim e1 = let t1@(T.List T.Bool) = typeOf e1
-             in F.PApp1 T.Bool (F.And $ t1 .-> T.Bool) e1
+andPrim e1 = let t1@(ListT BoolT) = typeOf e1
+             in F.PApp1 BoolT (F.And $ t1 .-> BoolT) e1
 
 andLPrim :: Expr -> Expr 
-andLPrim e1 = let t1@(T.List t@(T.List T.Bool)) = typeOf e1
+andLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
               in F.PApp1 t (F.AndL $ t1 .-> t) e1
 
 
@@ -334,23 +333,23 @@ orVal :: Type -> Expr
 orVal t = singleArgClo t "or_v" orPrim orLPrim
 
 orPrim :: Expr -> Expr
-orPrim e1 = let t1@(T.List T.Bool) = typeOf e1
-           in F.PApp1 T.Bool (F.Or $ t1 .-> T.Bool) e1
+orPrim e1 = let t1@(ListT BoolT) = typeOf e1
+           in F.PApp1 BoolT (F.Or $ t1 .-> BoolT) e1
 
 orLPrim :: Expr -> Expr 
-orLPrim e1 = let t1@(T.List t@(T.List T.Bool)) = typeOf e1
+orLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
             in F.PApp1 t (F.OrL $ t1 .-> t) e1
 
 integerToDoubleVal :: Type -> Expr
 integerToDoubleVal t = singleArgClo t "integerToDouble_v" integerToDoublePrim integerToDoubleLPrim
 
 integerToDoublePrim :: Expr -> Expr
-integerToDoublePrim e1 = let t1@(T.Int) = typeOf e1
-                          in F.PApp1 T.Double (F.IntegerToDouble $ t1 .-> T.Double) e1
+integerToDoublePrim e1 = let t1@(IntT) = typeOf e1
+                          in F.PApp1 DoubleT (F.IntegerToDouble $ t1 .-> DoubleT) e1
 
 integerToDoubleLPrim :: Expr -> Expr 
-integerToDoubleLPrim e1 = let t1@(T.List T.Int) = typeOf e1
-                          in F.PApp1 (T.List T.Double) (F.IntegerToDoubleL $ t1 .-> T.List T.Double) e1
+integerToDoubleLPrim e1 = let t1@(ListT IntT) = typeOf e1
+                          in F.PApp1 (ListT DoubleT) (F.IntegerToDoubleL $ t1 .-> ListT DoubleT) e1
 
 sumVal :: Type -> Expr
 sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim
@@ -359,41 +358,41 @@ avgVal :: Type -> Expr
 avgVal t = singleArgClo t "avg_v" avgPrim avgLPrim
 
 sumPrim :: Expr -> Expr
-sumPrim e1 = let t1@(T.List t) = typeOf e1
+sumPrim e1 = let t1@(ListT t) = typeOf e1
               in F.PApp1 t (F.Sum $ t1 .-> t) e1
               
 avgPrim :: Expr -> Expr
 avgPrim e1 = let t1 = typeOf e1
-             in F.PApp1 T.Double (F.Avg $ t1 .-> T.Double) e1
+             in F.PApp1 DoubleT (F.Avg $ t1 .-> DoubleT) e1
 
 sumLPrim :: Expr -> Expr
-sumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+sumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
                in F.PApp1 t (F.SumL $ t1 .-> t) e1
                
 avgLPrim :: Expr -> Expr
-avgLPrim e1 = let t1@(T.List _) = typeOf e1
-              in F.PApp1 (T.List T.Double) (F.AvgL $ t1 .-> (T.List T.Double)) e1
+avgLPrim e1 = let t1@(ListT _) = typeOf e1
+              in F.PApp1 (ListT DoubleT) (F.AvgL $ t1 .-> (ListT DoubleT)) e1
 
 minimumVal :: Type -> Expr
 minimumVal t = singleArgClo t "minimum_v" minimumPrim minimumLPrim
 
 minimumPrim :: Expr -> Expr
-minimumPrim e1 = let t1@(T.List t) = typeOf e1
+minimumPrim e1 = let t1@(ListT t) = typeOf e1
                   in F.PApp1 t (F.Minimum $ t1 .-> t) e1
 
 minimumLPrim :: Expr -> Expr
-minimumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+minimumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
                    in F.PApp1 t (F.MinimumL $ t1 .-> t) e1
 
 maximumVal :: Type -> Expr
 maximumVal t = singleArgClo t "maximum_v" maximumPrim maximumLPrim
 
 maximumPrim :: Expr -> Expr
-maximumPrim e1 = let t1@(T.List t) = typeOf e1
+maximumPrim e1 = let t1@(ListT t) = typeOf e1
                  in F.PApp1 t (F.Maximum $ t1 .-> t) e1
 
 maximumLPrim :: Expr -> Expr
-maximumLPrim e1 = let t1@(T.List t@(T.List _)) = typeOf e1
+maximumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
                   in F.PApp1 t (F.MaximumL $ t1 .-> t) e1
 
 
@@ -401,17 +400,17 @@ concatVal :: Type -> Expr
 concatVal t = singleArgClo t "concat_v" concatPrim concatLPrim
 
 qConcatPrim :: Expr -> Expr
-qConcatPrim e = let t1@(T.List rt@(T.List _)) = typeOf e
+qConcatPrim e = let t1@(ListT rt@(ListT _)) = typeOf e
                     ft = t1 .-> rt
                  in F.PApp1 rt (F.QuickConcat ft) e
 
 concatPrim :: Expr -> Expr
-concatPrim e = let t1@(T.List rt@(T.List _)) = typeOf e
+concatPrim e = let t1@(ListT rt@(ListT _)) = typeOf e
                    ft = t1 .-> rt
                 in F.PApp1 rt (F.Concat ft) e
                 
 concatLPrim :: Expr -> Expr
-concatLPrim e = let t1@(T.List rt@(T.List (T.List _))) = typeOf e
+concatLPrim e = let t1@(ListT rt@(ListT (ListT _))) = typeOf e
                     ft = t1 .-> rt
                  in F.PApp1 rt (F.ConcatLift $ ft) e
 
@@ -482,25 +481,25 @@ varF t x = F.Var t x
 fstPrim :: Expr -> Expr
 fstPrim e = let t = typeOf e
              in case t of
-                 (T.Pair t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
+                 (PairT t1 _) -> PApp1 t1 (Fst $ typeOf e .-> t1) e
                  _              -> error $ "fstPrim: Provided type is not a tuple: " ++ show t
 
 sndPrim :: Expr -> Expr
 sndPrim e = let t = typeOf e
              in case t of
-                 (T.Pair _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
+                 (PairT _ t2) -> PApp1 t2 (Snd $ typeOf e .-> t2) e
                  _             -> error $ "sndPrim: Provided type is not a tuple: " ++ show t
 
 fstLPrim :: Expr -> Expr
 fstLPrim e = let t = typeOf e
               in case t of
-                  (T.List (T.Pair t1 _)) -> PApp1 (T.List t1) (FstL $ t .-> T.List t1) e
+                  (ListT (PairT t1 _)) -> PApp1 (ListT t1) (FstL $ t .-> ListT t1) e
                   _              -> error $ "fstLPrim: Provided type is not a tuple: " ++ show t
 
 sndLPrim :: Expr -> Expr
 sndLPrim e = let t = typeOf e
               in case t of
-                  (T.List (T.Pair _ t2)) -> PApp1 (T.List t2) (SndL $ t .-> T.List t2) e
+                  (ListT (PairT _ t2)) -> PApp1 (ListT t2) (SndL $ t .-> ListT t2) e
                   _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
 \end{code}
 
@@ -518,7 +517,7 @@ ifPrimM = liftM3 ifPrim
 opPrim :: Type -> Oper -> Expr -> Expr -> Expr     
 opPrim t o e1 e2 = let t' = typeOf e1
                     in case (t', o) of
-                        (T.Pair _ _, Eq) -> opPrim t Conj (opPrim t Eq (fstPrim e1) (fstPrim e2)) (opPrim t Eq (sndPrim e1) (sndPrim e2))
+                        (PairT _ _, Eq) -> opPrim t Conj (opPrim t Eq (fstPrim e1) (fstPrim e2)) (opPrim t Eq (sndPrim e1) (sndPrim e2))
                         _ -> BinOp t (Op o False) e1 e2
 
 opPrimM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr

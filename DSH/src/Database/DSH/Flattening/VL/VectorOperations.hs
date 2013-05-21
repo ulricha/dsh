@@ -11,8 +11,7 @@ import           Database.DSH.Flattening.VL.Data.DBVector
 import           Database.DSH.Flattening.VL.VLPrimitives hiding (prop)
 import           Database.DSH.Flattening.VL.MetaPrimitives
 import           Database.DSH.Flattening.Common.Data.Op
-import           Database.DSH.Flattening.Common.Data.Type hiding (Pair)
-import qualified Database.DSH.Flattening.Common.Data.Type as T
+import           Database.DSH.Flattening.Common.Data.Type
 import qualified Database.DSH.Flattening.Common.Data.Val as V
 import           Database.DSH.Flattening.FKL.Data.FKL (TypedColumn, Key)
 
@@ -579,34 +578,34 @@ dbTable n cs ks = do
                     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
 
 mkLiteral ::  Type -> V.Val -> Graph VL Shape
-mkLiteral t@(List _) (V.List es) = do
+mkLiteral t@(ListT _) (V.List es) = do
                                             ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
                                             (flip ValueVector layout) <$> (constructLiteralTable (reverse descHd) $ map reverse descV)
-mkLiteral (Fn _ _) _ = error "Not supported"
+mkLiteral (FunT _ _) _  = error "Not supported"
 mkLiteral t e           = do
-                            ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (List t) 1 [e]
+                            ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
                             flip PrimVal layout <$> constructLiteralValue (reverse descHd) (reverse descV)
                             
 type Table = ([Type], [[VLVal]])
 
 toPlan ::  Table -> Type -> Int -> [V.Val] -> Graph VL (Table, Layout, Int)
-toPlan (descHd, descV) (List t) c es = case t of
-                                             (T.Pair t1 t2) -> do
+toPlan (descHd, descV) (ListT t) c es = case t of
+                                             (PairT t1 t2) -> do
                                                                  let (e1s, e2s) = unzip $ map splitVal es
-                                                                 (desc', l1, c') <- toPlan (descHd, descV) (List t1) c e1s
-                                                                 (desc'', l2, c'') <- toPlan desc' (List t2) c' e2s
+                                                                 (desc', l1, c') <- toPlan (descHd, descV) (ListT t1) c e1s
+                                                                 (desc'', l2, c'') <- toPlan desc' (ListT t2) c' e2s
                                                                  return (desc'', Pair l1 l2, c'')
-                                             (List _) -> do
+                                             (ListT _) -> do
                                                               let vs = map fromListVal es
                                                               let d = mkDescriptor $ map length vs
                                                               ((hd, vs'), l, _) <- toPlan d t 1 (concat vs)
                                                               n <- constructLiteralTable (reverse hd) (map reverse vs')
                                                               return ((descHd, descV), Nest n l, c)
                                                                  
-                                             (Fn _ _) -> error "Function are not db values"
+                                             (FunT _ _) -> error "Function are not db values"
                                              _ -> let (hd, vs) = mkColumn t es
                                                    in return ((hd:descHd, zipWith (:) vs descV), (InColumn c), c + 1)
-toPlan _ (Fn _ _) _ _ = $impossible
+toPlan _ (FunT _ _) _ _ = $impossible
 toPlan (descHd, descV) t c v = let (hd, v') = mkColumn t v
                               in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
