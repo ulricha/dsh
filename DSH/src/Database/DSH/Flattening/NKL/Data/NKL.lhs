@@ -25,8 +25,8 @@ The following syntax diagram describes our input language, the Nested Kernel Lan
 \begin{code}
 data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database table $n$}
            |  App Type Expr Expr                -- \textrm{Application of two expressions}
-           |  AppE1 Type Prim1 Expr             -- \textrm{Application of a primitive to a single argument}
-           |  AppE2 Type Prim2 Expr Expr        -- \textrm{Application of a primitive to two arguments}
+           |  AppE1 Type (Prim1 Type) Expr             -- \textrm{Application of a primitive to a single argument}
+           |  AppE2 Type (Prim2 Type) Expr Expr        -- \textrm{Application of a primitive to two arguments}
            |  BinOp Type Oper Expr Expr         -- \textrm{Application of a binary opertor $\oplus$ to two arguments}
            |  Lam Type String Expr              -- \textrm{Lambda abstraction}
            |  If Type Expr Expr Expr            -- \textrm{Conditional}
@@ -65,18 +65,19 @@ Unary primitive operations:
 %include syntaxdef.fmt
 %include NKLPrims.fmt
 \begin{code}
-data Prim1  =  Length Type  |  Not Type  |  Concat Type
-            |  Sum Type | Avg Type | The Type | Fst Type | Snd Type
-            |  Head Type | Minimum Type | Maximum Type
-            |  IntegerToDouble Type | Tail Type
-            |  Reverse Type | And Type | Or Type
-            |  Init Type | Last Type | Nub Type
+data Prim1 t =  Length t  |  Not t  |  Concat t
+             |  Sum t | Avg t | The t | Fst t | Snd t
+             |  Head t | Minimum t | Maximum t
+             |  IntegerToDouble t | Tail t
+             |  Reverse t | And t | Or t
+             |  Init t | Last t | Nub t
+             deriving (Eq, Ord)
 \end{code}
 
 %if False
 \begin{code}
 
-instance Show Prim1 where
+instance Show (Prim1 t) where
   show (Length _) = "length"
   show (Not _) = "not"
   show (Concat _) = "concat"
@@ -97,27 +98,26 @@ instance Show Prim1 where
   show (Last _) = "last"
   show (Nub _) = "nub"
 
-deriving instance Eq Prim1
-deriving instance Ord Prim1
 \end{code}
 %endif
 
 Binary primitive operations:
 
 \begin{code}
-data Prim2  = Map Type | GroupWithKey Type
-            | SortWith Type | Pair Type
-            | Filter Type | Append Type
-            | Index Type | Take Type
-            | Drop Type | Zip Type
-            | TakeWhile Type
-            | DropWhile Type
-            | CartProduct Type
+data Prim2  t = Map t | GroupWithKey t
+              | SortWith t | Pair t
+              | Filter t | Append t
+              | Index t | Take t
+              | Drop t | Zip t
+              | TakeWhile t
+              | DropWhile t
+              | CartProduct t
+              deriving (Eq, Ord)
 \end{code}
 %}
 %if False
 \begin{code}
-instance Show Prim2 where
+instance Show (Prim2 t) where
   show (Map _) = "map"
   show (GroupWithKey _) = "groupWithKey"
   show (SortWith _) = "sortWith"
@@ -132,8 +132,6 @@ instance Show Prim2 where
   show (DropWhile _) = "dropWhile"
   show (CartProduct _) = "cartProduct"
 
-deriving instance Eq Prim2
-deriving instance Ord Prim2
 \end{code}
 \begin{code}
 instance Typed Expr where

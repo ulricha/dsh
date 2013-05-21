@@ -85,7 +85,7 @@ flatten e = runTransform (flatTransform e)
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
 
-prim1Transform :: N.Prim1 -> F.Expr
+prim1Transform :: (N.Prim1 Type) -> F.Expr
 prim1Transform (N.Length t) = lengthVal t
 prim1Transform (N.Not t) = notVal t
 prim1Transform (N.Concat t) = concatVal t
@@ -106,7 +106,7 @@ prim1Transform (N.Init t) = initVal t
 prim1Transform (N.Last t) = lastVal t
 prim1Transform (N.Nub t) = nubVal t
 
-prim2Transform :: N.Prim2 -> F.Expr
+prim2Transform :: (N.Prim2 Type) -> F.Expr
 prim2Transform (N.Map t) = mapVal t
 prim2Transform (N.SortWith t) = sortWithVal t
 prim2Transform (N.GroupWithKey t) = groupWithKeyVal t
