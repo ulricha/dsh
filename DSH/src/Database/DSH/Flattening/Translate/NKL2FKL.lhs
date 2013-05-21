@@ -149,7 +149,7 @@ transform (N.AppE2 _ p e1 e2)  =   cloAppM (cloAppM (pure $ prim2Transform p) (t
 transform (N.Lam t arg e)      =   do
                                     let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
                                     n <- getFreshVar
-                                    cloM t n fvs arg (transform e) (lift (F.Var (listT (Var "a")) n) e)
+                                    cloM t n fvs arg (transform e) (lift (F.Var (listT (VarT "a")) n) e)
 transform (N.If _ e1 e2 e3)    =   ifPrimM (transform e1) (transform e2) (transform e3)
 transform (N.BinOp t o e1 e2)  =   opPrimM t o (transform e1) (transform e2)
 transform (N.Const t v)        =   pure $ F.Const t v

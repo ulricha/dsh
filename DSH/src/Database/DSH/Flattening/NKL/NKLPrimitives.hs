@@ -4,8 +4,7 @@ import qualified Prelude as P
 import           Prelude (Bool(..))
 
 import           Database.DSH.Flattening.NKL.Data.NKL
-import           Database.DSH.Flattening.Common.Data.Type(unitT, splitType, intT, boolT, listT, stringT, doubleT, pairT, isListT, (.->), listDepth, unliftType, Type(List, Fn), isNum)
-import qualified Database.DSH.Flattening.Common.Data.Type as T
+import           Database.DSH.Flattening.Common.Data.Type
 import           Database.DSH.Flattening.Common.Data.Op
 import qualified Database.DSH.Flattening.Common.Data.Val as V
 
@@ -18,20 +17,21 @@ f $ e = let tf = typeOf f
               else P.error P.$ "NKLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
 
 reverse :: Expr -> Expr
-reverse e = let t@(T.List _) = typeOf e
+reverse e = let t@(ListT _) = typeOf e
              in AppE1 t (Reverse P.$ t .-> t) e
 
 length :: Expr -> Expr
 length e = let t = typeOf e
-            in if isListT t
+            in if isList t
                  then AppE1 intT (Length P.$ t .-> intT) e
                  else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++
                                   "\nThe provided argument is: " P.++ P.show e
 
+
 unzip :: Expr -> Expr
-unzip e = let (T.List (T.Pair t1 t2)) = typeOf e
-              left  = map (lambda (T.Pair t1 t2 .-> t1) "__*unzl*" (fst (var (T.Pair t1 t2) "__*unzl*"))) e
-              right = map (lambda (T.Pair t1 t2 .-> t2) "__*unzr*" (snd (var (T.Pair t1 t2) "__*unzr*"))) e
+unzip e = let (ListT (PairT t1 t2)) = typeOf e
+              left  = map (lambda (PairT t1 t2 .-> t1) "__*unzl*" (fst (var (PairT t1 t2) "__*unzl*"))) e
+              right = map (lambda (PairT t1 t2 .-> t2) "__*unzr*" (snd (var (PairT t1 t2) "__*unzr*"))) e
            in pair left right
                  
 not :: Expr -> Expr
@@ -74,64 +74,64 @@ concat e = let t = typeOf e
                     else P.error P.$ "NKLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
 
 sum :: Expr -> Expr
-sum e = let (List t) = typeOf e
+sum e = let (ListT t) = typeOf e
          in if isNum t
-                then AppE1 t (Sum P.$ List t .-> t) e
-                else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+                then AppE1 t (Sum P.$ ListT t .-> t) e
+                else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 avg :: Expr -> Expr
-avg e = let (List t) = typeOf e
+avg e = let (ListT t) = typeOf e
          in if isNum t
-                then AppE1 t (Avg P.$ List t .-> t) e
-                else P.error P.$ "NKLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (List t)
+                then AppE1 t (Avg P.$ ListT t .-> t) e
+                else P.error P.$ "NKLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (ListT t)
 
 minimum :: Expr -> Expr
-minimum e = let (List t) = typeOf e
+minimum e = let (ListT t) = typeOf e
              in if isNum t
-                 then AppE1 t (Minimum P.$ List t .-> t) e
-                 else P.error P.$ "NKLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+                 then AppE1 t (Minimum P.$ ListT t .-> t) e
+                 else P.error P.$ "NKLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 maximum :: Expr -> Expr
-maximum e = let (List t) = typeOf e
+maximum e = let (ListT t) = typeOf e
              in if isNum t
-                 then AppE1 t (Maximum P.$ List t .-> t) e
-                 else P.error P.$ "NKLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (List t)
+                 then AppE1 t (Maximum P.$ ListT t .-> t) e
+                 else P.error P.$ "NKLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 the :: Expr -> Expr
-the e = let (List t) = typeOf e
-         in AppE1 t (The P.$ List t .-> t) e
+the e = let (ListT t) = typeOf e
+         in AppE1 t (The P.$ ListT t .-> t) e
 
 head :: Expr -> Expr
-head e = let (List t) = typeOf e
-          in AppE1 t (Head P.$ List t .-> t) e
+head e = let (ListT t) = typeOf e
+          in AppE1 t (Head P.$ ListT t .-> t) e
 
 last :: Expr -> Expr
-last e = let (List t) = typeOf e
-          in AppE1 t (Last P.$ List t .-> t) e
+last e = let (ListT t) = typeOf e
+          in AppE1 t (Last P.$ ListT t .-> t) e
 
 tail :: Expr -> Expr
-tail e = let (List t) = typeOf e
-          in AppE1 (List t) (Tail P.$ List t .-> List t) e
+tail e = let (ListT t) = typeOf e
+          in AppE1 (ListT t) (Tail P.$ ListT t .-> ListT t) e
 
 nub :: Expr -> Expr
-nub e = let (List t) = typeOf e
-         in AppE1 (List t) (Nub P.$ List t .-> List t) e
+nub e = let (ListT t) = typeOf e
+         in AppE1 (ListT t) (Nub P.$ ListT t .-> ListT t) e
 
 init :: Expr -> Expr
-init e = let (List t) = typeOf e
-        in AppE1 (List t) (Init P.$ List t .-> List t) e
+init e = let (ListT t) = typeOf e
+        in AppE1 (ListT t) (Init P.$ ListT t .-> ListT t) e
          
 fst :: Expr -> Expr
-fst e = let t@(T.Pair t1 _) = typeOf e
+fst e = let t@(PairT t1 _) = typeOf e
          in AppE1 t1 (Fst P.$ t .-> t1) e
          
 snd :: Expr -> Expr
-snd e = let t@(T.Pair _ t2) = typeOf e
+snd e = let t@(PairT _ t2) = typeOf e
          in AppE1 t2 (Snd P.$ t .-> t2) e
 
 map :: Expr -> Expr -> Expr
-map f es = let ft@(Fn ta tr) = typeOf f
-               te@(List t) = typeOf es
+map f es = let ft@(FunT ta tr) = typeOf f
+               te@(ListT t) = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Map P.$ ft .-> te .-> listT tr) f es
                  else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: \n" 
@@ -142,21 +142,21 @@ map f es = let ft@(Fn ta tr) = typeOf f
                                   P.++ P.show f
 
 filter :: Expr -> Expr -> Expr
-filter f es = let ft@(Fn _ T.Bool) = typeOf f
-                  te@(List _) = typeOf es
+filter f es = let ft@(FunT _ BoolT) = typeOf f
+                  te@(ListT _) = typeOf es
                in AppE2 te (Filter P.$ ft .-> te .-> te) f es
 
 groupWithKey :: Expr -> Expr -> Expr
-groupWithKey f es = let ft@(Fn ta tk) = typeOf f
-                        te@(List t)   = typeOf es
+groupWithKey f es = let ft@(FunT ta tk) = typeOf f
+                        te@(ListT t)   = typeOf es
                         tr            = listT P.$ pairT tk te
                     in if t P.== ta
                        then AppE2 tr (GroupWithKey P.$ ft .-> te .-> tr) f es
                        else P.error P.$ "NKLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 sortWith :: Expr -> Expr -> Expr
-sortWith f es = let ft@(Fn ta _) = typeOf f
-                    te@(List t) = typeOf es
+sortWith f es = let ft@(FunT ta _) = typeOf f
+                    te@(ListT t) = typeOf es
                  in if t P.== ta
                         then AppE2 te (SortWith P.$ ft .-> te .-> te) f es
                         else P.error P.$ "NKLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
@@ -168,14 +168,14 @@ pair e1 e2 = let t1 = typeOf e1
               in AppE2 (pairT t1 t2) (Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
 
 append :: Expr -> Expr -> Expr
-append e1 e2 = let t1@(T.List _) = typeOf e1
-                   t2@(T.List _) = typeOf e2
+append e1 e2 = let t1@(ListT _) = typeOf e1
+                   t2@(ListT _) = typeOf e2
                 in if t1 P.== t2
                     then AppE2 t1 (Append P.$ t1 .-> t1 .-> t1) e1 e2
                     else P.error P.$ "NKLPrims.append: Cannot append two list with different types"
 
 index :: Expr -> Expr -> Expr
-index e1 e2 = let t1@(T.List t) = typeOf e1
+index e1 e2 = let t1@(ListT t) = typeOf e1
                   t2 = typeOf e2
                 in if intT P.== t2
                     then AppE2 t (Index P.$ t1 .-> t2 .-> t) e1 e2
@@ -252,30 +252,30 @@ lte e1 e2 = let t1 = typeOf e1
                   else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 break :: Expr -> Expr -> Expr
-break e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
-                  t2@(T.List tl) = typeOf e2
+break e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
+                  t2@(ListT tl) = typeOf e2
                   notF = Lam t1 "break_not_f" (not (e1 $ (var ta "break_not_f")))
                in if ta P.== tl
                    then pair (takeWhile notF e2) (dropWhile notF e2)
                    else P.error P.$ "NKLPrims.break: Cannot apply break to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 span :: Expr -> Expr -> Expr
-span e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
-                 t2@(T.List tl) = typeOf e2
+span e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
+                 t2@(ListT tl) = typeOf e2
               in if ta P.== tl
                   then pair (takeWhile e1 e2) (dropWhile e1 e2)
                   else P.error P.$ "NKLPrims.span: Cannot apply span to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 takeWhile :: Expr -> Expr -> Expr
-takeWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
-                      t2@(T.List tl) = typeOf e2
+takeWhile e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
+                      t2@(ListT tl) = typeOf e2
                    in if ta P.== tl
                         then AppE2 t2 (TakeWhile P.$ t1 .-> t2 .-> t2) e1 e2
                         else P.error P.$ "NKLPrims.takeWhile: Cannot apply takeWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 dropWhile :: Expr -> Expr -> Expr
-dropWhile e1 e2 = let t1@(T.Fn ta T.Bool) = typeOf e1
-                      t2@(T.List tl) = typeOf e2
+dropWhile e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
+                      t2@(ListT tl) = typeOf e2
                    in if ta P.== tl
                         then AppE2 t2 (DropWhile P.$ t1 .-> t2 .-> t2) e1 e2
                         else P.error P.$ "NKLPrims.dropWhile: Cannot apply dropWhile to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
@@ -302,28 +302,28 @@ like e1 e2 = let t1 = typeOf e1
                 else P.error P.$ "NKLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
 
 snoc :: Expr -> Expr -> Expr
-snoc e1 e2 = let t1@(List t) = typeOf e1
+snoc e1 e2 = let t1@(ListT t) = typeOf e1
               in if t P.== typeOf e2
                     then append e1 (cons e2 P.$ nil t1)
                     else P.error P.$ "NKLPrims.snoc: Cannot apply snoc to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show (typeOf e2)
 
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
-                 t@(List t2) = typeOf e2
+                 t@(ListT t2) = typeOf e2
               in if t1 P.== t2
                    then BinOp t Cons e1 e2
                    else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 take :: Expr -> Expr -> Expr
 take e1 e2 = let t1 = typeOf e1
-                 t2@(List _) = typeOf e2
+                 t2@(ListT _) = typeOf e2
               in if t1 P.== intT
                     then AppE2 t2 (Take P.$ t1 .-> t2 .-> t2) e1 e2
                     else P.error P.$ "NKLPrims.take: Cannot apply take to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 drop :: Expr -> Expr -> Expr
 drop e1 e2 = let t1 = typeOf e1
-                 t2@(List _) = typeOf e2
+                 t2@(ListT _) = typeOf e2
               in if t1 P.== intT
                     then AppE2 t2 (Drop P.$ t1 .-> t2 .-> t2) e1 e2
                     else P.error P.$ "NKLPrims.drop: Cannot apply take to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
@@ -335,9 +335,9 @@ min :: Expr -> Expr -> Expr
 min e1 e2 = cond (e1 `gt` e2) e2 e1
 
 zip :: Expr -> Expr -> Expr
-zip e1 e2 = let t1@(List t1') = typeOf e1
-                t2@(List t2') = typeOf e2
-             in AppE2 (listT P.$ pairT t1' t2') (Zip P.$ t1 .-> t2 .-> List (pairT t1' t2')) e1 e2
+zip e1 e2 = let t1@(ListT t1') = typeOf e1
+                t2@(ListT t2') = typeOf e2
+             in AppE2 (listT P.$ pairT t1' t2') (Zip P.$ t1 .-> t2 .-> listT (pairT t1' t2')) e1 e2
 
 splitAt :: Expr -> Expr -> Expr
 splitAt e1 e2 = pair (take e1 e2) (drop e1 e2)
@@ -378,13 +378,13 @@ nil :: Type -> Expr
 nil t = Const t (V.List [])
 
 list :: Type -> [Expr] -> Expr
-list t es = toList (nil t) es
+list t es = toListT (nil t) es
 
 consOpt :: Expr -> Expr -> Expr
-consOpt e1 e2 = toList e2 [e1]
+consOpt e1 e2 = toListT e2 [e1]
         
-toList :: Expr -> [Expr] -> Expr
-toList n es = primList (P.reverse es) n
+toListT :: Expr -> [Expr] -> Expr
+toListT n es = primList (P.reverse es) n
     where
         primList :: [Expr] -> Expr -> Expr
         primList ((Const _ v):vs) (Const ty (V.List xs)) = primList vs (Const ty (V.List (v:xs)))

@@ -34,16 +34,16 @@ mapSnd f (a, b) = (a, f b)
 
 typeToVLType :: Ty.Type -> VLType
 typeToVLType t = case t of
-  Ty.Nat -> D.Nat
-  Ty.Int -> D.Int
-  Ty.Bool -> D.Bool
-  Ty.String -> D.String
-  Ty.Unit -> D.Unit
-  Ty.Double -> D.Double
-  Ty.Pair t1 t2 -> D.Pair (typeToVLType t1) (typeToVLType t2)
-  Ty.List t' -> D.VLList (typeToVLType t')
-  Ty.Fn _ _ -> error "VLPrimitives: Functions can not occur in operator plans"
-  Ty.Var _ -> error "VLPrimitives: Variables can not occur in operator plans"
+  Ty.NatT        -> D.Nat
+  Ty.IntT        -> D.Int
+  Ty.BoolT       -> D.Bool
+  Ty.StringT     -> D.String
+  Ty.UnitT       -> D.Unit
+  Ty.DoubleT     -> D.Double
+  Ty.PairT t1 t2 -> D.Pair (typeToVLType t1) (typeToVLType t2)
+  Ty.ListT t'    -> D.VLList (typeToVLType t')
+  Ty.FunT _ _    -> error "VLPrimitives: Functions can not occur in operator plans"
+  Ty.VarT _      -> error "VLPrimitives: Variables can not occur in operator plans"
 
 operToVecOp :: O.Oper -> D.VecOp
 operToVecOp op = case op of
