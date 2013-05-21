@@ -3,6 +3,8 @@ module Database.DSH.Flattening.NKL.Opt where
 import Debug.Trace
 import Text.Printf
 
+import qualified Data.Set as S
+
 import Database.DSH.Flattening.NKL.Data.NKL
 import Database.DSH.Flattening.Common.Data.Val
 import Database.DSH.Flattening.Common.Data.Op
@@ -51,6 +53,7 @@ opt' e =
                               singletonExpr)
                          (opt' xs)
                          
+              {- UNSOUND
               -- Merge nested loops by introducing a cartesian product:
               -- concat $ map (\x -> map (\y -> e) ys) xs
               -- => map (\(x, y) -> e) (xs × ys)
@@ -73,14 +76,38 @@ opt' e =
 
                     ys'        = opt' ys
 
-                in AppE2 t 
-                         (Map ((productType .-> resTy2) .-> (listT productType .-> listT resTy2)))
-                         (Lam (productType .-> resTy2) var innerBody')
-                         (AppE2 (listT productType) 
-                                (CartProduct (listT elemTy .-> (listT elemTy2 .-> (listT productType)))) 
-                                             xs' 
-                                             ys')
-
+                in trace ("r6 " ++ (show e)) $ opt' $ AppE2 t 
+                                (Map ((productType .-> resTy2) .-> (listT productType .-> listT resTy2)))
+                                (Lam (productType .-> resTy2) var innerBody')
+                                (AppE2 (listT productType) 
+                                       (CartProduct (listT elemTy .-> (listT elemTy2 .-> (listT productType)))) 
+                                       xs' 
+                                       ys')
+              -}
+              
+              -- Pull the projection part from a nested comprehension:
+              -- concat $ map (\x1 -> map (\x2 -> e) ys) xs
+              -- => map (\x1 -> e[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
+              
+              -- Pull a filter from a nested comprehension
+              -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) (filter (\x2 -> p) ys) xs
+              -- => filter (\x1 -> p[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
+              
+              -- Turn a nested iteration into a cartesian product.
+              -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
+              -- => (x1 × x2)
+              -- provided that x1, x2 do not occur free in ys!
+              
+              -- Eliminate (lifted) identity
+              -- map (\x -> x) xs
+              -- => xs
+              -- -> AppE2
+              
+              -- Eliminate pair construction/deconstruction pairs
+              -- (fst x, snd x)
+              -- => x
+              -- -> AppE2 Pair
+              
               -- Filter pattern: concat (map  (\x -> if p [x] []) xs)
               If _
                  -- the filter condition
@@ -162,6 +189,9 @@ subst v r lam@(Lam t v' e)  = if v == v'
 subst _ _ c@(Const _ _)     = c
 subst v r var@(Var _ v')    = if v == v' then r else var
 subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
+
+freeVars :: Expr -> S.Set String
+freeVars e = undefined
 
 opt :: Expr -> Expr
 opt e = if (e /= e') 
