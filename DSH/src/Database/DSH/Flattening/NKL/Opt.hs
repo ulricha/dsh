@@ -6,6 +6,7 @@ import Text.Printf
 import qualified Data.Set as S
 
 import Database.DSH.Flattening.NKL.Data.NKL
+import qualified Database.DSH.Flattening.NKL.Quote as Q
 import Database.DSH.Flattening.Common.Data.Val
 import Database.DSH.Flattening.Common.Data.Op
 import Database.DSH.Flattening.Common.Data.Type
