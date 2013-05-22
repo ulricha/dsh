@@ -2,15 +2,27 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Database.DSH.Flattening.NKL.Quote where
+module Database.DSH.Flattening.NKL.Quote 
+  ( nkl
+  , ty
+  , ExprQ(..)
+  , TypeQ(..)
+  , toExprQ
+  , fromExprQ
+  , typeOf
+  , (.->)
+  , elemT
+  ) where
 
 import           Control.Monad
-import           Data.Data
 import           Data.Functor
+
+import           Data.Data(Data)
 import           Data.Generics.Aliases
-import           Data.Typeable
+import           Data.Typeable(Typeable, Typeable1)
 import qualified Language.Haskell.TH as TH
 import           Language.Haskell.TH.Quote
+
 import           Text.Parsec
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token as P
@@ -20,7 +32,6 @@ import           Database.DSH.Impossible
 import           Database.DSH.Flattening.Common.Data.Op
 import           Database.DSH.Flattening.Common.Data.Val
 import qualified Database.DSH.Flattening.Common.Data.Type as T
-import           Database.DSH.Flattening.Common.Data.Val(Val())
 import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
 
 data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
@@ -235,7 +246,7 @@ commaSep1 :: Parse a -> Parse [a]
 commaSep1 = P.commaSep1 lexer
 
 typ :: Parse TypeQ
-typ = do { char '$'; AntiT <$> identifier }
+typ = do { void $ char '$'; AntiT <$> identifier }
       <|> do { reserved "nat"; return NatT }
       <|> do { reserved "int"; return IntT }
       <|> do { reserved "bool"; return BoolT }
@@ -345,6 +356,7 @@ columns = reserved "cols"
 -}
 
 infixr 1 *<|>
+(*<|>) :: ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m a
 a *<|> b = try a <|> b
 
 expr :: Parse ExprQ
@@ -363,7 +375,7 @@ expr = do { v <- val
                ; t <- typ
                ; return $ Var t i
                }
-       *<|> do { char '$'
+       *<|> do { void $ char '$'
                ; i <- identifier
                ; return $ AntiE i
                }
