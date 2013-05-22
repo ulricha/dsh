@@ -1,9 +1,14 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Database.DSH.Flattening.NKL.Quote where
 
 import           Control.Monad
 import           Data.Functor
+import           Data.Typeable
+import           Data.Data
+import qualified Language.Haskell.TH as TH
 import           Language.Haskell.TH.Quote
 import           Text.Parsec
 import           Text.Parsec.Language
@@ -17,7 +22,8 @@ import qualified Database.DSH.Flattening.Common.Data.Type as T
 import           Database.DSH.Flattening.Common.Data.Val(Val())
 import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
 
-data ExprQ = Table TypeQ String [NKL.Column] [NKL.Key]
+data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
+             Table
            | App TypeQ ExprQ ExprQ
            | AppE1 TypeQ (NKL.Prim1 TypeQ) ExprQ
            | AppE2 TypeQ (NKL.Prim2 TypeQ) ExprQ ExprQ
@@ -28,7 +34,13 @@ data ExprQ = Table TypeQ String [NKL.Column] [NKL.Key]
            | Var TypeQ String
            -- Antiquotation node
            | AntiE String
-           deriving (Show)
+           deriving (Show, Data, Typeable)
+           
+deriving instance Typeable Val
+deriving instance Data Val
+
+deriving instance Typeable Oper
+deriving instance Data Oper
            
 data TypeQ = FunT TypeQ TypeQ
            | NatT 
@@ -42,10 +54,20 @@ data TypeQ = FunT TypeQ TypeQ
            | ListT TypeQ
            -- Antiquotation node
            | AntiT String
-           deriving (Show)
+           deriving (Show, Typeable, Data)
            
-{-
--- FIXME really necessary?
+deriving instance Typeable NKL.Prim2Op
+deriving instance Data NKL.Prim2Op
+
+deriving instance Typeable NKL.Prim1Op
+deriving instance Data NKL.Prim1Op
+           
+deriving instance Typeable1 NKL.Prim2
+deriving instance Data t => Data (NKL.Prim2 t)
+
+deriving instance Typeable1 NKL.Prim1
+deriving instance Data t => Data (NKL.Prim1 t)
+           
 toTypeQ :: T.Type -> TypeQ
 toTypeQ (T.FunT t1 t2)  = FunT (toTypeQ t1) (toTypeQ t2)
 toTypeQ T.NatT          = NatT
@@ -57,7 +79,6 @@ toTypeQ T.UnitT         = UnitT
 toTypeQ (T.VarT v)      = VarT v
 toTypeQ (T.PairT t1 t2) = PairT (toTypeQ t1) (toTypeQ t2)
 toTypeQ (T.ListT t)     = ListT (toTypeQ t)
--}
 
 fromTypeQ :: TypeQ -> T.Type
 fromTypeQ (FunT t1 t2)  = T.FunT (fromTypeQ t1) (fromTypeQ t2)
@@ -72,22 +93,21 @@ fromTypeQ (PairT t1 t2) = T.PairT (fromTypeQ t1) (fromTypeQ t2)
 fromTypeQ (ListT t)     = T.ListT (fromTypeQ t)
 fromTypeQ (AntiT _)     = $impossible
 
-{-
--- FIXME really necessary?         
 toExprQ :: NKL.Expr -> ExprQ
-toExprQ (NKL.Table t n cs ks)    = Table (toTypeQ t) n cs ks
+--toExprQ (NKL.Table t n cs ks)    = Table (toTypeQ t) n cs ks
+toExprQ (NKL.Table _ _ _ _)      = Table
 toExprQ (NKL.App t e1 e2)        = App (toTypeQ t) (toExprQ e1) (toExprQ e2)
-toExprQ (NKL.AppE1 t p e)        = AppE1 (toTypeQ t) p (toExprQ e)
-toExprQ (NKL.AppE2 t p e1 e2)    = AppE2 (toTypeQ t) p (toExprQ e1) (toExprQ e2)
+toExprQ (NKL.AppE1 t p e)        = AppE1 (toTypeQ t) (toPrim1Q p) (toExprQ e)
+toExprQ (NKL.AppE2 t p e1 e2)    = AppE2 (toTypeQ t) (toPrim2Q p) (toExprQ e1) (toExprQ e2)
 toExprQ (NKL.BinOp t o e1 e2)    = BinOp (toTypeQ t) o (toExprQ e1) (toExprQ e2)
 toExprQ (NKL.Lam t v e)          = Lam (toTypeQ t) v (toExprQ e)
 toExprQ (NKL.If t c thenE elseE) = If (toTypeQ t) (toExprQ c) (toExprQ thenE) (toExprQ elseE)
 toExprQ (NKL.Const t v)          = Const (toTypeQ t) v
 toExprQ (NKL.Var t v)            = Var (toTypeQ t) v
--}
 
 fromExprQ :: ExprQ -> NKL.Expr
-fromExprQ (Table t n cs ks)    = NKL.Table (fromTypeQ t) n cs ks
+-- fromExprQ (Table t n cs ks)    = NKL.Table (fromTypeQ t) n cs ks
+fromExprQ Table                = NKL.Table undefined undefined undefined undefined
 fromExprQ (App t e1 e2)        = NKL.App (fromTypeQ t) (fromExprQ e1) (fromExprQ e2)
 fromExprQ (AppE1 t p e)        = NKL.AppE1 (fromTypeQ t) (fromPrim1Q p) (fromExprQ e)
 fromExprQ (AppE2 t p e1 e2)    = NKL.AppE2 (fromTypeQ t) (fromPrim2Q p) (fromExprQ e1) (fromExprQ e2)
@@ -99,10 +119,16 @@ fromExprQ (Var t v)            = NKL.Var (fromTypeQ t) v
 fromExprQ (AntiE _)            = $impossible
           
 fromPrim1Q :: NKL.Prim1 TypeQ -> NKL.Prim1 T.Type
-fromPrim1Q = undefined
+fromPrim1Q (NKL.Prim1 o t) = NKL.Prim1 o (fromTypeQ t)
+
+toPrim1Q :: NKL.Prim1 T.Type -> NKL.Prim1 TypeQ
+toPrim1Q (NKL.Prim1 o t) = NKL.Prim1 o (toTypeQ t)
 
 fromPrim2Q :: NKL.Prim2 TypeQ -> NKL.Prim2 T.Type
-fromPrim2Q = undefined
+fromPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (fromTypeQ t)
+
+toPrim2Q :: NKL.Prim2 T.Type -> NKL.Prim2 TypeQ
+toPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (toTypeQ t)
 
 {-
 gExpr -> (CExpr)::Type
@@ -176,9 +202,9 @@ stringLiteral = P.stringLiteral lexer
 commaSep1 :: Parse a -> Parse [a]
 commaSep1 = P.commaSep1 lexer
 
-
 typ :: Parse TypeQ
-typ = do { reserved "nat"; return NatT }
+typ = do { char '$'; AntiT <$> identifier }
+      <|> do { reserved "nat"; return NatT }
       <|> do { reserved "int"; return IntT }
       <|> do { reserved "bool"; return BoolT }
       <|> do { reserved "double"; return DoubleT }
@@ -198,25 +224,25 @@ typ = do { reserved "nat"; return NatT }
       <|> do { t <- brackets typ; return $ ListT t }
       
 prim1s :: [Parse (TypeQ -> NKL.Prim1 TypeQ)]
-prim1s = [ reserved "length" >> return NKL.Length
-         , reserved "not" >> return NKL.Not
-         , reserved "concat" >> return NKL.Concat
-         , reserved "sum" >> return NKL.Sum
-         , reserved "avg" >> return NKL.Avg
-         , reserved "the" >> return NKL.The
-         , reserved "fst" >> return NKL.Fst
-         , reserved "snd" >> return NKL.Snd
-         , reserved "head" >> return NKL.Head
-         , reserved "minimum" >> return NKL.Minimum
-         , reserved "maximum" >> return NKL.Maximum
-         , reserved "integerToDouble" >> return NKL.IntegerToDouble
-         , reserved "tail" >> return NKL.Tail
-         , reserved "reverse" >> return NKL.Reverse
-         , reserved "and" >> return NKL.And
-         , reserved "or" >> return NKL.Or
-         , reserved "init" >> return NKL.Init
-         , reserved "last" >> return NKL.Last
-         , reserved "nub" >> return NKL.Nub
+prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
+         , reserved "not" >> return (NKL.Prim1 NKL.Not)
+         , reserved "concat" >> return (NKL.Prim1 NKL.Concat)
+         , reserved "sum" >> return (NKL.Prim1 NKL.Sum)
+         , reserved "avg" >> return (NKL.Prim1 NKL.Avg)
+         , reserved "the" >> return (NKL.Prim1 NKL.The)
+         , reserved "fst" >> return (NKL.Prim1 NKL.Fst)
+         , reserved "snd" >> return (NKL.Prim1 NKL.Snd)
+         , reserved "head" >> return (NKL.Prim1 NKL.Head)
+         , reserved "minimum" >> return (NKL.Prim1 NKL.Minimum)
+         , reserved "maximum" >> return (NKL.Prim1 NKL.Maximum)
+         , reserved "integerToDouble" >> return (NKL.Prim1 NKL.IntegerToDouble)
+         , reserved "tail" >> return (NKL.Prim1 NKL.Tail)
+         , reserved "reverse" >> return (NKL.Prim1 NKL.Reverse)
+         , reserved "and" >> return (NKL.Prim1 NKL.And)
+         , reserved "or" >> return (NKL.Prim1 NKL.Or)
+         , reserved "init" >> return (NKL.Prim1 NKL.Init)
+         , reserved "last" >> return (NKL.Prim1 NKL.Last)
+         , reserved "nub" >> return (NKL.Prim1 NKL.Nub)
          ]
       
 prim1 :: Parse (NKL.Prim1 TypeQ)
@@ -227,19 +253,19 @@ prim1 = do { p <- choice prim1s
            }
            
 prim2s :: [Parse (TypeQ -> NKL.Prim2 TypeQ)]
-prim2s = [ reserved "map" >> return NKL.Map
-         , reserved "groupWithKey" >> return NKL.GroupWithKey
-         , reserved "sortWith" >> return NKL.SortWith
-         , reserved "pair" >> return NKL.Pair
-         , reserved "filter" >> return NKL.Filter
-         , reserved "append" >> return NKL.Append
-         , reserved "index" >> return NKL.Index
-         , reserved "take" >> return NKL.Take
-         , reserved "drop" >> return NKL.Drop
-         , reserved "zip" >> return NKL.Zip
-         , reserved "takeWhile" >> return NKL.TakeWhile
-         , reserved "dropWhile" >> return NKL.DropWhile
-         , reserved "cartProduct" >> return NKL.CartProduct
+prim2s = [ reserved "map" >> return (NKL.Prim2 NKL.Map)
+         , reserved "groupWithKey" >> return (NKL.Prim2 NKL.GroupWithKey)
+         , reserved "sortWith" >> return (NKL.Prim2 NKL.SortWith)
+         , reserved "pair" >> return (NKL.Prim2 NKL.Pair)
+         , reserved "filter" >> return (NKL.Prim2 NKL.Filter)
+         , reserved "append" >> return (NKL.Prim2 NKL.Append)
+         , reserved "index" >> return (NKL.Prim2 NKL.Index)
+         , reserved "take" >> return (NKL.Prim2 NKL.Take)
+         , reserved "drop" >> return (NKL.Prim2 NKL.Drop)
+         , reserved "zip" >> return (NKL.Prim2 NKL.Zip)
+         , reserved "takeWhile" >> return (NKL.Prim2 NKL.TakeWhile)
+         , reserved "dropWhile" >> return (NKL.Prim2 NKL.DropWhile)
+         , reserved "cartProduct" >> return (NKL.Prim2 NKL.CartProduct)
          ]
 
 prim2 :: Parse (NKL.Prim2 TypeQ)
@@ -250,15 +276,15 @@ prim2 = do { p <- choice prim2s
            }
            
 val :: Parse Val
-val = (Int <$> natural)
-      <|> (String <$> stringLiteral)
-      <|> (Double <$> float)
-      <|> (reserved "unit" >> return Unit)
-      <|> (List <$> (brackets $ commaSep val))
+val = (IntV <$> natural)
+      <|> (StringV <$> stringLiteral)
+      <|> (DoubleV <$> float)
+      <|> (reserved "unit" >> return UnitV)
+      <|> (ListV <$> (brackets $ commaSep val))
       <|> (parens $ do { v1 <- val
                        ; void comma
                        ; v2 <- val
-                       ; return $ Pair v1 v2
+                       ; return $ PairV v1 v2
                        } )
                        
 op :: Parse Oper
@@ -286,6 +312,9 @@ columns :: Parse [NKL.Column]
 columns = reserved "cols"
 -}
 
+infixr 1 *<|>
+a *<|> b = try a <|> b
+
 expr :: Parse ExprQ
 expr = do { v <- val
           ; reservedOp "::"
@@ -302,10 +331,10 @@ expr = do { v <- val
                ; t <- typ
                ; return $ Var t i
                }
-              
-infixr 1 *<|>
-a *<|> b = try a <|> b
-
+       *<|> do { char '$'
+               ; i <- identifier
+               ; return $ AntiE i
+               }
 cexpr :: Parse (TypeQ -> ExprQ)
 cexpr = do { reserved "table" >> undefined }
       {-
@@ -348,7 +377,6 @@ cexpr = do { reserved "table" >> undefined }
                 ; return $ \t -> Lam t v e
                 }
             
-       
 parseType :: String -> TypeQ
 parseType i = case parse typ "" i of
                 Left e  -> error $ show e
@@ -356,10 +384,23 @@ parseType i = case parse typ "" i of
 
 parseExpr :: String -> ExprQ
 parseExpr i = case parse expr "" i of
-                Left e  -> error $ show e
+                Left e  -> error $ i ++ " " ++ show e
                 Right t -> t
                 
 parseVal :: String -> Val
 parseVal i = case parse val "" i of
                 Left e  -> error $ show e
                 Right t -> t
+
+quoteExprExp :: String -> TH.ExpQ
+quoteExprExp s = dataToExpQ (const Nothing) $ parseExpr s
+
+quoteExprPat :: String -> TH.PatQ
+quoteExprPat s = dataToPatQ (const Nothing) $ parseExpr s
+
+
+nkl :: QuasiQuoter
+nkl = QuasiQuoter { quoteExp = quoteExprExp
+                  , quotePat = quoteExprPat
+                  }
+                     
