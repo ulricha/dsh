@@ -393,12 +393,6 @@ parseVal i = case parse val "" i of
                 Left e  -> error $ show e
                 Right t -> t
 
-quoteExprExp :: String -> TH.ExpQ
-quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp) $ parseExpr s
-
-quoteExprPat :: String -> TH.PatQ
-quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat) $ parseExpr s
-
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
 antiExprExp (AntiE s) = Just $ TH.varE (TH.mkName s)
 antiExprExp _         = Nothing
@@ -407,6 +401,32 @@ antiExprPat :: ExprQ -> Maybe (TH.Q TH.Pat)
 antiExprPat (AntiE s) = Just $ TH.varP (TH.mkName s)
 antiExprPat _         = Nothing
 
+antiTypeExp :: TypeQ -> Maybe (TH.Q TH.Exp)
+antiTypeExp (AntiT s) = Just $ TH.varE (TH.mkName s)
+antiTypeExp _         = Nothing
+
+antiTypePat :: TypeQ -> Maybe (TH.Q TH.Pat)
+antiTypePat (AntiT s) = Just $ TH.varP (TH.mkName s)
+antiTyePat _          = Nothing
+
+quoteExprExp :: String -> TH.ExpQ
+quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
+                                           `extQ` antiTypeExp) $ parseExpr s
+
+quoteExprPat :: String -> TH.PatQ
+quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat
+                                           `extQ` antiTypePat) $ parseExpr s
+                                           
+quoteTypeExp :: String -> TH.ExpQ
+quoteTypeExp s = dataToExpQ (const Nothing `extQ` antiTypeExp) $ parseType s
+
+quoteTypePat :: String -> TH.PatQ
+quoteTypePat s = dataToPatQ (const Nothing `extQ` antiTypePat) $ parseType s
+                                           
+t :: QuasiQuoter
+t = QuasiQuoter { quoteExp = quoteTypeExp
+                , quotePat = quoteTypePat
+                }
 
 nkl :: QuasiQuoter
 nkl = QuasiQuoter { quoteExp = quoteExprExp
