@@ -31,10 +31,10 @@ render (CloApp _ f a) = parens $ render f <+> text ":$" <+> (parens $ render a)
 render (CloLApp _ f a) = parens $ render f <+> text ":$l" <+> (parens $ render a)
 
 renderC :: V.Val -> Doc
-renderC (V.Int i) = int i
-renderC (V.String s) = text $ show s
-renderC (V.Double d) = double d
-renderC (V.Bool b) = text $ show b
-renderC (V.Unit) = text $ "()"
-renderC (V.List es) = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
-renderC (V.Pair e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"
+renderC (V.IntV i)      = int i
+renderC (V.StringV s)   = text $ show s
+renderC (V.DoubleV d)   = double d
+renderC (V.BoolV b)     = text $ show b
+renderC (V.UnitV)       = text $ "()"
+renderC (V.ListV es)    = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
+renderC (V.PairV e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"
