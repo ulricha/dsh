@@ -1,21 +1,28 @@
+{-# LANGUAGE QuasiQuotes     #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Flattening.NKL.Opt where
        
-import Debug.Trace
-import Text.Printf
+import           Debug.Trace
+import           Text.Printf
+
 
 import qualified Data.Set as S
 
-import Database.DSH.Flattening.NKL.Data.NKL
+import           Database.DSH.Flattening.Common.Data.Op
+import qualified Database.DSH.Flattening.Common.Data.Type as T
+import           Database.DSH.Flattening.Common.Data.Val
+import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
+import           Database.DSH.Flattening.NKL.Data.NKL(Prim2(..), Prim2Op(..), Prim1(..), Prim1Op(..))
+import           Database.DSH.Flattening.NKL.Quote
 import qualified Database.DSH.Flattening.NKL.Quote as Q
-import Database.DSH.Flattening.Common.Data.Val
-import Database.DSH.Flattening.Common.Data.Op
-import Database.DSH.Flattening.Common.Data.Type
-
+import           Database.DSH.Impossible
+       
 -- Perform simple optimizations on the NKL
-opt' :: Expr -> Expr
+opt' :: ExprQ -> ExprQ
 opt' e =
   case e of 
-    tab@(Table _ _ _ _) -> tab
+    tab@(Table) -> tab
     App t e1 e2 -> App t (opt' e1) (opt' e2)
 
     -- concatPrim2 Map pattern: concat $ map (\x -> body) xs
@@ -44,7 +51,7 @@ opt' e =
                 trace ("r2 " ++ (show e)) $ opt' $ AppE2 t 
                          -- FIXME typeOf is potentially dangerous since the type
                          -- language includes variables.
-                         (Prim2 Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
+                         (Prim2 Map ((elemTy .-> (typeOf body)) .-> ((ListT elemTy) .-> t)))
                          (Lam (elemTy .-> (typeOf body))
                               var
                               singletonExpr)
@@ -74,10 +81,10 @@ opt' e =
                     ys'        = opt' ys
 
                 in trace ("r6 " ++ (show e)) $ opt' $ AppE2 t 
-                                (Prim2 Map ((productType .-> resTy2) .-> (listT productType .-> listT resTy2)))
+                                (Prim2 Map ((productType .-> resTy2) .-> (ListT productType .-> ListT resTy2)))
                                 (Lam (productType .-> resTy2) var innerBody')
-                                (AppE2 (listT productType) 
-                                       (CartProduct (listT elemTy .-> (listT elemTy2 .-> (listT productType)))) 
+                                (AppE2 (ListT productType) 
+                                       (CartProduct (ListT elemTy .-> (ListT elemTy2 .-> (ListT productType)))) 
                                        xs' 
                                        ys')
               -}
@@ -116,8 +123,8 @@ opt' e =
 
                 -- Turns into: filter (\x -> e) xs
                 trace ("r3 " ++ (show e)) $ opt' $ AppE2 t
-                             (Prim2 Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
-                             (Lam (elemTy .-> boolT) var p)
+                             (Prim2 Filter ((elemTy .-> Q.BoolT) .-> ((ListT elemTy) .-> t)))
+                             (Lam (elemTy .-> BoolT) var p)
                              (opt' xs)
 
               -- More general filter pattern:
@@ -132,11 +139,11 @@ opt' e =
                  (Const _ (ListV [])) ->
 
                 trace ("r4 " ++ (show e)) $ opt' $ AppE2 t
-                             (Prim2 Map ((elemTy .-> (elemT resTy)) .-> ((listT elemTy) .-> t)))
+                             (Prim2 Map ((elemTy .-> (elemT resTy)) .-> ((ListT elemTy) .-> t)))
                              (Lam (elemTy .-> (elemT resTy)) var bodyExpr)
                              (AppE2 t
-                                    (Prim2 Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
-                                    (Lam (elemTy .-> boolT) var p)
+                                    (Prim2 Filter ((elemTy .-> BoolT) .-> ((ListT elemTy) .-> t)))
+                                    (Lam (elemTy .-> BoolT) var p)
                                     (opt' xs))
 
               body' -> 
@@ -148,6 +155,7 @@ opt' e =
                                (Lam (FunT elemTy resTy) var body') xs')
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
+    [nkl|(42::int + 23::int)::int|] -> undefined
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
     Lam t v e1 -> Lam t v (opt' e1)
   
@@ -163,7 +171,7 @@ opt' e =
        (Const _ (ListV [])) ->
 
       trace ("r5 " ++ (show e)) $ opt' $ If t1 
-                (BinOp boolT Conj c1 c2)
+                (BinOp BoolT Conj c1 c2)
                 t
                 (Const t1 (ListV []))
            
@@ -172,8 +180,8 @@ opt' e =
     var@(Var _ _) -> var
     
 -- Substitution: subst v r e ~ e[v/r]
-subst :: String -> Expr -> Expr -> Expr
-subst _ _ t@(Table _ _ _ _) = t
+subst :: String -> ExprQ -> ExprQ -> ExprQ
+subst _ _ t@(Table) = t
 subst v r (App t e1 e2)     = App t (subst v r e1) (subst v r e2)
 subst v r (AppE1 t p e)     = AppE1 t p (subst v r e)
 subst v r (AppE2 t p e1 e2) = AppE2 t p (subst v r e1) (subst v r e2)
@@ -187,11 +195,11 @@ subst _ _ c@(Const _ _)     = c
 subst v r var@(Var _ v')    = if v == v' then r else var
 subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
 
-freeVars :: Expr -> S.Set String
+freeVars :: ExprQ -> S.Set String
 freeVars e = undefined
 
-opt :: Expr -> Expr
+opt :: NKL.Expr -> NKL.Expr
 opt e = if (e /= e') 
         then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
         else trace (show e) e'
-  where e' = opt' e
+  where e' = fromExprQ $ opt' $ toExprQ e

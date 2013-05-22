@@ -36,7 +36,7 @@ data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
            -- Antiquotation node
            | AntiE String
            deriving (Show, Data, Typeable)
-           
+
 deriving instance Typeable Val
 deriving instance Data Val
 
@@ -69,6 +69,9 @@ deriving instance Data t => Data (NKL.Prim2 t)
 deriving instance Typeable1 NKL.Prim1
 deriving instance Data t => Data (NKL.Prim1 t)
            
+--------------------------------------------------------------------------
+-- Conversion to and from quotation types
+
 toTypeQ :: T.Type -> TypeQ
 toTypeQ (T.FunT t1 t2)  = FunT (toTypeQ t1) (toTypeQ t2)
 toTypeQ T.NatT          = NatT
@@ -131,6 +134,31 @@ fromPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (fromTypeQ t)
 toPrim2Q :: NKL.Prim2 T.Type -> NKL.Prim2 TypeQ
 toPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (toTypeQ t)
 
+--------------------------------------------------------------------------
+-- Some helper functions on quotable types and expressions, analogous to 
+-- those in NKL and Type.
+
+-- | Extract the type annotation from an expression
+typeOf :: ExprQ -> TypeQ
+typeOf (Table)         = undefined
+typeOf (App t _ _)     = t
+typeOf (AppE1 t _ _)   = t
+typeOf (AppE2 t _ _ _) = t
+typeOf (BinOp t _ _ _) = t
+typeOf (Lam t _ _)     = t
+typeOf (If t _ _ _)    = t
+typeOf (Const t _)     = t
+typeOf (Var t _)       = t
+typeOf (AntiE _)       = $impossible
+
+(.->) :: TypeQ -> TypeQ -> TypeQ
+(.->) t1 t2 = FunT t1 t2
+
+elemT :: TypeQ -> TypeQ
+elemT (ListT t) = t
+elemT _         = $impossible
+
+
 {-
 gExpr -> (CExpr)::Type
       | Const::Type
@@ -164,6 +192,9 @@ Type -> (Type -> Type)
       | [Type]
 
 -}
+
+--------------------------------------------------------------------------
+-- A parser for NKL expressions and types, including anti-quotation syntax
 
 type Parse = Parsec String ()
 
@@ -378,6 +409,7 @@ cexpr = do { reserved "table" >> undefined }
                 ; return $ \t -> Lam t v e
                 }
             
+
 parseType :: String -> TypeQ
 parseType i = case parse typ "" i of
                 Left e  -> error $ show e
@@ -387,12 +419,10 @@ parseExpr :: String -> ExprQ
 parseExpr i = case parse expr "" i of
                 Left e  -> error $ i ++ " " ++ show e
                 Right t -> t
-                
-parseVal :: String -> Val
-parseVal i = case parse val "" i of
-                Left e  -> error $ show e
-                Right t -> t
 
+--------------------------------------------------------------------------
+-- Quasi-Quoting
+                
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
 antiExprExp (AntiE s) = Just $ TH.varE (TH.mkName s)
 antiExprExp _         = Nothing
@@ -407,7 +437,7 @@ antiTypeExp _         = Nothing
 
 antiTypePat :: TypeQ -> Maybe (TH.Q TH.Pat)
 antiTypePat (AntiT s) = Just $ TH.varP (TH.mkName s)
-antiTyePat _          = Nothing
+antiTypePat _          = Nothing
 
 quoteExprExp :: String -> TH.ExpQ
 quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
@@ -423,11 +453,13 @@ quoteTypeExp s = dataToExpQ (const Nothing `extQ` antiTypeExp) $ parseType s
 quoteTypePat :: String -> TH.PatQ
 quoteTypePat s = dataToPatQ (const Nothing `extQ` antiTypePat) $ parseType s
                                            
-t :: QuasiQuoter
-t = QuasiQuoter { quoteExp = quoteTypeExp
-                , quotePat = quoteTypePat
-                }
+-- | A quasi quoter for the Flattening type language
+ty :: QuasiQuoter
+ty = QuasiQuoter { quoteExp = quoteTypeExp
+                 , quotePat = quoteTypePat
+                 }
 
+-- | A quasi quoter for NKL expressions
 nkl :: QuasiQuoter
 nkl = QuasiQuoter { quoteExp = quoteExprExp
                   , quotePat = quoteExprPat
