@@ -5,9 +5,10 @@
 module Database.DSH.Flattening.NKL.Quote where
 
 import           Control.Monad
-import           Data.Functor
-import           Data.Typeable
 import           Data.Data
+import           Data.Functor
+import           Data.Generics.Aliases
+import           Data.Typeable
 import qualified Language.Haskell.TH as TH
 import           Language.Haskell.TH.Quote
 import           Text.Parsec
@@ -393,10 +394,18 @@ parseVal i = case parse val "" i of
                 Right t -> t
 
 quoteExprExp :: String -> TH.ExpQ
-quoteExprExp s = dataToExpQ (const Nothing) $ parseExpr s
+quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp) $ parseExpr s
 
 quoteExprPat :: String -> TH.PatQ
-quoteExprPat s = dataToPatQ (const Nothing) $ parseExpr s
+quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat) $ parseExpr s
+
+antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
+antiExprExp (AntiE s) = Just $ TH.varE (TH.mkName s)
+antiExprExp _         = Nothing
+
+antiExprPat :: ExprQ -> Maybe (TH.Q TH.Pat)
+antiExprPat (AntiE s) = Just $ TH.varP (TH.mkName s)
+antiExprPat _         = Nothing
 
 
 nkl :: QuasiQuoter
