@@ -34,6 +34,8 @@ import           Database.DSH.Flattening.Common.Data.Val
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
 
+data Anti = AntiBind String | AntiWild deriving (Show, Data, Typeable)
+
 data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
              Table
            | App TypeQ ExprQ ExprQ
@@ -45,7 +47,7 @@ data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
            | Const TypeQ Val
            | Var TypeQ String
            -- Antiquotation node
-           | AntiE String
+           | AntiE Anti
            deriving (Show, Data, Typeable)
 
 deriving instance Typeable Val
@@ -65,7 +67,7 @@ data TypeQ = FunT TypeQ TypeQ
            | PairT TypeQ TypeQ 
            | ListT TypeQ
            -- Antiquotation node
-           | AntiT String
+           | AntiT Anti
            deriving (Show, Typeable, Data)
            
 deriving instance Typeable NKL.Prim2Op
@@ -246,25 +248,26 @@ commaSep1 :: Parse a -> Parse [a]
 commaSep1 = P.commaSep1 lexer
 
 typ :: Parse TypeQ
-typ = do { void $ char '$'; AntiT <$> identifier }
-      <|> do { reserved "nat"; return NatT }
-      <|> do { reserved "int"; return IntT }
-      <|> do { reserved "bool"; return BoolT }
-      <|> do { reserved "double"; return DoubleT }
-      <|> do { reserved "string"; return StringT }
-      <|> do { reserved "unit"; return UnitT }
-      <|> do { i <- identifier; return $ VarT i }
-      <|> try (parens $ do { t1 <- typ
-                           ; reservedOp "->"
-                           ; t2 <- typ
-                           ; return $ FunT t1 t2
-                           } )
-      <|> (parens $ do { t1 <- typ
-                       ; void comma
-                       ; t2 <- typ
-                       ; return $ PairT t1 t2
-                       } )
-      <|> do { t <- brackets typ; return $ ListT t }
+typ = do { void $ char '\''; AntiT <$> AntiBind <$> identifier }
+      *<|> do { reservedOp "_"; return (AntiT AntiWild) }
+      *<|> do { reserved "nat"; return NatT }
+      *<|> do { reserved "int"; return IntT }
+      *<|> do { reserved "bool"; return BoolT }
+      *<|> do { reserved "double"; return DoubleT }
+      *<|> do { reserved "string"; return StringT }
+      *<|> do { reserved "unit"; return UnitT }
+      *<|> do { i <- identifier; return $ VarT i }
+      *<|> try (parens $ do { t1 <- typ
+                            ; reservedOp "->"
+                            ; t2 <- typ
+                            ; return $ FunT t1 t2
+                            } )
+      *<|> (parens $ do { t1 <- typ
+                        ; void comma
+                        ; t2 <- typ
+                        ; return $ PairT t1 t2
+                        } )
+      *<|> do { t <- brackets typ; return $ ListT t }
       
 prim1s :: [Parse (TypeQ -> NKL.Prim1 TypeQ)]
 prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
@@ -375,9 +378,10 @@ expr = do { v <- val
                ; t <- typ
                ; return $ Var t i
                }
-       *<|> do { void $ char '$'
+       *<|> do { reservedOp "_"; return (AntiE AntiWild) }
+       *<|> do { void $ char '\''
                ; i <- identifier
-               ; return $ AntiE i
+               ; return $ AntiE $ AntiBind i
                }
 cexpr :: Parse (TypeQ -> ExprQ)
 cexpr = do { reserved "table" >> undefined }
@@ -414,7 +418,7 @@ cexpr = do { reserved "table" >> undefined }
                 ; elseE <- expr
                 ; return $ \t -> If t condE thenE elseE
                 }
-        *<|> do { reservedOp "|"
+        *<|> do { reservedOp "\\"
                 ; v <- identifier
                 ; reservedOp "->"
                 ; e <- expr
@@ -436,20 +440,22 @@ parseExpr i = case parse expr "" i of
 -- Quasi-Quoting
                 
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
-antiExprExp (AntiE s) = Just $ TH.varE (TH.mkName s)
-antiExprExp _         = Nothing
+antiExprExp (AntiE (AntiBind s)) = Just $ TH.varE (TH.mkName s)
+antiExprExp _                    = Nothing
 
 antiExprPat :: ExprQ -> Maybe (TH.Q TH.Pat)
-antiExprPat (AntiE s) = Just $ TH.varP (TH.mkName s)
-antiExprPat _         = Nothing
+antiExprPat (AntiE (AntiBind s)) = Just $ TH.varP (TH.mkName s)
+antiExprPat (AntiE AntiWild)     = Just TH.wildP
+antiExprPat _                    = Nothing
 
 antiTypeExp :: TypeQ -> Maybe (TH.Q TH.Exp)
-antiTypeExp (AntiT s) = Just $ TH.varE (TH.mkName s)
-antiTypeExp _         = Nothing
+antiTypeExp (AntiT (AntiBind s)) = Just $ TH.varE (TH.mkName s)
+antiTypeExp _                    = Nothing
 
 antiTypePat :: TypeQ -> Maybe (TH.Q TH.Pat)
-antiTypePat (AntiT s) = Just $ TH.varP (TH.mkName s)
-antiTypePat _          = Nothing
+antiTypePat (AntiT (AntiBind s)) = Just $ TH.varP (TH.mkName s)
+antiTypePat (AntiT AntiWild)     = Just TH.wildP
+antiTypePat _                    = Nothing
 
 quoteExprExp :: String -> TH.ExpQ
 quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
