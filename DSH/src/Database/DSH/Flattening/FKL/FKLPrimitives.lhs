@@ -473,7 +473,7 @@ unconcatPrim e1 e2 = let t1 = typeOf e1
                       in F.PApp2 rt (F.Unconcat ft) e1 e2 
 
 intF :: Int -> Expr
-intF i = F.Const intT $ Int i
+intF i = F.Const intT $ IntV i
 
 varF :: Type -> String -> Expr
 varF t x = F.Var t x

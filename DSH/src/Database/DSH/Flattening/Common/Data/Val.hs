@@ -6,11 +6,11 @@ import GHC.Generics (Generic)
 Basic values in both FKL and NKL. 
 -}
 data Val where
-    List :: [Val] -> Val
-    Int :: Int -> Val
-    Bool :: Bool -> Val
-    String :: String -> Val
-    Double :: Double -> Val
-    Pair :: Val -> Val -> Val
-    Unit :: Val
+    ListV   :: [Val] -> Val
+    IntV    :: Int -> Val
+    BoolV   :: Bool -> Val
+    StringV :: String -> Val
+    DoubleV :: Double -> Val
+    PairV   :: Val -> Val -> Val
+    UnitV   :: Val
     deriving (Eq, Show, Ord, Generic)

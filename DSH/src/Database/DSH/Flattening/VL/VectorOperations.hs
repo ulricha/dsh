@@ -578,7 +578,7 @@ dbTable n cs ks = do
                     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
 
 mkLiteral ::  Type -> V.Val -> Graph VL Shape
-mkLiteral t@(ListT _) (V.List es) = do
+mkLiteral t@(ListT _) (V.ListV es) = do
                                             ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
                                             (flip ValueVector layout) <$> (constructLiteralTable (reverse descHd) $ map reverse descV)
 mkLiteral (FunT _ _) _  = error "Not supported"
@@ -610,21 +610,21 @@ toPlan (descHd, descV) t c v = let (hd, v') = mkColumn t v
                               in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
 fromListVal :: V.Val -> [V.Val]
-fromListVal (V.List es) = es
-fromListVal _              = error "fromListVal: Not a list"
+fromListVal (V.ListV es) = es
+fromListVal _            = error "fromListVal: Not a list"
 
 splitVal :: V.Val -> (V.Val, V.Val)
-splitVal (V.Pair e1 e2) = (e1, e2)
-splitVal _                 = error $ "splitVal: Not a tuple"
+splitVal (V.PairV e1 e2) = (e1, e2)
+splitVal _               = error $ "splitVal: Not a tuple"
 
 
 pVal :: V.Val -> VLVal
-pVal (V.Int i) = VLInt i
-pVal (V.Bool b) = VLBool b
-pVal (V.String s) = VLString s
-pVal (V.Double d) = VLDouble d
-pVal V.Unit = VLUnit
-pVal _ = error "pVal: Not a supported value"
+pVal (V.IntV i)    = VLInt i
+pVal (V.BoolV b)   = VLBool b
+pVal (V.StringV s) = VLString s
+pVal (V.DoubleV d) = VLDouble d
+pVal V.UnitV       = VLUnit
+pVal _             = error "pVal: Not a supported value"
 
 mkColumn :: Type -> [V.Val] -> (Type, [VLVal])
 mkColumn t vs = (t, [pVal v | v <- vs])

@@ -162,7 +162,7 @@ sortWith f es = let ft@(FunT ta _) = typeOf f
                         else P.error P.$ "NKLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 pair :: Expr -> Expr -> Expr
-pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.Pair v1 v2)
+pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.PairV v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
@@ -360,22 +360,22 @@ cond eb et ee = let tb = typeOf eb
                       else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
 
 unit :: Expr
-unit = Const unitT V.Unit
+unit = Const unitT V.UnitV
 
 int :: P.Int -> Expr
-int i = Const intT (V.Int i)
+int i = Const intT (V.IntV i)
 
 bool :: P.Bool -> Expr
-bool b = Const boolT (V.Bool b)
+bool b = Const boolT (V.BoolV b)
 
 string :: P.String -> Expr
-string s = Const stringT (V.String s)
+string s = Const stringT (V.StringV s)
 
 double :: P.Double -> Expr
-double d = Const doubleT (V.Double d)
+double d = Const doubleT (V.DoubleV d)
 
 nil :: Type -> Expr
-nil t = Const t (V.List [])
+nil t = Const t (V.ListV [])
 
 list :: Type -> [Expr] -> Expr
 list t es = toListT (nil t) es
@@ -387,9 +387,9 @@ toListT :: Expr -> [Expr] -> Expr
 toListT n es = primList (P.reverse es) n
     where
         primList :: [Expr] -> Expr -> Expr
-        primList ((Const _ v):vs) (Const ty (V.List xs)) = primList vs (Const ty (V.List (v:xs)))
+        primList ((Const _ v):vs) (Const ty (V.ListV xs)) = primList vs (Const ty (V.ListV (v:xs)))
         primList [] e = e
-        primList vs c@(Const _ (V.List [])) = consList vs c
+        primList vs c@(Const _ (V.ListV [])) = consList vs c
         primList vs e = consList vs e
         consList :: [Expr] -> Expr -> Expr
         consList xs e = P.foldl (P.flip cons) e xs

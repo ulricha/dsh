@@ -32,13 +32,13 @@ opt' e =
         -- => if p then [e] else []
         -- FIXME to be really sound here, we need to check wether body'
         -- references var.
-        If _ p (Const _ (List [Unit])) (Const _ (List [])) -> 
-          trace ("r1 " ++ (show e)) $ opt' $ If t p (opt' body) (Const t (List []))
+        If _ p (Const _ (ListV [UnitV])) (Const _ (ListV [])) -> 
+          trace ("r1 " ++ (show e)) $ opt' $ If t p (opt' body) (Const t (ListV []))
 
         -- Try to do smart things depending on what is mapped over the list
         xs' ->
             case opt' body of
-              BinOp _ Cons singletonExpr (Const _ (List [])) ->
+              BinOp _ Cons singletonExpr (Const _ (ListV [])) ->
                 -- Singleton list construction cancelled out by concat:
                 -- concatMap (\x -> [e]) xs => map (\x -> e) xs
                 trace ("r2 " ++ (show e)) $ opt' $ AppE2 t 
@@ -110,9 +110,9 @@ opt' e =
                  -- the filter condition
                  p 
                  -- then-branch: singleton list
-                 (BinOp _ Cons (Var _ var') (Const _ (List [])))
+                 (BinOp _ Cons (Var _ var') (Const _ (ListV [])))
                  -- else-branch: empty list
-                 (Const _ (List [])) | var == var' ->
+                 (Const _ (ListV [])) | var == var' ->
 
                 -- Turns into: filter (\x -> e) xs
                 trace ("r3 " ++ (show e)) $ opt' $ AppE2 t
@@ -127,9 +127,9 @@ opt' e =
                  -- the filter condition
                  p 
                  -- then-branch: singleton list over an arbitrary expression
-                 (BinOp _ Cons bodyExpr (Const _ (List [])))
+                 (BinOp _ Cons bodyExpr (Const _ (ListV [])))
                  -- else-branch: empty list
-                 (Const _ (List [])) ->
+                 (Const _ (ListV [])) ->
 
                 trace ("r4 " ++ (show e)) $ opt' $ AppE2 t
                              (Map ((elemTy .-> (elemT resTy)) .-> ((listT elemTy) .-> t)))
@@ -159,13 +159,13 @@ opt' e =
        (If _
            c2
            t
-           (Const _ (List [])))
-       (Const _ (List [])) ->
+           (Const _ (ListV [])))
+       (Const _ (ListV [])) ->
 
       trace ("r5 " ++ (show e)) $ opt' $ If t1 
                 (BinOp boolT Conj c1 c2)
                 t
-                (Const t1 (List []))
+                (Const t1 (ListV []))
            
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
