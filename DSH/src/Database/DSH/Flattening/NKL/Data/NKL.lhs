@@ -1,7 +1,17 @@
 %if False
 \begin{code}
 {-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving  #-}
-module Database.DSH.Flattening.NKL.Data.NKL (Expr(..), Typed(..), freeVars, Prim1(..), Prim2(..), Column, Key) where
+module Database.DSH.Flattening.NKL.Data.NKL 
+  ( Expr(..)
+  , Typed(..)
+  , freeVars
+  , Prim1Op(..)
+  , Prim2Op(..)
+  , Prim1(..)
+  , Prim2(..)
+  , Column
+  , Key
+  ) where
 
 import           Text.PrettyPrint.HughesPJ
 
@@ -65,38 +75,43 @@ Unary primitive operations:
 %include syntaxdef.fmt
 %include NKLPrims.fmt
 \begin{code}
-data Prim1 t =  Length t  |  Not t  |  Concat t
-             |  Sum t | Avg t | The t | Fst t | Snd t
-             |  Head t | Minimum t | Maximum t
-             |  IntegerToDouble t | Tail t
-             |  Reverse t | And t | Or t
-             |  Init t | Last t | Nub t
+data Prim1Op = Length |  Not |  Concat 
+             | Sum | Avg | The | Fst | Snd 
+             | Head | Minimum | Maximum 
+             | IntegerToDouble | Tail 
+             | Reverse | And | Or 
+             | Init | Last | Nub 
              deriving (Eq, Ord)
+             
+data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 \end{code}
 
 %if False
 \begin{code}
 
+instance Show Prim1Op where
+  show Length = "length"
+  show Not = "not"
+  show Concat = "concat"
+  show Sum = "sum"
+  show Avg = "avg"
+  show The = "the"
+  show Fst = "fst"
+  show Snd = "snd"
+  show Head = "head"
+  show Minimum = "minimum"
+  show Maximum = "maximum"
+  show IntegerToDouble = "integerToDouble"
+  show Tail = "tail"
+  show Reverse = "reverse"
+  show And = "and"
+  show Or = "or"
+  show Init = "init"
+  show Last = "last"
+  show Nub = "nub"
+  
 instance Show (Prim1 t) where
-  show (Length _) = "length"
-  show (Not _) = "not"
-  show (Concat _) = "concat"
-  show (Sum _) = "sum"
-  show (Avg _) = "avg"
-  show (The _) = "the"
-  show (Fst _) = "fst"
-  show (Snd _) = "snd"
-  show (Head _) = "head"
-  show (Minimum _) = "minimum"
-  show (Maximum _) = "maximum"
-  show (IntegerToDouble _) = "integerToDouble"
-  show (Tail _) = "tail"
-  show (Reverse _) = "reverse"
-  show (And _) = "and"
-  show (Or _) = "or"
-  show (Init _) = "init"
-  show (Last _) = "last"
-  show (Nub _) = "nub"
+  show (Prim1 o _) = show o
 
 \end{code}
 %endif
@@ -104,33 +119,38 @@ instance Show (Prim1 t) where
 Binary primitive operations:
 
 \begin{code}
-data Prim2  t = Map t | GroupWithKey t
-              | SortWith t | Pair t
-              | Filter t | Append t
-              | Index t | Take t
-              | Drop t | Zip t
-              | TakeWhile t
-              | DropWhile t
-              | CartProduct t
-              deriving (Eq, Ord)
+data Prim2Op = Map | GroupWithKey
+             | SortWith | Pair
+             | Filter | Append
+             | Index | Take
+             | Drop | Zip
+             | TakeWhile
+             | DropWhile
+             | CartProduct
+             deriving (Eq, Ord)
+             
+data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 \end{code}
 %}
 %if False
 \begin{code}
+instance Show Prim2Op where
+  show Map = "map"
+  show GroupWithKey = "groupWithKey"
+  show SortWith = "sortWith"
+  show Pair = "pair"
+  show Filter = "filter"
+  show Append = "append"
+  show Index = "index"
+  show Take = "take"
+  show Drop = "drop"
+  show Zip = "zip"
+  show TakeWhile = "takeWhile"
+  show DropWhile = "dropWhile"
+  show CartProduct = "cartProduct"
+  
 instance Show (Prim2 t) where
-  show (Map _) = "map"
-  show (GroupWithKey _) = "groupWithKey"
-  show (SortWith _) = "sortWith"
-  show (Pair _) = "pair"
-  show (Filter _) = "filter"
-  show (Append _) = "append"
-  show (Index _) = "index"
-  show (Take _) = "take"
-  show (Drop _) = "drop"
-  show (Zip _) = "zip"
-  show (TakeWhile _) = "takeWhile"
-  show (DropWhile _) = "dropWhile"
-  show (CartProduct _) = "cartProduct"
+  show (Prim2 o _) = show o
 
 \end{code}
 \begin{code}

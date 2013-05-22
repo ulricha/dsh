@@ -86,39 +86,39 @@ flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
 
 prim1Transform :: (N.Prim1 Type) -> F.Expr
-prim1Transform (N.Length t) = lengthVal t
-prim1Transform (N.Not t) = notVal t
-prim1Transform (N.Concat t) = concatVal t
-prim1Transform (N.Sum t) = sumVal t
-prim1Transform (N.Avg t) = avgVal t
-prim1Transform (N.Minimum t) = minimumVal t
-prim1Transform (N.Maximum t) = maximumVal t
-prim1Transform (N.The t) = theVal t
-prim1Transform (N.Head t) = headVal t
-prim1Transform (N.Fst t) = fstVal t
-prim1Transform (N.Snd t) = sndVal t
-prim1Transform (N.IntegerToDouble t) = integerToDoubleVal t
-prim1Transform (N.Tail t) = tailVal t
-prim1Transform (N.Reverse t) = reverseVal t
-prim1Transform (N.And t) = andVal t
-prim1Transform (N.Or t) = orVal t
-prim1Transform (N.Init t) = initVal t
-prim1Transform (N.Last t) = lastVal t
-prim1Transform (N.Nub t) = nubVal t
+prim1Transform (N.Prim1 N.Length t) = lengthVal t
+prim1Transform (N.Prim1 N.Not t) = notVal t
+prim1Transform (N.Prim1 N.Concat t) = concatVal t
+prim1Transform (N.Prim1 N.Sum t) = sumVal t
+prim1Transform (N.Prim1 N.Avg t) = avgVal t
+prim1Transform (N.Prim1 N.Minimum t) = minimumVal t
+prim1Transform (N.Prim1 N.Maximum t) = maximumVal t
+prim1Transform (N.Prim1 N.The t) = theVal t
+prim1Transform (N.Prim1 N.Head t) = headVal t
+prim1Transform (N.Prim1 N.Fst t) = fstVal t
+prim1Transform (N.Prim1 N.Snd t) = sndVal t
+prim1Transform (N.Prim1 N.IntegerToDouble t) = integerToDoubleVal t
+prim1Transform (N.Prim1 N.Tail t) = tailVal t
+prim1Transform (N.Prim1 N.Reverse t) = reverseVal t
+prim1Transform (N.Prim1 N.And t) = andVal t
+prim1Transform (N.Prim1 N.Or t) = orVal t
+prim1Transform (N.Prim1 N.Init t) = initVal t
+prim1Transform (N.Prim1 N.Last t) = lastVal t
+prim1Transform (N.Prim1 N.Nub t) = nubVal t
 
 prim2Transform :: (N.Prim2 Type) -> F.Expr
-prim2Transform (N.Map t) = mapVal t
-prim2Transform (N.SortWith t) = sortWithVal t
-prim2Transform (N.GroupWithKey t) = groupWithKeyVal t
-prim2Transform (N.Pair t) = pairVal t 
-prim2Transform (N.Filter t) = filterVal t 
-prim2Transform (N.Append t) = appendVal t
-prim2Transform (N.Index t) = indexVal t
-prim2Transform (N.Take t) = takeVal t
-prim2Transform (N.Drop t) = dropVal t
-prim2Transform (N.Zip t) = zipVal t
-prim2Transform (N.TakeWhile t) = takeWithVal t
-prim2Transform (N.DropWhile t) = dropWithVal t
+prim2Transform (N.Prim2 N.Map t) = mapVal t
+prim2Transform (N.Prim2 N.SortWith t) = sortWithVal t
+prim2Transform (N.Prim2 N.GroupWithKey t) = groupWithKeyVal t
+prim2Transform (N.Prim2 N.Pair t) = pairVal t 
+prim2Transform (N.Prim2 N.Filter t) = filterVal t 
+prim2Transform (N.Prim2 N.Append t) = appendVal t
+prim2Transform (N.Prim2 N.Index t) = indexVal t
+prim2Transform (N.Prim2 N.Take t) = takeVal t
+prim2Transform (N.Prim2 N.Drop t) = dropVal t
+prim2Transform (N.Prim2 N.Zip t) = zipVal t
+prim2Transform (N.Prim2 N.TakeWhile t) = takeWithVal t
+prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
 \end{code}
 %endif
 

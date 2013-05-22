@@ -18,11 +18,11 @@ opt' e =
     tab@(Table _ _ _ _) -> tab
     App t e1 e2 -> App t (opt' e1) (opt' e2)
 
-    -- concatMap pattern: concat $ map (\x -> body) xs
+    -- concatPrim2 Map pattern: concat $ map (\x -> body) xs
     AppE1 t
-          (Concat concatTy)
+          (Prim1 Concat concatTy)
           (AppE2 innerTy
-                 (Map mapTy) 
+                 (Prim2 Map mapTy) 
                  (Lam (FunT elemTy resTy) var body) xs) ->
       -- We first test wether the mapped-over list matches a certain pattern:
       -- if p [()] []
@@ -40,11 +40,11 @@ opt' e =
             case opt' body of
               BinOp _ Cons singletonExpr (Const _ (ListV [])) ->
                 -- Singleton list construction cancelled out by concat:
-                -- concatMap (\x -> [e]) xs => map (\x -> e) xs
+                -- concatPrim2 Map (\x -> [e]) xs => map (\x -> e) xs
                 trace ("r2 " ++ (show e)) $ opt' $ AppE2 t 
                          -- FIXME typeOf is potentially dangerous since the type
                          -- language includes variables.
-                         (Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
+                         (Prim2 Map ((elemTy .-> (typeOf body)) .-> ((listT elemTy) .-> t)))
                          (Lam (elemTy .-> (typeOf body))
                               var
                               singletonExpr)
@@ -61,7 +61,7 @@ opt' e =
               -- 
               -- Note that we re-use x to avoid the need for fresh variables,
               -- which is fine here.
-              AppE2 _ (Map _) (Lam (Fn elemTy2 resTy2) innerVar innerBody) ys ->
+              AppE2 _ (Prim2 Map _) (Lam (Fn elemTy2 resTy2) innerVar innerBody) ys ->
                 let productType = T.Pair elemTy elemTy2
 
                     tupleComponent :: (Type -> Prim1) -> Type -> Expr
@@ -74,7 +74,7 @@ opt' e =
                     ys'        = opt' ys
 
                 in trace ("r6 " ++ (show e)) $ opt' $ AppE2 t 
-                                (Map ((productType .-> resTy2) .-> (listT productType .-> listT resTy2)))
+                                (Prim2 Map ((productType .-> resTy2) .-> (listT productType .-> listT resTy2)))
                                 (Lam (productType .-> resTy2) var innerBody')
                                 (AppE2 (listT productType) 
                                        (CartProduct (listT elemTy .-> (listT elemTy2 .-> (listT productType)))) 
@@ -105,7 +105,7 @@ opt' e =
               -- => x
               -- -> AppE2 Pair
               
-              -- Filter pattern: concat (map  (\x -> if p [x] []) xs)
+              -- Prim2 Filter pattern: concat (map  (\x -> if p [x] []) xs)
               If _
                  -- the filter condition
                  p 
@@ -116,7 +116,7 @@ opt' e =
 
                 -- Turns into: filter (\x -> e) xs
                 trace ("r3 " ++ (show e)) $ opt' $ AppE2 t
-                             (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
+                             (Prim2 Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
                              (Lam (elemTy .-> boolT) var p)
                              (opt' xs)
 
@@ -132,19 +132,19 @@ opt' e =
                  (Const _ (ListV [])) ->
 
                 trace ("r4 " ++ (show e)) $ opt' $ AppE2 t
-                             (Map ((elemTy .-> (elemT resTy)) .-> ((listT elemTy) .-> t)))
+                             (Prim2 Map ((elemTy .-> (elemT resTy)) .-> ((listT elemTy) .-> t)))
                              (Lam (elemTy .-> (elemT resTy)) var bodyExpr)
                              (AppE2 t
-                                    (Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
+                                    (Prim2 Filter ((elemTy .-> boolT) .-> ((listT elemTy) .-> t)))
                                     (Lam (elemTy .-> boolT) var p)
                                     (opt' xs))
 
               body' -> 
                   -- We could not do anything smart
                   AppE1 t
-                        (Concat concatTy)
+                        (Prim1 Concat concatTy)
                         (AppE2 innerTy
-                               (Map mapTy) 
+                               (Prim2 Map mapTy) 
                                (Lam (FunT elemTy resTy) var body') xs')
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
