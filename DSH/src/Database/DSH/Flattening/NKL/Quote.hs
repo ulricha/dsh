@@ -7,7 +7,7 @@ module Database.DSH.Flattening.NKL.Quote
   , ty
   , ExprQ(..)
   , TypeQ(..)
-  , binderVar
+  , varName
   , toExprQ
   , fromExprQ
   , typeOf
@@ -37,14 +37,10 @@ import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
 
 data Anti = AntiBind String | AntiWild deriving (Show, Data, Typeable)
 
-data LamBinder = LamLit String
-               | LamAntiBind String
-               | LamAntiWild
-               deriving (Show, Data, Typeable)
-               
-binderVar :: LamBinder -> String
-binderVar (LamLit s) = s
-binderVar _          = $impossible
+data Var = VarLit String
+         | VarAntiBind String
+         | VarAntiWild
+         deriving (Eq, Show, Data, Typeable)
 
 data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
              Table
@@ -52,10 +48,10 @@ data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
            | AppE1 TypeQ (NKL.Prim1 TypeQ) ExprQ
            | AppE2 TypeQ (NKL.Prim2 TypeQ) ExprQ ExprQ
            | BinOp TypeQ Oper ExprQ ExprQ
-           | Lam TypeQ LamBinder ExprQ
+           | Lam TypeQ Var ExprQ
            | If TypeQ ExprQ ExprQ ExprQ
            | Const TypeQ Val
-           | Var TypeQ String
+           | Var TypeQ Var
            -- Antiquotation node
            | AntiE Anti
            deriving (Show, Data, Typeable)
@@ -127,10 +123,10 @@ toExprQ (NKL.App t e1 e2)        = App (toTypeQ t) (toExprQ e1) (toExprQ e2)
 toExprQ (NKL.AppE1 t p e)        = AppE1 (toTypeQ t) (toPrim1Q p) (toExprQ e)
 toExprQ (NKL.AppE2 t p e1 e2)    = AppE2 (toTypeQ t) (toPrim2Q p) (toExprQ e1) (toExprQ e2)
 toExprQ (NKL.BinOp t o e1 e2)    = BinOp (toTypeQ t) o (toExprQ e1) (toExprQ e2)
-toExprQ (NKL.Lam t v e)          = Lam (toTypeQ t) (LamLit v) (toExprQ e)
+toExprQ (NKL.Lam t v e)          = Lam (toTypeQ t) (VarLit v) (toExprQ e)
 toExprQ (NKL.If t c thenE elseE) = If (toTypeQ t) (toExprQ c) (toExprQ thenE) (toExprQ elseE)
 toExprQ (NKL.Const t v)          = Const (toTypeQ t) v
-toExprQ (NKL.Var t v)            = Var (toTypeQ t) v
+toExprQ (NKL.Var t v)            = Var (toTypeQ t) (VarLit v)
 
 fromExprQ :: ExprQ -> NKL.Expr
 -- fromExprQ (Table t n cs ks)    = NKL.Table (fromTypeQ t) n cs ks
@@ -139,17 +135,17 @@ fromExprQ (App t e1 e2)        = NKL.App (fromTypeQ t) (fromExprQ e1) (fromExprQ
 fromExprQ (AppE1 t p e)        = NKL.AppE1 (fromTypeQ t) (fromPrim1Q p) (fromExprQ e)
 fromExprQ (AppE2 t p e1 e2)    = NKL.AppE2 (fromTypeQ t) (fromPrim2Q p) (fromExprQ e1) (fromExprQ e2)
 fromExprQ (BinOp t o e1 e2)    = NKL.BinOp (fromTypeQ t) o (fromExprQ e1) (fromExprQ e2)
-fromExprQ (Lam t b e)          = NKL.Lam (fromTypeQ t) (fromBinder b) (fromExprQ e)
+fromExprQ (Lam t b e)          = NKL.Lam (fromTypeQ t) (varName b) (fromExprQ e)
 fromExprQ (If t c thenE elseE) = NKL.If (fromTypeQ t) (fromExprQ c) (fromExprQ thenE) (fromExprQ elseE)
 fromExprQ (Const t v)          = NKL.Const (fromTypeQ t) v
-fromExprQ (Var t v)            = NKL.Var (fromTypeQ t) v
+fromExprQ (Var t v)            = NKL.Var (fromTypeQ t) (varName v)
 fromExprQ (AntiE _)            = $impossible
 
-fromBinder :: LamBinder -> String
-fromBinder (LamLit s)      = s
-fromBinder (LamAntiBind _) = $impossible
-fromBinder LamAntiWild     = $impossible
-          
+varName :: Var -> String
+varName (VarLit s)      = s
+varName (VarAntiBind _) = $impossible
+varName VarAntiWild     = $impossible
+
 fromPrim1Q :: NKL.Prim1 TypeQ -> NKL.Prim1 T.Type
 fromPrim1Q (NKL.Prim1 o t) = NKL.Prim1 o (fromTypeQ t)
 
@@ -391,7 +387,18 @@ expr = do { v <- val
        *<|> do { i <- identifier
                ; reservedOp "::"
                ; t <- typ
-               ; return $ Var t i
+               ; return $ Var t (VarLit i)
+               }
+       *<|> do { void $ char '\''
+               ; i <- identifier
+               ; reservedOp "::"
+               ; t <- typ
+               ; return $ Var t (VarAntiBind i)
+               }
+       *<|> do { void $ char '_'
+               ; reservedOp "::"
+               ; t <- typ
+               ; return $ Var t VarAntiWild
                }
        *<|> do { reservedOp "_"; return (AntiE AntiWild) }
        *<|> do { void $ char '\''
@@ -399,10 +406,10 @@ expr = do { v <- val
                ; return $ AntiE $ AntiBind i
                }
                
-lamBinder :: Parse LamBinder
-lamBinder = do { char '\''; LamAntiBind <$> identifier }
-            *<|> do { void $ char '_'; return LamAntiWild }
-            *<|> do { LamLit <$> identifier }
+var :: Parse Var
+var = do { char '\''; VarAntiBind <$> identifier }
+      *<|> do { void $ char '_'; return VarAntiWild }
+      *<|> do { VarLit <$> identifier }
 
 cexpr :: Parse (TypeQ -> ExprQ)
 cexpr = do { reserved "table" >> undefined }
@@ -440,10 +447,10 @@ cexpr = do { reserved "table" >> undefined }
                 ; return $ \t -> If t condE thenE elseE
                 }
         *<|> do { reservedOp "\\"
-                ; b <- lamBinder
+                ; v <- var
                 ; reservedOp "->"
                 ; e <- expr
-                ; return $ \t -> Lam t b e
+                ; return $ \t -> Lam t v e
                 }
             
 
@@ -478,10 +485,10 @@ antiTypePat (AntiT (AntiBind s)) = Just $ TH.varP (TH.mkName s)
 antiTypePat (AntiT AntiWild)     = Just TH.wildP
 antiTypePat _                    = Nothing
             
-antiBinderPat :: LamBinder -> Maybe (TH.Q TH.Pat)
-antiBinderPat (LamAntiBind s) = Just $ TH.varP (TH.mkName s)
-antiBinderPat LamAntiWild     = Just TH.wildP
-antiBinderPat _               = Nothing
+antiVarPat :: Var -> Maybe (TH.Q TH.Pat)
+antiVarPat (VarAntiBind s) = Just $ TH.varP (TH.mkName s)
+antiVarPat VarAntiWild     = Just TH.wildP
+antiVarPat _               = Nothing
 
 quoteExprExp :: String -> TH.ExpQ
 quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
@@ -490,7 +497,7 @@ quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
 quoteExprPat :: String -> TH.PatQ
 quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat
                                            `extQ` antiTypePat
-                                           `extQ` antiBinderPat) $ parseExpr s
+                                           `extQ` antiVarPat) $ parseExpr s
                                            
 quoteTypeExp :: String -> TH.ExpQ
 quoteTypeExp s = dataToExpQ (const Nothing `extQ` antiTypeExp) $ parseType s

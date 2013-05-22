@@ -24,11 +24,8 @@ opt' e =
     App t e1 e2 -> App t (opt' e1) (opt' e2)
 
     -- concatPrim2 Map pattern: concat $ map (\x -> body) xs
-    AppE1 t
-          (Prim1 Concat concatTy)
-          (AppE2 innerTy
-                 (Prim2 Map mapTy) 
-                 (Lam (FunT elemTy resTy) var body) xs) ->
+    [nkl|(concat::_ (map::_ (\'v1 -> 'body)::('a -> 'b) 'xs)::_)::'t|] ->
+
       -- We first test wether the mapped-over list matches a certain pattern:
       -- if p [()] []
       case opt' xs of
@@ -37,23 +34,27 @@ opt' e =
         -- => if p then [e] else []
         -- FIXME to be really sound here, we need to check wether body'
         -- references var.
-        If _ p (Const _ (ListV [UnitV])) (Const _ (ListV [])) -> 
-          trace ("r1 " ++ (show e)) $ opt' $ If t p (opt' body) (Const t (ListV []))
+        [nkl|(if 'p then [unit]::_ else []::_)::_|] -> 
+          
+          opt' $ [nkl|(if 'p then 'body' else []::'t)::'t|]
+          where body' = opt' body
 
         -- Try to do smart things depending on what is mapped over the list
         xs' ->
             case opt' body of
-              BinOp _ Cons singletonExpr (Const _ (ListV [])) ->
-                -- Singleton list construction cancelled out by concat:
-                -- concatPrim2 Map (\x -> [e]) xs => map (\x -> e) xs
-                trace ("r2 " ++ (show e)) $ opt' $ AppE2 t 
-                         -- FIXME typeOf is potentially dangerous since the type
-                         -- language includes variables.
-                         (Prim2 Map ((elemTy .-> (typeOf body)) .-> ((ListT elemTy) .-> t)))
-                         (Lam (elemTy .-> (typeOf body))
-                              var
-                              singletonExpr)
-                         (opt' xs)
+              -- Singleton list construction cancelled out by concat:
+              -- concatPrim2 Map (\x -> [e]) xs 
+              -- => map (\x -> e) xs
+              [nkl|('se : []::_)::_ |] ->
+
+                opt' $ [nkl|(map::'mapTy' (\'v1 -> 'se')::'lamTy 'xs')::'t|]
+
+                where se'    = opt' se
+                      b'     = elemT b
+                      lamTy  = [ty|('a -> 'b')|]
+                      mapTy' = [ty|('lamTy -> (['a] -> ['b]))|]
+                      
+                      
                          
               {- UNSOUND
               -- Merge nested loops by introducing a cartesian product:
@@ -110,69 +111,51 @@ opt' e =
               -- => x
               -- -> AppE2 Pair
               
-              -- Prim2 Filter pattern: concat (map  (\x -> if p [x] []) xs)
-              If _
-                 -- the filter condition
-                 p 
-                 -- then-branch: singleton list
-                 (BinOp _ Cons (Var _ var') (Const _ (ListV [])))
-                 -- else-branch: empty list
-                 (Const _ (ListV [])) | var == var' ->
+              -- Simple filter pattern:
+              -- concat (map  (\x -> if p [x] []) xs)
+              -- => filter (\x -> p) xs
+              [nkl|(if 'p then ('v2::_ : []::_)::_ else []::_)::_|] | v1 == v2 ->
 
-                -- Turns into: filter (\x -> e) xs
-                trace ("r3 " ++ (show e)) $ opt' $ AppE2 t
-                             (Prim2 Filter ((elemTy .-> Q.BoolT) .-> ((ListT elemTy) .-> t)))
-                             (Lam (elemTy .-> BoolT) var p)
-                             (opt' xs)
+                opt' [nkl|(filter::filterTy (\'v1 -> 'p)::('a -> bool) 'xs')::t|]
+
+                where filterTy = [ty|(('a -> bool) -> (['a] -> ['a]))|]
 
               -- More general filter pattern:
               -- concat (map (\x -> if p [e] []) xs)
               -- => map (\x -> e) (filter (\x -> p) xs)
-              If _
-                 -- the filter condition
-                 p 
-                 -- then-branch: singleton list over an arbitrary expression
-                 (BinOp _ Cons bodyExpr (Const _ (ListV [])))
-                 -- else-branch: empty list
-                 (Const _ (ListV [])) ->
+              [nkl|(if 'p then ('e : []::_)::_ else []::_)::_|] ->
+                
+                opt' [nkl|(map::'mt (\'v -> 'e)::'pt (filter::'ft (\'v -> 'p)::'ct 'xs')::['a])::'t|]
+                
+                where c  = elemT t
 
-                trace ("r4 " ++ (show e)) $ opt' $ AppE2 t
-                             (Prim2 Map ((elemTy .-> (elemT resTy)) .-> ((ListT elemTy) .-> t)))
-                             (Lam (elemTy .-> (elemT resTy)) var bodyExpr)
-                             (AppE2 t
-                                    (Prim2 Filter ((elemTy .-> BoolT) .-> ((ListT elemTy) .-> t)))
-                                    (Lam (elemTy .-> BoolT) var p)
-                                    (opt' xs))
+                      pt = [ty|('a -> 'c)|]
+                      mt = [ty|('pt -> (['a] -> ['c]))|]
+
+                      ct = [ty|('a -> bool)|]
+                      ft = [ty|(ct -> (['a] -> ['a]))|]
+
 
               body' -> 
                   -- We could not do anything smart
-                  AppE1 t
-                        (Prim1 Concat concatTy)
-                        (AppE2 innerTy
-                               (Prim2 Map mapTy) 
-                               (Lam (FunT elemTy resTy) var body') xs')
+                  [nkl|(concat::ct (map::mt (\'v -> 'body')::pt 'xs')::['t])::'t|]
+
+                  where ct = [ty|(['t] -> 't)|]
+                        pt = [ty|('a -> 't)|]
+                        mt = [ty|('pt -> (['a] -> ['t]))|]
+                 
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
-    [nkl|(42::int + 23::int)::int|] -> undefined
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
     Lam t v e1 -> Lam t v (opt' e1)
   
     -- Merge nested conditionals:
     -- if c1 (if c2 t []) []
-    -- -> if c1 && c2 t []
-    If t1
-       c1
-       (If _
-           c2
-           t
-           (Const _ (ListV [])))
-       (Const _ (ListV [])) ->
+    -- => if c1 && c2 t []
+    [nkl|(if 'c1 then (if 'c2 then 'te else []::_)::_ else []::_)::'t|] ->
+    
+      [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
 
-      trace ("r5 " ++ (show e)) $ opt' $ If t1 
-                (BinOp BoolT Conj c1 c2)
-                t
-                (Const t1 (ListV []))
-           
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
     var@(Var _ _) -> var
@@ -186,11 +169,11 @@ subst v r (AppE2 t p e1 e2) = AppE2 t p (subst v r e1) (subst v r e2)
 subst v r (BinOp t o e1 e2) = BinOp t o (subst v r e1) (subst v r e2)
 -- FIXME for the moment, we assume that all lambda variables are unique
 -- and we don't need to check for name capturing/do alpha-conversion.
-subst v r lam@(Lam t v' e)  = if v == v' 
+subst v r lam@(Lam t v' e)  = if (varName v') == v
                               then lam
                               else Lam t v' (subst v r e)
 subst _ _ c@(Const _ _)     = c
-subst v r var@(Var _ v')    = if v == v' then r else var
+subst v r var@(Var _ v')    = if v == (varName v') then r else var
 subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
 
 freeVars :: ExprQ -> S.Set String
