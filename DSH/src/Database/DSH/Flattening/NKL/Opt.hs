@@ -21,7 +21,7 @@ opt' expr =
     App t e1 e2 -> App t (opt' e1) (opt' e2)
 
 
-    -- concatPrim2 Map pattern: concat $ map (\x -> body) xs
+    -- concatMap pattern: concat $ map (\x -> body) xs
     [nkl|(concat::_ (map::_ (\'v1 -> 'body)::('a -> 'b) 'xs)::_)::'t|] ->
 
       -- We first test wether the mapped-over list matches a certain pattern:
@@ -30,9 +30,9 @@ opt' expr =
         -- In that case, the following rewrite applies
         -- concat $ map (\x -> e) (if p then [()] else [])
         -- => if p then [e] else []
-        -- FIXME to be really sound here, we need to check wether body'
-        -- references var.
-        [nkl|(if 'p then [unit]::_ else []::_)::_|] -> 
+        -- Additionally, we need to check that body does not refer to v1, since we
+        -- move it out of that scope.
+        [nkl|(if 'p then [unit]::_ else []::_)::_|] | not $ (varName v1) `S.member` (freeVars body) -> 
           
           opt' $ [nkl|(if 'p then 'body' else []::'t)::'t|]
           where body' = opt' body
