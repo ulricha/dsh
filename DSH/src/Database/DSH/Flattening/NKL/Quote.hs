@@ -143,7 +143,7 @@ fromExprQ (Lam t b e)          = NKL.Lam (fromTypeQ t) (varName b) (fromExprQ e)
 fromExprQ (If t c thenE elseE) = NKL.If (fromTypeQ t) (fromExprQ c) (fromExprQ thenE) (fromExprQ elseE)
 fromExprQ (Const t v)          = NKL.Const (fromTypeQ t) v
 fromExprQ (Var t v)            = NKL.Var (fromTypeQ t) (varName v)
-fromExprQ (AntiE _)            = $impossible
+fromExprQ (AntiE e)            = error $ show e
 
 varName :: Var -> String
 varName (VarLit s)      = s
@@ -483,6 +483,7 @@ parseExpr i = case parse expr "" i of
                 
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
 antiExprExp (AntiE (AntiBind s)) = Just $ TH.varE (TH.mkName s)
+antiExprExp (AntiE AntiWild)     = error "NKL.Quote: wildcard pattern (expr) used in expression quote"
 antiExprExp _                    = Nothing
 
 antiExprPat :: ExprQ -> Maybe (TH.Q TH.Pat)
@@ -492,12 +493,18 @@ antiExprPat _                    = Nothing
 
 antiTypeExp :: TypeQ -> Maybe (TH.Q TH.Exp)
 antiTypeExp (AntiT (AntiBind s)) = Just $ TH.varE (TH.mkName s)
+antiTypeExp (AntiT AntiWild)     = error "NKL.Quote: wildcard pattern (type) used in expression quote"
 antiTypeExp _                    = Nothing
 
 antiTypePat :: TypeQ -> Maybe (TH.Q TH.Pat)
 antiTypePat (AntiT (AntiBind s)) = Just $ TH.varP (TH.mkName s)
 antiTypePat (AntiT AntiWild)     = Just TH.wildP
 antiTypePat _                    = Nothing
+
+antiVarExp :: Var -> Maybe (TH.Q TH.Exp)
+antiVarExp (VarAntiBind s) = Just $ TH.varE (TH.mkName s)
+antiVarExp VarAntiWild     = error "NKL.Quote: wildcard pattern (variable) used in expression quote"
+antiVarExp (VarLit _)      = Nothing
             
 antiVarPat :: Var -> Maybe (TH.Q TH.Pat)
 antiVarPat (VarAntiBind s) = Just $ TH.varP (TH.mkName s)
@@ -506,7 +513,8 @@ antiVarPat _               = Nothing
 
 quoteExprExp :: String -> TH.ExpQ
 quoteExprExp s = dataToExpQ (const Nothing `extQ` antiExprExp
-                                           `extQ` antiTypeExp) $ parseExpr s
+                                           `extQ` antiTypeExp
+                                           `extQ` antiVarExp) $ parseExpr s
 
 quoteExprPat :: String -> TH.PatQ
 quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat

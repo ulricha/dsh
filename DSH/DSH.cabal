@@ -103,6 +103,7 @@ Library
                      Database.DSH.Flattening.FKL.Data.FKL
                      Database.DSH.Flattening.FKL.FKLPrimitives
                      Database.DSH.Flattening.FKL.Render.Render
+                     Database.DSH.Flattening.NKL.Quote
                      Database.DSH.Flattening.NKL.Data.NKL
                      Database.DSH.Flattening.NKL.NKLPrimitives
                      Database.DSH.Flattening.NKL.Opt

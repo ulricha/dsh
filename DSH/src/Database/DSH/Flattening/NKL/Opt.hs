@@ -148,7 +148,7 @@ opt' expr =
               -- => map (\x -> e) (filter (\x -> p) xs)
               [nkl|(if 'predE then ('projE : []::_)::_ else []::_)::_|] ->
                 
-                opt' [nkl|(map::'mt (\'v -> 'projE)::'pt (filter::'ft (\'v -> 'predE)::'ct 'xs')::['a])::'t|]
+                opt' [nkl|(map::'mt (\'v1 -> 'projE)::'pt (filter::'ft (\'v1 -> 'predE)::'ct 'xs')::['a])::'t|]
                 
                 where c  = elemT t
 
@@ -161,7 +161,7 @@ opt' expr =
 
               body' -> 
                   -- We could not do anything smart
-                  [nkl|(concat::'ct (map::'mt (\'v -> 'body')::'pt 'xs')::['t])::'t|]
+                  [nkl|(concat::'ct (map::'mt (\'v1 -> 'body')::'pt 'xs')::['t])::'t|]
 
                   where ct = [ty|(['t] -> 't)|]
                         pt = [ty|('a -> 't)|]
