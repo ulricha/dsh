@@ -92,6 +92,8 @@ fkl2VL (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2VL arg1) (fkl2VL arg2) >>= uncurr
                 (DropL _) -> dropLift
                 (Zip _) -> zipPrim
                 (ZipL _) -> zipLift
+                (CartProduct _) -> cartProductPrim
+                (CartProductL _) -> cartProductLift
                 (TakeWithS _) -> takeWithS
                 (TakeWithL _) -> takeWithL
                 (DropWithS _) -> dropWithS

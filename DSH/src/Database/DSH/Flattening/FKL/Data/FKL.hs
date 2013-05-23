@@ -126,6 +126,8 @@ data Prim2 = GroupWithKeyS Type
            | DropL Type
            | Zip Type
            | ZipL Type
+           | CartProduct Type
+           | CartProductL Type
            | TakeWithS Type
            | TakeWithL Type
            | DropWithS Type
@@ -157,6 +159,8 @@ instance Show Prim2 where
     show (TakeWithS _)  = "takeWithS"
     show (DropWithL _)  = "dropWithL"
     show (DropWithS _)  = "dropWithS"
+    show (CartProduct _) = "cartProduct"
+    show (CartProductL _) = "cartProductL"
 
 data Prim3 = Combine Type
     deriving (Eq, Generic)

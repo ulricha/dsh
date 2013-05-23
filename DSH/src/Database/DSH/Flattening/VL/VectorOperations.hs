@@ -80,6 +80,15 @@ zipLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 zipLift _ _ = error "zipLift: Should not be possible"
 
+cartProductPrim :: Shape -> Shape -> Graph VL Shape
+cartProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  (q', _, _) <- cartProduct q1 q2
+  return $ ValueVector q' $ zipLayout lyt1 lyt2
+cartProductPrim _ _ = $impossible
+
+cartProductLift :: Shape -> Shape -> Graph VL Shape
+cartProductLift = undefined
+
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
                                                          (q', r) <- selectPos q LtE i

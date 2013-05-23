@@ -27,47 +27,120 @@ import Control.Applicative
 
 \section{The goal of flattening}
 
-The goal of the flattening transformation is to make programs more suitable for parallel execution. When we map a function over all elements of a list this is an opportunity for parallelism as the application of the function to each individual element of the list is independent of all the other applications, these applications can thus be executed in parallel.
-It is however not easy to execute an arbitrarily nested program in parallel. Ideally we would have every processor perform the same operations at the same time, this is however not easily achievable for arbitrarily nested data in an efficient manner. We can however transform a nested program into a flat program, which we can then execute in parallel.
-The flattening transformation eliminates all occurrences of |map|, primitive operations are lifted to their vector equivalents.
+The goal of the flattening transformation is to make programs more suitable for
+parallel execution. When we map a function over all elements of a list this is
+an opportunity for parallelism as the application of the function to each
+individual element of the list is independent of all the other applications,
+these applications can thus be executed in parallel.  It is however not easy to
+execute an arbitrarily nested program in parallel. Ideally we would have every
+processor perform the same operations at the same time, this is however not
+easily achievable for arbitrarily nested data in an efficient manner. We can
+however transform a nested program into a flat program, which we can then
+execute in parallel.  The flattening transformation eliminates all occurrences
+of |map|, primitive operations are lifted to their vector equivalents.
 
 \section{Lifting, an intuition}
 
-The lifting transformation eliminates occurrences of |map|, in order to do so it needs to replicate certain values. In this section we will informally describe what happens to values and variables inside (nested-) |map| expressions.
+The lifting transformation eliminates occurrences of |map|, in order to do so it
+needs to replicate certain values. In this section we will informally describe
+what happens to values and variables inside (nested-) |map| expressions.
 
-We start out with a trivial case: |map (\x -> x) [10,20,30] |. The flattening transformation replaces maps with functions that process vectors. In our example the type of |x| will change from |Int| in the original expression to |[Int]| in the flattened expression. The value of |x| will change from |10| in the first iteration |20| in the second and |30| in the last in the original expression, into |[10,20,30]| in one application in the flattened expression. The comprehension will thus be translated into: |(\x -> x) [10,20,30]|. All consecutive values for |x| (or any other value/variable) are packed together in one vector and are applied to vector operations.   
+We start out with a trivial case: |map (\x -> x) [10,20,30] |. The flattening
+transformation replaces maps with functions that process vectors. In our example
+the type of |x| will change from |Int| in the original expression to |[Int]| in
+the flattened expression. The value of |x| will change from |10| in the first
+iteration |20| in the second and |30| in the last in the original expression,
+into |[10,20,30]| in one application in the flattened expression. The
+comprehension will thus be translated into: |(\x -> x) [10,20,30]|. All
+consecutive values for |x| (or any other value/variable) are packed together in
+one vector and are applied to vector operations.
 
-Constant values in map expressions are replicated to form constant vectors. Consider for example the following expression: | map (\x -> 10 + x) [10,20, 30]|. This expression is translated into: |(\x -> dist 10 x (level plus 1) x) [10,20,30]|. The constant value |10| is replicated into a vector with a shape that matches the shape of the vector for |x|. 
+Constant values in map expressions are replicated to form constant
+vectors. Consider for example the following expression: | map (\x -> 10 + x)
+[10,20, 30]|. This expression is translated into: |(\x -> dist 10 x (level plus
+1) x) [10,20,30]|. The constant value |10| is replicated into a vector with a
+shape that matches the shape of the vector for |x|.
 
-When maps are nested the values of the inner map have to be replicated as well. Consider for example the following expression: | map (\x -> (map (\y -> y) [10,20,30])) [40,50] |. This expression evaluates to: | [[10,20,30],[10,20,30]] |. The values for |y| in each consecutive step are |[10,20,30,10,20,30]|. And this exactly the vector that should be passed in as value for |y|. The result shows a nested list, this nesting can be reintroduced after finishing the inner computation. We obtain the shape of the result by distributing the inner vector over the outer vector: |dist [10,20,30] [40,50]|. The result of this computation is nested and represented by two vectors |[(1,1),(1,2)]| and |[(1,1,10),(1,2,20),(1,3,30),(2,4,10),(2,5,20),(2,6,30)]|. The first vector is a descriptor vector describing the outer structure. The second vector is a value vector that contains all values. When evaluating the inner context we would want to forget about the nesting, to this end we apply concat to remove the nesting and get only the value vector. We can reintroduce the shape by reattaching the outer descriptor, this is done by the |unconcat| function. This function takes the outer descriptor of a given value and attaches it to another one. So fully desugared we get: |(\x -> unconcat (dist [10,20,30] x) $ (\y -> y) (concat $ dist [10,20,30] x)) [40,50]|. By introducing |concat| and |unconcat| we prevent ourselves from having to generate code for higher lifted functions. 
+When maps are nested the values of the inner map have to be replicated as
+well. Consider for example the following expression: | map (\x -> (map (\y -> y)
+[10,20,30])) [40,50] |. This expression evaluates to: | [[10,20,30],[10,20,30]]
+|. The values for |y| in each consecutive step are |[10,20,30,10,20,30]|. And
+this exactly the vector that should be passed in as value for |y|. The result
+shows a nested list, this nesting can be reintroduced after finishing the inner
+computation. We obtain the shape of the result by distributing the inner vector
+over the outer vector: |dist [10,20,30] [40,50]|. The result of this computation
+is nested and represented by two vectors |[(1,1),(1,2)]| and
+|[(1,1,10),(1,2,20),(1,3,30),(2,4,10),(2,5,20),(2,6,30)]|. The first vector is a
+descriptor vector describing the outer structure. The second vector is a value
+vector that contains all values. When evaluating the inner context we would want
+to forget about the nesting, to this end we apply concat to remove the nesting
+and get only the value vector. We can reintroduce the shape by reattaching the
+outer descriptor, this is done by the |unconcat| function. This function takes
+the outer descriptor of a given value and attaches it to another one. So fully
+desugared we get: |(\x -> unconcat (dist [10,20,30] x) $ (\y -> y) (concat $
+dist [10,20,30] x)) [40,50]|. By introducing |concat| and |unconcat| we prevent
+ourselves from having to generate code for higher lifted functions.
 
-As a final example let us now consider the following example: |map (\x -> map (\y -> x + y) [10,20,30]) [40,50]|. As before in the flattened version the value for |y| in the inner lambda will be |[10,20,30,10,20,30]| in consecutive iterations and this is again obtained the computation |concat (dist [10,20,30] [40,50])|. The values for |x| in the inner lambda will be |[40,40,40,50,50,50]| in the consecutive iterations. The unflattened version of that vector has to have exactly the same shape as the unflattened version of the vector for |y|. So the shape is determined by |dist [10,20,30] [40,50]|. This gives a nested list where there are two inner lists with each a length of 3 elements. The right values are then obtained by applying the lifted version of |dist| namely |(level dist 1)| and then flattening the result. The vector for |x| is thus constructed by the following expression: |concat $ (level dist 1) [40,50] (dist [10,20,30] [40,50])|. The whole expression is desugared to: 
-\begin{spec}
-(\x ->  (unconcat $ dist [10,20,30] x) $ 
-            (\x y -> x (level plus 1) y) 
-                (concat $ (level dist 1) x $ dist [10,20,30] x) 
-                (concat $ dist [10,20,30] x)
-) [40,50] 
-\end{spec}
+As a final example let us now consider the following example: |map (\x -> map
+(\y -> x + y) [10,20,30]) [40,50]|. As before in the flattened version the value
+for |y| in the inner lambda will be |[10,20,30,10,20,30]| in consecutive
+iterations and this is again obtained the computation |concat (dist [10,20,30]
+[40,50])|. The values for |x| in the inner lambda will be |[40,40,40,50,50,50]|
+in the consecutive iterations. The unflattened version of that vector has to
+have exactly the same shape as the unflattened version of the vector for |y|. So
+the shape is determined by |dist [10,20,30] [40,50]|. This gives a nested list
+where there are two inner lists with each a length of 3 elements. The right
+values are then obtained by applying the lifted version of |dist| namely |(level
+dist 1)| and then flattening the result. The vector for |x| is thus constructed
+by the following expression: |concat $ (level dist 1) [40,50] (dist [10,20,30]
+[40,50])|. The whole expression is desugared to: \begin{spec} (\x -> (unconcat $
+dist [10,20,30] x) $ (\x y -> x (level plus 1) y) (concat $ (level dist 1) x $
+dist [10,20,30] x) (concat $ dist [10,20,30] x) ) [40,50] \end{spec}
 
-The strategy provided above for dealing with nested maps and replicating variables also applies to deeper nested comprehensions. In those cases just like with two nested comprehensions we flatten (concat) values when we step into the nested expression, and expand (unconcat) the result of the nested expression. The concat/unconcat pattern is captured in our implementation of map, which is described in the next chapter along with other functions.
+The strategy provided above for dealing with nested maps and replicating
+variables also applies to deeper nested comprehensions. In those cases just like
+with two nested comprehensions we flatten (concat) values when we step into the
+nested expression, and expand (unconcat) the result of the nested
+expression. The concat/unconcat pattern is captured in our implementation of
+map, which is described in the next chapter along with other functions.
 
 
 \section{Representing functions as first class citizens}
 
-In Haskell functions are treated the same as values are, and can thus be passed to another function as an argument or put in a list. In order to achieve this in DBPH we introduce a new syntactic node, a closure
+In Haskell functions are treated the same as values are, and can thus be passed
+to another function as an argument or put in a list. In order to achieve this in
+DBPH we introduce a new syntactic node, a closure
 
-A closure is build out of three components, a set of variables that occur free in the function body. A flattened version of the lambda and a lifted version. This lifted version is needed to deal with the fact any lambda might be passed to a map function. A closure will be represented as: | Clo env e1 e2 |. A closure has a type | t1 :-> t2 |. Note that the function type constructor is slightly different from the regular function space constructor | -> |. A closure can be distributed like any other primitive type and can thus appear in a list. Technically it is possible to construct a list of several different closures, this however goes against the very nature of the flattening transformation and such lists are never constructed by the flattening transformation. All primitives operations can also be performed on closures.
+A closure is build out of three components, a set of variables that occur free
+in the function body. A flattened version of the lambda and a lifted
+version. This lifted version is needed to deal with the fact any lambda might be
+passed to a map function. A closure will be represented as: | Clo env e1 e2 |. A
+closure has a type | t1 :-> t2 |. Note that the function type constructor is
+slightly different from the regular function space constructor | -> |. A closure
+can be distributed like any other primitive type and can thus appear in a
+list. Technically it is possible to construct a list of several different
+closures, this however goes against the very nature of the flattening
+transformation and such lists are never constructed by the flattening
+transformation. All primitives operations can also be performed on closures.
 
 Distribute over a closure is defined as follows:
+
 \begin{spec}
 dist (Clo ((x1, ..., xn)) f f') e = AClo ((e, dist x1 e, ..., dist xn e)) f f'
 \end{spec}
-The result type is a list of closures: |[t1 :-> t2]|. Distribute over (nested-) lists of closure is defined similarly. Other primitive operations as  |length|, |concat| and |unconcat| are defined similar to |dist|.
 
-It is of course also possible to use a list of closures as second argument to |dist| and distribute over that list. The alert reader might have noticed that in the lifted closure the environment is expanded with an extra value. This extra value represents the iteration context, and is expected as an argument by |f'|, it is the value that is used to distribute values to the right length.
+The result type is a list of closures: |[t1 :-> t2]|. Distribute over (nested-)
+lists of closure is defined similarly. Other primitive operations as |length|,
+|concat| and |unconcat| are defined similar to |dist|.
 
-We also introduce a construct for applying a closure to an argument, namely | cloLAppM |. The type of |(cloLAppM)| is: |[t1 :-> t2] -> [t1] -> [t2]|.
+It is of course also possible to use a list of closures as second argument to
+|dist| and distribute over that list. The alert reader might have noticed that
+in the lifted closure the environment is expanded with an extra value. This
+extra value represents the iteration context, and is expected as an argument by
+|f'|, it is the value that is used to distribute values to the right length.
+
+We also introduce a construct for applying a closure to an argument, namely 
+| cloLAppM |. The type of |(cloLAppM)| is: |[t1 :-> t2] -> [t1] -> [t2]|.
 
 The semantics of |cloLAppM| and |cloLAppM|:
 
@@ -119,6 +192,7 @@ prim2Transform (N.Prim2 N.Drop t) = dropVal t
 prim2Transform (N.Prim2 N.Zip t) = zipVal t
 prim2Transform (N.Prim2 N.TakeWhile t) = takeWithVal t
 prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
+prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 \end{code}
 %endif
 
@@ -157,9 +231,17 @@ transform (N.Var t x)          =   pure $ F.Var t x
 
 \end{code}
 
-The most interesting rule here is the rule that transforms a lambda expression into a closure. As described earlier a closure describes the variables that occur free in its body and has two bodies a `normal' body and lifted body. Primitive functions are replaced by closures, these primitives now behave as if they were ordinary lambda's. The closures however still contain some primitive, more low level, operations.
+The most interesting rule here is the rule that transforms a lambda
+expression into a closure. As described earlier a closure describes the
+variables that occur free in its body and has two bodies a `normal' body and
+lifted body. Primitive functions are replaced by closures, these primitives now
+behave as if they were ordinary lambda's. The closures however still contain
+some primitive, more low level, operations.
 
-The function lift constructs the lifted bodies of lambda expressions. The extra argument is a variable which represents a list structure over which we can distribute values. This is the extra variable in the environment of a lifted closure. We shall refer to this variable as the iteration context hereinafter. 
+The function lift constructs the lifted bodies of lambda expressions. The extra
+argument is a variable which represents a list structure over which we can
+distribute values. This is the extra variable in the environment of a lifted
+closure. We shall refer to this variable as the iteration context hereinafter.
 
 \begin{code}
 lift :: F.Expr -> N.Expr -> TransM F.Expr
@@ -193,12 +275,34 @@ lift en   (N.Lam t arg e)          = do
                                       let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
                                       cloLM (liftType t) n' fvs arg (transform e) (lift en e)
 \end{code}
+        
+Literal data and database tables are simply distributed over the iteration
+context. Variables are always bound in the closure, we therefor do not have to
+lift them (when we dist a closure over a list we actually distributed over the
+values contained in the closure). Top level variables do not exist in our
+language, they are represented by the primitives.
 
-Literal data and database tables are simply distributed over the iteration context. Variables are always bound in the closure, we therefor do not have to lift them (when we dist a closure over a list we actually distributed over the values contained in the closure). Top level variables do not exist in our language, they are represented by the primitives.
+The primitive applications are transformed into lifted closure applications, for
+each primitive we defined a function. Functions are values and like literal
+values have to be distributed over the iteration context.
 
-The primitive applications are transformed into lifted closure applications, for each primitive we defined a function. Functions are values and like literal values have to be distributed over the iteration context.
+Conditional expressions are the most complicated expression to lift. It does not
+suffice to simply restrict the iteration context using the boolean vector and
+then evaluate the then and else branches. In that particular setup we would not
+restrict the values of variables mentioned in then and else branch. In
+\cite{Jones08} a case expression is used to rebind the variables after they have
+been restricted, however we do not have such a case expression at our
+disposal. Instead we construct a new lifted closure for both the then and the
+else branch. The argument to this closure will be a new variable, and it is
+exactly this variable we will lift the body of the closure over. All that is
+left now is that we have to apply restrict to this closure using the conditional
+vector (for the then branch) and the negated conditional vector (for the else
+branch). We then apply these closure to iteration contexts that have been
+restricted like wise. We then combine the results of the then and else branch
+into a single result vector.
 
-Conditional expressions are the most complicated expression to lift. It does not suffice to simply restrict the iteration context using the boolean vector and then evaluate the then and else branches. In that particular setup we would not restrict the values of variables mentioned in then and else branch. In \cite{Jones08} a case expression is used to rebind the variables after they have been restricted, however we do not have such a case expression at our disposal. Instead we construct a new lifted closure for both the then and the else branch. The argument to this closure will be a new variable, and it is exactly this variable we will lift the body of the closure over. All that is left now is that we have to apply restrict to this closure using the conditional vector (for the then branch) and the negated conditional vector (for the else branch). We then apply these closure to iteration contexts that have been restricted like wise. We then combine the results of the then and else branch into a single result vector.
+Binary operators are replaced by their vector versions. And lastly lambda's are
+lifted similarly as in the transformation function but result in a lifted
+closure.
 
-Binary operators are replaced by their vector versions. And lastly lambda's are lifted similarly as in the transformation function but result in a lifted closure.
 %}

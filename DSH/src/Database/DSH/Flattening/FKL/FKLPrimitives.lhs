@@ -161,6 +161,19 @@ zipLPrim :: Expr -> Expr -> Expr
 zipLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                      t2@(ListT t2') = typeOf e2
                   in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+                  
+cartProductVal :: Type -> Expr
+cartProductVal t = doubleArgClo t "cartProduct_e1" "cartProduct_e2" cartProductPrim cartProductLPrim
+                  
+cartProductPrim :: Expr -> Expr -> Expr
+cartProductPrim e1 e2 = let t1 = typeOf e1
+                            t2 = typeOf e2
+                         in F.PApp2 t2 (F.CartProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+                         
+cartProductLPrim :: Expr -> Expr -> Expr
+cartProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
+                             t2@(ListT t2') = typeOf e2
+                          in F.PApp2 t2 (F.CartProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim

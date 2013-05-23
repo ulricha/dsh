@@ -266,6 +266,14 @@ zipL (DBV c1 _) (DBV c2 _) = do
                               r2 <- rename $ insertNode $ UnOp R2 r
                               r3 <- rename $ insertNode $ UnOp R3 r
                               return (r1, r2, r3)
+                              
+cartProduct :: DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
+cartProduct (DBV c1 _) (DBV c2 _) = do
+  r  <- insertNode $ BinOp CartProduct c1 c2
+  r1 <- dbv $ insertNode $ UnOp R1 r
+  r2 <- prop $ insertNode $ UnOp R2 r
+  r3 <- prop $ insertNode $ UnOp R3 r
+  return (r1, r2, r3)
 
 integerToDoubleA :: DBP -> GraphM r VL DBP
 integerToDoubleA (DBP c _) = dbp $ insertNode $ UnOp IntegerToDoubleA c
