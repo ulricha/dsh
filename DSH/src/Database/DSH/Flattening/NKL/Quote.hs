@@ -47,7 +47,7 @@ data Anti = AntiBind String | AntiWild deriving (Show, Data, Typeable)
 data Var = VarLit String
          | VarAntiBind String
          | VarAntiWild
-         deriving (Eq, Show, Data, Typeable)
+         deriving (Eq, Ord, Show, Data, Typeable)
          
 type Column = (String, TypeQ)
 
@@ -190,16 +190,17 @@ elemT :: TypeQ -> TypeQ
 elemT (ListT t) = t
 elemT _         = $impossible
 
-freeVars :: ExprQ -> S.Set String
+freeVars :: ExprQ -> S.Set Var
 freeVars (Table _ _ _ _)   = S.empty
 freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
 freeVars (AppE1 _ _ e1)    = freeVars e1
 freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton (varName x)
+freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
 freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Const _ _)       = S.empty
-freeVars (Var _ x)         = S.singleton $ varName x
+freeVars (Var _ x)         = S.singleton x
+freeVars (AntiE _)         = $impossible
 
 instance Show ExprQ where
   show e = PP.render $ pp e
@@ -219,40 +220,7 @@ pp (If _ c t e)       = PP.text "if"
                         <+> (PP.parens $ pp e)
 pp (Const _ v)        = PP.text $ show v
 pp (Var _ s)          = PP.text $ varName s
-
-{-
-gExpr -> (CExpr)::Type
-      | Const::Type
-      | Var::Type
-      
-CExpr -> table Id [Id] [Id]
-       | Expr Expr
-       | Prim1 Expr
-       | Prim2 Expr Expr
-       | Expr Op Expr
-       | \Id -> Expr
-       | if Expr then Expr else Expr
-       
-Id -> ...
-
-Prim1 -> ...
-
-Prim2 -> ...
-
-Op -> ...
-
-Type -> (Type -> Type)
-      | nat
-      | int
-      | bool
-      | double
-      | string
-      | unit
-      | Id
-      | (Type, Type)
-      | [Type]
-
--}
+pp (AntiE _)          = $impossible
 
 --------------------------------------------------------------------------
 -- A parser for NKL expressions and types, including anti-quotation syntax
@@ -398,14 +366,6 @@ op = choice [ reservedOp "+" >> return Add
             , reservedOp "LIKE" >> return Like
             ]
             
-{-
-keys :: Parse [NKL.Key]
-keys = reserved "keys"
-
-columns :: Parse [NKL.Column]
-columns = reserved "cols"
--}
-
 infixr 1 *<|>
 (*<|>) :: ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m a
 a *<|> b = try a <|> b
@@ -570,4 +530,3 @@ nkl :: QuasiQuoter
 nkl = QuasiQuoter { quoteExp = quoteExprExp
                   , quotePat = quoteExprPat
                   }
-                     

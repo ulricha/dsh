@@ -32,7 +32,7 @@ opt' expr =
         -- => if p then [e] else []
         -- Additionally, we need to check that body does not refer to v1, since we
         -- move it out of that scope.
-        [nkl|(if 'p then [unit]::_ else []::_)::_|] | not $ (varName v1) `S.member` (freeVars body) -> 
+        [nkl|(if 'p then [unit]::_ else []::_)::_|] | not $ v1 `S.member` (freeVars body) -> 
           
           trace "r1" $ opt' $ [nkl|(if 'p then 'body' else []::'t)::'t|]
           where body' = opt' body
@@ -129,8 +129,8 @@ opt' expr =
                 | v1 == v3 
                   && v2 == v4 
                   && let fvs = freeVars ys
-                     in not ((varName v1) `S.member` fvs)
-                        && not ((varName v2) `S.member` fvs) ->
+                     in not (v1 `S.member` fvs)
+                        && not (v2 `S.member` fvs) ->
 
                 trace "r5" $ opt' [nkl|(cartProduct::('t1 -> ('t2 -> ('t1, 't2))) 'xsOpt 'ys)::t|]
               
@@ -188,6 +188,24 @@ opt' expr =
     [nkl|(if 'c1 then (if 'c2 then 'te else []::_)::_ else []::_)::'t|] ->
     
       trace "r9" $ opt' [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
+      
+    -- Merge an if conditional into a filter:
+    -- if p1 then filter (\x -> p2) ys else []
+    -- => filter (\x -> p1 && p2) ys
+    -- provided that x \notin fv(p1)
+    [nkl|(if 'p1 then (filter::'ft (\'x -> 'p2)::'flt 'ys)::'lt else []::_)::_|] 
+      | not $ x `S.member` freeVars p1 -> 
+      
+      trace "r10" $ opt' [nkl|(filter::'ft (\'x -> ('p1 && 'p2)::bool)::'flt 'ys)::'lt|]
+      
+    -- Separate a map (i.e. projection) from a filtering conditional:
+    -- if p then map (\x -> e) xs else []
+    -- => map (\x -> e) (if p then xs else [])
+    [nkl|(if 'p then (map::'mt (\'x -> 'e)::('et -> 'ret) 'xs)::'rt else []::_)::_|] ->
+    
+      trace "r11" $ opt' $ 
+      [nkl|(map::'mt (\'x -> 'e)::('et -> 'ret) (if 'p then 'xs else []::'rt)::['et])::'rt|]
+          
 
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
