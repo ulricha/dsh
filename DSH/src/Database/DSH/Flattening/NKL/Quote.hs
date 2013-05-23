@@ -14,10 +14,13 @@ module Database.DSH.Flattening.NKL.Quote
   , typeOf
   , (.->)
   , elemT
+  , freeVars
   ) where
 
 import           Control.Monad
 import           Data.Functor
+                 
+import qualified Data.Set as S
 
 import           Data.Data(Data)
 import           Data.Generics.Aliases
@@ -183,6 +186,16 @@ elemT :: TypeQ -> TypeQ
 elemT (ListT t) = t
 elemT _         = $impossible
 
+freeVars :: ExprQ -> S.Set String
+freeVars Table             = S.empty
+freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
+freeVars (AppE1 _ _ e1)    = freeVars e1
+freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton (varName x)
+freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
+freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
+freeVars (Const _ _)       = S.empty
+freeVars (Var _ x)         = S.singleton $ varName x
 
 {-
 gExpr -> (CExpr)::Type
@@ -408,7 +421,7 @@ expr = do { v <- val
                }
                
 var :: Parse Var
-var = do { char '\''; VarAntiBind <$> identifier }
+var = do { void $ char '\''; VarAntiBind <$> identifier }
       *<|> do { void $ char '_'; return VarAntiWild }
       *<|> do { VarLit <$> identifier }
 

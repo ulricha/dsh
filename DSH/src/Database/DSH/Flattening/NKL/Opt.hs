@@ -54,102 +54,93 @@ opt' e =
                       lamTy  = [ty|('a -> 'b')|]
                       mapTy' = [ty|('lamTy -> (['a] -> ['b]))|]
                       
-                      
-                         
-              {- UNSOUND
-              -- Merge nested loops by introducing a cartesian product:
-              -- concat $ map (\x -> map (\y -> e) ys) xs
-              -- => map (\(x, y) -> e) (xs × ys)
-              -- 
-              -- Actually, since we can't match on lambda arguments and there
-              -- is no let-binding, we rewrite the lambda into the following:
-              -- (\x -> e[x/fst x][y/snd x])
-              -- 
-              -- Note that we re-use x to avoid the need for fresh variables,
-              -- which is fine here.
-              AppE2 _ (Prim2 Map _) (Lam (Fn elemTy2 resTy2) innerVar innerBody) ys ->
-                let productType = T.Pair elemTy elemTy2
-
-
-                    innerBody' = subst innerVar 
-                                       (tupleComponent Snd elemTy2) 
-                                       (subst var (tupleComponent Fst elemTy) innerBody)
-
-                    ys'        = opt' ys
-
-                in trace ("r6 " ++ (show e)) $ opt' $ AppE2 t 
-                                (Prim2 Map ((productType .-> resTy2) .-> (ListT productType .-> ListT resTy2)))
-                                (Lam (productType .-> resTy2) var innerBody')
-                                (AppE2 (ListT productType) 
-                                       (CartProduct (ListT elemTy .-> (ListT elemTy2 .-> (ListT productType)))) 
-                                       xs' 
-                                       ys')
-              -}
-              
               -- Pull the projection part from a nested comprehension:
               -- concat $ map (\x1 -> map (\x2 -> e) ys) xs
               -- => map (\x1 -> e[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
+              [nkl|(map::_ (\'v2 -> 'e)::('c -> _) 'ys)::_|] ->
+
+                opt' $ 
+                [nkl|(map::'prt (\'v1 -> 'projExpr)::'plt
+                             (concat::'cot (map::'mt1 (\'v1 -> (map::'mt2 (\'v2 -> 'pairExpr)::'lt2
+                                                                          'ys)::['pt])::'lt1
+                                                      'xs)::[['pt]])::['pt])::'t|]
+                          
+                where projExpr = tuplify (v1, a) (v2, c) e
+                      pairExpr = [nkl|(pair::('a -> ('c -> 'pt)) 'v1::'a 'v2::'c)::'pt|]
+
+                      -- The type of pairs (a, c)
+                      pt       = [ty|('a, 'c)|]
+                      -- The result type of the projection expression
+                      rt       = elemT t
+                      -- The type of the inner lambda
+                      lt2      = [ty|('c -> 'pt)|]
+                      -- The type of the inner map
+                      mt2      = [ty|('lt2 -> (['c] -> ['pt]))|]
+                      -- The type of the outer lambda
+                      lt1      = [ty|('a -> ['pt])|]
+                      -- The type of the outer map
+                      mt1      = [ty|('lt1 -> (['a] -> [['pt]]))|]
+                      -- The type of concat
+                      cot     = [ty|([['pt]] -> ['pt])|]
+                      -- The type of the projection lambda
+                      plt     = [ty|('pt -> 'rt)|]
+                      -- The type of the projection map
+                      prt     = [ty|('plt -> (['pt] -> 't))|]
+                
               
               -- Pull a filter from a nested comprehension
               -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) (filter (\x2 -> p) ys) xs
               -- => filter (\x1 -> p[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
+              [nkl|(map::_ (\'v2 -> (pair::_ 'v3::'t1 'v4::'t2)::_)::_
+                           (filter::_ (\'v5 -> 'pred)::_ 'ys)::_)::_|]
+                | v1 == v3
+                  && v2 == v4
+                  && v5 == v2 ->
+                  
+                opt' $ 
+                [nkl|(filter::'ft (\'v1 -> 'pairPred)::'flt
+                                  (concat::'cot (map::'mt1 (\'v1 -> (map::'mt2 (\'v2 -> (pair::'mkpt 'v1::'t1 'v2::'t2)::'pt)::'lt2
+                                                                               'ys)::'pt)::'lt1
+                                                           'xs)::['t])::'t)::'t|]
+                
+                where pairPred = tuplify (v1, t1) (v2, t2) pred
+                      -- The type of the pair constructor
+                      mkpt     = [ty|('t1 -> ('t2 -> 'pt))|]
+                      -- The type of the result pair
+                      pt       = [ty|('t1, 't2)|]
+                      -- The type of the inner lambda
+                      lt2      = [ty|('t2 -> 'pt)|]
+                      -- The type of the inner map
+                      mt2      = [ty|('lt2 -> (['t2] -> 't))|]
+                      -- The type of the outer lambda
+                      lt1      = [ty|('t1 -> 't)|]
+                      -- The type of the outer map
+                      mt1      = [ty|('lt1 -> (['t1] -> ['t]))|]
+                      -- The type of concat
+                      cot     = [ty|(['t] -> 't)|]
+                      -- The type of the filter lambda
+                      flt     = [ty|('pt -> bool)|]
+                      -- The type of the filter
+                      ft      = [ty|('flt -> ('t -> 't))|]
               
-              -- map::t1 (\x::t2 -> (pair::t3 x1::t4 x2::t5)::t6) (filter::t7 (\x2::t8 -> $p)::t9 $ys) $xs
-              -- => filter::t1 (\x1::t2 -> subst...) (concat::t3 (map::t4 (\x1 -> (map::t6 (\x2 -> (pair::t (x1::t) (x2::t))::t))::t5
-              {-
-              AppE2 _
-                    (Map mapTy)
-                    -- (\(x2 -> (x1, x2)))
-                    (Lam (FunT _ _) 
-                         innerVar
-                         -- (x1, x2)
-                         (AppE2 pairTy
-                                (Pair (FunT _ (FunT _ _)))
-                                (Var elemTy1 var')
-                                (Var elemTy2 innerVar')))
-                    -- filter (\x -> p) ys
-                    (AppE2 _
-                           (Filter filterTy)
-                           (Lam filterLamTy filterVar p)
-                           ys)
-                        | var == var' && innerVar == innerVar' ->
-                    
-                AppE2 (listT pairTy)
-                      (Filter ((pairTy .-> boolT) .-> (listT pairTy .-> listT pairTy)))
-                      (Lam (pairTy .-> boolT)
-                           var
-                           (tuplify (var, elemTy1) (innerVar, elemTy2) p))
-                      (AppE1 (listT pairTy)
-                             (Concat (listT (listT pairTy) .-> listT pairTy))
-                             (AppE2 (listT (listT pairTy))
-                                    (Map ((elemTy1 .-> listT (listT pairTy)) .-> (listT elemTy1 .-> listT (listT pairTy))))
-                                    (Lam (elemTy1 .-> listT (listT pairTy)) 
-                                         var 
-                                         (AppE2 (listT pairTy)
-                                                (Map ((elemTy2 .-> pairTy) .-> (listT elemTy2 .-> listT pairTy)))
-                                                (Lam (elemTy2 .-> pairTy) 
-                                                     innerVar 
-                                                     (AppE2 pairTy
-                                                            (Pair (elemTy1 .-> (elemTy2 .-> pairTy)))
-                                                            (Var elemTy1 var)
-                                                            (Var elemTy2 innerVar)))
-                                                ys))
-                                    xs))
-              -}      
               -- Turn a nested iteration into a cartesian product.
               -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
               -- => (x1 × x2)
               -- provided that x1, x2 do not occur free in ys!
+              [nkl|(map::_ (\'v2 -> (pair::_ 'v3::'t1 'v4::'t2)::_)::_ 'ys)::_|] 
+                | v1 == v3 
+                  && v2 == v4 
+                  && let fvs = freeVars ys
+                     in not ((varName v1) `S.member` fvs)
+                        && not ((varName v2) `S.member` fvs) ->
+
+                opt' [nkl|(cartProduct::('t1 -> ('t2 -> ('t1, 't2))) 'xs 'ys)::t|]
               
               -- Eliminate (lifted) identity
               -- map (\x -> x) xs
               -- => xs
               -- -> AppE2
               
-              -- Eliminate pair construction/deconstruction pairs
-              -- (fst x, snd x)
-              -- => x
-              -- -> AppE2 Pair
               
               -- Simple filter pattern:
               -- concat (map  (\x -> if p [x] []) xs)
@@ -185,6 +176,11 @@ opt' e =
                         mt = [ty|('pt -> (['a] -> ['t]))|]
                  
     AppE1 t p1 e1 -> AppE1 t p1 (opt' e1)
+    -- Eliminate pair construction/deconstruction pairs
+    -- (fst x, snd x)
+    -- => x
+    -- [nkl|(pair::(t1 -> (t1 -> (t1, t2))) ('e1)::_ ('e2)::_)::(t1, t2)|]
+    
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
     Lam t v e1 -> Lam t v (opt' e1)
@@ -216,17 +212,14 @@ subst _ _ c@(Const _ _)     = c
 subst v r var@(Var _ v')    = if v == v' then r else var
 subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
 
-freeVars :: ExprQ -> S.Set String
-freeVars e = undefined
-         
 -- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
 tuplify :: (Var, TypeQ) -> (Var, TypeQ) -> ExprQ -> ExprQ
 tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
 
-  where v1'    = Var pairTy v1
-        pairTy = PairT t1 t2
-        v1Rep  = AppE1 t1 (Prim1 Fst (pairTy .-> t1)) v1'
-        v2Rep  = AppE1 t2 (Prim1 Snd (pairTy .-> t2)) v1'
+  where v1'    = Var pt v1
+        pt     = [ty|('t1, 't2)|]
+        v1Rep  = [nkl|(fst::('pt -> 't1) 'v1')::'t1|]
+        v2Rep  = [nkl|(snd::('pt -> 't2) 'v1')::'t2|]
                        
 opt :: NKL.Expr -> NKL.Expr
 opt e = if (e /= e') 
