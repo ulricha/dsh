@@ -15,7 +15,7 @@ import           Database.DSH.Impossible
        
 -- Perform simple optimizations on the NKL
 opt' :: ExprQ -> ExprQ
-opt' expr =
+opt' expr = 
   case expr of 
     tab@(Table) -> tab
     App t e1 e2 -> App t (opt' e1) (opt' e2)
@@ -34,18 +34,18 @@ opt' expr =
         -- move it out of that scope.
         [nkl|(if 'p then [unit]::_ else []::_)::_|] | not $ (varName v1) `S.member` (freeVars body) -> 
           
-          opt' $ [nkl|(if 'p then 'body' else []::'t)::'t|]
+          trace "r1" $ opt' $ [nkl|(if 'p then 'body' else []::'t)::'t|]
           where body' = opt' body
 
         -- Try to do smart things depending on what is mapped over the list
-        xs' ->
+        xsOpt ->
             case opt' body of
               -- Singleton list construction cancelled out by concat:
               -- concatPrim2 Map (\x -> [e]) xs 
               -- => map (\x -> e) xs
               [nkl|('se : []::_)::_ |] ->
 
-                opt' $ [nkl|(map::'mapTy' (\'v1 -> 'se')::'lamTy 'xs')::'t|]
+                trace "r2" $ opt' $ [nkl|(map::'mapTy' (\'v1 -> 'se')::'lamTy 'xsOpt)::'t|]
 
                 where se'    = opt' se
                       b'     = elemT b
@@ -55,13 +55,13 @@ opt' expr =
               -- Pull the projection part from a nested comprehension:
               -- concat $ map (\x1 -> map (\x2 -> e) ys) xs
               -- => map (\x1 -> e[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
-              [nkl|(map::_ (\'v2 -> 'e)::('c -> _) 'ys)::_|] ->
+              [nkl|(map::_ (\'v2 -> 'e)::('c -> _) 'ys)::_|] | noPair v1 v2 e ->
 
-                opt' $ 
+                trace "r3" $ opt' $ 
                 [nkl|(map::'prt (\'v1 -> 'projExpr)::'plt
                              (concat::'cot (map::'mt1 (\'v1 -> (map::'mt2 (\'v2 -> 'pairExpr)::'lt2
                                                                           'ys)::['pt])::'lt1
-                                                      'xs)::[['pt]])::['pt])::'t|]
+                                                      'xsOpt)::[['pt]])::['pt])::'t|]
                           
                 where projExpr = tuplify (v1, a) (v2, c) e
                       pairExpr = [nkl|(pair::('a -> ('c -> 'pt)) 'v1::'a 'v2::'c)::'pt|]
@@ -95,11 +95,11 @@ opt' expr =
                   && v2 == v4
                   && v5 == v2 ->
                   
-                opt' $ 
+                trace "r4" $ opt' $ 
                 [nkl|(filter::'ft (\'v1 -> 'pairPred)::'flt
                                   (concat::'cot (map::'mt1 (\'v1 -> (map::'mt2 (\'v2 -> (pair::'mkpt 'v1::'t1 'v2::'t2)::'pt)::'lt2
                                                                                'ys)::'pt)::'lt1
-                                                           'xs)::['t])::'t)::'t|]
+                                                           'xsOpt)::['t])::'t)::'t|]
                 
                 where pairPred = tuplify (v1, t1) (v2, t2) predE
                       -- The type of the pair constructor
@@ -132,14 +132,14 @@ opt' expr =
                      in not ((varName v1) `S.member` fvs)
                         && not ((varName v2) `S.member` fvs) ->
 
-                opt' [nkl|(cartProduct::('t1 -> ('t2 -> ('t1, 't2))) 'xs 'ys)::t|]
+                trace "r5" $ opt' [nkl|(cartProduct::('t1 -> ('t2 -> ('t1, 't2))) 'xsOpt 'ys)::t|]
               
               -- Simple filter pattern:
               -- concat (map  (\x -> if p [x] []) xs)
               -- => filter (\x -> p) xs
               [nkl|(if 'p then ('v2::_ : []::_)::_ else []::_)::_|] | v1 == v2 ->
 
-                opt' [nkl|(filter::'filterTy (\'v1 -> 'p)::('a -> bool) 'xs')::t|]
+                trace "r6" $ opt' [nkl|(filter::'filterTy (\'v1 -> 'p)::('a -> bool) 'xsOpt)::t|]
 
                 where filterTy = [ty|(('a -> bool) -> (['a] -> ['a]))|]
 
@@ -148,7 +148,7 @@ opt' expr =
               -- => map (\x -> e) (filter (\x -> p) xs)
               [nkl|(if 'predE then ('projE : []::_)::_ else []::_)::_|] ->
                 
-                opt' [nkl|(map::'mt (\'v1 -> 'projE)::'pt (filter::'ft (\'v1 -> 'predE)::'ct 'xs')::['a])::'t|]
+                trace "r7" $ opt' [nkl|(map::'mt (\'v1 -> 'projE)::'pt (filter::'ft (\'v1 -> 'predE)::'ct 'xsOpt)::['a])::'t|]
                 
                 where c  = elemT t
 
@@ -161,7 +161,7 @@ opt' expr =
 
               body' -> 
                   -- We could not do anything smart
-                  [nkl|(concat::'ct (map::'mt (\'v1 -> 'body')::'pt 'xs')::['t])::'t|]
+                  trace "concatMap def" $ [nkl|(concat::'ct (map::'mt (\'v1 -> 'body')::'pt 'xsOpt)::['t])::'t|]
 
                   where ct = [ty|(['t] -> 't)|]
                         pt = [ty|('a -> 't)|]
@@ -176,6 +176,7 @@ opt' expr =
     -- Eliminate (lifted) identity
     -- map (\x -> x) xs
     -- => xs
+    [nkl|(map::_ (\'v1 -> 'v2::_)::_ 'xs)::_|] | v1 == v2 -> trace "r8" $ opt' xs
     
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
@@ -186,7 +187,7 @@ opt' expr =
     -- => if c1 && c2 t []
     [nkl|(if 'c1 then (if 'c2 then 'te else []::_)::_ else []::_)::'t|] ->
     
-      opt' [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
+      trace "r9" $ opt' [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
 
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
@@ -218,6 +219,10 @@ tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
         pt     = [ty|('t1, 't2)|]
         v1Rep  = [nkl|(fst::('pt -> 't1) 'v1')::'t1|]
         v2Rep  = [nkl|(snd::('pt -> 't2) 'v1')::'t2|]
+  
+noPair :: Var -> Var -> ExprQ -> Bool
+noPair v1 v2 [nkl|(pair::_ 'v3::_ 'v4::_)::_|] | v1 == v3 && v2 == v4 = False
+noPair _  _  _                                                        = True
                        
 opt :: NKL.Expr -> NKL.Expr
 opt e = if (e /= e') 

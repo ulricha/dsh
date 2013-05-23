@@ -31,6 +31,9 @@ import           Language.Haskell.TH.Quote
 import           Text.Parsec
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token as P
+       
+import qualified Text.PrettyPrint.HughesPJ as PP
+import           Text.PrettyPrint.HughesPJ((<+>), (<>))
 
 import           Database.DSH.Impossible
 
@@ -58,7 +61,7 @@ data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
            | Var TypeQ Var
            -- Antiquotation node
            | AntiE Anti
-           deriving (Show, Data, Typeable)
+           deriving (Data, Typeable)
 
 deriving instance Typeable Val
 deriving instance Data Val
@@ -196,6 +199,25 @@ freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVar
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Const _ _)       = S.empty
 freeVars (Var _ x)         = S.singleton $ varName x
+
+instance Show ExprQ where
+  show e = PP.render $ pp e
+  
+pp :: ExprQ -> PP.Doc
+pp Table              = PP.text "table"
+pp (App _ e1 e2)      = (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
+pp (AppE1 _ p1 e)     = (PP.text $ show p1) <+> (PP.parens $ pp e)
+pp (AppE2 _ p1 e1 e2) = (PP.text $ show p1) <+> (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
+pp (BinOp _ o e1 e2)  = (PP.parens $ pp e1) <+> (PP.text $ show o) <+> (PP.parens $ pp e2)
+pp (Lam _ v e)        = PP.char '\\' <> PP.text (varName v) <+> PP.text "->" <+> pp e
+pp (If _ c t e)       = PP.text "if" 
+                        <+> pp c 
+                        <+> PP.text "then" 
+                        <+> (PP.parens $ pp t) 
+                        <+> PP.text "else" 
+                        <+> (PP.parens $ pp e)
+pp (Const _ v)        = PP.text $ show v
+pp (Var _ s)          = PP.text $ varName s
 
 {-
 gExpr -> (CExpr)::Type
