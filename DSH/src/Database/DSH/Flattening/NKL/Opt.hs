@@ -9,19 +9,17 @@ import           Text.Printf
 
 import qualified Data.Set as S
 
-import           Database.DSH.Flattening.Common.Data.Op
-import           Database.DSH.Flattening.Common.Data.Val
 import qualified Database.DSH.Flattening.NKL.Data.NKL as NKL
-import           Database.DSH.Flattening.NKL.Data.NKL(Prim2(..), Prim2Op(..), Prim1(..), Prim1Op(..))
 import           Database.DSH.Flattening.NKL.Quote
-import qualified Database.DSH.Flattening.NKL.Quote as Q
+import           Database.DSH.Impossible
        
 -- Perform simple optimizations on the NKL
 opt' :: ExprQ -> ExprQ
-opt' e =
-  case e of 
+opt' expr =
+  case expr of 
     tab@(Table) -> tab
     App t e1 e2 -> App t (opt' e1) (opt' e2)
+
 
     -- concatPrim2 Map pattern: concat $ map (\x -> body) xs
     [nkl|(concat::_ (map::_ (\'v1 -> 'body)::('a -> 'b) 'xs)::_)::'t|] ->
@@ -92,7 +90,7 @@ opt' e =
               -- concat $ map (\x1 -> map (\x2 -> (x1, x2)) (filter (\x2 -> p) ys) xs
               -- => filter (\x1 -> p[x1/fst x1][x2/snd x1]) $ concat $ map (\x1 -> map (\x2 -> (x1, x2)) ys) xs
               [nkl|(map::_ (\'v2 -> (pair::_ 'v3::'t1 'v4::'t2)::_)::_
-                           (filter::_ (\'v5 -> 'pred)::_ 'ys)::_)::_|]
+                           (filter::_ (\'v5 -> 'predE)::_ 'ys)::_)::_|]
                 | v1 == v3
                   && v2 == v4
                   && v5 == v2 ->
@@ -103,7 +101,7 @@ opt' e =
                                                                                'ys)::'pt)::'lt1
                                                            'xs)::['t])::'t)::'t|]
                 
-                where pairPred = tuplify (v1, t1) (v2, t2) pred
+                where pairPred = tuplify (v1, t1) (v2, t2) predE
                       -- The type of the pair constructor
                       mkpt     = [ty|('t1 -> ('t2 -> 'pt))|]
                       -- The type of the result pair
@@ -136,27 +134,21 @@ opt' e =
 
                 opt' [nkl|(cartProduct::('t1 -> ('t2 -> ('t1, 't2))) 'xs 'ys)::t|]
               
-              -- Eliminate (lifted) identity
-              -- map (\x -> x) xs
-              -- => xs
-              -- -> AppE2
-              
-              
               -- Simple filter pattern:
               -- concat (map  (\x -> if p [x] []) xs)
               -- => filter (\x -> p) xs
               [nkl|(if 'p then ('v2::_ : []::_)::_ else []::_)::_|] | v1 == v2 ->
 
-                opt' [nkl|(filter::filterTy (\'v1 -> 'p)::('a -> bool) 'xs')::t|]
+                opt' [nkl|(filter::'filterTy (\'v1 -> 'p)::('a -> bool) 'xs')::t|]
 
                 where filterTy = [ty|(('a -> bool) -> (['a] -> ['a]))|]
 
               -- More general filter pattern:
               -- concat (map (\x -> if p [e] []) xs)
               -- => map (\x -> e) (filter (\x -> p) xs)
-              [nkl|(if 'p then ('e : []::_)::_ else []::_)::_|] ->
+              [nkl|(if 'predE then ('projE : []::_)::_ else []::_)::_|] ->
                 
-                opt' [nkl|(map::'mt (\'v -> 'e)::'pt (filter::'ft (\'v -> 'p)::'ct 'xs')::['a])::'t|]
+                opt' [nkl|(map::'mt (\'v -> 'projE)::'pt (filter::'ft (\'v -> 'predE)::'ct 'xs')::['a])::'t|]
                 
                 where c  = elemT t
 
@@ -169,7 +161,7 @@ opt' e =
 
               body' -> 
                   -- We could not do anything smart
-                  [nkl|(concat::ct (map::mt (\'v -> 'body')::pt 'xs')::['t])::'t|]
+                  [nkl|(concat::'ct (map::'mt (\'v -> 'body')::'pt 'xs')::['t])::'t|]
 
                   where ct = [ty|(['t] -> 't)|]
                         pt = [ty|('a -> 't)|]
@@ -179,7 +171,11 @@ opt' e =
     -- Eliminate pair construction/deconstruction pairs
     -- (fst x, snd x)
     -- => x
-    -- [nkl|(pair::(t1 -> (t1 -> (t1, t2))) ('e1)::_ ('e2)::_)::(t1, t2)|]
+    -- [nkl|(pair::(t1 -> (t1 -> (t1, t2))) ('e1)::_ ('e2)::_)::(t1, t2)|] -> 
+
+    -- Eliminate (lifted) identity
+    -- map (\x -> x) xs
+    -- => xs
     
     AppE2 t p1 e1 e2 -> AppE2 t p1 (opt' e1) (opt' e2)
     BinOp t op e1 e2 -> BinOp t op (opt' e1) (opt' e2)
@@ -190,27 +186,29 @@ opt' e =
     -- => if c1 && c2 t []
     [nkl|(if 'c1 then (if 'c2 then 'te else []::_)::_ else []::_)::'t|] ->
     
-      [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
+      opt' [nkl|(if ('c1 && 'c2)::bool then 'te else []::'t)::'t|]
 
     If t ce te ee -> If t (opt' ce) (opt' te) (opt' ee)
     constant@(Const _ _) -> constant
     var@(Var _ _) -> var
+    AntiE _ -> $impossible
     
 -- Substitution: subst v r e ~ e[v/r]
 subst :: Var -> ExprQ -> ExprQ -> ExprQ
-subst _ _ t@(Table) = t
-subst v r (App t e1 e2)     = App t (subst v r e1) (subst v r e2)
-subst v r (AppE1 t p e)     = AppE1 t p (subst v r e)
-subst v r (AppE2 t p e1 e2) = AppE2 t p (subst v r e1) (subst v r e2)
-subst v r (BinOp t o e1 e2) = BinOp t o (subst v r e1) (subst v r e2)
+subst _ _ table@(Table)        = table
+subst v r (App t e1 e2)        = App t (subst v r e1) (subst v r e2)
+subst v r (AppE1 t p e)        = AppE1 t p (subst v r e)
+subst v r (AppE2 t p e1 e2)    = AppE2 t p (subst v r e1) (subst v r e2)
+subst v r (BinOp t o e1 e2)    = BinOp t o (subst v r e1) (subst v r e2)
 -- FIXME for the moment, we assume that all lambda variables are unique
 -- and we don't need to check for name capturing/do alpha-conversion.
-subst v r lam@(Lam t v' e)  = if v' == v
-                              then lam
-                              else Lam t v' (subst v r e)
-subst _ _ c@(Const _ _)     = c
-subst v r var@(Var _ v')    = if v == v' then r else var
-subst v r (If ty c t e)     = If ty (subst v r c) (subst v r t) (subst v r e)
+subst v r lam@(Lam t v' e)     = if v' == v
+                                 then lam
+                                 else Lam t v' (subst v r e)
+subst _ _ c@(Const _ _)        = c
+subst v r var@(Var _ v')       = if v == v' then r else var
+subst v r (If t c thenE elseE) = If t (subst v r c) (subst v r thenE) (subst v r elseE)
+subst _ _ (AntiE _)            = $impossible
 
 -- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
 tuplify :: (Var, TypeQ) -> (Var, TypeQ) -> ExprQ -> ExprQ
