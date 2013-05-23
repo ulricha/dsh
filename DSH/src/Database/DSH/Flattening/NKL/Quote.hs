@@ -28,7 +28,7 @@ import           Data.Typeable(Typeable, Typeable1)
 import qualified Language.Haskell.TH as TH
 import           Language.Haskell.TH.Quote
 
-import           Text.Parsec
+import           Text.Parsec hiding (Column)
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token as P
        
@@ -48,9 +48,10 @@ data Var = VarLit String
          | VarAntiBind String
          | VarAntiWild
          deriving (Eq, Show, Data, Typeable)
+         
+type Column = (String, TypeQ)
 
-data ExprQ = -- Table TypeQ String [NKL.Column] [NKL.Key]
-             Table
+data ExprQ = Table TypeQ String [Column] [NKL.Key]
            | App TypeQ ExprQ ExprQ
            | AppE1 TypeQ (NKL.Prim1 TypeQ) ExprQ
            | AppE2 TypeQ (NKL.Prim2 TypeQ) ExprQ ExprQ
@@ -125,7 +126,7 @@ fromTypeQ (AntiT _)     = $impossible
 
 toExprQ :: NKL.Expr -> ExprQ
 --toExprQ (NKL.Table t n cs ks)    = Table (toTypeQ t) n cs ks
-toExprQ (NKL.Table _ _ _ _)      = Table
+toExprQ (NKL.Table t n cs ks)    = Table (toTypeQ t) n (map (\(x, y) -> (x, toTypeQ y)) cs) ks
 toExprQ (NKL.App t e1 e2)        = App (toTypeQ t) (toExprQ e1) (toExprQ e2)
 toExprQ (NKL.AppE1 t p e)        = AppE1 (toTypeQ t) (toPrim1Q p) (toExprQ e)
 toExprQ (NKL.AppE2 t p e1 e2)    = AppE2 (toTypeQ t) (toPrim2Q p) (toExprQ e1) (toExprQ e2)
@@ -137,7 +138,7 @@ toExprQ (NKL.Var t v)            = Var (toTypeQ t) (VarLit v)
 
 fromExprQ :: ExprQ -> NKL.Expr
 -- fromExprQ (Table t n cs ks)    = NKL.Table (fromTypeQ t) n cs ks
-fromExprQ Table                = NKL.Table undefined undefined undefined undefined
+fromExprQ (Table t n cs ks)    = NKL.Table (fromTypeQ t) n (map (\(x, y) -> (x, fromTypeQ y)) cs) ks
 fromExprQ (App t e1 e2)        = NKL.App (fromTypeQ t) (fromExprQ e1) (fromExprQ e2)
 fromExprQ (AppE1 t p e)        = NKL.AppE1 (fromTypeQ t) (fromPrim1Q p) (fromExprQ e)
 fromExprQ (AppE2 t p e1 e2)    = NKL.AppE2 (fromTypeQ t) (fromPrim2Q p) (fromExprQ e1) (fromExprQ e2)
@@ -171,7 +172,7 @@ toPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (toTypeQ t)
 
 -- | Extract the type annotation from an expression
 typeOf :: ExprQ -> TypeQ
-typeOf (Table)         = undefined
+typeOf (Table t _ _ _) = t
 typeOf (App t _ _)     = t
 typeOf (AppE1 t _ _)   = t
 typeOf (AppE2 t _ _ _) = t
@@ -190,7 +191,7 @@ elemT (ListT t) = t
 elemT _         = $impossible
 
 freeVars :: ExprQ -> S.Set String
-freeVars Table             = S.empty
+freeVars (Table _ _ _ _)   = S.empty
 freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
 freeVars (AppE1 _ _ e1)    = freeVars e1
 freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
@@ -204,7 +205,7 @@ instance Show ExprQ where
   show e = PP.render $ pp e
   
 pp :: ExprQ -> PP.Doc
-pp Table              = PP.text "table"
+pp (Table _ n _ _)    = PP.text "table" <+> PP.text n
 pp (App _ e1 e2)      = (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
 pp (AppE1 _ p1 e)     = (PP.text $ show p1) <+> (PP.parens $ pp e)
 pp (AppE2 _ p1 e1 e2) = (PP.text $ show p1) <+> (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
@@ -446,16 +447,25 @@ var :: Parse Var
 var = do { void $ char '\''; VarAntiBind <$> identifier }
       *<|> do { void $ char '_'; return VarAntiWild }
       *<|> do { VarLit <$> identifier }
+      
+keys :: Parse [NKL.Key]
+keys = brackets $ commaSep $ brackets $ commaSep1 identifier
+
+columns :: Parse [Column]
+columns = brackets $ commaSep1 $ parens $ do
+  c <- identifier
+  void comma 
+  t <- typ
+  return (c, t)
+  
 
 cexpr :: Parse (TypeQ -> ExprQ)
-cexpr = do { reserved "table" >> undefined }
-      {-
+cexpr = do { reserved "table"
            ; n <- identifier
            ; cs <- columns
            ; ks <- keys
            ; return $ \t -> Table t n cs ks
            }
-       -}
         *<|> do { e1 <- expr
                 ; o <- op
                 ; e2 <- expr

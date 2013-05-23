@@ -17,7 +17,7 @@ import           Database.DSH.Impossible
 opt' :: ExprQ -> ExprQ
 opt' expr = 
   case expr of 
-    tab@(Table) -> tab
+    tab@(Table _ _ _ _) -> tab
     App t e1 e2 -> App t (opt' e1) (opt' e2)
 
 
@@ -196,11 +196,11 @@ opt' expr =
     
 -- Substitution: subst v r e ~ e[v/r]
 subst :: Var -> ExprQ -> ExprQ -> ExprQ
-subst _ _ table@(Table)        = table
-subst v r (App t e1 e2)        = App t (subst v r e1) (subst v r e2)
-subst v r (AppE1 t p e)        = AppE1 t p (subst v r e)
-subst v r (AppE2 t p e1 e2)    = AppE2 t p (subst v r e1) (subst v r e2)
-subst v r (BinOp t o e1 e2)    = BinOp t o (subst v r e1) (subst v r e2)
+subst _ _ table@(Table _ _ _ _) = table
+subst v r (App t e1 e2)         = App t (subst v r e1) (subst v r e2)
+subst v r (AppE1 t p e)         = AppE1 t p (subst v r e)
+subst v r (AppE2 t p e1 e2)     = AppE2 t p (subst v r e1) (subst v r e2)
+subst v r (BinOp t o e1 e2)     = BinOp t o (subst v r e1) (subst v r e2)
 -- FIXME for the moment, we assume that all lambda variables are unique
 -- and we don't need to check for name capturing/do alpha-conversion.
 subst v r lam@(Lam t v' e)     = if v' == v
