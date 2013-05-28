@@ -308,6 +308,7 @@ isOp Gte  = True
 isOp Gt   = True
 isOp Conj = True
 isOp Disj = True
+isOp Mod  = True
 isOp _    = False
 
 -- | Translate the DSH operator to Ferry Core operators
@@ -323,6 +324,7 @@ transformOp Gte  = Op ">="
 transformOp Gt   = Op ">"
 transformOp Conj = Op "&&"
 transformOp Disj = Op "||"
+transformOp Mod  = Op "%"
 transformOp _    = $impossible
 
 
