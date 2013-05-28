@@ -341,6 +341,8 @@ val :: Parse Val
 val = (IntV <$> natural)
       <|> (StringV <$> stringLiteral)
       <|> (DoubleV <$> float)
+      <|> (reserved "true" >> return (BoolV True))
+      <|> (reserved "false" >> return (BoolV False))
       <|> (reserved "unit" >> return UnitV)
       <|> (ListV <$> (brackets $ commaSep val))
       <|> (parens $ do { v1 <- val
