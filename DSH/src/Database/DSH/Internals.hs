@@ -59,6 +59,7 @@ data Fun a b where
     Mul             :: Fun (a,a) a
     Sub             :: Fun (a,a) a
     Div             :: Fun (a,a) a
+    Mod             :: Fun (Integer,Integer) Integer
     Lt              :: Fun (a,a) Bool
     Lte             :: Fun (a,a) Bool
     Equ             :: Fun (a,a) Bool

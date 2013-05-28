@@ -42,6 +42,7 @@ import Prelude hiding (
   , (>=)
   , (>)
   , (++)
+  , mod
   , min
   , max
   , head

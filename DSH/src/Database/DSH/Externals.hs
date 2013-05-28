@@ -328,6 +328,9 @@ min (Q a) (Q b) = Q (AppE Min (PairE a b))
 
 max :: (QA a,Ord a) => Q a -> Q a -> Q a
 max (Q a) (Q b) = Q (AppE Max (PairE a b))
+    
+mod :: Q Integer -> Q Integer -> Q Integer
+mod (Q a) (Q b) = Q (AppE Mod (PairE a b))
 
 -- * Conditionals
 
