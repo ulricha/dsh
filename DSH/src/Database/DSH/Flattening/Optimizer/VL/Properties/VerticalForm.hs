@@ -109,6 +109,7 @@ inferVerticallyIntactBinOp _ rightChildIntact _ c2 op =
     PairL -> no
     ZipL -> noTriple
     CartProduct -> noTriple
+    CartProductL -> noTriple
     ThetaJoin    _ -> noPair
     
 inferVerticallyIntactTerOp :: VectorProp IntactSince 

@@ -93,6 +93,7 @@ inferCardOneBinOp c1 c2 op =
     PairA -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     PairL -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
+    CartProductL -> return $ VPropTriple False False False
     ThetaJoin _ -> return $ VPropPair False False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2

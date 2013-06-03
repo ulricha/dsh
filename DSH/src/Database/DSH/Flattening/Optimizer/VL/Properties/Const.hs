@@ -312,6 +312,16 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME check propVec components for correctness/preciseness
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
+    CartProductL -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+      -- FIXME check propVec components for correctness/preciseness
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+
     ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV

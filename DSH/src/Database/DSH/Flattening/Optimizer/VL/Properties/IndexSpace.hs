@@ -240,6 +240,7 @@ inferIndexSpaceBinOp is1 is2 n op =
 
     -- FIXME d \in p(q1)
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
+    CartProductL -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
 
     ThetaJoin _ -> do
       ((D dis), (P pis)) <- unp is1 >>= fromDBV
