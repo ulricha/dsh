@@ -1,4 +1,4 @@
-module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like) where
+module Database.DSH.Flattening.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like, number) where
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
@@ -116,6 +116,10 @@ tail e = let (ListT t) = typeOf e
 nub :: Expr -> Expr
 nub e = let (ListT t) = typeOf e
          in AppE1 (ListT t) (Prim1 Nub P.$ ListT t .-> ListT t) e
+         
+number :: Expr -> Expr
+number e = let (ListT t) = typeOf e
+           in AppE1 (ListT IntT) (Prim1 Number P.$ ListT t .-> ListT IntT) e
 
 init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
@@ -212,7 +216,7 @@ mul e1 e2 = let t1 = typeOf e1
 mod :: Expr -> Expr -> Expr
 mod e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
-             in if isNum t1 P.&& t1 P.== t2
+             in if t1 P.== intT P.&& t2 P.== intT
                   then BinOp t1 Mod e1 e2
                   else P.error P.$ "NKLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 

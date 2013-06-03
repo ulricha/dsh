@@ -17,6 +17,10 @@ class VectorAlgebra a where
 
   unique :: DBV -> GraphM r a DBV
   uniqueL :: DBV -> GraphM r a DBV
+
+  number :: DBV -> GraphM r a DBV
+  numberL :: DBV -> GraphM r a DBV  
+
   notPrim :: DBP -> GraphM r a DBP
   notVec :: DBV -> GraphM r a DBV
   lengthA :: DBV -> GraphM r a DBP

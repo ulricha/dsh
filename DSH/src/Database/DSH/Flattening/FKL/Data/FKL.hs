@@ -65,6 +65,8 @@ data Prim1 = LengthPrim Type
            | LastL Type
            | Nub Type
            | NubL Type
+           | Number Type
+           | NumberL Type
     deriving (Eq, Generic)
     
 instance Show Prim1 where

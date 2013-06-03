@@ -69,6 +69,8 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (LastL _) -> lastLift
                                            (Nub _) -> nubPrim
                                            (NubL _) -> nubLift
+                                           (Number _) -> numberPrim
+                                           (NumberL _) -> numberLift
 fkl2VL (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2VL arg1) (fkl2VL arg2) >>= uncurry fn
     where
         fn = case f of

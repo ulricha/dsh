@@ -118,6 +118,7 @@ compileApp f args = case f of
                         Mul       -> compileApp2 NP.mul args
                         Sub       -> compileApp2 NP.sub args
                         Div       -> compileApp2 NP.div args
+                        Mod       -> compileApp2 NP.mod args
                         Index     -> compileApp2 NP.index args
                         SortWith  -> compileApp2 NP.sortWith args
                         Cons      -> compileApp2 NP.consOpt args
@@ -155,6 +156,7 @@ compileApp f args = case f of
                         And             -> compileApp1 NP.and args
                         Or              -> compileApp1 NP.or args
                         Reverse         -> compileApp1 NP.reverse args
+                        Number          -> compileApp1 NP.number args
                         Length          -> compileApp1 NP.length args
                         Null            -> compileApp1 NP.null args
                         Init            -> compileApp1 NP.init args

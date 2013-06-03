@@ -216,6 +216,8 @@ translateUnOp u c = case u of
                       Only          -> return $ only c
                       Unique        -> liftM fromDBV $ unique (toDBV c)
                       UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
+                      Number        -> liftM fromDBV $ unique (toDBV c)
+                      NumberL       -> liftM fromDBV $ uniqueL (toDBV c)
                       NotPrim       -> liftM fromDBP $ notPrim (toDBP c)
                       NotVec        -> liftM fromDBV $ notVec (toDBV c)
                       LengthA       -> liftM fromDBP $ lengthA (toDBV c)

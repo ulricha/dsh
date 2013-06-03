@@ -132,6 +132,14 @@ nubLift ::  Shape -> Graph VL Shape
 nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> uniqueL q
 nubLift _ = error "nubLift: Should not be possible"
 
+numberPrim ::  Shape -> Graph VL Shape
+numberPrim (ValueVector q lyt) = flip ValueVector lyt <$> number q
+numberPrim _ = error "numberPrim: Should not be possible"
+
+numberLift ::  Shape -> Graph VL Shape
+numberLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> numberL q
+numberLift _ = error "numberLift: Should not be possible"
+
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
                                  i <- lengthA q

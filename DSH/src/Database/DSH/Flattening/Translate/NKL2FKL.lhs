@@ -11,17 +11,20 @@ In this chapter we describe how the flattening transformation is performed. The 
 \begin{code}
 {-# LANGUAGE TemplateHaskell, TupleSections #-}
 module Database.DSH.Flattening.Translate.NKL2FKL (flatten) where
+       
+import           Debug.Trace
 
 import qualified Database.DSH.Flattening.FKL.Data.FKL as F
+import qualified Database.DSH.Flattening.FKL.Render.Render
 import qualified Database.DSH.Flattening.NKL.Data.NKL as N
-import Database.DSH.Flattening.Common.TransM
+import           Database.DSH.Flattening.Common.TransM
 
-import Database.DSH.Flattening.FKL.FKLPrimitives
-import Database.DSH.Flattening.Common.Data.Type
+import           Database.DSH.Flattening.FKL.FKLPrimitives
+import           Database.DSH.Flattening.Common.Data.Type
 
 import qualified Data.Set as S
 
-import Control.Applicative
+import           Control.Applicative
 \end{code}
 %endif
 
@@ -153,7 +156,7 @@ cloLAppM (AClo ((n, x1, ..., xn)) f f') x == f' n x1 ... xn x
 \begin{code}
         
 flatten :: N.Expr -> F.Expr
-flatten e = runTransform (flatTransform e)
+flatten e = let e' = runTransform (flatTransform e) in {- trace (show e') -} e'
 
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
@@ -178,6 +181,7 @@ prim1Transform (N.Prim1 N.Or t) = orVal t
 prim1Transform (N.Prim1 N.Init t) = initVal t
 prim1Transform (N.Prim1 N.Last t) = lastVal t
 prim1Transform (N.Prim1 N.Nub t) = nubVal t
+prim1Transform (N.Prim1 N.Number t) = numberVal t
 
 prim2Transform :: (N.Prim2 Type) -> F.Expr
 prim2Transform (N.Prim2 N.Map t) = mapVal t

@@ -47,6 +47,7 @@ data Fun a b where
     Null            :: Fun [a] Bool
     Length          :: Fun [a] Integer
     Reverse         :: Fun [a] [a]
+    Number          :: Fun [a] [Integer]
     Fst             :: Fun (a,b) a
     Snd             :: Fun (a,b) b
     Sum             :: Fun [a] a
@@ -169,6 +170,8 @@ instance Show (Fun a b) where
     show Cond = "cond"
     show Append = "append"
     show Like = "like"
+    show Mod = "%"
+    show Number = "number"
 
 -- Reify instances
 

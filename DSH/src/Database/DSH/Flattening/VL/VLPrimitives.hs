@@ -73,6 +73,12 @@ unique (DBV c _) = dbv $ insertNode $ UnOp Unique c
 uniqueL :: DBV -> GraphM r VL DBV
 uniqueL (DBV c _) = dbv $ insertNode $ UnOp UniqueL c
 
+number :: DBV -> GraphM r VL DBV
+number (DBV c _) = dbv $ insertNode $ UnOp Number c
+
+numberL :: DBV -> GraphM r VL DBV
+numberL (DBV c _) = dbv $ insertNode $ UnOp NumberL c
+
 groupByKey :: DBV -> DBV -> GraphM r VL (DBV, DBV, PropVector)
 groupByKey (DBV c1 _) (DBV c2 _) = do
                                   r <- insertNode $ BinOp GroupBy c1 c2
