@@ -133,6 +133,11 @@ fromQX100 :: QA a => X100Info -> Q a -> IO a
 fromQX100 c (Q a) =  do
                   (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
                   frExp <$> (executeX100Query c $ X100 q)
+                  
+-- | Debugging function: return the CL (Comprehension Language) representation of a
+-- query (X100 version)
+debugCLX100 :: QA a => X100Info -> Q a -> IO String
+debugCLX100 c (Q e) = show <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (SQL version)
