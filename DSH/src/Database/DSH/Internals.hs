@@ -46,6 +46,7 @@ data Fun a b where
     Last            :: Fun [a] a
     Null            :: Fun [a] Bool
     Length          :: Fun [a] Integer
+    Guard           :: Fun Bool [()]
     Reverse         :: Fun [a] [a]
     Number          :: Fun [a] [Integer]
     Fst             :: Fun (a,b) a
@@ -77,6 +78,7 @@ data Fun a b where
     SplitAt         :: Fun (Integer,[a]) ([a],[a])
     Zip             :: Fun ([a],[b]) [(a,b)]
     Map             :: Fun (a -> b,[a]) [b]
+    ConcatMap       :: Fun (a -> [b],[a]) [b]
     Filter          :: Fun (a -> Bool,[a]) [a]
     GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
     SortWith        :: Fun (a -> b,[a]) [a]
@@ -162,6 +164,7 @@ instance Show (Fun a b) where
     show SplitAt = "splitAt"
     show Zip = "zip"
     show Map = "map"
+    show ConcatMap = "concatMap"
     show Filter = "filter"
     show GroupWithKey = "groupWithKey"
     show SortWith = "sortWith"

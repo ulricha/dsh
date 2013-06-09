@@ -19,7 +19,7 @@ module Database.DSH.Flattening
   ) where
 
 import           GHC.Exts
-
+                 
 import           Database.DSH.CompileFlattening
 import           Database.DSH.ExecuteFlattening
 
@@ -36,8 +36,10 @@ import           Database.DSH.Flattening.Common.Data.QueryPlan
 import qualified Database.DSH.Flattening.Common.Data.Type        as T
 import           Database.DSH.Flattening.Export
 import qualified Database.DSH.Flattening.NKL.Data.NKL            as NKL
+import qualified Database.DSH.Flattening.CL.Lang                 as CL
 import qualified Database.DSH.Flattening.NKL.Opt                 as NKLOpt
 import           Database.DSH.Flattening.Translate.Algebra2Query
+import           Database.DSH.Flattening.Translate.CL2NKL
 import           Database.DSH.Flattening.Translate.FKL2VL
 import           Database.DSH.Flattening.Translate.NKL2FKL
 import           Database.DSH.Flattening.Translate.VL2Algebra
@@ -49,6 +51,7 @@ import           Data.ByteString.Lazy.Char8                      (unpack)
 import qualified Data.IntMap                                     as M
 import qualified Data.List                                       as L
 
+import           Control.Applicative
 import           Control.Monad.State
 
 import           Data.Convertible                                ()
@@ -58,12 +61,13 @@ import           Data.Convertible                                ()
 
 -- Different versions of the flattening compiler pipeline
 
-nkl2SQL :: NKL.Expr -> (Q.Query Q.SQL, T.Type)
+nkl2SQL :: CL.Expr -> (Q.Query Q.SQL, T.Type)
 nkl2SQL e = let (e', t) = nkl2Alg e
             in (generateSQL e', t)
 
-nkl2Alg :: NKL.Expr -> (Q.Query Q.XML, T.Type)
-nkl2Alg e = let q       = NKLOpt.opt e
+nkl2Alg :: CL.Expr -> (Q.Query Q.XML, T.Type)
+nkl2Alg e = let q       = desugarComprehensions e
+                          |> NKLOpt.opt
                           |> flatten
                           |> specializeVectorOps
                           |> implementVectorOpsPF
@@ -71,8 +75,9 @@ nkl2Alg e = let q       = NKLOpt.opt e
                 t       = T.typeOf e
             in (q, t)
 
-nkl2X100Alg :: NKL.Expr -> (Q.Query Q.X100, T.Type)
-nkl2X100Alg e = let q = NKLOpt.opt e
+nkl2X100Alg :: CL.Expr -> (Q.Query Q.X100, T.Type)
+nkl2X100Alg e = let q = desugarComprehensions e
+                        |> NKLOpt.opt
                         |> flatten
                         |> specializeVectorOps
                         |> implementVectorOpsX100
@@ -80,15 +85,17 @@ nkl2X100Alg e = let q = NKLOpt.opt e
                     t = T.typeOf e
                 in (q, t)
 
-nkl2X100File :: String -> NKL.Expr -> IO ()
-nkl2X100File prefix e = NKLOpt.opt e
+nkl2X100File :: String -> CL.Expr -> IO ()
+nkl2X100File prefix e = desugarComprehensions e
+                        |> NKLOpt.opt
                         |> flatten
                         |> specializeVectorOps
                         |> implementVectorOpsX100
                         |> (exportX100Plan prefix)
 
-nkl2SQLFile :: String -> NKL.Expr -> IO ()
-nkl2SQLFile prefix e = NKLOpt.opt e
+nkl2SQLFile :: String -> CL.Expr -> IO ()
+nkl2SQLFile prefix e = desugarComprehensions e
+                       |> NKLOpt.opt
                        |> flatten
                        |> specializeVectorOps
                        |> implementVectorOpsPF
@@ -96,16 +103,18 @@ nkl2SQLFile prefix e = NKLOpt.opt e
                        |> generateSQL
                        |> (exportSQL prefix)
 
-nkl2XMLFile :: String -> NKL.Expr -> IO ()
-nkl2XMLFile prefix e = NKLOpt.opt e
+nkl2XMLFile :: String -> CL.Expr -> IO ()
+nkl2XMLFile prefix e = desugarComprehensions e
+                       |> NKLOpt.opt
                        |> flatten
                        |> specializeVectorOps
                        |> implementVectorOpsPF
                        |> generatePFXML
                        |> (exportPFXML prefix)
 
-nkl2VLFile :: String -> NKL.Expr -> IO ()
-nkl2VLFile prefix e = NKLOpt.opt e
+nkl2VLFile :: String -> CL.Expr -> IO ()
+nkl2VLFile prefix e = desugarComprehensions e
+                      |> NKLOpt.opt
                       |> flatten
                       |> specializeVectorOps
                       |> exportVLPlan prefix
@@ -116,70 +125,71 @@ nkl2VLFile prefix e = NKLOpt.opt e
 -- | Compile a DSH query to SQL and run it on the database given by 'c'.
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) =  do
-                   (q, _) <- liftM nkl2SQL $ toNKL (getTableInfo c) a
-                   fmap frExp $ executeSQLQuery c $ SQL q
+                   (q, _) <- nkl2SQL <$> toComprehensions (getTableInfo c) a
+                   frExp <$> (executeSQLQuery c $ SQL q)
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
 fromQX100 c (Q a) =  do
-                  (q, _) <- liftM nkl2X100Alg $ toNKL (getX100TableInfo c) a
-                  fmap frExp $ executeX100Query c $ X100 q
+                  (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
+                  frExp <$> (executeX100Query c $ X100 q)
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (SQL version)
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = liftM show $ toNKL (getTableInfo c) e
+debugNKL c (Q e) = show <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (X100 version)
 debugNKLX100 :: QA a => X100Info -> Q a -> IO String
-debugNKLX100 c (Q e) = liftM (show . flatten) $ toNKL (getX100TableInfo c) e
+debugNKLX100 c (Q e) = show <$> desugarComprehensions <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: return the FKL (Flat Kernel Language) representation of a
 -- query (SQL version)
 debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = liftM (show . flatten) $ toNKL (getTableInfo c) e
+debugFKL c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: return the FKL (Flat Kernel Language) representation of a
 -- query (X100 version)
 debugFKLX100 :: QA a => X100Info -> Q a -> IO String
-debugFKLX100 c (Q e) = liftM (show . flatten) $ toNKL (getX100TableInfo c) e
+debugFKLX100 c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: dumb the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
-              e' <- toNKL (getX100TableInfo c) e
+              e' <- toComprehensions (getX100TableInfo c) e
               nkl2X100File prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
 debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
-  e' <- toNKL (getTableInfo c) e
+  e' <- toComprehensions (getTableInfo c) e
   nkl2VLFile prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (X100 version).
 debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
-  e' <- toNKL (getX100TableInfo c) e
+  e' <- toComprehensions (getX100TableInfo c) e
   nkl2VLFile prefix e'
 
 -- | Debugging function: dump the Pathfinder Algebra query plan (DAG) to XML files.
 debugPFXML :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugPFXML prefix c (Q e) = do
-  e' <- toNKL (getTableInfo c) e
+  e' <- toComprehensions (getTableInfo c) e
   nkl2XMLFile prefix e'
 
 -- | Debugging function: dump SQL queries generated by Pathfinder to files.
 debugSQL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugSQL prefix c (Q e) = do
-  e' <- toNKL (getTableInfo c) e
+  e' <- toComprehensions (getTableInfo c) e
   nkl2SQLFile prefix e'
 
 -- | Dump a VL plan in the JSON format expected by the in-memory implementation (Tobias Müller)
 dumpVLMem :: QA a => FilePath -> X100Info -> Q a -> IO ()
 dumpVLMem f c (Q q) = do
-  nkl <- toNKL (getX100TableInfo c) q
-  let plan = NKLOpt.opt nkl
+  cl <- toComprehensions (getX100TableInfo c) q
+  let plan = desugarComprehensions cl
+             |> NKLOpt.opt
              |> flatten
              |> specializeVectorOps
       json = unpack $ encode (queryShape plan, M.toList $ nodeMap $ queryDag plan)

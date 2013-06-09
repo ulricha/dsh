@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 
 module Database.DSH.Externals where
+       
+-- FIXME Don't export combinators (>>), (>>=), guard
 
 import Database.DSH.Internals
 import Database.DSH.Impossible
@@ -521,7 +523,7 @@ concat :: (QA a) => Q [[a]] -> Q [a]
 concat (Q ass) = Q (AppE Concat ass)
 
 concatMap :: (QA a,QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
-concatMap f as = concat (map f as)
+concatMap f (Q as) = Q (AppE ConcatMap (PairE (LamE (toLam f)) as))
 
 maximum :: (QA a,Ord a) => Q [a] -> Q a
 maximum (Q as) = Q (AppE Maximum as)
@@ -621,7 +623,7 @@ mzip :: (QA a,QA b) => Q [a] -> Q [b] -> Q [(a,b)]
 mzip = zip
 
 guard :: Q Bool -> Q [()]
-guard c = cond c (singleton unit) nil
+guard (Q c) = Q (AppE Guard c)
 
 -- * Construction of tuples
 

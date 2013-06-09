@@ -12,8 +12,8 @@ import           Database.DSH.Flattening.VL.VLPrimitives hiding (prop)
 import           Database.DSH.Flattening.VL.MetaPrimitives
 import           Database.DSH.Flattening.Common.Data.Op
 import           Database.DSH.Flattening.Common.Data.Type
+import           Database.DSH.Flattening.Common.Data.Expr
 import qualified Database.DSH.Flattening.Common.Data.Val as V
-import           Database.DSH.Flattening.FKL.Data.FKL (TypedColumn, Key)
 
 import           Control.Applicative
 
@@ -596,7 +596,7 @@ singletonPrim ::  Shape -> Graph VL Shape
 singletonPrim (PrimVal q1 lyt) = flip ValueVector lyt <$> singleton q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
 
-dbTable ::  String -> [TypedColumn] -> [Key] -> Graph VL Shape
+dbTable ::  String -> [Column] -> [Key] -> Graph VL Shape
 dbTable n cs ks = do
                     t <- tableRef n (map (mapSnd typeToVLType) cs) ks
                     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])

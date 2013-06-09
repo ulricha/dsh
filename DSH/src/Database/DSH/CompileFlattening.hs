@@ -3,12 +3,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 
-module Database.DSH.CompileFlattening (toNKL) where
+module Database.DSH.CompileFlattening (toComprehensions) where
 
 import           Database.DSH.Impossible
 
-import qualified Database.DSH.Flattening.NKL.NKLPrimitives as NP
-import           Database.DSH.Flattening.NKL.Opt
+import qualified Database.DSH.Flattening.CL.Lang as CL
+import qualified Database.DSH.Flattening.CL.CLPrimitives as CP
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 
 import           Database.DSH.Internals as D
@@ -57,8 +57,10 @@ getTableInfoFun n = do
                    (_, _, f) <- get
                    lift $ f n
 
-toNKL :: (String -> IO [(String, T.Type -> Bool)]) -> Exp a -> IO NP.Expr
-toNKL f e = liftM opt $ runN f $ translate e
+-- | Translate a DSH frontend expression into the internal comprehension-based
+-- language
+toComprehensions :: (String -> IO [(String, T.Type -> Bool)]) -> Exp a -> IO CL.Expr
+toComprehensions f e = runN f $ translate e
 
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from
@@ -68,25 +70,25 @@ runN :: (String -> IO [(String, T.Type -> Bool)]) -> N a -> IO a
 runN f = liftM fst . flip runStateT (1, M.empty, f)
 
 
-translate ::  forall a. Exp a -> N NP.Expr
-translate UnitE = return $ NP.unit
-translate (BoolE b) = return $ NP.bool b
-translate (CharE c) = return $ NP.string [c]
-translate (IntegerE i) = return $ NP.int (fromInteger i)
-translate (DoubleE d) = return $ NP.double d
-translate (TextE t) = return $ NP.string (unpack t)
-translate (PairE e1 e2) = NP.pair <$> translate e1 <*> translate e2
+translate ::  forall a. Exp a -> N CL.Expr
+translate UnitE = return $ CP.unit
+translate (BoolE b) = return $ CP.bool b
+translate (CharE c) = return $ CP.string [c]
+translate (IntegerE i) = return $ CP.int (fromInteger i)
+translate (DoubleE d) = return $ CP.double d
+translate (TextE t) = return $ CP.string (unpack t)
+translate (PairE e1 e2) = CP.pair <$> translate e1 <*> translate e2
 translate (VarE i) = do
                       let ty = reify (undefined :: a)
-                      return $ NP.var (translateType ty) (prefixVar i)
+                      return $ CP.var (translateType ty) (prefixVar i)
 translate (ListE es) = do
                         let ty = reify (undefined :: a)
-                        NP.list (translateType ty) <$> mapM translate es
+                        CP.list (translateType ty) <$> mapM translate es
 translate (e@(LamE _)) = case e of
                              (LamE f :: Exp (b -> c)) -> do
                                  v <- freshVar
                                  let ty = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
-                                 NP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
+                                 CP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
                              _ -> $impossible
 translate (TableE (TableDB n ks)) = do
                                         let ty = reify (undefined :: a)
@@ -99,72 +101,72 @@ translate (TableE (TableDB n ks)) = do
                                         let ks' = if ks == []
                                                     then [map fst tableDescr]
                                                     else ks
-                                        return $ NP.table (translateType ty) n cols ks'
+                                        return $ CP.table (translateType ty) n cols ks'
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
 
-compileApp3 :: (NP.Expr -> NP.Expr -> NP.Expr -> NP.Expr) -> Exp (a, (b, c)) -> N NP.Expr
+compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, (b, c)) -> N CL.Expr
 compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
 compileApp3 _ _ = $impossible
 
-compileApp2 :: (NP.Expr -> NP.Expr -> NP.Expr) -> Exp (a, b) -> N NP.Expr
+compileApp2 :: (CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b) -> N CL.Expr
 compileApp2 f (PairE e1 e2) = f <$> translate e1 <*> translate e2
 compileApp2 _ _ = $impossible
 
-compileApp1 :: (NP.Expr -> NP.Expr) -> Exp a -> N NP.Expr
+compileApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> N CL.Expr
 compileApp1 f e = f <$> translate e
 
-compileApp :: Fun a b -> Exp a -> N NP.Expr
+compileApp :: Fun a b -> Exp a -> N CL.Expr
 compileApp f args = case f of
-                        Cond -> compileApp3 NP.cond args
-                        Add       -> compileApp2 NP.add args
-                        Mul       -> compileApp2 NP.mul args
-                        Sub       -> compileApp2 NP.sub args
-                        Div       -> compileApp2 NP.div args
-                        Mod       -> compileApp2 NP.mod args
-                        Index     -> compileApp2 NP.index args
-                        SortWith  -> compileApp2 NP.sortWith args
-                        Cons      -> compileApp2 NP.consOpt args
-                        Take      -> compileApp2 NP.take args
-                        Drop      -> compileApp2 NP.drop args
-                        Map       -> compileApp2 NP.map args
-                        Append    -> compileApp2 NP.append args
-                        Filter    -> compileApp2 NP.filter args
-                        GroupWithKey -> compileApp2 NP.groupWithKey args
-                        Zip       -> compileApp2 NP.zip args
-                        DropWhile -> compileApp2 NP.dropWhile args
-                        TakeWhile -> compileApp2 NP.takeWhile args
-                        SplitAt   -> compileApp2 NP.splitAt args
-                        Equ       -> compileApp2 NP.eq args
-                        Conj      -> compileApp2 NP.conj args
-                        Disj      -> compileApp2 NP.disj args
-                        Lt        -> compileApp2 NP.lt args
-                        Lte       -> compileApp2 NP.lte args
-                        Gte       -> compileApp2 NP.gte args
-                        Gt        -> compileApp2 NP.gt args
-                        Max       -> compileApp2 NP.max args
-                        Min       -> compileApp2 NP.min args
-                        Like      -> compileApp2 NP.like args
-                        Fst             -> compileApp1 NP.fst args
-                        Snd             -> compileApp1 NP.snd args
-                        Not             -> compileApp1 NP.not args
-                        IntegerToDouble -> compileApp1 NP.integerToDouble args
-                        Head            -> compileApp1 NP.head args
-                        Tail            -> compileApp1 NP.tail args
-                        Minimum         -> compileApp1 NP.minimum args
-                        Maximum         -> compileApp1 NP.maximum args
-                        Concat          -> compileApp1 NP.concat args
-                        Sum             -> compileApp1 NP.sum args
-                        Avg             -> compileApp1 NP.avg args
-                        And             -> compileApp1 NP.and args
-                        Or              -> compileApp1 NP.or args
-                        Reverse         -> compileApp1 NP.reverse args
-                        Number          -> compileApp1 NP.number args
-                        Length          -> compileApp1 NP.length args
-                        Null            -> compileApp1 NP.null args
-                        Init            -> compileApp1 NP.init args
-                        Last            -> compileApp1 NP.last args
-                        Nub             -> compileApp1 NP.nub args
+                        Cond -> compileApp3 CP.cond args
+                        Add       -> compileApp2 CP.add args
+                        Mul       -> compileApp2 CP.mul args
+                        Sub       -> compileApp2 CP.sub args
+                        Div       -> compileApp2 CP.div args
+                        Mod       -> compileApp2 CP.mod args
+                        Index     -> compileApp2 CP.index args
+                        SortWith  -> compileApp2 CP.sortWith args
+                        Cons      -> compileApp2 CP.consOpt args
+                        Take      -> compileApp2 CP.take args
+                        Drop      -> compileApp2 CP.drop args
+                        Map       -> compileApp2 CP.map args
+                        Append    -> compileApp2 CP.append args
+                        Filter    -> compileApp2 CP.filter args
+                        GroupWithKey -> compileApp2 CP.groupWithKey args
+                        Zip       -> compileApp2 CP.zip args
+                        DropWhile -> compileApp2 CP.dropWhile args
+                        TakeWhile -> compileApp2 CP.takeWhile args
+                        SplitAt   -> compileApp2 CP.splitAt args
+                        Equ       -> compileApp2 CP.eq args
+                        Conj      -> compileApp2 CP.conj args
+                        Disj      -> compileApp2 CP.disj args
+                        Lt        -> compileApp2 CP.lt args
+                        Lte       -> compileApp2 CP.lte args
+                        Gte       -> compileApp2 CP.gte args
+                        Gt        -> compileApp2 CP.gt args
+                        Max       -> compileApp2 CP.max args
+                        Min       -> compileApp2 CP.min args
+                        Like      -> compileApp2 CP.like args
+                        Fst             -> compileApp1 CP.fst args
+                        Snd             -> compileApp1 CP.snd args
+                        Not             -> compileApp1 CP.not args
+                        IntegerToDouble -> compileApp1 CP.integerToDouble args
+                        Head            -> compileApp1 CP.head args
+                        Tail            -> compileApp1 CP.tail args
+                        Minimum         -> compileApp1 CP.minimum args
+                        Maximum         -> compileApp1 CP.maximum args
+                        Concat          -> compileApp1 CP.concat args
+                        Sum             -> compileApp1 CP.sum args
+                        Avg             -> compileApp1 CP.avg args
+                        And             -> compileApp1 CP.and args
+                        Or              -> compileApp1 CP.or args
+                        Reverse         -> compileApp1 CP.reverse args
+                        Number          -> compileApp1 CP.number args
+                        Length          -> compileApp1 CP.length args
+                        Null            -> compileApp1 CP.null args
+                        Init            -> compileApp1 CP.init args
+                        Last            -> compileApp1 CP.last args
+                        Nub             -> compileApp1 CP.nub args
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
