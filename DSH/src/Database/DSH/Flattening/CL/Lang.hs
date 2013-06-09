@@ -68,7 +68,7 @@ data Prim1Op = Length |  Not |  Concat
              | IntegerToDouble | Tail 
              | Reverse | And | Or 
              | Init | Last | Nub 
-             | Number
+             | Number | Guard
              deriving (Eq, Ord)
              
 data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
@@ -94,6 +94,7 @@ instance Show Prim1Op where
   show Last = "last"
   show Nub = "nub"
   show Number = "number"
+  show Guard = "guard"
   
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o

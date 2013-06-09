@@ -121,6 +121,9 @@ nub e = let (ListT t) = typeOf e
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
            in AppE1 (ListT IntT) (Prim1 Number P.$ ListT t .-> ListT IntT) e
+           
+guard :: Expr -> Expr
+guard e = AppE1 (listT UnitT) (Prim1 Guard P.$ boolT .-> listT UnitT) e
 
 init :: Expr -> Expr
 init e = let (ListT t) = typeOf e

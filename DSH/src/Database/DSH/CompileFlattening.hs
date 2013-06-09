@@ -130,6 +130,7 @@ compileApp f args = case f of
                         Take      -> compileApp2 CP.take args
                         Drop      -> compileApp2 CP.drop args
                         Map       -> compileApp2 CP.map args
+                        ConcatMap -> compileApp2 CP.concatMap args
                         Append    -> compileApp2 CP.append args
                         Filter    -> compileApp2 CP.filter args
                         GroupWithKey -> compileApp2 CP.groupWithKey args
@@ -167,6 +168,7 @@ compileApp f args = case f of
                         Init            -> compileApp1 CP.init args
                         Last            -> compileApp1 CP.last args
                         Nub             -> compileApp1 CP.nub args
+                        Guard           -> compileApp1 CP.guard args
 
 legalType :: String -> String -> Int -> T.Type -> (T.Type -> Bool) -> Bool
 legalType tn cn nr t f = case f t of
