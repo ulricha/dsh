@@ -1,6 +1,11 @@
 %if False
 \begin{code}
-{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving  #-}
+
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+
 module Database.DSH.Flattening.NKL.Data.NKL 
   ( Expr(..)
   , Typed(..)

@@ -79,24 +79,24 @@ fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q e) = fmap frExp (evaluate c e)
 
 -- | Convert the query into unoptimised algebraic plan
-debugPlan :: (IConnection conn,QA a) => conn -> Q a -> IO String
-debugPlan c (Q e) = doCompile c e
+debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO ()
+debugPlan c (Q e) = doCompile c e >>= writeFile "plan.xml"
 
 -- | Convert the query into optimised algebraic plan
-debugPlanOpt :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
-debugPlanOpt q c = do
+debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO ()
+debugPlanOpt q (Q c) = do
                     p <- doCompile q c
                     (C.Algebra r) <- algToAlg (C.Algebra p :: AlgebraXML a)
-                    return r
+                    writeFile "plan_opt.xml" r
 
-debugCore :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
-debugCore c a = do core <- runN c $ transformE a
-                   return $ show core
+debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugCore c (Q a) = do core <- runN c $ transformE a
+                       return $ show core
 
 
-debugCoreDot :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
-debugCoreDot c a = do core <- runN c $ transformE a
-                      return $ (\(Right d) -> d) $ dot core
+debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugCoreDot c (Q a) = do core <- runN c $ transformE a
+                          return $ (\(Right d) -> d) $ dot core
 
 -- | Convert the query into SQL
 debugSQL :: (IConnection conn,Reify a) => conn -> Exp a -> IO String

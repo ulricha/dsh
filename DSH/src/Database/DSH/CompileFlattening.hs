@@ -1,11 +1,14 @@
-{-# LANGUAGE TemplateHaskell, GADTs, ScopedTypeVariables, FlexibleContexts  #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts    #-}
+
 module Database.DSH.CompileFlattening (toNKL) where
 
 import           Database.DSH.Impossible
 
 import qualified Database.DSH.Flattening.NKL.NKLPrimitives as NP
 import           Database.DSH.Flattening.NKL.Opt
--- import qualified Database.DSH.Flattening.NP.Data.NP as NP
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 
 import           Database.DSH.Internals as D
