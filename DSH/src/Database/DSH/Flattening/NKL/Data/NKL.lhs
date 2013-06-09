@@ -21,14 +21,12 @@ module Database.DSH.Flattening.NKL.Data.NKL
 import           Text.PrettyPrint.HughesPJ
 
 import           Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Expr
 import           Database.DSH.Flattening.Common.Data.Val(Val())
 import           Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
   
 import qualified Data.Set as S
 
-type Column = (String, Type)
-
-type Key = [String]
 \end{code}
 %endif
 %{
@@ -43,10 +41,10 @@ data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database ta
            |  AppE1 Type (Prim1 Type) Expr             -- \textrm{Application of a primitive to a single argument}
            |  AppE2 Type (Prim2 Type) Expr Expr        -- \textrm{Application of a primitive to two arguments}
            |  BinOp Type Oper Expr Expr         -- \textrm{Application of a binary opertor $\oplus$ to two arguments}
-           |  Lam Type String Expr              -- \textrm{Lambda abstraction}
+           |  Lam Type Ident Expr              -- \textrm{Lambda abstraction}
            |  If Type Expr Expr Expr            -- \textrm{Conditional}
            |  Const Type Val                    -- \textrm{Constant value}
-           |  Var Type String                   -- \textrm{Variable}
+           |  Var Type Ident                   -- \textrm{Variable}
 \end{code}
 }
 %}

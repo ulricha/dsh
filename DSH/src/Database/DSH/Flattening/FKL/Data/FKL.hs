@@ -2,19 +2,14 @@
 module Database.DSH.Flattening.FKL.Data.FKL where
 
 import Database.DSH.Flattening.Common.Data.Op
+import Database.DSH.Flattening.Common.Data.Expr
 import Database.DSH.Flattening.Common.Data.Val(Val())
 import Database.DSH.Flattening.Common.Data.Type(Typed, typeOf, Type)
 
 import GHC.Generics (Generic)
 
-type DataColumn = String 
-
-type TypedColumn = (DataColumn, Type)
-
-type Key = [DataColumn]
-
 -- | Data type expr represents flat kernel language.
-data Expr = Table   Type String [TypedColumn] [Key]
+data Expr = Table   Type String [Column] [Key]
           | PApp1   Type Prim1 Expr
           | PApp2   Type Prim2 Expr Expr 
           | PApp3   Type Prim3 Expr Expr Expr
@@ -23,9 +18,9 @@ data Expr = Table   Type String [TypedColumn] [Key]
           | If      Type Expr Expr Expr -- | If expr1 then expr2 else expr3
           | BinOp   Type Op Expr Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
           | Const   Type Val  -- | Constant value
-          | Var     Type String  -- | Variable lifted to level i
-          | Clo     Type String [String] String Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
-          | AClo    Type String [String] String Expr Expr
+          | Var     Type Ident  -- | Variable lifted to level i
+          | Clo     Type Ident [Ident] Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
+          | AClo    Type Ident [Ident] Ident Expr Expr
     deriving (Eq, Generic)
 
 data Prim1 = LengthPrim Type
