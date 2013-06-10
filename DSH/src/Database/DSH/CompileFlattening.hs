@@ -8,7 +8,7 @@ module Database.DSH.CompileFlattening (toComprehensions) where
 import           Database.DSH.Impossible
 
 import qualified Database.DSH.Flattening.CL.Lang as CL
-import qualified Database.DSH.Flattening.CL.CLPrimitives as CP
+import qualified Database.DSH.Flattening.CL.Primitives as CP
 import qualified Database.DSH.Flattening.Common.Data.Type as T
 
 import           Database.DSH.Internals as D
@@ -50,7 +50,7 @@ freshVar = do
              return i
 
 prefixVar :: Integer -> String
-prefixVar i = "*dshVar*" ++ show i
+prefixVar i = "v" ++ show i
 
 getTableInfoFun :: String -> N [(String, T.Type -> Bool)]
 getTableInfoFun n = do

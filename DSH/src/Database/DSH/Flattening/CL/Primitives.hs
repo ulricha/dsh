@@ -1,4 +1,4 @@
-module Database.DSH.Flattening.CL.CLPrimitives where
+module Database.DSH.Flattening.CL.Primitives where
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
@@ -149,19 +149,11 @@ map f es = let ft@(FunT ta tr) = typeOf f
                                   P.++ "\n"
                                   P.++ P.show f
                                   
--- There are two ways to implement concatMap:
--- 1. If the functional argument is of the form (\x -> [e]), i.e.
---    we can assign the binding variable and the collection injector,
---    we turn it into a monad comprehension
--- 2. Otherwise, we use the regular concatMap primitive
 concatMap :: Expr -> Expr -> Expr
-concatMap f es = let ft@(FunT ta (ListT tr)) = typeOf f
+concatMap f es = let ft@(FunT ta tr) = typeOf f
                      te@(ListT t)    = typeOf es
                   in if t P.== ta
-                     then 
-                       case f of
-                         Lam _ v (BinOp _ Cons e (Const _ (ListV []))) -> Comp (listT tr) e [BindQ v es]
-                         _                                             -> concat (map f es)
+                     then AppE2 tr (Prim2 ConcatMap (ft .-> (te .-> tr))) f es
                      else P.error "concatMap type error"
 
 filter :: Expr -> Expr -> Expr

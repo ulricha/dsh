@@ -99,7 +99,7 @@ instance Show Prim1Op where
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o
 
-data Prim2Op = Map | GroupWithKey
+data Prim2Op = Map | ConcatMap | GroupWithKey
              | SortWith | Pair
              | Filter | Append
              | Index | Take
@@ -113,6 +113,7 @@ data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
   show Map = "map"
+  show ConcatMap = "concatMap"
   show GroupWithKey = "groupWithKey"
   show SortWith = "sortWith"
   show Pair = "pair"
@@ -142,11 +143,15 @@ instance Typed Expr where
 
 freeVars :: Expr -> S.Set String
 freeVars (Table _ _ _ _) = S.empty
-freeVars (App _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (AppE1 _ _ e1) = freeVars e1
+freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
+freeVars (AppE1 _ _ e1)    = freeVars e1
 freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e) = (freeVars e) S.\\ S.singleton x
-freeVars (If _ e1 e2 e3) = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
+freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
+freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Const _ _) = S.empty
-freeVars (Var _ x) = S.singleton x
+freeVars (Const _ _)       = S.empty
+freeVars (Var _ x)         = S.singleton x
+freeVars (Comp _ b qs)     = foldr collect (freeVars b) qs
+
+  where collect (BindQ v e) fvs = S.difference (S.union fvs (freeVars e)) (S.singleton v)
+        collect (GuardQ e)  fvs = S.union fvs (freeVars e)
