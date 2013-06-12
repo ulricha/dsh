@@ -21,6 +21,7 @@ module Database.DSH.Flattening.NKL.Data.NKL
 import           Text.PrettyPrint.HughesPJ
 
 import           Database.DSH.Flattening.Common.Data.Op
+import           Database.DSH.Flattening.Common.Data.Prim
 import           Database.DSH.Flattening.Common.Data.Expr
 import           Database.DSH.Flattening.Common.Data.Val(Val())
 import           Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
@@ -54,7 +55,18 @@ data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database ta
 \begin{code}
 instance Show Expr where
   show e = render $ pp e
-  
+
+instance Typed Expr where
+  typeOf (Table t _ _ _) = t
+  typeOf (App t _ _)     = t
+  typeOf (AppE1 t _ _)   = t
+  typeOf (AppE2 t _ _ _) = t
+  typeOf (Lam t _ _)     = t
+  typeOf (If t _ _ _)    = t
+  typeOf (BinOp t _ _ _) = t
+  typeOf (Const t _)     = t
+  typeOf (Var t _)       = t
+
 pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
 pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
@@ -70,115 +82,6 @@ deriving instance Eq Expr
 deriving instance Ord Expr
 \end{code}
 %endif
-
-The primitive operations supported by the NKL are the following:
-
-Unary primitive operations:
-%{
-%include syntaxdef.fmt
-%include NKLPrims.fmt
-\begin{code}
-data Prim1Op = Length |  Not |  Concat 
-             | Sum | Avg | The | Fst | Snd 
-             | Head | Minimum | Maximum 
-             | IntegerToDouble | Tail 
-             | Reverse | And | Or 
-             | Init | Last | Nub 
-             | Number
-             deriving (Eq, Ord)
-             
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
-\end{code}
-
-%if False
-\begin{code}
-
-instance Show Prim1Op where
-  show Length = "length"
-  show Not = "not"
-  show Concat = "concat"
-  show Sum = "sum"
-  show Avg = "avg"
-  show The = "the"
-  show Fst = "fst"
-  show Snd = "snd"
-  show Head = "head"
-  show Minimum = "minimum"
-  show Maximum = "maximum"
-  show IntegerToDouble = "integerToDouble"
-  show Tail = "tail"
-  show Reverse = "reverse"
-  show And = "and"
-  show Or = "or"
-  show Init = "init"
-  show Last = "last"
-  show Nub = "nub"
-  show Number = "number"
-  
-instance Show (Prim1 t) where
-  show (Prim1 o _) = show o
-
-\end{code}
-%endif
-
-Binary primitive operations:
-
-\begin{code}
-data Prim2Op = Map | GroupWithKey
-             | SortWith | Pair
-             | Filter | Append
-             | Index | Take
-             | Drop | Zip
-             | TakeWhile
-             | DropWhile
-             | CartProduct
-             deriving (Eq, Ord)
-             
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
-\end{code}
-%}
-%if False
-\begin{code}
-instance Show Prim2Op where
-  show Map = "map"
-  show GroupWithKey = "groupWithKey"
-  show SortWith = "sortWith"
-  show Pair = "pair"
-  show Filter = "filter"
-  show Append = "append"
-  show Index = "index"
-  show Take = "take"
-  show Drop = "drop"
-  show Zip = "zip"
-  show TakeWhile = "takeWhile"
-  show DropWhile = "dropWhile"
-  show CartProduct = "cartProduct"
-  
-instance Show (Prim2 t) where
-  show (Prim2 o _) = show o
-
-\end{code}
-\begin{code}
-instance Typed Expr where
-    typeOf (Table t _ _ _) = t
-    typeOf (App t _ _) = t
-    typeOf (AppE1 t _ _) = t
-    typeOf (AppE2 t _ _ _) = t
-    typeOf (Lam t _ _) = t
-    typeOf (If t _ _ _) = t
-    typeOf (BinOp t _ _ _) = t
-    typeOf (Const t _) = t
-    typeOf (Var t _) = t
-\end{code}
-%endif
-
-We define a function |fvs| to compute the set of free variable in an NKL-expression:
-%{
-%include nkl.fmt
-%format (freeVars (x)) = " fvs (" x ") "
-%format `S.union` = " \cup "
-%format S.empty = " \emptyset "
-%format (S.singleton (x)) = " \{ x \} "
 
 \begin{code}
 freeVars :: Expr -> S.Set String

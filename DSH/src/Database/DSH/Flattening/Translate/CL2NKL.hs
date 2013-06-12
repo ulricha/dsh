@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Flattening.Translate.CL2NKL where
+module Database.DSH.Flattening.Translate.CL2NKL
+  ( desugarComprehensions ) where
        
-import           Data.List
-
 import           Database.DSH.Impossible
        
 import           Database.DSH.Flattening.Common.Data.Expr
+import           Database.DSH.Flattening.Common.Data.Prim
 import           Database.DSH.Flattening.Common.Data.Type
 import           Database.DSH.Flattening.Common.Data.Val
 import           Database.DSH.Flattening.Common.Data.Op
@@ -22,17 +22,11 @@ import qualified Database.DSH.Flattening.CL.Primitives as CP
 -- iterations are expressed in the form of cartesian products. The resulting
 -- single-qualifier comprehension should then be easy to desugar (just a map).
 
-prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
-prim1 = undefined
-
-prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
-prim2 (CL.Prim2 o t) = undefined
-
 expr :: CL.Expr -> NKL.Expr
 expr (CL.Table t s cs ks) = NKL.Table t s cs ks
 expr (CL.App t e1 e2)     = NKL.App t (expr e1) (expr e2)
-expr (CL.AppE1 t p e)     = NKL.AppE1 t (prim1 p) (expr e)
-expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
+expr (CL.AppE1 t p e)     = NKL.AppE1 t p (expr e)
+expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t p (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2) = NKL.BinOp t o (expr e1) (expr e2)
 expr (CL.Lam t v e)       = NKL.Lam t v (expr e)
 expr (CL.If t c th el)    = NKL.If t (expr c) (expr th) (expr el)
@@ -46,10 +40,11 @@ desugar t e qs =
   -- We reduce a comprehension with multiple qualifiers to a comprehension with
   -- one qualifier, which we can then handle easily.
   case productify e qs of 
-    (e, CL.BindQ x xs) -> expr $ CP.map e xs
-    (e, CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e empty) empty
-    
-  where empty = CL.Const t (ListV [])
+    (e', CL.BindQ x xs) -> expr $ CP.map (CL.Lam (xt .-> rt) x e') xs
+      where xt = elemT $ typeOf xs
+            rt = elemT t
+    (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e' empty) empty
+      where empty = CL.Const t (ListV [])
 
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.
@@ -64,15 +59,17 @@ productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) =
   
   where e'  = tuplify (x, xt) (y, yt) e
         qs' = tuplifyQuals (x, xt) (y, yt) qs
-        q'  = CL.BindQ x (CL.AppE2 undefined (CL.Prim2 CL.CartProduct undefined) xs ys)
+        q'  = CL.BindQ x (CL.AppE2 (listT pt) (CL.Prim2 CartProduct cpt) xs ys)
         xt  = elemT $ typeOf xs
         yt  = elemT $ typeOf ys 
+        pt  = pairT xt yt
+        cpt = xt .-> (yt .-> listT pt)
 
 -- [ e | x <- xs, p, qs ] = [ e | x <- filter (\x -> p) xs, qs ]
 productify e ((CL.BindQ x xs) : (CL.GuardQ p)   : qs) = 
   productify e (q' : qs)
 
-  where q'  = CL.BindQ x (CL.AppE2 (listT xt) (CL.Prim2 CL.Filter ft) (CL.Lam (xt .-> boolT) x p) xs)
+  where q'  = CL.BindQ x (CL.AppE2 (listT xt) (CL.Prim2 Filter ft) (CL.Lam (xt .-> boolT) x p) xs)
         ft  = (xt .-> boolT) .-> (xst .-> xst)
         xst = typeOf xs
         xt  = elemT xst
@@ -102,6 +99,7 @@ subst v r lam@(CL.Lam t v' e)      = if v' == v
 subst _ _ c@(CL.Const _ _)         = c
 subst v r var@(CL.Var _ v')        = if v == v' then r else var
 subst v r (CL.If t c thenE elseE)  = CL.If t (subst v r c) (subst v r thenE) (subst v r elseE)
+subst v r (CL.Comp t e qs)         = CL.Comp t (subst v r e) (substQuals v r qs)
 
 -- | Substitution on a list of qualifiers
 substQuals :: Ident -> CL.Expr -> [CL.Qualifier] -> [CL.Qualifier]
@@ -122,7 +120,7 @@ tuplifyQuals (v1, t1) (v2, t2) qs = substQuals v2 v2Rep $ substQuals v1 v1Rep qs
   where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
 
 tupleVars :: (Ident, Type) -> (Ident, Type) -> (CL.Expr, CL.Expr)
-tupleVars (v1, t1) (v2, t2) = (v1Rep, v2Rep)
+tupleVars (v1, t1) (_, t2) = (v1Rep, v2Rep)
   where v1'    = CL.Var pt v1
         pt     = pairT t1 t2
         v1Rep  = CL.AppE1 t1 (CL.Prim1 CL.Fst (pt .-> t1)) v1'
@@ -130,4 +128,4 @@ tupleVars (v1, t1) (v2, t2) = (v1Rep, v2Rep)
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions = undefined
+desugarComprehensions = expr

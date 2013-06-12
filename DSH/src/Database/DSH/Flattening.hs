@@ -36,7 +36,6 @@ import           Database.Algebra.Dag
 import           Database.DSH.Flattening.Common.Data.QueryPlan
 import qualified Database.DSH.Flattening.Common.Data.Type        as T
 import           Database.DSH.Flattening.Export
-import qualified Database.DSH.Flattening.NKL.Data.NKL            as NKL
 import qualified Database.DSH.Flattening.CL.Lang                 as CL
 import qualified Database.DSH.Flattening.CL.Opt                  as CLOpt
 import           Database.DSH.Flattening.Translate.Algebra2Query
@@ -53,7 +52,6 @@ import qualified Data.IntMap                                     as M
 import qualified Data.List                                       as L
 
 import           Control.Applicative
-import           Control.Monad.State
 
 import           Data.Convertible                                ()
 
