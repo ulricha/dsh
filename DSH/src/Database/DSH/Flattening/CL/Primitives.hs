@@ -6,7 +6,6 @@ import           Prelude (Bool(..))
 import           Database.DSH.Flattening.CL.Lang
 import           Database.DSH.Flattening.Common.Data.Type
 import           Database.DSH.Flattening.Common.Data.Op
-import           Database.DSH.Flattening.Common.Data.Val
 import qualified Database.DSH.Flattening.Common.Data.Val as V
 
 ($) :: Expr -> Expr -> Expr

@@ -135,12 +135,12 @@ debugCLX100 c (Q e) = show <$> CLOpt.opt <$> toComprehensions (getX100TableInfo 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (SQL version)
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = show <$> toComprehensions (getTableInfo c) e
+debugNKL c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (X100 version)
 debugNKLX100 :: QA a => X100Info -> Q a -> IO String
-debugNKLX100 c (Q e) = show <$> desugarComprehensions <$> toComprehensions (getX100TableInfo c) e
+debugNKLX100 c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: return the FKL (Flat Kernel Language) representation of a
 -- query (SQL version)
@@ -167,7 +167,7 @@ debugVL prefix c (Q e) = do
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (X100 version).
 debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
-  e' <- toComprehensions (getX100TableInfo c) e
+  e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
   nkl2VLFile prefix e'
 
 -- | Debugging function: dump the Pathfinder Algebra query plan (DAG) to XML files.

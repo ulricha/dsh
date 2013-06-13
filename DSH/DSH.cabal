@@ -97,6 +97,7 @@ Library
                      Database.DSH.Flattening.Common.Data.Op
                      Database.DSH.Flattening.Common.Data.Type
                      Database.DSH.Flattening.Common.Data.Val
+                     Database.DSH.Flattening.Common.Data.Expr
                      Database.DSH.Flattening.Common.TransM
                      Database.DSH.Flattening.Common.Data.QueryPlan
                      Database.DSH.Flattening.Export

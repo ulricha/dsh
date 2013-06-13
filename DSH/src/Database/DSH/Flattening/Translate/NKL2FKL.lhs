@@ -12,10 +12,7 @@ In this chapter we describe how the flattening transformation is performed. The 
 {-# LANGUAGE TemplateHaskell, TupleSections #-}
 module Database.DSH.Flattening.Translate.NKL2FKL (flatten) where
        
-import           Debug.Trace
-
 import qualified Database.DSH.Flattening.FKL.Data.FKL as F
-import qualified Database.DSH.Flattening.FKL.Render.Render
 import qualified Database.DSH.Flattening.NKL.Data.NKL as N
 import           Database.DSH.Flattening.Common.TransM
 

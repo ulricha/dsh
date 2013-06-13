@@ -102,6 +102,8 @@ instance Show Prim1 where
     show (LastL _)      = "lastL"
     show (Nub _)        = "nub"
     show (NubL _)       = "nubL"
+    show (Number _)     = "number"
+    show (NumberL _)    = "numberL"
     
 data Prim2 = GroupWithKeyS Type
            | GroupWithKeyL Type

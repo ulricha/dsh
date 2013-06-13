@@ -6,7 +6,6 @@ module Database.DSH.Flattening.Translate.CL2NKL
 import           Database.DSH.Impossible
        
 import           Database.DSH.Flattening.Common.Data.Expr
-import           Database.DSH.Flattening.Common.Data.Prim
 import           Database.DSH.Flattening.Common.Data.Type
 import           Database.DSH.Flattening.Common.Data.Val
 import           Database.DSH.Flattening.Common.Data.Op
@@ -22,11 +21,55 @@ import qualified Database.DSH.Flattening.CL.Primitives as CP
 -- iterations are expressed in the form of cartesian products. The resulting
 -- single-qualifier comprehension should then be easy to desugar (just a map).
 
+prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
+prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
+  where o' = case o of
+               CL.Length           -> NKL.Length 
+               CL.Not              -> NKL.Not 
+               CL.Concat           -> NKL.Concat 
+               CL.Sum              -> NKL.Sum 
+               CL.Avg              -> NKL.Avg 
+               CL.The              -> NKL.The 
+               CL.Fst              -> NKL.Fst 
+               CL.Snd              -> NKL.Snd 
+               CL.Head             -> NKL.Head 
+               CL.Minimum          -> NKL.Minimum 
+               CL.Maximum          -> NKL.Maximum 
+               CL.IntegerToDouble  -> NKL.IntegerToDouble 
+               CL.Tail             -> NKL.Tail 
+               CL.Reverse          -> NKL.Reverse 
+               CL.And              -> NKL.And 
+               CL.Or               -> NKL.Or 
+               CL.Init             -> NKL.Init 
+               CL.Last             -> NKL.Last 
+               CL.Nub              -> NKL.Nub 
+               CL.Number           -> NKL.Number 
+               CL.Guard            -> $impossible
+
+prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
+prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
+  where o' = case o of
+              CL.Map          -> NKL.Map 
+              CL.GroupWithKey -> NKL.GroupWithKey
+              CL.SortWith     -> NKL.SortWith 
+              CL.Pair         -> NKL.Pair
+              CL.Filter       -> NKL.Filter 
+              CL.Append       -> NKL.Append
+              CL.Index        -> NKL.Index 
+              CL.Take         -> NKL.Take
+              CL.Drop         -> NKL.Drop 
+              CL.Zip          -> NKL.Zip
+              CL.TakeWhile    -> NKL.TakeWhile
+              CL.DropWhile    -> NKL.DropWhile
+              CL.CartProduct  -> NKL.CartProduct
+              CL.ConcatMap    -> $impossible
+
 expr :: CL.Expr -> NKL.Expr
 expr (CL.Table t s cs ks) = NKL.Table t s cs ks
 expr (CL.App t e1 e2)     = NKL.App t (expr e1) (expr e2)
-expr (CL.AppE1 t p e)     = NKL.AppE1 t p (expr e)
-expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t p (expr e1) (expr e2)
+expr (CL.AppE1 t p e)     = NKL.AppE1 t (prim1 p) (expr e)
+expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = expr $ CP.concat $ CP.map f xs
+expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2) = NKL.BinOp t o (expr e1) (expr e2)
 expr (CL.Lam t v e)       = NKL.Lam t v (expr e)
 expr (CL.If t c th el)    = NKL.If t (expr c) (expr th) (expr el)
@@ -59,7 +102,7 @@ productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) =
   
   where e'  = tuplify (x, xt) (y, yt) e
         qs' = tuplifyQuals (x, xt) (y, yt) qs
-        q'  = CL.BindQ x (CL.AppE2 (listT pt) (CL.Prim2 CartProduct cpt) xs ys)
+        q'  = CL.BindQ x (CL.AppE2 (listT pt) (CL.Prim2 CL.CartProduct cpt) xs ys)
         xt  = elemT $ typeOf xs
         yt  = elemT $ typeOf ys 
         pt  = pairT xt yt
@@ -69,7 +112,7 @@ productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) =
 productify e ((CL.BindQ x xs) : (CL.GuardQ p)   : qs) = 
   productify e (q' : qs)
 
-  where q'  = CL.BindQ x (CL.AppE2 (listT xt) (CL.Prim2 Filter ft) (CL.Lam (xt .-> boolT) x p) xs)
+  where q'  = CL.BindQ x (CL.AppE2 (listT xt) (CL.Prim2 CL.Filter ft) (CL.Lam (xt .-> boolT) x p) xs)
         ft  = (xt .-> boolT) .-> (xst .-> xst)
         xst = typeOf xs
         xt  = elemT xst

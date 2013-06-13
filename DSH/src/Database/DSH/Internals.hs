@@ -175,6 +175,7 @@ instance Show (Fun a b) where
     show Like = "like"
     show Mod = "%"
     show Number = "number"
+    show Guard = "guard"
 
 -- Reify instances
 
