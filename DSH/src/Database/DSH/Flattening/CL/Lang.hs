@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
 
 module Database.DSH.Flattening.CL.Lang
   ( Expr(..)
@@ -15,6 +16,9 @@ module Database.DSH.Flattening.CL.Lang
   , Column
   , Key
   ) where
+
+import           Data.Data
+import           Data.Typeable
 
 import           Text.PrettyPrint.HughesPJ
 
@@ -32,9 +36,9 @@ data Prim1Op = Length |  Not |  Concat
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
-             deriving (Eq, Ord)
+             deriving (Eq, Ord, Data, Typeable)
              
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
+data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord, Data, Typeable)
 
 instance Show Prim1Op where
   show Length          = "length"
@@ -70,9 +74,9 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | TakeWhile
              | DropWhile
              | CartProduct
-             deriving (Eq, Ord)
+             deriving (Eq, Ord, Data, Typeable)
              
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
+data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord, Data, Typeable)
 
 instance Show Prim2Op where
   show Map          = "map"
@@ -103,10 +107,11 @@ data Expr  = Table Type String [Column] [Key]
            | Const Type Val
            | Var Type Ident
            | Comp Type Expr [Qualifier]
+           deriving (Data, Typeable)
            
 data Qualifier = BindQ Ident Expr
                | GuardQ Expr
-               deriving (Eq, Ord)
+               deriving (Eq, Ord, Data, Typeable)
 
 instance Show Expr where
   show e = render $ pp e

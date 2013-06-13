@@ -1,7 +1,11 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Database.DSH.Flattening.Common.Data.Op where
 
+import Data.Data
+import Data.Typeable
 import GHC.Generics (Generic) 
+
 data Op = Op Oper Bool
     deriving (Eq, Ord, Generic)
     
@@ -19,7 +23,7 @@ data Oper = Add
         | Conj 
         | Disj 
         | Like
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Ord, Generic, Data, Typeable)
     
 instance Show Oper where
     show Add = "+"

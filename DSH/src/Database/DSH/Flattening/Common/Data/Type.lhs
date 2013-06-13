@@ -1,6 +1,12 @@
 %if False
 \begin{code}
-{-# LANGUAGE GADTs, TypeSynonymInstances, MultiParamTypeClasses, DeriveGeneric #-}
+
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE TypeSynonymInstances   #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+
 module Database.DSH.Flattening.Common.Data.Type 
  ( isNum
  , extractPairT
@@ -32,6 +38,8 @@ module Database.DSH.Flattening.Common.Data.Type
  , isFuns)
 where
 
+import Data.Data
+import Data.Typeable
 import GHC.Generics (Generic)
   
 instance Show Type where 
@@ -67,7 +75,7 @@ data Type  = FunT Type Type
 %}
 %if False
 \begin{code}
-    deriving (Eq, Ord, Generic)
+    deriving (Eq, Ord, Generic, Data, Typeable)
 
 infixr 6 .->
 

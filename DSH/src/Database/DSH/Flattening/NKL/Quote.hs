@@ -64,12 +64,6 @@ data ExprQ = Table TypeQ String [Column] [NKL.Key]
            | AntiE Anti
            deriving (Data, Typeable)
 
-deriving instance Typeable Val
-deriving instance Data Val
-
-deriving instance Typeable Oper
-deriving instance Data Oper
-           
 data TypeQ = FunT TypeQ TypeQ
            | NatT 
            | IntT 
