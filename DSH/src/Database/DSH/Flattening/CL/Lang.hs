@@ -9,6 +9,10 @@ module Database.DSH.Flattening.CL.Lang
   , Qualifier(..)
   , Typed(..)
   , freeVars
+  , subst
+  , substQuals
+  , tuplify
+  , tuplifyQuals
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)
@@ -23,8 +27,9 @@ import           Text.PrettyPrint.HughesPJ
 
 import           Database.DSH.Flattening.Common.Data.Op
 import           Database.DSH.Flattening.Common.Data.Expr
+import           Database.DSH.Flattening.Common.Data.JoinExpr
 import           Database.DSH.Flattening.Common.Data.Val(Val())
-import           Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
+import           Database.DSH.Flattening.Common.Data.Type
   
 import qualified Data.Set as S
 
@@ -145,7 +150,11 @@ instance Typed Expr where
   typeOf (Const t _)     = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t
+  
+------------------------------------------------------------------------------------------
+-- Some utilities for transformations on CL expressions
 
+-- | Compute free variables of a CL expression
 freeVars :: Expr -> S.Set String
 freeVars (Table _ _ _ _) = S.empty
 freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
@@ -160,3 +169,45 @@ freeVars (Comp _ b qs)     = foldr collect (freeVars b) qs
 
   where collect (BindQ v e) fvs = S.difference (S.union fvs (freeVars e)) (S.singleton v)
         collect (GuardQ e)  fvs = S.union fvs (freeVars e)
+
+-- | Substitution: subst v r e ~ e[v/r]
+subst :: Ident -> Expr -> Expr -> Expr
+subst _ _ table@(Table _ _ _ _) = table
+subst v r (App t e1 e2)         = App t (subst v r e1) (subst v r e2)
+subst v r (AppE1 t p e)         = AppE1 t p (subst v r e)
+subst v r (AppE2 t p e1 e2)     = AppE2 t p (subst v r e1) (subst v r e2)
+subst v r (BinOp t o e1 e2)     = BinOp t o (subst v r e1) (subst v r e2)
+-- FIXME for the moment, we assume that all lambda variables are unique
+-- and we don't need to check for name capturing/do alpha-conversion.
+subst v r lam@(Lam t v' e)      = if v' == v
+                                     then lam
+                                     else Lam t v' (subst v r e)
+subst _ _ c@(Const _ _)         = c
+subst v r var@(Var _ v')        = if v == v' then r else var
+subst v r (If t c thenE elseE)  = If t (subst v r c) (subst v r thenE) (subst v r elseE)
+subst v r (Comp t e qs)         = Comp t (subst v r e) (substQuals v r qs)
+
+-- | Substitution on a list of qualifiers
+substQuals :: Ident -> Expr -> [Qualifier] -> [Qualifier]
+substQuals v r ((GuardQ g) : qs)               = (GuardQ (subst v r g)) : (substQuals v r qs)
+substQuals v r ((BindQ v' s) : qs) | v == v'   = (BindQ v' (subst v r s)) : qs
+substQuals v r ((BindQ v' s) : qs) | otherwise = (BindQ v' (subst v r s)) : (substQuals v r qs)
+substQuals _ _ []                                 = []
+
+-- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
+tuplify :: (Ident, Type) -> (Ident, Type) -> Expr -> Expr
+tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
+
+  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
+
+tuplifyQuals :: (Ident, Type) -> (Ident, Type) -> [Qualifier] -> [Qualifier]
+tuplifyQuals (v1, t1) (v2, t2) qs = substQuals v2 v2Rep $ substQuals v1 v1Rep qs
+
+  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
+
+tupleVars :: (Ident, Type) -> (Ident, Type) -> (Expr, Expr)
+tupleVars (v1, t1) (_, t2) = (v1Rep, v2Rep)
+  where v1'    = Var pt v1
+        pt     = pairT t1 t2
+        v1Rep  = AppE1 t1 (Prim1 Fst (pt .-> t1)) v1'
+        v2Rep  = AppE1 t2 (Prim1 Snd (pt .-> t2)) v1'

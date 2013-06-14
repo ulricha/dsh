@@ -100,8 +100,8 @@ productify e [q]                                = (e, q)
 productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) = 
   productify e' (q' : qs')
   
-  where e'  = tuplify (x, xt) (y, yt) e
-        qs' = tuplifyQuals (x, xt) (y, yt) qs
+  where e'  = CL.tuplify (x, xt) (y, yt) e
+        qs' = CL.tuplifyQuals (x, xt) (y, yt) qs
         q'  = CL.BindQ x (CL.AppE2 (listT pt) (CL.Prim2 CL.CartProduct cpt) xs ys)
         xt  = elemT $ typeOf xs
         yt  = elemT $ typeOf ys 
@@ -126,48 +126,6 @@ productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) =
 -- [ e | p1, x <- xs, qs ] = [ e | x <- filter (\x -> p) xs, qs ]
 productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) = 
   productify e ((CL.GuardQ p) : (CL.BindQ x xs) : qs)
-
--- | Substitution: subst v r e ~ e[v/r]
-subst :: Ident -> CL.Expr -> CL.Expr -> CL.Expr
-subst _ _ table@(CL.Table _ _ _ _) = table
-subst v r (CL.App t e1 e2)         = CL.App t (subst v r e1) (subst v r e2)
-subst v r (CL.AppE1 t p e)         = CL.AppE1 t p (subst v r e)
-subst v r (CL.AppE2 t p e1 e2)     = CL.AppE2 t p (subst v r e1) (subst v r e2)
-subst v r (CL.BinOp t o e1 e2)     = CL.BinOp t o (subst v r e1) (subst v r e2)
--- FIXME for the moment, we assume that all lambda variables are unique
--- and we don't need to check for name capturing/do alpha-conversion.
-subst v r lam@(CL.Lam t v' e)      = if v' == v
-                                     then lam
-                                     else CL.Lam t v' (subst v r e)
-subst _ _ c@(CL.Const _ _)         = c
-subst v r var@(CL.Var _ v')        = if v == v' then r else var
-subst v r (CL.If t c thenE elseE)  = CL.If t (subst v r c) (subst v r thenE) (subst v r elseE)
-subst v r (CL.Comp t e qs)         = CL.Comp t (subst v r e) (substQuals v r qs)
-
--- | Substitution on a list of qualifiers
-substQuals :: Ident -> CL.Expr -> [CL.Qualifier] -> [CL.Qualifier]
-substQuals v r ((CL.GuardQ g) : qs)               = (CL.GuardQ (subst v r g)) : (substQuals v r qs)
-substQuals v r ((CL.BindQ v' s) : qs) | v == v'   = (CL.BindQ v' (subst v r s)) : qs
-substQuals v r ((CL.BindQ v' s) : qs) | otherwise = (CL.BindQ v' (subst v r s)) : (substQuals v r qs)
-substQuals _ _ []                                 = []
-
--- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
-tuplify :: (Ident, Type) -> (Ident, Type) -> CL.Expr -> CL.Expr
-tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
-
-  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
-
-tuplifyQuals :: (Ident, Type) -> (Ident, Type) -> [CL.Qualifier] -> [CL.Qualifier]
-tuplifyQuals (v1, t1) (v2, t2) qs = substQuals v2 v2Rep $ substQuals v1 v1Rep qs
-
-  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
-
-tupleVars :: (Ident, Type) -> (Ident, Type) -> (CL.Expr, CL.Expr)
-tupleVars (v1, t1) (_, t2) = (v1Rep, v2Rep)
-  where v1'    = CL.Var pt v1
-        pt     = pairT t1 t2
-        v1Rep  = CL.AppE1 t1 (CL.Prim1 CL.Fst (pt .-> t1)) v1'
-        v2Rep  = CL.AppE1 t2 (CL.Prim1 CL.Snd (pt .-> t2)) v1'
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
