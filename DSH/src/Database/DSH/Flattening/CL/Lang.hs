@@ -18,7 +18,6 @@ module Database.DSH.Flattening.CL.Lang
   ) where
 
 import           Data.Data
-import           Data.Typeable
 
 import           Text.PrettyPrint.HughesPJ
 
