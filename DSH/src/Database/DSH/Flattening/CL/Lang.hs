@@ -24,6 +24,7 @@ module Database.DSH.Flattening.CL.Lang
 import           Data.Data
 
 import           Text.PrettyPrint.HughesPJ
+import           Text.Printf
 
 import           Database.DSH.Flattening.Common.Data.Op
 import           Database.DSH.Flattening.Common.Data.Expr
@@ -78,6 +79,7 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | TakeWhile
              | DropWhile
              | CartProduct
+             | EquiJoin JoinExpr JoinExpr
              deriving (Eq, Ord, Data, Typeable)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord, Data, Typeable)
@@ -97,6 +99,7 @@ instance Show Prim2Op where
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
   show CartProduct  = "cartProduct"
+  show (EquiJoin e1 e2) = printf "equiJoin(%s, %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
@@ -155,7 +158,7 @@ instance Typed Expr where
 -- Some utilities for transformations on CL expressions
 
 -- | Compute free variables of a CL expression
-freeVars :: Expr -> S.Set String
+freeVars :: Expr -> S.Set Ident
 freeVars (Table _ _ _ _) = S.empty
 freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
 freeVars (AppE1 _ _ e1)    = freeVars e1
