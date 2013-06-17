@@ -194,6 +194,7 @@ prim2Transform (N.Prim2 N.Zip t) = zipVal t
 prim2Transform (N.Prim2 N.TakeWhile t) = takeWithVal t
 prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
+prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
 \end{code}
 %endif
 

@@ -49,19 +49,20 @@ prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
 prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
 prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
   where o' = case o of
-              CL.Map          -> NKL.Map 
-              CL.GroupWithKey -> NKL.GroupWithKey
-              CL.SortWith     -> NKL.SortWith 
-              CL.Pair         -> NKL.Pair
-              CL.Filter       -> NKL.Filter 
-              CL.Append       -> NKL.Append
-              CL.Index        -> NKL.Index 
-              CL.Take         -> NKL.Take
-              CL.Drop         -> NKL.Drop 
-              CL.Zip          -> NKL.Zip
-              CL.TakeWhile    -> NKL.TakeWhile
-              CL.DropWhile    -> NKL.DropWhile
-              CL.CartProduct  -> NKL.CartProduct
+              CL.Map            -> NKL.Map 
+              CL.GroupWithKey   -> NKL.GroupWithKey
+              CL.SortWith       -> NKL.SortWith 
+              CL.Pair           -> NKL.Pair
+              CL.Filter         -> NKL.Filter 
+              CL.Append         -> NKL.Append
+              CL.Index          -> NKL.Index 
+              CL.Take           -> NKL.Take
+              CL.Drop           -> NKL.Drop 
+              CL.Zip            -> NKL.Zip
+              CL.TakeWhile      -> NKL.TakeWhile
+              CL.DropWhile      -> NKL.DropWhile
+              CL.CartProduct    -> NKL.CartProduct
+              CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
               CL.ConcatMap    -> $impossible
 
 expr :: CL.Expr -> NKL.Expr

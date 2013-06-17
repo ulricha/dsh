@@ -19,9 +19,10 @@ module Database.DSH.Flattening.NKL.Data.NKL
   ) where
 
 import           Text.PrettyPrint.HughesPJ
+import           Text.Printf
 
 import           Database.DSH.Flattening.Common.Data.Op
-
+import           Database.DSH.Flattening.Common.Data.JoinExpr
 import           Database.DSH.Flattening.Common.Data.Expr
 import           Database.DSH.Flattening.Common.Data.Val(Val())
 import           Database.DSH.Flattening.Common.Data.Type(Type, Typed, typeOf)
@@ -144,6 +145,7 @@ data Prim2Op = Map
              | TakeWhile
              | DropWhile
              | CartProduct
+             | EquiJoin JoinExpr JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -162,6 +164,7 @@ instance Show Prim2Op where
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
   show CartProduct  = "cartProduct"
+  show (EquiJoin e1 e2)  = printf "equiJoin(%s, %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o

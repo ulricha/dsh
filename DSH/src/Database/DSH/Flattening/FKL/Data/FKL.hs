@@ -1,8 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
+
 module Database.DSH.Flattening.FKL.Data.FKL where
+
+import           Text.Printf
 
 import Database.DSH.Flattening.Common.Data.Op
 import Database.DSH.Flattening.Common.Data.Expr
+import Database.DSH.Flattening.Common.Data.JoinExpr
 import Database.DSH.Flattening.Common.Data.Val(Val())
 import Database.DSH.Flattening.Common.Data.Type(Typed, typeOf, Type)
 
@@ -127,6 +131,8 @@ data Prim2 = GroupWithKeyS Type
            | ZipL Type
            | CartProduct Type
            | CartProductL Type
+           | EquiJoin JoinExpr JoinExpr Type
+           | EquiJoinL JoinExpr JoinExpr Type
            | TakeWithS Type
            | TakeWithL Type
            | DropWithS Type
@@ -160,6 +166,8 @@ instance Show Prim2 where
     show (DropWithS _)  = "dropWithS"
     show (CartProduct _) = "cartProduct"
     show (CartProductL _) = "cartProductL"
+    show (EquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (show e1) (show e2)
+    show (EquiJoinL e1 e2 _)  = printf "equiJoinL(%s, %s)" (show e1) (show e2)
 
 data Prim3 = Combine Type
     deriving (Eq, Generic)

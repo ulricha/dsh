@@ -25,6 +25,7 @@ import           Database.DSH.Flattening.FKL.Data.FKL as F
 import           Database.DSH.Flattening.Common.Data.Val
 import           Database.DSH.Flattening.Common.Data.Op
 import           Database.DSH.Flattening.Common.Data.Type
+import           Database.DSH.Flattening.Common.Data.JoinExpr
 
 import           Control.Monad
 \end{code}
@@ -174,6 +175,19 @@ cartProductLPrim :: Expr -> Expr -> Expr
 cartProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                              t2@(ListT t2') = typeOf e2
                           in F.PApp2 t2 (F.CartProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+
+equiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
+equiJoinVal je1 je2 t = doubleArgClo t "equiJoin_e1" "equiJoin_e2" (equiJoinPrim je1 je2) (equiJoinLPrim je1 je2)
+                  
+equiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+equiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
+                                 t2 = typeOf e2
+                             in F.PApp2 t2 (F.EquiJoin je1 je2 (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+                         
+equiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+equiJoinLPrim je1 je2 e1 e2 = let t1@(ListT t1') = typeOf e1
+                                  t2@(ListT t2') = typeOf e2
+                              in F.PApp2 t2 (F.EquiJoin je1 je2 (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
