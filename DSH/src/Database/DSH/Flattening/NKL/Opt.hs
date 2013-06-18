@@ -254,7 +254,4 @@ noPair v1 v2 [nkl|(pair::_ 'v3::_ 'v4::_)::_|] | v1 == v3 && v2 == v4 = False
 noPair _  _  _                                                        = True
                        
 opt :: NKL.Expr -> NKL.Expr
-opt e = if (e /= e') 
-        then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
-        else trace (show e) e'
-  where e' = fromExprQ $ unnest' $ toExprQ e
+opt e = fromExprQ $ unnest' $ toExprQ e
