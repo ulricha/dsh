@@ -1,3 +1,5 @@
+-- FIXME should be able to combine most of the functions        
+
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -5,6 +7,8 @@ module Database.DSH.VL.VLPrimitives where
 
 import qualified Database.DSH.Common.Data.Op   as O
 import qualified Database.DSH.Common.Data.Type as Ty
+import qualified Database.DSH.Common.Data.Val as V
+import           Database.DSH.Common.Data.JoinExpr
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Impossible
@@ -32,6 +36,14 @@ emptyVL = NullaryOp $ TableRef "Null" [] []
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
+pVal :: V.Val -> VLVal
+pVal (V.IntV i)    = VLInt i
+pVal (V.BoolV b)   = VLBool b
+pVal (V.StringV s) = VLString s
+pVal (V.DoubleV d) = VLDouble d
+pVal V.UnitV       = VLUnit
+pVal _             = error "pVal: Not a supported value"
+
 typeToVLType :: Ty.Type -> VLType
 typeToVLType t = case t of
   Ty.NatT        -> D.Nat
@@ -57,6 +69,18 @@ operToVecOp op = case op of
   O.Disj -> D.BOp D.Disj
   O.Like -> D.Like
   _      -> D.COp $ operToCompOp op
+
+joinExpr :: JoinExpr -> Expr1
+joinExpr expr = aux 1 expr
+  where
+    aux :: Int -> JoinExpr -> Expr1
+    aux o (BinOpJ op e1 e2) = App1 (operToVecOp op) (aux o e1) (aux o e2)
+    -- FIXME implement this case once the 'not' mess in VL has been solved.
+    aux o (UnOpJ NotJ e)    = undefined
+    aux o (UnOpJ FstJ e)    = aux o e
+    aux o (UnOpJ SndJ e)    = aux (o + 1) e
+    aux o (ConstJ v)        = Constant1 $ pVal v
+    aux o InputJ            = Column1 o
 
 operToCompOp :: O.Oper -> D.VecCompOp
 operToCompOp op = case op of
@@ -284,6 +308,26 @@ cartProduct (DBV c1 _) (DBV c2 _) = do
 cartProductL :: DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
 cartProductL (DBV c1 _) (DBV c2 _) = do
   r  <- insertNode $ BinOp CartProductL c1 c2
+  r1 <- dbv $ insertNode $ UnOp R1 r
+  r2 <- prop $ insertNode $ UnOp R2 r
+  r3 <- prop $ insertNode $ UnOp R3 r
+  return (r1, r2, r3)
+  
+equiJoin :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
+equiJoin e1 e2 (DBV c1 _) (DBV c2 _) = do
+  let e1' = joinExpr e1
+      e2' = joinExpr e2
+  r  <- insertNode $ BinOp (EquiJoin e1' e2') c1 c2
+  r1 <- dbv $ insertNode $ UnOp R1 r
+  r2 <- prop $ insertNode $ UnOp R2 r
+  r3 <- prop $ insertNode $ UnOp R3 r
+  return (r1, r2, r3)
+
+equiJoinL :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
+equiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
+  let e1' = joinExpr e1
+      e2' = joinExpr e2
+  r  <- insertNode $ BinOp (EquiJoinL e1' e2') c1 c2
   r1 <- dbv $ insertNode $ UnOp R1 r
   r2 <- prop $ insertNode $ UnOp R2 r
   r3 <- prop $ insertNode $ UnOp R3 r

@@ -197,9 +197,12 @@ translateBinOp b c1 c2 = case b of
                            CartProductL     -> do
                                                 (v, p1, p2) <- cartProductL (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
-                           ThetaJoin     js -> do
-                                                (v1, v2) <- thetaJoin js (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v1) (fromDBV v2)
+                           (EquiJoin e1 e2) -> do
+                                                (v, p1, p2) <- equiJoin e1 e2 (toDBV c1) (toDBV c2)
+                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
+                           (EquiJoinL e1 e2) -> do
+                                                (v, p1, p2) <- equiJoinL e1 e2 (toDBV c1) (toDBV c2)
+                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
 
 
 singleton :: Res -> Res

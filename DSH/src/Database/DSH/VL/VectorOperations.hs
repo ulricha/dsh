@@ -13,6 +13,7 @@ import           Database.DSH.VL.MetaPrimitives
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Expr
+import           Database.DSH.Common.Data.JoinExpr
 import qualified Database.DSH.Common.Data.Val as V
 
 import           Control.Applicative
@@ -96,21 +97,21 @@ cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) =
   return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 cartProductLift _ _ = $impossible
 
-equiJoinprim :: JoinExpr -> Shape -> Shape -> Graph VL Shape
-equiJoinPrim expr (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-  (q', _, _) <- equiJoin expr q1 q2
+equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  (q', _, _) <- equiJoin e1 e2 q1 q2
   return $ ValueVector q' $ zipLayout lyt1 lyt2
-equiJoinPrim _ _ _ = $impossible
+equiJoinPrim _ _ _ _ = $impossible
 
-equiJoinLift :: Shape -> Shape -> Graph VL Shape
-equiJoinLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-  (q', p1, p2) <- equiJoinL q1 q2
+equiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+equiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+  (q', p1, p2) <- equiJoinL e1 e2 q1 q2
   -- FIXME not sure if this is correct.
   -- FIXME do we really need a PropVector here instead of a RenameVector?
   lyt1' <- chainReorder p1 lyt1
   lyt2' <- chainReorder p2 lyt2
   return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
-equiJoinLift _ _ = $impossible
+equiJoinLift _ _ _ _ = $impossible
 
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
@@ -656,15 +657,6 @@ fromListVal _            = error "fromListVal: Not a list"
 splitVal :: V.Val -> (V.Val, V.Val)
 splitVal (V.PairV e1 e2) = (e1, e2)
 splitVal _               = error $ "splitVal: Not a tuple"
-
-
-pVal :: V.Val -> VLVal
-pVal (V.IntV i)    = VLInt i
-pVal (V.BoolV b)   = VLBool b
-pVal (V.StringV s) = VLString s
-pVal (V.DoubleV d) = VLDouble d
-pVal V.UnitV       = VLUnit
-pVal _             = error "pVal: Not a supported value"
 
 mkColumn :: Type -> [V.Val] -> (Type, [VLVal])
 mkColumn t vs = (t, [pVal v | v <- vs])

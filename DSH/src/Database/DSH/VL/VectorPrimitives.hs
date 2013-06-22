@@ -85,7 +85,11 @@ class VectorAlgebra a where
   zipL :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   cartProduct :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
   cartProductL :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
-  thetaJoin :: Expr1 -> DBV -> DBV -> GraphM r a (DBV, DBV)
+
+  -- FIXME equijoins do not have to produce propagation vectors, since they are
+  -- only applied to flat vectors.
+  equiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
+  equiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
 
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   
