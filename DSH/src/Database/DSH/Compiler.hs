@@ -33,17 +33,17 @@ import qualified Database.X100Client                             as X
 
 import           Database.Algebra.Dag
 
-import           Database.DSH.Flattening.Common.Data.QueryPlan
-import qualified Database.DSH.Flattening.Common.Data.Type        as T
-import           Database.DSH.Flattening.Export
-import qualified Database.DSH.Flattening.CL.Lang                 as CL
-import qualified Database.DSH.Flattening.CL.Opt                  as CLOpt
-import           Database.DSH.Flattening.Translate.Algebra2Query
-import           Database.DSH.Flattening.Translate.CL2NKL
-import           Database.DSH.Flattening.Translate.FKL2VL
-import           Database.DSH.Flattening.Translate.NKL2FKL
-import           Database.DSH.Flattening.Translate.VL2Algebra
-import qualified Database.DSH.Flattening.VL.Data.Query           as Q
+import           Database.DSH.Common.Data.QueryPlan
+import qualified Database.DSH.Common.Data.Type        as T
+import           Database.DSH.Export
+import qualified Database.DSH.CL.Lang                 as CL
+import qualified Database.DSH.CL.Opt                  as CLOpt
+import           Database.DSH.Translate.Algebra2Query
+import           Database.DSH.Translate.CL2NKL
+import           Database.DSH.Translate.FKL2VL
+import           Database.DSH.Translate.NKL2FKL
+import           Database.DSH.Translate.VL2Algebra
+import qualified Database.DSH.VL.Data.Query           as Q
 
 import           Data.Aeson                                      (encode)
 import           Data.ByteString.Lazy.Char8                      (unpack)

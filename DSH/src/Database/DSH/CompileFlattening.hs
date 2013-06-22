@@ -7,9 +7,9 @@ module Database.DSH.CompileFlattening (toComprehensions) where
 
 import           Database.DSH.Impossible
 
-import qualified Database.DSH.Flattening.CL.Lang as CL
-import qualified Database.DSH.Flattening.CL.Primitives as CP
-import qualified Database.DSH.Flattening.Common.Data.Type as T
+import qualified Database.DSH.CL.Lang as CL
+import qualified Database.DSH.CL.Primitives as CP
+import qualified Database.DSH.Common.Data.Type as T
 
 import           Database.DSH.Internals as D
 import           Data.Text (unpack)
