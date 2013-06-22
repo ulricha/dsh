@@ -96,6 +96,22 @@ cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) =
   return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 cartProductLift _ _ = $impossible
 
+equiJoinprim :: JoinExpr -> Shape -> Shape -> Graph VL Shape
+equiJoinPrim expr (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  (q', _, _) <- equiJoin expr q1 q2
+  return $ ValueVector q' $ zipLayout lyt1 lyt2
+equiJoinPrim _ _ _ = $impossible
+
+equiJoinLift :: Shape -> Shape -> Graph VL Shape
+equiJoinLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+  (q', p1, p2) <- equiJoinL q1 q2
+  -- FIXME not sure if this is correct.
+  -- FIXME do we really need a PropVector here instead of a RenameVector?
+  lyt1' <- chainReorder p1 lyt1
+  lyt2' <- chainReorder p2 lyt2
+  return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
+equiJoinLift _ _ = $impossible
+
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
                                                          (q', r) <- selectPos q LtE i
