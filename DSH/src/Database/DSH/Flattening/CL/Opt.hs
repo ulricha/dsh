@@ -9,17 +9,10 @@ module Database.DSH.Flattening.CL.Opt
 import           Debug.Trace
 import           Text.Printf
                  
-import           Control.Applicative((<$>), (<*>))
-import           Control.Monad
-
-import           Data.Generics.Uniplate.Data
-                 
 import qualified Data.Set as S
 
 import           Database.DSH.Flattening.Common.Data.Val
 import           Database.DSH.Flattening.Common.Data.Op
-import           Database.DSH.Flattening.Common.Data.Expr
-import           Database.DSH.Flattening.Common.Data.Type
 import           Database.DSH.Flattening.CL.Lang
        
 -- Restore the original comprehension form from the desugared concatMap form.
