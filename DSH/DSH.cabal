@@ -73,7 +73,6 @@ Library
                      csv                >= 0.1.2,
                      parsec,
                      Pathfinder         >= 0.5.10,
-                     FerryCore          >= 0.4.6.4,
                      X100Client         >= 0.0.2,
                      pretty >= 1.0.1.1,
                      aeson >= 0.6.0.0,
@@ -87,89 +86,87 @@ Library
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
                      Database.DSH.Compiler
-                     Database.DSH.Flattening
 
   Other-modules:     Database.DSH.Internals
-                     Database.DSH.Compile
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
                      Database.DSH.ExecuteFlattening
                      Database.DSH.Externals
-                     Database.DSH.Flattening.Common.Data.Op
-                     Database.DSH.Flattening.Common.Data.Type
-                     Database.DSH.Flattening.Common.Data.Val
-                     Database.DSH.Flattening.Common.Data.Expr
-                     Database.DSH.Flattening.Common.Data.JoinExpr
-                     Database.DSH.Flattening.Common.TransM
-                     Database.DSH.Flattening.Common.Data.QueryPlan
-                     Database.DSH.Flattening.Export
-                     Database.DSH.Flattening.CL.Lang
-                     Database.DSH.Flattening.CL.Primitives
-                     Database.DSH.Flattening.CL.Opt
-                     Database.DSH.Flattening.FKL.Data.FKL
-                     Database.DSH.Flattening.FKL.FKLPrimitives
-                     Database.DSH.Flattening.FKL.Render.Render
-                     Database.DSH.Flattening.NKL.Quote
-                     Database.DSH.Flattening.NKL.Data.NKL
-                     Database.DSH.Flattening.NKL.NKLPrimitives
-                     Database.DSH.Flattening.NKL.Opt
-                     Database.DSH.Flattening.Translate.Algebra2Query
-                     Database.DSH.Flattening.Translate.CL2NKL
-                     Database.DSH.Flattening.Translate.FKL2VL
-                     Database.DSH.Flattening.Translate.NKL2FKL
-                     Database.DSH.Flattening.Translate.VL2Algebra
-                     Database.DSH.Flattening.VL.Data.DBVector
-                     Database.DSH.Flattening.VL.Data.GraphVector
-                     Database.DSH.Flattening.VL.Data.Query
-                     Database.DSH.Flattening.VL.MetaPrimitives
-                     Database.DSH.Flattening.VL.PathfinderVectorPrimitives
-                     Database.DSH.Flattening.VL.VectorOperations
-                     Database.DSH.Flattening.VL.VectorPrimitives
-                     Database.DSH.Flattening.VL.VectorPrimitives
-                     Database.DSH.Flattening.VL.VLPrimitives
-                     Database.DSH.Flattening.VL.X100VectorPrimitives
+                     Database.DSH.Common.Data.Op
+                     Database.DSH.Common.Data.Type
+                     Database.DSH.Common.Data.Val
+                     Database.DSH.Common.Data.Expr
+                     Database.DSH.Common.Data.JoinExpr
+                     Database.DSH.Common.TransM
+                     Database.DSH.Common.Data.QueryPlan
+                     Database.DSH.Export
+                     Database.DSH.CL.Lang
+                     Database.DSH.CL.Primitives
+                     Database.DSH.CL.Opt
+                     Database.DSH.FKL.Data.FKL
+                     Database.DSH.FKL.FKLPrimitives
+                     Database.DSH.FKL.Render.Render
+                     Database.DSH.NKL.Quote
+                     Database.DSH.NKL.Data.NKL
+                     Database.DSH.NKL.NKLPrimitives
+                     Database.DSH.NKL.Opt
+                     Database.DSH.Translate.Algebra2Query
+                     Database.DSH.Translate.CL2NKL
+                     Database.DSH.Translate.FKL2VL
+                     Database.DSH.Translate.NKL2FKL
+                     Database.DSH.Translate.VL2Algebra
+                     Database.DSH.VL.Data.DBVector
+                     Database.DSH.VL.Data.GraphVector
+                     Database.DSH.VL.Data.Query
+                     Database.DSH.VL.MetaPrimitives
+                     Database.DSH.VL.PathfinderVectorPrimitives
+                     Database.DSH.VL.VectorOperations
+                     Database.DSH.VL.VectorPrimitives
+                     Database.DSH.VL.VectorPrimitives
+                     Database.DSH.VL.VLPrimitives
+                     Database.DSH.VL.X100VectorPrimitives
                      Database.DSH.Impossible
                      Database.DSH.TH
 
-                     Database.DSH.Flattening.Optimizer.Common.Aux
+                     Database.DSH.Optimizer.Common.Aux
 
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.Common
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.ConstOpt
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.JoinPushdown
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.Key
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.ProjectionMerge
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.PruneColumns
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.PruneEmpty
-                     Database.DSH.Flattening.Optimizer.X100.Rewrite.PruneJoins
+                     Database.DSH.Optimizer.X100.Rewrite.Common
+                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
+                     Database.DSH.Optimizer.X100.Rewrite.JoinPushdown
+                     Database.DSH.Optimizer.X100.Rewrite.Key
+                     Database.DSH.Optimizer.X100.Rewrite.ProjectionMerge
+                     Database.DSH.Optimizer.X100.Rewrite.PruneColumns
+                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
+                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
    
-                     Database.DSH.Flattening.Optimizer.VL.Properties.AbstractDomains
-                     Database.DSH.Flattening.Optimizer.VL.Properties.BottomUp
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Card
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Common
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Const
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Empty
-                     Database.DSH.Flattening.Optimizer.VL.Properties.IndexSpace
-                     Database.DSH.Flattening.Optimizer.VL.Properties.ReqColumns
-                     Database.DSH.Flattening.Optimizer.VL.Properties.TopDown
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Types
-                     Database.DSH.Flattening.Optimizer.VL.Properties.Untainted
-                     Database.DSH.Flattening.Optimizer.VL.Properties.VectorType
-                     Database.DSH.Flattening.Optimizer.VL.Properties.VerticalForm
+                     Database.DSH.Optimizer.VL.Properties.AbstractDomains
+                     Database.DSH.Optimizer.VL.Properties.BottomUp
+                     Database.DSH.Optimizer.VL.Properties.Card
+                     Database.DSH.Optimizer.VL.Properties.Common
+                     Database.DSH.Optimizer.VL.Properties.Const
+                     Database.DSH.Optimizer.VL.Properties.Empty
+                     Database.DSH.Optimizer.VL.Properties.IndexSpace
+                     Database.DSH.Optimizer.VL.Properties.ReqColumns
+                     Database.DSH.Optimizer.VL.Properties.TopDown
+                     Database.DSH.Optimizer.VL.Properties.Types
+                     Database.DSH.Optimizer.VL.Properties.Untainted
+                     Database.DSH.Optimizer.VL.Properties.VectorType
+                     Database.DSH.Optimizer.VL.Properties.VerticalForm
 		     
-                     Database.DSH.Flattening.Optimizer.Common.Rewrite
-                     Database.DSH.Flattening.Optimizer.VL.OptimizeVL
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Common
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.DescriptorModifiers
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Expressions
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.MergeProjections
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.PruneEmpty
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Redundant
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Aggregation
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Unused
-                     Database.DSH.Flattening.Optimizer.VL.Rewrite.Specialized
+                     Database.DSH.Optimizer.Common.Rewrite
+                     Database.DSH.Optimizer.VL.OptimizeVL
+                     Database.DSH.Optimizer.VL.Rewrite.Common
+                     Database.DSH.Optimizer.VL.Rewrite.DescriptorModifiers
+                     Database.DSH.Optimizer.VL.Rewrite.Expressions
+                     Database.DSH.Optimizer.VL.Rewrite.MergeProjections
+                     Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
+                     Database.DSH.Optimizer.VL.Rewrite.Redundant
+                     Database.DSH.Optimizer.VL.Rewrite.Aggregation
+                     Database.DSH.Optimizer.VL.Rewrite.Unused
+                     Database.DSH.Optimizer.VL.Rewrite.Specialized
 
 executable vltox100
-  Main-is: Database/DSH/Flattening/Tools/VLToX100.hs
+  Main-is: Database/DSH/Tools/VLToX100.hs
   GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind  -O3
   hs-source-dirs:   src
   build-depends:    base >= 4.5,
@@ -179,13 +176,11 @@ executable vltox100
                     TableAlgebra >= 2.0.0,
                     aeson >= 0.6,
                     bytestring >= 0.9.1.10,
-                    pretty >= 1.0.1.1,
-                    Pathfinder         >= 0.5.10,
-                    HaXml              >= 1.23
+                    pretty >= 1.0.1.1
 
 Executable x100opt
   Hs-Source-Dirs:   src
-  Main-Is: Database/DSH/Flattening/Optimizer/X100/Tools/Opt.hs
+  Main-Is: Database/DSH/Optimizer/X100/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0,
                        containers,
@@ -197,7 +192,7 @@ Executable x100opt
 
 Executable vlopt
   Hs-Source-Dirs:   src
-  Main-Is: Database/DSH/Flattening/Optimizer/VL/Tools/Opt.hs
+  Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0,
                        containers,
@@ -210,7 +205,7 @@ Executable vlopt
 
 Executable vlprop
   Hs-Source-Dirs:   src
-  Main-Is: Database/DSH/Flattening/Optimizer/VL/Tools/Prop.hs
+  Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
   Build-depends:       base,
                        TableAlgebra >= 2.0.0,
                        containers,

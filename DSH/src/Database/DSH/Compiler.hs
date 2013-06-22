@@ -1,356 +1,244 @@
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
--- | DSH compiler module exposes the function fromQ that can be used to
--- execute DSH programs on a database. It transform the DSH program into
--- FerryCore which is then translated into SQL (through a table algebra). The SQL
--- code is executed on the database and then processed to form a Haskell value.
+-- | This module provides the flattening implementation of DSH.
+module Database.DSH.Compiler
+  ( -- * Running queries via the Flattening backend
+    fromQ
+  , fromQX100
+    -- * Debug functions
+  , debugSQL
+  , debugNKL
+  , debugFKL
+  , debugX100
+  , debugCLX100
+  , debugNKLX100
+  , debugFKLX100
+  , debugVL
+  , debugX100VL
+  , debugPFXML
+  , dumpVLMem
+  ) where
 
-module Database.DSH.Compiler (fromQ, debugPlan, debugCore, debugPlanOpt, debugSQL, debugCoreDot) where
+import           GHC.Exts
+                 
+import           Database.DSH.CompileFlattening
+import           Database.DSH.ExecuteFlattening
 
-import Database.DSH.Internals as D
-import Database.DSH.Impossible
-import Database.DSH.CSV
+import           Database.DSH.Internals
+import           Database.HDBC
+import qualified Database.HDBC                                   as H
 
-import Database.DSH.Compile as C
+import           Database.X100Client                             hiding (X100)
+import qualified Database.X100Client                             as X
 
-import Database.Ferry.SyntaxTyped  as F
-import Database.Ferry.Compiler
+import           Database.Algebra.Dag
 
-import qualified Data.Map as M
-import Data.Char
-import Database.HDBC
+import           Database.DSH.Common.Data.QueryPlan
+import qualified Database.DSH.Common.Data.Type        as T
+import           Database.DSH.Export
+import qualified Database.DSH.CL.Lang                 as CL
+import qualified Database.DSH.CL.Opt                  as CLOpt
+import           Database.DSH.Translate.Algebra2Query
+import           Database.DSH.Translate.CL2NKL
+import           Database.DSH.Translate.FKL2VL
+import           Database.DSH.Translate.NKL2FKL
+import           Database.DSH.Translate.VL2Algebra
+import qualified Database.DSH.VL.Data.Query           as Q
 
-import Control.Monad.State
-import Control.Applicative
+import           Data.Aeson                                      (encode)
+import           Data.ByteString.Lazy.Char8                      (unpack)
 
-import Data.Text (unpack)
+import qualified Data.IntMap                                     as M
+import qualified Data.List                                       as L
 
-import Data.List (nub)
-import qualified Data.List as L
+import           Control.Applicative
 
-{-
-N monad, version of the state monad that can provide fresh variable names.
--}
-type N conn = StateT (conn, Int, M.Map String [(String,FType -> Bool)]) IO
+import           Data.Convertible                                ()
 
--- | Provide a fresh identifier name during compilation
-freshVar :: N conn Int
-freshVar = do
-             (c, i, env) <- get
-             put (c, i + 1, env)
-             return i
+(|>) :: a -> (a -> b) -> b
+(|>) = flip ($)
 
--- | Get from the state the connection to the database
-getConnection :: IConnection conn => N conn conn
-getConnection = do
-                 (c, _, _) <- get
-                 return c
+-- Different versions of the flattening compiler pipeline
 
--- | Lookup information that describes a table. If the information is
--- not present in the state then the connection is used to retrieve the
--- table information from the Database.
-tableInfo :: IConnection conn => String -> N conn [(String,FType -> Bool)]
-tableInfo t = do
-               (c, i, env) <- get
-               case M.lookup t env of
-                     Nothing -> do
-                                 inf <- lift $ getTableInfo c t
-                                 put (c, i, M.insert t inf env)
-                                 return inf
-                     Just v -> return v
+nkl2SQL :: CL.Expr -> (Q.Query Q.SQL, T.Type)
+nkl2SQL e = let (e', t) = nkl2Alg e
+            in (generateSQL e', t)
 
--- | Turn a given integer into a variable beginning with prefix "__fv_"
-prefixVar :: Int -> String
-prefixVar = (++) "__fv_" . show
-     
--- | Execute the transformation computation. During
--- compilation table information can be retrieved from
--- the database, therefor the result is wrapped in the IO
--- Monad.
-runN :: IConnection conn => conn -> N conn a -> IO a
-runN c  = liftM fst . flip runStateT (c, 1, M.empty)
-            
--- * Convert DB queries into Haskell values
+nkl2Alg :: CL.Expr -> (Q.Query Q.XML, T.Type)
+nkl2Alg e = let q       = desugarComprehensions e
+                          |> flatten
+                          |> specializeVectorOps
+                          |> implementVectorOpsPF
+                          |> generatePFXML
+                t       = T.typeOf e
+            in (q, t)
 
--- | Execute the query on the database
+nkl2X100Alg :: CL.Expr -> (Q.Query Q.X100, T.Type)
+nkl2X100Alg e = let q = desugarComprehensions e
+                        |> flatten
+                        |> specializeVectorOps
+                        |> implementVectorOpsX100
+                        |> generateX100Query
+                    t = T.typeOf e
+                in (q, t)
+
+nkl2X100File :: String -> CL.Expr -> IO ()
+nkl2X100File prefix e = desugarComprehensions e
+                        |> flatten
+                        |> specializeVectorOps
+                        |> implementVectorOpsX100
+                        |> (exportX100Plan prefix)
+
+nkl2SQLFile :: String -> CL.Expr -> IO ()
+nkl2SQLFile prefix e = desugarComprehensions e
+                       |> flatten
+                       |> specializeVectorOps
+                       |> implementVectorOpsPF
+                       |> generatePFXML
+                       |> generateSQL
+                       |> (exportSQL prefix)
+
+nkl2XMLFile :: String -> CL.Expr -> IO ()
+nkl2XMLFile prefix e = desugarComprehensions e
+                       |> flatten
+                       |> specializeVectorOps
+                       |> implementVectorOpsPF
+                       |> generatePFXML
+                       |> (exportPFXML prefix)
+
+nkl2VLFile :: String -> CL.Expr -> IO ()
+nkl2VLFile prefix e = desugarComprehensions e
+                      |> flatten
+                      |> specializeVectorOps
+                      |> exportVLPlan prefix
+
+
+-- Functions for executing and debugging DSH queries via the Flattening backend
+
+-- | Compile a DSH query to SQL and run it on the database given by 'c'.
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q e) = fmap frExp (evaluate c e)
+fromQ c (Q a) =  do
+                   (q, _) <- nkl2SQL <$> toComprehensions (getTableInfo c) a
+                   frExp <$> (executeSQLQuery c $ SQL q)
 
--- | Convert the query into unoptimised algebraic plan
-debugPlan :: (QA a, IConnection conn) => conn -> Q a -> IO ()
-debugPlan c (Q e) = doCompile c e >>= writeFile "plan.xml"
+-- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
+fromQX100 :: QA a => X100Info -> Q a -> IO a
+fromQX100 c (Q a) =  do
+                  (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
+                  frExp <$> (executeX100Query c $ X100 q)
+                  
+-- | Debugging function: return the CL (Comprehension Language) representation of a
+-- query (X100 version)
+debugCLX100 :: QA a => X100Info -> Q a -> IO String
+debugCLX100 c (Q e) = show <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
 
--- | Convert the query into optimised algebraic plan
-debugPlanOpt :: (QA a, IConnection conn) => conn -> Q a -> IO ()
-debugPlanOpt q (Q c) = do
-                    p <- doCompile q c
-                    (C.Algebra r) <- algToAlg (C.Algebra p :: AlgebraXML a)
-                    writeFile "plan_opt.xml" r
+-- | Debugging function: return the NKL (Nested Kernel Language) representation of a
+-- query (SQL version)
+debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugNKL c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getTableInfo c) e
 
-debugCore :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCore c (Q a) = do core <- runN c $ transformE a
-                       return $ show core
+-- | Debugging function: return the NKL (Nested Kernel Language) representation of a
+-- query (X100 version)
+debugNKLX100 :: QA a => X100Info -> Q a -> IO String
+debugNKLX100 c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
 
+-- | Debugging function: return the FKL (Flat Kernel Language) representation of a
+-- query (SQL version)
+debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
+debugFKL c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getTableInfo c) e
 
-debugCoreDot :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugCoreDot c (Q a) = do core <- runN c $ transformE a
-                          return $ (\(Right d) -> d) $ dot core
+-- | Debugging function: return the FKL (Flat Kernel Language) representation of a
+-- query (X100 version)
+debugFKLX100 :: QA a => X100Info -> Q a -> IO String
+debugFKLX100 c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getX100TableInfo c) e
 
--- | Convert the query into SQL
-debugSQL :: (IConnection conn,Reify a) => conn -> Exp a -> IO String
-debugSQL q c = do p <- doCompile q c
-                  (C.SQL r) <- algToSQL (C.Algebra p :: AlgebraXML a)
-                  return r
+-- | Debugging function: dumb the X100 plan (DAG) to a file.
+debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100 prefix c (Q e) = do
+              e' <- toComprehensions (getX100TableInfo c) e
+              nkl2X100File prefix e'
 
--- | evaluate compiles the given Q query into an executable plan, executes this and returns
--- the result as norm. For execution it uses the given connection. If the boolean flag is set
--- to true it outputs the intermediate algebraic plan to disk.
-evaluate :: (Reify a, IConnection conn) => conn -> Exp a -> IO (Exp a)
-evaluate c q = do algPlan' <- doCompile c q
-                  let algPlan = C.Algebra algPlan' :: AlgebraXML a
-                  n <- executePlan c algPlan
-                  disconnect c
-                  return n
+-- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
+debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugVL prefix c (Q e) = do
+  e' <- toComprehensions (getTableInfo c) e
+  nkl2VLFile prefix e'
 
--- | Transform a query into an algebraic plan.
-doCompile :: (IConnection conn, Reify a) => conn -> Exp a -> IO String
-doCompile c a = do core <- runN c $ transformE a
-                   return $ typedCoreToAlgebra core
+-- | Debugging function: dump the VL query plan (DAG) for a query to a file (X100 version).
+debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100VL prefix c (Q e) = do
+  e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+  nkl2VLFile prefix e'
 
--- | Transform the Query into a ferry core program.
-transformE :: forall a conn. (IConnection conn, Reify a) => Exp a -> N conn CoreExpr
-transformE (UnitE ) = return $ Constant ([] :=> int) $ CInt 1
-transformE (BoolE b) = return $ Constant ([] :=> bool) $ CBool b
-transformE (CharE c) = return $ Constant ([] :=> string) $ CString [c]
-transformE (IntegerE i) = return $ Constant ([] :=> int) $ CInt i
-transformE (DoubleE d) = return $ Constant ([] :=> float) $ CFloat d
-transformE (TextE t) = return $ Constant ([] :=> string) $ CString $ unpack t
-transformE (PairE e1 e2) = do let ty = reify (undefined :: a)
-                              c1 <- transformE e1
-                              c2 <- transformE e2
-                              return $ Rec ([] :=> transformTy ty) [RecElem (typeOf c1) "1" c1, RecElem (typeOf c2) "2" c2]
-transformE (ListE es) = let ty = reify (undefined :: a)
-                            qt = ([] :=> transformTy ty)
-                        in foldr (F.Cons qt) (Nil qt) <$> mapM transformE es
-transformE (AppE GroupWithKey (PairE (gfn :: Exp (ta -> rt)) (e :: Exp el))) = do
-  let tel = reify (undefined :: el)
-  fn' <- transformLamArg gfn
-  let (_ :=> tfn@(FFn _ rt)) = typeOf fn'
-  let gtr = list $ rec [(RLabel "1", rt), (RLabel "2", transformTy $ ListT tel)]
-  e' <- transformArg e
-  let (_ :=> te) = typeOf e'
-  fv <- transformLamArg (LamE id :: Exp (el -> el))
-  let (_ :=> tfv) = typeOf fv
-  return $ App ([] :=> gtr)
-               (App ([] :=> te .-> gtr)
-                    (App ([] :=> tfn .-> te .-> gtr) (Var ([] :=> tfv .-> tfn .-> te .-> gtr) "groupWith") fv)
-                    fn')
-               e'
+-- | Debugging function: dump the Pathfinder Algebra query plan (DAG) to XML files.
+debugPFXML :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugPFXML prefix c (Q e) = do
+  e' <- toComprehensions (getTableInfo c) e
+  nkl2XMLFile prefix e'
 
-transformE (AppE D.Cons (PairE e1 e2)) = do
-                                            e1' <- transformE e1
-                                            e2' <- transformE e2
-                                            let (_ :=> t) = typeOf e1'
-                                            return $ F.Cons ([] :=> list t) e1' e2'
-transformE (AppE Cond (PairE e1 (PairE e2 e3))) = do
-                                             e1' <- transformE e1
-                                             e2' <- transformE e2
-                                             e3' <- transformE e3
-                                             let (_ :=> t) = typeOf e2'
-                                             return $ If ([] :=> t) e1' e2' e3'
-transformE (AppE Fst (PairE e1 e2)) = do
-  let ty = reify (undefined :: a)
-  let tr = transformTy ty
-  e1' <- transformArg (PairE e1 e2)
-  let (_ :=> ta) = typeOf e1'
-  return $ App ([] :=> tr) (transformF Fst (ta .-> tr)) e1'
+-- | Debugging function: dump SQL queries generated by Pathfinder to files.
+debugSQL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugSQL prefix c (Q e) = do
+  e' <- toComprehensions (getTableInfo c) e
+  nkl2SQLFile prefix e'
 
-transformE (AppE Snd (PairE e1 e2)) = do
-  let ty = reify (undefined :: a)
-  let tr = transformTy ty
-  e1' <- transformArg (PairE e1 e2)
-  let (_ :=> ta) = typeOf e1'
-  return $ App ([] :=> tr) (transformF Snd (ta .-> tr)) e1'
-
-transformE (AppE f2 (PairE (LamE f) e)) = do
-  let ty = reify (undefined :: a)
-  let tr = transformTy ty
-  f' <- transformLamArg (LamE f)
-  e' <- transformArg e
-  let (_ :=> t1) = typeOf f'
-  let (_ :=> t2) = typeOf e'
-  return $ App ([] :=> tr)
-              (App ([] :=> t2 .-> tr) (transformF f2 (t1 .-> t2 .-> tr)) f')
-              e'
-
-transformE (AppE f2 (PairE e1 e2)) = do
-  let ty = reify (undefined :: a)
-  let tr = transformTy ty
-  if isOp f2
-     then do e1' <- transformE e1
-             e2' <- transformE e2
-             return $ BinOp ([] :=> tr) (transformOp f2) e1' e2'
-     else do e1' <- transformArg e1
-             e2' <- transformArg e2
-             let (_ :=> ta1) = typeOf e1'
-             let (_ :=> ta2) = typeOf e2'
-             return $ App ([] :=> tr) (App ([] :=> ta2 .-> tr) (transformF f2 (ta1 .-> ta2 .-> tr)) e1') e2'
-
-transformE (AppE f1 e1) = do
-  let ty = reify (undefined :: a)
-  let tr = transformTy ty
-  e1' <- transformArg e1
-  let (_ :=> ta) = typeOf e1'
-  return $ App ([] :=> tr) (transformF f1 (ta .-> tr)) e1'
-
-transformE (VarE i) = do
-  let ty = reify (undefined :: a)
-  return $ Var ([] :=> transformTy ty) $ prefixVar $ fromIntegral i
-  
-transformE (TableE (TableCSV filepath)) = do
-  let ty = reify (undefined :: a)
-  e1 <- lift (csvImport filepath ty)
-  transformE e1
-
--- When a table node is encountered check that the given description
--- matches the actual table information in the database.
-transformE (TableE (TableDB n ks)) = do
-                                    let ty = reify (undefined :: a)
-                                    fv <- freshVar
-                                    let tTy@(FList (FRec ts)) = flatFTy ty
-                                    let varB = Var ([] :=> FRec ts) $ prefixVar fv
-                                    tableDescr <- tableInfo n
-                                    let tyDescr = if length tableDescr == length ts
-                                                    then zip tableDescr ts
-                                                    else error $ "Inferred typed: " ++ show tTy ++ " \n doesn't match type of table: \""
-                                                                        ++ n ++ "\" in the database. The table has the shape: " ++ show (map fst tableDescr) ++ ". " ++ show ty
-                                    let cols = [Column cn t | ((cn, f), (RLabel i, t)) <- tyDescr, legalType n cn i t f]
-                                    let keyCols = nub (concat ks) L.\\ map fst tableDescr
-                                    let keys = if keyCols == []
-                                                  then if ks /= [] then map Key ks else [Key $ map (\(Column n' _) -> n') cols]
-                                                  else error $ "The following columns were used as key but not a column of table " ++ n ++ " : " ++ show keyCols
-                                    let table' = Table ([] :=> tTy) n cols keys
-                                    let pattern = [prefixVar fv]
-                                    let nameType = map (\(Column name t) -> (name, t)) cols
-                                    let body = foldr (\(nr, t) b ->
-                                                    let (_ :=> bt) = typeOf b
-                                                     in Rec ([] :=> FRec [(RLabel "1", t), (RLabel "2", bt)]) [RecElem ([] :=> t) "1" (F.Elem ([] :=> t) varB nr), RecElem ([] :=> bt) "2" b])
-                                                  ((\(nr,t) -> F.Elem ([] :=> t) varB nr) $ last nameType)
-                                                  (init nameType)
-                                    let ([] :=> rt) = typeOf body
-                                    let lambda = ParAbstr ([] :=> FRec ts .-> rt) pattern body
-                                    let expr = App ([] :=> FList rt) (App ([] :=> (FList $ FRec ts) .-> FList rt)
-                                                                    (Var ([] :=> (FRec ts .-> rt) .-> (FList $ FRec ts) .-> FList rt) "map")
-                                                                    lambda)
-                                                                   (ParExpr (typeOf table') table')
-                                    return expr
-    where
-        legalType :: String -> String -> String -> FType -> (FType -> Bool) -> Bool
-        legalType tn cn nr t f = f t || error ( "The type: "
-                                                ++ show t
-                                                ++ "\nis not compatible with the type of column nr: " ++ nr
-                                                ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ ".")
-transformE (LamE _) = $impossible
-
-transformLamArg :: forall a b conn. (IConnection conn) => Exp (a -> b) -> N conn Param
-transformLamArg (LamE f) = do
-  let ty = reify (undefined :: a -> b)
-  n <- freshVar
-  let fty = transformTy ty
-  let e1 = f $ VarE $ fromIntegral n
-  ParAbstr ([] :=> fty) [prefixVar n] <$> transformE e1
-transformLamArg (AppE _ _) = $impossible
-transformLamArg (VarE _)   = $impossible
-
-
-transformArg :: (IConnection conn,Reify a) => Exp a -> N conn Param
-transformArg e = (\e' -> ParExpr (typeOf e') e') <$> transformE e
- 
--- | Construct a flat-FerryCore type out of a DSH type
--- A flat type consists out of two tuples, a record is translated as:
--- {r1 :: t1, r2 :: t2, r3 :: t3, r4 :: t4} (t1, (t2, (t3, t4)))
-flatFTy :: Type a -> FType
-flatFTy (ListT t) = FList $ FRec $ flatFTy' 1 t
- where
-     flatFTy' :: Int -> Type a -> [(RLabel, FType)]
-     flatFTy' i (PairT t1 t2) = (RLabel $ show i, transformTy t1) : flatFTy' (i + 1) t2
-     flatFTy' i ty            = [(RLabel $ show i, transformTy ty)]
-flatFTy _         = $impossible
-
--- Determine the size of a flat type
-sizeOfTy :: Type a -> Int
-sizeOfTy (PairT _ t2) = 1 + sizeOfTy t2
-sizeOfTy _              = 1
-
--- | Transform an arbitrary DSH-type into a ferry core type
-transformTy :: Type a -> FType
-transformTy UnitT = int
-transformTy BoolT = bool
-transformTy CharT = string
-transformTy TextT = string
-transformTy IntegerT = int
-transformTy DoubleT = float
-transformTy (PairT t1 t2) = FRec [(RLabel "1", transformTy t1), (RLabel "2", transformTy t2)]
-transformTy (ListT t1) = FList $ transformTy t1
-transformTy (ArrowT t1 t2) = transformTy t1 .-> transformTy t2
-
-
-isOp :: Fun a b -> Bool
-isOp Add  = True
-isOp Sub  = True
-isOp Mul  = True
-isOp Div  = True
-isOp Equ  = True
-isOp Lt   = True
-isOp Lte  = True
-isOp Gte  = True
-isOp Gt   = True
-isOp Conj = True
-isOp Disj = True
-isOp Mod  = True
-isOp _    = False
-
--- | Translate the DSH operator to Ferry Core operators
-transformOp :: Fun a b -> Op
-transformOp Add  = Op "+"
-transformOp Sub  = Op "-"
-transformOp Mul  = Op "*"
-transformOp Div  = Op "/"
-transformOp Equ  = Op "=="
-transformOp Lt   = Op "<"
-transformOp Lte  = Op "<="
-transformOp Gte  = Op ">="
-transformOp Gt   = Op ">"
-transformOp Conj = Op "&&"
-transformOp Disj = Op "||"
-transformOp Mod  = Op "%"
-transformOp _    = $impossible
-
-
--- | Transform a DSH-primitive-function (f) with an instantiated typed into a FerryCore
--- expression
-transformF :: (Show f) => f -> FType -> CoreExpr
-transformF f t = Var ([] :=> t) $ (\txt -> case txt of
-                                            (x:xs) -> toLower x : xs
-                                            _      -> $impossible) $ show f
+-- | Dump a VL plan in the JSON format expected by the in-memory implementation (Tobias Müller)
+dumpVLMem :: QA a => FilePath -> X100Info -> Q a -> IO ()
+dumpVLMem f c (Q q) = do
+  cl <- toComprehensions (getX100TableInfo c) q
+  let plan = desugarComprehensions cl
+             |> flatten
+             |> specializeVectorOps
+      json = unpack $ encode (queryShape plan, M.toList $ nodeMap $ queryDag plan)
+  writeFile f json
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.
-getTableInfo :: IConnection conn => conn -> String -> IO [(String,FType -> Bool)]
+getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
 getTableInfo c n = do
-                    info <- describeTable c n
-                    return $ toTableDescr info
-                    
+                 info <- H.describeTable c n
+                 return $ toTableDescr info
+
+     where
+       toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
+       toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
+       compatibleType :: SqlTypeId -> T.Type -> Bool
+       compatibleType dbT hsT = case hsT of
+                                     T.UnitT -> True
+                                     T.BoolT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+                                     T.StringT -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+                                     T.IntT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+                                     T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+                                     t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+
+getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
+getX100TableInfo c n = do
+                         t <- X.describeTable' c n
+                         return [ col2Val col | col <- sortWith colName $ columns t]
         where
-          toTableDescr :: [(String, SqlColDesc)] -> [(String,FType -> Bool)]
-          toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
-          compatibleType :: SqlTypeId -> FType -> Bool
-          compatibleType dbT hsT = case hsT of
-                                        FUnit   -> True
-                                        FBool   -> dbT `L.elem` [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                        FString -> dbT `L.elem` [SqlCharT, SqlWCharT, SqlVarCharT]
-                                        FInt    -> dbT `L.elem` [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                        FFloat  -> dbT `L.elem` [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
-                                        t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+            col2Val :: ColumnInfo -> (String, T.Type -> Bool)
+            col2Val col = (colName col, \t -> case logicalType col of
+                                                LBool       -> t == T.BoolT || t == T.UnitT
+                                                LInt1       -> t == T.IntT  || t == T.UnitT
+                                                LUInt1      -> t == T.IntT  || t == T.UnitT
+                                                LInt2       -> t == T.IntT  || t == T.UnitT
+                                                LUInt2      -> t == T.IntT  || t == T.UnitT
+                                                LInt4       -> t == T.IntT  || t == T.UnitT
+                                                LUInt4      -> t == T.IntT  || t == T.UnitT
+                                                LInt8       -> t == T.IntT  || t == T.UnitT
+                                                LUInt8      -> t == T.IntT  || t == T.UnitT
+                                                LInt16      -> t == T.IntT  || t == T.UnitT
+                                                LUIDX       -> t == T.NatT  || t == T.UnitT
+                                                LDec        -> t == T.DoubleT
+                                                LFlt4       -> t == T.DoubleT
+                                                LFlt8       -> t == T.DoubleT
+                                                LMoney      -> t == T.DoubleT
+                                                LChar       -> t == T.StringT
+                                                LVChar      -> t == T.StringT
+                                                LDate       -> t == T.IntT
+                                                LTime       -> t == T.IntT
+                                                LTimeStamp  -> t == T.IntT
+                                                LIntervalDS -> t == T.IntT
+                                                LIntervalYM -> t == T.IntT
+                                                LUnknown s  -> error $ "Unknown DB type" ++ show s)
+
