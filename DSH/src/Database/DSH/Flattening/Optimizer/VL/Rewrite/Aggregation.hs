@@ -129,7 +129,7 @@ groupingToAggr q =
           -- We obviously assume that the grouping columns are still present in
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
-          -- *add* columns at the end.
+          -- add columns at the end.
           aggrNode <- insert $ UnOp (VecAggr groupingCols (map fst funs)) $(v "q2")
 
           -- For every aggregate function, generate a projection which only

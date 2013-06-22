@@ -73,7 +73,6 @@ Library
                      csv                >= 0.1.2,
                      parsec,
                      Pathfinder         >= 0.5.10,
-                     FerryCore          >= 0.4.6.4,
                      X100Client         >= 0.0.2,
                      pretty >= 1.0.1.1,
                      aeson >= 0.6.0.0,
@@ -86,10 +85,8 @@ Library
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
                      Database.DSH.Compiler
-                     Database.DSH.Flattening
 
   Other-modules:     Database.DSH.Internals
-                     Database.DSH.Compile
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
                      Database.DSH.ExecuteFlattening
@@ -177,9 +174,7 @@ executable vltox100
                     TableAlgebra >= 2.0.0,
                     aeson >= 0.6,
                     bytestring >= 0.9.1.10,
-                    pretty >= 1.0.1.1,
-                    Pathfinder         >= 0.5.10,
-                    HaXml              >= 1.23
+                    pretty >= 1.0.1.1
 
 Executable x100opt
   Hs-Source-Dirs:   src
