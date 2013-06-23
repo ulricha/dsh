@@ -241,16 +241,8 @@ inferIndexSpaceBinOp is1 is2 n op =
     -- FIXME d \in p(q1)
     CartProduct -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
     CartProductL -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
-
-    ThetaJoin _ -> do
-      ((D dis), (P pis)) <- unp is1 >>= fromDBV
-      let -- descr: descriptor of the left input on the first output
-          dis'  = D $ makeSubDomain n "d" dis
-          -- descr: positions of the left input on the second output
-          dis'' = D $ makeSubDomain n "d" pis
-          pis'  = P $ freshSpace n "p"
-      Right $ VPropPair (DBVSpace dis' pis') (DBVSpace dis'' pis')
-
+    EquiJoin _ _ -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
+    EquiJoinL _ _ -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace
                         -> VectorProp IndexSpace

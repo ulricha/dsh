@@ -104,8 +104,10 @@ inferUntaintedBinOp _ _ _ _ op =
     PairA -> VProp empty
     PairL -> VProp empty
     ZipL -> VPropTriple empty na na
-    CartProduct -> VPropTriple empty na na
-    ThetaJoin    _ -> VPropPair empty empty
+    CartProduct  -> VPropTriple empty na na
+    CartProductL -> VPropTriple empty na na
+    EquiJoin _ _ -> VPropTriple empty na na
+    EquiJoinL _ _ -> VPropTriple empty na na
 
 inferUntaintedTerOp :: VectorProp Untainted 
                        -> VectorProp Untainted 

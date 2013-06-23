@@ -63,7 +63,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.DropWhile      -> NKL.DropWhile
               CL.CartProduct    -> NKL.CartProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
-              CL.ConcatMap    -> $impossible
+              CL.ConcatMap      -> $impossible
 
 expr :: CL.Expr -> NKL.Expr
 expr (CL.Table t s cs ks) = NKL.Table t s cs ks

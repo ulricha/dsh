@@ -519,10 +519,14 @@ quoteTypePat s = dataToPatQ (const Nothing `extQ` antiTypePat) $ parseType s
 ty :: QuasiQuoter
 ty = QuasiQuoter { quoteExp = quoteTypeExp
                  , quotePat = quoteTypePat
+                 , quoteDec = error "Can't use NKL quasiquoter for declarations"
+                 , quoteType = error "Can't use NKL quasiquoter for types"
                  }
 
 -- | A quasi quoter for NKL expressions
 nkl :: QuasiQuoter
 nkl = QuasiQuoter { quoteExp = quoteExprExp
                   , quotePat = quoteExprPat
+                  , quoteDec = error "Can't use NKL quasiquoter for declarations"
+                  , quoteType = error "Can't use NKL quasiquoter for types"
                   }

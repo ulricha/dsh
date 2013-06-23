@@ -525,6 +525,7 @@ instance VectorAlgebra PFAlgebra where
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
 
+{-
   thetaJoin joinExpr (DBV q1 cols1) (DBV q2 cols2) = do
     let leftWidth  = length cols1
         rightWidth = length cols2
@@ -552,6 +553,7 @@ instance VectorAlgebra PFAlgebra where
         return (DBV qr1 allResultColumns, DBV qr2 allResultColumns)
       _                                                ->
         error "arbitrary join expressions not supported"
+-}
 
   selectPos (DBV qe cols) op (DBP qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]

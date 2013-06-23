@@ -30,7 +30,7 @@ import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
 import           Database.DSH.Common.Data.Val(Val())
-import           Database.DSH.Common.Data.Type(Type, Typed, typeOf)
+import           Database.DSH.Common.Data.Type
   
 import qualified Data.Set as S
 

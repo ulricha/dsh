@@ -244,20 +244,28 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
 
-    -- FIXME The last case seems rather fishy
-    ThetaJoin    _ -> 
+    CartProductL ->
       case ownReqColumns of
-        VPropPair (Just cols1) (Just cols2) -> 
-          let reqCols = Just $ L.union cols1 cols2
-          in partitionCols childBUProps1 childBUProps2 reqCols
-  {-
-        VPropPair (Just cols1) Nothing -> 
-          partitionCols childBUProps1 childBUProps2 (Just cols1)
-        VPropPair Nothing (Just cols2) -> 
-          partitionCols childBUProps1 childBUProps2 (Just cols2)
-        _                              -> (VProp Nothing, VProp Nothing)-- error ("ReqColumns.ThetaJoin " ++ (show p))
-  -}
-        _                              -> error "ReqColumns.ThetaJoin"
+        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
+        _                     -> error "ReqColumns.CartProduct"
+
+    EquiJoin le re ->
+      case ownReqColumns of
+        VPropTriple cols1 _ _ -> 
+          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
+              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
+              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
+          in (leftReqCols', rightReqCols')
+        _                     -> error "ReqColumns.EquiJoin"
+
+    EquiJoinL le re ->
+      case ownReqColumns of
+        VPropTriple cols1 _ _ -> 
+          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
+              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
+              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
+          in (leftReqCols', rightReqCols')
+        _                     -> error "ReqColumns.EquiJoinL"
 
     ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
 

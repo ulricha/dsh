@@ -33,16 +33,10 @@ cleanup = iteratively $ sequenceRewrites [ mergeProjections
                                          ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ restrictCombineDBV
-                 , restrictCombineDBV'
-                 , restrictCombinePropLeft
-                 , cleanupSelect
-                 , introduceSelectExpr
+redundantRules = [ introduceSelectExpr
                  , pullRestrictThroughPair
                  , pushRestrictVecThroughProjectL
                  , pushRestrictVecThroughProjectPayload
-                 , pullPropRenameThroughCompExpr2L
-                 , pullPropRenameThroughIntegerToDouble
 
                  -- These rewrites normalize the remains of a cond pattern (see
                  -- rule cleanupSelect) by moving operators which only modify
@@ -83,94 +77,6 @@ introduceSelectExpr q =
           logRewrite "Redundant.SelectExpr" q
           selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
           void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
-
--- Eliminate the value vector output of a CombineVec whose inputs are restricted
--- based on negated and unnegated versions of the same expression. This is
--- basically a NOOP.
-restrictCombineDBV :: VLRule ()
-restrictCombineDBV q =
-  $(pattern 'q "R1 (CombineVec (qb1) (R1 ((q1) RestrictVec (qb2))) (R1 ((q2) RestrictVec (NotVec (qb3)))))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        predicate $ $(v "qb1") == $(v "qb2") && $(v "qb1") == $(v "qb3")
-        return $ do
-          logRewrite "Redundant.RestrictCombine.DBV" q
-          replace q $(v "q1") |])
-
--- Alternative version of Redundant.RestrictCombine.DBV: Consider the case in
--- which the unnegated RestrictVec operator has already been turned into a
--- SelectExpr.
-restrictCombineDBV' :: VLRule ()
-restrictCombineDBV' q =
-  $(pattern 'q "R1 (CombineVec (CompExpr1L e1 (q1)) (ProjectAdmin p1 (qs=SelectExpr e2 (q2))) (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4))))))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
-        predicate $ $(v "e1") == $(v "e2") && $(v "e1") == $(v "e3")
-
-        case $(v "p1") of
-          (DescrIdentity, PosNumber) -> return ()
-          _                          -> fail "no match"
-
-        return $ do
-          logRewrite "Redundant.RestrictCombine.DBV2" q
-          replace q $(v "q1") |])
-
-restrictCombinePropLeft :: VLRule ()
-restrictCombinePropLeft q =
-  $(pattern 'q "R2 (CombineVec (CompExpr1L e1 (q1)) (ProjectAdmin p1 (qs=SelectExpr e2 (q2))) (R1 ((q3) RestrictVec (NotVec (CompExpr1L e3 (q4))))))"
-    [| do
-        -- all selections and predicates must be performed on the same input
-        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3") && $(v "q1") == $(v "q4")
-        -- all selection expressions must be the same
-        predicate $ $(v "e1") == $(v "e2") && $(v "e1") == $(v "e3")
-
-        case $(v "p1") of
-          (DescrIdentity, PosNumber) -> return ()
-          _                          -> fail "no match"
-
-        return $ do
-          logRewrite "Redundant.RestrictCombine.PropLeft/2" q
-          void $ replaceWithNew q $ UnOp (ProjectRename (STPosCol, STNumber)) $(v "qs") |])
-
-
--- Clean up the remains of a selection pattern after the CombineVec
--- part has been removed by rule Redundant.RestrictCombine.PropLeft
-cleanupSelect :: VLRule ()
-cleanupSelect q =
-  $(pattern 'q "(ProjectRename p1 (qs=SelectExpr e1 (q1))) PropRename (Segment (ProjectAdmin p2 (SelectExpr e2 (q2))))"
-    [| do
-        predicate $ $(v "e1") == $(v "e2")
-        predicate $ $(v "q1") == $(v "q2")
-
-        case $(v "p1") of
-          (STPosCol, STNumber) -> return ()
-          _                    -> fail "no match"
-
-        case $(v "p2") of
-          (DescrIdentity, PosNumber) -> return ()
-          _                          -> fail "no match"
-
-        return $ do
-          logRewrite "Redundant.CleanupSelect" q
-          void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrPosCol, PosNumber)) $(v "qs") |])
-
-{-
-ifToSelect :: VLRule ()
-ifToSelect q =
-  $(pattern 'q "(R2 (CombineVec (CompExpr1 e1) (SelectExpr e2 (_)) ())) PropRename (Segment (ProjectAdmin p (SelectExpr e (qv2))))"
-
--}
-
-{-
-foo :: VLRule ()
-foo q =
-  $(pattern 'q "(R2 (CombineVec (_) (qs1=SelectExpr e (q1)) (_))) PropRename (qs2)"
-    [| do
-        predicate $ $(v "qs1") == $(v "qs2")
-
-        return $ do
-          logRewrite "Redundant.foo" q
--}
 
 
 pullRestrictThroughPair :: VLRule ()

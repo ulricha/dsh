@@ -134,8 +134,8 @@ inferVectorTypeBinOp s1 s2 op =
     ZipL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
     CartProductL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductL"
-    -- FIXME check that the join predicate is compatible with the input schemas.
-    ThetaJoin    _ -> reqValVectors s1 s2 (\w1 w2 -> let t = ValueVector (w1 + w2) in VPropPair t t) "ThetaJoin"
+    EquiJoin _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoin"
+    EquiJoinL _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinL"
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 

@@ -94,7 +94,8 @@ inferCardOneBinOp c1 c2 op =
     PairL -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
     CartProductL -> return $ VPropTriple False False False
-    ThetaJoin _ -> return $ VPropPair False False
+    EquiJoin _ _ -> return $ VPropTriple False False False
+    EquiJoinL _ _ -> return $ VPropTriple False False False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

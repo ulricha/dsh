@@ -89,7 +89,9 @@ seed (BinOp op _ _) =
     PairA              -> vPropSeed
     PairL              -> vPropSeed
     CartProduct        -> vPropTripleSeed
-    ThetaJoin _       -> vPropPairSeed
+    CartProductL       -> vPropTripleSeed
+    EquiJoin _ _       -> vPropTripleSeed
+    EquiJoinL _ _      -> vPropTripleSeed
     
 seed (TerOp op _ _ _) =
   case op of

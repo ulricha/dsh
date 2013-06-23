@@ -112,7 +112,8 @@ inferEmptyBinOp e1 e2 op =
     ZipL -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProductL -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    ThetaJoin    _ -> mapUnp e1 e2 (\ue1 ue2 -> let e = ue1 || ue2 in VPropPair e e)
+    EquiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    EquiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =

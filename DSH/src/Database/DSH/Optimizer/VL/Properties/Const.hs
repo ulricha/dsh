@@ -322,13 +322,25 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME check propVec components for correctness/preciseness
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
-    ThetaJoin _ -> do
+    EquiJoin _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 
       let constCols = cols1 ++ cols2
-          constProperty = DBVConst (ConstDescr $ N 1) constCols
-      return $ VPropPair constProperty constProperty
+
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+      -- FIXME check propVec components for correctness/preciseness
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+
+    EquiJoinL _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+      -- FIXME check propVec components for correctness/preciseness
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op =
