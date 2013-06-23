@@ -65,8 +65,6 @@ redundantRulesBottomUp = [ pairFromSameSource
 redundantRulesTopDown :: VLRuleSet TopDownProps
 redundantRulesTopDown = []
 
--- Eliminate the pattern that arises from a filter: Combination of CombineVec, RestrictVec and RestrictVec(Not).
-
 introduceSelectExpr :: VLRule ()
 introduceSelectExpr q =
   $(pattern 'q "R1 ((q1) RestrictVec (CompExpr1L e (q2)))"
@@ -75,9 +73,7 @@ introduceSelectExpr q =
 
         return $ do
           logRewrite "Redundant.SelectExpr" q
-          selectNode <- insert $ UnOp (SelectExpr $(v "e")) $(v "q1")
-          void $ replaceWithNew q $ UnOp (ProjectAdmin (DescrIdentity, PosNumber)) selectNode |])
-
+          void $ replaceWithNew q $ UnOp (SelectExpr $(v "e")) $(v "q1") |])
 
 pullRestrictThroughPair :: VLRule ()
 pullRestrictThroughPair q =
