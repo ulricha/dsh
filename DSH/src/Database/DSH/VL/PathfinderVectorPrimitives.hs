@@ -3,6 +3,9 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
+       
+import           Debug.Trace
+import           Text.Printf
 
 import           Data.Maybe
 
@@ -78,6 +81,9 @@ transProj target VL.STPosCol   = (target, pos)
 transProj target VL.STDescrCol = (target, descr)
 transProj _      VL.STNumber   = $impossible
 
+keepItems :: [DBCol] -> (ProjInf -> ProjInf)
+keepItems cols projs = projs ++ [ colP $ itemi i | i <- cols ]
+
 -- Compilation of VL expressions (Expr1, Expr2)
 
 type ExprComp r a = StateT Int (GraphM r PFAlgebra) a
@@ -89,7 +95,7 @@ freshCol = do
   return $ itemi' i
 
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
-runExprComp m = evalStateT m 1000000000
+runExprComp m = evalStateT m 1
 
 specialComparison :: AlgNode -> AttrName -> AttrName -> String -> ExprComp r (AlgNode, AttrName)
 specialComparison n leftArg rightArg op = do
@@ -101,32 +107,35 @@ specialComparison n leftArg rightArg op = do
   andNode  <- lift $ oper "||" orCol opCol eqCol eqNode
   return (andNode, orCol)
 
-compileExpr1' :: AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
-compileExpr1' n (VL.App1 (VL.COp VL.LtE) e1 e2) = do
-  (n1, c1) <- compileExpr1' n e1
-  (n2, c2) <- compileExpr1' n1 e2
+compileExpr1' :: [DBCol] -> AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
+compileExpr1' cols n (VL.App1 (VL.COp VL.LtE) e1 e2) = do
+  (n1, c1) <- compileExpr1' cols n e1
+  (n2, c2) <- compileExpr1' cols n1 e2
   specialComparison n2 c1 c2 "<"
-compileExpr1' n (VL.App1 (VL.COp VL.GtE) e1 e2) = do
-  (n1, c1) <- compileExpr1' n e1
-  (n2, c2) <- compileExpr1' n1 e2
+compileExpr1' cols n (VL.App1 (VL.COp VL.GtE) e1 e2) = do
+  (n1, c1) <- compileExpr1' cols n e1
+  (n2, c2) <- compileExpr1' cols n1 e2
   specialComparison n2 c1 c2 ">"
 
-compileExpr1' n (VL.App1 op e1 e2)   = do
+compileExpr1' cols n (VL.App1 op e1 e2)   = do
   col      <- freshCol
-  (n1, c1) <- compileExpr1' n e1
-  (n2, c2) <- compileExpr1' n1 e2
+  (n1, c1) <- compileExpr1' cols n e1
+  (n2, c2) <- compileExpr1' cols n1 e2
   nr <- lift $ oper (show op) col c1 c2 n2
   return (nr, col)
-compileExpr1' n (VL.Column1 dbcol)   = return (n, itemi dbcol)
-compileExpr1' n (VL.Constant1 constVal) = do
+compileExpr1' cols n (VL.Column1 dbcol)   = do
+  col <- freshCol
+  nr <- trace (printf "fresh %s" col) $ lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
+  return (nr, col)
+compileExpr1' cols n (VL.Constant1 constVal) = do
   col <- freshCol
   let ty  = algConstType constVal
       val = algVal constVal
   nr <- lift $ attach col ty val n
   return (nr, col)
 
-compileExpr1 :: AlgNode -> VL.Expr1 -> GraphM r PFAlgebra (AlgNode, AttrName)
-compileExpr1 n e = runExprComp (compileExpr1' n e)
+compileExpr1 :: [DBCol] -> AlgNode -> VL.Expr1 -> GraphM r PFAlgebra (AlgNode, AttrName)
+compileExpr1 cols n e = runExprComp (compileExpr1' cols n e)
 
 compileExpr2' :: AlgNode -> VL.Expr2 -> ExprComp r (AlgNode, AttrName)
 compileExpr2' n (VL.App2 (VL.COp VL.LtE) e1 e2) = do
@@ -186,7 +195,7 @@ applyBinExpr rightWidth e q1 q2 = do
 instance VectorAlgebra PFAlgebra where
 
   compExpr1 expr (DBV q _) = do
-    (qr, cr) <- compileExpr1 q expr
+    (qr, cr) <- compileExpr1 [1] q expr
     qp <- proj [colP descr, colP pos, (item, cr)] qr
     return $ DBV qp [1]
 
@@ -297,7 +306,9 @@ instance VectorAlgebra PFAlgebra where
   notVec (DBV d _) = flip DBV [1] <$> doNot d
 
   distPrim (DBP q1 cols) (DBV q2 _) = do
-    qr <- crossM (proj [(itemi i, itemi i) | i <- cols] q1) (return q2)
+    qr <- crossM 
+            (proj [(itemi i, itemi i) | i <- cols] q1) 
+            (proj [colP descr, colP pos] q2)
     r <- proj [(posnew, pos), (posold, descr)] q2
     return (DBV qr cols, PropVector r)
 
@@ -461,7 +472,7 @@ instance VectorAlgebra PFAlgebra where
 
   selectExpr expr (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    (qe, ce) <- compileExpr1 q expr
+    (qe, ce) <- compileExpr1 cols q expr
     qr <- projM (pf [colP descr, colP pos])
           $ eqJoinM pos pos'
               (return q)
@@ -510,7 +521,7 @@ instance VectorAlgebra PFAlgebra where
                                 (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
     return $ (DBV d1 colsg, DBV v colse, PropVector p)
 
-  cartProduct (DBV q1 cols1) (DBV q2 cols2) = do
+  cartProduct (DBV q1 cols1) (DBV q2 cols2) = trace "foo" $ do
     let itemProj1  = map (colP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zip (map itemi cols2') (map itemi cols2)
@@ -524,37 +535,26 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- proj [(posold, pos'), (posnew, pos)] q
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
-
-{-
-  thetaJoin joinExpr (DBV q1 cols1) (DBV q2 cols2) = do
-    let leftWidth  = length cols1
-        rightWidth = length cols2
-        itemProj1  = map (colP . itemi) cols1
-        cols2'     = [(leftWidth + 1) .. (leftWidth + rightWidth)]
+    
+  equiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    let itemProj1  = map (colP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zip (map itemi cols2') (map itemi cols2)
         itemProj2  = map (colP . itemi) cols2'
-
-        allResultColumns = cols1 ++ cols2'
-
-    -- FIXME handle arbitrary join expressions with a post-join selection
-    case joinExpr of
-      (VL.App1 op (VL.Column1 col1) (VL.Column1 col2)) -> do
-        let (leftJoinCol, rightJoinCol) = if col1 `elem` cols1 && col2 `elem` cols2'
-                                          then (col1, col2)
-                                          else if col1 `elem` cols2' && col2 `elem` cols1
-                                               then (col2, col1)
-                                               else error "Pathfinder.ThetaJoin: could not map join columns to inputs"
-        qj <- thetaJoinM [(itemi leftJoinCol, itemi rightJoinCol, show op)]
-                (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
-                (proj ((pos'', pos) : shiftProj2) q2)
-        qp <- rownum pos''' [pos', pos''] Nothing qj
-        qr1 <- proj ([colP descr, (pos, pos''')] ++ itemProj1 ++ itemProj2) qp
-        qr2 <- proj ([(descr, pos'), (pos, pos''')] ++ itemProj1 ++ itemProj2) qp
-        return (DBV qr1 allResultColumns, DBV qr2 allResultColumns)
-      _                                                ->
-        error "arbitrary join expressions not supported"
--}
-
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+    q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] Nothing
+           $ thetaJoinM [(tmpCol, tmpCol', "==")]
+             (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
+             (proj ([(pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
+    qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [(posold, pos'), (posnew, pos)] q
+    qp2 <- proj [(posold, pos''), (posnew, pos)] q
+    return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
+  
+  equiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = undefined
+  
   selectPos (DBV qe cols) op (DBP qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     qx <- crossM
