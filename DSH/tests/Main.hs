@@ -11,6 +11,8 @@ module Main where
 import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
+import ComprehensionTests
+
 #if !defined(isDBPH) & !defined(isX100)
 #define isFerry
 #endif
@@ -342,11 +344,20 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map span" $ prop_map_span
         , testProperty "map break" $ prop_map_break
         ]
+        
+tests_comprehensions :: Test
+tests_comprehensions = testGroup "Comprehensions"
+    [ testProperty "eqjoin" prop_eqjoin
+    , testProperty "eqjoinproj" prop_eqjoinproj
+    , testProperty "eqjoinpred" prop_eqjoinpred
+    , testProperty "eqjoin3" prop_eqjoin3
+    , testProperty "nestjoin" prop_nestjoin
+    ]
 
 tests :: [Test]
 tests =
     [ 
-      tests_types
+{-
     , tests_boolean
     , tests_tuples
     , tests_numerics
@@ -354,8 +365,9 @@ tests =
     , tests_either
     , tests_lists
     , tests_lifted
+-}    
+    tests_comprehensions
     ]
-
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             => (Q a -> Q b)
@@ -1069,3 +1081,43 @@ prop_negate_integer = makeProp Q.negate negate
 
 prop_negate_double :: Double -> Property
 prop_negate_double = makePropDouble Q.negate negate
+                   
+-- * Comprehensions
+prop_eqjoin :: ([Integer], [Integer]) -> Property
+prop_eqjoin = makeProp eqjoin 
+                       (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , x == y ])
+
+prop_eqjoinproj :: ([Integer], [Integer]) -> Property
+prop_eqjoinproj = 
+  makeProp eqjoinproj (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , (2 * x) == y ])
+  
+prop_eqjoinpred :: (Integer, [Integer], [Integer]) -> Property
+prop_eqjoinpred =
+  makeProp eqjoinpred
+           (\(x', xs, ys) ->
+             [ (x, y)
+             | x <- xs
+             , y <- ys
+             , x == y
+             , x > x'
+             ])
+
+prop_eqjoin3 :: ([Integer], [Integer], [Integer]) -> Property
+prop_eqjoin3 =
+  makeProp eqjoin3
+           (\(xs, ys, zs) ->
+             [ (x, y, z)
+             | x <- xs
+             , y <- ys
+             , z <- zs
+             , x == y
+             , y == z
+             ])
+             
+prop_nestjoin :: ([Integer], [Integer]) -> Property
+prop_nestjoin =
+  makeProp nestjoin
+           (\(xs, ys) ->
+             [ (x, [ y | y <- ys, x == y ])
+             | x <- xs
+             ])

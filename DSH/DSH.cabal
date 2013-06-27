@@ -53,6 +53,7 @@ Extra-source-files:  examples/Example01.hs
                      examples/Example03.hs
                      examples/Makefile
                      tests/Main.hs
+		     tests/ComprehensionTests.hs
                      tests/Makefile
 
 Cabal-version:       >= 1.8
@@ -215,7 +216,8 @@ Executable vlprop
                   
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
-    Main-is:    tests/Main.hs
+    Hs-Source-Dirs: tests
+    Main-is:       Main.hs
     Build-depends: base               >= 4.2 && < 5,
                    containers,
                    QuickCheck         >= 2.4,
@@ -231,7 +233,8 @@ Test-Suite Flattening_x100
     
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
-    Main-is:    tests/Main.hs
+    Hs-Source-Dirs : tests
+    Main-is:       Main.hs
     Build-depends: base               >= 4.2 && < 5,
                    QuickCheck         >= 2.4,
                    DSH                >= 0.7.8.1,
