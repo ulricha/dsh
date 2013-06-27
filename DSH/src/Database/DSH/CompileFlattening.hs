@@ -10,11 +10,14 @@ import           Database.DSH.Impossible
 import qualified Database.DSH.CL.Lang as CL
 import qualified Database.DSH.CL.Primitives as CP
 import qualified Database.DSH.Common.Data.Type as T
+import qualified Database.DSH.Common.Data.Val as V
+import qualified Database.DSH.Common.Data.Op as O
 
 import           Database.DSH.Internals as D
 import           Data.Text (unpack)
 
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 import           Control.Monad
 import           Control.Monad.State
@@ -60,7 +63,7 @@ getTableInfoFun n = do
 -- | Translate a DSH frontend expression into the internal comprehension-based
 -- language
 toComprehensions :: (String -> IO [(String, T.Type -> Bool)]) -> Exp a -> IO CL.Expr
-toComprehensions f e = runN f $ translate e
+toComprehensions f e = fmap resugar (runN f $ translate e)
 
 -- | Execute the transformation computation. During
 -- compilation table information can be retrieved from
@@ -175,6 +178,56 @@ legalType tn cn nr t f = case f t of
                             True -> True
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
+
+-- Restore the original comprehension form from the desugared concatMap form.
+resugar :: CL.Expr -> CL.Expr
+resugar expr = 
+  case expr of 
+    tab@(CL.Table _ _ _ _) -> tab
+    CL.App t e1 e2 -> CL.App t (resugar e1) (resugar e2)
+
+    CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
+    
+    cm@(CL.AppE2 t (CL.Prim2 CL.ConcatMap _) body xs) ->
+      let xs' = resugar xs
+      in 
+    
+      case resugar body of
+        -- concatMap (\x -> [e]) xs
+        -- => [ e | x < xs ]
+        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Const _ (V.ListV []))) ->
+          resugar $ CL.Comp t e [CL.BindQ v xs']
+
+        -- concatMap (\x -> [ e | qs ]) xs
+        -- => [ e | x <- xs, qs ]
+        CL.Lam _ v (CL.Comp _ e qs) ->
+          resugar $ CL.Comp t e (CL.BindQ v xs' : qs)
+          
+        _ -> cm
+
+    CL.AppE2 t p1 e1 e2 -> CL.AppE2 t p1 (resugar e1) (resugar e2)
+    CL.BinOp t op e1 e2 -> CL.BinOp t op (resugar e1) (resugar e2)
+    CL.Lam t v e1 -> CL.Lam t v (resugar e1)
+    
+    CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
+    constant@(CL.Const _ _) -> constant
+    var@(CL.Var _ _) -> var
+    comp@(CL.Comp t body qs) -> 
+      if changed 
+      then resugar $ CL.Comp t body' qs'
+      else CL.Comp t body' qs
+
+      where -- We fold over the qualifiers and look for local rewrite possibilities
+            resugarQual :: CL.Qualifier -> (Bool, [CL.Qualifier]) -> (Bool, [CL.Qualifier])
+            resugarQual q (changedAcc, qsAcc) =
+              case q of
+                -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
+                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `S.member` fvs -> (True, CL.GuardQ p : qsAcc)
+                _                                                            -> (changedAcc, q : qsAcc)
+                
+            (changed, qs') = foldr resugarQual (False, []) qs
+            body' = resugar body
+            fvs = CL.freeVars comp
 
 translateType :: Type a -> T.Type
 translateType UnitT = T.unitT
