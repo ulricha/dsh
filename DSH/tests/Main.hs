@@ -1,7 +1,13 @@
-{-# LANGUAGE TemplateHaskell, GADTs, TypeFamilies, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 {-# OPTIONS_GHC -Wall -O3 -fno-warn-orphans -fno-warn-overlapping-patterns #-}
 module Main where
-
+       
 import qualified Database.DSH as Q
 import Database.DSH (Q, QA)
 
@@ -11,9 +17,9 @@ import Database.DSH (Q, QA)
 
 -- import Database.DSH.Interpreter (fromQSQL)
 #ifdef isDBPH
-import Database.DSH.Flattening (fromQ)
+import Database.DSH.Compiler (fromQ)
 #elif isX100
-import Database.DSH.Flattening (fromQX100)
+import Database.DSH.Compiler (fromQX100)
 #define isDBPH
 #else
 import Database.DSH.Compiler (fromQ)
