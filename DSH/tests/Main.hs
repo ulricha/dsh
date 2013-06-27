@@ -356,8 +356,7 @@ tests_comprehensions = testGroup "Comprehensions"
 
 tests :: [Test]
 tests =
-    [ 
-    , tests_boolean
+    [ tests_boolean
     , tests_tuples
     , tests_numerics
     , tests_maybe
