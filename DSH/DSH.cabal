@@ -245,19 +245,3 @@ Test-Suite Flattening_TA
     cpp-options: -DisDBPH
     GHC-Options:       -O3 -Wall 
     extensions: CPP
-
-Test-Suite Ferry_DSH
-    type:       exitcode-stdio-1.0
-    Main-is:    tests/Main.hs
-    Build-depends: base               >= 4.2 && < 5,
-                   QuickCheck         >= 2.4,
-                   DSH                >= 0.7.8.1,
-                   text               >= 0.11,
-                   containers,
-                   HDBC-postgresql    >= 2.3,
-                   HDBC               >= 2.3,
-                   derive             >= 2.5,
-                   test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework >= 0.6
-    GHC-Options:       -O3 -Wall 
-    extensions: CPP
