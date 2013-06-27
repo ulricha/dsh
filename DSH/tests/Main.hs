@@ -357,7 +357,6 @@ tests_comprehensions = testGroup "Comprehensions"
 tests :: [Test]
 tests =
     [ 
-{-
     , tests_boolean
     , tests_tuples
     , tests_numerics
@@ -365,8 +364,7 @@ tests =
     , tests_either
     , tests_lists
     , tests_lifted
--}    
-    tests_comprehensions
+    , tests_comprehensions
     ]
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)

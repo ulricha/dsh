@@ -124,7 +124,7 @@ fromQ c (Q a) =  do
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
 fromQX100 c (Q a) =  do
-                  (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
+                  (q, _) <- nkl2X100Alg <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) a
                   frExp <$> (executeX100Query c $ X100 q)
                   
 -- | Debugging function: return the CL (Comprehension Language) representation of a
