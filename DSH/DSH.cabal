@@ -79,7 +79,8 @@ Library
                      aeson >= 0.6.0.0,
                      uniplate,
                      X100Client >= 0.0.2,
-                     TableAlgebra >= 2.0.0
+                     TableAlgebra >= 2.0.0,
+                     semigroups
                      
   Hs-source-dirs:    src
   GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
