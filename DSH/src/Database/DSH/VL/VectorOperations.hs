@@ -4,6 +4,8 @@ module Database.DSH.VL.VectorOperations where
 
 import           Database.DSH.Impossible
 
+import           Debug.Trace
+
 import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
 
 import           Database.DSH.VL.Data.GraphVector
@@ -17,7 +19,6 @@ import           Database.DSH.Common.Data.JoinExpr
 import qualified Database.DSH.Common.Data.Val as V
 
 import           Control.Applicative
-
 
 takeWithS ::  Shape -> Shape -> Graph VL Shape
 takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
@@ -112,6 +113,17 @@ equiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)
   lyt2' <- chainReorder p2 lyt2
   return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 equiJoinLift _ _ _ _ = $impossible
+
+nestJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  q1' <- segment q1
+  vvJoin <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  ValueVector qp lytP <- sndL vvJoin
+  return $ ValueVector q1 (Pair lyt1 (Nest qp lytP))
+nestJoinPrim _ _ _ _ = $impossible
+
+nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinLift = undefined
 
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
@@ -552,7 +564,7 @@ fstA e1 = error $ "fstA: " ++ show e1
 
 fstL ::  Shape -> Graph VL Shape
 fstL (ValueVector q (Pair p1 _p2)) = do
-                                        let(p1', cols) = projectFromPos p1
+                                        let (p1', cols) = projectFromPos p1
                                         proj <- projectL q cols
                                         return $ ValueVector proj p1'
 fstL _ = $impossible

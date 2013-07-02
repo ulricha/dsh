@@ -20,14 +20,14 @@ Module containing some primitive operations in AST form.
 All of these are helper functions for the flattening transformation
 -}
 module Database.DSH.FKL.FKLPrimitives where
-    
-import           Database.DSH.FKL.Data.FKL as F
-import           Database.DSH.Common.Data.Val
-import           Database.DSH.Common.Data.Op
-import           Database.DSH.Common.Data.Type
-import           Database.DSH.Common.Data.JoinExpr
+       
+import Database.DSH.FKL.Data.FKL as F
+import Database.DSH.Common.Data.Val
+import Database.DSH.Common.Data.Op
+import Database.DSH.Common.Data.Type
+import Database.DSH.Common.Data.JoinExpr
 
-import           Control.Monad
+import Control.Monad
 \end{code}
 %endif
 
@@ -187,7 +187,22 @@ equiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
 equiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
 equiJoinLPrim je1 je2 e1 e2 = let t1@(ListT t1') = typeOf e1
                                   t2@(ListT t2') = typeOf e2
-                              in F.PApp2 t2 (F.EquiJoin je1 je2 (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+                              in F.PApp2 t2 (F.EquiJoinL je1 je2 (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+
+nestJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
+nestJoinVal je1 je2 t = doubleArgClo t "nestJoin_e1" "nestJoin_e2" (nestJoinPrim je1 je2) (nestJoinLPrim je1 je2)
+                  
+nestJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+nestJoinPrim je1 je2 e1 e2 = let xst@(ListT xt) = typeOf e1
+                                 yst@(ListT yt) = typeOf e2
+                                 tr = listT $ pairT xt (listT yt)
+                             in F.PApp2 tr (F.NestJoin je1 je2 (xst .-> yst .-> tr)) e1 e2
+                         
+nestJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+nestJoinLPrim je1 je2 e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
+                                  yst@(ListT yt) = typeOf e2
+                                  tr = listT $ listT $ pairT xt yt
+                              in F.PApp2 tr (F.NestJoinL je1 je2 (xst .-> yst .-> tr)) e1 e2
 
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim

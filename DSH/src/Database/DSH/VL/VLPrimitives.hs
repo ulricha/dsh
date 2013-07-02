@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
 module Database.DSH.VL.VLPrimitives where
 
 import qualified Database.DSH.Common.Data.Op   as O
@@ -332,7 +333,7 @@ equiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
   r2 <- prop $ insertNode $ UnOp R2 r
   r3 <- prop $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
-
+  
 integerToDoubleA :: DBP -> GraphM r VL DBP
 integerToDoubleA (DBP c _) = dbp $ insertNode $ UnOp IntegerToDoubleA c
 

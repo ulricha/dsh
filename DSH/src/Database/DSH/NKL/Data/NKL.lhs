@@ -146,6 +146,7 @@ data Prim2Op = Map
              | DropWhile
              | CartProduct
              | EquiJoin JoinExpr JoinExpr
+             | NestJoin JoinExpr JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -165,6 +166,7 @@ instance Show Prim2Op where
   show DropWhile    = "dropWhile"
   show CartProduct  = "cartProduct"
   show (EquiJoin e1 e2)  = printf "equiJoin(%s, %s)" (show e1) (show e2)
+  show (EquiJoin e1 e2)  = printf "nestJoin(%s, %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o

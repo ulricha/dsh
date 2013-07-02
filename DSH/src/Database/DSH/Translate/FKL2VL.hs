@@ -3,6 +3,8 @@
 {-# LANGUAGE TupleSections   #-}
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
+       
+import           Debug.Trace
 
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
@@ -98,6 +100,8 @@ fkl2VL (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2VL arg1) (fkl2VL arg2) >>= uncurr
                 (CartProductL _) -> cartProductLift
                 (EquiJoin e1 e2 _) -> equiJoinPrim e1 e2
                 (EquiJoinL e1 e2 _) -> equiJoinLift e1 e2
+                (NestJoin e1 e2 _) -> nestJoinPrim e1 e2
+                (NestJoinL e1 e2 _) -> nestJoinLift e1 e2
                 (TakeWithS _) -> takeWithS
                 (TakeWithL _) -> takeWithL
                 (DropWithS _) -> dropWithS
@@ -167,5 +171,5 @@ insertTopProjections g = do
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL
 specializeVectorOps e =
-  let (opMap, shape, tagMap) = runGraph emptyVL (insertTopProjections $ fkl2VL e)
+  let (opMap, shape, tagMap) = trace (show e) $ runGraph emptyVL (insertTopProjections $ fkl2VL e)
   in QP.mkQueryPlan opMap shape tagMap

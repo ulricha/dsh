@@ -195,6 +195,7 @@ prim2Transform (N.Prim2 N.TakeWhile t) = takeWithVal t
 prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
+prim2Transform (N.Prim2 (N.NestJoin e1 e2) t) = nestJoinVal e1 e2 t
 \end{code}
 %endif
 
@@ -269,7 +270,6 @@ lift en   (N.If _ e1 e2 e3)        = do
                                       
                                       let e2'' = restrictPrim e2' e1' `cloLApp` restrictPrim en e1'
                                       let e3'' = restrictPrim e3' (notLPrim e1') `cloLApp` restrictPrim en (notLPrim e1')
-                                      
                                       pure $ combinePrim e1' e2'' e3''                                                                                                                                          
 lift en   (N.BinOp t o e1 e2)      = opPrimLM t o (lift en e1) (lift en e2)
 lift en   (N.Lam t arg e)          = do

@@ -343,13 +343,12 @@ unnestComprehensionHead expr = transform go expr
                  freeVars g == S.singleton y
                  = 
       case splitJoinPred p x y of
-        -- Just (leftExpr, rightExpr) -> trace "triggered" $ (Var tupType x, [BindQ x xs']) 
-        Just (leftExpr, rightExpr) -> trace "triggered" $ (headExpr, [BindQ x xs']) 
+        Just (leftExpr, rightExpr) -> (headExpr, [BindQ x xs']) 
           where
-            yt = typeOf ys
+            yt = elemT $ typeOf ys
             resType  = pairT xt (listT it)
             tupType  = pairT xt (listT yt)
-            joinType = listT xt .-> (listT yt .-> tupType)
+            joinType = listT xt .-> (listT yt .-> listT tupType)
             
             -- snd x
             ys' = AppE1 (listT yt) (Prim1 Snd (tupType .-> (listT yt))) (Var tupType x)
@@ -357,12 +356,15 @@ unnestComprehensionHead expr = transform go expr
             innerComp = Comp (listT it) g [BindQ y ys']
 
             -- (fst x, innerComp)
-            headExpr = AppE2 resType (Prim2 Pair (xt .-> (listT it .-> resType))) (Var xt x) innerComp
+            headExpr = AppE2 resType 
+                             (Prim2 Pair (xt .-> (listT it .-> resType))) 
+                             (AppE1 xt (Prim1 Fst (resType .-> xt)) (Var resType x))
+                             innerComp
 
-            xs'      = AppE2 tupType (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
+            xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
         Nothing -> (e, qs)
                
-    unnestHead e qs = trace ("not triggered " ++ (show e)) $ (e, qs)
+    unnestHead e qs = (e, qs)
                                                     
             
 opt :: Expr -> Expr

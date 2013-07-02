@@ -91,5 +91,7 @@ class VectorAlgebra a where
   equiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
   equiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
 
+  nestJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a DBV
+
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   
