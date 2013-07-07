@@ -34,7 +34,7 @@ import           Database.DSH.Common.Data.JoinExpr
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.CL.Lang
        
--- We push simple filters which might end up in a theta join towards the front
+-- We push simple filters which might end up in a equi join towards the front
 -- of the qualifier list as far as possible.
 pushFilters :: Expr -> Expr
 pushFilters expr = transform go expr
@@ -196,6 +196,7 @@ tupleAt expr pos = descend 1 (typeOf expr) expr
 -- Construct a tuple from a list of expressions. The tuple is constructed as
 -- right-deep nested pairs.
 constructTuple :: NonEmpty Expr -> Expr
+constructTuple (e :| []) = e
 constructTuple (e :| es) = foldr1 construct (e : es) 
   where
     construct :: Expr -> Expr -> Expr
@@ -204,8 +205,6 @@ constructTuple (e :| es) = foldr1 construct (e : es)
           tt = typeOf tup
           t  = pairT te tt
       in AppE2 t (Prim2 Pair (te .-> (tt .-> t))) e tup
-
-constructTuple (e :| []) = e
 
 -- From the list of expressions to be kept in the comprehension head, construct
 -- the tuple for the head which contains all those expressions and the list of
