@@ -229,7 +229,9 @@ Test-Suite Flattening_x100
                    X100Client         >= 0.0.2,
                    derive             >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework >= 0.6
+                   test-framework-hunit,
+                   test-framework >= 0.6,
+                   HUnit
     cpp-options: -DisX100
     GHC-Options:       -O3 -Wall 
     extensions: CPP
@@ -247,7 +249,9 @@ Test-Suite Flattening_TA
                    HDBC               >= 2.3,
                    derive             >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework >= 0.6
+                   test-framework-hunit,
+                   test-framework >= 0.6,
+                   HUnit
     cpp-options: -DisDBPH
     GHC-Options:       -O3 -Wall 
     extensions: CPP

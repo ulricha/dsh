@@ -9,9 +9,9 @@
 module Main where
        
 import qualified Database.DSH as Q
-import Database.DSH (Q, QA)
+import           Database.DSH (Q, QA)
 
-import ComprehensionTests
+import           ComprehensionTests
 
 #if !defined(isDBPH) & !defined(isX100)
 #define isFerry
@@ -19,41 +19,43 @@ import ComprehensionTests
 
 -- import Database.DSH.Interpreter (fromQSQL)
 #ifdef isDBPH
-import Database.DSH.Compiler (fromQ)
+import           Database.DSH.Compiler (fromQ)
 #elif isX100
-import Database.DSH.Compiler (fromQX100)
+import           Database.DSH.Compiler (fromQX100)
 #define isDBPH
 #else
-import Database.DSH.Compiler (fromQ)
+import           Database.DSH.Compiler (fromQ)
 #endif
 
 #ifdef isX100
-import Database.X100Client
+import           Database.X100Client
 #endif
 
 #ifndef isX100
 import qualified Database.HDBC as HDBC
-import Database.HDBC.PostgreSQL
+import           Database.HDBC.PostgreSQL
 #endif
 
 
-import System.Environment
-import Test.Framework (Test, defaultMainWithArgs, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck
-import Test.QuickCheck.Monadic
+import           System.Environment
+import           Test.Framework (Test, defaultMainWithArgs, testGroup)
+import           Test.Framework.Providers.HUnit
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.HUnit(assertEqual, Assertion)
+import           Test.QuickCheck
+import           Test.QuickCheck.Monadic
 
-import Data.DeriveTH
+import           Data.DeriveTH
 
-import Data.List
-import Data.Maybe
-import Data.Either
-import GHC.Exts
+import           Data.List
+import           Data.Maybe
+import           Data.Either
+import           GHC.Exts
 
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text as Text
 
-import Data.Char
+import           Data.Char
 
 instance Arbitrary Text where
   arbitrary = fmap Text.pack arbitrary
@@ -351,19 +353,26 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "eqjoinproj" prop_eqjoinproj
     , testProperty "eqjoinpred" prop_eqjoinpred
     , testProperty "eqjoin3" prop_eqjoin3
+    , testProperty "eqjoin_nested" prop_eqjoin_nested
     , testProperty "nestjoin" prop_nestjoin
+    ]
+    
+tests_hunit :: Test
+tests_hunit = testGroup "HUnit"
+    [ testCase "heqjoin_nested1" heqjoin_nested1
     ]
 
 tests :: [Test]
 tests =
-    [ tests_boolean
-    , tests_tuples
-    , tests_numerics
-    , tests_maybe
-    , tests_either
-    , tests_lists
-    , tests_lifted
-    , tests_comprehensions
+    [ -- tests_boolean
+    -- , tests_tuples
+    -- , tests_numerics
+    -- , tests_maybe
+    -- , tests_either
+    -- , tests_lists
+    -- , tests_lifted
+    tests_comprehensions
+    , tests_hunit
     ]
 
 makeProp :: (Eq b, QA a, QA b, Show a, Show b)
@@ -1111,6 +1120,16 @@ prop_eqjoin3 =
              , y == z
              ])
              
+prop_eqjoin_nested :: ([(Integer, [Integer])], [Integer]) -> Property
+prop_eqjoin_nested =
+  makeProp eqjoin_nested
+           (\(xs, ys) ->
+             [ (x, y)
+             | x <- xs
+             , y <- ys
+             , fst x == y
+             ])
+
 prop_nestjoin :: ([Integer], [Integer]) -> Property
 prop_nestjoin =
   makeProp nestjoin
@@ -1118,3 +1137,27 @@ prop_nestjoin =
              [ (x, [ y | y <- ys, x == y ])
              | x <- xs
              ])
+             
+-------------------------------------------------------------------------
+-- HUnit tests
+
+makeEqAssertion :: (Show a, Eq a, QA a) => String -> Q.Q a -> a -> Assertion
+makeEqAssertion msg q r = do
+#ifdef isX100
+    c  <- getConn
+    r' <- fromQX100 c $ q
+#else
+    c  <- getConn
+    r' <- fromQ c q
+    HDBC.disconnect c
+#endif
+    assertEqual msg r r'
+  
+heqjoin_nested1 :: Assertion
+heqjoin_nested1 = makeEqAssertion "heqjoin_nested" eqjoin_nested1 res
+  where
+    res = [ ((20, ['b']), 20)
+          , ((30, ['c', 'd']), 30)
+          , ((30, ['c', 'd']), 30)
+          , ((40, []), 40)
+          ]
