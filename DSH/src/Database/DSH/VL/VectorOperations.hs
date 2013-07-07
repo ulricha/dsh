@@ -4,8 +4,6 @@ module Database.DSH.VL.VectorOperations where
 
 import           Control.Applicative
 
-import           Debug.Trace
-
 import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
 
 import           Database.DSH.Impossible
@@ -80,15 +78,15 @@ zipLift _ _ = error "zipLift: Should not be possible"
 
 cartProductPrim :: Shape -> Shape -> Graph VL Shape
 cartProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (q', _, _) <- cartProduct q1 q2
-    return $ ValueVector q' $ zipLayout lyt1 lyt2
+    (q', p1, p2) <- cartProduct q1 q2
+    lyt1'        <- chainReorder p1 lyt1
+    lyt2'        <- chainReorder p2 lyt2
+    return $ ValueVector q' $ zipLayout lyt1' lyt2'
 cartProductPrim _ _ = $impossible
 
 cartProductLift :: Shape -> Shape -> Graph VL Shape
 cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', p1, p2) <- cartProductL q1 q2
-    -- FIXME not sure if this is correct.
-    -- FIXME do we really need a PropVector here instead of a RenameVector?
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
@@ -96,15 +94,15 @@ cartProductLift _ _ = $impossible
 
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (q', _, _) <- equiJoin e1 e2 q1 q2
-    return $ ValueVector q' $ zipLayout lyt1 lyt2
+    (q', p1, p2) <- equiJoin e1 e2 q1 q2
+    lyt1'        <- chainReorder p1 lyt1
+    lyt2'        <- chainReorder p2 lyt2
+    return $ ValueVector q' $ zipLayout lyt1' lyt2'
 equiJoinPrim _ _ _ _ = $impossible
 
 equiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', p1, p2) <- equiJoinL e1 e2 q1 q2
-    -- FIXME not sure if this is correct.
-    -- FIXME do we really need a PropVector here instead of a RenameVector?
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
