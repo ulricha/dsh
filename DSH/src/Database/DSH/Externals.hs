@@ -6,8 +6,6 @@
 
 module Database.DSH.Externals where
        
--- FIXME Don't export combinators (>>), (>>=), guard
-
 import Database.DSH.Internals
 import Database.DSH.Impossible
 import Database.DSH.TH
