@@ -171,5 +171,5 @@ insertTopProjections g = do
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL
 specializeVectorOps e =
-  let (opMap, shape, tagMap) = trace (show e) $ runGraph emptyVL (insertTopProjections $ fkl2VL e)
+  let (opMap, shape, tagMap) = runGraph emptyVL (insertTopProjections $ fkl2VL e)
   in QP.mkQueryPlan opMap shape tagMap

@@ -117,7 +117,7 @@ nestJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
 nestJoinPrim _ _ _ _ = $impossible
 
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
-nestJoinLift = undefined
+nestJoinLift = error "nestJoinLift not implemented"
 
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do

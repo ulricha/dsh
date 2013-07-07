@@ -367,7 +367,11 @@ unnestComprehensionHead expr = transform go expr
                                                     
             
 opt :: Expr -> Expr
-opt e = if (e /= e') 
-        then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
-        else trace (show e) e'
-  where e' = unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
+opt e = e'
+    {-
+    if (e /= e') 
+    then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
+    else trace (show e) e'
+    -}
+  where 
+    e' = unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
