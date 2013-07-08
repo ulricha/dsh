@@ -186,6 +186,18 @@ resugar expr =
     tab@(CL.Table _ _ _ _) -> tab
     CL.App t e1 e2 -> CL.App t (resugar e1) (resugar e2)
 
+    -- This does not originate from a source comprehension, but is a
+    -- normalization step to get as much as possible into comprehension form
+    -- map (\x -> body) xs => [ body | x <- xs ]
+    CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
+        resugar $ CL.Comp t body [CL.BindQ x xs]
+  
+    -- Another normalization step: Transform filter combinators to
+    -- comprehensions
+    -- filter (\x -> p) xs => [ x | x <- xs, p ]
+    CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x pred) xs ->
+        resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs, CL.GuardQ pred]
+        
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
     cm@(CL.AppE2 t (CL.Prim2 CL.ConcatMap _) body xs) ->

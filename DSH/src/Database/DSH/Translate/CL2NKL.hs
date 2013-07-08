@@ -85,9 +85,14 @@ desugar t e qs =
   -- We reduce a comprehension with multiple qualifiers to a comprehension with
   -- one qualifier, which we can then handle easily.
   case productify e qs of 
+    -- Comprehensions with a single generator and only the bound variable in the
+    -- head can simply be removed.
+    (CL.Var _ x, CL.BindQ x' xs) | x == x' -> expr xs
+  
     (e', CL.BindQ x xs) -> expr $ CP.map (CL.Lam (xt .-> rt) x e') xs
       where xt = elemT $ typeOf xs
             rt = elemT t
+    
     (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e' empty) empty
       where empty = CL.Const t (ListV [])
 
