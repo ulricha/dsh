@@ -170,11 +170,13 @@ nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> unique
 nubLift _ = error "nubLift: Should not be possible"
 
 numberPrim ::  Shape -> Graph VL Shape
-numberPrim (ValueVector q lyt) = flip ValueVector lyt <$> number q
+numberPrim (ValueVector q _) = 
+    ValueVector <$> number q <*> (pure $ InColumn 1)
 numberPrim _ = error "numberPrim: Should not be possible"
 
 numberLift ::  Shape -> Graph VL Shape
-numberLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> numberL q
+numberLift (ValueVector d (Nest q _)) = 
+    ValueVector d <$> (Nest <$> numberL q <*> (pure $ InColumn 1))
 numberLift _ = error "numberLift: Should not be possible"
 
 initPrim ::  Shape -> Graph VL Shape
