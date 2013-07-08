@@ -343,12 +343,13 @@ numberVal :: Type -> Expr
 numberVal t = singleArgClo t "number_v" numberPrim numberLPrim
 
 numberPrim :: Expr -> Expr
-numberPrim e1 = let t1@(ListT _) = typeOf e1
-               in F.PApp1 t1 (F.Number $ t1 .-> (ListT IntT)) e1
+numberPrim e1 = let (ListT t) = typeOf e1
+                in F.PApp1 (ListT (PairT t IntT )) (F.Number $ (ListT t) .-> (ListT (PairT t IntT ))) e1
 
 numberLPrim :: Expr -> Expr
-numberLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                in F.PApp1 t1 (F.NumberL $ t1 .-> (ListT IntT)) e1
+numberLPrim e1 = let t1@(ListT (ListT t)) = typeOf e1
+                     rt = ListT (ListT (PairT t IntT))
+                 in F.PApp1 rt (F.NumberL $ t1 .-> rt) e1
 
 initVal :: Type -> Expr
 initVal t = singleArgClo t "init_v" initPrim initLPrim

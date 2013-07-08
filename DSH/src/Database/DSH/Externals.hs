@@ -494,7 +494,7 @@ index (Q as) (Q i) = Q (AppE Index (PairE as i))
 reverse :: (QA a) => Q [a] -> Q [a]
 reverse (Q as) = Q (AppE Reverse as)
 
-number :: (QA a) => Q [a] -> Q [Integer]
+number :: (QA a) => Q [a] -> Q [(a, Integer)]
 number (Q as) = Q (AppE Number as)
 
 -- * Special folds

@@ -48,7 +48,7 @@ data Fun a b where
     Length          :: Fun [a] Integer
     Guard           :: Fun Bool [()]
     Reverse         :: Fun [a] [a]
-    Number          :: Fun [a] [Integer]
+    Number          :: Fun [a] [(a, Integer)]
     Fst             :: Fun (a,b) a
     Snd             :: Fun (a,b) b
     Sum             :: Fun [a] a

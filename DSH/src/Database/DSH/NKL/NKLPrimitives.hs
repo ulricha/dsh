@@ -119,7 +119,7 @@ nub e = let (ListT t) = typeOf e
          
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
-           in AppE1 (ListT IntT) (Prim1 Number P.$ ListT t .-> ListT IntT) e
+           in AppE1 (ListT (PairT t IntT )) (Prim1 Number P.$ ListT t .-> ListT (PairT t IntT )) e
 
 init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
