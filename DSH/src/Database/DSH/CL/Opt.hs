@@ -38,26 +38,27 @@ import           Database.DSH.CL.Lang
 -- of the qualifier list as far as possible.
 pushFilters :: Expr -> Expr
 pushFilters expr = transform go expr
-  where go :: Expr -> Expr
-        go (Comp t e qs) = Comp t e (reverse $ pushFromEnd $ reverse qs)
-        go e             = e
-        
-        pushFromEnd :: [Qualifier] -> [Qualifier]
-        pushFromEnd []                                    = []
-        pushFromEnd ((GuardQ p) : qs) | isEquiJoinPred p = pushDown p (pushFromEnd qs)
-        pushFromEnd (q : qs)                              = q : (pushFromEnd qs)
-        
-        pushDown :: Expr -> [Qualifier] -> [Qualifier]
-        pushDown p []                                          = [GuardQ p]
+  where 
+    go :: Expr -> Expr
+    go (Comp t e qs) = Comp t e (reverse $ pushFromEnd $ reverse qs)
+    go e             = e
+    
+    pushFromEnd :: [Qualifier] -> [Qualifier]
+    pushFromEnd []                                    = []
+    pushFromEnd ((GuardQ p) : qs) | isEquiJoinPred p = pushDown p (pushFromEnd qs)
+    pushFromEnd (q : qs)                              = q : (pushFromEnd qs)
+    
+    pushDown :: Expr -> [Qualifier] -> [Qualifier]
+    pushDown p []                                          = [GuardQ p]
 
-        -- We push past other guards to get our join predicate as deep down as possible
-        pushDown p (GuardQ p' : qs)                            = GuardQ p' : (pushDown p qs)
+    -- We push past other guards to get our join predicate as deep down as possible
+    pushDown p (GuardQ p' : qs)                            = GuardQ p' : (pushDown p qs)
 
-        -- We can't push past a generator on which the predicate depends
-        pushDown p (BindQ x xs : qs) | x `S.member` freeVars p = (GuardQ p) : (BindQ x xs) : qs
+    -- We can't push past a generator on which the predicate depends
+    pushDown p (BindQ x xs : qs) | x `S.member` freeVars p = (GuardQ p) : (BindQ x xs) : qs
 
-        -- We push below generators if the predicate does not depend on it
-        pushDown p (BindQ x xs : qs) | otherwise               = (BindQ x xs) : (pushDown p qs)
+    -- We push below generators if the predicate does not depend on it
+    pushDown p (BindQ x xs : qs) | otherwise               = (BindQ x xs) : (pushDown p qs)
         
 isEquiJoinPred :: Expr -> Bool
 isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 && isProj e2
@@ -78,16 +79,16 @@ isProj _                         = False
 -- function.
 splitJoinPred :: Expr -> Ident -> Ident -> Maybe (JoinExpr, JoinExpr)
 splitJoinPred (BinOp _ Eq e1 e2) x y = 
-  case (S.elems $ freeVars e1, S.elems $ freeVars e2) of
-    ([x'], [y']) | x == x' && y == y'  -> do
-      je1 <- toJoinExpr e1 x
-      je2 <- toJoinExpr e2 y
-      return (je1, je2)
-    ([y'], [x']) | x == x' && y == y' -> do
-      je1 <- toJoinExpr e2 x
-      je2 <- toJoinExpr e1 y
-      return (je1, je2)
-    _                                 -> mzero
+    case (S.elems $ freeVars e1, S.elems $ freeVars e2) of
+        ([x'], [y']) | x == x' && y == y'  -> do
+            je1 <- toJoinExpr e1 x
+            je2 <- toJoinExpr e2 y
+            return (je1, je2)
+        ([y'], [x']) | x == x' && y == y' -> do
+            je1 <- toJoinExpr e2 x
+            je2 <- toJoinExpr e1 y
+            return (je1, je2)
+        _                                 -> mzero
 
 splitJoinPred _ _ _               = mzero
 
@@ -95,47 +96,52 @@ toJoinExpr :: Expr -> Ident -> Maybe JoinExpr
 toJoinExpr (AppE1 _ (Prim1 Fst _) e) x = UnOpJ FstJ <$> toJoinExpr e x
 toJoinExpr (AppE1 _ (Prim1 Snd _) e) x = UnOpJ SndJ <$> toJoinExpr e x
 toJoinExpr (AppE1 _ (Prim1 Not _) e) x = UnOpJ NotJ <$> toJoinExpr e x
-toJoinExpr (BinOp _ o e1 e2)         x = BinOpJ o <$> toJoinExpr e1 x <*> toJoinExpr e2 x
+toJoinExpr (BinOp _ o e1 e2)         x = BinOpJ o <$> toJoinExpr e1 x 
+                                                  <*> toJoinExpr e2 x
 toJoinExpr (Const _ v)               _ = return $ ConstJ v
 toJoinExpr (Var _ x') x | x == x'      = return InputJ
 toJoinExpr _                         _ = mzero
         
 introduceEquiJoins :: Expr -> Expr
 introduceEquiJoins expr = transform go expr
-  where go :: Expr -> Expr
-        go (Comp t e qs) = Comp t e' qs' where (e', qs') = buildJoins e qs
-        go e             = e
-        
-        -- We traverse the qualifier list and look for an equi join pattern:
-        -- [ e | qs, x <- xs, y <- ys, p, qs' ]
-        -- = [ tuplify e x y | qs, x <- eqjoin p xs ys, tuplifyQuals qs' x y ]
-        buildJoins :: Expr -> [Qualifier] -> (Expr, [Qualifier])
-        buildJoins e qs = let (e', qs') = traverse e qs
-                          in (e', qs')
+  where 
+    go :: Expr -> Expr
+    go (Comp t e qs) = Comp t e' qs' where (e', qs') = buildJoins e qs
+    go e             = e
+    
+    -- We traverse the qualifier list and look for an equi join pattern:
+    -- [ e | qs, x <- xs, y <- ys, p, qs' ]
+    -- = [ tuplify e x y | qs, x <- eqjoin p xs ys, tuplifyQuals qs' x y ]
+    buildJoins :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    buildJoins e qs = let (e', qs') = traverse e qs
+                      in (e', qs')
 
-        traverse :: Expr -> [Qualifier] -> (Expr, [Qualifier])
-        traverse e [] = (e, [])
-        traverse e (BindQ x xs : BindQ y ys : GuardQ p : qs) =
-          case splitJoinPred p x y of
+    traverse :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    traverse e [] = (e, [])
+    traverse e (BindQ x xs : BindQ y ys : GuardQ p : qs) =
+        case splitJoinPred p x y of
             Just (leftExpr, rightExpr) ->
-              let xst     = typeOf xs
-                  yst     = typeOf ys
-                  xt      = elemT xst
-                  yt      = elemT yst
-                  pt      = listT $ pairT xt yt
-                  jt      = xst .-> (yst .-> pt)
-                  e'      = tuplify (x, xt) (y, yt) e
-                  qs'     = tuplifyQuals (x, xt) (y, yt) qs
-                  joinGen = BindQ x (AppE2 pt (Prim2 (EquiJoin leftExpr rightExpr) jt) xs ys)
-               in traverse e' (joinGen : qs')
-                  
-            Nothing                    ->
-              let (e', qs') = traverse e qs
-              in  (e', BindQ x xs : BindQ y ys : GuardQ p : qs')
+                let xst     = typeOf xs
+                    yst     = typeOf ys
+                    xt      = elemT xst
+                    yt      = elemT yst
+                    pt      = listT $ pairT xt yt
+                    jt      = xst .-> (yst .-> pt)
+                    e'      = tuplify (x, xt) (y, yt) e
+                    qs'     = tuplifyQuals (x, xt) (y, yt) qs
+                    joinGen = BindQ x 
+                                    (AppE2 pt 
+                                           (Prim2 (EquiJoin leftExpr rightExpr) jt) 
+                                           xs ys)
+                 in traverse e' (joinGen : qs')
               
-        traverse e (q : qs) =
-          let (e', qs') = traverse e qs
-          in  (e', q : qs')
+            Nothing                    ->
+                let (e', qs') = traverse e qs
+                in  (e', BindQ x xs : BindQ y ys : GuardQ p : qs')
+          
+    traverse e (q : qs) =
+        let (e', qs') = traverse e qs
+        in  (e', q : qs')
          
 ------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
@@ -156,13 +162,13 @@ bindLocally i a = local maybeBind a
                            
 isNotShadowed :: MonadReader ProjectEnv m => Ident -> m Bool
 isNotShadowed i = do
-  (Q qs, S ss) <- ask
-  return $ (i `S.member` qs) && (not $ i `S.member` ss)
+    (Q qs, S ss) <- ask
+    return $ (i `S.member` qs) && (not $ i `S.member` ss)
   
 areNotShadowed :: MonadReader ProjectEnv m => S.Set Ident -> m Bool
 areNotShadowed is = do
-  S ss <- asks snd
-  return $ S.null $ is `S.intersection` ss
+    S ss <- asks snd
+    return $ S.null $ is `S.intersection` ss
 
 -- Collect all expressions which we have to keep in the comprehension head.
 collectExpressions :: Expr -> [Expr]
@@ -201,10 +207,10 @@ constructTuple (e :| es) = foldr1 construct (e : es)
   where
     construct :: Expr -> Expr -> Expr
     construct e tup = 
-      let te = typeOf e
-          tt = typeOf tup
-          t  = pairT te tt
-      in AppE2 t (Prim2 Pair (te .-> (tt .-> t))) e tup
+        let te = typeOf e
+            tt = typeOf tup
+            t  = pairT te tt
+        in AppE2 t (Prim2 Pair (te .-> (tt .-> t))) e tup
 
 -- From the list of expressions to be kept in the comprehension head, construct
 -- the tuple for the head which contains all those expressions and the list of
@@ -217,8 +223,8 @@ buildReplacements tupleName exprs = (tuple, replacementExprs)
     canonicalOrder = uncurry (++) $ partition isComp $ zip exprs [1..]
 
     tuple = case map fst canonicalOrder of
-              e : es -> constructTuple (e :| es)
-              []     -> $impossible
+                e : es -> constructTuple (e :| es)
+                []     -> $impossible
     
     isComp :: (Expr, Int) -> Bool
     isComp (Comp _ _ _, _) = True
@@ -226,13 +232,14 @@ buildReplacements tupleName exprs = (tuple, replacementExprs)
     
     tupleVar = Var (typeOf tuple) tupleName
     
-    replacementExprs = -- construct tuple accessors
-                       map ((tupleAt tupleVar) . fst) 
-                       -- sort into the original expression order
-                       $ sortWith snd 
-                       -- keep the canonical order (these are the tuple indices)
-                       $ zip [1..] 
-                       $ map snd canonicalOrder
+    replacementExprs = 
+        -- construct tuple accessors
+        map ((tupleAt tupleVar) . fst) 
+        -- sort into the original expression order
+        $ sortWith snd 
+        -- keep the canonical order (these are the tuple indices)
+        $ zip [1..] 
+        $ map snd canonicalOrder
  
 type Replace = ReaderT ProjectEnv (State [Expr])
 
@@ -256,47 +263,47 @@ replaceExpressions expr replacements = evalState (runReaderT (replace expr) init
     replace t@(Table _ _ _ _)   = return t
 
     replace (App t e1 e2)     = do
-      e1' <- replace e1
-      e2' <- replace e2
-      return $ App t e1' e2'
+        e1' <- replace e1
+        e2' <- replace e2
+        return $ App t e1' e2'
       
     replace (AppE1 t p e1)    = do
-      e1' <- replace e1
-      return $ AppE1 t p e1'
+        e1' <- replace e1
+        return $ AppE1 t p e1'
 
     replace (AppE2 t p e1 e2) = do
-      e1' <- replace e1
-      e2' <- replace e2
-      return $ AppE2 t p e1' e2'
+        e1' <- replace e1
+        e2' <- replace e2
+        return $ AppE2 t p e1' e2'
 
     replace (Lam t x e)       = do
-      e' <- bindLocally x (replace e)
-      return $ Lam t x e'
+        e' <- bindLocally x (replace e)
+        return $ Lam t x e'
 
     replace (If t e1 e2 e3)   = do
-      e1' <- replace e1
-      e2' <- replace e2
-      e3' <- replace e3
-      return $ If t e1' e2' e3'
+        e1' <- replace e1
+        e2' <- replace e2
+        e3' <- replace e3
+        return $ If t e1' e2' e3'
 
     replace (BinOp t o e1 e2) = do
-      e1' <- replace e1
-      e2' <- replace e2
-      return $ BinOp t o e1' e2'
+        e1' <- replace e1
+        e2' <- replace e2
+        return $ BinOp t o e1' e2'
 
     replace c@(Const _ _)       = return c
 
     replace v@(Var _ x)       = do 
-      interesting <- isNotShadowed x
-      if interesting
-        then getReplacement
-        else return v
+        interesting <- isNotShadowed x
+        if interesting
+            then getReplacement
+            else return v
 
     replace c@(Comp _ b qs)   = do
-      interesting <- areNotShadowed (freeVars c)
-      if interesting
-        then getReplacement
-        else return c
+        interesting <- areNotShadowed (freeVars c)
+        if interesting
+            then getReplacement
+            else return c
 
 comprehensionHead :: Expr -> Expr
 comprehensionHead expr = transform go expr
@@ -342,36 +349,44 @@ unnestComprehensionHead expr = transform go expr
                  freeVars g == S.singleton y
                  = 
       case splitJoinPred p x y of
-        Just (leftExpr, rightExpr) -> (headExpr, [BindQ x xs']) 
-          where
-            yt = elemT $ typeOf ys
-            resType  = pairT xt (listT it)
-            tupType  = pairT xt (listT yt)
-            joinType = listT xt .-> (listT yt .-> listT tupType)
-            
-            -- snd x
-            ys' = AppE1 (listT yt) (Prim1 Snd (tupType .-> (listT yt))) (Var tupType x)
-            -- [ g | y <- snd x ]
-            innerComp = Comp (listT it) g [BindQ y ys']
-
-            -- (fst x, innerComp)
-            headExpr = AppE2 resType 
-                             (Prim2 Pair (xt .-> (listT it .-> resType))) 
-                             (AppE1 xt (Prim1 Fst (resType .-> xt)) (Var resType x))
-                             innerComp
-
-            xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
-        Nothing -> (e, qs)
+          Just (leftExpr, rightExpr) -> (headExpr, [BindQ x xs']) 
+            where
+              yt = elemT $ typeOf ys
+              resType  = pairT xt (listT it)
+              tupType  = pairT xt (listT yt)
+              joinType = listT xt .-> (listT yt .-> listT tupType)
+              
+              -- snd x
+              ys' = AppE1 (listT yt) (Prim1 Snd (tupType .-> (listT yt))) (Var tupType x)
+              -- [ g | y <- snd x ]
+              innerComp = Comp (listT it) g [BindQ y ys']
+  
+              -- (fst x, innerComp)
+              headExpr = AppE2 resType 
+                               (Prim2 Pair (xt .-> (listT it .-> resType))) 
+                               (AppE1 xt (Prim1 Fst (resType .-> xt)) (Var resType x))
+                               innerComp
+  
+              xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
+          Nothing -> (e, qs)
                
     unnestHead e qs = (e, qs)
+  
+unnestExistentials :: Expr -> Expr
+unnestExistentials expr = transform go expr
+  where
+    go :: Expr -> Expr
+    go (Comp t e qs) = Comp t e' qs' where (e', qs') = unnestElem e qs
+    go e             = e
+    
+    unnestElem :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    unnestElem = undefined
                                                     
             
 opt :: Expr -> Expr
-opt e = e'
-    {-
+opt e =
     if (e /= e') 
     then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
     else trace (show e) e'
-    -}
   where 
     e' = unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
