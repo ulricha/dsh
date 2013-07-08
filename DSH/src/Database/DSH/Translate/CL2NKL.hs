@@ -2,10 +2,9 @@
 
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
-       
+
 import           Database.DSH.Impossible
        
-import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Op
@@ -87,7 +86,7 @@ desugar t e qs =
   -- one qualifier, which we can then handle easily.
   case productify e qs of 
     -- Comprehensions with a single generator and only the bound variable in the
-    -- head can simply be removed.
+    -- head can be safely removed.
     (CL.Var _ x, CL.BindQ x' xs) | x == x' -> expr xs
   
     (e', CL.BindQ x xs) -> expr $ CP.map (CL.Lam (xt .-> rt) x e') xs

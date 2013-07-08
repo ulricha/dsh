@@ -190,16 +190,21 @@ resugar expr =
     -- normalization step to get as much as possible into comprehension form
     -- map (\x -> body) xs => [ body | x <- xs ]
     CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
-        resugar $ CL.Comp t body [CL.BindQ x xs]
+        let body' = resugar body
+            xs'   = resugar xs
+        in resugar $ CL.Comp t body' [CL.BindQ x xs']
   
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
     -- filter (\x -> p) xs => [ x | x <- xs, p ]
     CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x pred) xs ->
-        resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs, CL.GuardQ pred]
+        let xs'   = resugar xs
+            pred' = resugar pred
+        in resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs', CL.GuardQ pred']
         
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
+    -- (Try to) transform concatMaps into comprehensions
     cm@(CL.AppE2 t (CL.Prim2 CL.ConcatMap _) body xs) ->
       let xs' = resugar xs
       in 
@@ -233,6 +238,7 @@ resugar expr =
             resugarQual :: CL.Qualifier -> (Bool, [CL.Qualifier]) -> (Bool, [CL.Qualifier])
             resugarQual q (changedAcc, qsAcc) =
               case q of
+                -- Eliminate unused bindings from guards
                 -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
                 CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `S.member` fvs -> (True, CL.GuardQ p : qsAcc)
                 _                                                            -> (changedAcc, q : qsAcc)
