@@ -549,7 +549,7 @@ break f = span (not . f)
 -- * Searching Lists
 
 elem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
-elem a as = not $ null (filter (a ==) as)
+elem a as = any (a ==) as
 
 notElem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
 notElem a as = not (a `elem` as)
