@@ -27,6 +27,7 @@ na = VProp Nothing
 reqProjCols :: [PayloadProj] -> [DBCol]
 reqProjCols ((PLCol col) : ps) = col : (reqProjCols ps)
 reqProjCols ((PLConst _) : ps) = reqProjCols ps
+reqProjCols ((PLExpr e)  : ps) = reqExpr1Cols e ++ reqProjCols ps
 reqProjCols []                 = []
 
 reqExpr1Cols :: Expr1 -> [DBCol]
@@ -94,6 +95,9 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     VecMinL -> one
     VecMax -> one
     VecMaxL -> one
+    
+    Number -> none
+    NumberL -> none
 
     ProjectL cols -> childReqColumns `union` (VProp $ Just cols)
     ProjectA cols -> childReqColumns `union` (VProp $ Just cols)
@@ -267,7 +271,26 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           in (leftReqCols', rightReqCols')
         _                     -> error "ReqColumns.EquiJoinL"
 
-    ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) -- FIXME recheck for correctness
+    -- FIXME recheck for correctness
+    ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) 
+    
+    -- For a semijoin, we only require the columns used in the join argument
+    -- from the right input.
+    SemiJoin e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.SemiJoin"
+
+    -- For a semijoin, we only require the columns used in the join argument
+    -- from the right input.
+    SemiJoinL e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.SemiJoinL"
+    
+    
 
 inferReqColumnsTerOp :: VectorProp ReqCols
                  -> VectorProp ReqCols

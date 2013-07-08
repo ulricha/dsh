@@ -4,8 +4,6 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
        
-import           Debug.Trace
-
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
 import           Database.Algebra.VL.Data                      (VL(), UnOp(ProjectL, ProjectA))

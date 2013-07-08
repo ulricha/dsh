@@ -77,7 +77,7 @@ joinExpr expr = aux 1 expr
     aux :: Int -> JoinExpr -> Expr1
     aux o (BinOpJ op e1 e2) = App1 (operToVecOp op) (aux o e1) (aux o e2)
     -- FIXME implement this case once the 'not' mess in VL has been solved.
-    aux o (UnOpJ NotJ e)    = undefined
+    aux _o (UnOpJ NotJ _e)    = undefined
     aux o (UnOpJ FstJ e)    = aux o e
     aux o (UnOpJ SndJ e)    = aux (o + 1) e
     aux o (ConstJ v)        = Constant1 $ pVal v

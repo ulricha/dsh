@@ -12,9 +12,6 @@ import Database.DSH.Optimizer.Common.Aux
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.ReqColumns
   
-toDescrSeed :: Maybe Bool
-toDescrSeed = Nothing
-              
 reqColumnsSeed :: ReqCols
 reqColumnsSeed = Nothing
 
@@ -63,6 +60,8 @@ seed (UnOp op _)   =
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed
+    Number             -> vPropSeed
+    NumberL            -> vPropSeed
     Only               -> undefined
     Singleton          -> undefined
 
@@ -92,6 +91,8 @@ seed (BinOp op _ _) =
     CartProductL       -> vPropTripleSeed
     EquiJoin _ _       -> vPropTripleSeed
     EquiJoinL _ _      -> vPropTripleSeed
+    SemiJoin _ _       -> vPropPairSeed
+    SemiJoinL _ _      -> vPropPairSeed
     
 seed (TerOp op _ _ _) =
   case op of

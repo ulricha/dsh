@@ -19,7 +19,6 @@ import           Control.Monad.Writer
 import           Data.Generics.Uniplate.Data
                  
 import           Data.List
-import qualified Data.List.NonEmpty as N
 import           Data.List.NonEmpty(NonEmpty((:|)))
 import           Data.Maybe
 import qualified Data.Set as S
@@ -27,7 +26,6 @@ import           GHC.Exts
 
 import           Database.DSH.Impossible
 
-import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
@@ -143,6 +141,7 @@ introduceEquiJoins expr = transform go expr
         let (e', qs') = traverse e qs
         in  (e', q : qs')
          
+{-
 ------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
   
@@ -315,6 +314,7 @@ comprehensionHead expr = transform go expr
     project :: Type -> Expr -> [Qualifier] -> Expr
     project _ _ _  = undefined
     project t e qs = Comp t e qs
+-}
     
 -- Try to unnest comprehensions from a comprehension's head using the nestjoin
 -- operator. Currently, we can only deal with a rather limited pattern (see

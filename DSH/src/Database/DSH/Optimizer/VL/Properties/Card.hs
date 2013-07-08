@@ -68,6 +68,8 @@ inferCardOneUnOp c op =
     VecAggr _ _ -> Right c
     Only -> undefined
     Singleton -> undefined
+    Number -> Right c
+    NumberL -> Right c
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
@@ -96,6 +98,8 @@ inferCardOneBinOp c1 c2 op =
     CartProductL -> return $ VPropTriple False False False
     EquiJoin _ _ -> return $ VPropTriple False False False
     EquiJoinL _ _ -> return $ VPropTriple False False False
+    SemiJoin _ _ -> return $ VPropPair False False
+    SemiJoinL _ _ -> return $ VPropPair False False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

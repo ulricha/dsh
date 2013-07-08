@@ -167,6 +167,14 @@ inferConstVecUnOp c op =
     VecAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
+      
+    Number -> do
+      (d, _) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d [NonConstPL]
+
+    NumberL -> do
+      (d, _) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d [NonConstPL]
 
     R1 ->
       case c of
@@ -308,8 +316,10 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
       -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
     CartProductL -> do
@@ -318,8 +328,10 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
       -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
     EquiJoin _ _ -> do
@@ -328,8 +340,10 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
       -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
     EquiJoinL _ _ -> do
@@ -338,9 +352,29 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
       -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      
+    SemiJoin _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
+    SemiJoinL _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+  
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op =

@@ -79,6 +79,8 @@ inferUntaintedUnOp u n op =
     Singleton -> undefined
     CompExpr1L _ -> VProp empty
     VecAggr _ _ -> VProp empty
+    Number -> VProp empty
+    NumberL -> VProp empty
   
 -- FIXME implement
 inferUntaintedBinOp :: VectorProp Untainted -> VectorProp Untainted -> AlgNode -> AlgNode -> BinOp -> VectorProp Untainted
@@ -108,6 +110,8 @@ inferUntaintedBinOp _ _ _ _ op =
     CartProductL -> VPropTriple empty na na
     EquiJoin _ _ -> VPropTriple empty na na
     EquiJoinL _ _ -> VPropTriple empty na na
+    SemiJoin _ _ -> VPropPair empty na
+    SemiJoinL _ _ -> VPropPair empty na
 
 inferUntaintedTerOp :: VectorProp Untainted 
                        -> VectorProp Untainted 

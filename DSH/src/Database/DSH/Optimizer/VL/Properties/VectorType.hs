@@ -76,6 +76,8 @@ inferVectorTypeUnOp s op =
     Singleton -> undefined
     CompExpr1L _ -> Right $ VProp $ ValueVector 1
     VecAggr g as -> Right $ VProp $ ValueVector (length g + length as)
+    Number -> Right $ VProp $ ValueVector 1
+    NumberL -> Right $ VProp $ ValueVector 1
   
 reqValVectors :: VectorProp VectorType 
                  -> VectorProp VectorType 
@@ -136,6 +138,8 @@ inferVectorTypeBinOp s1 s2 op =
     CartProductL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductL"
     EquiJoin _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoin"
     EquiJoinL _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinL"
+    SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SemiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 

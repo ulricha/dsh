@@ -65,6 +65,8 @@ inferVerticallyIntactUnOp childIntact c op =
     SelectPos1 _ _ -> noPair 
     SelectPos1L _ _ -> noPair
     VecAggr _ _ -> no
+    Number -> yes childIntact c
+    NumberL -> yes childIntact c
     R1 -> 
       case childIntact of
         VProp _           -> Left "Properties.VerticallyIntact: not a pair/triple"
@@ -112,6 +114,8 @@ inferVerticallyIntactBinOp _ rightChildIntact _ c2 op =
     CartProductL -> noTriple
     EquiJoin _ _ -> noTriple
     EquiJoinL _ _ -> noTriple
+    SemiJoin _ _ -> noPair
+    SemiJoinL _ _ -> noPair
     
 inferVerticallyIntactTerOp :: VectorProp IntactSince 
                            -> VectorProp IntactSince 

@@ -120,6 +120,9 @@ inferIndexSpaceUnOp is n op =
 
     ProjectPayload _ -> Right is
     CompExpr1L _ -> Right is
+    
+    Number -> Right is
+    NumberL -> Right is
 
     ProjectAdmin (descrProj, posProj) -> do
       (dis, (P pis)) <- unp is >>= fromDBV
@@ -243,6 +246,9 @@ inferIndexSpaceBinOp is1 is2 n op =
     CartProductL -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
     EquiJoin _ _ -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
     EquiJoinL _ _ -> Right $ VPropTriple (freshDBVSpace n) (freshPropSpace n) (freshPropSpace n)
+
+    SemiJoin _ _ -> Right $ uncurry VPropPair $ freshValueRenamePair n
+    SemiJoinL _ _ -> Right $ uncurry VPropPair $ freshValueRenamePair n
 
 inferIndexSpaceTerOp :: VectorProp IndexSpace
                         -> VectorProp IndexSpace

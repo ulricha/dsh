@@ -124,12 +124,14 @@ semiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 _) = do
     (qj, r) <- semiJoin e1 e2 q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector qj lyt1'
+semiJoinPrim _ _ _ _ = $impossible
     
 semiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
-semiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+semiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
     (qj, r) <- semiJoinL e1 e2 q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
+semiJoinLift _ _ _ _ = $impossible
 
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do

@@ -197,10 +197,10 @@ resugar expr =
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
     -- filter (\x -> p) xs => [ x | x <- xs, p ]
-    CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x pred) xs ->
-        let xs'   = resugar xs
-            pred' = resugar pred
-        in resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs', CL.GuardQ pred']
+    CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x p) xs ->
+        let xs' = resugar xs
+            p'  = resugar p
+        in resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs', CL.GuardQ p']
         
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
