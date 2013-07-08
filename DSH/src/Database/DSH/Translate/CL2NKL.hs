@@ -64,6 +64,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.CartProduct    -> NKL.CartProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
               CL.NestJoin e1 e2 -> NKL.NestJoin e1 e2
+              CL.SemiJoin e1 e2 -> NKL.SemiJoin e1 e2
               CL.ConcatMap      -> $impossible
 
 expr :: CL.Expr -> NKL.Expr

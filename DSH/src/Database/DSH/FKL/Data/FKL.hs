@@ -135,6 +135,8 @@ data Prim2 = GroupWithKeyS Type
            | EquiJoinL JoinExpr JoinExpr Type
            | NestJoin JoinExpr JoinExpr Type
            | NestJoinL JoinExpr JoinExpr Type
+           | SemiJoin JoinExpr JoinExpr Type
+           | SemiJoinL JoinExpr JoinExpr Type
            | TakeWithS Type
            | TakeWithL Type
            | DropWithS Type
@@ -172,6 +174,8 @@ instance Show Prim2 where
     show (EquiJoinL e1 e2 _)  = printf "equiJoinL(%s, %s)" (show e1) (show e2)
     show (NestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (show e1) (show e2)
     show (NestJoinL e1 e2 _)  = printf "nestJoinL(%s, %s)" (show e1) (show e2)
+    show (SemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (show e1) (show e2)
+    show (SemiJoinL e1 e2 _)  = printf "semiJoinL(%s, %s)" (show e1) (show e2)
 
 data Prim3 = Combine Type
     deriving (Eq, Generic)

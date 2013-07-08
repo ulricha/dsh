@@ -81,6 +81,7 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | CartProduct
              | EquiJoin JoinExpr JoinExpr
              | NestJoin JoinExpr JoinExpr
+             | SemiJoin JoinExpr JoinExpr
              deriving (Eq, Ord, Data, Typeable)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord, Data, Typeable)
@@ -102,6 +103,7 @@ instance Show Prim2Op where
   show CartProduct  = "cartProduct"
   show (EquiJoin e1 e2) = printf "\x2a1d (%s, %s)" (show e1) (show e2)
   show (NestJoin e1 e2) = printf "\x25b3 (%s, %s)" (show e1) (show e2)
+  show (SemiJoin e1 e2) = printf "\x22c9 (%s, %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o

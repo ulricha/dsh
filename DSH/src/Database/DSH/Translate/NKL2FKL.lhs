@@ -196,6 +196,7 @@ prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
 prim2Transform (N.Prim2 (N.NestJoin e1 e2) t) = nestJoinVal e1 e2 t
+prim2Transform (N.Prim2 (N.SemiJoin e1 e2) t) = semiJoinVal e1 e2 t
 \end{code}
 %endif
 

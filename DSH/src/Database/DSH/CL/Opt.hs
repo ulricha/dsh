@@ -376,12 +376,26 @@ unnestExistentials :: Expr -> Expr
 unnestExistentials expr = transform go expr
   where
     go :: Expr -> Expr
-    go (Comp t e qs) = Comp t e' qs' where (e', qs') = unnestElem e qs
+    go (Comp t e qs) = Comp t e qs' where qs' = unnestElem qs
     go e             = e
     
-    unnestElem :: Expr -> [Qualifier] -> (Expr, [Qualifier])
-    unnestElem = undefined
-                                                    
+    -- [ f x | x <- xs, or [ p | y <- ys ] ]
+    unnestElem :: [Qualifier] -> [Qualifier]
+    unnestElem qs@[ BindQ x xs
+                  , GuardQ ((AppE1 _ (Prim1 Or _)
+                                     (Comp _ p [BindQ y ys])))
+                  ] =
+        case splitJoinPred p x y of
+            Just (leftExpr, rightExpr) -> 
+                let xst = typeOf xs
+                    yst = typeOf ys
+                    jt  = xst .-> yst .-> xst
+                in [ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys) ]
+                
+            Nothing                    -> 
+                qs
+            
+    unnestElem qs = qs
             
 opt :: Expr -> Expr
 opt e =
@@ -389,4 +403,4 @@ opt e =
     then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
     else trace (show e) e'
   where 
-    e' = unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
+    e' = unnestExistentials $ unnestComprehensionHead $ introduceEquiJoins $ pushFilters e

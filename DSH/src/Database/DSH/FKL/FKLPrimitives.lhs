@@ -204,6 +204,19 @@ nestJoinLPrim je1 je2 e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
                                   tr = listT $ listT $ pairT xt yt
                               in F.PApp2 tr (F.NestJoinL je1 je2 (xst .-> yst .-> tr)) e1 e2
 
+semiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
+semiJoinVal je1 je2 t = doubleArgClo t "semiJoin_e1" "semiJoin_e2" (semiJoinPrim je1 je2) (semiJoinLPrim je1 je2)
+                  
+semiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+semiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
+                                 t2 = typeOf e2
+                             in F.PApp2 t2 (F.SemiJoin je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+                         
+semiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+semiJoinLPrim je1 je2 e1 e2 = let t1 = typeOf e1
+                                  t2 = typeOf e2
+                              in F.PApp2 t2 (F.SemiJoinL je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
 
