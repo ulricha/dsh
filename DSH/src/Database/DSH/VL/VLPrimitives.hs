@@ -333,6 +333,24 @@ equiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
   r2 <- prop $ insertNode $ UnOp R2 r
   r3 <- prop $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
+
+semiJoin :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
+semiJoin e1 e2 (DBV c1 _) (DBV c2 _) = do
+  let e1' = joinExpr e1
+      e2' = joinExpr e2
+  r  <- insertNode $ BinOp (SemiJoin e1' e2') c1 c2
+  r1 <- dbv $ insertNode $ UnOp R1 r
+  r2 <- rename $ insertNode $ UnOp R2 r
+  return (r1, r2)
+
+semiJoinL :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
+semiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
+  let e1' = joinExpr e1
+      e2' = joinExpr e2
+  r  <- insertNode $ BinOp (SemiJoinL e1' e2') c1 c2
+  r1 <- dbv $ insertNode $ UnOp R1 r
+  r2 <- rename $ insertNode $ UnOp R2 r
+  return (r1, r2)
   
 integerToDoubleA :: DBP -> GraphM r VL DBP
 integerToDoubleA (DBP c _) = dbp $ insertNode $ UnOp IntegerToDoubleA c

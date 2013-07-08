@@ -88,6 +88,9 @@ class VectorAlgebra a where
 
   equiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
   equiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
+  
+  semiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
+  semiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
 
   combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
   

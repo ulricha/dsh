@@ -119,6 +119,18 @@ nestJoinPrim _ _ _ _ = $impossible
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 nestJoinLift = error "nestJoinLift not implemented"
 
+semiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- semiJoin e1 e2 q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector qj lyt1'
+    
+semiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (qj, r) <- semiJoinL e1 e2 q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector d1 (Nest qj lyt1')
+
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
     (q', r) <- selectPos q LtE i
