@@ -73,3 +73,9 @@ eqjoin_nested1 =
     , y <- (toQ [20, 30, 30, 40, 50])
     , fst x == y
     ]
+
+semijoin :: Q [Integer]
+semijoin = 
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6] :: Q [Integer])
+    in [ x | x <- xs , x `elem` ys ]

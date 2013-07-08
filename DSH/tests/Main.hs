@@ -360,18 +360,19 @@ tests_comprehensions = testGroup "Comprehensions"
 tests_hunit :: Test
 tests_hunit = testGroup "HUnit"
     [ testCase "heqjoin_nested1" heqjoin_nested1
+    , testCase "hsemijoin" hsemijoin
     ]
 
 tests :: [Test]
 tests =
-    [ -- tests_boolean
-    -- , tests_tuples
-    -- , tests_numerics
-    -- , tests_maybe
-    -- , tests_either
-    -- , tests_lists
-    -- , tests_lifted
-    tests_comprehensions
+    [ tests_boolean
+    , tests_tuples
+    , tests_numerics
+    , tests_maybe
+    , tests_either
+    , tests_lists
+    , tests_lifted
+    , tests_comprehensions
     , tests_hunit
     ]
 
@@ -1161,3 +1162,10 @@ heqjoin_nested1 = makeEqAssertion "heqjoin_nested" eqjoin_nested1 res
           , ((30, ['c', 'd']), 30)
           , ((40, []), 40)
           ]
+
+hsemijoin :: Assertion
+hsemijoin = makeEqAssertion "hsemijoin" semijoin res
+  where 
+    res = [2, 4, 6]
+    
+  
