@@ -203,7 +203,12 @@ translateBinOp b c1 c2 = case b of
                            (EquiJoinL e1 e2) -> do
                                                 (v, p1, p2) <- equiJoinL e1 e2 (toDBV c1) (toDBV c2)
                                                 return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
-
+                           (SemiJoin e1 e2) -> do
+                                                (v, r) <- semiJoin e1 e2 (toDBV c1) (toDBV c2)
+                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                           (SemiJoinL e1 e2) -> do
+                                                (v, r) <- semiJoinL e1 e2 (toDBV c1) (toDBV c2)
+                                                return $ RPair (fromDBV v) (fromRenameVector r)
 
 singleton :: Res -> Res
 singleton (RDBP c cs) = RDBV c cs
