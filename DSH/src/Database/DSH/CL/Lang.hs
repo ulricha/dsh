@@ -141,7 +141,7 @@ pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
 pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
 pp (Const _ v)        = text $ show v
 pp (Var _ s)          = text s
-pp (Comp _ e qs)      = brackets $ pp e <+> char '|' <+> (hsep $ punctuate comma $ map ppQualifier qs)
+pp (Comp _ e qs)      = brackets $ char ' ' <> pp e <+> char '|' <+> (hsep $ punctuate comma $ map ppQualifier qs)
 
 deriving instance Eq Expr
 deriving instance Ord Expr
