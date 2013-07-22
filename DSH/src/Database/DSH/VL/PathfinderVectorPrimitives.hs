@@ -20,6 +20,7 @@ import           Database.DSH.VL.VectorPrimitives
 
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Pathfinder
+import           Database.Algebra.Pathfinder.Data.Algebra
 
 -- Some general helpers
 
@@ -84,6 +85,26 @@ transProj _      VL.STNumber   = $impossible
 keepItems :: [DBCol] -> (ProjInf -> ProjInf)
 keepItems cols projs = projs ++ [ colP $ itemi i | i <- cols ]
 
+algOp :: VL.VecOp -> Fun
+algOp (VL.NOp VL.Add)  = Fun1to1 Plus
+algOp (VL.NOp VL.Sub)  = Fun1to1 Minus
+algOp (VL.NOp VL.Div)  = Fun1to1 Times
+algOp (VL.NOp VL.Mul)  = Fun1to1 Div
+algOp (VL.NOp VL.Mod)  = Fun1to1 Modulo
+algOp (VL.COp VL.Eq)   = RelFun Eq
+algOp (VL.COp VL.Gt)   = RelFun Gt
+algOp (VL.COp VL.GtE)  = $impossible
+algOp (VL.COp VL.Lt)   = $impossible
+algOp (VL.COp VL.LtE)  = $impossible
+algOp (VL.BOp VL.Conj) = $impossible
+algOp (VL.BOp VL.Disj) = $impossible
+algOp VL.Like          = undefined
+
+algCompOp :: VL.VecCompOp -> Fun
+algCompOp VL.Eq = RelFun Eq
+algCompOp VL.Gt = RelFun Gt
+algCompOp _     = $impossible
+
 -- Compilation of VL expressions (Expr1, Expr2)
 
 type ExprComp r a = StateT Int (GraphM r PFAlgebra) a
@@ -97,31 +118,31 @@ freshCol = do
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1
 
-specialComparison :: AlgNode -> AttrName -> AttrName -> String -> ExprComp r (AlgNode, AttrName)
+specialComparison :: AlgNode -> AttrName -> AttrName -> Fun -> ExprComp r (AlgNode, AttrName)
 specialComparison n leftArg rightArg op = do
   opCol    <- freshCol
   opNode   <- lift $ oper op opCol leftArg rightArg n
   eqCol    <- freshCol
-  eqNode   <- lift $ oper "==" eqCol leftArg rightArg opNode
+  eqNode   <- lift $ oper (RelFun Eq) eqCol leftArg rightArg opNode
   orCol    <- freshCol
-  andNode  <- lift $ oper "||" orCol opCol eqCol eqNode
+  andNode  <- lift $ oper (RelFun Or) orCol opCol eqCol eqNode
   return (andNode, orCol)
 
 compileExpr1' :: [DBCol] -> AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
 compileExpr1' cols n (VL.App1 (VL.COp VL.LtE) e1 e2) = do
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
-  specialComparison n2 c1 c2 "<"
+  specialComparison n2 c1 c2 (RelFun Lt)
 compileExpr1' cols n (VL.App1 (VL.COp VL.GtE) e1 e2) = do
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
-  specialComparison n2 c1 c2 ">"
+  specialComparison n2 c1 c2 (RelFun Lt)
 
 compileExpr1' cols n (VL.App1 op e1 e2)   = do
   col      <- freshCol
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
-  nr <- lift $ oper (show op) col c1 c2 n2
+  nr <- lift $ oper (algOp op) col c1 c2 n2
   return (nr, col)
 compileExpr1' cols n (VL.Column1 dbcol)   = do
   col <- freshCol
@@ -136,23 +157,23 @@ compileExpr1' cols n (VL.Constant1 constVal) = do
 
 compileExpr1 :: [DBCol] -> AlgNode -> VL.Expr1 -> GraphM r PFAlgebra (AlgNode, AttrName)
 compileExpr1 cols n e = runExprComp (compileExpr1' cols n e)
-
+             
 compileExpr2' :: AlgNode -> VL.Expr2 -> ExprComp r (AlgNode, AttrName)
 compileExpr2' n (VL.App2 (VL.COp VL.LtE) e1 e2) = do
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
-  specialComparison n2 c1 c2 "<"
+  specialComparison n2 c1 c2 (RelFun Lt)
 
 compileExpr2' n (VL.App2 (VL.COp VL.GtE) e1 e2) = do
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
-  specialComparison n2 c1 c2 ">"
+  specialComparison n2 c1 c2 (RelFun Lt)
 
 compileExpr2' n (VL.App2 op e1 e2)         = do
   col <- freshCol
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
-  nr <- lift $ oper (show op) col c1 c2 n2
+  nr <- lift $ oper (algOp op) col c1 c2 n2
   return (nr, col)
 compileExpr2' n (VL.Column2Left (VL.L c))  = return (n, itemi c)
 compileExpr2' n (VL.Column2Right (VL.R c)) = return (n, itemi' c)
@@ -418,12 +439,12 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- RenameVector <$> (tagM "append r1"
                         $ projM [(posold, pos), (posnew, pos')]
                         $ selectM resCol
-                        $ operM "==" resCol ordCol tmpCol
+                        $ operM (RelFun Eq) resCol ordCol tmpCol
                         $ attach tmpCol natT (nat 1) q)
     qp2 <- RenameVector <$> (tagM "append r2"
                         $ projM [(posold, pos), (posnew, pos')]
                         $ selectM resCol
-                        $ operM "==" resCol ordCol tmpCol
+                        $ operM (RelFun Eq) resCol ordCol tmpCol
                         $ attach tmpCol natT (nat 2) q)
     return $ (qv, qp1, qp2)
 
@@ -545,7 +566,7 @@ instance VectorAlgebra PFAlgebra where
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
     q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
-           $ thetaJoinM [(tmpCol, tmpCol', "==")]
+           $ thetaJoinM [(tmpCol, tmpCol', EqJ)]
              (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
              (proj ([(pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
     qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
@@ -565,13 +586,13 @@ instance VectorAlgebra PFAlgebra where
             VL.Lt ->
                 projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ selectM resCol
-                  $ oper (show op) resCol pos' item' qx
+                  $ oper (RelFun Lt) resCol pos' item' qx
             VL.LtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' "<"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' (RelFun Lt)
                 projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
             VL.GtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx item' pos' "<"
+                (compNode, compCol) <- runExprComp $ specialComparison qx item' pos' (RelFun Lt)
                 projM (pf [colP descr, (pos, pos''), colP pos'])
                   $ rownumM pos'' [pos'] Nothing
                   $ select compCol compNode
@@ -579,7 +600,7 @@ instance VectorAlgebra PFAlgebra where
                 projM (pf [colP descr, colP pos, colP pos'])
                  $ rownumM pos [descr, pos'] Nothing
                     $ selectM resCol
-                        $ oper (show op) resCol pos' item' qx
+                        $ oper (algCompOp op) resCol pos' item' qx
     q <- proj (pf [colP descr, colP pos]) qn
     qp <- proj [(posnew, pos), (posold, pos')] qn
     return $ (DBV q cols, RenameVector qp)
@@ -592,14 +613,14 @@ instance VectorAlgebra PFAlgebra where
                 (proj [(pos'', pos), (item', item)] qi)
     qs <- case op of
         VL.LtE -> do
-                (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' "<"
+                (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' (RelFun Lt)
                 rownumM posnew [descr, pos] Nothing
                   $ projM (pf [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
 
         _ -> rownumM posnew [descr, pos] Nothing
               $ selectM resCol
-              $ oper (show op) resCol pos''' item' qx
+              $ oper (algCompOp op) resCol pos''' item' qx
     q <- proj (pf [colP descr, (pos, posnew)]) qs
     qp <- proj [(posold, pos), (posnew, posnew)] qs
     return $ (DBV q cols, RenameVector qp)
@@ -611,18 +632,18 @@ instance VectorAlgebra PFAlgebra where
             VL.Lt -> do
               projM (pf [colP descr, colP pos, (pos'', pos)])
               $ selectM resCol
-              $ oper (show op) resCol pos pos' qi
+              $ oper (RelFun Lt) resCol pos pos' qi
             VL.LtE -> do
               projM (pf [colP descr, colP pos, (pos'', pos)])
                 $ selectM resCol
-                $ (oper (show VL.Eq) resCol pos pos') qi
+                $ (oper (RelFun Eq) resCol pos pos') qi
                   `unionM`
-                  (oper (show VL.Lt) resCol pos pos') qi
+                  (oper (RelFun Lt) resCol pos pos') qi
             _ -> do
               projM (pf [colP descr, colP pos, colP pos''])
                 $ rownumM pos'' [pos] Nothing
                 $ selectM resCol
-                $ oper (show op) resCol pos pos' qi
+                $ oper (algCompOp op) resCol pos pos' qi
     qr <- proj (pf [colP descr, (pos, pos'')]) q'
     qp <- proj [(posold, pos), (posnew, pos'')] q'
     return $ (DBV qr cols, RenameVector qp)
@@ -635,18 +656,18 @@ instance VectorAlgebra PFAlgebra where
             VL.Lt -> do
               projM (pf [colP descr, colP pos, (pos', pos)])
                 $ selectM resCol
-                $ oper (show op) resCol pos'' pos' qi
+                $ oper (RelFun Gt) resCol pos'' pos' qi
             VL.LtE -> do
               projM (pf [colP descr, colP pos, (pos', pos)])
                 $ selectM resCol
-                $ (oper (show VL.Eq) resCol pos'' pos') qi
+                $ (oper (RelFun Eq) resCol pos'' pos') qi
                   `unionM`
-                  (oper (show VL.Lt) resCol pos'' pos') qi
+                  (oper (RelFun Lt) resCol pos'' pos') qi
             _ -> do
               projM (pf [colP descr, colP pos, colP pos'])
                 $ rownumM pos''' [descr, pos] Nothing
                 $ selectM resCol
-                $ oper (show op) resCol pos'' pos' qi
+                $ oper (algCompOp op) resCol pos'' pos' qi
     qr <- proj (pf [colP descr, (pos, pos''')]) q'
     qp <- proj [(posold, pos), (posnew, pos')] q'
     return $ (DBV qr cols, RenameVector qp)
@@ -715,7 +736,7 @@ instance VectorAlgebra PFAlgebra where
         shiftProj   = zip (map itemi cols2') (map itemi cols2)
     qz <- rownumM posnew [descr, pos''] Nothing
           $ projM ([colP pos', colP pos, colP descr] ++ allColsProj)
-          $ thetaJoinM [(descr, descr', "=="), (pos'', pos''', "==")]
+          $ thetaJoinM [(descr, descr', EqJ), (pos'', pos''', EqJ)]
               (return q1')
               (proj ([(descr', descr), (pos', pos), colP pos'''] ++ shiftProj) q2')
 
