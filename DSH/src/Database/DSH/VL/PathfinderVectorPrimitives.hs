@@ -104,6 +104,13 @@ algCompOp :: VL.VecCompOp -> Fun
 algCompOp VL.Eq = RelFun Eq
 algCompOp VL.Gt = RelFun Gt
 algCompOp _     = $impossible
+          
+aggrFun :: VL.AggrFun -> AggrType
+aggrFun (VL.Sum c) = Sum $ itemi c
+aggrFun (VL.Min c) = Min $ itemi c
+aggrFun (VL.Max c) = Max $ itemi c
+aggrFun (VL.Avg c) = Avg $ itemi c
+aggrFun VL.Count   = Count
 
 -- Compilation of VL expressions (Expr1, Expr2)
 
@@ -148,7 +155,7 @@ compileExpr1' cols n (VL.Column1 dbcol)   = do
   col <- freshCol
   nr <- trace (printf "fresh %s" col) $ lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
   return (nr, col)
-compileExpr1' cols n (VL.Constant1 constVal) = do
+compileExpr1' _ n (VL.Constant1 constVal) = do
   col <- freshCol
   let ty  = algConstType constVal
       val = algVal constVal
@@ -210,6 +217,7 @@ applyBinExpr rightWidth e q1 q2 = do
                $ proj ((pos', pos) : colShift) q2
   (qr, cr) <- compileExpr2 qCombined e
   proj [colP descr, colP pos, (item, cr)] qr
+  
 
 -- The VectorAlgebra instance for Pathfinder algebra
 
@@ -356,18 +364,18 @@ instance VectorAlgebra PFAlgebra where
   lengthA (DBV d _) = do
     qr <- attachM descr natT (nat 1)
             $ attachM pos natT (nat 1)
-            $ aggrM [(Max, item, Just item)] Nothing
+            $ aggrM [(Max item, item)] Nothing
             $ (litTable (int 0) item intT)
               `unionM`
-              (aggrM [(Count, item, Nothing)] Nothing $ proj [colP pos] d)
+              (aggrM [(Count, item)] Nothing $ proj [colP pos] d)
     return $ DBP qr [1]
 
   lengthSeg (DBV q1 _) (DBV d _) = do
     qr <- rownumM pos [descr] Nothing
-            $ aggrM [(Max, item, Just item)] (Just descr)
+            $ aggrM [(Max item, item)] (Just descr)
             $ (attachM item intT (int 0) $ proj [(descr, pos)] q1)
               `unionM`
-              (aggrM [(Count, item, Nothing)] (Just descr) $ proj [colP descr] d)
+              (aggrM [(Count, item)] (Just descr) $ proj [colP descr] d)
     return $ DBV qr [1]
 
   reverseA (DBV q cols) = do
@@ -387,7 +395,7 @@ instance VectorAlgebra PFAlgebra where
   unique (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min, posold, Just pos)] (Just resCol)
+           $ aggrM [(Min pos, posold)] (Just resCol)
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     flip DBV cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
@@ -395,32 +403,32 @@ instance VectorAlgebra PFAlgebra where
   uniqueL (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min, posold, Just pos)] (Just resCol)
+           $ aggrM [(Min pos, posold)] (Just resCol)
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     flip DBV cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
 
   vecMin (DBV q _) = do
     qr <- attachM descr natT (nat 1)
             $ attachM pos natT (nat 1)
-            $ aggr [(Min, item, Just item)] Nothing q
+            $ aggr [(Min item, item)] Nothing q
     return $ DBP qr [1]
 
   vecMax (DBV q _) = do
     qr <- attachM descr natT (nat 1)
             $ attachM pos natT (nat 1)
-            $ aggr [(Max, item, Just item)] Nothing q
+            $ aggr [(Max item, item)] Nothing q
     return $ DBP qr [1]
 
   vecMinLift (DBV qv _) = do
     qr <- projM [colP descr,colP pos,colP item]
             $ rownumM pos [descr] Nothing
-            $ aggr [(Min, item, Just item)] (Just descr) qv
+            $ aggr [(Min item, item)] (Just descr) qv
     return $ DBV qr [1]
 
   vecMaxLift (DBV qv _) = do
     qr <- projM [colP descr,colP pos,colP item]
             $ rownumM pos [descr] Nothing
-            $ aggr [(Max, item, Just item)] (Just descr) qv
+            $ aggr [(Max item, item)] (Just descr) qv
     return $ DBV qr [1]
 
   descToRename (DBV q1 _) = RenameVector <$> proj [(posnew, descr), (posold, pos)] q1
@@ -460,19 +468,19 @@ instance VectorAlgebra PFAlgebra where
     -- the actual sum
     qs <- attachM descr natT (nat 1)
          $ attachM pos natT (nat 1)
-         $ aggrM [(Sum, item, Just item)] Nothing
+         $ aggrM [(Sum item, item)] Nothing
          $ union q' q
     return $ DBP qs [1]
     
   vecAvg (DBV q _) = do
     qa <- attachM descr natT (nat 1)
           $ attachM pos natT (nat 1)
-          $ aggr [(Avg, item, Just item)] Nothing q
+          $ aggr [(Avg item, item)] Nothing q
     return $ DBP qa [1] 
   
   vecAvgLift (DBV _qd _) (DBV qv _) = do
     qa <- attachM pos natT (nat 1)
-          $ aggr [(Avg, item, Just item)] (Just descr) qv
+          $ aggr [(Avg item, item)] (Just descr) qv
     return $ DBV qa [1]
 
   vecSumLift (DBV qd _) (DBV qv _) = do
@@ -480,7 +488,7 @@ instance VectorAlgebra PFAlgebra where
           $ differenceM
             (proj [(descr, pos)] qd)
             (proj [colP descr] qv)
-    qs <- aggr [(Sum, item, Just item)] (Just descr) qv
+    qs <- aggr [(Sum item, item)] (Just descr) qv
     qr <- rownumM pos [descr] Nothing
           $ union qe qs
     -- align the result vector with the original descriptor vector to get
@@ -556,6 +564,22 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- proj [(posold, pos'), (posnew, pos)] q
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
+
+  cartProductL (DBV q1 cols1) (DBV q2 cols2) = do
+    let itemProj1  = map (colP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zip (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (colP . itemi) cols2'
+    q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ eqJoinM descr descr'
+             (proj ([colP descr, (pos', pos)] ++ itemProj1) q1)
+             (proj ([(descr', descr), (pos'', pos)] ++ shiftProj2) q2)
+    qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [(posold, pos'), (posnew, pos)] q
+    qp2 <- proj [(posold, pos''), (posnew, pos)] q
+    return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
+    
     
   equiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
     let itemProj1  = map (colP . itemi) cols1
@@ -574,7 +598,22 @@ instance VectorAlgebra PFAlgebra where
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
   
-  equiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = undefined
+  equiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    let itemProj1  = map (colP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zip (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (colP . itemi) cols2'
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+    q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] Nothing
+           $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
+             (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
+             (proj ([(descr', descr), (pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
+    qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [(posold, pos'), (posnew, pos)] q
+    qp2 <- proj [(posold, pos''), (posnew, pos)] q
+    return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
   
   selectPos (DBV qe cols) op (DBP qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -745,4 +784,62 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj ([colP descr, (pos, posnew)] ++ allColsProj) qz
     return (DBV qr allCols, RenameVector r1, RenameVector r2)
   
-  vecAggr _ _ _ = undefined
+  vecAggr = undefined
+  {-
+  vecAggr groupCols aggrFuns (DBV q _) = do
+    let mPartAttrs = case groupCols of
+                         []         -> Nothing
+                         [groupCol] -> Just $ itemi groupCol
+                         _          -> undefined
+  
+    let pfAggrFuns = zipWith (\a i -> (a, itemi i)) (map aggrFun aggrFuns) [1..]
+                 
+    qa <- rownum
+          $ aggr pfAggrFuns mPartAttrs q
+  -}
+                 
+      
+  
+  number (DBV q cols) = do
+    let nrIndex = length cols + 1
+        nrItem = itemi nrIndex
+    qr <- cast pos nrItem natT q
+    return $ DBV qr (cols ++ [nrIndex])
+  
+  -- The Pathfinder implementation of lifted number does not come for free: To
+  -- generate the absolute numbers for every sublist (i.e. descriptor
+  -- partition), we have to use a partitioned rownumber.
+  numberL (DBV q cols) = do
+    let nrIndex = length cols + 1
+        nrItem = itemi nrIndex
+    qr <- rownum nrItem [pos] (Just descr) q
+    return $ DBV qr (cols ++ [nrIndex])
+  
+  -- At the moment, we don't have a specific semijoin operator in
+  -- TableAlgebra. Therefore, we implement it using a normal equijoin and manual
+  -- duplicate elimination.
+  semiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+    q <- rownumM pos [posold] Nothing
+         $ projM (keepItems cols1 [colP descr, (posold, pos)])
+         $ eqJoinM cl cr
+             (return ql)
+             (distinctM $ proj [colP cr] qr)
+    qj <- proj (keepItems cols1 [colP descr, colP pos]) q
+    r  <- proj [colP posold, (posold, posnew)] q
+    return $ (DBV qj cols1, RenameVector r)
+  
+  semiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+    q <- rownumM pos [descr, posold] Nothing
+         $ projM (keepItems cols1 [colP descr, (posold, pos)])
+         $ thetaJoinM [(descr, descr', EqJ), (cl, cr, EqJ)]
+             (return ql)
+             (distinctM $ proj [(descr', descr), colP cr] qr)
+    qj <- proj (keepItems cols1 [colP descr, colP pos]) q
+    r  <- proj [colP posold, (posold, posnew)] q
+    return $ (DBV qj cols1, RenameVector r)
+  
+  
