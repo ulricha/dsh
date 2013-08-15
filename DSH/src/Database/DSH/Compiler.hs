@@ -16,6 +16,7 @@ module Database.DSH.Compiler
   , debugVL
   , debugX100VL
   , debugPFXML
+  , debugTA
   , dumpVLMem
   ) where
 
@@ -89,6 +90,13 @@ nkl2X100File prefix e = desugarComprehensions e
                         |> implementVectorOpsX100
                         |> (exportX100Plan prefix)
 
+nkl2TAFile :: String -> CL.Expr -> IO ()
+nkl2TAFile prefix e = desugarComprehensions e
+                        |> flatten
+                        |> specializeVectorOps
+                        |> implementVectorOpsPF
+                        |> (exportTAPlan prefix)
+
 nkl2SQLFile :: String -> CL.Expr -> IO ()
 nkl2SQLFile prefix e = desugarComprehensions e
                        |> flatten
@@ -157,6 +165,12 @@ debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
               nkl2X100File prefix e'
+
+-- | Debugging function: dumb the X100 plan (DAG) to a file.
+debugTA :: QA a => String -> X100Info -> Q a -> IO ()
+debugTA prefix c (Q e) = do
+              e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+              nkl2TAFile prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
 debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()

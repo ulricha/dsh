@@ -4,17 +4,20 @@ module Database.DSH.Export
   , exportX100Code
   , exportPFXML
   , exportSQL
+  , exportTAPlan
   ) where
 
 import           Database.Algebra.Dag
 import           Database.Algebra.VL.Data                      hiding (Pair)
 import           Database.Algebra.X100.Data
+import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
 import qualified Database.DSH.VL.Data.Query         as Q
 
 import qualified Database.Algebra.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON
+import qualified Database.Algebra.Pathfinder.JSON              as PFJSON
 
 exportVLPlan :: String -> QueryPlan VL -> IO ()
 exportVLPlan prefix vlPlan = do
@@ -37,6 +40,17 @@ exportX100Plan prefix x100Plan = do
                                , nodeMap $ queryDag x100Plan
                                )
   writeFile shapePath $ show $ queryShape x100Plan
+
+exportTAPlan :: String -> QueryPlan PFAlgebra -> IO ()
+exportTAPlan prefix pfPlan = do
+  let planPath = prefix ++ "_pf.plan"
+      shapePath = prefix ++ "_pf.shape"
+
+  PFJSON.planToFile planPath ( queryTags pfPlan
+                               , rootsFromTopShape $ queryShape pfPlan
+                               , nodeMap $ queryDag pfPlan
+                               )
+  writeFile shapePath $ show $ queryShape pfPlan
 
 query :: String -> String -> (a -> (Int, String)) -> Q.Query a -> IO ()
 query prefix suffix extract (Q.ValueVector q l) = do
