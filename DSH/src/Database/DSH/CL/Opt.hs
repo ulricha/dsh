@@ -31,6 +31,7 @@ import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.CL.Lang
+import           Database.DSH.CL.KURE
        
 -- We push simple filters which might end up in a equi join towards the front
 -- of the qualifier list as far as possible.
