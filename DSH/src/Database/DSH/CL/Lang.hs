@@ -5,7 +5,12 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
 
 module Database.DSH.CL.Lang
-  ( Expr(..)
+  ( module Database.DSH.Common.Data.Op
+  , module Database.DSH.Common.Data.Expr
+  , module Database.DSH.Common.Data.JoinExpr
+  , module Database.DSH.Common.Data.Val
+  , module Database.DSH.Common.Data.Type
+  , Expr(..)
   , Quals(..)
   , Qual(..)
   , Typed(..)
@@ -18,8 +23,6 @@ module Database.DSH.CL.Lang
   , Prim2Op(..)
   , Prim1(..)
   , Prim2(..)
-  , Column
-  , Key
   ) where
 
 import           Data.Data
