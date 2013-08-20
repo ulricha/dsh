@@ -12,6 +12,7 @@ module Database.DSH.Common.Data.Type
  , extractPairT
  , isList
  , elemT
+ , domainT
  , splitType
  , varsInType
  , listDepth
@@ -90,6 +91,10 @@ isNum StringT = False
 isNum UnitT = False
 isNum (ListT _) = False
 isNum (PairT _ _) = False
+      
+domainT :: Type -> Type
+domainT (FunT t _) = t
+domainT _          = error "domainT: argument is not a function type"
 
 varsInType :: Type -> [String]
 varsInType (FunT t1 t2) = varsInType t1 ++ varsInType t2

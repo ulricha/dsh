@@ -115,7 +115,7 @@ data Expr  = Table Type String [Column] [Key]
            | BinOp Type Oper Expr Expr        
            | Lam Type Ident Expr              
            | If Type Expr Expr Expr
-           | Const Type Val
+           | Lit Type Val
            | Var Type Ident
            | Comp Type Expr [Qualifier]
            deriving (Data, Typeable)
@@ -139,7 +139,7 @@ pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e
 pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
 pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
-pp (Const _ v)        = text $ show v
+pp (Lit _ v)        = text $ show v
 pp (Var _ s)          = text s
 pp (Comp _ e qs)      = brackets $ char ' ' <> pp e <+> char '|' <+> (hsep $ punctuate comma $ map ppQualifier qs)
 
@@ -154,7 +154,7 @@ instance Typed Expr where
   typeOf (Lam t _ _)     = t
   typeOf (If t _ _ _)    = t
   typeOf (BinOp t _ _ _) = t
-  typeOf (Const t _)     = t
+  typeOf (Lit t _)     = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t
   
@@ -170,7 +170,7 @@ freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
 freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
 freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
 freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Const _ _)       = S.empty
+freeVars (Lit _ _)       = S.empty
 freeVars (Var _ x)         = S.singleton x
 freeVars (Comp _ b qs)     = foldr collect (freeVars b) qs
 
@@ -189,7 +189,7 @@ subst v r (BinOp t o e1 e2)     = BinOp t o (subst v r e1) (subst v r e2)
 subst v r lam@(Lam t v' e)      = if v' == v
                                      then lam
                                      else Lam t v' (subst v r e)
-subst _ _ c@(Const _ _)         = c
+subst _ _ c@(Lit _ _)         = c
 subst v r var@(Var _ v')        = if v == v' then r else var
 subst v r (If t c thenE elseE)  = If t (subst v r c) (subst v r thenE) (subst v r elseE)
 subst v r (Comp t e qs)         = Comp t (subst v r e) (substQuals v r qs)

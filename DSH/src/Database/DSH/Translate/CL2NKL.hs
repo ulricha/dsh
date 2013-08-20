@@ -75,7 +75,7 @@ expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2) = NKL.BinOp t o (expr e1) (expr e2)
 expr (CL.Lam t v e)       = NKL.Lam t v (expr e)
 expr (CL.If t c th el)    = NKL.If t (expr c) (expr th) (expr el)
-expr (CL.Const t v)       = NKL.Const t v
+expr (CL.Lit t v)         = NKL.Const t v
 expr (CL.Var t v)         = NKL.Var t v
 expr (CL.Comp t e qs)     = desugar t e qs
 
@@ -94,7 +94,7 @@ desugar t e qs =
             rt = elemT t
     
     (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e' empty) empty
-      where empty = CL.Const t (ListV [])
+      where empty = CL.Lit t (ListV [])
 
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.

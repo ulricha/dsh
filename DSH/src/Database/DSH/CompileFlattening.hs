@@ -212,7 +212,7 @@ resugar expr =
       case resugar body of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Const _ (V.ListV []))) ->
+        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
           resugar $ CL.Comp t e [CL.BindQ v xs']
 
         -- concatMap (\x -> [ e | qs ]) xs
@@ -227,7 +227,7 @@ resugar expr =
     CL.Lam t v e1 -> CL.Lam t v (resugar e1)
     
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
-    constant@(CL.Const _ _) -> constant
+    constant@(CL.Lit _ _)    -> constant
     var@(CL.Var _ _) -> var
     comp@(CL.Comp t body qs) -> 
       if changed 

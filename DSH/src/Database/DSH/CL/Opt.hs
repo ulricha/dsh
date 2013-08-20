@@ -97,7 +97,7 @@ toJoinExpr (AppE1 _ (Prim1 Snd _) e) x = UnOpJ SndJ <$> toJoinExpr e x
 toJoinExpr (AppE1 _ (Prim1 Not _) e) x = UnOpJ NotJ <$> toJoinExpr e x
 toJoinExpr (BinOp _ o e1 e2)         x = BinOpJ o <$> toJoinExpr e1 x 
                                                   <*> toJoinExpr e2 x
-toJoinExpr (Const _ v)               _ = return $ ConstJ v
+toJoinExpr (Lit _ v)               _   = return $ ConstJ v
 toJoinExpr (Var _ x') x | x == x'      = return InputJ
 toJoinExpr _                         _ = mzero
         
@@ -185,7 +185,7 @@ collectExpressions expr = execWriter $ runReaderT (collect expr) initEnv
     collect (Lam _ x e)       = bindLocally x (collect e)
     collect (If _ e1 e2 e3)   = mapM_ collect [e1, e2, e3]
     collect (BinOp _ _ e1 e2) = collect e1 >> collect e2
-    collect (Const _ _)       = return ()
+    collect (Lit _ _)         = return ()
     collect v@(Var _ x)       = isNotShadowed x >>= flip when (tell [v])
     collect c@(Comp _ b qs)   = areNotShadowed (freeVars c) >>= flip when (tell [c])
     
@@ -291,7 +291,7 @@ replaceExpressions expr replacements = evalState (runReaderT (replace expr) init
         e2' <- replace e2
         return $ BinOp t o e1' e2'
 
-    replace c@(Const _ _)       = return c
+    replace c@(Lit _ _)       = return c
 
     replace v@(Var _ x)       = do 
         interesting <- isNotShadowed x
