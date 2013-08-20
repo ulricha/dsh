@@ -6,7 +6,8 @@
 
 module Database.DSH.CL.Lang
   ( Expr(..)
-  , Qualifier(..)
+  , Quals(..)
+  , Qual(..)
   , Typed(..)
   , freeVars
   , subst
@@ -117,31 +118,41 @@ data Expr  = Table Type String [Column] [Key]
            | If Type Expr Expr Expr
            | Lit Type Val
            | Var Type Ident
-           | Comp Type Expr [Qualifier]
+           | Comp Type Expr Quals
            deriving (Data, Typeable)
            
-data Qualifier = BindQ Ident Expr
+newtype Quals = Quals [Qual] deriving (Eq, Ord, Data, Typeable)
+           
+data Qual = BindQ Ident Expr
                | GuardQ Expr
                deriving (Eq, Ord, Data, Typeable)
 
 instance Show Expr where
   show e = render $ pp e
   
-ppQualifier :: Qualifier -> Doc
-ppQualifier (BindQ i e) = text i <+> text "<-" <+> pp e
-ppQualifier (GuardQ e)  = pp e
+ppQual :: Qual -> Doc
+ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
+ppQual (GuardQ e)  = pp e
   
 pp :: Expr -> Doc
-pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
-pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
-pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
-pp (Lit _ v)        = text $ show v
-pp (Var _ s)          = text s
-pp (Comp _ e qs)      = brackets $ char ' ' <> pp e <+> char '|' <+> (hsep $ punctuate comma $ map ppQualifier qs)
+pp (Table _ n _ _)       = text "table" <+> text n
+pp (App _ e1 e2)         = (parens $ pp e1) <+> (parens $ pp e2)
+pp (AppE1 _ p1 e)        = (text $ show p1) <+> (parens $ pp e)
+pp (AppE2 _ p1 e1 e2)    = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
+pp (BinOp _ o e1 e2)     = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (Lam _ v e)           = char '\\' <> text v <+> text "->" <+> pp e
+pp (If _ c t e)          = text "if" 
+                           <+> pp c 
+                           <+> text "then" 
+                           <+> (parens $ pp t) 
+                           <+> text "else" 
+                           <+> (parens $ pp e)
+pp (Lit _ v)             = text $ show v
+pp (Var _ s)             = text s
+pp (Comp _ e (Quals qs)) = brackets $ char ' ' 
+                                      <> pp e 
+                                      <+> char '|' 
+                                      <+> (hsep $ punctuate comma $ map ppQual qs)
 
 deriving instance Eq Expr
 deriving instance Ord Expr
@@ -154,7 +165,7 @@ instance Typed Expr where
   typeOf (Lam t _ _)     = t
   typeOf (If t _ _ _)    = t
   typeOf (BinOp t _ _ _) = t
-  typeOf (Lit t _)     = t
+  typeOf (Lit t _)       = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t
   
@@ -163,16 +174,16 @@ instance Typed Expr where
 
 -- | Compute free variables of a CL expression
 freeVars :: Expr -> S.Set Ident
-freeVars (Table _ _ _ _) = S.empty
-freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
-freeVars (AppE1 _ _ e1)    = freeVars e1
-freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
-freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
-freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lit _ _)       = S.empty
-freeVars (Var _ x)         = S.singleton x
-freeVars (Comp _ b qs)     = foldr collect (freeVars b) qs
+freeVars (Table _ _ _ _)       = S.empty
+freeVars (App _ e1 e2)         = freeVars e1 `S.union` freeVars e2
+freeVars (AppE1 _ _ e1)        = freeVars e1
+freeVars (AppE2 _ _ e1 e2)     = freeVars e1 `S.union` freeVars e2
+freeVars (Lam _ x e)           = (freeVars e) S.\\ S.singleton x
+freeVars (If _ e1 e2 e3)       = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
+freeVars (BinOp _ _ e1 e2)     = freeVars e1 `S.union` freeVars e2
+freeVars (Lit _ _)             = S.empty
+freeVars (Var _ x)             = S.singleton x
+freeVars (Comp _ b (Quals qs)) = foldr collect (freeVars b) qs
 
   where collect (BindQ v e) fvs = S.difference (S.union fvs (freeVars e)) (S.singleton v)
         collect (GuardQ e)  fvs = S.union fvs (freeVars e)
@@ -189,13 +200,13 @@ subst v r (BinOp t o e1 e2)     = BinOp t o (subst v r e1) (subst v r e2)
 subst v r lam@(Lam t v' e)      = if v' == v
                                      then lam
                                      else Lam t v' (subst v r e)
-subst _ _ c@(Lit _ _)         = c
+subst _ _ c@(Lit _ _)           = c
 subst v r var@(Var _ v')        = if v == v' then r else var
 subst v r (If t c thenE elseE)  = If t (subst v r c) (subst v r thenE) (subst v r elseE)
-subst v r (Comp t e qs)         = Comp t (subst v r e) (substQuals v r qs)
+subst v r (Comp t e (Quals qs)) = Comp t (subst v r e) (Quals $ substQuals v r qs)
 
 -- | Substitution on a list of qualifiers
-substQuals :: Ident -> Expr -> [Qualifier] -> [Qualifier]
+substQuals :: Ident -> Expr -> [Qual] -> [Qual]
 substQuals v r ((GuardQ g) : qs)               = (GuardQ (subst v r g)) : (substQuals v r qs)
 substQuals v r ((BindQ v' s) : qs) | v == v'   = (BindQ v' (subst v r s)) : qs
 substQuals v r ((BindQ v' s) : qs) | otherwise = (BindQ v' (subst v r s)) : (substQuals v r qs)
@@ -207,7 +218,7 @@ tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
 
   where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
 
-tuplifyQuals :: (Ident, Type) -> (Ident, Type) -> [Qualifier] -> [Qualifier]
+tuplifyQuals :: (Ident, Type) -> (Ident, Type) -> [Qual] -> [Qual]
 tuplifyQuals (v1, t1) (v2, t2) qs = substQuals v2 v2Rep $ substQuals v1 v1Rep qs
 
   where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)

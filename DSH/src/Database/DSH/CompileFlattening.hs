@@ -192,7 +192,7 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
         let body' = resugar body
             xs'   = resugar xs
-        in resugar $ CL.Comp t body' [CL.BindQ x xs']
+        in resugar $ CL.Comp t body' (CL.Quals [CL.BindQ x xs'])
   
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
@@ -200,7 +200,7 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x p) xs ->
         let xs' = resugar xs
             p'  = resugar p
-        in resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs', CL.GuardQ p']
+        in resugar $ CL.Comp t (CL.Var xt x) (CL.Quals [CL.BindQ x xs', CL.GuardQ p'])
         
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
@@ -213,12 +213,12 @@ resugar expr =
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
         CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
-          resugar $ CL.Comp t e [CL.BindQ v xs']
+          resugar $ CL.Comp t e (CL.Quals [CL.BindQ v xs'])
 
         -- concatMap (\x -> [ e | qs ]) xs
         -- => [ e | x <- xs, qs ]
-        CL.Lam _ v (CL.Comp _ e qs) ->
-          resugar $ CL.Comp t e (CL.BindQ v xs' : qs)
+        CL.Lam _ v (CL.Comp _ e (CL.Quals qs)) ->
+          resugar $ CL.Comp t e (CL.Quals (CL.BindQ v xs' : qs))
           
         _ -> cm
 
@@ -229,13 +229,13 @@ resugar expr =
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
     constant@(CL.Lit _ _)    -> constant
     var@(CL.Var _ _) -> var
-    comp@(CL.Comp t body qs) -> 
+    comp@(CL.Comp t body (CL.Quals qs)) -> 
       if changed 
-      then resugar $ CL.Comp t body' qs'
-      else CL.Comp t body' qs
+      then resugar $ CL.Comp t body' (CL.Quals qs')
+      else CL.Comp t body' (CL.Quals qs)
 
       where -- We fold over the qualifiers and look for local rewrite possibilities
-            resugarQual :: CL.Qualifier -> (Bool, [CL.Qualifier]) -> (Bool, [CL.Qualifier])
+            resugarQual :: CL.Qual -> (Bool, [CL.Qual]) -> (Bool, [CL.Qual])
             resugarQual q (changedAcc, qsAcc) =
               case q of
                 -- Eliminate unused bindings from guards

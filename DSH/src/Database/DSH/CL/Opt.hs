@@ -39,15 +39,15 @@ pushFilters :: Expr -> Expr
 pushFilters expr = transform go expr
   where 
     go :: Expr -> Expr
-    go (Comp t e qs) = Comp t e (reverse $ pushFromEnd $ reverse qs)
-    go e             = e
+    go (Comp t e (Quals qs)) = Comp t e (Quals $ reverse $ pushFromEnd $ reverse qs)
+    go e                     = e
     
-    pushFromEnd :: [Qualifier] -> [Qualifier]
-    pushFromEnd []                                    = []
+    pushFromEnd :: [Qual] -> [Qual]
+    pushFromEnd []                                   = []
     pushFromEnd ((GuardQ p) : qs) | isEquiJoinPred p = pushDown p (pushFromEnd qs)
-    pushFromEnd (q : qs)                              = q : (pushFromEnd qs)
+    pushFromEnd (q : qs)                             = q : (pushFromEnd qs)
     
-    pushDown :: Expr -> [Qualifier] -> [Qualifier]
+    pushDown :: Expr -> [Qual] -> [Qual]
     pushDown p []                                          = [GuardQ p]
 
     -- We push past other guards to get our join predicate as deep down as possible
@@ -105,17 +105,17 @@ introduceEquiJoins :: Expr -> Expr
 introduceEquiJoins expr = transform go expr
   where 
     go :: Expr -> Expr
-    go (Comp t e qs) = Comp t e' qs' where (e', qs') = buildJoins e qs
-    go e             = e
+    go (Comp t e (Quals qs)) = Comp t e' (Quals qs') where (e', qs') = buildJoins e qs
+    go e                     = e
     
     -- We traverse the qualifier list and look for an equi join pattern:
     -- [ e | qs, x <- xs, y <- ys, p, qs' ]
     -- = [ tuplify e x y | qs, x <- eqjoin p xs ys, tuplifyQuals qs' x y ]
-    buildJoins :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    buildJoins :: Expr -> [Qual] -> (Expr, [Qual])
     buildJoins e qs = let (e', qs') = traverse e qs
                       in (e', qs')
 
-    traverse :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    traverse :: Expr -> [Qual] -> (Expr, [Qual])
     traverse e [] = (e, [])
     traverse e (BindQ x xs : BindQ y ys : GuardQ p : qs) =
         case splitJoinPred p x y of
@@ -312,7 +312,7 @@ comprehensionHead expr = transform go expr
     go (Comp t e qs) = project undefined e qs
     go e             = e
     
-    project :: Type -> Expr -> [Qualifier] -> Expr
+    project :: Type -> Expr -> [Qual] -> Expr
     project _ _ _  = undefined
     project t e qs = Comp t e qs
 -}
@@ -326,21 +326,21 @@ unnestComprehensionHead :: Expr -> Expr
 unnestComprehensionHead expr = transform go expr
   where
     go :: Expr -> Expr
-    go (Comp t e qs) = Comp t e' qs' where (e', qs') = unnestHead e qs
-    go e             = e
+    go (Comp t e (Quals qs)) = Comp t e' (Quals qs') where (e', qs') = unnestHead e qs
+    go e                     = e
     
-    quantifierBindings :: [Qualifier] -> [Ident]
+    quantifierBindings :: [Qual] -> [Ident]
     quantifierBindings qs = mapMaybe aux qs
       where
         aux (BindQ i _) = Just i
         aux (GuardQ _)  = Nothing
     
-    unnestHead :: Expr -> [Qualifier] -> (Expr, [Qualifier])
+    unnestHead :: Expr -> [Qual] -> (Expr, [Qual])
     -- [ (x, [ g y | y <- ys, p x y ]) | x <- xs ]
     -- => [ (fst x, map (\y -> g y) snd x) | x <- xs nj(p) ys ]
     unnestHead e@(AppE2 _ (Prim2 Pair _) 
                         (Var xt x) 
-                        (Comp (ListT it) g [ BindQ y ys, GuardQ p]))
+                        (Comp (ListT it) g (Quals [ BindQ y ys, GuardQ p])))
                qs@[BindQ x' xs] 
                | x == x' && 
                  -- The predicate must have the proper shape
@@ -360,7 +360,7 @@ unnestComprehensionHead expr = transform go expr
               -- snd x
               ys' = AppE1 (listT yt) (Prim1 Snd (tupType .-> (listT yt))) (Var tupType x)
               -- [ g | y <- snd x ]
-              innerComp = Comp (listT it) g [BindQ y ys']
+              innerComp = Comp (listT it) g (Quals [BindQ y ys'])
   
               -- (fst x, innerComp)
               headExpr = AppE2 resType 
@@ -377,14 +377,14 @@ unnestExistentials :: Expr -> Expr
 unnestExistentials expr = transform go expr
   where
     go :: Expr -> Expr
-    go (Comp t e qs) = Comp t e qs' where qs' = unnestElem qs
-    go e             = e
+    go (Comp t e (Quals qs)) = Comp t e (Quals qs') where qs' = unnestElem qs
+    go e                     = e
     
     -- [ f x | x <- xs, or [ p | y <- ys ] ]
-    unnestElem :: [Qualifier] -> [Qualifier]
+    unnestElem :: [Qual] -> [Qual]
     unnestElem qs@[ BindQ x xs
                   , GuardQ ((AppE1 _ (Prim1 Or _)
-                                     (Comp _ p [BindQ y ys])))
+                                     (Comp _ p (Quals [BindQ y ys]))))
                   ] =
         case splitJoinPred p x y of
             Just (leftExpr, rightExpr) -> 

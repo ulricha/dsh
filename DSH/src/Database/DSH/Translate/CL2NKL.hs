@@ -67,20 +67,20 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.ConcatMap      -> $impossible
 
 expr :: CL.Expr -> NKL.Expr
-expr (CL.Table t s cs ks) = NKL.Table t s cs ks
-expr (CL.App t e1 e2)     = NKL.App t (expr e1) (expr e2)
-expr (CL.AppE1 t p e)     = NKL.AppE1 t (prim1 p) (expr e)
+expr (CL.Table t s cs ks)        = NKL.Table t s cs ks
+expr (CL.App t e1 e2)            = NKL.App t (expr e1) (expr e2)
+expr (CL.AppE1 t p e)            = NKL.AppE1 t (prim1 p) (expr e)
 expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = expr $ CP.concat $ CP.map f xs
-expr (CL.AppE2 t p e1 e2) = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
-expr (CL.BinOp t o e1 e2) = NKL.BinOp t o (expr e1) (expr e2)
-expr (CL.Lam t v e)       = NKL.Lam t v (expr e)
-expr (CL.If t c th el)    = NKL.If t (expr c) (expr th) (expr el)
-expr (CL.Lit t v)         = NKL.Const t v
-expr (CL.Var t v)         = NKL.Var t v
-expr (CL.Comp t e qs)     = desugar t e qs
+expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
+expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o (expr e1) (expr e2)
+expr (CL.Lam t v e)              = NKL.Lam t v (expr e)
+expr (CL.If t c th el)           = NKL.If t (expr c) (expr th) (expr el)
+expr (CL.Lit t v)                = NKL.Const t v
+expr (CL.Var t v)                = NKL.Var t v
+expr (CL.Comp t e (CL.Quals qs)) = desugar t e qs
 
 -- | Desugar comprehensions into NKL expressions
-desugar :: Type -> CL.Expr -> [CL.Qualifier] -> NKL.Expr
+desugar :: Type -> CL.Expr -> [CL.Qual] -> NKL.Expr
 desugar t e qs =
   -- We reduce a comprehension with multiple qualifiers to a comprehension with
   -- one qualifier, which we can then handle easily.
@@ -98,7 +98,7 @@ desugar t e qs =
 
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.
-productify :: CL.Expr -> [CL.Qualifier] -> (CL.Expr, CL.Qualifier)
+productify :: CL.Expr -> [CL.Qual] -> (CL.Expr, CL.Qual)
 productify e []                                 = $impossible
 productify e [q]                                = (e, q)
            
