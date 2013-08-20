@@ -5,11 +5,15 @@
 -- | Infrastructure for KURE-based rewrites on CL expressions
    
 module Database.DSH.CL.Kure
-    (
+    ( -- * Re-export relevant KURE modules
+      module Language.KURE
+
       -- * The KURE monad
-      CompM, TranslateC, RewriteC
+    , CompM, TranslateC, RewriteC
+
       -- * The KURE context
-    , CompC
+    , CompC, freeIn, boundIn
+
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
     , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
@@ -53,6 +57,12 @@ bindVar n ty ctx = ctx { cl_bindings = M.insert n ty (cl_bindings ctx) }
 bindQual :: CompC -> Qual -> CompC
 bindQual ctx (BindQ n e) = bindVar n (elemT $ typeOf e) ctx
 bindQual ctx _           = ctx
+
+boundIn :: Ident -> CompC -> Bool
+boundIn n ctx = n `M.member` (cl_bindings ctx)
+
+freeIn :: Ident -> CompC -> Bool
+freeIn n ctx = n `M.notMember` (cl_bindings ctx)
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
