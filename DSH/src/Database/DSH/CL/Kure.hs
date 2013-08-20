@@ -4,12 +4,17 @@
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
    
-module Database.DSH.CL.KURE
+module Database.DSH.CL.Kure
     (
+      -- * The KURE monad
+      CompM, TranslateC, RewriteC
       -- * The KURE context
-      CompC
+    , CompC
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
+    , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
+    , bindQualT, guardQualT, bindQualR, guardQualR
+    , qualsT, qualsR
     ) where
     
        
@@ -24,6 +29,16 @@ import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.CL.Lang
+                 
+
+--------------------------------------------------------------------------------
+
+-- The rewriting monad. For the moment, we use the regular KURE monad. Should
+-- the need arise for e.g. fresh variables, add another monad wrapper.
+type CompM = KureM
+
+type TranslateC a b = Translate CompC CompM a b
+type RewriteC a     = TranslateC a a
 
 --------------------------------------------------------------------------------
 
