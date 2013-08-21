@@ -11,14 +11,9 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , NL(..)
+  , NL(..), reverseNL, toList
   , Qual(..)
   , Typed(..)
---  , freeVars
---  , subst
---  , substQuals
---  , tuplify
---  , tuplifyQuals
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)
@@ -52,6 +47,9 @@ data NL a = a :* (NL a)
           
 infixr :*
           
+instance Show a => Show (NL a) where
+    show = show . toList 
+          
 instance Functor NL where
     fmap f (a :* as) = (f a) :* (fmap f as)
     fmap f (S a)     = S (f a)
@@ -67,6 +65,10 @@ instance T.Traversable NL where
 toList :: NL a -> [a]
 toList (a :* as) = a : toList as
 toList (S a)     = [a]
+
+reverseNL :: NL a -> NL a
+reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
+reverseNL (S a)     = S a
 
 --------------------------------------------------------------------------------
 -- CL primitives

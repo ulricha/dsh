@@ -273,8 +273,51 @@ instance Walker CompCtx CL where
                    <+ binopR (extractR r) (extractR r)
                    <+ lamR (extractR r)
                    <+ compR (extractR r) (extractR r)
-    
 
+--------------------------------------------------------------------------------
+-- A Walker instance for polymorphic NL lists so that we can use the traversal
+-- infrastructure on lists.
+   
+{-
+data NLR a = List (NL a)
+           | Elem a
+           
+instance Injection a (NLR a) where
+    inject           = Elem
+
+    project (Elem a) = Just a
+    project (List _) = Nothing
+    
+instance Injection (NL a) (NLR a) where
+    inject            = List
+
+    project (List as) = Just as
+    project (Elem _)  = Nothing
+-}
+                   
+consT :: Monad m => Translate CompCtx m (NL a) b
+                 -> (a -> b -> c)
+                 -> Translate CompCtx m (NL a) c
+consT t f = translate $ \ctx nl -> case nl of
+                a :* as -> f a <$> apply t ctx as
+                S _     -> fail "not a nonempty cons"
+                    
+consR :: Monad m => Rewrite CompCtx m (NL a) 
+                 -> Rewrite CompCtx m (NL a)
+consR t = consT t (:*)                 
+
+singletonT :: Monad m => (a -> c)
+                      -> Translate CompCtx m (NL a) c
+singletonT f = translate $ \ctx nl -> case nl of
+                   S a    -> return $ f a
+                   _ :* _ -> fail "not a nonempty singleton"
+               
+singletonR :: Monad m => Rewrite CompCtx m (NL a)
+singletonR = singletonT S                      
+                   
+instance Walker CompCtx (NL a) where
+    allR r = consR r
+    
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
 

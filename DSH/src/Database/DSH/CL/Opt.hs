@@ -11,6 +11,7 @@ import           Text.Printf
                  
 import           Control.Applicative((<$>), (<*>))
 import           Control.Monad
+import           Control.Arrow
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer
@@ -28,6 +29,24 @@ import           Database.DSH.Impossible
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
+                 
+pushFilters :: RewriteC Expr
+pushFilters = pushFiltersOnComp
+  where
+    pushFiltersOnComp :: RewriteC Expr
+    pushFiltersOnComp = do
+        Comp _ _ qs <- idR
+        compR idR pushFiltersQuals
+        
+    pushFiltersQuals :: RewriteC (NL Qual)
+    pushFiltersQuals = (reverseNL . fmap initFlags) 
+                       ^>> innermostR undefined 
+                       >>^ (reverseNL . fmap snd)
+    
+    initFlags :: Qual -> (Bool, Qual)
+    initFlags q@(GuardQ _)  = (True, q)
+    initFlags q@(BindQ _ _) = (False, q)
+    
        
 {-
 -- We push simple filters which might end up in a equi join towards the front
