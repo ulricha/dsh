@@ -1,4 +1,10 @@
-module Database.DSH.CL.OptUtils where
+-- | Some utilities for KURE-based transformations on CL expressions
+
+module Database.DSH.CL.OptUtils
+    ( freeVarsT, freeVars
+    , subst
+    , tuplify
+    ) where
 
 import Control.Applicative
 import Control.Arrow
@@ -11,11 +17,6 @@ import Database.DSH.CL.Lang
 import Database.DSH.CL.Monad
 import Database.DSH.CL.Kure
        
-
-{-
-applyCL :: (String -> b) -> TranslateC CL b -> CL -> b
-applyCL err f = runKureM id err . apply f initialCtx
--}
 
 applyExpr :: TranslateC CL b -> Expr -> Either String b
 applyExpr f e = runCompM $ apply f initialCtx (inject e)
@@ -95,3 +96,19 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
     rules_qual :: RewriteC CL
     rules_qual = do QualCL _ <- idR
                     anyR (subst v s)
+
+
+--------------------------------------------------------------------------------
+-- Tuplifying variables
+
+tuplify :: Ident -> (Ident, Type) -> (Ident, Type) -> RewriteC CL
+tuplify v (v1, t1) (v2, t2) = subst v1 v1Rep >>> subst v2 v2Rep
+  where 
+    (v1Rep, v2Rep) = tupleVars v t1 t2
+
+tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
+tupleVars n t1 t2 = (v1Rep, v2Rep)
+  where v     = Var pt n
+        pt    = pairT t1 t2
+        v1Rep = AppE1 t1 (Prim1 Fst (pt .-> t1)) v
+        v2Rep = AppE1 t2 (Prim1 Snd (pt .-> t2)) v
