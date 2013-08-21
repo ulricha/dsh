@@ -11,7 +11,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , Quals(..)
+  , NL(..)
   , Qual(..)
   , Typed(..)
 --  , freeVars
@@ -26,6 +26,11 @@ module Database.DSH.CL.Lang
   ) where
 
 import           Data.Data
+                 
+import           Control.Applicative
+                 
+import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -37,6 +42,34 @@ import           Database.DSH.Common.Data.Val(Val())
 import           Database.DSH.Common.Data.Type
   
 import qualified Data.Set as S
+
+--------------------------------------------------------------------------------
+-- A simple type of nonempty lists, used for comprehension qualifiers
+
+data NL a = a :* (NL a)
+          | S a
+          deriving (Data, Typeable, Eq, Ord)
+          
+infixr :*
+          
+instance Functor NL where
+    fmap f (a :* as) = (f a) :* (fmap f as)
+    fmap f (S a)     = S (f a)
+    
+instance F.Foldable NL where
+    foldr f z (a :* as) = f a (F.foldr f z as)
+    foldr f z (S a)     = f a z
+    
+instance T.Traversable NL where
+    traverse f (a :* as) = (:*) <$> (f a) <*> (T.traverse f as)
+    traverse f (S a)     = S <$> (f a)
+    
+toList :: NL a -> [a]
+toList (a :* as) = a : toList as
+toList (S a)     = [a]
+
+--------------------------------------------------------------------------------
+-- CL primitives
 
 data Prim1Op = Length |  Not |  Concat 
              | Sum | Avg | The | Fst | Snd 
@@ -112,6 +145,13 @@ instance Show Prim2Op where
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
 
+--------------------------------------------------------------------------------
+-- CL expressions
+
+data Qual = BindQ Ident Expr
+          | GuardQ Expr
+          deriving (Eq, Ord, Data, Typeable)
+
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              
            | AppE1 Type (Prim1 Type) Expr   
@@ -121,15 +161,9 @@ data Expr  = Table Type String [Column] [Key]
            | If Type Expr Expr Expr
            | Lit Type Val
            | Var Type Ident
-           | Comp Type Expr Quals
+           | Comp Type Expr (NL Qual)
            deriving (Data, Typeable)
            
-newtype Quals = Quals [Qual] deriving (Eq, Ord, Data, Typeable)
-           
-data Qual = BindQ Ident Expr
-               | GuardQ Expr
-               deriving (Eq, Ord, Data, Typeable)
-
 instance Show Expr where
   show e = render $ pp e
   
@@ -138,24 +172,24 @@ ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
 ppQual (GuardQ e)  = pp e
   
 pp :: Expr -> Doc
-pp (Table _ n _ _)       = text "table" <+> text n
-pp (App _ e1 e2)         = (parens $ pp e1) <+> (parens $ pp e2)
-pp (AppE1 _ p1 e)        = (text $ show p1) <+> (parens $ pp e)
-pp (AppE2 _ p1 e1 e2)    = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
-pp (BinOp _ o e1 e2)     = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
-pp (Lam _ v e)           = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)          = text "if" 
-                           <+> pp c 
-                           <+> text "then" 
-                           <+> (parens $ pp t) 
-                           <+> text "else" 
-                           <+> (parens $ pp e)
-pp (Lit _ v)             = text $ show v
-pp (Var _ s)             = text s
-pp (Comp _ e (Quals qs)) = brackets $ char ' ' 
-                                      <> pp e 
-                                      <+> char '|' 
-                                      <+> (hsep $ punctuate comma $ map ppQual qs)
+pp (Table _ n _ _)    = text "table" <+> text n
+pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
+pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
+pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
+pp (If _ c t e)       = text "if" 
+                         <+> pp c 
+                         <+> text "then" 
+                         <+> (parens $ pp t) 
+                         <+> text "else" 
+                         <+> (parens $ pp e)
+pp (Lit _ v)          = text $ show v
+pp (Var _ s)          = text s
+pp (Comp _ e qs)      = brackets $ char ' ' 
+                                   <> pp e 
+                                   <+> char '|' 
+                                   <+> (hsep $ punctuate comma $ map ppQual $ toList qs)
 
 deriving instance Eq Expr
 deriving instance Ord Expr
@@ -175,6 +209,7 @@ instance Typed Expr where
 ------------------------------------------------------------------------------------------
 -- Some utilities for transformations on CL expressions
 
+{-
 -- | Compute free variables of a CL expression
 freeVars :: Expr -> S.Set Ident
 freeVars (Table _ _ _ _)       = S.empty
@@ -232,3 +267,4 @@ tupleVars (v1, t1) (_, t2) = (v1Rep, v2Rep)
         pt     = pairT t1 t2
         v1Rep  = AppE1 t1 (Prim1 Fst (pt .-> t1)) v1'
         v2Rep  = AppE1 t2 (Prim1 Snd (pt .-> t2)) v1'
+-}

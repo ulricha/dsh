@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
@@ -26,8 +27,8 @@ module Database.DSH.CL.Kure
     
        
 import           Control.Monad
-import           Data.List
 import qualified Data.Map as M
+import qualified Data.Foldable as F
 
 import           Language.KURE
        
@@ -165,16 +166,16 @@ varR :: Monad m => Rewrite CompCtx m Expr
 varR = varT Var
 
 compT :: Monad m => Translate CompCtx m Expr a1
-                 -> Translate CompCtx m Quals a2
+                 -> Translate CompCtx m (NL Qual) a2
                  -> (Type -> a1 -> a2 -> b)
                  -> Translate CompCtx m Expr b
 compT t1 t2 f = translate $ \ctx expr -> case expr of
-                    Comp ty e (Quals qs) -> f ty <$> apply t1 (foldl' bindQual ctx qs) e 
-                                                 <*> apply t2 ctx (Quals qs)
+                    Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual ctx qs) e 
+                                         <*> apply t2 ctx qs
                     _            -> fail "not a comprehension"
                     
 compR :: Monad m => Rewrite CompCtx m Expr
-                 -> Rewrite CompCtx m Quals
+                 -> Rewrite CompCtx m (NL Qual)
                  -> Rewrite CompCtx m Expr
 compR t1 t2 = compT t1 t2 Comp                 
 
@@ -204,25 +205,37 @@ guardQualR t = guardQualT t GuardQ
 --------------------------------------------------------------------------------
 -- Congruence combinator for a qualifier list
 
-qualsT :: Monad m => Translate CompCtx m Qual a 
-                  -> ([a] -> b) 
-                  -> Translate CompCtx m Quals b
-qualsT t f = translate $ \ctx (Quals qs) -> f <$> reverse <$> snd <$> foldM aux (ctx, []) qs
-  where
-    aux (ctx, bs) q = do
-        b <- apply t ctx q
-        return (bindQual ctx q, b : bs)
-        
-qualsR :: Monad m => Rewrite CompCtx m Qual -> Rewrite CompCtx m Quals
-qualsR t = qualsT t Quals
-                  
+qualsT :: Monad m => Translate CompCtx m Qual a1
+                  -> Translate CompCtx m (NL Qual) a2
+                  -> (a1 -> a2 -> b) 
+                  -> Translate CompCtx m (NL Qual) b
+qualsT t1 t2 f = translate $ \ctx quals -> case quals of
+                   q :* qs -> f <$> apply t1 ctx q <*> apply t2 (bindQual ctx q) qs
+                   S _     -> fail "not a nonempty cons"
+                   
+qualsR :: Monad m => Rewrite CompCtx m Qual
+                  -> Rewrite CompCtx m (NL Qual)
+                  -> Rewrite CompCtx m (NL Qual)
+qualsR t1 t2 = qualsT t1 t2 (:*)                  
+
+                   
+qualsemptyT :: Monad m => Translate CompCtx m Qual a
+                       -> (a -> b)
+                       -> Translate CompCtx m (NL Qual) b
+qualsemptyT t f = translate $ \ctx quals -> case quals of
+                      S q -> f <$> apply t ctx q
+                      _   -> fail "not a nonempty singleton"
+                      
+qualsemptyR :: Monad m => Rewrite CompCtx m Qual
+                       -> Rewrite CompCtx m (NL Qual)
+qualsemptyR t = qualsemptyT t S                       
 
 --------------------------------------------------------------------------------
        
 -- | The sum type of *nodes* considered for KURE traversals
 data CL = ExprCL Expr
         | QualCL Qual
-        | QualsCL Quals
+        | QualsCL (NL Qual)
         
 instance Injection Expr CL where
     inject                = ExprCL
@@ -236,7 +249,7 @@ instance Injection Qual CL where
     project (QualCL q) = Just q
     project _          = Nothing
     
-instance Injection Quals CL where
+instance Injection (NL Qual) CL where
     inject               = QualsCL
     
     project (QualsCL qs) = Just qs
@@ -248,12 +261,10 @@ instance Walker CompCtx CL where
     allR r = promoteR allRexpr <+ promoteR allRqual <+ promoteR allRquals
     
       where
-        -- allRquals :: forall m. MonadCatch m => Rewrite CompCtx m Quals
-        allRquals = qualsR (extractR r)
-        -- allRqual :: forall m. MonadCatch m => Rewrite CompCtx m Qual
+        allRquals = qualsR (extractR r) (extractR r) <+ qualsemptyR (extractR r)
+
         allRqual = bindQualR (extractR r) <+ guardQualR (extractR r)
 
-        -- allRexpr :: forall m. MonadCatch m => Rewrite CompCtx m Expr
         allRexpr = varR <+ litR <+ tableR
                    <+ ifR (extractR r) (extractR r) (extractR r)
                    <+ appR (extractR r) (extractR r)

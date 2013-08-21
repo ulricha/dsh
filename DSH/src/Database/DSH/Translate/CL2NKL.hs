@@ -141,4 +141,5 @@ desugarComprehensions = expr
 
 -}
 
+desugarComprehensions :: CL.Expr -> NKL.Expr
 desugarComprehensions = undefined

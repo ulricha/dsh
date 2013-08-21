@@ -4,8 +4,7 @@
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt 
-  ( opt 
-  ) where
+  ( opt ) where
        
 import           Debug.Trace
 import           Text.Printf
@@ -30,6 +29,7 @@ import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
        
+{-
 -- We push simple filters which might end up in a equi join towards the front
 -- of the qualifier list as far as possible.
 pushFilters :: Expr -> Expr
@@ -402,3 +402,7 @@ opt e =
     else trace (show e) e'
   where 
     e' = unnestExistentials $ unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
+-}
+
+opt :: Expr -> Expr
+opt = undefined    
