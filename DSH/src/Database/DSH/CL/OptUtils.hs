@@ -5,6 +5,7 @@ import Control.Arrow
 import Control.Monad
 
 import Data.List
+import qualified Data.Foldable as F
 
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Monad
@@ -30,6 +31,13 @@ freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr freeVarsT
 
+compBoundVars :: NL Qual -> [Ident]
+compBoundVars qs = F.foldr aux [] qs
+  where 
+    aux :: Qual -> [Ident] -> [Ident]
+    aux (BindQ n _) ns = n : ns
+    aux (GuardQ _) ns  = ns
+
 --------------------------------------------------------------------------------
 -- Substitution
 
@@ -48,7 +56,7 @@ nonBinder expr =
         _          -> True
                                                 
 subst :: Ident -> Expr -> RewriteC CL
-subst v s = rules_var <+ rules_lam <+ rules_nonbind
+subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals <+ rules_qual
   where
     rules_var :: RewriteC CL
     rules_var = do Var _ n <- promoteT idR
@@ -65,8 +73,25 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind
                        
     rules_comp :: RewriteC CL
     rules_comp = do Comp ty e qs <- promoteT idR
-                    undefined
+                    if v `elem` compBoundVars qs
+                        then promoteR $ compR idR (extractR $ subst v s)
+                        else promoteR $ compR (extractR $ subst v s) (extractR $ subst v s)
                        
     rules_nonbind :: RewriteC CL
     rules_nonbind = do guardMsgM (nonBinder <$> promoteT idR) "binding node"
                        anyR (subst v s)
+                       
+    rules_quals :: RewriteC CL
+    rules_quals = do qs <- promoteT idR
+                     case qs of
+                         (BindQ n e) :* _ -> do
+                             guardM $ n == v
+                             promoteR $ qualsR (extractR $ subst v s) idR
+                         _ :* _           -> do
+                             promoteR $ qualsR (extractR $ subst v s) (extractR $ subst v s)
+                         S _              -> do
+                             promoteR $ qualsemptyR (extractR $ subst v s)
+    
+    rules_qual :: RewriteC CL
+    rules_qual = do QualCL _ <- idR
+                    anyR (subst v s)

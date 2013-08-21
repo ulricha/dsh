@@ -19,10 +19,10 @@ module Database.DSH.CL.Kure
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
     , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
     , bindQualT, guardQualT, bindQualR, guardQualR
-    , qualsT, qualsR
+    , qualsT, qualsR, qualsemptyT, qualsemptyR
     
       -- * The sum type
-    , CL
+    , CL(..)
     ) where
     
        
