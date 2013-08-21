@@ -14,11 +14,11 @@ module Database.DSH.CL.Lang
   , Quals(..)
   , Qual(..)
   , Typed(..)
-  , freeVars
-  , subst
-  , substQuals
-  , tuplify
-  , tuplifyQuals
+--  , freeVars
+--  , subst
+--  , substQuals
+--  , tuplify
+--  , tuplifyQuals
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)

@@ -20,6 +20,7 @@ import qualified Database.DSH.CL.Primitives as CP
 -- iterations are expressed in the form of cartesian products. The resulting
 -- single-qualifier comprehension should then be easy to desugar (just a map).
 
+{-
 prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
 prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
   where o' = case o of
@@ -137,3 +138,7 @@ productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) =
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
 desugarComprehensions = expr
+
+-}
+
+desugarComprehensions = undefined

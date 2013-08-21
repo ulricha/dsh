@@ -179,6 +179,7 @@ legalType tn cn nr t f = case f t of
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 
+{-
 -- Restore the original comprehension form from the desugared concatMap form.
 resugar :: CL.Expr -> CL.Expr
 resugar expr = 
@@ -246,6 +247,10 @@ resugar expr =
             (changed, qs') = foldr resugarQual (False, []) qs
             body' = resugar body
             fvs = CL.freeVars comp
+            
+-}
+
+resugar = undefined
 
 translateType :: Type a -> T.Type
 translateType UnitT = T.unitT
