@@ -1,6 +1,6 @@
--# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes     #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes      #-}
+{-# LANGUAGE TemplateHaskell  #-}
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt 
@@ -21,9 +21,9 @@ import           Database.DSH.Impossible
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
-                 
-pushFilters :: RewriteC Expr
-pushFilters = pushFiltersOnComp
+
+pushFilters :: (Expr -> Bool) -> RewriteC Expr
+pushFilters mayPush = pushFiltersOnComp
   where
     pushFiltersOnComp :: RewriteC Expr
     pushFiltersOnComp = do
@@ -31,7 +31,7 @@ pushFilters = pushFiltersOnComp
         compR idR pushFiltersQuals
         
     pushFiltersQuals :: RewriteC (NL Qual)
-    pushFiltersQuals = (reverseNL . fmap (initFlags isEquiJoinPred)) 
+    pushFiltersQuals = (reverseNL . fmap initFlags)
                        -- FIXME using innermostR here is really inefficient!
                        ^>> innermostR tryPush 
                        >>^ (reverseNL . fmap snd)
@@ -72,9 +72,12 @@ pushFilters = pushFiltersOnComp
             S (False, _)                                   ->
                 fail "can't push: already at front"
     
-    initFlags :: (Expr -> Bool) -> Qual -> (Bool, Qual)
-    initFlags mayPush q@(GuardQ p)  = (mayPush p, q)
-    initFlags _       q@(BindQ _ _) = (False, q)
+    initFlags :: Qual -> (Bool, Qual)
+    initFlags q@(GuardQ p)  = (mayPush p, q)
+    initFlags q@(BindQ _ _) = (False, q)
+
+pushEquiFilters :: RewriteC Expr
+pushEquiFilters = pushFilters isEquiJoinPred
        
 isEquiJoinPred :: Expr -> Bool
 isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 && isProj e2
@@ -428,7 +431,7 @@ opt e =
 -}
 
 strategy :: RewriteC CL
-strategy = anybuR (promoteR pushFilters)
+strategy = anybuR (promoteR pushEquiFilters)
 
 opt :: Expr -> Expr
 opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
