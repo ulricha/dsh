@@ -167,9 +167,9 @@ debugX100 prefix c (Q e) = do
               nkl2X100File prefix e'
 
 -- | Debugging function: dumb the X100 plan (DAG) to a file.
-debugTA :: QA a => String -> X100Info -> Q a -> IO ()
+debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
-              e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+              e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
               nkl2TAFile prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).

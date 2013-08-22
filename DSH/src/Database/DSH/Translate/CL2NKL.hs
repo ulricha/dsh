@@ -2,6 +2,8 @@
 
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
+  
+import Debug.Trace
 
 import           Database.DSH.Impossible
        
@@ -138,8 +140,7 @@ productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) =
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
 desugarComprehensions = expr
-
 -}
 
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions = undefined
+desugarComprehensions e = trace (show e) $impossible

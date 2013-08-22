@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
   ( module Database.DSH.Common.Data.Op
@@ -11,7 +12,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , NL(..), reverseNL, toList
+  , NL(..), reverseNL, toList, fromList
   , Qual(..)
   , Typed(..)
   , Prim1Op(..)
@@ -30,14 +31,13 @@ import qualified Data.Traversable as T
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
 import           Database.DSH.Common.Data.Val(Val())
 import           Database.DSH.Common.Data.Type
   
-import qualified Data.Set as S
-
 --------------------------------------------------------------------------------
 -- A simple type of nonempty lists, used for comprehension qualifiers
 
@@ -65,6 +65,15 @@ instance T.Traversable NL where
 toList :: NL a -> [a]
 toList (a :* as) = a : toList as
 toList (S a)     = [a]
+
+fromList :: [a] -> Maybe (NL a)
+fromList [] = Nothing
+fromList as = Just $ aux as
+  where
+    aux :: [a] -> NL a
+    aux (x : []) = S x
+    aux (x : xs) = x :* aux xs
+    aux []       = $impossible
 
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
@@ -152,7 +161,7 @@ instance Show (Prim2 t) where
 
 data Qual = BindQ Ident Expr
           | GuardQ Expr
-          deriving (Eq, Ord, Data, Typeable)
+          deriving (Eq, Ord, Data, Typeable, Show)
 
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              

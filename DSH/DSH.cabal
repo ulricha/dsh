@@ -104,6 +104,9 @@ Library
                      Database.DSH.Common.Data.QueryPlan
                      Database.DSH.Export
                      Database.DSH.CL.Lang
+                     Database.DSH.CL.Monad
+                     Database.DSH.CL.Kure
+                     Database.DSH.CL.OptUtils
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
                      Database.DSH.FKL.Data.FKL

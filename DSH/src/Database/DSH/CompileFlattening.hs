@@ -7,11 +7,13 @@ module Database.DSH.CompileFlattening (toComprehensions) where
 
 import           Database.DSH.Impossible
 
+import Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
+import           Database.DSH.CL.OptUtils
 import qualified Database.DSH.CL.Primitives as CP
+import qualified Database.DSH.Common.Data.Op as O
 import qualified Database.DSH.Common.Data.Type as T
 import qualified Database.DSH.Common.Data.Val as V
-import qualified Database.DSH.Common.Data.Op as O
 
 import           Database.DSH.Internals as D
 import           Data.Text (unpack)
@@ -179,7 +181,6 @@ legalType tn cn nr t f = case f t of
                             False -> error $ "The type: " ++ show t ++ "\nis not compatible with the type of column nr: " ++ show nr
                                                 ++ " namely: " ++ cn ++ "\n in table " ++ tn ++ "."
 
-{-
 -- Restore the original comprehension form from the desugared concatMap form.
 resugar :: CL.Expr -> CL.Expr
 resugar expr = 
@@ -193,7 +194,7 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
         let body' = resugar body
             xs'   = resugar xs
-        in resugar $ CL.Comp t body' (CL.Quals [CL.BindQ x xs'])
+        in resugar $ CL.Comp t body' (S (CL.BindQ x xs'))
   
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
@@ -201,7 +202,7 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x p) xs ->
         let xs' = resugar xs
             p'  = resugar p
-        in resugar $ CL.Comp t (CL.Var xt x) (CL.Quals [CL.BindQ x xs', CL.GuardQ p'])
+        in resugar $ CL.Comp t (CL.Var xt x) (CL.BindQ x xs' :* (S $ CL.GuardQ p'))
         
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
@@ -214,12 +215,12 @@ resugar expr =
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
         CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
-          resugar $ CL.Comp t e (CL.Quals [CL.BindQ v xs'])
+          resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- concatMap (\x -> [ e | qs ]) xs
         -- => [ e | x <- xs, qs ]
-        CL.Lam _ v (CL.Comp _ e (CL.Quals qs)) ->
-          resugar $ CL.Comp t e (CL.Quals (CL.BindQ v xs' : qs))
+        CL.Lam _ v (CL.Comp _ e qs) ->
+          resugar $ CL.Comp t e (CL.BindQ v xs' :* qs)
           
         _ -> cm
 
@@ -230,27 +231,32 @@ resugar expr =
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
     constant@(CL.Lit _ _)    -> constant
     var@(CL.Var _ _) -> var
-    comp@(CL.Comp t body (CL.Quals qs)) -> 
+    comp@(CL.Comp t body qs) -> 
       if changed 
-      then resugar $ CL.Comp t body' (CL.Quals qs')
-      else CL.Comp t body' (CL.Quals qs)
+      then resugar $ CL.Comp t body' qs'
+      else CL.Comp t body' qs
 
-      where -- We fold over the qualifiers and look for local rewrite possibilities
-            resugarQual :: CL.Qual -> (Bool, [CL.Qual]) -> (Bool, [CL.Qual])
-            resugarQual q (changedAcc, qsAcc) =
-              case q of
+      where 
+        -- We fold over the qualifiers and look for local rewrite possibilities
+        resugarQual :: CL.Qual -> Either CL.Qual CL.Qual
+        resugarQual q =
+            case q of
                 -- Eliminate unused bindings from guards
                 -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
-                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `S.member` fvs -> (True, CL.GuardQ p : qsAcc)
-                _                                                            -> (changedAcc, q : qsAcc)
-                
-            (changed, qs') = foldr resugarQual (False, []) qs
-            body' = resugar body
-            fvs = CL.freeVars comp
+                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `elem` fvs -> Right (CL.GuardQ p)
+                _                                                                    -> Left q
+      
+        qse     = fmap resugarQual qs
+        changed = any isRight $ CL.toList qse
+        qs'     = fmap (either id id) qse
+      
+        body'   = resugar body
+        fvs     = freeVars comp
+        
+        isRight :: Either a b -> Bool
+        isRight (Right _) = True
+        isRight (Left _)  = False
             
--}
-
-resugar = undefined
 
 translateType :: Type a -> T.Type
 translateType UnitT = T.unitT

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE TemplateHaskell #-}
     
@@ -12,15 +12,7 @@ import           Text.Printf
 import           Control.Applicative((<$>), (<*>))
 import           Control.Monad
 import           Control.Arrow
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Control.Monad.Writer
 
-import           Data.Generics.Uniplate.Data
-                 
-import           Data.List
-import           Data.List.NonEmpty(NonEmpty((:|)))
-import           Data.Maybe
 import qualified Data.Set as S
 import           GHC.Exts
 
@@ -35,46 +27,55 @@ pushFilters = pushFiltersOnComp
   where
     pushFiltersOnComp :: RewriteC Expr
     pushFiltersOnComp = do
-        Comp _ _ qs <- idR
+        Comp _ _ _ <- idR
         compR idR pushFiltersQuals
         
     pushFiltersQuals :: RewriteC (NL Qual)
-    pushFiltersQuals = (reverseNL . fmap initFlags) 
-                       ^>> innermostR undefined 
+    pushFiltersQuals = (reverseNL . fmap (initFlags isEquiJoinPred)) 
+                       -- FIXME using innermostR here is really inefficient!
+                       ^>> innermostR tryPush 
                        >>^ (reverseNL . fmap snd)
+                       
+    tryPush :: RewriteC (NL (Bool, Qual))
+    tryPush = do
+        qualifiers <- idR 
+        trace (show qualifiers) $ case qualifiers of
+            q1@(True, GuardQ p) :* q2@(_, BindQ x _) :* qs ->
+                if x `elem` freeVars p
+                -- We can't push through the generator because it binds a
+                -- variable we depend upon
+                then return $ (False, GuardQ p) :* q2 :* qs
+                   
+                -- We can push
+                else return $ q2 :* q1 :* qs
+                
+            q1@(True, GuardQ _) :* q2@(_, GuardQ _) :* qs  ->
+                return $ q2 :* q1 :* qs
+
+            (True, GuardQ p) :* (S q2@(_, BindQ x _))      ->
+                if x `elem` freeVars p
+                then return $ (False, GuardQ p) :* (S q2)
+                else return $ q2 :* (S (False, GuardQ p))
+
+            (True, GuardQ p) :* (S q2@(_, GuardQ _))       ->
+                return $ q2 :* (S (False, GuardQ p))
+
+            (True, BindQ _ _) :* _                         ->
+                error "generators can't be pushed"
+
+            (False, _) :* _                                ->
+                fail "can't push: node marked as unpushable"
+
+            S (True, q)                                    ->
+                return $ S (False, q)
+
+            S (False, _)                                   ->
+                fail "can't push: already at front"
     
-    initFlags :: Qual -> (Bool, Qual)
-    initFlags q@(GuardQ _)  = (True, q)
-    initFlags q@(BindQ _ _) = (False, q)
-    
+    initFlags :: (Expr -> Bool) -> Qual -> (Bool, Qual)
+    initFlags mayPush q@(GuardQ p)  = (mayPush p, q)
+    initFlags _       q@(BindQ _ _) = (False, q)
        
-{-
--- We push simple filters which might end up in a equi join towards the front
--- of the qualifier list as far as possible.
-pushFilters :: Expr -> Expr
-pushFilters expr = transform go expr
-  where 
-    go :: Expr -> Expr
-    go (Comp t e (Quals qs)) = Comp t e (Quals $ reverse $ pushFromEnd $ reverse qs)
-    go e                     = e
-    
-    pushFromEnd :: [Qual] -> [Qual]
-    pushFromEnd []                                   = []
-    pushFromEnd ((GuardQ p) : qs) | isEquiJoinPred p = pushDown p (pushFromEnd qs)
-    pushFromEnd (q : qs)                             = q : (pushFromEnd qs)
-    
-    pushDown :: Expr -> [Qual] -> [Qual]
-    pushDown p []                                          = [GuardQ p]
-
-    -- We push past other guards to get our join predicate as deep down as possible
-    pushDown p (GuardQ p' : qs)                            = GuardQ p' : (pushDown p qs)
-
-    -- We can't push past a generator on which the predicate depends
-    pushDown p (BindQ x xs : qs) | x `S.member` freeVars p = (GuardQ p) : (BindQ x xs) : qs
-
-    -- We push below generators if the predicate does not depend on it
-    pushDown p (BindQ x xs : qs) | otherwise               = (BindQ x xs) : (pushDown p qs)
-        
 isEquiJoinPred :: Expr -> Bool
 isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 && isProj e2
 isEquiJoinPred _                  = False
@@ -86,6 +87,8 @@ isProj (AppE1 _ (Prim1 Not _) e) = isProj e
 isProj (BinOp _ _ e1 e2)         = isProj e1 && isProj e2
 isProj (Var _ _)                 = True
 isProj _                         = False
+
+{-
 
 -- | Try to transform an expression into an equijoin predicate. This will fail
 -- if either the expression does not have the correct shape (equality with
@@ -106,6 +109,7 @@ splitJoinPred (BinOp _ Eq e1 e2) x y =
         _                                 -> mzero
 
 splitJoinPred _ _ _               = mzero
+              
 
 toJoinExpr :: Expr -> Ident -> Maybe JoinExpr
 toJoinExpr (AppE1 _ (Prim1 Fst _) e) x = UnOpJ FstJ <$> toJoinExpr e x
@@ -423,5 +427,10 @@ opt e =
     e' = unnestExistentials $ unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
 -}
 
+strategy :: RewriteC CL
+strategy = anybuR (promoteR pushFilters)
+
 opt :: Expr -> Expr
-opt = undefined    
+opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
+  where
+    rewritten = applyExpr (strategy >>> projectT) expr

@@ -1,14 +1,14 @@
 -- | Some utilities for KURE-based transformations on CL expressions
 
 module Database.DSH.CL.OptUtils
-    ( freeVarsT, freeVars
+    ( applyExpr
+    , freeVarsT, freeVars
     , subst
     , tuplify
     ) where
 
 import Control.Applicative
 import Control.Arrow
-import Control.Monad
 
 import Data.List
 import qualified Data.Foldable as F
@@ -43,7 +43,7 @@ compBoundVars qs = F.foldr aux [] qs
 -- Substitution
 
 alphaLam :: RewriteC Expr
-alphaLam = do (ctx, Lam lamTy v e) <- exposeT
+alphaLam = do (ctx, Lam lamTy v _) <- exposeT
               v' <- constT $ freshName (inScopeVars ctx)
               let varTy = domainT lamTy
               lamT (extractR $ tryR $ subst v (Var varTy v')) (\_ _ -> Lam lamTy v')
@@ -65,7 +65,7 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
                    return $ inject s
     
     rules_lam :: RewriteC CL
-    rules_lam = do (ctx, Lam _ n e) <- promoteT exposeT
+    rules_lam = do Lam _ n e <- promoteT idR
                    guardM (n /= v)
                    guardM $ v `elem` freeVars e
                    if n `elem` freeVars s
@@ -73,7 +73,7 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
                        else promoteR $ lamR (extractR $ subst v s)
                        
     rules_comp :: RewriteC CL
-    rules_comp = do Comp ty e qs <- promoteT idR
+    rules_comp = do Comp _ _ qs <- promoteT idR
                     if v `elem` compBoundVars qs
                         then promoteR $ compR idR (extractR $ subst v s)
                         else promoteR $ compR (extractR $ subst v s) (extractR $ subst v s)
@@ -85,7 +85,7 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
     rules_quals :: RewriteC CL
     rules_quals = do qs <- promoteT idR
                      case qs of
-                         (BindQ n e) :* _ -> do
+                         (BindQ n _) :* _ -> do
                              guardM $ n == v
                              promoteR $ qualsR (extractR $ subst v s) idR
                          _ :* _           -> do
