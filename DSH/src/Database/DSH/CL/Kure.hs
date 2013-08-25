@@ -28,6 +28,7 @@ module Database.DSH.CL.Kure
     
        
 import           Control.Monad
+import           Data.Monoid
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 
@@ -47,10 +48,18 @@ type LensC a b      = Lens CompCtx CompM a b
 --------------------------------------------------------------------------------
 
 -- | The context for KURE-based CL rewrites
-data CompCtx = CompCtx { cl_bindings :: M.Map Ident Type }
+data CompCtx = CompCtx { cl_bindings :: M.Map Ident Type 
+                       , cl_path     :: AbsolutePath Int
+                       }
+                       
+instance ExtendPath CompCtx Int where
+    c@@n = c { cl_path = cl_path c @@ n }
+    
+instance ReadPath CompCtx Int where
+    absPath c = cl_path c
 
 initialCtx :: CompCtx
-initialCtx = CompCtx { cl_bindings = M.empty }
+initialCtx = CompCtx { cl_bindings = M.empty, cl_path = mempty }
 
 -- | Record a variable binding in the context
 bindVar :: Ident -> Type -> CompCtx -> CompCtx
@@ -87,7 +96,7 @@ appT :: Monad m => Translate CompCtx m Expr a1
                 -> (Type -> a1 -> a2 -> b)
                 -> Translate CompCtx m Expr b
 appT t1 t2 f = translate $ \c expr -> case expr of
-                      App ty e1 e2 -> f ty <$> apply t1 c e1 <*> apply t2 c e2
+                      App ty e1 e2 -> f ty <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                       _            -> fail "not an application node"
                       
 appR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
@@ -97,7 +106,7 @@ appe1T :: Monad m => Translate CompCtx m Expr a
                   -> (Type -> Prim1 Type -> a -> b)
                   -> Translate CompCtx m Expr b
 appe1T t f = translate $ \c expr -> case expr of
-                      AppE1 ty p e -> f ty p <$> apply t c e                  
+                      AppE1 ty p e -> f ty p <$> apply t (c@@0) e                  
                       _            -> fail "not a unary primitive application"
                       
 appe1R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
@@ -108,7 +117,7 @@ appe2T :: Monad m => Translate CompCtx m Expr a1
                   -> (Type -> Prim2 Type -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 appe2T t1 t2 f = translate $ \c expr -> case expr of
-                     AppE2 ty p e1 e2 -> f ty p <$> apply t1 c e1 <*> apply t2 c e2
+                     AppE2 ty p e1 e2 -> f ty p <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                      _                -> fail "not a binary primitive application"
 
 appe2R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
@@ -119,7 +128,7 @@ binopT :: Monad m => Translate CompCtx m Expr a1
                   -> (Type -> Oper -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 binopT t1 t2 f = translate $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> apply t1 c e1 <*> apply t2 c e2
+                     BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                      _                 -> fail "not a binary operator application"
 
 binopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
@@ -129,7 +138,7 @@ lamT :: Monad m => Translate CompCtx m Expr a
                 -> (Type -> Ident -> a -> b)
                 -> Translate CompCtx m Expr b
 lamT t f = translate $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c) e
+                     Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@0) e
                      _          -> fail "not a lambda"
                      
 lamR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
@@ -141,9 +150,9 @@ ifT :: Monad m => Translate CompCtx m Expr a1
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Translate CompCtx m Expr b
 ifT t1 t2 t3 f = translate $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> apply t1 c e1               
-                                           <*> apply t2 c e2
-                                           <*> apply t3 c e3
+                    If ty e1 e2 e3 -> f ty <$> apply t1 (c@@0) e1               
+                                           <*> apply t2 (c@@1) e2
+                                           <*> apply t3 (c@@2) e3
                     _              -> fail "not an if expression"
                     
 ifR :: Monad m => Rewrite CompCtx m Expr
@@ -173,8 +182,8 @@ compT :: Monad m => Translate CompCtx m Expr a1
                  -> (Type -> a1 -> a2 -> b)
                  -> Translate CompCtx m Expr b
 compT t1 t2 f = translate $ \ctx expr -> case expr of
-                    Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual ctx qs) e 
-                                         <*> apply t2 ctx qs
+                    Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual (ctx@@0) qs) e 
+                                         <*> apply t2 (ctx@@1) qs
                     _            -> fail "not a comprehension"
                     
 compR :: Monad m => Rewrite CompCtx m Expr
@@ -189,7 +198,7 @@ bindQualT :: Monad m => Translate CompCtx m Expr a
                      -> (Ident -> a -> b) 
                      -> Translate CompCtx m Qual b
 bindQualT t f = translate $ \ctx expr -> case expr of
-                BindQ n e -> f n <$> apply t ctx e
+                BindQ n e -> f n <$> apply t (ctx@@0) e
                 _         -> fail "not a generator"
                 
 bindQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
@@ -199,7 +208,7 @@ guardQualT :: Monad m => Translate CompCtx m Expr a
                       -> (a -> b) 
                       -> Translate CompCtx m Qual b
 guardQualT t f = translate $ \ctx expr -> case expr of
-                GuardQ e -> f <$> apply t ctx e
+                GuardQ e -> f <$> apply t (ctx@@0) e
                 _        -> fail "not a guard"
                 
 guardQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
@@ -213,7 +222,7 @@ qualsT :: Monad m => Translate CompCtx m Qual a1
                   -> (a1 -> a2 -> b) 
                   -> Translate CompCtx m (NL Qual) b
 qualsT t1 t2 f = translate $ \ctx quals -> case quals of
-                   q :* qs -> f <$> apply t1 ctx q <*> apply t2 (bindQual ctx q) qs
+                   q :* qs -> f <$> apply t1 (ctx@@0) q <*> apply t2 (bindQual (ctx@@0) q) qs
                    S _     -> fail "not a nonempty cons"
                    
 qualsR :: Monad m => Rewrite CompCtx m Qual
@@ -226,7 +235,7 @@ qualsemptyT :: Monad m => Translate CompCtx m Qual a
                        -> (a -> b)
                        -> Translate CompCtx m (NL Qual) b
 qualsemptyT t f = translate $ \ctx quals -> case quals of
-                      S q -> f <$> apply t ctx q
+                      S q -> f <$> apply t (ctx@@0) q
                       _   -> fail "not a nonempty singleton"
                       
 qualsemptyR :: Monad m => Rewrite CompCtx m Qual
@@ -285,7 +294,7 @@ consT :: Monad m => Translate CompCtx m (NL a) b
                  -> (a -> b -> c)
                  -> Translate CompCtx m (NL a) c
 consT t f = translate $ \ctx nl -> case nl of
-                a :* as -> f a <$> apply t ctx as
+                a :* as -> f a <$> apply t (ctx@@0) as
                 S _     -> fail "not a nonempty cons"
                     
 consR :: Monad m => Rewrite CompCtx m (NL a) 
