@@ -8,12 +8,13 @@
 module Database.DSH.CL.Kure
     ( -- * Re-export relevant KURE modules
       module Language.KURE
+    , module Language.KURE.Lens
 
       -- * The KURE monad
-    , CompM, TranslateC, RewriteC, freshName
+    , CompM, TranslateC, RewriteC, LensC, freshName
 
       -- * The KURE context
-    , CompCtx, initialCtx, freeIn, boundIn, inScopeVars
+    , CompCtx, initialCtx, freeIn, boundIn, inScopeVars, bindQual, bindVar
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
@@ -31,6 +32,7 @@ import qualified Data.Map as M
 import qualified Data.Foldable as F
 
 import           Language.KURE
+import           Language.KURE.Lens
        
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Monad
@@ -40,6 +42,7 @@ import           Database.DSH.CL.Monad
 
 type TranslateC a b = Translate CompCtx CompM a b
 type RewriteC a     = TranslateC a a
+type LensC a b      = Lens CompCtx CompM a b
 
 --------------------------------------------------------------------------------
 
