@@ -11,8 +11,9 @@ import           Debug.Trace
 import           Text.Printf
                  
 import           Control.Applicative((<$>), (<*>))
-import           Control.Monad
 import           Control.Arrow
+import qualified Control.Category as C
+import           Control.Monad
 
 import qualified Data.Set as S
 import           GHC.Exts
@@ -149,14 +150,17 @@ equiJoinT :: TranslateC CL (RewriteC CL, NL Qual)
 equiJoinT = do
     -- We need two generators followed by a predicate
     qs@(q1@(BindQ x xs) :* q2@(BindQ y ys) :* GuardQ p :* qr) <- promoteT idR
-
-    let predLens :: LensC CL Expr
-        predLens = lens $ do
-            ctx' <- flip bindQual q2 <$> flip bindQual q1 <$> contextT
-            return ((ctx', p), const $ return $ inject qs)
+    
+    -- Two tail steps into the list, then first the guard node and then the
+    -- predicate expression 
+    
+    -- FIXME this sucks. There needs to be a combinator to build a lens from a
+    -- relative path.
+    let predLens :: LensC CL CL
+        predLens = foldl1 (flip (C..)) $ map childL [1, 1, 0, 0]
 
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr)                      <- focusT predLens (splitJoinPred x y)
+    (leftExpr, rightExpr)                      <- focusT predLens (promoteT $ splitJoinPred x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -171,7 +175,9 @@ equiJoinT = do
                                (Prim2 (EquiJoin leftExpr rightExpr) jt) 
                                xs ys)
                                
-                               
+    -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
+    -- qualifiers
+    focusR (childL 1) tuplifyR
     
     return (tuplifyR, joinGen :* qr)
     
@@ -182,21 +188,30 @@ traverseQuals tuplifyR = rule_quals <+ rule_qual
     rule_quals = do
         -- might not be necessary
         (_ :: Qual) :* _ <- promoteT idR
+        catchesT [canRewrite, descend]
 
-        -- First, we tuplify the current qualifier
-        -- FIXME this would be better directed by a lens/path
-        oneT tuplifyR
-        
-        -- Next, we try to rewrite the current node
-        (tuplifyR', qs') <- equiJoinT
+        -- We try to rewrite the current node
+        -- tuplifyR', qs') <- equiJoinT
+        -- equiJoinT >>= (\(tuplifyR', qs') -> return qs' >>> traverseQuals tuplifyR'
 
         -- Try to rewrite the rewritten node to catch join trees. If that fails,
         -- proceed with the next qualifier.
         -- (return $ inject qs') >>> (equiJoinT <+ (allR $ traverseQuals tuplifyR'))
+        -- (traverseQuals (tuplifyR >>> tuplifyR')) <+ 
         undefined
         
     rule_qual :: TranslateC CL (RewriteC CL, CL)
     rule_qual = undefined
+    
+    canRewrite :: TranslateC CL (RewriteC CL, CL)
+    canRewrite = do
+        (tuplifyR', qs') <- equiJoinT
+        let tuplifyR'' = tuplifyR >>> tuplifyR'
+        (return $ inject qs') >>> (traverseQuals tuplifyR')
+        
+    descend :: TranslateC CL (RewriteC CL, CL)
+    descend = undefined
+        
         
     
 {-
