@@ -194,13 +194,14 @@ equiJoinT = do
     -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
     -- qualifiers
     -- FIXME check if tuplify fails when no changes happen
-    qr' <- extractT $ liftstateT $ tryR $ focusR (childL 1) tuplifyR
+    -- FIXME why is extractT required here?
+    qr' <- (extractT $ liftstateT $ tryR $ childR 1 tuplifyR) >>> projectT
     
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
     constT $ modify (>>> tuplifyR)
     
-    return $ joinGen :* qr
+    return $ joinGen :* qr'
     
 traverseQuals :: RewriteC CL -> TranslateC CL (RewriteC CL, CL)
 traverseQuals tuplifyR = rule_quals <+ rule_qual
