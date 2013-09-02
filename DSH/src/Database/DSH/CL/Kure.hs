@@ -11,7 +11,13 @@ module Database.DSH.CL.Kure
     , module Language.KURE.Lens
 
       -- * The KURE monad
-    , CompM, TranslateC, RewriteC, LensC, freshName
+    , CompM, CompSM, TranslateC, RewriteC, LensC, freshName
+    
+      -- * Setters and getters for the translation state
+    , get, put, modify
+    
+      -- * Changing between stateful and non-stateful translates
+    , statefulT, liftstateT
 
       -- * The KURE context
     , CompCtx, initialCtx, freeIn, boundIn, inScopeVars, bindQual, bindVar
@@ -41,9 +47,9 @@ import           Database.DSH.CL.Monad
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TranslateC a b = Translate CompCtx CompM a b
+type TranslateC a b = Translate CompCtx (CompM Int) a b
 type RewriteC a     = TranslateC a a
-type LensC a b      = Lens CompCtx CompM a b
+type LensC a b      = Lens CompCtx (CompM Int) a b
 
 --------------------------------------------------------------------------------
 
@@ -78,6 +84,18 @@ boundIn n ctx = n `M.member` (cl_bindings ctx)
 
 freeIn :: Ident -> CompCtx -> Bool
 freeIn n ctx = n `M.notMember` (cl_bindings ctx)
+
+--------------------------------------------------------------------------------
+-- Support for stateful translates
+
+-- | Run a stateful translate with an initial state and turn it into a regular
+-- (non-stateful) translate
+statefulT :: s -> Translate CompCtx (CompSM s) a b -> TranslateC a (s, b)
+statefulT s t = resultT (stateful s) t
+
+-- | Turn a regular rewrite into a stateful rewrite
+liftstateT :: Translate CompCtx (CompM Int) a b -> Translate CompCtx (CompSM s) a b
+liftstateT t = resultT liftstate t
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions

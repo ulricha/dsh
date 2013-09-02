@@ -146,7 +146,22 @@ splitJoinPred x y = do
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
-equiJoinT :: TranslateC CL (RewriteC CL, NL Qual)
+{-
+type Foo = StateT (RewriteC CL) CompM
+
+instance MonadCatch (Foo a) where
+    -- catchM :: m a -> (String -> m a) -> m a
+    catchM ma f = StateT $ \s -> 
+        let (s', ca) =  runStateT ma s
+            ca' = CompM $ \i -> case runCompM' i ca of
+                                    (i, Left msg) -> undefined
+                                    (i, Right a)  -> return $ return a
+        in (
+-}
+
+type TuplifyM = CompSM (RewriteC CL)
+
+equiJoinT :: Rewrite CompCtx TuplifyM (NL Qual)
 equiJoinT = do
     -- We need two generators followed by a predicate
     qs@(q1@(BindQ x xs) :* q2@(BindQ y ys) :* GuardQ p :* qr) <- promoteT idR
@@ -160,7 +175,8 @@ equiJoinT = do
         predLens = foldl1 (flip (C..)) $ map childL [1, 1, 0, 0]
 
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr)                      <- focusT predLens (promoteT $ splitJoinPred x y)
+    -- FIXME why is extractT necessary? liftstateT should only change the monad
+    (leftExpr, rightExpr) <- extractT $ liftstateT $ focusT predLens (promoteT $ splitJoinPred x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -177,15 +193,21 @@ equiJoinT = do
                                
     -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
     -- qualifiers
-    focusR (childL 1) tuplifyR
+    -- FIXME check if tuplify fails when no changes happen
+    qr' <- extractT $ liftstateT $ tryR $ focusR (childL 1) tuplifyR
     
-    return (tuplifyR, joinGen :* qr)
+    -- Combine the new tuplifying rewrite with the current rewrite by chaining
+    -- both rewrites
+    constT $ modify (>>> tuplifyR)
+    
+    return $ joinGen :* qr
     
 traverseQuals :: RewriteC CL -> TranslateC CL (RewriteC CL, CL)
 traverseQuals tuplifyR = rule_quals <+ rule_qual
   where 
     rule_quals :: TranslateC CL (RewriteC CL, CL)
-    rule_quals = do
+    rule_quals = undefined
+{-
         -- might not be necessary
         (_ :: Qual) :* _ <- promoteT idR
         catchesT [canRewrite, descend]
@@ -200,8 +222,6 @@ traverseQuals tuplifyR = rule_quals <+ rule_qual
         -- (traverseQuals (tuplifyR >>> tuplifyR')) <+ 
         undefined
         
-    rule_qual :: TranslateC CL (RewriteC CL, CL)
-    rule_qual = undefined
     
     canRewrite :: TranslateC CL (RewriteC CL, CL)
     canRewrite = do
@@ -211,6 +231,9 @@ traverseQuals tuplifyR = rule_quals <+ rule_qual
         
     descend :: TranslateC CL (RewriteC CL, CL)
     descend = undefined
+-}    
+    rule_qual :: TranslateC CL (RewriteC CL, CL)
+    rule_qual = undefined
         
         
     
