@@ -143,7 +143,7 @@ splitJoinPred x y = do
              else fail "splitJoinPred: not an equi-join predicate"
 
 --------------------------------------------------------------------------------
--- Rewrite general expressions into equi-join predicates
+-- Introduce simple equi joins
 
 type TuplifyM = CompSM (RewriteC CL)
 
@@ -196,6 +196,26 @@ eqjoinCompR = do
     (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
     e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
     return $ inject $ Comp t e' qs'
+
+--------------------------------------------------------------------------------
+-- Introduce semi joins (existential quantification
+
+existentialR :: RewriteC (NL Qual)
+existentialR = do
+    -- [ ... | ..., x <- xs, or [ p | y <- ys ], ... ]
+    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))) :* qs <- idR
+
+    (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
+
+    let xst = typeOf xs
+        yst = typeOf ys
+        jt  = xst .-> yst .-> xst
+
+    -- => [ ... | ..., x <- xs semijoin(p1, p2) ys, ... ]
+    return $ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys) :* qs
+    
+existentialQualsR :: RewriteC (NL Qual)
+existentialQualsR = anytdR $ repeatR existentialR
 
 {-
          
