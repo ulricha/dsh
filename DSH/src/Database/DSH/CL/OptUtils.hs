@@ -106,7 +106,7 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
 -- Tuplifying variables
 
 tuplify :: Ident -> (Ident, Type) -> (Ident, Type) -> RewriteC CL
-tuplify v (v1, t1) (v2, t2) = subst v1 v1Rep >>> ((idR >>= (\q -> trace ("tuplify after v1 " ++ show q) $ return ())) >> subst v2 v2Rep)
+tuplify v (v1, t1) (v2, t2) = subst v1 v1Rep >>> subst v2 v2Rep
   where 
     (v1Rep, v2Rep) = tupleVars v t1 t2
 

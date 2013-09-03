@@ -176,10 +176,9 @@ eqjoinR = do
     -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
     -- qr' <- trace "tuplifyR" $ catchesT [liftstateT $ (constT $ return qr) >>> (extractR tuplifyR), constT $ return qr]
+    -- FIXME this should propably be guarded
     qr' <- liftstateT $ (constT $ return qr) >>> (extractR tuplifyR)
 
-    trace (show qr') $ return ()
-    
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
     constT $ modify (>>> tuplifyR)
@@ -187,7 +186,7 @@ eqjoinR = do
     return $ joinGen :* qr'
     
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
-eqjoinQualsR = eqjoinR
+eqjoinQualsR = anytdR $ repeatR eqjoinR
     
 -- FIXME this should work without this amount of casting
 -- FIXME and it should be RewriteC Expr
@@ -199,46 +198,6 @@ eqjoinCompR = do
     return $ inject $ Comp t e' qs'
 
 {-
-introduceEquiJoins :: Expr -> Expr
-introduceEquiJoins expr = transform go expr
-  where 
-    go :: Expr -> Expr
-    go (Comp t e (Quals qs)) = Comp t e' (Quals qs') where (e', qs') = buildJoins e qs
-    go e                     = e
-    
-    -- We traverse the qualifier list and look for an equi join pattern:
-    -- [ e | qs, x <- xs, y <- ys, p, qs' ]
-    -- = [ tuplify e x y | qs, x <- eqjoin p xs ys, tuplifyQuals qs' x y ]
-    buildJoins :: Expr -> [Qual] -> (Expr, [Qual])
-    buildJoins e qs = let (e', qs') = traverse e qs
-                      in (e', qs')
-
-    traverse :: Expr -> [Qual] -> (Expr, [Qual])
-    traverse e [] = (e, [])
-    traverse e (BindQ x xs : BindQ y ys : GuardQ p : qs) =
-        case splitJoinPred p x y of
-            Just (leftExpr, rightExpr) ->
-                let xst     = typeOf xs
-                    yst     = typeOf ys
-                    xt      = elemT xst
-                    yt      = elemT yst
-                    pt      = listT $ pairT xt yt
-                    jt      = xst .-> (yst .-> pt)
-                    e'      = tuplify (x, xt) (y, yt) e
-                    qs'     = tuplifyQuals (x, xt) (y, yt) qs
-                    joinGen = BindQ x 
-                                    (AppE2 pt 
-                                           (Prim2 (EquiJoin leftExpr rightExpr) jt) 
-                                           xs ys)
-                 in traverse e' (joinGen : qs')
-              
-            Nothing                    ->
-                let (e', qs') = traverse e qs
-                in  (e', BindQ x xs : BindQ y ys : GuardQ p : qs')
-          
-    traverse e (q : qs) =
-        let (e', qs') = traverse e qs
-        in  (e', q : qs')
          
 {-
 ------------------------------------------------------------------
@@ -506,7 +465,7 @@ opt e =
 -}
 
 strategy :: RewriteC CL
-strategy = {- anybuR (promoteR pushEquiFilters) >>> -} eqjoinCompR
+strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
 
 opt :: Expr -> Expr
 opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
