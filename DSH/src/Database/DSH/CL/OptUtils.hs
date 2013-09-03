@@ -7,15 +7,17 @@ module Database.DSH.CL.OptUtils
     , tuplify
     ) where
 
-import Control.Applicative
-import Control.Arrow
+import           Control.Applicative
+import           Control.Arrow
+       
+import           Debug.Trace
 
-import Data.List
+import           Data.List
 import qualified Data.Foldable as F
 
-import Database.DSH.CL.Lang
-import Database.DSH.CL.Monad
-import Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
+import           Database.DSH.CL.Monad
+import           Database.DSH.CL.Kure
        
 
 applyExpr :: TranslateC CL b -> Expr -> Either String b
@@ -86,23 +88,25 @@ subst v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals
     rules_quals = do qs <- promoteT idR
                      case qs of
                          (BindQ n _) :* _ -> do
-                             guardM $ n == v
-                             promoteR $ qualsR (extractR $ subst v s) idR
+                             if n == v
+                                 -- the current binding shadows the variable to be replaced
+                                 -- => don't descent into the tail
+                                 then promoteR $ qualsR (extractR $ subst v s) idR
+                                 -- no shadowing, descend into the tail
+                                 else promoteR $ qualsR (extractR $ subst v s) (extractR $ subst v s)
                          _ :* _           -> do
                              promoteR $ qualsR (extractR $ subst v s) (extractR $ subst v s)
                          S _              -> do
                              promoteR $ qualsemptyR (extractR $ subst v s)
     
     rules_qual :: RewriteC CL
-    rules_qual = do QualCL _ <- idR
-                    anyR (subst v s)
-
+    rules_qual = anyR (subst v s)
 
 --------------------------------------------------------------------------------
 -- Tuplifying variables
 
 tuplify :: Ident -> (Ident, Type) -> (Ident, Type) -> RewriteC CL
-tuplify v (v1, t1) (v2, t2) = subst v1 v1Rep >>> subst v2 v2Rep
+tuplify v (v1, t1) (v2, t2) = subst v1 v1Rep >>> ((idR >>= (\q -> trace ("tuplify after v1 " ++ show q) $ return ())) >> subst v2 v2Rep)
   where 
     (v1Rep, v2Rep) = tupleVars v t1 t2
 

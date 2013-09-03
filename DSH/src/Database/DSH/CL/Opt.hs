@@ -130,14 +130,12 @@ toJoinExpr n = do
 -- has free variables which are not the variables of the qualifiers given to the
 -- function.
 splitJoinPred :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
-splitJoinPred x y = trace "r9" $ do
-    BinOp _ Eq e1 e2 <- trace "r8" idR
+splitJoinPred x y = do
+    BinOp _ Eq e1 e2 <- idR
 
     let fv1 = freeVars e1
         fv2 = freeVars e2
         
-    trace (show fv1 ++ " " ++ show fv2) $ return ()
-
     if [x] == fv1 && [y] == fv2
         then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e1', e2'))
         else if [y] == fv1 && [x] == fv2
@@ -152,13 +150,13 @@ type TuplifyM = CompSM (RewriteC CL)
 eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
 eqjoinR = do
     -- We need two generators followed by a predicate
-    BindQ x xs :* BindQ y ys :* GuardQ p :* qr <- trace "r5" $ promoteT idR
+    BindQ x xs :* BindQ y ys :* GuardQ p :* qr <- promoteT idR
     
     -- Two tail steps into the list, then first the guard node and then the
     -- predicate expression 
     
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr) <- trace "r15" $ constT (return p) >>> (liftstateT $ splitJoinPred x y)
+    (leftExpr, rightExpr) <- constT (return p) >>> (liftstateT $ splitJoinPred x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -177,32 +175,28 @@ eqjoinR = do
     -- qualifiers
     -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
-    {-
-    f <- idR
-    x <- oneT idR
-    trace ("foo1 "++ show f) $ trace ("foo2 " ++ show x) $ return ()
-    -}
+    -- qr' <- trace "tuplifyR" $ catchesT [liftstateT $ (constT $ return qr) >>> (extractR tuplifyR), constT $ return qr]
+    qr' <- liftstateT $ (constT $ return qr) >>> (extractR tuplifyR)
 
-    -- qr' <- trace (show f) $ trace "r16" $ (extractT $ liftstateT $ oneT tuplifyR) >>> projectT
-    qr' <- catchesT [liftstateT $ oneT (extractR tuplifyR), oneT idR]
+    trace (show qr') $ return ()
     
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    trace "r17" $ constT $ modify (>>> tuplifyR)
+    constT $ modify (>>> tuplifyR)
     
     return $ joinGen :* qr'
     
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
-eqjoinQualsR = trace "r4" $ {- anytdR -} eqjoinR
+eqjoinQualsR = eqjoinR
     
 -- FIXME this should work without this amount of casting
 -- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
-eqjoinCompR = trace "r1" $ do
+eqjoinCompR = do
     Comp t e _      <- promoteT idR
     (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
     e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
-    trace ("r11" ++ show qs') $ return $ inject $ Comp t e' qs'
+    return $ inject $ Comp t e' qs'
 
 {-
 introduceEquiJoins :: Expr -> Expr
