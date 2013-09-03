@@ -266,6 +266,7 @@ qualsemptyR t = qualsemptyT t S
 data CL = ExprCL Expr
         | QualCL Qual
         | QualsCL (NL Qual)
+        deriving (Show)
         
 instance Injection Expr CL where
     inject                = ExprCL

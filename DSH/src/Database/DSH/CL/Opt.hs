@@ -1,26 +1,25 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes      #-}
-{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE TemplateHaskell     #-}
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt 
   ( opt ) where
        
 import           Debug.Trace
-import           Text.Printf
                  
-import           Control.Applicative((<$>), (<*>))
+-- import           Control.Applicative((<$>), (<*>))
 import           Control.Arrow
 import qualified Control.Category as C
-import           Control.Monad
+-- import           Control.Monad
 
-import qualified Data.Set as S
-import           GHC.Exts
+-- import qualified Data.Set as S
+-- import           GHC.Exts
 
 import           Language.KURE.Lens
 
-import           Database.DSH.Impossible
+-- import           Database.DSH.Impossible
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -114,7 +113,7 @@ toJoinExpr n = do
     case e of
         AppE1 _ p _   -> do
             p' <- prim1 p
-            appe1T (toJoinExpr n) (\_ _ e -> UnOpJ p' e)
+            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ p' e1)
         BinOp _ _ _ _ -> do
             binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ o e1 e2)
         Lit _ v       -> do
@@ -131,52 +130,35 @@ toJoinExpr n = do
 -- has free variables which are not the variables of the qualifiers given to the
 -- function.
 splitJoinPred :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
-splitJoinPred x y = do
-    BinOp _ Eq e1 e2 <- idR
+splitJoinPred x y = trace "r9" $ do
+    BinOp _ Eq e1 e2 <- trace "r8" idR
 
     let fv1 = freeVars e1
         fv2 = freeVars e2
+        
+    trace (show fv1 ++ " " ++ show fv2) $ return ()
 
     if [x] == fv1 && [y] == fv2
-        then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1 e2 -> (e1, e2))
+        then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e1', e2'))
         else if [y] == fv1 && [x] == fv2
-             then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1 e2 -> (e2, e1))
+             then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e2', e1'))
              else fail "splitJoinPred: not an equi-join predicate"
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
-{-
-type Foo = StateT (RewriteC CL) CompM
-
-instance MonadCatch (Foo a) where
-    -- catchM :: m a -> (String -> m a) -> m a
-    catchM ma f = StateT $ \s -> 
-        let (s', ca) =  runStateT ma s
-            ca' = CompM $ \i -> case runCompM' i ca of
-                                    (i, Left msg) -> undefined
-                                    (i, Right a)  -> return $ return a
-        in (
--}
-
 type TuplifyM = CompSM (RewriteC CL)
 
-equiJoinT :: Rewrite CompCtx TuplifyM (NL Qual)
-equiJoinT = do
+eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
+eqjoinR = do
     -- We need two generators followed by a predicate
-    qs@(q1@(BindQ x xs) :* q2@(BindQ y ys) :* GuardQ p :* qr) <- promoteT idR
+    BindQ x xs :* BindQ y ys :* GuardQ p :* qr <- trace "r5" $ promoteT idR
     
     -- Two tail steps into the list, then first the guard node and then the
     -- predicate expression 
     
-    -- FIXME this sucks. There needs to be a combinator to build a lens from a
-    -- relative path.
-    let predLens :: LensC CL CL
-        predLens = foldl1 (flip (C..)) $ map childL [1, 1, 0, 0]
-
     -- The predicate must be an equi join predicate
-    -- FIXME why is extractT necessary? liftstateT should only change the monad
-    (leftExpr, rightExpr) <- extractT $ liftstateT $ focusT predLens (promoteT $ splitJoinPred x y)
+    (leftExpr, rightExpr) <- trace "r15" $ constT (return p) >>> (liftstateT $ splitJoinPred x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -195,60 +177,32 @@ equiJoinT = do
     -- qualifiers
     -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
-    qr' <- (extractT $ liftstateT $ tryR $ childR 1 tuplifyR) >>> projectT
+    {-
+    f <- idR
+    x <- oneT idR
+    trace ("foo1 "++ show f) $ trace ("foo2 " ++ show x) $ return ()
+    -}
+
+    -- qr' <- trace (show f) $ trace "r16" $ (extractT $ liftstateT $ oneT tuplifyR) >>> projectT
+    qr' <- catchesT [liftstateT $ oneT (extractR tuplifyR), oneT idR]
     
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    constT $ modify (>>> tuplifyR)
+    trace "r17" $ constT $ modify (>>> tuplifyR)
     
     return $ joinGen :* qr'
     
-traverseQuals :: RewriteC CL -> TranslateC CL (RewriteC CL, CL)
-traverseQuals tuplifyR = rule_quals <+ rule_qual
-  where 
-    rule_quals :: TranslateC CL (RewriteC CL, CL)
-    rule_quals = undefined
-{-
-        -- might not be necessary
-        (_ :: Qual) :* _ <- promoteT idR
-        catchesT [canRewrite, descend]
-
-        -- We try to rewrite the current node
-        -- tuplifyR', qs') <- equiJoinT
-        -- equiJoinT >>= (\(tuplifyR', qs') -> return qs' >>> traverseQuals tuplifyR'
-
-        -- Try to rewrite the rewritten node to catch join trees. If that fails,
-        -- proceed with the next qualifier.
-        -- (return $ inject qs') >>> (equiJoinT <+ (allR $ traverseQuals tuplifyR'))
-        -- (traverseQuals (tuplifyR >>> tuplifyR')) <+ 
-        undefined
-        
+eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
+eqjoinQualsR = trace "r4" $ {- anytdR -} eqjoinR
     
-    canRewrite :: TranslateC CL (RewriteC CL, CL)
-    canRewrite = do
-        (tuplifyR', qs') <- equiJoinT
-        let tuplifyR'' = tuplifyR >>> tuplifyR'
-        (return $ inject qs') >>> (traverseQuals tuplifyR')
-        
-    descend :: TranslateC CL (RewriteC CL, CL)
-    descend = undefined
--}    
-    rule_qual :: TranslateC CL (RewriteC CL, CL)
-    rule_qual = undefined
-        
-        
-    
-{-
-    q <- idR >>> projectT
-    -- We should catch failures on the tuplify rewrite
-    
-    -- Try to rewrite the current node and catch failures. The second rewrite
-    -- will never fail.
-    (tuplifyR', q') <- catchesT [equiJoinT, constT $ return (tuplifyR, q)]
-    
-    -- oneT $ promoteT $ traverseQualifiers tuplifyR'
-    -- qualsR idR (traverseQualifiers tuplifyR')
--}    
+-- FIXME this should work without this amount of casting
+-- FIXME and it should be RewriteC Expr
+eqjoinCompR :: RewriteC CL
+eqjoinCompR = trace "r1" $ do
+    Comp t e _      <- promoteT idR
+    (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
+    e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
+    trace ("r11" ++ show qs') $ return $ inject $ Comp t e' qs'
 
 {-
 introduceEquiJoins :: Expr -> Expr
@@ -558,7 +512,7 @@ opt e =
 -}
 
 strategy :: RewriteC CL
-strategy = anybuR (promoteR pushEquiFilters)
+strategy = {- anybuR (promoteR pushEquiFilters) >>> -} eqjoinCompR
 
 opt :: Expr -> Expr
 opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten

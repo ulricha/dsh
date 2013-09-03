@@ -173,7 +173,7 @@ Library
 
 executable vltox100
   Main-is: Database/DSH/Tools/VLToX100.hs
-  GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind  -O3
+  GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
   hs-source-dirs:   src
   build-depends:    base >= 4.5,
                     mtl >= 2.1,
@@ -194,7 +194,7 @@ Executable x100opt
                        mtl,
                        bytestring,
                        aeson
-  GHC-Options: -rtsopts -auto-all -O3  -fno-warn-orphans -fprof-auto 
+  GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 
 Executable vlopt
   Hs-Source-Dirs:   src
@@ -207,7 +207,7 @@ Executable vlopt
                        bytestring,
                        mtl,
                        aeson
-  GHC-Options: -rtsopts -O3  -fno-warn-orphans -fprof-auto -auto-all
+  GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
 
 Executable vlprop
   Hs-Source-Dirs:   src
@@ -219,7 +219,7 @@ Executable vlprop
                        bytestring,
                        pretty,
                        aeson
-  GHC-Options: -rtsopts -auto-all -O3  -fno-warn-orphans -fprof-auto 
+  GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
                   
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
@@ -237,7 +237,7 @@ Test-Suite Flattening_x100
                    test-framework >= 0.6,
                    HUnit
     cpp-options: -DisX100
-    GHC-Options:       -O3 -Wall 
+    GHC-Options: -Wall 
     extensions: CPP
     
 Test-Suite Flattening_TA
@@ -257,5 +257,5 @@ Test-Suite Flattening_TA
                    test-framework >= 0.6,
                    HUnit
     cpp-options: -DisDBPH
-    GHC-Options:       -O3 -Wall 
+    GHC-Options: -Wall 
     extensions: CPP
