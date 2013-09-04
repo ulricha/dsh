@@ -389,12 +389,12 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
     -- comprehension.
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompT :: TranslateC CL Expr
-    singleCompT = do
+    singleCompT = trace "singleCompT" $ do
         -- [ [ h | y <- ys, p ] | x <- xs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
         
         -- Split the join predicate
-        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
+        (leftExpr, rightExpr) <- trace "r1" $ constT (return p) >>> splitJoinPred x y
         
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
@@ -403,7 +403,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
             joinVar  = Var tupType x
             
         -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- constT (return h) >>> (extractR $ subst x (P.fst joinVar))
+        h' <- trace "r2" $ constT (return h) >>> (extractR $ tryR $ subst x (P.fst joinVar))
 
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
@@ -420,13 +420,13 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
                 -- It is safe to re-use y here, because we just re-bind the generator.
                 _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
                 
-        return $ Comp t1 headComp (S (BindQ x xs'))
+        trace "r3" $ return $ Comp t1 headComp (S (BindQ x xs'))
         
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
     varCompPairT :: TranslateC CL Expr
-    varCompPairT = do
+    varCompPairT = trace "varCompPairT" $ do
         Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
         guardM $ x == x'
         -- Reduce to the base case, then unnest, then patch the variable back in
@@ -451,23 +451,30 @@ patchVar x (Comp _ e qs@(S (BindQ x' je))) | x == x' =
 patchVar _ _             = $impossible
     
 unnestHeadR :: RewriteC CL
-unnestHeadR = do
-    Comp _ _ qs <- promoteT idR
-    headExprs <- oneT tupleComponentsT 
+unnestHeadR = simpleHeadR <+ tupleHeadR
+  where 
+    simpleHeadR :: RewriteC CL
+    simpleHeadR = trace "simpleHeadR" $ do
+        unnestHeadBaseT >>> injectT
 
-    let mkSingleComp :: Expr -> Expr
-        mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
-        
-        headExprs' = case headExprs of
-            v@(Var _ _) :| (comp : comps) -> P.pair v comp :| comps
-            comps                         -> comps
-            
-        singleComps = fmap mkSingleComp headExprs'
-        
-    -- FIXME fail if all translates failed -> define alternative to mapT
-    unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
+    tupleHeadR :: RewriteC CL
+    tupleHeadR = do
+        Comp _ _ qs <- promoteT idR
+        headExprs <- oneT tupleComponentsT 
     
-    return $ inject $ F.foldr1 P.zip unnestedComps
+        let mkSingleComp :: Expr -> Expr
+            mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
+            
+            headExprs' = case headExprs of
+                v@(Var _ _) :| (comp : comps) -> P.pair v comp :| comps
+                comps                         -> comps
+                
+            singleComps = fmap mkSingleComp headExprs'
+            
+        -- FIXME fail if all translates failed -> define alternative to mapT
+        unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
+        
+        return $ inject $ F.foldr1 P.zip unnestedComps
         
 nestjoinR :: RewriteC CL
 nestjoinR = do
@@ -499,14 +506,11 @@ test = anytdR walk
 -}        
         
 test2 :: RewriteC CL
-test2 = anyR factoroutHeadR
+test2 = nestjoinR
         
-  
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
 strategy = do
-    es <- tupleComponentsT
-    trace (show es) $ return ()
     test2
 
 opt :: Expr -> Expr
