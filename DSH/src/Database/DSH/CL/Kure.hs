@@ -20,7 +20,7 @@ module Database.DSH.CL.Kure
     , statefulT, liftstateT
 
       -- * The KURE context
-    , CompCtx, initialCtx, freeIn, boundIn, inScopeVars, bindQual, bindVar
+    , CompCtx(..), PathC, initialCtx, freeIn, boundIn, inScopeVars, bindQual, bindVar
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
@@ -53,9 +53,13 @@ type LensC a b      = Lens CompCtx (CompM Int) a b
 
 --------------------------------------------------------------------------------
 
+type AbsPathC = AbsolutePath Int
+
+type PathC = Path Int
+
 -- | The context for KURE-based CL rewrites
 data CompCtx = CompCtx { cl_bindings :: M.Map Ident Type 
-                       , cl_path     :: AbsolutePath Int
+                       , cl_path     :: AbsPathC
                        }
                        
 instance ExtendPath CompCtx Int where

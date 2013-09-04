@@ -9,21 +9,32 @@ module Database.DSH.CL.Opt
        
 import           Debug.Trace
                  
--- import           Control.Applicative((<$>), (<*>))
+import           Control.Applicative((<$>), (<*>))
 import           Control.Arrow
 import qualified Control.Category as C
 -- import           Control.Monad
+
+import           Data.Either
+
+import qualified Data.Foldable as F
+
+import Data.List.NonEmpty(NonEmpty((:|)))
+-- import qualified Data.List.NonEmpty as N
 
 -- import qualified Data.Set as S
 -- import           GHC.Exts
 
 import           Language.KURE.Lens
+                 
+import           Database.DSH.Impossible
 
 -- import           Database.DSH.Impossible
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
+
+import qualified Database.DSH.CL.Primitives as P
 
 --------------------------------------------------------------------------------
 -- Pushing filters towards the front of a qualifier list
@@ -175,7 +186,6 @@ eqjoinR = do
     -- qualifiers
     -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
-    -- qr' <- trace "tuplifyR" $ catchesT [liftstateT $ (constT $ return qr) >>> (extractR tuplifyR), constT $ return qr]
     -- FIXME this should propably be guarded
     qr' <- liftstateT $ (constT $ return qr) >>> (extractR tuplifyR)
 
@@ -217,275 +227,158 @@ existentialR = do
 existentialQualsR :: RewriteC (NL Qual)
 existentialQualsR = anytdR $ repeatR existentialR
 
-{-
-         
-{-
 ------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
+
+{- FIXME consider what happens if the head does not need to be normalized,
+i.e. is already in the proper shape -} 
+
+type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual) 
+
+-- | Collect expressions which we would like to replace in the comprehension
+-- head: occurences of the variable bound by the only generator as well as
+-- comprehensions nested in the head. We collect the expressions themself as
+-- well as the paths to them.
+collectExprT :: Ident -> TranslateC CL [HeadExpr] 
+collectExprT x = prunetdT (collectVar <+ collectComp <+ blockLambda)
+  where
+    -- | Collect a variable if it refers to the name we are looking for
+    collectVar :: TranslateC CL [HeadExpr]
+    collectVar = do
+        Var t n <- promoteT idR
+        guardM $ x == n
+        path <- snocPathToPath <$> absPathT
+        return [Left path]
+    
+    -- | Collect a comprehension and don't descend into it
+    collectComp :: TranslateC CL [HeadExpr]
+    collectComp = do
+        Comp t h qs <- promoteT idR
+        -- FIXME check here if the comprehension is eligible for unnesting?
+        path <- snocPathToPath <$> absPathT
+        return [Right (path, t, h, qs)]
+        
+    -- | don't descend past lambdas which shadow the name we are looking for
+    blockLambda :: TranslateC CL [HeadExpr]
+    blockLambda = do
+        Lam t n b <- promoteT idR
+        guardM $ n == x
+        return []
+
+-- Tuple accessor for position pos in right-deep tuples
+tupleAt :: Expr -> Int -> Int -> Expr
+tupleAt expr len pos = unpackTuple len (typeOf expr) expr
+  where
+    unpackTuple :: Int -> Type -> Expr -> Expr
+    unpackTuple l t@(PairT _ t2) e | pos == l && pos > 1 
+        = AppE1 t2 (Prim1 Snd (t .-> t2)) e
+
+    unpackTuple l t@(PairT t1 _) e | pos < l && l > 2    
+        = unpackTuple (l - 1) t1 (AppE1 t1 (Prim1 Fst (t .-> t1)) e)
+
+    unpackTuple 2 t@(PairT t1 _) e | pos == 1            
+        = AppE1 t1 (Prim1 Fst (t .-> t1)) e
+
+    unpackTuple d t e 
+        = error $ "tupleAt failed " ++ show d ++ " " ++ show t ++ " " ++ show e
+        
+-- | Take an absolute path and drop the prefix of the path to a direct child of
+-- the current node. This makes it a relative path starting from **some** direct
+-- child of the current node.
+dropPrefix :: Eq a => [a] -> [a] -> [a]
+dropPrefix prefix xs = drop (1 + length prefix) xs
+
+-- | Construct a right-deep tuple from at least two expressions
+mkTuple :: Expr -> NonEmpty Expr -> Expr
+mkTuple e1 es = P.pair e1 (F.foldr1 P.pair es)
+
+constExprT :: Monad m => Expr -> Translate c m CL CL
+constExprT expr = constT $ return $ inject expr
+        
+-- FIXME this should be RewriteC Expr
+pulloutHeadR :: RewriteC CL
+pulloutHeadR = do
+    curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
+    (vars, comps) <- partitionEithers <$> (oneT $ collectExprT x)
+
+    -- We abort if we did not find any interesting comprehensions in the head
+    guardM $ not $ null comps
+
+    pathPrefix <- rootPathT
+
+    let varTy = elemT $ typeOf xs
+
+        varExpr   = if null vars 
+                    then [] 
+                    else [(Var varTy x, map (dropPrefix pathPrefix) vars)]
+
+        compExprs = map (\(p, t, h, qs) -> (Comp t h qs, [dropPrefix pathPrefix p])) comps
+        
+    trace ("collected: " ++ show (varExpr ++ compExprs)) $ return ()
+    trace ("currently at: " ++ show curr ++ " --- " ++ show pathPrefix) $ return ()
+        
+    (mapBody, h', headTy) <- case varExpr ++ compExprs of
+              -- If there is only one interesting expression (which must be a
+              -- comprehension), we don't need to construct tuples.
+              [(comp@(Comp _ _ _), [path])] -> do
+                  let lamVarTy = typeOf comp
+
+                  -- Replace the comprehension with the lambda variable
+                  mapBody <- (oneT $ pathR path (constT $ return $ inject $ Var lamVarTy x)) >>> projectT
+
+                  return (mapBody, comp, lamVarTy)
+
+              -- If there are multiple expressions, we construct a right-deep tuple
+              -- and replace the original expressions in the head with the appropriate
+              -- tuple constructors.
+              es@(e1 : e2 : er)    -> do
+                  let -- Construct a tuple from all interesting expressions
+                      headTuple      = mkTuple (fst e1) (fmap fst $ e2 :| er)
+
+                      lamVarTy       = typeOf headTuple
+                      lamVar         = Var lamVarTy x
+                      
+                      -- Map all paths to a tuple accessor for the tuple we
+                      -- constructed for the comprehension head
+                      tupleAccessors = zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
+                                               (map snd es)
+                                               [1..]
+                                               
+                      
+                      -- For each path, construct a rewrite to replace the
+                      -- original expression at this path with the tuple
+                      -- accessor
+                      rewritePerPath = [ pathR path (constExprT ta) 
+                                       | (ta, paths) <- tupleAccessors
+                                       , path <- paths ]
+                                       
+                  mapBody <- (oneT $ serialise rewritePerPath) >>> projectT
+                  return (mapBody, headTuple, lamVarTy)
+
+              _            -> $impossible
+        
+    let lamTy = headTy .-> (elemT t)
+    return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' (S (BindQ x xs)))
+        
+{-
+test :: RewriteC CL
+test = anytdR walk
+
+  where
+    walk :: TranslateC CL CL
+    walk = do
+        Comp _ h (S (BindQ x _)) <- promoteT idR
+        paths <- oneT $ collectExprT x
+        trace (show paths) idR
+-}        
+        
+test2 :: RewriteC CL
+test2 = pulloutHeadR
+        
   
-newtype QuantVars    = Q (S.Set Ident)
-newtype ShadowedVars = S (S.Set Ident)
-
-type ProjectEnv = (QuantVars, ShadowedVars)
-  
-type Collect = ReaderT ProjectEnv (Writer [Expr])
-
-bindLocally :: MonadReader ProjectEnv m => Ident -> m a -> m a
-bindLocally i a = local maybeBind a
-  where 
-    maybeBind (Q qs, S ss) = if i `S.member` qs
-                             then (Q qs, S $ S.insert i ss)
-                             else (Q qs, S ss)
-                           
-isNotShadowed :: MonadReader ProjectEnv m => Ident -> m Bool
-isNotShadowed i = do
-    (Q qs, S ss) <- ask
-    return $ (i `S.member` qs) && (not $ i `S.member` ss)
-  
-areNotShadowed :: MonadReader ProjectEnv m => S.Set Ident -> m Bool
-areNotShadowed is = do
-    S ss <- asks snd
-    return $ S.null $ is `S.intersection` ss
-
--- Collect all expressions which we have to keep in the comprehension head.
-collectExpressions :: Expr -> [Expr]
-collectExpressions expr = execWriter $ runReaderT (collect expr) initEnv
-  where
-    initEnv :: ProjectEnv
-    initEnv = (Q $ freeVars expr, S S.empty)
-
-    collect :: Expr -> Collect ()
-    collect (Table _ _ _ _)   = return ()
-    collect (App _ e1 e2)     = collect e1 >> collect e2
-    collect (AppE1 _ _ e1)    = collect e1
-    collect (AppE2 _ _ e1 e2) = collect e1 >> collect e2
-    collect (Lam _ x e)       = bindLocally x (collect e)
-    collect (If _ e1 e2 e3)   = mapM_ collect [e1, e2, e3]
-    collect (BinOp _ _ e1 e2) = collect e1 >> collect e2
-    collect (Lit _ _)         = return ()
-    collect v@(Var _ x)       = isNotShadowed x >>= flip when (tell [v])
-    collect c@(Comp _ b qs)   = areNotShadowed (freeVars c) >>= flip when (tell [c])
-    
--- Tuple accessor for position pos.
-tupleAt :: Expr -> Int -> Expr
-tupleAt expr pos = descend 1 (typeOf expr) expr
-  where
-    descend :: Int -> Type -> Expr -> Expr
-    descend p t@(PairT t1 t2) e | p == pos = AppE1 t1 (Prim1 Fst (t .-> t1)) e
-    descend p _               e | p == pos = e
-    descend p t@(PairT t1 t2) e | p < pos  = descend (p + 1) t2 (AppE1 t2 (Prim1 Snd (t .-> t2)) e)
-    descend _ _             _              = $impossible
-    
--- Construct a tuple from a list of expressions. The tuple is constructed as
--- right-deep nested pairs.
-constructTuple :: NonEmpty Expr -> Expr
-constructTuple (e :| []) = e
-constructTuple (e :| es) = foldr1 construct (e : es) 
-  where
-    construct :: Expr -> Expr -> Expr
-    construct e tup = 
-        let te = typeOf e
-            tt = typeOf tup
-            t  = pairT te tt
-        in AppE2 t (Prim2 Pair (te .-> (tt .-> t))) e tup
-
--- From the list of expressions to be kept in the comprehension head, construct
--- the tuple for the head which contains all those expressions and the list of
--- tuple accessors which serve as replacements in the factored-out expression.
-buildReplacements :: Ident -> [Expr] -> (Expr, [Expr])
-buildReplacements tupleName exprs = (tuple, replacementExprs)
-
-  where
-    -- canonical order: variables first, then comprehensions
-    canonicalOrder = uncurry (++) $ partition isComp $ zip exprs [1..]
-
-    tuple = case map fst canonicalOrder of
-                e : es -> constructTuple (e :| es)
-                []     -> $impossible
-    
-    isComp :: (Expr, Int) -> Bool
-    isComp (Comp _ _ _, _) = True
-    isComp _               = False
-    
-    tupleVar = Var (typeOf tuple) tupleName
-    
-    replacementExprs = 
-        -- construct tuple accessors
-        map ((tupleAt tupleVar) . fst) 
-        -- sort into the original expression order
-        $ sortWith snd 
-        -- keep the canonical order (these are the tuple indices)
-        $ zip [1..] 
-        $ map snd canonicalOrder
- 
-type Replace = ReaderT ProjectEnv (State [Expr])
-
--- Get the next replacement expression
-getReplacement :: Replace Expr
-getReplacement = do
-  s <- get
-  case s of
-    r : rs -> put rs >> return r
-    []     -> $impossible
-    
--- Traverse the expression again and replace all expressions which we collected
--- during the first traversal.
-replaceExpressions :: Expr -> [Expr] -> Expr
-replaceExpressions expr replacements = evalState (runReaderT (replace expr) initEnv) replacements
-  where
-    initEnv :: ProjectEnv
-    initEnv = (Q $ freeVars expr, S S.empty)
-    
-    replace :: Expr -> Replace Expr
-    replace t@(Table _ _ _ _)   = return t
-
-    replace (App t e1 e2)     = do
-        e1' <- replace e1
-        e2' <- replace e2
-        return $ App t e1' e2'
-      
-    replace (AppE1 t p e1)    = do
-        e1' <- replace e1
-        return $ AppE1 t p e1'
-
-    replace (AppE2 t p e1 e2) = do
-        e1' <- replace e1
-        e2' <- replace e2
-        return $ AppE2 t p e1' e2'
-
-    replace (Lam t x e)       = do
-        e' <- bindLocally x (replace e)
-        return $ Lam t x e'
-
-    replace (If t e1 e2 e3)   = do
-        e1' <- replace e1
-        e2' <- replace e2
-        e3' <- replace e3
-        return $ If t e1' e2' e3'
-
-    replace (BinOp t o e1 e2) = do
-        e1' <- replace e1
-        e2' <- replace e2
-        return $ BinOp t o e1' e2'
-
-    replace c@(Lit _ _)       = return c
-
-    replace v@(Var _ x)       = do 
-        interesting <- isNotShadowed x
-        if interesting
-            then getReplacement
-            else return v
-
-    replace c@(Comp _ b qs)   = do
-        interesting <- areNotShadowed (freeVars c)
-        if interesting
-            then getReplacement
-            else return c
-
-comprehensionHead :: Expr -> Expr
-comprehensionHead expr = transform go expr
-  where
-    go :: Expr -> Expr
-    go (Comp t e qs) = project undefined e qs
-    go e             = e
-    
-    project :: Type -> Expr -> [Qual] -> Expr
-    project _ _ _  = undefined
-    project t e qs = Comp t e qs
--}
-    
--- Try to unnest comprehensions from a comprehension's head using the nestjoin
--- operator. Currently, we can only deal with a rather limited pattern (see
--- below). However, this should be generalizable to multiple nested
--- comprehensions and complicated head expressions by normalizing the
--- comprehension head.
-unnestComprehensionHead :: Expr -> Expr
-unnestComprehensionHead expr = transform go expr
-  where
-    go :: Expr -> Expr
-    go (Comp t e (Quals qs)) = Comp t e' (Quals qs') where (e', qs') = unnestHead e qs
-    go e                     = e
-    
-    quantifierBindings :: [Qual] -> [Ident]
-    quantifierBindings qs = mapMaybe aux qs
-      where
-        aux (BindQ i _) = Just i
-        aux (GuardQ _)  = Nothing
-    
-    unnestHead :: Expr -> [Qual] -> (Expr, [Qual])
-    -- [ (x, [ g y | y <- ys, p x y ]) | x <- xs ]
-    -- => [ (fst x, map (\y -> g y) snd x) | x <- xs nj(p) ys ]
-    unnestHead e@(AppE2 _ (Prim2 Pair _) 
-                        (Var xt x) 
-                        (Comp (ListT it) g (Quals [ BindQ y ys, GuardQ p])))
-               qs@[BindQ x' xs] 
-               | x == x' && 
-                 -- The predicate must have the proper shape
-                 isEquiJoinPred p &&
-                 -- and must refer to x and y
-                 freeVars p == S.fromList [x, y] &&
-                 freeVars g == S.singleton y
-                 = 
-      case splitJoinPred p x y of
-          Just (leftExpr, rightExpr) -> (headExpr, [BindQ x xs']) 
-            where
-              yt = elemT $ typeOf ys
-              resType  = pairT xt (listT it)
-              tupType  = pairT xt (listT yt)
-              joinType = listT xt .-> (listT yt .-> listT tupType)
-              
-              -- snd x
-              ys' = AppE1 (listT yt) (Prim1 Snd (tupType .-> (listT yt))) (Var tupType x)
-              -- [ g | y <- snd x ]
-              innerComp = Comp (listT it) g (Quals [BindQ y ys'])
-  
-              -- (fst x, innerComp)
-              headExpr = AppE2 resType 
-                               (Prim2 Pair (xt .-> (listT it .-> resType))) 
-                               (AppE1 xt (Prim1 Fst (resType .-> xt)) (Var resType x))
-                               innerComp
-  
-              xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
-          Nothing -> (e, qs)
-               
-    unnestHead e qs = (e, qs)
-  
-unnestExistentials :: Expr -> Expr
-unnestExistentials expr = transform go expr
-  where
-    go :: Expr -> Expr
-    go (Comp t e (Quals qs)) = Comp t e (Quals qs') where qs' = unnestElem qs
-    go e                     = e
-    
-    -- [ f x | x <- xs, or [ p | y <- ys ] ]
-    unnestElem :: [Qual] -> [Qual]
-    unnestElem qs@[ BindQ x xs
-                  , GuardQ ((AppE1 _ (Prim1 Or _)
-                                     (Comp _ p (Quals [BindQ y ys]))))
-                  ] =
-        case splitJoinPred p x y of
-            Just (leftExpr, rightExpr) -> 
-                let xst = typeOf xs
-                    yst = typeOf ys
-                    jt  = xst .-> yst .-> xst
-                in [ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys) ]
-                
-            Nothing                    -> 
-                qs
-            
-    unnestElem qs = qs
-            
-opt :: Expr -> Expr
-opt e =
-    if (e /= e') 
-    then trace (printf "%s\n---->\n%s" (show e) (show e')) e'
-    else trace (show e) e'
-  where 
-    e' = unnestExistentials $ unnestComprehensionHead $ introduceEquiJoins $ pushFilters e
--}
-
 strategy :: RewriteC CL
-strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
+-- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
+strategy = test2
 
 opt :: Expr -> Expr
 opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
