@@ -359,7 +359,11 @@ factoroutHeadR = do
               
     let lamTy = headTy .-> (elemT t)
     return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' (S (BindQ x xs)))
+
+------------------------------------------------------------------
+-- Nestjoin introduction: unnesting in a comprehension head
     
+-- FIXME this should work on left-deep tuples
 tupleComponentsT :: TranslateC CL (NonEmpty Expr)
 tupleComponentsT = do
     AppE2 _ (Prim2 Pair _) _ _ <- promoteT idR
@@ -379,6 +383,8 @@ tupleComponentsT = do
     singleT = (:| []) <$> (promoteT idR)
 
     
+-- | Base case for nestjoin introduction: consider comprehensions in which only
+-- a single inner comprehension occurs in the head.
 unnestHeadBaseT :: TranslateC CL Expr
 unnestHeadBaseT = singleCompT <+ varCompPairT
   where
@@ -477,6 +483,9 @@ nestjoinR :: RewriteC CL
 nestjoinR = do
     Comp _ _ _ <- promoteT idR
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+
+------------------------------------------------------------------
+-- Simple housecleaning support rewrites.
     
 identityMapR :: RewriteC Expr
 identityMapR = do
