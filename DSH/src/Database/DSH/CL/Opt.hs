@@ -489,6 +489,12 @@ identityCompR = do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
     guardM $ x == x'
     return xs
+    
+pairR :: RewriteC Expr
+pairR = do
+    AppE2 _ (Prim2 Pair _) (AppE1 _ (Prim1 Fst _) v@(Var _ x)) (AppE1 _ (Prim1 Snd _) (Var _ x')) <- idR
+    guardM $ x == x'
+    return v
         
 {-
 test :: RewriteC CL
