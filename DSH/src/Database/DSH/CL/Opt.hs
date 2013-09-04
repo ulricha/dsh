@@ -8,6 +8,7 @@ module Database.DSH.CL.Opt
   ( opt ) where
        
 import           Debug.Trace
+import           Text.Printf
                  
 import           Control.Applicative((<$>))
 import           Control.Arrow
@@ -17,7 +18,7 @@ import           Data.Either
 
 import qualified Data.Foldable as F
 
-import Data.List.NonEmpty(NonEmpty((:|)), (<|))
+import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 -- import qualified Data.List.NonEmpty as N
 
 -- import qualified Data.Set as S
@@ -261,23 +262,19 @@ collectExprT x = prunetdT (collectVar <+ collectComp <+ blockLambda)
         Lam _ n _ <- promoteT idR
         guardM $ n == x
         return []
+        
+-- | Apply a function n times
+ntimes :: Int -> (a -> a) -> a -> a
+ntimes 0 _ x = x
+ntimes n f x = ntimes (n - 1) f (f x)
 
--- Tuple accessor for position pos in right-deep tuples
+-- | Tuple accessor for position pos in right-deep tuples
 tupleAt :: Expr -> Int -> Int -> Expr
-tupleAt expr len pos = unpackTuple len (typeOf expr) expr
-  where
-    unpackTuple :: Int -> Type -> Expr -> Expr
-    unpackTuple l t@(PairT _ t2) e | pos == l && pos > 1 
-        = AppE1 t2 (Prim1 Snd (t .-> t2)) e
-
-    unpackTuple l t@(PairT t1 _) e | pos < l && l > 2    
-        = unpackTuple (l - 1) t1 (AppE1 t1 (Prim1 Fst (t .-> t1)) e)
-
-    unpackTuple 2 t@(PairT t1 _) e | pos == 1            
-        = AppE1 t1 (Prim1 Fst (t .-> t1)) e
-
-    unpackTuple d t e 
-        = error $ "tupleAt failed " ++ show d ++ " " ++ show t ++ " " ++ show e
+tupleAt expr len pos = 
+  case pos of
+      pos | 1 <= pos && pos < len -> P.fst $ ntimes (pos - 1) P.snd expr
+      pos | pos == len            -> ntimes (len - 1) P.snd expr
+      _                           -> $impossible                         
         
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
@@ -343,7 +340,7 @@ factoroutHeadR = do
                       
                       -- Map all paths to a tuple accessor for the tuple we
                       -- constructed for the comprehension head
-                      tupleAccessors = zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
+                      tupleAccessors = trace ("typeOf headTuple: " ++ show lamVarTy) $ trace ("headTuple: " ++ show headTuple) $ zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
                                                (map snd es)
                                                [1..]
                                                
