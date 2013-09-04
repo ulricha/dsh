@@ -268,13 +268,13 @@ ntimes :: Int -> (a -> a) -> a -> a
 ntimes 0 _ x = x
 ntimes n f x = ntimes (n - 1) f (f x)
 
--- | Tuple accessor for position pos in right-deep tuples
+-- | Tuple accessor for position pos in left-deep tuples
 tupleAt :: Expr -> Int -> Int -> Expr
 tupleAt expr len pos = 
   case pos of
-      pos | 1 <= pos && pos < len -> P.fst $ ntimes (pos - 1) P.snd expr
-      pos | pos == len            -> ntimes (len - 1) P.snd expr
-      _                           -> $impossible                         
+      pos | pos == 1               -> ntimes (len - 1) P.fst expr
+      pos | 2 <= pos && pos <= len -> P.snd $ ntimes (len - pos) P.fst expr
+      _                            -> $impossible                         
         
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
@@ -282,9 +282,9 @@ tupleAt expr len pos =
 dropPrefix :: Eq a => [a] -> [a] -> [a]
 dropPrefix prefix xs = drop (1 + length prefix) xs
 
--- | Construct a right-deep tuple from at least two expressions
+-- | Construct a left-deep tuple from at least two expressions
 mkTuple :: Expr -> NonEmpty Expr -> Expr
-mkTuple e1 es = P.pair e1 (F.foldr1 P.pair es)
+mkTuple e1 es = F.foldl1 P.pair (e1 <| es)
 
 constExprT :: Monad m => Expr -> Translate c m CL CL
 constExprT expr = constT $ return $ inject expr
@@ -328,7 +328,7 @@ factoroutHeadR = do
 
                   return (mapBody, comp, lamVarTy)
 
-              -- If there are multiple expressions, we construct a right-deep tuple
+              -- If there are multiple expressions, we construct a left-deep tuple
               -- and replace the original expressions in the head with the appropriate
               -- tuple constructors.
               es@(e1 : e2 : er)    -> do
@@ -471,7 +471,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         -- FIXME fail if all translates failed -> define alternative to mapT
         unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
         
-        return $ inject $ F.foldr1 P.zip unnestedComps
+        return $ inject $ F.foldl1 P.zip unnestedComps
         
 nestjoinR :: RewriteC CL
 nestjoinR = do
