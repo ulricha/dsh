@@ -12,6 +12,8 @@ module Database.DSH.Common.Data.Type
  , extractPairT
  , isList
  , elemT
+ , fstT
+ , sndT
  , domainT
  , splitType
  , varsInType
@@ -149,6 +151,14 @@ extractPairT :: Type -> Type
 extractPairT (ListT t1) = extractPairT t1
 extractPairT t@(PairT _ _) = t
 extractPairT _ = error "Type doesn't contain a pair, cannot extract pair"
+
+fstT :: Type -> Type
+fstT (PairT t1 _) = t1
+fstT _            = error "Type is not a pair type"
+
+sndT :: Type -> Type
+sndT (PairT _ t2) = t2
+sndT _            = error "Type is not a pair type"
 
 pairComponents :: Type -> (Type, Type)
 pairComponents (PairT t1 t2) = (t1, t2)

@@ -9,23 +9,20 @@ module Database.DSH.CL.Opt
        
 import           Debug.Trace
                  
-import           Control.Applicative((<$>), (<*>))
+import           Control.Applicative((<$>))
 import           Control.Arrow
-import qualified Control.Category as C
 -- import           Control.Monad
 
 import           Data.Either
 
 import qualified Data.Foldable as F
 
-import Data.List.NonEmpty(NonEmpty((:|)))
+import Data.List.NonEmpty(NonEmpty((:|)), (<|))
 -- import qualified Data.List.NonEmpty as N
 
 -- import qualified Data.Set as S
 -- import           GHC.Exts
 
-import           Language.KURE.Lens
-                 
 import           Database.DSH.Impossible
 
 -- import           Database.DSH.Impossible
@@ -202,7 +199,7 @@ eqjoinQualsR = anytdR $ repeatR eqjoinR
 -- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
 eqjoinCompR = do
-    Comp t e _      <- promoteT idR
+    Comp t _ _      <- promoteT idR
     (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
     e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
     return $ inject $ Comp t e' qs'
@@ -245,7 +242,7 @@ collectExprT x = prunetdT (collectVar <+ collectComp <+ blockLambda)
     -- | Collect a variable if it refers to the name we are looking for
     collectVar :: TranslateC CL [HeadExpr]
     collectVar = do
-        Var t n <- promoteT idR
+        Var _ n <- promoteT idR
         guardM $ x == n
         path <- snocPathToPath <$> absPathT
         return [Left path]
@@ -261,7 +258,7 @@ collectExprT x = prunetdT (collectVar <+ collectComp <+ blockLambda)
     -- | don't descend past lambdas which shadow the name we are looking for
     blockLambda :: TranslateC CL [HeadExpr]
     blockLambda = do
-        Lam t n b <- promoteT idR
+        Lam _ n _ <- promoteT idR
         guardM $ n == x
         return []
 
@@ -295,9 +292,13 @@ mkTuple e1 es = P.pair e1 (F.foldr1 P.pair es)
 constExprT :: Monad m => Expr -> Translate c m CL CL
 constExprT expr = constT $ return $ inject expr
         
--- FIXME this should be RewriteC Expr
-pulloutHeadR :: RewriteC CL
-pulloutHeadR = do
+-- | Factor out expressions from a single-generator comprehension head, such
+-- that only (pairs of) the generator variable and nested comprehensions in the
+-- head remain. Beware: This rewrite /must/ be combined with a rewrite that
+-- makes progress on the comprehension. Otherwise, a loop might occur when used
+-- in a top-down fashion.
+factoroutHeadR :: RewriteC CL
+factoroutHeadR = do
     curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
     (vars, comps) <- partitionEithers <$> (oneT $ collectExprT x)
 
@@ -312,12 +313,14 @@ pulloutHeadR = do
                     then [] 
                     else [(Var varTy x, map (dropPrefix pathPrefix) vars)]
 
-        compExprs = map (\(p, t, h, qs) -> (Comp t h qs, [dropPrefix pathPrefix p])) comps
+        compExprs = map (\(p, t', h', qs) -> (Comp t' h' qs, [dropPrefix pathPrefix p])) comps
+        
+        exprs     = varExpr ++ compExprs
         
     trace ("collected: " ++ show (varExpr ++ compExprs)) $ return ()
     trace ("currently at: " ++ show curr ++ " --- " ++ show pathPrefix) $ return ()
         
-    (mapBody, h', headTy) <- case varExpr ++ compExprs of
+    (mapBody, h', headTy) <- case exprs of
               -- If there is only one interesting expression (which must be a
               -- comprehension), we don't need to construct tuples.
               [(comp@(Comp _ _ _), [path])] -> do
@@ -356,9 +359,132 @@ pulloutHeadR = do
                   return (mapBody, headTuple, lamVarTy)
 
               _            -> $impossible
-        
+              
     let lamTy = headTy .-> (elemT t)
     return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' (S (BindQ x xs)))
+    
+tupleComponentsT :: TranslateC CL (NonEmpty Expr)
+tupleComponentsT = do
+    AppE2 _ (Prim2 Pair _) _ _ <- promoteT idR
+    descendT
+    
+  where
+    descendT :: TranslateC CL (NonEmpty Expr)
+    descendT = descendPairT <+ singleT
+    
+    descendPairT :: TranslateC CL (NonEmpty Expr)
+    descendPairT = do
+        AppE2 _ (Prim2 Pair _) e _ <- promoteT idR
+        tl <- childT 1 descendT
+        return $ e <| tl
+        
+    singleT :: TranslateC CL (NonEmpty Expr)
+    singleT = (:| []) <$> (promoteT idR)
+
+    
+unnestHeadBaseT :: TranslateC CL Expr
+unnestHeadBaseT = singleCompT <+ varCompPairT
+  where
+    -- The base case: a single comprehension nested in the head of the outer
+    -- comprehension.
+    -- [ [ h y | y <- ys, p ] | x <- xs ]
+    singleCompT :: TranslateC CL Expr
+    singleCompT = do
+        -- [ [ h | y <- ys, p ] | x <- xs ]
+        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
+        
+        -- Split the join predicate
+        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
+        
+        let xt       = elemT $ typeOf xs
+            yt       = elemT $ typeOf ys
+            tupType  = pairT xt (listT yt)
+            joinType = listT xt .-> (listT yt .-> listT tupType)
+            joinVar  = Var tupType x
+            
+        -- In the head of the inner comprehension, replace x with (snd x)
+        h' <- constT (return h) >>> (extractR $ subst x (P.fst joinVar))
+
+        -- the nestjoin operator combining xs and ys: 
+        -- xs nj(p) ys
+        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
+
+            headComp = case h of
+                -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
+                -- => We can remove the inner comprehension entirely
+                Var _ y' | y == y' -> P.snd joinVar
+                
+                -- The complex case: the inner comprehension has a non-idenity
+                -- head: 
+                -- [ h | y <- ys, p ] => [ h[fst x/x] | y <- snd x ] 
+                -- It is safe to re-use y here, because we just re-bind the generator.
+                _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+                
+        return $ Comp t1 headComp (S (BindQ x xs'))
+        
+    -- The head of the outer comprehension consists of a pair of generator
+    -- variable and inner comprehension
+    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
+    varCompPairT :: TranslateC CL Expr
+    varCompPairT = do
+        Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
+        guardM $ x == x'
+        -- Reduce to the base case, then unnest, then patch the variable back in
+        removeVarR >>> injectT >>> singleCompT >>> arr (patchVar x)
+        
+    -- Support rewrite: remove the variable from the outer comprehension head
+    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
+    -- => [ [ h y | y <- ys, p ] | x <- xs ]
+    removeVarR :: TranslateC CL Expr
+    removeVarR = do
+        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) (S (BindQ x' xs)) <- promoteT idR
+        guardM $ x == x'
+        let t' = listT $ sndT t
+        return $ Comp t' comp (S (BindQ x xs))
+
+patchVar :: Ident -> Expr -> Expr
+patchVar x (Comp _ e qs@(S (BindQ x' je))) | x == x' = 
+    let joinBindType = elemT $ typeOf je
+        e'           = P.pair (P.fst (Var joinBindType x)) e
+        resultType   = listT $ pairT (fstT joinBindType) (typeOf e)
+    in Comp resultType e' qs
+patchVar _ _             = $impossible
+    
+unnestHeadR :: RewriteC CL
+unnestHeadR = do
+    Comp _ _ qs <- promoteT idR
+    headExprs <- oneT tupleComponentsT 
+
+    let mkSingleComp :: Expr -> Expr
+        mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
+        
+        headExprs' = case headExprs of
+            v@(Var _ _) :| (comp : comps) -> P.pair v comp :| comps
+            comps                         -> comps
+            
+        singleComps = fmap mkSingleComp headExprs'
+        
+    -- FIXME fail if all translates failed -> define alternative to mapT
+    unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
+    
+    return $ inject $ F.foldr1 P.zip unnestedComps
+        
+nestjoinR :: RewriteC CL
+nestjoinR = do
+    Comp _ _ _ <- promoteT idR
+    unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+    
+identityMapR :: RewriteC Expr
+identityMapR = do
+    AppE2 _ (Prim2 Map _) (Lam _ x (Var _ x')) xs <- idR
+    guardM $ x == x'
+    return xs
+    
+identityCompR :: RewriteC Expr
+identityCompR = do
+    Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
+    guardM $ x == x'
+    return xs
         
 {-
 test :: RewriteC CL
@@ -373,12 +499,15 @@ test = anytdR walk
 -}        
         
 test2 :: RewriteC CL
-test2 = pulloutHeadR
+test2 = anyR factoroutHeadR
         
   
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
-strategy = test2
+strategy = do
+    es <- tupleComponentsT
+    trace (show es) $ return ()
+    test2
 
 opt :: Expr -> Expr
 opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
