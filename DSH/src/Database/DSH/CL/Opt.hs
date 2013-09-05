@@ -524,6 +524,16 @@ pairR = do
     AppE2 _ (Prim2 Pair _) (AppE1 _ (Prim1 Fst _) v@(Var _ x)) (AppE1 _ (Prim1 Snd _) (Var _ x')) <- idR
     guardM $ x == x'
     return v
+    
+splitConjunctsR :: RewriteC (NL Qual)
+splitConjunctsR = do
+    (GuardQ (BinOp _ Conj p1 p2)) :* qs <- idR
+    return $ GuardQ p1 :* GuardQ p2 :* qs
+    
+splitConjunctsEndR :: RewriteC (NL Qual)
+splitConjunctsEndR = do
+    (S (GuardQ (BinOp _ Conj p1 p2))) <- idR
+    return $ GuardQ p1 :* (S $ GuardQ p2)
         
 {-
 test :: RewriteC CL
@@ -542,7 +552,8 @@ cleanupR = identityMapR <+ identityCompR <+ pairR
         
 test2 :: RewriteC CL
 -- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
-test2 = semijoinR
+-- test2 = semijoinR
+test2 = anytdR (promoteR $ splitConjunctsR <+ splitConjunctsEndR)
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
