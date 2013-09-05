@@ -158,16 +158,17 @@ splitJoinPred x y = do
 
 type TuplifyM = CompSM (RewriteC CL)
 
-eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
-eqjoinR = do
-    -- We need two generators followed by a predicate
-    BindQ x xs :* BindQ y ys :* GuardQ p :* qr <- promoteT idR
-    
-    -- Two tail steps into the list, then first the guard node and then the
-    -- predicate expression 
-    
+-- | Concstruct an equijoin generator
+mkeqjoinT 
+  :: Expr  -- ^ The predicate
+  -> Ident -- ^ Identifier from the first generator
+  -> Ident -- ^ Identifier from the second generator
+  -> Expr  -- ^ First generator expression
+  -> Expr  -- ^ Second generator expression
+  -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
+mkeqjoinT pred x y xs ys = do
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr) <- constT (return p) >>> (liftstateT $ splitJoinPred x y)
+    (leftExpr, rightExpr) <- constT (return pred) >>> (liftstateT $ splitJoinPred x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -181,30 +182,60 @@ eqjoinR = do
                         (AppE2 pt 
                                (Prim2 (EquiJoin leftExpr rightExpr) jt) 
                                xs ys)
+
+    return (tuplifyR, joinGen)
+
+-- | Match an equijoin pattern in the middle of a qualifier list
+eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
+eqjoinR = do
+    q <- idR
+    trace ("eqjoinR at: " ++ show q) $ return ()
+        
+    -- We need two generators followed by a predicate
+    BindQ x xs :* BindQ y ys :* GuardQ p :* qs <- promoteT idR
+    
+    (tuplifyR, q') <- mkeqjoinT p x y xs ys
                                
     -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
     -- qualifiers
     -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
     -- FIXME this should propably be guarded
-    qr' <- liftstateT $ (constT $ return qr) >>> (extractR tuplifyR)
+    qs' <- liftstateT $ (constT $ return qs) >>> (extractR tuplifyR)
 
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
     constT $ modify (>>> tuplifyR)
     
-    return $ joinGen :* qr'
+    return $ q' :* qs'
+    
+-- | Matgch an equijoin pattern at the end of a qualifier list
+eqjoinEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+eqjoinEndR = do
+    -- We need two generators followed by a predicate
+    BindQ x xs :* BindQ y ys :* (S (GuardQ p)) <- promoteT idR
+
+    (tuplifyR, q') <- mkeqjoinT p x y xs ys
+
+    -- Combine the new tuplifying rewrite with the current rewrite by chaining
+    -- both rewrites
+    constT $ modify (>>> tuplifyR)
+
+    return (S q')
+
     
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
-eqjoinQualsR = anytdR $ repeatR eqjoinR
+eqjoinQualsR = anytdR $ repeatR (eqjoinEndR <+ eqjoinR)
     
 -- FIXME this should work without this amount of casting
 -- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
-eqjoinCompR = do
+eqjoinCompR = trace "eqjoinCompR" $ do
+    q <- idR
+    trace (show q) $ return ()
     Comp t _ _      <- promoteT idR
-    (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
-    e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
+    (tuplifyR, qs') <- trace "r1" $ statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
+    e'              <- trace "r2" $ (tryR $ childT 0 tuplifyR) >>> projectT
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
@@ -553,7 +584,8 @@ cleanupR = identityMapR <+ identityCompR <+ pairR
 test2 :: RewriteC CL
 -- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
 -- test2 = semijoinR
-test2 = anytdR (promoteR $ splitConjunctsR <+ splitConjunctsEndR)
+-- test2 = anytdR (promoteR $ splitConjunctsR <+ splitConjunctsEndR)
+test2 = anytdR eqjoinCompR
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
