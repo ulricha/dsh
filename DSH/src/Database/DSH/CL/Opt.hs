@@ -27,6 +27,8 @@ import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 import           Database.DSH.Impossible
 
 -- import           Database.DSH.Impossible
+   
+import           Language.KURE.Debug
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -206,30 +208,46 @@ eqjoinCompR = do
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
--- Introduce semi joins (existential quantification
+-- Introduce semi joins (existential quantification)
 
-existentialR :: RewriteC (NL Qual)
-existentialR = do
-    -- [ ... | ..., x <- xs, or [ p | y <- ys ], ... ]
-    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))) :* qs <- idR
-
-    (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
+-- | Construct a semijoin qualifier given a predicate and two generators
+mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
+mksemijoinT pred x y xs ys = do
+    (leftExpr, rightExpr) <- constT (return pred) >>> splitJoinPred x y
 
     let xst = typeOf xs
         yst = typeOf ys
         jt  = xst .-> yst .-> xst
 
     -- => [ ... | ..., x <- xs semijoin(p1, p2) ys, ... ]
-    return $ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys) :* qs
+    return $ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys)
+
+-- | Match a IN semijoin pattern in the middle of a qualifier list
+elemR :: RewriteC (NL Qual)
+elemR = do
+    -- [ ... | ..., x <- xs, or [ p | y <- ys ], ... ]
+    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))) :* qs <- idR
+    q' <- mksemijoinT p x y xs ys
+    return $ q' :* qs
+
+-- | Match a IN semijoin pattern at the end of a list
+elemEndR :: RewriteC (NL Qual)
+elemEndR = do
+    -- [ ... | ..., x <- xs, or [ p | y <- ys ] ]
+    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))))) <- idR
+    q' <- mksemijoinT p x y xs ys
+    return (S q')
     
 existentialQualsR :: RewriteC (NL Qual)
-existentialQualsR = anytdR $ repeatR existentialR
+existentialQualsR = anytdR $ repeatR (elemR <+ elemEndR)
+
+semijoinR :: RewriteC CL
+semijoinR = do
+    Comp _ _ _ <- promoteT idR
+    childR 1 (promoteR existentialQualsR)
 
 ------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
-
-{- FIXME consider what happens if the head does not need to be normalized,
-i.e. is already in the proper shape -} 
 
 type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual) 
 
@@ -397,7 +415,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
         
         -- Split the join predicate
-        (leftExpr, rightExpr) <- trace "r1" $ constT (return p) >>> splitJoinPred x y
+        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
         
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
@@ -406,7 +424,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
             joinVar  = Var tupType x
             
         -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- trace "r2" $ constT (return h) >>> (extractR $ tryR $ subst x (P.fst joinVar))
+        h' <- constT (return h) >>> (extractR $ tryR $ subst x (P.fst joinVar))
 
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
@@ -423,7 +441,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
                 -- It is safe to re-use y here, because we just re-bind the generator.
                 _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
                 
-        trace "r3" $ return $ Comp t1 headComp (S (BindQ x xs'))
+        return $ Comp t1 headComp (S (BindQ x xs'))
         
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
@@ -462,8 +480,10 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
 
     tupleHeadR :: RewriteC CL
     tupleHeadR = do
-        Comp _ _ qs <- promoteT idR
+        Comp _ h qs <- promoteT idR
         headExprs <- oneT tupleComponentsT 
+        
+        trace ("unnestHeadR: " ++ show h ++ " " ++ show headExprs) $ return ()
     
         let mkSingleComp :: Expr -> Expr
             mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
@@ -516,9 +536,13 @@ test = anytdR walk
         paths <- oneT $ collectExprT x
         trace (show paths) idR
 -}        
+
+cleanupR :: RewriteC Expr
+cleanupR = identityMapR <+ identityCompR <+ pairR
         
 test2 :: RewriteC CL
-test2 = nestjoinR
+-- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
+test2 = semijoinR
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
