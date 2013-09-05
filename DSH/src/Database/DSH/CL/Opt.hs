@@ -150,7 +150,7 @@ splitJoinPred x y = do
     if [x] == fv1 && [y] == fv2
         then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e1', e2'))
         else if [y] == fv1 && [x] == fv2
-             then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e2', e1'))
+             then binopT (toJoinExpr y) (toJoinExpr x) (\_ _ e1' e2' -> (e2', e1'))
              else fail "splitJoinPred: not an equi-join predicate"
 
 --------------------------------------------------------------------------------
