@@ -140,8 +140,8 @@ toJoinExpr n = do
 -- simple projection expressions on both sides) or if one side of the predicate
 -- has free variables which are not the variables of the qualifiers given to the
 -- function.
-splitJoinPred :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
-splitJoinPred x y = do
+splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
+splitJoinPredT x y = do
     BinOp _ Eq e1 e2 <- idR
 
     let fv1 = freeVars e1
@@ -151,7 +151,7 @@ splitJoinPred x y = do
         then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e1', e2'))
         else if [y] == fv1 && [x] == fv2
              then binopT (toJoinExpr y) (toJoinExpr x) (\_ _ e1' e2' -> (e2', e1'))
-             else fail "splitJoinPred: not an equi-join predicate"
+             else fail "splitJoinPredT: not an equi-join predicate"
 
 --------------------------------------------------------------------------------
 -- Introduce simple equi joins
@@ -168,7 +168,7 @@ mkeqjoinT
   -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
 mkeqjoinT pred x y xs ys = do
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr) <- constT (return pred) >>> (liftstateT $ splitJoinPred x y)
+    (leftExpr, rightExpr) <- constT (return pred) >>> (liftstateT $ splitJoinPredT x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst     = typeOf xs
@@ -194,20 +194,21 @@ eqjoinR = do
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* GuardQ p :* qs <- promoteT idR
     
-    (tuplifyR, q') <- mkeqjoinT p x y xs ys
+    (tuplifyR, q') <- trace "r1" $ mkeqjoinT p x y xs ys
                                
     -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
     -- qualifiers
-    -- FIXME check if tuplify fails when no changes happen
     -- FIXME why is extractT required here?
-    -- FIXME this should propably be guarded
-    qs' <- liftstateT $ (constT $ return qs) >>> (extractR tuplifyR)
+    qs' <- catchesT [ liftstateT $ (constT $ return qs) >>> (extractR tuplifyR)
+                    , constT $ return qs
+                    ]            
+    
 
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    constT $ modify (>>> tuplifyR)
+    trace "r3" $ constT $ modify (>>> tuplifyR)
     
-    return $ q' :* qs'
+    trace "r4" $ return $ q' :* qs'
     
 -- | Matgch an equijoin pattern at the end of a qualifier list
 eqjoinEndR :: Rewrite CompCtx TuplifyM (NL Qual)
@@ -234,8 +235,8 @@ eqjoinCompR = trace "eqjoinCompR" $ do
     q <- idR
     trace (show q) $ return ()
     Comp t _ _      <- promoteT idR
-    (tuplifyR, qs') <- trace "r1" $ statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
-    e'              <- trace "r2" $ (tryR $ childT 0 tuplifyR) >>> projectT
+    (tuplifyR, qs') <- trace "ra" $ statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
+    e'              <- trace "rb" $ (tryR $ childT 0 tuplifyR) >>> projectT
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
@@ -244,7 +245,7 @@ eqjoinCompR = trace "eqjoinCompR" $ do
 -- | Construct a semijoin qualifier given a predicate and two generators
 mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
 mksemijoinT pred x y xs ys = do
-    (leftExpr, rightExpr) <- constT (return pred) >>> splitJoinPred x y
+    (leftExpr, rightExpr) <- constT (return pred) >>> splitJoinPredT x y
 
     let xst = typeOf xs
         yst = typeOf ys
@@ -446,7 +447,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
         
         -- Split the join predicate
-        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPred x y
+        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
         
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
