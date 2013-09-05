@@ -188,13 +188,10 @@ mkeqjoinT pred x y xs ys = do
 -- | Match an equijoin pattern in the middle of a qualifier list
 eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
 eqjoinR = do
-    q <- idR
-    trace ("eqjoinR at: " ++ show q) $ return ()
-        
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* GuardQ p :* qs <- promoteT idR
     
-    (tuplifyR, q') <- trace "r1" $ mkeqjoinT p x y xs ys
+    (tuplifyR, q') <- mkeqjoinT p x y xs ys
                                
     -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
     -- qualifiers
@@ -202,13 +199,12 @@ eqjoinR = do
     qs' <- catchesT [ liftstateT $ (constT $ return qs) >>> (extractR tuplifyR)
                     , constT $ return qs
                     ]            
-    
 
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    trace "r3" $ constT $ modify (>>> tuplifyR)
+    constT $ modify (>>> tuplifyR)
     
-    trace "r4" $ return $ q' :* qs'
+    return $ q' :* qs'
     
 -- | Matgch an equijoin pattern at the end of a qualifier list
 eqjoinEndR :: Rewrite CompCtx TuplifyM (NL Qual)
@@ -231,12 +227,10 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinEndR <+ eqjoinR)
 -- FIXME this should work without this amount of casting
 -- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
-eqjoinCompR = trace "eqjoinCompR" $ do
-    q <- idR
-    trace (show q) $ return ()
+eqjoinCompR = do
     Comp t _ _      <- promoteT idR
-    (tuplifyR, qs') <- trace "ra" $ statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
-    e'              <- trace "rb" $ (tryR $ childT 0 tuplifyR) >>> projectT
+    (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
+    e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
