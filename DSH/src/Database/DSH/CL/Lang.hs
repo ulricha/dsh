@@ -187,7 +187,7 @@ pp (Table _ n _ _)    = text "table" <+> text n
 pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
 pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
 pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
-pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
 pp (If _ c t e)       = text "if" 
                          <+> pp c 
@@ -201,6 +201,14 @@ pp (Comp _ e qs)      = brackets $ char ' '
                                    <> pp e 
                                    <+> char '|' 
                                    <+> (hsep $ punctuate comma $ map ppQual $ toList qs)
+                                   
+parenthize :: Expr -> Doc
+parenthize e = 
+    case e of
+        Var _ _        -> pp e
+        Lit _ _        -> pp e
+        Table _ _ _ _  -> pp e
+        _              -> parens $ pp e
 
 deriving instance Eq Expr
 deriving instance Ord Expr
