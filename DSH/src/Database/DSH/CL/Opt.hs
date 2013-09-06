@@ -237,6 +237,8 @@ eqjoinCompR = do
 -- Introduce semi joins (existential quantification)
 
 -- | Construct a semijoin qualifier given a predicate and two generators
+-- Note that the splitJoinPred call implicitly checks that only x and y
+-- occur free in the predicate and no further correlation takes place.
 mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
 mksemijoinT pred x y xs ys = do
     (leftExpr, rightExpr) <- constT (return pred) >>> splitJoinPredT x y
