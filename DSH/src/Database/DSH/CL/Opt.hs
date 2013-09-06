@@ -56,7 +56,7 @@ pushFilters mayPush = pushFiltersOnComp
     tryPush :: RewriteC (NL (Bool, Qual))
     tryPush = do
         qualifiers <- idR 
-        trace (show qualifiers) $ case qualifiers of
+        case qualifiers of
             q1@(True, GuardQ p) :* q2@(_, BindQ x _) :* qs ->
                 if x `elem` freeVars p
                 -- We can't push through the generator because it binds a
@@ -93,11 +93,12 @@ pushFilters mayPush = pushFiltersOnComp
     initFlags q@(GuardQ p)  = (mayPush p, q)
     initFlags q@(BindQ _ _) = (False, q)
 
-pushEquiFilters :: RewriteC Expr
-pushEquiFilters = pushFilters isEquiJoinPred
-       
 isEquiJoinPred :: Expr -> Bool
-isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 && isProj e2
+isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 
+                                    && isProj e2
+                                    && length (freeVars e1) == 1
+                                    && length (freeVars e2) == 1
+                                    && freeVars e1 /= freeVars e2
 isEquiJoinPred _                  = False
 
 isProj :: Expr -> Bool
@@ -107,6 +108,23 @@ isProj (AppE1 _ (Prim1 Not _) e) = isProj e
 isProj (BinOp _ _ e1 e2)         = isProj e1 && isProj e2
 isProj (Var _ _)                 = True
 isProj _                         = False
+
+isSemiJoinPred :: Expr -> Bool
+isSemiJoinPred (AppE1 _ (Prim1 Or _) (Comp _ p (S _))) = isEquiJoinPred p
+isSemiJoinPred _                                       = False
+
+isAntiJoinPred :: Expr -> Bool
+isAntiJoinPred (AppE1 _ (Prim1 And _) (Comp _ p (S _))) = isEquiJoinPred p
+isAntiJoinPred _                                        = False
+
+pushEquiFilters :: RewriteC Expr
+pushEquiFilters = pushFilters isEquiJoinPred
+       
+pushSemiFilters :: RewriteC Expr
+pushSemiFilters = pushFilters isSemiJoinPred
+
+pushAntiFilters :: RewriteC Expr
+pushAntiFilters = pushFilters isAntiJoinPred
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
@@ -366,8 +384,8 @@ factoroutHeadR = do
         
         exprs     = varExpr ++ compExprs
         
-    trace ("collected: " ++ show (varExpr ++ compExprs)) $ return ()
-    trace ("currently at: " ++ show curr ++ " --- " ++ show pathPrefix) $ return ()
+    -- trace ("collected: " ++ show (varExpr ++ compExprs)) $ return ()
+    -- trace ("currently at: " ++ show curr ++ " --- " ++ show pathPrefix) $ return ()
         
     (mapBody, h', headTy) <- case exprs of
               -- If there is only one interesting expression (which must be a
@@ -392,7 +410,7 @@ factoroutHeadR = do
                       
                       -- Map all paths to a tuple accessor for the tuple we
                       -- constructed for the comprehension head
-                      tupleAccessors = trace ("typeOf headTuple: " ++ show lamVarTy) $ trace ("headTuple: " ++ show headTuple) $ zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
+                      tupleAccessors = zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
                                                (map snd es)
                                                [1..]
                                                
@@ -444,7 +462,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
     -- comprehension.
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompT :: TranslateC CL Expr
-    singleCompT = trace "singleCompT" $ do
+    singleCompT = do
         -- [ [ h | y <- ys, p ] | x <- xs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
         
@@ -481,7 +499,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
     -- variable and inner comprehension
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
     varCompPairT :: TranslateC CL Expr
-    varCompPairT = trace "varCompPairT" $ do
+    varCompPairT = do
         Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
         guardM $ x == x'
         -- Reduce to the base case, then unnest, then patch the variable back in
@@ -509,7 +527,7 @@ unnestHeadR :: RewriteC CL
 unnestHeadR = simpleHeadR <+ tupleHeadR
   where 
     simpleHeadR :: RewriteC CL
-    simpleHeadR = trace "simpleHeadR" $ do
+    simpleHeadR = do
         unnestHeadBaseT >>> injectT
 
     tupleHeadR :: RewriteC CL
@@ -517,7 +535,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         Comp _ h qs <- promoteT idR
         headExprs <- oneT tupleComponentsT 
         
-        trace ("unnestHeadR: " ++ show h ++ " " ++ show headExprs) $ return ()
+        -- trace ("unnestHeadR: " ++ show h ++ " " ++ show headExprs) $ return ()
     
         let mkSingleComp :: Expr -> Expr
             mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
@@ -535,7 +553,8 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         
 nestjoinR :: RewriteC CL
 nestjoinR = do
-    Comp _ _ _ <- promoteT idR
+    c@(Comp _ _ _) <- promoteT idR
+    trace ("nestjoinR at " ++ show c) $ return ()
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
     
 ------------------------------------------------------------------
@@ -611,8 +630,8 @@ mergeFilterR = do
     
     return $ P.filter (Lam (xt .-> boolT) x1 p') xs
 
-cleanupR :: RewriteC Expr
-cleanupR = identityMapR <+ identityCompR <+ pairR <+ mergeFilterR
+cleanupR :: RewriteC CL
+cleanupR = anytdR $ promoteR (identityMapR <+ identityCompR <+ pairR <+ mergeFilterR)
     
 ------------------------------------------------------------------
 -- Simple normalization rewrites
@@ -680,13 +699,15 @@ compStrategy :: RewriteC Expr
 compStrategy = do
     -- Don't try anything on a non-comprehension
     Comp _ _ _ <- idR 
-    repeatR $ (extractR semijoinR)
-              >+> (extractR antijoinR)
-              >+> (tryR pushEquiFilters >>> extractR eqjoinCompR)
+
+    repeatR $ (extractR (tryR cleanupR) >>> tryR pushSemiFilters >>> extractR semijoinR)
+              >+> (extractR (tryR cleanupR) >>> tryR pushAntiFilters >>> extractR antijoinR)
+              >+> (extractR (tryR cleanupR) >>> tryR pushEquiFilters >>> extractR eqjoinCompR)
 
 strategy = -- First, 
-           (tryR $ anytdR $ promoteR normalizeR) 
-           >>> (repeatR $ anytdR $ promoteR compStrategy)
+           (anytdR $ promoteR normalizeR) 
+           >+> (repeatR $ anytdR $ promoteR compStrategy)
+           >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
            
            
            
