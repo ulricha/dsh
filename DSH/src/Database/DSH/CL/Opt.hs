@@ -560,6 +560,19 @@ splitConjunctsEndR :: RewriteC (NL Qual)
 splitConjunctsEndR = do
     (S (GuardQ (BinOp _ Conj p1 p2))) <- idR
     return $ GuardQ p1 :* (S $ GuardQ p2)
+    
+-- | Normalize a guard expressing existential quantification:
+-- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
+-- => or [ p | x <- xs ]
+normalizeExistentialR :: RewriteC Qual
+normalizeExistentialR = do
+    GuardQ (AppE1 _ (Prim1 Not _) 
+               (BinOp _ Eq 
+                   (AppE1 _ (Prim1 Length _) 
+                       (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
+                   (Lit _ (IntV 0)))) <- idR
+
+    return $ GuardQ (P.or (Comp (listT boolT) p (S (BindQ x xs))))
         
 {-
 test :: RewriteC CL
@@ -580,7 +593,8 @@ test2 :: RewriteC CL
 -- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
 -- test2 = semijoinR
 -- test2 = anytdR (promoteR $ splitConjunctsR <+ splitConjunctsEndR)
-test2 = anytdR eqjoinCompR
+-- test2 = anytdR eqjoinCompR
+test2 = anytdR $ promoteR normalizeExistentialR
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR

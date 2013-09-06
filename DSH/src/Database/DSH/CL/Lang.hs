@@ -35,7 +35,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
-import           Database.DSH.Common.Data.Val(Val())
+import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Type
   
 --------------------------------------------------------------------------------
