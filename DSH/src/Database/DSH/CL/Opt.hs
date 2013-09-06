@@ -573,6 +573,18 @@ normalizeExistentialR = do
                    (Lit _ (IntV 0)))) <- idR
 
     return $ GuardQ (P.or (Comp (listT boolT) p (S (BindQ x xs))))
+
+-- | Normalize a guard expressing universal quantification:
+-- null [ ... | x <- xs, p ] (length [ ... ] == 0)
+-- => and [ p | x <- xs ]
+normalizeUniversalR :: RewriteC Qual
+normalizeUniversalR = do
+    GuardQ (BinOp _ Eq 
+                (AppE1 _ (Prim1 Length _) 
+                    (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
+                (Lit _ (IntV 0))) <- idR
+
+    return $ GuardQ (P.and (Comp (listT boolT) p (S (BindQ x xs))))
         
 {-
 test :: RewriteC CL
