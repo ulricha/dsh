@@ -274,6 +274,12 @@ semijoinR = do
     Comp _ _ _ <- promoteT idR
     childR 1 (promoteR existentialQualsR)
 
+--------------------------------------------------------------------------------
+-- Introduce anti joins (universal quantification)
+
+antijoinR :: RewriteC CL
+antijoinR = fail "antijoinR not implemented"
+
 ------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
 
@@ -561,8 +567,6 @@ selectR = pushR <+ pushEndR
         
         return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
 
-
-
 ------------------------------------------------------------------
 -- Simple housecleaning support rewrites.
     
@@ -670,7 +674,22 @@ test2 = anytdR $ promoteR normalizeExistentialR
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
 -- strategy = repeatR (anybuR normalizeR)
-strategy = repeatR (anytdR $ promoteR selectR >+> promoteR cleanupR)
+-- strategy = repeatR (anytdR $ promoteR selectR >+> promoteR cleanupR)
+
+compStrategy :: RewriteC Expr
+compStrategy = do
+    -- Don't try anything on a non-comprehension
+    Comp _ _ _ <- idR 
+    repeatR $ (extractR semijoinR)
+              >+> (extractR antijoinR)
+              >+> (tryR pushEquiFilters >>> extractR eqjoinCompR)
+
+strategy = -- First, 
+           (tryR $ anytdR $ promoteR normalizeR) 
+           >>> (repeatR $ anytdR $ promoteR compStrategy)
+           
+           
+           
 
 opt :: Expr -> Expr
 opt expr = trace ("optimize query " ++ show expr) 
