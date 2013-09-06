@@ -529,37 +529,101 @@ nestjoinR :: RewriteC CL
 nestjoinR = do
     Comp _ _ _ <- promoteT idR
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+    
+------------------------------------------------------------------
+-- Filter pushdown
+
+selectR :: RewriteC (NL Qual)
+selectR = pushR <+ pushEndR
+  where
+    pushR :: RewriteC (NL Qual)
+    pushR = do
+        (BindQ x xs) :* GuardQ p :* qs <- idR
+        
+        -- We only push predicates into generators if the predicate depends
+        -- solely on this generator
+        fvs <- constT (return $ inject p) >>> freeVarsT
+        guardM $ [x] == fvs
+        
+        return $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs) :* qs
+        
+        
+    pushEndR :: RewriteC (NL Qual)
+    pushEndR = do
+        (BindQ x xs) :* (S (GuardQ p)) <- idR
+        
+        -- We only push predicates into generators if the predicate depends
+        -- solely on this generator
+        fvs <- constT (return $ inject p) >>> freeVarsT
+        guardM $ [x] == fvs
+        
+        return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
+
+
 
 ------------------------------------------------------------------
 -- Simple housecleaning support rewrites.
     
+-- | Eliminate a map with an identity body
+-- map (\x -> x) xs => xs
 identityMapR :: RewriteC Expr
 identityMapR = do
     AppE2 _ (Prim2 Map _) (Lam _ x (Var _ x')) xs <- idR
     guardM $ x == x'
     return xs
     
+-- | Eliminate a comprehension with an identity head
+-- [ x | x <- xs ] => xs
 identityCompR :: RewriteC Expr
 identityCompR = do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
     guardM $ x == x'
     return xs
     
+-- | Eliminate tuple construction if the elements are first and second of the
+-- same tuple:
+-- pair (fst x) (snd x) => x
 pairR :: RewriteC Expr
 pairR = do
     AppE2 _ (Prim2 Pair _) (AppE1 _ (Prim1 Fst _) v@(Var _ x)) (AppE1 _ (Prim1 Snd _) (Var _ x')) <- idR
     guardM $ x == x'
     return v
     
-splitConjunctsR :: RewriteC (NL Qual)
-splitConjunctsR = do
-    (GuardQ (BinOp _ Conj p1 p2)) :* qs <- idR
-    return $ GuardQ p1 :* GuardQ p2 :* qs
+mergeFilterR :: RewriteC Expr
+mergeFilterR = do
+    AppE2 t (Prim2 Filter _) 
+            (Lam t1 x1 p1)
+            (AppE2 _ (Prim2 Filter _)
+                     (Lam t2 x2 p2)
+                     xs)                <- idR
+
+    let xt = elemT $ typeOf xs
+                     
+    p2' <- (constT $ return $ inject p2) >>> subst x2 (Var xt x1) >>> projectT
     
-splitConjunctsEndR :: RewriteC (NL Qual)
-splitConjunctsEndR = do
-    (S (GuardQ (BinOp _ Conj p1 p2))) <- idR
-    return $ GuardQ p1 :* (S $ GuardQ p2)
+    let p' = BinOp (xt .-> boolT) Conj p1 p2'
+    
+    return $ P.filter (Lam (xt .-> boolT) x1 p') xs
+
+cleanupR :: RewriteC Expr
+cleanupR = identityMapR <+ identityCompR <+ pairR <+ mergeFilterR
+    
+------------------------------------------------------------------
+-- Simple normalization rewrites
+
+-- | Split conjunctive predicates.
+splitConjunctsR :: RewriteC (NL Qual)
+splitConjunctsR = splitR <+ splitEndR
+  where
+    splitR :: RewriteC (NL Qual)
+    splitR = do
+        (GuardQ (BinOp _ Conj p1 p2)) :* qs <- idR
+        return $ GuardQ p1 :* GuardQ p2 :* qs
+    
+    splitEndR :: RewriteC (NL Qual)
+    splitEndR = do
+        (S (GuardQ (BinOp _ Conj p1 p2))) <- idR
+        return $ GuardQ p1 :* (S $ GuardQ p2)
     
 -- | Normalize a guard expressing existential quantification:
 -- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
@@ -585,21 +649,14 @@ normalizeUniversalR = do
                 (Lit _ (IntV 0))) <- idR
 
     return $ GuardQ (P.and (Comp (listT boolT) p (S (BindQ x xs))))
+    
+normalizeR :: RewriteC CL
+normalizeR =    promoteR splitConjunctsR
+             <+ promoteR normalizeExistentialR
+             <+ promoteR normalizeUniversalR
         
-{-
-test :: RewriteC CL
-test = anytdR walk
-
-  where
-    walk :: TranslateC CL CL
-    walk = do
-        Comp _ h (S (BindQ x _)) <- promoteT idR
-        paths <- oneT $ collectExprT x
-        trace (show paths) idR
--}        
-
-cleanupR :: RewriteC Expr
-cleanupR = identityMapR <+ identityCompR <+ pairR
+------------------------------------------------------------------
+-- Rewrite Strategy
         
 test2 :: RewriteC CL
 -- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
@@ -610,10 +667,11 @@ test2 = anytdR $ promoteR normalizeExistentialR
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
-strategy = do
-    test2
+-- strategy = repeatR (anybuR normalizeR)
+strategy = repeatR (anytdR $ promoteR selectR >+> promoteR cleanupR)
 
 opt :: Expr -> Expr
-opt expr = trace "foo" $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
+opt expr = trace ("optimize query " ++ show expr) 
+           $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
   where
     rewritten = applyExpr (strategy >>> projectT) expr
