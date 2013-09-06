@@ -2,7 +2,7 @@
 
 module Database.DSH.CL.OptUtils
     ( applyExpr
-    , freeVarsT, freeVars
+    , freeVars
     , subst
     , tuplify
     ) where

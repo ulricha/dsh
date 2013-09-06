@@ -544,7 +544,7 @@ selectR = pushR <+ pushEndR
         
         -- We only push predicates into generators if the predicate depends
         -- solely on this generator
-        fvs <- constT (return $ inject p) >>> freeVarsT
+        let fvs = freeVars p
         guardM $ [x] == fvs
         
         return $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs) :* qs
@@ -556,7 +556,7 @@ selectR = pushR <+ pushEndR
         
         -- We only push predicates into generators if the predicate depends
         -- solely on this generator
-        fvs <- constT (return $ inject p) >>> freeVarsT
+        let fvs = freeVars p
         guardM $ [x] == fvs
         
         return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
@@ -653,9 +653,9 @@ normalizeUniversalR = do
     return $ GuardQ (P.and (Comp (listT boolT) (P.not p) (S (BindQ x xs))))
     
 normalizeR :: RewriteC CL
-normalizeR =    promoteR splitConjunctsR
-             <+ promoteR normalizeExistentialR
-             <+ promoteR normalizeUniversalR
+normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
+                                <+ promoteR normalizeExistentialR
+                                <+ promoteR normalizeUniversalR
         
 ------------------------------------------------------------------
 -- Rewrite Strategy
