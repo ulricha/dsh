@@ -640,7 +640,7 @@ normalizeExistentialR = do
 
 -- | Normalize a guard expressing universal quantification:
 -- null [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ p | x <- xs ]
+-- => and [ not p | x <- xs ]
 normalizeUniversalR :: RewriteC Qual
 normalizeUniversalR = do
     GuardQ (BinOp _ Eq 
@@ -648,7 +648,7 @@ normalizeUniversalR = do
                     (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                 (Lit _ (IntV 0))) <- idR
 
-    return $ GuardQ (P.and (Comp (listT boolT) p (S (BindQ x xs))))
+    return $ GuardQ (P.and (Comp (listT boolT) (P.not p) (S (BindQ x xs))))
     
 normalizeR :: RewriteC CL
 normalizeR =    promoteR splitConjunctsR
