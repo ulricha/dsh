@@ -184,17 +184,17 @@ ppQual (GuardQ e)  = pp e
   
 pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
+pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parenthize e1) <+> (parenthize e2)
 pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
 pp (If _ c t e)       = text "if" 
                          <+> pp c 
                          <+> text "then" 
-                         <+> (parens $ pp t) 
+                         <+> (parenthize t) 
                          <+> text "else" 
-                         <+> (parens $ pp e)
+                         <+> (parenthize e)
 pp (Lit _ v)          = text $ show v
 pp (Var _ s)          = text s
 pp (Comp _ e qs)      = brackets $ char ' ' 
