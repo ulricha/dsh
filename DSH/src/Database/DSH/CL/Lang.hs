@@ -216,7 +216,7 @@ pp (Comp _ e qs) = encloseSep lbracket rbracket empty docs
                            qsDocs = 
                              case qs of
                                q :* qs' -> (char '|' <+> ppQual q) 
-                                           : [ char ',' <+> ppQual q | q' <- toList qs' ]
+                                           : [ char ',' <+> ppQual q' | q' <- toList qs' ]
                                           
                                S q     -> [char '|' <+> ppQual q]
                                
