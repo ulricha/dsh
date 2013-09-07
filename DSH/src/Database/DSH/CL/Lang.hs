@@ -13,7 +13,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Type
   , Expr(..)
   , NL(..), reverseNL, toList, fromList
-  , Qual(..)
+  , Qual(..), isGuard, isBind
   , Typed(..)
   , Prim1Op(..)
   , Prim2Op(..)
@@ -23,12 +23,13 @@ module Database.DSH.CL.Lang
 
 import           Data.Data
                  
-import           Control.Applicative
+import           Control.Applicative hiding (empty)
                  
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Impossible
@@ -164,6 +165,14 @@ instance Show (Prim2 t) where
 data Qual = BindQ Ident Expr
           | GuardQ Expr
           deriving (Eq, Ord, Data, Typeable, Show)
+          
+isGuard :: Qual -> Bool
+isGuard (GuardQ _)   = True
+isGuard (BindQ _ _)  = False
+
+isBind :: Qual -> Bool
+isBind (GuardQ _)   = False
+isBind (BindQ _ _)  = True
 
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              
@@ -178,7 +187,7 @@ data Expr  = Table Type String [Column] [Key]
            deriving (Data, Typeable)
            
 instance Show Expr where
-  show e = render $ pp e
+  show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
   
 ppQual :: Qual -> Doc
 ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
@@ -188,7 +197,9 @@ pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
 pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
 pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parenthize e1) <+> (parenthize e2)
+pp (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+pp (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> ((parenthize e1) </> (parenthize e2))
 pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
 pp (If _ c t e)       = text "if" 
@@ -199,10 +210,16 @@ pp (If _ c t e)       = text "if"
                          <+> (parenthize e)
 pp (Lit _ v)          = text $ show v
 pp (Var _ s)          = text s
-pp (Comp _ e qs)      = brackets $ char ' ' 
-                                   <> pp e 
-                                   <+> char '|' 
-                                   <+> (hsep $ punctuate comma $ map ppQual $ toList qs)
+                                   
+pp (Comp _ e qs) = encloseSep lbracket rbracket empty docs
+                     where docs = (char ' ' <> pp e) : qsDocs
+                           qsDocs = 
+                             case qs of
+                               q :* qs' -> (char '|' <+> ppQual q) 
+                                           : [ char ',' <+> ppQual q | q' <- toList qs' ]
+                                          
+                               S q     -> [char '|' <+> ppQual q]
+                               
                                    
 parenthize :: Expr -> Doc
 parenthize e = 
