@@ -544,7 +544,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
         q@(Comp _ _ _) <- promoteT idR
-        debugUnit "singleCompEndT at" (q :: Expr)
+        -- debugUnit "singleCompEndT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
         q@(Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs))) <- promoteT idR
@@ -590,17 +590,32 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         guardM $ all isGuard (toList qs)
 
         -- Reduce to the base case, then unnest, then patch the variable back in
-        removeVarR >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
+        (removeVarR <+ removeVarEndR) >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
         
+    -- Support rewrite: remove the variable from the outer comprehension head
+    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
+    -- => [ [ h y | y <- ys, p ] | x <- xs ]
+    removeVarEndR :: TranslateC CL Expr
+    removeVarEndR = do
+        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) (S (BindQ x' xs)) <- promoteT idR
+        guardM $ x == x'
+        let t' = listT $ sndT t
+        return $ Comp t' comp (S (BindQ x xs))
+
     -- Support rewrite: remove the variable from the outer comprehension head
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
     -- => [ [ h y | y <- ys, p ] | x <- xs ]
     removeVarR :: TranslateC CL Expr
     removeVarR = do
-        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) (S (BindQ x' xs)) <- promoteT idR
+        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) ((BindQ x' xs) :* qs) <- promoteT idR
+
         guardM $ x == x'
+
+        -- Only allow guards as additional qualifiers
+        guardM $ all isGuard (toList qs)
+
         let t' = listT $ sndT t
-        return $ Comp t' comp (S (BindQ x xs))
+        return $ Comp t' comp ((BindQ x xs) :* qs)
 
 patchVar :: Ident -> Expr -> Expr
 patchVar x (Comp _ e qs@(S (BindQ x' je))) | x == x' = 
