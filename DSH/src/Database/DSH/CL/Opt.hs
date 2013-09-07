@@ -365,8 +365,35 @@ constExprT expr = constT $ return $ inject expr
 -- makes progress on the comprehension. Otherwise, a loop might occur when used
 -- in a top-down fashion.
 factoroutHeadR :: RewriteC CL
-factoroutHeadR = do
-    curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
+factoroutHeadR = do factoroutEndR <+ factoroutR
+  where 
+    factoroutEndR :: RewriteC CL
+    factoroutEndR = do
+        curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
+        mkheadmapR curr t h x xs []
+        
+    factoroutR :: RewriteC CL
+    factoroutR = do
+        curr@(Comp t h ((BindQ x xs) :* qs)) <- promoteT idR
+
+        -- Currently, we only allow additional guards, not qualifiers.
+        -- FIXME this might be extendable to additional qualifiers
+        guardM $ all isGuard (toList qs)
+
+        mkheadmapR curr t h x xs (toList qs)
+
+mkheadmapR 
+  :: Expr          -- ^ The current comprehension
+  -> Type          -- ^ Type of the current comprehension
+  -> Expr          -- ^ Comprehension head
+  -> Ident         -- ^ Variable bound by the generator
+  -> Expr          -- ^ Generator source
+  -> [Qual]        -- ^ Possible additional guards
+  -> RewriteC CL
+mkheadmapR curr t h x xs qs = do
+
+
+    -- Collect interesting expressions from the comprehension head 
     (vars, comps) <- partitionEithers <$> (oneT $ collectExprT x)
 
     -- We abort if we did not find any interesting comprehensions in the head
@@ -427,8 +454,12 @@ factoroutHeadR = do
 
               _            -> $impossible
               
+    let qs' = case fromList qs of
+                  Just qsTail -> (BindQ x xs) :* qsTail
+                  Nothing     -> S (BindQ x xs)
+              
     let lamTy = headTy .-> (elemT t)
-    return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' (S (BindQ x xs)))
+    return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' qs')
 
 ------------------------------------------------------------------
 -- Nestjoin introduction: unnesting in a comprehension head
@@ -456,7 +487,7 @@ tupleComponentsT = do
 -- | Base case for nestjoin introduction: consider comprehensions in which only
 -- a single inner comprehension occurs in the head.
 unnestHeadBaseT :: TranslateC CL Expr
-unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT
+unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEndT
   where
     mknestjoinT 
       :: Type    -- ^ Type of the outer comprehension
@@ -542,10 +573,22 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
-    varCompPairT :: TranslateC CL Expr
-    varCompPairT = do
+    varCompPairEndT :: TranslateC CL Expr
+    varCompPairEndT = do
         Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
         guardM $ x == x'
+        -- Reduce to the base case, then unnest, then patch the variable back in
+        removeVarR >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
+
+    varCompPairT :: TranslateC CL Expr
+    varCompPairT = do
+        Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) ((BindQ x' _) :* qs) <- promoteT idR
+        
+        guardM $ x == x'
+
+        -- Only allow guards as additional qualifiers
+        guardM $ all isGuard (toList qs)
+
         -- Reduce to the base case, then unnest, then patch the variable back in
         removeVarR >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
         
