@@ -456,16 +456,20 @@ tupleComponentsT = do
 -- | Base case for nestjoin introduction: consider comprehensions in which only
 -- a single inner comprehension occurs in the head.
 unnestHeadBaseT :: TranslateC CL Expr
-unnestHeadBaseT = singleCompT <+ varCompPairT
+unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT
   where
-    -- The base case: a single comprehension nested in the head of the outer
-    -- comprehension.
-    -- [ [ h y | y <- ys, p ] | x <- xs ]
-    singleCompT :: TranslateC CL Expr
-    singleCompT = do
-        -- [ [ h | y <- ys, p ] | x <- xs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
-        
+    mknestjoinT 
+      :: Type    -- ^ Type of the outer comprehension
+      -> Type    -- ^ Type of the inner comprehension
+      -> Expr    -- ^ Head of the inner comprehension
+      -> Ident   -- ^ Variable for the inner generator
+      -> Expr    -- ^ Source for the inner generator
+      -> Expr    -- ^ Inner predicate
+      -> Ident   -- ^ Outer generator variable
+      -> Expr    -- ^ Outer generator source
+      -> [Qual]  -- ^ Possibly additional outer qualifiers
+      -> TranslateC CL Expr
+    mknestjoinT t1 t2 h y ys p x xs preds = do
         -- Split the join predicate
         (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
         
@@ -492,9 +496,46 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
                 -- [ h | y <- ys, p ] => [ h[fst x/x] | y <- snd x ] 
                 -- It is safe to re-use y here, because we just re-bind the generator.
                 _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+
+        preds' <- constT (return $ map inject preds) 
+                  >>> mapT (tryR $ subst x (P.fst joinVar))
+                  >>> mapT projectT
+
+        let qs = case fromList preds' of
+                     Just npreds -> (BindQ x xs') :* npreds
+                     Nothing     -> S (BindQ x xs')
                 
-        return $ Comp t1 headComp (S (BindQ x xs'))
+        return $ Comp t1 headComp qs
+
+    -- The base case: a single comprehension nested in the head of the outer
+    -- comprehension. Assume only a single outer qualifier here.
+    -- [ [ h y | y <- ys, p ] | x <- xs ]
+    singleCompEndT :: TranslateC CL Expr
+    singleCompEndT = do
+        -- [ [ h | y <- ys, p ] | x <- xs ]
+        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
+        trace "singleCompEndT" $ mknestjoinT t1 t2 h y ys p x xs []
         
+    -- The base case: a single comprehension nested in the head of the outer
+    -- comprehension. Assume more than one outer qualifier here. However, we
+    -- are conservative and expect only predicates as additional qualifiers
+    -- here. This could propably be extended to more generators, as long as
+    -- those generators do not bind variables which occur free in the inner
+    -- comprehension.
+    -- [ [ h y | y <- ys, p ] | x <- xs ]
+    singleCompT :: TranslateC CL Expr
+    singleCompT = do
+    
+        q <- idR
+        trace ("singleCompT at " ++ show q) $ return ()
+
+        -- [ [ h | y <- ys, p ] | x <- xs, qs ]
+        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
+        
+        trace "r1" $ guardM $ all isGuard $ toList qs
+        
+        trace "r2" mknestjoinT t1 t2 h y ys p x xs (toList qs)
+
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
@@ -503,7 +544,7 @@ unnestHeadBaseT = singleCompT <+ varCompPairT
         Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
         guardM $ x == x'
         -- Reduce to the base case, then unnest, then patch the variable back in
-        removeVarR >>> injectT >>> singleCompT >>> arr (patchVar x)
+        removeVarR >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
         
     -- Support rewrite: remove the variable from the outer comprehension head
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
@@ -710,8 +751,6 @@ strategy = -- First,
            >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
            
            
-           
-
 opt :: Expr -> Expr
 opt expr = trace ("optimize query " ++ show expr) 
            $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
