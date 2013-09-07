@@ -512,9 +512,12 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
+        q@(Comp _ _ _) <- promoteT idR
+        debugUnit "singleCompEndT at" (q :: Expr)
+
         -- [ [ h | y <- ys, p ] | x <- xs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
-        trace "singleCompEndT" $ mknestjoinT t1 t2 h y ys p x xs []
+        q@(Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs))) <- promoteT idR
+        debug "trigger singleCompEndT" q $ mknestjoinT t1 t2 h y ys p x xs []
         
     -- The base case: a single comprehension nested in the head of the outer
     -- comprehension. Assume more than one outer qualifier here. However, we
@@ -526,8 +529,8 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT
     singleCompT :: TranslateC CL Expr
     singleCompT = do
     
-        q <- idR
-        trace ("singleCompT at " ++ show q) $ return ()
+        q@(Comp _ _ _) <- promoteT idR
+        debug "singleCompT at" (q :: Expr) (return ())
 
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
@@ -595,7 +598,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
 nestjoinR :: RewriteC CL
 nestjoinR = do
     c@(Comp _ _ _) <- promoteT idR
-    trace ("nestjoinR at " ++ show c) $ return ()
+    debugUnit "nestjoinR at" c
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
     
 ------------------------------------------------------------------
@@ -750,9 +753,34 @@ strategy = -- First,
            >+> (repeatR $ anytdR $ promoteR compStrategy)
            >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
            
+debug :: Show a => String -> a -> b -> b
+debug msg a b =
+    trace ("\n" ++ msg ++ " =>\n" ++ show a) b
+
+debugUnit :: (Show a, Monad m) => String -> a -> m ()
+debugUnit msg a = debug msg a (return ())
+
+debugOpt :: Expr -> Either String Expr -> Expr
+debugOpt origExpr mExpr =
+    trace (showOrig origExpr)
+    $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
+    
+  where 
+    showOrig :: Expr -> String
+    showOrig e =
+        "\nOriginal query ===================================================================\n"
+        ++ show e 
+        ++ "\n=================================================================================="
+        
+    showOpt :: Expr -> String
+    showOpt e =
+        "Optimized query ===================================================================\n"
+        ++ show e 
+        ++ "\n=================================================================================="
+        
            
 opt :: Expr -> Expr
-opt expr = trace ("optimize query " ++ show expr) 
-           $ either (\msg -> trace msg expr) (\expr -> trace (show expr) expr) rewritten
+opt expr = debugOpt expr optimizedExpr
+
   where
-    rewritten = applyExpr (strategy >>> projectT) expr
+    optimizedExpr = applyExpr (strategy >>> projectT) expr

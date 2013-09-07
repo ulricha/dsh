@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE BangPatterns    #-}
 
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
@@ -144,4 +145,4 @@ desugarComprehensions = expr
 
 
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = trace (show e) $impossible
+desugarComprehensions !e = $impossible
