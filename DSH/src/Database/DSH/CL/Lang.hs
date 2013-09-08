@@ -227,6 +227,7 @@ parenthize e =
         Var _ _        -> pp e
         Lit _ _        -> pp e
         Table _ _ _ _  -> pp e
+        Comp _ _ _     -> pp e
         _              -> parens $ pp e
 
 deriving instance Eq Expr
