@@ -15,6 +15,8 @@ import           Control.Arrow
 -- import           Control.Monad
 
 import           Data.Either
+import           Data.List
+import qualified Data.Map as M
 
 import qualified Data.Foldable as F
 
@@ -39,19 +41,32 @@ import qualified Database.DSH.CL.Primitives as P
 --------------------------------------------------------------------------------
 -- Pushing filters towards the front of a qualifier list
 
-pushFilters :: (Expr -> Bool) -> RewriteC Expr
-pushFilters mayPush = pushFiltersOnComp
+pushFilters :: ([Ident] -> Expr -> Bool) -> RewriteC Expr
+pushFilters mayPush = do
+    Comp _ _ qs <- idR
+    compR idR pushFiltersQuals
+
   where
-    pushFiltersOnComp :: RewriteC Expr
-    pushFiltersOnComp = do
-        Comp _ _ _ <- idR
-        compR idR pushFiltersQuals
         
     pushFiltersQuals :: RewriteC (NL Qual)
-    pushFiltersQuals = (reverseNL . fmap initFlags)
-                       -- FIXME using innermostR here is really inefficient!
-                       ^>> innermostR tryPush 
-                       >>^ (reverseNL . fmap snd)
+    pushFiltersQuals = do
+        (reverseNL . initFlags)
+          -- FIXME using innermostR here is really inefficient!
+          ^>> innermostR tryPush 
+          >>^ (reverseNL . fmap snd)
+        
+    initFlags :: NL Qual -> NL (Bool, Qual)
+    initFlags qs = 
+        case fromList $ map flag $ zip localScopes (toList qs) of
+            Just qs' -> qs'
+            Nothing  -> $impossible
+      where
+        localScopes = map compBoundVars $ inits $ toList qs
+        
+        flag :: ([Ident], Qual) -> (Bool, Qual)
+        flag (localScope, q@(BindQ _ _)) = (False, q)
+        flag (localScope, q@(GuardQ p))  = (mayPush localScope p, q)
+                
                        
     tryPush :: RewriteC (NL (Bool, Qual))
     tryPush = do
@@ -89,17 +104,27 @@ pushFilters mayPush = pushFiltersOnComp
             S (False, _)                                   ->
                 fail "can't push: already at front"
     
-    initFlags :: Qual -> (Bool, Qual)
-    initFlags q@(GuardQ p)  = (mayPush p, q)
-    initFlags q@(BindQ _ _) = (False, q)
 
-isEquiJoinPred :: Expr -> Bool
-isEquiJoinPred (BinOp _ Eq e1 e2) = isProj e1 
-                                    && isProj e2
-                                    && length (freeVars e1) == 1
-                                    && length (freeVars e2) == 1
-                                    && freeVars e1 /= freeVars e2
-isEquiJoinPred _                  = False
+isEquiJoinPred :: [Ident] -> Expr -> Bool
+isEquiJoinPred locallyBoundVars (BinOp _ Eq e1 e2) = 
+    isProj e1 
+    && isProj e2
+    && length fv1 == 1
+    && length fv2 == 1
+    && fv1 /= fv2
+    
+    -- For an equi join predicate which we would like to push, only variables
+    -- bound by local generators might occur. This restriction should avoid the
+    -- case that a predicate which correlates with an outer comprehension blocks
+    -- a local equijoin predicate from being pushed next to its generators.
+    && (fv1 ++ fv2) `subset` locallyBoundVars
+
+  where fv1 = freeVars e1
+        fv2 = freeVars e2
+        
+        subset :: Eq a => [a] -> [a] -> Bool
+        subset as bs = all (\a -> any (== a) bs) as
+isEquiJoinPred _ _                  = False
 
 isProj :: Expr -> Bool
 isProj (AppE1 _ (Prim1 Fst _) e) = isProj e
@@ -109,13 +134,13 @@ isProj (BinOp _ _ e1 e2)         = isProj e1 && isProj e2
 isProj (Var _ _)                 = True
 isProj _                         = False
 
-isSemiJoinPred :: Expr -> Bool
-isSemiJoinPred (AppE1 _ (Prim1 Or _) (Comp _ p (S _))) = isEquiJoinPred p
-isSemiJoinPred _                                       = False
+isSemiJoinPred :: [Ident] -> Expr -> Bool
+isSemiJoinPred vs (AppE1 _ (Prim1 Or _) (Comp _ p (S _))) = isEquiJoinPred vs p
+isSemiJoinPred _  _                                       = False
 
-isAntiJoinPred :: Expr -> Bool
-isAntiJoinPred (AppE1 _ (Prim1 And _) (Comp _ p (S _))) = isEquiJoinPred p
-isAntiJoinPred _                                        = False
+isAntiJoinPred :: [Ident] -> Expr -> Bool
+isAntiJoinPred vs (AppE1 _ (Prim1 And _) (Comp _ p (S _))) = isEquiJoinPred vs p
+isAntiJoinPred _  _                                        = False
 
 pushEquiFilters :: RewriteC Expr
 pushEquiFilters = pushFilters isEquiJoinPred

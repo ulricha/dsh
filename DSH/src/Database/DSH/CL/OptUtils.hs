@@ -3,6 +3,7 @@
 module Database.DSH.CL.OptUtils
     ( applyExpr
     , freeVars
+    , compBoundVars
     , subst
     , tuplify
     ) where
@@ -34,7 +35,7 @@ freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr freeVarsT
 
-compBoundVars :: NL Qual -> [Ident]
+compBoundVars :: F.Foldable f => f Qual -> [Ident]
 compBoundVars qs = F.foldr aux [] qs
   where 
     aux :: Qual -> [Ident] -> [Ident]
