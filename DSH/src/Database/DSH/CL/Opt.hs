@@ -19,7 +19,7 @@ import           Data.Either
 import qualified Data.Foldable as F
 
 import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
--- import qualified Data.List.NonEmpty as N
+import qualified Data.List.NonEmpty as N
 
 -- import qualified Data.Set as S
 -- import           GHC.Exts
@@ -370,6 +370,7 @@ factoroutHeadR = do factoroutEndR <+ factoroutR
     factoroutEndR :: RewriteC CL
     factoroutEndR = do
         curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
+        debugUnit "factoroutEndR at" curr
         mkheadmapR curr t h x xs []
         
     factoroutR :: RewriteC CL
@@ -379,6 +380,7 @@ factoroutHeadR = do factoroutEndR <+ factoroutR
         -- Currently, we only allow additional guards, not qualifiers.
         -- FIXME this might be extendable to additional qualifiers
         guardM $ all isGuard (toList qs)
+        debugUnit "factoroutR at" curr
 
         mkheadmapR curr t h x xs (toList qs)
 
@@ -398,6 +400,8 @@ mkheadmapR curr t h x xs qs = do
 
     -- We abort if we did not find any interesting comprehensions in the head
     guardM $ not $ null comps
+    
+    debugUnit "mkheadmapR found" (vars, comps)
 
     pathPrefix <- rootPathT
 
@@ -468,7 +472,7 @@ mkheadmapR curr t h x xs qs = do
 tupleComponentsT :: TranslateC CL (NonEmpty Expr)
 tupleComponentsT = do
     AppE2 _ (Prim2 Pair _) _ _ <- promoteT idR
-    descendT
+    N.reverse <$> descendT
     
   where
     descendT :: TranslateC CL (NonEmpty Expr)
@@ -476,8 +480,8 @@ tupleComponentsT = do
     
     descendPairT :: TranslateC CL (NonEmpty Expr)
     descendPairT = do
-        AppE2 _ (Prim2 Pair _) e _ <- promoteT idR
-        tl <- childT 1 descendT
+        AppE2 _ (Prim2 Pair _) _ e <- promoteT idR
+        tl <- childT 0 descendT
         return $ e <| tl
         
     singleT :: TranslateC CL (NonEmpty Expr)
@@ -544,7 +548,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
         q@(Comp _ _ _) <- promoteT idR
-        -- debugUnit "singleCompEndT at" (q :: Expr)
+        debugUnit "singleCompEndT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
         q@(Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs))) <- promoteT idR
@@ -566,9 +570,9 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
         
-        trace "r1" $ guardM $ all isGuard $ toList qs
+        guardM $ all isGuard $ toList qs
         
-        trace "r2" mknestjoinT t1 t2 h y ys p x xs (toList qs)
+        mknestjoinT t1 t2 h y ys p x xs (toList qs)
 
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
@@ -576,9 +580,11 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     varCompPairEndT :: TranslateC CL Expr
     varCompPairEndT = do
         Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
+
         guardM $ x == x'
+        
         -- Reduce to the base case, then unnest, then patch the variable back in
-        removeVarR >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
+        (removeVarR <+ removeVarEndR) >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
 
     varCompPairT :: TranslateC CL Expr
     varCompPairT = do
@@ -634,6 +640,7 @@ patchVar x c =
 
 unnestHeadR :: RewriteC CL
 unnestHeadR = simpleHeadR <+ tupleHeadR
+
   where 
     simpleHeadR :: RewriteC CL
     simpleHeadR = do
@@ -641,11 +648,13 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
 
     tupleHeadR :: RewriteC CL
     tupleHeadR = do
-        Comp _ h qs <- promoteT idR
+        e <- promoteT idR
+        debugUnit "tupleHeadR at" (e :: Expr)
+        c@(Comp _ h qs) <- promoteT idR
+  
         headExprs <- oneT tupleComponentsT 
+        debugUnit "tupleHeadR collected" headExprs
         
-        -- trace ("unnestHeadR: " ++ show h ++ " " ++ show headExprs) $ return ()
-    
         let mkSingleComp :: Expr -> Expr
             mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
             
@@ -654,6 +663,8 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
                 comps                         -> comps
                 
             singleComps = fmap mkSingleComp headExprs'
+            
+        debugUnit "tupleheadR singleComps" singleComps
             
         -- FIXME fail if all translates failed -> define alternative to mapT
         unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
