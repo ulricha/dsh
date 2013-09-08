@@ -618,13 +618,20 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         return $ Comp t' comp ((BindQ x xs) :* qs)
 
 patchVar :: Ident -> Expr -> Expr
-patchVar x (Comp _ e qs@(S (BindQ x' je))) | x == x' = 
-    let joinBindType = elemT $ typeOf je
-        e'           = P.pair (P.fst (Var joinBindType x)) e
-        resultType   = listT $ pairT (fstT joinBindType) (typeOf e)
-    in Comp resultType e' qs
-patchVar _ _             = $impossible
-    
+patchVar x c =
+    case c of
+        Comp _ e qs@(S (BindQ x' je)) | x == x'    -> patch e x' je qs
+        Comp _ e qs@((BindQ x' je) :* _) | x == x' -> patch e x' je qs
+        _                                          -> $impossible
+        
+  where 
+    patch :: Expr -> Ident -> Expr -> (NL Qual) -> Expr
+    patch e x' je qs =
+        let joinBindType = elemT $ typeOf je
+            e'           = P.pair (P.fst (Var joinBindType x)) e
+            resultType   = listT $ pairT (fstT joinBindType) (typeOf e)
+        in Comp resultType e' qs
+
 unnestHeadR :: RewriteC CL
 unnestHeadR = simpleHeadR <+ tupleHeadR
   where 
