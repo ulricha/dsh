@@ -829,7 +829,6 @@ normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
 ------------------------------------------------------------------
 -- Monad Comprehension Normalization rules
    
-{-
 -- M-Norm-1: Eliminate comprehensions with empty generators
 m_norm_1R :: RewriteC CL
 m_norm_1R = do
@@ -848,17 +847,120 @@ m_norm_1R = do
     patternEndT = do
         (S (BindQ _ (Lit _ (ListV [])))) <- idR
         return True
-        
 
+-- M-Norm-2: eliminate singleton generators.
+-- [ h | qs, x <- [v], qs' ]
+-- => [ h[v/x] | qs, qs'[v/x] ]
+m_norm_2R :: RewriteC CL
+m_norm_2R = singletonCompR <+ compR
+    
+  where
+    -- This rewrite is a bit annoying: If it triggers, we can remove a
+    -- qualifier. However, the type NL forces us to take care that we do not
+    -- produce a comprehension with an empty qualifier list.
+    
+    -- Due to non-empty NL lists, we have to consider the case of
+    -- removing a (the!) qualifier from a singleton list.
+    singletonCompR :: RewriteC CL
+    singletonCompR = do
+        Comp t h (S q) <- promoteT idR
+        (x, e) <- constT (return q) >>> qualT
+        constT (return $ inject h) >>> substR x e
+    
+    -- The main rewrite
+    compR :: RewriteC CL
+    compR = do
+        Comp t h (_ :* _)   <- promoteT idR
+        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) >>> projectT)
+        h'                  <- childT 0 tuplifyHeadR >>> projectT
+        return $ inject $ Comp t h' qs'
+
+    -- Match the pattern (singleton generator) on a qualifier
+    qualT :: TranslateC Qual (Ident, Expr)
+    qualT = do
+        q <- idR
+        case q of
+            -- x <- [v]
+            BindQ x e@(Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
+            -- x <- v : []
+            BindQ x e@(BinOp _ Cons v (Lit _ (ListV []))) -> return (x, v)
+            _                                             -> fail "qualR: no match"
+            
+    -- Try to match the pattern at the end of the qualifier list
+    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsEndR = do
+        q1 :* (S q2) <- idR
+        (x, e)       <- liftstateT $ constT (return q2) >>> qualT
+        constT $ modify (>>> substR x e)
+        return (S q1)
+        
+    -- Try to match the pattern in the middle of the qualifier list
+    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsR = do
+        q1 :* q2 :* qs <- idR
+        (x, e)         <- liftstateT $ constT (return q2) >>> qualT
+        qs' <- liftstateT $ constT (return $ inject qs) >>> substR x e >>> projectT
+        constT $ modify (>>> substR x e)
+        return $ q1 :* qs' 
+        
+-- M-Norm-3: unnest comprehensions from a generator
+-- [ h | qs, x <- [ h' | qs'' ], qs' ]
+-- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
+m_norm_3R :: RewriteC CL
+m_norm_3R = do
+    Comp t h qs <- promoteT idR
+    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) >>> projectT)
+    h'                  <- childT 0 tuplifyHeadR >>> projectT
+    return $ inject $ Comp t h' qs'
+    
+  where
+  
+    qualT :: TranslateC Qual (Ident, Expr, NL Qual)
+    qualT = do
+        BindQ x (Comp _ h' qs'') <- idR
+        return (x, h', qs'')
+       
+    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsEndR = do
+        (S q) <- idR
+        (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
+        constT $ modify (>>> substR x h')
+        return qs''
+        
+    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsR = do
+        q :* qs <- idR
+        (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
+        qs' <- liftstateT $ constT (return $ inject qs) >>> substR x h' >>> projectT
+        constT $ modify (>>> substR x h')
+        return $ appendNL qs'' qs'
+     
+
+
+{- 
 m_norm_2 :: RewriteC CL
 m_norm_2 = do
     Comp _ _ _ <- promoteT idR
     (absPath, x, e) <- childT 1 $ onetdSpineT (promoteT patternT)
     let clPath = undefined
     
-    e' <- childR 1 $ subst
+    h' <- childR 1 $ substR x e
     
-    pathR relPath 
+    let qualsR :: RewriteC (NL Qual)
+        qualsR = do
+            _ :* qs <- idR
+            consT (return qs) >>> (tryR $ subst x e)
+        
+        -- If we encounter a match on the last qualifier, we have to turn the
+        -- next-to-last qualifier into a singleton
+        lastR :: RewriteC (NL Qual)
+        lastR = do
+            case init clPath of
+                c : cs -> undefined
+                []     -> undefined
+            undefined
+              
+    pathR childR
 
   where
     patternT :: TranslateC Qual (PathC, Ident, Expr)
@@ -875,9 +977,7 @@ m_norm_2 = do
                 -- return the path to the parent node, i.e. the NL node
                 p <- init <$> rootPathT
                 return (p, x, e)
-
-m_norm_3 :: RewriteC Expr
-m_norm_3 = undefined
+  
 -}
 
 ------------------------------------------------------------------
@@ -909,6 +1009,9 @@ strategy = -- First,
            >+> (repeatR $ anytdR $ promoteR compStrategy)
            >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
            
+test :: RewriteC CL
+test = m_norm_1R <+ m_norm_2R <+ m_norm_3R
+           
 debug :: Show a => String -> a -> b -> b
 debug msg a b =
     trace ("\n" ++ msg ++ " =>\n" ++ show a) b
@@ -939,4 +1042,5 @@ opt :: Expr -> Expr
 opt expr = debugOpt expr optimizedExpr
 
   where
-    optimizedExpr = applyExpr (strategy >>> projectT) expr
+    -- optimizedExpr = applyExpr (strategy >>> projectT) expr
+    optimizedExpr = applyExpr (test >>> projectT) expr

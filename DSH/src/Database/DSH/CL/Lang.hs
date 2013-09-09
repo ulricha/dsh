@@ -12,7 +12,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , NL(..), reverseNL, toList, fromList
+  , NL(..), reverseNL, toList, fromList, appendNL
   , Qual(..), isGuard, isBind
   , Typed(..)
   , Prim1Op(..)
@@ -79,6 +79,10 @@ fromList as = Just $ aux as
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
 reverseNL (S a)     = S a
+
+appendNL :: NL a -> NL a -> NL a
+appendNL (a :* as) bs = a :* appendNL as bs
+appendNL (S a)     bs = a :* bs
 
 --------------------------------------------------------------------------------
 -- CL primitives
