@@ -216,7 +216,7 @@ pp (Lit _ v)          = text $ show v
 pp (Var _ s)          = text s
                                    
 pp (Comp _ e qs) = encloseSep lbracket rbracket empty docs
-                     where docs = (char ' ' <> pp e) : qsDocs
+                     where docs = (char ' ' <> pp e <> char ' ') : qsDocs
                            qsDocs = 
                              case qs of
                                q :* qs' -> (char '|' <+> ppQual q) 
