@@ -151,6 +151,9 @@ pushSemiFilters = pushFilters isSemiJoinPred
 pushAntiFilters :: RewriteC Expr
 pushAntiFilters = pushFilters isAntiJoinPred
 
+pushAllFilters :: RewriteC Expr
+pushAllFilters = pushFilters (\_ _ -> True)
+
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
@@ -701,8 +704,99 @@ nestjoinR = do
     c@(Comp _ _ _) <- promoteT idR
     debugUnit "nestjoinR at" c
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+
+--------------------------------------------------------------------------------
+-- Nestjoin introduction: unnesting comprehensions from complex predicates
+
+nestjoinGuardR :: RewriteC CL
+nestjoinGuardR = do
+    c@(Comp t h qs)         <- promoteT idR 
+    debugUnit "nestjoinGuardR at" c
+    (tuplifyHeadR, qs') <- statefulT idR 
+                           $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) 
+                                       >>> projectT)
+                                       
+    h'                  <- childT 0 tuplifyHeadR >>> projectT
+    return $ inject $ Comp t h' qs'
     
-------------------------------------------------------------------
+  where
+  
+    unnestGuardT :: Ident -> Expr -> TranslateC Expr (RewriteC CL, Expr, Expr)
+    unnestGuardT x xs = do
+    
+        e <- idR
+        debugUnit "unnestGuard at" (e :: Expr)
+        -- FIXME passing x is not necessary since we are not interested in
+        -- collecting variables.
+        -- Collect exactly one comprehension from the predicate.
+        (_, [(path, t, f, qs)]) <- partitionEithers <$> extractT (collectExprT x)
+        debugUnit "unnestGuardT collected" (path, t, f, qs)
+        
+        -- Check the shape of the inner qualifier list
+        BindQ y ys :* (S (GuardQ q))  <- return qs
+        
+        -- Do we have a join predicate?
+        (leftExpr, rightExpr)         <- constT (return q) >>> splitJoinPredT x y
+        
+        let xt       = elemT $ typeOf xs
+            yt       = elemT $ typeOf ys
+            tupType  = pairT xt (listT yt)
+            joinType = listT xt .-> (listT yt .-> listT tupType)
+            joinVar  = Var tupType x
+            
+            -- The nestjoin combining xs and ys
+            xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) 
+                             xs 
+                             ys
+            
+            tuplifyHeadR = substR x (P.fst joinVar)
+            
+        pathPrefix <- rootPathT
+        let relPath = dropPrefix pathPrefix path
+        
+        debugUnit "pathPrefix, path, relPath" (pathPrefix, path, relPath)
+
+        -- Substitute the body of the guard comprehension. As x might not occur,
+        -- we need to guard the call.
+        f' <- tryR $ constT (return $ inject f) >>> tuplifyHeadR >>> projectT
+        
+        debugUnit "f'" f'
+
+        let c = Comp t f' (S (BindQ y (P.snd joinVar)))
+        
+        -- p[fst x/x][c/e'] 
+
+        -- FIXME this looks a bit fragile. Actually, the tuplify substitution
+        -- should not kill the path to the comprehension, but it would be better
+        -- to be sure about this.
+        p' <- injectT
+              >>> tuplifyHeadR 
+              >>> anyR (pathR relPath (constT (return $ inject c))) 
+              >>> projectT
+              
+        debugUnit "p'" p'
+        
+        return (tuplifyHeadR, xs', p')
+        
+    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsEndR = do
+        c@(BindQ x xs :* (S (GuardQ p))) <- idR
+        debugUnit "qualsEndR at" c
+        (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
+        debugUnit "qualsEndR (1)" xs'
+        constT $ modify (>>> tuplifyHeadR)
+        return $ BindQ x xs' :* (S (GuardQ p'))
+
+    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    qualsR = do
+        BindQ x xs :* GuardQ p :* qs <- idR
+        (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
+        constT $ modify (>>> tuplifyHeadR)
+        qs' <- liftstateT $ constT (return $ inject qs) >>> tuplifyHeadR >>> projectT
+        return $ BindQ x xs' :* GuardQ p' :* qs'
+        
+    
+--------------------------------------------------------------------------------
 -- Filter pushdown
 
 selectR :: RewriteC (NL Qual)
@@ -980,7 +1074,7 @@ m_norm_2 = do
   
 -}
 
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Rewrite Strategy
         
 test2 :: RewriteC CL
@@ -1010,7 +1104,7 @@ strategy = -- First,
            >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
            
 test :: RewriteC CL
-test = m_norm_1R <+ m_norm_2R <+ m_norm_3R
+test = nestjoinGuardR
            
 debug :: Show a => String -> a -> b -> b
 debug msg a b =
