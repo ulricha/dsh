@@ -1075,6 +1075,19 @@ m_norm_2 = do
 -}
 
 --------------------------------------------------------------------------------
+-- Partial evaluation rules
+
+fstR :: RewriteC Expr
+fstR = do
+    AppE1 _ (Prim1 Fst _) (AppE2 _ (Prim2 Pair _) e1 _) <- idR
+    return e1
+
+sndR :: RewriteC Expr
+sndR = do
+    AppE1 _ (Prim1 Snd _) (AppE2 _ (Prim2 Pair _) _ e2) <- idR
+    return e2
+
+--------------------------------------------------------------------------------
 -- Rewrite Strategy
         
 test2 :: RewriteC CL
