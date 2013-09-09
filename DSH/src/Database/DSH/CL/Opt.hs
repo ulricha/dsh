@@ -214,19 +214,19 @@ mkeqjoinT pred x y xs ys = do
     (leftExpr, rightExpr) <- constT (return pred) >>> (liftstateT $ splitJoinPredT x y)
 
     -- Conditions for the rewrite are fulfilled. 
-    let xst     = typeOf xs
-        yst     = typeOf ys
-        xt      = elemT xst
-        yt      = elemT yst
-        pt      = listT $ pairT xt yt
-        jt      = xst .-> (yst .-> pt)
-        tuplifyR = tuplify x (x, xt) (y, yt)
-        joinGen = BindQ x 
-                        (AppE2 pt 
-                               (Prim2 (EquiJoin leftExpr rightExpr) jt) 
-                               xs ys)
+    let xst          = typeOf xs
+        yst          = typeOf ys
+        xt           = elemT xst
+        yt           = elemT yst
+        pt           = listT $ pairT xt yt
+        jt           = xst .-> (yst .-> pt)
+        tuplifyHeadR = tuplifyR x (x, xt) (y, yt)
+        joinGen      = BindQ x 
+                         (AppE2 pt 
+                           (Prim2 (EquiJoin leftExpr rightExpr) jt) 
+                           xs ys)
 
-    return (tuplifyR, joinGen)
+    return (tuplifyHeadR, joinGen)
 
 -- | Match an equijoin pattern in the middle of a qualifier list
 eqjoinR :: Rewrite CompCtx TuplifyM (NL Qual)
@@ -234,18 +234,18 @@ eqjoinR = do
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* GuardQ p :* qs <- promoteT idR
     
-    (tuplifyR, q') <- mkeqjoinT p x y xs ys
+    (tuplifyHeadR, q') <- mkeqjoinT p x y xs ys
                                
-    -- Next, we apply the tuplify rewrite to the tail, i.e. to all following
+    -- Next, we apply the tuplifyHeadR rewrite to the tail, i.e. to all following
     -- qualifiers
     -- FIXME why is extractT required here?
-    qs' <- catchesT [ liftstateT $ (constT $ return qs) >>> (extractR tuplifyR)
+    qs' <- catchesT [ liftstateT $ (constT $ return qs) >>> (extractR tuplifyHeadR)
                     , constT $ return qs
                     ]            
 
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    constT $ modify (>>> tuplifyR)
+    constT $ modify (>>> tuplifyHeadR)
     
     return $ q' :* qs'
     
@@ -255,11 +255,11 @@ eqjoinEndR = do
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* (S (GuardQ p)) <- promoteT idR
 
-    (tuplifyR, q') <- mkeqjoinT p x y xs ys
+    (tuplifyHeadR, q') <- mkeqjoinT p x y xs ys
 
     -- Combine the new tuplifying rewrite with the current rewrite by chaining
     -- both rewrites
-    constT $ modify (>>> tuplifyR)
+    constT $ modify (>>> tuplifyHeadR)
 
     return (S q')
 
@@ -271,9 +271,9 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinEndR <+ eqjoinR)
 -- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
 eqjoinCompR = do
-    Comp t _ _      <- promoteT idR
-    (tuplifyR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
-    e'              <- (tryR $ childT 0 tuplifyR) >>> projectT
+    Comp t _ _          <- promoteT idR
+    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
+    e'                  <- (tryR $ childT 0 tuplifyHeadR) >>> projectT
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
@@ -540,7 +540,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
             joinVar  = Var tupType x
             
         -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- constT (return h) >>> (extractR $ tryR $ subst x (P.fst joinVar))
+        h' <- constT (return h) >>> (extractR $ tryR $ substR x (P.fst joinVar))
 
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
@@ -558,7 +558,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
                 _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
 
         preds' <- constT (return $ map inject preds) 
-                  >>> mapT (tryR $ subst x (P.fst joinVar))
+                  >>> mapT (tryR $ substR x (P.fst joinVar))
                   >>> mapT projectT
 
         let qs = case fromList preds' of
@@ -769,7 +769,7 @@ mergeFilterR = do
 
     let xt = elemT $ typeOf xs
                      
-    p2' <- (constT $ return $ inject p2) >>> subst x2 (Var xt x1) >>> projectT
+    p2' <- (constT $ return $ inject p2) >>> substR x2 (Var xt x1) >>> projectT
     
     let p' = BinOp (xt .-> boolT) Conj p1 p2'
     
@@ -824,7 +824,62 @@ normalizeR :: RewriteC CL
 normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
                                 <+ promoteR normalizeExistentialR
                                 <+ promoteR normalizeUniversalR
+           
+
+------------------------------------------------------------------
+-- Monad Comprehension Normalization rules
+   
+{-
+-- M-Norm-1: Eliminate comprehensions with empty generators
+m_norm_1R :: RewriteC CL
+m_norm_1R = do
+    Comp t _ _ <- promoteT idR
+    matches <- childT 1 $ onetdT (promoteT $ patternT <+ patternEndT)
+    guardM matches
+    return $ inject $ Lit t (ListV [])
+    
+  where 
+    patternT :: TranslateC (NL Qual) Bool
+    patternT = do
+        BindQ _ (Lit _ (ListV [])) :* _ <- idR
+        return True
         
+    patternEndT :: TranslateC (NL Qual) Bool
+    patternEndT = do
+        (S (BindQ _ (Lit _ (ListV [])))) <- idR
+        return True
+        
+
+m_norm_2 :: RewriteC CL
+m_norm_2 = do
+    Comp _ _ _ <- promoteT idR
+    (absPath, x, e) <- childT 1 $ onetdSpineT (promoteT patternT)
+    let clPath = undefined
+    
+    e' <- childR 1 $ subst
+    
+    pathR relPath 
+
+  where
+    patternT :: TranslateC Qual (PathC, Ident, Expr)
+    patternT = do
+        q <- idR
+        case q of
+            -- x <- [v]
+            BindQ x e@(Lit _ (ListV [v]))                 -> do
+                -- return the path to the parent node, i.e. the NL node
+                p <- init <$> rootPathT
+                return (p, x, e)
+            -- x <- v : []
+            BindQ x e@(BinOp _ Cons v (Lit _ (ListV []))) -> do
+                -- return the path to the parent node, i.e. the NL node
+                p <- init <$> rootPathT
+                return (p, x, e)
+
+m_norm_3 :: RewriteC Expr
+m_norm_3 = undefined
+-}
+
 ------------------------------------------------------------------
 -- Rewrite Strategy
         
