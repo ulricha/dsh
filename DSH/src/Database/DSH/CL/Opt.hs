@@ -275,12 +275,10 @@ eqjoinEndR = do
 
     return (S q')
 
-    
+-- FIXME return after the first match
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
 eqjoinQualsR = anytdR $ repeatR (eqjoinEndR <+ eqjoinR)
     
--- FIXME this should work without this amount of casting
--- FIXME and it should be RewriteC Expr
 eqjoinCompR :: RewriteC CL
 eqjoinCompR = do
     Comp t _ _          <- promoteT idR
@@ -710,8 +708,8 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         
         return $ inject $ F.foldl1 P.zip unnestedComps
         
-nestjoinR :: RewriteC CL
-nestjoinR = do
+nestjoinHeadR :: RewriteC CL
+nestjoinHeadR = do
     c@(Comp _ _ _) <- promoteT idR
     debugUnit "nestjoinR at" c
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
@@ -822,8 +820,8 @@ nestjoinGuardR = do
 --------------------------------------------------------------------------------
 -- Filter pushdown
 
-selectR :: RewriteC (NL Qual)
-selectR = pushR <+ pushEndR
+selectQualsR :: RewriteC (NL Qual)
+selectQualsR = prunetdR $ pushR <+ pushEndR
   where
     pushR :: RewriteC (NL Qual)
     pushR = do
@@ -863,6 +861,12 @@ selectR = pushR <+ pushEndR
             _          -> return ()
         
         return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
+        
+selectR :: RewriteC CL
+selectR = do
+    Comp t h _ <- promoteT idR
+    qs' <- childT 1 (promoteR selectQualsR >>> projectT)
+    return $ inject $ Comp t h qs'
 
 ------------------------------------------------------------------
 -- Simple housecleaning support rewrites.
@@ -923,18 +927,19 @@ normalizeQuantR = do
         
     return $ AppE1 t (Prim1 prim tp) (Comp tc (Lit BoolT (BoolV True)) (appendNL qs (S (GuardQ p))))
     
-cleanupR :: RewriteC CL
-cleanupR = anytdR $ promoteR (identityMapR 
-                              <+ identityCompR 
-                              <+ pairR 
-                              <+ mergeFilterR
-                              <+ normalizeQuantR)
+houseCleaningR :: RewriteC CL
+houseCleaningR = anytdR $ promoteR (identityMapR 
+                                    <+ identityCompR 
+                                    <+ pairR 
+                                    <+ mergeFilterR
+                                    <+ normalizeQuantR)
     
 ------------------------------------------------------------------
 -- Simple normalization rewrites
 
 -- These rewrites are meant to only normalize certain patterns stemming from the
--- input. They are expected to only match once at the beginning of optimization.
+-- source program. They are expected to only match once at the beginning of
+-- optimization.
 
 -- | Split conjunctive predicates.
 splitConjunctsR :: RewriteC (NL Qual)
@@ -1124,24 +1129,76 @@ partialEvalR = anybuR $ promoteR fstR
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
 -- strategy = repeatR (anybuR normalizeR)
--- strategy = repeatR (anytdR $ promoteR selectR >+> promoteR cleanupR)
+-- strategy = repeatR (anytdR $ promoteR selectR >+> promoteR houseCleaningR)
 
 compStrategy :: RewriteC Expr
 compStrategy = do
     -- Don't try anything on a non-comprehension
     Comp _ _ _ <- idR 
 
-    repeatR $ (extractR (tryR cleanupR) >>> tryR pushSemiFilters >>> extractR semijoinR)
-              >+> (extractR (tryR cleanupR) >>> tryR pushAntiFilters >>> extractR antijoinR)
-              >+> (extractR (tryR cleanupR) >>> tryR pushEquiFilters >>> extractR eqjoinCompR)
+    repeatR $ (extractR (tryR houseCleaningR) >>> tryR pushSemiFilters >>> extractR semijoinR)
+              >+> (extractR (tryR houseCleaningR) >>> tryR pushAntiFilters >>> extractR antijoinR)
+              >+> (extractR (tryR houseCleaningR) >>> tryR pushEquiFilters >>> extractR eqjoinCompR)
 
 strategy = -- First, 
            (anytdR $ promoteR normalizeR) 
            >+> (repeatR $ anytdR $ promoteR compStrategy)
-           >+> (repeatR $ anybuR $ (promoteR (tryR cleanupR)) >>> nestjoinR)
+           >+> (repeatR $ anybuR $ (promoteR (tryR houseCleaningR)) >>> nestjoinHeadR)
            
 test :: RewriteC CL
 test = nestjoinGuardR
+     
+--------------------------------------------------------------------------------
+-- Rewrite Strategy: Rule Groups
+
+-- Clean up remains and perform partial evaluation on the current node
+cleanupR :: RewriteC CL
+cleanupR = repeatR $ anybuR $ extractR houseCleaningR
+                              <+ extractR partialEvalR
+
+flatJoins :: [RewriteC CL]
+flatJoins = [ promoteR (tryR pushSemiFilters) >>> semijoinR
+            , promoteR (tryR pushAntiFilters) >>> antijoinR
+            , promoteR (tryR pushEquiFilters) >>> eqjoinCompR
+            ]
+            
+-- FIXME add m_norm_1R once tables for benchmark queries exist
+compNorm :: [RewriteC CL]
+compNorm = [ m_norm_2R
+           , m_norm_3R
+           ]
+           
+operators :: [RewriteC CL]
+operators = [ promoteR (tryR pushAllFilters) >>> selectR ]
+           
+nestJoins :: [RewriteC CL]
+nestJoins = [ nestjoinHeadR
+            , nestjoinGuardR
+            ]
+            
+expandGroup :: [RewriteC CL] -> RewriteC CL
+expandGroup group = foldl' (flip (<+)) idR $ map (tryR cleanupR >>>) group
+
+optimizeR :: RewriteC CL
+optimizeR = repeatR (compR <+ nonCompR)
+  where
+    compR :: RewriteC CL
+    compR = do
+        Comp _ _ _ <- promoteT idR
+
+        repeatR $ expandGroup compNorm
+                  <+ expandGroup flatJoins
+                  <+ expandGroup operators
+                  <+ anyR optimizeR
+                  <+ expandGroup nestJoins
+                  <+ extractR cleanupR
+    
+    -- For non-comprehension nodes, simply descend
+    nonCompR :: RewriteC CL
+    nonCompR = anyR optimizeR
+
+--------------------------------------------------------------------------------
+-- Simple debugging combinators
            
 debug :: Show a => String -> a -> b -> b
 debug msg a b =
