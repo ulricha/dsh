@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
@@ -21,8 +20,6 @@ module Database.DSH.CL.Lang
   , Prim2(..)
   ) where
 
-import           Data.Data
-                 
 import           Control.Applicative hiding (empty)
                  
 import qualified Data.Foldable as F
@@ -44,7 +41,7 @@ import           Database.DSH.Common.Data.Type
 
 data NL a = a :* (NL a)
           | S a
-          deriving (Data, Typeable, Eq, Ord)
+          deriving (Eq, Ord)
           
 infixr :*
           
@@ -94,9 +91,9 @@ data Prim1Op = Length |  Not |  Concat
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
-             deriving (Eq, Ord, Data, Typeable)
+             deriving (Eq, Ord)
              
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord, Data, Typeable)
+data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
   show Length          = "length"
@@ -136,9 +133,9 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | NestJoin JoinExpr JoinExpr
              | SemiJoin JoinExpr JoinExpr
              | AntiJoin JoinExpr JoinExpr
-             deriving (Eq, Ord, Data, Typeable)
+             deriving (Eq, Ord)
              
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord, Data, Typeable)
+data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
   show Map          = "map"
@@ -168,7 +165,7 @@ instance Show (Prim2 t) where
 
 data Qual = BindQ Ident Expr
           | GuardQ Expr
-          deriving (Eq, Ord, Data, Typeable, Show)
+          deriving (Eq, Ord, Show)
           
 isGuard :: Qual -> Bool
 isGuard (GuardQ _)   = True
@@ -188,7 +185,6 @@ data Expr  = Table Type String [Column] [Key]
            | Lit Type Val
            | Var Type Ident
            | Comp Type Expr (NL Qual)
-           deriving (Data, Typeable)
            
 instance Show Expr where
   show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
