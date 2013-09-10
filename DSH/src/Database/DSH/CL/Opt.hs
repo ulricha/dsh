@@ -822,6 +822,14 @@ selectR = pushR <+ pushEndR
         let fvs = freeVars p
         guardM $ [x] == fvs
         
+        -- We do not push filters onto comprehensions. A comprehension nested in
+        -- a qualifier needs to be unnested via m_norm_3 first. We add this
+        -- safeguard because we want to push filters early but need to avoid
+        -- blocking m_norm_3.
+        case xs of
+            Comp _ _ _ -> fail "selectR: don't push filters onto comprehensions"
+            _          -> return ()
+        
         return $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs) :* qs
         
         
@@ -833,6 +841,14 @@ selectR = pushR <+ pushEndR
         -- solely on this generator
         let fvs = freeVars p
         guardM $ [x] == fvs
+
+        -- We do not push filters onto comprehensions. A comprehension nested in
+        -- a qualifier needs to be unnested via m_norm_3 first. We add this
+        -- safeguard because we want to push filters early but need to avoid
+        -- blocking m_norm_3.
+        case xs of
+            Comp _ _ _ -> fail "selectR: don't push filters onto comprehensions"
+            _          -> return ()
         
         return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
 
