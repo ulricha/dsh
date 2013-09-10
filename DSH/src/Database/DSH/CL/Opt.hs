@@ -134,13 +134,22 @@ isProj (BinOp _ _ e1 e2)         = isProj e1 && isProj e2
 isProj (Var _ _)                 = True
 isProj _                         = False
 
+-- | Does the predicate look like an existential quantifier and is eligible for
+-- pushing? Note: In addition to the variables that are bound by the current
+-- qualifier list, we need to pass the variable bound by the existential
+-- comprehension to isEquiJoinPred, because it might (and should) occur in the
+-- predicate.
 isSemiJoinPred :: [Ident] -> Expr -> Bool
-isSemiJoinPred vs (AppE1 _ (Prim1 Or _) (Comp _ p (S _))) = isEquiJoinPred vs p
-isSemiJoinPred _  _                                       = False
+isSemiJoinPred vs (AppE1 _ (Prim1 Or _) 
+                           (Comp _ (Lit _ (BoolV True)) 
+                                   ((BindQ x _) :* (S (GuardQ p))))) = isEquiJoinPred (x : vs) p
+isSemiJoinPred _  _                                                  = False
 
 isAntiJoinPred :: [Ident] -> Expr -> Bool
-isAntiJoinPred vs (AppE1 _ (Prim1 And _) (Comp _ p (S _))) = isEquiJoinPred vs p
-isAntiJoinPred _  _                                        = False
+isAntiJoinPred vs (AppE1 _ (Prim1 And _) 
+                           (Comp _ (Lit _ (BoolV True)) 
+                                   ((BindQ x _) :* (S (GuardQ (AppE1 _ (Prim1 Not _) p)))))) = isEquiJoinPred (x : vs) p
+isAntiJoinPred _  _                                                                          = False
 
 pushEquiFilters :: RewriteC Expr
 pushEquiFilters = pushFilters isEquiJoinPred
@@ -299,16 +308,18 @@ mksemijoinT pred x y xs ys = do
 -- | Match a IN semijoin pattern in the middle of a qualifier list
 elemR :: RewriteC (NL Qual)
 elemR = do
-    -- [ ... | ..., x <- xs, or [ p | y <- ys ], ... ]
-    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))) :* qs <- idR
+    -- [ ... | ..., x <- xs, or [ True | y <- ys, p ], ... ]
+    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ (Lit _ (BoolV True)) 
+                                                       (BindQ y ys :* (S (GuardQ p))))) :* qs <- idR
     q' <- mksemijoinT p x y xs ys
     return $ q' :* qs
 
 -- | Match a IN semijoin pattern at the end of a list
 elemEndR :: RewriteC (NL Qual)
 elemEndR = do
-    -- [ ... | ..., x <- xs, or [ p | y <- ys ] ]
-    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p (S (BindQ y ys)))))) <- idR
+    -- [ ... | ..., x <- xs, or [ True | y <- ys, p ] ]
+    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 Or _) (Comp _ (Lit _ (BoolV True)) 
+                                                           ((BindQ y ys) :* (S (GuardQ p))))))) <- idR
     q' <- mksemijoinT p x y xs ys
     return (S q')
     
@@ -853,6 +864,7 @@ pairR = do
     guardM $ x == x'
     return v
     
+-- | Merge two filters stacked on top of each other.
 mergeFilterR :: RewriteC Expr
 mergeFilterR = do
     AppE2 t (Prim2 Filter _) 
@@ -868,12 +880,33 @@ mergeFilterR = do
     let p' = BinOp (xt .-> boolT) Conj p1 p2'
     
     return $ P.filter (Lam (xt .-> boolT) x1 p') xs
-
+    
+-- | Normalize quantified comprehensions:
+-- (or/and) [ p | qs ] => (or/and) [ True | qs, p ]
+normalizeQuantR :: RewriteC Expr
+normalizeQuantR = do
+    AppE1 t (Prim1 prim tp) (Comp tc p qs) <- idR
+    
+    guardM $ prim == And || prim == Or
+    
+    case p of
+        Lit _ _ -> fail "Header already is a boolean literal"
+        _       -> return ()
+        
+    return $ AppE1 t (Prim1 prim tp) (Comp tc (Lit BoolT (BoolV True)) (appendNL qs (S (GuardQ p))))
+    
 cleanupR :: RewriteC CL
-cleanupR = anytdR $ promoteR (identityMapR <+ identityCompR <+ pairR <+ mergeFilterR)
+cleanupR = anytdR $ promoteR (identityMapR 
+                              <+ identityCompR 
+                              <+ pairR 
+                              <+ mergeFilterR
+                              <+ normalizeQuantR)
     
 ------------------------------------------------------------------
 -- Simple normalization rewrites
+
+-- These rewrites are meant to only normalize certain patterns stemming from the
+-- input. They are expected to only match once at the beginning of optimization.
 
 -- | Split conjunctive predicates.
 splitConjunctsR :: RewriteC (NL Qual)
@@ -891,20 +924,27 @@ splitConjunctsR = splitR <+ splitEndR
     
 -- | Normalize a guard expressing existential quantification:
 -- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
--- => or [ p | x <- xs ]
-normalizeExistentialR :: RewriteC Qual
-normalizeExistentialR = do
+-- => or [ True | x <- xs, p ]
+normalizeExistential1R :: RewriteC Qual
+normalizeExistential1R = do
     GuardQ (AppE1 _ (Prim1 Not _) 
                (BinOp _ Eq 
                    (AppE1 _ (Prim1 Length _) 
                        (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                    (Lit _ (IntV 0)))) <- idR
 
-    return $ GuardQ (P.or (Comp (listT boolT) p (S (BindQ x xs))))
+    return $ GuardQ (P.or (Comp (listT boolT) 
+                          (Lit BoolT (BoolV True)) 
+                          ((BindQ x xs) :* (S (GuardQ p)))))
+
+-- | The pattern from normalizeQuantR might occur during rewriting (O
+-- RLY?). Therefore, we re-use it here.
+normalizeExistential2R :: RewriteC Expr
+normalizeExistential2R = normalizeQuantR
 
 -- | Normalize a guard expressing universal quantification:
 -- null [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ not p | x <- xs ]
+-- => and [ True | x <- xs, p ]
 normalizeUniversalR :: RewriteC Qual
 normalizeUniversalR = do
     GuardQ (BinOp _ Eq 
@@ -912,11 +952,15 @@ normalizeUniversalR = do
                     (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                 (Lit _ (IntV 0))) <- idR
 
-    return $ GuardQ (P.and (Comp (listT boolT) (P.not p) (S (BindQ x xs))))
+    return $ GuardQ (P.and (Comp (listT boolT) 
+                           (Lit BoolT (BoolV True)) 
+                           ((BindQ x xs) :* (S (GuardQ (P.not p))))))
+                           
     
 normalizeR :: RewriteC CL
 normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
-                                <+ promoteR normalizeExistentialR
+                                <+ promoteR normalizeExistential1R
+                                <+ promoteR normalizeExistential2R
                                 <+ promoteR normalizeUniversalR
            
 
@@ -1086,16 +1130,9 @@ sndR :: RewriteC Expr
 sndR = do
     AppE1 _ (Prim1 Snd _) (AppE2 _ (Prim2 Pair _) _ e2) <- idR
     return e2
-
+    
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
-        
-test2 :: RewriteC CL
--- test2 = (semijoinR <+ nestjoinR) >>> repeatR (anytdR (promoteR cleanupR))
--- test2 = semijoinR
--- test2 = anytdR (promoteR $ splitConjunctsR <+ splitConjunctsEndR)
--- test2 = anytdR eqjoinCompR
-test2 = anytdR $ promoteR normalizeExistentialR
         
 strategy :: RewriteC CL
 -- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
@@ -1149,5 +1186,5 @@ opt :: Expr -> Expr
 opt expr = debugOpt expr optimizedExpr
 
   where
-    -- optimizedExpr = applyExpr (strategy >>> projectT) expr
-    optimizedExpr = applyExpr (test >>> projectT) expr
+    optimizedExpr = applyExpr (strategy >>> projectT) expr
+    -- optimizedExpr = applyExpr (test >>> projectT) expr
