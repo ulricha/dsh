@@ -8,7 +8,6 @@ module Database.DSH.CL.Opt
   ( opt ) where
        
 import           Debug.Trace
-import           Text.Printf
                  
 import           Control.Applicative((<$>))
 import           Control.Arrow
@@ -16,7 +15,6 @@ import           Control.Arrow
 
 import           Data.Either
 import           Data.List
-import qualified Data.Map as M
 
 import qualified Data.Foldable as F
 
@@ -30,8 +28,6 @@ import           Database.DSH.Impossible
 
 -- import           Database.DSH.Impossible
    
-import           Language.KURE.Debug
-
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
@@ -43,7 +39,7 @@ import qualified Database.DSH.CL.Primitives as P
 
 pushFilters :: ([Ident] -> Expr -> Bool) -> RewriteC Expr
 pushFilters mayPush = do
-    Comp _ _ qs <- idR
+    Comp _ _ _ <- idR
     compR idR pushFiltersQuals
 
   where
@@ -55,6 +51,9 @@ pushFilters mayPush = do
           ^>> innermostR tryPush 
           >>^ (reverseNL . fmap snd)
         
+    -- Mark all guards which may be pushed based on a general predicate
+    -- `mayPush`. To this predicate, we pass the guard expression as well as the
+    -- list of identifiers which are in scope for the current guard.
     initFlags :: NL Qual -> NL (Bool, Qual)
     initFlags qs = 
         case fromList $ map flag $ zip localScopes (toList qs) of
@@ -64,7 +63,7 @@ pushFilters mayPush = do
         localScopes = map compBoundVars $ inits $ toList qs
         
         flag :: ([Ident], Qual) -> (Bool, Qual)
-        flag (localScope, q@(BindQ _ _)) = (False, q)
+        flag (_, q@(BindQ _ _))          = (False, q)
         flag (localScope, q@(GuardQ p))  = (mayPush localScope p, q)
                 
                        
@@ -221,9 +220,9 @@ mkeqjoinT
   -> Expr  -- ^ First generator expression
   -> Expr  -- ^ Second generator expression
   -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
-mkeqjoinT pred x y xs ys = do
+mkeqjoinT joinPred x y xs ys = do
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr) <- constT (return pred) >>> (liftstateT $ splitJoinPredT x y)
+    (leftExpr, rightExpr) <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst          = typeOf xs
@@ -293,8 +292,8 @@ eqjoinCompR = do
 -- Note that the splitJoinPred call implicitly checks that only x and y
 -- occur free in the predicate and no further correlation takes place.
 mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
-mksemijoinT pred x y xs ys = do
-    (leftExpr, rightExpr) <- constT (return pred) >>> splitJoinPredT x y
+mksemijoinT joinPred x y xs ys = do
+    (leftExpr, rightExpr) <- constT (return joinPred) >>> splitJoinPredT x y
 
     let xst = typeOf xs
         yst = typeOf ys
@@ -379,9 +378,9 @@ ntimes n f x = ntimes (n - 1) f (f x)
 tupleAt :: Expr -> Int -> Int -> Expr
 tupleAt expr len pos = 
   case pos of
-      pos | pos == 1               -> ntimes (len - 1) P.fst expr
-      pos | 2 <= pos && pos <= len -> P.snd $ ntimes (len - pos) P.fst expr
-      _                            -> $impossible                         
+      p | p == 1             -> ntimes (len - 1) P.fst expr
+      p | 2 <= p && p <= len -> P.snd $ ntimes (len - p) P.fst expr
+      _                      -> $impossible                         
         
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
@@ -448,7 +447,8 @@ mkheadmapR curr t h x xs qs = do
                     then [] 
                     else [(Var varTy x, map (dropPrefix pathPrefix) vars)]
 
-        compExprs = map (\(p, t', h', qs) -> (Comp t' h' qs, [dropPrefix pathPrefix p])) comps
+        -- Reconstruct comprehension expressions from the collected fragments
+        compExprs = map (\(p, t', h', qs') -> (Comp t' h' qs', [dropPrefix pathPrefix p])) comps
         
         exprs     = varExpr ++ compExprs
         
@@ -588,7 +588,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         debugUnit "singleCompEndT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
-        q@(Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs))) <- promoteT idR
+        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
         debug "trigger singleCompEndT" q $ mknestjoinT t1 t2 h y ys p x xs []
         
     -- The base case: a single comprehension nested in the head of the outer
@@ -663,13 +663,13 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
 patchVar :: Ident -> Expr -> Expr
 patchVar x c =
     case c of
-        Comp _ e qs@(S (BindQ x' je)) | x == x'    -> patch e x' je qs
-        Comp _ e qs@((BindQ x' je) :* _) | x == x' -> patch e x' je qs
+        Comp _ e qs@(S (BindQ x' je)) | x == x'    -> patch e je qs
+        Comp _ e qs@((BindQ x' je) :* _) | x == x' -> patch e je qs
         _                                          -> $impossible
         
   where 
-    patch :: Expr -> Ident -> Expr -> (NL Qual) -> Expr
-    patch e x' je qs =
+    patch :: Expr -> Expr -> (NL Qual) -> Expr
+    patch e je qs =
         let joinBindType = elemT $ typeOf je
             e'           = P.pair (P.fst (Var joinBindType x)) e
             resultType   = listT $ pairT (fstT joinBindType) (typeOf e)
@@ -687,7 +687,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
     tupleHeadR = do
         e <- promoteT idR
         debugUnit "tupleHeadR at" (e :: Expr)
-        c@(Comp _ h qs) <- promoteT idR
+        Comp _ _ qs <- promoteT idR
   
         headExprs <- oneT tupleComponentsT 
         debugUnit "tupleHeadR collected" headExprs
@@ -731,10 +731,10 @@ nestjoinHeadR = do
 --   c = [ fst x/x] | y <- snd x ]
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
-    c@(Comp t h qs)         <- promoteT idR 
+    c@(Comp t _ _)         <- promoteT idR 
     debugUnit "nestjoinGuardR at" c
     (tuplifyHeadR, qs') <- statefulT idR 
-                           $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) 
+                           $ childT 1 (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
                                        
     h'                  <- childT 0 tuplifyHeadR >>> projectT
@@ -799,8 +799,8 @@ nestjoinGuardR = do
         
         return (tuplifyHeadR, xs', p')
         
-    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsEndR = do
+    unnestQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    unnestQualsEndR = do
         c@(BindQ x xs :* (S (GuardQ p))) <- idR
         debugUnit "qualsEndR at" c
         (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
@@ -808,8 +808,8 @@ nestjoinGuardR = do
         constT $ modify (>>> tuplifyHeadR)
         return $ BindQ x xs' :* (S (GuardQ p'))
 
-    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsR = do
+    unnestQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    unnestQualsR = do
         BindQ x xs :* GuardQ p :* qs <- idR
         (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
         constT $ modify (>>> tuplifyHeadR)
@@ -899,10 +899,10 @@ pairR = do
 -- | Merge two filters stacked on top of each other.
 mergeFilterR :: RewriteC Expr
 mergeFilterR = do
-    AppE2 t (Prim2 Filter _) 
-            (Lam t1 x1 p1)
+    AppE2 _ (Prim2 Filter _) 
+            (Lam _ x1 p1)
             (AppE2 _ (Prim2 Filter _)
-                     (Lam t2 x2 p2)
+                     (Lam _ x2 p2)
                      xs)                <- idR
 
     let xt = elemT $ typeOf xs
@@ -1023,7 +1023,7 @@ m_norm_1R = do
 -- [ h | qs, x <- [v], qs' ]
 -- => [ h[v/x] | qs, qs'[v/x] ]
 m_norm_2R :: RewriteC CL
-m_norm_2R = singletonCompR <+ compR
+m_norm_2R = normSingletonCompR <+ normCompR
     
   where
     -- This rewrite is a bit annoying: If it triggers, we can remove a
@@ -1032,17 +1032,17 @@ m_norm_2R = singletonCompR <+ compR
     
     -- Due to non-empty NL lists, we have to consider the case of
     -- removing a (the!) qualifier from a singleton list.
-    singletonCompR :: RewriteC CL
-    singletonCompR = do
-        Comp t h (S q) <- promoteT idR
+    normSingletonCompR :: RewriteC CL
+    normSingletonCompR = do
+        Comp _ h (S q) <- promoteT idR
         (x, e) <- constT (return q) >>> qualT
         constT (return $ inject h) >>> substR x e
     
     -- The main rewrite
-    compR :: RewriteC CL
-    compR = do
-        Comp t h (_ :* _)   <- promoteT idR
-        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) >>> projectT)
+    normCompR :: RewriteC CL
+    normCompR = do
+        Comp t _ (_ :* _)   <- promoteT idR
+        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
         h'                  <- childT 0 tuplifyHeadR >>> projectT
         return $ inject $ Comp t h' qs'
 
@@ -1052,22 +1052,22 @@ m_norm_2R = singletonCompR <+ compR
         q <- idR
         case q of
             -- x <- [v]
-            BindQ x e@(Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
+            BindQ x (Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
             -- x <- v : []
-            BindQ x e@(BinOp _ Cons v (Lit _ (ListV []))) -> return (x, v)
-            _                                             -> fail "qualR: no match"
+            BindQ x (BinOp _ Cons v (Lit _ (ListV []))) -> return (x, v)
+            _                                           -> fail "qualR: no match"
             
     -- Try to match the pattern at the end of the qualifier list
-    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsEndR = do
+    normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsEndR = do
         q1 :* (S q2) <- idR
         (x, e)       <- liftstateT $ constT (return q2) >>> qualT
         constT $ modify (>>> substR x e)
         return (S q1)
         
     -- Try to match the pattern in the middle of the qualifier list
-    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsR = do
+    normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsR = do
         q1 :* q2 :* qs <- idR
         (x, e)         <- liftstateT $ constT (return q2) >>> qualT
         qs' <- liftstateT $ constT (return $ inject qs) >>> substR x e >>> projectT
@@ -1079,8 +1079,8 @@ m_norm_2R = singletonCompR <+ compR
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
 m_norm_3R :: RewriteC CL
 m_norm_3R = do
-    Comp t h qs <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (qualsEndR <+ qualsR)) >>> projectT)
+    Comp t _ _ <- promoteT idR
+    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
     h'                  <- childT 0 tuplifyHeadR >>> projectT
     return $ inject $ Comp t h' qs'
     
@@ -1091,15 +1091,15 @@ m_norm_3R = do
         BindQ x (Comp _ h' qs'') <- idR
         return (x, h', qs'')
        
-    qualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsEndR = do
+    normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsEndR = do
         (S q) <- idR
         (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
         constT $ modify (>>> substR x h')
         return qs''
         
-    qualsR :: Rewrite CompCtx TuplifyM (NL Qual)
-    qualsR = do
+    normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualsR = do
         q :* qs <- idR
         (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
         qs' <- liftstateT $ constT (return $ inject qs) >>> substR x h' >>> projectT
@@ -1177,13 +1177,13 @@ nestJoins = [ nestjoinHeadR
             ]
             
 expandGroup :: [RewriteC CL] -> RewriteC CL
-expandGroup group = foldl' (flip (<+)) idR $ map (tryR cleanupR >>>) group
+expandGroup g = foldl' (flip (<+)) idR $ map (tryR cleanupR >>>) g
 
 optimizeR :: RewriteC CL
-optimizeR = repeatR (compR <+ nonCompR)
+optimizeR = repeatR (optCompR <+ optNonCompR)
   where
-    compR :: RewriteC CL
-    compR = do
+    optCompR :: RewriteC CL
+    optCompR = do
         Comp _ _ _ <- promoteT idR
 
         repeatR $ expandGroup compNorm
@@ -1194,8 +1194,8 @@ optimizeR = repeatR (compR <+ nonCompR)
                   <+ extractR cleanupR
     
     -- For non-comprehension nodes, simply descend
-    nonCompR :: RewriteC CL
-    nonCompR = anyR optimizeR
+    optNonCompR :: RewriteC CL
+    optNonCompR = anyR optimizeR
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
