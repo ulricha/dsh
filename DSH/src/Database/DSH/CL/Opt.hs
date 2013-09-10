@@ -719,6 +719,18 @@ nestjoinR = do
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
 
+-- | Try to unnest comprehensions from guards, which we can not unnest otherwise
+-- (e.g. by introduing semi- or antijoins).
+-- 
+--   [ e | qs, x <- xs, p x e', qs' ] with e' = [ f x y | y <- ys, q x y ]
+-- 
+-- rewrites into
+--
+--   [ e[fst x/x] | qs, x <- xs nestjoin(q) ys, p[fst x/x][c/e'], qs'[fst x/x]
+-- 
+-- with
+--
+--   c = [ fst x/x] | y <- snd x ]
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
     c@(Comp t h qs)         <- promoteT idR 
