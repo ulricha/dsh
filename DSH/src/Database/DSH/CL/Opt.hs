@@ -928,11 +928,11 @@ normalizeQuantR = do
     return $ AppE1 t (Prim1 prim tp) (Comp tc (Lit BoolT (BoolV True)) (appendNL qs (S (GuardQ p))))
     
 houseCleaningR :: RewriteC CL
-houseCleaningR = anytdR $ promoteR (identityMapR 
-                                    <+ identityCompR 
-                                    <+ pairR 
-                                    <+ mergeFilterR
-                                    <+ normalizeQuantR)
+houseCleaningR = promoteR $ identityMapR 
+                            <+ identityCompR 
+                            <+ pairR 
+                            <+ mergeFilterR
+                            <+ normalizeQuantR
     
 ------------------------------------------------------------------
 -- Simple normalization rewrites
@@ -1120,8 +1120,7 @@ sndR = do
     return e2
     
 partialEvalR :: RewriteC CL
-partialEvalR = anybuR $ promoteR fstR
-                        <+ promoteR sndR
+partialEvalR = promoteR fstR <+ promoteR sndR
     
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
@@ -1153,49 +1152,46 @@ test = nestjoinGuardR
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = repeatR $ anybuR $ extractR houseCleaningR
-                              <+ extractR partialEvalR
+cleanupR = anybuR $ extractR houseCleaningR
+                    <+ extractR partialEvalR
 
-flatJoins :: [RewriteC CL]
-flatJoins = [ promoteR (tryR pushSemiFilters) >>> semijoinR
-            , promoteR (tryR pushAntiFilters) >>> antijoinR
-            , promoteR (tryR pushEquiFilters) >>> eqjoinCompR
-            ]
+flatJoins :: RewriteC CL
+flatJoins = (promoteR (tryR pushSemiFilters) >>> semijoinR)
+            <+ (promoteR (tryR pushAntiFilters) >>> antijoinR)
+            <+ (promoteR (tryR pushEquiFilters) >>> eqjoinCompR)
             
 -- FIXME add m_norm_1R once tables for benchmark queries exist
-compNorm :: [RewriteC CL]
-compNorm = [ m_norm_2R
-           , m_norm_3R
-           ]
+compNorm :: RewriteC CL
+compNorm = m_norm_2R <+ m_norm_3R
            
-operators :: [RewriteC CL]
-operators = [ promoteR (tryR pushAllFilters) >>> selectR ]
+operators :: RewriteC CL
+operators = promoteR (tryR pushAllFilters) >>> selectR
            
-nestJoins :: [RewriteC CL]
-nestJoins = [ nestjoinHeadR
-            , nestjoinGuardR
-            ]
+nestJoins :: RewriteC CL
+nestJoins = nestjoinHeadR <+ nestjoinGuardR
             
-expandGroup :: [RewriteC CL] -> RewriteC CL
-expandGroup g = foldl' (flip (<+)) idR $ map (tryR cleanupR >>>) g
-
 optimizeR :: RewriteC CL
-optimizeR = repeatR (optCompR <+ optNonCompR)
+optimizeR = (optCompR <+ optNonCompR)
   where
     optCompR :: RewriteC CL
     optCompR = do
-        Comp _ _ _ <- promoteT idR
+        c@(Comp _ _ _) <- promoteT idR
+        debugUnit "comp at" c
 
-        repeatR $ expandGroup compNorm
-                  <+ expandGroup flatJoins
-                  <+ expandGroup operators
+        repeatR $ extractR cleanupR
+                  <+ compNorm
+                  <+ flatJoins
+                  <+ operators
                   <+ anyR optimizeR
-                  <+ expandGroup nestJoins
+                  <+ nestJoins
                   <+ extractR cleanupR
-    
+
     -- For non-comprehension nodes, simply descend
     optNonCompR :: RewriteC CL
-    optNonCompR = anyR optimizeR
+    optNonCompR = do
+        e <- idR
+        debugUnit "noncomp at" (e :: CL)
+        anyR optimizeR
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
@@ -1230,5 +1226,6 @@ opt :: Expr -> Expr
 opt expr = debugOpt expr optimizedExpr
 
   where
-    optimizedExpr = applyExpr (strategy >>> projectT) expr
+    -- optimizedExpr = applyExpr (strategy >>> projectT) expr
     -- optimizedExpr = applyExpr (test >>> projectT) expr
+    optimizedExpr = applyExpr (optimizeR >>> projectT) expr
