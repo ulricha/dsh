@@ -1147,6 +1147,10 @@ sndR = do
     AppE1 _ (Prim1 Snd _) (AppE2 _ (Prim2 Pair _) _ e2) <- idR
     return e2
     
+partialEvalR :: RewriteC CL
+partialEvalR = anybuR $ promoteR fstR
+                        <+ promoteR sndR
+    
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
         
