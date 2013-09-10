@@ -1171,7 +1171,7 @@ nestJoins :: RewriteC CL
 nestJoins = nestjoinHeadR <+ nestjoinGuardR
             
 optimizeR :: RewriteC CL
-optimizeR = (optCompR <+ optNonCompR)
+optimizeR = tryR normalizeR >>> (optCompR <+ optNonCompR)
   where
     optCompR :: RewriteC CL
     optCompR = do
