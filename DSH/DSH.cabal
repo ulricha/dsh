@@ -107,9 +107,15 @@ Library
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Monad
                      Database.DSH.CL.Kure
-                     Database.DSH.CL.OptUtils
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
+                     Database.DSH.CL.Opt.Aux
+                     Database.DSH.CL.Opt.Support
+                     Database.DSH.CL.Opt.Normalize
+                     Database.DSH.CL.Opt.CompNormalization
+                     Database.DSH.CL.Opt.FlatJoin
+                     Database.DSH.CL.Opt.NestJoin
+                     Database.DSH.CL.Opt.Operators
                      Database.DSH.FKL.Data.FKL
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
