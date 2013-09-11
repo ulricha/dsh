@@ -1132,31 +1132,6 @@ partialEvalR :: RewriteC CL
 partialEvalR = promoteR fstR <+ promoteR sndR
     
 --------------------------------------------------------------------------------
--- Rewrite Strategy
-        
-strategy :: RewriteC CL
--- strategy = {- anybuR (promoteR pushEquiFilters) >>> -} anytdR eqjoinCompR
--- strategy = repeatR (anybuR normalizeR)
--- strategy = repeatR (anytdR $ promoteR selectR >+> promoteR houseCleaningR)
-
-compStrategy :: RewriteC Expr
-compStrategy = do
-    -- Don't try anything on a non-comprehension
-    Comp _ _ _ <- idR 
-
-    repeatR $ (extractR (tryR houseCleaningR) >>> tryR pushSemiFilters >>> extractR semijoinR)
-              >+> (extractR (tryR houseCleaningR) >>> tryR pushAntiFilters >>> extractR antijoinR)
-              >+> (extractR (tryR houseCleaningR) >>> tryR pushEquiFilters >>> extractR eqjoinCompR)
-
-strategy = -- First, 
-           (anytdR $ promoteR normalizeR) 
-           >+> (repeatR $ anytdR $ promoteR compStrategy)
-           >+> (repeatR $ anybuR $ (promoteR (tryR houseCleaningR)) >>> nestjoinHeadR)
-           
-test :: RewriteC CL
-test = nestjoinGuardR
-     
---------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
 
 -- Clean up remains and perform partial evaluation on the current node
@@ -1175,6 +1150,9 @@ compNorm = m_norm_2R <+ m_norm_3R
            
 nestJoins :: RewriteC CL
 nestJoins = nestjoinHeadR <+ nestjoinGuardR
+
+--------------------------------------------------------------------------------
+-- Rewrite Strategy
             
 optimizeR :: RewriteC CL
 optimizeR = tryR normalizeR >>> repeatR (optCompR <+ optNonCompR)
