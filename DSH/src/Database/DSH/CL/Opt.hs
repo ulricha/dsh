@@ -11,7 +11,6 @@ import           Debug.Trace
                  
 import           Control.Applicative((<$>))
 import           Control.Arrow
--- import           Control.Monad
 
 import           Data.Either
 import           Data.List
@@ -21,20 +20,15 @@ import qualified Data.Foldable as F
 import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 import qualified Data.List.NonEmpty as N
 
--- import qualified Data.Set as S
--- import           GHC.Exts
-
 import           Database.DSH.Impossible
 
--- import           Database.DSH.Impossible
-   
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.OptUtils
 
 import qualified Database.DSH.CL.Primitives as P
 
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 -- Pushing filters towards the front of a qualifier list
 
 pushFilters :: ([Ident] -> Expr -> Bool) -> RewriteC Expr
@@ -150,6 +144,19 @@ isAntiJoinPred vs (AppE1 _ (Prim1 And _)
                                    ((BindQ x _) :* (S (GuardQ (AppE1 _ (Prim1 Not _) p)))))) = isEquiJoinPred (x : vs) p
 isAntiJoinPred _  _                                                                          = False
 
+-- 'Simple' currently simply means 'does not contain a comprehension'.
+isSimplePred :: Expr -> Bool
+isSimplePred e = 
+  case applyExpr t e of
+     Left _   -> True
+     Right b  -> b
+        
+  where
+    t :: TranslateC CL Bool
+    t = onetdT $ do
+        Comp _ _ _ <- promoteT idR
+        return False
+
 pushEquiFilters :: RewriteC Expr
 pushEquiFilters = pushFilters isEquiJoinPred
        
@@ -161,6 +168,10 @@ pushAntiFilters = pushFilters isAntiJoinPred
 
 pushAllFilters :: RewriteC Expr
 pushAllFilters = pushFilters (\_ _ -> True)
+
+pushSimpleFilters :: RewriteC Expr
+pushSimpleFilters = pushFilters (\_ -> isSimplePred)
+
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
@@ -406,7 +417,7 @@ factoroutHeadR = do factoroutEndR <+ factoroutR
     factoroutEndR :: RewriteC CL
     factoroutEndR = do
         curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
-        debugUnit "factoroutEndR at" curr
+        -- debugUnit "factoroutEndR at" curr
         mkheadmapR curr t h x xs []
         
     factoroutR :: RewriteC CL
@@ -416,7 +427,7 @@ factoroutHeadR = do factoroutEndR <+ factoroutR
         -- Currently, we only allow additional guards, not qualifiers.
         -- FIXME this might be extendable to additional qualifiers
         guardM $ all isGuard (toList qs)
-        debugUnit "factoroutR at" curr
+        -- debugUnit "factoroutR at" curr
 
         mkheadmapR curr t h x xs (toList qs)
 
@@ -437,7 +448,7 @@ mkheadmapR curr t h x xs qs = do
     -- We abort if we did not find any interesting comprehensions in the head
     guardM $ not $ null comps
     
-    debugUnit "mkheadmapR found" (vars, comps)
+    -- debugUnit "mkheadmapR found" (vars, comps)
 
     pathPrefix <- rootPathT
 
@@ -585,7 +596,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
         q@(Comp _ _ _) <- promoteT idR
-        debugUnit "singleCompEndT at" (q :: Expr)
+        -- debugUnit "singleCompEndT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
@@ -602,7 +613,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     singleCompT = do
     
         q@(Comp _ _ _) <- promoteT idR
-        debug "singleCompT at" (q :: Expr) (return ())
+        -- debugUnit "singleCompT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
@@ -685,12 +696,12 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
 
     tupleHeadR :: RewriteC CL
     tupleHeadR = do
-        e <- promoteT idR
-        debugUnit "tupleHeadR at" (e :: Expr)
+        -- e <- promoteT idR
+        -- debugUnit "tupleHeadR at" (e :: Expr)
         Comp _ _ qs <- promoteT idR
   
         headExprs <- oneT tupleComponentsT 
-        debugUnit "tupleHeadR collected" headExprs
+        -- debugUnit "tupleHeadR collected" headExprs
         
         let mkSingleComp :: Expr -> Expr
             mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
@@ -701,7 +712,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
                 
             singleComps = fmap mkSingleComp headExprs'
             
-        debugUnit "tupleheadR singleComps" singleComps
+        -- debugUnit "tupleheadR singleComps" singleComps
             
         -- FIXME fail if all translates failed -> define alternative to mapT
         unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
@@ -711,7 +722,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
 nestjoinHeadR :: RewriteC CL
 nestjoinHeadR = do
     c@(Comp _ _ _) <- promoteT idR
-    debugUnit "nestjoinR at" c
+    -- debugUnit "nestjoinR at" c
     unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
 
 --------------------------------------------------------------------------------
@@ -732,7 +743,7 @@ nestjoinHeadR = do
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
     c@(Comp t _ _)         <- promoteT idR 
-    debugUnit "nestjoinGuardR at" c
+    -- debugUnit "nestjoinGuardR at" c
     (tuplifyHeadR, qs') <- statefulT idR 
                            $ childT 1 (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
@@ -746,12 +757,12 @@ nestjoinGuardR = do
     unnestGuardT x xs = do
     
         e <- idR
-        debugUnit "unnestGuard at" (e :: Expr)
+        -- debugUnit "unnestGuard at" (e :: Expr)
         -- FIXME passing x is not necessary since we are not interested in
         -- collecting variables.
         -- Collect exactly one comprehension from the predicate.
         (_, [(path, t, f, qs)]) <- partitionEithers <$> extractT (collectExprT x)
-        debugUnit "unnestGuardT collected" (path, t, f, qs)
+        -- debugUnit "unnestGuardT collected" (path, t, f, qs)
         
         -- Check the shape of the inner qualifier list
         BindQ y ys :* (S (GuardQ q))  <- return qs
@@ -775,13 +786,13 @@ nestjoinGuardR = do
         pathPrefix <- rootPathT
         let relPath = dropPrefix pathPrefix path
         
-        debugUnit "pathPrefix, path, relPath" (pathPrefix, path, relPath)
+        -- debugUnit "pathPrefix, path, relPath" (pathPrefix, path, relPath)
 
         -- Substitute the body of the guard comprehension. As x might not occur,
         -- we need to guard the call.
         f' <- tryR $ constT (return $ inject f) >>> tuplifyHeadR >>> projectT
         
-        debugUnit "f'" f'
+        -- debugUnit "f'" f'
 
         let c = Comp t f' (S (BindQ y (P.snd joinVar)))
         
@@ -795,16 +806,16 @@ nestjoinGuardR = do
               >>> anyR (pathR relPath (constT (return $ inject c))) 
               >>> projectT
               
-        debugUnit "p'" p'
+        -- debugUnit "p'" p'
         
         return (tuplifyHeadR, xs', p')
         
     unnestQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     unnestQualsEndR = do
         c@(BindQ x xs :* (S (GuardQ p))) <- idR
-        debugUnit "qualsEndR at" c
+        -- debugUnit "qualsEndR at" c
         (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
-        debugUnit "qualsEndR (1)" xs'
+        -- debugUnit "qualsEndR (1)" xs'
         constT $ modify (>>> tuplifyHeadR)
         return $ BindQ x xs' :* (S (GuardQ p'))
 
@@ -820,17 +831,18 @@ nestjoinGuardR = do
 --------------------------------------------------------------------------------
 -- Filter pushdown
 
-selectQualsR :: RewriteC (NL Qual)
-selectQualsR = prunetdR $ pushR <+ pushEndR
+selectQualsR :: (Expr -> Bool) -> RewriteC (NL Qual)
+selectQualsR mayPush = prunetdR $ pushR <+ pushEndR
   where
-    pushR :: RewriteC (NL Qual)
-    pushR = do
-        (BindQ x xs) :* GuardQ p :* qs <- idR
-        
+    mkselectM :: Ident -> Expr -> Expr -> CompM Int Qual
+    mkselectM x xs p = do
         -- We only push predicates into generators if the predicate depends
         -- solely on this generator
         let fvs = freeVars p
         guardM $ [x] == fvs
+        
+        -- Only push filters which the 'mayPush' predicate considers eligible.
+        guardM $ mayPush p
         
         -- We do not push filters onto comprehensions. A comprehension nested in
         -- a qualifier needs to be unnested via m_norm_3 first. We add this
@@ -839,33 +851,31 @@ selectQualsR = prunetdR $ pushR <+ pushEndR
         case xs of
             Comp _ _ _ -> fail "selectR: don't push filters onto comprehensions"
             _          -> return ()
+            
+        return $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
         
-        return $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs) :* qs
+
+    pushR :: RewriteC (NL Qual)
+    pushR = do
+        (BindQ x xs) :* GuardQ p :* qs <- idR
+        
+        q' <- constT $ mkselectM x xs p
+        
+        return $ q' :* qs
         
         
     pushEndR :: RewriteC (NL Qual)
     pushEndR = do
         (BindQ x xs) :* (S (GuardQ p)) <- idR
         
-        -- We only push predicates into generators if the predicate depends
-        -- solely on this generator
-        let fvs = freeVars p
-        guardM $ [x] == fvs
-
-        -- We do not push filters onto comprehensions. A comprehension nested in
-        -- a qualifier needs to be unnested via m_norm_3 first. We add this
-        -- safeguard because we want to push filters early but need to avoid
-        -- blocking m_norm_3.
-        case xs of
-            Comp _ _ _ -> fail "selectR: don't push filters onto comprehensions"
-            _          -> return ()
+        q' <- constT $ mkselectM x xs p
         
-        return $ S $ BindQ x (P.filter (Lam ((elemT $ typeOf xs) .-> boolT) x p) xs)
+        return $ S q'
         
-selectR :: RewriteC CL
-selectR = do
+selectR :: (Expr -> Bool) -> RewriteC CL
+selectR mayPush = do
     Comp t h _ <- promoteT idR
-    qs' <- childT 1 (promoteR selectQualsR >>> projectT)
+    qs' <- childT 1 (promoteR (selectQualsR mayPush) >>> projectT)
     return $ inject $ Comp t h qs'
 
 ------------------------------------------------------------------
@@ -1164,33 +1174,32 @@ flatJoins = (promoteR (tryR pushSemiFilters) >>> semijoinR)
 compNorm :: RewriteC CL
 compNorm = m_norm_2R <+ m_norm_3R
            
-operators :: RewriteC CL
-operators = promoteR (tryR pushAllFilters) >>> selectR
-           
 nestJoins :: RewriteC CL
 nestJoins = nestjoinHeadR <+ nestjoinGuardR
             
 optimizeR :: RewriteC CL
-optimizeR = tryR normalizeR >>> (optCompR <+ optNonCompR)
+optimizeR = tryR normalizeR >>> repeatR (optCompR <+ optNonCompR)
   where
     optCompR :: RewriteC CL
     optCompR = do
         c@(Comp _ _ _) <- promoteT idR
-        debugUnit "comp at" c
 
-        repeatR $ extractR cleanupR
-                  <+ compNorm
-                  <+ flatJoins
-                  <+ operators
-                  <+ anyR optimizeR
-                  <+ nestJoins
-                  <+ extractR cleanupR
+        repeatR $ do
+            e <- promoteT idR
+            debugUnit "comp at" (e :: Expr)
+            extractR cleanupR
+              <+ compNorm
+              <+ promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred
+              <+ flatJoins
+              <+ anyR optimizeR
+              <+ nestJoins
+              <+ extractR cleanupR
 
     -- For non-comprehension nodes, simply descend
     optNonCompR :: RewriteC CL
     optNonCompR = do
         e <- idR
-        debugUnit "noncomp at" (e :: CL)
+        -- debugUnit "noncomp at" (e :: CL)
         anyR optimizeR
 
 --------------------------------------------------------------------------------
