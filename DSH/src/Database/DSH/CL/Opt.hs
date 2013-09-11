@@ -1005,7 +1005,6 @@ normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
                                 <+ promoteR normalizeExistential1R
                                 <+ promoteR normalizeExistential2R
                                 <+ promoteR normalizeUniversalR
-           
 
 ------------------------------------------------------------------
 -- Monad Comprehension Normalization rules
@@ -1189,7 +1188,7 @@ optimizeR = tryR normalizeR >>> repeatR (optCompR <+ optNonCompR)
             debugUnit "comp at" (e :: Expr)
             extractR cleanupR
               <+ compNorm
-              <+ promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred
+              <+ (promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred)
               <+ flatJoins
               <+ anyR optimizeR
               <+ nestJoins
