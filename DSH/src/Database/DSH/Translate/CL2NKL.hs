@@ -1,20 +1,22 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE BangPatterns    #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE BangPatterns     #-}
 
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
   
-import Debug.Trace
-
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Op
 
+import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang(toList, fromList)
 import qualified Database.DSH.CL.Lang as CL
-import qualified Database.DSH.NKL.Data.NKL as NKL
+import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
+import qualified Database.DSH.NKL.Data.NKL as NKL
        
 -- To transform CL into NKL we have to get rid of comprehensions. However, we
 -- don't want to implement full comprehension desugaring. To avoid it, we
@@ -23,7 +25,6 @@ import qualified Database.DSH.CL.Primitives as CP
 -- iterations are expressed in the form of cartesian products. The resulting
 -- single-qualifier comprehension should then be easy to desugar (just a map).
 
-{-
 prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
 prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
   where o' = case o of
@@ -81,7 +82,10 @@ expr (CL.Lam t v e)              = NKL.Lam t v (expr e)
 expr (CL.If t c th el)           = NKL.If t (expr c) (expr th) (expr el)
 expr (CL.Lit t v)                = NKL.Const t v
 expr (CL.Var t v)                = NKL.Var t v
-expr (CL.Comp t e (CL.Quals qs)) = desugar t e qs
+expr (CL.Comp t e qs)            = desugar t e (toList qs)
+     
+-- FIXME it would be nice to encode the non-emptiness of qualifier lists in the
+-- types. Currently, that's rather messy.
 
 -- | Desugar comprehensions into NKL expressions
 desugar :: Type -> CL.Expr -> [CL.Qual] -> NKL.Expr
@@ -111,8 +115,10 @@ productify e [q]                                = (e, q)
 productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) = 
   productify e' (q' : qs')
   
-  where e'  = CL.tuplify (x, xt) (y, yt) e
-        qs' = CL.tuplifyQuals (x, xt) (y, yt) qs
+  where e'  = guardTuplify x (x, xt) (y, yt) e
+        qs' = case fromList qs of
+                  Nothing    -> []
+                  Just qne   -> toList $ guardTuplify x (x, xt) (y, yt) qne
         q'  = CL.BindQ x (CL.AppE2 (listT pt) (CL.Prim2 CL.CartProduct cpt) xs ys)
         xt  = elemT $ typeOf xs
         yt  = elemT $ typeOf ys 
@@ -135,14 +141,17 @@ productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) =
   where q' = CL.GuardQ $ CL.BinOp boolT Conj p1 p2
            
 -- [ e | p1, x <- xs, qs ] = [ e | x <- filter (\x -> p) xs, qs ]
+-- FIXME this seems wrong
 productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) = 
   productify e ((CL.GuardQ p) : (CL.BindQ x xs) : qs)
+  
+guardTuplify :: Injection a CL => CL.Ident -> (CL.Ident, Type) -> (CL.Ident, Type) -> a -> a
+guardTuplify x v1 v2 v = 
+    case applyT (tuplifyR x v1 v2) v of
+        Left _   -> v
+        Right v' -> maybe $impossible id (project v)
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
 desugarComprehensions = expr
--}
 
-
-desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions !e = $impossible

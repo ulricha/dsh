@@ -4,6 +4,7 @@
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Aux 
     ( applyExpr
+    , applyT
       -- * Monad rewrites with additional state
     , TuplifyM
       -- * Converting predicate expressions into join predicates
@@ -35,6 +36,7 @@ import qualified Data.Foldable as F
 import           Data.List
 import           Debug.Trace
 
+import           Language.KURE                 
 import           Language.KURE.Debug
 
 import           Database.DSH.Impossible
@@ -50,6 +52,11 @@ type TuplifyM = CompSM (RewriteC CL)
 -- | Run a translate on an expression without context
 applyExpr :: TranslateC CL b -> Expr -> Either String b
 applyExpr f e = runCompM $ apply f initialCtx (inject e)
+
+-- | RUn a translate on any value which can be injected into CL
+applyT :: Injection a CL => TranslateC CL b -> a -> Either String b
+applyT t e = runCompM $ apply t initialCtx (inject e)
+          
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
