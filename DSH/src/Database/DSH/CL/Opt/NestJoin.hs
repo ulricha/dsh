@@ -429,7 +429,6 @@ nestjoinHeadR = do
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
     c@(Comp t _ _)         <- promoteT idR 
-    -- debugUnit "nestjoinGuardR at" c
     (tuplifyHeadR, qs') <- statefulT idR 
                            $ childT 1 (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
@@ -476,7 +475,7 @@ nestjoinGuardR = do
 
         -- Substitute the body of the guard comprehension. As x might not occur,
         -- we need to guard the call.
-        f' <- tryR $ constT (return $ inject f) >>> tuplifyHeadR >>> projectT
+        f' <- constT (return $ inject f) >>> (tryR tuplifyHeadR) >>> projectT
         
         -- debugUnit "f'" f'
 
@@ -488,7 +487,7 @@ nestjoinGuardR = do
         -- should not kill the path to the comprehension, but it would be better
         -- to be sure about this.
         p' <- injectT
-              >>> tuplifyHeadR 
+              >>> (tryR tuplifyHeadR)
               >>> anyR (pathR relPath (constT (return $ inject c))) 
               >>> projectT
               
@@ -512,7 +511,6 @@ nestjoinGuardR = do
         constT $ modify (>>> tuplifyHeadR)
         qs' <- liftstateT $ constT (return $ inject qs) >>> tuplifyHeadR >>> projectT
         return $ BindQ x xs' :* GuardQ p' :* qs'
-        
     
 ---------------------------------------------------------------------------------
 -- Support rewrites which are specific to nestjoin introduction (i.e. cleaning
