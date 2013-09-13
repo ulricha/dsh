@@ -152,10 +152,10 @@ instance Show Prim2Op where
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
   show CartProduct  = "cartProduct"
-  show (EquiJoin e1 e2) = printf "\x2a1d(%s, %s)" (show e1) (show e2)
-  show (NestJoin e1 e2) = printf "\x25b3(%s, %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2) = printf "\x22c9(%s, %s)" (show e1) (show e2)
-  show (AntiJoin e1 e2) = printf "\x25b7(%s, %s)" (show e1) (show e2)
+  show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
+  show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
+  show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)
+  show (AntiJoin e1 e2) = printf "\x25b7 (%s | %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
