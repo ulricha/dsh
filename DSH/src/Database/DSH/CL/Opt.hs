@@ -45,7 +45,12 @@ compNormLate :: RewriteC CL
 compNormLate = m_norm_4R <+ m_norm_5R
            
 nestJoins :: RewriteC CL
-nestJoins = nestjoinHeadR <+ nestjoinGuardR
+nestJoins = (nestjoinHeadR >>> cleanupNestJoinR)
+            <+ nestjoinGuardR
+            
+  where
+    cleanupNestJoinR :: RewriteC CL
+    cleanupNestJoinR = repeatR $ anytdR combineNestJoinsR
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy

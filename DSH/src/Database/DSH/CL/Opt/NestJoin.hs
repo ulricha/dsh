@@ -6,7 +6,11 @@
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinHeadR
-  , nestjoinGuardR ) where
+  , nestjoinGuardR
+  , combineNestJoinsR 
+  ) where
+  
+import           Debug.Trace
        
 import           Control.Applicative((<$>))
 import           Control.Arrow
@@ -27,7 +31,7 @@ import qualified Database.DSH.CL.Primitives as P
 
 import           Database.DSH.CL.Opt.Aux
 
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Pulling out expressions from comprehension heads 
 
 type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual) 
@@ -510,3 +514,100 @@ nestjoinGuardR = do
         return $ BindQ x xs' :* GuardQ p' :* qs'
         
     
+---------------------------------------------------------------------------------
+-- Support rewrites which are specific to nestjoin introduction (i.e. cleaning
+-- up the remains)
+
+-- | Clean up a pattern left by nestjoin introduction (nested comprehension head)
+-- 
+-- zip [ f | x <- xs △_p1 ys, qs1 ]
+--     [ g | x <- xs △_p2 zs, qs2 ]
+--
+-- =>
+-- 
+-- [ pair f[fst x/x] g[fst (fst x)/fst x]
+-- | x <- (xs △_p1 ys) △_p2' zs
+-- , qs[fst x/x]
+-- ]
+--
+-- Soundness of this rewrite can be motivated by the following fact: |xs △ ys| = |xs|
+
+combineNestJoinsR :: RewriteC CL
+combineNestJoinsR = do
+    e <- promoteT idR
+    debugUnit "combineNestJoinsR at" (e :: Expr)
+
+    AppE2 tz (Prim2 Zip _) (Comp tc1 f qs) (Comp tx2 g qs') <- promoteT idR
+    
+    case (qs, qs') of
+        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)),
+          S (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)))       -> do
+
+            guardM $ x == x'
+            guardM $ xs == xs'
+            inject <$> fst <$> combineCompsT x xsys zs f g p1 p2
+              
+        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)) :* qgs,
+          (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)) :* qgs') -> do
+
+            guardM $ x == x'
+            guardM $ xs == xs'
+            guardM $ qgs == qgs'
+
+            (Comp t h (S q), tuplifyxR) <- combineCompsT x xsys zs f g p1 p2
+            qgs' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
+            return $ inject $ Comp t h (q :* qgs')
+          
+        (_, _) ->
+            fail "no match" 
+
+  where
+  
+    combineCompsT
+      :: Ident 
+      -> Expr 
+      -> Expr
+      -> Expr
+      -> Expr
+      -> JoinExpr
+      -> JoinExpr
+      -> TranslateC CL (Expr, RewriteC CL)
+    combineCompsT x xsys zs f g p1 p2 = do
+        -- We need to change the left join predicate of the outer nestjoin,
+        -- because the type of its input changed (from xs to nj(xs, ys)
+        let p1'      = substJoinExpr p1
+            -- The nestjoin between nj(xs, ys) and zs
+            joinExpr = P.nestjoin xsys zs p1' p2
+            qs       = S (BindQ x joinExpr)
+
+           -- The element type of the combined nestjoin
+            xt   = typeOf joinExpr
+        
+            xVar = Var xt x
+
+            -- f[fst x/x]
+            tuplifyxR = substR x (P.fst xVar)
+
+        f' <- constT (return $ inject f) >>> tuplifyxR >>> projectT
+        
+        -- g[fst (fst x)/fst x]
+        g' <- constT (return $ inject g) >>> (tryR $ anybuR $ replaceFstR x xt) >>> projectT
+
+        -- Combine head expressions from both comprehensions by pairing them
+        let h = P.pair f' g'
+            
+        return (Comp (listT $ typeOf h) h qs, tuplifyxR)
+        
+    replaceFstR :: Ident -> Type -> RewriteC CL
+    replaceFstR x xt = do
+        AppE1 _ (Prim1 Fst _) (Var _ x') <- promoteT idR
+        guardM $ x == x'
+        return $ inject $ P.fst $ P.fst $ Var xt x
+        
+    -- | Change all occurences of the join input in the predicate into accesses
+    -- to the first tuple component of the input
+    substJoinExpr :: JoinExpr -> JoinExpr
+    substJoinExpr (BinOpJ op e1 e2) = BinOpJ op (substJoinExpr e1) (substJoinExpr e2)
+    substJoinExpr (UnOpJ op e1)     = UnOpJ op (substJoinExpr e1)
+    substJoinExpr (ConstJ v)        = ConstJ v
+    substJoinExpr InputJ            = UnOpJ FstJ InputJ

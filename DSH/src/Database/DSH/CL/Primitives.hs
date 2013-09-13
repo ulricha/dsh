@@ -1,3 +1,4 @@
+-- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
     
 import qualified Prelude as P
@@ -372,6 +373,12 @@ cond eb et ee = let tb = typeOf eb
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
                       else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
+                      
+nestjoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys
+  where
+    resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
+    joinType = typeOf xs .-> typeOf ys .-> resType
 
 unit :: Expr
 unit = Lit unitT V.UnitV
