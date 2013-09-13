@@ -61,6 +61,7 @@ optimizeR = tryR normalizeR >>> repeatR (optCompR <+ optNonCompR)
     optCompR :: RewriteC CL
     optCompR = do
         c@(Comp _ _ _) <- promoteT idR
+        debugUnit "optCompR at" c
 
         repeatR $ do
             e <- promoteT idR

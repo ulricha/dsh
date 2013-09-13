@@ -534,9 +534,6 @@ nestjoinGuardR = do
 
 combineNestJoinsR :: RewriteC CL
 combineNestJoinsR = do
-    e <- promoteT idR
-    debugUnit "combineNestJoinsR at" (e :: Expr)
-
     AppE2 tz (Prim2 Zip _) (Comp tc1 f qs) (Comp tx2 g qs') <- promoteT idR
     
     case (qs, qs') of

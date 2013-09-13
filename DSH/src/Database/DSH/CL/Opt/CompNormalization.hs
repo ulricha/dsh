@@ -103,7 +103,7 @@ m_norm_3R :: RewriteC CL
 m_norm_3R = do
     Comp t _ _ <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
-    h'                  <- childT 0 tuplifyHeadR >>> projectT
+    h'                  <- childT 0 (tryR tuplifyHeadR) >>> projectT
     return $ inject $ Comp t h' qs'
     
   where
