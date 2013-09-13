@@ -26,6 +26,8 @@ import           Database.DSH.Impossible
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+                 
+import           Language.KURE.Debug
 
 import qualified Database.DSH.CL.Primitives as P
 
@@ -201,6 +203,46 @@ mkheadmapR curr t h x xs qs = do
 
 ------------------------------------------------------------------
 -- Nestjoin introduction: unnesting in a comprehension head
+
+-- We approach unnesting from the head as follows: The general case is a
+-- comprehension of the form
+-- 
+--   [ h | x <- xs, qs ]
+-- 
+-- where the header h contains x and multiple comprehensions c1, ...,
+-- cn. factoroutHeadR normalizes the head into the following form:
+--
+--   [ ((((x, c1), c2), ...,), cn) | x <- xs, qs ]
+--
+-- Note that the header is a left-deep nested pair of x and all header
+-- comprehensions. x does not _need_ to occur here.
+-- 
+-- We start from this normal form and additionally require that all additional
+-- qualifiers in qs are guards. We reduce this to a base case, where only a
+-- single comprehension occurs in the head:
+--
+--   [ [ f x y | y <- ys, p x y ] | x <- xs, qs], ..., [ cn | x <- xs, qs ]
+--
+-- Each of these base-case comprehensions is easily unnested:
+--
+--   uc1 = [ [ f[fst x/x] | y <- snd x ] | x <- xs △(p) ys, qs[fst x/x] ], ..., ucn
+--
+-- The individual unnested comprehensions are then combined using zip. First, if
+-- the original comprehension had a free occurence of x (the outer generator
+-- variable) in the header, we patch x into the first unnested comprehension:
+--
+--   [ (fst x, [ f' | y <- snd x ]) | x <- xs △(p) ys, qs' ]
+--
+-- We then fold over the unnested comprehensions from the left and zip them
+-- together:
+--
+--   zip (zip (zip uc1 uc2) ...) ucn
+--
+-- Zipping in this form produces the left-deep tuple produced by the original
+-- normalized comprehension. Support rule combineNestJoinsR combines the
+-- individual nestjoin comprehensions which always feature the same xs as the
+-- left input into a stack of nestjoins and removes the zips.
+
     
 -- FIXME this should work on left-deep tuples
 tupleComponentsT :: TranslateC CL (NonEmpty Expr)
@@ -239,9 +281,10 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
       -> [Qual]  -- ^ Possibly additional outer qualifiers
       -> TranslateC CL Expr
     mknestjoinT t1 t2 h y ys p x xs preds = do
+  
         -- Split the join predicate
         (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
-        
+  
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
             tupType  = pairT xt (listT yt)
@@ -282,11 +325,10 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
         q@(Comp _ _ _) <- promoteT idR
-        -- debugUnit "singleCompEndT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
-        debug "trigger singleCompEndT" q $ mknestjoinT t1 t2 h y ys p x xs []
+        mknestjoinT t1 t2 h y ys p x xs []
         
     -- The base case: a single comprehension nested in the head of the outer
     -- comprehension. Assume more than one outer qualifier here. However, we
