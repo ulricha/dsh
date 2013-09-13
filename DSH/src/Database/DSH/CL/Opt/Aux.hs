@@ -26,18 +26,21 @@ module Database.DSH.CL.Opt.Aux
     , debug
     , debugUnit
     , debugOpt
+    , debugPipeR
     ) where
     
-import Control.Arrow
-import Control.Applicative
+import           Control.Arrow
+import           Control.Applicative
 import qualified Data.Foldable as F
-import Data.List
-import Debug.Trace
+import           Data.List
+import           Debug.Trace
 
-import Database.DSH.Impossible
-import Database.DSH.CL.Lang
-import Database.DSH.CL.Kure
-import Database.DSH.CL.Monad
+import           Language.KURE.Debug
+
+import           Database.DSH.Impossible
+import           Database.DSH.CL.Lang
+import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Monad
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
@@ -380,3 +383,7 @@ debugOpt origExpr mExpr =
         ++ show e 
         ++ "\n=================================================================================="
         
+debugPipeR :: (Monad m, Show a) => Rewrite c m a -> Rewrite c m a
+debugPipeR r = debugR 1000 "Before >>>>>>"
+               >>> r
+               >>> debugR 1000 ">>>>>>> After"
