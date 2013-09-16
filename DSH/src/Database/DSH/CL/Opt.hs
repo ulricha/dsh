@@ -61,7 +61,7 @@ optimizeR :: RewriteC CL
 optimizeR = tryR normalizeR >>> repeatR descendR
   where
     descendR :: RewriteC CL
-    descendR = optCompR <+ optNonCompR
+    descendR = optNonCompR <+ optCompR
 
     optCompR :: RewriteC CL
     optCompR = do
