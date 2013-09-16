@@ -27,8 +27,7 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = extractR houseCleaningR
-           <+ extractR partialEvalR
+cleanupR = extractR partialEvalR <+ extractR houseCleaningR
 
 flatJoinsR :: RewriteC CL
 flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR)
@@ -52,6 +51,9 @@ nestJoinsR = (nestjoinHeadR >>> tryR cleanupNestJoinR)
             
   where
     cleanupNestJoinR :: RewriteC CL
+    -- FIXME OPT anytdR could go away. combineNestJoinsR matches either the
+    -- current expression or the second child expression (when head was factored
+    -- out, i.e. a map introduced).
     cleanupNestJoinR = repeatR $ anytdR combineNestJoinsR
 
 --------------------------------------------------------------------------------
