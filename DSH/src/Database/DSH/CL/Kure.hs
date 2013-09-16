@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE LambdaCase            #-} 
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
    
@@ -321,26 +322,36 @@ instance Injection (NL Qual) CL where
     
 instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
-    allR r = promoteR allRexpr <+ promoteR allRqual <+ promoteR allRquals
+    allR r = 
+        rewrite $ \c -> \case
+            ExprCL exp -> inject <$> apply allRexpr c exp
+            QualCL q   -> inject <$> apply allRqual c q
+            QualsCL qs -> inject <$> apply allRquals c qs
     
       where
-        allRquals = qualsR (extractR r) (extractR r) <+ qualsemptyR (extractR r)
+        allRquals = readerT $ \case
+            S{}    -> qualsemptyR (extractR r)
+            (:*){} -> qualsR (extractR r) (extractR r)
         {-# INLINE allRquals #-}
 
-        allRqual = bindQualR (extractR r) <+ guardQualR (extractR r)
+        allRqual = readerT $ \case
+            GuardQ{} -> guardQualR (extractR r)
+            BindQ{}  -> bindQualR (extractR r)
         {-# INLINE allRqual #-}
 
-        allRexpr = varR <+ litR <+ tableR
-                   <+ ifR (extractR r) (extractR r) (extractR r)
-                   <+ appR (extractR r) (extractR r)
-                   <+ appe1R (extractR r)
-                   <+ appe2R (extractR r) (extractR r)
-                   <+ binopR (extractR r) (extractR r)
-                   <+ lamR (extractR r)
-                   <+ compR (extractR r) (extractR r)
+        allRexpr = readerT $ \case
+            Table{} -> idR
+            App{}   -> appR (extractR r) (extractR r)
+            AppE1{} -> appe1R (extractR r)
+            AppE2{} -> appe2R (extractR r) (extractR r)
+            BinOp{} -> binopR (extractR r) (extractR r)
+            Lam{}   -> lamR (extractR r)
+            If{}    -> ifR (extractR r) (extractR r) (extractR r)
+            Lit{}   -> idR
+            Var{}   -> varR
+            Comp{}  -> compR (extractR r) (extractR r)
         {-# INLINE allRexpr #-}
-         
-
+            
 --------------------------------------------------------------------------------
 -- A Walker instance for polymorphic NL lists so that we can use the traversal
 -- infrastructure on lists.
