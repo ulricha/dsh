@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
@@ -109,9 +109,11 @@ tableT :: Monad m => (Type -> String -> [Column] -> [Key] -> b)
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs ks -> return $ f ty n cs ks
                       _                -> fail "not a table node"
+{-# INLINE tableT #-}                      
                       
 tableR :: Monad m => Rewrite CompCtx m Expr
 tableR = tableT Table
+{-# INLINE tableR #-}
                                        
 appT :: Monad m => Translate CompCtx m Expr a1
                 -> Translate CompCtx m Expr a2
@@ -120,9 +122,11 @@ appT :: Monad m => Translate CompCtx m Expr a1
 appT t1 t2 f = translate $ \c expr -> case expr of
                       App ty e1 e2 -> f ty <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                       _            -> fail "not an application node"
-                      
+{-# INLINE appT #-}                      
+
 appR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 appR t1 t2 = appT t1 t2 App
+{-# INLINE appR #-}                      
                       
 appe1T :: Monad m => Translate CompCtx m Expr a
                   -> (Type -> Prim1 Type -> a -> b)
@@ -130,9 +134,11 @@ appe1T :: Monad m => Translate CompCtx m Expr a
 appe1T t f = translate $ \c expr -> case expr of
                       AppE1 ty p e -> f ty p <$> apply t (c@@0) e                  
                       _            -> fail "not a unary primitive application"
+{-# INLINE appe1T #-}                      
                       
 appe1R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 appe1R t = appe1T t AppE1
+{-# INLINE appe1R #-}                      
                       
 appe2T :: Monad m => Translate CompCtx m Expr a1
                   -> Translate CompCtx m Expr a2
@@ -141,9 +147,11 @@ appe2T :: Monad m => Translate CompCtx m Expr a1
 appe2T t1 t2 f = translate $ \c expr -> case expr of
                      AppE2 ty p e1 e2 -> f ty p <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                      _                -> fail "not a binary primitive application"
+{-# INLINE appe2T #-}                      
 
 appe2R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 appe2R t1 t2 = appe2T t1 t2 AppE2
+{-# INLINE appe2R #-}                      
                      
 binopT :: Monad m => Translate CompCtx m Expr a1
                   -> Translate CompCtx m Expr a2
@@ -152,9 +160,11 @@ binopT :: Monad m => Translate CompCtx m Expr a1
 binopT t1 t2 f = translate $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
                      _                 -> fail "not a binary operator application"
+{-# INLINE binopT #-}                      
 
 binopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 binopR t1 t2 = binopT t1 t2 BinOp
+{-# INLINE binopR #-}                      
                      
 lamT :: Monad m => Translate CompCtx m Expr a
                 -> (Type -> Ident -> a -> b)
@@ -162,9 +172,11 @@ lamT :: Monad m => Translate CompCtx m Expr a
 lamT t f = translate $ \c expr -> case expr of
                      Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@0) e
                      _          -> fail "not a lambda"
+{-# INLINE lamT #-}                      
                      
 lamR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 lamR t = lamT t Lam
+{-# INLINE lamR #-}                      
                      
 ifT :: Monad m => Translate CompCtx m Expr a1
                -> Translate CompCtx m Expr a2
@@ -176,28 +188,34 @@ ifT t1 t2 t3 f = translate $ \c expr -> case expr of
                                            <*> apply t2 (c@@1) e2
                                            <*> apply t3 (c@@2) e3
                     _              -> fail "not an if expression"
+{-# INLINE ifT #-}                      
                     
 ifR :: Monad m => Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
 ifR t1 t2 t3 = ifT t1 t2 t3 If               
+{-# INLINE ifR #-}                      
                     
 litT :: Monad m => (Type -> Val -> b) -> Translate CompCtx m Expr b
 litT f = contextfreeT $ \expr -> case expr of
                     Lit ty v -> return $ f ty v
                     _          -> fail "not a constant"
+{-# INLINE litT #-}                      
                     
 litR :: Monad m => Rewrite CompCtx m Expr
 litR = litT Lit
+{-# INLINE litR #-}                      
                     
 varT :: Monad m => (Type -> Ident -> b) -> Translate CompCtx m Expr b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
                     _        -> fail "not a variable"
+{-# INLINE varT #-}                      
                     
 varR :: Monad m => Rewrite CompCtx m Expr
 varR = varT Var
+{-# INLINE varR #-}                      
 
 compT :: Monad m => Translate CompCtx m Expr a1
                  -> Translate CompCtx m (NL Qual) a2
@@ -207,11 +225,13 @@ compT t1 t2 f = translate $ \ctx expr -> case expr of
                     Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual (ctx@@0) qs) e 
                                          <*> apply t2 (ctx@@1) qs
                     _            -> fail "not a comprehension"
+{-# INLINE compT #-}                      
                     
 compR :: Monad m => Rewrite CompCtx m Expr
                  -> Rewrite CompCtx m (NL Qual)
                  -> Rewrite CompCtx m Expr
 compR t1 t2 = compT t1 t2 Comp                 
+{-# INLINE compR #-}                      
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for qualifiers
@@ -222,9 +242,11 @@ bindQualT :: Monad m => Translate CompCtx m Expr a
 bindQualT t f = translate $ \ctx expr -> case expr of
                 BindQ n e -> f n <$> apply t (ctx@@0) e
                 _         -> fail "not a generator"
+{-# INLINE bindQualT #-}                      
                 
 bindQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
 bindQualR t = bindQualT t BindQ
+{-# INLINE bindQualR #-}                      
 
 guardQualT :: Monad m => Translate CompCtx m Expr a 
                       -> (a -> b) 
@@ -232,9 +254,11 @@ guardQualT :: Monad m => Translate CompCtx m Expr a
 guardQualT t f = translate $ \ctx expr -> case expr of
                 GuardQ e -> f <$> apply t (ctx@@0) e
                 _        -> fail "not a guard"
+{-# INLINE guardQualT #-}                      
                 
 guardQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
 guardQualR t = guardQualT t GuardQ
+{-# INLINE guardQualR #-}                      
 
 --------------------------------------------------------------------------------
 -- Congruence combinator for a qualifier list
@@ -246,11 +270,13 @@ qualsT :: Monad m => Translate CompCtx m Qual a1
 qualsT t1 t2 f = translate $ \ctx quals -> case quals of
                    q :* qs -> f <$> apply t1 (ctx@@0) q <*> apply t2 (bindQual (ctx@@0) q) qs
                    S _     -> fail "not a nonempty cons"
+{-# INLINE qualsT #-}                      
                    
 qualsR :: Monad m => Rewrite CompCtx m Qual
                   -> Rewrite CompCtx m (NL Qual)
                   -> Rewrite CompCtx m (NL Qual)
 qualsR t1 t2 = qualsT t1 t2 (:*)                  
+{-# INLINE qualsR #-}                      
 
                    
 qualsemptyT :: Monad m => Translate CompCtx m Qual a
@@ -259,10 +285,12 @@ qualsemptyT :: Monad m => Translate CompCtx m Qual a
 qualsemptyT t f = translate $ \ctx quals -> case quals of
                       S q -> f <$> apply t (ctx@@0) q
                       _   -> fail "not a nonempty singleton"
+{-# INLINE qualsemptyT #-}                      
                       
 qualsemptyR :: Monad m => Rewrite CompCtx m Qual
                        -> Rewrite CompCtx m (NL Qual)
 qualsemptyR t = qualsemptyT t S                       
+{-# INLINE qualsemptyR #-}                      
 
 --------------------------------------------------------------------------------
        
@@ -297,8 +325,10 @@ instance Walker CompCtx CL where
     
       where
         allRquals = qualsR (extractR r) (extractR r) <+ qualsemptyR (extractR r)
+        {-# INLINE allRquals #-}
 
         allRqual = bindQualR (extractR r) <+ guardQualR (extractR r)
+        {-# INLINE allRqual #-}
 
         allRexpr = varR <+ litR <+ tableR
                    <+ ifR (extractR r) (extractR r) (extractR r)
@@ -308,6 +338,8 @@ instance Walker CompCtx CL where
                    <+ binopR (extractR r) (extractR r)
                    <+ lamR (extractR r)
                    <+ compR (extractR r) (extractR r)
+        {-# INLINE allRexpr #-}
+         
 
 --------------------------------------------------------------------------------
 -- A Walker instance for polymorphic NL lists so that we can use the traversal
@@ -319,19 +351,23 @@ consT :: Monad m => Translate CompCtx m (NL a) b
 consT t f = translate $ \ctx nl -> case nl of
                 a :* as -> f a <$> apply t (ctx@@0) as
                 S _     -> fail "not a nonempty cons"
+{-# INLINE consT #-}                      
                     
 consR :: Monad m => Rewrite CompCtx m (NL a) 
                  -> Rewrite CompCtx m (NL a)
 consR t = consT t (:*)                 
+{-# INLINE consR #-}                      
 
 singletonT :: Monad m => (a -> c)
                       -> Translate CompCtx m (NL a) c
 singletonT f = contextfreeT $ \nl -> case nl of
                    S a    -> return $ f a
                    _ :* _ -> fail "not a nonempty singleton"
+{-# INLINE singletonT #-}                      
                
 singletonR :: Monad m => Rewrite CompCtx m (NL a)
 singletonR = singletonT S                      
+{-# INLINE singletonR #-}                      
                    
 instance Walker CompCtx (NL a) where
     allR r = consR r <+ singletonR
