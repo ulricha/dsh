@@ -30,16 +30,13 @@ module Database.DSH.CL.Opt.Aux
     , debugPipeR
     ) where
     
-import           Prelude hiding (Either(..), either)
-    
 import           Control.Arrow
 import           Control.Applicative
 import qualified Data.Foldable as F
 import           Data.List
 import           Debug.Trace
-import           Data.Strict.Either
 
-import           Language.KURE
+import           Language.KURE                 
 import           Language.KURE.Debug
 
 import           Database.DSH.Impossible

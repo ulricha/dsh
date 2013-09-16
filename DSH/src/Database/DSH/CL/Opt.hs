@@ -8,11 +8,8 @@ module Database.DSH.CL.Opt
   ( opt ) where
   
 import Debug.Trace
-import Prelude hiding (Either(..), either)
        
 import Control.Arrow
-       
-import Data.Strict.Either
 
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure

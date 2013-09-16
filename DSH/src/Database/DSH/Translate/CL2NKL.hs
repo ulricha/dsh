@@ -5,9 +5,6 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
   
-import Prelude hiding (Either(..))
-import Data.Strict.Either
-  
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Data.Type

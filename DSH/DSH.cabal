@@ -82,11 +82,10 @@ Library
                      TableAlgebra >= 2.0.0,
                      semigroups,
                      kure,
-                     ansi-wl-pprint,
-                     strict
+                     ansi-wl-pprint
                      
   Hs-source-dirs:    src
-  GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults -O2
+  GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
