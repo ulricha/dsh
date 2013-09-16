@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs         #-}
 
 module Database.DSH.CL.Monad
     ( CompM
