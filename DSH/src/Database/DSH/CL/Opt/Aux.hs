@@ -292,6 +292,7 @@ substR v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_qual
     rules_var = do Var _ n <- promoteT idR
                    guardM (n == v)
                    return $ inject s
+    {-# INLINE rules_var #-}
     
     rules_lam :: RewriteC CL
     rules_lam = do Lam _ n e <- promoteT idR
@@ -300,16 +301,19 @@ substR v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_qual
                    if n `elem` freeVars s
                        then promoteR alphaLamR >>> rules_lam
                        else promoteR $ lamR (extractR $ substR v s)
+    {-# INLINE rules_lam #-}
                        
     rules_comp :: RewriteC CL
     rules_comp = do Comp _ _ qs <- promoteT idR
                     if v `elem` compBoundVars qs
                         then promoteR $ compR idR (extractR $ substR v s)
                         else promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
+    {-# INLINE rules_comp #-}
                        
     rules_nonbind :: RewriteC CL
     rules_nonbind = do guardMsgM (nonBinder <$> promoteT idR) "binding node"
                        anyR (substR v s)
+    {-# INLINE rules_nonbind #-}
                        
     rules_quals :: RewriteC CL
     rules_quals = do qs <- promoteT idR
@@ -325,9 +329,11 @@ substR v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_qual
                              promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
                          S _              -> do
                              promoteR $ qualsemptyR (extractR $ substR v s)
+    {-# INLINE rules_quals #-}
     
     rules_qual :: RewriteC CL
     rules_qual = anyR (substR v s)
+    {-# INLINE rules_qual #-}
 
 --------------------------------------------------------------------------------
 -- Tuplifying variables
