@@ -18,6 +18,10 @@ module Database.DSH.CL.Monad
 import Control.Applicative
 import Control.Monad
        
+import Prelude hiding (Either(..))
+       
+import Data.Strict.Either
+       
 import Language.KURE
 
 import Database.DSH.CL.Lang
