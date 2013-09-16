@@ -36,17 +36,33 @@ runCompM' :: s -> CompM s a -> (s, Either String a)
 runCompM' s m = compM m s
 
 instance Monad (CompM s) where
-  return a = CompM (\n -> (n,Right a))
-  (CompM f) >>= gg = CompM $ \ n -> case f n of
+  return = returnM
+  (>>=)  = bindM
+  fail   = failM
+  
+returnM :: a -> CompM s a
+returnM a = CompM (\n -> (n, Right a))
+{-# INLINE returnM #-}
+  
+bindM :: CompM s a -> (a -> CompM s b) -> CompM s b
+bindM (CompM f) gg = CompM $ \ n -> case f n of
                                     (n', Left msg) -> (n', Left msg)
                                     (n', Right a)  -> compM (gg a) n'
-  fail msg = CompM (\ n -> (n, Left msg))
+{-# INLINE bindM #-}                                    
+                                    
+failM :: String -> CompM s a
+failM msg = CompM (\n -> (n, Left msg))
+{-# INLINE failM #-}
 
 instance MonadCatch (CompM s) where
+    catchM = catchCompM
 
-  (CompM st) `catchM` f = CompM $ \ n -> case st n of
+catchCompM :: CompM s a -> (String -> CompM s a) -> CompM s a
+catchCompM (CompM st) f = CompM $ \ n -> case st n of
                                         (n', Left msg) -> compM (f msg) n'
                                         (n', Right a)  -> (n', Right a)
+{-# INLINE catchCompM #-}                                        
+
 
 instance Functor (CompM s) where
   fmap = liftM
@@ -78,12 +94,15 @@ freshNameS vs = do v <- suggestName'
                      
 get :: CompSM s s
 get = CompM $ \(i, s) -> ((i, s), Right s)
+{-# INLINE get #-}
 
 put :: s -> CompSM s ()
 put s = CompM $ \(i, _) -> ((i, s), Right ())
+{-# INLINE put #-}
 
 modify :: (s -> s) -> CompSM s ()
 modify f = CompM $ \(i, s) -> ((i, f s), Right ())
+{-# INLINE modify #-}
 
 stateful :: s -> CompSM s a -> CompM Int (s, a)
 stateful s ma = CompM $ \i -> 
