@@ -138,5 +138,44 @@ semijoinR = do
 --------------------------------------------------------------------------------
 -- Introduce anti joins (universal quantification)
 
+-- | Construct an antijoin qualifier given a predicate and two generators. Note
+-- that the splitJoinPred call implicitly checks that only x and y occur free in
+-- the predicate and no further correlation takes place.
+mkantijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
+mkantijoinT joinPred x y xs ys = do
+    (leftExpr, rightExpr) <- constT (return joinPred) >>> splitJoinPredT x y
+
+    let xst = typeOf xs
+        yst = typeOf ys
+        jt  = xst .-> yst .-> xst
+
+    -- => [ ... | ..., x <- xs semijoin(p1, p2) ys, ... ]
+    return $ BindQ x (AppE2 xst (Prim2 (AntiJoin leftExpr rightExpr) jt) xs ys)
+
+-- | Match a NOT IN antijoin pattern in the middle of a qualifier list
+notinR :: RewriteC (NL Qual)
+notinR = do
+    -- [ ... | ..., x <- xs, and [ True | y <- ys, not p ], ... ]
+    BindQ x xs :* GuardQ (AppE1 _ (Prim1 And _) 
+                                  (Comp _ (Lit _ (BoolV True)) 
+                                          (BindQ y ys :* (S (GuardQ (AppE1 _ (Prim1 Not _) p)))))) :* qs <- idR
+    q' <- mkantijoinT p x y xs ys
+    return $ q' :* qs
+
+-- | Match a NOT IN antijoin pattern at the end of a list
+notinEndR :: RewriteC (NL Qual)
+notinEndR = do
+    -- [ ... | ..., x <- xs, and [ True | y <- ys, not p ] ]
+    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 And _) 
+                                      (Comp _ (Lit _ (BoolV True)) 
+                                              ((BindQ y ys) :* (S (GuardQ (AppE1 _ (Prim1 Not _) p)))))))) <- idR
+    q' <- mkantijoinT p x y xs ys
+    return (S q')
+    
+universalQualsR :: RewriteC (NL Qual)
+universalQualsR = anytdR $ repeatR (notinR <+ notinEndR)
+
 antijoinR :: RewriteC CL
-antijoinR = fail "antijoinR not implemented"
+antijoinR = do
+    Comp _ _ _ <- promoteT idR
+    childR 1 (promoteR universalQualsR)
