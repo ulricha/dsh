@@ -84,13 +84,6 @@ optimizeR = tryR normalizeR >>> repeatR descendR
               <+ flatJoinsR
               <+ anyR descendR
               <+ nestJoinsR
-
-    -- For non-comprehension nodes, simply descend
-    optNonCompR :: RewriteC CL
-    optNonCompR = do
-        -- e <- idR
-        -- debugUnit "noncomp at" (e :: CL)
-        repeatR cleanupR >+> anyR descendR
         
 depth :: Expr -> (Int, Int)
 depth e = (maximum ps, length ps)

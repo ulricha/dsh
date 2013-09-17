@@ -54,7 +54,7 @@ type TuplifyM = CompSM (RewriteC CL)
 applyExpr :: TranslateC CL b -> Expr -> Either String b
 applyExpr f e = runCompM $ apply f initialCtx (inject e)
 
--- | RUn a translate on any value which can be injected into CL
+-- | Run a translate on any value which can be injected into CL
 applyT :: Injection a CL => TranslateC CL b -> a -> Either String b
 applyT t e = runCompM $ apply t initialCtx (inject e)
           
