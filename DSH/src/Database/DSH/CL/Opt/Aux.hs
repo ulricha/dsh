@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE LambdaCase       #-}
 
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Aux 
@@ -286,54 +287,40 @@ nonBinder expr =
         _          -> True
                                                 
 substR :: Ident -> Expr -> RewriteC CL
-substR v s = rules_var <+ rules_lam <+ rules_nonbind <+ rules_comp <+ rules_quals <+ rules_qual
-  where
-    rules_var :: RewriteC CL
-    rules_var = do Var _ n <- promoteT idR
-                   guardM (n == v)
-                   return $ inject s
-    {-# INLINE rules_var #-}
+substR v s = readerT $ \case
+    -- Occurence of the variable to be replaced
+    ExprCL (Var _ n) | n == v                          -> return $ inject s
+
+    -- Some other variable
+    ExprCL (Var _ _)                                   -> idR
+
+    -- A lambda which does not shadow v and in which v occurs free. If the
+    -- lambda variable occurs free in the substitute, we rename the lambda
+    -- variable to avoid name capturing.
+    ExprCL (Lam _ n e) | n /= v && v `elem` freeVars e -> 
+        if n `elem` freeVars s
+        then promoteR alphaLamR >>> substR v s
+        else promoteR $ lamR (extractR $ substR v s)
+
+    -- A lambda which shadows v -> don't descend
+    ExprCL (Lam _ _ _)                                 -> idR
     
-    rules_lam :: RewriteC CL
-    rules_lam = do Lam _ n e <- promoteT idR
-                   guardM (n /= v)
-                   guardM $ v `elem` freeVars e
-                   if n `elem` freeVars s
-                       then promoteR alphaLamR >>> rules_lam
-                       else promoteR $ lamR (extractR $ substR v s)
-    {-# INLINE rules_lam #-}
-                       
-    rules_comp :: RewriteC CL
-    rules_comp = do Comp _ _ qs <- promoteT idR
-                    if v `elem` compBoundVars qs
-                        then promoteR $ compR idR (extractR $ substR v s)
-                        else promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
-    {-# INLINE rules_comp #-}
-                       
-    rules_nonbind :: RewriteC CL
-    rules_nonbind = do guardMsgM (nonBinder <$> promoteT idR) "binding node"
-                       anyR (substR v s)
-    {-# INLINE rules_nonbind #-}
-                       
-    rules_quals :: RewriteC CL
-    rules_quals = do qs <- promoteT idR
-                     case qs of
-                         (BindQ n _) :* _ -> do
-                             if n == v
-                                 -- the current binding shadows the variable to be replaced
-                                 -- => don't descent into the tail
-                                 then promoteR $ qualsR (extractR $ substR v s) idR
-                                 -- no shadowing, descend into the tail
-                                 else promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
-                         _ :* _           -> do
-                             promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
-                         S _              -> do
-                             promoteR $ qualsemptyR (extractR $ substR v s)
-    {-# INLINE rules_quals #-}
+    -- If some generator shadows v, we must not substitute in the comprehension
+    -- head. However, substitute in the qualifier list. The traversal on
+    -- qualifiers takes care of shadowing generators.
+    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
+    ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
     
-    rules_qual :: RewriteC CL
-    rules_qual = anyR (substR v s)
-    {-# INLINE rules_qual #-}
+    ExprCL (Lit _ _)                                   -> idR
+    ExprCL (Table _ _ _ _)                             -> idR
+    ExprCL _                                           -> anyR $ substR v s
+    
+    -- Don't substitute past shadowingt generators
+    QualsCL ((BindQ n _) :* _) | n == v                -> promoteR $ qualsR (extractR $ substR v s) idR
+    QualsCL (_ :* _)                                   -> promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
+    QualsCL (S _)                                      -> promoteR $ qualsemptyR (extractR $ substR v s)
+    QualCL _                                           -> anyR $ substR v s
+    
 
 --------------------------------------------------------------------------------
 -- Tuplifying variables
