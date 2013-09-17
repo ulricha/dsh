@@ -4,7 +4,6 @@
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
        
-import           Debug.Trace
 import           Text.Printf
 
 import           Data.Maybe
@@ -47,6 +46,9 @@ itemi i = "item" ++ show i
 
 itemi' :: Int -> AttrName
 itemi' i = "item9999910" ++ show i
+
+exprcoli :: Int -> AttrName
+exprcoli i = "item9999920" ++ show i
 
 algVal :: VL.VLVal -> AVal
 algVal (VL.VLInt i) = int (fromIntegral i)
@@ -120,8 +122,8 @@ freshCol :: ExprComp r AttrName
 freshCol = do
   i <- get
   put $ i + 1
-  return $ itemi' i
-
+  return $ exprcoli i
+  
 runExprComp :: ExprComp r a -> GraphM r PFAlgebra a
 runExprComp m = evalStateT m 1
 
@@ -153,7 +155,7 @@ compileExpr1' cols n (VL.App1 op e1 e2)   = do
   return (nr, col)
 compileExpr1' cols n (VL.Column1 dbcol)   = do
   col <- freshCol
-  nr <- trace (printf "fresh %s" col) $ lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
+  nr <- lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
   return (nr, col)
 compileExpr1' _ n (VL.Constant1 constVal) = do
   col <- freshCol
@@ -213,7 +215,7 @@ applyBinExpr :: Int -> VL.Expr2 -> AlgNode -> AlgNode -> GraphM r PFAlgebra AlgN
 applyBinExpr rightWidth e q1 q2 = do
   let colShift = [ (itemi' i, itemi i) | i <- [1..rightWidth] ]
   qCombined <- eqJoinM pos pos' (return q1)
-               -- shift the column names on the rigth to avoid name collisions
+               -- shift the column names on the right to avoid name collisions
                $ proj ((pos', pos) : colShift) q2
   (qr, cr) <- compileExpr2 qCombined e
   proj [colP descr, colP pos, (item, cr)] qr
@@ -550,7 +552,7 @@ instance VectorAlgebra PFAlgebra where
                                 (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
     return $ (DBV d1 colsg, DBV v colse, PropVector p)
 
-  cartProduct (DBV q1 cols1) (DBV q2 cols2) = trace "foo" $ do
+  cartProduct (DBV q1 cols1) (DBV q2 cols2) = do
     let itemProj1  = map (colP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zip (map itemi cols2') (map itemi cols2)
@@ -586,13 +588,16 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zip (map itemi cols2') (map itemi cols2)
         itemProj2  = map (colP . itemi) cols2'
+
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+
     q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
            $ thetaJoinM [(tmpCol, tmpCol', EqJ)]
              (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
              (proj ([(pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
+
     qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [(posold, pos'), (posnew, pos)] q
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
@@ -603,8 +608,10 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zip (map itemi cols2') (map itemi cols2)
         itemProj2  = map (colP . itemi) cols2'
+
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+
     q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
            $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
@@ -823,9 +830,9 @@ instance VectorAlgebra PFAlgebra where
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
     q <- rownumM pos [posold] Nothing
          $ projM (keepItems cols1 [colP descr, (posold, pos)])
-         $ eqJoinM cl cr
-             (return ql)
-             (distinctM $ proj [colP cr] qr)
+         $ eqJoinM tmpCol tmpCol'
+             (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
+             (distinctM $ proj [(tmpCol', cr)] qr)
     qj <- proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
@@ -835,9 +842,9 @@ instance VectorAlgebra PFAlgebra where
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
     q <- rownumM pos [descr, posold] Nothing
          $ projM (keepItems cols1 [colP descr, (posold, pos)])
-         $ thetaJoinM [(descr, descr', EqJ), (cl, cr, EqJ)]
-             (return ql)
-             (distinctM $ proj [(descr', descr), colP cr] qr)
+         $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
+             (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
+             (distinctM $ proj [(descr', descr), (tmpCol', cr)] qr)
     qj <- proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
