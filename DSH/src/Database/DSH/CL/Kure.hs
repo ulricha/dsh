@@ -348,7 +348,7 @@ instance Walker CompCtx CL where
             Lam{}   -> lamR (extractR r)
             If{}    -> ifR (extractR r) (extractR r) (extractR r)
             Lit{}   -> idR
-            Var{}   -> varR
+            Var{}   -> idR
             Comp{}  -> compR (extractR r) (extractR r)
         {-# INLINE allRexpr #-}
             
