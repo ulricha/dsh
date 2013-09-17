@@ -3,11 +3,9 @@
     
 -- | This module performs optimizations on the Nested Kernel Language (NKL).
 module Database.DSH.NKL.Opt 
-  ( opt 
-  ) where
+  ( opt ) where
        
 import           Debug.Trace
-import           Text.Printf
 
 import qualified Data.Set as S
 
