@@ -1,6 +1,3 @@
-%if False
-\begin{code}
-
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -29,31 +26,16 @@ import           Database.DSH.Common.Data.Type(Type, Typed, typeOf)
   
 import qualified Data.Set as S
 
-\end{code}
-%endif
-%{
-%include syntaxdef.fmt
-%include nkl.fmt
-The following syntax diagram describes our input language, the Nested Kernel Language.
-% The code below defines the NKL grammar
-\newcommand{\NKLGrammar}{
-\begin{code}
-data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database table $n$}
-           |  App Type Expr Expr                -- \textrm{Application of two expressions}
-           |  AppE1 Type (Prim1 Type) Expr             -- \textrm{Application of a primitive to a single argument}
-           |  AppE2 Type (Prim2 Type) Expr Expr        -- \textrm{Application of a primitive to two arguments}
-           |  BinOp Type Oper Expr Expr         -- \textrm{Application of a binary opertor $\oplus$ to two arguments}
-           |  Lam Type Ident Expr              -- \textrm{Lambda abstraction}
-           |  If Type Expr Expr Expr            -- \textrm{Conditional}
-           |  Const Type Val                    -- \textrm{Constant value}
-           |  Var Type Ident                   -- \textrm{Variable}
-\end{code}
-}
-%}
-\NKLGrammar
-
-%if False
-\begin{code}
+-- | Nested Kernel Language (NKL) expressions
+data Expr  =  Table Type String [Column] [Key]
+           |  App Type Expr Expr
+           |  AppE1 Type (Prim1 Type) Expr
+           |  AppE2 Type (Prim2 Type) Expr Expr
+           |  BinOp Type Oper Expr Expr
+           |  Lam Type Ident Expr
+           |  If Type Expr Expr Expr
+           |  Const Type Val
+           |  Var Type Ident
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
@@ -95,10 +77,7 @@ parenthize e =
 
 deriving instance Eq Expr
 deriving instance Ord Expr
-\end{code}
-%endif
 
-\begin{code}
 freeVars :: Expr -> S.Set String
 freeVars (Table _ _ _ _) = S.empty
 freeVars (App _ e1 e2) = freeVars e1 `S.union` freeVars e2
@@ -188,5 +167,3 @@ instance Show Prim2Op where
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
-\end{code}
-%}
