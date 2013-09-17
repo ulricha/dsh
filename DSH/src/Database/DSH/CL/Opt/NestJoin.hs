@@ -618,7 +618,7 @@ combineNestJoinsR = do
             qs       = S (BindQ x joinExpr)
 
            -- The element type of the combined nestjoin
-            xt   = typeOf joinExpr
+            xt   = elemT $ typeOf joinExpr
         
             xVar = Var xt x
 
