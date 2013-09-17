@@ -5,6 +5,8 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
   
+import           Debug.Trace
+  
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Data.Type
@@ -114,7 +116,7 @@ productify e [q]                                = (e, q)
 -- [ e | x <- xs, y <- ys, qs ] = 
 -- [ e[fst x/x][snd x/y] | x <- cartProd xs ys, qs[fst x/x][snd x/y] ]
 productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) = 
-  productify e' (q' : qs')
+  trace (show e') $ productify e' (q' : qs')
   
   where e'  = guardTuplify x (x, xt) (y, yt) e
         qs' = case fromList qs of
@@ -146,13 +148,19 @@ productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) =
 productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) = 
   productify e ((CL.GuardQ p) : (CL.BindQ x xs) : qs)
   
-guardTuplify :: Injection a CL => CL.Ident -> (CL.Ident, Type) -> (CL.Ident, Type) -> a -> a
+guardTuplify :: (Injection a CL, Show a) => CL.Ident -> (CL.Ident, Type) -> (CL.Ident, Type) -> a -> a
 guardTuplify x v1 v2 v = 
     case applyT (tuplifyR x v1 v2) v of
         Left _   -> v
-        Right v' -> maybe $impossible id (project v)
+        Right v' -> maybe $impossible id (project v')
+        
+debugPrint :: NKL.Expr -> String
+debugPrint e =
+        "\nDesugared NKL =====================================================================\n"
+        ++ show e 
+        ++ "\n==================================================================================="
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions = expr
+desugarComprehensions e = let e' = expr e in trace (debugPrint e') e'
 
