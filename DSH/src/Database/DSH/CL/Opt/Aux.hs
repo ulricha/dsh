@@ -29,6 +29,8 @@ module Database.DSH.CL.Opt.Aux
     , debugUnit
     , debugOpt
     , debugPipeR
+    , debugTrace
+    , debugShow
     ) where
     
 import           Control.Arrow
@@ -387,3 +389,9 @@ debugPipeR :: (Monad m, Show a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = debugR 1000 "Before >>>>>>"
                >>> r
                >>> debugR 1000 ">>>>>>> After"
+               
+debugTrace :: Monad m => String -> Rewrite c m a
+debugTrace msg = trace msg idR
+
+debugShow :: (Monad m, Show a) => String -> Rewrite c m a
+debugShow msg = debugR 10000 (msg ++ "\n")

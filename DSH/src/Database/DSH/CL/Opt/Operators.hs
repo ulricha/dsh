@@ -6,6 +6,8 @@
 -- | Introduce additional operators (e.g. selection, projection)
 module Database.DSH.CL.Opt.Operators
   ( selectR ) where
+  
+import           Debug.Trace
        
 import           Control.Arrow
 
@@ -63,4 +65,4 @@ selectR :: (Expr -> Bool) -> RewriteC CL
 selectR mayPush = do
     Comp t h _ <- promoteT idR
     qs' <- childT 1 (promoteR (selectQualsR mayPush) >>> projectT)
-    return $ inject $ Comp t h qs'
+    trace "select" $ return $ inject $ Comp t h qs'

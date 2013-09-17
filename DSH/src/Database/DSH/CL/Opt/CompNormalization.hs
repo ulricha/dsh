@@ -13,11 +13,13 @@ module Database.DSH.CL.Opt.CompNormalization
   , m_norm_5R
   ) where
        
-import           Control.Arrow
+import Control.Arrow
+                 
+import Debug.Trace
 
-import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Kure
-import           Database.DSH.CL.Opt.Aux
+import Database.DSH.CL.Lang
+import Database.DSH.CL.Kure
+import Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
 -- Monad Comprehension Normalization rules
@@ -45,7 +47,7 @@ m_norm_1R = do
 -- [ h | qs, x <- [v], qs' ]
 -- => [ h[v/x] | qs, qs'[v/x] ]
 m_norm_2R :: RewriteC CL
-m_norm_2R = normSingletonCompR <+ normCompR
+m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
     
   where
     -- This rewrite is a bit annoying: If it triggers, we can remove a
@@ -104,7 +106,7 @@ m_norm_3R = do
     Comp t _ _ <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
     h'                  <- childT 0 (tryR tuplifyHeadR) >>> projectT
-    return $ inject $ Comp t h' qs'
+    trace "m_norm_3" $ return $ inject $ Comp t h' qs'
     
   where
   

@@ -9,12 +9,12 @@ module Database.DSH.CL.Opt.FlatJoin
   , antijoinR
   , eqjoinR
   ) where
+  
+import Control.Arrow
 
-import           Control.Arrow
-
-import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Kure
-import           Database.DSH.CL.Opt.Aux
+import Database.DSH.CL.Lang
+import Database.DSH.CL.Kure
+import Database.DSH.CL.Opt.Aux
 
 --------------------------------------------------------------------------------
 -- Introduce simple equi joins

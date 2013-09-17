@@ -299,7 +299,11 @@ qualsemptyR t = qualsemptyT t S
 data CL = ExprCL Expr
         | QualCL Qual
         | QualsCL (NL Qual)
-        deriving (Show)
+        
+instance Show CL where
+    show (ExprCL e)   = show e
+    show (QualCL q)   = show q
+    show (QualsCL qs) = show qs
         
 instance Injection Expr CL where
     inject                = ExprCL
