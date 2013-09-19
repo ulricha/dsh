@@ -49,11 +49,6 @@ normalizeExistential1R = do
                           (Lit BoolT (BoolV True)) 
                           ((BindQ x xs) :* (S (GuardQ p)))))
 
--- | The pattern from normalizeQuantR might occur during rewriting (O
--- RLY?). Therefore, we re-use it here.
-normalizeExistential2R :: RewriteC Expr
-normalizeExistential2R = normalizeQuantR
-
 -- | Normalize a guard expressing universal quantification:
 -- null [ ... | x <- xs, p ] (length [ ... ] == 0)
 -- => and [ True | x <- xs, p ]
@@ -72,5 +67,4 @@ normalizeUniversalR = do
 normalizeR :: RewriteC CL
 normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
                                 <+ promoteR normalizeExistential1R
-                                <+ promoteR normalizeExistential2R
                                 <+ promoteR normalizeUniversalR
