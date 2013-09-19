@@ -4,6 +4,7 @@
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
        
+import           Debug.Trace
 import           Text.Printf
 
 import           Data.Maybe
@@ -96,10 +97,10 @@ algOp (VL.NOp VL.Mod)  = Fun1to1 Modulo
 algOp (VL.COp VL.Eq)   = RelFun Eq
 algOp (VL.COp VL.Gt)   = RelFun Gt
 algOp (VL.COp VL.GtE)  = $impossible
-algOp (VL.COp VL.Lt)   = $impossible
+algOp (VL.COp VL.Lt)   = RelFun Lt
 algOp (VL.COp VL.LtE)  = $impossible
-algOp (VL.BOp VL.Conj) = $impossible
-algOp (VL.BOp VL.Disj) = $impossible
+algOp (VL.BOp VL.Conj) = RelFun And
+algOp (VL.BOp VL.Disj) = RelFun Or
 algOp VL.Like          = undefined
 
 algCompOp :: VL.VecCompOp -> Fun
@@ -439,8 +440,8 @@ instance VectorAlgebra PFAlgebra where
     q <- attachM pos natT (nat 1) $ litTable (nat 1) descr natT
     return $ DBV q []
 
-  append (DBV q1 cols) (DBV q2 _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
+  append (DBV q1 cols) (DBV q2 cols2) = do
+    let pf = trace (show cols ++ " " ++ show cols2) $ \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- rownumM pos' [descr, ordCol, pos] Nothing
            $ attach ordCol natT (nat 1) q1
              `unionM`
@@ -523,11 +524,14 @@ instance VectorAlgebra PFAlgebra where
     t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
     cs' <- tagM "table" $ proj (colP descr:colP pos:[(itemi i, itemi i) | i <- [1..length cs]]) t'
     return $ DBV cs' [1..length cs]
+
     where
       renameCols :: [VL.TypedColumn] -> [Column]
       renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
+
       numberedCols = zip cs [1 :: Integer .. ]
       numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
+
       keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
 
   sortWith (DBV qs colss) (DBV qe colse) = do
@@ -592,7 +596,7 @@ instance VectorAlgebra PFAlgebra where
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
 
-    q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
+    q <- projM ([colP descr, colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
            $ thetaJoinM [(tmpCol, tmpCol', EqJ)]
              (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
@@ -612,11 +616,12 @@ instance VectorAlgebra PFAlgebra where
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
 
-    q <- projM ([(descr, pos), colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
+    q <- projM ([colP descr, colP pos, colP pos', colP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
            $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
              (proj ([(descr', descr), (pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
+
     qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [(posold, pos'), (posnew, pos)] q
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
