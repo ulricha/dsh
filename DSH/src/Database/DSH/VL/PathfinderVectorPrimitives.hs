@@ -304,7 +304,7 @@ instance VectorAlgebra PFAlgebra where
            $ selectM resCol
            $ eqJoinM pos pos' (return q1)
            $ proj [(pos', pos), (resCol, item)] qm
-    qr <- flip DBV cols <$> proj (pf [(pos, pos''), colP descr]) q
+    qr <- flip DBV cols <$> (tagM "restrictVec/1" $ proj (pf [(pos, pos''), colP descr]) q)
     qp <- RenameVector <$> proj [(posold, pos), (posnew, pos'')] q
     return $ (qr, qp)
 
@@ -360,7 +360,7 @@ instance VectorAlgebra PFAlgebra where
     q <- eqJoinM pos' descr 
            (proj (pf [(pos', pos)]) q1) 
            (proj [(descr, descr), (pos, pos)] q2)
-    qr1 <- flip DBV cols <$> proj (pf [colP descr, colP pos]) q
+    qr1 <- flip DBV cols <$> (tagM "distLift/1" $ proj (pf [colP descr, colP pos]) q)
     qr2 <- PropVector <$> proj [(posold, pos'), (posnew, pos)] q
     return $ (qr1, qr2)
 
@@ -411,7 +411,7 @@ instance VectorAlgebra PFAlgebra where
     flip DBV cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
 
   vecMin (DBV q _) = do
-    qr <- attachM descr natT (nat 1)
+    qr <- tagM "vecMin" $ attachM descr natT (nat 1)
             $ attachM pos natT (nat 1)
             $ aggr [(Min item, item)] Nothing q
     return $ DBP qr [1]
@@ -423,7 +423,7 @@ instance VectorAlgebra PFAlgebra where
     return $ DBP qr [1]
 
   vecMinLift (DBV qv _) = do
-    qr <- projM [colP descr,colP pos,colP item]
+    qr <- tagM "vecMinLift" $ projM [colP descr,colP pos,colP item]
             $ rownumM pos [descr] Nothing
             $ aggr [(Min item, item)] (Just descr) qv
     return $ DBV qr [1]
@@ -602,7 +602,7 @@ instance VectorAlgebra PFAlgebra where
              (proj ([colP descr, (pos', pos), (tmpCol, cl)] ++ itemProj1) ql)
              (proj ([(pos'', pos), (tmpCol', cr)] ++ shiftProj2) qr)
 
-    qv <- proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
+    qv <- tagM "eqjoin/1" $ proj ([colP  descr, colP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [(posold, pos'), (posnew, pos)] q
     qp2 <- proj [(posold, pos''), (posnew, pos)] q
     return (DBV qv (cols1 ++ cols2'), PropVector qp1, PropVector qp2)
@@ -838,7 +838,7 @@ instance VectorAlgebra PFAlgebra where
          $ eqJoinM tmpCol tmpCol'
              (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
              (distinctM $ proj [(tmpCol', cr)] qr)
-    qj <- proj (keepItems cols1 [colP descr, colP pos]) q
+    qj <- tagM "semijoin/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
   
@@ -850,7 +850,7 @@ instance VectorAlgebra PFAlgebra where
          $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
              (distinctM $ proj [(descr', descr), (tmpCol', cr)] qr)
-    qj <- proj (keepItems cols1 [colP descr, colP pos]) q
+    qj <- tagM "semijoinLift/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
   
