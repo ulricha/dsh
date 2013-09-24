@@ -113,18 +113,18 @@ mksemijoinT joinPred x y xs ys = do
 -- | Match a IN semijoin pattern in the middle of a qualifier list
 elemR :: RewriteC (NL Qual)
 elemR = do
-    -- [ ... | ..., x <- xs, or [ True | y <- ys, p ], ... ]
-    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ (Lit _ (BoolV True)) 
-                                                       (BindQ y ys :* (S (GuardQ p))))) :* qs <- idR
+    -- [ ... | ..., x <- xs, or [ p | y <- ys ], ... ]
+    BindQ x xs :* GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p 
+                                                       (S (BindQ y ys)))) :* qs <- idR
     q' <- mksemijoinT p x y xs ys
     return $ q' :* qs
 
 -- | Match a IN semijoin pattern at the end of a list
 elemEndR :: RewriteC (NL Qual)
 elemEndR = do
-    -- [ ... | ..., x <- xs, or [ True | y <- ys, p ] ]
-    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 Or _) (Comp _ (Lit _ (BoolV True)) 
-                                                           ((BindQ y ys) :* (S (GuardQ p))))))) <- idR
+    -- [ ... | ..., x <- xs, or [ p | y <- ys ] ]
+    BindQ x xs :* (S (GuardQ (AppE1 _ (Prim1 Or _) (Comp _ p
+                                                           (S (BindQ y ys)))))) <- idR
     q' <- mksemijoinT p x y xs ys
     return (S q')
     
