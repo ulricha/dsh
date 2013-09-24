@@ -379,6 +379,28 @@ nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys
   where
     resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
     joinType = typeOf xs .-> typeOf ys .-> resType
+    
+equijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+equijoin xs ys p1 p2 = AppE2 rt (Prim2 (EquiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    rt  = pairT (elemT xst) (elemT yst)
+    jt  = xst .-> yst .-> rt
+
+semijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+semijoin xs ys p1 p2 = AppE2 xst (Prim2 (SemiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    jt  = xst .-> yst .-> xst
+    
+antijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+antijoin xs ys p1 p2 = AppE2 xst (Prim2 (AntiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    jt  = xst .-> yst .-> xst
 
 unit :: Expr
 unit = Lit unitT V.UnitV
