@@ -212,15 +212,15 @@ isProj _                         = False
 -- predicate.
 isSemiJoinPred :: [Ident] -> Expr -> Bool
 isSemiJoinPred vs (AppE1 _ (Prim1 Or _) 
-                           (Comp _ (Lit _ (BoolV True)) 
-                                   ((BindQ x _) :* (S (GuardQ p))))) = isEquiJoinPred (x : vs) p
-isSemiJoinPred _  _                                                  = False
+                           (Comp _ p 
+                                   (S (BindQ x _)))) = isEquiJoinPred (x : vs) p
+isSemiJoinPred _  _                                  = False
 
 isAntiJoinPred :: [Ident] -> Expr -> Bool
 isAntiJoinPred vs (AppE1 _ (Prim1 And _) 
-                           (Comp _ (Lit _ (BoolV True)) 
-                                   ((BindQ x _) :* (S (GuardQ (AppE1 _ (Prim1 Not _) p)))))) = isEquiJoinPred (x : vs) p
-isAntiJoinPred _  _                                                                          = False
+                           (Comp _ p
+                                   (S (BindQ x _)))) = isEquiJoinPred (x : vs) p
+isAntiJoinPred _  _                                  = False
 
 -- 'Simple' currently simply means 'does not contain a comprehension'.
 isSimplePred :: Expr -> Bool
