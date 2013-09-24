@@ -7,11 +7,14 @@
 -- comprehension normalization)
 module Database.DSH.CL.Opt.Normalize
   ( normalizeR ) where
+  
+import Debug.Trace
        
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.CL.Opt.Support
+import           Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites
@@ -36,9 +39,9 @@ splitConjunctsR = splitR <+ splitEndR
     
 -- | Normalize a guard expressing existential quantification:
 -- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
--- => or [ True | x <- xs, p ]
-normalizeExistential1R :: RewriteC Qual
-normalizeExistential1R = do
+-- => or [ p | x <- xs ]
+normalizeExistentialR :: RewriteC Qual
+normalizeExistentialR = do
     GuardQ (AppE1 _ (Prim1 Not _) 
                (BinOp _ Eq 
                    (AppE1 _ (Prim1 Length _) 
@@ -46,25 +49,27 @@ normalizeExistential1R = do
                    (Lit _ (IntV 0)))) <- idR
 
     return $ GuardQ (P.or (Comp (listT boolT) 
-                          (Lit BoolT (BoolV True)) 
-                          ((BindQ x xs) :* (S (GuardQ p)))))
+                          p 
+                          (S (BindQ x xs))))
 
 -- | Normalize a guard expressing universal quantification:
--- null [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ True | x <- xs, p ]
+-- [ ... | x <- xs, p ] (length [ ... ] == 0)
+-- => and [ p | x <- xs ]
 normalizeUniversalR :: RewriteC Qual
 normalizeUniversalR = do
+    c <- idR
+    debugUnit "normalizeUniversalR" c
     GuardQ (BinOp _ Eq 
                 (AppE1 _ (Prim1 Length _) 
                     (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                 (Lit _ (IntV 0))) <- idR
 
     return $ GuardQ (P.and (Comp (listT boolT) 
-                           (Lit BoolT (BoolV True)) 
-                           ((BindQ x xs) :* (S (GuardQ (P.not p))))))
+                           (P.not p) 
+                           (S (BindQ x xs))))
                            
     
 normalizeR :: RewriteC CL
 normalizeR = repeatR $ anytdR $ promoteR splitConjunctsR
-                                <+ promoteR normalizeExistential1R
+                                <+ promoteR normalizeExistentialR
                                 <+ promoteR normalizeUniversalR
