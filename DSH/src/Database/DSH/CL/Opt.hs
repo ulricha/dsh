@@ -61,7 +61,7 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = tryR normalizeR >>> repeatR descendR
+optimizeR = normalizeR >+> repeatR descendR
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
