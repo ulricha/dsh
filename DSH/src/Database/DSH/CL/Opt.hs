@@ -61,7 +61,7 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeR >+> repeatR descendR
+optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -78,7 +78,7 @@ optimizeR = normalizeR >+> repeatR descendR
     optCompR :: RewriteC CL
     optCompR = do
         c@(Comp _ _ _) <- promoteT idR
-        -- debugUnit "optCompR at" c
+        debugUnit "optCompR at" c
 
         repeatR $ do
             -- e <- promoteT idR
@@ -87,7 +87,7 @@ optimizeR = normalizeR >+> repeatR descendR
                  <+ (promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred)
                  <+ flatJoinsR
                  <+ anyR descendR
-                 <+ nestJoinsR) >>> debugShow "after comp"
+                 {- <+ nestJoinsR -}) >>> debugShow "after comp"
         
 depth :: Expr -> (Int, Int)
 depth e = (maximum ps, length ps)
