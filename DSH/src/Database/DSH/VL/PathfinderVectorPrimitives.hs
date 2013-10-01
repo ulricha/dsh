@@ -854,4 +854,30 @@ instance VectorAlgebra PFAlgebra where
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
   
+  -- xs antijoin(p) ys == xs - (xs semijoin(p) ys)
+  antiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+  
+    -- First, compute the corresponding semijoin xs semijoin(p) ys
+    qs <- projM [colP pos]
+         $ eqJoinM tmpCol tmpCol'
+             (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
+             (distinctM $ proj [(tmpCol', cr)] qr)
+             
+    -- Then, compute the difference between xs and the semijoin
+    qd <- projM [(pos', pos)] $ differenceM (proj [colP pos] q1) (return qs)
+    
+    -- Then, join again with xs on positions
+    qa <- tagM "antijoin" 
+          $ rownumM posnew [pos] Nothing
+          $ eqJoin pos pos' q1 qd
+          
+    -- The resulting value vector
+    qv <- proj (keepItems cols1 [colP descr, (pos, posnew)]) qa
+    
+    -- The rename vector
+    qp <- proj [(posold, pos), colP posnew] qa
+    
+    return $ (DBV qv cols1, RenameVector qp)
   
