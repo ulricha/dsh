@@ -28,7 +28,8 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR) >>> debugShow "after cleanup"
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeR) 
+           >>> debugShow "after cleanup"
 
 flatJoinsR :: RewriteC CL
 flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR >>> debugTrace "semijoin")
