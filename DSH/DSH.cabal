@@ -143,40 +143,40 @@ Library
 
                      Database.DSH.Optimizer.Common.Aux
 
-                     Database.DSH.Optimizer.X100.Rewrite.Common
-                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
-                     Database.DSH.Optimizer.X100.Rewrite.JoinPushdown
-                     Database.DSH.Optimizer.X100.Rewrite.Key
-                     Database.DSH.Optimizer.X100.Rewrite.ProjectionMerge
-                     Database.DSH.Optimizer.X100.Rewrite.PruneColumns
-                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
-                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
-   
-                     Database.DSH.Optimizer.VL.Properties.AbstractDomains
-                     Database.DSH.Optimizer.VL.Properties.BottomUp
-                     Database.DSH.Optimizer.VL.Properties.Card
-                     Database.DSH.Optimizer.VL.Properties.Common
-                     Database.DSH.Optimizer.VL.Properties.Const
-                     Database.DSH.Optimizer.VL.Properties.Empty
-                     Database.DSH.Optimizer.VL.Properties.IndexSpace
-                     Database.DSH.Optimizer.VL.Properties.ReqColumns
-                     Database.DSH.Optimizer.VL.Properties.TopDown
-                     Database.DSH.Optimizer.VL.Properties.Types
-                     Database.DSH.Optimizer.VL.Properties.Untainted
-                     Database.DSH.Optimizer.VL.Properties.VectorType
-                     Database.DSH.Optimizer.VL.Properties.VerticalForm
-		     
-                     Database.DSH.Optimizer.Common.Rewrite
-                     Database.DSH.Optimizer.VL.OptimizeVL
-                     Database.DSH.Optimizer.VL.Rewrite.Common
-                     Database.DSH.Optimizer.VL.Rewrite.DescriptorModifiers
-                     Database.DSH.Optimizer.VL.Rewrite.Expressions
-                     Database.DSH.Optimizer.VL.Rewrite.MergeProjections
-                     Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
-                     Database.DSH.Optimizer.VL.Rewrite.Redundant
-                     Database.DSH.Optimizer.VL.Rewrite.Aggregation
-                     Database.DSH.Optimizer.VL.Rewrite.Unused
-                     Database.DSH.Optimizer.VL.Rewrite.Specialized
+--                     Database.DSH.Optimizer.X100.Rewrite.Common
+--                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
+--                     Database.DSH.Optimizer.X100.Rewrite.JoinPushdown
+--                     Database.DSH.Optimizer.X100.Rewrite.Key
+--                     Database.DSH.Optimizer.X100.Rewrite.ProjectionMerge
+--                     Database.DSH.Optimizer.X100.Rewrite.PruneColumns
+--                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
+--                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
+--   
+--                     Database.DSH.Optimizer.VL.Properties.AbstractDomains
+--                     Database.DSH.Optimizer.VL.Properties.BottomUp
+--                     Database.DSH.Optimizer.VL.Properties.Card
+--                     Database.DSH.Optimizer.VL.Properties.Common
+--                     Database.DSH.Optimizer.VL.Properties.Const
+--                     Database.DSH.Optimizer.VL.Properties.Empty
+--                     Database.DSH.Optimizer.VL.Properties.IndexSpace
+--                     Database.DSH.Optimizer.VL.Properties.ReqColumns
+--                     Database.DSH.Optimizer.VL.Properties.TopDown
+--                     Database.DSH.Optimizer.VL.Properties.Types
+--                     Database.DSH.Optimizer.VL.Properties.Untainted
+--                     Database.DSH.Optimizer.VL.Properties.VectorType
+--                     Database.DSH.Optimizer.VL.Properties.VerticalForm
+--		     
+--                     Database.DSH.Optimizer.Common.Rewrite
+--                     Database.DSH.Optimizer.VL.OptimizeVL
+--                     Database.DSH.Optimizer.VL.Rewrite.Common
+--                     Database.DSH.Optimizer.VL.Rewrite.DescriptorModifiers
+--                     Database.DSH.Optimizer.VL.Rewrite.Expressions
+--                     Database.DSH.Optimizer.VL.Rewrite.MergeProjections
+--                     Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
+--                     Database.DSH.Optimizer.VL.Rewrite.Redundant
+--                     Database.DSH.Optimizer.VL.Rewrite.Aggregation
+--                     Database.DSH.Optimizer.VL.Rewrite.Unused
+--                     Database.DSH.Optimizer.VL.Rewrite.Specialized
 -- 
 -- executable vltox100
 --   Main-is: Database/DSH/Tools/VLToX100.hs
