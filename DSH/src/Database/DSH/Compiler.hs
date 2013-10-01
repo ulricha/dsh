@@ -160,13 +160,13 @@ debugFKL c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensio
 debugFKLX100 :: QA a => X100Info -> Q a -> IO String
 debugFKLX100 c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getX100TableInfo c) e
 
--- | Debugging function: dumb the X100 plan (DAG) to a file.
+-- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
               nkl2X100File prefix e'
 
--- | Debugging function: dumb the X100 plan (DAG) to a file.
+-- | Debugging function: dump the X100 plan (DAG) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
