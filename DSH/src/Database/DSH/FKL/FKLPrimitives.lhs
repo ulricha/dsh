@@ -217,6 +217,19 @@ semiJoinLPrim je1 je2 e1 e2 = let t1 = typeOf e1
                                   t2 = typeOf e2
                               in F.PApp2 t2 (F.SemiJoinL je1 je2 (t1 .-> t2 .-> t1)) e1 e2
 
+antiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
+antiJoinVal je1 je2 t = doubleArgClo t "antiJoin_e1" "antiJoin_e2" (antiJoinPrim je1 je2) (antiJoinLPrim je1 je2)
+                  
+antiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+antiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
+                                 t2 = typeOf e2
+                             in F.PApp2 t2 (F.AntiJoin je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+                         
+antiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
+antiJoinLPrim je1 je2 e1 e2 = let t1 = typeOf e1
+                                  t2 = typeOf e2
+                              in F.PApp2 t2 (F.AntiJoinL je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
 

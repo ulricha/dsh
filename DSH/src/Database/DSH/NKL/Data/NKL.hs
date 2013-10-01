@@ -1,6 +1,3 @@
-%if False
-\begin{code}
-
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -18,7 +15,7 @@ module Database.DSH.NKL.Data.NKL
   , Key
   ) where
 
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
 import           Database.DSH.Common.Data.Op
@@ -29,33 +26,16 @@ import           Database.DSH.Common.Data.Type(Type, Typed, typeOf)
   
 import qualified Data.Set as S
 
-\end{code}
-%endif
-%{
-%include syntaxdef.fmt
-%include nkl.fmt
-The following syntax diagram describes our input language, the Nested Kernel Language.
-% The code below defines the NKL grammar
-\newcommand{\NKLGrammar}{
-\begin{code}
-data Expr  =  Table Type String [Column] [Key]  -- \textrm{Reference database table $n$}
-           |  App Type Expr Expr                -- \textrm{Application of two expressions}
-           |  AppE1 Type (Prim1 Type) Expr             -- \textrm{Application of a primitive to a single argument}
-           |  AppE2 Type (Prim2 Type) Expr Expr        -- \textrm{Application of a primitive to two arguments}
-           |  BinOp Type Oper Expr Expr         -- \textrm{Application of a binary opertor $\oplus$ to two arguments}
-           |  Lam Type Ident Expr              -- \textrm{Lambda abstraction}
-           |  If Type Expr Expr Expr            -- \textrm{Conditional}
-           |  Const Type Val                    -- \textrm{Constant value}
-           |  Var Type Ident                   -- \textrm{Variable}
-\end{code}
-}
-%}
-\NKLGrammar
-
-%if False
-\begin{code}
-instance Show Expr where
-  show e = render $ pp e
+-- | Nested Kernel Language (NKL) expressions
+data Expr  =  Table Type String [Column] [Key]
+           |  App Type Expr Expr
+           |  AppE1 Type (Prim1 Type) Expr
+           |  AppE2 Type (Prim2 Type) Expr Expr
+           |  BinOp Type Oper Expr Expr
+           |  Lam Type Ident Expr
+           |  If Type Expr Expr Expr
+           |  Const Type Val
+           |  Var Type Ident
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
@@ -68,23 +48,36 @@ instance Typed Expr where
   typeOf (Const t _)     = t
   typeOf (Var t _)       = t
 
+instance Show Expr where
+  show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
+
 pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
-pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
+pp (If _ c t e)       = text "if" 
+                         <+> pp c 
+                         <+> text "then" 
+                         <+> (parenthize t) 
+                         <+> text "else" 
+                         <+> (parenthize e)
 pp (Const _ v)        = text $ show v
 pp (Var _ s)          = text s
 
+parenthize :: Expr -> Doc
+parenthize e = 
+    case e of
+        Var _ _        -> pp e
+        Const _ _      -> pp e
+        Table _ _ _ _  -> pp e
+        _              -> parens $ pp e
+
 deriving instance Eq Expr
 deriving instance Ord Expr
-\end{code}
-%endif
 
-\begin{code}
 freeVars :: Expr -> S.Set String
 freeVars (Table _ _ _ _) = S.empty
 freeVars (App _ e1 e2) = freeVars e1 `S.union` freeVars e2
@@ -148,6 +141,7 @@ data Prim2Op = Map
              | EquiJoin JoinExpr JoinExpr
              | NestJoin JoinExpr JoinExpr
              | SemiJoin JoinExpr JoinExpr
+             | AntiJoin JoinExpr JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -165,12 +159,11 @@ instance Show Prim2Op where
   show Zip          = "zip"
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
-  show CartProduct  = "cartProduct"
-  show (EquiJoin e1 e2)  = printf "equiJoin(%s, %s)" (show e1) (show e2)
-  show (NestJoin e1 e2)  = printf "nestJoin(%s, %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2)  = printf "nestJoin(%s, %s)" (show e1) (show e2)
+  show CartProduct  = "\xc397"
+  show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
+  show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
+  show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)
+  show (AntiJoin e1 e2) = printf "\x25b7 (%s | %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
-\end{code}
-%}

@@ -12,6 +12,9 @@ module Database.DSH.Common.Data.Type
  , extractPairT
  , isList
  , elemT
+ , fstT
+ , sndT
+ , domainT
  , splitType
  , varsInType
  , listDepth
@@ -90,6 +93,10 @@ isNum StringT = False
 isNum UnitT = False
 isNum (ListT _) = False
 isNum (PairT _ _) = False
+      
+domainT :: Type -> Type
+domainT (FunT t _) = t
+domainT _          = error "domainT: argument is not a function type"
 
 varsInType :: Type -> [String]
 varsInType (FunT t1 t2) = varsInType t1 ++ varsInType t2
@@ -144,6 +151,14 @@ extractPairT :: Type -> Type
 extractPairT (ListT t1) = extractPairT t1
 extractPairT t@(PairT _ _) = t
 extractPairT _ = error "Type doesn't contain a pair, cannot extract pair"
+
+fstT :: Type -> Type
+fstT (PairT t1 _) = t1
+fstT _            = error "Type is not a pair type"
+
+sndT :: Type -> Type
+sndT (PairT _ t2) = t2
+sndT _            = error "Type is not a pair type"
 
 pairComponents :: Type -> (Type, Type)
 pairComponents (PairT t1 t2) = (t1, t2)

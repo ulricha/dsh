@@ -133,6 +133,20 @@ semiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) =
     return $ ValueVector d1 (Nest qj lyt1')
 semiJoinLift _ _ _ _ = $impossible
 
+antiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- antiJoin e1 e2 q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector qj lyt1'
+antiJoinPrim _ _ _ _ = $impossible
+    
+antiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- antiJoinL e1 e2 q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector d1 (Nest qj lyt1')
+antiJoinLift _ _ _ _ = $impossible
+
 takePrim ::  Shape -> Shape -> Graph VL Shape
 takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
     (q', r) <- selectPos q LtE i

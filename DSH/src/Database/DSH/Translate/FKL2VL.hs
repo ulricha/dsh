@@ -102,6 +102,8 @@ fkl2VL (PApp2 _ f arg1 arg2) = liftM2 (,) (fkl2VL arg1) (fkl2VL arg2) >>= uncurr
                 (NestJoinL e1 e2 _) -> nestJoinLift e1 e2
                 (SemiJoin e1 e2 _) -> semiJoinPrim e1 e2
                 (SemiJoinL e1 e2 _) -> semiJoinLift e1 e2
+                (AntiJoin e1 e2 _) -> antiJoinPrim e1 e2
+                (AntiJoinL e1 e2 _) -> antiJoinLift e1 e2
                 (TakeWithS _) -> takeWithS
                 (TakeWithL _) -> takeWithL
                 (DropWithS _) -> dropWithS

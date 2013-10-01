@@ -4,20 +4,21 @@
 {-# LANGUAGE FlexibleContexts    #-}
 
 module Database.DSH.CompileFlattening (toComprehensions) where
-
+       
 import           Database.DSH.Impossible
 
+import           Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
+import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
+import qualified Database.DSH.Common.Data.Op as O
 import qualified Database.DSH.Common.Data.Type as T
 import qualified Database.DSH.Common.Data.Val as V
-import qualified Database.DSH.Common.Data.Op as O
 
 import           Database.DSH.Internals as D
 import           Data.Text (unpack)
 
 import qualified Data.Map as M
-import qualified Data.Set as S
 
 import           Control.Monad
 import           Control.Monad.State
@@ -192,7 +193,7 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
         let body' = resugar body
             xs'   = resugar xs
-        in resugar $ CL.Comp t body' [CL.BindQ x xs']
+        in resugar $ CL.Comp t body' (S (CL.BindQ x xs'))
   
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
@@ -200,25 +201,30 @@ resugar expr =
     CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x p) xs ->
         let xs' = resugar xs
             p'  = resugar p
-        in resugar $ CL.Comp t (CL.Var xt x) [CL.BindQ x xs', CL.GuardQ p']
+        in resugar $ CL.Comp t (CL.Var xt x) (CL.BindQ x xs' :* (S $ CL.GuardQ p'))
         
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
     -- (Try to) transform concatMaps into comprehensions
     cm@(CL.AppE2 t (CL.Prim2 CL.ConcatMap _) body xs) ->
       let xs' = resugar xs
+          body' = resugar body
       in 
     
-      case resugar body of
+      case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Const _ (V.ListV []))) ->
-          resugar $ CL.Comp t e [CL.BindQ v xs']
+        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
+          resugar $ CL.Comp t e (S (CL.BindQ v xs'))
+
+        -- Same case as above, just with a literal list in the lambda body.
+        CL.Lam _ v (CL.Lit lt (CL.ListV [s])) -> 
+          resugar $ CL.Comp t (CL.Lit (CL.elemT lt) s) (S (CL.BindQ v xs'))
 
         -- concatMap (\x -> [ e | qs ]) xs
         -- => [ e | x <- xs, qs ]
         CL.Lam _ v (CL.Comp _ e qs) ->
-          resugar $ CL.Comp t e (CL.BindQ v xs' : qs)
+          resugar $ CL.Comp t e (CL.BindQ v xs' :* qs)
           
         _ -> cm
 
@@ -227,25 +233,44 @@ resugar expr =
     CL.Lam t v e1 -> CL.Lam t v (resugar e1)
     
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
-    constant@(CL.Const _ _) -> constant
+    constant@(CL.Lit _ _)    -> constant
     var@(CL.Var _ _) -> var
     comp@(CL.Comp t body qs) -> 
       if changed 
       then resugar $ CL.Comp t body' qs'
       else CL.Comp t body' qs
 
-      where -- We fold over the qualifiers and look for local rewrite possibilities
-            resugarQual :: CL.Qualifier -> (Bool, [CL.Qualifier]) -> (Bool, [CL.Qualifier])
-            resugarQual q (changedAcc, qsAcc) =
-              case q of
+      where 
+        -- We fold over the qualifiers and look for local rewrite possibilities
+        resugarQual :: CL.Qual -> Either CL.Qual CL.Qual
+        resugarQual q = 
+            case q of
                 -- Eliminate unused bindings from guards
                 -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
-                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `S.member` fvs -> (True, CL.GuardQ p : qsAcc)
-                _                                                            -> (changedAcc, q : qsAcc)
-                
-            (changed, qs') = foldr resugarQual (False, []) qs
-            body' = resugar body
-            fvs = CL.freeVars comp
+                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `elem` fvs -> Right (CL.GuardQ p)
+                -- This really sucks. employ proper change detection.
+                CL.GuardQ p                                                          ->
+                   let p' = resugar p in
+                   if p' == p
+                   then Left q
+                   else Right (CL.GuardQ p')
+                CL.BindQ x xs                                                        ->
+                   let xs' = resugar xs in
+                   if xs' == xs
+                   then Left q
+                   else Right (CL.BindQ x xs')
+      
+        qse     = fmap resugarQual qs
+        changed = any isRight $ CL.toList qse
+        qs'     = fmap (either id id) qse
+      
+        body'   = resugar body
+        fvs     = freeVars comp
+        
+        isRight :: Either a b -> Bool
+        isRight (Right _) = True
+        isRight (Left _)  = False
+            
 
 translateType :: Type a -> T.Type
 translateType UnitT = T.unitT

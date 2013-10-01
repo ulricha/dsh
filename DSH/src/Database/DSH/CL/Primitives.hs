@@ -1,3 +1,4 @@
+-- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
     
 import qualified Prelude as P
@@ -176,7 +177,7 @@ sortWith f es = let ft@(FunT ta _) = typeOf f
                         else P.error P.$ "NKLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 pair :: Expr -> Expr -> Expr
-pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (V.PairV v1 v2)
+pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (V.PairV v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Prim2 Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
@@ -372,24 +373,52 @@ cond eb et ee = let tb = typeOf eb
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
                       else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
+                      
+nestjoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys
+  where
+    resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
+    joinType = typeOf xs .-> typeOf ys .-> resType
+    
+equijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+equijoin xs ys p1 p2 = AppE2 rt (Prim2 (EquiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    rt  = pairT (elemT xst) (elemT yst)
+    jt  = xst .-> yst .-> rt
+
+semijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+semijoin xs ys p1 p2 = AppE2 xst (Prim2 (SemiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    jt  = xst .-> yst .-> xst
+    
+antijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+antijoin xs ys p1 p2 = AppE2 xst (Prim2 (AntiJoin p1 p2) jt) xs ys
+  where
+    xst = typeOf xs
+    yst = typeOf ys
+    jt  = xst .-> yst .-> xst
 
 unit :: Expr
-unit = Const unitT V.UnitV
+unit = Lit unitT V.UnitV
 
 int :: P.Int -> Expr
-int i = Const intT (V.IntV i)
+int i = Lit intT (V.IntV i)
 
 bool :: P.Bool -> Expr
-bool b = Const boolT (V.BoolV b)
+bool b = Lit boolT (V.BoolV b)
 
 string :: P.String -> Expr
-string s = Const stringT (V.StringV s)
+string s = Lit stringT (V.StringV s)
 
 double :: P.Double -> Expr
-double d = Const doubleT (V.DoubleV d)
+double d = Lit doubleT (V.DoubleV d)
 
 nil :: Type -> Expr
-nil t = Const t (V.ListV [])
+nil t = Lit t (V.ListV [])
 
 list :: Type -> [Expr] -> Expr
 list t es = toListT (nil t) es
@@ -401,9 +430,9 @@ toListT :: Expr -> [Expr] -> Expr
 toListT n es = primList (P.reverse es) n
     where
         primList :: [Expr] -> Expr -> Expr
-        primList ((Const _ v):vs) (Const ty (V.ListV xs)) = primList vs (Const ty (V.ListV (v:xs)))
+        primList ((Lit _ v):vs) (Lit ty (V.ListV xs)) = primList vs (Lit ty (V.ListV (v:xs)))
         primList [] e = e
-        primList vs c@(Const _ (V.ListV [])) = consList vs c
+        primList vs c@(Lit _ (V.ListV [])) = consList vs c
         primList vs e = consList vs e
         consList :: [Expr] -> Expr -> Expr
         consList xs e = P.foldl (P.flip cons) e xs

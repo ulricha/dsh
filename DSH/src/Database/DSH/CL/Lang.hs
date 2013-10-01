@@ -2,37 +2,87 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
-  ( Expr(..)
-  , Qualifier(..)
+  ( module Database.DSH.Common.Data.Op
+  , module Database.DSH.Common.Data.Expr
+  , module Database.DSH.Common.Data.JoinExpr
+  , module Database.DSH.Common.Data.Val
+  , module Database.DSH.Common.Data.Type
+  , Expr(..)
+  , NL(..), reverseNL, toList, fromList, appendNL
+  , Qual(..), isGuard, isBind
   , Typed(..)
-  , freeVars
-  , subst
-  , substQuals
-  , tuplify
-  , tuplifyQuals
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)
   , Prim2(..)
-  , Column
-  , Key
   ) where
 
-import           Data.Data
+import           Control.Applicative hiding (empty)
+                 
+import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
-import           Database.DSH.Common.Data.Val(Val())
+import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Type
   
-import qualified Data.Set as S
+--------------------------------------------------------------------------------
+-- A simple type of nonempty lists, used for comprehension qualifiers
+
+data NL a = a :* (NL a)
+          | S a
+          deriving (Eq, Ord)
+          
+infixr :*
+          
+instance Show a => Show (NL a) where
+    show = show . toList 
+          
+instance Functor NL where
+    fmap f (a :* as) = (f a) :* (fmap f as)
+    fmap f (S a)     = S (f a)
+    
+instance F.Foldable NL where
+    foldr f z (a :* as) = f a (F.foldr f z as)
+    foldr f z (S a)     = f a z
+    
+instance T.Traversable NL where
+    traverse f (a :* as) = (:*) <$> (f a) <*> (T.traverse f as)
+    traverse f (S a)     = S <$> (f a)
+    
+toList :: NL a -> [a]
+toList (a :* as) = a : toList as
+toList (S a)     = [a]
+
+fromList :: [a] -> Maybe (NL a)
+fromList [] = Nothing
+fromList as = Just $ aux as
+  where
+    aux :: [a] -> NL a
+    aux (x : []) = S x
+    aux (x : xs) = x :* aux xs
+    aux []       = $impossible
+
+reverseNL :: NL a -> NL a
+reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
+reverseNL (S a)     = S a
+
+appendNL :: NL a -> NL a -> NL a
+appendNL (a :* as) bs = a :* appendNL as bs
+appendNL (S a)     bs = a :* bs
+
+--------------------------------------------------------------------------------
+-- CL primitives
 
 data Prim1Op = Length |  Not |  Concat 
              | Sum | Avg | The | Fst | Snd 
@@ -41,9 +91,9 @@ data Prim1Op = Length |  Not |  Concat
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
-             deriving (Eq, Ord, Data, Typeable)
+             deriving (Eq, Ord)
              
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord, Data, Typeable)
+data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
   show Length          = "length"
@@ -82,9 +132,10 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | EquiJoin JoinExpr JoinExpr
              | NestJoin JoinExpr JoinExpr
              | SemiJoin JoinExpr JoinExpr
-             deriving (Eq, Ord, Data, Typeable)
+             | AntiJoin JoinExpr JoinExpr
+             deriving (Eq, Ord)
              
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord, Data, Typeable)
+data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
   show Map          = "map"
@@ -101,12 +152,28 @@ instance Show Prim2Op where
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
   show CartProduct  = "cartProduct"
-  show (EquiJoin e1 e2) = printf "\x2a1d (%s, %s)" (show e1) (show e2)
-  show (NestJoin e1 e2) = printf "\x25b3 (%s, %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2) = printf "\x22c9 (%s, %s)" (show e1) (show e2)
+  show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
+  show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
+  show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)
+  show (AntiJoin e1 e2) = printf "\x25b7 (%s | %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
+
+--------------------------------------------------------------------------------
+-- CL expressions
+
+data Qual = BindQ Ident Expr
+          | GuardQ Expr
+          deriving (Eq, Ord, Show)
+          
+isGuard :: Qual -> Bool
+isGuard (GuardQ _)   = True
+isGuard (BindQ _ _)  = False
+
+isBind :: Qual -> Bool
+isBind (GuardQ _)   = False
+isBind (BindQ _ _)  = True
 
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              
@@ -115,33 +182,53 @@ data Expr  = Table Type String [Column] [Key]
            | BinOp Type Oper Expr Expr        
            | Lam Type Ident Expr              
            | If Type Expr Expr Expr
-           | Const Type Val
+           | Lit Type Val
            | Var Type Ident
-           | Comp Type Expr [Qualifier]
-           deriving (Data, Typeable)
+           | Comp Type Expr (NL Qual)
            
-data Qualifier = BindQ Ident Expr
-               | GuardQ Expr
-               deriving (Eq, Ord, Data, Typeable)
-
 instance Show Expr where
-  show e = render $ pp e
+  show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
   
-ppQualifier :: Qualifier -> Doc
-ppQualifier (BindQ i e) = text i <+> text "<-" <+> pp e
-ppQualifier (GuardQ e)  = pp e
+ppQual :: Qual -> Doc
+ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
+ppQual (GuardQ e)  = pp e
   
 pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parens $ pp e1) <+> (parens $ pp e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parens $ pp e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (parens $ pp e1) <+> (parens $ pp e2)
-pp (BinOp _ o e1 e2)  = (parens $ pp e1) <+> (text $ show o) <+> (parens $ pp e2)
+pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
+pp (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+pp (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)       = text "if" <+> pp c <+> text "then" <+> (parens $ pp t) <+> text "else" <+> (parens $ pp e)
-pp (Const _ v)        = text $ show v
+pp (If _ c t e)       = text "if" 
+                         <+> pp c 
+                         <+> text "then" 
+                         <+> (parenthize t) 
+                         <+> text "else" 
+                         <+> (parenthize e)
+pp (Lit _ v)          = text $ show v
 pp (Var _ s)          = text s
-pp (Comp _ e qs)      = brackets $ char ' ' <> pp e <+> char '|' <+> (hsep $ punctuate comma $ map ppQualifier qs)
+                                   
+pp (Comp _ e qs) = encloseSep lbracket rbracket empty docs
+                     where docs = (char ' ' <> pp e <> char ' ') : qsDocs
+                           qsDocs = 
+                             case qs of
+                               q :* qs' -> (char '|' <+> ppQual q) 
+                                           : [ char ',' <+> ppQual q' | q' <- toList qs' ]
+                                          
+                               S q     -> [char '|' <+> ppQual q]
+                               
+                                   
+parenthize :: Expr -> Doc
+parenthize e = 
+    case e of
+        Var _ _        -> pp e
+        Lit _ _        -> pp e
+        Table _ _ _ _  -> pp e
+        Comp _ _ _     -> pp e
+        _              -> parens $ pp e
 
 deriving instance Eq Expr
 deriving instance Ord Expr
@@ -154,67 +241,8 @@ instance Typed Expr where
   typeOf (Lam t _ _)     = t
   typeOf (If t _ _ _)    = t
   typeOf (BinOp t _ _ _) = t
-  typeOf (Const t _)     = t
+  typeOf (Lit t _)       = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t
   
-------------------------------------------------------------------------------------------
--- Some utilities for transformations on CL expressions
 
--- | Compute free variables of a CL expression
-freeVars :: Expr -> S.Set Ident
-freeVars (Table _ _ _ _) = S.empty
-freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
-freeVars (AppE1 _ _ e1)    = freeVars e1
-freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
-freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
-freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Const _ _)       = S.empty
-freeVars (Var _ x)         = S.singleton x
-freeVars (Comp _ b qs)     = foldr collect (freeVars b) qs
-
-  where collect (BindQ v e) fvs = S.difference (S.union fvs (freeVars e)) (S.singleton v)
-        collect (GuardQ e)  fvs = S.union fvs (freeVars e)
-
--- | Substitution: subst v r e ~ e[v/r]
-subst :: Ident -> Expr -> Expr -> Expr
-subst _ _ table@(Table _ _ _ _) = table
-subst v r (App t e1 e2)         = App t (subst v r e1) (subst v r e2)
-subst v r (AppE1 t p e)         = AppE1 t p (subst v r e)
-subst v r (AppE2 t p e1 e2)     = AppE2 t p (subst v r e1) (subst v r e2)
-subst v r (BinOp t o e1 e2)     = BinOp t o (subst v r e1) (subst v r e2)
--- FIXME for the moment, we assume that all lambda variables are unique
--- and we don't need to check for name capturing/do alpha-conversion.
-subst v r lam@(Lam t v' e)      = if v' == v
-                                     then lam
-                                     else Lam t v' (subst v r e)
-subst _ _ c@(Const _ _)         = c
-subst v r var@(Var _ v')        = if v == v' then r else var
-subst v r (If t c thenE elseE)  = If t (subst v r c) (subst v r thenE) (subst v r elseE)
-subst v r (Comp t e qs)         = Comp t (subst v r e) (substQuals v r qs)
-
--- | Substitution on a list of qualifiers
-substQuals :: Ident -> Expr -> [Qualifier] -> [Qualifier]
-substQuals v r ((GuardQ g) : qs)               = (GuardQ (subst v r g)) : (substQuals v r qs)
-substQuals v r ((BindQ v' s) : qs) | v == v'   = (BindQ v' (subst v r s)) : qs
-substQuals v r ((BindQ v' s) : qs) | otherwise = (BindQ v' (subst v r s)) : (substQuals v r qs)
-substQuals _ _ []                                 = []
-
--- tuplify v1 v2 e = e[v1/fst v1][v2/snd v1]
-tuplify :: (Ident, Type) -> (Ident, Type) -> Expr -> Expr
-tuplify (v1, t1) (v2, t2) e = subst v2 v2Rep $ subst v1 v1Rep e
-
-  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
-
-tuplifyQuals :: (Ident, Type) -> (Ident, Type) -> [Qualifier] -> [Qualifier]
-tuplifyQuals (v1, t1) (v2, t2) qs = substQuals v2 v2Rep $ substQuals v1 v1Rep qs
-
-  where (v1Rep, v2Rep) = tupleVars (v1, t1) (v2, t2)
-
-tupleVars :: (Ident, Type) -> (Ident, Type) -> (Expr, Expr)
-tupleVars (v1, t1) (_, t2) = (v1Rep, v2Rep)
-  where v1'    = Var pt v1
-        pt     = pairT t1 t2
-        v1Rep  = AppE1 t1 (Prim1 Fst (pt .-> t1)) v1'
-        v2Rep  = AppE1 t2 (Prim1 Snd (pt .-> t2)) v1'
