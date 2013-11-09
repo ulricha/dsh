@@ -17,7 +17,7 @@ import qualified Database.DSH.VL.Data.Query         as Q
 
 import qualified Database.Algebra.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON
-import qualified Database.Algebra.Pathfinder.JSON              as PFJSON
+import qualified Database.Algebra.Pathfinder.Render.JSON       as PFJSON
 
 exportVLPlan :: String -> QueryPlan VL -> IO ()
 exportVLPlan prefix vlPlan = do
