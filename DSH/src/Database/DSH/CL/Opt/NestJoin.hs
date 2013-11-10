@@ -84,7 +84,7 @@ tupleAt expr len pos =
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
 -- child of the current node.
-dropPrefix :: Eq a => [a] -> [a] -> [a]
+dropPrefix :: Eq a => Path a -> Path a -> Path a
 dropPrefix prefix xs = drop (1 + length prefix) xs
 
 -- | Construct a left-deep tuple from at least two expressions
@@ -138,7 +138,7 @@ mkheadmapR curr t h x xs qs = do
     
     -- debugUnit "mkheadmapR found" (vars, comps)
 
-    pathPrefix <- rootPathT
+    pathPrefix <- absPathT >>^ snocPathToPath
 
     let varTy = elemT $ typeOf xs
 
@@ -510,7 +510,7 @@ nestjoinGuardR = do
             
             tuplifyHeadR = substR x (P.fst joinVar)
             
-        pathPrefix <- rootPathT
+        pathPrefix <- absPathT >>^ snocPathToPath
         let relPath = dropPrefix pathPrefix path
         
         -- debugUnit "pathPrefix, path, relPath" (pathPrefix, path, relPath)
