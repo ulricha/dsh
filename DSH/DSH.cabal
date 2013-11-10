@@ -77,7 +77,7 @@ Library
                      uniplate,
                      TableAlgebra >= 2.0.0,
                      semigroups,
-                     kure,
+                     kure               >= 2.14.0,
                      ansi-wl-pprint
                      
   Hs-source-dirs:    src

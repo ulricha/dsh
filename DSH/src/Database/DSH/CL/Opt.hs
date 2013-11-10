@@ -8,8 +8,6 @@
 module Database.DSH.CL.Opt 
   ( opt ) where
   
-import Debug.Trace
-       
 import Control.Arrow
 
 import Database.DSH.CL.Lang
@@ -90,9 +88,14 @@ optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
         
+{-
+-- debug function
 depth :: Expr -> (Int, Int)
 depth e = (maximum ps, length ps)
   where ps = map length $ either (const []) id $ applyExpr (collectT rootPathT) e
+  
+        rootPathT = absPathT >>^ snocPathToPath
+-}
            
 opt :: Expr -> Expr
 opt expr = {- trace ("(depth, count) "++ show (depth expr)) $ -} debugOpt expr optimizedExpr
