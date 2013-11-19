@@ -83,7 +83,7 @@ optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
             -- e <- promoteT idR
             -- debugUnit "comp at" (e :: Expr)
               (compNormEarlyR
-                 <+ (promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred)
+                 <+ promoteR pushSimpleFilters >+> selectR isSimplePred
                  <+ flatJoinsR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
