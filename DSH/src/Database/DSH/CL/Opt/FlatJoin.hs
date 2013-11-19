@@ -68,7 +68,7 @@ eqjoinQualR = do
     
     return $ q' :* qs'
     
--- | Matgch an equijoin pattern at the end of a qualifier list
+-- | Match an equijoin pattern at the end of a qualifier list
 eqjoinQualEndR :: Rewrite CompCtx TuplifyM (NL Qual)
 eqjoinQualEndR = do
     -- We need two generators followed by a predicate
