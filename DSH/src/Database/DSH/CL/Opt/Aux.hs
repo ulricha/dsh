@@ -34,7 +34,6 @@ module Database.DSH.CL.Opt.Aux
     ) where
     
 import           Control.Arrow
-import           Control.Applicative
 import qualified Data.Foldable as F
 import           Data.List
 import           Debug.Trace
@@ -109,72 +108,114 @@ splitJoinPredT x y = do
 ---------------------------------------------------------------------------------
 -- Pushing filters towards the front of a qualifier list
 
+-- | Push guards as far as possible towards the front of the qualifier
+-- list. Predicate 'mayPush' decides wether a guard might be pushed at all. The
+-- rewrite fails if no guard can be pushed.
 pushFilters :: ([Ident] -> Expr -> Bool) -> RewriteC Expr
 pushFilters mayPush = do
     Comp _ _ _ <- idR
-    compR idR pushFiltersQuals
+    compR idR (pushFiltersQuals mayPush)
 
-  where
-        
-    pushFiltersQuals :: RewriteC (NL Qual)
-    pushFiltersQuals = do
-        (reverseNL . initFlags)
-          -- FIXME using innermostR here is really inefficient!
-          ^>> innermostR tryPush 
-          >>^ (reverseNL . fmap snd)
-        
-    -- Mark all guards which may be pushed based on a general predicate
-    -- `mayPush`. To this predicate, we pass the guard expression as well as the
-    -- list of identifiers which are in scope for the current guard.
-    initFlags :: NL Qual -> NL (Bool, Qual)
-    initFlags qs = 
-        case fromList $ map flag $ zip localScopes (toList qs) of
-            Just qs' -> qs'
-            Nothing  -> $impossible
-      where
-        localScopes = map compBoundVars $ inits $ toList qs
-        
-        flag :: ([Ident], Qual) -> (Bool, Qual)
-        flag (_, q@(BindQ _ _))          = (False, q)
-        flag (localScope, q@(GuardQ p))  = (mayPush localScope p, q)
-                
-                       
-    tryPush :: RewriteC (NL (Bool, Qual))
-    tryPush = do
-        qualifiers <- idR 
-        case qualifiers of
-            q1@(True, GuardQ p) :* q2@(_, BindQ x _) :* qs ->
-                if x `elem` freeVars p
-                -- We can't push through the generator because it binds a
-                -- variable we depend upon
-                then return $ (False, GuardQ p) :* q2 :* qs
-                   
-                -- We can push
-                else return $ q2 :* q1 :* qs
-                
-            q1@(True, GuardQ _) :* q2@(_, GuardQ _) :* qs  ->
-                return $ q2 :* q1 :* qs
-
-            (True, GuardQ p) :* (S q2@(_, BindQ x _))      ->
-                if x `elem` freeVars p
-                then return $ (False, GuardQ p) :* (S q2)
-                else return $ q2 :* (S (False, GuardQ p))
-
-            (True, GuardQ p) :* (S q2@(_, GuardQ _))       ->
-                return $ q2 :* (S (False, GuardQ p))
-
-            (True, BindQ _ _) :* _                         ->
-                error "generators can't be pushed"
-
-            (False, _) :* _                                ->
-                fail "can't push: node marked as unpushable"
-
-            S (True, q)                                    ->
-                return $ S (False, q)
-
-            S (False, _)                                   ->
-                fail "can't push: already at front"
+pushFiltersQuals :: ([Ident] -> Expr -> Bool) -> RewriteC (NL Qual)
+pushFiltersQuals mayPush = do
+    (reverseNL . initFlags mayPush)
+      ^>> checkSuccess
+      -- FIXME using innermostR here is really inefficient!
+      >>> innermostR tryPush 
+      >>^ (reverseNL . fmap snd)
+      
+-- | Fail if no guard can be pushed
+checkSuccess :: RewriteC (NL (Bool, Qual))
+checkSuccess = do
+    qs <- idR
+    if (any fst $ toList qs)
+        then (return qs)
+        else (trace "checkSuccess" $ fail "no guards can be pushed")
     
+-- Mark all guards which may be pushed based on a general predicate
+-- `mayPush`. To this predicate, we pass the guard expression as well as the
+-- list of identifiers which are in scope for the current guard.
+initFlags :: ([Ident] -> Expr -> Bool) -> NL Qual -> NL (Bool, Qual)
+initFlags mayPush qs = 
+    case fromList flaggedQuals of
+        Just qs' -> qs'
+        Nothing  -> $impossible
+  where
+    flaggedQuals = reverse
+                   $ snd
+                   $ foldl' (flagQualifiers mayPush) (Nothing, []) 
+                   $ zip localScopes (toList qs)
+
+    localScopes = map compBoundVars $ inits $ toList qs
+
+    
+-- | For each guard, decide wether it may be pushed or not and mark it
+-- accordingly. If a guard is located directly next to a generator
+-- binding a variable which occurs free in the guard, it is marked
+-- unpushable without looking at it further.
+flagQualifiers 
+  :: ([Ident] -> Expr -> Bool)
+  -> (Maybe Ident, [(Bool, Qual)]) 
+  -> ([Ident], Qual) 
+  -> (Maybe Ident, [(Bool, Qual)])
+flagQualifiers mayPush (mPrevBind, flaggedQuals) (localScope, qual) =
+    case (mPrevBind, qual) of
+        -- No generator left of the guard. Only look at the guard
+        -- itself.
+        (Nothing, GuardQ p) -> 
+            (Nothing, (mayPush localScope p, qual) : flaggedQuals)
+
+        -- Guard is located left of a generator which binds one guard
+        -- expression variable. It must not be pushed.
+        (Just x, GuardQ p) | x `elem` freeVars p -> 
+            (Nothing, (False, qual) : flaggedQuals)
+
+        -- There is a generator left of the guard, but the bound
+        -- variable does not occur in the guard expression.
+        (Just _, GuardQ p) | otherwise           -> 
+            (Nothing, (mayPush localScope p, qual) : flaggedQuals)
+            
+        -- Generators are never pushed. Just hand the bound variable to
+        -- the next qualifier.
+        (_, BindQ x _) -> 
+            (Just x, (False, qual) : flaggedQuals)
+                       
+tryPush :: RewriteC (NL (Bool, Qual))
+tryPush = do
+    qualifiers <- idR 
+    case qualifiers of
+        q1@(True, GuardQ p) :* q2@(_, BindQ x _) :* qs ->
+            if x `elem` freeVars p
+            -- We can't push through the generator because it binds a
+            -- variable we depend upon
+            then return $ (False, GuardQ p) :* q2 :* qs
+               
+            -- We can push
+            else return $ q2 :* q1 :* qs
+            
+        q1@(True, GuardQ _) :* q2@(_, GuardQ _) :* qs  ->
+            return $ q2 :* q1 :* qs
+
+        (True, GuardQ p) :* (S q2@(_, BindQ x _))      ->
+            if x `elem` freeVars p
+            then return $ (False, GuardQ p) :* (S q2)
+            else return $ q2 :* (S (False, GuardQ p))
+
+        (True, GuardQ p) :* (S q2@(_, GuardQ _))       ->
+            return $ q2 :* (S (False, GuardQ p))
+
+        (True, BindQ _ _) :* _                         ->
+            error "generators can't be pushed"
+
+        (False, _) :* _                                ->
+            fail "can't push: node marked as unpushable"
+
+        S (True, q)                                    ->
+            return $ S (False, q)
+
+        S (False, _)                                   ->
+            fail "can't push: already at front"
+
 
 isEquiJoinPred :: [Ident] -> Expr -> Bool
 isEquiJoinPred locallyBoundVars (BinOp _ Eq e1 e2) = 

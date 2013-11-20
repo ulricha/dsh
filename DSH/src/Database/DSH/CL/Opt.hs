@@ -26,7 +26,7 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeR) 
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
            >>> debugShow "after cleanup"
 
 flatJoinsR :: RewriteC CL
@@ -60,7 +60,7 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -80,10 +80,11 @@ optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
         debugUnit "optCompR at" c
 
         repeatR $ do
-            -- e <- promoteT idR
-            -- debugUnit "comp at" (e :: Expr)
-              (compNormEarlyR
-                 <+ (promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred)
+              e <- promoteT idR
+              debugUnit "comp at" (e :: Expr)
+              (normalizeAlwaysR
+                 <+ compNormEarlyR
+                 <+ promoteR pushSimpleFilters >+> selectR isSimplePred
                  <+ flatJoinsR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
