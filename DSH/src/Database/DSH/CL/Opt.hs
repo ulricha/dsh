@@ -32,7 +32,15 @@ cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR
 flatJoinsR :: RewriteC CL
 flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR >>> debugTrace "semijoin")
             <+ (promoteR (tryR pushAntiFilters) >>> antijoinR >>> debugTrace "antijoin")
-            <+ (promoteR (tryR pushEquiFilters) >>> eqjoinR >>> debugTrace "equijoin")
+
+            -- For Equi-Joins, we first push all generators to the front of the
+            -- qualifier list. This should make sure that no guard is stuck
+            -- between two generators and blocks the equijoin rewrite.
+            -- [ e | x <- xs, p x z, y <- ys, q x y ] (z is bound by outer comprehension)
+            <+ (promoteR (tryR pushGeneratorsR)
+                >>> promoteR (tryR pushEquiFilters) 
+                >>> eqjoinR 
+                >>> debugTrace "equijoin")
             
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.

@@ -11,6 +11,7 @@ module Database.DSH.CL.Opt.Aux
       -- * Converting predicate expressions into join predicates
     , splitJoinPredT
       -- * Moving predicates towards the front of a qualifier list.
+    , pushGeneratorsR
     , isSimplePred
     , pushSimpleFilters
     , pushEquiFilters
@@ -104,6 +105,28 @@ splitJoinPredT x y = do
         else if [y] == fv1 && [x] == fv2
              then binopT (toJoinExpr y) (toJoinExpr x) (\_ _ e1' e2' -> (e2', e1'))
              else fail "splitJoinPredT: not an equi-join predicate"
+
+---------------------------------------------------------------------------------
+-- Pushing generators towards the front of a qualifier list
+
+pushGeneratorQualR :: RewriteC (NL Qual)
+pushGeneratorQualR = do
+    readerT $ \case
+        BindQ x xs :* GuardQ p :* qs -> return $ GuardQ p :* BindQ x xs :* qs
+        BindQ x xs :* (S (GuardQ p)) -> return $ GuardQ p :* (S $ BindQ x xs)
+        _                            -> fail "can't push"
+        
+pushGeneratorsQualsR :: RewriteC (NL Qual)
+pushGeneratorsQualsR = reverseNL ^>> innermostR pushGeneratorQualR >>^ reverseNL
+
+-- | Push all generators in a comprehension towards the front:
+-- [ e | x <- xs, p1, y <- ys, p2, p3, z <- zs ]
+-- =>
+-- [ e | x <- xs, y <- ys, z <- zs, p1, p2, p3 ]
+pushGeneratorsR :: RewriteC Expr
+pushGeneratorsR = do
+    Comp _ _ _ <- idR
+    compR idR pushGeneratorsQualsR
 
 ---------------------------------------------------------------------------------
 -- Pushing filters towards the front of a qualifier list
@@ -275,6 +298,10 @@ isSimplePred e =
     t = onetdT $ do
         Comp _ _ _ <- promoteT idR
         return False
+        
+-- | Are all free variables in the predicate bound in the local comprehension?
+isLocalPred :: [Ident] -> Expr -> Bool
+isLocalPred localScope e = all (\v -> v `elem` localScope) (freeVars e)
 
 pushEquiFilters :: RewriteC Expr
 pushEquiFilters = pushFilters isEquiJoinPred
@@ -289,7 +316,7 @@ pushAllFilters :: RewriteC Expr
 pushAllFilters = pushFilters (\_ _ -> True)
 
 pushSimpleFilters :: RewriteC Expr
-pushSimpleFilters = pushFilters (\_ -> isSimplePred)
+pushSimpleFilters = pushFilters (\s p -> isLocalPred s p && isSimplePred p)
 
 
 --------------------------------------------------------------------------------
