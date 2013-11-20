@@ -152,8 +152,8 @@ checkSuccess :: RewriteC (NL (Bool, Qual))
 checkSuccess = do
     qs <- idR
     if (any fst $ toList qs)
-        then (return qs)
-        else (trace "checkSuccess" $ fail "no guards can be pushed")
+        then return qs
+        else fail "no guards can be pushed"
     
 -- Mark all guards which may be pushed based on a general predicate
 -- `mayPush`. To this predicate, we pass the guard expression as well as the
@@ -242,8 +242,8 @@ tryPush = do
 
 isEquiJoinPred :: [Ident] -> Expr -> Bool
 isEquiJoinPred locallyBoundVars (BinOp _ Eq e1 e2) = 
-    isProj e1 
-    && isProj e2
+    isFlatExpr e1 
+    && isFlatExpr e2
     && length fv1 == 1
     && length fv2 == 1
     && fv1 /= fv2
@@ -260,14 +260,6 @@ isEquiJoinPred locallyBoundVars (BinOp _ Eq e1 e2) =
         subset :: Eq a => [a] -> [a] -> Bool
         subset as bs = all (\a -> any (== a) bs) as
 isEquiJoinPred _ _                  = False
-
-isProj :: Expr -> Bool
-isProj (AppE1 _ (Prim1 Fst _) e) = isProj e
-isProj (AppE1 _ (Prim1 Snd _) e) = isProj e
-isProj (AppE1 _ (Prim1 Not _) e) = isProj e
-isProj (BinOp _ _ e1 e2)         = isProj e1 && isProj e2
-isProj (Var _ _)                 = True
-isProj _                         = False
 
 -- | Does the predicate look like an existential quantifier and is eligible for
 -- pushing? Note: In addition to the variables that are bound by the current
@@ -286,18 +278,30 @@ isAntiJoinPred vs (AppE1 _ (Prim1 And _)
                                    (S (BindQ x _)))) = isEquiJoinPred (x : vs) p
 isAntiJoinPred _  _                                  = False
 
--- 'Simple' currently simply means 'does not contain a comprehension'.
-isSimplePred :: Expr -> Bool
-isSimplePred e = 
-  case applyExpr t e of
-     Left _   -> True
-     Right b  -> b
+isFlatExpr :: Expr -> Bool
+isFlatExpr e =
+    case e of
+        AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
+        AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
+        AppE1 _ (Prim1 Not _) e -> isFlatExpr e
+        BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
+        Var _ _                 -> True
+        Lit _ _                 -> True
+        _                       -> False
         
-  where
-    t :: TranslateC CL Bool
-    t = onetdT $ do
-        Comp _ _ _ <- promoteT idR
-        return False
+
+-- A simple predicate is a predicate that we may push early into
+-- generators. Requirements are
+-- - It is local, i.e. refers only to vars bound in the local comprehension
+-- - It only refers to one generator (i.e. a local one)
+-- - It is structurally simple, i.e. flat. comparison
+isSimplePred :: [Ident] -> Expr -> Bool
+isSimplePred localScope e = 
+  isLocalPred localScope e
+  &&
+  length (freeVars e) == 1
+  &&
+  isFlatExpr e
         
 -- | Are all free variables in the predicate bound in the local comprehension?
 isLocalPred :: [Ident] -> Expr -> Bool
@@ -315,8 +319,11 @@ pushAntiFilters = pushFilters isAntiJoinPred
 pushAllFilters :: RewriteC Expr
 pushAllFilters = pushFilters (\_ _ -> True)
 
+-- We push only predicates which are local (do not refer to variables bound in
+-- enclosing comprehensions), refer to only one generator and are structurally
+-- simple.
 pushSimpleFilters :: RewriteC Expr
-pushSimpleFilters = pushFilters (\s p -> isLocalPred s p && isSimplePred p)
+pushSimpleFilters = pushFilters isSimplePred
 
 
 --------------------------------------------------------------------------------
