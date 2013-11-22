@@ -66,9 +66,12 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
     normCompR :: RewriteC CL
     normCompR = do
         Comp t _ (_ :* _)   <- promoteT idR
-        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
+        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR normQualifiersR) >>> projectT
         h'                  <- childT 0 tuplifyHeadR >>> projectT
         return $ inject $ Comp t h' qs'
+        
+    normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
 
     -- Match the pattern (singleton generator) on a qualifier
     qualT :: TranslateC Qual (Ident, Expr)
@@ -103,10 +106,10 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
 m_norm_3R :: RewriteC CL
 m_norm_3R = do
-    Comp t _ _ <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (anytdR (promoteR (normQualsEndR <+ normQualsR)) >>> projectT)
+    Comp t h _ <- promoteT idR
+    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR normQualifiersR) >>> projectT
     h'                  <- childT 0 (tryR tuplifyHeadR) >>> projectT
-    trace "m_norm_3" $ return $ inject $ Comp t h' qs'
+    return $ inject $ Comp t h' qs'
     
   where
   
@@ -114,6 +117,9 @@ m_norm_3R = do
     qualT = do
         BindQ x (Comp _ h' qs'') <- idR
         return (x, h', qs'')
+        
+    normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
+    normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
        
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsEndR = do
