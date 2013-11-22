@@ -101,7 +101,7 @@ algOp (VL.COp VL.Lt)   = RelFun Lt
 algOp (VL.COp VL.LtE)  = $impossible
 algOp (VL.BOp VL.Conj) = RelFun And
 algOp (VL.BOp VL.Disj) = RelFun Or
-algOp VL.Like          = undefined
+algOp VL.Like          = Fun1to1 Like
 
 algCompOp :: VL.VecCompOp -> Fun
 algCompOp VL.Eq = RelFun Eq
