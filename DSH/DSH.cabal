@@ -197,30 +197,30 @@ Library
 --                        aeson
 --   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 -- 
--- Executable vlopt
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        template-haskell,
---                        pretty,
---                        bytestring,
---                        mtl,
---                        aeson
---   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
--- 
--- Executable vlprop
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        mtl,
---                        bytestring,
---                        pretty,
---                        aeson
---   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
+Executable vlopt
+  Hs-Source-Dirs:   src
+  Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0,
+                       containers,
+                       template-haskell,
+                       pretty,
+                       bytestring,
+                       mtl,
+                       aeson
+  GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
+
+Executable vlprop
+  Hs-Source-Dirs:   src
+  Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
+  Build-depends:       base,
+                       TableAlgebra >= 2.0.0,
+                       containers,
+                       mtl,
+                       bytestring,
+                       pretty,
+                       aeson
+  GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 --                   
 -- Test-Suite Flattening_x100
 --     type:       exitcode-stdio-1.0
