@@ -74,10 +74,10 @@ normalizeExistentialR = do
                           (S (BindQ x xs))))
 
 -- | Normalize a guard expressing universal quantification:
--- [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ p | x <- xs ]
-normalizeUniversalR :: RewriteC Qual
-normalizeUniversalR = do
+-- null [ ... | x <- xs, p ] (length [ ... ] == 0)
+-- => and [ not p | x <- xs ]
+normalizeUniversal1R :: RewriteC Qual
+normalizeUniversal1R = do
     -- c <- idR
     -- debugUnit "normalizeUniversalR" c
     GuardQ (BinOp _ Eq 
@@ -89,8 +89,24 @@ normalizeUniversalR = do
                            (P.not p) 
                            (S (BindQ x xs))))
                            
+-- | Normalize a guard expressing universal quantification
+-- not (or [ p | x <- xs ])
+-- =>
+-- and [ not p | x <- xs ]
+normalizeUniversal2R :: RewriteC Qual
+normalizeUniversal2R = do
+    GuardQ (AppE1 _ (Prim1 Not _)
+                (AppE1 _ (Prim1 Or _)
+                         (Comp _ p (S (BindQ y ys))))) <- idR
+    
+    return $ GuardQ (P.and (Comp (listT boolT)
+                                 (P.not p)
+                                 (S (BindQ y ys))))
+                           
 normQualR :: RewriteC Qual
-normQualR = normalizeExistentialR <+ normalizeUniversalR
+normQualR = normalizeExistentialR 
+            <+ normalizeUniversal1R
+            <+ normalizeUniversal2R
     
 normalizeQualifiersR :: RewriteC (NL Qual)
 normalizeQualifiersR = 
