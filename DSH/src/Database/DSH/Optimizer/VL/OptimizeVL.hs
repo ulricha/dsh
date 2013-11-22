@@ -8,12 +8,10 @@ import           Database.Algebra.VL.Data
 import           Database.DSH.Common.Data.QueryPlan
 
 import           Database.DSH.Optimizer.Common.Rewrite
-import           Database.DSH.Optimizer.VL.Rewrite.DescriptorModifiers
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Optimizer.VL.Rewrite.MergeProjections
 import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
-import           Database.DSH.Optimizer.VL.Rewrite.Specialized
 import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
 
 type RewriteClass = Rewrite VL TopShape Bool
@@ -23,9 +21,8 @@ rewriteClasses = [ ('E', pruneEmpty)
                  , ('P', mergeProjections)
                  , ('R', removeRedundancy)
                  , ('C', optExpressions)
-                 , ('S', introduceSpecializedOperators)
                  , ('G', groupingToAggregation)
-                 , ('D', stripFromRoot) ]
+                 ]
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = case assemblePipeline "ESRSRSR" of
