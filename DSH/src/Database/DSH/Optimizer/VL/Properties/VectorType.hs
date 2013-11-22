@@ -140,6 +140,8 @@ inferVectorTypeBinOp s1 s2 op =
     EquiJoinL _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinL"
     SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SemiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 

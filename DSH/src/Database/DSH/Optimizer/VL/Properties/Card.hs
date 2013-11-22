@@ -100,6 +100,8 @@ inferCardOneBinOp c1 c2 op =
     EquiJoinL _ _ -> return $ VPropTriple False False False
     SemiJoin _ _ -> return $ VPropPair False False
     SemiJoinL _ _ -> return $ VPropPair False False
+    AntiJoin _ _ -> return $ VPropPair False False
+    AntiJoinL _ _ -> return $ VPropPair False False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

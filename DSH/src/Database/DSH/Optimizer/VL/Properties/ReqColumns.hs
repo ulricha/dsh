@@ -289,6 +289,22 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols1 _ -> 
           (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
         _                     -> error "ReqColumns.SemiJoinL"
+
+    -- For a antijoin, we only require the columns used in the join argument
+    -- from the right input.
+    AntiJoin e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.AntiJoin"
+
+    -- For a antijoin, we only require the columns used in the join argument
+    -- from the right input.
+    AntiJoinL e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.AntiJoinL"
     
     
 

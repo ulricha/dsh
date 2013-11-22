@@ -376,6 +376,24 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME This is propably too pessimistic for the descr 
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
+    AntiJoin _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
+    AntiJoinL _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+  
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op =
   case op of

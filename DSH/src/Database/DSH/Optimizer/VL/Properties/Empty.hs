@@ -80,6 +80,7 @@ inferEmptyUnOp e op =
       case e of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Empty: not a triple"
+
     
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
@@ -118,6 +119,9 @@ inferEmptyBinOp e1 e2 op =
     EquiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     SemiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     SemiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
+    AntiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) ue1)
+    AntiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) ue1)
+    _  -> error $ show op
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =

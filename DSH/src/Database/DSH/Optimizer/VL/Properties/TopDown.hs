@@ -93,6 +93,8 @@ seed (BinOp op _ _) =
     EquiJoinL _ _      -> vPropTripleSeed
     SemiJoin _ _       -> vPropPairSeed
     SemiJoinL _ _      -> vPropPairSeed
+    AntiJoin _ _       -> vPropPairSeed
+    AntiJoinL _ _      -> vPropPairSeed
     
 seed (TerOp op _ _ _) =
   case op of
