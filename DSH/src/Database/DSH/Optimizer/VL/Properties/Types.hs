@@ -21,12 +21,6 @@ data VectorType = ValueVector Int
                 | PropVector
                 deriving Show
 
--- The Untainted property tracks the list of upstream nodes from which
--- on the payload has not been modified horizontally.
-type Untainted = Maybe [AlgNode]
-
-type IntactSince = [AlgNode]
-
 data Const = Const VLVal
            | NoConst
             deriving Show
@@ -51,8 +45,7 @@ data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
                              , constProp            :: VectorProp ConstVec
                              , card1Prop            :: VectorProp Bool
                              , vectorTypeProp       :: VectorProp VectorType
-                             , verticallyIntactProp :: VectorProp IntactSince
-                             , untaintedProp        :: VectorProp Untainted } deriving (Show)
+                             } deriving (Show)
 
 
 type ReqCols = Maybe [DBCol]
@@ -118,8 +111,6 @@ instance Renderable BottomUpProps where
   renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
                  $$ text "const:" <+> (renderProp $ constProp p)
                  $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
-                 $$ text "untainted:" <+> (renderProp $ untaintedProp p)
-                 $$ text "vert_intact:" <+> (renderProp $ verticallyIntactProp p)
 
 instance Renderable TopDownProps where
   renderProp p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)

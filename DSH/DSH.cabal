@@ -160,9 +160,7 @@ Library
                      Database.DSH.Optimizer.VL.Properties.ReqColumns
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
-                     Database.DSH.Optimizer.VL.Properties.Untainted
                      Database.DSH.Optimizer.VL.Properties.VectorType
-                     Database.DSH.Optimizer.VL.Properties.VerticalForm
 		     
                      Database.DSH.Optimizer.Common.Rewrite
                      Database.DSH.Optimizer.VL.OptimizeVL
