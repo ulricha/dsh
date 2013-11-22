@@ -9,7 +9,6 @@ import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Properties.Card
 import           Database.DSH.Optimizer.VL.Properties.Const
 import           Database.DSH.Optimizer.VL.Properties.Empty
-import           Database.DSH.Optimizer.VL.Properties.IndexSpace
 import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Properties.Untainted
 import           Database.DSH.Optimizer.VL.Properties.VectorType
@@ -43,14 +42,12 @@ inferNullOp n op = do
   opConst <- inferConstVecNullOp op
   opType <- inferVectorTypeNullOp op
   opCard <- inferCardOneNullOp op
-  opIndexSpaces <- inferIndexSpaceNullOp n op
   opVerticallyIntact <- inferVerticallyIntactNullOp op
   let opUntainted = inferUntaintedNullOp op
   return $ BUProps { emptyProp = opEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , untaintedProp = opUntainted
-                   , indexSpaceProp = opIndexSpaces
                    , verticallyIntactProp = opVerticallyIntact
                    , vectorTypeProp = opType }
 
@@ -60,14 +57,12 @@ inferUnOp n c op cProps = do
   opType <- inferVectorTypeUnOp (vectorTypeProp cProps) op
   opConst <- inferConstVecUnOp (constProp cProps) op
   opCard <- inferCardOneUnOp (card1Prop cProps) op
-  opIndexSpaces <- inferIndexSpaceUnOp (indexSpaceProp cProps) n op
   opVerticallyIntact <- inferVerticallyIntactUnOp (verticallyIntactProp cProps) c op
   let opUntainted = inferUntaintedUnOp (untaintedProp cProps) c op
   return $ BUProps { emptyProp = opEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , untaintedProp = opUntainted
-                   , indexSpaceProp = opIndexSpaces
                    , verticallyIntactProp = opVerticallyIntact
                    , vectorTypeProp = opType }
 
@@ -77,7 +72,6 @@ inferBinOp n c1 c2 op c1Props c2Props = do
   opType <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
   opConst <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
   opCard <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
-  opIndexSpaces <- inferIndexSpaceBinOp (indexSpaceProp c1Props) (indexSpaceProp c2Props) n op
   opVerticallyIntact <- inferVerticallyIntactBinOp (verticallyIntactProp c1Props)
                                                    (verticallyIntactProp c2Props)
                                                    c1
@@ -88,7 +82,6 @@ inferBinOp n c1 c2 op c1Props c2Props = do
                    , constProp = opConst
                    , card1Prop = opCard
                    , untaintedProp = opUntainted
-                   , indexSpaceProp = opIndexSpaces
                    , verticallyIntactProp = opVerticallyIntact
                    , vectorTypeProp = opType }
 
@@ -114,12 +107,10 @@ inferTerOp n c1 c2 c3 op c1Props c2Props c3Props = do
                                                    c3
                                                    op
   let opUntainted = inferUntaintedTerOp (untaintedProp c1Props) (untaintedProp c2Props) (untaintedProp c3Props) c1 c2 c3 op
-  opIndexSpaces <- inferIndexSpaceTerOp (indexSpaceProp c1Props) (indexSpaceProp c2Props) (indexSpaceProp c3Props) n op
   return $ BUProps { emptyProp = opEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , untaintedProp = opUntainted
-                   , indexSpaceProp = opIndexSpaces
                    , verticallyIntactProp = opVerticallyIntact
                    , vectorTypeProp = opType }
 

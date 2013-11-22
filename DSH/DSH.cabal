@@ -152,13 +152,11 @@ Library
 --                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
 --                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
 --   
-                     Database.DSH.Optimizer.VL.Properties.AbstractDomains
                      Database.DSH.Optimizer.VL.Properties.BottomUp
                      Database.DSH.Optimizer.VL.Properties.Card
                      Database.DSH.Optimizer.VL.Properties.Common
                      Database.DSH.Optimizer.VL.Properties.Const
                      Database.DSH.Optimizer.VL.Properties.Empty
-                     Database.DSH.Optimizer.VL.Properties.IndexSpace
                      Database.DSH.Optimizer.VL.Properties.ReqColumns
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
