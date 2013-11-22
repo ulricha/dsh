@@ -549,9 +549,10 @@ instance VectorAlgebra PFAlgebra where
     q' <- rownumM pos' [resCol, pos] Nothing
             $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
     d1 <- distinctM 
-          $ proj ([colP descr, (pos, resCol)] ++ [ (itemi i, itemi i) | i <- colsg ]) q'
+          $ proj (keepItems colsg [colP descr, (pos, resCol)]) q'
     p <- proj [(posold, pos), (posnew, pos')] q'
-    v <- tagM "groupBy ValueVector" $ projM [colP descr, colP pos, (item, item)]
+    v <- tagM "groupBy ValueVector" 
+           $ projM (keepItems colse [colP descr, colP pos])
            $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                 (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
     return $ (DBV d1 colsg, DBV v colse, PropVector p)
