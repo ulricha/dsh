@@ -34,8 +34,8 @@ redundantRules = [ introduceSelectExpr ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ pairFromSameSource
-                         , pairedProjections
-                         , noOpProject
+                         -- , pairedProjections
+                         -- , noOpProject
                          , distDescCardOne
                          ]
 
@@ -67,6 +67,10 @@ pairFromSameSource q =
           logRewrite "Redundant.PairFromSame" q
           replace q $(v "q1") |])
 
+{-
+
+FIXME really necessary?
+
 -- Remove a ProjectL or ProjectA operator that does not change the column layout
 noOpProject :: VLRule BottomUpProps
 noOpProject q =
@@ -79,6 +83,11 @@ noOpProject q =
         return $ do
           logRewrite "Redundant.NoOpProject" q
           replace q $(v "q1") |])
+-}          
+
+{-
+
+FIXME ProjectL -> VLProject
 
 pairedProjections :: VLRule BottomUpProps
 pairedProjections q =
@@ -94,9 +103,10 @@ pairedProjections q =
               replace q $(v "q1")
             else do
               logRewrite "Redundant.PairedProjections.Reorder" q
-              let op = UnOp (ProjectPayload $ map PLCol $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
+              let op = UnOp (VLProject $ map Column1 $ $(v "ps1") ++ $(v "ps2")) $(v "q1")
               projectNode <- insert op
               replace q projectNode |])
+-}              
 
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
@@ -111,7 +121,7 @@ distDescCardOne q =
                       VProp c -> c
                       _       -> error "distDescCardOne: no single property"
 
-        let constVal (ConstPL val) = return $ PLConst val
+        let constVal (ConstPL val) = return $ Constant1 val
             constVal _             = fail "no match"
 
 
@@ -121,6 +131,6 @@ distDescCardOne q =
 
         return $ do
           logRewrite "Redundant.DistDescCardOne" q
-          projNode <- insert $ UnOp (ProjectPayload constProjs) $(v "qv")
+          projNode <- insert $ UnOp (VLProject constProjs) $(v "qv")
           void $ replaceWithNew q $ UnOp Segment projNode |])
 

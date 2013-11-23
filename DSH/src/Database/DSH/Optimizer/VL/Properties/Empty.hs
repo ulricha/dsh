@@ -46,15 +46,14 @@ inferEmptyUnOp e op =
     VecMinL -> Right e
     VecMax -> Right e
     VecMaxL -> Right e
-    ProjectL _ -> Right e
-    ProjectA _ -> Right e
     IntegerToDoubleA -> Right e
     IntegerToDoubleL -> Right e
     ReverseA -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
     ProjectRename _  -> Right e
-    ProjectPayload _   -> Right e
+    VLProject _   -> Right e
+    VLProjectA _   -> Right e
     ProjectAdmin _   -> Right e
     SelectExpr _       -> Right e
     Only             -> undefined

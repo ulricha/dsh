@@ -268,16 +268,6 @@ instance VectorAlgebra PFAlgebra where
             $ cast item resCol doubleT q
     return $ DBV qr [1]
 
-  projectA (DBP q _) pc = do
-    qr <- tagM "projectA"
-            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
-    return $ DBP qr [1..length pc]
-
-  projectL (DBV q _) pc = do
-    qr <- tagM "projectL"
-            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
-    return $ DBV qr [1..length pc]
-
   propRename (RenameVector q1) (DBV q2 cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- tagM "propRename"
@@ -734,26 +724,29 @@ instance VectorAlgebra PFAlgebra where
 
     return $ RenameVector qr
 
-  projectPayload valProjs (DBV q _) = do
+  vecProject projs (DBV q _) = do
 
-    let createPayloadProj :: [VL.PayloadProj]
+    let mkProj :: [VL.Expr1]
                           -> [(AttrName, AttrName)]
                           -> Int
                           -> AlgNode
                           -> GraphM r PFAlgebra ([(AttrName, AttrName)], AlgNode)
-        createPayloadProj ((VL.PLConst c) : vps) projections colIndex q' = do
+        mkProj ((VL.Constant1 c) : vps) projections colIndex q' = do
           qa <- attach (itemi' colIndex) (algConstType c) (algVal c) q'
-          createPayloadProj vps ((itemi colIndex, itemi' colIndex) : projections) (colIndex + 1) qa
+          mkProj vps ((itemi colIndex, itemi' colIndex) : projections) (colIndex + 1) qa
 
-        createPayloadProj ((VL.PLCol col) : vps) projections colIndex q' =
-          createPayloadProj vps ((itemi colIndex, itemi col) : projections) (colIndex + 1) q'
+        mkProj ((VL.Column1 col) : vps) projections colIndex q' =
+          mkProj vps ((itemi colIndex, itemi col) : projections) (colIndex + 1) q'
+          
+        -- FIXME implement
+        mkProj ((VL.App1 op e1 e2) : vps) projections colIndex q' = undefined
 
-        createPayloadProj []                     projections _        q' =
+        mkProj []                     projections _        q' =
           return (projections, q')
 
-    (ps, qp) <- createPayloadProj valProjs [] 1 q
+    (ps, qp) <- mkProj projs [] 1 q
     qr <- proj ([colP descr, colP pos] ++ ps) qp
-    return $ DBV qr [1 .. (length valProjs)]
+    return $ DBV qr [1 .. (length projs)]
 
   projectAdmin descrProj posProj (DBV q cols) = do
     let pf = \x -> x ++ [colP $ itemi i | i <- cols]

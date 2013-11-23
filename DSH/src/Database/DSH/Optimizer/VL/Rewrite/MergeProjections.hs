@@ -12,7 +12,7 @@ mergeProjections :: VLRewrite Bool
 mergeProjections = iteratively $ applyToAll noProps mergeRules
 
 mergeRules :: VLRuleSet ()
-mergeRules = [ mergeProjectL ]
+mergeRules = [ {- FIXME projectProjectL -} ]
 
 colMap :: [DBCol] -> [(DBCol, DBCol)]
 colMap cols = zip [1 .. length cols] cols
@@ -23,6 +23,8 @@ mapCols mapping cols = map (lookupCol mapping) cols
           Just c' -> c'
           Nothing -> error $ "VL.MergeProjections: column not found " ++ (show c)
 
+{-
+FIXME implement for new ProjectL
 mergeProjectL :: VLRule ()
 mergeProjectL q =
   $(pattern 'q "ProjectL cols1 (ProjectL cols2 (q1))"
@@ -33,4 +35,6 @@ mergeProjectL q =
           let cols = mapCols (colMap $(v "cols2")) $(v "cols1")
               projectOp = UnOp (ProjectL $(v "cols")) $(v "q1")
           void $ replaceWithNew q projectOp |])
+          
+-}
 

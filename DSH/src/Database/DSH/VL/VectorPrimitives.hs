@@ -1,13 +1,24 @@
 module Database.DSH.VL.VectorPrimitives where
 
 import Database.DSH.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, PayloadProj, Expr1, Expr2, Nat, AggrFun)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
 import Database.Algebra.Pathfinder()
 
 -- * Vector primitive constructor functions
+
+{-
+
+FIXME
+consistent naming scheme:
+
+- atom = A
+- lifted is the standard case
+- difference between lifted and segmented -> segmented S
+- common prefix: vec. vl is reserved for the actual VL operators
+-}
 
 class VectorAlgebra a where
   singletonDescr :: GraphM r a DBV
@@ -54,9 +65,6 @@ class VectorAlgebra a where
   selectPos1 :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
 
-  projectL :: DBV -> [DBCol] -> GraphM r a DBV
-  projectA :: DBP -> [DBCol] -> GraphM r a DBP
-  
   {-
   projectL :: [Proj] -> DBV -> GraphM r a DBV
   project  :: [Proj] -> DBP -> GraphM r a DBP
@@ -77,7 +85,8 @@ class VectorAlgebra a where
   -- FIXME eliminate
   projectAdmin :: DescrProj -> PosProj -> DBV -> GraphM r a DBV
 
-  projectPayload :: [PayloadProj] -> DBV -> GraphM r a DBV
+  vecProject :: [Expr1] -> DBV -> GraphM r a DBV
+  vecProjectA :: [Expr1] -> DBP -> GraphM r a DBP
   
   -- FIXME replace by projectL
   compExpr1 :: Expr1 -> DBV -> GraphM r a DBV

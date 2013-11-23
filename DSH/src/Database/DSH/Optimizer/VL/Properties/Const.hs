@@ -31,6 +31,13 @@ fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromPropVec (PropVecConst s t)  = Right (s, t)
 fromPropVec _                   = Left "Properties.Const fromPropVec"
 
+constExpr1 :: [ConstPayload] -> Expr1 -> ConstPayload
+constExpr1 constCols e = 
+    case e of
+        Constant1 v   -> ConstPL v
+        Column1 i     -> constCols !! (i - 1)
+        -- FIXME implement constant folding
+        App1 op e1 e2 -> NonConstPL
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
@@ -100,16 +107,6 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    ProjectL ps -> do
-      (d, cols) <- unp c >>= fromDBV
-      let cols' = map (\p -> cols !! (p - 1)) ps
-      return $ VProp $ DBVConst d cols'
-
-    ProjectA ps -> do
-      cols <- unp c >>= fromDBP
-      let cols' = map (\p -> cols !! (p - 1)) ps
-      return $ VProp $ DBPConst cols'
-
     IntegerToDoubleA -> return c
 
     IntegerToDoubleL -> return c
@@ -127,7 +124,7 @@ inferConstVecUnOp c op =
       return $ VProp $ DBVConst d [NonConstPL]
 
     ProjectRename (targetIS, _)  -> do
-      -- FIXME this is not precise -- take care of of the source space.
+      -- FIXME this is not precise -- take care of the source space.
       (d, _) <- unp c >>= fromDBV
       let d' = case targetIS of
             STDescrCol -> d
@@ -135,13 +132,13 @@ inferConstVecUnOp c op =
             STNumber -> NonConstDescr
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
 
-    ProjectPayload vps   -> do
+    VLProject vps   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst constDescr $ map (constExpr1 constCols) vps
 
-      let constProj (PLConst v)  = ConstPL v
-          constProj (PLCol i)    = constCols !! (i - 1)
-
-      return $ VProp $ DBVConst constDescr $ map constProj vps
+    VLProjectA vps   -> do
+      (constDescr, constCols) <- unp c >>= fromDBV
+      return $ VProp $ DBPConst $ map (constExpr1 constCols) vps
 
     ProjectAdmin (dp, _)   -> do
       (constDescr, constCols) <- unp c >>= fromDBV

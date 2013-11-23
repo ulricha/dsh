@@ -16,6 +16,7 @@ instance Show a => Show (VectorProp a) where
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
 data VectorType = ValueVector Int
+                -- FIXME Name'AtomicVector' does not make any sense
                 | AtomicVector Int
                 | RenameVector
                 | PropVector

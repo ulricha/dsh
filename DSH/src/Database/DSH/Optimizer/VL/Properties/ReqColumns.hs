@@ -24,12 +24,6 @@ one = VProp $ Just [1]
 na :: VectorProp ReqCols
 na = VProp Nothing
 
-reqProjCols :: [PayloadProj] -> [DBCol]
-reqProjCols ((PLCol col) : ps) = col : (reqProjCols ps)
-reqProjCols ((PLConst _) : ps) = reqProjCols ps
-reqProjCols ((PLExpr e)  : ps) = reqExpr1Cols e ++ reqProjCols ps
-reqProjCols []                 = []
-
 reqExpr1Cols :: Expr1 -> [DBCol]
 reqExpr1Cols (App1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
 reqExpr1Cols (Column1 col)  = [col]
@@ -99,9 +93,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Number -> none
     NumberL -> none
 
-    ProjectL cols -> childReqColumns `union` (VProp $ Just cols)
-    ProjectA cols -> childReqColumns `union` (VProp $ Just cols)
-
     IntegerToDoubleA -> one
     IntegerToDoubleL -> one
 
@@ -112,7 +103,8 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
 
     ProjectRename _ -> none `union` childReqColumns
 
-    ProjectPayload ps -> childReqColumns `union` (VProp $ Just $ reqProjCols ps)
+    VLProject ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+    VLProjectA ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
 
     ProjectAdmin _ -> ownReqColumns `union` childReqColumns
 

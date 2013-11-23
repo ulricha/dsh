@@ -37,9 +37,8 @@ inferCardOneUnOp c op =
     VecMinL -> Right c
     VecMax -> Right $ VProp True
     VecMaxL -> Right c
-    ProjectL _ -> Right c
-    ProjectA _ -> Right c
-    ProjectPayload _ -> Right c
+    VLProject _ -> Right c
+    VLProjectA _  -> Right c
     ProjectAdmin _ -> Right c
     ProjectRename _ -> Right c
     IntegerToDoubleA -> Right c

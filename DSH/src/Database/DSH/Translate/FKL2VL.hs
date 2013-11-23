@@ -6,7 +6,7 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
        
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
-import           Database.Algebra.VL.Data                      (VL(), UnOp(ProjectL, ProjectA))
+import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
@@ -142,9 +142,9 @@ insertTopProjections g = do
   where 
   traverseShape :: QP.TopShape -> Graph VL QP.TopShape
   traverseShape (QP.ValueVector (DBV q _) lyt) = 
-    insertProj lyt q ProjectL DBV QP.ValueVector
+    insertProj lyt q VLProject DBV QP.ValueVector
   traverseShape (QP.PrimVal (DBP q _) lyt)     = 
-    insertProj lyt q ProjectA DBP QP.PrimVal
+    insertProj lyt q VLProjectA DBP QP.PrimVal
   
   traverseLayout :: QP.TopLayout -> Graph VL QP.TopLayout
   traverseLayout (QP.InColumn c) = 
@@ -154,19 +154,19 @@ insertTopProjections g = do
     lyt2' <- traverseLayout lyt2
     return $ QP.Pair lyt1' lyt2'
   traverseLayout (QP.Nest (DBV q _) lyt) = 
-    insertProj lyt q ProjectL DBV QP.Nest
+    insertProj lyt q VLProject DBV QP.Nest
     
   insertProj 
     :: QP.TopLayout               -- The node's layout
     -> AlgNode                    -- The top node to consider
-    -> ([DBCol] -> UnOp)            -- Constructor for the projection op
+    -> ([Expr1] -> UnOp)            -- Constructor for the projection op
     -> (AlgNode -> [DBCol] -> v)  -- DBVector constructor
     -> (v -> QP.TopLayout -> t)   -- Layout/Shape constructor
     -> Graph VL t
   insertProj lyt q project vector describe = do
     let width = QP.columnsInLayout lyt
         cols  = [1 .. width]
-    qp   <- insertNode $ UnOp (project cols) q
+    qp   <- insertNode $ UnOp (project $ map Column1 cols) q
     lyt' <- traverseLayout lyt
     return $ describe (vector qp cols) lyt'
 

@@ -17,11 +17,15 @@ import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 pruneUnused :: VLRewrite Bool
-pruneUnused = applyToAll inferTopDown [ unusedProject ]
+pruneUnused = applyToAll inferTopDown [ {- unusedProject -} ]
+
+{-
+
+FIXME seems a bit fishy
 
 unusedProject :: VLRule TopDownProps
 unusedProject q =
-  $(pattern 'q "[ProjectPayload | ProjectL | ProjectA] _ (q1)"
+  $(pattern 'q "[ProjectL | Project] _ (q1)"
     [| do
       -- Don't remove top-level projections. They ensure that all required
       -- columns required for the result type are actually there.
@@ -38,3 +42,4 @@ unusedProject q =
       return $ do
         logRewrite "Unused.Project" q
         replace q $(v "q1") |])
+-}

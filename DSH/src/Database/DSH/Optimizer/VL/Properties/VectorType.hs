@@ -45,8 +45,6 @@ inferVectorTypeUnOp s op =
     VecMinL -> Right $ VProp $ ValueVector 1
     VecMax -> Right $ VProp $ AtomicVector 1
     VecMaxL -> Right $ VProp $ ValueVector 1
-    ProjectL ps -> Right $ VProp $ ValueVector $ length ps
-    ProjectA ps -> Right $ VProp $ AtomicVector $ length ps
     IntegerToDoubleA -> Right $ VProp $ AtomicVector 1
     IntegerToDoubleL -> Right $ VProp $ ValueVector 1
     ReverseA -> liftM2 VPropPair (unpack s) (Right PropVector)
@@ -69,7 +67,10 @@ inferVectorTypeUnOp s op =
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
     ProjectRename _ -> Right $ VProp RenameVector
-    ProjectPayload valProjs -> Right $ VProp $ ValueVector $ length valProjs
+
+    VLProject valProjs -> Right $ VProp $ ValueVector $ length valProjs
+    VLProjectA valProjs -> Right $ VProp $ AtomicVector $ length valProjs
+
     ProjectAdmin _ -> VProp <$> unpack s
     SelectExpr _ -> VProp <$> unpack s
     Only -> undefined

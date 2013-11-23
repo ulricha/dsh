@@ -18,10 +18,10 @@ optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ postOrder inferBottomUp expressionRules
 
 expressionRules :: VLRuleSet BottomUpProps
-expressionRules = [ mergeCompWithProjectLeft
-                  , mergeCompWithProjectRight
-                  , mergeCompExpr1LWithProject
-                  , constInputLeft
+expressionRules = [ -- mergeCompWithProjectLeft
+                  -- mergeCompWithProjectRight
+                  -- , mergeCompExpr1LWithProject
+                  constInputLeft
                   , constInputRight
                   , sameInput
                   , mergeExpr11
@@ -102,6 +102,10 @@ sameInput q =
 
 -- Merge CompExpr operators with input projections in various combinations
 
+{- 
+
+FIXME ProjectL -> VLProject
+
 mergeCompWithProjectLeft :: VLRule BottomUpProps
 mergeCompWithProjectLeft q =
   $(pattern 'q "(ProjectL ps (q1)) CompExpr2L expr (q2)"
@@ -123,7 +127,10 @@ mergeCompWithProjectRight q =
               c2' = $(v "ps") !! (c2 - 1)
               expr' = updateRightCol (Column2Right (R c2')) $(v "expr")
           void $ replaceWithNew q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
+-}          
 
+{-
+FIXME Should not occur anymore -- both operators are replaced by ProjectL
 mergeCompExpr1LWithProject :: VLRule BottomUpProps
 mergeCompExpr1LWithProject q =
   $(pattern 'q "CompExpr1L expr (ProjectL ps (q1))"
@@ -134,6 +141,7 @@ mergeCompExpr1LWithProject q =
               c' = $(v "ps") !! (c - 1)
               expr' = updateCol (Column1 c') $(v "expr")
           void $ replaceWithNew q $ UnOp (CompExpr1L expr') $(v "q1")|])
+-}          
 
 -- Remove the left input from a CompExpr operator if the input is constant
 constInputLeft :: VLRule BottomUpProps
