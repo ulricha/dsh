@@ -16,7 +16,6 @@ import Database.DSH.Optimizer.VL.Properties.VectorType
 import Database.DSH.Optimizer.VL.Rewrite.Common
 import Database.DSH.Optimizer.VL.Rewrite.Expressions
 import Database.DSH.Optimizer.VL.Rewrite.MergeProjections
-import Database.DSH.Optimizer.VL.Rewrite.Unused
 
 removeRedundancy :: VLRewrite Bool
 removeRedundancy = iteratively $ sequenceRewrites [ cleanup
@@ -28,7 +27,6 @@ removeRedundancy = iteratively $ sequenceRewrites [ cleanup
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ mergeProjections
                                          , optExpressions
-                                         , pruneUnused 
                                          ]
 
 redundantRules :: VLRuleSet ()
