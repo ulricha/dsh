@@ -29,27 +29,37 @@ expressionRules = [ -- mergeCompWithProjectLeft
                   , mergeExpr21Right ]
 
 updateLeftCol :: Expr2 -> Expr2 -> Expr2
-updateLeftCol col' (App2 o e1 e2)      = App2 o (updateLeftCol col' e1) (updateLeftCol col' e2)
-updateLeftCol col' (Column2Left (L _)) = col'
-updateLeftCol _    e                   = e
+updateLeftCol col' e =
+    case e of
+        BinApp2 o e1 e2   -> BinApp2 o (updateLeftCol col' e1) (updateLeftCol col' e2)
+        UnApp2 o e1       -> UnApp2 o (updateLeftCol col' e1)
+        Column2Left (L _) -> col'
+        _                 -> e
 
 updateRightCol :: Expr2 -> Expr2 -> Expr2
-updateRightCol col' (App2 o e1 e2)         = App2 o (updateRightCol col' e1) (updateRightCol col' e2)
-updateRightCol col' (Column2Right (R _))   = col'
-updateRightCol _    e                      = e
+updateRightCol col' e =
+    case e of
+        BinApp2 o e1 e2    -> BinApp2 o (updateRightCol col' e1) (updateRightCol col' e2)
+        UnApp2 o e1        -> UnApp2 o (updateRightCol col' e1)
+        Column2Right (R _) -> col'
+        _                  -> e
 
 updateCol :: Expr1 -> Expr1 -> Expr1
-updateCol col' (App1 o e1 e2)   = App1 o (updateCol col' e1) (updateCol col' e2)
-updateCol col' (Column1 _)      = col'
-updateCol _    e                = e
+updateCol col' e =
+    case e of
+        BinApp1 o e1 e2 -> BinApp1 o (updateCol col' e1) (updateCol col' e2)
+        UnApp1 o e1     -> UnApp1 o (updateCol col' e1)
+        Column1 _       -> col'
+        _               -> e
 
 leftCol :: Expr2 -> DBCol
 leftCol e =
   let leftCol' :: Expr2 -> Maybe DBCol
-      leftCol' (App2 _ e1 e2) =
+      leftCol' (BinApp2 _ e1 e2) =
         case leftCol' e1 of
           Just c  -> Just c
           Nothing -> leftCol' e2
+      leftCol' (UnApp2 _ e1) = leftCol' e1
       leftCol' (Column2Left (L c)) = Just c
       leftCol' _ = Nothing
   in
@@ -59,10 +69,11 @@ leftCol e =
 
 rightCol :: Expr2 -> DBCol
 rightCol e =
-  let rightCol' (App2 _ e1 e2) =
+  let rightCol' (BinApp2 _ e1 e2) =
         case rightCol' e1 of
           Just c  -> Just c
           Nothing -> rightCol' e2
+      rightCol' (UnApp2 _ e1) = rightCol' e1
       rightCol' (Column2Right (R c)) = Just c
       rightCol' _ = Nothing
   in
@@ -72,10 +83,11 @@ rightCol e =
 
 col :: Expr1 -> DBCol
 col e =
-  let col' (App1 _ e1 e2) =
-        case col' e1 of
-          Just c  -> Just c
-          Nothing -> col' e2
+  let col' (BinApp1 _ e1 e2) =
+          case col' e1 of
+              Just c  -> Just c
+              Nothing -> col' e2
+      col' (UnApp1 _ e1) = col' e1
       col' (Column1 c) = Just c
       col' _ = Nothing
   in
@@ -84,7 +96,8 @@ col e =
     Nothing -> error "CompExpr1L expression does not reference its right input"
 
 expr2ToExpr1 :: Expr2 -> Expr1
-expr2ToExpr1 (App2 o e1 e2)       = App1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
+expr2ToExpr1 (BinApp2 o e1 e2)    = BinApp1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
+expr2ToExpr1 (UnApp2 o e)         = UnApp1 o (expr2ToExpr1 e)
 expr2ToExpr1 (Column2Left (L c))  = Column1 c
 expr2ToExpr1 (Column2Right (R c)) = Column1 c
 expr2ToExpr1 (Constant2 val)      = Constant1 val
@@ -185,14 +198,20 @@ constInputRight q =
 -- FIXME this is way too hackish. Implement a clean solution to insert expressions into
 -- other expressions
 expr1ToExpr2Right :: Expr1 -> Expr2
-expr1ToExpr2Right (App1 o e1 e2)   = App2 o (expr1ToExpr2Right e1) (expr1ToExpr2Right e2)
-expr1ToExpr2Right (Column1 c)      = Column2Right (R c)
-expr1ToExpr2Right (Constant1 val)  = Constant2 val
+expr1ToExpr2Right e =
+    case e of
+        BinApp1 o e1 e2 -> BinApp2 o (expr1ToExpr2Right e1) (expr1ToExpr2Right e2)
+        UnApp1 o e1     -> UnApp2 o (expr1ToExpr2Right e1)
+        Column1 c       -> Column2Right (R c)
+        Constant1 val   -> Constant2 val
 
 expr1ToExpr2Left :: Expr1 -> Expr2
-expr1ToExpr2Left (App1 o e1 e2)   = App2 o (expr1ToExpr2Left e1) (expr1ToExpr2Left e2)
-expr1ToExpr2Left (Column1 c)      = Column2Left (L c)
-expr1ToExpr2Left (Constant1 val)  = Constant2 val
+expr1ToExpr2Left e =
+    case e of
+        BinApp1 o e1 e2 -> BinApp2 o (expr1ToExpr2Left e1) (expr1ToExpr2Left e2)
+        UnApp1 o e1     -> UnApp2 o (expr1ToExpr2Left e1)
+        Column1 c       -> Column2Left (L c)
+        Constant1 val   -> Constant2 val
 
 mergeExpr11 :: VLRule BottomUpProps
 mergeExpr11 q =

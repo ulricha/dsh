@@ -6,7 +6,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..))
+import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), VecUnOp(..))
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -546,12 +546,11 @@ distL (AClosure n v i xs x f fl) q2 = do
     return $ AClosure n v' (i + 1) xs' x f fl
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
-
 ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _) <- distPrim qb q1
     (d1, p1) <- restrictVec q1 d1'
-    qb' <- notPrim qb
+    qb' <- vlProjectA qb [UnApp1 Not (Column1 1)]
     (d2', _) <- distPrim qb' q2
     (d2, p2) <- restrictVec q2 d2'
     r1 <- renameOuter' p1 lyt1

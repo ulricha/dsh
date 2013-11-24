@@ -33,8 +33,6 @@ inferVectorTypeUnOp s op =
   case op of
     Unique -> VProp <$> unpack s
     UniqueL -> VProp <$> unpack s
-    NotPrim -> Right $ VProp $ AtomicVector 1
-    NotVec -> Right $ VProp $ ValueVector 1
     LengthA -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s

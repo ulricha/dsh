@@ -6,7 +6,7 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
        
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
-import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..))
+import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..), VecUnOp(..))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
@@ -41,8 +41,8 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (AvgL _) -> avgLift
                                            (The _) -> the
                                            (TheL _) -> theL
-                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> notPrim v)
-                                           (NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> notVec v)
+                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProjectA v [UnApp1 Not (Column1 1)])
+                                           (NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> vlProject v [UnApp1 Not (Column1 1)])
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
                                            (FstL _) -> fstL

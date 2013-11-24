@@ -32,8 +32,6 @@ inferEmptyUnOp e op =
   case op of
     Unique -> Right e
     UniqueL -> Right e
-    NotPrim -> Right e
-    NotVec -> Right e
     LengthA -> Right $ VProp False
     DescToRename -> Right e
     Segment -> Right e
@@ -118,9 +116,8 @@ inferEmptyBinOp e1 e2 op =
     EquiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     SemiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     SemiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    AntiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) ue1)
-    AntiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) ue1)
-    _  -> error $ show op
+    AntiJoin _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
+    AntiJoinL _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =

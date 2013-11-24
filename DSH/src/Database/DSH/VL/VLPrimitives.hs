@@ -75,9 +75,8 @@ joinExpr :: JoinExpr -> Expr1
 joinExpr expr = aux 1 expr
   where
     aux :: Int -> JoinExpr -> Expr1
-    aux offset (BinOpJ op e1 e2) = App1 (operToVecOp op) (aux offset e1) (aux offset e2)
-    -- FIXME implement this case once the 'not' mess in VL has been solved.
-    aux _offset (UnOpJ NotJ _e)    = undefined
+    aux offset (BinOpJ op e1 e2) = BinApp1 (operToVecOp op) (aux offset e1) (aux offset e2)
+    aux offset (UnOpJ NotJ e)    = UnApp1 D.Not (aux offset e)
     aux offset (UnOpJ FstJ e)    = aux offset e
     aux offset (UnOpJ SndJ e)    = aux (offset + 1) e
     aux _      (ConstJ v)        = Constant1 $ pVal v
@@ -118,12 +117,6 @@ sortWith (DBV c1 _) (DBV c2 _) = do
                                   r1 <- dbv $ insertNode $ UnOp R1 r
                                   r2 <- prop $ insertNode $ UnOp R2 r
                                   return (r1, r2)
-
-notPrim :: DBP -> GraphM r VL DBP
-notPrim (DBP c _) = dbp $ insertNode $ UnOp NotPrim c
-
-notVec :: DBV -> GraphM r VL DBV
-notVec (DBV c _) = dbv $ insertNode $ UnOp NotVec c
 
 lengthA :: DBV -> GraphM r VL DBP
 lengthA (DBV c _) = dbp $ insertNode $ UnOp LengthA c
@@ -219,12 +212,12 @@ tableRef n tys ks = dbv $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typ
 compExpr2 :: O.Oper -> DBP -> DBP -> GraphM r VL DBP
 compExpr2 o (DBP c1 _) (DBP c2 _) = dbp
                                     $ insertNode
-                                    $ BinOp (CompExpr2 (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
+                                    $ BinOp (CompExpr2 (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 compExpr2L :: O.Oper -> DBV -> DBV -> GraphM r VL DBV
 compExpr2L o (DBV c1 _) (DBV c2 _) = dbv
                                      $ insertNode
-                                     $ BinOp (CompExpr2L (App2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
+                                     $ BinOp (CompExpr2L (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 vecSum :: Ty.Type -> DBV -> GraphM r VL DBP
 vecSum ty (DBV c _) = dbp $ insertNode $ UnOp (VecSum (typeToVLType ty)) c

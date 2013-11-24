@@ -25,8 +25,6 @@ inferCardOneUnOp c op =
   case op of
     Unique -> Right c
     UniqueL -> Right c
-    NotPrim -> Right c
-    NotVec -> Right c
     LengthA -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c

@@ -36,11 +36,6 @@ class VectorAlgebra a where
   number :: DBV -> GraphM r a DBV
   numberL :: DBV -> GraphM r a DBV  
 
-  -- FIXME replace with project
-  notPrim :: DBP -> GraphM r a DBP
-  -- FIXME replace with projectL
-  notVec :: DBV -> GraphM r a DBV
-
   descToRename :: DBV -> GraphM r a RenameVector
   segment :: DBV -> GraphM r a DBV
   unsegment :: DBV -> GraphM r a DBV
@@ -65,11 +60,6 @@ class VectorAlgebra a where
   selectPos1 :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
 
-  {-
-  projectL :: [Proj] -> DBV -> GraphM r a DBV
-  project  :: [Proj] -> DBP -> GraphM r a DBP
-  -}
-  
   -- FIXME this should be a generic cast operator
   integerToDoubleA :: DBP -> GraphM r a DBP
   integerToDoubleL :: DBV -> GraphM r a DBV

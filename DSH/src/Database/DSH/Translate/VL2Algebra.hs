@@ -232,8 +232,6 @@ translateUnOp u c = case u of
                       UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
                       Number        -> liftM fromDBV $ unique (toDBV c)
                       NumberL       -> liftM fromDBV $ uniqueL (toDBV c)
-                      NotPrim       -> liftM fromDBP $ notPrim (toDBP c)
-                      NotVec        -> liftM fromDBV $ notVec (toDBV c)
                       LengthA       -> liftM fromDBP $ lengthA (toDBV c)
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDBV c)
                       Segment       -> liftM fromDBV $ segment (toDBV c)

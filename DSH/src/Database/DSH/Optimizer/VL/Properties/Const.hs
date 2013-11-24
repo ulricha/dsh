@@ -34,10 +34,11 @@ fromPropVec _                   = Left "Properties.Const fromPropVec"
 constExpr1 :: [ConstPayload] -> Expr1 -> ConstPayload
 constExpr1 constCols e = 
     case e of
-        Constant1 v   -> ConstPL v
-        Column1 i     -> constCols !! (i - 1)
+        Constant1 v      -> ConstPL v
+        Column1 i        -> constCols !! (i - 1)
         -- FIXME implement constant folding
-        App1 op e1 e2 -> NonConstPL
+        BinApp1 op e1 e2 -> NonConstPL
+        UnApp1 op e      -> NonConstPL
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
@@ -67,10 +68,6 @@ inferConstVecUnOp c op =
     Unique -> return c
 
     UniqueL -> return c
-
-    NotPrim -> return c
-
-    NotVec -> return c
 
     LengthA -> do
       return $ VProp $ DBPConst [NonConstPL]

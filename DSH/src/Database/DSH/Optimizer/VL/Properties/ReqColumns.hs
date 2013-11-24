@@ -25,18 +25,20 @@ na :: VectorProp ReqCols
 na = VProp Nothing
 
 reqExpr1Cols :: Expr1 -> [DBCol]
-reqExpr1Cols (App1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
-reqExpr1Cols (Column1 col)  = [col]
-reqExpr1Cols (Constant1 _)  = []
+reqExpr1Cols (BinApp1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
+reqExpr1Cols (UnApp1 _ e)      = reqExpr1Cols e
+reqExpr1Cols (Column1 col)     = [col]
+reqExpr1Cols (Constant1 _)     = []
 
 reqExpr2ColsLeft :: Expr2 -> [DBCol]
-reqExpr2ColsLeft (App2 _ e1 e2)        = reqExpr2ColsLeft e1 `L.union` reqExpr2ColsLeft e2
+reqExpr2ColsLeft (BinApp2 _ e1 e2)     = reqExpr2ColsLeft e1 `L.union` reqExpr2ColsLeft e2
+reqExpr2ColsLeft (UnApp2 _ e)          = reqExpr2ColsLeft e
 reqExpr2ColsLeft (Column2Left (L col)) = [col]
 reqExpr2ColsLeft (Column2Right _)      = []
 reqExpr2ColsLeft (Constant2 _)         = []
 
 reqExpr2ColsRight :: Expr2 -> [DBCol]
-reqExpr2ColsRight (App2 _ e1 e2)         = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
+reqExpr2ColsRight (BinApp2 _ e1 e2)      = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
 reqExpr2ColsRight (Column2Right (R col)) = [col]
 reqExpr2ColsRight (Column2Left _)        = []
 reqExpr2ColsRight (Constant2 _)          = []
@@ -71,10 +73,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Unique -> ownReqColumns `union` childReqColumns
 
     UniqueL -> ownReqColumns `union` childReqColumns
-
-    NotPrim -> one
-
-    NotVec -> one
 
     LengthA -> none `union` childReqColumns
 
