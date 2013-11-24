@@ -104,11 +104,7 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     VLProject ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
     VLProjectA ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
 
-    ProjectAdmin _ -> ownReqColumns `union` childReqColumns
-
     SelectExpr e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
-
-    CompExpr1L e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
 
     SelectPos1 _ _   ->
       case ownReqColumns of

@@ -264,11 +264,6 @@ doProject projs q = do
 
 instance VectorAlgebra PFAlgebra where
 
-  compExpr1 expr (DBV q _) = do
-    (qr, cr) <- compileExpr1 [1] q expr
-    qp <- proj [colP descr, colP pos, (item, cr)] qr
-    return $ DBV qp [1]
-
   compExpr2 expr (DBP q1 _) (DBP q2 cols2) = do
     q <- applyBinExpr (length cols2) expr q1 q2
     return $ DBP q [1]
@@ -765,29 +760,6 @@ instance VectorAlgebra PFAlgebra where
   vecProjectA projs (DBP q _) = do
     qr <- doProject projs q
     return $ DBP qr [1 .. (length projs)]
-
-  projectAdmin descrProj posProj (DBV q cols) = do
-    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
-    (pd, qd) <- case descrProj of
-                 VL.DescrConst (VL.N c) -> do
-                   qa <- attach descr ANat (VNat $ fromIntegral c) q
-                   return ((descr, descr), qa)
-                 VL.DescrIdentity       -> return ((descr, descr), q)
-                 VL.DescrPosCol         -> return ((descr, pos), q)
-
-    qp <- case posProj of
-            VL.PosNumber         -> do
-              -- FIXME we might want to consider the case that the descriptor has just been overwritten
-              -- what to generate numbers from then?
-              qn <- rownum pos''' [descr, pos] Nothing qd
-              return qn
-            VL.PosConst (VL.N c) -> do
-              qa <- attach pos ANat (VNat $ fromIntegral c) qd
-              return qa
-            VL.PosIdentity       -> return qd
-
-    qr <- proj (pf [pd, (pos, pos''')]) qp
-    return $ DBV qr cols
 
   zipL (DBV q1 cols1) (DBV q2 cols2) = do
     q1' <- rownum pos'' [pos] (Just descr) q1

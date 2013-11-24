@@ -69,11 +69,9 @@ inferVectorTypeUnOp s op =
     VLProject valProjs -> Right $ VProp $ ValueVector $ length valProjs
     VLProjectA valProjs -> Right $ VProp $ AtomicVector $ length valProjs
 
-    ProjectAdmin _ -> VProp <$> unpack s
     SelectExpr _ -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
-    CompExpr1L _ -> Right $ VProp $ ValueVector 1
     VecAggr g as -> Right $ VProp $ ValueVector (length g + length as)
     Number -> Right $ VProp $ ValueVector 1
     NumberL -> Right $ VProp $ ValueVector 1

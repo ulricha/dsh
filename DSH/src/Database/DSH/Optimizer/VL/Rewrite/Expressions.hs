@@ -111,7 +111,7 @@ sameInput q =
         predicate $ $(v "q1") == $(v "q2")
         return $ do
           logRewrite "Expr.SameInput" q
-          void $ replaceWithNew q $ UnOp (CompExpr1L (expr2ToExpr1 $(v "expr"))) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (VLProject [expr2ToExpr1 $(v "expr")]) $(v "q1") |])
 
 -- Merge CompExpr operators with input projections in various combinations
 
@@ -142,20 +142,6 @@ mergeCompWithProjectRight q =
           void $ replaceWithNew q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
 -}          
 
-{-
-FIXME Should not occur anymore -- both operators are replaced by ProjectL
-mergeCompExpr1LWithProject :: VLRule BottomUpProps
-mergeCompExpr1LWithProject q =
-  $(pattern 'q "CompExpr1L expr (ProjectL ps (q1))"
-    [| do
-        return $ do
-          logRewrite "Expr.Merge.Project" q
-          let c = col $(v "expr")
-              c' = $(v "ps") !! (c - 1)
-              expr' = updateCol (Column1 c') $(v "expr")
-          void $ replaceWithNew q $ UnOp (CompExpr1L expr') $(v "q1")|])
--}          
-
 -- Remove the left input from a CompExpr operator if the input is constant
 constInputLeft :: VLRule BottomUpProps
 constInputLeft q =
@@ -172,7 +158,7 @@ constInputLeft q =
         return $ do
           logRewrite "Expr.Const.Left" q
           let expr' = expr2ToExpr1 $ updateLeftCol (Constant2 constVal) $(v "expr")
-          void $ replaceWithNew q $ UnOp (CompExpr1L expr') $(v "q2") |])
+          void $ replaceWithNew q $ UnOp (VLProject [expr']) $(v "q2") |])
 
 -- Remove the right input from a CompExpr operator if the input is constant
 constInputRight :: VLRule BottomUpProps
@@ -190,7 +176,7 @@ constInputRight q =
         return $ do
           logRewrite "Expr.Const.Right" q
           let expr' = expr2ToExpr1 $ updateRightCol (Constant2 constVal) $(v "expr")
-          void $ replaceWithNew q $ UnOp (CompExpr1L expr') $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (VLProject [expr']) $(v "q1") |])
 
 
 -- Merge multiple stacked CompExpr operators if they have the same input.
@@ -224,7 +210,7 @@ mergeExpr11 q =
           let e' = updateRightCol (expr1ToExpr2Right $(v "e2")) $(v "e")
 
           let e'' = expr2ToExpr1 $ updateLeftCol (expr1ToExpr2Right $(v "e1")) e'
-          void $ replaceWithNew q $ UnOp (CompExpr1L e'') $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (VLProject [e'']) $(v "q1") |])
 
 mergeExpr12 :: VLRule BottomUpProps
 mergeExpr12 q =

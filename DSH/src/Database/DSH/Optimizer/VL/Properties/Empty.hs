@@ -52,11 +52,9 @@ inferEmptyUnOp e op =
     ProjectRename _  -> Right e
     VLProject _   -> Right e
     VLProjectA _   -> Right e
-    ProjectAdmin _   -> Right e
     SelectExpr _       -> Right e
     Only             -> undefined
     Singleton        -> undefined
-    CompExpr1L _ -> Right e
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     SelectPos1L _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?

@@ -137,15 +137,6 @@ inferConstVecUnOp c op =
       (constDescr, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBPConst $ map (constExpr1 constCols) vps
 
-    ProjectAdmin (dp, _)   -> do
-      (constDescr, constCols) <- unp c >>= fromDBV
-      let constDescr' = case dp of
-            DescrConst n  -> ConstDescr n
-            DescrIdentity -> constDescr
-            DescrPosCol   -> NonConstDescr
-
-      return $ VProp $ DBVConst constDescr' constCols
-
     SelectExpr _       -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
@@ -153,11 +144,6 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    CompExpr1L _ -> do
-      (d, _) <- unp c >>= fromDBV
-      -- FIXME This is not precise: implement constant folding
-      return $ VProp $ DBVConst d [NonConstPL]
-      
     VecAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])

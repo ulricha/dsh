@@ -1,7 +1,7 @@
 module Database.DSH.VL.VectorPrimitives where
 
 import Database.DSH.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, DescrProj, PosProj, Expr1, Expr2, Nat, AggrFun)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -70,17 +70,11 @@ class VectorAlgebra a where
 
   selectExpr :: Expr1 -> DBV -> GraphM r a DBV
 
-  -- FIXME eliminate
   projectRename :: ISTransProj -> ISTransProj -> DBV -> GraphM r a RenameVector
-  -- FIXME eliminate
-  projectAdmin :: DescrProj -> PosProj -> DBV -> GraphM r a DBV
 
   vecProject :: [Expr1] -> DBV -> GraphM r a DBV
   vecProjectA :: [Expr1] -> DBP -> GraphM r a DBP
   
-  -- FIXME replace by projectL
-  compExpr1 :: Expr1 -> DBV -> GraphM r a DBV
-
   groupByKey :: DBV -> DBV -> GraphM r a (DBV, DBV, PropVector)
 
   -- | The VL aggregation operator groups the input vector by the given columns

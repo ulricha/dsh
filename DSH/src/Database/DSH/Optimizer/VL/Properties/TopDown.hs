@@ -49,10 +49,8 @@ seed (UnOp op _)   =
     FalsePositions     -> vPropSeed
     SelectExpr _       -> vPropSeed
     ProjectRename _    -> vPropSeed
-    ProjectAdmin _     -> vPropSeed
     VLProject      _   -> vPropSeed
     VLProjectA     _   -> vPropSeed
-    CompExpr1L _       -> vPropSeed
     VecAggr _ _        -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed

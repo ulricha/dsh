@@ -37,7 +37,6 @@ inferCardOneUnOp c op =
     VecMaxL -> Right c
     VLProject _ -> Right c
     VLProjectA _  -> Right c
-    ProjectAdmin _ -> Right c
     ProjectRename _ -> Right c
     IntegerToDoubleA -> Right c
     IntegerToDoubleL -> Right c
@@ -47,7 +46,6 @@ inferCardOneUnOp c op =
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1L _ _ -> Right $ VPropPair False False
     SelectExpr _ -> Right $ VProp False
-    CompExpr1L _ -> Right c
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
