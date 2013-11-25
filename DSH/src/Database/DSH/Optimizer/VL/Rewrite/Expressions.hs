@@ -5,26 +5,25 @@ module Database.DSH.Optimizer.VL.Rewrite.Expressions where
 -- This module contains rewrites which aim to simplify and merge complex expressions
 -- which are expressed through multiple operators.
 
-import           Control.Monad
+import Control.Monad
 
-import           Database.Algebra.Dag.Common
-import           Database.Algebra.VL.Data
+import Database.Algebra.Dag.Common
+import Database.Algebra.VL.Data
 
-import           Database.DSH.Optimizer.VL.Properties.Types
-import           Database.DSH.Optimizer.Common.Rewrite
-import           Database.DSH.Optimizer.VL.Rewrite.Common
+import Database.DSH.Impossible
+import Database.DSH.Optimizer.Common.Rewrite
+import Database.DSH.Optimizer.VL.Properties.Types
+import Database.DSH.Optimizer.VL.Rewrite.Common
 
 optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ postOrder inferBottomUp expressionRules
 
 expressionRules :: VLRuleSet BottomUpProps
-expressionRules = [ -- mergeCompWithProjectLeft
-                  -- mergeCompWithProjectRight
-                  -- , mergeCompExpr1LWithProject
-                  constInputLeft
+expressionRules = [ constInputLeft
                   , constInputRight
                   , mergeExpr2SameInput
                   , mergeExpr12
+                  , mergeExpr11
                   , mergeExpr21Right
                   , mergeExpr21Left ]
 
@@ -94,6 +93,16 @@ col e =
    case col' e of
     Just c -> c
     Nothing -> error "CompExpr1L expression does not reference its right input"
+    
+mergeExpr1 :: [(DBCol, Expr1)] -> Expr1 -> Expr1
+mergeExpr1 env expr =
+    case expr of
+        BinApp1 o e1 e2 -> BinApp1 o (mergeExpr1 env e1) (mergeExpr1 env e2)
+        UnApp1 o e1     -> UnApp1 o (mergeExpr1 env e1)
+        Column1 c       -> case lookup c env of
+                               Just expr' -> expr'
+                               Nothing    -> $impossible
+        _               -> expr
 
 expr2ToExpr1 :: Expr2 -> Expr1
 expr2ToExpr1 (BinApp2 o e1 e2)    = BinApp1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
@@ -173,6 +182,17 @@ mergeExpr2SameInput q =
           logRewrite "Expr.Merge.2.SameInput" q
           let e' = expr2ToExpr1 $(v "e")
           void $ replaceWithNew q $ UnOp (VLProject [e']) $(v "q1") |])
+          
+mergeExpr11 :: VLRule BottomUpProps
+mergeExpr11 q =
+  $(pattern 'q "VLProject es1 (VLProject es2 (q1))"
+    [| do
+
+        return $ do
+          logRewrite "Expr.Merge.11" q
+          let env  = zip [1..] $(v "es2")
+              es1' = map (mergeExpr1 env) $(v "es1")
+          void $ replaceWithNew q $ UnOp (VLProject es1') $(v "q1") |])
 
 mergeExpr12 :: VLRule BottomUpProps
 mergeExpr12 q =
