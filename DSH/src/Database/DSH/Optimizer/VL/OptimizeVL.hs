@@ -9,7 +9,6 @@ import           Database.DSH.Common.Data.QueryPlan
 
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
-import           Database.DSH.Optimizer.VL.Rewrite.MergeProjections
 import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
 import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
@@ -18,7 +17,6 @@ type RewriteClass = Rewrite VL TopShape Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
-                 , ('P', mergeProjections)
                  , ('R', removeRedundancy)
                  , ('C', optExpressions)
                  , ('G', groupingToAggregation)
