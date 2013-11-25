@@ -23,32 +23,32 @@ expressionRules = [ -- mergeCompWithProjectLeft
                   -- , mergeCompExpr1LWithProject
                   constInputLeft
                   , constInputRight
-                  , sameInput
-                  , mergeExpr11
+                  , mergeExpr2SameInput
                   , mergeExpr12
-                  , mergeExpr21Right ]
+                  , mergeExpr21Right
+                  , mergeExpr21Left ]
 
-updateLeftCol :: Expr2 -> Expr2 -> Expr2
-updateLeftCol col' e =
+replaceLeftCol :: Expr2 -> Expr2 -> Expr2
+replaceLeftCol col' e =
     case e of
-        BinApp2 o e1 e2   -> BinApp2 o (updateLeftCol col' e1) (updateLeftCol col' e2)
-        UnApp2 o e1       -> UnApp2 o (updateLeftCol col' e1)
+        BinApp2 o e1 e2   -> BinApp2 o (replaceLeftCol col' e1) (replaceLeftCol col' e2)
+        UnApp2 o e1       -> UnApp2 o (replaceLeftCol col' e1)
         Column2Left (L _) -> col'
         _                 -> e
 
-updateRightCol :: Expr2 -> Expr2 -> Expr2
-updateRightCol col' e =
+replaceRightCol :: Expr2 -> Expr2 -> Expr2
+replaceRightCol col' e =
     case e of
-        BinApp2 o e1 e2    -> BinApp2 o (updateRightCol col' e1) (updateRightCol col' e2)
-        UnApp2 o e1        -> UnApp2 o (updateRightCol col' e1)
+        BinApp2 o e1 e2    -> BinApp2 o (replaceRightCol col' e1) (replaceRightCol col' e2)
+        UnApp2 o e1        -> UnApp2 o (replaceRightCol col' e1)
         Column2Right (R _) -> col'
         _                  -> e
 
-updateCol :: Expr1 -> Expr1 -> Expr1
-updateCol col' e =
+replaceCol :: Expr1 -> Expr1 -> Expr1
+replaceCol col' e =
     case e of
-        BinApp1 o e1 e2 -> BinApp1 o (updateCol col' e1) (updateCol col' e2)
-        UnApp1 o e1     -> UnApp1 o (updateCol col' e1)
+        BinApp1 o e1 e2 -> BinApp1 o (replaceCol col' e1) (replaceCol col' e2)
+        UnApp1 o e1     -> UnApp1 o (replaceCol col' e1)
         Column1 _       -> col'
         _               -> e
 
@@ -104,43 +104,7 @@ expr2ToExpr1 (Constant2 val)      = Constant1 val
 
 -- Rewrite rules
 
-sameInput :: VLRule BottomUpProps
-sameInput q =
-  $(pattern 'q "(q1) CompExpr2L expr (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        return $ do
-          logRewrite "Expr.SameInput" q
-          void $ replaceWithNew q $ UnOp (VLProject [expr2ToExpr1 $(v "expr")]) $(v "q1") |])
-
 -- Merge CompExpr operators with input projections in various combinations
-
-{- 
-
-FIXME ProjectL -> VLProject
-
-mergeCompWithProjectLeft :: VLRule BottomUpProps
-mergeCompWithProjectLeft q =
-  $(pattern 'q "(ProjectL ps (q1)) CompExpr2L expr (q2)"
-    [| do
-        return $ do
-          logRewrite "Expr.Merge.Project.Left" q
-          let c1 = leftCol $(v "expr")
-              c1' = $(v "ps") !! (c1 - 1)
-              expr' = updateLeftCol (Column2Left (L c1')) $(v "expr")
-          void $ replaceWithNew q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
-
-mergeCompWithProjectRight :: VLRule BottomUpProps
-mergeCompWithProjectRight q =
-  $(pattern 'q "(q1) CompExpr2L expr (ProjectL ps (q2))"
-    [| do
-        return $ do
-          logRewrite "Expr.Merge.Project.Right" q
-          let c2 = rightCol $(v "expr")
-              c2' = $(v "ps") !! (c2 - 1)
-              expr' = updateRightCol (Column2Right (R c2')) $(v "expr")
-          void $ replaceWithNew q $ BinOp (CompExpr2L expr') $(v "q1") $(v "q2") |])
--}          
 
 -- Remove the left input from a CompExpr operator if the input is constant
 constInputLeft :: VLRule BottomUpProps
@@ -157,7 +121,7 @@ constInputLeft q =
                       _ -> fail "no match"
         return $ do
           logRewrite "Expr.Const.Left" q
-          let expr' = expr2ToExpr1 $ updateLeftCol (Constant2 constVal) $(v "expr")
+          let expr' = expr2ToExpr1 $ replaceLeftCol (Constant2 constVal) $(v "expr")
           void $ replaceWithNew q $ UnOp (VLProject [expr']) $(v "q2") |])
 
 -- Remove the right input from a CompExpr operator if the input is constant
@@ -175,7 +139,7 @@ constInputRight q =
                       _ -> fail "no match"
         return $ do
           logRewrite "Expr.Const.Right" q
-          let expr' = expr2ToExpr1 $ updateRightCol (Constant2 constVal) $(v "expr")
+          let expr' = expr2ToExpr1 $ replaceRightCol (Constant2 constVal) $(v "expr")
           void $ replaceWithNew q $ UnOp (VLProject [expr']) $(v "q1") |])
 
 
@@ -199,45 +163,46 @@ expr1ToExpr2Left e =
         Column1 c       -> Column2Left (L c)
         Constant1 val   -> Constant2 val
 
-mergeExpr11 :: VLRule BottomUpProps
-mergeExpr11 q =
-  $(pattern 'q "(CompExpr1L e1 (q1)) CompExpr2L e (CompExpr1L e2 (q2))"
+mergeExpr2SameInput :: VLRule BottomUpProps
+mergeExpr2SameInput q =
+  $(pattern 'q "(q1) CompExpr2L e (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-
+        
         return $ do
-          logRewrite "Expr.Merge.11" q
-          let e' = updateRightCol (expr1ToExpr2Right $(v "e2")) $(v "e")
-
-          let e'' = expr2ToExpr1 $ updateLeftCol (expr1ToExpr2Right $(v "e1")) e'
-          void $ replaceWithNew q $ UnOp (VLProject [e'']) $(v "q1") |])
+          logRewrite "Expr.Merge.2.SameInput" q
+          let e' = expr2ToExpr1 $(v "e")
+          void $ replaceWithNew q $ UnOp (VLProject [e']) $(v "q1") |])
 
 mergeExpr12 :: VLRule BottomUpProps
 mergeExpr12 q =
-  $(pattern 'q "CompExpr1L e1 ((q1) CompExpr2L e2 (q2))"
+  $(pattern 'q "VLProject es ((q1) CompExpr2L e2 (q2))"
     [| do
+        [e1] <- return $(v "es")
         return $ do
           logRewrite "Expr.Merge.12" q
           let e1' = expr1ToExpr2Right $(v "e1")
-              e' = updateRightCol $(v "e2") e1'
+              e' = replaceRightCol $(v "e2") e1'
               op = BinOp (CompExpr2L e') $(v "q1") $(v "q2")
           void $ replaceWithNew q op |])
 
 mergeExpr21Right :: VLRule BottomUpProps
 mergeExpr21Right q =
-  $(pattern 'q "(q1) CompExpr2L e2 (CompExpr1L e1 (q2))"
+  $(pattern 'q "(q1) CompExpr2L e2 (VLProject es (q2))"
     [| do
+        [e1] <- return $(v "es")
         return $ do
           logRewrite "Expr.Merge.21.Right" q
-          let e2' = updateRightCol (expr1ToExpr2Right $(v "e1")) $(v "e2")
+          let e2' = replaceRightCol (expr1ToExpr2Right $(v "e1")) $(v "e2")
           void $ replaceWithNew q $ BinOp (CompExpr2L e2') $(v "q1") $(v "q2") |])
 
 mergeExpr21Left :: VLRule BottomUpProps
 mergeExpr21Left q =
-  $(pattern 'q "(CompExpr1L e1 (q1)) CompExpr2L e2 (q2)"
+  $(pattern 'q "(VLProject es (q1)) CompExpr2L e2 (q2)"
     [| do
+        [e1] <- return $(v "es")
         return $ do
           logRewrite "Expr.Merge.21.Left" q
-          let e2' = updateLeftCol (expr1ToExpr2Left $(v "e1")) $(v "e2")
+          let e2' = replaceLeftCol (expr1ToExpr2Left $(v "e1")) $(v "e2")
           void $ replaceWithNew q $ BinOp (CompExpr2L e2') $(v "q1") $(v "q2") |])
 
