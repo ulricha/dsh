@@ -34,11 +34,12 @@ import qualified Database.X100Client                             as X
 
 import           Database.Algebra.Dag
 
+import qualified Database.DSH.CL.Lang                 as CL
+import qualified Database.DSH.CL.Opt                  as CLOpt
 import           Database.DSH.Common.Data.QueryPlan
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
-import qualified Database.DSH.CL.Lang                 as CL
-import qualified Database.DSH.CL.Opt                  as CLOpt
+import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
@@ -110,6 +111,7 @@ nkl2XMLFile :: String -> CL.Expr -> IO ()
 nkl2XMLFile prefix e = desugarComprehensions e
                        |> flatten
                        |> specializeVectorOps
+                       |> optimizeVLDefault
                        |> implementVectorOpsPF
                        |> generatePFXML
                        |> (exportPFXML prefix)
@@ -118,6 +120,7 @@ nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
+                      |> optimizeVLDefault
                       |> exportVLPlan prefix
 
 
