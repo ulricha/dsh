@@ -164,10 +164,7 @@ compileExpr1' cols n (VL.UnApp1 op e) = do
   nr <- lift $ unOp op col c n'
   return (nr, col)
 
-compileExpr1' cols n (VL.Column1 dbcol)   = do
-  col <- freshCol
-  nr <- lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
-  return (nr, col)
+compileExpr1' cols n (VL.Column1 dbcol)   = return (n, itemi dbcol)
 compileExpr1' _ n (VL.Constant1 constVal) = do
   col <- freshCol
   let ty  = algConstType constVal
@@ -240,24 +237,15 @@ doProject projs q = do
                -> Int
                -> AlgNode
                -> GraphM r PFAlgebra ([(AttrName, AttrName)], AlgNode)
-        mkProj (vp : vps) projections colIndex q' =
-            case vp of
-                VL.Constant1 c -> do
-                    qa <- attach (itemi' colIndex) (algConstType c) (algVal c) q'
-                    mkProj vps ((itemi colIndex, itemi' colIndex) : projections) (colIndex + 1) qa
-
-                VL.Column1 col  -> do
-                    mkProj vps ((itemi colIndex, itemi col) : projections) (colIndex + 1) q'
-          
-                -- FIXME implement
-                VL.BinApp1 _op _e1 _e2 -> undefined
-                VL.UnApp1 _op _e      -> undefined
+        mkProj (e : es) projections colIndex q' = do
+            (qr, c) <- compileExpr1 [1..colIndex] q' e
+            mkProj es ((itemi colIndex, c): projections) (colIndex + 1) qr
 
         mkProj [] projections _        q' =
           return (projections, q')
 
     (ps, qp) <- mkProj projs [] 1 q
-    qr <- proj ([colP descr, colP pos] ++ ps) qp
+    qr <- proj ([colP descr, colP pos] ++ (reverse ps)) qp
     return qr
 
 -- The VectorAlgebra instance for Pathfinder algebra

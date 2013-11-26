@@ -122,7 +122,6 @@ pushPairLThroughProjectRight q =
   $(pattern 'q "(q1) PairL (VLProject es (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
                
