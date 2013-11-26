@@ -166,7 +166,6 @@ Library
                      Database.DSH.Optimizer.VL.OptimizeVL
                      Database.DSH.Optimizer.VL.Rewrite.Common
                      Database.DSH.Optimizer.VL.Rewrite.Expressions
-                     Database.DSH.Optimizer.VL.Rewrite.MergeProjections
                      Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
                      Database.DSH.Optimizer.VL.Rewrite.Redundant
                      Database.DSH.Optimizer.VL.Rewrite.Aggregation
