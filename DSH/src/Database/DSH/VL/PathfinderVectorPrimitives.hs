@@ -512,11 +512,8 @@ instance VectorAlgebra PFAlgebra where
   selectExpr expr (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     (qe, ce) <- compileExpr1 cols q expr
-    qr <- projM (pf [colP descr, colP pos])
-          $ eqJoinM pos pos'
-              (return q)
-              (proj [(pos', pos), colP ce] qe)
-    return $ DBV qr cols
+    qs <- projM (keepItems cols [colP descr, colP pos]) $ select ce qe
+    return $ DBV qs cols
 
   falsePositions (DBV q1 _) = do
     qr <- projM [colP descr, (pos, pos''), (item, pos')]
