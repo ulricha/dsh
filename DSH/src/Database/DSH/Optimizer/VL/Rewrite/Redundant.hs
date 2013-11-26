@@ -30,8 +30,7 @@ redundantRules :: VLRuleSet ()
 redundantRules = [ introduceSelectExpr ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
-redundantRulesBottomUp = [ -- noOpProject
-                           distDescCardOne
+redundantRulesBottomUp = [ distPrimConstant
                          , pushPairLThroughProjectLeft
                          , pushPairLThroughProjectRight
                          , sameInputPairL
@@ -68,6 +67,25 @@ noOpProject q =
           logRewrite "Redundant.NoOpProject" q
           replace q $(v "q1") |])
 -}          
+
+distPrimConstant :: VLRule BottomUpProps
+distPrimConstant q =
+  $(pattern 'q "R1 ((qp) DistPrim (qv))"
+    [| do
+        qvProps <- properties $(v "qp")
+        let constVal (ConstPL val) = return $ Constant1 val
+            constVal _             = fail "no match"
+
+
+        constProjs <- case constProp qvProps of
+          VProp (DBVConst _ cols) -> mapM constVal cols
+          _                       -> fail "no match"
+          
+        return $ do
+          logRewrite "Redundant.DistPrim.Constant" q
+          void $ replaceWithNew q $ UnOp (VLProject constProjs) $(v "qv") |])
+          
+        
 
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
