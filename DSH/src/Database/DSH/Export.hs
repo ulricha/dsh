@@ -43,8 +43,8 @@ exportX100Plan prefix x100Plan = do
 
 exportTAPlan :: String -> QueryPlan PFAlgebra -> IO ()
 exportTAPlan prefix pfPlan = do
-  let planPath = prefix ++ "_pf.plan"
-      shapePath = prefix ++ "_pf.shape"
+  let planPath = prefix ++ "_ta.plan"
+      shapePath = prefix ++ "_ta.shape"
 
   PFJSON.planToFile planPath ( queryTags pfPlan
                                , rootsFromTopShape $ queryShape pfPlan

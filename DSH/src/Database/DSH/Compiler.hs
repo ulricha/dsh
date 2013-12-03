@@ -129,7 +129,7 @@ debugX100 prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
               nkl2X100File prefix e'
 
--- | Debugging function: dump the X100 plan (DAG) to a file.
+-- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
