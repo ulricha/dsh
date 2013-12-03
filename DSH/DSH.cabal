@@ -70,8 +70,10 @@ Library
                      HDBC               >= 2.3.1.0,
                      convertible        >= 1.0.11.0,
                      template-haskell   >= 2.7,
+                     HaXml              >= 1.23,
                      csv                >= 0.1.2,
                      parsec,
+                     Pathfinder         >= 0.5.10,
                      pretty >= 1.0.1.1,
                      aeson >= 0.6.0.0,
                      uniplate,
@@ -119,6 +121,7 @@ Library
                      Database.DSH.NKL.Data.NKL
                      Database.DSH.NKL.NKLPrimitives
                      Database.DSH.NKL.Opt
+                     Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
