@@ -804,21 +804,21 @@ instance VectorAlgebra PFAlgebra where
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
     q <- rownumM pos [posold] Nothing
          $ projM (keepItems cols1 [colP descr, (posold, pos)])
-         $ eqJoinM tmpCol tmpCol'
+         $ semiJoinM [(tmpCol, tmpCol', EqJ)]
              (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
-             (distinctM $ proj [(tmpCol', cr)] qr)
+             (proj [(tmpCol', cr)] qr)
     qj <- tagM "semijoin/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
-  
+
   semiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
     q <- rownumM pos [descr, posold] Nothing
          $ projM (keepItems cols1 [colP descr, (posold, pos)])
-         $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
+         $ semiJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
-             (distinctM $ proj [(descr', descr), (tmpCol', cr)] qr)
+             (proj [(descr', descr), (tmpCol', cr)] qr)
     qj <- tagM "semijoinLift/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
