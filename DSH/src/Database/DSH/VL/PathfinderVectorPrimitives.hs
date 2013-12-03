@@ -5,7 +5,6 @@
 module Database.DSH.VL.PathfinderVectorPrimitives() where
        
 import           Debug.Trace
-import           Text.Printf
 
 import           Data.Maybe
 
@@ -164,7 +163,7 @@ compileExpr1' cols n (VL.UnApp1 op e) = do
   nr <- lift $ unOp op col c n'
   return (nr, col)
 
-compileExpr1' cols n (VL.Column1 dbcol)   = return (n, itemi dbcol)
+compileExpr1' _ n (VL.Column1 dbcol)      = return (n, itemi dbcol)
 compileExpr1' _ n (VL.Constant1 constVal) = do
   col <- freshCol
   let ty  = algConstType constVal
@@ -510,7 +509,6 @@ instance VectorAlgebra PFAlgebra where
     return $ DBV qa [1]
 
   selectExpr expr (DBV q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     (qe, ce) <- compileExpr1 cols q expr
     qs <- projM (keepItems cols [colP descr, colP pos]) $ select ce qe
     return $ DBV qs cols
