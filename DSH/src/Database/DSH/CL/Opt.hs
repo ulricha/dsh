@@ -26,13 +26,21 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeR) 
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
            >>> debugShow "after cleanup"
 
 flatJoinsR :: RewriteC CL
 flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR >>> debugTrace "semijoin")
             <+ (promoteR (tryR pushAntiFilters) >>> antijoinR >>> debugTrace "antijoin")
-            <+ (promoteR (tryR pushEquiFilters) >>> eqjoinR >>> debugTrace "equijoin")
+
+            -- For Equi-Joins, we first push all generators to the front of the
+            -- qualifier list. This should make sure that no guard is stuck
+            -- between two generators and blocks the equijoin rewrite.
+            -- [ e | x <- xs, p x z, y <- ys, q x y ] (z is bound by outer comprehension)
+            <+ (promoteR (tryR pushGeneratorsR)
+                >>> promoteR (tryR pushEquiFilters) 
+                >>> eqjoinR 
+                >>> debugTrace "equijoin")
             
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
@@ -60,7 +68,7 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -80,10 +88,11 @@ optimizeR = normalizeR >+> repeatR (descendR >+> anybuR nestJoinsR)
         debugUnit "optCompR at" c
 
         repeatR $ do
-            -- e <- promoteT idR
-            -- debugUnit "comp at" (e :: Expr)
-              (compNormEarlyR
-                 <+ (promoteR (tryR pushSimpleFilters) >>> selectR isSimplePred)
+              e <- promoteT idR
+              debugUnit "comp at" (e :: Expr)
+              (normalizeAlwaysR
+                 <+ compNormEarlyR
+                 <+ promoteR pushSimpleFilters >+> selectR isSimplePred
                  <+ flatJoinsR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"

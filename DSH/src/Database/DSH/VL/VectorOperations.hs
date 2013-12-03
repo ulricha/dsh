@@ -2,9 +2,11 @@
 
 module Database.DSH.VL.VectorOperations where
 
+import           Debug.Trace
+
 import           Control.Applicative
 
-import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..))
+import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), VecUnOp(..))
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -544,12 +546,11 @@ distL (AClosure n v i xs x f fl) q2 = do
     return $ AClosure n v' (i + 1) xs' x f fl
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
-
 ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _) <- distPrim qb q1
     (d1, p1) <- restrictVec q1 d1'
-    qb' <- notPrim qb
+    qb' <- vlProjectA qb [UnApp1 Not (Column1 1)]
     (d2', _) <- distPrim qb' q2
     (d2, p2) <- restrictVec q2 d2'
     r1 <- renameOuter' p1 lyt1
@@ -596,14 +597,14 @@ fstA ::  Shape -> Graph VL Shape
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
 fstA (PrimVal q (Pair p1 _p2)) = do
     let (p1', cols) = projectFromPos p1
-    proj <- projectA q cols
+    proj <- vlProjectA q (map Column1 cols)
     return $ PrimVal proj p1'
 fstA e1 = error $ "fstA: " ++ show e1
 
 fstL ::  Shape -> Graph VL Shape
 fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
-    proj <- projectL q cols
+    proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p1'
 fstL _ = $impossible
 
@@ -611,16 +612,16 @@ sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 sndA (PrimVal q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- projectA q cols
+    proj <- vlProjectA q (map Column1 cols)
     return $ PrimVal proj p2'
 sndA _ = $impossible
     
 sndL ::  Shape -> Graph VL Shape
 sndL (ValueVector q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- projectL q cols
+    proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p2'
-sndL _ = $impossible
+sndL s = trace (show s) $ $impossible
 
 projectFromPos :: Layout -> (Layout, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)

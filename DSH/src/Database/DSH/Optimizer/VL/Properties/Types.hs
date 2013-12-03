@@ -5,7 +5,6 @@ import           Text.PrettyPrint
 import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 import           Database.Algebra.VL.Render.Dot
-import           Database.DSH.Optimizer.VL.Properties.AbstractDomains
 
 data VectorProp a = VProp a
                   | VPropPair a a
@@ -17,27 +16,11 @@ instance Show a => Show (VectorProp a) where
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
 data VectorType = ValueVector Int
+                -- FIXME Name'AtomicVector' does not make any sense
                 | AtomicVector Int
                 | RenameVector
                 | PropVector
                 deriving Show
-
-newtype PosIndexSpace = P Domain deriving Show
-newtype DescrIndexSpace = D Domain deriving Show
-newtype SourceIndexSpace = S Domain deriving Show
-newtype TargetIndexSpace = T Domain deriving Show
-
-data IndexSpace = DBVSpace DescrIndexSpace PosIndexSpace
-                | DBPSpace PosIndexSpace
-                | RenameVectorTransform SourceIndexSpace TargetIndexSpace
-                | PropVectorTransform SourceIndexSpace TargetIndexSpace
-                  deriving (Show)
-
--- The Untainted property tracks the list of upstream nodes from which
--- on the payload has not been modified horizontally.
-type Untainted = Maybe [AlgNode]
-
-type IntactSince = [AlgNode]
 
 data Const = Const VLVal
            | NoConst
@@ -63,9 +46,7 @@ data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
                              , constProp            :: VectorProp ConstVec
                              , card1Prop            :: VectorProp Bool
                              , vectorTypeProp       :: VectorProp VectorType
-                             , indexSpaceProp       :: VectorProp IndexSpace
-                             , verticallyIntactProp :: VectorProp IntactSince
-                             , untaintedProp        :: VectorProp Untainted } deriving (Show)
+                             } deriving (Show)
 
 
 type ReqCols = Maybe [DBCol]
@@ -127,31 +108,10 @@ instance Renderable ConstVec where
 instance Renderable VectorType where
   renderProp = text . show
 
-instance Renderable DescrIndexSpace where
-  renderProp (D is) = text "d:" <+> renderDomain is
-
-instance Renderable PosIndexSpace where
-  renderProp (P is) = text "p:" <+> renderDomain is
-
-instance Renderable SourceIndexSpace where
-  renderProp (S is) = text "s:" <+> renderDomain is
-
-instance Renderable TargetIndexSpace where
-  renderProp (T is) = text "t:" <+> renderDomain is
-
-instance Renderable IndexSpace where
-  renderProp (DBVSpace dis pis)              = renderProp dis $$ renderProp pis
-  renderProp (DBPSpace pis)                  = renderProp pis
-  renderProp (RenameVectorTransform sis tis) = renderProp sis $$ renderProp tis
-  renderProp (PropVectorTransform sis tis)   = renderProp sis $$ renderProp tis
-
 instance Renderable BottomUpProps where
   renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
                  $$ text "const:" <+> (renderProp $ constProp p)
                  $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
-                 $$ text "indexspaces:" <+> (renderProp $ indexSpaceProp p)
-                 $$ text "untainted:" <+> (renderProp $ untaintedProp p)
-                 $$ text "vert_intact:" <+> (renderProp $ verticallyIntactProp p)
 
 instance Renderable TopDownProps where
   renderProp p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)

@@ -101,7 +101,10 @@ algOp (VL.COp VL.Lt)   = RelFun Lt
 algOp (VL.COp VL.LtE)  = $impossible
 algOp (VL.BOp VL.Conj) = RelFun And
 algOp (VL.BOp VL.Disj) = RelFun Or
-algOp VL.Like          = undefined
+algOp VL.Like          = Fun1to1 Like
+
+unOp :: VL.VecUnOp -> (AttrName -> AttrName -> AlgNode -> GraphM a PFAlgebra AlgNode)
+unOp VL.Not = notC
 
 algCompOp :: VL.VecCompOp -> Fun
 algCompOp VL.Eq = RelFun Eq
@@ -139,25 +142,29 @@ specialComparison n leftArg rightArg op = do
   return (andNode, orCol)
 
 compileExpr1' :: [DBCol] -> AlgNode -> VL.Expr1 -> ExprComp r (AlgNode, AttrName)
-compileExpr1' cols n (VL.App1 (VL.COp VL.LtE) e1 e2) = do
+compileExpr1' cols n (VL.BinApp1 (VL.COp VL.LtE) e1 e2) = do
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
   specialComparison n2 c1 c2 (RelFun Lt)
-compileExpr1' cols n (VL.App1 (VL.COp VL.GtE) e1 e2) = do
+compileExpr1' cols n (VL.BinApp1 (VL.COp VL.GtE) e1 e2) = do
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
   specialComparison n2 c1 c2 (RelFun Lt)
 
-compileExpr1' cols n (VL.App1 op e1 e2)   = do
+compileExpr1' cols n (VL.BinApp1 op e1 e2)   = do
   col      <- freshCol
   (n1, c1) <- compileExpr1' cols n e1
   (n2, c2) <- compileExpr1' cols n1 e2
   nr <- lift $ oper (algOp op) col c1 c2 n2
   return (nr, col)
-compileExpr1' cols n (VL.Column1 dbcol)   = do
+
+compileExpr1' cols n (VL.UnApp1 op e) = do
   col <- freshCol
-  nr <- lift $ proj (keepItems cols [colP descr, colP pos, (col, itemi dbcol)]) n
+  (n', c) <- compileExpr1' cols n e
+  nr <- lift $ unOp op col c n'
   return (nr, col)
+
+compileExpr1' cols n (VL.Column1 dbcol)   = return (n, itemi dbcol)
 compileExpr1' _ n (VL.Constant1 constVal) = do
   col <- freshCol
   let ty  = algConstType constVal
@@ -169,21 +176,26 @@ compileExpr1 :: [DBCol] -> AlgNode -> VL.Expr1 -> GraphM r PFAlgebra (AlgNode, A
 compileExpr1 cols n e = runExprComp (compileExpr1' cols n e)
              
 compileExpr2' :: AlgNode -> VL.Expr2 -> ExprComp r (AlgNode, AttrName)
-compileExpr2' n (VL.App2 (VL.COp VL.LtE) e1 e2) = do
+compileExpr2' n (VL.BinApp2 (VL.COp VL.LtE) e1 e2) = do
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
   specialComparison n2 c1 c2 (RelFun Lt)
 
-compileExpr2' n (VL.App2 (VL.COp VL.GtE) e1 e2) = do
+compileExpr2' n (VL.BinApp2 (VL.COp VL.GtE) e1 e2) = do
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
   specialComparison n2 c1 c2 (RelFun Lt)
 
-compileExpr2' n (VL.App2 op e1 e2)         = do
+compileExpr2' n (VL.BinApp2 op e1 e2)         = do
   col <- freshCol
   (n1, c1) <- compileExpr2' n e1
   (n2, c2) <- compileExpr2' n1 e2
   nr <- lift $ oper (algOp op) col c1 c2 n2
+  return (nr, col)
+compileExpr2' n (VL.UnApp2 op e)              = do
+  col <- freshCol
+  (n', c) <- compileExpr2' n e
+  nr <- lift $ unOp op col c n'
   return (nr, col)
 compileExpr2' n (VL.Column2Left (VL.L c))  = return (n, itemi c)
 compileExpr2' n (VL.Column2Right (VL.R c)) = return (n, itemi' c)
@@ -198,9 +210,6 @@ compileExpr2 :: AlgNode -> VL.Expr2 -> GraphM r PFAlgebra (AlgNode, AttrName)
 compileExpr2 n e = runExprComp (compileExpr2' n e)
 
 -- Common building blocks
-
-doNot :: AlgNode -> GraphM r PFAlgebra AlgNode
-doNot q = projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -220,16 +229,28 @@ applyBinExpr rightWidth e q1 q2 = do
                $ proj ((pos', pos) : colShift) q2
   (qr, cr) <- compileExpr2 qCombined e
   proj [colP descr, colP pos, (item, cr)] qr
-  
+
+doProject :: [VL.Expr1] -> AlgNode -> GraphM r PFAlgebra AlgNode
+doProject projs q = do
+    let mkProj :: [VL.Expr1]
+               -> [(AttrName, AttrName)]
+               -> Int
+               -> AlgNode
+               -> GraphM r PFAlgebra ([(AttrName, AttrName)], AlgNode)
+        mkProj (e : es) projections colIndex q' = do
+            (qr, c) <- compileExpr1 [1..colIndex] q' e
+            mkProj es ((itemi colIndex, c): projections) (colIndex + 1) qr
+
+        mkProj [] projections _        q' =
+          return (projections, q')
+
+    (ps, qp) <- mkProj projs [] 1 q
+    qr <- proj ([colP descr, colP pos] ++ (reverse ps)) qp
+    return qr
 
 -- The VectorAlgebra instance for Pathfinder algebra
 
 instance VectorAlgebra PFAlgebra where
-
-  compExpr1 expr (DBV q _) = do
-    (qr, cr) <- compileExpr1 [1] q expr
-    qp <- proj [colP descr, colP pos, (item, cr)] qr
-    return $ DBV qp [1]
 
   compExpr2 expr (DBP q1 _) (DBP q2 cols2) = do
     q <- applyBinExpr (length cols2) expr q1 q2
@@ -267,16 +288,6 @@ instance VectorAlgebra PFAlgebra where
     qr <- projM [colP descr, colP pos, (item, resCol)]
             $ cast item resCol doubleT q
     return $ DBV qr [1]
-
-  projectA (DBP q _) pc = do
-    qr <- tagM "projectA"
-            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
-    return $ DBP qr [1..length pc]
-
-  projectL (DBV q _) pc = do
-    qr <- tagM "projectL"
-            $ proj ([colP descr, colP pos] ++ [(itemi n, itemi c) | (c, n) <- zip pc [1..] ]) q
-    return $ DBV qr [1..length pc]
 
   propRename (RenameVector q1) (DBV q2 cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -332,10 +343,6 @@ instance VectorAlgebra PFAlgebra where
   unsegment (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     flip DBV cols <$> (attachM descr natT (nat 1) $ proj (pf [colP pos]) q)
-
-  notPrim (DBP q _) = flip DBP [1] <$> doNot q
-
-  notVec (DBV d _) = flip DBV [1] <$> doNot d
 
   distPrim (DBP q1 cols) (DBV q2 _) = do
     qr <- crossM 
@@ -505,18 +512,15 @@ instance VectorAlgebra PFAlgebra where
   selectExpr expr (DBV q cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     (qe, ce) <- compileExpr1 cols q expr
-    qr <- projM (pf [colP descr, colP pos])
-          $ eqJoinM pos pos'
-              (return q)
-              (proj [(pos', pos), colP ce] qe)
-    return $ DBV qr cols
+    qs <- projM (keepItems cols [colP descr, colP pos]) $ select ce qe
+    return $ DBV qs cols
 
   falsePositions (DBV q1 _) = do
     qr <- projM [colP descr, (pos, pos''), (item, pos')]
           $ rownumM pos'' [pos] Nothing
           $ selectM item
           $ rownumM pos' [pos] (Just descr)
-          $ doNot q1
+          $ projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q1
     return $ DBV qr [1]
 
   tableRef n cs ks = do
@@ -549,9 +553,10 @@ instance VectorAlgebra PFAlgebra where
     q' <- rownumM pos' [resCol, pos] Nothing
             $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
     d1 <- distinctM 
-          $ proj ([colP descr, (pos, resCol)] ++ [ (itemi i, itemi i) | i <- colsg ]) q'
+          $ proj (keepItems colsg [colP descr, (pos, resCol)]) q'
     p <- proj [(posold, pos), (posnew, pos')] q'
-    v <- tagM "groupBy ValueVector" $ projM [colP descr, colP pos, (item, item)]
+    v <- tagM "groupBy ValueVector" 
+           $ projM (keepItems colse [colP descr, colP pos])
            $ eqJoinM pos'' pos' (proj [(descr, resCol), (pos, pos'), (pos'', pos)] q')
                                 (proj ((pos', pos):[(itemi i, itemi i) | i <- colse]) v2)
     return $ (DBV d1 colsg, DBV v colse, PropVector p)
@@ -733,49 +738,13 @@ instance VectorAlgebra PFAlgebra where
 
     return $ RenameVector qr
 
-  projectPayload valProjs (DBV q _) = do
-
-    let createPayloadProj :: [VL.PayloadProj]
-                          -> [(AttrName, AttrName)]
-                          -> Int
-                          -> AlgNode
-                          -> GraphM r PFAlgebra ([(AttrName, AttrName)], AlgNode)
-        createPayloadProj ((VL.PLConst c) : vps) projections colIndex q' = do
-          qa <- attach (itemi' colIndex) (algConstType c) (algVal c) q'
-          createPayloadProj vps ((itemi colIndex, itemi' colIndex) : projections) (colIndex + 1) qa
-
-        createPayloadProj ((VL.PLCol col) : vps) projections colIndex q' =
-          createPayloadProj vps ((itemi colIndex, itemi col) : projections) (colIndex + 1) q'
-
-        createPayloadProj []                     projections _        q' =
-          return (projections, q')
-
-    (ps, qp) <- createPayloadProj valProjs [] 1 q
-    qr <- proj ([colP descr, colP pos] ++ ps) qp
-    return $ DBV qr [1 .. (length valProjs)]
-
-  projectAdmin descrProj posProj (DBV q cols) = do
-    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
-    (pd, qd) <- case descrProj of
-                 VL.DescrConst (VL.N c) -> do
-                   qa <- attach descr ANat (VNat $ fromIntegral c) q
-                   return ((descr, descr), qa)
-                 VL.DescrIdentity       -> return ((descr, descr), q)
-                 VL.DescrPosCol         -> return ((descr, pos), q)
-
-    qp <- case posProj of
-            VL.PosNumber         -> do
-              -- FIXME we might want to consider the case that the descriptor has just been overwritten
-              -- what to generate numbers from then?
-              qn <- rownum pos''' [descr, pos] Nothing qd
-              return qn
-            VL.PosConst (VL.N c) -> do
-              qa <- attach pos ANat (VNat $ fromIntegral c) qd
-              return qa
-            VL.PosIdentity       -> return qd
-
-    qr <- proj (pf [pd, (pos, pos''')]) qp
-    return $ DBV qr cols
+  vecProject projs (DBV q _) = do
+    qr <- doProject projs q
+    return $ DBV qr [1 .. (length projs)]
+    
+  vecProjectA projs (DBP q _) = do
+    qr <- doProject projs q
+    return $ DBP qr [1 .. (length projs)]
 
   zipL (DBV q1 cols1) (DBV q2 cols2) = do
     q1' <- rownum pos'' [pos] (Just descr) q1

@@ -33,8 +33,6 @@ inferVectorTypeUnOp s op =
   case op of
     Unique -> VProp <$> unpack s
     UniqueL -> VProp <$> unpack s
-    NotPrim -> Right $ VProp $ AtomicVector 1
-    NotVec -> Right $ VProp $ ValueVector 1
     LengthA -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
@@ -45,8 +43,6 @@ inferVectorTypeUnOp s op =
     VecMinL -> Right $ VProp $ ValueVector 1
     VecMax -> Right $ VProp $ AtomicVector 1
     VecMaxL -> Right $ VProp $ ValueVector 1
-    ProjectL ps -> Right $ VProp $ ValueVector $ length ps
-    ProjectA ps -> Right $ VProp $ AtomicVector $ length ps
     IntegerToDoubleA -> Right $ VProp $ AtomicVector 1
     IntegerToDoubleL -> Right $ VProp $ ValueVector 1
     ReverseA -> liftM2 VPropPair (unpack s) (Right PropVector)
@@ -69,12 +65,13 @@ inferVectorTypeUnOp s op =
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
     ProjectRename _ -> Right $ VProp RenameVector
-    ProjectPayload valProjs -> Right $ VProp $ ValueVector $ length valProjs
-    ProjectAdmin _ -> VProp <$> unpack s
+
+    VLProject valProjs -> Right $ VProp $ ValueVector $ length valProjs
+    VLProjectA valProjs -> Right $ VProp $ AtomicVector $ length valProjs
+
     SelectExpr _ -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
-    CompExpr1L _ -> Right $ VProp $ ValueVector 1
     VecAggr g as -> Right $ VProp $ ValueVector (length g + length as)
     Number -> Right $ VProp $ ValueVector 1
     NumberL -> Right $ VProp $ ValueVector 1
@@ -140,6 +137,8 @@ inferVectorTypeBinOp s1 s2 op =
     EquiJoinL _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinL"
     SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SemiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 

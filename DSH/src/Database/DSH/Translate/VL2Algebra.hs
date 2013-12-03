@@ -232,8 +232,6 @@ translateUnOp u c = case u of
                       UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
                       Number        -> liftM fromDBV $ unique (toDBV c)
                       NumberL       -> liftM fromDBV $ uniqueL (toDBV c)
-                      NotPrim       -> liftM fromDBP $ notPrim (toDBP c)
-                      NotVec        -> liftM fromDBV $ notVec (toDBV c)
                       LengthA       -> liftM fromDBP $ lengthA (toDBV c)
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDBV c)
                       Segment       -> liftM fromDBV $ segment (toDBV c)
@@ -246,13 +244,10 @@ translateUnOp u c = case u of
                       VecMaxL       -> liftM fromDBV $ vecMaxLift (toDBV c)
                       SelectExpr e  -> liftM fromDBV $ selectExpr e (toDBV c)
                       ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
-                      ProjectPayload valPs -> liftM fromDBV $ projectPayload valPs (toDBV c)
-                      ProjectAdmin (descrP, posP) -> liftM fromDBV $ projectAdmin descrP posP (toDBV c)
-                      ProjectL cols -> liftM fromDBV $ projectL (toDBV c) cols
-                      ProjectA cols -> liftM fromDBP $ projectA (toDBP c) cols
+                      VLProject cols -> liftM fromDBV $ vecProject cols (toDBV c)
+                      VLProjectA cols -> liftM fromDBP $ vecProjectA cols (toDBP c)
                       IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
                       IntegerToDoubleL -> liftM fromDBV $ integerToDoubleL (toDBV c)
-                      CompExpr1L e   -> liftM fromDBV $ compExpr1 e (toDBV c)
                       ReverseA      -> do
                                         (d, p) <- reverseA (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)

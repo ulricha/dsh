@@ -61,8 +61,9 @@ selectQualsR mayPush = prunetdR $ pushR <+ pushEndR
         
         return $ S q'
         
-selectR :: (Expr -> Bool) -> RewriteC CL
+selectR :: ([Ident] -> Expr -> Bool) -> RewriteC CL
 selectR mayPush = do
-    Comp t h _ <- promoteT idR
-    qs' <- childT 1 (promoteR (selectQualsR mayPush) >>> projectT)
+    Comp t h qs <- promoteT idR
+    let localScope = compBoundVars $ toList qs
+    qs' <- childT 1 (promoteR (selectQualsR (mayPush localScope)) >>> projectT)
     trace "select" $ return $ inject $ Comp t h qs'

@@ -25,8 +25,6 @@ inferCardOneUnOp c op =
   case op of
     Unique -> Right c
     UniqueL -> Right c
-    NotPrim -> Right c
-    NotVec -> Right c
     LengthA -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c
@@ -37,10 +35,8 @@ inferCardOneUnOp c op =
     VecMinL -> Right c
     VecMax -> Right $ VProp True
     VecMaxL -> Right c
-    ProjectL _ -> Right c
-    ProjectA _ -> Right c
-    ProjectPayload _ -> Right c
-    ProjectAdmin _ -> Right c
+    VLProject _ -> Right c
+    VLProjectA _  -> Right c
     ProjectRename _ -> Right c
     IntegerToDoubleA -> Right c
     IntegerToDoubleL -> Right c
@@ -50,7 +46,6 @@ inferCardOneUnOp c op =
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1L _ _ -> Right $ VPropPair False False
     SelectExpr _ -> Right $ VProp False
-    CompExpr1L _ -> Right c
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -100,6 +95,8 @@ inferCardOneBinOp c1 c2 op =
     EquiJoinL _ _ -> return $ VPropTriple False False False
     SemiJoin _ _ -> return $ VPropPair False False
     SemiJoinL _ _ -> return $ VPropPair False False
+    AntiJoin _ _ -> return $ VPropPair False False
+    AntiJoinL _ _ -> return $ VPropPair False False
     ZipL -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

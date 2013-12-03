@@ -31,6 +31,14 @@ fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromPropVec (PropVecConst s t)  = Right (s, t)
 fromPropVec _                   = Left "Properties.Const fromPropVec"
 
+constExpr1 :: [ConstPayload] -> Expr1 -> ConstPayload
+constExpr1 constCols e = 
+    case e of
+        Constant1 v      -> ConstPL v
+        Column1 i        -> constCols !! (i - 1)
+        -- FIXME implement constant folding
+        BinApp1 op e1 e2 -> NonConstPL
+        UnApp1 op e      -> NonConstPL
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
@@ -60,10 +68,6 @@ inferConstVecUnOp c op =
     Unique -> return c
 
     UniqueL -> return c
-
-    NotPrim -> return c
-
-    NotVec -> return c
 
     LengthA -> do
       return $ VProp $ DBPConst [NonConstPL]
@@ -100,16 +104,6 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    ProjectL ps -> do
-      (d, cols) <- unp c >>= fromDBV
-      let cols' = map (\p -> cols !! (p - 1)) ps
-      return $ VProp $ DBVConst d cols'
-
-    ProjectA ps -> do
-      cols <- unp c >>= fromDBP
-      let cols' = map (\p -> cols !! (p - 1)) ps
-      return $ VProp $ DBPConst cols'
-
     IntegerToDoubleA -> return c
 
     IntegerToDoubleL -> return c
@@ -127,7 +121,7 @@ inferConstVecUnOp c op =
       return $ VProp $ DBVConst d [NonConstPL]
 
     ProjectRename (targetIS, _)  -> do
-      -- FIXME this is not precise -- take care of of the source space.
+      -- FIXME this is not precise -- take care of the source space.
       (d, _) <- unp c >>= fromDBV
       let d' = case targetIS of
             STDescrCol -> d
@@ -135,22 +129,13 @@ inferConstVecUnOp c op =
             STNumber -> NonConstDescr
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
 
-    ProjectPayload vps   -> do
+    VLProject vps   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst constDescr $ map (constExpr1 constCols) vps
 
-      let constProj (PLConst v)  = ConstPL v
-          constProj (PLCol i)    = constCols !! (i - 1)
-
-      return $ VProp $ DBVConst constDescr $ map constProj vps
-
-    ProjectAdmin (dp, _)   -> do
+    VLProjectA vps   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
-      let constDescr' = case dp of
-            DescrConst n  -> ConstDescr n
-            DescrIdentity -> constDescr
-            DescrPosCol   -> NonConstDescr
-
-      return $ VProp $ DBVConst constDescr' constCols
+      return $ VProp $ DBPConst $ map (constExpr1 constCols) vps
 
     SelectExpr _       -> do
       (d, cols) <- unp c >>= fromDBV
@@ -159,11 +144,6 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    CompExpr1L _ -> do
-      (d, _) <- unp c >>= fromDBV
-      -- FIXME This is not precise: implement constant folding
-      return $ VProp $ DBVConst d [NonConstPL]
-      
     VecAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
@@ -368,6 +348,24 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
     SemiJoinL _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+  
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
+    AntiJoin _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      
+      -- FIXME This is propably too pessimistic for the source descriptor
+      let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME This is propably too pessimistic for the descr 
+      return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
+    AntiJoinL _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       
       -- FIXME This is propably too pessimistic for the source descriptor

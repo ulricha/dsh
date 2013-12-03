@@ -16,10 +16,11 @@ import           Database.DSH.Internals
 import           Database.HDBC
 import qualified Database.HDBC                                   as H
 
-import qualified Database.DSH.Common.Data.Type        as T
-import           Database.DSH.Export
 import qualified Database.DSH.CL.Lang                 as CL
 import qualified Database.DSH.CL.Opt                  as CLOpt
+import qualified Database.DSH.Common.Data.Type        as T
+import           Database.DSH.Export
+import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
@@ -48,6 +49,7 @@ nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
+                      |> optimizeVLDefault
                       |> exportVLPlan prefix
 
 

@@ -15,16 +15,19 @@ import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
-aggregationRules = [ groupingToAggr ]
+aggregationRules = [ {- groupingToAggr -} ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ pushExprThroughGroupBy ]
+aggregationRulesBottomUp = [ {- pushExprThroughGroupBy -} ]
 
 groupingToAggregation :: VLRewrite Bool
 groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
+{-
+
+FIXME CompExpr1L -> VLProjectL
 -- If an expression operator is applied to the R2 output of GroupBy, push
 -- the expression below the GroupBy operator. This rewrite assists in turning
 -- combinations of GroupBy and Vec* into a form that is suitable for rewriting
@@ -55,6 +58,8 @@ pushExprThroughGroupBy q =
           -- Replace the CompExpr1L operator with a projection on the new column
           void $ replaceWithNew q $ UnOp (ProjectL [width + 1]) r2Node |])
           
+-}
+          
 -- | Turn an aggregate operator into the corrresponding aggregate function for VecAggr
 aggrOpToFun :: DBCol -> VL -> VLMatch () AggrFun
 aggrOpToFun c (UnOp VecMaxL _)    = return $ Max c
@@ -63,6 +68,7 @@ aggrOpToFun c (BinOp VecAvgL _ _) = return $ Avg c
 aggrOpToFun c (BinOp VecSumL _ _) = return $ Sum c
 aggrOpToFun _ _                   = fail "no match"
 
+{-
 -- | Check if we have an operator combination which is eligible for moving to a
 -- VecAggr operator.
 matchAggr :: AlgNode -> VLMatch () [(AggrFun, AlgNode)]
@@ -105,7 +111,7 @@ r1Parents n = do
 -- 2. The grouping criteria is a simple column projection from the input vector
 groupingToAggr :: VLRule ()
 groupingToAggr q =
-  $(pattern 'q "R2 (qg=(ProjectPayload ps (_)) GroupBy (q2))"
+  $(pattern 'q "R2 (qg=(VLProject ps (_)) GroupBy (q2))"
     [| do
        -- FIXME ensure that both GroupBy inputs have the same origin.
        
@@ -152,3 +158,4 @@ groupingToAggr q =
               mapM_ (\r1 -> replace r1 r1ProjectNode) r1s
             else return () |])
 
+-}

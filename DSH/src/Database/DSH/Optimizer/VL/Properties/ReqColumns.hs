@@ -24,25 +24,21 @@ one = VProp $ Just [1]
 na :: VectorProp ReqCols
 na = VProp Nothing
 
-reqProjCols :: [PayloadProj] -> [DBCol]
-reqProjCols ((PLCol col) : ps) = col : (reqProjCols ps)
-reqProjCols ((PLConst _) : ps) = reqProjCols ps
-reqProjCols ((PLExpr e)  : ps) = reqExpr1Cols e ++ reqProjCols ps
-reqProjCols []                 = []
-
 reqExpr1Cols :: Expr1 -> [DBCol]
-reqExpr1Cols (App1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
-reqExpr1Cols (Column1 col)  = [col]
-reqExpr1Cols (Constant1 _)  = []
+reqExpr1Cols (BinApp1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
+reqExpr1Cols (UnApp1 _ e)      = reqExpr1Cols e
+reqExpr1Cols (Column1 col)     = [col]
+reqExpr1Cols (Constant1 _)     = []
 
 reqExpr2ColsLeft :: Expr2 -> [DBCol]
-reqExpr2ColsLeft (App2 _ e1 e2)        = reqExpr2ColsLeft e1 `L.union` reqExpr2ColsLeft e2
+reqExpr2ColsLeft (BinApp2 _ e1 e2)     = reqExpr2ColsLeft e1 `L.union` reqExpr2ColsLeft e2
+reqExpr2ColsLeft (UnApp2 _ e)          = reqExpr2ColsLeft e
 reqExpr2ColsLeft (Column2Left (L col)) = [col]
 reqExpr2ColsLeft (Column2Right _)      = []
 reqExpr2ColsLeft (Constant2 _)         = []
 
 reqExpr2ColsRight :: Expr2 -> [DBCol]
-reqExpr2ColsRight (App2 _ e1 e2)         = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
+reqExpr2ColsRight (BinApp2 _ e1 e2)      = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
 reqExpr2ColsRight (Column2Right (R col)) = [col]
 reqExpr2ColsRight (Column2Left _)        = []
 reqExpr2ColsRight (Constant2 _)          = []
@@ -78,10 +74,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
 
     UniqueL -> ownReqColumns `union` childReqColumns
 
-    NotPrim -> one
-
-    NotVec -> one
-
     LengthA -> none `union` childReqColumns
 
     DescToRename -> none `union` childReqColumns
@@ -99,9 +91,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Number -> none
     NumberL -> none
 
-    ProjectL cols -> childReqColumns `union` (VProp $ Just cols)
-    ProjectA cols -> childReqColumns `union` (VProp $ Just cols)
-
     IntegerToDoubleA -> one
     IntegerToDoubleL -> one
 
@@ -112,13 +101,10 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
 
     ProjectRename _ -> none `union` childReqColumns
 
-    ProjectPayload ps -> childReqColumns `union` (VProp $ Just $ reqProjCols ps)
-
-    ProjectAdmin _ -> ownReqColumns `union` childReqColumns
+    VLProject ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+    VLProjectA ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
 
     SelectExpr e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
-
-    CompExpr1L e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
 
     SelectPos1 _ _   ->
       case ownReqColumns of
@@ -289,6 +275,22 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols1 _ -> 
           (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
         _                     -> error "ReqColumns.SemiJoinL"
+
+    -- For a antijoin, we only require the columns used in the join argument
+    -- from the right input.
+    AntiJoin e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.AntiJoin"
+
+    -- For a antijoin, we only require the columns used in the join argument
+    -- from the right input.
+    AntiJoinL e1 e2 -> 
+      case ownReqColumns of
+        VPropPair cols1 _ -> 
+          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
+        _                     -> error "ReqColumns.AntiJoinL"
     
     
 

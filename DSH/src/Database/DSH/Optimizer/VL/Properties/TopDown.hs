@@ -34,8 +34,6 @@ seed (UnOp op _)   =
     ReverseL           -> vPropPairSeed
     Unique             -> vPropSeed
     UniqueL            -> vPropSeed
-    NotPrim            -> vPropSeed
-    NotVec             -> vPropSeed
     LengthA            -> vPropSeed
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed
@@ -46,16 +44,13 @@ seed (UnOp op _)   =
     VecMinL            -> vPropSeed
     VecMax             -> vPropSeed
     VecMaxL            -> vPropSeed
-    ProjectL _         -> vPropSeed
-    ProjectA _         -> vPropSeed
     IntegerToDoubleA   -> vPropSeed
     IntegerToDoubleL   -> vPropSeed
     FalsePositions     -> vPropSeed
     SelectExpr _       -> vPropSeed
     ProjectRename _    -> vPropSeed
-    ProjectAdmin _     -> vPropSeed
-    ProjectPayload _   -> vPropSeed
-    CompExpr1L _       -> vPropSeed
+    VLProject      _   -> vPropSeed
+    VLProjectA     _   -> vPropSeed
     VecAggr _ _        -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
@@ -93,6 +88,8 @@ seed (BinOp op _ _) =
     EquiJoinL _ _      -> vPropTripleSeed
     SemiJoin _ _       -> vPropPairSeed
     SemiJoinL _ _      -> vPropPairSeed
+    AntiJoin _ _       -> vPropPairSeed
+    AntiJoinL _ _      -> vPropPairSeed
     
 seed (TerOp op _ _ _) =
   case op of

@@ -32,8 +32,6 @@ inferEmptyUnOp e op =
   case op of
     Unique -> Right e
     UniqueL -> Right e
-    NotPrim -> Right e
-    NotVec -> Right e
     LengthA -> Right $ VProp False
     DescToRename -> Right e
     Segment -> Right e
@@ -46,20 +44,17 @@ inferEmptyUnOp e op =
     VecMinL -> Right e
     VecMax -> Right e
     VecMaxL -> Right e
-    ProjectL _ -> Right e
-    ProjectA _ -> Right e
     IntegerToDoubleA -> Right e
     IntegerToDoubleL -> Right e
     ReverseA -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
     ProjectRename _  -> Right e
-    ProjectPayload _   -> Right e
-    ProjectAdmin _   -> Right e
+    VLProject _   -> Right e
+    VLProjectA _   -> Right e
     SelectExpr _       -> Right e
     Only             -> undefined
     Singleton        -> undefined
-    CompExpr1L _ -> Right e
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     SelectPos1L _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
@@ -80,6 +75,7 @@ inferEmptyUnOp e op =
       case e of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Empty: not a triple"
+
     
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
@@ -118,6 +114,8 @@ inferEmptyBinOp e1 e2 op =
     EquiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     SemiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     SemiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
+    AntiJoin _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
+    AntiJoinL _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
