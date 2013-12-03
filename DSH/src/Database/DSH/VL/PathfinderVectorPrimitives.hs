@@ -796,9 +796,6 @@ instance VectorAlgebra PFAlgebra where
     qr <- rownum nrItem [pos] (Just descr) q
     return $ DBV qr (cols ++ [nrIndex])
   
-  -- At the moment, we don't have a specific semijoin operator in
-  -- TableAlgebra. Therefore, we implement it using a normal equijoin and manual
-  -- duplicate elimination.
   semiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
@@ -823,30 +820,28 @@ instance VectorAlgebra PFAlgebra where
     r  <- proj [colP posold, (posold, posnew)] q
     return $ (DBV qj cols1, RenameVector r)
   
-  -- xs antijoin(p) ys == xs - (xs semijoin(p) ys)
   antiJoin leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
     (ql, cl) <- compileExpr1 cols1 q1 leftExpr
     (qr, cr) <- compileExpr1 cols2 q2 rightExpr
-  
-    -- First, compute the corresponding semijoin xs semijoin(p) ys
-    qs <- projM [colP pos]
-         $ eqJoinM tmpCol tmpCol'
+    q <- rownumM pos [posold] Nothing
+         $ projM (keepItems cols1 [colP descr, (posold, pos)])
+         $ antiJoinM [(tmpCol, tmpCol', EqJ)]
              (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
-             (distinctM $ proj [(tmpCol', cr)] qr)
-             
-    -- Then, compute the difference between xs and the semijoin
-    qd <- projM [(pos', pos)] $ differenceM (proj [colP pos] q1) (return qs)
-    
-    -- Then, join again with xs on positions
-    qa <- tagM "antijoin" 
-          $ rownumM posnew [pos] Nothing
-          $ eqJoin pos pos' q1 qd
-          
-    -- The resulting value vector
-    qv <- proj (keepItems cols1 [colP descr, (pos, posnew)]) qa
-    
-    -- The rename vector
-    qp <- proj [(posold, pos), colP posnew] qa
-    
-    return $ (DBV qv cols1, RenameVector qp)
+             (proj [(tmpCol', cr)] qr)
+    qj <- tagM "antijoin/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
+    r  <- proj [colP posold, (posold, posnew)] q
+    return $ (DBV qj cols1, RenameVector r)
+  
+  -- FIXME re-check semantics!
+  antiJoinL leftExpr rightExpr (DBV q1 cols1) (DBV q2 cols2) = do
+    (ql, cl) <- compileExpr1 cols1 q1 leftExpr
+    (qr, cr) <- compileExpr1 cols2 q2 rightExpr
+    q <- rownumM pos [descr, posold] Nothing
+         $ projM (keepItems cols1 [colP descr, (posold, pos)])
+         $ antiJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
+             (proj (keepItems cols1 [colP descr, colP pos, (tmpCol, cl)]) ql)
+             (proj [(descr', descr), (tmpCol', cr)] qr)
+    qj <- tagM "antijoinLift/1" $ proj (keepItems cols1 [colP descr, colP pos]) q
+    r  <- proj [colP posold, (posold, posnew)] q
+    return $ (DBV qj cols1, RenameVector r)
   
