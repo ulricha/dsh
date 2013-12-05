@@ -119,7 +119,6 @@ Library
                      Database.DSH.NKL.Data.NKL
                      Database.DSH.NKL.NKLPrimitives
                      Database.DSH.NKL.Opt
-                     Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL

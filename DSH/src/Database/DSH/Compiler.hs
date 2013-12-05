@@ -20,7 +20,6 @@ import qualified Database.DSH.CL.Opt                  as CLOpt
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
-import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
