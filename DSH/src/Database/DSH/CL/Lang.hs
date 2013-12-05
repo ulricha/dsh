@@ -192,6 +192,15 @@ instance Show Expr where
 ppQual :: Qual -> Doc
 ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
 ppQual (GuardQ e)  = pp e
+
+isRelOp :: Prim2 t -> Bool
+isRelOp o = 
+    case o of
+        Prim2 (EquiJoin _ _) _ -> True
+        Prim2 (NestJoin _ _) _ -> True
+        Prim2 (SemiJoin _ _) _ -> True
+        Prim2 (AntiJoin _ _) _ -> True
+        _                      -> False
   
 pp :: Expr -> Doc
 pp (Table _ n _ _)    = text "table" <+> text n
@@ -199,6 +208,7 @@ pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
 pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
 pp (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
 pp (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+pp (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
 pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
 pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
 pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
