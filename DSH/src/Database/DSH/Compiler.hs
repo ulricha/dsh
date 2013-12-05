@@ -73,6 +73,7 @@ debugNKL c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehens
 debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
 debugFKL c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getTableInfo c) e
 
+-- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
