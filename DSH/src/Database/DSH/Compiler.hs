@@ -6,7 +6,6 @@ module Database.DSH.Compiler
     debugNKL
   , debugFKL
   , debugVL
-  , debugPFXML
   , debugTA
   ) where
 
@@ -45,14 +44,6 @@ nkl2TAFile prefix e = desugarComprehensions e
                         |> implementVectorOpsPF
                         |> (exportTAPlan prefix)
 
-nkl2XMLFile :: String -> CL.Expr -> IO ()
-nkl2XMLFile prefix e = desugarComprehensions e
-                       |> flatten
-                       |> specializeVectorOps
-                       |> implementVectorOpsPF
-                       |> generatePFXML
-                       |> (exportPFXML prefix)
-
 nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
@@ -84,12 +75,6 @@ debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
   e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
   nkl2VLFile prefix e'
-
--- | Debugging function: dump the Pathfinder Algebra query plan (DAG) to XML files.
-debugPFXML :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
-debugPFXML prefix c (Q e) = do
-  e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
-  nkl2XMLFile prefix e'
 
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.
