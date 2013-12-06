@@ -20,8 +20,7 @@ inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
     SingletonDescr               -> Right $ VProp $ ValueVector 0
-    ConstructLiteralTable t _    -> Right $ VProp $ ValueVector $ length t
-    ConstructLiteralValue t _    -> Right $ VProp $ ValueVector $ length t
+    Lit t _                      -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
@@ -32,22 +31,22 @@ inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorPro
 inferVectorTypeUnOp s op = 
   case op of
     Unique -> VProp <$> unpack s
-    UniqueL -> VProp <$> unpack s
-    LengthA -> Right $ VProp $ AtomicVector 1
+    UniqueS -> VProp <$> unpack s
+    Length -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
-    VecSum _ -> Right $ VProp $ AtomicVector 1
-    VecAvg -> Right $ VProp $ AtomicVector 1
-    VecMin -> Right $ VProp $ AtomicVector 1
-    VecMinL -> Right $ VProp $ ValueVector 1
-    VecMax -> Right $ VProp $ AtomicVector 1
-    VecMaxL -> Right $ VProp $ ValueVector 1
-    ReverseA -> liftM2 VPropPair (unpack s) (Right PropVector)
-    ReverseL -> liftM2 VPropPair (unpack s) (Right PropVector)
+    Sum _ -> Right $ VProp $ AtomicVector 1
+    Avg -> Right $ VProp $ AtomicVector 1
+    Min -> Right $ VProp $ AtomicVector 1
+    MinS -> Right $ VProp $ ValueVector 1
+    Max -> Right $ VProp $ AtomicVector 1
+    MaxS -> Right $ VProp $ ValueVector 1
+    Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
+    ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
     FalsePositions -> Right $ VProp $ ValueVector 1
     SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1L _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -64,15 +63,14 @@ inferVectorTypeUnOp s op =
         _ -> Left "Input of R3 is not a tuple"
     ProjectRename _ -> Right $ VProp RenameVector
 
-    VLProject valProjs -> Right $ VProp $ ValueVector $ length valProjs
-    VLProjectA valProjs -> Right $ VProp $ AtomicVector $ length valProjs
+    Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
-    SelectExpr _ -> VProp <$> unpack s
+    Select _ -> VProp <$> unpack s
     Only -> undefined
     Singleton -> undefined
-    VecAggr g as -> Right $ VProp $ ValueVector (length g + length as)
+    Aggr g as -> Right $ VProp $ ValueVector (length g + length as)
     Number -> Right $ VProp $ ValueVector 1
-    NumberL -> Right $ VProp $ ValueVector 1
+    NumberS -> Right $ VProp $ ValueVector 1
   
 reqValVectors :: VectorProp VectorType 
                  -> VectorProp VectorType 
@@ -93,16 +91,16 @@ inferVectorTypeBinOp s1 s2 op =
           Right $ VPropTriple t1 t2 PropVector
         _                                                    -> 
           Left "Input of GroupBy is not a value vector"
-    SortWith ->
+    Sort ->
       case (s1, s2) of
         (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
           Right $ VPropPair t2 PropVector
         _                                                    -> 
           Left "Input of SortWith is not a value vector"
-    LengthSeg -> return $ VProp $ ValueVector 1
+    LengthS -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
-    DistLift -> liftM2 VPropPair (unpack s1) (Right PropVector)
+    DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
@@ -115,33 +113,30 @@ inferVectorTypeBinOp s1 s2 op =
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
-    RestrictVec -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    CompExpr2 _ -> Right $ VProp $ AtomicVector 1
-    CompExpr2L _ -> Right $ VProp $ ValueVector 1
-    VecSumL -> Right $ VProp $ ValueVector 1
-    VecAvgL -> Right $ VProp $ ValueVector 1
+    Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    BinExpr _ -> Right $ VProp $ ValueVector 1
+    SumS -> Right $ VProp $ ValueVector 1
+    AvgS -> Right $ VProp $ ValueVector 1
     SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    SelectPosL _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    PairA -> reqValVectors s1 s2 (\w1 w2 -> VProp $ AtomicVector $ w1 + w2) "PairA"
-    -- PairL -> reqValVectors s1 s2 (\w1 w2 -> VProp $ AtomicVector $ w1 + w2) "PairL"
-    PairL ->
+    SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    Zip ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
         _                                                -> Left "Inputs of PairL are not ValueVectors"
-    ZipL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
+    ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
-    CartProductL -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductL"
+    CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
     EquiJoin _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoin"
-    EquiJoinL _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinL"
+    EquiJoinS _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinS"
     SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    SemiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SemiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    AntiJoinL _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 
   case op of
-    CombineVec -> 
+    Combine -> 
       case (s2, s3) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector

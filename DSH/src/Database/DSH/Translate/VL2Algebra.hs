@@ -134,7 +134,7 @@ vl2Algebra (nodes, plan) = do
 
 translateTerOp :: VectorAlgebra a => TerOp -> Res -> Res -> Res -> GraphM () a Res
 translateTerOp t c1 c2 c3 = case t of
-                             CombineVec -> do
+                             Combine -> do
                                              (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
                                              return $ RTriple (fromDVec d) (fromRenameVector r1) (fromRenameVector r2)
 
@@ -143,17 +143,17 @@ translateBinOp b c1 c2 = case b of
                            GroupBy          -> do
                                                 (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec d) (fromDVec v) (fromProp p)
-                           SortWith         -> do
+                           Sort         -> do
                                                 (d, p) <- vecSort (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec d) (fromProp p)
-                           LengthSeg        -> liftM fromDVec $ vecLengthS (toDVec c1) (toDVec c2)
+                           LengthS        -> liftM fromDVec $ vecLengthS (toDVec c1) (toDVec c2)
                            DistPrim         -> do
                                                 (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromProp p)
                            DistDesc         -> do
                                                 (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromProp p)
-                           DistLift         -> do
+                           DistSeg         -> do
                                                 (v, p) <- vecDistSeg (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromProp p)
                            PropRename       -> liftM fromDVec $ vecPropRename (toRenameVector c1) (toDVec c2)
@@ -166,46 +166,44 @@ translateBinOp b c1 c2 = case b of
                            Append           -> do
                                                 (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
-                           RestrictVec      -> do
+                           Restrict      -> do
                                                 (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
-                           CompExpr2 e      -> undefined
-                           CompExpr2L e     -> liftM fromDVec $ vecBinExpr e (toDVec c1) (toDVec c2)
-                           VecSumL          -> liftM fromDVec $ vecSumS (toDVec c1) (toDVec c2)
-                           VecAvgL          -> liftM fromDVec $ vecAvgS (toDVec c1) (toDVec c2)
+                           BinExpr e     -> liftM fromDVec $ vecBinExpr e (toDVec c1) (toDVec c2)
+                           SumS          -> liftM fromDVec $ vecSumS (toDVec c1) (toDVec c2)
+                           AvgS          -> liftM fromDVec $ vecAvgS (toDVec c1) (toDVec c2)
                            SelectPos o      -> do
                                                 (v, r) <- selectPos (toDVec c1) o (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
-                           SelectPosL o     -> do
+                           SelectPosS o     -> do
                                                 (v, r) <- selectPosS (toDVec c1) o (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
-                           PairA            -> undefined
-                           PairL            -> liftM fromDVec $ vecZip (toDVec c1) (toDVec c2)
-                           ZipL             -> do
+                           Zip              -> liftM fromDVec $ vecZip (toDVec c1) (toDVec c2)
+                           ZipS             -> do
                                                 (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
                            CartProduct      -> do
                                                 (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
-                           CartProductL     -> do
+                           CartProductS     -> do
                                                 (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            (EquiJoin e1 e2) -> do
                                                 (v, p1, p2) <- vecEquiJoin e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
-                           (EquiJoinL e1 e2) -> do
+                           (EquiJoinS e1 e2) -> do
                                                 (v, p1, p2) <- vecEquiJoinS e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            (SemiJoin e1 e2) -> do
                                                 (v, r) <- vecSemiJoin e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
-                           (SemiJoinL e1 e2) -> do
+                           (SemiJoinS e1 e2) -> do
                                                 (v, r) <- vecSemiJoinS e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
                            (AntiJoin e1 e2) -> do
                                                 (v, r) <- vecAntiJoin e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
-                           (AntiJoinL e1 e2) -> do
+                           (AntiJoinS e1 e2) -> do
                                                 (v, r) <- vecAntiJoinS e1 e2 (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
 
@@ -222,37 +220,36 @@ translateUnOp u c = case u of
                       Singleton     -> return $ singleton c
                       Only          -> return $ only c
                       Unique        -> liftM fromDVec $ vecUnique (toDVec c)
-                      UniqueL       -> liftM fromDVec $ vecUniqueS (toDVec c)
+                      UniqueS       -> liftM fromDVec $ vecUniqueS (toDVec c)
                       Number        -> liftM fromDVec $ vecNumber (toDVec c)
-                      NumberL       -> liftM fromDVec $ vecNumberS (toDVec c)
-                      LengthA       -> liftM fromDVec $ vecLength (toDVec c)
+                      NumberS       -> liftM fromDVec $ vecNumberS (toDVec c)
+                      Length       -> liftM fromDVec $ vecLength (toDVec c)
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDVec c)
                       Segment       -> liftM fromDVec $ vecSegment (toDVec c)
                       Unsegment     -> liftM fromDVec $ vecUnsegment (toDVec c)
-                      VecSum ty     -> liftM fromDVec $ vecSum ty (toDVec c)
-                      VecAvg        -> liftM fromDVec $ vecAvg (toDVec c)
-                      VecMin        -> liftM fromDVec $ vecMin (toDVec c)
-                      VecMinL       -> liftM fromDVec $ vecMinS (toDVec c)
-                      VecMax        -> liftM fromDVec $ vecMax (toDVec c)
-                      VecMaxL       -> liftM fromDVec $ vecMaxS (toDVec c)
-                      SelectExpr e  -> liftM fromDVec $ vecSelect e (toDVec c)
+                      Sum ty     -> liftM fromDVec $ vecSum ty (toDVec c)
+                      Avg        -> liftM fromDVec $ vecAvg (toDVec c)
+                      Min        -> liftM fromDVec $ vecMin (toDVec c)
+                      MinS       -> liftM fromDVec $ vecMinS (toDVec c)
+                      Max        -> liftM fromDVec $ vecMax (toDVec c)
+                      MaxS       -> liftM fromDVec $ vecMaxS (toDVec c)
+                      Select e  -> liftM fromDVec $ vecSelect e (toDVec c)
                       ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDVec c)
-                      VLProject cols -> liftM fromDVec $ vecProject cols (toDVec c)
-                      VLProjectA cols -> undefined
-                      ReverseA      -> do
+                      Project cols -> liftM fromDVec $ vecProject cols (toDVec c)
+                      Reverse      -> do
                                         (d, p) <- vecReverse (toDVec c)
                                         return $ RPair (fromDVec d) (fromProp p)
-                      ReverseL      -> do
+                      ReverseS      -> do
                                         (d, p) <- vecReverseS (toDVec c)
                                         return $ RPair (fromDVec d) (fromProp p)
                       FalsePositions -> liftM fromDVec $ falsePositions (toDVec c)
                       SelectPos1 op pos -> do
                                          (d, p) <- selectPos1 (toDVec c) op pos
                                          return $ RPair (fromDVec d) (fromRenameVector p)
-                      SelectPos1L op pos -> do
+                      SelectPos1S op pos -> do
                                           (d, p) <- selectPos1S (toDVec c) op pos
                                           return $ RPair (fromDVec d) (fromRenameVector p)
-                      VecAggr g as -> liftM fromDVec $ vecAggr g as (toDVec c)
+                      Aggr g as -> liftM fromDVec $ vecAggr g as (toDVec c)
                       R1            -> case c of
                                          (RPair c1 _)     -> return c1
                                          (RTriple c1 _ _) -> return c1
@@ -267,10 +264,9 @@ translateUnOp u c = case u of
 
 
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
-translateNullary SingletonDescr                   = liftM fromDVec $ singletonDescr
-translateNullary (ConstructLiteralValue tys vals) = undefined
-translateNullary (ConstructLiteralTable tys vals) = liftM fromDVec $ vecLit tys vals
-translateNullary (TableRef n tys ks)              = liftM fromDVec $ vecTableRef n tys ks
+translateNullary SingletonDescr      = liftM fromDVec $ singletonDescr
+translateNullary (Lit tys vals)      = liftM fromDVec $ vecLit tys vals
+translateNullary (TableRef n tys ks) = liftM fromDVec $ vecTableRef n tys ks
 
 implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan =

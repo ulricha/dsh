@@ -16,34 +16,32 @@ inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
     SingletonDescr                -> Right $ VProp True
-    ConstructLiteralTable _ rows  -> Right $ VProp $ length rows == 1
-    ConstructLiteralValue _ _     -> Right $ VProp True
+    Lit _ rows  -> Right $ VProp $ length rows == 1
     TableRef              _ _ _   -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op = 
   case op of
     Unique -> Right c
-    UniqueL -> Right c
-    LengthA -> Right $ VProp True
+    UniqueS -> Right c
+    Length -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
-    VecSum _ -> Right $ VProp True
-    VecAvg -> Right $ VProp True
-    VecMin -> Right $ VProp True
-    VecMinL -> Right c
-    VecMax -> Right $ VProp True
-    VecMaxL -> Right c
-    VLProject _ -> Right c
-    VLProjectA _  -> Right c
+    Sum _ -> Right $ VProp True
+    Avg -> Right $ VProp True
+    Min -> Right $ VProp True
+    MinS -> Right c
+    Max -> Right $ VProp True
+    MaxS -> Right c
+    Project _  -> Right c
     ProjectRename _ -> Right c
-    ReverseA -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    ReverseL -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
     FalsePositions -> Right c
     SelectPos1 _ _ -> Right $ VPropPair False False
-    SelectPos1L _ _ -> Right $ VPropPair False False
-    SelectExpr _ -> Right $ VProp False
+    SelectPos1S _ _ -> Right $ VPropPair False False
+    Select _ -> Right $ VProp False
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -58,48 +56,46 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    VecAggr _ _ -> Right c
+    Aggr _ _ -> Right c
     Only -> undefined
     Singleton -> undefined
     Number -> Right c
-    NumberL -> Right c
+    NumberS -> Right c
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
     GroupBy -> return $ VPropTriple False False False
-    SortWith -> return $ VPropPair False False
-    LengthSeg -> return $ VProp False
+    Sort -> return $ VPropPair False False
+    LengthS -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
-    DistLift -> return $ VPropPair False False
+    DistSeg -> return $ VPropPair False False
     PropRename -> return $ VProp False
     PropFilter -> return $ VPropPair False False
     PropReorder -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
-    RestrictVec -> Right $ VPropPair False False
-    CompExpr2 _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    CompExpr2L _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    VecSumL -> Right c1
-    VecAvgL -> Right c1
+    Restrict -> Right $ VPropPair False False
+    BinExpr _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
+    SumS -> Right c1
+    AvgS -> Right c1
     SelectPos _ -> return $ VPropPair False False
-    SelectPosL _ -> return $ VPropPair False False
-    PairA -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    PairL -> VProp <$> ((||) <$> unp c1 <*> unp c2)
+    SelectPosS _ -> return $ VPropPair False False
+    Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
-    CartProductL -> return $ VPropTriple False False False
+    CartProductS -> return $ VPropTriple False False False
     EquiJoin _ _ -> return $ VPropTriple False False False
-    EquiJoinL _ _ -> return $ VPropTriple False False False
+    EquiJoinS _ _ -> return $ VPropTriple False False False
     SemiJoin _ _ -> return $ VPropPair False False
-    SemiJoinL _ _ -> return $ VPropPair False False
+    SemiJoinS _ _ -> return $ VPropPair False False
     AntiJoin _ _ -> return $ VPropPair False False
-    AntiJoinL _ _ -> return $ VPropPair False False
-    ZipL -> do
+    AntiJoinS _ _ -> return $ VPropPair False False
+    ZipS -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c
       
 inferCardOneTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferCardOneTerOp _ _ _ op =
   case op of
-    CombineVec -> return $ VPropTriple False False False
+    Combine -> return $ VPropTriple False False False

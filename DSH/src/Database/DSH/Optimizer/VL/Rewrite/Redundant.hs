@@ -27,28 +27,28 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ introduceSelectExpr ]
+redundantRules = [ introduceSelect ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
-                         , pushPairLThroughProjectLeft
-                         , pushPairLThroughProjectRight
-                         , sameInputPairL
+                         , pushZipThroughProjectLeft
+                         , pushZipThroughProjectRight
+                         , sameInputZip
                          ]
 
 redundantRulesTopDown :: VLRuleSet TopDownProps
 redundantRulesTopDown = []
 
-introduceSelectExpr :: VLRule ()
-introduceSelectExpr q =
-  $(pattern 'q "R1 ((q1) RestrictVec (VLProject es (q2)))"
+introduceSelect :: VLRule ()
+introduceSelect q =
+  $(pattern 'q "R1 ((q1) Restrict (Project es (q2)))"
     [| do
         [e] <- return $(v "es")
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.SelectExpr" q
-          void $ replaceWithNew q $ UnOp (SelectExpr $(v "e")) $(v "q1") |])
+          logRewrite "Redundant.Select" q
+          void $ replaceWithNew q $ UnOp (Select $(v "e")) $(v "q1") |])
 
 {-
 
@@ -83,7 +83,7 @@ distPrimConstant q =
           
         return $ do
           logRewrite "Redundant.DistPrim.Constant" q
-          void $ replaceWithNew q $ UnOp (VLProject constProjs) $(v "qv") |])
+          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
           
         
 
@@ -110,7 +110,7 @@ distDescCardOne q =
 
         return $ do
           logRewrite "Redundant.DistDescCardOne" q
-          projNode <- insert $ UnOp (VLProject constProjs) $(v "qv")
+          projNode <- insert $ UnOp (Project constProjs) $(v "qv")
           void $ replaceWithNew q $ UnOp Segment projNode |])
           
 shiftCols :: Int -> Expr1 -> Expr1
@@ -121,23 +121,23 @@ shiftCols offset expr =
         Column1 i       -> Column1 (offset + i)
         Constant1 c     -> Constant1 c
 
--- | Push a PairL operator through a projection in the left input
-pushPairLThroughProjectLeft :: VLRule BottomUpProps
-pushPairLThroughProjectLeft q =
-  $(pattern 'q "(VLProject es (q1)) PairL (q2)"
+-- | Push a Zip operator through a projection in the left input
+pushZipThroughProjectLeft :: VLRule BottomUpProps
+pushZipThroughProjectLeft q =
+  $(pattern 'q "(Project es (q1)) Zip (q2)"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
           let es' = $(v "es") ++ [ Column1 $ w1 + i | i <- [1 .. w2] ]
-          qp <- insert $ BinOp PairL $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (VLProject es') qp |])
+          qp <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project es') qp |])
 
--- | Push a PairL operator through a projection in the right input
-pushPairLThroughProjectRight :: VLRule BottomUpProps
-pushPairLThroughProjectRight q =
-  $(pattern 'q "(q1) PairL (VLProject es (q2))"
+-- | Push a Zip operator through a projection in the right input
+pushZipThroughProjectRight :: VLRule BottomUpProps
+pushZipThroughProjectRight q =
+  $(pattern 'q "(q1) Zip (Project es (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
@@ -145,17 +145,17 @@ pushPairLThroughProjectRight q =
                
           let es' = [ Column1 i | i <- [1 .. w1] ] ++ [ shiftCols w1 e | e <- $(v "es") ]
 
-          qp <- insert $ BinOp PairL $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (VLProject es') qp |])
+          qp <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project es') qp |])
           
--- | Replace a PairL operaor with a projection if both inputs are the same.
-sameInputPairL :: VLRule BottomUpProps
-sameInputPairL q =
-  $(pattern 'q "(q1) PairL (q2)"
+-- | Replace a Zip operaor with a projection if both inputs are the same.
+sameInputZip :: VLRule BottomUpProps
+sameInputZip q =
+  $(pattern 'q "(q1) Zip (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         
         return $ do
           let ps = map Column1 [1 .. w]
-          void $ replaceWithNew q $ UnOp (VLProject (ps ++ ps)) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])

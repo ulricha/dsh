@@ -6,7 +6,7 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
        
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
-import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..), VecUnOp(..), VecCastOp(..))
+import           Database.Algebra.VL.Data                      (VL(), UnOp(Project), Expr1(..), VecUnOp(..), VecCastOp(..))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
@@ -24,8 +24,8 @@ fkl2VL (Table _ n cs ks) = dbTable n cs ks
 fkl2VL (Const t v) = mkLiteral t v
 fkl2VL (BinOp _ (Op Cons False) e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; cons e1' e2'}
 fkl2VL (BinOp _ (Op Cons True)  e1 e2) = do {e1' <- fkl2VL e1; e2' <- fkl2VL e2; consLift e1' e2'}
-fkl2VL (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2VL e1; (PrimVal p2 _) <- fkl2VL e2; p <- compExpr2 o p1 p2; return $ PrimVal p lyt}
-fkl2VL (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2VL e1; (ValueVector p2 _) <- fkl2VL e2; p <- compExpr2L o p1 p2; return $ ValueVector p lyt}
+fkl2VL (BinOp _ (Op o False) e1 e2)    = do {(PrimVal p1 lyt) <- fkl2VL e1; (PrimVal p2 _) <- fkl2VL e2; p <- vlBinExpr o p1 p2; return $ PrimVal p lyt}
+fkl2VL (BinOp _ (Op o True) e1 e2)     = do {(ValueVector p1 lyt) <- fkl2VL e1; (ValueVector p2 _) <- fkl2VL e2; p <- vlBinExpr o p1 p2; return $ ValueVector p lyt}
 fkl2VL (If _ eb e1 e2) = do
                           eb' <- fkl2VL eb
                           e1' <- fkl2VL e1
@@ -41,7 +41,7 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (AvgL _) -> avgLift
                                            (The _) -> the
                                            (TheL _) -> theL
-                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProjectA v [UnApp1 Not (Column1 1)])
+                                           (NotPrim _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProject v [UnApp1 Not (Column1 1)])
                                            (NotVec _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> vlProject v [UnApp1 Not (Column1 1)])
                                            (Fst _) -> fstA
                                            (Snd _) -> sndA
@@ -53,7 +53,7 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (MinimumL _) -> minLift
                                            (Maximum _)  -> maxPrim
                                            (MaximumL _) -> maxLift
-                                           (IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProjectA v [UnApp1 (CastOp CastDouble) (Column1 1)])
+                                           (IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProject v [UnApp1 (CastOp CastDouble) (Column1 1)])
                                            (IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> vlProject v [UnApp1 (CastOp CastDouble) (Column1 1)])
                                            (Tail _) -> tailS
                                            (TailL _) -> tailL
@@ -142,9 +142,9 @@ insertTopProjections g = do
   where 
   traverseShape :: QP.TopShape -> Graph VL QP.TopShape
   traverseShape (QP.ValueVector (DVec q _) lyt) = 
-    insertProj lyt q VLProject DVec QP.ValueVector
+    insertProj lyt q Project DVec QP.ValueVector
   traverseShape (QP.PrimVal (DVec q _) lyt)     = 
-    insertProj lyt q VLProjectA DVec QP.PrimVal
+    insertProj lyt q Project DVec QP.PrimVal
   
   traverseLayout :: QP.TopLayout -> Graph VL QP.TopLayout
   traverseLayout (QP.InColumn c) = 
@@ -154,7 +154,7 @@ insertTopProjections g = do
     lyt2' <- traverseLayout lyt2
     return $ QP.Pair lyt1' lyt2'
   traverseLayout (QP.Nest (DVec q _) lyt) = 
-    insertProj lyt q VLProject DVec QP.Nest
+    insertProj lyt q Project DVec QP.Nest
     
   insertProj 
     :: QP.TopLayout               -- The node's layout

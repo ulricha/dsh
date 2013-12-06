@@ -29,32 +29,31 @@ seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
     SelectPos1 _ _     -> vPropPairSeed
-    SelectPos1L _ _    -> vPropPairSeed 
-    ReverseA           -> vPropPairSeed
-    ReverseL           -> vPropPairSeed
+    SelectPos1S _ _    -> vPropPairSeed 
+    Reverse            -> vPropPairSeed
+    ReverseS           -> vPropPairSeed
     Unique             -> vPropSeed
-    UniqueL            -> vPropSeed
-    LengthA            -> vPropSeed
+    UniqueS            -> vPropSeed
+    Length             -> vPropSeed
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
-    VecSum _           -> vPropSeed
-    VecAvg             -> vPropSeed
-    VecMin             -> vPropSeed
-    VecMinL            -> vPropSeed
-    VecMax             -> vPropSeed
-    VecMaxL            -> vPropSeed
+    Sum _              -> vPropSeed
+    Avg                -> vPropSeed
+    Min                -> vPropSeed
+    MinS               -> vPropSeed
+    Max                -> vPropSeed
+    MaxS               -> vPropSeed
     FalsePositions     -> vPropSeed
-    SelectExpr _       -> vPropSeed
+    Select     _       -> vPropSeed
     ProjectRename _    -> vPropSeed
-    VLProject      _   -> vPropSeed
-    VLProjectA     _   -> vPropSeed
-    VecAggr _ _        -> vPropSeed
+    Project      _     -> vPropSeed
+    Aggr _ _           -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed
     Number             -> vPropSeed
-    NumberL            -> vPropSeed
+    NumberS            -> vPropSeed
     Only               -> undefined
     Singleton          -> undefined
 
@@ -62,36 +61,34 @@ seed (BinOp op _ _) =
   case op of
     GroupBy            -> vPropTripleSeed
     Append             -> vPropTripleSeed
-    ZipL               -> vPropTripleSeed
-    SortWith           -> vPropPairSeed
+    ZipS               -> vPropTripleSeed
+    Sort               -> vPropPairSeed
     DistPrim           -> vPropPairSeed
     DistDesc           -> vPropPairSeed
-    DistLift           -> vPropPairSeed
+    DistSeg            -> vPropPairSeed
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
-    RestrictVec        -> vPropPairSeed
+    Restrict           -> vPropPairSeed
     SelectPos _        -> vPropPairSeed
-    SelectPosL _       -> vPropPairSeed
-    LengthSeg          -> vPropSeed
+    SelectPosS _       -> vPropPairSeed
+    LengthS            -> vPropSeed
     PropRename         -> vPropSeed
-    CompExpr2 _        -> vPropSeed
-    CompExpr2L _       -> vPropSeed
-    VecSumL            -> vPropSeed
-    VecAvgL            -> vPropSeed
-    PairA              -> vPropSeed
-    PairL              -> vPropSeed
+    BinExpr    _       -> vPropSeed
+    SumS               -> vPropSeed
+    AvgS               -> vPropSeed
+    Zip                -> vPropSeed
     CartProduct        -> vPropTripleSeed
-    CartProductL       -> vPropTripleSeed
+    CartProductS       -> vPropTripleSeed
     EquiJoin _ _       -> vPropTripleSeed
-    EquiJoinL _ _      -> vPropTripleSeed
+    EquiJoinS _ _      -> vPropTripleSeed
     SemiJoin _ _       -> vPropPairSeed
-    SemiJoinL _ _      -> vPropPairSeed
+    SemiJoinS _ _      -> vPropPairSeed
     AntiJoin _ _       -> vPropPairSeed
-    AntiJoinL _ _      -> vPropPairSeed
+    AntiJoinS _ _      -> vPropPairSeed
     
 seed (TerOp op _ _ _) =
   case op of
-    CombineVec -> vPropTripleSeed
+    Combine -> vPropTripleSeed
     
 
 type InferenceState = NodeMap TopDownProps

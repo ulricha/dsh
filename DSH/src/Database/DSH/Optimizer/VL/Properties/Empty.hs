@@ -21,44 +21,41 @@ inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
     SingletonDescr              -> Right $ VProp False
-    ConstructLiteralTable _ []  -> Right $ VProp True
-    ConstructLiteralTable _ _   -> Right $ VProp False
-    ConstructLiteralValue _ []  -> Right $ VProp True
-    ConstructLiteralValue _ _   -> Right $ VProp False
+    Lit _ []  -> Right $ VProp True
+    Lit _ _   -> Right $ VProp False
     TableRef              _ _ _ -> Right $ VProp False
     
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
     Unique -> Right e
-    UniqueL -> Right e
-    LengthA -> Right $ VProp False
+    UniqueS -> Right e
+    Length -> Right $ VProp False
     DescToRename -> Right e
     Segment -> Right e
     Unsegment -> Right e
-    VecSum _ -> Right $ VProp False
+    Sum _ -> Right $ VProp False
     -- If the input is empty, the avg output will actually be empty
     -- too. However, this is an error case which we would like to avoid
-    VecAvg -> Right $ VProp False
-    VecMin -> Right e
-    VecMinL -> Right e
-    VecMax -> Right e
-    VecMaxL -> Right e
-    ReverseA -> let ue = unp e in liftM2 VPropPair ue ue
-    ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
+    Avg -> Right $ VProp False
+    Min -> Right e
+    MinS -> Right e
+    Max -> Right e
+    MaxS -> Right e
+    Reverse -> let ue = unp e in liftM2 VPropPair ue ue
+    ReverseS -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
     ProjectRename _  -> Right e
-    VLProject _   -> Right e
-    VLProjectA _   -> Right e
-    SelectExpr _       -> Right e
+    Project _   -> Right e
+    Select _       -> Right e
     Only             -> undefined
     Singleton        -> undefined
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
-    SelectPos1L _ _ -> let ue = unp e in liftM2 VPropPair ue ue
+    SelectPos1S _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    VecAggr _ _ -> Right $ VProp False
+    Aggr _ _ -> Right $ VProp False
     Number -> Right e
-    NumberL -> Right e
+    NumberS -> Right e
     R1 -> 
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
@@ -82,43 +79,41 @@ inferEmptyBinOp e1 e2 op =
       let ue1 = unp e1 
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
-    SortWith -> do
+    Sort -> do
       ue1 <- unp e1
       ue2 <- unp e2
       let e   = ue1 && ue2
       return $ VPropPair e e
 
-    LengthSeg -> VProp <$> unp e1
+    LengthS -> VProp <$> unp e1
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    DistLift -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    DistSeg -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PropRename -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     PropFilter -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PropReorder -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
-    RestrictVec -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    CompExpr2 _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    CompExpr2L _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    VecSumL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
-    VecAvgL -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
+    Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    BinExpr _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    SumS -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
+    AvgS -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    SelectPosL _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    PairA -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    PairL -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    ZipL -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    CartProductL -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    CartProductS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     EquiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
-    EquiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
+    EquiJoinS _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     SemiJoin _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    SemiJoinL _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
+    SemiJoinS _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AntiJoin _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
-    AntiJoinL _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
+    AntiJoinS _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
   case op of
-    CombineVec -> let ue2 = unp e2
-                      ue3 = unp e3
-                  in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
+    Combine -> let ue2 = unp e2
+                   ue3 = unp e3
+               in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
     

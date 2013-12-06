@@ -113,11 +113,11 @@ algCompOp VL.Gt = RelFun Gt
 algCompOp _     = $impossible
           
 aggrFun :: VL.AggrFun -> AggrType
-aggrFun (VL.Sum c) = Sum $ itemi c
-aggrFun (VL.Min c) = Min $ itemi c
-aggrFun (VL.Max c) = Max $ itemi c
-aggrFun (VL.Avg c) = Avg $ itemi c
-aggrFun VL.Count   = Count
+aggrFun (VL.AggrSum c) = Sum $ itemi c
+aggrFun (VL.AggrMin c) = Min $ itemi c
+aggrFun (VL.AggrMax c) = Max $ itemi c
+aggrFun (VL.AggrAvg c) = Avg $ itemi c
+aggrFun VL.AggrCount   = Count
 
 -- Compilation of VL expressions (Expr1, Expr2)
 
