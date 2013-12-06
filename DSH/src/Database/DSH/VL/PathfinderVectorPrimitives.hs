@@ -27,28 +27,28 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' :: AttrName
 pos       = "pos"
 item      = "item1"
-item'     = "item99999991"
+item'     = "itemtmp"
 descr     = "iter"
-descr'    = "item99999501"
-descr''   = "item99999502"
-pos'      = "item99999601"
-pos''     = "item99999602"
-pos'''    = "item99999603"
-posold    = "item99999604"
-posnew    = "item99999605"
-ordCol    = "item99999801"
-resCol    = "item99999001"
-tmpCol    = "item99999002"
-tmpCol'   = "item99999003"
+descr'    = "iter1"
+descr''   = "iter2"
+pos'      = "pos1"
+pos''     = "pos2"
+pos'''    = "pos3"
+posold    = "posold"
+posnew    = "posnew"
+ordCol    = "ord"
+resCol    = "res"
+tmpCol    = "tmp1"
+tmpCol'   = "tmp2"
 
 itemi :: Int -> AttrName
 itemi i = "item" ++ show i
 
 itemi' :: Int -> AttrName
-itemi' i = "item9999910" ++ show i
+itemi' i = "itemtmp" ++ show i
 
 exprcoli :: Int -> AttrName
-exprcoli i = "item9999920" ++ show i
+exprcoli i = "expr" ++ show i
 
 algVal :: VL.VLVal -> AVal
 algVal (VL.VLInt i) = int (fromIntegral i)
