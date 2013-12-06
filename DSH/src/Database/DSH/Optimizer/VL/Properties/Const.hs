@@ -19,10 +19,6 @@ fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)
 fromDBV x                 = Left $ "Properties.Const fromDBV " ++ (show x)
 
-fromDBP :: ConstVec -> Either String [ConstPayload]
-fromDBP (DBPConst ps) = Right ps
-fromDBP _             = Left "Properties.Const fromDBP"
-
 fromRenameVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromRenameVec (RenameVecConst s t) = Right (s, t)
 fromRenameVec x                    = Left ("Properties.Const fromRenameVec " ++ (show x))
@@ -177,8 +173,8 @@ inferConstVecBinOp c1 c2 op =
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
-      (d, _) <- unp c2 >>= fromDBV
-      cols <- unp c1 >>= fromDBP
+      (d, _)    <- unp c2 >>= fromDBV
+      (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     DistDesc -> do
