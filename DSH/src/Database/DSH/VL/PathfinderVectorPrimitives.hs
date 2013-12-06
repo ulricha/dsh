@@ -491,9 +491,10 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec qa [1]
 
   vecSelect expr (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     (qe, ce) <- compileExpr1 cols q expr
-    qs <- projM (keepItems cols [colP descr, colP pos]) $ select ce qe
+    qs <- projM (keepItems cols [colP descr, (pos, pos')]) 
+          $ rownumM pos' [pos] Nothing
+          $ select ce qe
     return $ DVec qs cols
 
   falsePositions (DVec q1 _) = do
