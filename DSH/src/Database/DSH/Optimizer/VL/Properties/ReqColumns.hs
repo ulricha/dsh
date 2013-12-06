@@ -72,60 +72,56 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
   case op of
     Unique -> ownReqColumns `union` childReqColumns
 
-    UniqueL -> ownReqColumns `union` childReqColumns
+    UniqueS -> ownReqColumns `union` childReqColumns
 
-    LengthA -> none `union` childReqColumns
+    Length -> none `union` childReqColumns
 
     DescToRename -> none `union` childReqColumns
 
     Segment -> ownReqColumns `union` childReqColumns
     Unsegment -> ownReqColumns `union` childReqColumns
 
-    VecSum _ -> one
-    VecAvg -> one
-    VecMin -> one
-    VecMinL -> one
-    VecMax -> one
-    VecMaxL -> one
+    Sum _ -> one
+    Avg -> one
+    Min -> one
+    MinS -> one
+    Max -> one
+    MaxS -> one
     
     Number -> none
-    NumberL -> none
+    NumberS -> none
 
-    IntegerToDoubleA -> one
-    IntegerToDoubleL -> one
-
-    ReverseA -> ownReqColumns `union` childReqColumns
-    ReverseL -> ownReqColumns `union` childReqColumns
+    Reverse -> ownReqColumns `union` childReqColumns
+    ReverseS -> ownReqColumns `union` childReqColumns
 
     FalsePositions -> one
 
     ProjectRename _ -> none `union` childReqColumns
 
-    VLProject ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
-    VLProjectA ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+    Project ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
 
-    SelectExpr e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
+    Select e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
 
     SelectPos1 _ _   ->
       case ownReqColumns of
         VPropPair cols _ -> childReqColumns `union` (VProp cols)
         _                -> error "SelectPos1"
 
-    SelectPos1L _ _   ->
+    SelectPos1S _ _   ->
       case ownReqColumns of
         VPropPair cols _ -> childReqColumns `union` (VProp cols)
         _                -> error "SelectPos1L"
         
     -- We don't need to look at the columns required from above, because they
     -- can only be a subset of (gs ++ as).
-    VecAggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
+    Aggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
 
       where aggrInputCol :: AggrFun -> [DBCol]
-            aggrInputCol (Max c) = [c]
-            aggrInputCol (Min c) = [c]
-            aggrInputCol (Sum c) = [c]
-            aggrInputCol (Avg c) = [c]
-            aggrInputCol Count   = []
+            aggrInputCol (AggrMax c) = [c]
+            aggrInputCol (AggrMin c) = [c]
+            aggrInputCol (AggrSum c) = [c]
+            aggrInputCol (AggrAvg c) = [c]
+            aggrInputCol AggrCount   = []
 
     R1               ->
       case childReqColumns of
@@ -162,12 +158,12 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple _ cols _ -> (allCols childBUProps1, childReqColumns2 `union` (VProp cols))
         _                    -> undefined -- FIXME
 
-    SortWith        ->
+    Sort        ->
       case ownReqColumns of
         VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
         _                 -> undefined -- FIXME
 
-    LengthSeg -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
+    LengthS -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
 
     DistPrim -> (childReqColumns1 `union` ownReqColumns, childReqColumns2 `union` none)
 
@@ -176,7 +172,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
         _                -> error "DistDesc"
 
-    DistLift ->
+    DistSeg ->
       case ownReqColumns of
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
         _                -> error "DistLift"
@@ -198,43 +194,36 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple cols _ _ -> (union (VProp cols) childReqColumns1, union (VProp cols) childReqColumns2)
         _                    -> error "Append"
 
-    RestrictVec ->
+    Restrict ->
       case ownReqColumns of
         VPropPair cols _ -> (union (VProp cols) childReqColumns1, one)
         _                -> error "RestrictVec"
 
-    CompExpr2 e ->
+    BinExpr e ->
       let reqColsLeft  = (VProp $ Just $ reqExpr2ColsLeft e) `union` childReqColumns1
           reqColsRight = (VProp $ Just $ reqExpr2ColsRight e) `union` childReqColumns2
       in (reqColsLeft, reqColsRight)
 
-    CompExpr2L e ->
-      let reqColsLeft  = (VProp $ Just $ reqExpr2ColsLeft e) `union` childReqColumns1
-          reqColsRight = (VProp $ Just $ reqExpr2ColsRight e) `union` childReqColumns2
-      in (reqColsLeft, reqColsRight)
-
-    VecSumL -> (childReqColumns1 `union` none, one)
-    VecAvgL -> (childReqColumns1 `union` none, one)
+    SumS -> (childReqColumns1 `union` none, one)
+    AvgS -> (childReqColumns1 `union` none, one)
 
     SelectPos _ ->
       case ownReqColumns of
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, one)
         _                -> error "SelectPos"
-    SelectPosL _ ->
+    SelectPosS _ ->
       case ownReqColumns of
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, one)
         _                -> error "SelectPosL"
 
-    PairA -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
-
-    PairL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
+    Zip -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
 
     CartProduct ->
       case ownReqColumns of
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
 
-    CartProductL ->
+    CartProductS ->
       case ownReqColumns of
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
@@ -248,17 +237,17 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           in (leftReqCols', rightReqCols')
         _                     -> error "ReqColumns.EquiJoin"
 
-    EquiJoinL le re ->
+    EquiJoinS le re ->
       case ownReqColumns of
         VPropTriple cols1 _ _ -> 
           let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
               leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
               rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
           in (leftReqCols', rightReqCols')
-        _                     -> error "ReqColumns.EquiJoinL"
+        _                     -> error "ReqColumns.EquiJoinS"
 
     -- FIXME recheck for correctness
-    ZipL -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) 
+    ZipS -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) 
     
     -- For a semijoin, we only require the columns used in the join argument
     -- from the right input.
@@ -270,11 +259,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
     -- For a semijoin, we only require the columns used in the join argument
     -- from the right input.
-    SemiJoinL e1 e2 -> 
+    SemiJoinS e1 e2 -> 
       case ownReqColumns of
         VPropPair cols1 _ -> 
           (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.SemiJoinL"
+        _                     -> error "ReqColumns.SemiJoinS"
 
     -- For a antijoin, we only require the columns used in the join argument
     -- from the right input.
@@ -286,11 +275,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
 
     -- For a antijoin, we only require the columns used in the join argument
     -- from the right input.
-    AntiJoinL e1 e2 -> 
+    AntiJoinS e1 e2 -> 
       case ownReqColumns of
         VPropPair cols1 _ -> 
           (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.AntiJoinL"
+        _                     -> error "ReqColumns.AntiJoinS"
     
     
 
@@ -302,7 +291,7 @@ inferReqColumnsTerOp :: VectorProp ReqCols
                  -> (VectorProp ReqCols, VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsTerOp ownReqColumns _ childReqColumns2 _ op =
   case op of
-    CombineVec ->
+    Combine ->
       case ownReqColumns of
         VPropTriple cols _ _ -> (one, union (VProp cols) childReqColumns2, union (VProp cols) childReqColumns2)
-        _                    -> error "CombineVec"
+        _                    -> error "Combine"

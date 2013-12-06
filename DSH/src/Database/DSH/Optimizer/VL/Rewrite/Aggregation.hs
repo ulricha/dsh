@@ -62,11 +62,11 @@ pushExprThroughGroupBy q =
           
 -- | Turn an aggregate operator into the corrresponding aggregate function for VecAggr
 aggrOpToFun :: DBCol -> VL -> VLMatch () AggrFun
-aggrOpToFun c (UnOp VecMaxL _)    = return $ Max c
-aggrOpToFun c (UnOp VecMinL _)    = return $ Min c
-aggrOpToFun c (BinOp VecAvgL _ _) = return $ Avg c
-aggrOpToFun c (BinOp VecSumL _ _) = return $ Sum c
-aggrOpToFun _ _                   = fail "no match"
+aggrOpToFun c (UnOp MaxS _)    = return $ AggrMax c
+aggrOpToFun c (UnOp MinS _)    = return $ AggrMin c
+aggrOpToFun c (BinOp AvgS _ _) = return $ AggrAvg c
+aggrOpToFun c (BinOp SumS _ _) = return $ AggrSum c
+aggrOpToFun _ _                = fail "no match"
 
 {-
 -- | Check if we have an operator combination which is eligible for moving to a
@@ -77,7 +77,7 @@ matchAggr q = do
   
   -- To change an aggregate operator into an aggregate function, we expect
   case op1 of
-    -- either a VecMaxL (ProjectL (R2 GroupBy)) combinaton
+    -- either a MaxL (ProjectL (R2 GroupBy)) combinaton
     UnOp (ProjectL [c]) _ -> do
       ps <- getParents q
       forM ps $ \p -> do
@@ -106,8 +106,8 @@ r1Parents n = do
 -- We rewrite a combination of GroupBy and aggregation operators into a single
 -- VecAggr operator if the following conditions hold: 
 --
--- 1. The R2 output of GroupBy is only consumed by aggregation operators (VecMaxL, 
---    VecMinL, VecSumL, LengthSeg)
+-- 1. The R2 output of GroupBy is only consumed by aggregation operators (MaxL, 
+--    MinL, VecSumL, LengthSeg)
 -- 2. The grouping criteria is a simple column projection from the input vector
 groupingToAggr :: VLRule ()
 groupingToAggr q =

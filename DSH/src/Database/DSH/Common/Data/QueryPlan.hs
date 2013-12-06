@@ -15,12 +15,12 @@ import qualified Database.DSH.VL.Data.GraphVector as GV
 
 
 data TopLayout = InColumn Int
-               | Nest DBV TopLayout
+               | Nest DVec TopLayout
                | Pair TopLayout TopLayout
                deriving (Show, Read, Generic)
 
-data TopShape = ValueVector DBV TopLayout
-              | PrimVal DBP TopLayout
+data TopShape = ValueVector DVec TopLayout
+              | PrimVal DVec TopLayout
               deriving (Show, Read, Generic)
 
 instance ToJSON TopLayout where
@@ -28,27 +28,25 @@ instance ToJSON TopShape where
 
 rootsFromTopLayout :: TopLayout -> [AlgNode]
 rootsFromTopLayout (InColumn _)         = []
-rootsFromTopLayout (Nest (DBV n _) lyt) = n : rootsFromTopLayout lyt
+rootsFromTopLayout (Nest (DVec n _) lyt) = n : rootsFromTopLayout lyt
 rootsFromTopLayout (Pair lyt1 lyt2)     = (rootsFromTopLayout lyt1) ++ (rootsFromTopLayout lyt2)
 
 rootsFromTopShape :: TopShape -> [AlgNode]
-rootsFromTopShape (ValueVector (DBV n _) lyt) = n : rootsFromTopLayout lyt
-rootsFromTopShape (PrimVal (DBP n _) lyt)     = n : rootsFromTopLayout lyt
+rootsFromTopShape (ValueVector (DVec n _) lyt) = n : rootsFromTopLayout lyt
+rootsFromTopShape (PrimVal (DVec n _) lyt)     = n : rootsFromTopLayout lyt
 
 updateTopShape :: AlgNode -> AlgNode -> TopShape -> TopShape
 updateTopShape old new shape =
-  let updateDBV (DBV n cols) = DBV (if n == old then new else n) cols
+  let updateDVec (DVec n cols) = DVec (if n == old then new else n) cols
 
-      updateDBP (DBP n cols) = DBP (if n == old then new else n) cols
-
-      updateLayout (Nest dbv lyt)   = Nest (updateDBV dbv) (updateLayout lyt)
+      updateLayout (Nest dbv lyt)   = Nest (updateDVec dbv) (updateLayout lyt)
       updateLayout (Pair lyt1 lyt2) = Pair (updateLayout lyt1) (updateLayout lyt2)
       updateLayout l                = l
 
   in
    case shape of
-     ValueVector dbv lyt -> ValueVector (updateDBV dbv) (updateLayout lyt)
-     PrimVal dbp lyt -> PrimVal (updateDBP dbp) (updateLayout lyt)
+     ValueVector dbv lyt -> ValueVector (updateDVec dbv) (updateLayout lyt)
+     PrimVal dbv lyt -> PrimVal (updateDVec dbv) (updateLayout lyt)
 
 columnsInLayout :: TopLayout -> Int
 columnsInLayout (InColumn _) = 1
@@ -56,26 +54,26 @@ columnsInLayout (Nest _ _) = 0
 columnsInLayout (Pair p1 p2) = columnsInLayout p1 + columnsInLayout p2
 
 isOuterMost :: AlgNode -> TopShape -> Bool
-isOuterMost n (ValueVector (DBV n' _) _) = n == n'
-isOuterMost n (PrimVal (DBP n' _) _)     = n == n'
+isOuterMost n (ValueVector (DVec n' _) _) = n == n'
+isOuterMost n (PrimVal (DVec n' _) _)     = n == n'
 
 importShape :: TopShape -> GV.Shape
-importShape (ValueVector (DBV n cols) lyt) = GV.ValueVector (DBV n cols) (importLayout lyt)
-importShape (PrimVal (DBP n cols) lyt)     = GV.PrimVal (DBP n cols) (importLayout lyt)
+importShape (ValueVector (DVec n cols) lyt) = GV.ValueVector (DVec n cols) (importLayout lyt)
+importShape (PrimVal (DVec n cols) lyt)     = GV.PrimVal (DVec n cols) (importLayout lyt)
 
 importLayout :: TopLayout -> GV.Layout
 importLayout (InColumn i)              = GV.InColumn i
-importLayout (Nest (DBV n cols) lyt) = GV.Nest (DBV n cols) (importLayout lyt)
+importLayout (Nest (DVec n cols) lyt) = GV.Nest (DVec n cols) (importLayout lyt)
 importLayout (Pair lyt1 lyt2)          = GV.Pair (importLayout lyt1) (importLayout lyt2)
 
 exportShape :: GV.Shape -> TopShape
-exportShape (GV.ValueVector (DBV n cols) lyt) = ValueVector (DBV n cols) (exportLayout lyt)
-exportShape (GV.PrimVal (DBP n cols) lyt)     = PrimVal (DBP n cols) (exportLayout lyt)
+exportShape (GV.ValueVector (DVec n cols) lyt) = ValueVector (DVec n cols) (exportLayout lyt)
+exportShape (GV.PrimVal (DVec n cols) lyt)     = PrimVal (DVec n cols) (exportLayout lyt)
 exportShape s                                  = error $ "exportShape: impossible top-level shape " ++ (show s)
 
 exportLayout :: GV.Layout -> TopLayout
 exportLayout (GV.InColumn i)            = InColumn i
-exportLayout (GV.Nest (DBV n cols) lyt) = Nest (DBV n cols) (exportLayout lyt)
+exportLayout (GV.Nest (DVec n cols) lyt) = Nest (DVec n cols) (exportLayout lyt)
 exportLayout (GV.Pair lyt1 lyt2)        = Pair (exportLayout lyt1) (exportLayout lyt2)
 
 

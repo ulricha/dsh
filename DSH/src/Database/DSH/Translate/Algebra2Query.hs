@@ -18,10 +18,10 @@ generateX100Query x100Plan = convertQuery $ queryShape x100Plan
     m' = nodeMap $ queryDag x100Plan
 
     convertQuery :: TopShape -> Q.Query Q.X100
-    convertQuery (PrimVal (DBP r' _) l)     = Q.PrimVal (Q.X100 r' $ generateQuery m' r') $ convertLayout l
-    convertQuery (ValueVector (DBV r' _) l) = Q.ValueVector (Q.X100 r' $ generateQuery m' r') $ convertLayout l
+    convertQuery (PrimVal (DVec r' _) l)     = Q.PrimVal (Q.X100 r' $ generateQuery m' r') $ convertLayout l
+    convertQuery (ValueVector (DVec r' _) l) = Q.ValueVector (Q.X100 r' $ generateQuery m' r') $ convertLayout l
 
     convertLayout :: TopLayout -> Q.Layout Q.X100
     convertLayout (InColumn i)        = Q.InColumn i
-    convertLayout (Nest (DBV r' _) l) = Q.Nest (Q.X100 r' $ generateQuery m' r') $ convertLayout l
+    convertLayout (Nest (DVec r' _) l) = Q.Nest (Q.X100 r' $ generateQuery m' r') $ convertLayout l
     convertLayout (Pair p1 p2)        = Q.Pair (convertLayout p1) (convertLayout p2)
