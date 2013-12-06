@@ -70,6 +70,7 @@ nkl2Alg :: CL.Expr -> (Q.Query Q.XML, T.Type)
 nkl2Alg e = let q       = desugarComprehensions e
                           |> flatten
                           |> specializeVectorOps
+                          |> optimizeVLDefault
                           |> implementVectorOpsPF
                           |> generatePFXML
                 t       = T.typeOf e
@@ -79,6 +80,7 @@ nkl2X100Alg :: CL.Expr -> (Q.Query Q.X100, T.Type)
 nkl2X100Alg e = let q = desugarComprehensions e
                         |> flatten
                         |> specializeVectorOps
+                        |> optimizeVLDefault
                         |> implementVectorOpsX100
                         |> generateX100Query
                     t = T.typeOf e
@@ -88,6 +90,7 @@ nkl2X100File :: String -> CL.Expr -> IO ()
 nkl2X100File prefix e = desugarComprehensions e
                         |> flatten
                         |> specializeVectorOps
+                        |> optimizeVLDefault
                         |> implementVectorOpsX100
                         |> (exportX100Plan prefix)
 
@@ -95,6 +98,7 @@ nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix e = desugarComprehensions e
                         |> flatten
                         |> specializeVectorOps
+                        |> optimizeVLDefault
                         |> implementVectorOpsPF
                         |> (exportTAPlan prefix)
 
@@ -102,6 +106,7 @@ nkl2SQLFile :: String -> CL.Expr -> IO ()
 nkl2SQLFile prefix e = desugarComprehensions e
                        |> flatten
                        |> specializeVectorOps
+                       |> optimizeVLDefault
                        |> implementVectorOpsPF
                        |> generatePFXML
                        |> generateSQL
@@ -120,6 +125,7 @@ nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
+                      |> optimizeVLDefault
                       |> optimizeVLDefault
                       |> exportVLPlan prefix
 
