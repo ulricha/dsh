@@ -466,7 +466,7 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
 combine _ _ _ = $impossible
 
 
-outer ::  Shape -> Graph VL DBV
+outer ::  Shape -> Graph VL DVec
 outer (PrimVal _ _)            = $impossible
 outer (ValueVector q _)        = return q
 outer (Closure _ _ _ _ _)      = $impossible
@@ -479,10 +479,10 @@ dist (PrimVal q lyt) q2 = do
     lyt'   <- chainReorder p lyt
     return $ ValueVector v lyt'
 dist (ValueVector q lyt) q2 = do
-    o@(DBV qo _) <- outer q2
+    o@(DVec qo _) <- outer q2
     (d, p)       <- distDesc q o
     lyt'         <- chainReorder p lyt
-    return $ ValueVector (DBV qo []) (Nest d lyt')
+    return $ ValueVector (DVec qo []) (Nest d lyt')
 dist (Closure n env x f fl) q2 = do
     env' <- mapEnv (flip dist q2) env
     return $ AClosure n q2 1 env' x f fl
@@ -656,8 +656,8 @@ concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 singletonVec ::  Shape -> Graph VL Shape
 singletonVec (ValueVector q lyt) = do
-    (DBV d _) <- singletonDescr
-    return $ ValueVector (DBV d []) (Nest q lyt)
+    (DVec d _) <- singletonDescr
+    return $ ValueVector (DVec d []) (Nest q lyt)
 singletonVec _ = error "singletonVec: Should not be possible"
 
 singletonPrim ::  Shape -> Graph VL Shape
@@ -706,10 +706,10 @@ toPlan (descHd, descV) t c v =
     let (hd, v') = mkColumn t v
     in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
-literal :: Type -> VLVal -> GraphM r VL DBP
+literal :: Type -> VLVal -> GraphM r VL DVec
 literal t v = constructLiteralValue [t] [VLNat 1, VLNat 1, v]
 
-literalSingletonTable :: Type -> VLVal -> GraphM r VL DBV
+literalSingletonTable :: Type -> VLVal -> GraphM r VL DVec
 literalSingletonTable t v = constructLiteralTable [t] [[VLNat 1, VLNat 1, v]]
 
 fromListVal :: V.Val -> [V.Val]

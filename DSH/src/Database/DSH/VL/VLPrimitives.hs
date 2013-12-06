@@ -19,17 +19,14 @@ import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data                 hiding (DBCol)
 import qualified Database.Algebra.VL.Data                 as D
 
-dbv :: GraphM r a AlgNode -> GraphM r a DBV
-dbv = fmap (flip DBV [])
+dvec :: GraphM r a AlgNode -> GraphM r a DVec
+dvec = fmap (flip DVec [])
 
-dbp :: GraphM r a AlgNode -> GraphM r a DBP
-dbp = fmap (flip DBP [])
+pvec :: GraphM r a AlgNode -> GraphM r a PVec
+pvec = fmap PVec
 
-prop :: GraphM r a AlgNode -> GraphM r a PropVector
-prop = fmap PropVector
-
-rename :: GraphM r a AlgNode -> GraphM r a RenameVector
-rename = fmap RenameVector
+rvec :: GraphM r a AlgNode -> GraphM r a RVec
+rvec = fmap RVec
 
 emptyVL :: VL
 emptyVL = NullaryOp $ TableRef "Null" [] []
@@ -91,297 +88,297 @@ operToCompOp op = case op of
   O.LtE  -> D.LtE
   _      -> error "VLPrimitives.operToComOp: not a comparison operator"
 
-unique :: DBV -> GraphM r VL DBV
-unique (DBV c _) = dbv $ insertNode $ UnOp Unique c
+unique :: DVec -> GraphM r VL DVec
+unique (DVec c _) = dvec $ insertNode $ UnOp Unique c
 
-uniqueL :: DBV -> GraphM r VL DBV
-uniqueL (DBV c _) = dbv $ insertNode $ UnOp UniqueL c
+uniqueL :: DVec -> GraphM r VL DVec
+uniqueL (DVec c _) = dvec $ insertNode $ UnOp UniqueL c
 
-number :: DBV -> GraphM r VL DBV
-number (DBV c _) = dbv $ insertNode $ UnOp Number c
+number :: DVec -> GraphM r VL DVec
+number (DVec c _) = dvec $ insertNode $ UnOp Number c
 
-numberL :: DBV -> GraphM r VL DBV
-numberL (DBV c _) = dbv $ insertNode $ UnOp NumberL c
+numberL :: DVec -> GraphM r VL DVec
+numberL (DVec c _) = dvec $ insertNode $ UnOp NumberL c
 
-groupByKey :: DBV -> DBV -> GraphM r VL (DBV, DBV, PropVector)
-groupByKey (DBV c1 _) (DBV c2 _) = do
+groupByKey :: DVec -> DVec -> GraphM r VL (DVec, DVec, PVec)
+groupByKey (DVec c1 _) (DVec c2 _) = do
                                   r <- insertNode $ BinOp GroupBy c1 c2
-                                  r1 <- dbv $ insertNode $ UnOp R1 r
-                                  r2 <- dbv $ insertNode $ UnOp R2 r
-                                  r3 <- prop $ insertNode $ UnOp R3 r
+                                  r1 <- dvec $ insertNode $ UnOp R1 r
+                                  r2 <- dvec $ insertNode $ UnOp R2 r
+                                  r3 <- pvec $ insertNode $ UnOp R3 r
                                   return (r1, r2, r3)
 
-sortWith :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
-sortWith (DBV c1 _) (DBV c2 _) = do
+sortWith :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+sortWith (DVec c1 _) (DVec c2 _) = do
                                   r <- insertNode $ BinOp SortWith c1 c2
-                                  r1 <- dbv $ insertNode $ UnOp R1 r
-                                  r2 <- prop $ insertNode $ UnOp R2 r
+                                  r1 <- dvec $ insertNode $ UnOp R1 r
+                                  r2 <- pvec $ insertNode $ UnOp R2 r
                                   return (r1, r2)
 
-lengthA :: DBV -> GraphM r VL DBP
-lengthA (DBV c _) = dbp $ insertNode $ UnOp LengthA c
+lengthA :: DVec -> GraphM r VL DVec
+lengthA (DVec c _) = dvec $ insertNode $ UnOp LengthA c
 
-lengthSeg :: DBV -> DBV -> GraphM r VL DBV
-lengthSeg (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp LengthSeg c1 c2
+lengthSeg :: DVec -> DVec -> GraphM r VL DVec
+lengthSeg (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp LengthSeg c1 c2
 
-descToRename :: DBV -> GraphM r VL RenameVector
-descToRename (DBV c _) = rename $ insertNode $ UnOp DescToRename c
+descToRename :: DVec -> GraphM r VL RVec
+descToRename (DVec c _) = rvec $ insertNode $ UnOp DescToRename c
 
-distPrim :: DBP -> DBV -> GraphM r VL (DBV, PropVector)
-distPrim (DBP c1 _) (DBV c2 _) = do
+distPrim :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+distPrim (DVec c1 _) (DVec c2 _) = do
                                         r <- insertNode $ BinOp DistPrim c1 c2
-                                        r1 <- dbv $ insertNode $ UnOp R1 r
-                                        r2 <- prop $ insertNode $ UnOp R2 r
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-distDesc :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
-distDesc (DBV c1 _) (DBV c2 _) = do
+distDesc :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+distDesc (DVec c1 _) (DVec c2 _) = do
                                         r <- insertNode $ BinOp DistDesc c1 c2
-                                        r1 <- dbv $ insertNode $ UnOp R1 r
-                                        r2 <- prop $ insertNode $ UnOp R2 r
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-distLift :: DBV -> DBV -> GraphM r VL (DBV, PropVector)
-distLift (DBV c1 _) (DBV c2 _) = do
+distLift :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+distLift (DVec c1 _) (DVec c2 _) = do
                                         r <- insertNode $ BinOp DistLift c1 c2
-                                        r1 <- dbv $ insertNode $ UnOp R1 r
-                                        r2 <- prop $ insertNode $ UnOp R2 r
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
--- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
-propRename :: RenameVector -> DBV -> GraphM r VL DBV
-propRename (RenameVector c1) (DBV c2 _) = dbv $ insertNode $ BinOp PropRename c1 c2
+-- | pvecRvec uses a propagation vector to rename a vector (no filtering or reordering).
+propRename :: RVec -> DVec -> GraphM r VL DVec
+propRename (RVec c1) (DVec c2 _) = dvec $ insertNode $ BinOp PropRename c1 c2
 
--- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
-propFilter :: RenameVector -> DBV -> GraphM r VL (DBV, RenameVector)
-propFilter (RenameVector c1) (DBV c2 _) = do
+-- | pvecFilter uses a pvecagation vector to rvec and filter a vector (no reordering).
+propFilter :: RVec -> DVec -> GraphM r VL (DVec, RVec)
+propFilter (RVec c1) (DVec c2 _) = do
                                             r <- insertNode $ BinOp PropFilter c1 c2
-                                            r1 <- dbv $ insertNode $ UnOp R1 r
-                                            r2 <- rename $ insertNode $ UnOp R2 r
+                                            r1 <- dvec $ insertNode $ UnOp R1 r
+                                            r2 <- rvec $ insertNode $ UnOp R2 r
                                             return (r1, r2)
 
--- | propReorder uses a propagation vector to rename, filter and reorder a vector.
-propReorder :: PropVector -> DBV -> GraphM r VL (DBV, PropVector)
-propReorder (PropVector c1) (DBV c2 _) = do
+-- | pvecReorder uses a pvecagation vector to rvec, filter and reorder a vector.
+propReorder :: PVec -> DVec -> GraphM r VL (DVec, PVec)
+propReorder (PVec c1) (DVec c2 _) = do
                                            r <- insertNode $ BinOp PropReorder c1 c2
-                                           r1 <- dbv $ insertNode $ UnOp R1 r
-                                           r2 <- prop $ insertNode $ UnOp R2 r
+                                           r1 <- dvec $ insertNode $ UnOp R1 r
+                                           r2 <- pvec $ insertNode $ UnOp R2 r
                                            return (r1, r2)
 
-singletonDescr :: GraphM r VL DBV
-singletonDescr = dbv $ insertNode $ NullaryOp SingletonDescr
+singletonDescr :: GraphM r VL DVec
+singletonDescr = dvec $ insertNode $ NullaryOp SingletonDescr
 
-append :: DBV -> DBV -> GraphM r VL (DBV, RenameVector, RenameVector)
-append (DBV c1 _) (DBV c2 _) = do
+append :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+append (DVec c1 _) (DVec c2 _) = do
                                 r <- insertNode $ BinOp Append c1 c2
-                                r1 <- dbv $ insertNode $ UnOp R1 r
-                                r2 <- rename $ insertNode $ UnOp R2 r
-                                r3 <- rename $ insertNode $ UnOp R3 r
+                                r1 <- dvec $ insertNode $ UnOp R1 r
+                                r2 <- rvec $ insertNode $ UnOp R2 r
+                                r3 <- rvec $ insertNode $ UnOp R3 r
                                 return (r1, r2, r3)
 
-segment :: DBV -> GraphM r VL DBV
-segment (DBV c _) = dbv $ insertNode $ UnOp Segment c
+segment :: DVec -> GraphM r VL DVec
+segment (DVec c _) = dvec $ insertNode $ UnOp Segment c
 
-unsegment :: DBV -> GraphM r VL DBV
-unsegment (DBV c _) = dbv $ insertNode $ UnOp Unsegment c
+unsegment :: DVec -> GraphM r VL DVec
+unsegment (DVec c _) = dvec $ insertNode $ UnOp Unsegment c
 
-restrictVec :: DBV -> DBV -> GraphM r VL (DBV, RenameVector)
-restrictVec (DBV c1 _) (DBV c2 _) = do
+restrictVec :: DVec -> DVec -> GraphM r VL (DVec, RVec)
+restrictVec (DVec c1 _) (DVec c2 _) = do
                                      r <- insertNode $ BinOp RestrictVec c1 c2
-                                     r1 <- dbv $ insertNode $ UnOp R1 r
-                                     r2 <- rename $ insertNode $ UnOp R2 r
+                                     r1 <- dvec $ insertNode $ UnOp R1 r
+                                     r2 <- rvec $ insertNode $ UnOp R2 r
                                      return (r1, r2)
 
-combineVec :: DBV -> DBV -> DBV -> GraphM r VL (DBV, RenameVector, RenameVector)
-combineVec (DBV c1 _) (DBV c2 _) (DBV c3 _) = do
+combineVec :: DVec -> DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+combineVec (DVec c1 _) (DVec c2 _) (DVec c3 _) = do
                                                r <- insertNode $ TerOp CombineVec c1 c2 c3
-                                               r1 <- dbv $ insertNode $ UnOp R1 r
-                                               r2 <- rename $ insertNode $ UnOp R2 r
-                                               r3 <- rename $ insertNode $ UnOp R3 r
+                                               r1 <- dvec $ insertNode $ UnOp R1 r
+                                               r2 <- rvec $ insertNode $ UnOp R2 r
+                                               r3 <- rvec $ insertNode $ UnOp R3 r
                                                return (r1, r2, r3)
 
-constructLiteralValue :: [Ty.Type] -> [VLVal] -> GraphM r VL DBP
-constructLiteralValue tys vals = dbp $ insertNode $ NullaryOp $ ConstructLiteralValue (map typeToVLType tys) vals
+constructLiteralValue :: [Ty.Type] -> [VLVal] -> GraphM r VL DVec
+constructLiteralValue tys vals = dvec $ insertNode $ NullaryOp $ ConstructLiteralValue (map typeToVLType tys) vals
 
-constructLiteralTable :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DBV
-constructLiteralTable tys vals = dbv $ insertNode $ NullaryOp $ ConstructLiteralTable (map typeToVLType tys) vals
+constructLiteralTable :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
+constructLiteralTable tys vals = dvec $ insertNode $ NullaryOp $ ConstructLiteralTable (map typeToVLType tys) vals
 
-tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DBV
-tableRef n tys ks = dbv $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typeToVLType)-} tys) ks
+tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DVec
+tableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typeToVLType)-} tys) ks
 
-compExpr2 :: O.Oper -> DBP -> DBP -> GraphM r VL DBP
-compExpr2 o (DBP c1 _) (DBP c2 _) = dbp
+compExpr2 :: O.Oper -> DVec -> DVec -> GraphM r VL DVec
+compExpr2 o (DVec c1 _) (DVec c2 _) = dvec
                                     $ insertNode
                                     $ BinOp (CompExpr2 (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
-compExpr2L :: O.Oper -> DBV -> DBV -> GraphM r VL DBV
-compExpr2L o (DBV c1 _) (DBV c2 _) = dbv
+compExpr2L :: O.Oper -> DVec -> DVec -> GraphM r VL DVec
+compExpr2L o (DVec c1 _) (DVec c2 _) = dvec
                                      $ insertNode
                                      $ BinOp (CompExpr2L (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
-vecSum :: Ty.Type -> DBV -> GraphM r VL DBP
-vecSum ty (DBV c _) = dbp $ insertNode $ UnOp (VecSum (typeToVLType ty)) c
+vecSum :: Ty.Type -> DVec -> GraphM r VL DVec
+vecSum ty (DVec c _) = dvec $ insertNode $ UnOp (VecSum (typeToVLType ty)) c
 
-vecAvg :: DBV -> GraphM r VL DBP
-vecAvg (DBV c _) = dbp $ insertNode $ UnOp VecAvg c
+vecAvg :: DVec -> GraphM r VL DVec
+vecAvg (DVec c _) = dvec $ insertNode $ UnOp VecAvg c
 
-vecSumLift :: DBV -> DBV -> GraphM r VL DBV
-vecSumLift (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp VecSumL c1 c2
+vecSumLift :: DVec -> DVec -> GraphM r VL DVec
+vecSumLift (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp VecSumL c1 c2
 
-vecAvgLift :: DBV -> DBV -> GraphM r VL DBV
-vecAvgLift (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp VecAvgL c1 c2
+vecAvgLift :: DVec -> DVec -> GraphM r VL DVec
+vecAvgLift (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp VecAvgL c1 c2
 
-vecMin :: DBV -> GraphM r VL DBP
-vecMin (DBV c _) = dbp $ insertNode $ UnOp VecMin c
+vecMin :: DVec -> GraphM r VL DVec
+vecMin (DVec c _) = dvec $ insertNode $ UnOp VecMin c
 
-vecMinLift :: DBV -> GraphM r VL DBV
-vecMinLift (DBV c _) = dbv $ insertNode $ UnOp VecMinL c
+vecMinLift :: DVec -> GraphM r VL DVec
+vecMinLift (DVec c _) = dvec $ insertNode $ UnOp VecMinL c
 
-vecMax :: DBV -> GraphM r VL DBP
-vecMax (DBV c _) = dbp $ insertNode $ UnOp VecMax c
+vecMax :: DVec -> GraphM r VL DVec
+vecMax (DVec c _) = dvec $ insertNode $ UnOp VecMax c
 
-vecMaxLift :: DBV -> GraphM r VL DBV
-vecMaxLift (DBV c _) = dbv $ insertNode $ UnOp VecMaxL c
+vecMaxLift :: DVec -> GraphM r VL DVec
+vecMaxLift (DVec c _) = dvec $ insertNode $ UnOp VecMaxL c
 
-selectPos :: DBV -> O.Oper -> DBP -> GraphM r VL (DBV, RenameVector)
-selectPos (DBV c1 _) op (DBP c2 _) = do
+selectPos :: DVec -> O.Oper -> DVec -> GraphM r VL (DVec, RVec)
+selectPos (DVec c1 _) op (DVec c2 _) = do
                                         r <- insertNode $ BinOp (SelectPos (operToCompOp op)) c1 c2
-                                        r1 <- dbv $ insertNode $ UnOp R1 r
-                                        r2 <- rename $ insertNode $ UnOp R2 r
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-selectPos1 :: DBV -> O.Oper -> Nat -> GraphM r VL (DBV, RenameVector)
-selectPos1 (DBV c1 _) op posConst = do
+selectPos1 :: DVec -> O.Oper -> Nat -> GraphM r VL (DVec, RVec)
+selectPos1 (DVec c1 _) op posConst = do
                                         r <- insertNode $ UnOp (SelectPos1 (operToCompOp op) posConst) c1
-                                        r1 <- dbv $ insertNode $ UnOp R1 r
-                                        r2 <- rename $ insertNode $ UnOp R2 r
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-selectPosLift :: DBV -> O.Oper -> DBV -> GraphM r VL (DBV, RenameVector)
-selectPosLift (DBV c1 _) op (DBV c2 _) = do
+selectPosLift :: DVec -> O.Oper -> DVec -> GraphM r VL (DVec, RVec)
+selectPosLift (DVec c1 _) op (DVec c2 _) = do
                                           r <- insertNode $ BinOp (SelectPosL (operToCompOp op)) c1 c2
-                                          r1 <- dbv $ insertNode $ UnOp R1 r
-                                          r2 <- rename $ insertNode $ UnOp R2 r
+                                          r1 <- dvec $ insertNode $ UnOp R1 r
+                                          r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
-selectPos1Lift :: DBV -> O.Oper -> Nat -> GraphM r VL (DBV, RenameVector)
-selectPos1Lift (DBV c1 _) op posConst = do
+selectPos1Lift :: DVec -> O.Oper -> Nat -> GraphM r VL (DVec, RVec)
+selectPos1Lift (DVec c1 _) op posConst = do
                                           r <- insertNode $ UnOp (SelectPos1L (operToCompOp op) posConst) c1
-                                          r1 <- dbv $ insertNode $ UnOp R1 r
-                                          r2 <- rename $ insertNode $ UnOp R2 r
+                                          r1 <- dvec $ insertNode $ UnOp R1 r
+                                          r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
-vlProject :: DBV -> [Expr1] -> GraphM r VL DBV
-vlProject (DBV c _) projs = dbv $ insertNode $ UnOp (VLProject projs) c
+vlProject :: DVec -> [Expr1] -> GraphM r VL DVec
+vlProject (DVec c _) projs = dvec $ insertNode $ UnOp (VLProject projs) c
 
-vlProjectA :: DBP -> [Expr1] -> GraphM r VL DBP
-vlProjectA (DBP c _) projs = dbp $ insertNode $ UnOp (VLProjectA projs) c
+vlProjectA :: DVec -> [Expr1] -> GraphM r VL DVec
+vlProjectA (DVec c _) projs = dvec $ insertNode $ UnOp (VLProjectA projs) c
 
-pairA :: DBP -> DBP -> GraphM r VL DBP
-pairA (DBP c1 _) (DBP c2 _) = dbp $ insertNode $ BinOp PairA c1 c2
+pairA :: DVec -> DVec -> GraphM r VL DVec
+pairA (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp PairA c1 c2
 
-pairL :: DBV -> DBV -> GraphM r VL DBV
-pairL (DBV c1 _) (DBV c2 _) = dbv $ insertNode $ BinOp PairL c1 c2
+pairL :: DVec -> DVec -> GraphM r VL DVec
+pairL (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp PairL c1 c2
 
-zipL :: DBV -> DBV -> GraphM r VL (DBV, RenameVector, RenameVector)
-zipL (DBV c1 _) (DBV c2 _) = do
+zipL :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+zipL (DVec c1 _) (DVec c2 _) = do
                               r <- insertNode $ BinOp ZipL c1 c2
-                              r1 <- dbv $ insertNode $ UnOp R1 r
-                              r2 <- rename $ insertNode $ UnOp R2 r
-                              r3 <- rename $ insertNode $ UnOp R3 r
+                              r1 <- dvec $ insertNode $ UnOp R1 r
+                              r2 <- rvec $ insertNode $ UnOp R2 r
+                              r3 <- rvec $ insertNode $ UnOp R3 r
                               return (r1, r2, r3)
                               
-cartProduct :: DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
-cartProduct (DBV c1 _) (DBV c2 _) = do
+cartProduct :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+cartProduct (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProduct c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- prop $ insertNode $ UnOp R2 r
-  r3 <- prop $ insertNode $ UnOp R3 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
+  r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-cartProductL :: DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
-cartProductL (DBV c1 _) (DBV c2 _) = do
+cartProductL :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+cartProductL (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProductL c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- prop $ insertNode $ UnOp R2 r
-  r3 <- prop $ insertNode $ UnOp R3 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
+  r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-equiJoin :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
-equiJoin e1 e2 (DBV c1 _) (DBV c2 _) = do
+equiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+equiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (EquiJoin e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- prop $ insertNode $ UnOp R2 r
-  r3 <- prop $ insertNode $ UnOp R3 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
+  r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-equiJoinL :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, PropVector, PropVector)
-equiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
+equiJoinL :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+equiJoinL e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (EquiJoinL e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- prop $ insertNode $ UnOp R2 r
-  r3 <- prop $ insertNode $ UnOp R3 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
+  r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-semiJoin :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
-semiJoin e1 e2 (DBV c1 _) (DBV c2 _) = do
+semiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+semiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (SemiJoin e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- rename $ insertNode $ UnOp R2 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-semiJoinL :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
-semiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
+semiJoinL :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+semiJoinL e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (SemiJoinL e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- rename $ insertNode $ UnOp R2 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-antiJoin :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
-antiJoin e1 e2 (DBV c1 _) (DBV c2 _) = do
+antiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+antiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (AntiJoin e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- rename $ insertNode $ UnOp R2 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-antiJoinL :: JoinExpr -> JoinExpr -> DBV -> DBV -> GraphM r VL (DBV, RenameVector)
-antiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
+antiJoinL :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+antiJoinL e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (AntiJoinL e1' e2') c1 c2
-  r1 <- dbv $ insertNode $ UnOp R1 r
-  r2 <- rename $ insertNode $ UnOp R2 r
+  r1 <- dvec $ insertNode $ UnOp R1 r
+  r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
   
-reverseA :: DBV -> GraphM r VL (DBV, PropVector)
-reverseA (DBV c _) = do
+reverseA :: DVec -> GraphM r VL (DVec, PVec)
+reverseA (DVec c _) = do
                       r <- insertNode $ UnOp ReverseA c
-                      r1 <- dbv $ insertNode $ UnOp R1 r
-                      r2 <- prop $ insertNode $ UnOp R2 r
+                      r1 <- dvec $ insertNode $ UnOp R1 r
+                      r2 <- pvec $ insertNode $ UnOp R2 r
                       return (r1, r2)
 
-reverseL :: DBV -> GraphM r VL (DBV, PropVector)
-reverseL (DBV c _) = do
+reverseL :: DVec -> GraphM r VL (DVec, PVec)
+reverseL (DVec c _) = do
                        r <- insertNode $ UnOp ReverseL c
-                       r1 <- dbv $ insertNode $ UnOp R1 r
-                       r2 <- prop $ insertNode $ UnOp R2 r
+                       r1 <- dvec $ insertNode $ UnOp R1 r
+                       r2 <- pvec $ insertNode $ UnOp R2 r
                        return (r1, r2)
 
-falsePositions :: DBV -> GraphM r VL DBV
-falsePositions (DBV c _) = dbv $ insertNode $ UnOp FalsePositions c
+falsePositions :: DVec -> GraphM r VL DVec
+falsePositions (DVec c _) = dvec $ insertNode $ UnOp FalsePositions c
 
-singleton :: DBP -> GraphM r VL DBV
-singleton (DBP c _) = dbv $ insertNode $ UnOp Singleton c
+singleton :: DVec -> GraphM r VL DVec
+singleton (DVec c _) = dvec $ insertNode $ UnOp Singleton c
 
-only :: DBV -> GraphM r VL DBP
-only (DBV c _) = dbp $ insertNode $ UnOp Only c
+only :: DVec -> GraphM r VL DVec
+only (DVec c _) = dvec $ insertNode $ UnOp Only c

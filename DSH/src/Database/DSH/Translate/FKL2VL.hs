@@ -141,10 +141,10 @@ insertTopProjections g = do
   
   where 
   traverseShape :: QP.TopShape -> Graph VL QP.TopShape
-  traverseShape (QP.ValueVector (DBV q _) lyt) = 
-    insertProj lyt q VLProject DBV QP.ValueVector
-  traverseShape (QP.PrimVal (DBP q _) lyt)     = 
-    insertProj lyt q VLProjectA DBP QP.PrimVal
+  traverseShape (QP.ValueVector (DVec q _) lyt) = 
+    insertProj lyt q VLProject DVec QP.ValueVector
+  traverseShape (QP.PrimVal (DVec q _) lyt)     = 
+    insertProj lyt q VLProjectA DVec QP.PrimVal
   
   traverseLayout :: QP.TopLayout -> Graph VL QP.TopLayout
   traverseLayout (QP.InColumn c) = 
@@ -153,14 +153,14 @@ insertTopProjections g = do
     lyt1' <- traverseLayout lyt1
     lyt2' <- traverseLayout lyt2
     return $ QP.Pair lyt1' lyt2'
-  traverseLayout (QP.Nest (DBV q _) lyt) = 
-    insertProj lyt q VLProject DBV QP.Nest
+  traverseLayout (QP.Nest (DVec q _) lyt) = 
+    insertProj lyt q VLProject DVec QP.Nest
     
   insertProj 
     :: QP.TopLayout               -- The node's layout
     -> AlgNode                    -- The top node to consider
     -> ([Expr1] -> UnOp)            -- Constructor for the projection op
-    -> (AlgNode -> [DBCol] -> v)  -- DBVector constructor
+    -> (AlgNode -> [DBCol] -> v)  -- DVecector constructor
     -> (v -> QP.TopLayout -> t)   -- Layout/Shape constructor
     -> Graph VL t
   insertProj lyt q project vector describe = do

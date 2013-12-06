@@ -2,10 +2,9 @@
 
 module Database.DSH.VL.Data.DBVector
   ( DBCol
-  , DBV(..)
-  , DBP(..)
-  , PropVector(..)
-  , RenameVector(..)
+  , DVec(..)
+  , PVec(..)
+  , RVec(..)
   , AlgNode
   , GraphM) where
 
@@ -17,19 +16,18 @@ import           Database.Algebra.Dag.Common
 
 type DBCol = Int
 
-data DBV = DBV AlgNode [DBCol]
+-- Data vectors
+data DVec = DVec AlgNode [DBCol]
     deriving (Show, Generic, Read)
 
-data DBP = DBP AlgNode [DBCol]
-    deriving (Show, Generic, Read)
-
-data PropVector = PropVector AlgNode
+-- Propagation vectors
+data PVec = PVec AlgNode
     deriving (Generic)
 
-data RenameVector = RenameVector AlgNode
+-- Rename vectors
+data RVec = RVec AlgNode
     deriving (Generic)
     
-instance ToJSON DBV where
-instance ToJSON DBP where
-instance ToJSON PropVector where
-instance ToJSON RenameVector where
+instance ToJSON DVec where
+instance ToJSON PVec where
+instance ToJSON RVec where

@@ -34,7 +34,7 @@ runG i c = runGraph i $ liftM fst $ runStateT c M.empty
 
 data Res = Prop    AlgNode
          | Rename  AlgNode
-         | RDBV    AlgNode [DBCol]
+         | RDVec    AlgNode [DBCol]
          | RDBP    AlgNode [DBCol]
          | RPair   Res Res
          | RTriple Res Res Res
@@ -48,33 +48,26 @@ fromDict n = do
 insertTranslation :: VectorAlgebra a => AlgNode -> Res -> G a ()
 insertTranslation n res = modify (M.insert n res)
 
-fromProp :: PropVector -> Res
-fromProp (PropVector p) = Prop p
+fromProp :: PVec -> Res
+fromProp (PVec p) = Prop p
 
-toProp :: Res -> PropVector
-toProp (Prop p) = PropVector p
+toProp :: Res -> PVec
+toProp (Prop p) = PVec p
 toProp _       = error "toProp: Not a prop vector"
 
-fromRenameVector :: RenameVector -> Res
-fromRenameVector (RenameVector r) = Rename r
+fromRenameVector :: RVec -> Res
+fromRenameVector (RVec r) = Rename r
 
-toRenameVector :: Res -> RenameVector
-toRenameVector (Rename r) = RenameVector r
+toRenameVector :: Res -> RVec
+toRenameVector (Rename r) = RVec r
 toRenameVector _       = error "toRenameVector: Not a rename vector"
 
-fromDBV :: DBV -> Res
-fromDBV (DBV n cs) = RDBV n cs
+fromDVec :: DVec -> Res
+fromDVec (DVec n cs) = RDVec n cs
 
-toDBV :: Res -> DBV
-toDBV (RDBV n cs) = DBV n cs
-toDBV _           = error "toDBV: Not a DBV"
-
-fromDBP :: DBP -> Res
-fromDBP (DBP n cs) = RDBP n cs
-
-toDBP :: Res -> DBP
-toDBP (RDBP n cs) = DBP n cs
-toDBP _           = error "toDBP: Not a DBP"
+toDVec :: Res -> DVec
+toDVec (RDVec n cs) = DVec n cs
+toDVec _           = error "toDVec: Not a DVec"
 
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
 vl2Algebra (nodes, plan) = do
@@ -85,25 +78,25 @@ vl2Algebra (nodes, plan) = do
       roots = rootsFromTopShape plan
 
       refreshShape :: VectorAlgebra a => TopShape -> G a TopShape
-      refreshShape (ValueVector (DBV n _) lyt) = do
+      refreshShape (ValueVector (DVec n _) lyt) = do
 
                                                  v <- fromDict n
                                                  case v of
                                                      (Just n') -> do
                                                                              lyt' <- refreshLyt lyt
-                                                                             return $ ValueVector (toDBV n') lyt'
+                                                                             return $ ValueVector (toDVec n') lyt'
                                                      _ -> error $ "Disaster: " ++ show v
-      refreshShape (PrimVal (DBP n _) lyt) = do
+      refreshShape (PrimVal (DVec n _) lyt) = do
                                              (Just (RDBP n' cs)) <- fromDict n
                                              lyt' <- refreshLyt lyt
-                                             return $ PrimVal (DBP n' cs) lyt'
+                                             return $ PrimVal (DVec n' cs) lyt'
 
       refreshLyt :: VectorAlgebra a => TopLayout -> G a TopLayout
       refreshLyt l@(InColumn _) = return l
-      refreshLyt (Nest (DBV n _) lyt) = do
+      refreshLyt (Nest (DVec n _) lyt) = do
                                          (Just n') <- fromDict n
                                          lyt' <- refreshLyt lyt
-                                         return $ Nest (toDBV n') lyt'
+                                         return $ Nest (toDVec n') lyt'
       refreshLyt (Pair l1 l2) = do
                                  l1' <- refreshLyt l1
                                  l2' <- refreshLyt l2
@@ -142,124 +135,124 @@ vl2Algebra (nodes, plan) = do
 translateTerOp :: VectorAlgebra a => TerOp -> Res -> Res -> Res -> GraphM () a Res
 translateTerOp t c1 c2 c3 = case t of
                              CombineVec -> do
-                                             (d, r1, r2) <- combineVec (toDBV c1) (toDBV c2) (toDBV c3)
-                                             return $ RTriple (fromDBV d) (fromRenameVector r1) (fromRenameVector r2)
+                                             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
+                                             return $ RTriple (fromDVec d) (fromRenameVector r1) (fromRenameVector r2)
 
 translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> GraphM () a Res
 translateBinOp b c1 c2 = case b of
                            GroupBy          -> do
-                                                (d, v, p) <- groupByKey (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV d) (fromDBV v) (fromProp p)
+                                                (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec d) (fromDVec v) (fromProp p)
                            SortWith         -> do
-                                                (d, p) <- sortWith (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV d) (fromProp p)
-                           LengthSeg        -> liftM fromDBV $ lengthSeg (toDBV c1) (toDBV c2)
+                                                (d, p) <- vecSort (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec d) (fromProp p)
+                           LengthSeg        -> liftM fromDVec $ vecLengthS (toDVec c1) (toDVec c2)
                            DistPrim         -> do
-                                                (v, p) <- distPrim (toDBP c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromProp p)
+                                                (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromProp p)
                            DistDesc         -> do
-                                                (v, p) <- distDesc (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromProp p)
+                                                (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromProp p)
                            DistLift         -> do
-                                                (v, p) <- distLift (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromProp p)
-                           PropRename       -> liftM fromDBV $ propRename (toRenameVector c1) (toDBV c2)
+                                                (v, p) <- vecDistSeg (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromProp p)
+                           PropRename       -> liftM fromDVec $ vecPropRename (toRenameVector c1) (toDVec c2)
                            PropFilter       -> do
-                                                (v, r) <- propFilter (toRenameVector c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- vecPropFilter (toRenameVector c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
                            PropReorder      -> do
-                                                (v, p) <- propReorder (toProp c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromProp p)
+                                                (v, p) <- vecPropReorder (toProp c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromProp p)
                            Append           -> do
-                                                (v, r1, r2) <- append (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
+                                                (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
                            RestrictVec      -> do
-                                                (v, r) <- restrictVec (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
-                           CompExpr2 e      -> liftM fromDBP $ compExpr2 e (toDBP c1) (toDBP c2)
-                           CompExpr2L e     -> liftM fromDBV $ compExpr2L e (toDBV c1) (toDBV c2)
-                           VecSumL          -> liftM fromDBV $ vecSumLift (toDBV c1) (toDBV c2)
-                           VecAvgL          -> liftM fromDBV $ vecAvgLift (toDBV c1) (toDBV c2)
+                                                (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
+                           CompExpr2 e      -> undefined
+                           CompExpr2L e     -> liftM fromDVec $ vecBinExpr e (toDVec c1) (toDVec c2)
+                           VecSumL          -> liftM fromDVec $ vecSumS (toDVec c1) (toDVec c2)
+                           VecAvgL          -> liftM fromDVec $ vecAvgS (toDVec c1) (toDVec c2)
                            SelectPos o      -> do
-                                                (v, r) <- selectPos (toDBV c1) o (toDBP c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- selectPos (toDVec c1) o (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
                            SelectPosL o     -> do
-                                                (v, r) <- selectPosLift (toDBV c1) o (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
-                           PairA            -> liftM fromDBP $ pairA (toDBP c1) (toDBP c2)
-                           PairL            -> liftM fromDBV $ pairL (toDBV c1) (toDBV c2)
+                                                (v, r) <- selectPosS (toDVec c1) o (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
+                           PairA            -> undefined
+                           PairL            -> liftM fromDVec $ vecZip (toDVec c1) (toDVec c2)
                            ZipL             -> do
-                                                (v, r1 ,r2) <- zipL (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromRenameVector r1) (fromRenameVector r2)
+                                                (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
                            CartProduct      -> do
-                                                (v, p1, p2) <- cartProduct (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
+                                                (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            CartProductL     -> do
-                                                (v, p1, p2) <- cartProductL (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
+                                                (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            (EquiJoin e1 e2) -> do
-                                                (v, p1, p2) <- equiJoin e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
+                                                (v, p1, p2) <- vecEquiJoin e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            (EquiJoinL e1 e2) -> do
-                                                (v, p1, p2) <- equiJoinL e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RTriple (fromDBV v) (fromProp p1) (fromProp p2)
+                                                (v, p1, p2) <- vecEquiJoinS e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
                            (SemiJoin e1 e2) -> do
-                                                (v, r) <- semiJoin e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- vecSemiJoin e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
                            (SemiJoinL e1 e2) -> do
-                                                (v, r) <- semiJoinL e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- vecSemiJoinS e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
                            (AntiJoin e1 e2) -> do
-                                                (v, r) <- antiJoin e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- vecAntiJoin e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
                            (AntiJoinL e1 e2) -> do
-                                                (v, r) <- antiJoinL e1 e2 (toDBV c1) (toDBV c2)
-                                                return $ RPair (fromDBV v) (fromRenameVector r)
+                                                (v, r) <- vecAntiJoinS e1 e2 (toDVec c1) (toDVec c2)
+                                                return $ RPair (fromDVec v) (fromRenameVector r)
 
 singleton :: Res -> Res
-singleton (RDBP c cs) = RDBV c cs
+singleton (RDBP c cs) = RDVec c cs
 singleton _           = error "singleton: Not a DBP"
 
 only :: Res -> Res
-only (RDBV c cs) = RDBP c cs
-only _           = error "only: Not a DBV"
+only (RDVec c cs) = RDBP c cs
+only _           = error "only: Not a DVec"
 
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
                       Singleton     -> return $ singleton c
                       Only          -> return $ only c
-                      Unique        -> liftM fromDBV $ unique (toDBV c)
-                      UniqueL       -> liftM fromDBV $ uniqueL (toDBV c)
-                      Number        -> liftM fromDBV $ unique (toDBV c)
-                      NumberL       -> liftM fromDBV $ uniqueL (toDBV c)
-                      LengthA       -> liftM fromDBP $ lengthA (toDBV c)
-                      DescToRename  -> liftM fromRenameVector $ descToRename (toDBV c)
-                      Segment       -> liftM fromDBV $ segment (toDBV c)
-                      Unsegment     -> liftM fromDBV $ unsegment (toDBV c)
-                      VecSum ty     -> liftM fromDBP $ vecSum ty (toDBV c)
-                      VecAvg        -> liftM fromDBP $ vecAvg (toDBV c)
-                      VecMin        -> liftM fromDBP $ vecMin (toDBV c)
-                      VecMinL       -> liftM fromDBV $ vecMinLift (toDBV c)
-                      VecMax        -> liftM fromDBP $ vecMax (toDBV c)
-                      VecMaxL       -> liftM fromDBV $ vecMaxLift (toDBV c)
-                      SelectExpr e  -> liftM fromDBV $ selectExpr e (toDBV c)
-                      ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
-                      VLProject cols -> liftM fromDBV $ vecProject cols (toDBV c)
-                      VLProjectA cols -> liftM fromDBP $ vecProjectA cols (toDBP c)
+                      Unique        -> liftM fromDVec $ vecUnique (toDVec c)
+                      UniqueL       -> liftM fromDVec $ vecUniqueS (toDVec c)
+                      Number        -> liftM fromDVec $ vecNumber (toDVec c)
+                      NumberL       -> liftM fromDVec $ vecNumberS (toDVec c)
+                      LengthA       -> liftM fromDVec $ vecLength (toDVec c)
+                      DescToRename  -> liftM fromRenameVector $ descToRename (toDVec c)
+                      Segment       -> liftM fromDVec $ vecSegment (toDVec c)
+                      Unsegment     -> liftM fromDVec $ vecUnsegment (toDVec c)
+                      VecSum ty     -> liftM fromDVec $ vecSum ty (toDVec c)
+                      VecAvg        -> liftM fromDVec $ vecAvg (toDVec c)
+                      VecMin        -> liftM fromDVec $ vecMin (toDVec c)
+                      VecMinL       -> liftM fromDVec $ vecMinS (toDVec c)
+                      VecMax        -> liftM fromDVec $ vecMax (toDVec c)
+                      VecMaxL       -> liftM fromDVec $ vecMaxS (toDVec c)
+                      SelectExpr e  -> liftM fromDVec $ vecSelect e (toDVec c)
+                      ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDVec c)
+                      VLProject cols -> liftM fromDVec $ vecProject cols (toDVec c)
+                      VLProjectA cols -> undefined
                       ReverseA      -> do
-                                        (d, p) <- reverseA (toDBV c)
-                                        return $ RPair (fromDBV d) (fromProp p)
+                                        (d, p) <- vecReverse (toDVec c)
+                                        return $ RPair (fromDVec d) (fromProp p)
                       ReverseL      -> do
-                                        (d, p) <- reverseL (toDBV c)
-                                        return $ RPair (fromDBV d) (fromProp p)
-                      FalsePositions -> liftM fromDBV $ falsePositions (toDBV c)
+                                        (d, p) <- vecReverseS (toDVec c)
+                                        return $ RPair (fromDVec d) (fromProp p)
+                      FalsePositions -> liftM fromDVec $ falsePositions (toDVec c)
                       SelectPos1 op pos -> do
-                                         (d, p) <- selectPos1 (toDBV c) op pos
-                                         return $ RPair (fromDBV d) (fromRenameVector p)
+                                         (d, p) <- selectPos1 (toDVec c) op pos
+                                         return $ RPair (fromDVec d) (fromRenameVector p)
                       SelectPos1L op pos -> do
-                                          (d, p) <- selectPos1Lift (toDBV c) op pos
-                                          return $ RPair (fromDBV d) (fromRenameVector p)
-                      VecAggr g as -> liftM fromDBV $ vecAggr g as (toDBV c)
+                                          (d, p) <- selectPos1S (toDVec c) op pos
+                                          return $ RPair (fromDVec d) (fromRenameVector p)
+                      VecAggr g as -> liftM fromDVec $ vecAggr g as (toDVec c)
                       R1            -> case c of
                                          (RPair c1 _)     -> return c1
                                          (RTriple c1 _ _) -> return c1
@@ -274,10 +267,10 @@ translateUnOp u c = case u of
 
 
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
-translateNullary SingletonDescr                   = liftM fromDBV $ singletonDescr
-translateNullary (ConstructLiteralValue tys vals) = liftM fromDBP $ constructLiteralValue tys vals
-translateNullary (ConstructLiteralTable tys vals) = liftM fromDBV $ constructLiteralTable tys vals
-translateNullary (TableRef n tys ks)              = liftM fromDBV $ tableRef n tys ks
+translateNullary SingletonDescr                   = liftM fromDVec $ singletonDescr
+translateNullary (ConstructLiteralValue tys vals) = undefined
+translateNullary (ConstructLiteralTable tys vals) = liftM fromDVec $ vecLit tys vals
+translateNullary (TableRef n tys ks)              = liftM fromDVec $ vecTableRef n tys ks
 
 implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan =
@@ -288,5 +281,3 @@ implementVectorOpsPF :: QueryPlan VL -> QueryPlan PFAlgebra
 implementVectorOpsPF vlPlan =
   let (opMap, shape, tagMap)= runG initLoop (vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan))
   in mkQueryPlan opMap shape tagMap
-
-
