@@ -6,7 +6,7 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
        
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common(Algebra(UnOp))
-import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..), VecUnOp(..))
+import           Database.Algebra.VL.Data                      (VL(), UnOp(VLProject, VLProjectA), Expr1(..), VecUnOp(..), VecCastOp(..))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
@@ -53,8 +53,8 @@ fkl2VL (PApp1 t f arg) = fkl2VL arg >>= case f of
                                            (MinimumL _) -> minLift
                                            (Maximum _)  -> maxPrim
                                            (MaximumL _) -> maxLift
-                                           (IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> integerToDoubleA v)
-                                           (IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> integerToDoubleL v)
+                                           (IntegerToDouble _) -> (\(PrimVal v lyt) -> (\v' -> PrimVal v' lyt) <$> vlProjectA v [UnApp1 (CastOp CastDouble) (Column1 1)])
+                                           (IntegerToDoubleL _) -> (\(ValueVector v lyt) -> (\v' -> ValueVector v' lyt) <$> vlProject v [UnApp1 (CastOp CastDouble) (Column1 1)])
                                            (Tail _) -> tailS
                                            (TailL _) -> tailL
                                            (Reverse _) -> reversePrim

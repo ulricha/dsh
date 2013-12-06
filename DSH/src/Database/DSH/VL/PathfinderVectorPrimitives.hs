@@ -104,7 +104,8 @@ algOp (VL.BOp VL.Disj) = RelFun Or
 algOp VL.Like          = Fun1to1 Like
 
 unOp :: VL.VecUnOp -> (AttrName -> AttrName -> AlgNode -> GraphM a PFAlgebra AlgNode)
-unOp VL.Not = notC
+unOp VL.Not                    = notC
+unOp (VL.CastOp VL.CastDouble) = \resCol argCol q -> cast resCol argCol ADouble q
 
 algCompOp :: VL.VecCompOp -> Fun
 algCompOp VL.Eq = RelFun Eq
@@ -278,16 +279,6 @@ instance VectorAlgebra PFAlgebra where
     return $ DBV qr [1..length tys]
 
   constructLiteralValue t v = (\(DBV v' cols) -> DBP v' cols) <$> constructLiteralTable t [v]
-
-  integerToDoubleA (DBP q _) = do
-    qr <- projM [colP descr, colP pos, (item, resCol)]
-            $ cast item resCol doubleT q
-    return $ DBP qr [1]
-
-  integerToDoubleL (DBV q _) = do
-    qr <- projM [colP descr, colP pos, (item, resCol)]
-            $ cast item resCol doubleT q
-    return $ DBV qr [1]
 
   propRename (RenameVector q1) (DBV q2 cols) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
@@ -637,7 +628,7 @@ instance VectorAlgebra PFAlgebra where
     qx <- crossM
             (proj (pf [colP descr, (pos', pos)]) qe)
             -- (proj (pf [colP descr, (pos', pos)]) qe)
-            (projM [colP item'] $ cast item item' natT qi)
+            (projM [colP item'] $ cast item' item natT qi)
     qn <- case op of
             VL.Lt ->
                 projM (pf [colP descr, (pos, pos'), colP pos'])
@@ -663,7 +654,7 @@ instance VectorAlgebra PFAlgebra where
 
   selectPosLift (DBV qe cols) op (DBV qi _) = do
     let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    qx <- castM pos' pos''' intT
+    qx <- castM pos''' pos' intT
             $ eqJoinM descr pos''
                 (rownum pos' [pos] (Just descr) qe)
                 (proj [(pos'', pos), (item', item)] qi)
@@ -784,7 +775,7 @@ instance VectorAlgebra PFAlgebra where
   number (DBV q cols) = do
     let nrIndex = length cols + 1
         nrItem = itemi nrIndex
-    qr <- cast pos nrItem natT q
+    qr <- cast nrItem pos natT q
     return $ DBV qr (cols ++ [nrIndex])
   
   -- The Pathfinder implementation of lifted number does not come for free: To

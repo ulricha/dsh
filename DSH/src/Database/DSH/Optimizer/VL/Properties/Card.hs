@@ -38,8 +38,6 @@ inferCardOneUnOp c op =
     VLProject _ -> Right c
     VLProjectA _  -> Right c
     ProjectRename _ -> Right c
-    IntegerToDoubleA -> Right c
-    IntegerToDoubleL -> Right c
     ReverseA -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseL -> unp c >>= (\uc -> return $ VPropPair uc uc)
     FalsePositions -> Right c

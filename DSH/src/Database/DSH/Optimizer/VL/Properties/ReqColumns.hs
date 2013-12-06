@@ -91,9 +91,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Number -> none
     NumberL -> none
 
-    IntegerToDoubleA -> one
-    IntegerToDoubleL -> one
-
     ReverseA -> ownReqColumns `union` childReqColumns
     ReverseL -> ownReqColumns `union` childReqColumns
 

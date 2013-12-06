@@ -43,8 +43,6 @@ inferVectorTypeUnOp s op =
     VecMinL -> Right $ VProp $ ValueVector 1
     VecMax -> Right $ VProp $ AtomicVector 1
     VecMaxL -> Right $ VProp $ ValueVector 1
-    IntegerToDoubleA -> Right $ VProp $ AtomicVector 1
-    IntegerToDoubleL -> Right $ VProp $ ValueVector 1
     ReverseA -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseL -> liftM2 VPropPair (unpack s) (Right PropVector)
     FalsePositions -> Right $ VProp $ ValueVector 1

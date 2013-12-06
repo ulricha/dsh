@@ -60,12 +60,11 @@ class VectorAlgebra a where
   selectPos1 :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
   selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
 
-  -- FIXME this should be a generic cast operator
-  integerToDoubleA :: DBP -> GraphM r a DBP
-  integerToDoubleL :: DBV -> GraphM r a DBV
-
   reverseA :: DBV -> GraphM r a (DBV, PropVector)
   reverseL :: DBV -> GraphM r a (DBV, PropVector)
+  
+  -- FIXME this operator is too specialized. Could be implemented with NOT, PROJECT
+  -- and some operator that materializes positions.
   falsePositions :: DBV -> GraphM r a DBV
 
   selectExpr :: Expr1 -> DBV -> GraphM r a DBV
@@ -103,9 +102,13 @@ class VectorAlgebra a where
   selectPos :: DBV -> VecCompOp -> DBP -> GraphM r a (DBV, RenameVector)
   selectPosLift :: DBV -> VecCompOp -> DBV -> GraphM r a (DBV, RenameVector)
 
+  -- FIXME should go away when DBP is eliminated
   pairA :: DBP -> DBP -> GraphM r a DBP
+  
+  -- FIXME better name: zip
   pairL :: DBV -> DBV -> GraphM r a DBV
 
+  -- FIXME better name: zipSeg
   zipL :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
 
   cartProduct :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)

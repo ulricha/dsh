@@ -44,8 +44,6 @@ seed (UnOp op _)   =
     VecMinL            -> vPropSeed
     VecMax             -> vPropSeed
     VecMaxL            -> vPropSeed
-    IntegerToDoubleA   -> vPropSeed
-    IntegerToDoubleL   -> vPropSeed
     FalsePositions     -> vPropSeed
     SelectExpr _       -> vPropSeed
     ProjectRename _    -> vPropSeed

@@ -246,8 +246,6 @@ translateUnOp u c = case u of
                       ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDBV c)
                       VLProject cols -> liftM fromDBV $ vecProject cols (toDBV c)
                       VLProjectA cols -> liftM fromDBP $ vecProjectA cols (toDBP c)
-                      IntegerToDoubleA -> liftM fromDBP $ integerToDoubleA (toDBP c)
-                      IntegerToDoubleL -> liftM fromDBV $ integerToDoubleL (toDBV c)
                       ReverseA      -> do
                                         (d, p) <- reverseA (toDBV c)
                                         return $ RPair (fromDBV d) (fromProp p)

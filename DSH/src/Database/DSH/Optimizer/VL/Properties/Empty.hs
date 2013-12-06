@@ -44,8 +44,6 @@ inferEmptyUnOp e op =
     VecMinL -> Right e
     VecMax -> Right e
     VecMaxL -> Right e
-    IntegerToDoubleA -> Right e
-    IntegerToDoubleL -> Right e
     ReverseA -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseL -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e

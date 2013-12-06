@@ -104,10 +104,6 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    IntegerToDoubleA -> return c
-
-    IntegerToDoubleL -> return c
-
     ReverseA -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))

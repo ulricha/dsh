@@ -363,12 +363,6 @@ antiJoinL e1 e2 (DBV c1 _) (DBV c2 _) = do
   r2 <- rename $ insertNode $ UnOp R2 r
   return (r1, r2)
   
-integerToDoubleA :: DBP -> GraphM r VL DBP
-integerToDoubleA (DBP c _) = dbp $ insertNode $ UnOp IntegerToDoubleA c
-
-integerToDoubleL :: DBV -> GraphM r VL DBV
-integerToDoubleL (DBV c _) = dbv $ insertNode $ UnOp IntegerToDoubleL c
-
 reverseA :: DBV -> GraphM r VL (DBV, PropVector)
 reverseA (DBV c _) = do
                       r <- insertNode $ UnOp ReverseA c
