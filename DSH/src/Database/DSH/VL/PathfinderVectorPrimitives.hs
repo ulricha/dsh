@@ -271,16 +271,14 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec qr [1..length tys]
 
   vecPropRename (RVec q1) (DVec q2 cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- tagM "propRename"
-           $ projM (pf [(descr, posnew), colP pos])
-           $ eqJoin posold descr q1 q2
+         $ projM (keepItems cols [(descr, posnew), colP pos])
+         $ eqJoin posold descr q1 q2
     return $ DVec q cols
 
   vecPropFilter (RVec q1) (DVec q2 cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- rownumM pos' [posnew, pos] Nothing $ eqJoin posold descr q1 q2
-    qr1 <- flip DVec cols <$> proj (pf [(descr, posnew), (pos, pos')]) q
+    qr1 <- flip DVec cols <$> proj (keepItems cols [(descr, posnew), (pos, pos')]) q
     qr2 <- RVec <$> proj [(posold, pos), (posnew, pos')] q
     return $ (qr1, qr2)
 
@@ -291,17 +289,15 @@ instance VectorAlgebra PFAlgebra where
     return (p, PVec r)
 
   vecRestrict (DVec q1 cols) (DVec qm _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- rownumM pos'' [pos] Nothing
            $ selectM resCol
            $ eqJoinM pos pos' (return q1)
            $ proj [(pos', pos), (resCol, item)] qm
-    qr <- flip DVec cols <$> (tagM "restrictVec/1" $ proj (pf [(pos, pos''), colP descr]) q)
-    qp <- RVec <$> proj [(posold, pos), (posnew, pos'')] q
-    return $ (qr, qp)
+    qr <- tagM "restrictVec/1" $ proj (keepItems cols [(pos, pos''), colP descr]) q
+    qp <- proj [(posold, pos), (posnew, pos'')] q
+    return $ (DVec qr cols, RVec qp)
 
   vecCombine (DVec qb _) (DVec q1 cols) (DVec q2 _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     d1 <- projM [colP pos', colP pos]
             $ rownumM pos' [pos] Nothing
             $ select item qb
@@ -309,21 +305,20 @@ instance VectorAlgebra PFAlgebra where
           $ rownumM pos' [pos] Nothing
           $ selectM resCol
           $ notC resCol item qb
-    q <- eqJoinM pos' posold (return d1) (proj (pf [(posold, pos), colP descr]) q1)
+    q <- eqJoinM pos' posold (return d1) (proj (keepItems cols [(posold, pos), colP descr]) q1)
          `unionM`
-         eqJoinM pos' posold (return d2) (proj (pf [(posold, pos), colP descr]) q2)
-    qr <- flip DVec cols <$> proj (pf [colP descr, colP pos]) q
-    qp1 <- RVec <$> proj [(posnew, pos), (posold, pos')] d1
-    qp2 <- RVec <$> proj [(posnew, pos), (posold, pos')] d2
-    return $ (qr, qp1, qp2)
+         eqJoinM pos' posold (return d2) (proj (keepItems cols [(posold, pos), colP descr]) q2)
+    qr <- proj (keepItems cols [colP descr, colP pos]) q
+    qp1 <- proj [(posnew, pos), (posold, pos')] d1
+    qp2 <- proj [(posnew, pos), (posold, pos')] d2
+    return $ (DVec qr cols, RVec qp1, RVec qp2)
 
   vecSegment (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    flip DVec cols <$> proj (pf [(descr, pos), colP pos]) q
+    flip DVec cols <$> proj (keepItems cols [(descr, pos), colP pos]) q
 
   vecUnsegment (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
-    flip DVec cols <$> (attachM descr natT (nat 1) $ proj (pf [colP pos]) q)
+    qr <- attachM descr natT (nat 1) $ proj (keepItems cols [colP pos]) q
+    return $ DVec qr cols
 
   vecDistPrim (DVec q1 cols) (DVec q2 _) = do
     qr <- crossM 
@@ -333,24 +328,22 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qr cols, PVec r)
 
   vecDistDesc (DVec q1 cols) (DVec q2 _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols ]
-    q <- projM (pf [(descr, pos), (pos, pos''), (posold, posold)])
+    q <- projM (keepItems cols [(descr, pos), (pos, pos''), (posold, posold)])
            $ rownumM pos'' [pos, pos'] Nothing
            $ crossM
                (proj [colP pos] q2)
-               (proj (pf [(pos', pos), (posold, pos)]) q1)
-    qr1 <- flip DVec cols <$> proj (pf [colP descr, colP pos]) q
+               (proj (keepItems cols [(pos', pos), (posold, pos)]) q1)
+    qr1 <- flip DVec cols <$> proj (keepItems cols [colP descr, colP pos]) q
     qr2 <- PVec <$> proj [(posold, posold), (posnew, pos)] q
     return $ (qr1, qr2)
 
   vecDistSeg (DVec q1 cols) (DVec q2 _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- eqJoinM pos' descr 
-           (proj (pf [(pos', pos)]) q1) 
+           (proj (keepItems cols [(pos', pos)]) q1) 
            (proj [(descr, descr), (pos, pos)] q2)
-    qr1 <- flip DVec cols <$> (tagM "distLift/1" $ proj (pf [colP descr, colP pos]) q)
-    qr2 <- PVec <$> proj [(posold, pos'), (posnew, pos)] q
-    return $ (qr1, qr2)
+    qr1 <- tagM "distLift/1" $ proj (keepItems cols [colP descr, colP pos]) q
+    qr2 <- proj [(posold, pos'), (posnew, pos)] q
+    return $ (DVec qr1 cols, PVec qr2)
 
   vecLength (DVec d _) = do
     qr <- attachM descr natT (nat 1)
@@ -370,33 +363,32 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec qr [1]
 
   vecReverse (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q' <- rownum' pos' [(pos, Desc)] Nothing q
-    r <- flip DVec cols <$> proj (pf [colP descr, (pos, pos')]) q'
-    p <- PVec <$> proj [(posold, pos), (posnew, pos')] q'
-    return (r, p)
+    r <- proj (keepItems cols [colP descr, (pos, pos')]) q'
+    p <- proj [(posold, pos), (posnew, pos')] q'
+    return (DVec r cols, PVec p)
 
   vecReverseS (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q' <- rownum' pos' [(descr, Asc), (pos, Desc)] Nothing q
-    r <- flip DVec cols <$> proj (pf [colP descr, (pos, pos')]) q'
-    p <- PVec <$> proj [(posold, pos), (posnew, pos')] q'
-    return (r, p)
+    r <- proj (keepItems cols [colP descr, (pos, pos')]) q'
+    p <- proj [(posold, pos), (posnew, pos')] q'
+    return (DVec r cols, PVec p)
 
   vecUnique (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     f <- rownumM posnew [posold] Nothing
            $ aggrM [(Min pos, posold)] (Just resCol)
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
-    flip DVec cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
+    qr <- projM (keepItems cols [colP descr, (pos, posnew)]) $ eqJoin pos posold q f
+    return $ DVec qr cols
 
   vecUniqueS (DVec q cols) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     f <- rownumM posnew [posold] Nothing
            $ aggrM [(Min pos, posold)] (Just resCol)
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
-    flip DVec cols <$> (projM (pf [colP descr, (pos, posnew)]) $ eqJoin pos posold q f)
+    qr <- projM (keepItems cols [colP descr, (pos, posnew)]) 
+          $ eqJoin pos posold q f
+    return $ DVec qr cols
 
   vecMin (DVec q _) = do
     qr <- tagM "vecMin" $ attachM descr natT (nat 1)
@@ -429,23 +421,22 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec q []
 
   vecAppend (DVec q1 cols) (DVec q2 cols2) = do
-    let pf = trace (show cols ++ " " ++ show cols2) $ \x -> x ++ [(itemi i, itemi i) | i <- cols]
     q <- rownumM pos' [descr, ordCol, pos] Nothing
            $ attach ordCol natT (nat 1) q1
              `unionM`
              attach ordCol natT (nat 2) q2
-    qv <- flip DVec cols <$> tagM "append r" (proj (pf [(pos, pos'), colP descr]) q)
-    qp1 <- RVec <$> (tagM "append r1"
-                        $ projM [(posold, pos), (posnew, pos')]
-                        $ selectM resCol
-                        $ operM (RelFun Eq) resCol ordCol tmpCol
-                        $ attach tmpCol natT (nat 1) q)
-    qp2 <- RVec <$> (tagM "append r2"
-                        $ projM [(posold, pos), (posnew, pos')]
-                        $ selectM resCol
-                        $ operM (RelFun Eq) resCol ordCol tmpCol
-                        $ attach tmpCol natT (nat 2) q)
-    return $ (qv, qp1, qp2)
+    qv <- tagM "append r" (proj (keepItems cols [(pos, pos'), colP descr]) q)
+    qp1 <- tagM "append r1"
+           $ projM [(posold, pos), (posnew, pos')]
+           $ selectM resCol
+           $ operM (RelFun Eq) resCol ordCol tmpCol
+           $ attach tmpCol natT (nat 1) q
+    qp2 <- tagM "append r2"
+           $ projM [(posold, pos), (posnew, pos')]
+           $ selectM resCol
+           $ operM (RelFun Eq) resCol ordCol tmpCol
+           $ attach tmpCol natT (nat 2) q
+    return $ (DVec qv cols, RVec qp1, RVec qp2)
 
   vecSum t (DVec q _) = do
     -- the default value for empty lists
@@ -521,13 +512,12 @@ instance VectorAlgebra PFAlgebra where
       keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
 
   vecSort (DVec qs colss) (DVec qe colse) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- colse]
     q <- tagM "sortWith"
          $ eqJoinM pos pos''
            (projM [colP pos, colP pos']
               $ rownum pos' (descr : [itemi i | i <- colss] ++ [pos]) Nothing qs)
-           (proj (pf [colP descr, (pos'', pos)]) qe)
-    qv <- proj (pf [colP descr, (pos, pos')]) q
+           (proj (keepItems colse [colP descr, (pos'', pos)]) qe)
+    qv <- proj (keepItems colse [colP descr, (pos, pos')]) q
     qp <- proj [(posold, pos''), (posnew, pos')] q
     return $ (DVec qv colse, PVec qp)
 
@@ -615,36 +605,34 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     qx <- crossM
-            (proj (pf [colP descr, (pos', pos)]) qe)
+            (proj (keepItems cols [colP descr, (pos', pos)]) qe)
             -- (proj (pf [colP descr, (pos', pos)]) qe)
             (projM [colP item'] $ cast item' item natT qi)
     qn <- case op of
             VL.Lt ->
-                projM (pf [colP descr, (pos, pos'), colP pos'])
+                projM (keepItems cols [colP descr, (pos, pos'), colP pos'])
                   $ selectM resCol
                   $ oper (RelFun Lt) resCol pos' item' qx
             VL.LtE -> do
                 (compNode, compCol) <- runExprComp $ specialComparison qx pos' item' (RelFun Lt)
-                projM (pf [colP descr, (pos, pos'), colP pos'])
+                projM (keepItems cols [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
             VL.GtE -> do
                 (compNode, compCol) <- runExprComp $ specialComparison qx item' pos' (RelFun Lt)
-                projM (pf [colP descr, (pos, pos''), colP pos'])
+                projM (keepItems cols [colP descr, (pos, pos''), colP pos'])
                   $ rownumM pos'' [pos'] Nothing
                   $ select compCol compNode
             _ ->
-                projM (pf [colP descr, colP pos, colP pos'])
+                projM (keepItems cols [colP descr, colP pos, colP pos'])
                  $ rownumM pos [descr, pos'] Nothing
                     $ selectM resCol
                         $ oper (algCompOp op) resCol pos' item' qx
-    q <- proj (pf [colP descr, colP pos]) qn
+    q <- proj (keepItems cols [colP descr, colP pos]) qn
     qp <- proj [(posnew, pos), (posold, pos')] qn
     return $ (DVec q cols, RVec qp)
 
   selectPosS (DVec qe cols) op (DVec qi _) = do
-    let pf = \x -> x ++ [(itemi i, itemi i) | i <- cols]
     qx <- castM pos''' pos' intT
             $ eqJoinM descr pos''
                 (rownum pos' [pos] (Just descr) qe)
@@ -653,60 +641,58 @@ instance VectorAlgebra PFAlgebra where
         VL.LtE -> do
                 (compNode, compCol) <- runExprComp $ specialComparison qx pos''' item' (RelFun Lt)
                 rownumM posnew [descr, pos] Nothing
-                  $ projM (pf [colP descr, (pos, pos'), colP pos'])
+                  $ projM (keepItems cols [colP descr, (pos, pos'), colP pos'])
                   $ select compCol compNode
 
         _ -> rownumM posnew [descr, pos] Nothing
               $ selectM resCol
               $ oper (algCompOp op) resCol pos''' item' qx
-    q <- proj (pf [colP descr, (pos, posnew)]) qs
+    q <- proj (keepItems cols [colP descr, (pos, posnew)]) qs
     qp <- proj [(posold, pos), (posnew, posnew)] qs
     return $ (DVec q cols, RVec qp)
 
   selectPos1 (DVec qe cols) op (VL.N posConst) = do
-    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
     qi <- attach pos' ANat (VNat $ fromIntegral posConst) qe
     q' <- case op of
             VL.Lt -> do
-              projM (pf [colP descr, colP pos, (pos'', pos)])
+              projM (keepItems cols [colP descr, colP pos, (pos'', pos)])
               $ selectM resCol
               $ oper (RelFun Lt) resCol pos pos' qi
             VL.LtE -> do
-              projM (pf [colP descr, colP pos, (pos'', pos)])
+              projM (keepItems cols [colP descr, colP pos, (pos'', pos)])
                 $ selectM resCol
                 $ (oper (RelFun Eq) resCol pos pos') qi
                   `unionM`
                   (oper (RelFun Lt) resCol pos pos') qi
             _ -> do
-              projM (pf [colP descr, colP pos, colP pos''])
+              projM (keepItems cols [colP descr, colP pos, colP pos''])
                 $ rownumM pos'' [pos] Nothing
                 $ selectM resCol
                 $ oper (algCompOp op) resCol pos pos' qi
-    qr <- proj (pf [colP descr, (pos, pos'')]) q'
+    qr <- proj (keepItems cols [colP descr, (pos, pos'')]) q'
     qp <- proj [(posold, pos), (posnew, pos'')] q'
     return $ (DVec qr cols, RVec qp)
 
   selectPos1S (DVec qe cols) op (VL.N posConst) = do
-    let pf = \x -> x ++ [colP $ itemi i | i <- cols]
     qi <- rownumM pos'' [pos] (Just descr)
             $ attach pos' ANat (VNat $ fromIntegral posConst) qe
     q' <- case op of
             VL.Lt -> do
-              projM (pf [colP descr, colP pos, (pos', pos)])
+              projM (keepItems cols [colP descr, colP pos, (pos', pos)])
                 $ selectM resCol
                 $ oper (RelFun Gt) resCol pos'' pos' qi
             VL.LtE -> do
-              projM (pf [colP descr, colP pos, (pos', pos)])
+              projM (keepItems cols [colP descr, colP pos, (pos', pos)])
                 $ selectM resCol
                 $ (oper (RelFun Eq) resCol pos'' pos') qi
                   `unionM`
                   (oper (RelFun Lt) resCol pos'' pos') qi
             _ -> do
-              projM (pf [colP descr, colP pos, colP pos'])
+              projM (keepItems cols [colP descr, colP pos, colP pos'])
                 $ rownumM pos''' [descr, pos] Nothing
                 $ selectM resCol
                 $ oper (algCompOp op) resCol pos'' pos' qi
-    qr <- proj (pf [colP descr, (pos, pos''')]) q'
+    qr <- proj (keepItems cols [colP descr, (pos, pos''')]) q'
     qp <- proj [(posold, pos), (posnew, pos')] q'
     return $ (DVec qr cols, RVec qp)
 
