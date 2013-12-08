@@ -78,7 +78,7 @@ algTy (VL.VLList _) = $impossible
 cP :: AttrName -> Proj
 cP a = (a, ColE a)
 
-eP :: AttrName -> ProjExpr -> Proj
+eP :: AttrName -> Expr -> Proj
 eP = (,)
 
 mP :: AttrName -> AttrName -> Proj
@@ -122,7 +122,7 @@ unOp :: VL.VecUnOp -> UnFun
 unOp VL.Not                    = Not
 unOp (VL.CastOp VL.CastDouble) = Cast doubleT
 
-expr1 :: VL.Expr1 -> ProjExpr
+expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
 expr1 (VL.UnApp1 op e)      = UnAppE (unOp op) (expr1 e)
 expr1 (VL.Column1 c)        = ColE $ itemi c
@@ -131,7 +131,7 @@ expr1 (VL.Constant1 v)      = ConstE $ algVal v
 -- | Vl Expr2 considers two input vectors and may reference columns from the
 -- left and right side. Columns from the left map directly to item columns. For
 -- right input columns, temporary column names are used.
-expr2 :: VL.Expr2 -> ProjExpr
+expr2 :: VL.Expr2 -> Expr
 expr2 (VL.BinApp2 op e1 e2)      = BinAppE (binOp op) (expr2 e1) (expr2 e2)
 expr2 (VL.UnApp2 op e)           = UnAppE (unOp op) (expr2 e)
 expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
@@ -204,7 +204,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecRestrict (DVec q1 cols) (DVec qm _) = do
     q <- rownumM pos'' [pos] Nothing
-           $ selectM resCol
+           $ selectM (ColE resCol)
            $ eqJoinM pos pos' (return q1)
            $ proj [mP pos' pos, mP resCol item] qm
     qr <- tagM "restrictVec/1" $ proj (itemProj cols [mP pos pos'', cP descr]) q
@@ -214,11 +214,10 @@ instance VectorAlgebra PFAlgebra where
   vecCombine (DVec qb _) (DVec q1 cols) (DVec q2 _) = do
     d1 <- projM [cP pos', cP pos]
             $ rownumM pos' [pos] Nothing
-            $ select item qb
+            $ select (ColE item) qb
     d2 <- projM [cP pos', cP pos]
           $ rownumM pos' [pos] Nothing
-          $ selectM resCol
-          $ proj [cP pos, eP resCol (UnAppE Not (ColE item))] qb
+          $ select (UnAppE Not (ColE item)) qb
     q <- eqJoinM pos' posold 
             (return d1) 
             (proj (itemProj cols [mP posold pos, cP descr]) q1)
@@ -345,12 +344,10 @@ instance VectorAlgebra PFAlgebra where
     qv <- tagM "append r" (proj (itemProj cols [mP pos posnew, cP descr]) q)
     qp1 <- tagM "append r1"
            $ projM [mP posold pos, mP posnew pos']
-           $ selectM resCol
-           $ proj [mP posold pos, cP posnew, eP resCol (ConstE (nat 1))] q
+           $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 1)) q
     qp2 <- tagM "append r2"
            $ projM [mP posold pos, mP posnew pos']
-           $ selectM resCol
-           $ proj [mP posold pos, cP posnew, eP resCol (ConstE (nat 2))] q
+           $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 2)) q
     return $ (DVec qv cols, RVec qp1, RVec qp2)
 
   vecSum t (DVec q _) = do
@@ -398,16 +395,14 @@ instance VectorAlgebra PFAlgebra where
   vecSelect expr (DVec q cols) = do
     qs <- projM (itemProj cols [cP descr, mP pos pos']) 
           $ rownumM pos' [pos] Nothing
-          $ selectM tmpCol
-          $ projAddCols cols [eP tmpCol (expr1 expr)] q
+          $ select (expr1 expr) q
     return $ DVec qs cols
 
   falsePositions (DVec q1 _) = do
     qr <- projM [cP descr, mP pos pos'', mP item pos']
           $ rownumM pos'' [pos] Nothing
-          $ selectM item
-          $ rownumM pos' [pos] (Just descr)
-          $ proj [cP pos, cP descr, eP item (UnAppE Not (ColE item))] q1
+          $ selectM (UnAppE Not (ColE item))
+          $ rownum pos' [pos] (Just descr) q1
     return $ DVec qr [1]
 
   -- FIXME this implementation does not make a lot of sense. Be smarter on the
@@ -526,13 +521,10 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
-    qs <- selectM resCol
-          $ projAddColsM cols 
-                        [ cP pos'
-                        , eP resCol (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
-                        ] 
-                        
-          $ crossM (return qe) (proj [mP item' item] qi)
+    qs <- selectM (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
+          $ crossM 
+              (return qe) 
+              (proj [mP item' item] qi)
 
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
@@ -549,11 +541,7 @@ instance VectorAlgebra PFAlgebra where
   
   selectPosS (DVec qe cols) op (DVec qi _) = do
     qs <- rownumM posnew [pos] Nothing
-          $ selectM resCol
-          $ projAddColsM cols 
-                        [ cP pos'
-                        , eP resCol (BinAppE (binOp $ VL.COp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
-                        ] 
+          $ selectM (BinAppE (binOp $ VL.COp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
           $ eqJoinM descr pos'
               (rownum absPos [pos] (Just descr) qe)
               (proj [mP pos' pos, mP item' item] qi)
@@ -564,12 +552,7 @@ instance VectorAlgebra PFAlgebra where
 
   selectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
-    qs <- selectM resCol
-          $ projAddCols cols 
-                        [ cP pos'
-                        , eP resCol  (BinAppE (binOp $ VL.COp op) (ColE absPos) (ConstE posConst'))
-                        ] 
-                        qe
+    qs <- select (BinAppE (binOp $ VL.COp op) (ColE absPos) (ConstE posConst')) qe
 
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
@@ -589,11 +572,7 @@ instance VectorAlgebra PFAlgebra where
   selectPos1S (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] Nothing
-          $ selectM resCol
-          $ projAddColsM cols 
-                        [ cP pos'
-                        , eP resCol (BinAppE (binOp (VL.COp op)) (ColE absPos) (ConstE posConst'))
-                        ] 
+          $ selectM (BinAppE (binOp (VL.COp op)) (ColE absPos) (ConstE posConst'))
           $ rownum absPos [pos] (Just descr) qe
           
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs
