@@ -40,6 +40,7 @@ nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix e = desugarComprehensions e
                         |> flatten
                         |> specializeVectorOps
+                        |> optimizeVLDefault
                         |> implementVectorOpsPF
                         |> (exportTAPlan prefix)
 
@@ -47,6 +48,7 @@ nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
+                      |> optimizeVLDefault
                       |> optimizeVLDefault
                       |> exportVLPlan prefix
 

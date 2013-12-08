@@ -11,26 +11,26 @@ import GHC.Generics (Generic)
 type Graph a = GraphM Shape a
 
 data Layout = InColumn Int
-            | Nest DBV Layout
+            | Nest DVec Layout
             | Pair Layout Layout
     deriving (Show, Generic)
 
-data Shape = ValueVector DBV Layout
-           | PrimVal DBP Layout
+data Shape = ValueVector DVec Layout
+           | PrimVal DVec Layout
            | Closure String [(String, Shape)] String Expr Expr
            | AClosure String Shape Int [(String, Shape)] String Expr Expr
            deriving (Show, Generic)
 
 rootNodes :: Shape -> [AlgNode]
-rootNodes (ValueVector (DBV n _) lyt) = n : rootNodes' lyt
-rootNodes (PrimVal (DBP n _) lyt) = n : rootNodes' lyt
+rootNodes (ValueVector (DVec n _) lyt) = n : rootNodes' lyt
+rootNodes (PrimVal (DVec n _) lyt) = n : rootNodes' lyt
 rootNodes (Closure _ _ _ _ _) = error "Functions cannot appear as a result value"
 rootNodes (AClosure _ _ _ _ _ _ _) = error "Function cannot appear as a result value"
 
 rootNodes' :: Layout -> [AlgNode]
 rootNodes' (Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
 rootNodes' (InColumn _) = []
-rootNodes' (Nest (DBV q _) lyt) = q : rootNodes' lyt
+rootNodes' (Nest (DVec q _) lyt) = q : rootNodes' lyt
 
 columnsInLayout :: Layout -> Int
 columnsInLayout (InColumn _) = 1

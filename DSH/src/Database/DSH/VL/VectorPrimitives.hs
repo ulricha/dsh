@@ -21,104 +21,103 @@ consistent naming scheme:
 -}
 
 class VectorAlgebra a where
-  singletonDescr :: GraphM r a DBV
+  singletonDescr :: GraphM r a DVec
   
-  -- FIXME rename to litAtom
-  constructLiteralValue :: [VLType] -> [VLVal] -> GraphM r a DBP
-  -- FIXME rename to litTable
-  constructLiteralTable :: [VLType] -> [[VLVal]] -> GraphM r a DBV
-  tableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DBV
+  vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
+  vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
 
   -- FIXME rename to distinct
-  unique :: DBV -> GraphM r a DBV
-  uniqueL :: DBV -> GraphM r a DBV
+  vecUnique :: DVec -> GraphM r a DVec
+  vecUniqueS :: DVec -> GraphM r a DVec
 
-  number :: DBV -> GraphM r a DBV
-  numberL :: DBV -> GraphM r a DBV  
+  vecNumber :: DVec -> GraphM r a DVec
+  vecNumberS :: DVec -> GraphM r a DVec  
 
-  descToRename :: DBV -> GraphM r a RenameVector
-  segment :: DBV -> GraphM r a DBV
-  unsegment :: DBV -> GraphM r a DBV
+  descToRename :: DVec -> GraphM r a RVec
+
+  vecSegment :: DVec -> GraphM r a DVec
+  vecUnsegment :: DVec -> GraphM r a DVec
   
   -- FIXME combine into generic aggregate operator
   -- although: backend implementation can be quite different.
-  vecSum :: VLType -> DBV -> GraphM r a DBP
-  vecSumLift :: DBV -> DBV -> GraphM r a DBV
+  vecSum :: VLType -> DVec -> GraphM r a DVec
+  vecSumS :: DVec -> DVec -> GraphM r a DVec
   -- Avg is unsafe! Empty lists will disappear, as average does not have a
   -- default value (in contrast to sum).
-  vecAvgLift :: DBV -> DBV -> GraphM r a DBV
-  lengthSeg :: DBV -> DBV -> GraphM r a DBV
-  lengthA :: DBV -> GraphM r a DBP
+  vecAvgS :: DVec -> DVec -> GraphM r a DVec
+  vecLengthS :: DVec -> DVec -> GraphM r a DVec
+  vecLength :: DVec -> GraphM r a DVec
   -- Avg is unsafe! Empty lists will disappear, as average does not have a
   -- default value (in contrast to sum).
-  vecAvg :: DBV -> GraphM r a DBP
-  vecMin :: DBV -> GraphM r a DBP
-  vecMinLift :: DBV -> GraphM r a DBV
-  vecMax :: DBV -> GraphM r a DBP
-  vecMaxLift :: DBV -> GraphM r a DBV
+  vecAvg :: DVec -> GraphM r a DVec
+  vecMin :: DVec -> GraphM r a DVec
+  vecMinS :: DVec -> GraphM r a DVec
+  vecMax :: DVec -> GraphM r a DVec
+  vecMaxS :: DVec -> GraphM r a DVec
 
-  selectPos1 :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
-  selectPos1Lift :: DBV -> VecCompOp -> Nat -> GraphM r a (DBV, RenameVector)
+  -- FIXME operator too specialized. should be implemented using number + select
+  selectPos1 :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
+  selectPos1S :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
 
-  -- FIXME this should be a generic cast operator
-  integerToDoubleA :: DBP -> GraphM r a DBP
-  integerToDoubleL :: DBV -> GraphM r a DBV
-
-  reverseA :: DBV -> GraphM r a (DBV, PropVector)
-  reverseL :: DBV -> GraphM r a (DBV, PropVector)
-  falsePositions :: DBV -> GraphM r a DBV
-
-  selectExpr :: Expr1 -> DBV -> GraphM r a DBV
-
-  projectRename :: ISTransProj -> ISTransProj -> DBV -> GraphM r a RenameVector
-
-  vecProject :: [Expr1] -> DBV -> GraphM r a DBV
-  vecProjectA :: [Expr1] -> DBP -> GraphM r a DBP
+  vecReverse :: DVec -> GraphM r a (DVec, PVec)
+  vecReverseS :: DVec -> GraphM r a (DVec, PVec)
   
-  groupByKey :: DBV -> DBV -> GraphM r a (DBV, DBV, PropVector)
+  -- FIXME this operator is too specialized. Could be implemented with NOT, PROJECT
+  -- and some operator that materializes positions.
+  falsePositions :: DVec -> GraphM r a DVec
+
+  vecSelect:: Expr1 -> DVec -> GraphM r a DVec
+
+  projectRename :: ISTransProj -> ISTransProj -> DVec -> GraphM r a RVec
+
+  vecProject :: [Expr1] -> DVec -> GraphM r a DVec
+  
+  vecGroupBy :: DVec -> DVec -> GraphM r a (DVec, DVec, PVec)
 
   -- | The VL aggregation operator groups the input vector by the given columns
   -- and then performs the list of aggregations described by the second
   -- argument. The result is a flat vector, since all groups are reduced via
   -- aggregation.
-  vecAggr :: [DBCol] -> [AggrFun] -> DBV -> GraphM r a DBV
+  vecAggr :: [DBCol] -> [AggrFun] -> DVec -> GraphM r a DVec
 
-  sortWith :: DBV -> DBV -> GraphM r a (DBV, PropVector)
-  distPrim :: DBP -> DBV -> GraphM r a (DBV, PropVector)
-  distDesc :: DBV -> DBV -> GraphM r a (DBV, PropVector)
-  distLift :: DBV -> DBV -> GraphM r a (DBV, PropVector)
+  vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
+  -- FIXME is distprim really necessary? could maybe be replaced by distdesc
+  vecDistPrim :: DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecDistDesc :: DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecDistSeg :: DVec -> DVec -> GraphM r a (DVec, PVec)
+
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
-  propRename :: RenameVector -> DBV -> GraphM r a DBV
+  vecPropRename :: RVec -> DVec -> GraphM r a DVec
   -- | propFilter uses a propagation vector to rename and filter a vector (no reordering).
-  propFilter :: RenameVector -> DBV -> GraphM r a (DBV, RenameVector)
+  vecPropFilter :: RVec -> DVec -> GraphM r a (DVec, RVec)
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
-  propReorder :: PropVector -> DBV -> GraphM r a (DBV, PropVector)
-  append :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
-  restrictVec :: DBV -> DBV -> GraphM r a (DBV, RenameVector)
+  vecPropReorder :: PVec -> DVec -> GraphM r a (DVec, PVec)
+  vecAppend :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
+  vecRestrict :: DVec -> DVec -> GraphM r a (DVec, RVec)
   
-  -- FIXME better name
-  compExpr2 :: Expr2 -> DBP -> DBP -> GraphM r a DBP
-  compExpr2L :: Expr2 -> DBV -> DBV -> GraphM r a DBV
+  vecBinExpr :: Expr2 -> DVec -> DVec -> GraphM r a DVec
 
-  selectPos :: DBV -> VecCompOp -> DBP -> GraphM r a (DBV, RenameVector)
-  selectPosLift :: DBV -> VecCompOp -> DBV -> GraphM r a (DBV, RenameVector)
+  -- FIXME could be implemented using number and select
+  selectPos :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
+  selectPosS :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
 
-  pairA :: DBP -> DBP -> GraphM r a DBP
-  pairL :: DBV -> DBV -> GraphM r a DBV
+  -- FIXME better name: zip
+  vecZip :: DVec -> DVec -> GraphM r a DVec
 
-  zipL :: DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
+  -- FIXME better name: zipSeg
+  vecZipS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
-  cartProduct :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
-  cartProductL :: DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
+  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
 
-  equiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
-  equiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, PropVector, PropVector)
+  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   
-  semiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
-  semiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
+  vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
-  antiJoin :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
-  antiJoinL :: Expr1 -> Expr1 -> DBV -> DBV -> GraphM r a (DBV, RenameVector)
+  vecAntiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecAntiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
-  combineVec :: DBV -> DBV -> DBV -> GraphM r a (DBV, RenameVector, RenameVector)
+  vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
   

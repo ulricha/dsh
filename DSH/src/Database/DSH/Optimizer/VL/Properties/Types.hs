@@ -2,7 +2,6 @@ module Database.DSH.Optimizer.VL.Properties.Types where
 
 import           Text.PrettyPrint
 
-import           Database.Algebra.Dag.Common
 import           Database.Algebra.VL.Data
 import           Database.Algebra.VL.Render.Dot
 
