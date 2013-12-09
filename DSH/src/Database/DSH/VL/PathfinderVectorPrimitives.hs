@@ -591,7 +591,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecProject projs (DVec q _) = do
     let projs' = zipWith (\i e -> (itemi i, expr1 e)) [1 .. length projs] projs
-    qr <- proj projs' q
+    qr <- proj ([cP descr, cP pos] ++ projs') q
     return $ DVec qr [1 .. (length projs)]
     
   vecZipS (DVec q1 cols1) (DVec q2 cols2) = do
