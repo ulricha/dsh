@@ -669,7 +669,7 @@ instance VectorAlgebra PFAlgebra where
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ antiJoinM [(tmpCol, tmpCol', EqJ)]
              (proj (itemProj cols1 [cP descr, cP pos, eP tmpCol (expr1 leftExpr)]) q1)
-             (proj [mP descr' descr, eP tmpCol' (expr1 rightExpr)] q2)
+             (proj [eP tmpCol' (expr1 rightExpr)] q2)
     qj <- tagM "antijoin/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
