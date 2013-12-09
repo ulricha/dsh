@@ -37,6 +37,7 @@ import           Database.DSH.Common.Data.QueryPlan
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
+import           Database.DSH.Optimizer.TA.OptimizeTA
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
@@ -83,6 +84,7 @@ nkl2TAFile prefix e = desugarComprehensions e
                         |> specializeVectorOps
                         |> optimizeVLDefault
                         |> implementVectorOpsPF
+                        |> optimizeTA
                         |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
