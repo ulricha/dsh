@@ -12,6 +12,9 @@ import Database.DSH.Optimizer.Common.Rewrite
 
 import Database.DSH.Optimizer.TA.Rewrite.Basic
 
+import Database.DSH.Optimizer.TA.Properties.TopDown
+import Database.DSH.Optimizer.TA.Properties.BottomUp
+
 {-
 
 rough plan/first goals:
@@ -23,6 +26,8 @@ prune unreferenced rownums: icols prop
 simplify rownums, e.g. key-based: key prop, maybe fd (not sure if necessary)
 
 merge sorting criteria into rownums:  track sorting criteria
+
+remove rownums if concrete values not required: use prop, key prop, ?
 
 -}
 

@@ -82,7 +82,8 @@ Library
                      TableAlgebra >= 2.0.0,
                      semigroups,
                      kure               >= 2.14.0,
-                     ansi-wl-pprint
+                     ansi-wl-pprint,
+                     set-monad
                      
   Hs-source-dirs:    src
   GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults

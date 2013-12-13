@@ -13,12 +13,18 @@ import Database.Algebra.Pathfinder.Data.Algebra
 import Database.DSH.Impossible
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.TA.Rewrite.Common
+import Database.DSH.Optimizer.TA.Properties.Types
 
 cleanup :: TARewrite Bool
-cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules ]
+cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules 
+                                         , applyToAll inferTopDown cleanupRulesTopDown 
+                                         ]
 
 cleanupRules :: TARuleSet ()
 cleanupRules = [ stackedProject ]
+
+cleanupRulesTopDown :: TARuleSet TopDownProps
+cleanupRulesTopDown = [ unreferencedRownum ]
 
 mergeProjections :: [Proj] -> [Proj] -> [Proj]
 mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
@@ -39,4 +45,6 @@ stackedProject q =
            logRewrite "Basic.Merge.Project" q
            void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
            
-         
+unreferencedRownum :: TARule TopDownProps
+unreferencedRownum q = undefined
+ 
