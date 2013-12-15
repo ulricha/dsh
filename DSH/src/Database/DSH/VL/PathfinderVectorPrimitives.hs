@@ -3,6 +3,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
+
+import           GHC.Exts
        
 import           Debug.Trace
 import           Text.Printf
@@ -496,20 +498,34 @@ instance VectorAlgebra PFAlgebra where
           $ projM [colP pos, colP descr, (item, tmpCol)] $ notC tmpCol item q1
     return $ DVec qr [1]
 
-  vecTableRef n cs ks = do
-    table <- dbTable n (renameCols cs) keyItems
-    t' <- attachM descr natT (nat 1) $ rownum pos (head keyItems) Nothing table
-    cs' <- tagM "table" $ proj (colP descr:colP pos:[(itemi i, itemi i) | i <- [1..length cs]]) t'
-    return $ DVec cs' [1..length cs]
+  vecTableRef tableName columns keys = do
+    q <- attachM descr natT (nat 1) 
+         -- generate the pos column
+         $ rownumM pos orderCols Nothing
+         -- map table columns to item columns
+         $ projM (map (colP . itemi) colIndexes)
+         $ dbTable tableName (renameCols columns) (map Key taKeys)
+    return $ DVec q colIndexes
 
     where
+      colIndexes :: [Int]
+      colIndexes = map snd numberedColNames
+
       renameCols :: [VL.TypedColumn] -> [Column]
       renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
 
-      numberedCols = zip cs [1 :: Integer .. ]
-      numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
+      numberedColNames = zipWith (\c i -> (fst c, i)) columns [1..]
 
-      keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
+      taKeys = map (map (\c -> itemi $ fromJust $ lookup c numberedColNames)) keys
+      
+      -- the initial table order is generated as follows:
+      -- * if there are known keys for the table, we take the shortest one, in the hope
+      --   that it will be the primary key. A sorting operation then might be able to
+      --   use a primary key index.
+      -- * without a key, we just take an arbitrary column (here, the first).
+      orderCols = case sortWith length taKeys of
+                      k : _ -> k
+                      []    -> [itemi 1]
 
   vecSort (DVec qs colss) (DVec qe colse) = do
     q <- tagM "sortWith"
