@@ -10,11 +10,7 @@ import           Database.DSH.Impossible
 
 import           Database.Algebra.Pathfinder.Data.Algebra
 
-(∪) :: Ord a => S.Set a -> S.Set a -> S.Set a
-(∪) = S.union
-
-(∩) :: Ord a => S.Set a -> S.Set a -> S.Set a
-(∩) = S.intersection
+import Database.DSH.Optimizer.TA.Properties.Aux
 
 exprCols :: Expr -> S.Set AttrName
 exprCols (BinAppE _ e1 e2) = (exprCols e1) ∪ (exprCols e2)
@@ -83,7 +79,7 @@ inferIColsUnOp ownICols childICols op =
     case op of
         -- Require the sorting columns, if the rownum output is required.
         RowNum (resCol, sortInf, groupCol) -> 
-            if resCol `S.member` ownICols
+            if resCol ∈ ownICols
             then (S.delete resCol ownICols)
                   ∪ (S.fromList $ map fst sortInf) 
                   ∪ maybe S.empty S.singleton groupCol
@@ -91,13 +87,13 @@ inferIColsUnOp ownICols childICols op =
             else (S.delete resCol ownICols) ∪ childICols
     
         RowRank (resCol, sortInf)   ->
-            if resCol `S.member` ownICols
+            if resCol ∈ ownICols
             then (S.delete resCol ownICols)
                   ∪ (S.fromList $ map fst sortInf)
                   ∪ childICols
             else (S.delete resCol ownICols) ∪ childICols
         Rank (resCol, sortInf)      -> 
-            if resCol `S.member` ownICols
+            if resCol ∈ ownICols
             then (S.delete resCol ownICols)
                   ∪ (S.fromList $ map fst sortInf)
                   ∪ childICols
@@ -108,7 +104,7 @@ inferIColsUnOp ownICols childICols op =
         Project projs         -> S.foldr (∪) childICols
                                  [ exprCols e 
                                  | (a, e) <- S.fromList projs
-                                 , a `S.member` ownICols 
+                                 , a ∈ ownICols 
                                  ]
 
         -- Require all columns for the select columns, in addition to columns
