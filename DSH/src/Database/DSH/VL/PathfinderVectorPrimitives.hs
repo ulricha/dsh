@@ -3,6 +3,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
+
+import           GHC.Exts
        
 import           Debug.Trace
 
@@ -405,22 +407,35 @@ instance VectorAlgebra PFAlgebra where
           $ rownum pos' [pos] (Just descr) q1
     return $ DVec qr [1]
 
-  -- FIXME this implementation does not make a lot of sense. Be smarter on the
-  -- sorting criteria for initial positions.
-  vecTableRef n cs ks = do
-    cs' <- projM (itemProj [1..length cs] [eP descr (ConstE (nat 1)), cP pos] )
-           $ rownumM pos (head keyItems) Nothing 
-           $ dbTable n (renameCols cs) keyItems 
-    return $ DVec cs' [1..length cs]
+  vecTableRef tableName columns keys = do
+    q <- -- generate the pos column
+         rownumM pos orderCols Nothing
+         -- map table columns to item columns, add constant descriptor
+         $ projM (eP descr (ConstE (nat 1)) : [ mP c (itemi i) | (c, i) <- numberedColNames ])
+         $ dbTable tableName taColumns (map Key keys)
+    return $ DVec q (map snd numberedColNames)
 
     where
-      renameCols :: [VL.TypedColumn] -> [Column]
-      renameCols xs = [NCol cn [Col i $ algTy t] | ((cn, t), i) <- zip xs [1..]]
+      numberedColNames = zipWith (\c i -> (fst c, i)) columns [1..]
+      
+      taColumns = [ (c, algTy t) | (c, t) <- columns ]
 
-      numberedCols = zip cs [1 :: Integer .. ]
-      numberedColNames = map (\(c, i) -> (fst c, i)) numberedCols
-
-      keyItems = map (map (\c -> "item" ++ (show $ fromJust $ lookup c numberedColNames))) ks
+      taKeys = map (\k -> [ itemi $ colIndex c | c <- k ]) keys
+      
+      colIndex :: AttrName -> Int
+      colIndex n =
+          case lookup n numberedColNames of
+              Just i  -> i
+              Nothing -> $impossible
+      
+      -- the initial table order is generated as follows:
+      -- * if there are known keys for the table, we take the shortest one, in the hope
+      --   that it will be the primary key. A sorting operation then might be able to
+      --   use a primary key index.
+      -- * without a key, we just take an arbitrary column (here, the first).
+      orderCols = case sortWith length taKeys of
+                      k : _ -> k
+                      []    -> [itemi 1]
 
   vecSort (DVec qs colss) (DVec qe colse) = do
     q <- tagM "sortWith"
