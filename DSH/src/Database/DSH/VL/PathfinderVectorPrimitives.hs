@@ -411,7 +411,7 @@ instance VectorAlgebra PFAlgebra where
     q <- -- generate the pos column
          rownumM pos orderCols Nothing
          -- map table columns to item columns, add constant descriptor
-         $ projM (eP descr (ConstE (nat 1)) : [ mP c (itemi i) | (c, i) <- numberedColNames ])
+         $ projM (eP descr (ConstE (nat 1)) : [ mP (itemi i) c | (c, i) <- numberedColNames ])
          $ dbTable tableName taColumns (map Key keys)
     return $ DVec q (map snd numberedColNames)
 
