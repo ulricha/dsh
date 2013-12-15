@@ -420,7 +420,13 @@ instance VectorAlgebra PFAlgebra where
       
       taColumns = [ (c, algTy t) | (c, t) <- columns ]
 
-      taKeys = map (map (\c -> itemi $ fromJust $ lookup c numberedColNames)) keys
+      taKeys = map (\k -> [ itemi $ colIndex c | c <- k ]) keys
+      
+      colIndex :: AttrName -> Int
+      colIndex n =
+          case lookup n numberedColNames of
+              Just i  -> i
+              Nothing -> $impossible
       
       -- the initial table order is generated as follows:
       -- * if there are known keys for the table, we take the shortest one, in the hope
