@@ -4,8 +4,10 @@ module Database.DSH.Optimizer.TA.Rewrite.Basic where
        
 import Debug.Trace
        
+import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import qualified Data.Set.Monad as S
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Pathfinder.Data.Algebra
@@ -41,10 +43,20 @@ stackedProject q =
   $(pattern 'q "Project ps1 (Project ps2 (qi))"
     [| do
          return $ do
-           let ps = trace ("at " ++ show q) $ mergeProjections $(v "ps1") $(v "ps2")
-           logRewrite "Basic.Merge.Project" q
+           let ps = mergeProjections $(v "ps1") $(v "ps2")
+           logRewrite "Basic.Project.Merge" q
            void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
            
 unreferencedRownum :: TARule TopDownProps
-unreferencedRownum q = undefined
+unreferencedRownum q = 
+  $(pattern 'q "RowNum args (q1)"
+    [| do
+         (res, _, _) <- return $(v "args")
+         neededCols  <- icolsProp <$> properties q
+         trace (show neededCols) $ return ()
+         predicate $ not (res `S.member` neededCols)
+         
+         return $ do
+           logRewrite "Basic.Rownum.Prune" q
+           replace q $(v "q1") |])
  

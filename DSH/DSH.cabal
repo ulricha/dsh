@@ -163,6 +163,11 @@ Library
                      Database.DSH.Optimizer.VL.Properties.Types
                      Database.DSH.Optimizer.VL.Properties.VectorType
 
+                     Database.DSH.Optimizer.TA.Properties.BottomUp
+                     Database.DSH.Optimizer.TA.Properties.TopDown
+                     Database.DSH.Optimizer.TA.Properties.Types
+                     Database.DSH.Optimizer.TA.Properties.Cols
+                     Database.DSH.Optimizer.TA.Properties.ICols
                      Database.DSH.Optimizer.TA.Rewrite.Basic
                      Database.DSH.Optimizer.TA.Rewrite.Common
                      Database.DSH.Optimizer.TA.OptimizeTA

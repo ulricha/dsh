@@ -89,6 +89,6 @@ seedTopNodes dag buPropMap tdPropMap = foldr seed tdPropMap (rootNodes dag)
 -- | Infer properties during a top-down traversal.
 inferTopDownProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag PFAlgebra -> NodeMap TopDownProps
 inferTopDownProperties buPropMap topOrderedNodes d = let m = execState action initialMap 
-                                                     in trace (show buPropMap) $ trace (show m) m
+                                                     in {- trace (show buPropMap) $ trace (show m) -} m
     where action = mapM_ (inferChildProperties buPropMap d) topOrderedNodes
           initialMap = seedTopNodes d buPropMap $ M.map (const seed) $ nodeMap d

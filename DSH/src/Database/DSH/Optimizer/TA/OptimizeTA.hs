@@ -1,19 +1,21 @@
 module Database.DSH.Optimizer.TA.OptimizeTA where
 
+import           Debug.Trace
+
 import qualified Data.IntMap as M
 
 import qualified Database.Algebra.Dag                                             as Dag
 
-import Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Pathfinder.Data.Algebra
 
-import Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.Data.QueryPlan
 
-import Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.Common.Rewrite
 
-import Database.DSH.Optimizer.TA.Rewrite.Basic
+import           Database.DSH.Optimizer.TA.Rewrite.Basic
 
-import Database.DSH.Optimizer.TA.Properties.TopDown
-import Database.DSH.Optimizer.TA.Properties.BottomUp
+import           Database.DSH.Optimizer.TA.Properties.TopDown
+import           Database.DSH.Optimizer.TA.Properties.BottomUp
 
 {-
 
@@ -33,8 +35,8 @@ remove rownums if concrete values not required: use prop, key prop, ?
 
 type RewriteClass = Rewrite PFAlgebra TopShape Bool
 
-pipeline :: [RewriteClass]
-pipeline = [cleanup]
+defaultPipeline :: [RewriteClass]
+defaultPipeline = [cleanup]
 
 runPipeline :: Dag.AlgebraDag PFAlgebra 
             -> TopShape 
@@ -46,5 +48,5 @@ runPipeline d sh pipeline debug = (d', rewriteLog, sh')
 
 optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
 optimizeTA plan =
-  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
+  let (d, log, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
