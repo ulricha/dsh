@@ -18,10 +18,11 @@ import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
 import           Database.DSH.Optimizer.TA.Properties.ICols
+import           Database.DSH.Optimizer.TA.Properties.Use
 
 
 seed :: TopDownProps
-seed = TDProps { icolsProp = S.empty }
+seed = TDProps { pICols = S.empty }
 
 type InferenceState = NodeMap TopDownProps
 
@@ -37,7 +38,8 @@ replaceProps n p = modify (M.insert n p)
 
 inferUnOp :: TopDownProps -> TopDownProps -> UnOp -> TopDownProps
 inferUnOp ownProps cp op =
-    TDProps { icolsProp = inferIColsUnOp (icolsProp ownProps) (icolsProp cp) op }
+    TDProps { pICols = inferIColsUnOp (pICols ownProps) (pICols cp) op 
+            , pUse   = inferUseUnOp (pUse ownProps) (pUse cp) op }
 
 inferBinOp :: BottomUpProps 
            -> BottomUpProps
@@ -47,14 +49,20 @@ inferBinOp :: BottomUpProps
            -> BinOp 
            -> (TopDownProps, TopDownProps)
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op =
-  let (crc1', crc2') = inferIColsBinOp (icolsProp ownProps) 
-                                       (icolsProp cp1) 
-                                       (colsProp childBUProps1)
-                                       (icolsProp cp2)
-                                       (colsProp childBUProps2)
+  let (crc1', crc2') = inferIColsBinOp (pICols ownProps) 
+                                       (pICols cp1) 
+                                       (pCols childBUProps1)
+                                       (pICols cp2)
+                                       (pCols childBUProps2)
                                        op
-      cp1' = TDProps { icolsProp = crc1' }
-      cp2' = TDProps { icolsProp = crc2' }
+      (urc1', urc2') = inferUseBinOp (pUse ownProps)
+                                     (pUse cp1)
+                                     (pUse cp2)
+                                     (pCols childBUProps1)
+                                     (pCols childBUProps2)
+                                     op
+      cp1' = TDProps { pICols = crc1', pUse = urc1' }
+      cp2' = TDProps { pICols = crc2', pUse = urc2' }
   in (cp1', cp2')
 
 inferChildProperties :: NodeMap BottomUpProps -> AlgebraDag PFAlgebra -> AlgNode -> State InferenceState ()
@@ -82,7 +90,7 @@ seedTopNodes dag buPropMap tdPropMap = foldr seed tdPropMap (rootNodes dag)
     seed :: AlgNode -> NodeMap TopDownProps -> NodeMap TopDownProps
     seed n propMap = 
         case M.lookup n buPropMap of
-            Just buProps -> M.insert n (TDProps { icolsProp = colsProp buProps }) propMap
+            Just buProps -> M.insert n (TDProps { pICols = pCols buProps }) propMap
             Nothing      -> $impossible
 
 

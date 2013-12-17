@@ -52,7 +52,7 @@ unreferencedRownum q =
   $(pattern 'q "RowNum args (q1)"
     [| do
          (res, _, _) <- return $(v "args")
-         neededCols  <- icolsProp <$> properties q
+         neededCols  <- pICols <$> properties q
          trace (show neededCols) $ return ()
          predicate $ not (res `S.member` neededCols)
          

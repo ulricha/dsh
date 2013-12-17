@@ -41,34 +41,34 @@ inferNullOp op = do
       opKeys = inferKeysNullOp op
       opEmpty = inferEmptyNullOp op
       opCard1 = inferCard1NullOp op
-  return $ BUProps { colsProp = opCols 
-                   , keysProp = opKeys
-                   , emptyProp = opEmpty
-                   , card1Prop = opCard1
+  return $ BUProps { pCols = opCols 
+                   , pKeys = opKeys
+                   , pEmpty = opEmpty
+                   , pCard1 = opCard1
                    }
 
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
-  let opCols = inferColsUnOp (colsProp cProps) op
-      opKeys = inferKeysUnOp (keysProp cProps) (card1Prop cProps) (colsProp cProps) op
-      opEmpty = inferEmptyUnOp (emptyProp cProps) op
-      opCard1 = inferCard1UnOp (card1Prop cProps) (emptyProp cProps) op
-  return $ BUProps { colsProp = opCols 
-                   , keysProp = opKeys
-                   , emptyProp = opEmpty
-                   , card1Prop = opCard1
+  let opCols = inferColsUnOp (pCols cProps) op
+      opKeys = inferKeysUnOp (pKeys cProps) (pCard1 cProps) (pCols cProps) op
+      opEmpty = inferEmptyUnOp (pEmpty cProps) op
+      opCard1 = inferCard1UnOp (pCard1 cProps) (pEmpty cProps) op
+  return $ BUProps { pCols = opCols 
+                   , pKeys = opKeys
+                   , pEmpty = opEmpty
+                   , pCard1 = opCard1
                    }
 
 inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
-  let opCols = inferColsBinOp (colsProp c1Props) (colsProp c2Props) op
-      opKeys = inferKeysBinOp (keysProp c1Props) (keysProp c2Props) (card1Prop c1Props) (card1Prop c2Props) op
-      opEmpty = inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
-      opCard1 = inferCard1BinOp (card1Prop c1Props) (card1Prop c2Props) op
-  return $ BUProps { colsProp = opCols 
-                   , keysProp = opKeys
-                   , emptyProp = opEmpty
-                   , card1Prop = opCard1
+  let opCols = inferColsBinOp (pCols c1Props) (pCols c2Props) op
+      opKeys = inferKeysBinOp (pKeys c1Props) (pKeys c2Props) (pCard1 c1Props) (pCard1 c2Props) op
+      opEmpty = inferEmptyBinOp (pEmpty c1Props) (pEmpty c2Props) op
+      opCard1 = inferCard1BinOp (pCard1 c1Props) (pCard1 c2Props) op
+  return $ BUProps { pCols = opCols 
+                   , pKeys = opKeys
+                   , pEmpty = opEmpty
+                   , pCard1 = opCard1
                    }
 
 inferBottomUpProperties :: AlgebraDag PFAlgebra -> NodeMap BottomUpProps

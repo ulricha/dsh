@@ -4,10 +4,12 @@ import qualified Data.Set.Monad as S
 
 import Database.Algebra.Pathfinder.Data.Algebra
 
-data TopDownProps = TDProps { icolsProp :: S.Set AttrName }
+data TopDownProps = TDProps { pICols :: S.Set AttrName 
+                            , pUse   :: S.Set AttrName
+                            }
 
 instance Show TopDownProps where
-    show ps = show $ S.toList (icolsProp ps)
+    show ps = show $ S.toList (pICols ps)
 
 -- FIXME: unite with Database.Algebra.Pathfinder....Data.Algebra.Key
 type PKey = S.Set AttrName
@@ -16,8 +18,8 @@ type PKey = S.Set AttrName
 type Card1 = Bool
 type Empty = Bool
 
-data BottomUpProps = BUProps { colsProp  :: S.Set AttrName 
-     		     	     , keysProp  :: S.Set PKey
-                             , card1Prop :: Card1
-                             , emptyProp :: Empty
+data BottomUpProps = BUProps { pCols  :: S.Set AttrName 
+     		     	     , pKeys  :: S.Set PKey
+                             , pCard1 :: Card1
+                             , pEmpty :: Empty
      		     	     } deriving (Show)

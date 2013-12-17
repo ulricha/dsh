@@ -15,12 +15,6 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
 
-sk :: AttrName -> PKey
-sk = S.singleton
-
-lk :: [AttrName] -> PKey
-lk = S.fromList
-
 mapCol :: Proj -> S.Set (AttrName, AttrName)
 mapCol (a, ColE b) = S.singleton (a, b)
 mapCol _           = S.empty
@@ -32,12 +26,12 @@ rowRankKeys resCol sortCols childCard1 childKeys =
     childKeys
     ∪
     -- Trivial case: singleton input
-    [ sk resCol | childCard1 ]
+    [ ss resCol | childCard1 ]
     ∪
     -- If sorting columns form a part of a key, the output column
     -- combined with the key columns that are not sorting columns also
     -- is a key.
-    [ (sk resCol) ∪ (k ∖ sortCols)
+    [ (ss resCol) ∪ (k ∖ sortCols)
     | k <- childKeys
     , k ∩ sortCols /= S.empty
     ]
@@ -47,27 +41,27 @@ inferKeysNullOp op =
     case op of
         -- FIXME check all combinations of columns for uniqueness
         LitTable vals schema  -> S.fromList
-                                 $ map (sk . snd) 
+                                 $ map (ss . snd) 
                                  $ filter (isUnique . fst)
                                  $ zip (transpose vals) (map fst schema)
           where
             isUnique :: [AVal] -> Bool
-            isUnique vals = (length $ nub vals) == (length vals)
+            isUnique vs = (length $ nub vs) == (length vs)
 
         EmptyTable _          -> S.empty
-        TableRef (_, _, keys) -> S.fromList $ map (\(Key k) -> lk k) keys
+        TableRef (_, _, keys) -> S.fromList $ map (\(Key k) -> ls k) keys
 
 inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set AttrName -> UnOp -> S.Set PKey
 inferKeysUnOp childKeys childCard1 childCols op =
     case op of
-        RowNum (resCol, _, Nothing)    -> S.insert (sk resCol) childKeys
-        RowNum (resCol, _, Just pattr) -> (S.singleton $ lk [resCol, pattr])
+        RowNum (resCol, _, Nothing)    -> S.insert (ss resCol) childKeys
+        RowNum (resCol, _, Just pattr) -> (S.singleton $ ls [resCol, pattr])
                                           ∪
-                                          [ sk resCol | childCard1 ]
+                                          [ ss resCol | childCard1 ]
                                           ∪
                                           childKeys
-        RowRank (resCol, sortInfo)     -> rowRankKeys resCol (lk $ map fst sortInfo) childCard1 childKeys
-        Rank (resCol, sortInfo)        -> rowRankKeys resCol (lk $ map fst sortInfo) childCard1 childKeys
+        RowRank (resCol, sortInfo)     -> rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
+        Rank (resCol, sortInfo)        -> rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
 
         -- This is just the standard Pathfinder way: we take all keys
         -- whose columns survive the projection and update to the new
@@ -81,7 +75,7 @@ inferKeysUnOp childKeys childCard1 childCols op =
 
         Select _                -> childKeys
         Distinct _              -> S.insert childCols childKeys 
-        Aggr (_, Just gcol)     -> S.singleton $ sk gcol
+        Aggr (_, Just gcol)     -> S.singleton $ ss gcol
         Aggr (_, Nothing)       -> S.empty
         PosSel _                -> $impossible
 
@@ -97,18 +91,18 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
                          ∪
                          [ k | k <- rightKeys, leftCard1 ]
                          ∪
-                         [ k | k <- leftKeys, (sk b) ∈ rightKeys ]
+                         [ k | k <- leftKeys, (ss b) ∈ rightKeys ]
                          ∪
-                         [ k | k <- rightKeys, (sk a) ∈ leftKeys ]
+                         [ k | k <- rightKeys, (ss a) ∈ leftKeys ]
                          ∪
-                         [ ( k1 ∖ (sk a)) ∪ k2
-                         | (sk b) ∈ rightKeys
+                         [ ( k1 ∖ (ss a)) ∪ k2
+                         | (ss b) ∈ rightKeys
                          , k1 <- leftKeys
                          , k2 <- rightKeys
                          ]
                          ∪
-                         [ k1 ∪ (k2 ∖ (sk b))
-                         | (sk a) ∈ leftKeys
+                         [ k1 ∪ (k2 ∖ (ss b))
+                         | (ss a) ∈ leftKeys
                          , k1 <- leftKeys
                          , k2 <- rightKeys
                          ]
@@ -122,13 +116,13 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
                            [ k 
                            | k <- leftKeys
                            , (_, b, EqJ) <- S.fromList preds
-                           , (sk b) ∈ rightKeys
+                           , (ss b) ∈ rightKeys
                            ]
                            ∪
                            [ k 
                            | k <- rightKeys
                            , (a, _, EqJ) <- S.fromList preds
-                           , (sk a) ∈ leftKeys
+                           , (ss a) ∈ leftKeys
                            ]
                            ∪
                            [ k1 ∪ k2 | k1 <- leftKeys, k2 <- rightKeys ]
