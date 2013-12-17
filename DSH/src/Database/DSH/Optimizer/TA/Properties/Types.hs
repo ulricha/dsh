@@ -23,3 +23,5 @@ data BottomUpProps = BUProps { pCols  :: S.Set AttrName
                              , pCard1 :: Card1
                              , pEmpty :: Empty
      		     	     } deriving (Show)
+
+data AllProps = AllProps { bu :: BottomUpProps, td :: TopDownProps } deriving (Show)

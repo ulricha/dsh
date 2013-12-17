@@ -25,11 +25,11 @@ inferBottomUp = do
   props <- infer inferBottomUpProperties
   return props
 
-inferTopDown :: TARewrite (NodeMap TopDownProps)
-inferTopDown = do
+inferAll :: TARewrite (NodeMap AllProps)
+inferAll = do
   to <- topsort
   buPropMap <- infer inferBottomUpProperties
-  props <- infer (inferTopDownProperties buPropMap to)
+  props <- infer (inferAllProperties buPropMap to)
   return props
 
 noProps :: Monad m => m (M.IntMap a)

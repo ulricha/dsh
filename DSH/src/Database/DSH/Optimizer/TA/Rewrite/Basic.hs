@@ -19,13 +19,13 @@ import Database.DSH.Optimizer.TA.Properties.Types
 
 cleanup :: TARewrite Bool
 cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules 
-                                         , applyToAll inferTopDown cleanupRulesTopDown 
+                                         , applyToAll inferAll cleanupRulesTopDown 
                                          ]
 
 cleanupRules :: TARuleSet ()
 cleanupRules = [ stackedProject ]
 
-cleanupRulesTopDown :: TARuleSet TopDownProps
+cleanupRulesTopDown :: TARuleSet AllProps
 cleanupRulesTopDown = [ unreferencedRownum ]
 
 mergeProjections :: [Proj] -> [Proj] -> [Proj]
@@ -47,16 +47,25 @@ stackedProject q =
            logRewrite "Basic.Project.Merge" q
            void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
            
-unreferencedRownum :: TARule TopDownProps
+unreferencedRownum :: TARule AllProps
 unreferencedRownum q = 
   $(pattern 'q "RowNum args (q1)"
     [| do
          (res, _, _) <- return $(v "args")
-         neededCols  <- pICols <$> properties q
+         neededCols  <- pICols <$> td <$> properties q
          trace (show neededCols) $ return ()
          predicate $ not (res `S.member` neededCols)
          
          return $ do
            logRewrite "Basic.Rownum.Prune" q
            replace q $(v "q1") |])
+
+{-
+postFilterRownum :: TARule AllProps
+postFilterRownum q =
+  $(pattern 'q "RowNum args (q1)"
+    [| do
+        (res, [(sort, _)], _) <- return $(v "args")
+        useCols <- pICols <$> properties q
  
+-}

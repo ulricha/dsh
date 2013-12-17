@@ -6,6 +6,7 @@ import           Debug.Trace
 
 import           Control.Monad.State
 
+import Data.List
 import qualified Data.IntMap as M
 import qualified Data.Set.Monad as S
 
@@ -22,7 +23,7 @@ import           Database.DSH.Optimizer.TA.Properties.Use
 
 
 seed :: TopDownProps
-seed = TDProps { pICols = S.empty }
+seed = TDProps { pICols = S.empty, pUse = S.empty }
 
 type InferenceState = NodeMap TopDownProps
 
@@ -85,18 +86,48 @@ inferChildProperties buPropMap d n = do
         TerOp op c1 c2 c3 -> $impossible
         
 seedTopNodes :: AlgebraDag PFAlgebra -> NodeMap BottomUpProps -> NodeMap TopDownProps -> NodeMap TopDownProps
-seedTopNodes dag buPropMap tdPropMap = foldr seed tdPropMap (rootNodes dag)
+seedTopNodes dag buPropMap tdPropMap = foldr seedNodes tdPropMap (rootNodes dag)
   where
-    seed :: AlgNode -> NodeMap TopDownProps -> NodeMap TopDownProps
-    seed n propMap = 
+    seedNodes :: AlgNode -> NodeMap TopDownProps -> NodeMap TopDownProps
+    seedNodes n propMap = 
         case M.lookup n buPropMap of
-            Just buProps -> M.insert n (TDProps { pICols = pCols buProps }) propMap
+            Just buProps -> let seedProps = TDProps { pICols = pCols buProps 
+                            -- FIXME seeding Use with all columns
+                            -- might be too much.  E.g. for flat
+                            -- results, descriptor values are
+                            -- certainly not needed. Maybe we should re-introduce
+                            -- sth equiv. to the SERIALIZEREL operator.
+                                                    , pUse   = pCols buProps
+                                                    }
+                            in M.insert n seedProps propMap
             Nothing      -> $impossible
 
 
 -- | Infer properties during a top-down traversal.
-inferTopDownProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag PFAlgebra -> NodeMap TopDownProps
-inferTopDownProperties buPropMap topOrderedNodes d = let m = execState action initialMap 
-                                                     in {- trace (show buPropMap) $ trace (show m) -} m
-    where action = mapM_ (inferChildProperties buPropMap d) topOrderedNodes
-          initialMap = seedTopNodes d buPropMap $ M.map (const seed) $ nodeMap d
+inferAllProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag PFAlgebra -> NodeMap AllProps
+inferAllProperties buPropMap topOrderedNodes d = let tdPropMap = execState action initialMap  
+                                                 in case mergeProps buPropMap tdPropMap of
+                                                        Just ps -> ps
+                                                        Nothing -> $impossible
+  where 
+    action = mapM_ (inferChildProperties buPropMap d) topOrderedNodes
+
+    initialMap = seedTopNodes d buPropMap $ M.map (const seed) $ nodeMap d
+
+    mergeProps :: NodeMap BottomUpProps -> NodeMap TopDownProps -> Maybe (NodeMap AllProps)
+    mergeProps bum tdm = do
+        let keys1 = M.keys bum
+            keys2 = M.keys tdm
+            keys  = keys1 `intersect` keys2
+        guard $ length keys == length keys1 && length keys == length keys2
+        
+        let merge :: AlgNode -> Maybe (AlgNode, AllProps)
+            merge n = do
+                bup <- M.lookup n bum
+                tdp <- M.lookup n tdm
+                return (n, AllProps { td = tdp, bu = bup })
+
+        merged <- mapM merge keys
+        return $ M.fromList merged
+        
+            
