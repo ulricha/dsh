@@ -14,7 +14,7 @@ inferColsNullOp op =
     case op of
         LitTable _ schema      -> S.fromList $ map fst schema
         EmptyTable schema      -> S.fromList $ map fst schema
-        TableRef (_, attrs, _) -> S.fromList $ map (\(_, c, _) -> c) attrs
+        TableRef (_, attrs, _) -> S.fromList $ map fst attrs
 
 inferColsUnOp :: S.Set AttrName -> UnOp -> S.Set AttrName
 inferColsUnOp childCols op =

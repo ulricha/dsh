@@ -13,6 +13,8 @@ import Database.DSH.Optimizer.Common.Rewrite
 
 import Database.DSH.Optimizer.TA.Properties.Types
 import Database.DSH.Optimizer.TA.Properties.Cols
+import Database.DSH.Optimizer.TA.Properties.Keys
+import Database.DSH.Optimizer.TA.Properties.Card1
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: PFAlgebra -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
@@ -34,7 +36,10 @@ inferWorker op n pm =
 inferNullOp :: NullOp -> Either String BottomUpProps
 inferNullOp op = do
   let opCols = inferColsNullOp op
-  return $ BUProps { colsProp = opCols }
+      opKeys = inferKeysNullOp op
+  return $ BUProps { colsProp = opCols 
+                   , keysProp = opKeys
+                   }
 
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
