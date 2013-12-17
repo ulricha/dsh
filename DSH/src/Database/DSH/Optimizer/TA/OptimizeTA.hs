@@ -14,9 +14,6 @@ import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.TA.Rewrite.Basic
 
-import           Database.DSH.Optimizer.TA.Properties.TopDown
-import           Database.DSH.Optimizer.TA.Properties.BottomUp
-
 {-
 
 rough plan/first goals:
@@ -48,5 +45,5 @@ runPipeline d sh pipeline debug = (d', rewriteLog, sh')
 
 optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
 optimizeTA plan =
-  let (d, log, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
+  let (d, rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }

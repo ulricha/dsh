@@ -1,4 +1,5 @@
--- FIXME once 7.8 is out, use overloaded list notation for sets!
+-- FIXME once 7.8 is out, use overloaded list notation for sets
+-- instead of S.fromList!
 {-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE TemplateHaskell     #-}
 

@@ -36,7 +36,7 @@ mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
     inline (BinAppE op e1 e2) = BinAppE op (inline e1) (inline e2)
     inline (UnAppE op e)      = UnAppE op (inline e)
     inline (ColE c)           = fromMaybe $impossible (lookup c proj2)
-    inline (ConstE v)         = ConstE v 
+    inline (ConstE val)       = ConstE val
 
 stackedProject :: TARule ()
 stackedProject q =

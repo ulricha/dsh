@@ -17,8 +17,8 @@ inferEmptyNullOp op =
         EmptyTable _       -> True
         TableRef (_, _, _) -> False
 
-inferEmptyUnOp :: Empty -> Empty -> UnOp -> Empty
-inferEmptyUnOp childEmpty childEmpty op =
+inferEmptyUnOp :: Empty -> UnOp -> Empty
+inferEmptyUnOp childEmpty op =
     case op of
         RowNum (resCol, _, _)   -> childEmpty
         RowRank (resCol, _)     -> childEmpty
