@@ -14,10 +14,26 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
+                 
+
+subsetsOfSize :: Ord a => Int -> S.Set a -> S.Set (S.Set a)
+subsetsOfSize n s
+    | n == 0                    = S.singleton S.empty
+    | S.size s < n || n < 0   = error "onlyLists: out of range n"
+    | S.size s == n           = S.singleton s
+    | otherwise                 = S.fromDistinctAscList . map S.fromDistinctAscList $
+                                                         go n (S.size s) (S.toList s)
+      where
+        go 1 _ xs = map return xs
+        go k l (x:xs)
+            | k == l = [x:xs]
+            | otherwise = map (x:) (go (k-1) (l-1) xs) ++ go k (l-1) xs
 
 mapCol :: Proj -> S.Set (AttrName, AttrName)
 mapCol (a, ColE b) = S.singleton (a, b)
 mapCol _           = S.empty
+
+-- | Enumerate all subsets of size n
 
 -- | Compute keys for rank and rowrank operators
 rowRankKeys :: AttrName -> S.Set AttrName -> Card1 -> S.Set PKey -> S.Set PKey
@@ -67,7 +83,14 @@ inferKeysUnOp childKeys childCard1 childCols op =
         -- whose columns survive the projection and update to the new
         -- attr names. We could consider all expressions, but need to
         -- be careful here as not all operators might be injective.
-        Project projs           -> [ [ a | (a, b) <- attrPairs , b ∈ k ]
+        Project projs           -> -- all sets A of a's s.t. |A| = |k| and 
+                                   -- associated bs = k
+                                   S.foldr S.union S.empty
+                                   [ [ as
+                                     | as <- subsetsOfSize (S.size k) (S.map fst attrPairs)
+                                     , let bs = [ b | (a, b) <- attrPairs, a ∈ as ]
+                                     , bs == k
+                                     ]
                                    | k <- childKeys
                                    , let attrPairs = S.unions $ map mapCol projs
                                    , k ⊆ [ snd x | x <- attrPairs ]
