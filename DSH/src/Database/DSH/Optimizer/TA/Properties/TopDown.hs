@@ -52,15 +52,15 @@ inferBinOp :: BottomUpProps
 inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op =
   let (crc1', crc2') = inferIColsBinOp (pICols ownProps) 
                                        (pICols cp1) 
-                                       (pCols childBUProps1)
+                                       (S.map fst $ pCols childBUProps1)
                                        (pICols cp2)
-                                       (pCols childBUProps2)
+                                       (S.map fst $ pCols childBUProps2)
                                        op
       (urc1', urc2') = inferUseBinOp (pUse ownProps)
                                      (pUse cp1)
                                      (pUse cp2)
-                                     (pCols childBUProps1)
-                                     (pCols childBUProps2)
+                                     (S.map fst $ pCols childBUProps1)
+                                     (S.map fst $ pCols childBUProps2)
                                      op
       cp1' = TDProps { pICols = crc1', pUse = urc1' }
       cp2' = TDProps { pICols = crc2', pUse = urc2' }
@@ -91,13 +91,13 @@ seedTopNodes dag buPropMap tdPropMap = foldr seedNodes tdPropMap (rootNodes dag)
     seedNodes :: AlgNode -> NodeMap TopDownProps -> NodeMap TopDownProps
     seedNodes n propMap = 
         case M.lookup n buPropMap of
-            Just buProps -> let seedProps = TDProps { pICols = pCols buProps 
+            Just buProps -> let seedProps = TDProps { pICols = S.map fst $ pCols buProps 
                             -- FIXME seeding Use with all columns
                             -- might be too much.  E.g. for flat
                             -- results, descriptor values are
                             -- certainly not needed. Maybe we should re-introduce
                             -- sth equiv. to the SERIALIZEREL operator.
-                                                    , pUse   = pCols buProps
+                                                    , pUse   = S.map fst $ pCols buProps
                                                     }
                             in M.insert n seedProps propMap
             Nothing      -> $impossible

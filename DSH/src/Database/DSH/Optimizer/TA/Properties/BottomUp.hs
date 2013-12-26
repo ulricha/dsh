@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.TA.Properties.BottomUp where
 
+import qualified Data.Set.Monad as S
+
 import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
 import Database.Algebra.Pathfinder.Data.Algebra
@@ -50,7 +52,7 @@ inferNullOp op = do
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
   let opCols = inferColsUnOp (pCols cProps) op
-      opKeys = inferKeysUnOp (pKeys cProps) (pCard1 cProps) (pCols cProps) op
+      opKeys = inferKeysUnOp (pKeys cProps) (pCard1 cProps) (S.map fst $ pCols cProps) op
       opEmpty = inferEmptyUnOp (pEmpty cProps) op
       opCard1 = inferCard1UnOp (pCard1 cProps) (pEmpty cProps) op
   return $ BUProps { pCols = opCols 
