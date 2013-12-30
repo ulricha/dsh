@@ -18,6 +18,7 @@ module Database.DSH.Compiler
   ) where
 
 import           GHC.Exts
+import           Text.Printf
                  
 import           Database.DSH.CompileFlattening
 import           Database.DSH.ExecuteFlattening
@@ -164,50 +165,58 @@ dumpVLMem f c (Q q) = do
 -- | Retrieve through the given database connection information on the table (columns with their types)
 -- which name is given as the second argument.
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
-getTableInfo c n = do
-                 info <- H.describeTable c n
-                 return $ toTableDescr info
+getTableInfo conn tableName = do
+    info <- H.describeTable conn tableName
+    return $ toTableDescr info
 
-     where
-       toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
-       toTableDescr = L.sortBy (\(n1, _) (n2, _) -> compare n1 n2) . map (\(name, props) -> (name, compatibleType (colType props)))
-       compatibleType :: SqlTypeId -> T.Type -> Bool
-       compatibleType dbT hsT = case hsT of
-                                     T.UnitT -> True
-                                     T.BoolT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-                                     T.StringT -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
-                                     T.IntT -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-                                     T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
-                                     t       -> error $ "You can't store this kind of data in a table... " ++ show t ++ " " ++ show n
+  where
+    toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
+    toTableDescr cols = L.sortBy byName 
+                        $ map (\(name, props) -> (name, compatibleType $ colType props)) cols
+
+    byName :: (String, T.Type -> Bool) -> (String, T.Type -> Bool) -> Ordering
+    byName (n1, _) (n2, _) = compare n1 n2
+
+    compatibleType :: SqlTypeId -> T.Type -> Bool
+    compatibleType dbT hsT = 
+        case hsT of
+            T.UnitT   -> True
+            T.BoolT   -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
+            T.StringT -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
+            T.IntT    -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
+            T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
+            t         -> error $ printf "Unsupported column type %s for table %s" (show t) (show tableName)
 
 getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
 getX100TableInfo c n = do
-                         t <- X.describeTable' c n
-                         return [ col2Val col | col <- sortWith colName $ columns t]
-        where
-            col2Val :: ColumnInfo -> (String, T.Type -> Bool)
-            col2Val col = (colName col, \t -> case logicalType col of
-                                                LBool       -> t == T.BoolT || t == T.UnitT
-                                                LInt1       -> t == T.IntT  || t == T.UnitT
-                                                LUInt1      -> t == T.IntT  || t == T.UnitT
-                                                LInt2       -> t == T.IntT  || t == T.UnitT
-                                                LUInt2      -> t == T.IntT  || t == T.UnitT
-                                                LInt4       -> t == T.IntT  || t == T.UnitT
-                                                LUInt4      -> t == T.IntT  || t == T.UnitT
-                                                LInt8       -> t == T.IntT  || t == T.UnitT
-                                                LUInt8      -> t == T.IntT  || t == T.UnitT
-                                                LInt16      -> t == T.IntT  || t == T.UnitT
-                                                LUIDX       -> t == T.NatT  || t == T.UnitT
-                                                LDec        -> t == T.DoubleT
-                                                LFlt4       -> t == T.DoubleT
-                                                LFlt8       -> t == T.DoubleT
-                                                LMoney      -> t == T.DoubleT
-                                                LChar       -> t == T.StringT
-                                                LVChar      -> t == T.StringT
-                                                LDate       -> t == T.IntT
-                                                LTime       -> t == T.IntT
-                                                LTimeStamp  -> t == T.IntT
-                                                LIntervalDS -> t == T.IntT
-                                                LIntervalYM -> t == T.IntT
-                                                LUnknown s  -> error $ "Unknown DB type" ++ show s)
-
+    t <- X.describeTable' c n
+    return [ (colName col, compatibleType (logicalType col))
+           | col <- sortWith colName $ columns t
+           ]
+  where
+    compatibleType :: LType -> T.Type -> Bool
+    compatibleType lt t =
+        case lt of
+            LBool       -> t == T.BoolT || t == T.UnitT
+            LInt1       -> t == T.IntT  || t == T.UnitT
+            LUInt1      -> t == T.IntT  || t == T.UnitT
+            LInt2       -> t == T.IntT  || t == T.UnitT
+            LUInt2      -> t == T.IntT  || t == T.UnitT
+            LInt4       -> t == T.IntT  || t == T.UnitT
+            LUInt4      -> t == T.IntT  || t == T.UnitT
+            LInt8       -> t == T.IntT  || t == T.UnitT
+            LUInt8      -> t == T.IntT  || t == T.UnitT
+            LInt16      -> t == T.IntT  || t == T.UnitT
+            LUIDX       -> t == T.NatT  || t == T.UnitT
+            LDec        -> t == T.DoubleT
+            LFlt4       -> t == T.DoubleT
+            LFlt8       -> t == T.DoubleT
+            LMoney      -> t == T.DoubleT
+            LChar       -> t == T.StringT
+            LVChar      -> t == T.StringT
+            LDate       -> t == T.IntT
+            LTime       -> t == T.IntT
+            LTimeStamp  -> t == T.IntT
+            LIntervalDS -> t == T.IntT
+            LIntervalYM -> t == T.IntT
+            LUnknown s  -> error $ "Unknown DB type" ++ show s
