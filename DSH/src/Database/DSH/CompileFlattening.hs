@@ -5,6 +5,8 @@
 
 module Database.DSH.CompileFlattening (toComprehensions) where
        
+import Debug.Trace
+       
 import           Database.DSH.Impossible
 
 import           Database.DSH.CL.Lang(NL(..))
@@ -142,7 +144,7 @@ translate (TableE (TableDB tableName ks)) = do
 
     let cols = zipWith matchTypes tableDescr ts
 
-    return $ CP.table (translateType ty) tableName cols ks
+    return $ trace (tableTypeError) $ CP.table (translateType ty) tableName cols ks
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
 
