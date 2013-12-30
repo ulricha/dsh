@@ -28,9 +28,14 @@ import           Text.Printf
   
 import           GHC.Exts(sortWith)
 
-type TableInfoCache = M.Map String [(String, (T.Type -> Bool))]
+-- | For each column, we need the name of the column, a string
+-- description of the type for error messsages and a function to check
+-- a DSH base type for compability with the column.
+type TableInfo = [(String, String, (T.Type -> Bool))]
 
-type QueryTableInfo = String -> IO [(String, T.Type -> Bool)]
+type TableInfoCache = M.Map String TableInfo
+
+type QueryTableInfo = String -> IO TableInfo
 
 -- In the state, we store a counter for fresh variable names, the
 -- cache for table information and the backend-specific IO function
@@ -45,7 +50,7 @@ type Compile = StateT  CompileState IO
 -- | Lookup information that describes a table. If the information is
 -- not present in the state then the connection is used to retrieve
 -- the table information from the Database.
-tableInfo :: String -> Compile [(String, (T.Type -> Bool))]
+tableInfo :: String -> Compile TableInfo
 tableInfo tableName = do
     (i, env, f) <- get
     case M.lookup tableName env of
@@ -65,7 +70,7 @@ freshVar = do
 prefixVar :: Integer -> String
 prefixVar i = "v" ++ show i
 
-getTableInfoFun :: String -> Compile [(String, T.Type -> Bool)]
+getTableInfoFun :: String -> Compile TableInfo
 getTableInfoFun tableName = do
     (_, _, queryTableInfo) <- get
     lift $ queryTableInfo tableName
@@ -74,14 +79,14 @@ getTableInfoFun tableName = do
 -- comprehension-based language. 'queryTableInfo' abstracts asking a
 -- database for information about tables, which might be performed
 -- using one of the existing backends (X100, SQL).
-toComprehensions :: (String -> IO [(String, T.Type -> Bool)]) -> Exp a -> IO CL.Expr
-toComprehensions queryTableInfo e = fmap resugar (runN queryTableInfo $ translate e)
+toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
+toComprehensions queryTableInfo e = fmap resugar (runCompile queryTableInfo $ translate e)
 
 -- | Execute the transformation computation. During compilation table
 -- information can be retrieved from the database, therefor the result
 -- is wrapped in the IO Monad.
-runN :: QueryTableInfo -> Compile a -> IO a
-runN f = liftM fst . flip runStateT (1, M.empty, f)
+runCompile :: QueryTableInfo -> Compile a -> IO a
+runCompile f = liftM fst . flip runStateT (1, M.empty, f)
 
 
 translate ::  forall a. Exp a -> Compile CL.Expr
@@ -116,12 +121,12 @@ translate (TableE (TableDB tableName ks)) = do
     -- backend. Since we can't refer to columns by name from the
     -- Haskell side, we sort the columns by name to get a canonical
     -- order.
-    tableDescr <- sortWith fst <$> tableInfo tableName
+    tableDescr <- sortWith (\(n, _, _) -> n) <$> tableInfo tableName
 
     let tableTypeError = printf "DSH type and type of table %s are incompatible:\nDSH: %s\nDatabase: %s"
                                 tableName
                                 (show ts)
-                                (show $ map fst tableDescr)
+                                (show $ map (\(n, t, _) -> (n, t)) tableDescr)
 
     -- The DSH record/tuple type must match the number of columns in
     -- the database table
@@ -129,8 +134,8 @@ translate (TableE (TableDB tableName ks)) = do
         then return ()
         else error tableTypeError
 
-    let matchTypes :: (String, T.Type -> Bool) -> T.Type -> (String, T.Type)
-        matchTypes (colName, typesCompatible) dshType =
+    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (String, T.Type)
+        matchTypes (colName, _, typesCompatible) dshType =
             if typesCompatible dshType
             then (colName, dshType)
             else error tableTypeError

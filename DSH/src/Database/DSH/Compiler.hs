@@ -27,7 +27,7 @@ import           Database.DSH.Internals
 import           Database.HDBC
 import qualified Database.HDBC                                   as H
 
-import           Database.X100Client                             hiding (X100)
+import           Database.X100Client                             hiding (X100, tableName)
 import qualified Database.X100Client                             as X
 
 import           Database.Algebra.Dag
@@ -162,20 +162,22 @@ dumpVLMem f c (Q q) = do
       json = unpack $ encode (queryShape plan, M.toList $ nodeMap $ queryDag plan)
   writeFile f json
 
--- | Retrieve through the given database connection information on the table (columns with their types)
--- which name is given as the second argument.
-getTableInfo :: IConnection conn => conn -> String -> IO [(String, (T.Type -> Bool))]
+-- | Retrieve through the given database connection information on the
+-- table (columns with their types) which name is given as the second
+-- argument.
+getTableInfo :: IConnection conn => conn -> String -> IO [(String, String, (T.Type -> Bool))]
 getTableInfo conn tableName = do
     info <- H.describeTable conn tableName
     return $ toTableDescr info
 
   where
-    toTableDescr :: [(String, SqlColDesc)] -> [(String, (T.Type -> Bool))]
-    toTableDescr cols = L.sortBy byName 
-                        $ map (\(name, props) -> (name, compatibleType $ colType props)) cols
-
-    byName :: (String, T.Type -> Bool) -> (String, T.Type -> Bool) -> Ordering
-    byName (n1, _) (n2, _) = compare n1 n2
+    toTableDescr :: [(String, SqlColDesc)] -> [(String, String, T.Type -> Bool)]
+    toTableDescr cols = sortWith (\(n, _, _) -> n)
+                        [ (name, show colTy, compatibleType colTy) 
+                        | (name, props) <- cols
+                        , let colTy = colType props
+                        ]
+                        
 
     compatibleType :: SqlTypeId -> T.Type -> Bool
     compatibleType dbT hsT = 
@@ -187,11 +189,12 @@ getTableInfo conn tableName = do
             T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
             t         -> error $ printf "Unsupported column type %s for table %s" (show t) (show tableName)
 
-getX100TableInfo :: X100Info -> String -> IO [(String, (T.Type -> Bool))]
+getX100TableInfo :: X100Info -> String -> IO [(String, String, (T.Type -> Bool))]
 getX100TableInfo c n = do
     t <- X.describeTable' c n
-    return [ (colName col, compatibleType (logicalType col))
+    return [ (colName col, show lType, compatibleType lType)
            | col <- sortWith colName $ columns t
+           , let lType = logicalType col
            ]
   where
     compatibleType :: LType -> T.Type -> Bool
