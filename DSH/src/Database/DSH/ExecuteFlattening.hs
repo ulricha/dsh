@@ -16,15 +16,11 @@ import           Database.HDBC
 
 import           Control.Exception                     (evaluate)
 
-import           GHC.Exts
-
-import           Data.Convertible.Base
-import           Data.List                             (foldl', transpose)
+import           Data.List                             (foldl')
 import           Data.Maybe                            (fromJust)
-import           Data.Text                             (Text(), pack)
+import           Data.Text                             (Text())
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
-import           Text.Printf
 
 import qualified Database.DSH.VL.Data.Query as Q
 

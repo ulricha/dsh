@@ -2,43 +2,31 @@
 
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Compiler
-  ( -- * Running queries via the Flattening backend
-    -- * Debug functions
+  ( -- * Debug functions
     debugNKL
   , debugFKL
   , debugVL
   , debugTA
   ) where
 
-import           GHC.Exts
 import           Text.Printf
-                 
+import           GHC.Exts
 import           Database.DSH.CompileFlattening
-import           Database.DSH.ExecuteFlattening
 
 import           Database.DSH.Internals
 import           Database.HDBC
 import qualified Database.HDBC                                   as H
 
-import           Database.Algebra.Dag
-
 import qualified Database.DSH.CL.Lang                 as CL
 import qualified Database.DSH.CL.Opt                  as CLOpt
-import           Database.DSH.Common.Data.QueryPlan
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
-import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import qualified Database.DSH.VL.Data.Query           as Q
 
-import           Data.Aeson                                      (encode)
-import           Data.ByteString.Lazy.Char8                      (unpack)
-
-import qualified Data.IntMap                                     as M
 import qualified Data.List                                       as L
 
 import           Control.Applicative

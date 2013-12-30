@@ -119,7 +119,6 @@ Library
                      Database.DSH.NKL.Data.NKL
                      Database.DSH.NKL.NKLPrimitives
                      Database.DSH.NKL.Opt
-                     Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
@@ -192,6 +191,7 @@ Library
 --                        aeson
 --   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 -- 
+
 Executable vlopt
   Hs-Source-Dirs:   src
   Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
