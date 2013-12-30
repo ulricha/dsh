@@ -168,7 +168,9 @@ dumpVLMem f c (Q q) = do
 getTableInfo :: IConnection conn => conn -> String -> IO [(String, String, (T.Type -> Bool))]
 getTableInfo conn tableName = do
     info <- H.describeTable conn tableName
-    return $ toTableDescr info
+    case info of
+        []    -> error $ printf "Unknown table %s" tableName
+        _ : _ -> return $ toTableDescr info
 
   where
     toTableDescr :: [(String, SqlColDesc)] -> [(String, String, T.Type -> Bool)]
