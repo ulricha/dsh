@@ -51,7 +51,7 @@ instance Show Type where
     show IntT = "IntT"
     show NatT = "NatT"
     show BoolT = "BoolT"
-    show DoubleT = "Double"
+    show DoubleT = "DoubleT"
     show StringT = "StringT"
     show UnitT = "()"
     show (ListT t) = "[" ++ (show t) ++ "]"
