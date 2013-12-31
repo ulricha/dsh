@@ -91,7 +91,6 @@ nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
                       |> optimizeVLDefault
-                      |> optimizeVLDefault
                       |> exportVLPlan prefix
 
 
