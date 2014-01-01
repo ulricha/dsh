@@ -233,7 +233,10 @@ translateUnOp u c = case u of
                       MinS       -> liftM fromDVec $ vecMinS (toDVec c)
                       Max        -> liftM fromDVec $ vecMax (toDVec c)
                       MaxS       -> liftM fromDVec $ vecMaxS (toDVec c)
-                      Select e  -> liftM fromDVec $ vecSelect e (toDVec c)
+                      Select e   -> liftM fromDVec $ vecSelect e (toDVec c)
+                      SortSimple es -> do
+                                      (d, p) <- vecSortSimple es (toDVec c)
+                                      return $ RPair (fromDVec d) (fromProp p)
                       ProjectRename (posnewP, posoldP) -> liftM fromRenameVector $ projectRename posnewP posoldP (toDVec c)
                       Project cols -> liftM fromDVec $ vecProject cols (toDVec c)
                       Reverse      -> do

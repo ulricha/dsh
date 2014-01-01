@@ -123,6 +123,11 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
             aggrInputCol (AggrAvg c) = [c]
             aggrInputCol AggrCount   = []
 
+    SortSimple exprs -> childReqColumns 
+                        `union` 
+                        ownReqColumns 
+                        `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+
     R1               ->
       case childReqColumns of
         VProp _                       -> error $ "ReqColumns.R1 " ++ (show childReqColumns)

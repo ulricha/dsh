@@ -2,9 +2,6 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
        
-import Debug.Trace
-import Text.Printf
-
 import Control.Monad
 
 import Database.Algebra.Dag.Common
@@ -27,7 +24,7 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ introduceSelect ]
+redundantRules = [ introduceSelect, simpleSort ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
@@ -159,3 +156,37 @@ sameInputZip q =
         return $ do
           let ps = map Column1 [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
+
+lookupR2Parents :: AlgNode -> VLRewrite [AlgNode]
+lookupR2Parents q = do
+  let isR2 :: AlgNode -> VLRewrite Bool
+      isR2 q' = do
+        o <- operator q'
+        case o of
+          UnOp R2 _ -> return True
+          _         -> return False
+
+  ps <- parents q
+  filterM isR2 ps
+
+-- | Employ a specialized operator if the sorting criteria are simply
+-- a selection of columns from the input vector.
+simpleSort :: VLRule ()
+simpleSort q =
+  $(pattern 'q "R1 (qs=(Project ps (q1)) Sort (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          qs <- insert $ UnOp (SortSimple $(v "ps")) $(v "q1")
+          void $ replaceWithNew q $ UnOp R1 qs 
+          r2Parents <- lookupR2Parents $(v "qs")
+
+          -- If there are any R2 nodes linking to the original sort operators
+          -- (i.e. there are inner vectors to which changes must be propagated),
+          -- they have to be rewired to the new SortSimple operator.
+          if not $ null r2Parents
+            then do
+              qr2' <- insert $ UnOp R2 qs
+              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
+            else return () |])

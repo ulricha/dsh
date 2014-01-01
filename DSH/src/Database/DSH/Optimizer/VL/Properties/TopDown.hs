@@ -46,6 +46,7 @@ seed (UnOp op _)   =
     MaxS               -> vPropSeed
     FalsePositions     -> vPropSeed
     Select     _       -> vPropSeed
+    SortSimple _       -> vPropSeed
     ProjectRename _    -> vPropSeed
     Project      _     -> vPropSeed
     Aggr _ _           -> vPropSeed

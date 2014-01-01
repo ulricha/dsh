@@ -66,6 +66,7 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VProp <$> unpack s
+    SortSimple _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     Only -> undefined
     Singleton -> undefined
     Aggr g as -> Right $ VProp $ ValueVector (length g + length as)
@@ -93,7 +94,7 @@ inferVectorTypeBinOp s1 s2 op =
           Left "Input of GroupBy is not a value vector"
     Sort ->
       case (s1, s2) of
-        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
+        (VProp (ValueVector _), VProp t2@(ValueVector _)) -> 
           Right $ VPropPair t2 PropVector
         _                                                    -> 
           Left "Input of SortWith is not a value vector"

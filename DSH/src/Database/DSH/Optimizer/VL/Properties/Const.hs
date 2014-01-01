@@ -140,6 +140,10 @@ inferConstVecUnOp c op =
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d [NonConstPL]
 
+    SortSimple _ -> do
+      (d, cs) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+
     R1 ->
       case c of
         VProp _           -> Left "Properties.Const: not a pair/triple"

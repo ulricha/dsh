@@ -140,6 +140,10 @@ expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
 expr2 (VL.Column2Right (VL.R c)) = ColE $ itemi' c
 expr2 (VL.Constant2 v)           = ConstE $ algVal v
 
+colProjection :: VL.Expr1 -> Maybe DBCol
+colProjection (VL.Column1 c) = Just c
+colProjection _              = Nothing
+
 aggrFun :: VL.AggrFun -> AggrType
 aggrFun (VL.AggrSum c) = Sum $ itemi c
 aggrFun (VL.AggrMin c) = Min $ itemi c
@@ -699,3 +703,13 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "antijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  
+  vecSortSimple sortExprs (DVec q1 cols1) = do
+    let sortProjs = zipWith (\i e -> (itemi' i, expr1 e)) [1..] sortExprs
+    qs <- rownumM pos' (map fst sortProjs) Nothing
+          $ projAddCols cols1 sortProjs q1
+
+    qr1 <- proj (itemProj cols1 [cP descr, mP pos pos']) qs
+    qr2 <- proj [mP posold pos, mP posnew pos'] qs
+
+    return (DVec qr1 cols1, PVec qr2)

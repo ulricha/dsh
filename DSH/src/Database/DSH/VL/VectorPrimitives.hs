@@ -68,6 +68,8 @@ class VectorAlgebra a where
 
   vecSelect:: Expr1 -> DVec -> GraphM r a DVec
 
+  vecSortSimple :: [Expr1] -> DVec -> GraphM r a (DVec, PVec)
+
   projectRename :: ISTransProj -> ISTransProj -> DVec -> GraphM r a RVec
 
   vecProject :: [Expr1] -> DVec -> GraphM r a DVec

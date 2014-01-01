@@ -48,6 +48,7 @@ inferEmptyUnOp e op =
     ProjectRename _  -> Right e
     Project _   -> Right e
     Select _       -> Right e
+    SortSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
     Only             -> undefined
     Singleton        -> undefined
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
