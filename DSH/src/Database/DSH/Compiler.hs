@@ -12,6 +12,7 @@ module Database.DSH.Compiler
   , debugNKLX100
   , debugFKLX100
   , debugVL
+  , debugVLOpt
   , debugX100VL
   , debugTA
   , dumpVLMem
@@ -90,9 +91,14 @@ nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
                       |> flatten
                       |> specializeVectorOps
-                      |> optimizeVLDefault
                       |> exportVLPlan prefix
 
+nkl2VLFileOpt :: String -> CL.Expr -> IO ()
+nkl2VLFileOpt prefix e = desugarComprehensions e
+                         |> flatten
+                         |> specializeVectorOps
+                         |> optimizeVLDefault
+                         |> exportVLPlan prefix
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
@@ -144,6 +150,12 @@ debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
   e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
   nkl2VLFile prefix e'
+
+-- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
+debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugVLOpt prefix c (Q e) = do
+  e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+  nkl2VLFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a file (X100 version).
 debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
