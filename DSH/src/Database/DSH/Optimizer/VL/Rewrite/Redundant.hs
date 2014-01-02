@@ -157,17 +157,6 @@ sameInputZip q =
           let ps = map Column1 [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-lookupR2Parents :: AlgNode -> VLRewrite [AlgNode]
-lookupR2Parents q = do
-  let isR2 :: AlgNode -> VLRewrite Bool
-      isR2 q' = do
-        o <- operator q'
-        case o of
-          UnOp R2 _ -> return True
-          _         -> return False
-
-  ps <- parents q
-  filterM isR2 ps
 
 -- | Employ a specialized operator if the sorting criteria are simply
 -- a selection of columns from the input vector.

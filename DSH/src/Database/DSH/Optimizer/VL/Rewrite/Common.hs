@@ -1,6 +1,8 @@
 module Database.DSH.Optimizer.VL.Rewrite.Common where
 
 import qualified Data.IntMap                                              as M
+       
+import           Control.Monad
 
 import           Database.Algebra.Dag.Common
 
@@ -39,3 +41,28 @@ inferProperties = do
 
 noProps :: Monad m => m (M.IntMap a)
 noProps = return M.empty
+
+---------------------------------------------------------------------------------
+-- Rewrite helper functions
+
+lookupR1Parents :: AlgNode -> VLRewrite [AlgNode]
+lookupR1Parents q = do
+  let isR1 q' = do
+        o <- operator q'
+        case o of
+          UnOp R1 _ -> return True
+          _         -> return False
+
+  ps <- parents q
+  filterM isR1 ps
+
+lookupR2Parents :: AlgNode -> VLRewrite [AlgNode]
+lookupR2Parents q = do
+  let isR2 q' = do
+        o <- operator q'
+        case o of
+          UnOp R2 _ -> return True
+          _         -> return False
+
+  ps <- parents q
+  filterM isR2 ps

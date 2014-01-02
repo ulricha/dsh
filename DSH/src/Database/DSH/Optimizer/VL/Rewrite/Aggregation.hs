@@ -70,8 +70,8 @@ aggrOpToFun c (BinOp AvgS _ _) = return $ AggrAvg c
 aggrOpToFun c (BinOp SumS _ _) = return $ AggrSum c
 aggrOpToFun _ _                = fail "no match"
 -}
-
 {-
+
 -- | Check if we have an operator combination which is eligible for moving to a
 -- VecAggr operator.
 matchAggr :: AlgNode -> VLMatch () [(AggrFun, AlgNode)]
@@ -91,20 +91,12 @@ matchAggr q = do
     -- or LengthSeg (ToDescr (R2 GroupBy))
     BinOp LengthSeg _ _ -> return [(Count, q)]
     _                   -> fail "no match"
+  
     
 projectionCol :: PayloadProj -> VLMatch () DBCol
 projectionCol (PLCol c) = return c
 projectionCol _         = fail "no match"
 
--- FIXME combine with r2Parents in Specialized and move to Rewrite.Common
-r1Parents :: AlgNode -> VLRewrite [AlgNode]
-r1Parents n = do
-  let isR1 (UnOp R1 _) = True
-      isR1 _           = False
-      
-  ps  <- parents n
-  ops <- mapM operator ps
-  return $ map fst $ filter (\(_, o) -> isR1 o) $ zip ps ops
           
 -- We rewrite a combination of GroupBy and aggregation operators into a single
 -- VecAggr operator if the following conditions hold: 
@@ -154,7 +146,7 @@ groupingToAggr q =
           -- If the R1 output (that is, the vector which contains the grouping
           -- columns and desribes the group shape) of GroupBy is referenced, we
           -- replace it with a projection on the new VecAggr node.
-          r1s <- r1Parents $(v "qg")
+          r1s <- lookupR1Parents $(v "qg")
           if length r1s > 0
             then do
               r1ProjectNode <- insert $ UnOp (ProjectL [1 .. length groupingCols]) aggrNode
