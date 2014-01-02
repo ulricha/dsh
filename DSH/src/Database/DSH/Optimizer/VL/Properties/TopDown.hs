@@ -34,22 +34,16 @@ seed (UnOp op _)   =
     ReverseS           -> vPropPairSeed
     Unique             -> vPropSeed
     UniqueS            -> vPropSeed
-    Length             -> vPropSeed
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
-    Sum _              -> vPropSeed
-    Avg                -> vPropSeed
-    Min                -> vPropSeed
-    MinS               -> vPropSeed
-    Max                -> vPropSeed
-    MaxS               -> vPropSeed
     FalsePositions     -> vPropSeed
     Select     _       -> vPropSeed
     SortSimple _       -> vPropSeed
     ProjectRename _    -> vPropSeed
     Project      _     -> vPropSeed
-    Aggr _ _           -> vPropSeed
+    Aggr _             -> vPropSeed
+    GroupAggr _ _      -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed
@@ -72,11 +66,9 @@ seed (BinOp op _ _) =
     Restrict           -> vPropPairSeed
     SelectPos _        -> vPropPairSeed
     SelectPosS _       -> vPropPairSeed
-    LengthS            -> vPropSeed
     PropRename         -> vPropSeed
     BinExpr    _       -> vPropSeed
-    SumS               -> vPropSeed
-    AvgS               -> vPropSeed
+    AggrS _            -> vPropSeed
     Zip                -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed

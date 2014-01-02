@@ -34,7 +34,7 @@ constExpr1 constCols e =
         Column1 i        -> constCols !! (i - 1)
         -- FIXME implement constant folding
         BinApp1 op e1 e2 -> NonConstPL
-        UnApp1 op e      -> NonConstPL
+        UnApp1 op e1     -> NonConstPL
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
@@ -61,7 +61,7 @@ inferConstVecUnOp c op =
 
     UniqueS -> return c
 
-    Length -> do
+    Aggr _ -> do
       return $ VProp $ DBPConst [NonConstPL]
 
     DescToRename -> do
@@ -75,18 +75,6 @@ inferConstVecUnOp c op =
     Unsegment -> do
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
-
-    Sum _ -> return $ VProp $ DBVConst (ConstDescr $ N 1) [NonConstPL]
-    
-    Avg -> return c
-
-    Min -> return c
-
-    MinS -> return c
-
-    Max -> return c
-
-    MaxS -> return c
 
     SelectPos1 _ _ -> do
       (d, cols) <- unp c >>= fromDBV
@@ -128,7 +116,7 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    Aggr g as -> do
+    GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
       
@@ -173,7 +161,8 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     -- FIXME use cardinality property to infer the length if possible
-    LengthS -> do
+    -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
+    AggrS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
@@ -234,10 +223,6 @@ inferConstVecBinOp c1 c2 op =
       (_, _) <- unp c2 >>= fromDBV
 
       return $ VProp $ DBVConst d1 [NonConstPL]
-
-    -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    SumS -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
-    AvgS -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV

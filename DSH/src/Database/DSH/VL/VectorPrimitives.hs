@@ -38,22 +38,8 @@ class VectorAlgebra a where
   vecSegment :: DVec -> GraphM r a DVec
   vecUnsegment :: DVec -> GraphM r a DVec
   
-  -- FIXME combine into generic aggregate operator
-  -- although: backend implementation can be quite different.
-  vecSum :: VLType -> DVec -> GraphM r a DVec
-  vecSumS :: DVec -> DVec -> GraphM r a DVec
-  -- Avg is unsafe! Empty lists will disappear, as average does not have a
-  -- default value (in contrast to sum).
-  vecAvgS :: DVec -> DVec -> GraphM r a DVec
-  vecLengthS :: DVec -> DVec -> GraphM r a DVec
-  vecLength :: DVec -> GraphM r a DVec
-  -- Avg is unsafe! Empty lists will disappear, as average does not have a
-  -- default value (in contrast to sum).
-  vecAvg :: DVec -> GraphM r a DVec
-  vecMin :: DVec -> GraphM r a DVec
-  vecMinS :: DVec -> GraphM r a DVec
-  vecMax :: DVec -> GraphM r a DVec
-  vecMaxS :: DVec -> GraphM r a DVec
+  vecAggr :: AggrFun -> DVec -> GraphM r a DVec
+  vecAggrS :: AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
   selectPos1 :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
@@ -76,11 +62,14 @@ class VectorAlgebra a where
   
   vecGroupBy :: DVec -> DVec -> GraphM r a (DVec, DVec, PVec)
 
-  -- | The VL aggregation operator groups the input vector by the given columns
-  -- and then performs the list of aggregations described by the second
-  -- argument. The result is a flat vector, since all groups are reduced via
-  -- aggregation.
-  vecAggr :: [DBCol] -> [AggrFun] -> DVec -> GraphM r a DVec
+  -- | The VL aggregation operator groups the input vector by the
+  -- given columns and then performs the list of aggregations
+  -- described by the second argument. The result is a flat vector,
+  -- since all groups are reduced via aggregation. The operator
+  -- operates segmented, i.e. always groups by descr first. This
+  -- operator must be used with care: It does not determine the
+  -- complete set of descr value to check for empty inner lists.
+  vecGroupAggr :: [DBCol] -> [AggrFun] -> DVec -> GraphM r a DVec
 
   vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc

@@ -39,6 +39,7 @@ reqExpr2ColsLeft (Constant2 _)         = []
 
 reqExpr2ColsRight :: Expr2 -> [DBCol]
 reqExpr2ColsRight (BinApp2 _ e1 e2)      = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
+reqExpr2ColsRight (UnApp2 _ e)           = reqExpr2ColsRight e
 reqExpr2ColsRight (Column2Right (R col)) = [col]
 reqExpr2ColsRight (Column2Left _)        = []
 reqExpr2ColsRight (Constant2 _)          = []
@@ -74,20 +75,14 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
 
     UniqueS -> ownReqColumns `union` childReqColumns
 
-    Length -> none `union` childReqColumns
+    Aggr AggrCount -> none `union` childReqColumns
+    Aggr _         -> one
 
     DescToRename -> none `union` childReqColumns
 
     Segment -> ownReqColumns `union` childReqColumns
     Unsegment -> ownReqColumns `union` childReqColumns
 
-    Sum _ -> one
-    Avg -> one
-    Min -> one
-    MinS -> one
-    Max -> one
-    MaxS -> one
-    
     Number -> none
     NumberS -> none
 
@@ -114,14 +109,14 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
         
     -- We don't need to look at the columns required from above, because they
     -- can only be a subset of (gs ++ as).
-    Aggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
+    GroupAggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
 
       where aggrInputCol :: AggrFun -> [DBCol]
-            aggrInputCol (AggrMax c) = [c]
-            aggrInputCol (AggrMin c) = [c]
-            aggrInputCol (AggrSum c) = [c]
-            aggrInputCol (AggrAvg c) = [c]
-            aggrInputCol AggrCount   = []
+            aggrInputCol (AggrMax c)   = [c]
+            aggrInputCol (AggrMin c)   = [c]
+            aggrInputCol (AggrSum _ c) = [c]
+            aggrInputCol (AggrAvg c)   = [c]
+            aggrInputCol AggrCount     = []
 
     SortSimple exprs -> childReqColumns 
                         `union` 
@@ -168,7 +163,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
         _                 -> undefined -- FIXME
 
-    LengthS -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
+    AggrS AggrCount -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
+    AggrS _         -> (childReqColumns1 `union` none, one)
 
     DistPrim -> (childReqColumns1 `union` ownReqColumns, childReqColumns2 `union` none)
 
@@ -208,9 +204,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
       let reqColsLeft  = (VProp $ Just $ reqExpr2ColsLeft e) `union` childReqColumns1
           reqColsRight = (VProp $ Just $ reqExpr2ColsRight e) `union` childReqColumns2
       in (reqColsLeft, reqColsRight)
-
-    SumS -> (childReqColumns1 `union` none, one)
-    AvgS -> (childReqColumns1 `union` none, one)
 
     SelectPos _ ->
       case ownReqColumns of

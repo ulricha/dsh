@@ -1,7 +1,6 @@
 module Database.DSH.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
-import Control.Applicative
   
 import Database.Algebra.VL.Data
   
@@ -30,18 +29,10 @@ inferEmptyUnOp e op =
   case op of
     Unique -> Right e
     UniqueS -> Right e
-    Length -> Right $ VProp False
+    Aggr _ -> Right $ VProp False
     DescToRename -> Right e
     Segment -> Right e
     Unsegment -> Right e
-    Sum _ -> Right $ VProp False
-    -- If the input is empty, the avg output will actually be empty
-    -- too. However, this is an error case which we would like to avoid
-    Avg -> Right $ VProp False
-    Min -> Right e
-    MinS -> Right e
-    Max -> Right e
-    MaxS -> Right e
     Reverse -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS -> let ue = unp e in liftM2 VPropPair ue ue
     FalsePositions -> Right e
@@ -54,7 +45,7 @@ inferEmptyUnOp e op =
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     SelectPos1S _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    Aggr _ _ -> Right $ VProp False
+    GroupAggr _ _ -> Right $ VProp False
     Number -> Right e
     NumberS -> Right e
     R1 -> 
@@ -86,7 +77,6 @@ inferEmptyBinOp e1 e2 op =
       let e   = ue1 && ue2
       return $ VPropPair e e
 
-    LengthS -> VProp <$> unp e1
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     DistSeg -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
@@ -96,8 +86,7 @@ inferEmptyBinOp e1 e2 op =
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     BinExpr _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
-    SumS -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
-    AvgS -> mapUnp e1 e2 (\ue1 ue2 -> VProp $ ue1 && ue2) -- FIXME check if correct
+    AggrS _ -> return $ VProp False
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))

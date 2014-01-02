@@ -62,11 +62,14 @@ pushExprThroughGroupBy q =
           
 -- | Turn an aggregate operator into the corrresponding aggregate function for VecAggr
 aggrOpToFun :: DBCol -> VL -> VLMatch () AggrFun
+aggrOpToFun = undefined
+{-
 aggrOpToFun c (UnOp MaxS _)    = return $ AggrMax c
 aggrOpToFun c (UnOp MinS _)    = return $ AggrMin c
 aggrOpToFun c (BinOp AvgS _ _) = return $ AggrAvg c
 aggrOpToFun c (BinOp SumS _ _) = return $ AggrSum c
 aggrOpToFun _ _                = fail "no match"
+-}
 
 {-
 -- | Check if we have an operator combination which is eligible for moving to a

@@ -146,7 +146,6 @@ translateBinOp b c1 c2 = case b of
                            Sort         -> do
                                                 (d, p) <- vecSort (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec d) (fromProp p)
-                           LengthS        -> liftM fromDVec $ vecLengthS (toDVec c1) (toDVec c2)
                            DistPrim         -> do
                                                 (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromProp p)
@@ -170,8 +169,7 @@ translateBinOp b c1 c2 = case b of
                                                 (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
                            BinExpr e     -> liftM fromDVec $ vecBinExpr e (toDVec c1) (toDVec c2)
-                           SumS          -> liftM fromDVec $ vecSumS (toDVec c1) (toDVec c2)
-                           AvgS          -> liftM fromDVec $ vecAvgS (toDVec c1) (toDVec c2)
+                           AggrS a       -> liftM fromDVec $ vecAggrS a (toDVec c1) (toDVec c2)
                            SelectPos o      -> do
                                                 (v, r) <- selectPos (toDVec c1) o (toDVec c2)
                                                 return $ RPair (fromDVec v) (fromRenameVector r)
@@ -223,17 +221,11 @@ translateUnOp u c = case u of
                       UniqueS       -> liftM fromDVec $ vecUniqueS (toDVec c)
                       Number        -> liftM fromDVec $ vecNumber (toDVec c)
                       NumberS       -> liftM fromDVec $ vecNumberS (toDVec c)
-                      Length       -> liftM fromDVec $ vecLength (toDVec c)
                       DescToRename  -> liftM fromRenameVector $ descToRename (toDVec c)
                       Segment       -> liftM fromDVec $ vecSegment (toDVec c)
                       Unsegment     -> liftM fromDVec $ vecUnsegment (toDVec c)
-                      Sum ty     -> liftM fromDVec $ vecSum ty (toDVec c)
-                      Avg        -> liftM fromDVec $ vecAvg (toDVec c)
-                      Min        -> liftM fromDVec $ vecMin (toDVec c)
-                      MinS       -> liftM fromDVec $ vecMinS (toDVec c)
-                      Max        -> liftM fromDVec $ vecMax (toDVec c)
-                      MaxS       -> liftM fromDVec $ vecMaxS (toDVec c)
                       Select e   -> liftM fromDVec $ vecSelect e (toDVec c)
+                      Aggr a     -> liftM fromDVec $ vecAggr a (toDVec c)
                       SortSimple es -> do
                                       (d, p) <- vecSortSimple es (toDVec c)
                                       return $ RPair (fromDVec d) (fromProp p)
@@ -252,7 +244,7 @@ translateUnOp u c = case u of
                       SelectPos1S op pos -> do
                                           (d, p) <- selectPos1S (toDVec c) op pos
                                           return $ RPair (fromDVec d) (fromRenameVector p)
-                      Aggr g as -> liftM fromDVec $ vecAggr g as (toDVec c)
+                      GroupAggr g as -> liftM fromDVec $ vecGroupAggr g as (toDVec c)
                       R1            -> case c of
                                          (RPair c1 _)     -> return c1
                                          (RTriple c1 _ _) -> return c1

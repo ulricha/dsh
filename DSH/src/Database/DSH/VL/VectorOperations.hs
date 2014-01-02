@@ -1,4 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
+    
+-- FIXME uses of non-sum/count segmented aggregates need a proper
+-- argument for the outer vector.
 
 module Database.DSH.VL.VectorOperations where
 
@@ -6,7 +9,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), VecUnOp(..))
+import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), VecUnOp(..), AggrFun(..))
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -33,7 +36,7 @@ takeWithS _ _ = error "takeWithS: Should not be possible"
 dropWithS ::  Shape -> Shape -> Graph VL Shape
 dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
     (qb', _, _) <- (qb `vlAppend`) =<< literalSingletonTable boolT (VLBool False)
-    minF        <- vlMin =<< vlFalsePositions qb'
+    minF        <- vlAggr (AggrMin 1) =<< vlFalsePositions qb'
     (r, prop)   <- vlSelectPos q GtE minF
     lyt'        <- chainRenameFilter prop lyt
     return $ ValueVector r lyt'
@@ -53,12 +56,13 @@ takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
     return $ ValueVector qd (Nest r lyt')
 takeWithL _ _ = error "takeWithL: Should not be possible"
 
+-- FIXME I don't get this shit.
 dropWithL ::  Shape -> Shape -> Graph VL Shape
 dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = do
-    f <- literal boolT (VLBool False)
+    f           <- literal boolT (VLBool False)
     (fs, _ )    <- vlDistPrim f qd
     (qb', _, _) <- vlAppend qb =<< vlSegment fs
-    minF        <- vlMinS =<< vlFalsePositions qb'
+    minF        <- vlAggrS (AggrMin 1) undefined =<< vlFalsePositions qb'
     (r, prop)   <- vlSelectPosS q GtE minF
     lyt'        <- chainRenameFilter prop lyt
     return $ ValueVector qd (Nest r lyt')
@@ -199,7 +203,7 @@ numberLift _ = error "numberLift: Should not be possible"
 
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
-    i       <- vlLength q
+    i       <- vlAggr AggrCount q
     (q', r) <- vlSelectPos q Lt i
     lyt'    <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
@@ -207,7 +211,7 @@ initPrim _ = error "initPrim: Should not be possible"
 
 initLift ::  Shape -> Graph VL Shape
 initLift (ValueVector qs (Nest q lyt)) = do
-    is      <- vlLengthS qs q
+    is      <- vlAggrS AggrCount qs q
     (q', r) <- vlSelectPosS q Lt is
     lyt'    <- chainRenameFilter r lyt
     return $ ValueVector qs (Nest q' lyt')
@@ -215,13 +219,13 @@ initLift _ = error "initLift: Should not be possible"
 
 lastPrim ::  Shape -> Graph VL Shape
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
-    i              <- vlLength qs
+    i              <- vlAggr AggrCount qs
     (q, r)         <- vlSelectPos qs Eq i
     (Nest qr lyt') <- chainRenameFilter r lyt
     re             <- vlDescToRename q
     renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
-    i      <- vlLength qs
+    i      <- vlAggr AggrCount qs
     (q, r) <- vlSelectPos qs Eq i
     lyt'   <- chainRenameFilter r lyt
     flip PrimVal lyt' <$> vlOnly q
@@ -229,13 +233,13 @@ lastPrim _ = error "lastPrim: Should not be possible"
 
 lastLift ::  Shape -> Graph VL Shape
 lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
-    is       <- vlLengthS d qs
+    is       <- vlAggrS AggrCount d qs
     (qs', r) <- vlSelectPosS qs Eq is
     lyt'     <- chainRenameFilter r lyt
     re       <- vlDescToRename qs'
     ValueVector d <$> renameOuter' re lyt'
 lastLift (ValueVector d (Nest qs lyt)) = do
-    is       <- vlLengthS d qs
+    is       <- vlAggrS AggrCount d qs
     (qs', r) <- vlSelectPosS qs Eq is
     lyt'     <- chainRenameFilter r lyt
     re       <- vlDescToRename d
@@ -302,7 +306,7 @@ andPrim ::  Shape -> Graph VL Shape
 andPrim (ValueVector d (InColumn 1)) = do
     p         <- literalSingletonTable boolT (VLBool True)
     (r, _, _) <- vlAppend p d
-    v         <- vlMin r
+    v         <- vlAggr (AggrMin 1) r
     return $ PrimVal v (InColumn 1)
 andPrim _ = error "andPrim: Should not be possible"
 
@@ -319,7 +323,7 @@ orPrim ::  Shape -> Graph VL Shape
 orPrim (ValueVector d (InColumn 1)) = do
     p         <- literalSingletonTable boolT (VLBool False)
     (r, _, _) <- vlAppend p d
-    v         <- vlMax r
+    v         <- vlAggr (AggrMax 1)r
     return $ PrimVal v (InColumn 1)
 orPrim _ = error "orPrim: Should not be possible"
 
@@ -415,14 +419,14 @@ concatLift _ = error "concatLift: Should not be possible"
 
 lengthLift ::  Shape -> Graph VL Shape
 lengthLift (ValueVector q (Nest qi _)) = do
-    ls <- vlLengthS q qi
+    ls <- vlAggrS AggrCount q qi
     return $ ValueVector ls (InColumn 1)
 lengthLift _ = $impossible
 
 lengthV ::  Shape -> Graph VL Shape
 lengthV q = do
     v' <- outer q
-    v  <- vlLength v'
+    v  <- vlAggr AggrCount v'
     return $ PrimVal v (InColumn 1)
 
 cons ::  Shape -> Shape -> Graph VL Shape
@@ -497,41 +501,41 @@ mapEnv f  ((x, p):xs) = do
 mapEnv _f []          = return []
 
 minPrim ::  Shape -> Graph VL Shape
-minPrim (ValueVector q (InColumn 1)) = PrimVal <$> vlMin q <*> (pure $ InColumn 1)
+minPrim (ValueVector q (InColumn 1)) = PrimVal <$> vlAggr (AggrMin 1) q <*> (pure $ InColumn 1)
 minPrim _ = $impossible
 
 minLift ::  Shape -> Graph VL Shape
 minLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlMinS q)
+    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlAggrS (AggrMin 1) undefined q)
 minLift _ = $impossible
 
 maxPrim ::  Shape -> Graph VL Shape
-maxPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlMax q
+maxPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrMax 1) q
 maxPrim _ = $impossible
 
 maxLift ::  Shape -> Graph VL Shape
 maxLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlMaxS q)
+    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlAggrS (AggrMax 1) undefined q)
 maxLift _ = $impossible
 
 sumPrim ::  Type -> Shape -> Graph VL Shape
-sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlSum t q
+sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrSum (typeToVLType t) 1) q
 sumPrim _ _ = $impossible
 
 avgPrim :: Shape -> Graph VL Shape
-avgPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAvg q
+avgPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrAvg 1) q
 avgPrim _ = $impossible
 
-sumLift ::   Shape -> Graph VL Shape
-sumLift (ValueVector d1 (Nest q (InColumn 1))) = 
-    flip ValueVector (InColumn 1) <$> vlSumS d1 q
-sumLift _ = $impossible
+sumLift :: Type -> Shape -> Graph VL Shape
+sumLift t (ValueVector d1 (Nest q (InColumn 1))) = 
+    flip ValueVector (InColumn 1) <$> vlAggrS (AggrSum (typeToVLType t) 1) d1 q
+sumLift _ _ = $impossible
 
 avgLift :: Shape -> Graph VL Shape
 avgLift (ValueVector d1 (Nest q (InColumn 1))) = 
-    flip ValueVector (InColumn 1) <$> vlAvgS d1 q
+    flip ValueVector (InColumn 1) <$> vlAggrS (AggrAvg 1) d1 q
 avgLift _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape
