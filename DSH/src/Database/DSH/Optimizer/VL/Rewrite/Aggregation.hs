@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
        
+import Debug.Trace
+       
 import Control.Applicative
 import Control.Monad
 
@@ -15,50 +17,68 @@ import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
-aggregationRules = [ {- groupingToAggr -} ]
+aggregationRules = [ inlineAggrProject ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ {- pushExprThroughGroupBy -} ]
+aggregationRulesBottomUp = [ pushExprThroughGroupBy ]
 
 groupingToAggregation :: VLRewrite Bool
 groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
-{-
-
-FIXME CompExpr1L -> VLProjectL
--- If an expression operator is applied to the R2 output of GroupBy, push
--- the expression below the GroupBy operator. This rewrite assists in turning
--- combinations of GroupBy and Vec* into a form that is suitable for rewriting
--- into a VecAggr form. Even if this is not possible, the rewrite should not do 
--- any harm
+-- | If an expression operator is applied to the R2 output of GroupBy,
+-- push the expression below the GroupBy operator. This rewrite
+-- assists in turning combinations of GroupBy and Vec* into a form
+-- that is suitable for rewriting into a VecAggr form. Even if this is
+-- not possible, the rewrite should not do any harm
 pushExprThroughGroupBy :: VLRule BottomUpProps
-pushExprThroughGroupBy q =
-  $(pattern 'q "CompExpr1L e (qr2=R2 (qg=(qc) GroupBy (qp)))"
+pushExprThroughGroupBy q = 
+  $(pattern 'q "Project projs (qr2=R2 (qg=(qc) GroupBy (qp)))"
     [| do
+        trace ("carnary1 " ++ show q) $ return ()
+  
+        [e] <- return $(v "projs")
+        case e of
+          Column1 _ -> fail "no match"
+          _         -> return ()
+        
         -- get vector type of right grouping input to determine the
         -- width of the vector
-        vt <- liftM vectorTypeProp $ properties $(v "qp")
-        let width = case vt of
-                      VProp (ValueVector w) -> w
-                      _                     -> $impossible
+        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "qp")
         
         return $ do
-          logRewrite "Aggregation.PushExprThroughGroupBy" q
+          logRewrite "Aggregation.Normalize.PushProject" q
           -- Introduce a new column below the GroupBy operator which contains
           -- the expression result
-          let projection = (map PLCol [1 .. width]) ++ [PLExpr $(v "e")]
-          projectNode <- insert $ UnOp (ProjectPayload projection) $(v "qp")
+          let proj = map Column1 [1 .. w] ++ [e]
+          projectNode <- insert $ UnOp (Project proj) $(v "qp")
           
           -- Link the GroupBy operator to the new projection
           groupNode   <- replaceWithNew $(v "qg") $ BinOp GroupBy $(v "qc") projectNode
           r2Node      <- replaceWithNew $(v "qr2") $ UnOp R2 groupNode
           
           -- Replace the CompExpr1L operator with a projection on the new column
-          void $ replaceWithNew q $ UnOp (ProjectL [width + 1]) r2Node |])
-          
--}
+          void $ replaceWithNew q $ UnOp (Project [Column1 $ w + 1]) r2Node |])
+
+-- | Merge a projection into an aggregate operator if the projection
+-- merely selects the column.
+inlineAggrProject :: VLRule ()
+inlineAggrProject q =
+  $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
+    [| do
+        [Column1 origCol] <- return $(v "proj")
+        let afun' = case $(v "afun") of
+                        AggrMax _   -> AggrMax origCol
+                        AggrSum t _ -> AggrSum t origCol
+                        AggrMin _   -> AggrMin origCol
+                        AggrAvg _   -> AggrAvg origCol
+                        AggrCount   -> AggrCount
+
+        return $ do
+            logRewrite "Aggregation.Normalize.InlineProject" q
+            replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
+
           
 -- | Turn an aggregate operator into the corrresponding aggregate function for VecAggr
 aggrOpToFun :: DBCol -> VL -> VLMatch () AggrFun

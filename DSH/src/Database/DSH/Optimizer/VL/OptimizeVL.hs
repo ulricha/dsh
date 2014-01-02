@@ -23,7 +23,7 @@ rewriteClasses = [ ('E', pruneEmpty)
                  ]
 
 defaultPipeline :: [RewriteClass]
-defaultPipeline = case assemblePipeline "ER" of
+defaultPipeline = case assemblePipeline "ERGR" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
