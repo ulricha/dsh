@@ -70,6 +70,7 @@ aggrOpToFun c (BinOp AvgS _ _) = return $ AggrAvg c
 aggrOpToFun c (BinOp SumS _ _) = return $ AggrSum c
 aggrOpToFun _ _                = fail "no match"
 -}
+        
 {-
 
 -- | Check if we have an operator combination which is eligible for moving to a
@@ -91,6 +92,8 @@ matchAggr q = do
     -- or LengthSeg (ToDescr (R2 GroupBy))
     BinOp LengthSeg _ _ -> return [(Count, q)]
     _                   -> fail "no match"
+  
+
   
     
 projectionCol :: PayloadProj -> VLMatch () DBCol

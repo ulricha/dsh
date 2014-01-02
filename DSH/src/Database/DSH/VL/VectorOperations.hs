@@ -529,7 +529,7 @@ avgPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (Agg
 avgPrim _ = $impossible
 
 sumLift :: Type -> Shape -> Graph VL Shape
-sumLift t (ValueVector d1 (Nest q (InColumn 1))) = 
+sumLift (ListT t) (ValueVector d1 (Nest q (InColumn 1))) = 
     flip ValueVector (InColumn 1) <$> vlAggrS (AggrSum (typeToVLType t) 1) d1 q
 sumLift _ _ = $impossible
 

@@ -8,8 +8,6 @@ import           GHC.Exts
        
 import           Debug.Trace
 
-import           Data.Maybe
-
 import           Control.Applicative                         hiding (Const)
 
 import qualified Database.Algebra.VL.Data                    as VL
@@ -159,7 +157,7 @@ sumDefault :: VL.VLType -> (ATy, AVal)
 sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
-sumDefault _         = $impossible
+sumDefault t         = trace (show t) $impossible
 
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
