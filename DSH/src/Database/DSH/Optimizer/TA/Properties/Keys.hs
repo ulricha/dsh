@@ -98,8 +98,8 @@ inferKeysUnOp childKeys childCard1 childCols op =
 
         Select _                -> childKeys
         Distinct _              -> S.insert childCols childKeys 
-        Aggr (_, Just gcol)     -> S.singleton $ ss gcol
-        Aggr (_, Nothing)       -> S.empty
+        Aggr (_, [])            -> S.empty
+        Aggr (_, pcols@(_ : _)) -> S.singleton $ S.fromList pcols
         PosSel _                -> $impossible
 
 inferKeysBinOp :: S.Set PKey -> S.Set PKey -> Card1 -> Card1 -> BinOp -> S.Set PKey

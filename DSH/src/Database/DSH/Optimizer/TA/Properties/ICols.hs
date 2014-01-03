@@ -112,11 +112,11 @@ inferIColsUnOp ownICols childICols op =
         Select e              -> childICols ∪ ownICols ∪ exprCols e
         Distinct _            -> childICols ∪ ownICols
 
-        Aggr (acols, mpcol)   -> S.foldr (∪) childICols [ aggrInput agg 
+        Aggr (acols, pcols)   -> S.foldr (∪) childICols [ aggrInput agg 
                                                         | (agg, a) <- S.fromList acols
                                                         , a `S.member` ownICols 
                                                         ]
                                  ∪
-                                 maybe S.empty S.singleton mpcol
+                                 S.fromList pcols
 
         PosSel _              -> $impossible

@@ -87,10 +87,7 @@ inferUseUnOp ownUse childUse op =
         Select e              -> childUse ∪ ownUse ∪ (exprCols e)
         Distinct _            -> childUse ∪ ownUse 
 
-        Aggr (acols, Just pcol) -> [ pcol | pcol ∈ ownUse ] 
-                                   ∪ (S.unions $ map (aggrInput . fst) acols)
-                                   ∪ [ pcol | pcol ∈ ownUse ]
-
-        Aggr (acols, Nothing)   -> S.unions $ map (aggrInput . fst) acols
+        -- FIXME unconditionally declaring pcols as used might be a bit too defensive.
+        Aggr (acols, pcols)   -> S.fromList pcols ∪ (S.unions $ map (aggrInput . fst) acols)
 
         PosSel _              -> $impossible

@@ -52,9 +52,9 @@ inferColsUnOp childCols op =
         Project projs         -> S.fromList $ map (\(c, e) -> (c, exprTy childCols e)) projs
         Select _              -> childCols
         Distinct _            -> childCols
-        Aggr (acols, mpcol)   -> (S.fromList $ map (aggrTy childCols) acols) 
+        Aggr (acols, pcols)   -> (S.fromList $ map (aggrTy childCols) acols) 
                                  ∪
-                                 (maybe S.empty (\c -> S.singleton (c, typeOf c childCols)) mpcol)
+                                 [ (c, typeOf c childCols) | c <- S.fromList pcols ]
         PosSel _              -> $impossible
 
 inferColsBinOp :: S.Set TypedAttr -> S.Set TypedAttr -> BinOp -> S.Set TypedAttr

@@ -24,8 +24,8 @@ inferCard1UnOp childCard1 childEmpty op =
         Project _         -> childCard1
         Select _          -> False
         Distinct _        -> childCard1
-        Aggr (_, Just _)  -> childCard1
-        Aggr (_, Nothing) -> not childEmpty
+        Aggr (_, _ : _)   -> childCard1
+        Aggr (_, [])      -> not childEmpty
         PosSel _          -> $impossible
 
 inferCard1BinOp :: Card1 -> Card1 -> BinOp -> Card1
