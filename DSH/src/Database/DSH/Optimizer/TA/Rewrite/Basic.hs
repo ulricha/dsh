@@ -28,6 +28,9 @@ cleanupRules = [ stackedProject ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
 cleanupRulesTopDown = [ unreferencedRownum 
+                      , unreferencedRank
+                      , unreferencedProjectCols
+                      , unreferencedAggrCols
                       , postFilterRownum
                       ]
 
@@ -55,18 +58,6 @@ stackedProject q =
            logRewrite "Basic.Project.Merge" q
            void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
            
-unreferencedRownum :: TARule AllProps
-unreferencedRownum q = 
-  $(pattern 'q "RowNum args (q1)"
-    [| do
-         (res, _, _) <- return $(v "args")
-         neededCols  <- pICols <$> td <$> properties q
-         -- trace (show neededCols) $ return ()
-         predicate $ not (res `S.member` neededCols)
-         
-         return $ do
-           logRewrite "Basic.Rownum.Unreferenced" q
-           replace q $(v "q1") |])
 
 -- | Eliminate rownums which re-generate positions based on one
 -- sorting column. These rownums typically occur after filtering
@@ -103,4 +94,79 @@ postFilterRownum q =
           let projs = (res, ColE sortCol) : map (\c -> (c, ColE c)) (map fst $ S.toList cols)
           void $ replaceWithNew q $ UnOp (Project projs) $(v "q1") |])
        
- 
+
+---------------------------------------------------------------------------
+-- ICols rewrites 
+
+-- | Prune a rownumber operator if its output is not required
+unreferencedRownum :: TARule AllProps
+unreferencedRownum q = 
+  $(pattern 'q "RowNum args (q1)"
+    [| do
+         (res, _, _) <- return $(v "args")
+         neededCols  <- pICols <$> td <$> properties q
+         predicate $ not (res `S.member` neededCols)
+         
+         return $ do
+           logRewrite "Basic.ICols.Rownum" q
+           replace q $(v "q1") |])
+
+-- | Prune a rownumber operator if its output is not required
+unreferencedRank :: TARule AllProps
+unreferencedRank q = 
+  $(pattern 'q "[Rank | RowRank] args (q1)"
+    [| do
+         (res, _) <- return $(v "args")
+         neededCols  <- pICols <$> td <$> properties q
+         predicate $ not (res `S.member` neededCols)
+         
+         return $ do
+           logRewrite "Basic.ICols.Rank" q
+           replace q $(v "q1") |])
+
+-- | Prune projections from a project operator if the result columns
+-- are not required.
+unreferencedProjectCols :: TARule AllProps
+unreferencedProjectCols q =
+  $(pattern 'q "Project projs (q1)"
+    [| do
+        neededCols <- pICols <$> td <$> properties q
+        let neededProjs = filter (flip S.member neededCols . fst) $(v "projs")
+
+        -- Only modify the project if we could actually get rid of some columns.
+        predicate $ length neededProjs < length $(v "projs")
+
+        return $ do
+          logRewrite "Basic.ICols.Project" q
+          void $ replaceWithNew q $ UnOp (Project neededProjs) $(v "q1") |])
+
+-- | Remove aggregate functions whose output is not referenced.
+unreferencedAggrCols :: TARule AllProps
+unreferencedAggrCols q =
+  $(pattern 'q "Aggr args (q1)"                     
+    [| do
+        neededCols <- pICols <$> td <$> properties q
+        (aggrs, partCols) <- return $(v "args")
+
+        let neededAggrs = filter (flip S.member neededCols . snd) aggrs
+
+        predicate $ length neededAggrs < length aggrs
+
+        return $ do
+          case neededAggrs of
+              -- If the output of all aggregate functions is not
+              -- required, we can replace it with a distinct operator
+              -- on the grouping columns.
+              [] -> do
+                  logRewrite "Basic.ICols.Aggr.Prune" q
+                  let projs = map (\c -> (c, ColE c)) partCols
+                  projectNode <- insert $ UnOp (Project projs) $(v "q1")
+                  void $ replaceWithNew q $ UnOp (Distinct ()) projectNode
+          
+              -- Otherwise, we just prune the unreferenced aggregate functions
+              _ : _ -> do
+                  logRewrite "Basic.ICols.Aggr.Narrow" q
+                  void $ replaceWithNew q $ UnOp (Aggr (neededAggrs, partCols)) $(v "q1") |])
+
+
+
