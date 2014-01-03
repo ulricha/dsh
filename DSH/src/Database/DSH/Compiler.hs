@@ -15,6 +15,7 @@ module Database.DSH.Compiler
   , debugVLOpt
   , debugX100VL
   , debugTA
+  , debugTAOpt
   , dumpVLMem
   ) where
 
@@ -82,12 +83,20 @@ nkl2X100File prefix e = desugarComprehensions e
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix e = desugarComprehensions e
-                        |> flatten
-                        |> specializeVectorOps
-                        |> optimizeVLDefault
-                        |> implementVectorOpsPF
-                        |> optimizeTA
-                        |> (exportTAPlan prefix)
+                      |> flatten
+                      |> specializeVectorOps
+                      |> optimizeVLDefault
+                      |> implementVectorOpsPF
+                      |> (exportTAPlan prefix)
+
+nkl2TAFileOpt :: String -> CL.Expr -> IO ()
+nkl2TAFileOpt prefix e = desugarComprehensions e
+                         |> flatten
+                         |> specializeVectorOps
+                         |> optimizeVLDefault
+                         |> implementVectorOpsPF
+                         |> optimizeTA
+                         |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e = desugarComprehensions e
@@ -147,32 +156,43 @@ debugTA prefix c (Q e) = do
               e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
               nkl2TAFile prefix e'
 
--- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
+-- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
+debugTAOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugTAOpt prefix c (Q e) = do
+              e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+              nkl2TAFileOpt prefix e'
+
+-- | Debugging function: dump the VL query plan (DAG) for a query to a
+-- file (SQL version).
 debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
   e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
   nkl2VLFile prefix e'
 
--- | Debugging function: dump the VL query plan (DAG) for a query to a file (SQL version).
+-- | Debugging function: dump the optimized VL query plan (DAG) for a
+-- query to a file (SQL version).
 debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
   e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
   nkl2VLFileOpt prefix e'
 
--- | Debugging function: dump the VL query plan (DAG) for a query to a file (X100 version).
+-- | Debugging function: dump the VL query plan (DAG) for a query to a
+-- file (X100 version).
 debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
   e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
   nkl2VLFile prefix e'
 
--- | Dump a VL plan in the JSON format expected by the in-memory implementation (Tobias Müller)
+-- | Dump a VL plan in the JSON format expected by the in-memory
+-- implementation (Tobias Müller)
 dumpVLMem :: QA a => FilePath -> X100Info -> Q a -> IO ()
 dumpVLMem f c (Q q) = do
   cl <- toComprehensions (getX100TableInfo c) q
   let plan = desugarComprehensions cl
              |> flatten
              |> specializeVectorOps
-      json = unpack $ encode (queryShape plan, M.toList $ nodeMap $ queryDag plan)
+      nodeList = M.toList $ nodeMap $ queryDag plan
+      json = unpack $ encode (queryShape plan, nodeList)
   writeFile f json
 
 -- | Retrieve through the given database connection information on the
