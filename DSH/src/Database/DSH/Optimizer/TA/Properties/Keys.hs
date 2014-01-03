@@ -5,6 +5,9 @@
 
 module Database.DSH.Optimizer.TA.Properties.Keys where
 
+import Debug.Trace
+import Text.Printf
+
 import Data.List
 import qualified Data.Set.Monad as S
 
@@ -15,12 +18,11 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
                  
-
 subsetsOfSize :: Ord a => Int -> S.Set a -> S.Set (S.Set a)
 subsetsOfSize n s
     | n == 0                    = S.singleton S.empty
-    | S.size s < n || n < 0   = error "onlyLists: out of range n"
-    | S.size s == n           = S.singleton s
+    | S.size s < n || n < 0     = error "onlyLists: out of range n"
+    | S.size s == n             = S.singleton s
     | otherwise                 = S.fromDistinctAscList . map S.fromDistinctAscList $
                                                          go n (S.size s) (S.toList s)
       where
@@ -87,13 +89,18 @@ inferKeysUnOp childKeys childCard1 childCols op =
                                    -- associated bs = k
                                    S.foldr S.union S.empty
                                    [ [ as
-                                     | as <- subsetsOfSize (S.size k) (S.map fst attrPairs)
+                                     | as <- subsetsOfSize (S.size k) pa
                                      , let bs = [ b | (a, b) <- attrPairs, a ∈ as ]
                                      , bs == k
                                      ]
                                    | k <- childKeys
+                                   -- check that the key survives at all
                                    , let attrPairs = S.unions $ map mapCol projs
                                    , k ⊆ [ snd x | x <- attrPairs ]
+                                   -- generate the set pa of a's s.t. (a, b) ∈ attrPairs and b ∈ k
+                                   -- i.e. consider only those a's for which the original b is
+                                   -- actually part of the current key.
+                                   , let pa = [ a | (a, b) <- attrPairs, b ∈ k ]
                                    ]
 
         Select _                -> childKeys
