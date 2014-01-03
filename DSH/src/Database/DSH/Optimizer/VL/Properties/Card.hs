@@ -24,16 +24,10 @@ inferCardOneUnOp c op =
   case op of
     Unique -> Right c
     UniqueS -> Right c
-    Length -> Right $ VProp True
+    Aggr _ -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
-    Sum _ -> Right $ VProp True
-    Avg -> Right $ VProp True
-    Min -> Right $ VProp True
-    MinS -> Right c
-    Max -> Right $ VProp True
-    MaxS -> Right c
     Project _  -> Right c
     ProjectRename _ -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -42,6 +36,7 @@ inferCardOneUnOp c op =
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1S _ _ -> Right $ VPropPair False False
     Select _ -> Right $ VProp False
+    SortSimple _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -56,7 +51,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    Aggr _ _ -> Right c
+    GroupAggr [] _ -> Right $ VProp True
+    GroupAggr _ _  -> Right c
     Only -> undefined
     Singleton -> undefined
     Number -> Right c
@@ -67,7 +63,7 @@ inferCardOneBinOp c1 c2 op =
   case op of
     GroupBy -> return $ VPropTriple False False False
     Sort -> return $ VPropPair False False
-    LengthS -> return $ VProp False
+    AggrS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     DistSeg -> return $ VPropPair False False
@@ -78,8 +74,6 @@ inferCardOneBinOp c1 c2 op =
     Append -> Right $ VPropTriple False False False
     Restrict -> Right $ VPropPair False False
     BinExpr _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
-    SumS -> Right c1
-    AvgS -> Right c1
     SelectPos _ -> return $ VPropPair False False
     SelectPosS _ -> return $ VPropPair False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)

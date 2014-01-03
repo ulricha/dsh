@@ -23,7 +23,7 @@ rewriteClasses = [ ('E', pruneEmpty)
                  ]
 
 defaultPipeline :: [RewriteClass]
-defaultPipeline = case assemblePipeline "ER" of
+defaultPipeline = case assemblePipeline "ERGR" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
@@ -36,7 +36,7 @@ assemblePipeline s = mapM (flip lookup rewriteClasses) s
 
 optimizeVL :: [RewriteClass] -> QueryPlan VL -> QueryPlan VL
 optimizeVL pipeline plan =
-  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
+  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline True
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
 
 optimizeVL' :: [RewriteClass] -> QueryPlan VL -> (QueryPlan VL, Log)

@@ -8,8 +8,6 @@ import           GHC.Exts
        
 import           Debug.Trace
 
-import           Data.Maybe
-
 import           Control.Applicative                         hiding (Const)
 
 import qualified Database.Algebra.VL.Data                    as VL
@@ -140,14 +138,27 @@ expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
 expr2 (VL.Column2Right (VL.R c)) = ColE $ itemi' c
 expr2 (VL.Constant2 v)           = ConstE $ algVal v
 
+colProjection :: VL.Expr1 -> Maybe DBCol
+colProjection (VL.Column1 c) = Just c
+colProjection _              = Nothing
+
 aggrFun :: VL.AggrFun -> AggrType
-aggrFun (VL.AggrSum c) = Sum $ itemi c
-aggrFun (VL.AggrMin c) = Min $ itemi c
-aggrFun (VL.AggrMax c) = Max $ itemi c
-aggrFun (VL.AggrAvg c) = Avg $ itemi c
-aggrFun VL.AggrCount   = Count
+aggrFun (VL.AggrSum _ c) = Sum $ itemi c
+aggrFun (VL.AggrMin c)   = Min $ itemi c
+aggrFun (VL.AggrMax c)   = Max $ itemi c
+aggrFun (VL.AggrAvg c)   = Avg $ itemi c
+aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
+
+-- | The default value for sums over empty lists for all possible
+-- numeric input types.
+sumDefault :: VL.VLType -> (ATy, AVal)
+sumDefault VL.Nat    = (ANat, nat 0)
+sumDefault VL.Int    = (AInt, int 0)
+sumDefault VL.Double = (ADouble, double 0)
+sumDefault t         = trace (show t) $impossible
+
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -264,20 +275,40 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return $ (DVec qr1 cols, PVec qr2)
 
-  vecLength (DVec d _) = do
-    qr <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-          $ aggrM [(Max item, item)] Nothing
-          $ (litTable (int 0) item intT)
-              `unionM`
-              (aggrM [(Count, item)] Nothing $ proj [cP pos] d)
-    return $ DVec qr [1]
+  vecAggr a (DVec q _) = do
+    -- The aggr operator itself
+    qa <- aggr [(aggrFun a, item)] [] q
+    -- For sum and length, add the default value for empty inputs
+    qd <- case a of
+            VL.AggrSum t _ -> let (dt, dv) = sumDefault t
+                              in aggrM [(Max item, item)] []
+                                 $ return qa `unionM` (litTable dv item dt)
+            VL.AggrCount   -> aggrM [(Max item, item)] [] 
+                              $ return qa `unionM` (litTable (int 0) item intT)
+            _              -> return qa
+    qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
+    return $ DVec qp [1]
 
-  vecLengthS (DVec q1 _) (DVec d _) = do
-    qr <- rownumM pos [descr] Nothing
-            $ aggrM [(Max item, item)] (Just descr)
-            $ (proj [mP descr pos, eP item (ConstE $ int 0)] q1)
-              `unionM`
-              (aggrM [(Count, item)] (Just descr) $ proj [cP descr] d)
+  vecAggrS a (DVec qo _) (DVec qi _) = do
+    qa <- aggr [(aggrFun a, item)] [descr] qi
+    qd <- case a of
+            VL.AggrSum t _ -> aggrM [(Max item, item)] [descr]
+                              $ return qa
+                                `unionM`
+                                proj [cP descr, eP item (ConstE $ snd $ sumDefault t)] qo
+            VL.AggrCount   -> aggrM [(Max item, item)] [descr]
+                              $ return qa
+                                `unionM`
+                                proj [cP descr, eP item (ConstE $ int 0)] qo
+            _              -> return qa
+    qp <- rownum pos [descr] Nothing qd
+    -- We have to unnest the inner vector (i.e. surrogate join) to get
+    -- the outer descriptor values (segmented aggregates remove one
+    -- list type constructor)
+    qr <- projM [mP descr descr', cP pos, cP item]
+          $ (eqJoinM pos' descr
+             (proj [mP descr' descr, mP pos' pos] qo)
+             (return qp))
     return $ DVec qr [1]
 
   vecReverse (DVec q cols) = do
@@ -294,7 +325,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUnique (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] (Just resCol)
+           $ aggrM [(Min pos, posold)] [resCol]
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
@@ -303,34 +334,11 @@ instance VectorAlgebra PFAlgebra where
 
   vecUniqueS (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] (Just resCol)
+           $ aggrM [(Min pos, posold)] [resCol]
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
           $ eqJoin pos posold q f
     return $ DVec qr cols
-
-  vecMin (DVec q _) = do
-    qr <- tagM "vecMin" 
-          $ projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-          $ aggr [(Min item, item)] Nothing q
-    return $ DVec qr [1]
-
-  vecMax (DVec q _) = do
-    qr <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-          $ aggr [(Max item, item)] Nothing q
-    return $ DVec qr [1]
-
-  vecMinS (DVec qv _) = do
-    qr <- tagM "vecMinLift" $ projM [cP descr,cP pos,cP item]
-            $ rownumM pos [descr] Nothing
-            $ aggr [(Min item, item)] (Just descr) qv
-    return $ DVec qr [1]
-
-  vecMaxS (DVec qv _) = do
-    qr <- projM [cP descr,cP pos,cP item]
-            $ rownumM pos [descr] Nothing
-            $ aggr [(Max item, item)] (Just descr) qv
-    return $ DVec qr [1]
 
   descToRename (DVec q1 _) = RVec <$> proj [mP posnew descr, mP posold pos] q1
 
@@ -351,48 +359,6 @@ instance VectorAlgebra PFAlgebra where
            $ projM [mP posold pos, mP posnew pos']
            $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 2)) q
     return $ (DVec qv cols, RVec qp1, RVec qp2)
-
-  vecSum t (DVec q _) = do
-    -- the default value for empty lists
-    q' <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-            $ case t of
-                VL.Int -> litTable (int 0) item intT
-                VL.Nat -> litTable (nat 0) item natT
-                VL.Double -> litTable (double 0) item doubleT
-                _   -> error "This type is not supported by the sum primitive (PF)"
-    -- the actual sum
-    qs <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-          $ aggrM [(Sum item, item)] Nothing
-          $ union q' q
-    return $ DVec qs [1]
-    
-  vecAvg (DVec q _) = do
-    qa <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item]
-          $ aggr [(Avg item, item)] Nothing q
-    return $ DVec qa [1] 
-  
-  vecAvgS (DVec _qd _) (DVec qv _) = do
-    qa <- projM [cP descr, eP pos (ConstE $ nat 1), cP item]
-          $ aggr [(Avg item, item)] (Just descr) qv
-    return $ DVec qa [1]
-
-  -- FIXME parameterize the sum operator with its argument type (i.e. double,
-  -- int, ...)
-  vecSumS (DVec qd _) (DVec qv _) = do
-    qe <- projM [cP descr, cP pos, eP item (ConstE (int 0))]
-          $ differenceM
-            (proj [mP descr pos] qd)
-            (proj [cP descr] qv)
-    qs <- aggr [(Sum item, item)] (Just descr) qv
-    qr <- rownumM pos [descr] Nothing
-          $ union qe qs
-    -- align the result vector with the original descriptor vector to get
-    -- the proper descriptor values (sum removes one list type constructor)
-    qa <- projM [mP descr descr', cP pos, cP item]
-          $ (eqJoinM pos' descr
-             (proj [mP descr' descr, mP pos' pos] qd)
-             (return qr))
-    return $ DVec qa [1]
 
   vecSelect expr (DVec q cols) = do
     qs <- projM (itemProj cols [cP descr, mP pos pos']) 
@@ -628,21 +594,15 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj ([cP descr, mP pos posnew] ++ allColsProj) qz
     return (DVec qr allCols, RVec r1, RVec r2)
   
-  vecAggr = undefined
-  {-
-  vecAggr groupCols aggrFuns (DVec q _) = do
-    let mPartAttrs = case groupCols of
-                         []         -> Nothing
-                         [groupCol] -> Just $ itemi groupCol
-                         _          -> undefined
+  vecGroupAggr groupCols aggrFuns (DVec q _) = do
+    let partAttrs = descr : map itemi groupCols
   
-    let pfAggrFuns = zipWith (\a i -> (a, itemi i)) (map aggrFun aggrFuns) [1..]
+    let pfAggrFuns = zipWith (\a i -> (aggrFun a, itemi i)) aggrFuns [1..]
                  
-    qa <- rownum
-          $ aggr pfAggrFuns mPartAttrs q
-  -}
-                 
-      
+    qa <- rownumM pos [descr] Nothing
+          $ aggr pfAggrFuns partAttrs q
+
+    return $ DVec qa [1 .. length groupCols + length aggrFuns]
   
   vecNumber (DVec q cols) = do
     let nrIndex = length cols + 1
@@ -699,3 +659,13 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "antijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  
+  vecSortSimple sortExprs (DVec q1 cols1) = do
+    let sortProjs = zipWith (\i e -> (itemi' i, expr1 e)) [1..] sortExprs
+    qs <- rownumM pos' (map fst sortProjs) Nothing
+          $ projAddCols cols1 sortProjs q1
+
+    qr1 <- proj (itemProj cols1 [cP descr, mP pos pos']) qs
+    qr2 <- proj [mP posold pos, mP posnew pos'] qs
+
+    return (DVec qr1 cols1, PVec qr2)

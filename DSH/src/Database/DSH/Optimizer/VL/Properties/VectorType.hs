@@ -32,16 +32,10 @@ inferVectorTypeUnOp s op =
   case op of
     Unique -> VProp <$> unpack s
     UniqueS -> VProp <$> unpack s
-    Length -> Right $ VProp $ AtomicVector 1
+    Aggr _ -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
-    Sum _ -> Right $ VProp $ AtomicVector 1
-    Avg -> Right $ VProp $ AtomicVector 1
-    Min -> Right $ VProp $ AtomicVector 1
-    MinS -> Right $ VProp $ ValueVector 1
-    Max -> Right $ VProp $ AtomicVector 1
-    MaxS -> Right $ VProp $ ValueVector 1
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
     FalsePositions -> Right $ VProp $ ValueVector 1
@@ -66,9 +60,10 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VProp <$> unpack s
+    SortSimple _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     Only -> undefined
     Singleton -> undefined
-    Aggr g as -> Right $ VProp $ ValueVector (length g + length as)
+    GroupAggr g as -> Right $ VProp $ ValueVector (length g + length as)
     Number -> Right $ VProp $ ValueVector 1
     NumberS -> Right $ VProp $ ValueVector 1
   
@@ -93,11 +88,11 @@ inferVectorTypeBinOp s1 s2 op =
           Left "Input of GroupBy is not a value vector"
     Sort ->
       case (s1, s2) of
-        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
+        (VProp (ValueVector _), VProp t2@(ValueVector _)) -> 
           Right $ VPropPair t2 PropVector
         _                                                    -> 
           Left "Input of SortWith is not a value vector"
-    LengthS -> return $ VProp $ ValueVector 1
+    AggrS _ -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)
@@ -115,8 +110,6 @@ inferVectorTypeBinOp s1 s2 op =
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     BinExpr _ -> Right $ VProp $ ValueVector 1
-    SumS -> Right $ VProp $ ValueVector 1
-    AvgS -> Right $ VProp $ ValueVector 1
     SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     Zip ->

@@ -78,7 +78,8 @@ Library
                      TableAlgebra >= 2.0.0,
                      semigroups,
                      kure               >= 2.14.0,
-                     ansi-wl-pprint
+                     ansi-wl-pprint,
+                     set-monad
                      
   Hs-source-dirs:    src
   GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
@@ -156,6 +157,20 @@ Library
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
                      Database.DSH.Optimizer.VL.Properties.VectorType
+
+                     Database.DSH.Optimizer.TA.Properties.BottomUp
+                     Database.DSH.Optimizer.TA.Properties.TopDown
+                     Database.DSH.Optimizer.TA.Properties.Types
+                     Database.DSH.Optimizer.TA.Properties.Cols
+                     Database.DSH.Optimizer.TA.Properties.ICols
+                     Database.DSH.Optimizer.TA.Properties.Use
+                     Database.DSH.Optimizer.TA.Properties.Aux
+                     Database.DSH.Optimizer.TA.Properties.Empty
+                     Database.DSH.Optimizer.TA.Properties.Card1
+                     Database.DSH.Optimizer.TA.Properties.Keys
+                     Database.DSH.Optimizer.TA.Rewrite.Basic
+                     Database.DSH.Optimizer.TA.Rewrite.Common
+                     Database.DSH.Optimizer.TA.OptimizeTA
 		     
                      Database.DSH.Optimizer.Common.Rewrite
                      Database.DSH.Optimizer.VL.OptimizeVL

@@ -115,11 +115,11 @@ vlSort (DVec c1 _) (DVec c2 _) = do
                                   r2 <- pvec $ insertNode $ UnOp R2 r
                                   return (r1, r2)
 
-vlLength :: DVec -> GraphM r VL DVec
-vlLength (DVec c _) = dvec $ insertNode $ UnOp Length c
+vlAggr :: AggrFun -> DVec -> GraphM r VL DVec
+vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr aFun) c
 
-vlLengthS :: DVec -> DVec -> GraphM r VL DVec
-vlLengthS (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp LengthS c1 c2
+vlAggrS :: AggrFun -> DVec -> DVec -> GraphM r VL DVec
+vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS aFun) c1 c2
 
 vlDescToRename :: DVec -> GraphM r VL RVec
 vlDescToRename (DVec c _) = rvec $ insertNode $ UnOp DescToRename c
@@ -207,30 +207,6 @@ vlBinExpr :: O.Oper -> DVec -> DVec -> GraphM r VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
                                      $ insertNode
                                      $ BinOp (BinExpr (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
-
-vlSum :: Ty.Type -> DVec -> GraphM r VL DVec
-vlSum ty (DVec c _) = dvec $ insertNode $ UnOp (Sum (typeToVLType ty)) c
-
-vlAvg :: DVec -> GraphM r VL DVec
-vlAvg (DVec c _) = dvec $ insertNode $ UnOp Avg c
-
-vlSumS :: DVec -> DVec -> GraphM r VL DVec
-vlSumS (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp SumS c1 c2
-
-vlAvgS :: DVec -> DVec -> GraphM r VL DVec
-vlAvgS (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp AvgS c1 c2
-
-vlMin :: DVec -> GraphM r VL DVec
-vlMin (DVec c _) = dvec $ insertNode $ UnOp Min c
-
-vlMinS :: DVec -> GraphM r VL DVec
-vlMinS (DVec c _) = dvec $ insertNode $ UnOp MinS c
-
-vlMax :: DVec -> GraphM r VL DVec
-vlMax (DVec c _) = dvec $ insertNode $ UnOp Max c
-
-vlMaxS :: DVec -> GraphM r VL DVec
-vlMaxS (DVec c _) = dvec $ insertNode $ UnOp MaxS c
 
 vlSelectPos :: DVec -> O.Oper -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do

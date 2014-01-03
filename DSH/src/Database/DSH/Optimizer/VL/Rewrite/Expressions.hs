@@ -6,6 +6,7 @@ module Database.DSH.Optimizer.VL.Rewrite.Expressions where
 -- which are expressed through multiple operators.
 
 import Control.Monad
+import Control.Applicative
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
@@ -25,7 +26,9 @@ expressionRules = [ constInputLeft
                   , mergeExpr12
                   , mergeExpr11
                   , mergeExpr21Right
-                  , mergeExpr21Left ]
+                  , mergeExpr21Left 
+                  , identityProject
+                  ]
 
 replaceLeftCol :: Expr2 -> Expr2 -> Expr2
 replaceLeftCol col' e =
@@ -226,3 +229,24 @@ mergeExpr21Left q =
           let e2' = replaceLeftCol (expr1ToExpr2Left $(v "e1")) $(v "e2")
           void $ replaceWithNew q $ BinOp (BinExpr e2') $(v "q1") $(v "q2") |])
 
+identityProject :: VLRule BottomUpProps
+identityProject q =
+  $(pattern 'q "Project ps (q1)"
+    [| do
+        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
+        predicate $ length $(v "ps") == w
+
+        let sameCol :: (Int, Expr1) -> Bool
+            sameCol (i, Column1 i') = i == i'
+            sameCol _               = False
+
+        predicate $ all sameCol (zip [1..] $(v "ps"))
+
+        rs <- getRootNodes
+        predicate $ not $ q `elem` rs
+
+        return $ do
+          logRewrite "Project.Identity" q
+          replace q $(v "q1") |])
+
+       

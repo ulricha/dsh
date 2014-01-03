@@ -1,6 +1,8 @@
 module Database.DSH.Optimizer.VL.Properties.Const where
 
 import           Data.List
+                 
+import Text.Printf
 
 import           Database.Algebra.VL.Data
 import           Database.DSH.Optimizer.VL.Properties.Common
@@ -27,14 +29,16 @@ fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromPropVec (PropVecConst s t)  = Right (s, t)
 fromPropVec _                   = Left "Properties.Const fromPropVec"
 
-constExpr1 :: [ConstPayload] -> Expr1 -> ConstPayload
+constExpr1 :: [ConstPayload] -> Expr1 -> Either String ConstPayload
 constExpr1 constCols e = 
     case e of
-        Constant1 v      -> ConstPL v
-        Column1 i        -> constCols !! (i - 1)
+        Constant1 v      -> return $ ConstPL v
+        Column1 i        -> if length constCols < i - 1
+                            then Left (printf "constExpr1 %s %d" (show constCols) i)
+                            else return $ constCols !! (i - 1)
         -- FIXME implement constant folding
-        BinApp1 op e1 e2 -> NonConstPL
-        UnApp1 op e      -> NonConstPL
+        BinApp1 op e1 e2 -> return NonConstPL
+        UnApp1 op e1     -> return NonConstPL
 
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
@@ -61,7 +65,7 @@ inferConstVecUnOp c op =
 
     UniqueS -> return c
 
-    Length -> do
+    Aggr _ -> do
       return $ VProp $ DBPConst [NonConstPL]
 
     DescToRename -> do
@@ -75,18 +79,6 @@ inferConstVecUnOp c op =
     Unsegment -> do
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
-
-    Sum _ -> return $ VProp $ DBVConst (ConstDescr $ N 1) [NonConstPL]
-    
-    Avg -> return c
-
-    Min -> return c
-
-    MinS -> return c
-
-    Max -> return c
-
-    MaxS -> return c
 
     SelectPos1 _ _ -> do
       (d, cols) <- unp c >>= fromDBV
@@ -117,9 +109,10 @@ inferConstVecUnOp c op =
             STNumber -> NonConstDescr
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
 
-    Project vps   -> do
+    Project projExprs   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst constDescr $ map (constExpr1 constCols) vps
+      constCols'              <- mapM (constExpr1 constCols) projExprs
+      return $ VProp $ DBVConst constDescr constCols'
 
     Select _       -> do
       (d, cols) <- unp c >>= fromDBV
@@ -128,7 +121,7 @@ inferConstVecUnOp c op =
     Only             -> undefined
     Singleton        -> undefined
 
-    Aggr g as -> do
+    GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
       
@@ -139,6 +132,10 @@ inferConstVecUnOp c op =
     NumberS -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d [NonConstPL]
+
+    SortSimple _ -> do
+      (d, cs) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     R1 ->
       case c of
@@ -160,16 +157,19 @@ inferConstVecBinOp c1 c2 op =
   case op of
     GroupBy -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
-      (dq, _) <- unp c1 >>= fromDBV
+      (dq, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropTriple (DBVConst dq []) (DBVConst NonConstDescr cols2) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropTriple (DBVConst dq cols1) 
+                           (DBVConst NonConstDescr cols2) 
+                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     Sort -> do
       (d, cols) <- unp c2 >>= fromDBV
       return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     -- FIXME use cardinality property to infer the length if possible
-    LengthS -> do
+    -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
+    AggrS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
@@ -230,10 +230,6 @@ inferConstVecBinOp c1 c2 op =
       (_, _) <- unp c2 >>= fromDBV
 
       return $ VProp $ DBVConst d1 [NonConstPL]
-
-    -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
-    SumS -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
-    AvgS -> return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
