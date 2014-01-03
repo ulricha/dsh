@@ -79,43 +79,30 @@ inferIColsUnOp ownICols childICols op =
     case op of
         -- Require the sorting columns, if the rownum output is required.
         RowNum (resCol, sortInf, groupCol) -> 
-            if resCol ∈ ownICols
-            then (S.delete resCol ownICols)
-                  ∪ (S.fromList $ map fst sortInf) 
-                  ∪ maybe S.empty S.singleton groupCol
-                  ∪ childICols
-            else (S.delete resCol ownICols) ∪ childICols
+            (S.delete resCol ownICols)
+            ∪ (S.fromList $ map fst sortInf) 
+            ∪ maybe S.empty S.singleton groupCol
+            ∪ childICols
     
         RowRank (resCol, sortInf)   ->
-            if resCol ∈ ownICols
-            then (S.delete resCol ownICols)
-                  ∪ (S.fromList $ map fst sortInf)
-                  ∪ childICols
-            else (S.delete resCol ownICols) ∪ childICols
+            (S.delete resCol ownICols)
+            ∪ (S.fromList $ map fst sortInf)
+            ∪ childICols
         Rank (resCol, sortInf)      -> 
-            if resCol ∈ ownICols
-            then (S.delete resCol ownICols)
-                  ∪ (S.fromList $ map fst sortInf)
-                  ∪ childICols
-            else (S.delete resCol ownICols) ∪ childICols
+            (S.delete resCol ownICols)
+            ∪ (S.fromList $ map fst sortInf)
+            ∪ childICols
 
         -- For projections we require input columns of expressions, but only for
         -- those output columns which are actually required from downstream.
-        Project projs         -> S.foldr (∪) childICols
-                                 [ exprCols e 
-                                 | (a, e) <- S.fromList projs
-                                 , a ∈ ownICols 
-                                 ]
+        Project projs         -> S.foldr (∪) childICols $ S.fromList $ map (exprCols . snd) projs
 
         -- Require all columns for the select columns, in addition to columns
         -- required downstream
         Select e              -> childICols ∪ ownICols ∪ exprCols e
         Distinct _            -> childICols ∪ ownICols
 
-        Aggr (acols, pcols)   -> S.foldr (∪) childICols [ aggrInput agg 
-                                                        | (agg, a) <- S.fromList acols
-                                                        , a `S.member` ownICols 
-                                                        ]
+        Aggr (acols, pcols)   -> (S.foldr (∪) childICols $ S.fromList $ map (aggrInput . fst) acols)
                                  ∪
                                  S.fromList pcols
 
