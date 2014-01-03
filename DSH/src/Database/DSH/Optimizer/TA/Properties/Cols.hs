@@ -13,8 +13,49 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 import Database.DSH.Optimizer.TA.Properties.Aux
 import Database.DSH.Optimizer.TA.Properties.Types
 
+----------------------------------------------------------------------------
+-- Type inference for tablealgebra expressions
+
+isNumeric :: BinFun -> Bool
+isNumeric f = f `elem` [Plus, Minus, Times, Div]
+
+isComp :: BinFun -> Bool
+isComp f = f `elem` [Gt, Lt, LtE, GtE, Eq, Contains, SimilarTo, Like]
+
+isBool :: BinFun -> Bool
+isBool f = f `elem` [And, Or]
+
+binAppTy :: BinFun -> ATy -> ATy -> ATy
+binAppTy f t1 _t2 =
+    case f of
+        f | isComp f    -> ABool
+        f | isBool f    -> ABool
+        f | isNumeric f -> t1
+        Modulo          -> AInt
+        Concat          -> AStr
+
+unAppTy :: UnFun -> ATy
+unAppTy Not      = ABool
+unAppTy (Cast t) = t
+
+valType :: AVal -> ATy
+valType (VInt _)    = AInt
+valType (VStr _)    = AStr
+valType (VBool _)   = ABool
+valType (VDouble _) = ADouble
+valType (VDec _)    = ADec
+valType (VNat _)    = ANat
+
 exprTy :: S.Set TypedAttr -> Expr -> ATy
-exprTy = undefined
+exprTy childCols expr = 
+    case expr of
+        ColE c          -> typeOf c childCols
+        ConstE v        -> valType v
+        BinAppE f e1 e2 -> binAppTy f (exprTy childCols e1) (exprTy childCols e2)
+        UnAppE f e      -> unAppTy f
+
+----------------------------------------------------------------------------
+-- Type inference for aggregate functions
 
 aggrTy :: S.Set TypedAttr -> (AggrType, AttrName) -> TypedAttr
 aggrTy childCols (aggr, resCol) = (resCol, resType)
@@ -35,6 +76,8 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
     numAggr ANat = ANat
     numAggr _    = $impossible
 
+----------------------------------------------------------------------------
+-- Schema inference for tablealgebra operators
 
 inferColsNullOp :: NullOp -> S.Set TypedAttr
 inferColsNullOp op = 

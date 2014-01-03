@@ -34,6 +34,9 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , postFilterRownum
                       ]
 
+----------------------------------------------------------------------------------
+-- Rewrite rules
+
 mergeProjections :: [Proj] -> [Proj] -> [Proj]
 mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
 
