@@ -144,10 +144,10 @@ colProjection _              = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
 aggrFun (VL.AggrSum _ c) = Sum $ itemi c
-aggrFun (VL.AggrMin c) = Min $ itemi c
-aggrFun (VL.AggrMax c) = Max $ itemi c
-aggrFun (VL.AggrAvg c) = Avg $ itemi c
-aggrFun VL.AggrCount   = Count
+aggrFun (VL.AggrMin c)   = Min $ itemi c
+aggrFun (VL.AggrMax c)   = Max $ itemi c
+aggrFun (VL.AggrAvg c)   = Avg $ itemi c
+aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
 
@@ -277,26 +277,26 @@ instance VectorAlgebra PFAlgebra where
 
   vecAggr a (DVec q _) = do
     -- The aggr operator itself
-    qa <- aggr [(aggrFun a, item)] Nothing q
+    qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
     qd <- case a of
             VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                              in aggrM [(Max item, item)] Nothing
+                              in aggrM [(Max item, item)] []
                                  $ return qa `unionM` (litTable dv item dt)
-            VL.AggrCount   -> aggrM [(Max item, item)] Nothing $ 
-                              return qa `unionM` (litTable (int 0) item intT)
+            VL.AggrCount   -> aggrM [(Max item, item)] [] 
+                              $ return qa `unionM` (litTable (int 0) item intT)
             _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
     return $ DVec qp [1]
 
   vecAggrS a (DVec qo _) (DVec qi _) = do
-    qa <- aggr [(aggrFun a, item)] (Just descr) qi
+    qa <- aggr [(aggrFun a, item)] [descr] qi
     qd <- case a of
-            VL.AggrSum t _ -> aggrM [(Max item, item)] (Just descr)
+            VL.AggrSum t _ -> aggrM [(Max item, item)] [descr]
                               $ return qa
                                 `unionM`
                                 proj [cP descr, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max item, item)] (Just descr)
+            VL.AggrCount   -> aggrM [(Max item, item)] [descr]
                               $ return qa
                                 `unionM`
                                 proj [cP descr, eP item (ConstE $ int 0)] qo
@@ -325,7 +325,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUnique (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] (Just resCol)
+           $ aggrM [(Min pos, posold)] [resCol]
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
@@ -334,7 +334,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUniqueS (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] (Just resCol)
+           $ aggrM [(Min pos, posold)] [resCol]
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
           $ eqJoin pos posold q f
@@ -594,21 +594,15 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj ([cP descr, mP pos posnew] ++ allColsProj) qz
     return (DVec qr allCols, RVec r1, RVec r2)
   
-  vecGroupAggr = undefined
-  {-
-  vecAggr groupCols aggrFuns (DVec q _) = do
-    let mPartAttrs = case groupCols of
-                         []         -> Nothing
-                         [groupCol] -> Just $ itemi groupCol
-                         _          -> undefined
+  vecGroupAggr groupCols aggrFuns (DVec q _) = do
+    let partAttrs = descr : map itemi groupCols
   
-    let pfAggrFuns = zipWith (\a i -> (a, itemi i)) (map aggrFun aggrFuns) [1..]
+    let pfAggrFuns = zipWith (\a i -> (aggrFun a, itemi i)) aggrFuns [1..]
                  
-    qa <- rownum
-          $ aggr pfAggrFuns mPartAttrs q
-  -}
-                 
-      
+    qa <- rownumM pos [descr] Nothing
+          $ aggr pfAggrFuns partAttrs q
+
+    return $ DVec qa [1 .. length groupCols + length aggrFuns]
   
   vecNumber (DVec q cols) = do
     let nrIndex = length cols + 1
