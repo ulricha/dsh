@@ -51,7 +51,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    GroupAggr _ _ -> Right c
+    GroupAggr [] _ -> Right $ VProp True
+    GroupAggr _ _  -> Right c
     Only -> undefined
     Singleton -> undefined
     Number -> Right c
