@@ -36,7 +36,6 @@ runG i c = runGraph i $ fst <$> runStateT c M.empty
 data Res = Prop    AlgNode
          | Rename  AlgNode
          | RDVec   AlgNode [DBCol]
-         | RDBP    AlgNode [DBCol]
          | RPair   Res Res
          | RTriple Res Res Res
          deriving Show
@@ -90,9 +89,12 @@ refreshShape (ValueVector (DVec n _) lyt) = do
             return $ ValueVector (toDVec n') lyt'
         _ -> error $ "Disaster: " ++ show v
 refreshShape (PrimVal (DVec n _) lyt) = do
-    Just (RDBP n' cs) <- fromDict n
-    lyt'              <- refreshLyt lyt
-    return $ PrimVal (DVec n' cs) lyt'
+    v <- fromDict n
+    case v of
+        Just (RDVec n' cs) -> do
+            lyt'              <- refreshLyt lyt
+            return $ PrimVal (DVec n' cs) lyt'
+        x -> error $ show x
 
 translate :: VectorAlgebra a => NodeMap VL -> AlgNode -> G a Res
 translate vlNodes n = do
@@ -134,6 +136,7 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
+    
     refreshShape plan
   where
     roots :: [AlgNode]
@@ -236,13 +239,21 @@ translateBinOp b c1 c2 = case b of
         (v, r) <- vecAntiJoinS e1 e2 (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
+-- FIXME singleton and only should really never occur and can
+-- hopefully be eliminated completely. Let's see if it blows up.
 singleton :: Res -> Res
+singleton = undefined
+{-
 singleton (RDBP c cs) = RDVec c cs
 singleton _           = error "singleton: Not a DBP"
+-}
 
 only :: Res -> Res
+only = undefined
+{-
 only (RDVec c cs) = RDBP c cs
 only _            = error "only: Not a DVec"
+-}
 
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
