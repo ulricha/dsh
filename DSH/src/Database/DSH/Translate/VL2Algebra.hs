@@ -39,7 +39,7 @@ data Res = Prop    AlgNode
          | RDBP    AlgNode [DBCol]
          | RPair   Res Res
          | RTriple Res Res Res
-    deriving Show
+         deriving Show
 
 fromDict :: VectorAlgebra a => AlgNode -> G a (Maybe Res)
 fromDict n = do
@@ -95,41 +95,45 @@ refreshShape (PrimVal (DVec n _) lyt) = do
     return $ PrimVal (DVec n' cs) lyt'
 
 translate :: VectorAlgebra a => NodeMap VL -> AlgNode -> G a Res
-translate nodes n = do
+translate vlNodes n = do
     r <- fromDict n
+
     case r of
+        -- The VL node has already been encountered and translated.
         Just res -> return $ res
+
+        -- The VL node has not been translated yet.
         Nothing  -> do
-            let node = getNode n nodes
-            r' <- case node of
+            let vlOp = getVL n vlNodes
+            r' <- case vlOp of
                 TerOp t c1 c2 c3 -> do
-                    c1' <- translate nodes c1 
-                    c2' <- translate nodes c2 
-                    c3' <- translate nodes c3
+                    c1' <- translate vlNodes c1 
+                    c2' <- translate vlNodes c2 
+                    c3' <- translate vlNodes c3
                     lift $ translateTerOp t c1' c2' c3'
                 C.BinOp b c1 c2    -> do
-                    c1' <- translate nodes c1
-                    c2' <- translate nodes c2
+                    c1' <- translate vlNodes c1
+                    c2' <- translate vlNodes c2
                     lift $ translateBinOp b c1' c2'
                 UnOp u c1        -> do
-                    c1' <- translate nodes c1
+                    c1' <- translate vlNodes c1
                     lift $ translateUnOp u c1'
                 NullaryOp o      -> lift $ translateNullary o
 
             insertTranslation n r'
             return r'
 
-getNode :: AlgNode -> NodeMap VL -> VL
-getNode n nodes = case IM.lookup n nodes of
+getVL :: AlgNode -> NodeMap VL -> VL
+getVL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
-    Nothing -> error $ "getNode: node " ++ (show n) ++ " not in nodes map " ++ (pp nodes)
+    Nothing -> error $ "getVL: node " ++ (show n) ++ " not in VL nodes map " ++ (pp vlNodes)
 
 pp :: NodeMap VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
-vl2Algebra (nodes, plan) = do
-    mapM_ (translate nodes) roots
+vl2Algebra (vlNodes, plan) = do
+    mapM_ (translate vlNodes) roots
     refreshShape plan
   where
     roots :: [AlgNode]
