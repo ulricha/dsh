@@ -121,7 +121,14 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     SortSimple exprs -> childReqColumns 
                         `union` 
                         ownReqColumns 
-                        `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+                        `union` 
+                        (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+
+    GroupSimple exprs -> childReqColumns
+                         `union`
+                         ownReqColumns
+                         `union`
+                         (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
 
     R1               ->
       case childReqColumns of

@@ -271,6 +271,9 @@ translateUnOp u c = case u of
     SortSimple es -> do
         (d, p) <- vecSortSimple es (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
+    GroupSimple es -> do
+        (qo, qi, p) <- vecGroupSimple es (toDVec c)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromProp p)
     ProjectRename (posnewP, posoldP) -> fromRenameVector 
                                         <$> projectRename posnewP posoldP (toDVec c)
     Project cols -> fromDVec <$> vecProject cols (toDVec c)

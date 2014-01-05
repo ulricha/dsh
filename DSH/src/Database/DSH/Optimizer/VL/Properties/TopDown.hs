@@ -40,6 +40,7 @@ seed (UnOp op _)   =
     FalsePositions     -> vPropSeed
     Select     _       -> vPropSeed
     SortSimple _       -> vPropSeed
+    GroupSimple _      -> vPropSeed
     ProjectRename _    -> vPropSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
