@@ -116,7 +116,7 @@ expr2ToExpr1 (Constant2 val)      = Constant1 val
 
 -- Rewrite rules
 
--- Merge CompExpr operators with input projections in various combinations
+-- Merge BinExpr operators with input projections in various combinations
 
 -- Remove the left input from a CompExpr operator if the input is constant
 constInputLeft :: VLRule BottomUpProps

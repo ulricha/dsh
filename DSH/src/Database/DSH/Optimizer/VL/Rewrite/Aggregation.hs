@@ -19,10 +19,12 @@ import Database.DSH.Optimizer.VL.Rewrite.Common
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrProject
                    , flatGrouping
+                   , simpleGrouping
+                   , simpleGroupingProject
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ pushExprThroughGroupBy
+aggregationRulesBottomUp = [ -- pushExprThroughGroupBy
                            ]
 
 groupingToAggregation :: VLRewrite Bool
@@ -92,6 +94,51 @@ projectionCol :: Expr1 -> VLMatch () DBCol
 projectionCol (Column1 c) = return c
 projectionCol _           = fail "no match"
 
+-- If grouping is performed by simple scalar expressions, we can
+-- employ a simpler operator.
+simpleGrouping :: VLRule ()
+simpleGrouping q =
+  $(pattern 'q "(Project projs (q1)) GroupBy (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Aggregation.Grouping.Simple" q
+          void $ replaceWithNew q $ UnOp (GroupSimple $(v "projs")) $(v "q1") |])
+
+-- If grouping is performed by simple scalar expressions, we can
+-- employ a simpler operator. This pattern arises when the grouping
+-- input projection (left) is merged with the common origin of left
+-- and right groupby input.
+simpleGroupingProject :: VLRule ()
+simpleGroupingProject q =
+  $(pattern 'q "R2 (qg=(Project projs1 (q1)) GroupBy (Project projs2 (q2)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Aggregation.Grouping.Simple.Project" q
+
+          -- Add the grouping columns to the group input projection
+          let projs = $(v "projs2") ++ $(v "projs1")
+          projectNode <- insert $ UnOp (Project projs) $(v "q1")
+
+          let groupExprs = [ Column1 $ i + length $(v "projs2") 
+                           | i <- [1 .. length $(v "projs1")]
+                           ]
+
+          -- group by the columns that have been added to the input
+          -- projection.
+          groupNode <- insert $ UnOp (GroupSimple groupExprs) projectNode
+
+          -- Remove the additional grouping columns from the inner vector
+          r2Node <- insert $ UnOp R2 groupNode
+          let origSchemaProj = map Column1 [1 .. length $(v "projs2")]
+          topProjectNode <- insert $ UnOp (Project origSchemaProj) r2Node
+          replace q topProjectNode
+
+          -- Re-wire R1 and R3 parents of the group operator
+          replace $(v "qg") groupNode |])
           
 -- We rewrite a combination of GroupBy and aggregation operators into a single
 -- VecAggr operator if the following conditions hold: 
