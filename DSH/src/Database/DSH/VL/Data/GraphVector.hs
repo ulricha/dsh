@@ -4,7 +4,7 @@ module Database.DSH.VL.Data.GraphVector where
 import Database.DSH.VL.Data.DBVector
 
 import Database.DSH.FKL.Render.Render()
-import Database.DSH.FKL.Data.FKL hiding (Pair)
+import Database.DSH.FKL.Data.FKL
 
 import GHC.Generics (Generic)
 

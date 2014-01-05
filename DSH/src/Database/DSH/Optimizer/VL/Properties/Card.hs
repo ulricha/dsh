@@ -37,6 +37,7 @@ inferCardOneUnOp c op =
     SelectPos1S _ _ -> Right $ VPropPair False False
     Select _ -> Right $ VProp False
     SortSimple _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    GroupSimple _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"

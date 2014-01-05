@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Optimizer.VL.Rewrite.Common where
 
 import qualified Data.IntMap                                              as M
@@ -6,6 +8,7 @@ import           Control.Monad
 
 import           Database.Algebra.Dag.Common
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.QueryPlan
 
 import           Database.Algebra.VL.Data
@@ -66,3 +69,13 @@ lookupR2Parents q = do
 
   ps <- parents q
   filterM isR2 ps
+
+mergeExpr1 :: [(DBCol, Expr1)] -> Expr1 -> Expr1
+mergeExpr1 env expr =
+    case expr of
+        BinApp1 o e1 e2 -> BinApp1 o (mergeExpr1 env e1) (mergeExpr1 env e2)
+        UnApp1 o e1     -> UnApp1 o (mergeExpr1 env e1)
+        Column1 c       -> case lookup c env of
+                               Just expr' -> expr'
+                               Nothing    -> $impossible
+        _               -> expr

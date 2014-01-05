@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ParallelListComp     #-}
 
 module Database.DSH.VL.PathfinderVectorPrimitives() where
 
@@ -26,9 +27,9 @@ pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, o
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
-descr     = "iter"
-descr'    = "iter1"
-descr''   = "iter2"
+descr     = "descr"
+descr'    = "descr1"
+descr''   = "descr2"
 pos'      = "pos1"
 pos''     = "pos2"
 pos'''    = "pos3"
@@ -143,10 +144,10 @@ colProjection (VL.Column1 c) = Just c
 colProjection _              = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
-aggrFun (VL.AggrSum _ c) = Sum $ itemi c
-aggrFun (VL.AggrMin c)   = Min $ itemi c
-aggrFun (VL.AggrMax c)   = Max $ itemi c
-aggrFun (VL.AggrAvg c)   = Avg $ itemi c
+aggrFun (VL.AggrSum _ e) = Sum $ expr1 e
+aggrFun (VL.AggrMin e)   = Min $ expr1 e
+aggrFun (VL.AggrMax e)   = Max $ expr1 e
+aggrFun (VL.AggrAvg e)   = Avg $ expr1 e
 aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
@@ -158,7 +159,6 @@ sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
 sumDefault t         = trace (show t) $impossible
-
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -281,9 +281,9 @@ instance VectorAlgebra PFAlgebra where
     -- For sum and length, add the default value for empty inputs
     qd <- case a of
             VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                              in aggrM [(Max item, item)] []
+                              in aggrM [(Max (ColE item), item)] []
                                  $ return qa `unionM` (litTable dv item dt)
-            VL.AggrCount   -> aggrM [(Max item, item)] [] 
+            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
                               $ return qa `unionM` (litTable (int 0) item intT)
             _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
@@ -292,14 +292,14 @@ instance VectorAlgebra PFAlgebra where
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [descr] qi
     qd <- case a of
-            VL.AggrSum t _ -> aggrM [(Max item, item)] [descr]
+            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [descr]
                               $ return qa
                                 `unionM`
-                                proj [cP descr, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max item, item)] [descr]
+                                proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
+            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [descr]
                               $ return qa
                                 `unionM`
-                                proj [cP descr, eP item (ConstE $ int 0)] qo
+                                proj [mP descr pos, eP item (ConstE $ int 0)] qo
             _              -> return qa
     qp <- rownum pos [descr] Nothing qd
     -- We have to unnest the inner vector (i.e. surrogate join) to get
@@ -325,7 +325,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUnique (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [resCol]
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
@@ -334,7 +334,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUniqueS (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [resCol]
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
           $ eqJoin pos posold q f
@@ -415,7 +415,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecGroupBy (DVec v1 colsg) (DVec v2 colse) = do 
     q' <- rownumM pos' [resCol, pos] Nothing
-            $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
+          $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
     d1 <- distinctM 
           $ proj (itemProj colsg [cP descr, mP pos resCol]) q'
     p <- proj [mP posold pos, mP posnew pos'] q'
@@ -424,6 +424,30 @@ instance VectorAlgebra PFAlgebra where
            $ eqJoinM pos'' pos' (proj [mP descr resCol, mP pos pos', mP pos'' pos] q')
                                 (proj ((mP pos' pos):[(mP (itemi i) (itemi i)) | i <- colse]) v2)
     return $ (DVec d1 colsg, DVec v colse, PVec p)
+
+  vecGroupSimple groupExprs (DVec q1 cols1) = do
+      -- apply the grouping expressions and compute surrogate values
+      -- from the grouping values
+      let groupProjs = [ eP (itemi' i) (expr1 e) | e <- groupExprs | i <- [1..] ]
+          groupCols = map fst groupProjs
+      qg <- rowrankM resCol [ (c, Asc) | c <- (descr : groupCols) ]
+            $ proj (itemProj cols1 (cP descr : groupProjs)) q1
+
+      -- Create the outer vector, containing surrogate values and the
+      -- grouping values
+      qo <- distinctM 
+            $ proj ([cP descr, mP pos resCol] 
+                    ++ [ mP (itemi i) c | c <- groupCols | i <- [1..] ]) qg
+
+      -- Create new positions for the inner vector
+      qp <- rownum posnew [resCol, pos] Nothing qg
+
+      -- Create the inner vector, containing the actual groups
+      qi <- proj (itemProj cols1 [mP descr resCol, mP pos posnew]) qp
+             
+      qprop <- proj [mP posold pos, cP posnew] qp
+
+      return (DVec qo [1 .. length groupExprs], DVec qi cols1, PVec qprop)
 
   vecCartProduct (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1

@@ -16,21 +16,21 @@ import Database.DSH.Optimizer.VL.Properties.VectorType
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: VL -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
-inferWorker op n pm =
+inferWorker op node pm =
     case op of
          TerOp vl c1 c2 c3 ->
            let c1Props = lookupUnsafe pm "no children properties" c1
                c2Props = lookupUnsafe pm "no children properties" c2
                c3Props = lookupUnsafe pm "no children properties" c3
-           in checkError n [c1Props, c2Props, c3Props] $ inferTerOp vl c1Props c2Props c3Props
+           in checkError node [c1Props, c2Props, c3Props] $ inferTerOp vl c1Props c2Props c3Props
          BinOp vl c1 c2 ->
            let c1Props = lookupUnsafe pm "no children properties" c1
                c2Props = lookupUnsafe pm "no children properties" c2
-           in checkError n [c1Props, c2Props] $ inferBinOp vl c1Props c2Props
+           in checkError node [c1Props, c2Props] $ inferBinOp vl c1Props c2Props
          UnOp vl c ->
            let cProps = lookupUnsafe pm "no children properties" c
-           in checkError n [cProps] $ inferUnOp vl cProps
-         NullaryOp vl -> checkError n [] $ inferNullOp vl
+           in checkError node [cProps] $ inferUnOp vl cProps
+         NullaryOp vl -> checkError node [] $ inferNullOp vl
 
   where
     checkError :: AlgNode -> [BottomUpProps] -> Either String BottomUpProps -> BottomUpProps

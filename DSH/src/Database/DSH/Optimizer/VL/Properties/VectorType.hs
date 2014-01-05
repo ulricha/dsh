@@ -61,6 +61,13 @@ inferVectorTypeUnOp s op =
 
     Select _ -> VProp <$> unpack s
     SortSimple _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+
+    GroupSimple es -> 
+      case s of
+        VProp t@(ValueVector _) -> 
+          Right $ VPropTriple (ValueVector $ length es) t PropVector
+        _                                                    -> 
+          Left "Input of GroupSimple is not a value vector"
     Only -> undefined
     Singleton -> undefined
     GroupAggr g as -> Right $ VProp $ ValueVector (length g + length as)

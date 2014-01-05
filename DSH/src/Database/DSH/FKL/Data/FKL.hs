@@ -27,165 +27,165 @@ data Expr = Table   Type String [Column] [Key]
           | AClo    Type Ident [Ident] Ident Expr Expr
     deriving (Eq, Generic)
 
-data Prim1 = LengthPrim Type
-           | LengthLift Type
-           | NotPrim Type
-           | NotVec Type
-           | ConcatLift Type
-           | Fst Type
-           | Snd Type
-           | FstL Type
-           | SndL Type
-           | Sum Type
-           | Avg Type
-           | SumL Type
-           | AvgL Type
-           | Minimum Type
-           | MinimumL Type
-           | Maximum Type
-           | MaximumL Type
-           | The Type
-           | TheL Type
-           | Concat Type
-           | QuickConcat Type
-           | IntegerToDouble Type
-           | IntegerToDoubleL Type
-           | Tail Type
-           | TailL Type
-           | Reverse Type
-           | ReverseL Type
-           | And Type
-           | AndL Type
-           | Or Type
-           | OrL Type
-           | Init Type
-           | InitL Type
-           | Last Type
-           | LastL Type
-           | Nub Type
-           | NubL Type
-           | Number Type
-           | NumberL Type
+data Prim1 = FLength Type
+           | FLengthL Type
+           | FNot Type
+           | FNotL Type
+           | FConcat Type
+           | FConcatL Type
+           | FFst Type
+           | FFstL Type
+           | FSnd Type
+           | FSndL Type
+           | FSum Type
+           | FSumL Type
+           | FAvg Type
+           | FAvgL Type
+           | FMinimum Type
+           | FMinimumL Type
+           | FMaximum Type
+           | FMaximumL Type
+           | FThe Type
+           | FTheL Type
+           | FQuickConcat Type
+           | FIntegerToDouble Type
+           | FIntegerToDoubleL Type
+           | FTail Type
+           | FTailL Type
+           | FReverse Type
+           | FReverseL Type
+           | FAnd Type
+           | FAndL Type
+           | FOr Type
+           | FOrL Type
+           | FInit Type
+           | FInitL Type
+           | FLast Type
+           | FLastL Type
+           | FNub Type
+           | FNubL Type
+           | FNumber Type
+           | FNumberL Type
     deriving (Eq, Generic)
     
 instance Show Prim1 where
-    show (LengthPrim _) = "lengthPrim"
-    show (LengthLift _) = "lengthLift"
-    show (NotPrim _)    = "notPrim"
-    show (NotVec _)     = "notVec"
-    show (ConcatLift _) = "concatLift"
-    show (Fst _)        = "fst"
-    show (Snd _)        = "snd"
-    show (FstL _)       = "fstL"
-    show (SndL _)       = "sndL"
-    show (Concat _)     = "concat"
-    show (QuickConcat _) = "quickConcat"
-    show (Sum _)        = "sum"
-    show (Avg _)        = "avg"
-    show (SumL _)       = "sumL"
-    show (AvgL _)       = "avgL"
-    show (The _)        = "the"
-    show (TheL _)       = "theL"
-    show (Minimum _)    = "minimum"
-    show (MinimumL _)   = "minimumL"
-    show (Maximum _)    = "maximum"
-    show (MaximumL _)   = "maximumL"
-    show (IntegerToDouble _) = "integerToDouble"
-    show (IntegerToDoubleL _) = "integerToDoubleL"
-    show (Tail _)       = "tail"
-    show (TailL _)      = "tailL"
-    show (Reverse _)    = "reverse"
-    show (ReverseL _)   = "reverseL"
-    show (And _)        = "and"
-    show (AndL _)       = "andL"
-    show (Or _)         = "or"
-    show (OrL _)        = "orL"
-    show (Init _)       = "init"
-    show (InitL _)      = "initL"
-    show (Last _)       = "last"
-    show (LastL _)      = "lastL"
-    show (Nub _)        = "nub"
-    show (NubL _)       = "nubL"
-    show (Number _)     = "number"
-    show (NumberL _)    = "numberL"
+    show (FLength _)     = "length"
+    show (FLengthL _)    = "lengthL"
+    show (FNot _)        = "not"
+    show (FNotL _)       = "notL"
+    show (FConcatL _)    = "concatL"
+    show (FFst _)        = "fst"
+    show (FSnd _)        = "snd"
+    show (FFstL _)       = "fstL"
+    show (FSndL _)       = "sndL"
+    show (FConcat _)     = "concat"
+    show (FQuickConcat _) = "quickConcat"
+    show (FSum _)        = "sum"
+    show (FAvg _)        = "avg"
+    show (FSumL _)       = "sumL"
+    show (FAvgL _)       = "avgL"
+    show (FThe _)        = "the"
+    show (FTheL _)       = "theL"
+    show (FMinimum _)    = "minimum"
+    show (FMinimumL _)   = "minimumL"
+    show (FMaximum _)    = "maximum"
+    show (FMaximumL _)   = "maximumL"
+    show (FIntegerToDouble _) = "integerToDouble"
+    show (FIntegerToDoubleL _) = "integerToDoubleL"
+    show (FTail _)       = "tail"
+    show (FTailL _)      = "tailL"
+    show (FReverse _)    = "reverse"
+    show (FReverseL _)   = "reverseL"
+    show (FAnd _)        = "and"
+    show (FAndL _)       = "andL"
+    show (FOr _)         = "or"
+    show (FOrL _)        = "orL"
+    show (FInit _)       = "init"
+    show (FInitL _)      = "initL"
+    show (FLast _)       = "last"
+    show (FLastL _)      = "lastL"
+    show (FNub _)        = "nub"
+    show (FNubL _)       = "nubL"
+    show (FNumber _)     = "number"
+    show (FNumberL _)    = "numberL"
     
-data Prim2 = GroupWithKeyS Type
-           | GroupWithKeyL Type
-           | SortWithS Type
-           | SortWithL Type
-           | Dist Type
-           | Dist_L Type
-           | Restrict Type
-           | Unconcat Type
-           | Pair Type
-           | PairL Type
-           | Append Type
-           | AppendL Type
-           | Index Type
-           | IndexL Type
-           | Take Type
-           | TakeL Type
-           | Drop Type
-           | DropL Type
-           | Zip Type
-           | ZipL Type
-           | CartProduct Type
-           | CartProductL Type
-           | EquiJoin JoinExpr JoinExpr Type
-           | EquiJoinL JoinExpr JoinExpr Type
-           | NestJoin JoinExpr JoinExpr Type
-           | NestJoinL JoinExpr JoinExpr Type
-           | SemiJoin JoinExpr JoinExpr Type
-           | SemiJoinL JoinExpr JoinExpr Type
-           | AntiJoin JoinExpr JoinExpr Type
-           | AntiJoinL JoinExpr JoinExpr Type
-           | TakeWithS Type
-           | TakeWithL Type
-           | DropWithS Type
-           | DropWithL Type
+data Prim2 = FGroupWithKey Type
+           | FGroupWithKeyL Type
+           | FSortWithS Type
+           | FSortWithL Type
+           | FDist Type
+           | FDistL Type
+           | FRestrict Type
+           | FUnconcat Type
+           | FPair Type
+           | FPairL Type
+           | FAppend Type
+           | FAppendL Type
+           | FIndex Type
+           | FIndexL Type
+           | FTake Type
+           | FTakeL Type
+           | FDrop Type
+           | FDropL Type
+           | FZip Type
+           | FZipL Type
+           | FCartProduct Type
+           | FCartProductL Type
+           | FEquiJoin JoinExpr JoinExpr Type
+           | FEquiJoinL JoinExpr JoinExpr Type
+           | FNestJoin JoinExpr JoinExpr Type
+           | FNestJoinL JoinExpr JoinExpr Type
+           | FSemiJoin JoinExpr JoinExpr Type
+           | FSemiJoinL JoinExpr JoinExpr Type
+           | FAntiJoin JoinExpr JoinExpr Type
+           | FAntiJoinL JoinExpr JoinExpr Type
+           | FTakeWith Type
+           | FTakeWithL Type
+           | FDropWith Type
+           | FDropWithL Type
     deriving (Eq, Generic)
 
 instance Show Prim2 where
-    show (GroupWithKeyS _) = "groupWithKeyS"
-    show (GroupWithKeyL _) = "groupWithKeyL"
-    show (SortWithS _)  = "sortWithS"
-    show (SortWithL _)  = "sortWithL" 
-    show (Dist _)       = "dist"
-    show (Dist_L _)     = "dist_L"
-    show (Restrict _)   = "restrict"
-    show (Unconcat _)   = "unconcat"
-    show (Pair _)       = "pair"
-    show (PairL _)      = "pairL"
-    show (Append _)     = "append"
-    show (AppendL _)    = "appendL"
-    show (Index _)      = "index"
-    show (IndexL _)     = "indexL"
-    show (Take _)       = "take"
-    show (TakeL _)      = "takeL"
-    show (Drop _)       = "drop"
-    show (DropL _)      = "dropL"
-    show (Zip _)        = "zip"
-    show (ZipL _)       = "zipL"
-    show (TakeWithL _)  = "takeWithL"
-    show (TakeWithS _)  = "takeWithS"
-    show (DropWithL _)  = "dropWithL"
-    show (DropWithS _)  = "dropWithS"
-    show (CartProduct _) = "cartProduct"
-    show (CartProductL _) = "cartProductL"
-    show (EquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (show e1) (show e2)
-    show (EquiJoinL e1 e2 _)  = printf "equiJoinL(%s, %s)" (show e1) (show e2)
-    show (NestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (show e1) (show e2)
-    show (NestJoinL e1 e2 _)  = printf "nestJoinL(%s, %s)" (show e1) (show e2)
-    show (SemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (show e1) (show e2)
-    show (SemiJoinL e1 e2 _)  = printf "semiJoinL(%s, %s)" (show e1) (show e2)
-    show (AntiJoin e1 e2 _)  = printf "antiJoinS(%s, %s)" (show e1) (show e2)
-    show (AntiJoinL e1 e2 _)  = printf "antiJoinL(%s, %s)" (show e1) (show e2)
+    show (FGroupWithKey _)    = "groupWithKey"
+    show (FGroupWithKeyL _)   = "groupWithKeyL"
+    show (FSortWithS _)       = "sortWithS"
+    show (FSortWithL _)       = "sortWithL" 
+    show (FDist _)            = "dist"
+    show (FDistL _)           = "distL"
+    show (FRestrict _)        = "restrict"
+    show (FUnconcat _)        = "unconcat"
+    show (FPair _)            = "pair"
+    show (FPairL _)           = "pairL"
+    show (FAppend _)          = "append"
+    show (FAppendL _)         = "appendL"
+    show (FIndex _)           = "index"
+    show (FIndexL _)          = "indexL"
+    show (FTake _)            = "take"
+    show (FTakeL _)           = "takeL"
+    show (FDrop _)            = "drop"
+    show (FDropL _)           = "dropL"
+    show (FZip _)             = "zip"
+    show (FZipL _)            = "zipL"
+    show (FTakeWithL _)       = "takeWithL"
+    show (FTakeWith _)        = "takeWithS"
+    show (FDropWithL _)       = "dropWithL"
+    show (FDropWith _)        = "dropWithS"
+    show (FCartProduct _)     = "cartProduct"
+    show (FCartProductL _)    = "cartProductL"
+    show (FEquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (show e1) (show e2)
+    show (FEquiJoinL e1 e2 _) = printf "equiJoinL(%s, %s)" (show e1) (show e2)
+    show (FNestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (show e1) (show e2)
+    show (FNestJoinL e1 e2 _) = printf "nestJoinL(%s, %s)" (show e1) (show e2)
+    show (FSemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (show e1) (show e2)
+    show (FSemiJoinL e1 e2 _) = printf "semiJoinL(%s, %s)" (show e1) (show e2)
+    show (FAntiJoin e1 e2 _)  = printf "antiJoinS(%s, %s)" (show e1) (show e2)
+    show (FAntiJoinL e1 e2 _) = printf "antiJoinL(%s, %s)" (show e1) (show e2)
 
-data Prim3 = Combine Type
+data Prim3 = FCombine Type
     deriving (Eq, Generic)
 
 instance Show Prim3 where
-    show (Combine _) = "combine"
+    show (FCombine _) = "combine"
 
 instance Typed Expr where
     typeOf (Table t _ _ _) = t
