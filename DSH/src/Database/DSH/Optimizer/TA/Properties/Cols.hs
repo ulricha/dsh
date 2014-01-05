@@ -65,10 +65,10 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
         Prod _ -> undefined
         Dist _ -> undefined
         Count  -> AInt
-        Avg c  -> numAggr (typeOf c childCols)
-        Max c  -> numAggr (typeOf c childCols)
-        Min c  -> numAggr (typeOf c childCols)
-        Sum c  -> numAggr (typeOf c childCols)
+        Avg e  -> numAggr $ exprTy childCols e
+        Max e  -> numAggr $ exprTy childCols e
+        Min e  -> numAggr $ exprTy childCols e
+        Sum e  -> numAggr $ exprTy childCols e
 
     numAggr :: ATy -> ATy
     numAggr AInt = AInt

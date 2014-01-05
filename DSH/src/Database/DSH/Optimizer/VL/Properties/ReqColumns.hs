@@ -112,10 +112,10 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     GroupAggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
 
       where aggrInputCol :: AggrFun -> [DBCol]
-            aggrInputCol (AggrMax c)   = [c]
-            aggrInputCol (AggrMin c)   = [c]
-            aggrInputCol (AggrSum _ c) = [c]
-            aggrInputCol (AggrAvg c)   = [c]
+            aggrInputCol (AggrMax e)   = reqExpr1Cols e
+            aggrInputCol (AggrMin e)   = reqExpr1Cols e
+            aggrInputCol (AggrSum _ e) = reqExpr1Cols e
+            aggrInputCol (AggrAvg e)   = reqExpr1Cols e
             aggrInputCol AggrCount     = []
 
     SortSimple exprs -> childReqColumns 

@@ -97,16 +97,6 @@ col e =
     Just c -> c
     Nothing -> error "CompExpr1L expression does not reference its right input"
     
-mergeExpr1 :: [(DBCol, Expr1)] -> Expr1 -> Expr1
-mergeExpr1 env expr =
-    case expr of
-        BinApp1 o e1 e2 -> BinApp1 o (mergeExpr1 env e1) (mergeExpr1 env e2)
-        UnApp1 o e1     -> UnApp1 o (mergeExpr1 env e1)
-        Column1 c       -> case lookup c env of
-                               Just expr' -> expr'
-                               Nothing    -> $impossible
-        _               -> expr
-
 expr2ToExpr1 :: Expr2 -> Expr1
 expr2ToExpr1 (BinApp2 o e1 e2)    = BinApp1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
 expr2ToExpr1 (UnApp2 o e)         = UnApp1 o (expr2ToExpr1 e)

@@ -60,7 +60,7 @@ takeWithS _ _ = error "takeWithS: Should not be possible"
 dropWithS ::  Shape -> Shape -> Graph VL Shape
 dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
     (qb', _, _) <- (qb `vlAppend`) =<< literalSingletonTable boolT (VLBool False)
-    minF        <- vlAggr (AggrMin 1) =<< vlFalsePositions qb'
+    minF        <- vlAggr (AggrMin (Column1 1)) =<< vlFalsePositions qb'
     (r, prop)   <- vlSelectPos q GtE minF
     lyt'        <- chainRenameFilter prop lyt
     return $ ValueVector r lyt'
@@ -86,7 +86,7 @@ dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
     f           <- literal boolT (VLBool False)
     (fs, _ )    <- vlDistPrim f qd
     (qb', _, _) <- vlAppend qb =<< vlSegment fs
-    minF        <- vlAggrS (AggrMin 1) undefined =<< vlFalsePositions qb'
+    minF        <- vlAggrS (AggrMin (Column1 1)) undefined =<< vlFalsePositions qb'
     (r, prop)   <- vlSelectPosS q GtE minF
     lyt'        <- chainRenameFilter prop lyt
     return $ ValueVector qd (Nest r lyt')
@@ -330,7 +330,7 @@ andPrim ::  Shape -> Graph VL Shape
 andPrim (ValueVector d (InColumn 1)) = do
     p         <- literalSingletonTable boolT (VLBool True)
     (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMin 1) r
+    v         <- vlAggr (AggrMin (Column1 1)) r
     return $ PrimVal v (InColumn 1)
 andPrim _ = error "andPrim: Should not be possible"
 
@@ -347,7 +347,7 @@ orPrim ::  Shape -> Graph VL Shape
 orPrim (ValueVector d (InColumn 1)) = do
     p         <- literalSingletonTable boolT (VLBool False)
     (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMax 1)r
+    v         <- vlAggr (AggrMax (Column1 1))r
     return $ PrimVal v (InColumn 1)
 orPrim _ = error "orPrim: Should not be possible"
 
@@ -525,41 +525,49 @@ mapEnv f  ((x, p):xs) = do
 mapEnv _f []          = return []
 
 minPrim ::  Shape -> Graph VL Shape
-minPrim (ValueVector q (InColumn 1)) = PrimVal <$> vlAggr (AggrMin 1) q <*> (pure $ InColumn 1)
+minPrim (ValueVector q (InColumn 1)) =
+    PrimVal <$> vlAggr (AggrMin (Column1 1)) q <*> (pure $ InColumn 1)
 minPrim _ = $impossible
 
 minLift ::  Shape -> Graph VL Shape
 minLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlAggrS (AggrMin 1) undefined q)
+    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) undefined q
+    return $ ValueVector x (InColumn 1)
 minLift _ = $impossible
 
 maxPrim ::  Shape -> Graph VL Shape
-maxPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrMax 1) q
+maxPrim (ValueVector q (InColumn 1)) = 
+    flip PrimVal (InColumn 1) <$> vlAggr (AggrMax (Column1 1)) q
 maxPrim _ = $impossible
 
 maxLift ::  Shape -> Graph VL Shape
 maxLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    flip ValueVector (InColumn 1) <$> (vlPropRename r =<< vlAggrS (AggrMax 1) undefined q)
+    x <- vlPropRename r =<< vlAggrS (AggrMax (Column1 1)) undefined q
+    return $ ValueVector x (InColumn 1)
 maxLift _ = $impossible
 
 sumPrim ::  Type -> Shape -> Graph VL Shape
-sumPrim t (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrSum (typeToVLType t) 1) q
+sumPrim t (ValueVector q (InColumn 1)) = do
+    x <- vlAggr (AggrSum (typeToVLType t) (Column1 1)) q
+    return $ PrimVal x (InColumn 1) 
 sumPrim _ _ = $impossible
 
 avgPrim :: Shape -> Graph VL Shape
-avgPrim (ValueVector q (InColumn 1)) = flip PrimVal (InColumn 1) <$> vlAggr (AggrAvg 1) q
+avgPrim (ValueVector q (InColumn 1)) = 
+    flip PrimVal (InColumn 1) <$> vlAggr (AggrAvg (Column1 1)) q
 avgPrim _ = $impossible
 
 sumLift :: Type -> Shape -> Graph VL Shape
-sumLift (ListT t) (ValueVector d1 (Nest q (InColumn 1))) = 
-    flip ValueVector (InColumn 1) <$> vlAggrS (AggrSum (typeToVLType t) 1) d1 q
+sumLift (ListT t) (ValueVector d1 (Nest q (InColumn 1))) = do
+    x <- vlAggrS (AggrSum (typeToVLType t) (Column1 1)) d1 q
+    return $ ValueVector x (InColumn 1) 
 sumLift _ _ = $impossible
 
 avgLift :: Shape -> Graph VL Shape
 avgLift (ValueVector d1 (Nest q (InColumn 1))) = 
-    flip ValueVector (InColumn 1) <$> vlAggrS (AggrAvg 1) d1 q
+    flip ValueVector (InColumn 1) <$> vlAggrS (AggrAvg (Column1 1)) d1 q
 avgLift _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape

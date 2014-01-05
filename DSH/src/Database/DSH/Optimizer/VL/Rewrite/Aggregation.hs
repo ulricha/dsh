@@ -70,12 +70,12 @@ inlineAggrProject :: VLRule ()
 inlineAggrProject q =
   $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
     [| do
-        [Column1 origCol] <- return $(v "proj")
+        let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
-                        AggrMax _   -> AggrMax origCol
-                        AggrSum t _ -> AggrSum t origCol
-                        AggrMin _   -> AggrMin origCol
-                        AggrAvg _   -> AggrAvg origCol
+                        AggrMax e   -> AggrMax $ mergeExpr1 env e
+                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
+                        AggrMin e   -> AggrMin $ mergeExpr1 env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
                         AggrCount   -> AggrCount
 
         return $ do

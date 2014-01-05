@@ -144,10 +144,10 @@ colProjection (VL.Column1 c) = Just c
 colProjection _              = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
-aggrFun (VL.AggrSum _ c) = Sum $ itemi c
-aggrFun (VL.AggrMin c)   = Min $ itemi c
-aggrFun (VL.AggrMax c)   = Max $ itemi c
-aggrFun (VL.AggrAvg c)   = Avg $ itemi c
+aggrFun (VL.AggrSum _ e) = Sum $ expr1 e
+aggrFun (VL.AggrMin e)   = Min $ expr1 e
+aggrFun (VL.AggrMax e)   = Max $ expr1 e
+aggrFun (VL.AggrAvg e)   = Avg $ expr1 e
 aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
@@ -159,7 +159,6 @@ sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
 sumDefault t         = trace (show t) $impossible
-
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -282,9 +281,9 @@ instance VectorAlgebra PFAlgebra where
     -- For sum and length, add the default value for empty inputs
     qd <- case a of
             VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                              in aggrM [(Max item, item)] []
+                              in aggrM [(Max (ColE item), item)] []
                                  $ return qa `unionM` (litTable dv item dt)
-            VL.AggrCount   -> aggrM [(Max item, item)] [] 
+            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
                               $ return qa `unionM` (litTable (int 0) item intT)
             _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
@@ -293,11 +292,11 @@ instance VectorAlgebra PFAlgebra where
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [descr] qi
     qd <- case a of
-            VL.AggrSum t _ -> aggrM [(Max item, item)] [descr]
+            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [descr]
                               $ return qa
                                 `unionM`
                                 proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max item, item)] [descr]
+            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [descr]
                               $ return qa
                                 `unionM`
                                 proj [mP descr pos, eP item (ConstE $ int 0)] qo
@@ -326,7 +325,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUnique (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [resCol]
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
@@ -335,7 +334,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUniqueS (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min pos, posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [resCol]
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
           $ eqJoin pos posold q f
