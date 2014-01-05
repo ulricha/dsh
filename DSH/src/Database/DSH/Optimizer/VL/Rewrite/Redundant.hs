@@ -24,15 +24,12 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ introduceSelect
-                 , simpleSort
-                 , zipProject
-                 ]
+redundantRules = [ introduceSelect, simpleSort ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
-                         -- , pushZipThroughProjectLeft
-                         -- , pushZipThroughProjectRight
+                         , pushZipThroughProjectLeft
+                         , pushZipThroughProjectRight
                          , sameInputZip
                          ]
 
@@ -158,18 +155,8 @@ sameInputZip q =
         
         return $ do
           let ps = map Column1 [1 .. w]
-          logRewrite "Redundant.Zip.SameInput" q
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-zipProject :: VLRule ()
-zipProject q =
-  $(pattern 'q "(Project es1 (q1)) Zip (Project es2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Zip.Project" q
-          void $ replaceWithNew q $ UnOp (Project ($(v "es1") ++ $(v "es2"))) $(v "q1") |])
 
 -- | Employ a specialized operator if the sorting criteria are simply
 -- a selection of columns from the input vector.
@@ -180,7 +167,6 @@ simpleSort q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Sort.Simple" q
           qs <- insert $ UnOp (SortSimple $(v "ps")) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 qs 
           r2Parents <- lookupR2Parents $(v "qs")
