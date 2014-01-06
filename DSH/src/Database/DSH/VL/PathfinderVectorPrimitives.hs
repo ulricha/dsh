@@ -290,13 +290,13 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec qp [1]
 
   vecAggrS a (DVec qo _) (DVec qi _) = do
-    qa <- aggr [(aggrFun a, item)] [descr] qi
+    qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
-            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [descr]
+            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
                               $ return qa
                                 `unionM`
                                 proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [descr]
+            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
                               $ return qa
                                 `unionM`
                                 proj [mP descr pos, eP item (ConstE $ int 0)] qo
@@ -325,7 +325,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUnique (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min (ColE pos), posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [(resCol, ColE resCol)]
            $ rank resCol [(itemi i, Asc) | i <- cols] q
 
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
@@ -334,7 +334,7 @@ instance VectorAlgebra PFAlgebra where
 
   vecUniqueS (DVec q cols) = do
     f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min (ColE pos), posold)] [resCol]
+           $ aggrM [(Min (ColE pos), posold)] [(resCol, ColE resCol)]
            $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
     qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
           $ eqJoin pos posold q f
@@ -618,15 +618,19 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj ([cP descr, mP pos posnew] ++ allColsProj) qz
     return (DVec qr allCols, RVec r1, RVec r2)
   
-  vecGroupAggr groupCols aggrFuns (DVec q _) = do
-    let partAttrs = descr : map itemi groupCols
+  vecGroupAggr groupExprs aggrFuns (DVec q _) = do
+    let partAttrs = (descr, ColE descr) 
+                    : 
+                    [ eP (itemi i) (expr1 e) | e <- groupExprs | i <- [1..] ]
+
+        pw = length groupExprs
   
-    let pfAggrFuns = zipWith (\a i -> (aggrFun a, itemi i)) aggrFuns [1..]
+        pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- aggrFuns | i <- [1..] ]
                  
     qa <- rownumM pos [descr] Nothing
           $ aggr pfAggrFuns partAttrs q
 
-    return $ DVec qa [1 .. length groupCols + length aggrFuns]
+    return $ DVec qa [1 .. length groupExprs + length aggrFuns]
   
   vecNumber (DVec q cols) = do
     let nrIndex = length cols + 1

@@ -148,23 +148,15 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(pattern 'q "R2 (qg=(Project ps (q1)) GroupBy (q2))"
+  $(pattern 'q "R2 (qg=GroupSimple groupExprs (q1))"
     [| do
-        -- FIXME this collides with pushProjectThroughGroupBy, as
-        -- there will be a projection underneath the groupby operator
-        -- predicate $ $(v "q1") == $(v "q2")
-       
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions
         groupByParents <- getParents q
         funs <- mapM matchAggr groupByParents
         
-        -- Check if the grouping criteria are simple columns. Extract the
-        -- grouping cols from the left GroupBy input
-        groupingCols <- mapM projectionCol $(v "ps")
-        
         return $ do
-          logRewrite "Aggregation.GroupingToAggr" q
+          logRewrite "Aggregation.Grouping.Aggr" q
           -- The output format of the new VecAggr operator is 
           -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the 
           -- grouping columns and a1, ..., am are the aggregates 
@@ -174,7 +166,7 @@ flatGrouping q =
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
           -- add columns at the end.
-          aggrNode <- insert $ UnOp (GroupAggr groupingCols (map fst funs)) $(v "q2")
+          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (map fst funs)) $(v "q1")
 
           -- For every aggregate function, generate a projection which only
           -- leaves the aggregate column. Function receives the node of the
@@ -192,7 +184,8 @@ flatGrouping q =
           r1s <- lookupR1Parents $(v "qg")
           if length r1s > 0
             then do
-              r1ProjectNode <- insert $ UnOp (Project (map Column1 [1 .. length groupingCols])) aggrNode
+              let projs = map Column1 [1 .. length $(v "groupExprs")]
+              r1ProjectNode <- insert $ UnOp (Project projs) aggrNode
               mapM_ (\r1 -> replace r1 r1ProjectNode) r1s
             else return () |])
 
