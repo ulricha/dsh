@@ -176,7 +176,9 @@ flatGrouping q =
               insertAggrProject oldAggrNode aggrCol = 
                 void $ replaceWithNew oldAggrNode $ UnOp (Project [Column1 aggrCol]) aggrNode
 
-          zipWithM_ insertAggrProject (map snd funs) [1 .. length funs]
+          let gw = length $(v "groupExprs")
+
+          zipWithM_ insertAggrProject (map snd funs) (map (+ gw) [1 .. length funs])
           
           -- If the R1 output (that is, the vector which contains the grouping
           -- columns and desribes the group shape) of GroupBy is referenced, we
