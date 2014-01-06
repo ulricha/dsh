@@ -162,8 +162,7 @@ unreferencedAggrCols q =
               -- on the grouping columns.
               [] -> do
                   logRewrite "Basic.ICols.Aggr.Prune" q
-                  let projs = map (\c -> (c, ColE c)) partCols
-                  projectNode <- insert $ UnOp (Project projs) $(v "q1")
+                  projectNode <- insert $ UnOp (Project partCols) $(v "q1")
                   void $ replaceWithNew q $ UnOp (Distinct ()) projectNode
           
               -- Otherwise, we just prune the unreferenced aggregate functions

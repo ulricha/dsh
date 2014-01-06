@@ -70,7 +70,7 @@ class VectorAlgebra a where
   -- operates segmented, i.e. always groups by descr first. This
   -- operator must be used with care: It does not determine the
   -- complete set of descr value to check for empty inner lists.
-  vecGroupAggr :: [DBCol] -> [AggrFun] -> DVec -> GraphM r a DVec
+  vecGroupAggr :: [Expr1] -> [AggrFun] -> DVec -> GraphM r a DVec
 
   vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc

@@ -86,8 +86,8 @@ inferIColsUnOp ownICols childICols op =
         Select e              -> childICols ∪ ownICols ∪ exprCols e
         Distinct _            -> childICols ∪ ownICols
 
-        Aggr (acols, pcols)   -> (S.foldr (∪) childICols $ S.fromList $ map (aggrInput . fst) acols)
+        Aggr (acols, pexprs)  -> (S.foldr (∪) childICols $ S.fromList $ map (aggrInput . fst) acols)
                                  ∪
-                                 S.fromList pcols
+                                 (S.foldr (∪) S.empty $ S.fromList $ map (exprCols . snd) pexprs)
 
         PosSel _              -> $impossible

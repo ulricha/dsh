@@ -109,7 +109,11 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
         
     -- We don't need to look at the columns required from above, because they
     -- can only be a subset of (gs ++ as).
-    GroupAggr gs as -> childReqColumns `union` (VProp $ Just $ L.nub $ gs ++ concatMap aggrInputCol as)
+    GroupAggr gs as -> childReqColumns 
+                       `union` 
+                       (VProp $ Just $ L.nub $ concatMap reqExpr1Cols gs 
+                                               ++ 
+                                               concatMap aggrInputCol as)
 
       where aggrInputCol :: AggrFun -> [DBCol]
             aggrInputCol (AggrMax e)   = reqExpr1Cols e
