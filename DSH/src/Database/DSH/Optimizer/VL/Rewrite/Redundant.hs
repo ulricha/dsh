@@ -28,6 +28,7 @@ redundantRules = [ introduceSelect, simpleSort ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
+                         , distDescConstant
                          , pushZipThroughProjectLeft
                          , pushZipThroughProjectRight
                          , sameInputZip
@@ -65,6 +66,8 @@ noOpProject q =
           replace q $(v "q1") |])
 -}          
 
+-- | Replace a DistPrim operator with a projection if its value input
+-- is constant.
 distPrimConstant :: VLRule BottomUpProps
 distPrimConstant q =
   $(pattern 'q "R1 ((qp) DistPrim (qv))"
@@ -81,8 +84,25 @@ distPrimConstant q =
         return $ do
           logRewrite "Redundant.DistPrim.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
-          
-        
+
+-- | Replace a DistDesc operator with a projection if its value input
+-- is constant and consists of only one tuple.
+distDescConstant :: VLRule BottomUpProps
+distDescConstant q =
+  $(pattern 'q "R1 ((qv) DistDesc (qd))"
+    [| do
+        pv <- properties $(v "qv")
+        VProp True <- return $ card1Prop pv
+
+        let constVal (ConstPL val) = return $ Constant1 val
+            constVal _             = fail "no match"
+
+        VProp (DBVConst _ cols) <- return $ constProp pv
+        constProjs              <- mapM constVal cols
+
+        return $ do
+          logRewrite "Redundant.DistDesc.Constant" q
+          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qd") |])
 
 -- If we encounter a DistDesc which distributes a vector of size one
 -- over a descriptor (that is, the cardinality of the descriptor
