@@ -201,7 +201,7 @@ vlLit :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
 vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
 
 vlTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DVec
-vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n ({-map (mapSnd typeToVLType)-} tys) ks
+vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n tys ks
 
 vlBinExpr :: O.Oper -> DVec -> DVec -> GraphM r VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
