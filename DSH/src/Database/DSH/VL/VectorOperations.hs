@@ -506,10 +506,14 @@ dist (PrimVal q lyt) q2 = do
     lyt'   <- chainReorder p lyt
     return $ ValueVector v lyt'
 dist (ValueVector q lyt) q2 = do
-    o@(DVec qo _) <- outer q2
-    (d, p)       <- vlDistDesc q o
-    lyt'         <- chainReorder p lyt
-    return $ ValueVector (DVec qo []) (Nest d lyt')
+    o      <- outer q2
+    (d, p) <- vlDistDesc q o
+
+    -- The outer vector does not have columns, it only describes the
+    -- shape.
+    o'     <- vlProject o []
+    lyt'   <- chainReorder p lyt
+    return $ ValueVector o' (Nest d lyt')
 dist (Closure n env x f fl) q2 = do
     env' <- mapEnv (flip dist q2) env
     return $ AClosure n q2 1 env' x f fl
