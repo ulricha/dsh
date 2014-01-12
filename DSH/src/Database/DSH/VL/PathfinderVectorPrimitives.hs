@@ -353,10 +353,10 @@ instance VectorAlgebra PFAlgebra where
              projAddCols cols [eP ordCol (ConstE (nat 2))] q2
     qv <- tagM "append r" (proj (itemProj cols [mP pos posnew, cP descr]) q)
     qp1 <- tagM "append r1"
-           $ projM [mP posold pos, mP posnew pos']
+           $ projM [mP posold pos, cP posnew]
            $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 1)) q
     qp2 <- tagM "append r2"
-           $ projM [mP posold pos, mP posnew pos']
+           $ projM [mP posold pos, cP posnew]
            $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 2)) q
     return $ (DVec qv cols, RVec qp1, RVec qp2)
 

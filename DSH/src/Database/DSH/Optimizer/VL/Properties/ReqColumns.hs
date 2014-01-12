@@ -187,7 +187,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
     DistSeg ->
       case ownReqColumns of
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
-        _                -> error "DistLift"
+        _                -> error "DistSeg"
 
     PropRename      -> (na, childReqColumns2 `union` ownReqColumns)
 

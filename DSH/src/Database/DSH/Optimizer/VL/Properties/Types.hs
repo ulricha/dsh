@@ -50,7 +50,7 @@ data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
 
 type ReqCols = Maybe [DBCol]
 
-data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols }
+data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols } deriving (Show)
 
 data Properties = Properties { bu :: BottomUpProps
                              , td :: TopDownProps }

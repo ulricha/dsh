@@ -79,7 +79,8 @@ Library
                      semigroups,
                      kure               >= 2.14.0,
                      ansi-wl-pprint,
-                     set-monad
+                     set-monad,
+                     either
                      
   Hs-source-dirs:    src
   GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
@@ -168,6 +169,7 @@ Library
                      Database.DSH.Optimizer.TA.Properties.Empty
                      Database.DSH.Optimizer.TA.Properties.Card1
                      Database.DSH.Optimizer.TA.Properties.Keys
+                     Database.DSH.Optimizer.TA.Properties.Order
                      Database.DSH.Optimizer.TA.Rewrite.Basic
                      Database.DSH.Optimizer.TA.Rewrite.Common
                      Database.DSH.Optimizer.TA.OptimizeTA

@@ -31,10 +31,6 @@ subsetsOfSize n s
             | k == l = [x:xs]
             | otherwise = map (x:) (go (k-1) (l-1) xs) ++ go k (l-1) xs
 
-mapCol :: Proj -> S.Set (AttrName, AttrName)
-mapCol (a, ColE b) = S.singleton (a, b)
-mapCol _           = S.empty
-
 -- | Enumerate all subsets of size n
 
 -- | Compute keys for rank and rowrank operators

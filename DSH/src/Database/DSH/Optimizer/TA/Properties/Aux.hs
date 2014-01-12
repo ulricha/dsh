@@ -46,3 +46,7 @@ aggrInput (All e)  = exprCols e
 aggrInput (Prod e) = exprCols e
 aggrInput (Dist e) = exprCols e
 aggrInput Count    = S.empty
+
+mapCol :: Proj -> S.Set (AttrName, AttrName)
+mapCol (a, ColE b) = S.singleton (a, b)
+mapCol _           = S.empty

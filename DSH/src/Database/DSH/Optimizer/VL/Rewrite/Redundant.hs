@@ -1,8 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
-       
+
 import Control.Monad
+import Control.Applicative
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
@@ -14,11 +15,12 @@ import Database.DSH.Optimizer.VL.Rewrite.Common
 import Database.DSH.Optimizer.VL.Rewrite.Expressions
 
 removeRedundancy :: VLRewrite Bool
-removeRedundancy = iteratively $ sequenceRewrites [ cleanup
-                                                  , applyToAll noProps redundantRules
-                                                  , applyToAll inferBottomUp redundantRulesBottomUp
-                                                  -- , applyToAll inferTopDown redundantRulesTopDown
-                                                  ]
+removeRedundancy = 
+    iteratively $ sequenceRewrites [ cleanup
+                                   , applyToAll noProps redundantRules
+                                   , applyToAll inferBottomUp redundantRulesBottomUp
+                                   , applyToAll inferTopDown redundantRulesTopDown
+                                   ]
 
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
@@ -28,13 +30,14 @@ redundantRules = [ introduceSelect, simpleSort ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
+                         , distDescConstant
                          , pushZipThroughProjectLeft
                          , pushZipThroughProjectRight
                          , sameInputZip
                          ]
 
 redundantRulesTopDown :: VLRuleSet TopDownProps
-redundantRulesTopDown = []
+redundantRulesTopDown = [ unreferencedDistSeg ]
 
 introduceSelect :: VLRule ()
 introduceSelect q =
@@ -65,6 +68,8 @@ noOpProject q =
           replace q $(v "q1") |])
 -}          
 
+-- | Replace a DistPrim operator with a projection if its value input
+-- is constant.
 distPrimConstant :: VLRule BottomUpProps
 distPrimConstant q =
   $(pattern 'q "R1 ((qp) DistPrim (qv))"
@@ -81,34 +86,41 @@ distPrimConstant q =
         return $ do
           logRewrite "Redundant.DistPrim.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
-          
-        
 
--- If we encounter a DistDesc which distributes a vector of size one
--- over a descriptor (that is, the cardinality of the descriptor
--- vector does not change), replace the DistDesc by a projection which
--- just adds the (constant) values from the value vector
-distDescCardOne :: VLRule BottomUpProps
-distDescCardOne q =
-  $(pattern 'q "R1 ((qc) DistDesc (qv))"
+-- | Replace a DistDesc operator with a projection if its value input
+-- is constant and consists of only one tuple.
+distDescConstant :: VLRule BottomUpProps
+distDescConstant q =
+  $(pattern 'q "R1 ((qv) DistDesc (qd))"
     [| do
-        qvProps <- properties $(v "qc")
-        predicate $ case card1Prop qvProps of
-                      VProp c -> c
-                      _       -> error "distDescCardOne: no single property"
+        pv <- properties $(v "qv")
+        VProp True <- return $ card1Prop pv
 
         let constVal (ConstPL val) = return $ Constant1 val
             constVal _             = fail "no match"
 
-
-        constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM constVal cols
-          _                       -> fail "no match"
+        VProp (DBVConst _ cols) <- return $ constProp pv
+        constProjs              <- mapM constVal cols
 
         return $ do
-          logRewrite "Redundant.DistDescCardOne" q
-          projNode <- insert $ UnOp (Project constProjs) $(v "qv")
-          void $ replaceWithNew q $ UnOp Segment projNode |])
+          logRewrite "Redundant.DistDesc.Constant" q
+          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qd") |])
+
+-- | If a vector is distributed over an inner vector in a segmented
+-- way, check if the vector's columns are actually referenced/required
+-- downstream. If not, we can remove the DistSeg altogether, as the
+-- shape of the inner vector is not changed by DistSeg.
+unreferencedDistSeg :: VLRule TopDownProps
+unreferencedDistSeg q =
+  $(pattern 'q  "R1 ((_) DistSeg (qd))"
+    [| do
+        VProp (Just reqCols) <- reqColumnsProp <$> properties q
+        predicate $ null reqCols
+
+        return $ do
+          logRewrite "Redundant.UnreferencedDistSeg" q
+          void $ replace q $(v "qd") |])
+        
           
 shiftCols :: Int -> Expr1 -> Expr1
 shiftCols offset expr =
