@@ -26,10 +26,13 @@ type PKey = S.Set AttrName
 type Card1 = Bool
 type Empty = Bool
 
+type Orders = [(AttrName, [AttrName])]
+
 data BottomUpProps = BUProps { pCols  :: S.Set TypedAttr 
      		     	     , pKeys  :: S.Set PKey
                              , pCard1 :: Card1
                              , pEmpty :: Empty
+                             , pOrder :: Orders
      		     	     } deriving (Show)
 
 data AllProps = AllProps { bu :: BottomUpProps, td :: TopDownProps } deriving (Show)
