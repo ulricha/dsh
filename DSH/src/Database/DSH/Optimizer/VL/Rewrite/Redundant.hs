@@ -1,8 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
-       
+
 import Control.Monad
+import Control.Applicative
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.VL.Data
@@ -14,11 +15,12 @@ import Database.DSH.Optimizer.VL.Rewrite.Common
 import Database.DSH.Optimizer.VL.Rewrite.Expressions
 
 removeRedundancy :: VLRewrite Bool
-removeRedundancy = iteratively $ sequenceRewrites [ cleanup
-                                                  , applyToAll noProps redundantRules
-                                                  , applyToAll inferBottomUp redundantRulesBottomUp
-                                                  -- , applyToAll inferTopDown redundantRulesTopDown
-                                                  ]
+removeRedundancy = 
+    iteratively $ sequenceRewrites [ cleanup
+                                   , applyToAll noProps redundantRules
+                                   , applyToAll inferBottomUp redundantRulesBottomUp
+                                   , applyToAll inferTopDown redundantRulesTopDown
+                                   ]
 
 cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
@@ -35,7 +37,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          ]
 
 redundantRulesTopDown :: VLRuleSet TopDownProps
-redundantRulesTopDown = []
+redundantRulesTopDown = [ unreferencedDistSeg ]
 
 introduceSelect :: VLRule ()
 introduceSelect q =
@@ -104,31 +106,21 @@ distDescConstant q =
           logRewrite "Redundant.DistDesc.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qd") |])
 
--- If we encounter a DistDesc which distributes a vector of size one
--- over a descriptor (that is, the cardinality of the descriptor
--- vector does not change), replace the DistDesc by a projection which
--- just adds the (constant) values from the value vector
-distDescCardOne :: VLRule BottomUpProps
-distDescCardOne q =
-  $(pattern 'q "R1 ((qc) DistDesc (qv))"
+-- | If a vector is distributed over an inner vector in a segmented
+-- way, check if the vector's columns are actually referenced/required
+-- downstream. If not, we can remove the DistSeg altogether, as the
+-- shape of the inner vector is not changed by DistSeg.
+unreferencedDistSeg :: VLRule TopDownProps
+unreferencedDistSeg q =
+  $(pattern 'q  "R1 ((_) DistSeg (qd))"
     [| do
-        qvProps <- properties $(v "qc")
-        predicate $ case card1Prop qvProps of
-                      VProp c -> c
-                      _       -> error "distDescCardOne: no single property"
-
-        let constVal (ConstPL val) = return $ Constant1 val
-            constVal _             = fail "no match"
-
-
-        constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM constVal cols
-          _                       -> fail "no match"
+        VProp (Just reqCols) <- reqColumnsProp <$> properties q
+        predicate $ null reqCols
 
         return $ do
-          logRewrite "Redundant.DistDescCardOne" q
-          projNode <- insert $ UnOp (Project constProjs) $(v "qv")
-          void $ replaceWithNew q $ UnOp Segment projNode |])
+          logRewrite "Redundant.UnreferencedDistSeg" q
+          void $ replace q $(v "qd") |])
+        
           
 shiftCols :: Int -> Expr1 -> Expr1
 shiftCols offset expr =

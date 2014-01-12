@@ -170,5 +170,6 @@ unreferencedAggrCols q =
                   logRewrite "Basic.ICols.Aggr.Narrow" q
                   void $ replaceWithNew q $ UnOp (Aggr (neededAggrs, partCols)) $(v "q1") |])
 
-
+----------------------------------------------------------------------------------
+-- Basic Const rewrites
 
