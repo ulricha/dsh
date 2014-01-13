@@ -28,7 +28,7 @@ import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
 import           Text.Printf
 
-import qualified Database.DSH.VL.Data.Query as Q
+import qualified Database.DSH.Common.Data.DBCode as Q
 
 data SQL a = SQL (Q.Query Q.SQL)
 

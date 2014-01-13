@@ -9,7 +9,7 @@ import           Database.Algebra.X100.Render
 
 import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
 import           Database.DSH.VL.Data.DBVector
-import qualified Database.DSH.VL.Data.Query         as Q
+import qualified Database.DSH.Common.Data.DBCode         as Q
 
 generateX100Query :: QueryPlan X100Algebra -> Q.Query Q.X100
 generateX100Query x100Plan = convertQuery $ queryShape x100Plan

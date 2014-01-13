@@ -1,11 +1,8 @@
--- FIXME this module contains lots of stuff which does not belong under Flattening.VL
-
-module Database.DSH.VL.Data.Query where
+module Database.DSH.Common.Data.DBCode where
     
-data Query a =
-         ValueVector a (Layout a)
-       | PrimVal a (Layout a)
-     deriving Show
+data Query a = ValueVector a (Layout a)
+             | PrimVal a (Layout a)
+             deriving Show
 
 data Layout a = InColumn Int
               | Nest a (Layout a)

@@ -1,3 +1,5 @@
+-- | Debug functions to export query plans and rendered database code
+-- in various forms.
 module Database.DSH.Export
   ( exportVLPlan
   , exportX100Plan
@@ -13,7 +15,7 @@ import           Database.Algebra.X100.Data
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
-import qualified Database.DSH.VL.Data.Query         as Q
+import qualified Database.DSH.Common.Data.DBCode as Q
 
 import qualified Database.Algebra.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON

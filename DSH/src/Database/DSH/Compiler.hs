@@ -46,7 +46,7 @@ import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import qualified Database.DSH.VL.Data.Query           as Q
+import qualified Database.DSH.Common.Data.DBCode           as Q
 
 import           Data.Aeson                                      (encode)
 import           Data.ByteString.Lazy.Char8                      (unpack)
