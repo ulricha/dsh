@@ -6,8 +6,6 @@ module Database.DSH.Optimizer.TA.Properties.ICols where
 
 import qualified Data.Set.Monad as S
 
-import           Database.DSH.Impossible
-
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import Database.DSH.Optimizer.TA.Properties.Aux
@@ -89,5 +87,3 @@ inferIColsUnOp ownICols childICols op =
         Aggr (acols, pexprs)  -> (S.foldr (∪) childICols $ S.fromList $ map (aggrInput . fst) acols)
                                  ∪
                                  (S.foldr (∪) S.empty $ S.fromList $ map (exprCols . snd) pexprs)
-
-        PosSel _              -> $impossible

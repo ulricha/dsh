@@ -66,7 +66,6 @@ inferOrderUnOp childOrder op =
         Select _                          -> childOrder
         Distinct _                        -> childOrder
         Aggr _                            -> []
-        PosSel _                          -> $impossible
         Project projs                     -> 
             let colMap = S.toList $ S.map swap $ S.unions $ map mapCol projs
             in concatMap (update colMap) childOrder

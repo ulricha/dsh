@@ -188,10 +188,6 @@ instance VectorAlgebra PFAlgebra where
     (r, cols') <- doZip (q1, cols1) (q2, cols2)
     return $ DVec r cols'
 
-  vecLit tys [] = do
-    qr <- emptyTable ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
-    return $ DVec qr [1..length tys]
-
   vecLit tys vs = do
     qr <- flip litTable' ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
                                  $ map (map algVal) vs

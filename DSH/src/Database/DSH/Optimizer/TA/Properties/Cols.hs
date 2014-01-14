@@ -83,7 +83,6 @@ inferColsNullOp :: NullOp -> S.Set TypedAttr
 inferColsNullOp op = 
     case op of
         LitTable _ schema      -> S.fromList schema
-        EmptyTable schema      -> S.fromList schema
         TableRef (_, attrs, _) -> S.fromList attrs
 
 inferColsUnOp :: S.Set TypedAttr -> UnOp -> S.Set TypedAttr
@@ -98,7 +97,6 @@ inferColsUnOp childCols op =
         Aggr (afuns, pexprs)  -> (S.fromList $ map (aggrTy childCols) afuns) 
                                  ∪
                                  [ (c, exprTy childCols e) | (c, e) <- S.fromList pexprs ]
-        PosSel _              -> $impossible
 
 inferColsBinOp :: S.Set TypedAttr -> S.Set TypedAttr -> BinOp -> S.Set TypedAttr
 inferColsBinOp leftCols rightCols op =

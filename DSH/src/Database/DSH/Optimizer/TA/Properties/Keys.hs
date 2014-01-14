@@ -62,7 +62,6 @@ inferKeysNullOp op =
             isUnique :: [AVal] -> Bool
             isUnique vs = (length $ nub vs) == (length vs)
 
-        EmptyTable _          -> S.empty
         TableRef (_, _, keys) -> S.fromList $ map (\(Key k) -> ls k) keys
 
 inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set AttrName -> UnOp -> S.Set PKey
@@ -103,7 +102,6 @@ inferKeysUnOp childKeys childCard1 childCols op =
         Distinct _               -> S.insert childCols childKeys 
         Aggr (_, [])             -> S.empty
         Aggr (_, pexprs@(_ : _)) -> S.singleton $ S.fromList $ map fst pexprs
-        PosSel _                 -> $impossible
 
 inferKeysBinOp :: S.Set PKey -> S.Set PKey -> Card1 -> Card1 -> BinOp -> S.Set PKey
 inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =

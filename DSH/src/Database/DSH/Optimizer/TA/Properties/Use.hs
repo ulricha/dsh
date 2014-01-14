@@ -7,8 +7,6 @@ module Database.DSH.Optimizer.TA.Properties.Use where
 
 import qualified Data.Set.Monad as S
 
-import           Database.DSH.Impossible
-
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import Database.DSH.Optimizer.TA.Properties.Aux
@@ -76,5 +74,3 @@ inferUseUnOp ownUse childUse op =
         Aggr (acols, pexprs)  -> (S.unions $ map (exprCols . snd) pexprs)
                                  ∪ 
                                  (S.unions $ map (aggrInput . fst) acols)
-
-        PosSel _              -> $impossible

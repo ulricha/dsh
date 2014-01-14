@@ -2,8 +2,6 @@
 
 module Database.DSH.Optimizer.TA.Properties.TopDown where
 
-import           Debug.Trace
-
 import           Control.Monad.State
 
 import Data.List
