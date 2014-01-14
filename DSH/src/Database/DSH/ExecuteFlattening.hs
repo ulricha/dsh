@@ -28,11 +28,12 @@ import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
 import           Text.Printf
 
-import qualified Database.DSH.Common.Data.DBCode as Q
+import           Database.DSH.Common.Data.DBCode
+import           Database.DSH.Common.Data.QueryPlan
 
-data SQL a = SQL (Q.Query Q.SQL)
+data SQL a = SQL (TopShape SQLCode)
 
-data X100 a = X100 (Q.Query Q.X100)
+data X100 a = X100 (TopShape X100Code)
 
 textToChar :: Exp Text -> Exp Char
 textToChar (TextE t) = CharE (Txt.head t)
@@ -58,32 +59,32 @@ executeX100Query c (X100 q) = let et = reify (undefined :: a)
                                                 n <- makeNormX100Prim c q et
                                                 return n
 
-constructVector :: X100Info -> Q.Layout Q.X100 -> [(Int, [(Int, [X100Data])])] -> Type [a] -> IO [(Int, Exp [a])]
-constructVector _ (Q.InColumn i) parted t = do
+constructVector :: X100Info -> TopLayout X100Code -> [(Int, [(Int, [X100Data])])] -> Type [a] -> IO [(Int, Exp [a])]
+constructVector _ (InColumn i) parted t = do
                                             return $ normaliseX100List t i parted
-constructVector c (Q.Nest v lyt) parted t@(ListT _) =
+constructVector c (Nest v lyt) parted t@(ListT _) =
                                         case t of
                                             (ListT t1@(ListT _)) -> do
-                                                            inner <- makeNormX100 c (Q.ValueVector v lyt) t1
+                                                            inner <- makeNormX100 c (ValueVector v lyt) t1
                                                             return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
                                             _ -> error "constructVector: Not a nested list"
-constructVector c (Q.Pair p1 p2) parted (ListT (PairT t1 t2)) = do
+constructVector c (Pair p1 p2) parted (ListT (PairT t1 t2)) = do
                                                                     v1 <- constructVector c p1 parted $ ListT t1
                                                                     v2 <- constructVector c p2 parted $ ListT t2
                                                                     return $ makeTuple v1 v2
 constructVector _ v _ t = error $ "result " ++ show v ++ " with type: " ++ show t
 
-constructVectorSQL :: IConnection conn => conn -> Q.Layout Q.SQL -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type [a] -> IO [(Int, Exp [a])]
-constructVectorSQL _ (Q.InColumn i) pos parted t = do
+constructVectorSQL :: IConnection conn => conn -> TopLayout SQLCode -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type [a] -> IO [(Int, Exp [a])]
+constructVectorSQL _ (InColumn i) pos parted t = do
                                             let i' = snd $ pos !! (i - 1)
                                             return $ normaliseList t i' parted
-constructVectorSQL c (Q.Nest v lyt) _ parted t@(ListT _) =
+constructVectorSQL c (Nest v lyt) _ parted t@(ListT _) =
                                         case t of
                                           (ListT t1@(ListT _)) -> do
-                                                            inner <- makeNormSQL c (Q.ValueVector v lyt) t1
+                                                            inner <- makeNormSQL c (ValueVector v lyt) t1
                                                             return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
                                           _ -> error "constructVectorSQL: Not a nested list"
-constructVectorSQL c (Q.Pair p1 p2) pos parted (ListT (PairT t1 t2)) = do
+constructVectorSQL c (Pair p1 p2) pos parted (ListT (PairT t1 t2)) = do
                                                                     v1 <- constructVectorSQL c p1 pos parted $ ListT t1
                                                                     v2 <- constructVectorSQL c p2 pos parted $ ListT t2
                                                                     return $ makeTuple v1 v2
@@ -99,23 +100,23 @@ zipNorm :: Exp [a] -> Exp [b] -> Exp [(a, b)]
 zipNorm (ListE es1) (ListE es2) = ListE [PairE e1 e2 | (e1, e2) <- zip es1 es2]
 zipNorm _ _ = error "zipNorm: Cannot zip"
 
-makeNormX100 :: X100Info -> Q.Query Q.X100 -> Type [a] -> IO [(Int, Exp [a])]
-makeNormX100 c (Q.ValueVector (Q.X100 _ q) p) t = do
+makeNormX100 :: X100Info -> TopShape X100Code -> Type [a] -> IO [(Int, Exp [a])]
+makeNormX100 c (ValueVector (X100Code _ q) p) t = do
                                                    (X100Res _ res) <- doX100Query c q
                                                    let parted = partByIterX100 res
                                                    constructVector c p parted t
 makeNormX100 _ _ _ = error "makeNormX100: Not a list value vector"
 
-makeNormX100Prim :: (Reify a) => X100Info -> Q.Query Q.X100 -> Type a -> IO (Exp a)
-makeNormX100Prim c (Q.PrimVal (Q.X100 _ q) p) t = do
+makeNormX100Prim :: (Reify a) => X100Info -> TopShape X100Code -> Type a -> IO (Exp a)
+makeNormX100Prim c (PrimVal (X100Code _ q) p) t = do
                                         (X100Res _ res) <- doX100Query c q
                                         let parted = partByIterX100 res
                                         [(_, (ListE [n]))] <- constructVector c p parted (ListT t)
                                         return n
 makeNormX100Prim _ _ _ = error "makeNormX100Prim: Not a primitive value query"
 
-makeNormSQLPrim :: (IConnection conn, Reify a) => conn -> Q.Query Q.SQL -> Type a -> IO (Exp a)
-makeNormSQLPrim c (Q.PrimVal (Q.SQL _ s q) p) t = do
+makeNormSQLPrim :: (IConnection conn, Reify a) => conn -> TopShape SQLCode -> Type a -> IO (Exp a)
+makeNormSQLPrim c (PrimVal (SQLCode _ s q) p) t = do
                                         (r, d) <- doSQLQuery c q
                                         let (iC, ri) = schemeToResult s d
                                         let parted = partByIter iC r
@@ -123,8 +124,8 @@ makeNormSQLPrim c (Q.PrimVal (Q.SQL _ s q) p) t = do
                                         return n
 makeNormSQLPrim _ _ _ = error "makeNormSQLPrim: Not a primitive value query"
 
-makeNormSQL :: IConnection conn => conn -> Q.Query Q.SQL -> Type [a] -> IO [(Int, Exp [a])]
-makeNormSQL c (Q.ValueVector (Q.SQL _ s q) p) t = do
+makeNormSQL :: IConnection conn => conn -> TopShape SQLCode -> Type [a] -> IO [(Int, Exp [a])]
+makeNormSQL c (ValueVector (SQLCode _ s q) p) t = do
                                                     (r, d) <- doSQLQuery c q
                                                     let (iC, ri) = schemeToResult s d
                                                     let parted = partByIter iC r
@@ -264,7 +265,7 @@ partByIter iC vals = pbi (zip [1..] vals)
 type ResultInfo = (Int, [(String, Int)])
 
 -- | Transform algebraic plan scheme info into resultinfo
-schemeToResult :: Q.Schema -> [(String, SqlColDesc)] -> ResultInfo
+schemeToResult :: Schema -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (itN, col) resDescr = let resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
                                          itC = fromJust $ lookup itN resColumns
                                       in (itC, map (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)

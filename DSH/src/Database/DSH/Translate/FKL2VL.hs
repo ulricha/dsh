@@ -164,20 +164,20 @@ constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosu
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Graph VL Shape -> Graph VL QP.TopShape
+insertTopProjections :: Graph VL Shape -> Graph VL (QP.TopShape DVec)
 insertTopProjections g = do
   shape <- g
   let shape' = QP.exportShape shape
   traverseShape shape'
   
   where 
-  traverseShape :: QP.TopShape -> Graph VL QP.TopShape
+  traverseShape :: (QP.TopShape DVec) -> Graph VL (QP.TopShape DVec)
   traverseShape (QP.ValueVector (DVec q _) lyt) = 
       insertProj lyt q Project DVec QP.ValueVector
   traverseShape (QP.PrimVal (DVec q _) lyt)     = 
       insertProj lyt q Project DVec QP.PrimVal
   
-  traverseLayout :: QP.TopLayout -> Graph VL QP.TopLayout
+  traverseLayout :: (QP.TopLayout DVec) -> Graph VL (QP.TopLayout DVec)
   traverseLayout (QP.InColumn c) = 
       return $ QP.InColumn c
   traverseLayout (QP.Pair lyt1 lyt2) = do
@@ -188,11 +188,11 @@ insertTopProjections g = do
     insertProj lyt q Project DVec QP.Nest
     
   insertProj 
-    :: QP.TopLayout               -- The node's layout
-    -> AlgNode                    -- The top node to consider
-    -> ([Expr1] -> UnOp)          -- Constructor for the projection op
-    -> (AlgNode -> [DBCol] -> v)  -- DVecector constructor
-    -> (v -> QP.TopLayout -> t)   -- Layout/Shape constructor
+    :: QP.TopLayout DVec               -- The node's layout
+    -> AlgNode                         -- The top node to consider
+    -> ([Expr1] -> UnOp)               -- Constructor for the projection op
+    -> (AlgNode -> [DBCol] -> v)       -- DVecector constructor
+    -> (v -> (QP.TopLayout DVec) -> t) -- Layout/Shape constructor
     -> Graph VL t
   insertProj lyt q project vector describe = do
       let width = QP.columnsInLayout lyt

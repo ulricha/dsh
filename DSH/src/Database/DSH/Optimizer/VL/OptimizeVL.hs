@@ -7,13 +7,15 @@ import           Database.Algebra.VL.Data
 
 import           Database.DSH.Common.Data.QueryPlan
 
+import           Database.DSH.VL.Data.DBVector
+
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
 import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
 
-type RewriteClass = Rewrite VL TopShape Bool
+type RewriteClass = Rewrite VL (TopShape DVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -27,7 +29,11 @@ defaultPipeline = case assemblePipeline "ERGRG" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
-runPipeline :: Dag.AlgebraDag VL -> TopShape -> [RewriteClass] -> Bool -> (Dag.AlgebraDag VL, Log, TopShape)
+runPipeline 
+  :: Dag.AlgebraDag VL 
+  -> (TopShape DVec) 
+  -> [RewriteClass] 
+  -> Bool -> (Dag.AlgebraDag VL, Log, TopShape DVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 

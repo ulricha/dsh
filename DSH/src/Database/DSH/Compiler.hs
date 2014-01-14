@@ -46,7 +46,7 @@ import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import qualified Database.DSH.Common.Data.DBCode           as Q
+import           Database.DSH.Common.Data.DBCode
 
 import           Data.Aeson                                      (encode)
 import           Data.ByteString.Lazy.Char8                      (unpack)
@@ -63,7 +63,7 @@ import           Data.Convertible                                ()
 
 -- Different versions of the flattening compiler pipeline
 
-nkl2X100Alg :: CL.Expr -> (Q.Query Q.X100, T.Type)
+nkl2X100Alg :: CL.Expr -> (TopShape X100Code, T.Type)
 nkl2X100Alg e = let q = desugarComprehensions e
                         |> flatten
                         |> specializeVectorOps

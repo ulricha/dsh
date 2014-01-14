@@ -1,27 +1,13 @@
 module Database.DSH.Common.Data.DBCode where
-    
-data Query a = ValueVector a (Layout a)
-             | PrimVal a (Layout a)
-             deriving Show
 
-data Layout a = InColumn Int
-              | Nest a (Layout a)
-              | Pair (Layout a) (Layout a)
- deriving Show
-
-data X100 = X100 Int String
-
-data XML = XML Int String
-
-data SQL = SQL Int Schema String
+data X100Code = X100Code Int String
+     
+data SQLCode = SQLCode Int Schema String
 
 type Schema = (String, [(String, Int)])
 
-instance Show X100 where
-    show (X100 _ s) = s
+instance Show X100Code where
+    show (X100Code _ s) = s
 
-instance Show SQL where
-    show (SQL _ _ s) = s
-
-instance Show XML where
-    show (XML _ s) = s
+instance Show SQLCode where
+    show (SQLCode _ _ s) = s
