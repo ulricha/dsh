@@ -12,6 +12,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.QueryPlan
 
 import           Database.Algebra.VL.Data
+import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.VL.Properties.BottomUp
@@ -19,10 +20,10 @@ import           Database.DSH.Optimizer.VL.Properties.TopDown
 import           Database.DSH.Optimizer.VL.Properties.Types
 
   -- Type abbreviations for convenience
-type VLRewrite p = Rewrite VL TopShape p
-type VLRule p = Rule VL p TopShape
-type VLRuleSet p = RuleSet VL p TopShape
-type VLMatch p = Match VL p TopShape
+type VLRewrite p = Rewrite VL (TopShape DVec) p
+type VLRule p = Rule VL p (TopShape DVec)
+type VLRuleSet p = RuleSet VL p (TopShape DVec)
+type VLMatch p = Match VL p (TopShape DVec)
 
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do

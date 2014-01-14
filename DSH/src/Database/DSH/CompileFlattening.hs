@@ -144,7 +144,7 @@ translate (TableE (TableDB tableName ks)) = do
 
     let cols = zipWith matchTypes tableDescr ts
 
-    return $ trace (tableTypeError) $ CP.table (translateType ty) tableName cols ks
+    return $ CP.table (translateType ty) tableName cols ks
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
 

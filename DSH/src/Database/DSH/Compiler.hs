@@ -20,7 +20,7 @@ import           Database.HDBC
 import qualified Database.HDBC                                   as H
 
 import qualified Database.DSH.CL.Lang                 as CL
-import qualified Database.DSH.CL.Opt                  as CLOpt
+import           Database.DSH.CL.Opt
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
@@ -42,7 +42,8 @@ import           Data.Convertible                                ()
 -- Different versions of the flattening compiler pipeline
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e = desugarComprehensions e
+nkl2TAFile prefix e = optimizeComprehensions e
+                      |> desugarComprehensions
                       |> flatten
                       |> specializeVectorOps
                       |> optimizeVLDefault
@@ -50,7 +51,8 @@ nkl2TAFile prefix e = desugarComprehensions e
                       |> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e = desugarComprehensions e
+nkl2TAFileOpt prefix e = optimizeComprehensions e
+                         |> desugarComprehensions
                          |> flatten
                          |> specializeVectorOps
                          |> optimizeVLDefault
@@ -59,13 +61,15 @@ nkl2TAFileOpt prefix e = desugarComprehensions e
                          |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e = desugarComprehensions e
+nkl2VLFile prefix e = optimizeComprehensions e
+                      |> desugarComprehensions
                       |> flatten
                       |> specializeVectorOps
                       |> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e = desugarComprehensions e
+nkl2VLFileOpt prefix e = optimizeComprehensions e
+                         |> desugarComprehensions
                          |> flatten
                          |> specializeVectorOps
                          |> optimizeVLDefault
@@ -76,38 +80,42 @@ nkl2VLFileOpt prefix e = desugarComprehensions e
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (SQL version)
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getTableInfo c) e
+debugNKL c (Q e) = show <$> desugarComprehensions 
+                        <$> optimizeComprehensions 
+                        <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: return the FKL (Flat Kernel Language) representation of a
 -- query (SQL version)
 debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = show <$> flatten <$> desugarComprehensions <$> toComprehensions (getTableInfo c) e
+debugFKL c (Q e) = show <$> flatten 
+                        <$> desugarComprehensions 
+                        <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
-              e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
-              nkl2TAFile prefix e'
+    e' <- toComprehensions (getTableInfo c) e
+    nkl2TAFile prefix e'
 
 -- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
 debugTAOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTAOpt prefix c (Q e) = do
-              e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
-              nkl2TAFileOpt prefix e'
+    e' <- toComprehensions (getTableInfo c) e
+    nkl2TAFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (SQL version).
 debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
-  e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
-  nkl2VLFile prefix e'
+    e' <- toComprehensions (getTableInfo c) e
+    nkl2VLFile prefix e'
 
 -- | Debugging function: dump the optimized VL query plan (DAG) for a
 -- query to a file (SQL version).
 debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
-  e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
-  nkl2VLFileOpt prefix e'
+    e' <- toComprehensions (getTableInfo c) e
+    nkl2VLFileOpt prefix e'
 
 -- | Retrieve through the given database connection information on the
 -- table (columns with their types) which name is given as the second

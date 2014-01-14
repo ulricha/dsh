@@ -69,7 +69,7 @@ toDVec :: Res -> DVec
 toDVec (RDVec n cs) = DVec n cs
 toDVec _            = error "toDVec: Not a DVec"
 
-refreshLyt :: VectorAlgebra a => TopLayout -> G a TopLayout
+refreshLyt :: VectorAlgebra a => (TopLayout DVec) -> G a (TopLayout DVec)
 refreshLyt l@(InColumn _) = return l
 refreshLyt (Nest (DVec n _) lyt) = do
     Just n' <- fromDict n
@@ -80,7 +80,7 @@ refreshLyt (Pair l1 l2) = do
     l2' <- refreshLyt l2
     return $ Pair l1' l2'
 
-refreshShape :: VectorAlgebra a => TopShape -> G a TopShape
+refreshShape :: VectorAlgebra a => (TopShape DVec) -> G a (TopShape DVec)
 refreshShape (ValueVector (DVec n _) lyt) = do
     v <- fromDict n
     case v of
@@ -133,7 +133,7 @@ getVL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape) -> G a TopShape
+vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape DVec) -> G a (TopShape DVec)
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
     

@@ -25,7 +25,7 @@ emptyRules = [ emptyAppendLeftR1
              , emptyAppendRightR2
              ]
 
-isEmpty :: AlgNode -> Match VL BottomUpProps TopShape Bool
+isEmpty :: AlgNode -> VLMatch BottomUpProps Bool
 isEmpty q = do
   ps <- liftM emptyProp $ properties q
   case ps of

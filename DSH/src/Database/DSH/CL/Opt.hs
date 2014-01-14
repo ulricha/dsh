@@ -6,7 +6,7 @@
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt 
-  ( opt ) where
+  ( optimizeComprehensions ) where
   
 import Control.Arrow
 
@@ -106,8 +106,8 @@ depth e = (maximum ps, length ps)
         rootPathT = absPathT >>^ snocPathToPath
 -}
            
-opt :: Expr -> Expr
-opt expr = {- trace ("(depth, count) "++ show (depth expr)) $ -} debugOpt expr optimizedExpr
+optimizeComprehensions :: Expr -> Expr
+optimizeComprehensions expr = {- trace ("(depth, count) "++ show (depth expr)) $ -} debugOpt expr optimizedExpr
 
   where
     -- optimizedExpr = applyExpr (strategy >>> projectT) expr

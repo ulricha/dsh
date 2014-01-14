@@ -13,6 +13,7 @@ import           Database.Algebra.VL.Data
 import           Database.Algebra.VL.Render.JSON
 
 import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.OptimizeVL
 
@@ -60,7 +61,12 @@ options =
       "Show help"
   ]
 
-optimize :: D.AlgebraDag VL -> TopShape -> [RewriteClass]-> Bool -> (D.AlgebraDag VL, Log, TopShape)
+optimize 
+  :: D.AlgebraDag VL 
+  -> TopShape DVec
+  -> [RewriteClass] 
+  -> Bool 
+  -> (D.AlgebraDag VL, Log, TopShape DVec)
 optimize = runPipeline
 
 main :: IO ()

@@ -22,35 +22,40 @@ import           Data.Text                             (Text())
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
 
-import qualified Database.DSH.VL.Data.Query as Q
+import           Database.DSH.Common.Data.DBCode
+import           Database.DSH.Common.Data.QueryPlan
 
-data SQL a = SQL (Q.Query Q.SQL)
+data SQL a = SQL (TopShape SQLCode)
 
 textToChar :: Exp Text -> Exp Char
 textToChar (TextE t) = CharE (Txt.head t)
 textToChar _               = error $ "textToChar: Not a char value"
 
-executeSQLQuery :: forall a. forall conn. (IConnection conn, Reify a) => conn -> SQL a -> IO (Exp a)
-executeSQLQuery c (SQL q) = let et = reify (undefined :: a)
-                             in case et of
-                                 (ListT _) -> do
-                                                n <- makeNormSQL c q et
-                                                return $ concatN $ reverse $ map snd n
-                                 _         -> do
-                                                n <- makeNormSQLPrim c q et
-                                                return $ n
 
-constructVectorSQL :: IConnection conn => conn -> Q.Layout Q.SQL -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type [a] -> IO [(Int, Exp [a])]
-constructVectorSQL _ (Q.InColumn i) pos parted t = do
+executeSQLQuery :: forall a. forall conn. (IConnection conn, Reify a) => conn -> SQL a -> IO (Exp a)
+executeSQLQuery c (SQL q) = do
+    let et = reify (undefined :: a)
+    
+    case et of
+        (ListT _) -> do
+            n <- makeNormSQL c q et
+            return $ concatN $ reverse $ map snd n
+        _         -> do
+            n <- makeNormSQLPrim c q et
+            return $ n
+
+
+constructVectorSQL :: IConnection conn => conn -> TopLayout SQLCode -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type [a] -> IO [(Int, Exp [a])]
+constructVectorSQL _ (InColumn i) pos parted t = do
                                             let i' = snd $ pos !! (i - 1)
                                             return $ normaliseList t i' parted
-constructVectorSQL c (Q.Nest v lyt) _ parted t@(ListT _) =
+constructVectorSQL c (Nest v lyt) _ parted t@(ListT _) =
                                         case t of
                                           (ListT t1@(ListT _)) -> do
-                                                            inner <- makeNormSQL c (Q.ValueVector v lyt) t1
+                                                            inner <- makeNormSQL c (ValueVector v lyt) t1
                                                             return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
                                           _ -> error "constructVectorSQL: Not a nested list"
-constructVectorSQL c (Q.Pair p1 p2) pos parted (ListT (PairT t1 t2)) = do
+constructVectorSQL c (Pair p1 p2) pos parted (ListT (PairT t1 t2)) = do
                                                                     v1 <- constructVectorSQL c p1 pos parted $ ListT t1
                                                                     v2 <- constructVectorSQL c p2 pos parted $ ListT t2
                                                                     return $ makeTuple v1 v2
@@ -66,8 +71,8 @@ zipNorm :: Exp [a] -> Exp [b] -> Exp [(a, b)]
 zipNorm (ListE es1) (ListE es2) = ListE [PairE e1 e2 | (e1, e2) <- zip es1 es2]
 zipNorm _ _ = error "zipNorm: Cannot zip"
 
-makeNormSQLPrim :: (IConnection conn, Reify a) => conn -> Q.Query Q.SQL -> Type a -> IO (Exp a)
-makeNormSQLPrim c (Q.PrimVal (Q.SQL _ s q) p) t = do
+makeNormSQLPrim :: (IConnection conn, Reify a) => conn -> TopShape SQLCode -> Type a -> IO (Exp a)
+makeNormSQLPrim c (PrimVal (SQLCode _ s q) p) t = do
                                         (r, d) <- doSQLQuery c q
                                         let (iC, ri) = schemeToResult s d
                                         let parted = partByIter iC r
@@ -75,8 +80,8 @@ makeNormSQLPrim c (Q.PrimVal (Q.SQL _ s q) p) t = do
                                         return n
 makeNormSQLPrim _ _ _ = error "makeNormSQLPrim: Not a primitive value query"
 
-makeNormSQL :: IConnection conn => conn -> Q.Query Q.SQL -> Type [a] -> IO [(Int, Exp [a])]
-makeNormSQL c (Q.ValueVector (Q.SQL _ s q) p) t = do
+makeNormSQL :: IConnection conn => conn -> TopShape SQLCode -> Type [a] -> IO [(Int, Exp [a])]
+makeNormSQL c (ValueVector (SQLCode _ s q) p) t = do
                                                     (r, d) <- doSQLQuery c q
                                                     let (iC, ri) = schemeToResult s d
                                                     let parted = partByIter iC r
@@ -140,11 +145,11 @@ convert' sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
 doSQLQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])
 doSQLQuery c q = do
-                sth <- prepare c q
-                _ <- execute sth []
-                res <- dshFetchAllRowsStrict sth
-                resDescr <- describeResult sth
-                return (res, resDescr)
+    sth <- prepare c q
+    _ <- execute sth []
+    res <- dshFetchAllRowsStrict sth
+    resDescr <- describeResult sth
+    return (res, resDescr)
 
 dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
 dshFetchAllRowsStrict stmt = go []
@@ -170,7 +175,7 @@ partByIter iC vals = pbi (zip [1..] vals)
 type ResultInfo = (Int, [(String, Int)])
 
 -- | Transform algebraic plan scheme info into resultinfo
-schemeToResult :: Q.Schema -> [(String, SqlColDesc)] -> ResultInfo
+schemeToResult :: Schema -> [(String, SqlColDesc)] -> ResultInfo
 schemeToResult (itN, col) resDescr = let resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
                                          itC = fromJust $ lookup itN resColumns
                                       in (itC, map (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)

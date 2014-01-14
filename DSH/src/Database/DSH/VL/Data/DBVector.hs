@@ -14,7 +14,7 @@ import           GHC.Generics                 (Generic)
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common
 
-type DBCol = Int
+import           Database.Algebra.VL.Data
 
 -- Data vectors
 data DVec = DVec AlgNode [DBCol]

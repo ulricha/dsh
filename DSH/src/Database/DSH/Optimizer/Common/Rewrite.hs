@@ -39,21 +39,32 @@ import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal
 
 import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.VL.Data.DBVector
 
-replaceRoot :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o TopShape ()
+--------------------------------------------------------------
+-- Versions of rewrite combinators that maintain the TopShape
+-- description of the query structure.
+
+-- | Replace a root node while maintaining the query structure
+-- information.
+replaceRoot :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o (TopShape DVec) ()
 replaceRoot oldRoot newRoot = do
   sh <- R.getExtras
   R.updateExtras $ updateTopShape oldRoot newRoot sh
   R.replaceRoot oldRoot newRoot
 
-replaceWithNew :: (D.Operator o, Show o) => AlgNode -> o -> R.Rewrite o TopShape AlgNode
+-- | Replace a node with a new operator while mainting the query
+-- structure information.
+replaceWithNew :: (D.Operator o, Show o) => AlgNode -> o -> R.Rewrite o (TopShape DVec) AlgNode
 replaceWithNew oldNode newOp = do
   sh <- R.getExtras
   newNode <- R.replaceWithNew oldNode newOp
   R.updateExtras $ updateTopShape oldNode newNode sh
   return newNode
 
-replace :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o TopShape ()
+-- | Replace a node with another node while maintaining the query
+-- structure information.
+replace :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o (TopShape DVec) ()
 replace oldNode newNode = do
   sh <- R.getExtras
   R.replace oldNode newNode

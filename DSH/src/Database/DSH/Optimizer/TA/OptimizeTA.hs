@@ -9,6 +9,7 @@ import qualified Database.Algebra.Dag                                           
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Optimizer.Common.Rewrite
 
@@ -30,16 +31,16 @@ remove rownums if concrete values not required: use prop, key prop, ?
 
 -}
 
-type RewriteClass = Rewrite PFAlgebra TopShape Bool
+type RewriteClass = Rewrite PFAlgebra (TopShape DVec) Bool
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = [cleanup]
 
 runPipeline :: Dag.AlgebraDag PFAlgebra 
-            -> TopShape 
+            -> (TopShape DVec)
             -> [RewriteClass] 
             -> Bool 
-            -> (Dag.AlgebraDag PFAlgebra, Log, TopShape)
+            -> (Dag.AlgebraDag PFAlgebra, Log, TopShape DVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 

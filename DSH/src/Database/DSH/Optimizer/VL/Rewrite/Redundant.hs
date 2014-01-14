@@ -26,7 +26,11 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ introduceSelect, simpleSort ]
+redundantRules = [ introduceSelect
+                 , simpleSort 
+                 , pullProjectPropRename
+                 , pullProjectPropReorder
+                 ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
@@ -49,24 +53,6 @@ introduceSelect q =
         return $ do
           logRewrite "Redundant.Select" q
           void $ replaceWithNew q $ UnOp (Select $(v "e")) $(v "q1") |])
-
-{-
-
-FIXME really necessary?
-
--- Remove a ProjectL or ProjectA operator that does not change the column layout
-noOpProject :: VLRule BottomUpProps
-noOpProject q =
-  $(pattern 'q "[ProjectL | ProjectA] ps (q1)"
-    [| do
-        vt <- liftM vectorTypeProp $ properties $(v "q1")
-        predicate $ vectorWidth vt == length $(v "ps")
-        predicate $ all (uncurry (==)) $ zip ([1..] :: [DBCol]) $(v "ps")
-
-        return $ do
-          logRewrite "Redundant.NoOpProject" q
-          replace q $(v "q1") |])
--}          
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -179,6 +165,7 @@ simpleSort q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
+          logRewrite "Redundant.Sort.Simple" q
           qs <- insert $ UnOp (SortSimple $(v "ps")) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 qs 
           r2Parents <- lookupR2Parents $(v "qs")
@@ -191,3 +178,31 @@ simpleSort q =
               qr2' <- insert $ UnOp R2 qs
               mapM_ (\qr2 -> replace qr2 qr2') r2Parents
             else return () |])
+
+------------------------------------------------------------------------------
+-- Projection pullup
+
+-- Motivation: In order to eliminate or pull up sorting operations in
+-- VL rewrites or subsequent stages, payload columns which might
+-- induce sort order should be available as long as possible. We
+-- assume that the cost of having unrequired columns around is
+-- negligible (best case: column store).
+
+pullProjectPropRename :: VLRule ()
+pullProjectPropRename q =
+  $(pattern 'q "(qp) PropRename (Project proj (qv))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.PropRename" q
+           renameNode <- insert $ BinOp PropRename $(v "qp") $(v "qv")
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) renameNode |])
+
+pullProjectPropReorder :: VLRule ()
+pullProjectPropReorder q =
+  $(pattern 'q "R1 ((qp) PropReorder (Project proj (qv)))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.Reorder" q
+           reorderNode <- insert $ BinOp PropReorder $(v "qp") $(v "qv")
+           r1Node      <- insert $ UnOp R1 reorderNode
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
