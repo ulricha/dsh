@@ -39,15 +39,19 @@ textToChar :: Exp Text -> Exp Char
 textToChar (TextE t) = CharE (Txt.head t)
 textToChar _               = error $ "textToChar: Not a char value"
 
+
 executeSQLQuery :: forall a. forall conn. (IConnection conn, Reify a) => conn -> SQL a -> IO (Exp a)
-executeSQLQuery c (SQL q) = let et = reify (undefined :: a)
-                             in case et of
-                                 (ListT _) -> do
-                                                n <- makeNormSQL c q et
-                                                return $ concatN $ reverse $ map snd n
-                                 _         -> do
-                                                n <- makeNormSQLPrim c q et
-                                                return $ n
+executeSQLQuery c (SQL q) = do
+    let et = reify (undefined :: a)
+    
+    case et of
+        (ListT _) -> do
+            n <- makeNormSQL c q et
+            return $ concatN $ reverse $ map snd n
+        _         -> do
+            n <- makeNormSQLPrim c q et
+            return $ n
+
 
 executeX100Query :: forall a. (Reify a) => X100Info -> X100 a -> IO (Exp a)
 executeX100Query c (X100 q) = let et = reify (undefined :: a)
@@ -220,11 +224,11 @@ instance Convertible (X100Data, Type a) (Exp a) where
 
 doSQLQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])
 doSQLQuery c q = do
-                sth <- prepare c q
-                _ <- execute sth []
-                res <- dshFetchAllRowsStrict sth
-                resDescr <- describeResult sth
-                return (res, resDescr)
+    sth <- prepare c q
+    _ <- execute sth []
+    res <- dshFetchAllRowsStrict sth
+    resDescr <- describeResult sth
+    return (res, resDescr)
 
 doX100Query :: X100Info -> String -> IO X100Result
 doX100Query c q = executeQuery c q
