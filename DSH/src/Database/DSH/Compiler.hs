@@ -32,10 +32,8 @@ import qualified Database.HDBC                                   as H
 import           Database.X100Client                             hiding (X100, tableName)
 import qualified Database.X100Client                             as X
 
-import           Database.Algebra.Dag
-
 import qualified Database.DSH.CL.Lang                 as CL
-import qualified Database.DSH.CL.Opt                  as CLOpt
+import           Database.DSH.CL.Opt
 import           Database.DSH.Common.Data.QueryPlan
 import qualified Database.DSH.Common.Data.Type        as T
 import           Database.DSH.Export
@@ -48,10 +46,6 @@ import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
 import           Database.DSH.Common.Data.DBCode
 
-import           Data.Aeson                                      (encode)
-import           Data.ByteString.Lazy.Char8                      (unpack)
-
-import qualified Data.IntMap                                     as M
 import qualified Data.List                                       as L
 
 import           Control.Applicative
@@ -64,7 +58,8 @@ import           Data.Convertible                                ()
 -- Different versions of the flattening compiler pipeline
 
 nkl2X100Alg :: CL.Expr -> (TopShape X100Code, T.Type)
-nkl2X100Alg e = let q = desugarComprehensions e
+nkl2X100Alg e = let q = optimizeComprehensions e
+                        |> desugarComprehensions
                         |> flatten
                         |> specializeVectorOps
                         |> optimizeVLDefault
@@ -74,7 +69,8 @@ nkl2X100Alg e = let q = desugarComprehensions e
                 in (q, t)
 
 nkl2X100File :: String -> CL.Expr -> IO ()
-nkl2X100File prefix e = desugarComprehensions e
+nkl2X100File prefix e = optimizeComprehensions e
+                        |> desugarComprehensions
                         |> flatten
                         |> specializeVectorOps
                         |> optimizeVLDefault
@@ -82,7 +78,8 @@ nkl2X100File prefix e = desugarComprehensions e
                         |> (exportX100Plan prefix)
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e = desugarComprehensions e
+nkl2TAFile prefix e = optimizeComprehensions e
+                      |> desugarComprehensions
                       |> flatten
                       |> specializeVectorOps
                       |> optimizeVLDefault
@@ -90,7 +87,8 @@ nkl2TAFile prefix e = desugarComprehensions e
                       |> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e = desugarComprehensions e
+nkl2TAFileOpt prefix e = optimizeComprehensions e
+                         |> desugarComprehensions
                          |> flatten
                          |> specializeVectorOps
                          |> optimizeVLDefault
@@ -99,13 +97,15 @@ nkl2TAFileOpt prefix e = desugarComprehensions e
                          |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e = desugarComprehensions e
+nkl2VLFile prefix e = optimizeComprehensions e
+                      |> desugarComprehensions
                       |> flatten
                       |> specializeVectorOps
                       |> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e = desugarComprehensions e
+nkl2VLFileOpt prefix e = optimizeComprehensions e
+                         |> desugarComprehensions
                          |> flatten
                          |> specializeVectorOps
                          |> optimizeVLDefault
@@ -116,7 +116,7 @@ nkl2VLFileOpt prefix e = desugarComprehensions e
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
 fromQX100 c (Q a) =  do
-    (q, _) <- nkl2X100Alg <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) a
+    (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
     frExp <$> (executeX100Query c $ X100 q)
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
@@ -126,18 +126,21 @@ fromQ c (Q a) = do
 -- | Debugging function: return the CL (Comprehension Language) representation of a
 -- query (X100 version)
 debugCLX100 :: QA a => X100Info -> Q a -> IO String
-debugCLX100 c (Q e) = show <$> CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+debugCLX100 c (Q e) = show <$> optimizeComprehensions 
+                           <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (SQL version)
 debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = show <$> desugarComprehensions <$> CLOpt.opt <$> toComprehensions (getTableInfo c) e
+debugNKL c (Q e) = show <$> desugarComprehensions 
+                        <$> optimizeComprehensions 
+                        <$> toComprehensions (getTableInfo c) e
 
 -- | Debugging function: return the NKL (Nested Kernel Language) representation of a
 -- query (X100 version)
 debugNKLX100 :: QA a => X100Info -> Q a -> IO String
 debugNKLX100 c (Q e) = show <$> desugarComprehensions 
-                            <$> CLOpt.opt 
+                            <$> optimizeComprehensions 
                             <$> toComprehensions (getX100TableInfo c) e
 
 -- | Debugging function: return the FKL (Flat Kernel Language) representation of a
@@ -157,40 +160,40 @@ debugFKLX100 c (Q e) = show <$> flatten
 -- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+    e' <- toComprehensions (getX100TableInfo c) e
     nkl2X100File prefix e'
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+    e' <- toComprehensions (getTableInfo c) e
     nkl2TAFile prefix e'
 
 -- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
 debugTAOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTAOpt prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+    e' <- toComprehensions (getTableInfo c) e
     nkl2TAFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (SQL version).
 debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+    e' <- toComprehensions (getTableInfo c) e
     nkl2VLFile prefix e'
 
 -- | Debugging function: dump the optimized VL query plan (DAG) for a
 -- query to a file (SQL version).
 debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getTableInfo c) e
+    e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (X100 version).
 debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
-    e' <- CLOpt.opt <$> toComprehensions (getX100TableInfo c) e
+    e' <- toComprehensions (getX100TableInfo c) e
     nkl2VLFile prefix e'
 
 -- | Retrieve through the given database connection information on the
