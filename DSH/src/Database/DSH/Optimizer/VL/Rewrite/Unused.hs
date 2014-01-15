@@ -7,6 +7,7 @@ layout.  -}
 
 module Database.DSH.Optimizer.VL.Rewrite.Unused where
 
+{-
 import           Control.Applicative
 
 import           Database.Algebra.Dag.Common
@@ -18,6 +19,8 @@ import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 pruneUnused :: VLRewrite Bool
 pruneUnused = applyToAll inferTopDown [ {- unusedProject -} ]
+
+-}
 
 {-
 

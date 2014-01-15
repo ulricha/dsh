@@ -28,11 +28,22 @@ isBool f = f `elem` [And, Or]
 binAppTy :: BinFun -> ATy -> ATy -> ATy
 binAppTy f t1 _t2 =
     case f of
-        f | isComp f    -> ABool
-        f | isBool f    -> ABool
-        f | isNumeric f -> t1
-        Modulo          -> AInt
-        Concat          -> AStr
+        Gt        -> ABool
+        Lt        -> ABool
+        LtE       -> ABool
+        GtE       -> ABool
+        Eq        -> ABool
+        Contains  -> ABool
+        SimilarTo -> ABool
+        Like      -> ABool
+        And       -> ABool
+        Or        -> ABool
+        Plus      -> t1
+        Minus     -> t1
+        Times     -> t1
+        Div       -> t1
+        Modulo    -> AInt
+        Concat    -> AStr
 
 unAppTy :: UnFun -> ATy
 unAppTy Not      = ABool
@@ -52,7 +63,7 @@ exprTy childCols expr =
         ColE c          -> typeOf c childCols
         ConstE v        -> valType v
         BinAppE f e1 e2 -> binAppTy f (exprTy childCols e1) (exprTy childCols e2)
-        UnAppE f e      -> unAppTy f
+        UnAppE f _      -> unAppTy f
 
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions

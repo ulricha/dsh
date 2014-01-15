@@ -4,8 +4,6 @@
 module Database.DSH.Optimizer.TA.Properties.Order where
 
 import Data.Tuple
-import Control.Monad
-import Data.Maybe
 import qualified Data.Set.Monad as S
 
 import Database.Algebra.Pathfinder.Data.Algebra
@@ -15,13 +13,17 @@ import Database.DSH.Impossible
 import Database.DSH.Optimizer.TA.Properties.Aux
 import Database.DSH.Optimizer.TA.Properties.Types
 
+-- | Column 'c' has been overwritten by the current operator. Remove
+-- all associated sorting information.
 invalidate :: AttrName -> Orders -> Orders
 invalidate c order = [ o | o@(c', _) <- order, c /= c' ]
 
+-- | Overwrite (if present) order information for column 'o' with new
+-- information.
 overwrite :: (AttrName, [AttrName]) -> Orders -> Orders
-overwrite o@(ordCol, sortCols) os = 
+overwrite o@(ordCol, _) os = 
     if any ((== ordCol) . fst) os
-    then [ o | (oc, scs) <- os, oc == ordCol ]
+    then [ o | (oc, _) <- os, oc == ordCol ]
     else o : os
 
 -- | Produce all new sorting columns from the list of new names per
@@ -30,8 +32,8 @@ overwrite o@(ordCol, sortCols) os =
 -- [[a, b, c], [], [f]]     => []
 ordCombinations :: [[AttrName]] -> [[AttrName]]
 ordCombinations []        = $impossible
-ordCombinations (as : []) = map (: []) as
-ordCombinations (as : bs) = dist as (ordCombinations bs)
+ordCombinations (s : [])  = map (: []) s
+ordCombinations (s : scs) = dist s (ordCombinations scs)
 
   where
     dist :: [AttrName] -> [[AttrName]] -> [[AttrName]]

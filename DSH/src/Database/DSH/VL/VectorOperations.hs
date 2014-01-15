@@ -14,7 +14,7 @@ import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
 import           Database.DSH.VL.Data.DBVector
-import           Database.DSH.VL.VLPrimitives hiding (prop)
+import           Database.DSH.VL.VLPrimitives
 import           Database.DSH.VL.MetaPrimitives
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Type

@@ -2,8 +2,6 @@
 
 module Database.DSH.Optimizer.TA.Properties.Card1 where
 
-import           Database.DSH.Impossible
-
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Optimizer.TA.Properties.Types
