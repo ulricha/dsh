@@ -345,7 +345,7 @@ insertSerialize g = g >>= traverseShape
             p  = Just (TA.PosCol "pos")
             cs = map (TA.PayloadCol . ("item" ++) . show) cols
 
-        let serializeOp = TA.SerializeRel (d, p, cs)
+        let serializeOp = TA.Serialize (d, p, cs)
 
         qp   <- lift $ insertNode $ UnOp serializeOp q
         lyt' <- traverseLayout lyt

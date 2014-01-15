@@ -74,7 +74,7 @@ inferUseUnOp ownUse childUse op =
                                      ∪ 
                                      (S.unions $ map (aggrInput . fst) acols)
 
-        SerializeRel (md, mp, cs) -> childUse 
+        Serialize (md, mp, cs)    -> childUse 
                                      ∪ (S.fromList $ map (\(PayloadCol c) -> c) cs)
                                      ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
                                      -- FIXME once order and

@@ -108,7 +108,7 @@ inferColsUnOp childCols op =
         Aggr (afuns, pexprs)  -> (S.fromList $ map (aggrTy childCols) afuns) 
                                  ∪
                                  [ (c, exprTy childCols e) | (c, e) <- S.fromList pexprs ]
-        SerializeRel (md, mp, cs) -> 
+        Serialize (md, mp, cs) -> 
             let cols = (S.fromList $ map (\(PayloadCol c) -> c) cs)
                        ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
                        ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mp)

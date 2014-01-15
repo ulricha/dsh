@@ -88,7 +88,7 @@ inferIColsUnOp ownICols childICols op =
                                  ∪
                                  (S.foldr (∪) S.empty $ S.fromList $ map (exprCols . snd) pexprs)
 
-        SerializeRel cs       ->
+        Serialize cs          ->
             let (mDescr, mPos, cols) = cs
             in childICols
                ∪ (S.fromList $ map (\(PayloadCol c) -> c) cols)

@@ -22,7 +22,7 @@ inferEmptyUnOp childEmpty op =
         Select _         -> childEmpty
         Distinct _       -> childEmpty
         Aggr (_, _)      -> childEmpty
-        SerializeRel _   -> childEmpty
+        Serialize    _   -> childEmpty
 
 inferEmptyBinOp :: Empty -> Empty -> BinOp -> Empty
 inferEmptyBinOp leftEmpty rightEmpty op =
