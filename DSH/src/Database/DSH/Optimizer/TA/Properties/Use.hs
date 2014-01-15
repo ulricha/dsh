@@ -61,16 +61,23 @@ inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
 inferUseUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
 inferUseUnOp ownUse childUse op = 
     case op of
-        RowNum (resCol, _, _) -> childUse ∪ (S.delete resCol ownUse)
-    
-        RowRank (resCol, _)   -> childUse ∪ (S.delete resCol ownUse)
-        Rank (resCol, _)      -> childUse ∪ (S.delete resCol ownUse)
-        Project projs         -> childUse 
-                                 ∪ (unionss [ exprCols e | (a, e) <- S.fromList projs, a ∈ ownUse ])
-        Select e              -> childUse ∪ ownUse ∪ (exprCols e)
-        Distinct _            -> childUse ∪ ownUse 
+        RowNum (resCol, _, _)     -> childUse ∪ (S.delete resCol ownUse)
+        RowRank (resCol, _)       -> childUse ∪ (S.delete resCol ownUse)
+        Rank (resCol, _)          -> childUse ∪ (S.delete resCol ownUse)
+        Project projs             -> childUse 
+                                     ∪ (unionss [ exprCols e | (a, e) <- S.fromList projs, a ∈ ownUse ])
+        Select e                  -> childUse ∪ ownUse ∪ (exprCols e)
+        Distinct _                -> childUse ∪ ownUse 
 
         -- FIXME unconditionally declaring pcols as used might be a bit too defensive.
-        Aggr (acols, pexprs)  -> (S.unions $ map (exprCols . snd) pexprs)
-                                 ∪ 
-                                 (S.unions $ map (aggrInput . fst) acols)
+        Aggr (acols, pexprs)      -> (S.unions $ map (exprCols . snd) pexprs)
+                                     ∪ 
+                                     (S.unions $ map (aggrInput . fst) acols)
+
+        SerializeRel (md, mp, cs) -> childUse 
+                                     ∪ (S.fromList $ map (\(PayloadCol c) -> c) cs)
+                                     ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
+                                     -- FIXME once order and
+                                     -- surrogates are decoupled, pos
+                                     -- is no longer used.
+                                     ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mp)

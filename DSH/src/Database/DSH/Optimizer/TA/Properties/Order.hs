@@ -69,6 +69,7 @@ inferOrderUnOp childOrder op =
         Project projs                     -> 
             let colMap = S.toList $ S.map swap $ S.unions $ map mapCol projs
             in concatMap (update colMap) childOrder
+        SerializeRel _                    -> []
 
 inferOrderBinOp :: Orders -> Orders -> BinOp -> Orders
 inferOrderBinOp leftChildOrder rightChildOrder op =

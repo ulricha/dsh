@@ -87,3 +87,10 @@ inferIColsUnOp ownICols childICols op =
         Aggr (acols, pexprs)  -> (S.foldr (∪) childICols $ S.fromList $ map (aggrInput . fst) acols)
                                  ∪
                                  (S.foldr (∪) S.empty $ S.fromList $ map (exprCols . snd) pexprs)
+
+        SerializeRel cs       ->
+            let (mDescr, mPos, cols) = cs
+            in childICols
+               ∪ (S.fromList $ map (\(PayloadCol c) -> c) cols)
+               ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) mDescr)
+               ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mPos)

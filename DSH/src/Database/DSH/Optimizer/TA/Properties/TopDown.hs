@@ -83,24 +83,6 @@ inferChildProperties buPropMap d n = do
             replaceProps c2 cp2'
         TerOp op c1 c2 c3 -> $impossible
         
-seedTopNodes :: AlgebraDag PFAlgebra -> NodeMap BottomUpProps -> NodeMap TopDownProps -> NodeMap TopDownProps
-seedTopNodes dag buPropMap tdPropMap = foldr seedNodes tdPropMap (rootNodes dag)
-  where
-    seedNodes :: AlgNode -> NodeMap TopDownProps -> NodeMap TopDownProps
-    seedNodes n propMap = 
-        case M.lookup n buPropMap of
-            Just buProps -> let seedProps = TDProps { pICols = S.map fst $ pCols buProps 
-                            -- FIXME seeding Use with all columns
-                            -- might be too much.  E.g. for flat
-                            -- results, descriptor values are
-                            -- certainly not needed. Maybe we should re-introduce
-                            -- sth equiv. to the SERIALIZEREL operator.
-                                                    , pUse   = S.map fst $ pCols buProps
-                                                    }
-                            in M.insert n seedProps propMap
-            Nothing      -> $impossible
-
-
 -- | Infer properties during a top-down traversal.
 inferAllProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag PFAlgebra -> NodeMap AllProps
 inferAllProperties buPropMap topOrderedNodes d = let tdPropMap = execState action initialMap  
@@ -110,7 +92,7 @@ inferAllProperties buPropMap topOrderedNodes d = let tdPropMap = execState actio
   where 
     action = mapM_ (inferChildProperties buPropMap d) topOrderedNodes
 
-    initialMap = seedTopNodes d buPropMap $ M.map (const seed) $ nodeMap d
+    initialMap = M.map (const seed) $ nodeMap d
 
     mergeProps :: NodeMap BottomUpProps -> NodeMap TopDownProps -> Maybe (NodeMap AllProps)
     mergeProps bum tdm = do

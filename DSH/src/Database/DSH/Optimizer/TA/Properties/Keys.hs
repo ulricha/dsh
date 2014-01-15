@@ -5,13 +5,8 @@
 
 module Database.DSH.Optimizer.TA.Properties.Keys where
 
-import Debug.Trace
-import Text.Printf
-
 import Data.List
 import qualified Data.Set.Monad as S
-
-import           Database.DSH.Impossible
 
 import           Database.Algebra.Pathfinder.Data.Algebra
 
@@ -102,6 +97,7 @@ inferKeysUnOp childKeys childCard1 childCols op =
         Distinct _               -> S.insert childCols childKeys 
         Aggr (_, [])             -> S.empty
         Aggr (_, pexprs@(_ : _)) -> S.singleton $ S.fromList $ map fst pexprs
+        SerializeRel _           -> S.empty 
 
 inferKeysBinOp :: S.Set PKey -> S.Set PKey -> Card1 -> Card1 -> BinOp -> S.Set PKey
 inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =

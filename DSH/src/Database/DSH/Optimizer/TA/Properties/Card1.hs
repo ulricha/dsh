@@ -25,6 +25,7 @@ inferCard1UnOp childCard1 childEmpty op =
         Distinct _        -> childCard1
         Aggr (_, _ : _)   -> childCard1
         Aggr (_, [])      -> not childEmpty
+        SerializeRel _    -> childCard1
 
 inferCard1BinOp :: Card1 -> Card1 -> BinOp -> Card1
 inferCard1BinOp leftCard1 rightCard1 op =

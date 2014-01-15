@@ -320,9 +320,9 @@ insertSerialize g = g >>= traverseShape
   where 
     traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
     traverseShape (ValueVector (DVec q cols) lyt) = 
-        insertSerialize cols lyt q ValueVector
+        insertOp cols lyt q ValueVector
     traverseShape (PrimVal (DVec q cols) lyt)     = 
-        insertSerialize cols lyt q PrimVal
+        insertOp cols lyt q PrimVal
     
     traverseLayout :: (TopLayout DVec) -> G PFAlgebra (TopLayout DVec)
     traverseLayout (InColumn c) = 
@@ -332,15 +332,15 @@ insertSerialize g = g >>= traverseShape
         lyt2' <- traverseLayout lyt2
         return $ Pair lyt1' lyt2'
     traverseLayout (Nest (DVec q cols) lyt) = 
-        insertSerialize cols lyt q Nest
+        insertOp cols lyt q Nest
       
-    insertSerialize 
+    insertOp 
       :: [DBCol]                         -- Columns in the top node
       -> TopLayout DVec                  -- The layout of the current query
       -> AlgNode                         -- The top node to consider
       -> (DVec -> TopLayout DVec -> t)   -- Layout/Shape constructor
       -> G PFAlgebra t
-    insertSerialize cols lyt q describe = do
+    insertOp cols lyt q describe = do
         let d  = Just (TA.DescrCol "descr")
             p  = Just (TA.PosCol "pos")
             cs = map (TA.PayloadCol . ("item" ++) . show) cols
