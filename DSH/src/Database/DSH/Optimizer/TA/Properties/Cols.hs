@@ -28,11 +28,22 @@ isBool f = f `elem` [And, Or]
 binAppTy :: BinFun -> ATy -> ATy -> ATy
 binAppTy f t1 _t2 =
     case f of
-        f | isComp f    -> ABool
-        f | isBool f    -> ABool
-        f | isNumeric f -> t1
-        Modulo          -> AInt
-        Concat          -> AStr
+        Gt        -> ABool
+        Lt        -> ABool
+        LtE       -> ABool
+        GtE       -> ABool
+        Eq        -> ABool
+        Contains  -> ABool
+        SimilarTo -> ABool
+        Like      -> ABool
+        And       -> ABool
+        Or        -> ABool
+        Plus      -> t1
+        Minus     -> t1
+        Times     -> t1
+        Div       -> t1
+        Modulo    -> AInt
+        Concat    -> AStr
 
 unAppTy :: UnFun -> ATy
 unAppTy Not      = ABool
@@ -52,7 +63,7 @@ exprTy childCols expr =
         ColE c          -> typeOf c childCols
         ConstE v        -> valType v
         BinAppE f e1 e2 -> binAppTy f (exprTy childCols e1) (exprTy childCols e2)
-        UnAppE f e      -> unAppTy f
+        UnAppE f _      -> unAppTy f
 
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions
@@ -83,7 +94,6 @@ inferColsNullOp :: NullOp -> S.Set TypedAttr
 inferColsNullOp op = 
     case op of
         LitTable _ schema      -> S.fromList schema
-        EmptyTable schema      -> S.fromList schema
         TableRef (_, attrs, _) -> S.fromList attrs
 
 inferColsUnOp :: S.Set TypedAttr -> UnOp -> S.Set TypedAttr
@@ -98,7 +108,11 @@ inferColsUnOp childCols op =
         Aggr (afuns, pexprs)  -> (S.fromList $ map (aggrTy childCols) afuns) 
                                  ∪
                                  [ (c, exprTy childCols e) | (c, e) <- S.fromList pexprs ]
-        PosSel _              -> $impossible
+        Serialize (md, mp, cs) -> 
+            let cols = (S.fromList $ map (\(PayloadCol c) -> c) cs)
+                       ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
+                       ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mp)
+            in S.map (\c -> (c, typeOf c childCols)) cols
 
 inferColsBinOp :: S.Set TypedAttr -> S.Set TypedAttr -> BinOp -> S.Set TypedAttr
 inferColsBinOp leftCols rightCols op =

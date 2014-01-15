@@ -5,8 +5,6 @@ module Database.DSH.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
 import           Control.Applicative
 import           Control.Monad
 
-import           Database.DSH.Common.Data.QueryPlan
-
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Rewrite.Common

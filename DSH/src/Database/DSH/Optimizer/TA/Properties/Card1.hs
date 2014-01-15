@@ -2,8 +2,6 @@
 
 module Database.DSH.Optimizer.TA.Properties.Card1 where
 
-import           Database.DSH.Impossible
-
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Optimizer.TA.Properties.Types
@@ -12,7 +10,6 @@ inferCard1NullOp :: NullOp -> Card1
 inferCard1NullOp op =
     case op of
         LitTable vals _    -> length vals == 1
-        EmptyTable _       -> False
         TableRef (_, _, _) -> False
 
 inferCard1UnOp :: Card1 -> Empty -> UnOp -> Card1
@@ -26,7 +23,7 @@ inferCard1UnOp childCard1 childEmpty op =
         Distinct _        -> childCard1
         Aggr (_, _ : _)   -> childCard1
         Aggr (_, [])      -> not childEmpty
-        PosSel _          -> $impossible
+        Serialize    _    -> childCard1
 
 inferCard1BinOp :: Card1 -> Card1 -> BinOp -> Card1
 inferCard1BinOp leftCard1 rightCard1 op =

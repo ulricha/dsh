@@ -1,7 +1,5 @@
 module Database.DSH.Optimizer.TA.OptimizeTA where
 
-import           Debug.Trace
-
 import qualified Data.IntMap as M
 
 import qualified Database.Algebra.Dag                                             as Dag
@@ -46,5 +44,5 @@ runPipeline d sh pipeline debug = (d', rewriteLog, sh')
 
 optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
 optimizeTA plan =
-  let (d, rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
+  let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }

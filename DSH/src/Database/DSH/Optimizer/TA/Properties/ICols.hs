@@ -6,8 +6,6 @@ module Database.DSH.Optimizer.TA.Properties.ICols where
 
 import qualified Data.Set.Monad as S
 
-import           Database.DSH.Impossible
-
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import Database.DSH.Optimizer.TA.Properties.Aux
@@ -90,4 +88,9 @@ inferIColsUnOp ownICols childICols op =
                                  ∪
                                  (S.foldr (∪) S.empty $ S.fromList $ map (exprCols . snd) pexprs)
 
-        PosSel _              -> $impossible
+        Serialize cs          ->
+            let (mDescr, mPos, cols) = cs
+            in childICols
+               ∪ (S.fromList $ map (\(PayloadCol c) -> c) cols)
+               ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) mDescr)
+               ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mPos)

@@ -2,8 +2,6 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
        
-import Debug.Trace
-       
 import Control.Applicative
 import Control.Monad
 

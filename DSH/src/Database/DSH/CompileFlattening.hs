@@ -5,8 +5,6 @@
 
 module Database.DSH.CompileFlattening (toComprehensions) where
        
-import Debug.Trace
-       
 import           Database.DSH.Impossible
 
 import           Database.DSH.CL.Lang(NL(..))

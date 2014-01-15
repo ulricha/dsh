@@ -3,6 +3,8 @@ module Database.DSH.Translate.VL2Algebra(implementVectorOpsX100, implementVector
 import           Data.List                                             (intercalate)
 
 import           Database.Algebra.Pathfinder                           (PFAlgebra)
+import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
+
 
 import           Database.Algebra.Pathfinder                           (initLoop)
 import           Database.Algebra.X100.Data                            (X100Algebra)
@@ -308,14 +310,56 @@ translateNullary SingletonDescr      = fromDVec <$> singletonDescr
 translateNullary (Lit tys vals)      = fromDVec <$> vecLit tys vals
 translateNullary (TableRef n tys ks) = fromDVec <$> vecTableRef n tys ks
 
+-- | Insert SerializeRel operators in TableAlgebra plans to define
+-- descr and order columns as well as the required payload columns.
+-- FIXME: once we are a bit more flexible wrt surrogates, determine the
+-- surrogate (i.e. descr) columns from information in DVec.
+insertSerialize :: G PFAlgebra (TopShape DVec) -> G PFAlgebra (TopShape DVec)
+insertSerialize g = g >>= traverseShape
+  
+  where 
+    traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
+    traverseShape (ValueVector (DVec q cols) lyt) = 
+        insertOp cols lyt q ValueVector
+    traverseShape (PrimVal (DVec q cols) lyt)     = 
+        insertOp cols lyt q PrimVal
+    
+    traverseLayout :: (TopLayout DVec) -> G PFAlgebra (TopLayout DVec)
+    traverseLayout (InColumn c) = 
+        return $ InColumn c
+    traverseLayout (Pair lyt1 lyt2) = do
+        lyt1' <- traverseLayout lyt1
+        lyt2' <- traverseLayout lyt2
+        return $ Pair lyt1' lyt2'
+    traverseLayout (Nest (DVec q cols) lyt) = 
+        insertOp cols lyt q Nest
+      
+    insertOp 
+      :: [DBCol]                         -- Columns in the top node
+      -> TopLayout DVec                  -- The layout of the current query
+      -> AlgNode                         -- The top node to consider
+      -> (DVec -> TopLayout DVec -> t)   -- Layout/Shape constructor
+      -> G PFAlgebra t
+    insertOp cols lyt q describe = do
+        let d  = Just (TA.DescrCol "descr")
+            p  = Just (TA.PosCol "pos")
+            cs = map (TA.PayloadCol . ("item" ++) . show) cols
+
+        let serializeOp = TA.Serialize (d, p, cs)
+
+        qp   <- lift $ insertNode $ UnOp serializeOp q
+        lyt' <- traverseLayout lyt
+        return $ describe (DVec qp cols) lyt'
+
 implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
   where
-    algebraComp            = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    (opMap, shape, tagMap) = runG dummy algebraComp
+    x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
+    (opMap, shape, tagMap) = runG dummy x100Plan
 
 implementVectorOpsPF :: QueryPlan VL -> QueryPlan PFAlgebra
 implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
   where
-    algebraComp            = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    (opMap, shape, tagMap) = runG initLoop algebraComp
+    taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
+    serializedPlan         = insertSerialize taPlan
+    (opMap, shape, tagMap) = runG initLoop serializedPlan
