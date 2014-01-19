@@ -6,12 +6,6 @@ module Database.DSH.Compiler
     fromQX100
   , fromQ
     -- * Debug functions
-  , debugNKL
-  , debugFKL
-  , debugX100
-  , debugCLX100
-  , debugNKLX100
-  , debugFKLX100
   , debugVL
   , debugVLOpt
   , debugX100VL
@@ -22,6 +16,7 @@ module Database.DSH.Compiler
 import           GHC.Exts
 import           Text.Printf
                  
+import           Database.DSH.Impossible
 import           Database.DSH.CompileFlattening
 import           Database.DSH.ExecuteFlattening
 
@@ -120,43 +115,8 @@ fromQX100 c (Q a) =  do
     frExp <$> (executeX100Query c $ X100 q)
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = do
-    undefined
+fromQ c (Q a) = $unimplemented
                   
--- | Debugging function: return the CL (Comprehension Language) representation of a
--- query (X100 version)
-debugCLX100 :: QA a => X100Info -> Q a -> IO String
-debugCLX100 c (Q e) = show <$> optimizeComprehensions 
-                           <$> toComprehensions (getX100TableInfo c) e
-
--- | Debugging function: return the NKL (Nested Kernel Language) representation of a
--- query (SQL version)
-debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = show <$> desugarComprehensions 
-                        <$> optimizeComprehensions 
-                        <$> toComprehensions (getTableInfo c) e
-
--- | Debugging function: return the NKL (Nested Kernel Language) representation of a
--- query (X100 version)
-debugNKLX100 :: QA a => X100Info -> Q a -> IO String
-debugNKLX100 c (Q e) = show <$> desugarComprehensions 
-                            <$> optimizeComprehensions 
-                            <$> toComprehensions (getX100TableInfo c) e
-
--- | Debugging function: return the FKL (Flat Kernel Language) representation of a
--- query (SQL version)
-debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = show <$> flatten 
-                        <$> desugarComprehensions 
-                        <$> toComprehensions (getTableInfo c) e
-
--- | Debugging function: return the FKL (Flat Kernel Language) representation of a
--- query (X100 version)
-debugFKLX100 :: QA a => X100Info -> Q a -> IO String
-debugFKLX100 c (Q e) = show <$> flatten 
-                            <$> desugarComprehensions 
-                            <$> toComprehensions (getX100TableInfo c) e
-
 -- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
