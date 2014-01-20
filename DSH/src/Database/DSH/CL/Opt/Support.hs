@@ -152,11 +152,11 @@ filterThroughEquiJoinR = do
 
     if all (maybe False (== Fst)) varParentOps
         then do
-            p' <- constT (return $ inject p) >>> anybuR (unpairFstR x) >>> projectT
+            p' <- constT (return $ inject p) >>> anytdR (unpairFstR x) >>> projectT
             let lt' = xst .-> BoolT
             return $ inject $ AppE2 tj j (P.filter (Lam lt' x p') xs) ys
         else do
-            p' <- constT (return $ inject p) >>> anybuR (unpairSndR x) >>> projectT
+            p' <- constT (return $ inject p) >>> anytdR (unpairSndR x) >>> projectT
             let lt' = yst .-> BoolT
             return $ inject $ AppE2 tj j xs (P.filter (Lam lt' x p') ys) 
 
