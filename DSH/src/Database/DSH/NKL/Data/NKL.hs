@@ -48,32 +48,29 @@ instance Typed Expr where
   typeOf (Const t _)     = t
   typeOf (Var t _)       = t
 
-instance Show Expr where
-  show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
-
-pp :: Expr -> Doc
-pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
-pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
-pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)       = text "if" 
-                         <+> pp c 
-                         <+> text "then" 
-                         <+> (parenthize t) 
-                         <+> text "else" 
-                         <+> (parenthize e)
-pp (Const _ v)        = text $ show v
-pp (Var _ s)          = text s
+instance Pretty Expr where
+    pretty (Table _ n _ _)    = text "table" <+> text n
+    pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+    pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
+    pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
+    pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
+    pretty (If _ c t e)       = text "if" 
+                             <+> pretty c 
+                             <+> text "then" 
+                             <+> (parenthize t) 
+                             <+> text "else" 
+                             <+> (parenthize e)
+    pretty (Const _ v)        = text $ show v
+    pretty (Var _ s)          = text s
 
 parenthize :: Expr -> Doc
 parenthize e = 
     case e of
-        Var _ _        -> pp e
-        Const _ _      -> pp e
-        Table _ _ _ _  -> pp e
-        _              -> parens $ pp e
+        Var _ _        -> pretty e
+        Const _ _      -> pretty e
+        Table _ _ _ _  -> pretty e
+        _              -> parens $ pretty e
 
 deriving instance Eq Expr
 deriving instance Ord Expr

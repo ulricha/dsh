@@ -9,6 +9,7 @@ import           Debug.Trace
   
 import           Database.DSH.Impossible
        
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Op
@@ -157,7 +158,7 @@ guardTuplify x v1 v2 v =
 debugPrint :: NKL.Expr -> String
 debugPrint e =
         "\nDesugared NKL =====================================================================\n"
-        ++ show e 
+        ++ pp e 
         ++ "\n==================================================================================="
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.

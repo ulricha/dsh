@@ -1,10 +1,13 @@
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
+       
+import Debug.Trace
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
 
 import           Database.DSH.CL.Lang
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.Val as V
@@ -139,7 +142,7 @@ snd e = let t@(PairT _ t2) = typeOf e
 
 map :: Expr -> Expr -> Expr
 map f es = let ft@(FunT ta tr) = typeOf f
-               te@(ListT t) = typeOf es
+               te@(ListT t)    = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
                  else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: \n" 

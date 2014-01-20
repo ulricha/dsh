@@ -21,7 +21,8 @@ module Database.DSH.CL.Kure
     , statefulT, liftstateT
 
       -- * The KURE context
-    , CompCtx(..), PathC, initialCtx, freeIn, boundIn, inScopeVars, bindQual, bindVar
+    , CompCtx(..), CrumbC(..), PathC, initialCtx, freeIn, boundIn
+    , inScopeVars, bindQual, bindVar
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
@@ -42,6 +43,7 @@ import qualified Data.Foldable as F
 import           Language.KURE
 import           Language.KURE.Lens
        
+import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Monad
                  
@@ -54,19 +56,40 @@ type LensC a b      = Lens CompCtx (CompM Int) a b
 
 --------------------------------------------------------------------------------
 
-type AbsPathC = AbsolutePath Int
+data CrumbC = AppFun
+            | AppArg
+            | AppE1Arg
+            | AppE2Arg1
+            | AppE2Arg2
+            | BinOpArg1
+            | BinOpArg2
+            | LamBody
+            | IfCond
+            | IfThen
+            | IfElse
+            | CompHead
+            | CompQuals
+            | BindQualExpr
+            | GuardQualExpr
+            | QualsHead
+            | QualsTail
+            | QualsSingleton
+            | NLConsTail
+            deriving (Eq, Show)
 
-type PathC = Path Int
+type AbsPathC = AbsolutePath CrumbC
+
+type PathC = Path CrumbC
 
 -- | The context for KURE-based CL rewrites
 data CompCtx = CompCtx { cl_bindings :: M.Map Ident Type 
                        , cl_path     :: AbsPathC
                        }
                        
-instance ExtendPath CompCtx Int where
+instance ExtendPath CompCtx CrumbC where
     c@@n = c { cl_path = cl_path c @@ n }
     
-instance ReadPath CompCtx Int where
+instance ReadPath CompCtx CrumbC where
     absPath c = cl_path c
 
 initialCtx :: CompCtx
@@ -121,7 +144,7 @@ appT :: Monad m => Translate CompCtx m Expr a1
                 -> (Type -> a1 -> a2 -> b)
                 -> Translate CompCtx m Expr b
 appT t1 t2 f = translate $ \c expr -> case expr of
-                      App ty e1 e2 -> f ty <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
+                      App ty e1 e2 -> f ty <$> apply t1 (c@@AppFun) e1 <*> apply t2 (c@@AppArg) e2
                       _            -> fail "not an application node"
 {-# INLINE appT #-}                      
 
@@ -133,7 +156,7 @@ appe1T :: Monad m => Translate CompCtx m Expr a
                   -> (Type -> Prim1 Type -> a -> b)
                   -> Translate CompCtx m Expr b
 appe1T t f = translate $ \c expr -> case expr of
-                      AppE1 ty p e -> f ty p <$> apply t (c@@0) e                  
+                      AppE1 ty p e -> f ty p <$> apply t (c@@AppE1Arg) e                  
                       _            -> fail "not a unary primitive application"
 {-# INLINE appe1T #-}                      
                       
@@ -146,7 +169,7 @@ appe2T :: Monad m => Translate CompCtx m Expr a1
                   -> (Type -> Prim2 Type -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 appe2T t1 t2 f = translate $ \c expr -> case expr of
-                     AppE2 ty p e1 e2 -> f ty p <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
+                     AppE2 ty p e1 e2 -> f ty p <$> apply t1 (c@@AppE2Arg1) e1 <*> apply t2 (c@@AppE2Arg2) e2
                      _                -> fail "not a binary primitive application"
 {-# INLINE appe2T #-}                      
 
@@ -159,7 +182,7 @@ binopT :: Monad m => Translate CompCtx m Expr a1
                   -> (Type -> Oper -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 binopT t1 t2 f = translate $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@0) e1 <*> apply t2 (c@@1) e2
+                     BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
 {-# INLINE binopT #-}                      
 
@@ -171,7 +194,7 @@ lamT :: Monad m => Translate CompCtx m Expr a
                 -> (Type -> Ident -> a -> b)
                 -> Translate CompCtx m Expr b
 lamT t f = translate $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@0) e
+                     Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@LamBody) e
                      _          -> fail "not a lambda"
 {-# INLINE lamT #-}                      
                      
@@ -185,9 +208,9 @@ ifT :: Monad m => Translate CompCtx m Expr a1
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Translate CompCtx m Expr b
 ifT t1 t2 t3 f = translate $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> apply t1 (c@@0) e1               
-                                           <*> apply t2 (c@@1) e2
-                                           <*> apply t3 (c@@2) e3
+                    If ty e1 e2 e3 -> f ty <$> apply t1 (c@@IfCond) e1               
+                                           <*> apply t2 (c@@IfThen) e2
+                                           <*> apply t3 (c@@IfElse) e3
                     _              -> fail "not an if expression"
 {-# INLINE ifT #-}                      
                     
@@ -223,8 +246,8 @@ compT :: Monad m => Translate CompCtx m Expr a1
                  -> (Type -> a1 -> a2 -> b)
                  -> Translate CompCtx m Expr b
 compT t1 t2 f = translate $ \ctx expr -> case expr of
-                    Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual (ctx@@0) qs) e 
-                                         <*> apply t2 (ctx@@1) qs
+                    Comp ty e qs -> f ty <$> apply t1 (F.foldl' bindQual (ctx@@CompHead) qs) e 
+                                         <*> apply t2 (ctx@@CompQuals) qs
                     _            -> fail "not a comprehension"
 {-# INLINE compT #-}                      
                     
@@ -241,7 +264,7 @@ bindQualT :: Monad m => Translate CompCtx m Expr a
                      -> (Ident -> a -> b) 
                      -> Translate CompCtx m Qual b
 bindQualT t f = translate $ \ctx expr -> case expr of
-                BindQ n e -> f n <$> apply t (ctx@@0) e
+                BindQ n e -> f n <$> apply t (ctx@@BindQualExpr) e
                 _         -> fail "not a generator"
 {-# INLINE bindQualT #-}                      
                 
@@ -253,7 +276,7 @@ guardQualT :: Monad m => Translate CompCtx m Expr a
                       -> (a -> b) 
                       -> Translate CompCtx m Qual b
 guardQualT t f = translate $ \ctx expr -> case expr of
-                GuardQ e -> f <$> apply t (ctx@@0) e
+                GuardQ e -> f <$> apply t (ctx@@GuardQualExpr) e
                 _        -> fail "not a guard"
 {-# INLINE guardQualT #-}                      
                 
@@ -269,7 +292,8 @@ qualsT :: Monad m => Translate CompCtx m Qual a1
                   -> (a1 -> a2 -> b) 
                   -> Translate CompCtx m (NL Qual) b
 qualsT t1 t2 f = translate $ \ctx quals -> case quals of
-                   q :* qs -> f <$> apply t1 (ctx@@0) q <*> apply t2 (bindQual (ctx@@0) q) qs
+                   q :* qs -> f <$> apply t1 (ctx@@QualsHead) q 
+                                <*> apply t2 (bindQual (ctx@@QualsTail) q) qs
                    S _     -> fail "not a nonempty cons"
 {-# INLINE qualsT #-}                      
                    
@@ -284,7 +308,7 @@ qualsemptyT :: Monad m => Translate CompCtx m Qual a
                        -> (a -> b)
                        -> Translate CompCtx m (NL Qual) b
 qualsemptyT t f = translate $ \ctx quals -> case quals of
-                      S q -> f <$> apply t (ctx@@0) q
+                      S q -> f <$> apply t (ctx@@QualsSingleton) q
                       _   -> fail "not a nonempty singleton"
 {-# INLINE qualsemptyT #-}                      
                       
@@ -300,10 +324,10 @@ data CL = ExprCL Expr
         | QualCL Qual
         | QualsCL (NL Qual)
         
-instance Show CL where
-    show (ExprCL e)   = show e
-    show (QualCL q)   = show q
-    show (QualsCL qs) = show qs
+instance Pretty CL where
+    pretty (ExprCL e)   = pretty e
+    pretty (QualCL q)   = pretty q
+    pretty (QualsCL qs) = pretty qs
         
 instance Injection Expr CL where
     inject                = ExprCL
@@ -364,7 +388,7 @@ consT :: Monad m => Translate CompCtx m (NL a) b
                  -> (a -> b -> c)
                  -> Translate CompCtx m (NL a) c
 consT t f = translate $ \ctx nl -> case nl of
-                a :* as -> f a <$> apply t (ctx@@0) as
+                a :* as -> f a <$> apply t (ctx@@NLConsTail) as
                 S _     -> fail "not a nonempty cons"
 {-# INLINE consT #-}                      
                     

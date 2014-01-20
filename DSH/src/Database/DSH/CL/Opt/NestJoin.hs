@@ -257,7 +257,7 @@ tupleComponentsT = do
     descendPairT :: TranslateC CL (NonEmpty Expr)
     descendPairT = do
         AppE2 _ (Prim2 Pair _) _ e <- promoteT idR
-        tl <- childT 0 descendT
+        tl <- childT AppE2Arg1 descendT
         return $ e <| tl
         
     singleT :: TranslateC CL (NonEmpty Expr)
@@ -451,7 +451,8 @@ nestjoinHeadR :: RewriteC CL
 nestjoinHeadR = do
     c@(Comp _ _ _) <- promoteT idR
     -- debugUnit "nestjoinR at" c
-    unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+    -- FIXME ensure that we choose the right child
+    unnestHeadR <+ (factoroutHeadR >>> childR AppE2Arg2 unnestHeadR)
 
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
@@ -472,10 +473,10 @@ nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
     c@(Comp t _ _)         <- promoteT idR 
     (tuplifyHeadR, qs') <- statefulT idR 
-                           $ childT 1 (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
+                           $ childT CompQuals (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
                                        
-    h'                  <- childT 0 tuplifyHeadR >>> projectT
+    h'                  <- childT CompHead tuplifyHeadR >>> projectT
     return $ inject $ Comp t h' qs'
     
   where

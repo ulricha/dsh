@@ -121,4 +121,4 @@ normalizeQualifiersR =
 normalizeAlwaysR :: RewriteC CL
 normalizeAlwaysR = do
     Comp _ _ _ <- promoteT idR 
-    childR 1 $ promoteR normalizeQualifiersR
+    childR CompQuals $ promoteR normalizeQualifiersR

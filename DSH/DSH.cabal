@@ -96,6 +96,7 @@ Library
                      Database.DSH.CSV
                      Database.DSH.ExecuteFlattening
                      Database.DSH.Externals
+                     Database.DSH.Common.Pretty
                      Database.DSH.Common.Data.Op
                      Database.DSH.Common.Data.Type
                      Database.DSH.Common.Data.Val
@@ -221,7 +222,8 @@ Executable vlopt
                        pretty,
                        bytestring,
                        mtl,
-                       aeson
+                       aeson,
+                       ansi-wl-pprint
   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
 
 Executable vlprop
@@ -233,7 +235,9 @@ Executable vlprop
                        mtl,
                        bytestring,
                        pretty,
-                       aeson
+                       aeson,
+                       ansi-wl-pprint,
+                       template-haskell
   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 --                   
 -- Test-Suite Flattening_x100

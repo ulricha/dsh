@@ -30,6 +30,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Impossible
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
@@ -46,7 +47,10 @@ data NL a = a :* (NL a)
 infixr :*
           
 instance Show a => Show (NL a) where
-    show = show . toList 
+    show = show . toList
+
+instance Pretty a => Pretty (NL a) where
+    pretty = pretty . toList
           
 instance Functor NL where
     fmap f (a :* as) = (f a) :* (fmap f as)
@@ -185,13 +189,48 @@ data Expr  = Table Type String [Column] [Key]
            | Lit Type Val
            | Var Type Ident
            | Comp Type Expr (NL Qual)
+           deriving (Show)
            
-instance Show Expr where
-  show e = (displayS $ renderPretty 0.9 100 $ pp e) ""
-  
-ppQual :: Qual -> Doc
-ppQual (BindQ i e) = text i <+> text "<-" <+> pp e
-ppQual (GuardQ e)  = pp e
+instance Pretty Expr where
+    pretty (Table _ n _ _)    = text "table" <+> text n
+    pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+    pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
+    pretty (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+    pretty (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
+    pretty (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
+    pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
+    pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
+    pretty (If _ c t e)       = text "if" 
+                             <+> pretty c 
+                             <+> text "then" 
+                             <+> (parenthize t) 
+                             <+> text "else" 
+                             <+> (parenthize e)
+    pretty (Lit _ v)          = text $ show v
+    pretty (Var _ s)          = text s
+                                   
+    pretty (Comp _ e qs) = encloseSep lbracket rbracket empty docs
+                         where docs = (char ' ' <> pretty e <> char ' ') : qsDocs
+                               qsDocs = 
+                                 case qs of
+                                   q :* qs' -> (char '|' <+> pretty q) 
+                                               : [ char ',' <+> pretty q' | q' <- toList qs' ]
+                                              
+                                   S q     -> [char '|' <+> pretty q]
+
+parenthize :: Expr -> Doc
+parenthize e = 
+    case e of
+        Var _ _        -> pretty e
+        Lit _ _        -> pretty e
+        Table _ _ _ _  -> pretty e
+        Comp _ _ _     -> pretty e
+        _              -> parens $ pretty e
+
+instance Pretty Qual where
+    pretty (BindQ i e) = text i <+> text "<-" <+> pretty e
+    pretty (GuardQ e)  = pretty e
 
 isRelOp :: Prim2 t -> Bool
 isRelOp o = 
@@ -201,44 +240,8 @@ isRelOp o =
         Prim2 (SemiJoin _ _) _ -> True
         Prim2 (AntiJoin _ _) _ -> True
         _                      -> False
-  
-pp :: Expr -> Doc
-pp (Table _ n _ _)    = text "table" <+> text n
-pp (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
-pp (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-pp (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
-pp (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
-pp (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
-pp (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
-pp (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
-pp (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pp e
-pp (If _ c t e)       = text "if" 
-                         <+> pp c 
-                         <+> text "then" 
-                         <+> (parenthize t) 
-                         <+> text "else" 
-                         <+> (parenthize e)
-pp (Lit _ v)          = text $ show v
-pp (Var _ s)          = text s
-                                   
-pp (Comp _ e qs) = encloseSep lbracket rbracket empty docs
-                     where docs = (char ' ' <> pp e <> char ' ') : qsDocs
-                           qsDocs = 
-                             case qs of
-                               q :* qs' -> (char '|' <+> ppQual q) 
-                                           : [ char ',' <+> ppQual q' | q' <- toList qs' ]
-                                          
-                               S q     -> [char '|' <+> ppQual q]
                                
                                    
-parenthize :: Expr -> Doc
-parenthize e = 
-    case e of
-        Var _ _        -> pp e
-        Lit _ _        -> pp e
-        Table _ _ _ _  -> pp e
-        Comp _ _ _     -> pp e
-        _              -> parens $ pp e
 
 deriving instance Eq Expr
 deriving instance Ord Expr

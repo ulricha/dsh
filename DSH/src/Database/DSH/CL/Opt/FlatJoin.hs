@@ -89,8 +89,8 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
 eqjoinR :: RewriteC CL
 eqjoinR = do
     Comp t _ _          <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR eqjoinQualsR >>> projectT)
-    e'                  <- (tryR $ childT 0 tuplifyHeadR) >>> projectT
+    (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
+    e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
     return $ inject $ Comp t e' qs'
 
 --------------------------------------------------------------------------------
@@ -134,7 +134,7 @@ existentialQualsR = anytdR $ repeatR (elemR <+ elemEndR)
 semijoinR :: RewriteC CL
 semijoinR = do
     Comp _ _ _ <- promoteT idR
-    childR 1 (promoteR existentialQualsR)
+    childR CompQuals (promoteR existentialQualsR)
 
 --------------------------------------------------------------------------------
 -- Introduce anti joins (universal quantification)
@@ -264,4 +264,4 @@ universalQualsR = anytdR $ basicAntiJoinR
 antijoinR :: RewriteC CL
 antijoinR = do
     Comp _ _ _ <- promoteT idR
-    childR 1 (promoteR universalQualsR)
+    childR CompQuals (promoteR universalQualsR)

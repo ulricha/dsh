@@ -22,6 +22,7 @@ All of these are helper functions for the flattening transformation
 module Database.DSH.FKL.FKLPrimitives where
        
 import Database.DSH.FKL.Data.FKL as F
+import Database.DSH.Common.Pretty
 import Database.DSH.Common.Data.Val
 import Database.DSH.Common.Data.Op
 import Database.DSH.Common.Data.Type
@@ -589,7 +590,7 @@ ifPrim :: Expr -> Expr -> Expr -> Expr
 ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
                    in if tb == boolT && tt == te
                        then If tt eb et ee
-                       else error $ "ifPrim: Provided types are not compatible: " ++ show tb ++ " " ++ show tt ++ " " ++ show te
+                       else error $ "ifPrim: Provided types are not compatible: " ++ pp tb ++ " " ++ show tt ++ " " ++ show te
 
 ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
 ifPrimM = liftM3 ifPrim
