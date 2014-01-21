@@ -124,7 +124,7 @@ Library
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Quote
                      Database.DSH.NKL.Lang
-                     Database.DSH.NKL.NKLPrimitives
+                     Database.DSH.NKL.Primitives
                      Database.DSH.NKL.Opt
                      Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
