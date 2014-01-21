@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 
-module Database.DSH.NKL.Data.NKL 
+module Database.DSH.NKL.Lang
   ( Expr(..)
   , Typed(..)
   , freeVars

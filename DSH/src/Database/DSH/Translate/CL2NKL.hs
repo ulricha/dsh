@@ -19,7 +19,7 @@ import           Database.DSH.CL.Lang(toList, fromList)
 import qualified Database.DSH.CL.Lang as CL
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
-import qualified Database.DSH.NKL.Data.NKL as NKL
+import qualified Database.DSH.NKL.Lang as NKL
        
 -- To transform CL into NKL we have to get rid of comprehensions. However, we
 -- don't want to implement full comprehension desugaring. To avoid it, we

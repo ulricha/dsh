@@ -40,7 +40,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Val
 import qualified Database.DSH.Common.Data.Type as T
-import qualified Database.DSH.NKL.Data.NKL as NKL
+import qualified Database.DSH.NKL.Lang as NKL
 
 data Anti = AntiBind String | AntiWild deriving (Show, Data, Typeable)
 

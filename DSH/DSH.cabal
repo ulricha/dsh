@@ -123,7 +123,7 @@ Library
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Quote
-                     Database.DSH.NKL.Data.NKL
+                     Database.DSH.NKL.Lang
                      Database.DSH.NKL.NKLPrimitives
                      Database.DSH.NKL.Opt
                      Database.DSH.Translate.Algebra2Query

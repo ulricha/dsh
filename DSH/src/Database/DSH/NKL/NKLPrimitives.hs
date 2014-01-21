@@ -3,7 +3,7 @@ module Database.DSH.NKL.NKLPrimitives (Expr, splitAt, ($), break, span, dropWhil
 import qualified Prelude as P
 import           Prelude (Bool(..))
 
-import           Database.DSH.NKL.Data.NKL
+import           Database.DSH.NKL.Lang
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Op
