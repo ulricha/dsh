@@ -15,6 +15,7 @@ import Database.DSH.CL.Kure
 
 import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Support
+import Database.DSH.CL.Opt.Algebraic
 import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin

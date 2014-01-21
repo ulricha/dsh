@@ -113,6 +113,7 @@ Library
                      Database.DSH.CL.Opt
                      Database.DSH.CL.Opt.Aux
                      Database.DSH.CL.Opt.Support
+                     Database.DSH.CL.Opt.Algebraic
                      Database.DSH.CL.Opt.Normalize
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.FlatJoin
