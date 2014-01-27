@@ -410,7 +410,7 @@ instance VectorAlgebra PFAlgebra where
     return $ (DVec qv colse, PVec qp)
 
   vecGroupBy (DVec v1 colsg) (DVec v2 colse) = do 
-    q' <- rownumM pos' [resCol, pos] Nothing
+    q' <- rownumM pos' [resCol] Nothing
           $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
     d1 <- distinctM 
           $ proj (itemProj colsg [cP descr, mP pos resCol]) q'
@@ -436,7 +436,7 @@ instance VectorAlgebra PFAlgebra where
                     ++ [ mP (itemi i) c | c <- groupCols | i <- [1..] ]) qg
 
       -- Create new positions for the inner vector
-      qp <- rownum posnew [resCol, pos] Nothing qg
+      qp <- rownum posnew [resCol] Nothing qg
 
       -- Create the inner vector, containing the actual groups
       qi <- proj (itemProj cols1 [mP descr resCol, mP pos posnew]) qp
