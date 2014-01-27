@@ -57,6 +57,11 @@ inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
 
          DisjUnion _  -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
          Difference _ -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
+
+absPos :: SerializeOrder -> S.Set AttrName
+absPos (AbsPos c) = S.singleton c
+absPos (RelPos _) = S.empty
+absPos NoPos      = S.empty
                 
 inferUseUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
 inferUseUnOp ownUse childUse op = 
@@ -77,7 +82,6 @@ inferUseUnOp ownUse childUse op =
         Serialize (md, mp, cs)    -> childUse 
                                      ∪ (S.fromList $ map (\(PayloadCol c) -> c) cs)
                                      ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
-                                     -- FIXME once order and
-                                     -- surrogates are decoupled, pos
-                                     -- is no longer used.
-                                     ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mp)
+                                     -- FIXME once order and -- surrogates are decoupled, absolute pos
+                                     -- values are no longer required.
+                                     ∪ absPos mp
