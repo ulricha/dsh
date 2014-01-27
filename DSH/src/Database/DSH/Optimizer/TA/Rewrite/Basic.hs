@@ -26,7 +26,10 @@ cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules
                                          ]
 
 cleanupRules :: TARuleSet ()
-cleanupRules = [ stackedProject ]
+cleanupRules = [ stackedProject
+               , serializeProject
+               , serializeRowNum
+               ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
 cleanupRulesTopDown = [ unreferencedRownum 
@@ -205,3 +208,61 @@ inlineSortCols q =
           void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', Nothing)) $(v "q1") |])
         
 
+
+----------------------------------------------------------------------------------
+-- Serialize rewrites
+
+-- | Merge a projection which only maps columns into a Serialize operator.
+serializeProject :: TARule ()
+serializeProject q =
+    $(pattern 'q "Serialize scols (Project projs (q1))"
+      [| do
+          (d, p, reqCols) <- return $(v "scols")
+
+          let projCol (c', ColE c) = return (c', c)
+              projCol _            = fail "no match"
+
+              lookupFail a abs = case lookup a abs of
+                  Just b  -> return b
+                  Nothing -> fail "no match"
+
+          colMap <- mapM projCol $(v "projs")
+
+          -- find new names for all required columns
+          reqCols' <- mapM (\(PayloadCol c) -> PayloadCol <$> lookupFail c colMap) reqCols
+
+          -- find new name for the descriptor column (if required)
+          d' <- case d of
+              Just (DescrCol c)  -> Just <$> DescrCol <$> lookupFail c colMap
+              Nothing            -> return Nothing
+
+          -- find new name for the pos column (if required)
+          p' <- case p of
+              AbsPos c -> AbsPos <$> lookupFail c colMap
+              RelPos c -> RelPos <$> lookupFail c colMap
+              NoPos    -> return NoPos
+
+          return $ do
+              logRewrite "Basic.Serialize.Project" q
+              void $ replaceWithNew q $ UnOp (Serialize (d', p', reqCols')) $(v "q1") |])
+
+-- | If positions are computed directly under a Serialize operator,
+-- try to get rid of it.
+serializeRowNum :: TARule ()
+serializeRowNum q =
+    $(pattern 'q "Serialize scols (RowNum args (q1))"
+      [| do
+          -- Absolute positions must not be required
+          (d, RelPos c, reqCols) <- return $(v "scols")
+    
+          -- The rownum must sort based on only one column which
+          -- defines the order.
+          (r, [(sortCol, Asc)], Nothing) <- return $(v "args")
+    
+          -- The rownum should actually generate the positions
+          predicate $ c == r
+
+          return $ do
+              logRewrite "Basic.Serialize.Rownum" q
+              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCol, reqCols)) $(v "q1") |])
+           
