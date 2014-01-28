@@ -52,6 +52,6 @@ mapCol (a, ColE b) = S.singleton (a, b)
 mapCol _           = S.empty
 
 posCol :: SerializeOrder -> S.Set AttrName
-posCol (AbsPos c) = S.singleton c
-posCol (RelPos c) = S.singleton c
-posCol NoPos      = S.empty
+posCol (AbsPos c)  = S.singleton c
+posCol (RelPos cs) = S.fromList cs
+posCol NoPos       = S.empty

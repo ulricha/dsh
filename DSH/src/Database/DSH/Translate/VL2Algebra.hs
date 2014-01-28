@@ -373,7 +373,7 @@ insertSerialize g = g >>= traverseShape
     noDescr   = Nothing
 
     needAbsPos = TA.AbsPos "pos"
-    needRelPos = TA.RelPos "pos"
+    needRelPos = TA.RelPos ["pos"]
     noPos      = TA.NoPos
 
 implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
