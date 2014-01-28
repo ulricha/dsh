@@ -257,7 +257,7 @@ tupleComponentsT = do
     descendPairT :: TranslateC CL (NonEmpty Expr)
     descendPairT = do
         AppE2 _ (Prim2 Pair _) _ e <- promoteT idR
-        tl <- childT 0 descendT
+        tl <- childT AppE2Arg1 descendT
         return $ e <| tl
         
     singleT :: TranslateC CL (NonEmpty Expr)
@@ -451,7 +451,8 @@ nestjoinHeadR :: RewriteC CL
 nestjoinHeadR = do
     c@(Comp _ _ _) <- promoteT idR
     -- debugUnit "nestjoinR at" c
-    unnestHeadR <+ (factoroutHeadR >>> childR 1 unnestHeadR)
+    -- FIXME ensure that we choose the right child
+    unnestHeadR <+ (factoroutHeadR >>> childR AppE2Arg2 unnestHeadR)
 
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
@@ -472,10 +473,10 @@ nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
     c@(Comp t _ _)         <- promoteT idR 
     (tuplifyHeadR, qs') <- statefulT idR 
-                           $ childT 1 (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
+                           $ childT CompQuals (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
                                        
-    h'                  <- childT 0 tuplifyHeadR >>> projectT
+    h'                  <- childT CompHead tuplifyHeadR >>> projectT
     return $ inject $ Comp t h' qs'
     
   where
@@ -612,7 +613,13 @@ combineNestJoinsR = do
     combineCompsT x xsys zs f g p1 p2 = do
         -- We need to change the left join predicate of the outer nestjoin,
         -- because the type of its input changed (from xs to nj(xs, ys)
-        let p1'      = substJoinExpr p1
+        
+        -- The element type of the inner join
+        let innerJoinType = case typeOf xsys of
+                                ListT t -> t
+                                _       -> $impossible
+
+        let p1'      = substJoinExpr p1 innerJoinType
             -- The nestjoin between nj(xs, ys) and zs
             joinExpr = P.nestjoin xsys zs p1' p2
             qs       = S (BindQ x joinExpr)
@@ -643,8 +650,11 @@ combineNestJoinsR = do
         
     -- | Change all occurences of the join input in the predicate into accesses
     -- to the first tuple component of the input
-    substJoinExpr :: JoinExpr -> JoinExpr
-    substJoinExpr (BinOpJ op e1 e2) = BinOpJ op (substJoinExpr e1) (substJoinExpr e2)
-    substJoinExpr (UnOpJ op e1)     = UnOpJ op (substJoinExpr e1)
-    substJoinExpr (ConstJ v)        = ConstJ v
-    substJoinExpr InputJ            = UnOpJ FstJ InputJ
+    substJoinExpr :: JoinExpr -> Type -> JoinExpr
+    substJoinExpr expr inputType =
+        case expr of
+            (BinOpJ t op e1 e2) -> BinOpJ t op (substJoinExpr e1 inputType) 
+                                              (substJoinExpr e2 inputType)
+            (UnOpJ t op e1)     -> UnOpJ t op (substJoinExpr e1 inputType)
+            (ConstJ t v)        -> ConstJ t v
+            (InputJ t)          -> UnOpJ t FstJ (InputJ inputType)

@@ -94,6 +94,7 @@ Library
                      Database.DSH.CSV
                      Database.DSH.ExecuteFlattening
                      Database.DSH.Externals
+                     Database.DSH.Common.Pretty
                      Database.DSH.Common.Data.Op
                      Database.DSH.Common.Data.Type
                      Database.DSH.Common.Data.Val
@@ -110,6 +111,7 @@ Library
                      Database.DSH.CL.Opt
                      Database.DSH.CL.Opt.Aux
                      Database.DSH.CL.Opt.Support
+                     Database.DSH.CL.Opt.Algebraic
                      Database.DSH.CL.Opt.Normalize
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.FlatJoin
@@ -119,8 +121,8 @@ Library
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Quote
-                     Database.DSH.NKL.Data.NKL
-                     Database.DSH.NKL.NKLPrimitives
+                     Database.DSH.NKL.Lang
+                     Database.DSH.NKL.Primitives
                      Database.DSH.NKL.Opt
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL

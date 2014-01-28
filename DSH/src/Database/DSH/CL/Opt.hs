@@ -15,6 +15,7 @@ import Database.DSH.CL.Kure
 
 import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Support
+import Database.DSH.CL.Opt.Algebraic
 import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
@@ -26,7 +27,7 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR <+ algebraicRewritesR) 
            >>> debugShow "after cleanup"
 
 flatJoinsR :: RewriteC CL
@@ -64,11 +65,17 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
     -- out, i.e. a map introduced).
     cleanupNestJoinR = repeatR $ anytdR (combineNestJoinsR >>> debugTrace "combinenestjoins")
 
+selectComplexR :: RewriteC CL
+selectComplexR = promoteR pushComplexFilters >+> selectR isLocalComplexPred
+
+selectSimpleR :: RewriteC CL
+selectSimpleR = promoteR pushSimpleFilters >+> selectR isSimplePred
+
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybuR selectComplexR )
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -92,7 +99,7 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
               debugUnit "comp at" (e :: Expr)
               (normalizeAlwaysR
                  <+ compNormEarlyR
-                 <+ promoteR pushSimpleFilters >+> selectR isSimplePred
+                 <+ selectSimpleR
                  <+ flatJoinsR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"

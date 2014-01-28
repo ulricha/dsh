@@ -3,9 +3,7 @@
 -- | This module provides the flattening implementation of DSH.
 module Database.DSH.Compiler
   ( -- * Debug functions
-    debugNKL
-  , debugFKL
-  , debugVL
+    debugVL
   , debugVLOpt
   , debugTA
   , debugTAOpt
@@ -13,6 +11,8 @@ module Database.DSH.Compiler
 
 import           Text.Printf
 import           GHC.Exts
+                 
+import           Database.DSH.Impossible
 import           Database.DSH.CompileFlattening
 
 import           Database.DSH.Internals
@@ -77,20 +77,9 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
--- | Debugging function: return the NKL (Nested Kernel Language) representation of a
--- query (SQL version)
-debugNKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugNKL c (Q e) = show <$> desugarComprehensions 
-                        <$> optimizeComprehensions 
-                        <$> toComprehensions (getTableInfo c) e
-
--- | Debugging function: return the FKL (Flat Kernel Language) representation of a
--- query (SQL version)
-debugFKL :: (QA a, IConnection conn) => conn -> Q a -> IO String
-debugFKL c (Q e) = show <$> flatten 
-                        <$> desugarComprehensions 
-                        <$> toComprehensions (getTableInfo c) e
-
+fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+fromQ c (Q a) = $unimplemented
+                  
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do

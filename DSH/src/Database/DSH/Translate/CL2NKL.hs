@@ -9,6 +9,7 @@ import           Debug.Trace
   
 import           Database.DSH.Impossible
        
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Val
 import           Database.DSH.Common.Data.Op
@@ -18,7 +19,7 @@ import           Database.DSH.CL.Lang(toList, fromList)
 import qualified Database.DSH.CL.Lang as CL
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
-import qualified Database.DSH.NKL.Data.NKL as NKL
+import qualified Database.DSH.NKL.Lang as NKL
        
 -- To transform CL into NKL we have to get rid of comprehensions. However, we
 -- don't want to implement full comprehension desugaring. To avoid it, we
@@ -157,7 +158,7 @@ guardTuplify x v1 v2 v =
 debugPrint :: NKL.Expr -> String
 debugPrint e =
         "\nDesugared NKL =====================================================================\n"
-        ++ show e 
+        ++ pp e 
         ++ "\n==================================================================================="
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.

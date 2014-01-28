@@ -13,7 +13,7 @@ In this chapter we describe how the flattening transformation is performed. The 
 module Database.DSH.Translate.NKL2FKL (flatten) where
        
 import qualified Database.DSH.FKL.Data.FKL as F
-import qualified Database.DSH.NKL.Data.NKL as N
+import qualified Database.DSH.NKL.Lang as N
 import           Database.DSH.Common.TransM
 
 import           Database.DSH.FKL.FKLPrimitives

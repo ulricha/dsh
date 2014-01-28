@@ -13,10 +13,12 @@ module Database.DSH.CL.Opt.Aux
       -- * Moving predicates towards the front of a qualifier list.
     , pushGeneratorsR
     , isSimplePred
+    , isLocalComplexPred
     , pushSimpleFilters
     , pushEquiFilters
     , pushSemiFilters
     , pushAntiFilters
+    , pushComplexFilters
       -- * Free and bound variables
     , freeVars
     , compBoundVars
@@ -40,9 +42,9 @@ import           Data.List
 import           Debug.Trace
 
 import           Language.KURE                 
-import           Language.KURE.Debug
 
 import           Database.DSH.Impossible
+import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Monad
@@ -75,16 +77,16 @@ toJoinExpr n = do
         prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
         
     case e of
-        AppE1 _ p _   -> do
+        AppE1 t p _   -> do
             p' <- prim1 p
-            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ p' e1)
-        BinOp _ _ _ _ -> do
-            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ o e1 e2)
-        Lit _ v       -> do
-            return $ ConstJ v
-        Var _ x       -> do
+            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
+        BinOp t _ _ _ -> do
+            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
+        Lit t v       -> do
+            return $ ConstJ t v
+        Var t x       -> do
             guardMsg (n == x) "toJoinExpr: wrong name"
-            return InputJ
+            return $ InputJ t
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
             
@@ -302,7 +304,12 @@ isSimplePred localScope e =
   length (freeVars e) == 1
   &&
   isFlatExpr e
-        
+
+isLocalComplexPred :: [Ident] -> Expr -> Bool
+isLocalComplexPred localScope e =
+    isLocalPred localScope e
+    && length (freeVars e) == 1
+
 -- | Are all free variables in the predicate bound in the local comprehension?
 isLocalPred :: [Ident] -> Expr -> Bool
 isLocalPred localScope e = all (\v -> v `elem` localScope) (freeVars e)
@@ -319,12 +326,18 @@ pushAntiFilters = pushFilters isAntiJoinPred
 pushAllFilters :: RewriteC Expr
 pushAllFilters = pushFilters (\_ _ -> True)
 
--- We push only predicates which are local (do not refer to variables bound in
--- enclosing comprehensions), refer to only one generator and are structurally
--- simple.
+-- | Push only predicates which are local (do not refer to variables
+-- bound in enclosing comprehensions), refer to only one generator and
+-- are structurally simple.
 pushSimpleFilters :: RewriteC Expr
 pushSimpleFilters = pushFilters isSimplePred
-
+                  
+-- | Push only predicates which are local (do not refer to variables
+-- bound in enclosing comprehensions) and refer to only one
+-- generator. The filter expression itself, however, may be
+-- complicated.
+pushComplexFilters :: RewriteC Expr
+pushComplexFilters = pushFilters isLocalComplexPred 
 
 --------------------------------------------------------------------------------
 -- Computation of free variables
@@ -434,12 +447,16 @@ onetdSpineT t = do
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
-           
-debug :: Show a => String -> a -> b -> b
-debug msg a b =
-    trace ("\n" ++ msg ++ " =>\n" ++ show a) b
 
-debugUnit :: (Show a, Monad m) => String -> a -> m ()
+-- | trace output of the value being rewritten; use for debugging only.
+prettyR :: (Monad m, Pretty a) => Int -> String -> Rewrite c m a
+prettyR n msg = acceptR (\ a -> trace (msg ++ ": " ++ pp a) True)
+           
+debug :: Pretty a => String -> a -> b -> b
+debug msg a b =
+    trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+
+debugUnit :: (Pretty a, Monad m) => String -> a -> m ()
 debugUnit msg a = debug msg a (return ())
 
 debugOpt :: Expr -> Either String Expr -> Expr
@@ -451,22 +468,22 @@ debugOpt origExpr mExpr =
     showOrig :: Expr -> String
     showOrig e =
         "\nOriginal query ====================================================================\n"
-        ++ show e 
+        ++ pp e 
         ++ "\n==================================================================================="
         
     showOpt :: Expr -> String
     showOpt e =
         "Optimized query ===================================================================\n"
-        ++ show e 
+        ++ pp e 
         ++ "\n===================================================================================="
         
-debugPipeR :: (Monad m, Show a) => Rewrite c m a -> Rewrite c m a
-debugPipeR r = debugR 1000 "Before >>>>>>"
+debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
+debugPipeR r = prettyR 1000 "Before >>>>>>"
                >>> r
-               >>> debugR 1000 ">>>>>>> After"
+               >>> prettyR 1000 ">>>>>>> After"
                
 debugTrace :: Monad m => String -> Rewrite c m a
 debugTrace msg = trace msg idR
 
-debugShow :: (Monad m, Show a) => String -> Rewrite c m a
-debugShow msg = debugR 10000 (msg ++ "\n")
+debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
+debugShow msg = prettyR 10000 (msg ++ "\n")

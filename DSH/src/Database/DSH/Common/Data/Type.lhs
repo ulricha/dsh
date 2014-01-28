@@ -44,21 +44,25 @@ where
 import Data.Data
 import Data.Typeable
 import GHC.Generics (Generic)
+
+import Text.PrettyPrint.ANSI.Leijen
+
+import Database.DSH.Common.Pretty
   
-instance Show Type where 
-    show (VarT v) = v
-    show (FunT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
-    show IntT = "IntT"
-    show NatT = "NatT"
-    show BoolT = "BoolT"
-    show DoubleT = "DoubleT"
-    show StringT = "StringT"
-    show UnitT = "()"
-    show (ListT t) = "[" ++ (show t) ++ "]"
-    show (PairT t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
+instance Pretty Type where 
+    pretty (VarT v)      = text v
+    pretty (FunT t1 t2)  = parens $ pretty t1 <+> text "->" <+> pretty t2
+    pretty IntT          = text "Int"
+    pretty NatT          = text "Nat"
+    pretty BoolT         = text "Bool"
+    pretty DoubleT       = text "Double"
+    pretty StringT       = text "String"
+    pretty UnitT         = text "()"
+    pretty (ListT t)     = brackets $ pretty t
+    pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
 \end{code}
 %endif
-%{
+{
 We use the following type language to type our input language with (the Nested Kernel Language). We also use this type scheme for several intermediate languages.
 
 %include syntaxdef.fmt
@@ -70,6 +74,7 @@ We use the following type language to type our input language with (the Nested K
 \begin{code}
 data Type  = FunT Type Type
            | NatT | IntT | BoolT | DoubleT
+           -- FIXME What the fuck is a VarT?
            | StringT | UnitT | VarT String
            | PairT Type Type |  ListT Type
 \end{code}
@@ -78,7 +83,7 @@ data Type  = FunT Type Type
 %}
 %if False
 \begin{code}
-    deriving (Eq, Ord, Generic, Data, Typeable)
+    deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 infixr 6 .->
 
@@ -162,7 +167,7 @@ sndT _            = error "Type is not a pair type"
 
 pairComponents :: Type -> (Type, Type)
 pairComponents (PairT t1 t2) = (t1, t2)
-pairComponents t = error $ "Type is not a pair: " ++ show t
+pairComponents t = error $ "Type is not a pair: " ++ pp t
 
 extractFunTRes :: Type -> Type
 extractFunTRes = snd . splitTypeArgsRes
@@ -197,7 +202,7 @@ unliftTypeN i t = unliftTypeN (i - 1) $ unliftType t
 unliftType :: Type -> Type
 unliftType (ListT t1) = t1
 -- unliftType (FunT t1 t2) = FunT (unliftType t1) (unliftType t2)
-unliftType t         = error $ "Type: " ++ show t ++ " cannot be unlifted."
+unliftType t         = error $ "Type: " ++ pp t ++ " cannot be unlifted."
 
 isFuns :: Type -> Bool
 isFuns (ListT t1) = isFuns t1

@@ -17,6 +17,7 @@ import Control.Arrow
                  
 import Debug.Trace
 
+import Database.DSH.Impossible
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Opt.Aux
@@ -28,7 +29,7 @@ import Database.DSH.CL.Opt.Aux
 m_norm_1R :: RewriteC CL
 m_norm_1R = do
     Comp t _ _ <- promoteT idR
-    matches <- childT 1 $ onetdT (promoteT $ patternT <+ patternEndT)
+    matches <- childT CompQuals $ onetdT (promoteT $ patternT <+ patternEndT)
     guardM matches
     return $ inject $ Lit t (ListV [])
     
@@ -66,8 +67,8 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
     normCompR :: RewriteC CL
     normCompR = do
         Comp t _ (_ :* _)   <- promoteT idR
-        (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR normQualifiersR) >>> projectT
-        h'                  <- childT 0 tuplifyHeadR >>> projectT
+        (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
+        h'                  <- childT CompHead tuplifyHeadR >>> projectT
         return $ inject $ Comp t h' qs'
         
     normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
@@ -107,8 +108,8 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
 m_norm_3R :: RewriteC CL
 m_norm_3R = do
     Comp t h _ <- promoteT idR
-    (tuplifyHeadR, qs') <- statefulT idR $ childT 1 (promoteR normQualifiersR) >>> projectT
-    h'                  <- childT 0 (tryR tuplifyHeadR) >>> projectT
+    (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
+    h'                  <- childT CompHead (tryR tuplifyHeadR) >>> projectT
     return $ inject $ Comp t h' qs'
     
   where
@@ -139,8 +140,8 @@ m_norm_3R = do
 -- | M-Norm-4: unnest existential quantifiers if the outer comprehension is over
 -- an idempotent monad (i.e. duplicates are eliminated from the result).
 m_norm_4R :: RewriteC CL
-m_norm_4R = undefined
+m_norm_4R = $unimplemented
 
 -- | M-Norm-5: Unnest nested comprehensions over an idempotent monad.
 m_norm_5R :: RewriteC CL
-m_norm_5R = undefined
+m_norm_5R = $unimplemented

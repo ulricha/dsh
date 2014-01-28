@@ -8,10 +8,15 @@ module Database.DSH.CL.Opt.Support
   ( houseCleaningR
   , partialEvalR
   ) where
+  
+import Debug.Trace
 
 import           Control.Applicative
 import           Control.Arrow
 
+import           Data.Maybe
+
+import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
@@ -84,3 +89,5 @@ sndR = do
 partialEvalR :: RewriteC CL
 partialEvalR = promoteR (fstR >>> debugTrace "fst")
                <+ promoteR (sndR >>> debugTrace "snd")
+
+

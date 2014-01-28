@@ -93,4 +93,4 @@ inferIColsUnOp ownICols childICols op =
             in childICols
                ∪ (S.fromList $ map (\(PayloadCol c) -> c) cols)
                ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) mDescr)
-               ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mPos)
+               ∪ posCol mPos

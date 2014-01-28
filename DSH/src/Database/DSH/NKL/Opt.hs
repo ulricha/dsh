@@ -9,7 +9,7 @@ import           Debug.Trace
 
 import qualified Data.Set as S
 
-import qualified Database.DSH.NKL.Data.NKL as NKL
+import qualified Database.DSH.NKL.Lang as NKL
 import           Database.DSH.NKL.Quote
 import           Database.DSH.Impossible
        

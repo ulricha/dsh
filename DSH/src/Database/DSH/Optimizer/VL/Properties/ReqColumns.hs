@@ -1,4 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Optimizer.VL.Properties.ReqColumns where
+
+import Database.DSH.Impossible
 
 import qualified Data.List as L
 import           Database.Algebra.VL.Data
@@ -167,12 +171,12 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
     GroupBy         ->
       case ownReqColumns of
         VPropTriple _ cols _ -> (allCols childBUProps1, childReqColumns2 `union` (VProp cols))
-        _                    -> undefined -- FIXME
+        _                    -> $impossible
 
     Sort        ->
       case ownReqColumns of
         VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
-        _                 -> undefined -- FIXME
+        _                 -> $impossible
 
     AggrS AggrCount -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
     AggrS _         -> (childReqColumns1 `union` none, one)

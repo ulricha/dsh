@@ -319,37 +319,62 @@ insertSerialize g = g >>= traverseShape
   
   where 
     traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
-    traverseShape (ValueVector (DVec q cols) lyt) = 
-        insertOp cols lyt q ValueVector
-    traverseShape (PrimVal (DVec q cols) lyt)     = 
-        insertOp cols lyt q PrimVal
+    traverseShape (ValueVector dvec lyt) = do
+        mLyt' <- traverseLayout lyt
+        case mLyt' of
+            Just lyt' -> do
+                dvec' <- insertOp dvec noDescr needAbsPos
+                return $ ValueVector dvec' lyt'
+            Nothing   -> do
+                dvec' <- insertOp dvec noDescr needRelPos
+                return $ ValueVector dvec' lyt
+        
+    traverseShape (PrimVal dvec lyt)     = do
+        mLyt' <- traverseLayout lyt
+        case mLyt' of
+            Just lyt' -> do
+                dvec' <- insertOp dvec noDescr needAbsPos
+                return $ PrimVal dvec' lyt'
+            Nothing   -> do
+                dvec' <- insertOp dvec noDescr noPos
+                return $ PrimVal dvec' lyt
     
-    traverseLayout :: (TopLayout DVec) -> G PFAlgebra (TopLayout DVec)
-    traverseLayout (InColumn c) = 
-        return $ InColumn c
+    traverseLayout :: (TopLayout DVec) -> G PFAlgebra (Maybe (TopLayout DVec))
+    traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
-        lyt1' <- traverseLayout lyt1
-        lyt2' <- traverseLayout lyt2
-        return $ Pair lyt1' lyt2'
-    traverseLayout (Nest (DVec q cols) lyt) = 
-        insertOp cols lyt q Nest
+        mLyt1' <- traverseLayout lyt1
+        mLyt2' <- traverseLayout lyt2
+        case (mLyt1', mLyt2') of
+            (Just lyt1', Just lyt2') -> return $ Just $ Pair lyt1' lyt2'
+            (Just lyt1', Nothing)    -> return $ Just $ Pair lyt1' lyt2
+            (Nothing, Just lyt2')    -> return $ Just $ Pair lyt1 lyt2'
+            (Nothing, Nothing)       -> return Nothing
+    traverseLayout (Nest dvec lyt) = do
+        mLyt' <- traverseLayout lyt
+        case mLyt' of
+            Just lyt' -> do
+                dvec' <- insertOp dvec needDescr needAbsPos
+                return $ Just $ Nest dvec' lyt'
+            Nothing   -> do
+                dvec' <- insertOp dvec needDescr needRelPos
+                return $ Just $ Nest dvec' lyt
+
       
-    insertOp 
-      :: [DBCol]                         -- Columns in the top node
-      -> TopLayout DVec                  -- The layout of the current query
-      -> AlgNode                         -- The top node to consider
-      -> (DVec -> TopLayout DVec -> t)   -- Layout/Shape constructor
-      -> G PFAlgebra t
-    insertOp cols lyt q describe = do
-        let d  = Just (TA.DescrCol "descr")
-            p  = Just (TA.PosCol "pos")
-            cs = map (TA.PayloadCol . ("item" ++) . show) cols
+    -- | Insert a Serialize node for the given vector
+    insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G PFAlgebra DVec
+    insertOp (DVec q cols) descr pos = do
+        let cs = map (TA.PayloadCol . ("item" ++) . show) cols
+            op = TA.Serialize (descr, pos, cs)
 
-        let serializeOp = TA.Serialize (d, p, cs)
+        qp   <- lift $ insertNode $ UnOp op q
+        return $ DVec qp cols
 
-        qp   <- lift $ insertNode $ UnOp serializeOp q
-        lyt' <- traverseLayout lyt
-        return $ describe (DVec qp cols) lyt'
+    needDescr = Just (TA.DescrCol "descr")
+    noDescr   = Nothing
+
+    needAbsPos = TA.AbsPos "pos"
+    needRelPos = TA.RelPos "pos"
+    noPos      = TA.NoPos
 
 implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap

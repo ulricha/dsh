@@ -111,7 +111,7 @@ inferColsUnOp childCols op =
         Serialize (md, mp, cs) -> 
             let cols = (S.fromList $ map (\(PayloadCol c) -> c) cs)
                        ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
-                       ∪ (maybe S.empty (\(PosCol c) -> S.singleton c) mp)
+                       ∪ posCol mp
             in S.map (\c -> (c, typeOf c childCols)) cols
 
 inferColsBinOp :: S.Set TypedAttr -> S.Set TypedAttr -> BinOp -> S.Set TypedAttr

@@ -86,7 +86,7 @@ dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) =
     f           <- literal boolT (VLBool False)
     (fs, _ )    <- vlDistPrim f qd
     (qb', _, _) <- vlAppend qb =<< vlSegment fs
-    minF        <- vlAggrS (AggrMin (Column1 1)) undefined =<< vlFalsePositions qb'
+    minF        <- vlAggrS (AggrMin (Column1 1)) $unimplemented =<< vlFalsePositions qb'
     (r, prop)   <- vlSelectPosS q GtE minF
     lyt'        <- chainRenameFilter prop lyt
     return $ ValueVector qd (Nest r lyt')
@@ -536,7 +536,7 @@ minPrim _ = $impossible
 minLift ::  Shape -> Graph VL Shape
 minLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) undefined q
+    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) $unimplemented q
     return $ ValueVector x (InColumn 1)
 minLift _ = $impossible
 
@@ -548,7 +548,7 @@ maxPrim _ = $impossible
 maxLift ::  Shape -> Graph VL Shape
 maxLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    x <- vlPropRename r =<< vlAggrS (AggrMax (Column1 1)) undefined q
+    x <- vlPropRename r =<< vlAggrS (AggrMax (Column1 1)) d q
     return $ ValueVector x (InColumn 1)
 maxLift _ = $impossible
 
