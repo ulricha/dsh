@@ -238,9 +238,9 @@ serializeProject q =
 
           -- find new name for the pos column (if required)
           p' <- case p of
-              AbsPos c -> AbsPos <$> lookupFail c colMap
-              RelPos c -> RelPos <$> lookupFail c colMap
-              NoPos    -> return NoPos
+              AbsPos c  -> AbsPos <$> lookupFail c colMap
+              RelPos cs -> RelPos <$> mapM (flip lookupFail colMap) cs
+              NoPos     -> return NoPos
 
           return $ do
               logRewrite "Basic.Serialize.Project" q
@@ -253,16 +253,19 @@ serializeRowNum q =
     $(pattern 'q "Serialize scols (RowNum args (q1))"
       [| do
           -- Absolute positions must not be required
-          (d, RelPos c, reqCols) <- return $(v "scols")
+          (d, RelPos [c], reqCols) <- return $(v "scols")
     
           -- The rownum must sort based on only one column which
           -- defines the order.
-          (r, [(sortCol, Asc)], Nothing) <- return $(v "args")
+          (r, sortCols, Nothing) <- return $(v "args")
+          predicate $ all ((== Asc) . snd) sortCols
     
           -- The rownum should actually generate the positions
           predicate $ c == r
 
+          let sortCols' = map fst sortCols
+
           return $ do
               logRewrite "Basic.Serialize.Rownum" q
-              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCol, reqCols)) $(v "q1") |])
+              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCols', reqCols)) $(v "q1") |])
            
