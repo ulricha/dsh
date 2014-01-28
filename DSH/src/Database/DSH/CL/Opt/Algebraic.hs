@@ -91,9 +91,11 @@ filterThroughEquiJoinR = do
             p' <- constT (return $ inject p) >>> anytdR (unpairFstR x) >>> projectT
             let lt' = xst .-> BoolT
             return $ inject $ AppE2 tj j (P.filter (Lam lt' x p') xs) ys
-        else do
-            p' <- constT (return $ inject p) >>> anytdR (unpairSndR x) >>> projectT
-            let lt' = yst .-> BoolT
-            return $ inject $ AppE2 tj j xs (P.filter (Lam lt' x p') ys) 
+        else if all (maybe False (== Snd)) varParentOps 
+             then do
+                 p' <- constT (return $ inject p) >>> anytdR (unpairSndR x) >>> projectT
+                 let lt' = yst .-> BoolT
+                 return $ inject $ AppE2 tj j xs (P.filter (Lam lt' x p') ys) 
+             else fail "filter does not refer only to one side of the input"
 
             
