@@ -107,8 +107,8 @@ itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 binOp :: VL.VecOp -> BinFun
 binOp (VL.NOp VL.Add)  = Plus
 binOp (VL.NOp VL.Sub)  = Minus
-binOp (VL.NOp VL.Div)  = Times
-binOp (VL.NOp VL.Mul)  = Div
+binOp (VL.NOp VL.Div)  = Div
+binOp (VL.NOp VL.Mul)  = Times
 binOp (VL.NOp VL.Mod)  = Modulo
 binOp (VL.COp VL.Eq)   = Eq
 binOp (VL.COp VL.Gt)   = Gt
