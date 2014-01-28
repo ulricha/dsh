@@ -613,7 +613,13 @@ combineNestJoinsR = do
     combineCompsT x xsys zs f g p1 p2 = do
         -- We need to change the left join predicate of the outer nestjoin,
         -- because the type of its input changed (from xs to nj(xs, ys)
-        let p1'      = substJoinExpr p1
+        
+        -- The element type of the inner join
+        let innerJoinType = case typeOf xsys of
+                                ListT t -> t
+                                _       -> $impossible
+
+        let p1'      = substJoinExpr p1 innerJoinType
             -- The nestjoin between nj(xs, ys) and zs
             joinExpr = P.nestjoin xsys zs p1' p2
             qs       = S (BindQ x joinExpr)
@@ -644,8 +650,11 @@ combineNestJoinsR = do
         
     -- | Change all occurences of the join input in the predicate into accesses
     -- to the first tuple component of the input
-    substJoinExpr :: JoinExpr -> JoinExpr
-    substJoinExpr (BinOpJ op e1 e2) = BinOpJ op (substJoinExpr e1) (substJoinExpr e2)
-    substJoinExpr (UnOpJ op e1)     = UnOpJ op (substJoinExpr e1)
-    substJoinExpr (ConstJ v)        = ConstJ v
-    substJoinExpr InputJ            = UnOpJ FstJ InputJ
+    substJoinExpr :: JoinExpr -> Type -> JoinExpr
+    substJoinExpr expr inputType =
+        case expr of
+            (BinOpJ t op e1 e2) -> BinOpJ t op (substJoinExpr e1 inputType) 
+                                              (substJoinExpr e2 inputType)
+            (UnOpJ t op e1)     -> UnOpJ t op (substJoinExpr e1 inputType)
+            (ConstJ t v)        -> ConstJ t v
+            (InputJ t)          -> UnOpJ t FstJ (InputJ inputType)

@@ -77,16 +77,16 @@ toJoinExpr n = do
         prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
         
     case e of
-        AppE1 _ p _   -> do
+        AppE1 t p _   -> do
             p' <- prim1 p
-            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ p' e1)
-        BinOp _ _ _ _ -> do
-            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ o e1 e2)
-        Lit _ v       -> do
-            return $ ConstJ v
-        Var _ x       -> do
+            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
+        BinOp t _ _ _ -> do
+            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
+        Lit t v       -> do
+            return $ ConstJ t v
+        Var t x       -> do
             guardMsg (n == x) "toJoinExpr: wrong name"
-            return InputJ
+            return $ InputJ t
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
             

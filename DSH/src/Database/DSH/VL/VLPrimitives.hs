@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.VLPrimitives where
-
+       
 import qualified Database.DSH.Common.Data.Op   as O
 import qualified Database.DSH.Common.Data.Type as Ty
 import qualified Database.DSH.Common.Data.Val as V
@@ -68,17 +68,6 @@ operToVecOp op = case op of
   O.Like -> D.Like
   _      -> D.COp $ operToCompOp op
 
-joinExpr :: JoinExpr -> Expr1
-joinExpr expr = aux 1 expr
-  where
-    aux :: Int -> JoinExpr -> Expr1
-    aux offset (BinOpJ op e1 e2) = BinApp1 (operToVecOp op) (aux offset e1) (aux offset e2)
-    aux offset (UnOpJ NotJ e)    = UnApp1 D.Not (aux offset e)
-    aux offset (UnOpJ FstJ e)    = aux offset e
-    aux offset (UnOpJ SndJ e)    = aux (offset + 1) e
-    aux _      (ConstJ v)        = Constant1 $ pVal v
-    aux offset InputJ            = Column1 offset
-
 operToCompOp :: O.Oper -> D.VecCompOp
 operToCompOp op = case op of
   O.Eq   -> D.Eq
@@ -88,6 +77,61 @@ operToCompOp op = case op of
   O.LtE  -> D.LtE
   _      -> error "VLPrimitives.operToComOp: not a comparison operator"
 
+----------------------------------------------------------------------------------
+-- Convert join expressions into regular VL expressions
+
+-- | Determine the horizontal relational schema width of a type
+recordWidth :: Ty.Type -> Int
+recordWidth t =
+    case t of
+        Ty.NatT        -> 1
+        Ty.IntT        -> 1
+        Ty.BoolT       -> 1
+        Ty.DoubleT     -> 1
+        Ty.StringT     -> 1
+        Ty.UnitT       -> 1
+        -- WTF is a VarT
+        Ty.VarT _      -> $impossible
+        Ty.FunT _ _    -> $impossible
+        Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
+        Ty.ListT _     -> 0
+
+data ColExpr = Offset Int | Expr Expr1
+
+-- | If the child expressions are tuple operators which only give the
+-- column offset, convert it into a proper expression first.
+offsetExpr :: ColExpr -> Expr1
+offsetExpr (Offset o) = Column1 $ o + 1
+offsetExpr (Expr e)   = e
+
+addOffset :: Int -> ColExpr -> ColExpr
+addOffset i (Expr e)   = $impossible
+addOffset i (Offset o) = Offset $ o + i
+
+joinExpr :: JoinExpr -> Expr1
+joinExpr expr = offsetExpr $ aux expr
+  where
+    -- Construct expressions in a bottom-up way. For a given join
+    -- expression, return the following: 
+    -- pair accessors   -> column offset in the flat relational representation
+    -- scalar operation -> corresponding VL expression
+    aux :: JoinExpr -> ColExpr
+    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 (operToVecOp op) 
+                                             (offsetExpr $ aux e1) 
+                                             (offsetExpr $ aux e2)
+    aux (UnOpJ _ NotJ e)    = Expr $ UnApp1 D.Not (offsetExpr $ aux e)
+    aux (UnOpJ _ FstJ e)    = aux e
+    aux (UnOpJ _ SndJ e)    = 
+        case Ty.typeOf e of
+            Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
+            _             -> $impossible
+    aux (ConstJ _ v)        = Expr $ Constant1 $ pVal v
+    aux (InputJ _)          = Offset 0
+  
+
+----------------------------------------------------------------------------------
+-- DAG constructor functions for VL operators
+  
 vlUnique :: DVec -> GraphM r VL DVec
 vlUnique (DVec c _) = dvec $ insertNode $ UnOp Unique c
 

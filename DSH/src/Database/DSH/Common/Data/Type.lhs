@@ -74,6 +74,7 @@ We use the following type language to type our input language with (the Nested K
 \begin{code}
 data Type  = FunT Type Type
            | NatT | IntT | BoolT | DoubleT
+           -- FIXME What the fuck is a VarT?
            | StringT | UnitT | VarT String
            | PairT Type Type |  ListT Type
 \end{code}
