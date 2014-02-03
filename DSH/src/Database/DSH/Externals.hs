@@ -497,6 +497,12 @@ reverse (Q as) = Q (AppE Reverse as)
 number :: (QA a) => Q [a] -> Q [(a, Integer)]
 number (Q as) = Q (AppE Number as)
 
+transpose :: QA a => Q [[a]] -> Q [[a]]
+transpose (Q ass) = Q (AppE Transpose ass)
+
+reshape :: QA a => Integer -> Integer -> Q [a] -> Q [[a]]
+reshape m n (Q as) = Q (AppE (Reshape m n) as)
+
 -- * Special folds
 
 and :: Q [Bool] -> Q Bool

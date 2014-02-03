@@ -66,6 +66,10 @@ data Prim1 = FLength Type
            | FNubL Type
            | FNumber Type
            | FNumberL Type
+           | FTranspose Type
+           | FTransposeL Type
+           | FReshape Integer Integer Type
+           | FReshapeL Integer Integer Type
     deriving (Eq, Generic)
     
 instance Show Prim1 where
@@ -108,6 +112,10 @@ instance Show Prim1 where
     show (FNubL _)       = "nubL"
     show (FNumber _)     = "number"
     show (FNumberL _)    = "numberL"
+    show (FTranspose _)     = "transpose"
+    show (FTransposeL _)    = "transposeL"
+    show (FReshape m n _)   = "reshape(" ++ show m ++ ", " ++ show n ++ ")"
+    show (FReshapeL m n _)  = "reshapeL(" ++ show m ++ ", " ++ show n ++ ")"
     
 data Prim2 = FGroupWithKey Type
            | FGroupWithKeyL Type

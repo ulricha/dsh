@@ -6,6 +6,7 @@
 module Database.DSH.Internals where
 
 import Data.Text (Text)
+import Text.Printf
 
 data Exp a where
   UnitE     :: Exp ()
@@ -86,6 +87,8 @@ data Fun a b where
     DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
     Like            :: Fun (Text,Text) Bool
+    Transpose       :: Fun [[a]] [[a]]
+    Reshape         :: Integer -> Integer -> Fun [a] [[a]]
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -176,6 +179,7 @@ instance Show (Fun a b) where
     show Mod = "%"
     show Number = "number"
     show Guard = "guard"
+    show (Reshape m n) = printf "reshape(%d, %d)" m n
 
 -- Reify instances
 

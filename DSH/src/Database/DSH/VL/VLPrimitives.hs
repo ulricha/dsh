@@ -382,6 +382,36 @@ vlReverseS (DVec c _) = do
 
 vlFalsePositions :: DVec -> GraphM r VL DVec
 vlFalsePositions (DVec c _) = dvec $ insertNode $ UnOp FalsePositions c
+                 
+vlTranspose :: DVec -> DVec -> GraphM r VL (DVec, DVec)
+vlTranspose (DVec qo _) (DVec qi _) = do
+    r <- insertNode $ BinOp Transpose qo qi
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- dvec $ insertNode $ UnOp R2 r
+    return (r1, r2)
+
+vlTransposeS :: DVec -> DVec -> DVec -> GraphM r VL (DVec, DVec, DVec)
+vlTransposeS (DVec qoo _) (DVec qo _) (DVec qi _) = do
+    r <- insertNode $ TerOp TransposeS qoo qo qi
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- dvec $ insertNode $ UnOp R2 r
+    r3 <- dvec $ insertNode $ UnOp R3 r
+    return (r1, r2, r3)
+
+vlReshape :: Integer -> Integer -> DVec -> GraphM r VL (DVec, DVec)
+vlReshape m n (DVec q _) = do
+    r <- insertNode $ UnOp (Reshape m n) q
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- dvec $ insertNode $ UnOp R2 r
+    return (r1, r2)
+
+vlReshapeS :: Integer -> Integer -> DVec -> DVec -> GraphM r VL (DVec, DVec, DVec)
+vlReshapeS m n (DVec qo _) (DVec qi _) = do
+    r <- insertNode $ BinOp (ReshapeS m n) qo qi
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- dvec $ insertNode $ UnOp R2 r
+    r3 <- dvec $ insertNode $ UnOp R3 r
+    return (r1, r2, r3)
 
 vlSingleton :: DVec -> GraphM r VL DVec
 vlSingleton (DVec c _) = dvec $ insertNode $ UnOp Singleton c

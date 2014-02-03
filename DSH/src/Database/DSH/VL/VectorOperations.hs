@@ -661,6 +661,30 @@ sndL (ValueVector q (Pair _p1 p2)) = do
     proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p2'
 sndL s = trace (show s) $ $impossible
+     
+transposePrim :: Shape -> Graph VL Shape
+transposePrim (ValueVector qo (Nest qi lyt)) = do
+    (qo', qi') <- vlTranspose qo qi
+    return $ ValueVector qo' (Nest qi' lyt)
+transposePrim _ = $impossible
+
+transposeLift :: Shape -> Graph VL Shape
+transposeLift (ValueVector qoo (Nest qo (Nest qi lyt))) = do
+    (qoo', qo', qi') <- vlTransposeS qoo qo qi
+    return $ ValueVector qoo' (Nest qo' (Nest qi' lyt))
+transposeLift _ = $impossible
+
+reshapePrim :: Integer -> Integer -> Shape -> Graph VL Shape
+reshapePrim m n (ValueVector q lyt) = do
+    (qo, qi) <- vlReshape m n q
+    return $ ValueVector qo (Nest qi lyt)
+reshapePrim _ _ _ = $impossible
+
+reshapeLift :: Integer -> Integer -> Shape -> Graph VL Shape
+reshapeLift m n (ValueVector qo (Nest qi lyt)) = do
+    (qoo, qo', qi') <- vlReshapeS m n qo qi
+    return $ ValueVector qoo (Nest qo' (Nest qi' lyt))
+reshapeLift _ _ _ = $impossible
 
 projectFromPos :: Layout -> (Layout, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)

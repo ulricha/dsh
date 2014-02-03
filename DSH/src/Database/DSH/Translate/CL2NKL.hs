@@ -51,6 +51,8 @@ prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
                CL.Last             -> NKL.Last 
                CL.Nub              -> NKL.Nub 
                CL.Number           -> NKL.Number 
+               (CL.Reshape m n)    -> NKL.Reshape m n
+               CL.Transpose        -> NKL.Transpose
                CL.Guard            -> $impossible
 
 prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
