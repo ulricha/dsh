@@ -11,6 +11,9 @@ module Database.DSH.CL.Opt.FlatJoin
   ) where
   
 import Control.Arrow
+import Data.Either
+       
+import Database.DSH.Impossible
 
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Lang
@@ -266,3 +269,65 @@ antijoinR :: RewriteC CL
 antijoinR = do
     Comp _ _ _ <- promoteT idR
     childR CompQuals (promoteR universalQualsR)
+
+
+------------------------------------------------------------------------
+-- Flat join detection
+
+data Comp = C Type Expr (NL Qual)
+
+mkFlatJoin :: Comp -> Expr -> TranslateC () Comp
+mkFlatJoin comp guard = $unimplemented
+
+fromQual :: Qual -> Either Qual Expr
+fromQual (BindQ x e) = Left $ BindQ x e
+fromQual (GuardQ p)  = Right p
+
+constructFlatJoins :: RewriteC CL
+constructFlatJoins = do
+    ExprCL (Comp ty e qs) <- idR
+    
+    -- Separate generators from guards
+    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+
+    let initArg = (C ty e (fromListSafe g gs), guards)
+
+    -- Iteratively try to form joins until we reach a fixed point
+    (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR joinStep
+
+    -- If there are any guards remaining which we could not turn into
+    -- joins, append them at the end of the new qualifier list
+    case remGuards of
+        g : gs -> return $ ExprCL $ Comp ty e' (appendNL qs' (fmap GuardQ $ fromListSafe g gs))
+        []     -> return $ ExprCL $ Comp ty e' qs'
+
+joinStep :: RewriteC (Comp, [Expr])
+joinStep = do
+    (comp, guards) <- idR
+    (comp', guards') <- constT (return ()) >>> cycleThroughPreds comp guards []
+    constT (return (comp', guards')) >>> joinStep
+
+cycleThroughPreds :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
+-- Try the next guard for a join
+cycleThroughPreds comp (p : ps) testedGuards = do
+    let tryJoin :: TranslateC () (Comp, [Expr])
+        tryJoin = do
+            -- Try p for a join
+            comp' <- mkFlatJoin comp p
+            
+            -- If we succeeded for p, try the remaining guards.
+            (cycleThroughPreds comp' ps testedGuards)
+
+            -- Even if we failed for the remaining guards, we report a success,
+            -- since we succeeded for p
+              <+ (return (comp', ps ++ testedGuards))
+
+        -- If the current guard failed, try the next ones.
+        tryOthers :: TranslateC () (Comp, [Expr])
+        tryOthers = cycleThroughPreds comp ps (p : testedGuards)
+
+    tryJoin <+ tryOthers   
+        
+-- No guards left to try and none succeeded
+cycleThroughPreds _ [] _ = fail "no predicate could be merged"
+

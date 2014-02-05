@@ -11,7 +11,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , NL(..), reverseNL, toList, fromList, appendNL
+  , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
   , Qual(..), isGuard, isBind
   , Typed(..)
   , Prim1Op(..)
@@ -76,6 +76,11 @@ fromList as = Just $ aux as
     aux (x : []) = S x
     aux (x : xs) = x :* aux xs
     aux []       = $impossible
+
+fromListSafe :: a -> [a] -> NL a
+fromListSafe a [a1]      = a :* S a1
+fromListSafe a []        = S a
+fromListSafe a (a1 : as) = a :* fromListSafe a1 as
 
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
@@ -178,6 +183,8 @@ isGuard (BindQ _ _)  = False
 isBind :: Qual -> Bool
 isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
+
+data Comp = C Type Expr (NL Qual)
 
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              
