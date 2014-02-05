@@ -88,7 +88,8 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
     
 eqjoinR :: RewriteC CL
 eqjoinR = do
-    Comp t _ _          <- promoteT idR
+    e@(Comp t _ _)      <- promoteT idR
+    debugUnit "eqjoinR" e
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
     e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
     return $ inject $ Comp t e' qs'
