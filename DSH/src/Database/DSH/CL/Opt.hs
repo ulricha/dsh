@@ -81,11 +81,11 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybu
     optCompR :: RewriteC CL
     optCompR = do
         c@(Comp _ _ _) <- promoteT idR
-        debugUnit "optCompR at" c
+        debugPretty "optCompR at" c
 
         repeatR $ do
               e <- promoteT idR
-              debugUnit "comp at" (e :: Expr)
+              debugPretty "comp at" (e :: Expr)
               (normalizeAlwaysR
                  <+ compNormEarlyR
                  <+ selectSimpleR

@@ -28,7 +28,8 @@ module Database.DSH.CL.Opt.Aux
     , onetdSpineT
       -- * Debugging
     , debug
-    , debugUnit
+    , debugPretty
+    , debugMsg
     , debugOpt
     , debugPipeR
     , debugTrace
@@ -433,8 +434,11 @@ debug :: Pretty a => String -> a -> b -> b
 debug msg a b =
     trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
 
-debugUnit :: (Pretty a, Monad m) => String -> a -> m ()
-debugUnit msg a = debug msg a (return ())
+debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
+debugPretty msg a = debug msg a (return ())
+
+debugMsg :: Monad m => String -> m ()
+debugMsg msg = trace msg $ return ()
 
 debugOpt :: Expr -> Either String Expr -> Expr
 debugOpt origExpr mExpr =

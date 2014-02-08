@@ -88,12 +88,17 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
 eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
 eqjoinR currentGuards testedGuards = do
     e@(Comp t _ _)      <- promoteT idR
-    debugUnit "eqjoinR" e
+    debugPretty "eqjoinR e" e
+    debugPretty "eqjoinR currentGuards" currentGuards
+    debugPretty "eqjoinR testedGuards" testedGuards
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
+    debugMsg "carnary1"
     e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
+    debugMsg "carnary2"
     -- FIXME should propably wrap tuplifyHeadR in tryR
     currentGuards'      <- constT (return currentGuards) >>> mapT (extractR tuplifyHeadR)
     testedGuards'       <- constT (return testedGuards) >>> mapT (extractR tuplifyHeadR)
+    debugMsg "carnary3"
     return $ (inject $ Comp t e' qs', currentGuards', testedGuards')
 
 --------------------------------------------------------------------------------
