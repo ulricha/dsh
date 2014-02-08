@@ -363,6 +363,7 @@ joinStep = do
 
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
 -- comprehensions qualifier list.
+-- FIXME only try on those predicates that look like equi-/anti-/semi-join predicates.
 flatjoinsR :: RewriteC CL
 flatjoinsR = do
     ExprCL (Comp ty e qs) <- idR
@@ -378,5 +379,5 @@ flatjoinsR = do
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
     case remGuards of
-        g : gs -> return $ ExprCL $ Comp ty e' (appendNL qs' (fmap GuardQ $ fromListSafe g gs))
-        []     -> return $ ExprCL $ Comp ty e' qs'
+        rg : rgs -> return $ ExprCL $ Comp ty e' (appendNL qs' (fmap GuardQ $ fromListSafe rg rgs))
+        []       -> return $ ExprCL $ Comp ty e' qs'
