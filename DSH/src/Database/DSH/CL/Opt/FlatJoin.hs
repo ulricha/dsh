@@ -5,16 +5,14 @@
     
 -- | Introduce simple equi joins.
 module Database.DSH.CL.Opt.FlatJoin
-  ( semijoinR
-  , antijoinR
-  , eqjoinR
+  ( flatjoinsR
   ) where
   
+import Control.Applicative
 import Control.Arrow
 import Data.Either
+import qualified Data.Map as M
        
-import Database.DSH.Impossible
-
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Opt.Aux
@@ -65,9 +63,8 @@ eqjoinQualR = do
                     , constT $ return qs
                     ]            
 
-    -- Combine the new tuplifying rewrite with the current rewrite by chaining
-    -- both rewrites
-    constT $ modify (>>> tuplifyHeadR)
+    -- The tuplify rewrite must be handed to the top level
+    constT $ put tuplifyHeadR
     
     return $ q' :* qs'
     
@@ -79,9 +76,8 @@ eqjoinQualEndR = do
 
     (tuplifyHeadR, q') <- mkeqjoinT p x y xs ys
 
-    -- Combine the new tuplifying rewrite with the current rewrite by chaining
-    -- both rewrites
-    constT $ modify (>>> tuplifyHeadR)
+    -- The tuplify rewrite must be handed to the top level
+    constT $ put tuplifyHeadR
 
     return (S q')
 
@@ -89,13 +85,16 @@ eqjoinQualEndR = do
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
 eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
     
-eqjoinR :: RewriteC CL
-eqjoinR = do
+eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
+eqjoinR currentGuards testedGuards = do
     e@(Comp t _ _)      <- promoteT idR
     debugUnit "eqjoinR" e
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
     e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
-    return $ inject $ Comp t e' qs'
+    -- FIXME should propably wrap tuplifyHeadR in tryR
+    currentGuards'      <- constT (return currentGuards) >>> mapT (extractR tuplifyHeadR)
+    testedGuards'       <- constT (return testedGuards) >>> mapT (extractR tuplifyHeadR)
+    return $ (inject $ Comp t e' qs', currentGuards', testedGuards')
 
 --------------------------------------------------------------------------------
 -- Introduce semi joins (existential quantification)
@@ -270,21 +269,102 @@ antijoinR = do
     Comp _ _ _ <- promoteT idR
     childR CompQuals (promoteR universalQualsR)
 
-
 ------------------------------------------------------------------------
 -- Flat join detection
 
 data Comp = C Type Expr (NL Qual)
 
-mkFlatJoin :: Comp -> Expr -> TranslateC () Comp
-mkFlatJoin comp guard = $unimplemented
+-- | Try to build a join from a list of generators and a single
+-- guard. If we can build an equi join, the remaining predicates must
+-- be tuplified. For this reason, we pass them in here.
+mkFlatJoin :: Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
+mkFlatJoin comp guard guardsToTry leftOverGuards = do
+    let C ty h qs = comp
+    comp' <- constT (return qs) >>> insertGuardR guard >>^ (ExprCL . Comp ty h)
+    tryAntijoinR comp' <+ trySemijoinR comp' <+ tryEqjoinR comp'
+    
+  where
+    tryAntijoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    tryAntijoinR comp' = do
+        ExprCL (Comp ty h qs') <- constT (return comp') >>> antijoinR
+        return (C ty h qs', guardsToTry, leftOverGuards)
+
+    trySemijoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    trySemijoinR comp' = do
+        ExprCL (Comp ty h qs') <- constT (return comp') >>> semijoinR
+        return (C ty h qs', guardsToTry, leftOverGuards)
+
+    tryEqjoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    tryEqjoinR comp' = do
+        res <- constT (return comp') >>> eqjoinR guardsToTry leftOverGuards
+        (ExprCL (Comp ty h qs), guardsToTry', leftOverGuards') <- return res
+        return (C ty h qs, guardsToTry', leftOverGuards')
 
 fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
-constructFlatJoins :: RewriteC CL
-constructFlatJoins = do
+-- | Insert a guard in a qualifier list at the first possible
+-- position.
+insertGuardR :: Expr -> RewriteC (NL Qual)
+insertGuardR e = onetdR (insertR <+ insertEndR)
+  where
+    -- Insert a guard at the current position in the qualifier list,
+    -- if all free variables are in scope.
+    insertR :: RewriteC (NL Qual)
+    insertR = do
+        env <- cl_bindings <$> contextT
+        guardM $ all (\v -> M.member v env) fvs
+        qs <- idR 
+        return $ GuardQ e :* qs
+
+    -- If a guard has not been inserted when reaching the end of the
+    -- qualifier list, insert it at the end. We could check wether the
+    -- guard's free variables are in scope there. However, as we
+    -- assume that the original comprehension was intact, we can
+    -- safely assume that all variables are in scope.
+    insertEndR :: RewriteC (NL Qual)
+    insertEndR = do
+        S q@(BindQ _ _) <- idR
+        return $ q :* (S $ GuardQ e)
+
+    fvs = freeVars e
+
+
+tryGuardsForJoin :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
+-- Try the next guard for a join
+tryGuardsForJoin comp (p : ps) testedGuards = do
+    let tryJoin :: TranslateC () (Comp, [Expr])
+        tryJoin = do
+            -- Try p for a join
+            (comp', ps', testedGuards') <- mkFlatJoin comp p ps testedGuards
+            
+            -- If we succeeded for p, try the remaining guards.
+            (tryGuardsForJoin comp' ps' testedGuards')
+
+            -- Even if we failed for the remaining guards, we report a success,
+            -- since we succeeded for p
+              <+ (return (comp', ps' ++ testedGuards'))
+
+        -- If the current guard failed, try the next ones.
+        tryOthers :: TranslateC () (Comp, [Expr])
+        tryOthers = tryGuardsForJoin comp ps (p : testedGuards)
+
+    tryJoin <+ tryOthers   
+        
+-- No guards left to try and none succeeded
+tryGuardsForJoin _ [] _ = fail "no predicate could be merged"
+
+joinStep :: RewriteC (Comp, [Expr])
+joinStep = do
+    (comp, guards) <- idR
+    (comp', guards') <- constT (return ()) >>> tryGuardsForJoin comp guards []
+    constT (return (comp', guards')) >>> joinStep
+
+-- | Try to build flat joins (equi-, semi- and antijoins) from a
+-- comprehensions qualifier list.
+flatjoinsR :: RewriteC CL
+flatjoinsR = do
     ExprCL (Comp ty e qs) <- idR
     
     -- Separate generators from guards
@@ -300,34 +380,3 @@ constructFlatJoins = do
     case remGuards of
         g : gs -> return $ ExprCL $ Comp ty e' (appendNL qs' (fmap GuardQ $ fromListSafe g gs))
         []     -> return $ ExprCL $ Comp ty e' qs'
-
-joinStep :: RewriteC (Comp, [Expr])
-joinStep = do
-    (comp, guards) <- idR
-    (comp', guards') <- constT (return ()) >>> cycleThroughPreds comp guards []
-    constT (return (comp', guards')) >>> joinStep
-
-cycleThroughPreds :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
--- Try the next guard for a join
-cycleThroughPreds comp (p : ps) testedGuards = do
-    let tryJoin :: TranslateC () (Comp, [Expr])
-        tryJoin = do
-            -- Try p for a join
-            comp' <- mkFlatJoin comp p
-            
-            -- If we succeeded for p, try the remaining guards.
-            (cycleThroughPreds comp' ps testedGuards)
-
-            -- Even if we failed for the remaining guards, we report a success,
-            -- since we succeeded for p
-              <+ (return (comp', ps ++ testedGuards))
-
-        -- If the current guard failed, try the next ones.
-        tryOthers :: TranslateC () (Comp, [Expr])
-        tryOthers = cycleThroughPreds comp ps (p : testedGuards)
-
-    tryJoin <+ tryOthers   
-        
--- No guards left to try and none succeeded
-cycleThroughPreds _ [] _ = fail "no predicate could be merged"
-

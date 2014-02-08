@@ -9,6 +9,8 @@ module Database.DSH.CL.Opt
   ( optimizeComprehensions ) where
   
 import Control.Arrow
+       
+import Database.DSH.Impossible
 
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
@@ -30,19 +32,6 @@ cleanupR :: RewriteC CL
 cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR <+ algebraicRewritesR) 
            >>> debugShow "after cleanup"
 
-flatJoinsR :: RewriteC CL
-flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR >>> debugTrace "semijoin")
-            <+ (promoteR (tryR pushAntiFilters) >>> antijoinR >>> debugTrace "antijoin")
-
-            -- For Equi-Joins, we first push all generators to the front of the
-            -- qualifier list. This should make sure that no guard is stuck
-            -- between two generators and blocks the equijoin rewrite.
-            -- [ e | x <- xs, p x z, y <- ys, q x y ] (z is bound by outer comprehension)
-            <+ (promoteR (tryR pushGeneratorsR)
-                >>> promoteR (tryR pushEquiFilters) 
-                >>> eqjoinR 
-                >>> debugTrace "equijoin")
-            
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
@@ -100,7 +89,7 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybu
               (normalizeAlwaysR
                  <+ compNormEarlyR
                  <+ selectSimpleR
-                 <+ flatJoinsR
+                 <+ flatjoinsR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
         
