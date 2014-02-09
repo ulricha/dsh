@@ -8,8 +8,6 @@ module Database.DSH.CL.Opt.FlatJoin
   ( flatjoinsR
   ) where
   
-import Debug.Trace
-  
 import Control.Applicative
 import Control.Arrow
 import Data.Either
@@ -93,17 +91,11 @@ eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
 eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
 eqjoinR currentGuards testedGuards = do
     e@(Comp t _ _)      <- promoteT idR
-    debugPretty "eqjoinR e" e
-    debugPretty "eqjoinR currentGuards" currentGuards
-    debugPretty "eqjoinR testedGuards" testedGuards
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
-    debugMsg "carnary1"
     e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
-    debugMsg "carnary2"
     -- FIXME should propably wrap tuplifyHeadR in tryR
     currentGuards'      <- constT (return currentGuards) >>> mapT (extractR tuplifyHeadR)
     testedGuards'       <- constT (return testedGuards) >>> mapT (extractR tuplifyHeadR)
-    debugMsg "carnary3"
     return $ (inject $ Comp t e' qs', currentGuards', testedGuards')
 
 --------------------------------------------------------------------------------
@@ -360,7 +352,6 @@ tryGuardsForJoin _ [] _ = fail "no predicate could be merged"
 joinStep :: RewriteC (Comp, [Expr])
 joinStep = do
     (comp, guards) <- idR
-    debugPretty "joinStep" guards
     constT (return ()) >>> tryGuardsForJoin comp guards []
 
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
@@ -377,7 +368,6 @@ flatjoinsR = do
 
     -- Iteratively try to form joins until we reach a fixed point
     (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR joinStep
-    debugPretty "after repeatR" qs'
 
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
