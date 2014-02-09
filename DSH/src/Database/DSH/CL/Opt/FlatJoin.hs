@@ -363,8 +363,7 @@ tryGuardsForJoin _ [] _ = fail "no predicate could be merged"
 joinStep :: RewriteC (Comp, [Expr])
 joinStep = do
     (comp, guards) <- idR
-    (comp', guards') <- constT (return ()) >>> tryGuardsForJoin comp guards []
-    constT (return (comp', guards')) >>> joinStep
+    constT (return ()) >>> tryGuardsForJoin comp guards []
 
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
 -- comprehensions qualifier list.
@@ -384,5 +383,6 @@ flatjoinsR = do
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
     case remGuards of
-        rg : rgs -> return $ ExprCL $ Comp ty e' (appendNL qs' (fmap GuardQ $ fromListSafe rg rgs))
+        rg : rgs -> let rqs = fmap GuardQ $ fromListSafe rg rgs
+                    in return $ ExprCL $ Comp ty e' (appendNL qs' rqs)
         []       -> return $ ExprCL $ Comp ty e' qs'
