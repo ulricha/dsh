@@ -8,10 +8,15 @@ module Database.DSH.CL.Opt.FlatJoin
   ( flatjoinsR
   ) where
   
+import Debug.Trace
+  
 import Control.Applicative
 import Control.Arrow
 import Data.Either
 import qualified Data.Map as M
+import qualified Data.Set as S
+       
+import Database.DSH.Impossible
        
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Lang
@@ -285,7 +290,8 @@ data Comp = C Type Expr (NL Qual)
 mkFlatJoin :: Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
 mkFlatJoin comp guard guardsToTry leftOverGuards = do
     let C ty h qs = comp
-    comp' <- constT (return qs) >>> insertGuardR guard >>^ (ExprCL . Comp ty h)
+    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    let comp' = ExprCL $ Comp ty h (insertGuard guard env qs)
     tryAntijoinR comp' <+ trySemijoinR comp' <+ tryEqjoinR comp'
     
   where
@@ -311,30 +317,21 @@ fromQual (GuardQ p)  = Right p
 
 -- | Insert a guard in a qualifier list at the first possible
 -- position.
-insertGuardR :: Expr -> RewriteC (NL Qual)
-insertGuardR e = onetdR (insertR <+ insertEndR)
+insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
+insertGuard guardExpr initialEnv quals = insert initialEnv quals
   where
-    -- Insert a guard at the current position in the qualifier list,
-    -- if all free variables are in scope.
-    insertR :: RewriteC (NL Qual)
-    insertR = do
-        env <- cl_bindings <$> contextT
-        guardM $ all (\v -> M.member v env) fvs
-        qs <- idR 
-        return $ GuardQ e :* qs
+    insert :: S.Set Ident -> NL Qual -> NL Qual
+    insert env (S q)             = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* S q
+        else q :* (S $ GuardQ guardExpr)
+    insert env (q@(BindQ x _) :* qs) = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* q :* qs
+        else q :* insert (S.insert x env) qs
+    insert _ (GuardQ _ :* _)      = $impossible
 
-    -- If a guard has not been inserted when reaching the end of the
-    -- qualifier list, insert it at the end. We could check wether the
-    -- guard's free variables are in scope there. However, as we
-    -- assume that the original comprehension was intact, we can
-    -- safely assume that all variables are in scope.
-    insertEndR :: RewriteC (NL Qual)
-    insertEndR = do
-        S q@(BindQ _ _) <- idR
-        return $ q :* (S $ GuardQ e)
-
-    fvs = freeVars e
-
+    fvs = freeVars guardExpr
 
 tryGuardsForJoin :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
 -- Try the next guard for a join
@@ -363,6 +360,7 @@ tryGuardsForJoin _ [] _ = fail "no predicate could be merged"
 joinStep :: RewriteC (Comp, [Expr])
 joinStep = do
     (comp, guards) <- idR
+    debugPretty "joinStep" guards
     constT (return ()) >>> tryGuardsForJoin comp guards []
 
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
@@ -379,6 +377,7 @@ flatjoinsR = do
 
     -- Iteratively try to form joins until we reach a fixed point
     (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR joinStep
+    debugPretty "after repeatR" qs'
 
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
