@@ -206,7 +206,7 @@ dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
 dropLift _ _ = error "dropLift: Should not be possible"
 
 nubPrim ::  Shape -> Graph VL Shape
-nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUnique q
+nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q
 nubPrim _ = error "nubPrim: Should not be possible"
 
 nubLift ::  Shape -> Graph VL Shape
