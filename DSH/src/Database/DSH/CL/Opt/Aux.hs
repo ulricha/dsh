@@ -24,6 +24,8 @@ module Database.DSH.CL.Opt.Aux
       -- * Substituion
     , substR
     , tuplifyR
+      -- * Combining generators and guards
+    , insertGuard
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -40,6 +42,7 @@ import           Control.Arrow
 import qualified Data.Foldable as F
 import           Data.List
 import           Debug.Trace
+import qualified Data.Set as S
 
 import           Language.KURE                 
 
@@ -259,8 +262,8 @@ isAntiJoinPred vs (AppE1 _ (Prim1 And _)
 isAntiJoinPred _  _                                  = False
 
 isFlatExpr :: Expr -> Bool
-isFlatExpr e =
-    case e of
+isFlatExpr expr =
+    case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
         AppE1 _ (Prim1 Not _) e -> isFlatExpr e
@@ -408,6 +411,28 @@ tupleVars n t1 t2 = (v1Rep, v2Rep)
         v2Rep = AppE1 t2 (Prim1 Snd (pt .-> t2)) v
 
 --------------------------------------------------------------------------------
+-- Helpers for combining generators with guards in a comprehensions'
+-- qualifier list
+
+-- | Insert a guard in a qualifier list at the first possible
+-- position.
+insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
+insertGuard guardExpr initialEnv quals = go initialEnv quals
+  where
+    go :: S.Set Ident -> NL Qual -> NL Qual
+    go env (S q)             = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* S q
+        else q :* (S $ GuardQ guardExpr)
+    go env (q@(BindQ x _) :* qs) = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* q :* qs
+        else q :* go (S.insert x env) qs
+    go _ (GuardQ _ :* _)      = $impossible
+
+    fvs = freeVars guardExpr
+
+--------------------------------------------------------------------------------
 -- Traversal functions
 
 -- | Traverse the spine of a NL list top-down and apply the translation as soon
@@ -427,8 +452,8 @@ onetdSpineT t = do
 -- Simple debugging combinators
 
 -- | trace output of the value being rewritten; use for debugging only.
-prettyR :: (Monad m, Pretty a) => Int -> String -> Rewrite c m a
-prettyR n msg = acceptR (\ a -> trace (msg ++ pp a) True)
+prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
+prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
            
 debug :: Pretty a => String -> a -> b -> b
 debug msg a b =
@@ -459,12 +484,12 @@ debugOpt origExpr mExpr =
         ++ "\n===================================================================================="
         
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
-debugPipeR r = prettyR 1000 "Before >>>>>>"
+debugPipeR r = prettyR "Before >>>>>>"
                >>> r
-               >>> prettyR 1000 ">>>>>>> After"
+               >>> prettyR ">>>>>>> After"
                
 debugTrace :: Monad m => String -> Rewrite c m a
 debugTrace msg = trace msg idR
 
 debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-debugShow msg = prettyR 10000 (msg ++ "\n")
+debugShow msg = prettyR (msg ++ "\n")

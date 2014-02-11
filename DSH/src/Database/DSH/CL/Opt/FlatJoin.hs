@@ -19,6 +19,7 @@ import Database.DSH.Impossible
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Opt.Aux
+import Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
 
 --------------------------------------------------------------------------------
@@ -306,23 +307,6 @@ fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
--- | Insert a guard in a qualifier list at the first possible
--- position.
-insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
-insertGuard guardExpr initialEnv quals = insert initialEnv quals
-  where
-    insert :: S.Set Ident -> NL Qual -> NL Qual
-    insert env (S q)             = 
-        if all (\v -> S.member v env) fvs
-        then GuardQ guardExpr :* S q
-        else q :* (S $ GuardQ guardExpr)
-    insert env (q@(BindQ x _) :* qs) = 
-        if all (\v -> S.member v env) fvs
-        then GuardQ guardExpr :* q :* qs
-        else q :* insert (S.insert x env) qs
-    insert _ (GuardQ _ :* _)      = $impossible
-
-    fvs = freeVars guardExpr
 
 tryGuardsForJoin :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
 -- Try the next guard for a join
