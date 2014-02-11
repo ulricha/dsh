@@ -50,28 +50,10 @@ pairR = do
     guardM $ x == x'
     return v
     
--- | Merge two filters stacked on top of each other.
-mergeFilterR :: RewriteC Expr
-mergeFilterR = do
-    AppE2 _ (Prim2 Filter _) 
-            (Lam _ x1 p1)
-            (AppE2 _ (Prim2 Filter _)
-                     (Lam _ x2 p2)
-                     xs)                <- idR
-
-    let xt = elemT $ typeOf xs
-                     
-    p2' <- (constT $ return $ inject p2) >>> substR x2 (Var xt x1) >>> projectT
-    
-    let p' = BinOp (xt .-> boolT) Conj p1 p2'
-    
-    return $ P.filter (Lam (xt .-> boolT) x1 p') xs
-    
 houseCleaningR :: RewriteC CL
 houseCleaningR = promoteR $ (identityMapR >>> debugTrace "identityMap")
                             <+ (identityCompR >>> debugTrace "identityCompR")
                             <+ (pairR >>> debugTrace "pair")
-                            <+ (mergeFilterR >>> debugTrace "mergefilter")
                
 --------------------------------------------------------------------------------
 -- Partial evaluation rules
