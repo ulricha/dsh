@@ -118,7 +118,6 @@ Library
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.FlatJoin
                      Database.DSH.CL.Opt.NestJoin
-                     Database.DSH.CL.Opt.Operators
                      Database.DSH.FKL.Data.FKL
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render

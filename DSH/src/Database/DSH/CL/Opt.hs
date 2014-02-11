@@ -22,7 +22,6 @@ import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
 import Database.DSH.CL.Opt.NestJoin
-import Database.DSH.CL.Opt.Operators
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -53,12 +52,6 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
     -- current expression or the second child expression (when head was factored
     -- out, i.e. a map introduced).
     cleanupNestJoinR = repeatR $ anytdR (combineNestJoinsR >>> debugTrace "combinenestjoins")
-
-selectComplexR :: RewriteC CL
-selectComplexR = promoteR pushComplexFilters >+> selectR isLocalComplexPred
-
-selectSimpleR :: RewriteC CL
-selectSimpleR = promoteR pushSimpleFilters >+> selectR isSimplePred
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
