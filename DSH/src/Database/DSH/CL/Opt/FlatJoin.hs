@@ -84,9 +84,8 @@ eqjoinQualEndR = do
 
     return (S q')
 
--- FIXME return after the first match
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
-eqjoinQualsR = anytdR $ repeatR (eqjoinQualEndR <+ eqjoinQualR)
+eqjoinQualsR = onetdR (eqjoinQualEndR <+ eqjoinQualR)
     
 eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
 eqjoinR currentGuards testedGuards = do
@@ -134,7 +133,7 @@ elemEndR = do
     return (S q')
     
 existentialQualsR :: RewriteC (NL Qual)
-existentialQualsR = anytdR $ repeatR (elemR <+ elemEndR)
+existentialQualsR = onetdR (elemR <+ elemEndR)
 
 semijoinR :: RewriteC CL
 semijoinR = do
@@ -259,7 +258,7 @@ mkClass15AntiJoinT x xs y ys p q = do
     return q'
 
 universalQualsR :: RewriteC (NL Qual)
-universalQualsR = anytdR $ basicAntiJoinR 
+universalQualsR = onetdR $ basicAntiJoinR 
                            <+ basicAntiJoinEndR 
                            <+ notinR
                            <+ notinEndR
