@@ -274,7 +274,6 @@ antijoinR = do
 ------------------------------------------------------------------------
 -- Flat join detection
 
-data Comp = C Type Expr (NL Qual)
 
 -- | Try to build a join from a list of generators and a single
 -- guard. If we can build an equi join, the remaining predicates must
@@ -303,58 +302,6 @@ mkFlatJoin comp guard guardsToTry leftOverGuards = do
         (ExprCL (Comp ty h qs), guardsToTry', leftOverGuards') <- return res
         return (C ty h qs, guardsToTry', leftOverGuards')
 
-fromQual :: Qual -> Either Qual Expr
-fromQual (BindQ x e) = Left $ BindQ x e
-fromQual (GuardQ p)  = Right p
-
-
-tryGuardsForJoin :: Comp -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr])
--- Try the next guard for a join
-tryGuardsForJoin comp (p : ps) testedGuards = do
-    let tryJoin :: TranslateC () (Comp, [Expr])
-        tryJoin = do
-            -- Try p for a join
-            (comp', ps', testedGuards') <- mkFlatJoin comp p ps testedGuards
-            
-            -- If we succeeded for p, try the remaining guards.
-            (tryGuardsForJoin comp' ps' testedGuards')
-
-            -- Even if we failed for the remaining guards, we report a success,
-            -- since we succeeded for p
-              <+ (return (comp', ps' ++ testedGuards'))
-
-        -- If the current guard failed, try the next ones.
-        tryOthers :: TranslateC () (Comp, [Expr])
-        tryOthers = tryGuardsForJoin comp ps (p : testedGuards)
-
-    tryJoin <+ tryOthers   
-        
--- No guards left to try and none succeeded
-tryGuardsForJoin _ [] _ = fail "no predicate could be merged"
-
-joinStep :: RewriteC (Comp, [Expr])
-joinStep = do
-    (comp, guards) <- idR
-    constT (return ()) >>> tryGuardsForJoin comp guards []
-
--- | Try to build flat joins (equi-, semi- and antijoins) from a
--- comprehensions qualifier list.
--- FIXME only try on those predicates that look like equi-/anti-/semi-join predicates.
 flatjoinsR :: RewriteC CL
-flatjoinsR = do
-    ExprCL (Comp ty e qs) <- idR
-    
-    -- Separate generators from guards
-    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+flatjoinsR = mergeGuardsIterR mkFlatJoin
 
-    let initArg = (C ty e (fromListSafe g gs), guards)
-
-    -- Iteratively try to form joins until we reach a fixed point
-    (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR joinStep
-
-    -- If there are any guards remaining which we could not turn into
-    -- joins, append them at the end of the new qualifier list
-    case remGuards of
-        rg : rgs -> let rqs = fmap GuardQ $ fromListSafe rg rgs
-                    in return $ ExprCL $ Comp ty e' (appendNL qs' rqs)
-        []       -> return $ ExprCL $ Comp ty e' qs'

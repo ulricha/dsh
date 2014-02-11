@@ -26,6 +26,9 @@ module Database.DSH.CL.Opt.Aux
     , tuplifyR
       -- * Combining generators and guards
     , insertGuard
+      -- * Generic iterator to merge guards into generators
+    , Comp(..)
+    , mergeGuardsIterR
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -43,6 +46,7 @@ import qualified Data.Foldable as F
 import           Data.List
 import           Debug.Trace
 import qualified Data.Set as S
+import           Data.Either
 
 import           Language.KURE                 
 
@@ -431,6 +435,72 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
     go _ (GuardQ _ :* _)      = $impossible
 
     fvs = freeVars guardExpr
+
+------------------------------------------------------------------------
+-- Generic iterator that merges guards into generators one by one.
+
+data Comp = C Type Expr (NL Qual)
+
+fromQual :: Qual -> Either Qual Expr
+fromQual (BindQ x e) = Left $ BindQ x e
+fromQual (GuardQ p)  = Right p
+
+type MergeGuard = Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
+
+tryGuards :: MergeGuard
+          -> Comp 
+          -> [Expr] 
+          -> [Expr] 
+          -> TranslateC () (Comp, [Expr])
+-- Try the next guard
+tryGuards mergeGuardR comp (p : ps) testedGuards = do
+    let tryNextGuard :: TranslateC () (Comp, [Expr])
+        tryNextGuard = do
+            -- Try to combine p with some generators
+            (comp', ps', testedGuards') <- mergeGuardR comp p ps testedGuards
+            
+            -- If we succeeded for p, try the remaining guards.
+            (tryGuards mergeGuardR comp' ps' testedGuards')
+
+            -- Even if we failed for the remaining guards, we report a success,
+            -- since we succeeded for p
+              <+ (return (comp', ps' ++ testedGuards'))
+
+        -- If the current guard failed, try the next ones.
+        tryOtherGuards :: TranslateC () (Comp, [Expr])
+        tryOtherGuards = tryGuards mergeGuardR comp ps (p : testedGuards)
+
+    tryNextGuard <+ tryOtherGuards
+        
+-- No guards left to try and none succeeded
+tryGuards _ _ [] _ = fail "no predicate could be merged"
+
+mergeStepR :: MergeGuard -> RewriteC (Comp, [Expr])
+mergeStepR mergeGuardR = do
+    (comp, guards) <- idR
+    constT (return ()) >>> tryGuards mergeGuardR comp guards []
+
+-- | Try to build flat joins (equi-, semi- and antijoins) from a
+-- comprehensions qualifier list.
+-- FIXME only try on those predicates that look like equi-/anti-/semi-join predicates.
+mergeGuardsIterR :: MergeGuard -> RewriteC CL
+mergeGuardsIterR mergeGuardR = do
+    ExprCL (Comp ty e qs) <- idR
+    
+    -- Separate generators from guards
+    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+
+    let initArg = (C ty e (fromListSafe g gs), guards)
+
+    -- Iteratively try to form joins until we reach a fixed point
+    (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR (mergeStepR mergeGuardR)
+
+    -- If there are any guards remaining which we could not turn into
+    -- joins, append them at the end of the new qualifier list
+    case remGuards of
+        rg : rgs -> let rqs = fmap GuardQ $ fromListSafe rg rgs
+                    in return $ ExprCL $ Comp ty e' (appendNL qs' rqs)
+        []       -> return $ ExprCL $ Comp ty e' qs'
 
 --------------------------------------------------------------------------------
 -- Traversal functions
