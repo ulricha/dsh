@@ -28,6 +28,7 @@ module Database.DSH.CL.Opt.Aux
     , insertGuard
       -- * Generic iterator to merge guards into generators
     , Comp(..)
+    , MergeGuard
     , mergeGuardsIterR
       -- * NL spine traversal
     , onetdSpineT
@@ -439,18 +440,25 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
 ------------------------------------------------------------------------
 -- Generic iterator that merges guards into generators one by one.
 
+-- | A container for the components of a comprehension expression
 data Comp = C Type Expr (NL Qual)
 
 fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
+-- | Type of worker functions for that merge guards into
+-- generators. It receives the comprehension itself (with a qualifier
+-- list that consists solely of generators), the current candidate
+-- guard expression, guard expressions that have to be tried and guard
+-- expressions that have been tried already. Last two are necessary if
+-- the merging steps leads to tuplification.
 type MergeGuard = Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
 
-tryGuards :: MergeGuard
-          -> Comp 
-          -> [Expr] 
-          -> [Expr] 
+tryGuards :: MergeGuard  -- ^ The worker function
+          -> Comp        -- ^ The current state of the comprehension
+          -> [Expr]      -- ^ Guards to try
+          -> [Expr]      -- ^ Guards that have been tried and failed
           -> TranslateC () (Comp, [Expr])
 -- Try the next guard
 tryGuards mergeGuardR comp (p : ps) testedGuards = do

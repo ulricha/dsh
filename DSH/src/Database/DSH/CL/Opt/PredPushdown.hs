@@ -4,16 +4,17 @@
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE LambdaCase          #-}
     
--- | This module implements classic algebraic rewrites on the CL
--- algebra equivalents (filter, joins, ...).
-module Database.DSH.CL.Opt.Algebraic
-  ( pushDownPredicatesR
+-- | This module implements predicate pushdown on comprehensions.
+module Database.DSH.CL.Opt.PredPushdown
+  ( predpushdownR
   ) where
   
 import Debug.Trace
 
 import           Control.Applicative
 import           Control.Arrow
+import qualified Data.Set as S
+import qualified Data.Map as M
 
 import Database.DSH.Impossible
 
@@ -117,23 +118,35 @@ pushPredicateR x p = do
         ExprCL (AppE2 _ (Prim2 (AntiJoin _ _) _) _ _) -> pushLeftR x p
         _                                             -> fail "expression does not allow predicate pushing"
 
-pushBinaryQualsR :: RewriteC CL
-pushBinaryQualsR = do
+pushQualsR :: RewriteC CL
+pushQualsR = do
     BindQ x _ :* GuardQ p :* qs <- promoteT idR
     [x'] <- return $ freeVars p
     guardM $ x == x'
     ExprCL gen' <- pathT [QualsHead, BindQualExpr] (pushPredicateR x p)
     return $ inject $ BindQ x gen' :* qs
 
-pushBinaryQualsEndR :: RewriteC CL
-pushBinaryQualsEndR = do
+pushQualsEndR :: RewriteC CL
+pushQualsEndR = do
     BindQ x _ :* (S (GuardQ p)) <- promoteT idR
     [x'] <- return $ freeVars p
     guardM $ x == x'
     ExprCL gen' <- pathT [QualsHead, BindQualExpr] (pushPredicateR x p)
     return $ inject $ S $ BindQ x gen'
 
-pushDownPredicatesR :: RewriteC CL
-pushDownPredicatesR = do
+pushDownSinglePredR :: RewriteC CL
+pushDownSinglePredR = do
     Comp _ _ _ <- promoteT idR
-    childR CompQuals (promoteR $ pushBinaryQualsR <+ pushBinaryQualsEndR)
+    childR CompQuals (promoteR $ pushQualsR <+ pushQualsEndR)
+
+pushDownPredsR :: MergeGuard
+pushDownPredsR comp guard guardsToTry leftOverGuards = do
+    let C ty h qs = comp
+    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
+    ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> pushDownSinglePredR
+    return (C ty h qs', guardsToTry, leftOverGuards)
+
+-- | Push down all guards in a qualifier list, if possible.
+predpushdownR :: RewriteC CL
+predpushdownR = mergeGuardsIterR pushDownPredsR

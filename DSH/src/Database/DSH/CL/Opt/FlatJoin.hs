@@ -278,7 +278,7 @@ antijoinR = do
 -- | Try to build a join from a list of generators and a single
 -- guard. If we can build an equi join, the remaining predicates must
 -- be tuplified. For this reason, we pass them in here.
-mkFlatJoin :: Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
+mkFlatJoin :: MergeGuard
 mkFlatJoin comp guard guardsToTry leftOverGuards = do
     let C ty h qs = comp
     env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT

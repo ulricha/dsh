@@ -17,7 +17,7 @@ import Database.DSH.CL.Kure
 
 import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Support
-import Database.DSH.CL.Opt.Algebraic
+import Database.DSH.CL.Opt.PredPushdown
 import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
@@ -89,7 +89,7 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
               (normalizeAlwaysR
                  <+ compNormEarlyR
                  <+ flatjoinsR
-                 <+ pushDownPredicatesR
+                 <+ predpushdownR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
         
