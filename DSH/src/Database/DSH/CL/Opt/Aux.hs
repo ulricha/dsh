@@ -428,7 +428,7 @@ onetdSpineT t = do
 
 -- | trace output of the value being rewritten; use for debugging only.
 prettyR :: (Monad m, Pretty a) => Int -> String -> Rewrite c m a
-prettyR n msg = acceptR (\ a -> trace (msg ++ ": " ++ pp a) True)
+prettyR n msg = acceptR (\ a -> trace (msg ++ pp a) True)
            
 debug :: Pretty a => String -> a -> b -> b
 debug msg a b =
