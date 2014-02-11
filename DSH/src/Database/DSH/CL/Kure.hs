@@ -381,34 +381,34 @@ instance Walker CompCtx CL where
         {-# INLINE allRexpr #-}
             
 --------------------------------------------------------------------------------
--- A Walker instance for polymorphic NL lists so that we can use the traversal
--- infrastructure on lists.
+-- A Walker instance for qualifier lists so that we can use the
+-- traversal infrastructure on lists.
    
-consT :: Monad m => Translate CompCtx m (NL a) b
-                 -> (a -> b -> c)
-                 -> Translate CompCtx m (NL a) c
+consT :: Monad m => Translate CompCtx m (NL Qual) b
+                 -> (Qual -> b -> c)
+                 -> Translate CompCtx m (NL Qual) c
 consT t f = translate $ \ctx nl -> case nl of
-                a :* as -> f a <$> apply t (ctx@@NLConsTail) as
+                a :* as -> f a <$> apply t (bindQual (ctx@@NLConsTail) a) as
                 S _     -> fail "not a nonempty cons"
 {-# INLINE consT #-}                      
                     
-consR :: Monad m => Rewrite CompCtx m (NL a) 
-                 -> Rewrite CompCtx m (NL a)
+consR :: Monad m => Rewrite CompCtx m (NL Qual) 
+                 -> Rewrite CompCtx m (NL Qual)
 consR t = consT t (:*)                 
 {-# INLINE consR #-}                      
 
-singletonT :: Monad m => (a -> c)
-                      -> Translate CompCtx m (NL a) c
+singletonT :: Monad m => (Qual -> c)
+                      -> Translate CompCtx m (NL Qual) c
 singletonT f = contextfreeT $ \nl -> case nl of
                    S a    -> return $ f a
                    _ :* _ -> fail "not a nonempty singleton"
 {-# INLINE singletonT #-}                      
                
-singletonR :: Monad m => Rewrite CompCtx m (NL a)
+singletonR :: Monad m => Rewrite CompCtx m (NL Qual)
 singletonR = singletonT S                      
 {-# INLINE singletonR #-}                      
                    
-instance Walker CompCtx (NL a) where
+instance Walker CompCtx (NL Qual) where
     allR r = consR r <+ singletonR
     
 --------------------------------------------------------------------------------
