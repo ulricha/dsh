@@ -29,7 +29,7 @@ import Database.DSH.CL.Opt.Operators
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR <+ algebraicRewritesR) 
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
            >>> debugShow "after cleanup"
 
 -- FIXME add m_norm_1R once tables for benchmark queries exist
@@ -64,7 +64,7 @@ selectSimpleR = promoteR pushSimpleFilters >+> selectR isSimplePred
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybuR selectComplexR )
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -88,8 +88,8 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybu
               debugPretty "comp at" (e :: Expr)
               (normalizeAlwaysR
                  <+ compNormEarlyR
-                 <+ selectSimpleR
                  <+ flatjoinsR
+                 <+ pushDownPredicatesR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
         
