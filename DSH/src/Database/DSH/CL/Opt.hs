@@ -34,7 +34,7 @@ cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_2R <+ m_norm_3R
+compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites should
 -- propably occur late in the chain, as they might prohibit semijoin/antijoin
@@ -57,7 +57,7 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytdR factorConstantPredsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case

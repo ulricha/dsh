@@ -12,7 +12,7 @@ module Database.DSH.CL.Kure
     , module Language.KURE.Lens
 
       -- * The KURE monad
-    , CompM, CompSM, TranslateC, RewriteC, LensC, freshName
+    , CompM, CompSM, TranslateC, RewriteC, LensC, freshName, freshNameT
     
       -- * Setters and getters for the translation state
     , get, put, modify
@@ -22,7 +22,7 @@ module Database.DSH.CL.Kure
 
       -- * The KURE context
     , CompCtx(..), CrumbC(..), PathC, initialCtx, freeIn, boundIn
-    , inScopeVars, bindQual, bindVar
+    , inScopeNames, bindQual, bindVar
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
@@ -39,6 +39,7 @@ import           Control.Monad
 import           Data.Monoid
 import qualified Data.Map as M
 import qualified Data.Foldable as F
+import           Text.PrettyPrint.ANSI.Leijen(text)
 
 import           Language.KURE
 import           Language.KURE.Lens
@@ -77,6 +78,9 @@ data CrumbC = AppFun
             | NLConsTail
             deriving (Eq, Show)
 
+instance Pretty CrumbC where
+    pretty c = text $ show c
+
 type AbsPathC = AbsolutePath CrumbC
 
 type PathC = Path CrumbC
@@ -104,14 +108,20 @@ bindQual :: CompCtx -> Qual -> CompCtx
 bindQual ctx (BindQ n e) = bindVar n (elemT $ typeOf e) ctx
 bindQual ctx _           = ctx
          
-inScopeVars :: CompCtx -> [Ident]
-inScopeVars = M.keys . cl_bindings
+inScopeNames :: CompCtx -> [Ident]
+inScopeNames = M.keys . cl_bindings
 
 boundIn :: Ident -> CompCtx -> Bool
 boundIn n ctx = n `M.member` (cl_bindings ctx)
 
 freeIn :: Ident -> CompCtx -> Bool
 freeIn n ctx = n `M.notMember` (cl_bindings ctx)
+
+-- | Generate a fresh name that is not bound in the current context.
+freshNameT :: TranslateC a Ident
+freshNameT = do
+    ctx <- contextT
+    constT $ freshName (inScopeNames ctx)
 
 --------------------------------------------------------------------------------
 -- Support for stateful translates

@@ -142,7 +142,7 @@ pushDownSinglePredR = do
 pushDownPredsR :: MergeGuard
 pushDownPredsR comp guard guardsToTry leftOverGuards = do
     let C ty h qs = comp
-    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    env <- S.fromList <$> inScopeNames <$> contextT
     let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
     ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> pushDownSinglePredR
     return (C ty h qs', guardsToTry, leftOverGuards)

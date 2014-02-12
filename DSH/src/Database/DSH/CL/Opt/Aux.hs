@@ -212,7 +212,7 @@ compBoundVars qs = F.foldr aux [] qs
 
 alphaLamR :: RewriteC Expr
 alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
-               v' <- constT $ freshName (inScopeVars ctx)
+               v' <- constT $ freshName (inScopeNames ctx)
                let varTy = domainT lamTy
                lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
               

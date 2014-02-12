@@ -91,7 +91,7 @@ freshNameS vs = do v <- suggestName'
                    if v `elem` vs
                      then freshNameS vs
                      else return v
-                     
+
 get :: CompSM s s
 get = CompM $ \(i, s) -> ((i, s), Right s)
 {-# INLINE get #-}

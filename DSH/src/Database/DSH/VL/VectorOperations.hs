@@ -692,7 +692,6 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                           <*> pure x <*> pure f1 <*> pure f2
 concatV e                  = error $ "Not supported by concatV: " ++ show e
 
-
 singletonVec ::  Shape -> Graph VL Shape
 singletonVec (ValueVector q lyt) = do
     (DVec d _) <- vlSingletonDescr
