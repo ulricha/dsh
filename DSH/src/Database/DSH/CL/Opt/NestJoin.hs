@@ -10,8 +10,6 @@ module Database.DSH.CL.Opt.NestJoin
   , combineNestJoinsR 
   ) where
   
-import           Debug.Trace
-       
 import           Control.Applicative((<$>))
 import           Control.Arrow
 
@@ -28,8 +26,6 @@ import           Database.DSH.Impossible
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
                  
-import           Language.KURE.Debug
-
 import qualified Database.DSH.CL.Primitives as P
 
 import           Database.DSH.CL.Opt.Aux
@@ -287,26 +283,27 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     mknestjoinT t1 t2 h y ys innerQuals x xs outerPreds = do
 
         -- On the inner comprehension, there should be only predicates
-        -- (besides y < ys...)
+        -- (besides y <- ys...)
         innerPreds                   <- constT $ mapM fromGuard $ toList innerQuals
 
         -- We expect exactly one predicate which can be used to
         -- construct the join.
-        ([nestJoinPred], otherPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+        (nestJoinPred : remJoinPreds, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+
+        -- Identify predicates which only refer to y and can be
+        -- evaluated on the right nestjoin input.
+        let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
+
+        -- Left over we have predicates which (propably) refer to both
+        -- x and y and are not/can not be used as the join predicate.
+        -- let remPreds' = undefined (remJoinPreds ++ remPreds)
+        -- remPreds''
   
-        -- Other predicates should refer to y only, so that we can
-        -- safely move it out of the x scope.  
-
-        -- FIXME In principle, additional predicates which do not
-        -- refer to x might safely refer to variables which are bound
-        -- in the scope enclosing x.
-
         -- FIXME This is still too restrictive. Additional predicates
         -- which refer to x and y are fine, but must be handled
         -- specially.
         --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
         -- => [ [ e [fst x/x] y | y <- snd x, p'[fst x/x] ] | x <- xs nj(p) ys ]
-        guardM $ all (([y] ==) . freeVars) otherPreds
   
         -- Split the join predicate
         (leftExpr, rightExpr) <- constT (return nestJoinPred) >>> splitJoinPredT x y
@@ -317,12 +314,23 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
             joinType = listT xt .-> (listT yt .-> listT tupType)
             joinVar  = Var tupType x
             
+        -- Turn access to the variable x of the outer comprehension
+        -- into access to the corresponding field of the pairs
+        -- produced by the nestjoin.
+        let tuplifyOuterVarR :: Expr -> TranslateC CL Expr
+            tuplifyOuterVarR e = constT (return e) >>> (extractR $ tryR $ substR x (P.fst joinVar))
+
         -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- constT (return h) >>> (extractR $ tryR $ substR x (P.fst joinVar))
+        h' <- tuplifyOuterVarR h
+
+        -- Do the same on left over predicates, which will be
+        -- evaluated on the nestjoin result.
+        remPreds <- sequence $ map tuplifyOuterVarR (remJoinPreds ++ leftOverPreds)
+        let remGuards = map GuardQ remPreds
 
         -- If there are inner predicates which only refer to y,
         -- evaluate them on the right (ys) nestjoin input.
-        let ys' = case fromList otherPreds of
+        let ys' = case fromList yPreds of
                       Just ps -> Comp (listT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
                       Nothing -> ys
 
@@ -330,16 +338,20 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         -- xs nj(p) ys
         let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys'
 
-        let headComp = case h of
+        let headComp = case (h, remGuards) of
                 -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
                 -- => We can remove the inner comprehension entirely
-                Var _ y' | y == y' -> P.snd joinVar
-                
+                (Var _ y', []) | y == y' -> P.snd joinVar
+
                 -- The complex case: the inner comprehension has a non-idenity
                 -- head: 
                 -- [ h | y <- ys, p ] => [ h[fst x/x] | y <- snd x ] 
+                -- And/or there are additional predicates p' x y
+                -- [ h | y <- ys, ..., p' x y, ...] => [ h[fst x/x] | y < snd x, p'[snd x/x] ]
                 -- It is safe to re-use y here, because we just re-bind the generator.
-                _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+                (_, g : gs)              -> Comp t2 h' (BindQ y (P.snd joinVar) :* fromListSafe g gs)
+                (_, [])                  -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+                
 
         preds' <- constT (return $ map inject outerPreds) 
                   >>> mapT (tryR $ substR x (P.fst joinVar))
@@ -356,8 +368,6 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
-        q@(Comp _ _ _) <- promoteT idR
-
         -- [ [ h | y <- ys, p ] | x <- xs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs)) <- promoteT idR
         
@@ -372,10 +382,6 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompT :: TranslateC CL Expr
     singleCompT = do
-    
-        q@(Comp _ _ _) <- promoteT idR
-        -- debugUnit "singleCompT at" (q :: Expr)
-
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
         Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs) <- promoteT idR
         
