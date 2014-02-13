@@ -488,7 +488,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         
 nestjoinHeadR :: RewriteC CL
 nestjoinHeadR = do
-    c@(Comp _ _ _) <- promoteT idR
+    Comp _ _ _ <- promoteT idR
     -- debugUnit "nestjoinR at" c
     -- FIXME ensure that we choose the right child
     unnestHeadR <+ (factoroutHeadR >>> childR AppE2Arg2 unnestHeadR)
@@ -510,7 +510,7 @@ nestjoinHeadR = do
 --   c = [ fst x/x] | y <- snd x ]
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
-    c@(Comp t _ _)         <- promoteT idR 
+    Comp t _ _          <- promoteT idR 
     (tuplifyHeadR, qs') <- statefulT idR 
                            $ childT CompQuals (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
@@ -523,7 +523,6 @@ nestjoinGuardR = do
     unnestGuardT :: Ident -> Expr -> TranslateC Expr (RewriteC CL, Expr, Expr)
     unnestGuardT x xs = do
     
-        e <- idR
         -- debugUnit "unnestGuard at" (e :: Expr)
         -- FIXME passing x is not necessary since we are not interested in
         -- collecting variables.
@@ -579,7 +578,7 @@ nestjoinGuardR = do
         
     unnestQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     unnestQualsEndR = do
-        c@(BindQ x xs :* (S (GuardQ p))) <- idR
+        BindQ x xs :* (S (GuardQ p)) <- idR
         -- debugUnit "qualsEndR at" c
         (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
         -- debugUnit "qualsEndR (1)" xs'
@@ -614,17 +613,17 @@ nestjoinGuardR = do
 
 combineNestJoinsR :: RewriteC CL
 combineNestJoinsR = do
-    AppE2 tz (Prim2 Zip _) (Comp tc1 f qs) (Comp tx2 g qs') <- promoteT idR
+    AppE2 _ (Prim2 Zip _) (Comp _ f qs) (Comp _ g qs') <- promoteT idR
     
     case (qs, qs') of
-        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)),
+        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)),
           S (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)))       -> do
 
             guardM $ x == x'
             guardM $ xs == xs'
             inject <$> fst <$> combineCompsT x xsys zs f g p1 p2
               
-        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)) :* qgs,
+        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)) :* qgs,
           (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)) :* qgs') -> do
 
             guardM $ x == x'
@@ -632,8 +631,8 @@ combineNestJoinsR = do
             guardM $ qgs == qgs'
 
             (Comp t h (S q), tuplifyxR) <- combineCompsT x xsys zs f g p1 p2
-            qgs' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
-            return $ inject $ Comp t h (q :* qgs')
+            qgs'' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
+            return $ inject $ Comp t h (q :* qgs'')
           
         (_, _) ->
             fail "no match" 
