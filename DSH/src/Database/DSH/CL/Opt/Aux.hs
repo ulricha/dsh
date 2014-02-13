@@ -11,8 +11,9 @@ module Database.DSH.CL.Opt.Aux
       -- * Converting predicate expressions into join predicates
     , splitJoinPredT
     -- * Pushing guards towards the front of a qualifier list
-    , isSimplePred
-    , isLocalComplexPred
+    , isEquiJoinPred
+    , isSemiJoinPred
+    , isAntiJoinPred
       -- * Free and bound variables
     , freeVars
     , compBoundVars
@@ -114,42 +115,28 @@ splitJoinPredT x y = do
 --------------------------------------------------------------------------------
 -- Distinguish certain kinds of guards
 
-isEquiJoinPred :: [Ident] -> Expr -> Bool
-isEquiJoinPred locallyBoundVars (BinOp _ Eq e1 e2) = 
-    isFlatExpr e1 
-    && isFlatExpr e2
-    && length fv1 == 1
-    && length fv2 == 1
-    && fv1 /= fv2
-    
-    -- For an equi join predicate which we would like to push, only variables
-    -- bound by local generators might occur. This restriction should avoid the
-    -- case that a predicate which correlates with an outer comprehension blocks
-    -- a local equijoin predicate from being pushed next to its generators.
-    && (fv1 ++ fv2) `subset` locallyBoundVars
+-- | An expression qualifies for an equijoin predicate if both sides
+-- are scalar expressions on exactly one of the join candidate
+-- variables.
+isEquiJoinPred :: Ident -> Ident -> Expr -> Bool
+isEquiJoinPred x y (BinOp _ Eq e1 e2) = 
+    isFlatExpr e1 && isFlatExpr e1
+    && ([x] == freeVars e1 && [y] == freeVars e2
+        || [x] == freeVars e2 && [y] == freeVars e1)
+isEquiJoinPred _ _ _ = False
 
-  where fv1 = freeVars e1
-        fv2 = freeVars e2
-        
-        subset :: Eq a => [a] -> [a] -> Bool
-        subset as bs = all (\a -> any (== a) bs) as
-isEquiJoinPred _ _                  = False
-
--- | Does the predicate look like an existential quantifier and is eligible for
--- pushing? Note: In addition to the variables that are bound by the current
--- qualifier list, we need to pass the variable bound by the existential
--- comprehension to isEquiJoinPred, because it might (and should) occur in the
--- predicate.
-isSemiJoinPred :: [Ident] -> Expr -> Bool
-isSemiJoinPred vs (AppE1 _ (Prim1 Or _) 
+-- | Does the predicate look like an existential quantifier? 
+isSemiJoinPred :: Ident -> Expr -> Bool
+isSemiJoinPred x (AppE1 _ (Prim1 Or _) 
                            (Comp _ p 
-                                   (S (BindQ x _)))) = isEquiJoinPred (x : vs) p
+                                   (S (BindQ y _)))) = isEquiJoinPred x y p
 isSemiJoinPred _  _                                  = False
 
-isAntiJoinPred :: [Ident] -> Expr -> Bool
-isAntiJoinPred vs (AppE1 _ (Prim1 And _) 
+-- | Does the predicate look like an universal quantifier? 
+isAntiJoinPred :: Ident -> Expr -> Bool
+isAntiJoinPred x (AppE1 _ (Prim1 And _) 
                            (Comp _ p
-                                   (S (BindQ x _)))) = isEquiJoinPred (x : vs) p
+                                   (S (BindQ y _)))) = isEquiJoinPred x y p
 isAntiJoinPred _  _                                  = False
 
 isFlatExpr :: Expr -> Bool
@@ -163,30 +150,6 @@ isFlatExpr expr =
         Lit _ _                 -> True
         _                       -> False
         
-
--- A simple predicate is a predicate that we may push early into
--- generators. Requirements are
--- - It is local, i.e. refers only to vars bound in the local comprehension
--- - It only refers to one generator (i.e. a local one)
--- - It is structurally simple, i.e. flat. comparison
-isSimplePred :: [Ident] -> Expr -> Bool
-isSimplePred localScope e = 
-  isLocalPred localScope e
-  &&
-  length (freeVars e) == 1
-  &&
-  isFlatExpr e
-
-isLocalComplexPred :: [Ident] -> Expr -> Bool
-isLocalComplexPred localScope e =
-    isLocalPred localScope e
-    && length (freeVars e) == 1
-
--- | Are all free variables in the predicate bound in the local comprehension?
-isLocalPred :: [Ident] -> Expr -> Bool
-isLocalPred localScope e = all (\v -> v `elem` localScope) (freeVars e)
-
-
 --------------------------------------------------------------------------------
 -- Computation of free variables
 
