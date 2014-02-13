@@ -19,6 +19,7 @@ import           Data.Either
 
 import qualified Data.Foldable as F
 
+import           Data.List
 import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 import qualified Data.List.NonEmpty as N
 
@@ -263,6 +264,9 @@ tupleComponentsT = do
     singleT :: TranslateC CL (NonEmpty Expr)
     singleT = (:| []) <$> (promoteT idR)
 
+fromGuard :: Monad m => Qual -> m Expr
+fromGuard (GuardQ e)  = return e
+fromGuard (BindQ _ _) = fail "not a guard"
     
 -- | Base case for nestjoin introduction: consider comprehensions in which only
 -- a single inner comprehension occurs in the head.
@@ -275,15 +279,37 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
       -> Expr    -- ^ Head of the inner comprehension
       -> Ident   -- ^ Variable for the inner generator
       -> Expr    -- ^ Source for the inner generator
-      -> Expr    -- ^ Inner predicate
+      -> NL Qual -- ^ Inner predicates
       -> Ident   -- ^ Outer generator variable
       -> Expr    -- ^ Outer generator source
       -> [Qual]  -- ^ Possibly additional outer qualifiers
       -> TranslateC CL Expr
-    mknestjoinT t1 t2 h y ys p x xs preds = do
+    mknestjoinT t1 t2 h y ys innerQuals x xs outerPreds = do
+
+        -- On the inner comprehension, there should be only predicates
+        -- (besides y < ys...)
+        innerPreds                   <- constT $ mapM fromGuard $ toList innerQuals
+
+        -- We expect exactly one predicate which can be used to
+        -- construct the join.
+        ([nestJoinPred], otherPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+  
+        -- Other predicates should refer to y only, so that we can
+        -- safely move it out of the x scope.  
+
+        -- FIXME In principle, additional predicates which do not
+        -- refer to x might safely refer to variables which are bound
+        -- in the scope enclosing x.
+
+        -- FIXME This is still too restrictive. Additional predicates
+        -- which refer to x and y are fine, but must be handled
+        -- specially.
+        --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
+        -- => [ [ e [fst x/x] y | y <- snd x, p'[fst x/x] ] | x <- xs nj(p) ys ]
+        guardM $ all (([y] ==) . freeVars) otherPreds
   
         -- Split the join predicate
-        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
+        (leftExpr, rightExpr) <- constT (return nestJoinPred) >>> splitJoinPredT x y
   
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
@@ -294,11 +320,17 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         -- In the head of the inner comprehension, replace x with (snd x)
         h' <- constT (return h) >>> (extractR $ tryR $ substR x (P.fst joinVar))
 
+        -- If there are inner predicates which only refer to y,
+        -- evaluate them on the right (ys) nestjoin input.
+        let ys' = case fromList otherPreds of
+                      Just ps -> Comp (listT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
+                      Nothing -> ys
+
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
-        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
+        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys'
 
-            headComp = case h of
+        let headComp = case h of
                 -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
                 -- => We can remove the inner comprehension entirely
                 Var _ y' | y == y' -> P.snd joinVar
@@ -309,7 +341,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
                 -- It is safe to re-use y here, because we just re-bind the generator.
                 _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
 
-        preds' <- constT (return $ map inject preds) 
+        preds' <- constT (return $ map inject outerPreds) 
                   >>> mapT (tryR $ substR x (P.fst joinVar))
                   >>> mapT projectT
 
@@ -327,8 +359,9 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         q@(Comp _ _ _) <- promoteT idR
 
         -- [ [ h | y <- ys, p ] | x <- xs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
-        mknestjoinT t1 t2 h y ys p x xs []
+        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs)) <- promoteT idR
+        
+        mknestjoinT t1 t2 h y ys ps x xs []
         
     -- The base case: a single comprehension nested in the head of the outer
     -- comprehension. Assume more than one outer qualifier here. However, we
@@ -344,11 +377,11 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         -- debugUnit "singleCompT at" (q :: Expr)
 
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
+        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs) <- promoteT idR
         
         guardM $ all isGuard $ toList qs
         
-        mknestjoinT t1 t2 h y ys p x xs (toList qs)
+        mknestjoinT t1 t2 h y ys ps x xs (toList qs)
 
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
