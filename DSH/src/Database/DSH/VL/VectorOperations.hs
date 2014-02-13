@@ -206,7 +206,7 @@ dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
 dropLift _ _ = error "dropLift: Should not be possible"
 
 nubPrim ::  Shape -> Graph VL Shape
-nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUnique q
+nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q
 nubPrim _ = error "nubPrim: Should not be possible"
 
 nubLift ::  Shape -> Graph VL Shape
@@ -691,7 +691,6 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                                                      return (y, val')) fvs)
                                                           <*> pure x <*> pure f1 <*> pure f2
 concatV e                  = error $ "Not supported by concatV: " ++ show e
-
 
 singletonVec ::  Shape -> Graph VL Shape
 singletonVec (ValueVector q lyt) = do

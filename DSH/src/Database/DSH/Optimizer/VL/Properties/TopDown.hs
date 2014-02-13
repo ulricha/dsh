@@ -32,7 +32,6 @@ seed (UnOp op _)   =
     SelectPos1S _ _    -> vPropPairSeed 
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
-    Unique             -> vPropSeed
     UniqueS            -> vPropSeed
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed

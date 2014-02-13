@@ -111,12 +111,11 @@ Library
                      Database.DSH.CL.Opt
                      Database.DSH.CL.Opt.Aux
                      Database.DSH.CL.Opt.Support
-                     Database.DSH.CL.Opt.Algebraic
+                     Database.DSH.CL.Opt.PredPushdown
                      Database.DSH.CL.Opt.Normalize
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.FlatJoin
                      Database.DSH.CL.Opt.NestJoin
-                     Database.DSH.CL.Opt.Operators
                      Database.DSH.FKL.Data.FKL
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render

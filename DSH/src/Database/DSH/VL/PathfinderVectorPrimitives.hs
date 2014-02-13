@@ -319,21 +319,10 @@ instance VectorAlgebra PFAlgebra where
     p <- proj [mP posold pos, mP posnew pos'] q'
     return (DVec r cols, PVec p)
 
-  vecUnique (DVec q cols) = do
-    f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min (ColE pos), posold)] [(resCol, ColE resCol)]
-           $ rank resCol [(itemi i, Asc) | i <- cols] q
-
-    qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
-          $ eqJoin pos posold q f
-    return $ DVec qr cols
-
   vecUniqueS (DVec q cols) = do
-    f <- rownumM posnew [posold] Nothing
-           $ aggrM [(Min (ColE pos), posold)] [(resCol, ColE resCol)]
-           $ rank resCol ((descr, Asc):[(itemi i, Asc) | i <- cols]) q
-    qr <- projM (itemProj cols [cP descr, mP pos posnew]) 
-          $ eqJoin pos posold q f
+    let groupCols = map (\c -> (c, ColE c)) (descr : map itemi cols)
+    qr <- rownumM pos [pos] Nothing
+          $ aggr [(Min (ColE pos), pos)] groupCols q
     return $ DVec qr cols
 
   descToRename (DVec q1 _) = RVec <$> proj [mP posnew descr, mP posold pos] q1

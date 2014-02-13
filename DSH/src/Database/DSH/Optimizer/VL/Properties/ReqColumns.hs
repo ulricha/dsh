@@ -75,8 +75,6 @@ inferReqColumnsUnOp :: VectorProp ReqCols
                 -> VectorProp ReqCols
 inferReqColumnsUnOp ownReqColumns childReqColumns op =
   case op of
-    Unique -> ownReqColumns `union` childReqColumns
-
     UniqueS -> ownReqColumns `union` childReqColumns
 
     Aggr AggrCount -> none `union` childReqColumns

@@ -261,7 +261,6 @@ translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
     Singleton     -> return $ singleton c
     Only          -> return $ only c
-    Unique        -> fromDVec <$> vecUnique (toDVec c)
     UniqueS       -> fromDVec <$> vecUniqueS (toDVec c)
     Number        -> fromDVec <$> vecNumber (toDVec c)
     NumberS       -> fromDVec <$> vecNumberS (toDVec c)

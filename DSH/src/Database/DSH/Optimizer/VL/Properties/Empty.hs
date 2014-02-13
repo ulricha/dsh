@@ -27,7 +27,6 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    Unique -> Right e
     UniqueS -> Right e
     Aggr _ -> Right $ VProp False
     DescToRename -> Right e
