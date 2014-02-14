@@ -122,6 +122,17 @@ cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) =
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 cartProductLift _ _ = $impossible
 
+nestProductPrim :: Shape -> Shape -> Graph VL Shape
+nestProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  q1' <- vlSegment q1
+  vvProd <- cartProductPrim (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  ValueVector qp lytP <- sndL vvProd
+  return $ ValueVector q1 (Pair lyt1 (Nest qp lytP))
+nestProductPrim _ _ = $impossible
+
+nestProductLift :: Shape -> Shape -> Graph VL Shape
+nestProductLift = error "nestProductLift not implemented"
+
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (q', p1, p2) <- vlEquiJoin e1 e2 q1 q2
