@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE LambdaCase          #-}
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt.NestJoin
@@ -266,7 +267,7 @@ fromGuard (BindQ _ _) = fail "not a guard"
 -- | Base case for nestjoin introduction: consider comprehensions in which only
 -- a single inner comprehension occurs in the head.
 unnestHeadBaseT :: TranslateC CL Expr
-unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEndT
+unnestHeadBaseT = singleCompT <+ varCompPairT <+ varCompPairEndT
   where
     mknestjoinT 
       :: Type    -- ^ Type of the outer comprehension
@@ -274,7 +275,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
       -> Expr    -- ^ Head of the inner comprehension
       -> Ident   -- ^ Variable for the inner generator
       -> Expr    -- ^ Source for the inner generator
-      -> NL Qual -- ^ Inner predicates
+      -> [Qual]  -- ^ Inner predicates
       -> Ident   -- ^ Outer generator variable
       -> Expr    -- ^ Outer generator source
       -> [Qual]  -- ^ Possibly additional outer qualifiers
@@ -290,7 +291,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
 
         -- On the inner comprehension, there should be only predicates
         -- (besides y <- ys...)
-        innerPreds                   <- constT $ mapM fromGuard $ toList innerQuals
+        innerPreds                   <- constT $ mapM fromGuard innerQuals
 
         -- We expect exactly one predicate which can be used to
         -- construct the join.
@@ -378,31 +379,35 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
                 
         return $ Comp t1 headComp qs
 
+    
     -- The base case: a single comprehension nested in the head of the outer
-    -- comprehension. Assume only a single outer qualifier here.
-    -- [ [ h y | y <- ys, p ] | x <- xs ]
-    singleCompEndT :: TranslateC CL Expr
-    singleCompEndT = do
-        -- [ [ h | y <- ys, p ] | x <- xs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs)) <- promoteT idR
-        
-        mknestjoinT t1 t2 h y ys ps x xs []
-        
-    -- The base case: a single comprehension nested in the head of the outer
-    -- comprehension. Assume more than one outer qualifier here. However, we
-    -- are conservative and expect only predicates as additional qualifiers
-    -- here. This could propably be extended to more generators, as long as
-    -- those generators do not bind variables which occur free in the inner
-    -- comprehension.
+    -- comprehension. 
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompT :: TranslateC CL Expr
-    singleCompT = do
+    singleCompT = readerT $ \case
+        -- Assume only a single outer qualifier here.
+        -- [ [ h y | y <- ys, p ] | x <- xs ]
+        ExprCL (Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs))) -> 
+            mknestjoinT t1 t2 h y ys (toList ps) x xs []
+
+        ExprCL (Comp t1 (Comp t2 h ((S (BindQ y ys)) )) (S (BindQ x xs))) -> 
+            mknestjoinT t1 t2 h y ys [] x xs []
+
+         -- Assume more than one outer qualifier here. However, we are
+         -- conservative and expect only predicates as additional qualifiers
+         -- here. This could propably be extended to more generators, as long
+         -- as those generators do not bind variables which occur free in the
+         -- inner comprehension.
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs) <- promoteT idR
-        
-        guardM $ all isGuard $ toList qs
-        
-        mknestjoinT t1 t2 h y ys ps x xs (toList qs)
+        ExprCL (Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs)) -> do
+            guardM $ all isGuard $ toList qs
+            mknestjoinT t1 t2 h y ys (toList ps) x xs (toList qs)
+
+        ExprCL (Comp t1 (Comp t2 h ((S (BindQ y ys)))) ((BindQ x xs) :* qs)) -> do
+            guardM $ all isGuard $ toList qs
+            mknestjoinT t1 t2 h y ys [] x xs (toList qs)
+
+        _ -> fail "no match"
 
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
@@ -414,7 +419,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         guardM $ x == x'
         
         -- Reduce to the base case, then unnest, then patch the variable back in
-        (removeVarR <+ removeVarEndR) >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
+        (removeVarR <+ removeVarEndR) >>> injectT >>> singleCompT >>> arr (patchVar x)
 
     varCompPairT :: TranslateC CL Expr
     varCompPairT = do
@@ -426,7 +431,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         guardM $ all isGuard (toList qs)
 
         -- Reduce to the base case, then unnest, then patch the variable back in
-        (removeVarR <+ removeVarEndR) >>> injectT >>> (singleCompEndT <+ singleCompT) >>> arr (patchVar x)
+        (removeVarR <+ removeVarEndR) >>> injectT >>> singleCompT >>> arr (patchVar x)
         
     -- Support rewrite: remove the variable from the outer comprehension head
     -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
