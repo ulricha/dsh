@@ -54,7 +54,6 @@ collectExprT x = prunetdT (collectVar <+ collectComp <+ blockLambda)
     collectComp :: TranslateC CL [HeadExpr]
     collectComp = do
         Comp t h qs <- promoteT idR
-        -- FIXME check here if the comprehension is eligible for unnesting?
         path <- snocPathToPath <$> absPathT
         return [Right (path, t, h, qs)]
         
@@ -282,13 +281,32 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
       -> TranslateC CL Expr
     mknestjoinT t1 t2 h y ys innerQuals x xs outerPreds = do
 
+        -- First, make sure that we don't run into a loop:
+        -- If [ h x y | y <- ys, p x y ] | x <- xs ]
+        -- => [ [ h (fst x) y | y <- snd x, p x y ] | x <- xs NP ys ]
+        -- then we will loop forever, because there is always a comprehension
+        -- in the head.
+        guardM $ not $ x `elem` freeVars ys
+
         -- On the inner comprehension, there should be only predicates
         -- (besides y <- ys...)
         innerPreds                   <- constT $ mapM fromGuard $ toList innerQuals
 
         -- We expect exactly one predicate which can be used to
         -- construct the join.
-        (nestJoinPred : remJoinPreds, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+        (joinPredCandidates, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+
+        -- Determine which operator to use to implement the
+        -- nesting. If there is a join predicate, we use a
+        -- nestjoin. Only if there is no matching join predicate, we
+        -- use a nested cartesian product (nestproduct).
+        (joinOp, remJoinPreds) <- case joinPredCandidates of
+            [] -> return (NestProduct, [])
+            p : ps -> do
+                -- Split the join predicate
+                (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
+                return (NestJoin leftExpr rightExpr, ps)
+                
 
         -- Identify predicates which only refer to y and can be
         -- evaluated on the right nestjoin input.
@@ -304,9 +322,6 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
         -- specially.
         --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
         -- => [ [ e [fst x/x] y | y <- snd x, p'[fst x/x] ] | x <- xs nj(p) ys ]
-  
-        -- Split the join predicate
-        (leftExpr, rightExpr) <- constT (return nestJoinPred) >>> splitJoinPredT x y
   
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
@@ -336,7 +351,7 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
 
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
-        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys'
+        let xs'        = AppE2 (listT tupType) (Prim2 joinOp joinType) xs ys'
 
         let headComp = case (h, remGuards) of
                 -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
