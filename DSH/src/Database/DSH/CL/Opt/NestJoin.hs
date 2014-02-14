@@ -10,8 +10,6 @@ module Database.DSH.CL.Opt.NestJoin
   , combineNestJoinsR 
   ) where
   
-import           Debug.Trace
-       
 import           Control.Applicative((<$>))
 import           Control.Arrow
 
@@ -19,6 +17,7 @@ import           Data.Either
 
 import qualified Data.Foldable as F
 
+import           Data.List
 import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 import qualified Data.List.NonEmpty as N
 
@@ -27,8 +26,6 @@ import           Database.DSH.Impossible
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
                  
-import           Language.KURE.Debug
-
 import qualified Database.DSH.CL.Primitives as P
 
 import           Database.DSH.CL.Opt.Aux
@@ -263,6 +260,9 @@ tupleComponentsT = do
     singleT :: TranslateC CL (NonEmpty Expr)
     singleT = (:| []) <$> (promoteT idR)
 
+fromGuard :: Monad m => Qual -> m Expr
+fromGuard (GuardQ e)  = return e
+fromGuard (BindQ _ _) = fail "not a guard"
     
 -- | Base case for nestjoin introduction: consider comprehensions in which only
 -- a single inner comprehension occurs in the head.
@@ -275,15 +275,38 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
       -> Expr    -- ^ Head of the inner comprehension
       -> Ident   -- ^ Variable for the inner generator
       -> Expr    -- ^ Source for the inner generator
-      -> Expr    -- ^ Inner predicate
+      -> NL Qual -- ^ Inner predicates
       -> Ident   -- ^ Outer generator variable
       -> Expr    -- ^ Outer generator source
       -> [Qual]  -- ^ Possibly additional outer qualifiers
       -> TranslateC CL Expr
-    mknestjoinT t1 t2 h y ys p x xs preds = do
+    mknestjoinT t1 t2 h y ys innerQuals x xs outerPreds = do
+
+        -- On the inner comprehension, there should be only predicates
+        -- (besides y <- ys...)
+        innerPreds                   <- constT $ mapM fromGuard $ toList innerQuals
+
+        -- We expect exactly one predicate which can be used to
+        -- construct the join.
+        (nestJoinPred : remJoinPreds, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
+
+        -- Identify predicates which only refer to y and can be
+        -- evaluated on the right nestjoin input.
+        let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
+
+        -- Left over we have predicates which (propably) refer to both
+        -- x and y and are not/can not be used as the join predicate.
+        -- let remPreds' = undefined (remJoinPreds ++ remPreds)
+        -- remPreds''
+  
+        -- FIXME This is still too restrictive. Additional predicates
+        -- which refer to x and y are fine, but must be handled
+        -- specially.
+        --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
+        -- => [ [ e [fst x/x] y | y <- snd x, p'[fst x/x] ] | x <- xs nj(p) ys ]
   
         -- Split the join predicate
-        (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
+        (leftExpr, rightExpr) <- constT (return nestJoinPred) >>> splitJoinPredT x y
   
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
@@ -291,25 +314,46 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
             joinType = listT xt .-> (listT yt .-> listT tupType)
             joinVar  = Var tupType x
             
+        -- Turn access to the variable x of the outer comprehension
+        -- into access to the corresponding field of the pairs
+        -- produced by the nestjoin.
+        let tuplifyOuterVarR :: Expr -> TranslateC CL Expr
+            tuplifyOuterVarR e = constT (return e) >>> (extractR $ tryR $ substR x (P.fst joinVar))
+
         -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- constT (return h) >>> (extractR $ tryR $ substR x (P.fst joinVar))
+        h' <- tuplifyOuterVarR h
+
+        -- Do the same on left over predicates, which will be
+        -- evaluated on the nestjoin result.
+        remPreds <- sequence $ map tuplifyOuterVarR (remJoinPreds ++ leftOverPreds)
+        let remGuards = map GuardQ remPreds
+
+        -- If there are inner predicates which only refer to y,
+        -- evaluate them on the right (ys) nestjoin input.
+        let ys' = case fromList yPreds of
+                      Just ps -> Comp (listT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
+                      Nothing -> ys
 
         -- the nestjoin operator combining xs and ys: 
         -- xs nj(p) ys
-        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys
+        let xs'        = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) xs ys'
 
-            headComp = case h of
+        let headComp = case (h, remGuards) of
                 -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
                 -- => We can remove the inner comprehension entirely
-                Var _ y' | y == y' -> P.snd joinVar
-                
+                (Var _ y', []) | y == y' -> P.snd joinVar
+
                 -- The complex case: the inner comprehension has a non-idenity
                 -- head: 
                 -- [ h | y <- ys, p ] => [ h[fst x/x] | y <- snd x ] 
+                -- And/or there are additional predicates p' x y
+                -- [ h | y <- ys, ..., p' x y, ...] => [ h[fst x/x] | y < snd x, p'[snd x/x] ]
                 -- It is safe to re-use y here, because we just re-bind the generator.
-                _               -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+                (_, g : gs)              -> Comp t2 h' (BindQ y (P.snd joinVar) :* fromListSafe g gs)
+                (_, [])                  -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+                
 
-        preds' <- constT (return $ map inject preds) 
+        preds' <- constT (return $ map inject outerPreds) 
                   >>> mapT (tryR $ substR x (P.fst joinVar))
                   >>> mapT projectT
 
@@ -324,11 +368,10 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompEndT :: TranslateC CL Expr
     singleCompEndT = do
-        q@(Comp _ _ _) <- promoteT idR
-
         -- [ [ h | y <- ys, p ] | x <- xs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) (S (BindQ x xs)) <- promoteT idR
-        mknestjoinT t1 t2 h y ys p x xs []
+        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs)) <- promoteT idR
+        
+        mknestjoinT t1 t2 h y ys ps x xs []
         
     -- The base case: a single comprehension nested in the head of the outer
     -- comprehension. Assume more than one outer qualifier here. However, we
@@ -339,16 +382,12 @@ unnestHeadBaseT = singleCompEndT <+ singleCompT <+ varCompPairT <+ varCompPairEn
     -- [ [ h y | y <- ys, p ] | x <- xs ]
     singleCompT :: TranslateC CL Expr
     singleCompT = do
-    
-        q@(Comp _ _ _) <- promoteT idR
-        -- debugUnit "singleCompT at" (q :: Expr)
-
         -- [ [ h | y <- ys, p ] | x <- xs, qs ]
-        Comp t1 (Comp t2 h ((BindQ y ys) :* (S (GuardQ p)))) ((BindQ x xs) :* qs) <- promoteT idR
+        Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs) <- promoteT idR
         
         guardM $ all isGuard $ toList qs
         
-        mknestjoinT t1 t2 h y ys p x xs (toList qs)
+        mknestjoinT t1 t2 h y ys ps x xs (toList qs)
 
     -- The head of the outer comprehension consists of a pair of generator
     -- variable and inner comprehension
@@ -449,7 +488,7 @@ unnestHeadR = simpleHeadR <+ tupleHeadR
         
 nestjoinHeadR :: RewriteC CL
 nestjoinHeadR = do
-    c@(Comp _ _ _) <- promoteT idR
+    Comp _ _ _ <- promoteT idR
     -- debugUnit "nestjoinR at" c
     -- FIXME ensure that we choose the right child
     unnestHeadR <+ (factoroutHeadR >>> childR AppE2Arg2 unnestHeadR)
@@ -471,7 +510,7 @@ nestjoinHeadR = do
 --   c = [ fst x/x] | y <- snd x ]
 nestjoinGuardR :: RewriteC CL
 nestjoinGuardR = do
-    c@(Comp t _ _)         <- promoteT idR 
+    Comp t _ _          <- promoteT idR 
     (tuplifyHeadR, qs') <- statefulT idR 
                            $ childT CompQuals (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
                                        >>> projectT)
@@ -484,7 +523,6 @@ nestjoinGuardR = do
     unnestGuardT :: Ident -> Expr -> TranslateC Expr (RewriteC CL, Expr, Expr)
     unnestGuardT x xs = do
     
-        e <- idR
         -- debugUnit "unnestGuard at" (e :: Expr)
         -- FIXME passing x is not necessary since we are not interested in
         -- collecting variables.
@@ -540,7 +578,7 @@ nestjoinGuardR = do
         
     unnestQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     unnestQualsEndR = do
-        c@(BindQ x xs :* (S (GuardQ p))) <- idR
+        BindQ x xs :* (S (GuardQ p)) <- idR
         -- debugUnit "qualsEndR at" c
         (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
         -- debugUnit "qualsEndR (1)" xs'
@@ -575,17 +613,17 @@ nestjoinGuardR = do
 
 combineNestJoinsR :: RewriteC CL
 combineNestJoinsR = do
-    AppE2 tz (Prim2 Zip _) (Comp tc1 f qs) (Comp tx2 g qs') <- promoteT idR
+    AppE2 _ (Prim2 Zip _) (Comp _ f qs) (Comp _ g qs') <- promoteT idR
     
     case (qs, qs') of
-        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)),
+        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)),
           S (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)))       -> do
 
             guardM $ x == x'
             guardM $ xs == xs'
             inject <$> fst <$> combineCompsT x xsys zs f g p1 p2
               
-        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs ys)) :* qgs,
+        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)) :* qgs,
           (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)) :* qgs') -> do
 
             guardM $ x == x'
@@ -593,8 +631,8 @@ combineNestJoinsR = do
             guardM $ qgs == qgs'
 
             (Comp t h (S q), tuplifyxR) <- combineCompsT x xsys zs f g p1 p2
-            qgs' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
-            return $ inject $ Comp t h (q :* qgs')
+            qgs'' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
+            return $ inject $ Comp t h (q :* qgs'')
           
         (_, _) ->
             fail "no match" 
