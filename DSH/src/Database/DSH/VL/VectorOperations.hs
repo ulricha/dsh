@@ -125,9 +125,8 @@ cartProductLift _ _ = $impossible
 nestProductPrim :: Shape -> Shape -> Graph VL Shape
 nestProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
   q1' <- vlSegment q1
-  vvProd <- cartProductPrim (ValueVector q1' lyt1) (ValueVector q2 lyt2)
-  ValueVector qp lytP <- sndL vvProd
-  return $ ValueVector q1 (Pair lyt1 (Nest qp lytP))
+  ValueVector qj lytJ <- cartProductPrim (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestProductPrim _ _ = $impossible
 
 nestProductLift :: Shape -> Shape -> Graph VL Shape
@@ -152,9 +151,8 @@ equiJoinLift _ _ _ _ = $impossible
 nestJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 nestJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
   q1' <- vlSegment q1
-  vvJoin <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
-  ValueVector qp lytP <- sndL vvJoin
-  return $ ValueVector q1 (Pair lyt1 (Nest qp lytP))
+  ValueVector qj lytJ <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestJoinPrim _ _ _ _ = $impossible
 
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
@@ -656,7 +654,7 @@ fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p1'
-fstL _ = $impossible
+fstL s = error $ show s
 
 sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt

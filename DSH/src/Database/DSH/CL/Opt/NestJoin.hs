@@ -222,7 +222,7 @@ mkheadmapR curr t h x xs qs = do
 --
 -- Each of these base-case comprehensions is easily unnested:
 --
---   uc1 = [ [ f[fst x/x] | y <- snd x ] | x <- xs △(p) ys, qs[fst x/x] ], ..., ucn
+--   uc1 = [ [ f[fst x/x][snd x/y] | y <- snd x ] | x <- xs △(p) ys, qs[fst x/x] ], ..., ucn
 --
 -- The individual unnested comprehensions are then combined using zip. First, if
 -- the original comprehension had a free occurence of x (the outer generator
@@ -291,9 +291,9 @@ unnestHeadBaseT = singleCompT <+ varCompPairT <+ varCompPairEndT
 
         -- On the inner comprehension, there should be only predicates
         -- (besides y <- ys...)
-        innerPreds                   <- constT $ mapM fromGuard innerQuals
+        innerPreds <- constT $ mapM fromGuard innerQuals
 
-        -- We expect exactly one predicate which can be used to
+        -- We expect (at least) one predicate which can be used to
         -- construct the join.
         (joinPredCandidates, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
 
@@ -308,42 +308,21 @@ unnestHeadBaseT = singleCompT <+ varCompPairT <+ varCompPairEndT
                 (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
                 return (NestJoin leftExpr rightExpr, ps)
                 
-
         -- Identify predicates which only refer to y and can be
         -- evaluated on the right nestjoin input.
         let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
 
         -- Left over we have predicates which (propably) refer to both
         -- x and y and are not/can not be used as the join predicate.
-        -- let remPreds' = undefined (remJoinPreds ++ remPreds)
-        -- remPreds''
-  
-        -- FIXME This is still too restrictive. Additional predicates
-        -- which refer to x and y are fine, but must be handled
-        -- specially.
         --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
-        -- => [ [ e [fst x/x] y | y <- snd x, p'[fst x/x] ] | x <- xs nj(p) ys ]
+        -- => [ [ e [fst y/x][snd y/y] | y <- snd x, p'[fst y/x][snd y/y] ] | x <- xs nj(p) ys ]
   
         let xt       = elemT $ typeOf xs
             yt       = elemT $ typeOf ys
-            tupType  = pairT xt (listT yt)
+            tupType  = pairT xt (listT (pairT xt yt))
             joinType = listT xt .-> (listT yt .-> listT tupType)
             joinVar  = Var tupType x
             
-        -- Turn access to the variable x of the outer comprehension
-        -- into access to the corresponding field of the pairs
-        -- produced by the nestjoin.
-        let tuplifyOuterVarR :: Expr -> TranslateC CL Expr
-            tuplifyOuterVarR e = constT (return e) >>> (extractR $ tryR $ substR x (P.fst joinVar))
-
-        -- In the head of the inner comprehension, replace x with (snd x)
-        h' <- tuplifyOuterVarR h
-
-        -- Do the same on left over predicates, which will be
-        -- evaluated on the nestjoin result.
-        remPreds <- sequence $ map tuplifyOuterVarR (remJoinPreds ++ leftOverPreds)
-        let remGuards = map GuardQ remPreds
-
         -- If there are inner predicates which only refer to y,
         -- evaluate them on the right (ys) nestjoin input.
         let ys' = case fromList yPreds of
@@ -354,21 +333,31 @@ unnestHeadBaseT = singleCompT <+ varCompPairT <+ varCompPairEndT
         -- xs nj(p) ys
         let xs'        = AppE2 (listT tupType) (Prim2 joinOp joinType) xs ys'
 
-        let headComp = case (h, remGuards) of
-                -- The simple case: the inner comprehension looked like [ y | y < ys, p ]
-                -- => We can remove the inner comprehension entirely
-                (Var _ y', []) | y == y' -> P.snd joinVar
+        innerVar <- freshNameT
 
-                -- The complex case: the inner comprehension has a non-idenity
-                -- head: 
-                -- [ h | y <- ys, p ] => [ h[fst x/x] | y <- snd x ] 
-                -- And/or there are additional predicates p' x y
-                -- [ h | y <- ys, ..., p' x y, ...] => [ h[fst x/x] | y < snd x, p'[snd x/x] ]
-                -- It is safe to re-use y here, because we just re-bind the generator.
-                (_, g : gs)              -> Comp t2 h' (BindQ y (P.snd joinVar) :* fromListSafe g gs)
-                (_, [])                  -> Comp t2 h' (S $ BindQ y (P.snd joinVar))
+        let tuplifyInnerVarR :: Expr -> TranslateC CL Expr
+            tuplifyInnerVarR e = constT (return $ inject e) 
+                                >>> tuplifyR innerVar (x, xt) (y, yt)
+                                >>> projectT
+
+        -- In the head of the inner comprehension, replace x and y
+        -- with the corresponding pair components of the inner lists
+        -- in the join result.
+        h' <- tuplifyInnerVarR h
+
+        -- Do the same on left over predicates, which will be
+        -- evaluated on the nestjoin result.
+        remPreds <- sequence $ map tuplifyInnerVarR (remJoinPreds ++ leftOverPreds)
+        let remGuards = map GuardQ remPreds
+
+        -- Construct the inner comprehension with the tuplified head
+        -- and apply left-over predicates to the inner comprehension.
+        let headComp = case remGuards of
+                g : gs -> Comp t2 h' (BindQ innerVar (P.snd joinVar) :* fromListSafe g gs)
+                []     -> Comp t2 h' (S $ BindQ innerVar (P.snd joinVar))
                 
-
+        -- In the outer comprehension, x is replaced by the first pair
+        -- component of the join result.
         preds' <- constT (return $ map inject outerPreds) 
                   >>> mapT (tryR $ substR x (P.fst joinVar))
                   >>> mapT projectT
