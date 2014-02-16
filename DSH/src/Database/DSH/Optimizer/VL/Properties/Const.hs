@@ -61,8 +61,6 @@ inferConstVecNullOp op =
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
-    Unique -> return c
-
     UniqueS -> return c
 
     Aggr _ -> do

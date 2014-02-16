@@ -132,9 +132,6 @@ joinExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
   
-vlUnique :: DVec -> GraphM r VL DVec
-vlUnique (DVec c _) = dvec $ insertNode $ UnOp Unique c
-
 vlUniqueS :: DVec -> GraphM r VL DVec
 vlUniqueS (DVec c _) = dvec $ insertNode $ UnOp UniqueS c
 

@@ -30,7 +30,6 @@ unpack _         = Left "Input is not a single vector property"
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
 inferVectorTypeUnOp s op = 
   case op of
-    Unique -> VProp <$> unpack s
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ AtomicVector 1
     DescToRename -> Right $ VProp $ RenameVector

@@ -194,6 +194,7 @@ zipLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                      t2@(ListT t2') = typeOf e2
                   in F.PApp2 t2 (F.FZipL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
                   
+-- Types for join/product operators are mostly rubbish.
 cartProductVal :: Type -> Expr
 cartProductVal t = doubleArgClo t "cartProduct_e1" "cartProduct_e2" cartProductPrim cartProductLPrim
                   
@@ -206,6 +207,20 @@ cartProductLPrim :: Expr -> Expr -> Expr
 cartProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                              t2@(ListT t2') = typeOf e2
                           in F.PApp2 t2 (F.FCartProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+
+nestProductVal :: Type -> Expr
+nestProductVal t = doubleArgClo t "nestProduct_e1" "nestProduct_e2" nestProductPrim nestProductLPrim
+                  
+nestProductPrim :: Expr -> Expr -> Expr
+nestProductPrim e1 e2 = let t1 = typeOf e1
+                            t2 = typeOf e2
+                         -- [a] -> [b] -> [(a, [(a, b)])]
+                         in F.PApp2 t2 (F.FNestProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+                         
+nestProductLPrim :: Expr -> Expr -> Expr
+nestProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
+                             t2@(ListT t2') = typeOf e2
+                          in F.PApp2 t2 (F.FNestProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
 equiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
 equiJoinVal je1 je2 t = doubleArgClo t "equiJoin_e1" "equiJoin_e2" (equiJoinPrim je1 je2) (equiJoinLPrim je1 je2)

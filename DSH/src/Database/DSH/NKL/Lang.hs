@@ -139,6 +139,7 @@ data Prim2Op = Map
              | TakeWhile
              | DropWhile
              | CartProduct
+             | NestProduct
              | EquiJoin JoinExpr JoinExpr
              | NestJoin JoinExpr JoinExpr
              | SemiJoin JoinExpr JoinExpr
@@ -160,7 +161,8 @@ instance Show Prim2Op where
   show Zip          = "zip"
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
-  show CartProduct  = "\xc397"
+  show CartProduct  = "\x2a2f"
+  show NestProduct  = "NP"
   show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
   show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
   show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)

@@ -122,6 +122,16 @@ cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) =
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 cartProductLift _ _ = $impossible
 
+nestProductPrim :: Shape -> Shape -> Graph VL Shape
+nestProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+  q1' <- vlSegment q1
+  ValueVector qj lytJ <- cartProductPrim (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
+nestProductPrim _ _ = $impossible
+
+nestProductLift :: Shape -> Shape -> Graph VL Shape
+nestProductLift = error "nestProductLift not implemented"
+
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (q', p1, p2) <- vlEquiJoin e1 e2 q1 q2
@@ -141,9 +151,8 @@ equiJoinLift _ _ _ _ = $impossible
 nestJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 nestJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
   q1' <- vlSegment q1
-  vvJoin <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
-  ValueVector qp lytP <- sndL vvJoin
-  return $ ValueVector q1 (Pair lyt1 (Nest qp lytP))
+  ValueVector qj lytJ <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+  return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestJoinPrim _ _ _ _ = $impossible
 
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
@@ -206,7 +215,7 @@ dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
 dropLift _ _ = error "dropLift: Should not be possible"
 
 nubPrim ::  Shape -> Graph VL Shape
-nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUnique q
+nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q
 nubPrim _ = error "nubPrim: Should not be possible"
 
 nubLift ::  Shape -> Graph VL Shape
@@ -645,7 +654,7 @@ fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p1'
-fstL _ = $impossible
+fstL s = error $ show s
 
 sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
@@ -715,7 +724,6 @@ concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
                                                                                      return (y, val')) fvs)
                                                           <*> pure x <*> pure f1 <*> pure f2
 concatV e                  = error $ "Not supported by concatV: " ++ show e
-
 
 singletonVec ::  Shape -> Graph VL Shape
 singletonVec (ValueVector q lyt) = do

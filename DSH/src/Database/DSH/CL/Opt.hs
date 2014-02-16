@@ -9,44 +9,32 @@ module Database.DSH.CL.Opt
   ( optimizeComprehensions ) where
   
 import Control.Arrow
+       
+import Database.DSH.Impossible
 
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 
 import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Support
-import Database.DSH.CL.Opt.Algebraic
+import Database.DSH.CL.Opt.PredPushdown
 import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
 import Database.DSH.CL.Opt.NestJoin
-import Database.DSH.CL.Opt.Operators
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
 
 -- Clean up remains and perform partial evaluation on the current node
 cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR <+ algebraicRewritesR) 
+cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
            >>> debugShow "after cleanup"
 
-flatJoinsR :: RewriteC CL
-flatJoinsR = (promoteR (tryR pushSemiFilters) >>> semijoinR >>> debugTrace "semijoin")
-            <+ (promoteR (tryR pushAntiFilters) >>> antijoinR >>> debugTrace "antijoin")
-
-            -- For Equi-Joins, we first push all generators to the front of the
-            -- qualifier list. This should make sure that no guard is stuck
-            -- between two generators and blocks the equijoin rewrite.
-            -- [ e | x <- xs, p x z, y <- ys, q x y ] (z is bound by outer comprehension)
-            <+ (promoteR (tryR pushGeneratorsR)
-                >>> promoteR (tryR pushEquiFilters) 
-                >>> eqjoinR 
-                >>> debugTrace "equijoin")
-            
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_2R <+ m_norm_3R
+compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites should
 -- propably occur late in the chain, as they might prohibit semijoin/antijoin
@@ -65,17 +53,11 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
     -- out, i.e. a map introduced).
     cleanupNestJoinR = repeatR $ anytdR (combineNestJoinsR >>> debugTrace "combinenestjoins")
 
-selectComplexR :: RewriteC CL
-selectComplexR = promoteR pushComplexFilters >+> selectR isLocalComplexPred
-
-selectSimpleR :: RewriteC CL
-selectSimpleR = promoteR pushSimpleFilters >+> selectR isSimplePred
-
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybuR selectComplexR )
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytdR factorConstantPredsR)
   where
     descendR :: RewriteC CL
     descendR = readerT $ \case
@@ -92,15 +74,15 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anybu
     optCompR :: RewriteC CL
     optCompR = do
         c@(Comp _ _ _) <- promoteT idR
-        debugUnit "optCompR at" c
+        debugPretty "optCompR at" c
 
         repeatR $ do
               e <- promoteT idR
-              debugUnit "comp at" (e :: Expr)
+              debugPretty "comp at" (e :: Expr)
               (normalizeAlwaysR
                  <+ compNormEarlyR
-                 <+ selectSimpleR
-                 <+ flatJoinsR
+                 <+ flatjoinsR
+                 <+ predpushdownR
                  <+ anyR descendR
                  {- <+ nestJoinsR -}) >>> debugShow "after comp"
         

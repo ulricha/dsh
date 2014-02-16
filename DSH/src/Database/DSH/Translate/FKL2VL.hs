@@ -148,6 +148,8 @@ papp2 f =
         FZipL _            -> zipLift
         FCartProduct _     -> cartProductPrim
         FCartProductL _    -> cartProductLift
+        FNestProduct _     -> nestProductPrim
+        FNestProductL _    -> nestProductLift
         FEquiJoin e1 e2 _  -> equiJoinPrim e1 e2
         FEquiJoinL e1 e2 _ -> equiJoinLift e1 e2
         FNestJoin e1 e2 _  -> nestJoinPrim e1 e2

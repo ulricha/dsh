@@ -139,6 +139,8 @@ data Prim2 = FGroupWithKey Type
            | FZipL Type
            | FCartProduct Type
            | FCartProductL Type
+           | FNestProduct Type
+           | FNestProductL Type
            | FEquiJoin JoinExpr JoinExpr Type
            | FEquiJoinL JoinExpr JoinExpr Type
            | FNestJoin JoinExpr JoinExpr Type

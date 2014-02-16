@@ -11,7 +11,7 @@ module Database.DSH.CL.Lang
   , module Database.DSH.Common.Data.Val
   , module Database.DSH.Common.Data.Type
   , Expr(..)
-  , NL(..), reverseNL, toList, fromList, appendNL
+  , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
   , Qual(..), isGuard, isBind
   , Typed(..)
   , Prim1Op(..)
@@ -77,6 +77,11 @@ fromList as = Just $ aux as
     aux (x : xs) = x :* aux xs
     aux []       = $impossible
 
+fromListSafe :: a -> [a] -> NL a
+fromListSafe a [a1]      = a :* S a1
+fromListSafe a []        = S a
+fromListSafe a (a1 : as) = a :* fromListSafe a1 as
+
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
 reverseNL (S a)     = S a
@@ -137,6 +142,7 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | TakeWhile
              | DropWhile
              | CartProduct
+             | NestProduct
              | EquiJoin JoinExpr JoinExpr
              | NestJoin JoinExpr JoinExpr
              | SemiJoin JoinExpr JoinExpr
@@ -159,7 +165,8 @@ instance Show Prim2Op where
   show Zip          = "zip"
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
-  show CartProduct  = "cartProduct"
+  show CartProduct  = "\x2a2f"
+  show NestProduct  = "NP"
   show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
   show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
   show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)
@@ -182,6 +189,8 @@ isGuard (BindQ _ _)  = False
 isBind :: Qual -> Bool
 isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
+
+data Comp = C Type Expr (NL Qual)
 
 data Expr  = Table Type String [Column] [Key] 
            | App Type Expr Expr              

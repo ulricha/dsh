@@ -71,6 +71,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.TakeWhile      -> NKL.TakeWhile
               CL.DropWhile      -> NKL.DropWhile
               CL.CartProduct    -> NKL.CartProduct
+              CL.NestProduct    -> NKL.NestProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
               CL.NestJoin e1 e2 -> NKL.NestJoin e1 e2
               CL.SemiJoin e1 e2 -> NKL.SemiJoin e1 e2
@@ -119,7 +120,7 @@ productify e [q]                                = (e, q)
 -- [ e | x <- xs, y <- ys, qs ] = 
 -- [ e[fst x/x][snd x/y] | x <- cartProd xs ys, qs[fst x/x][snd x/y] ]
 productify e ((CL.BindQ x xs) : (CL.BindQ y ys) : qs) = 
-  trace (show e') $ productify e' (q' : qs')
+    productify e' (q' : qs')
   
   where e'  = guardTuplify x (x, xt) (y, yt) e
         qs' = case fromList qs of
