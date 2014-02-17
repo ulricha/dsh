@@ -272,10 +272,10 @@ fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
--- | Type of worker functions for that merge guards into
--- generators. It receives the comprehension itself (with a qualifier
--- list that consists solely of generators), the current candidate
--- guard expression, guard expressions that have to be tried and guard
+-- | Type of worker functions that merge guards into generators. It
+-- receives the comprehension itself (with a qualifier list that
+-- consists solely of generators), the current candidate guard
+-- expression, guard expressions that have to be tried and guard
 -- expressions that have been tried already. Last two are necessary if
 -- the merging steps leads to tuplification.
 type MergeGuard = Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
@@ -292,12 +292,9 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
             -- Try to combine p with some generators
             (comp', ps', testedGuards') <- mergeGuardR comp p ps testedGuards
             
-            -- If we succeeded for p, try the remaining guards.
-            (tryGuards mergeGuardR comp' ps' testedGuards')
-
-            -- Even if we failed for the remaining guards, we report a success,
-            -- since we succeeded for p
-              <+ (return (comp', ps' ++ testedGuards'))
+            -- On success, back out to give other rewrites
+            -- (i.e. predicate pushdown) a chance.
+            return (comp', ps' ++ testedGuards')
 
         -- If the current guard failed, try the next ones.
         tryOtherGuards :: TranslateC () (Comp, [Expr])
@@ -308,14 +305,10 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
 -- No guards left to try and none succeeded
 tryGuards _ _ [] _ = fail "no predicate could be merged"
 
-mergeStepR :: MergeGuard -> RewriteC (Comp, [Expr])
-mergeStepR mergeGuardR = do
-    (comp, guards) <- idR
-    constT (return ()) >>> tryGuards mergeGuardR comp guards []
-
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
 -- comprehensions qualifier list.
 -- FIXME only try on those predicates that look like equi-/anti-/semi-join predicates.
+-- FIXME TranslateC () ... is an ugly abuse of the rewrite system
 mergeGuardsIterR :: MergeGuard -> RewriteC CL
 mergeGuardsIterR mergeGuardR = do
     ExprCL (Comp ty e qs) <- idR
@@ -323,10 +316,11 @@ mergeGuardsIterR mergeGuardR = do
     -- Separate generators from guards
     ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
-    let initArg = (C ty e (fromListSafe g gs), guards)
+    let initialComp = C ty e (fromListSafe g gs)
 
-    -- Iteratively try to form joins until we reach a fixed point
-    (C _ e' qs', remGuards) <- constT (return initArg) >>> repeatR (mergeStepR mergeGuardR)
+    -- Try to merge one guard with some generators
+    (C _ e' qs', remGuards) <- constT (return ()) 
+                               >>> tryGuards mergeGuardR initialComp guards []
 
     -- If there are any guards remaining which we could not turn into
     -- joins, append them at the end of the new qualifier list
