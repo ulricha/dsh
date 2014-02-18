@@ -84,7 +84,7 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytd
                  <+ predpushdownR
                  <+ flatjoinsR
                  <+ anyR descendR
-                 {- <+ nestJoinsR -}) >>> debugShow "after comp"
+                 ) >>> debugShow "after comp"
         
 {-
 -- debug function
