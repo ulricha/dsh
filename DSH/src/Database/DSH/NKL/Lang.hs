@@ -157,12 +157,12 @@ instance Show Prim2Op where
   show Zip          = "zip"
   show TakeWhile    = "takeWhile"
   show DropWhile    = "dropWhile"
-  show CartProduct  = "\x2a2f"
-  show NestProduct  = "NP"
-  show (EquiJoin e1 e2) = printf "\x2a1d (%s | %s)" (show e1) (show e2)
-  show (NestJoin e1 e2) = printf "\x25b3 (%s | %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2) = printf "\x22c9 (%s | %s)" (show e1) (show e2)
-  show (AntiJoin e1 e2) = printf "\x25b7 (%s | %s)" (show e1) (show e2)
+  show CartProduct  = "⨯"
+  show NestProduct  = "▽"
+  show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)
+  show (NestJoin e1 e2) = printf "△ (%s | %s)" (show e1) (show e2)
+  show (SemiJoin e1 e2) = printf "⋉ (%s | %s)" (show e1) (show e2)
+  show (AntiJoin e1 e2) = printf "▷ (%s | %s)" (show e1) (show e2)
   
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
