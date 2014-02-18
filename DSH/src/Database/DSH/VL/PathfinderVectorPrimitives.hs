@@ -439,7 +439,7 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
-    q <- projM ([mP descr pos, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+    q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos'] Nothing
            $ crossM
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
@@ -454,7 +454,7 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
-    q <- projM ([mP descr pos, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+    q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [descr, descr', pos, pos'] Nothing
            $ eqJoinM descr descr'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
