@@ -26,8 +26,6 @@ class VectorAlgebra a where
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
   vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
 
-  -- FIXME rename to distinct
-  vecUnique :: DVec -> GraphM r a DVec
   vecUniqueS :: DVec -> GraphM r a DVec
 
   vecNumber :: DVec -> GraphM r a DVec
@@ -101,9 +99,11 @@ class VectorAlgebra a where
 
   vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
 
   vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   
   vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
   vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)

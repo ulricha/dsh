@@ -217,12 +217,20 @@ translateBinOp b c1 c2 = case b of
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
+    NestProductS -> do
+        (v, p1, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+
     (EquiJoin e1 e2) -> do
         (v, p1, p2) <- vecEquiJoin e1 e2 (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
     (EquiJoinS e1 e2) -> do
         (v, p1, p2) <- vecEquiJoinS e1 e2 (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+
+    (NestJoinS e1 e2) -> do
+        (v, p1, p2) <- vecNestJoinS e1 e2 (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
     (SemiJoin e1 e2) -> do

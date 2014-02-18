@@ -79,8 +79,10 @@ inferCardOneBinOp c1 c2 op =
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
     CartProductS -> return $ VPropTriple False False False
+    NestProductS -> return $ VPropTriple False False False
     EquiJoin _ _ -> return $ VPropTriple False False False
     EquiJoinS _ _ -> return $ VPropTriple False False False
+    NestJoinS _ _ -> return $ VPropTriple False False False
     SemiJoin _ _ -> return $ VPropPair False False
     SemiJoinS _ _ -> return $ VPropPair False False
     AntiJoin _ _ -> return $ VPropPair False False
