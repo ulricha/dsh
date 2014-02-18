@@ -26,8 +26,6 @@ class VectorAlgebra a where
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
   vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
 
-  -- FIXME rename to distinct
-  vecUnique :: DVec -> GraphM r a DVec
   vecUniqueS :: DVec -> GraphM r a DVec
 
   vecNumber :: DVec -> GraphM r a DVec
