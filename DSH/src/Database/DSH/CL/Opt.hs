@@ -77,14 +77,14 @@ optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytd
         debugPretty "optCompR at" c
 
         repeatR $ do
-              e <- promoteT idR
-              debugPretty "comp at" (e :: Expr)
+              -- e <- promoteT idR
+              -- debugPretty "comp at" (e :: Expr)
               (normalizeAlwaysR
                  <+ compNormEarlyR
-                 <+ flatjoinsR
                  <+ predpushdownR
+                 <+ flatjoinsR
                  <+ anyR descendR
-                 {- <+ nestJoinsR -}) >>> debugShow "after comp"
+                 ) >>> debugShow "after comp"
         
 {-
 -- debug function

@@ -239,6 +239,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
         _                     -> error "ReqColumns.CartProduct"
 
+    NestProductS ->
+      case ownReqColumns of
+        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
+        _                     -> error "ReqColumns.NestProduct"
+
     EquiJoin le re ->
       case ownReqColumns of
         VPropTriple cols1 _ _ -> 
@@ -256,6 +261,15 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
               rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
           in (leftReqCols', rightReqCols')
         _                     -> error "ReqColumns.EquiJoinS"
+
+    NestJoinS le re ->
+      case ownReqColumns of
+        VPropTriple cols1 _ _ -> 
+          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
+              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
+              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
+          in (leftReqCols', rightReqCols')
+        _                     -> error "ReqColumns.NestJoinS"
 
     -- FIXME recheck for correctness
     ZipS -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) 

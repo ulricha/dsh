@@ -223,7 +223,7 @@ universalR :: RewriteC (NL Qual)
 universalR = do
     -- [ ... | ..., x <- xs, and [ q y | y <- ys, p x y ], ... ]
     BindQ x xs :* (GuardQ (AppE1 _ (Prim1 And _)
-                                   (Comp _ q ((BindQ y ys) :* (S (GuardQ p)))))) :* qs<- idR
+                                   (Comp _ q ((BindQ y ys) :* (S (GuardQ p)))))) :* qs <- idR
                                    
     q' <- mkClass15AntiJoinT x xs y ys p q
     return $ q' :* qs
