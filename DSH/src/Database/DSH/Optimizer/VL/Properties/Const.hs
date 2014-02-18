@@ -287,6 +287,18 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
+    NestProductS -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+
     EquiJoin _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
@@ -300,6 +312,18 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
 
     EquiJoinS _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/preciseness
+      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+      -- FIXME descr = 1 is almost certainly not correct
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+
+    NestJoinS _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 

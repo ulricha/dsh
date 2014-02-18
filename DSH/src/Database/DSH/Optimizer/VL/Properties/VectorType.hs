@@ -125,8 +125,10 @@ inferVectorTypeBinOp s1 s2 op =
     ZipS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) RenameVector RenameVector) "ZipL"
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
+    NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProductS"
     EquiJoin _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoin"
     EquiJoinS _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinS"
+    NestJoinS _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
     SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SemiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)

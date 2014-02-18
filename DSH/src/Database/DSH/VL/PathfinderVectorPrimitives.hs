@@ -463,7 +463,22 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
-    
+
+  -- FIXME merge common parts of vecCartProductS and vecNestProductS
+  vecNestProductS (DVec q1 cols1) (DVec q2 cols2) = do
+    let itemProj1  = map (cP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (cP . itemi) cols2'
+    q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ eqJoinM descr descr'
+             (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
+             (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
+    qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [mP posold pos', mP posnew pos] q
+    qp2 <- proj [mP posold pos'', mP posnew pos] q
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
     
   vecEquiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -494,6 +509,33 @@ instance VectorAlgebra PFAlgebra where
         itemProj2  = map (cP . itemi) cols2'
 
     q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] Nothing
+           $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
+             (proj ([ cP descr
+                    , mP pos' pos
+                    , eP tmpCol (expr1 leftExpr)
+                    ] ++ itemProj1) q1)
+             (proj ([ mP descr' descr
+                    , mP pos'' pos
+                    , eP tmpCol' (expr1 rightExpr)
+                    ] ++ shiftProj2) q2)
+
+    qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [mP posold pos', mP posnew pos] q
+    qp2 <- proj [mP posold pos'', mP posnew pos] q
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+
+  -- There is only one difference between EquiJoinS and NestJoinS. For
+  -- NestJoinS, we 'segment' after the join, i.e. use the left input
+  -- positions as the result descriptor.
+  -- FIXME merge the common parts.
+  vecNestJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
+    let itemProj1  = map (cP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (cP . itemi) cols2'
+
+    q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [pos', pos''] Nothing
            $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj ([ cP descr
