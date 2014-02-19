@@ -97,13 +97,13 @@ class VectorAlgebra a where
   -- FIXME better name: zipSeg
   vecZipS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
-  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
 
-  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
   
   vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
   vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)

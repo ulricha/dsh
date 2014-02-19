@@ -447,7 +447,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   vecCartProductS (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -462,7 +462,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   -- FIXME merge common parts of vecCartProductS and vecNestProductS
   vecNestProductS (DVec q1 cols1) (DVec q2 cols2) = do
@@ -478,7 +478,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
     
   vecEquiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -500,7 +500,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- tagM "eqjoin/1" $ proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
   
   vecEquiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -523,7 +523,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   -- There is only one difference between EquiJoinS and NestJoinS. For
   -- NestJoinS, we 'segment' after the join, i.e. use the left input
@@ -550,7 +550,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
     qs <- selectM (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
