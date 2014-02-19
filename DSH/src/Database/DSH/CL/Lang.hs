@@ -30,7 +30,6 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
@@ -100,7 +99,7 @@ data Prim1Op = Length |  Not |  Concat
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
-             | Reshape Integer Integer
+             | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
              
@@ -129,7 +128,7 @@ instance Show Prim1Op where
   show Number          = "number"
   show Guard           = "guard"
   show Transpose       = "transpose"
-  show (Reshape m n)   = "reshape(" ++ show m ++ ", " ++ show n ++ ")"
+  show (Reshape n)     = printf "reshape(%d)" n
   
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o

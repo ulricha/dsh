@@ -700,17 +700,17 @@ transposeLift (ValueVector qoo (Nest qo (Nest qi lyt))) = do
     return $ ValueVector qoo' (Nest qo' (Nest qi' lyt))
 transposeLift _ = $impossible
 
-reshapePrim :: Integer -> Integer -> Shape -> Graph VL Shape
-reshapePrim m n (ValueVector q lyt) = do
-    (qo, qi) <- vlReshape m n q
+reshapePrim :: Integer -> Shape -> Graph VL Shape
+reshapePrim n (ValueVector q lyt) = do
+    (qo, qi) <- vlReshape n q
     return $ ValueVector qo (Nest qi lyt)
-reshapePrim _ _ _ = $impossible
+reshapePrim _ _ = $impossible
 
-reshapeLift :: Integer -> Integer -> Shape -> Graph VL Shape
-reshapeLift m n (ValueVector qo (Nest qi lyt)) = do
-    (qoo, qo', qi') <- vlReshapeS m n qo qi
+reshapeLift :: Integer -> Shape -> Graph VL Shape
+reshapeLift n (ValueVector qo (Nest qi lyt)) = do
+    (qoo, qo', qi') <- vlReshapeS n qo qi
     return $ ValueVector qoo (Nest qo' (Nest qi' lyt))
-reshapeLift _ _ _ = $impossible
+reshapeLift _ _ = $impossible
 
 projectFromPos :: Layout -> (Layout, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)

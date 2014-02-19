@@ -8,8 +8,6 @@ import Control.Monad
 import Database.Algebra.VL.Data
 import Database.Algebra.Dag.Common
 
-import Database.DSH.Impossible
-
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Rewrite.Common

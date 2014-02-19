@@ -362,9 +362,9 @@ instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
     allR r = 
         rewrite $ \c -> \case
-            ExprCL exp -> inject <$> apply allRexpr c exp
-            QualCL q   -> inject <$> apply allRqual c q
-            QualsCL qs -> inject <$> apply allRquals c qs
+            ExprCL expr -> inject <$> apply allRexpr c expr
+            QualCL q    -> inject <$> apply allRqual c q
+            QualsCL qs  -> inject <$> apply allRquals c qs
     
       where
         allRquals = readerT $ \case

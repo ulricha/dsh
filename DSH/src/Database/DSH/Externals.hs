@@ -497,12 +497,6 @@ reverse (Q as) = Q (AppE Reverse as)
 number :: (QA a) => Q [a] -> Q [(a, Integer)]
 number (Q as) = Q (AppE Number as)
 
-transpose :: QA a => Q [[a]] -> Q [[a]]
-transpose (Q ass) = Q (AppE Transpose ass)
-
-reshape :: QA a => Integer -> Integer -> Q [a] -> Q [[a]]
-reshape m n (Q as) = Q (AppE (Reshape m n) as)
-
 -- * Special folds
 
 and :: Q [Bool] -> Q Bool
@@ -611,6 +605,17 @@ integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 -- character wildcards and '_' for multi-character wildcards.
 like :: Q Text -> Q Text -> Q Bool
 like (Q t) (Q p) = Q (AppE Like (PairE t p))
+
+-- * Matrix/Vector-like operators
+
+-- | Transpose a matrix in nested-list representation
+transpose :: QA a => Q [[a]] -> Q [[a]]
+transpose (Q ass) = Q (AppE Transpose ass)
+
+-- | Divide the list into sublists of length 'n'
+-- FIXME should propably have a constraint to flat types
+reshape :: QA a => Integer -> Q [a] -> Q [[a]]
+reshape n (Q e) = Q (AppE (Reshape n) e)
 
 -- * Rebind Monadic Combinators
 

@@ -217,7 +217,7 @@ compileApp f args =
        Nub             -> compileApp1 CP.nub args
        Guard           -> compileApp1 CP.guard args
        Transpose       -> compileApp1 CP.transpose args
-       Reshape m n     -> compileApp1 (CP.reshape m n) args
+       Reshape n       -> compileApp1 (CP.reshape n) args
 
 -- Restore the original comprehension form from the desugared concatMap form.
 resugar :: CL.Expr -> CL.Expr

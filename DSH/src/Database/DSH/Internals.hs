@@ -88,7 +88,7 @@ data Fun a b where
     Cond            :: Fun (Bool,(a,a)) a
     Like            :: Fun (Text,Text) Bool
     Transpose       :: Fun [[a]] [[a]]
-    Reshape         :: Integer -> Integer -> Fun [a] [[a]]
+    Reshape         :: Integer -> Fun [a] [[a]]
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -179,7 +179,8 @@ instance Show (Fun a b) where
     show Mod = "%"
     show Number = "number"
     show Guard = "guard"
-    show (Reshape m n) = printf "reshape(%d, %d)" m n
+    show (Reshape n) = printf "reshape(%d)" n
+    show Transpose = "transpose"
 
 -- Reify instances
 

@@ -414,16 +414,16 @@ vlTransposeS (DVec qoo _) (DVec qo _) (DVec qi _) = do
     r3 <- dvec $ insertNode $ UnOp R3 r
     return (r1, r2, r3)
 
-vlReshape :: Integer -> Integer -> DVec -> GraphM r VL (DVec, DVec)
-vlReshape m n (DVec q _) = do
-    r <- insertNode $ UnOp (Reshape m n) q
+vlReshape :: Integer -> DVec -> GraphM r VL (DVec, DVec)
+vlReshape n (DVec q _) = do
+    r <- insertNode $ UnOp (Reshape n) q
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
     return (r1, r2)
 
-vlReshapeS :: Integer -> Integer -> DVec -> DVec -> GraphM r VL (DVec, DVec, DVec)
-vlReshapeS m n (DVec qo _) (DVec qi _) = do
-    r <- insertNode $ BinOp (ReshapeS m n) qo qi
+vlReshapeS :: Integer -> DVec -> DVec -> GraphM r VL (DVec, DVec, DVec)
+vlReshapeS n (DVec qo _) (DVec qi _) = do
+    r <- insertNode $ BinOp (ReshapeS n) qo qi
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
     r3 <- dvec $ insertNode $ UnOp R3 r

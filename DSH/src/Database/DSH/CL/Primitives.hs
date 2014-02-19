@@ -78,10 +78,10 @@ concat e = let t = typeOf e
                     else P.error P.$ "NKLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
 
 -- reshape :: [a] -> [[a]]
-reshape :: P.Integer -> P.Integer -> Expr -> Expr
-reshape m n e = 
+reshape :: P.Integer -> Expr -> Expr
+reshape n e = 
     let t = typeOf e 
-    in AppE1 (ListT t) (Prim1 (Reshape m n) P.$ t .-> ListT t) e
+    in AppE1 (ListT t) (Prim1 (Reshape n) P.$ t .-> ListT t) e
 
 -- transpose :: [[a]] -> [[a]]
 transpose :: Expr -> Expr

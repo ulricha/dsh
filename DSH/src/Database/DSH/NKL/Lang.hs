@@ -93,7 +93,7 @@ data Prim1Op = Length |  Not |  Concat
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number
-             | Reshape Integer Integer
+             | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
              
@@ -121,7 +121,7 @@ instance Show Prim1Op where
   show Nub             = "nub"
   show Number          = "number"
   show Transpose       = "transpose"
-  show (Reshape m n)   = "reshape(" ++ show m ++ ", " ++ show n ++ ")"
+  show (Reshape n)     = printf "reshape(%d)" n
 
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o

@@ -78,20 +78,20 @@ transposeLPrim e =
     let t = typeOf e
     in F.PApp1 t (F.FTransposeL (t .-> t)) e
 
-reshapeVal :: Integer -> Integer -> Type -> Expr
-reshapeVal m n t = singleArgClo t "reshape" (reshapePrim m n) (reshapeLPrim m n)
+reshapeVal :: Integer -> Type -> Expr
+reshapeVal n t = singleArgClo t "reshape" (reshapePrim n) (reshapeLPrim n)
 
 -- transpose :: [a] -> [[a]]
-reshapePrim :: Integer -> Integer -> Expr -> Expr
-reshapePrim m n e = 
+reshapePrim :: Integer -> Expr -> Expr
+reshapePrim n e = 
     let t = typeOf e
-    in F.PApp1 (ListT t) (F.FReshape m n (t .-> ListT t)) e
+    in F.PApp1 (ListT t) (F.FReshape n (t .-> ListT t)) e
 
 -- transpose :: [[a]] -> [[[a]]]
-reshapeLPrim :: Integer -> Integer -> Expr -> Expr
-reshapeLPrim m n e = 
+reshapeLPrim :: Integer -> Expr -> Expr
+reshapeLPrim n e = 
     let t = typeOf e
-    in F.PApp1 (ListT t) (F.FReshapeL m n (t .-> ListT t)) e
+    in F.PApp1 (ListT t) (F.FReshapeL n (t .-> ListT t)) e
 
 groupWithKeyVal :: Type -> Expr
 groupWithKeyVal t = doubleArgClo t "group_f" "group_xs" groupWithKeyPrim groupWithKeyLPrim
