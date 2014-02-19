@@ -724,3 +724,11 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos, mP posnew pos'] qs
 
     return (DVec qr1 cols1, PVec qr2)
+
+  reshape n (DVec q cols) = do
+    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
+    qo <- projM [eP descr (ConstE $ nat 1), cP pos] 
+          $ distinctM 
+          $ proj [mP pos descr] qi
+    return (DVec qo [], DVec qi cols)

@@ -112,4 +112,7 @@ class VectorAlgebra a where
   vecAntiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
   vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
+
+  reshape :: Integer -> DVec -> GraphM r a (DVec, DVec)
+  reshapeS :: Integer -> DVec -> GraphM r a (DVec, DVec)
   
