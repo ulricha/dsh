@@ -750,3 +750,19 @@ instance VectorAlgebra PFAlgebra where
     qi <- proj (itemProj cols [mP descr descr'', cP pos]) qr
     
     return (DVec qm [], DVec qm cols) 
+
+  transpose (DVec q cols) = do
+    qi <- projM (itemProj cols [mP descr descr', mP pos pos'])
+          -- Generate new positions. We use absolute positions as the
+          -- new descriptor here. This implements the swapping of row
+          -- and column ids (here: descr and pos) that is the core of
+          -- transposition.
+          $ rownumM pos' [descr', pos] Nothing
+          -- Generate absolute positions for the inner lists
+          $ rownum descr' [pos] (Just descr) q
+
+    qo <- projM [eP descr (ConstE $ nat 1), cP pos] 
+          $ distinctM 
+          $ proj [mP pos descr] qi
+
+    return (DVec qo [], DVec qi cols)

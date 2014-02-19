@@ -399,9 +399,9 @@ vlReverseS (DVec c _) = do
 vlFalsePositions :: DVec -> GraphM r VL DVec
 vlFalsePositions (DVec c _) = dvec $ insertNode $ UnOp FalsePositions c
                  
-vlTranspose :: DVec -> DVec -> GraphM r VL (DVec, DVec)
-vlTranspose (DVec qo _) (DVec qi _) = do
-    r <- insertNode $ BinOp Transpose qo qi
+vlTranspose :: DVec -> GraphM r VL (DVec, DVec)
+vlTranspose (DVec qi _) = do
+    r  <- insertNode $ UnOp Transpose qi
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
     return (r1, r2)

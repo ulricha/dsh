@@ -690,7 +690,7 @@ sndL s = trace (show s) $ $impossible
      
 transposePrim :: Shape -> Graph VL Shape
 transposePrim (ValueVector qo (Nest qi lyt)) = do
-    (qo', qi') <- vlTranspose qo qi
+    (qo', qi') <- vlTranspose qi
     return $ ValueVector qo' (Nest qi' lyt)
 transposePrim _ = $impossible
 
