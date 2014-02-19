@@ -732,3 +732,21 @@ instance VectorAlgebra PFAlgebra where
           $ distinctM 
           $ proj [mP pos descr] qi
     return (DVec qo [], DVec qi cols)
+
+  reshapeS n (DVec q cols) = do
+    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    qr <- -- Make the new descriptors valid globally 
+          rownumM descr'' [descr, descr'] Nothing
+          -- Assign the inner list elements to sublists. Generated
+          -- descriptors are _per_ inner list!
+          $ projM (itemProj cols [cP descr, cP pos, eP descr' dExpr])
+          -- Generate absolute positions for the inner lists
+          $ rownum pos' [pos] (Just descr) q
+  
+    -- We can compute the 'middle' descriptor vector from the original
+    -- inner vector.
+    qm <- distinctM $ proj [cP descr, mP pos descr''] qr
+
+    qi <- proj (itemProj cols [mP descr descr'', cP pos]) qr
+    
+    return (DVec qm [], DVec qm cols) 

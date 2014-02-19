@@ -421,13 +421,12 @@ vlReshape n (DVec q _) = do
     r2 <- dvec $ insertNode $ UnOp R2 r
     return (r1, r2)
 
-vlReshapeS :: Integer -> DVec -> DVec -> GraphM r VL (DVec, DVec, DVec)
-vlReshapeS n (DVec qo _) (DVec qi _) = do
-    r <- insertNode $ BinOp (ReshapeS n) qo qi
+vlReshapeS :: Integer -> DVec -> GraphM r VL (DVec, DVec)
+vlReshapeS n (DVec qi _) = do
+    r <- insertNode $ UnOp (ReshapeS n) qi
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
-    r3 <- dvec $ insertNode $ UnOp R3 r
-    return (r1, r2, r3)
+    return (r1, r2)
 
 vlSingleton :: DVec -> GraphM r VL DVec
 vlSingleton (DVec c _) = dvec $ insertNode $ UnOp Singleton c

@@ -708,8 +708,8 @@ reshapePrim _ _ = $impossible
 
 reshapeLift :: Integer -> Shape -> Graph VL Shape
 reshapeLift n (ValueVector qo (Nest qi lyt)) = do
-    (qoo, qo', qi') <- vlReshapeS n qo qi
-    return $ ValueVector qoo (Nest qo' (Nest qi' lyt))
+    (qm, qi') <- vlReshapeS n qi
+    return $ ValueVector qo (Nest qm (Nest qi' lyt))
 reshapeLift _ _ = $impossible
 
 projectFromPos :: Layout -> (Layout, [DBCol])
