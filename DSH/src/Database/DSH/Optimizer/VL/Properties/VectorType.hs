@@ -13,7 +13,6 @@ import Database.Algebra.VL.Data
 
 vectorWidth :: VectorProp VectorType -> Int
 vectorWidth (VProp (ValueVector w))  = w
-vectorWidth (VProp (AtomicVector w)) = w
 vectorWidth _                        = error "vectorWidth: non-ValueVector input"
 
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
@@ -31,7 +30,7 @@ inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorPro
 inferVectorTypeUnOp s op = 
   case op of
     UniqueS -> VProp <$> unpack s
-    Aggr _ -> Right $ VProp $ AtomicVector 1
+    Aggr _ -> Right $ VProp $ ValueVector 1
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s

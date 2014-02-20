@@ -15,8 +15,6 @@ instance Show a => Show (VectorProp a) where
   show (VPropTriple a1 a2 a3) = show (a1, a2, a3)
 
 data VectorType = ValueVector Int
-                -- FIXME we don't have atomic vectors anymore
-                | AtomicVector Int
                 | RenameVector
                 | PropVector
                 deriving Show
@@ -34,7 +32,6 @@ data ConstPayload = ConstPL VLVal
 
 data ConstVec = DBVConst ConstDescr [ConstPayload]
               | RenameVecConst SourceConstDescr TargetConstDescr
-              | DBPConst [ConstPayload]
               | PropVecConst SourceConstDescr TargetConstDescr
               deriving Show
 
@@ -88,13 +85,6 @@ instance Show ConstDescr where
 
 instance Renderable ConstVec where
   renderProp (DBVConst d ps) = (text $ show d) <+> payload
-    where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
-          isConst (_, NonConstPL) vals   = vals
-          isConst (i, (ConstPL v)) vals  = (i, v) : vals
-
-          renderPL (i, v)  = int i <> colon <> renderTblVal v
-
-  renderProp (DBPConst ps) = payload
     where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
           isConst (_, NonConstPL) vals   = vals
           isConst (i, (ConstPL v)) vals  = (i, v) : vals
