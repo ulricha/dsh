@@ -749,7 +749,7 @@ instance VectorAlgebra PFAlgebra where
 
     qi <- proj (itemProj cols [mP descr descr'', cP pos]) qr
     
-    return (DVec qm [], DVec qm cols) 
+    return (DVec qm [], DVec qi cols) 
 
   transpose (DVec q cols) = do
     qi <- projM (itemProj cols [mP descr descr', mP pos pos'])
@@ -766,3 +766,4 @@ instance VectorAlgebra PFAlgebra where
           $ proj [mP pos descr] qi
 
     return (DVec qo [], DVec qi cols)
+
