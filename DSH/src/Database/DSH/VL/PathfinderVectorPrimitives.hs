@@ -729,6 +729,8 @@ instance VectorAlgebra PFAlgebra where
 
     return (DVec qr1 cols1, PVec qr2)
 
+  -- FIXME none of vecReshape, vecReshapeS, vecTranspose and
+  -- vecTransposeS deals with empty inner inputs correctly!
   vecReshape n (DVec q cols) = do
     let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
