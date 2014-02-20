@@ -1,8 +1,12 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
   
 import Database.Algebra.VL.Data
+
+import Database.DSH.Impossible
   
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
@@ -40,14 +44,22 @@ inferEmptyUnOp e op =
     Select _       -> Right e
     SortSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
     GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
-    Only             -> undefined
-    Singleton        -> undefined
+    Only             -> $unimplemented
+    Singleton        -> $unimplemented
+
+    -- FIXME this documents the current implementation behaviour, not
+    -- what _should_ happen!
+    ReshapeS _ -> let ue = unp e in liftM2 VPropPair ue ue
+    Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
+    Transpose -> let ue = unp e in liftM2 VPropPair ue ue
+
     SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     SelectPos1S _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr _ _ -> Right $ VProp False
     Number -> Right e
     NumberS -> Right e
+  
     R1 -> 
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
@@ -101,6 +113,9 @@ inferEmptyBinOp e1 e2 op =
     SemiJoinS _ _ -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     AntiJoin _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
     AntiJoinS _ _ -> mapUnp e1 e2 (\ue1 _ -> (\p -> VPropPair p p) ue1)
+    -- FIXME This documents the current behaviour of the algebraic
+    -- implementations, not what _should_ happen!
+    TransposeS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =

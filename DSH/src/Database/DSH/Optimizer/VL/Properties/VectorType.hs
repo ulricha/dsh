@@ -1,9 +1,12 @@
--- FIXME introduce consistency checks for schema inference
+{-# LANGUAGE TemplateHaskell #-}
 
+-- FIXME introduce consistency checks for schema inference
 module Database.DSH.Optimizer.VL.Properties.VectorType where
 
 import Control.Monad
 import Data.Functor
+       
+import Database.DSH.Impossible
 
 import Database.DSH.Optimizer.VL.Properties.Types
   
@@ -67,11 +70,19 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    Only -> undefined
-    Singleton -> undefined
+    Only -> $unimplemented
+    Singleton -> $unimplemented
     GroupAggr g as -> Right $ VProp $ ValueVector (length g + length as)
-    Number -> Right $ VProp $ ValueVector 1
-    NumberS -> Right $ VProp $ ValueVector 1
+    Number -> do
+        ValueVector w <- unpack s
+        return $ VProp $ ValueVector (w + 1)
+    NumberS -> do
+        ValueVector w <- unpack s
+        return $ VProp $ ValueVector (w + 1)
+
+    Reshape _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
+    ReshapeS _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
+    Transpose -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
   
 reqValVectors :: VectorProp VectorType 
                  -> VectorProp VectorType 
@@ -133,6 +144,8 @@ inferVectorTypeBinOp s1 s2 op =
     SemiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     AntiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+
+    TransposeS -> liftM2 VPropPair (return $ ValueVector 0) (unpack s2)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
 inferVectorTypeTerOp _ s2 s3 op = 

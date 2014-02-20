@@ -75,6 +75,9 @@ inferReqColumnsUnOp :: VectorProp ReqCols
                 -> VectorProp ReqCols
 inferReqColumnsUnOp ownReqColumns childReqColumns op =
   case op of
+    Transpose -> ownReqColumns `union` childReqColumns
+    Reshape _ -> ownReqColumns `union` childReqColumns
+    ReshapeS _ -> ownReqColumns `union` childReqColumns
     UniqueS -> ownReqColumns `union` childReqColumns
 
     Aggr AggrCount -> none `union` childReqColumns
@@ -305,6 +308,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols1 _ -> 
           (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
         _                     -> error "ReqColumns.AntiJoinS"
+
+    TransposeS -> (childReqColumns1 `union` none, childReqColumns2 `union` ownReqColumns)
     
     
 

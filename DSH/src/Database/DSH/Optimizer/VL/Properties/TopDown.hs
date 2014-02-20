@@ -49,6 +49,9 @@ seed (UnOp op _)   =
     R3                 -> vPropSeed
     Number             -> vPropSeed
     NumberS            -> vPropSeed
+    Transpose          -> vPropPairSeed
+    Reshape _          -> vPropPairSeed
+    ReshapeS _         -> vPropPairSeed
     Only               -> undefined
     Singleton          -> undefined
 
@@ -78,6 +81,10 @@ seed (BinOp op _ _) =
     SemiJoinS _ _      -> vPropPairSeed
     AntiJoin _ _       -> vPropPairSeed
     AntiJoinS _ _      -> vPropPairSeed
+    NestJoinS _ _      -> vPropPairSeed
+    NestProductS       -> vPropPairSeed
+    TransposeS         -> vPropPairSeed
+    
     
 seed (TerOp op _ _ _) =
   case op of

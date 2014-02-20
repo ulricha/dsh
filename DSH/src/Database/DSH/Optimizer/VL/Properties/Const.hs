@@ -1,12 +1,15 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Optimizer.VL.Properties.Const where
 
-import           Data.List
-                 
+import Data.List
 import Text.Printf
 
-import           Database.Algebra.VL.Data
-import           Database.DSH.Optimizer.VL.Properties.Common
-import           Database.DSH.Optimizer.VL.Properties.Types
+import Database.DSH.Impossible
+
+import Database.Algebra.VL.Data
+import Database.DSH.Optimizer.VL.Properties.Common
+import Database.DSH.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
@@ -116,8 +119,8 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
 
-    Only             -> undefined
-    Singleton        -> undefined
+    Only             -> $unimplemented
+    Singleton        -> $unimplemented
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
@@ -140,7 +143,16 @@ inferConstVecUnOp c op =
       return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
                            (DBVConst NonConstDescr (map (const NonConstPL) cs))
                            (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-      
+
+    Transpose -> do
+      (_, cols) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+    Reshape _ -> do
+      (_, cols) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+    ReshapeS _ -> do
+      (_, cols) <- unp c >>= fromDBV
+      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
 
     R1 ->
       case c of
@@ -370,6 +382,10 @@ inferConstVecBinOp c1 c2 op =
   
       -- FIXME This is propably too pessimistic for the descr 
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
+
+    TransposeS -> do
+      (_, cols2) <- unp c2 >>= fromDBV
+      return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols2)
 
 inferConstVecTerOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> (VectorProp ConstVec) -> TerOp -> Either String (VectorProp ConstVec)
 inferConstVecTerOp c1 c2 c3 op =
