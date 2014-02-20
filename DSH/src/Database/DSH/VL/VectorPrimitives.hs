@@ -113,14 +113,15 @@ class VectorAlgebra a where
 
   vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
-  reshape :: Integer -> DVec -> GraphM r a (DVec, DVec)
+  vecReshape :: Integer -> DVec -> GraphM r a (DVec, DVec)
   
   -- reshapeS can be computed only on the inner vector. As its result
   -- is one list nesting level deeper, it computes the new innermost
   -- vector from the old inner vector and then derives from that a
   -- 'middle' descriptor vector which represents lists at nesting
   -- depth 1.
-  reshapeS :: Integer -> DVec -> GraphM r a (DVec, DVec)
+  vecReshapeS :: Integer -> DVec -> GraphM r a (DVec, DVec)
 
-  transpose :: DVec -> GraphM r a (DVec, DVec)
+  vecTranspose :: DVec -> GraphM r a (DVec, DVec)
+  vecTransposeS :: DVec -> DVec -> GraphM r a (DVec, DVec)
   

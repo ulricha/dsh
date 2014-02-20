@@ -249,6 +249,10 @@ translateBinOp b c1 c2 = case b of
         (v, r) <- vecAntiJoinS e1 e2 (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRename r)
 
+    TransposeS -> do
+        (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
+        return $ RPair (fromDVec qo) (fromDVec qi)
+
 -- FIXME singleton and only should really never occur and can
 -- hopefully be eliminated completely. Let's see if it blows up.
 singleton :: Res -> Res
@@ -300,6 +304,16 @@ translateUnOp u c = case u of
         (d, p) <- selectPos1S (toDVec c) op pos
         return $ RPair (fromDVec d) (fromRename p)
     GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
+
+    Reshape n -> do
+        (qo, qi) <- vecReshape n (toDVec c)
+        return $ RPair (fromDVec qo) (fromDVec qi)
+    ReshapeS n -> do
+        (qo, qi) <- vecReshapeS n (toDVec c)
+        return $ RPair (fromDVec qo) (fromDVec qi)
+    Transpose -> do
+        (qo, qi) <- vecTranspose (toDVec c)
+        return $ RPair (fromDVec qo) (fromDVec qi)
     R1            -> case c of
         (RPair c1 _)     -> return c1
         (RTriple c1 _ _) -> return c1

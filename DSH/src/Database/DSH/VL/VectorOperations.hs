@@ -689,15 +689,15 @@ sndL (ValueVector q (Pair _p1 p2)) = do
 sndL s = trace (show s) $ $impossible
      
 transposePrim :: Shape -> Graph VL Shape
-transposePrim (ValueVector qo (Nest qi lyt)) = do
+transposePrim (ValueVector _ (Nest qi lyt)) = do
     (qo', qi') <- vlTranspose qi
     return $ ValueVector qo' (Nest qi' lyt)
 transposePrim _ = $impossible
 
 transposeLift :: Shape -> Graph VL Shape
-transposeLift (ValueVector qoo (Nest qo (Nest qi lyt))) = do
-    (qoo', qo', qi') <- vlTransposeS qoo qo qi
-    return $ ValueVector qoo' (Nest qo' (Nest qi' lyt))
+transposeLift (ValueVector qo (Nest qm (Nest qi lyt))) = do
+    (qm', qi') <- vlTransposeS qm qi
+    return $ ValueVector qo (Nest qm' (Nest qi' lyt))
 transposeLift _ = $impossible
 
 reshapePrim :: Integer -> Shape -> Graph VL Shape

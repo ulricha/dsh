@@ -23,7 +23,7 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos :: AttrName
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
@@ -40,6 +40,10 @@ resCol    = "res"
 tmpCol    = "tmp1"
 tmpCol'   = "tmp2"
 absPos    = "abspos"
+descro    = "descro"
+descri    = "descri"
+poso      = "poso"
+posi      = "posi"
 
 itemi :: Int -> AttrName
 itemi i = "item" ++ show i
@@ -725,7 +729,7 @@ instance VectorAlgebra PFAlgebra where
 
     return (DVec qr1 cols1, PVec qr2)
 
-  reshape n (DVec q cols) = do
+  vecReshape n (DVec q cols) = do
     let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
     qo <- projM [eP descr (ConstE $ nat 1), cP pos] 
@@ -733,7 +737,7 @@ instance VectorAlgebra PFAlgebra where
           $ proj [mP pos descr] qi
     return (DVec qo [], DVec qi cols)
 
-  reshapeS n (DVec q cols) = do
+  vecReshapeS n (DVec q cols) = do
     let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qr <- -- Make the new descriptors valid globally 
           rownumM descr'' [descr, descr'] Nothing
@@ -751,7 +755,7 @@ instance VectorAlgebra PFAlgebra where
     
     return (DVec qm [], DVec qi cols) 
 
-  transpose (DVec q cols) = do
+  vecTranspose (DVec q cols) = do
     qi <- projM (itemProj cols [mP descr descr', mP pos pos'])
           -- Generate new positions. We use absolute positions as the
           -- new descriptor here. This implements the swapping of row
@@ -767,3 +771,22 @@ instance VectorAlgebra PFAlgebra where
 
     return (DVec qo [], DVec qi cols)
 
+  vecTransposeS (DVec qo _) (DVec qi cols) = do
+    qr  <- -- Generate new globally valid positions for the inner vector
+           rownumM pos' [descr', absPos] Nothing
+           -- Absolute positions form the new inner descriptor. However, so
+           -- far they are relative to the outer descriptor. Here, make them
+           -- "globally" valid.
+           $ rowrankM descr' [(descro, Asc), (absPos, Asc)]
+           -- As usual, generate absolute positions
+           $ rownumM absPos [posi] (Just descri)
+           -- Join middle and inner vector because we need to know to which
+           -- outer list each leaf element belongs
+           $ eqJoinM poso descri
+               (proj [mP descro descr, mP poso pos] qo)
+               (proj (itemProj cols [mP descri descr, mP posi pos]) qi)
+
+    qi' <- proj (itemProj cols [mP descr descr', mP pos pos']) qr
+    qm  <- distinctM $ proj [mP descr descro, mP pos descr'] qr
+
+    return (DVec qm [], DVec qi' cols)
