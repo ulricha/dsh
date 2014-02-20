@@ -67,7 +67,7 @@ inferConstVecUnOp c op =
     UniqueS -> return c
 
     Aggr _ -> do
-      return $ VProp $ DBPConst [NonConstPL]
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DescToRename -> do
       (d, _) <- unp c >>= fromDBV
