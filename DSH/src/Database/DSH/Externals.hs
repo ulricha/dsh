@@ -332,6 +332,9 @@ max (Q a) (Q b) = Q (AppE Max (PairE a b))
 mod :: Q Integer -> Q Integer -> Q Integer
 mod (Q a) (Q b) = Q (AppE Mod (PairE a b))
 
+div :: Q Integer -> Q Integer -> Q Integer
+div (Q a) (Q b) = Q (AppE Div (PairE a b))
+
 -- * Conditionals
 
 bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
