@@ -63,6 +63,36 @@ doubleArgClo t v1 v2 e1 e2 = Clo t "n" [] arg1 f1 f2
         f1 = Clo r1 "n" [arg1] arg2 body1 body2
         f2 = AClo (liftType r1) "n" [arg1] arg2 body1 body2
 
+transposeVal :: Type -> Expr
+transposeVal t = singleArgClo t "transpose" transposePrim transposeLPrim
+
+-- tranposePrim :: [[a]] -> [[a]]
+transposePrim :: Expr -> Expr
+transposePrim e = 
+    let t = typeOf e 
+    in F.PApp1 t (F.FTranspose (t .-> t)) e
+
+-- transposeLPrim :: [[[a]]] -> [[[a]]]
+transposeLPrim :: Expr -> Expr
+transposeLPrim e = 
+    let t = typeOf e
+    in F.PApp1 t (F.FTransposeL (t .-> t)) e
+
+reshapeVal :: Integer -> Type -> Expr
+reshapeVal n t = singleArgClo t "reshape" (reshapePrim n) (reshapeLPrim n)
+
+-- transpose :: [a] -> [[a]]
+reshapePrim :: Integer -> Expr -> Expr
+reshapePrim n e = 
+    let t = typeOf e
+    in F.PApp1 (ListT t) (F.FReshape n (t .-> ListT t)) e
+
+-- transpose :: [[a]] -> [[[a]]]
+reshapeLPrim :: Integer -> Expr -> Expr
+reshapeLPrim n e = 
+    let t = typeOf e
+    in F.PApp1 (ListT t) (F.FReshapeL n (t .-> ListT t)) e
+
 groupWithKeyVal :: Type -> Expr
 groupWithKeyVal t = doubleArgClo t "group_f" "group_xs" groupWithKeyPrim groupWithKeyLPrim
 

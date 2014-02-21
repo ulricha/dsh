@@ -109,7 +109,7 @@ zipLift _ _ = error "zipLift: Should not be possible"
 cartProductPrim :: Shape -> Shape -> Graph VL Shape
 cartProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (q', p1, p2) <- vlCartProduct q1 q2
-    lyt1'        <- chainReorder p1 lyt1
+    lyt1'        <- chainRenameFilter p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
 cartProductPrim _ _ = $impossible
@@ -117,7 +117,7 @@ cartProductPrim _ _ = $impossible
 cartProductLift :: Shape -> Shape -> Graph VL Shape
 cartProductLift (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', p1, p2) <- vlCartProductS q1 q2
-    lyt1'        <- chainReorder p1 lyt1
+    lyt1'        <- chainRenameFilter p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 cartProductLift _ _ = $impossible
@@ -132,7 +132,7 @@ nestProductPrim _ _ = $impossible
 nestProductLift :: Shape -> Shape -> Graph VL Shape
 nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
     (qj, qp1, qp2) <- vlNestProductS qv1 qv2
-    lyt1'          <- chainReorder qp1 lyt1
+    lyt1'          <- chainRenameFilter qp1 lyt1
     lyt2'          <- chainReorder qp2 lyt2
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj (Pair lyt1' lyt2'))))
 nestProductLift _ _ = $impossible
@@ -140,7 +140,7 @@ nestProductLift _ _ = $impossible
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (q', p1, p2) <- vlEquiJoin e1 e2 q1 q2
-    lyt1'        <- chainReorder p1 lyt1
+    lyt1'        <- chainRenameFilter p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
 equiJoinPrim _ _ _ _ = $impossible
@@ -148,7 +148,7 @@ equiJoinPrim _ _ _ _ = $impossible
 equiJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 equiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', p1, p2) <- vlEquiJoinS e1 e2 q1 q2
-    lyt1'        <- chainReorder p1 lyt1
+    lyt1'        <- chainRenameFilter p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 equiJoinLift _ _ _ _ = $impossible
@@ -170,7 +170,7 @@ nestJoinPrim _ _ _ _ = $impossible
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 nestJoinLift e1 e2 (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
     (qj, qp1, qp2) <- vlNestJoinS e1 e2 qv1 qv2
-    lyt1'          <- chainReorder qp1 lyt1
+    lyt1'          <- chainRenameFilter qp1 lyt1
     lyt2'          <- chainReorder qp2 lyt2
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj (Pair lyt1' lyt2'))))
 nestJoinLift _ _ _ _ = $impossible
@@ -687,6 +687,30 @@ sndL (ValueVector q (Pair _p1 p2)) = do
     proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p2'
 sndL s = trace (show s) $ $impossible
+     
+transposePrim :: Shape -> Graph VL Shape
+transposePrim (ValueVector _ (Nest qi lyt)) = do
+    (qo', qi') <- vlTranspose qi
+    return $ ValueVector qo' (Nest qi' lyt)
+transposePrim _ = $impossible
+
+transposeLift :: Shape -> Graph VL Shape
+transposeLift (ValueVector qo (Nest qm (Nest qi lyt))) = do
+    (qm', qi') <- vlTransposeS qm qi
+    return $ ValueVector qo (Nest qm' (Nest qi' lyt))
+transposeLift _ = $impossible
+
+reshapePrim :: Integer -> Shape -> Graph VL Shape
+reshapePrim n (ValueVector q lyt) = do
+    (qo, qi) <- vlReshape n q
+    return $ ValueVector qo (Nest qi lyt)
+reshapePrim _ _ = $impossible
+
+reshapeLift :: Integer -> Shape -> Graph VL Shape
+reshapeLift n (ValueVector qo (Nest qi lyt)) = do
+    (qm, qi') <- vlReshapeS n qi
+    return $ ValueVector qo (Nest qm (Nest qi' lyt))
+reshapeLift _ _ = $impossible
 
 projectFromPos :: Layout -> (Layout, [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)

@@ -97,13 +97,13 @@ class VectorAlgebra a where
   -- FIXME better name: zipSeg
   vecZipS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
-  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
 
-  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
   
   vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
   vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
@@ -112,4 +112,16 @@ class VectorAlgebra a where
   vecAntiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
   vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
+
+  vecReshape :: Integer -> DVec -> GraphM r a (DVec, DVec)
+  
+  -- reshapeS can be computed only on the inner vector. As its result
+  -- is one list nesting level deeper, it computes the new innermost
+  -- vector from the old inner vector and then derives from that a
+  -- 'middle' descriptor vector which represents lists at nesting
+  -- depth 1.
+  vecReshapeS :: Integer -> DVec -> GraphM r a (DVec, DVec)
+
+  vecTranspose :: DVec -> GraphM r a (DVec, DVec)
+  vecTransposeS :: DVec -> DVec -> GraphM r a (DVec, DVec)
   

@@ -88,4 +88,5 @@ import Prelude hiding (
   , return
   , (>>=)
   , (>>)
+  , div
   )

@@ -179,6 +179,8 @@ prim1Transform (N.Prim1 N.Init t) = initVal t
 prim1Transform (N.Prim1 N.Last t) = lastVal t
 prim1Transform (N.Prim1 N.Nub t) = nubVal t
 prim1Transform (N.Prim1 N.Number t) = numberVal t
+prim1Transform (N.Prim1 (N.Reshape n) t) = reshapeVal n t
+prim1Transform (N.Prim1 N.Transpose t) = transposeVal t
 
 prim2Transform :: (N.Prim2 Type) -> F.Expr
 prim2Transform (N.Prim2 N.Map t) = mapVal t

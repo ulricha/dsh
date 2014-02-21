@@ -23,7 +23,7 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos :: AttrName
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
@@ -40,6 +40,10 @@ resCol    = "res"
 tmpCol    = "tmp1"
 tmpCol'   = "tmp2"
 absPos    = "abspos"
+descro    = "descro"
+descri    = "descri"
+poso      = "poso"
+posi      = "posi"
 
 itemi :: Int -> AttrName
 itemi i = "item" ++ show i
@@ -447,7 +451,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   vecCartProductS (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -462,7 +466,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   -- FIXME merge common parts of vecCartProductS and vecNestProductS
   vecNestProductS (DVec q1 cols1) (DVec q2 cols2) = do
@@ -478,7 +482,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
     
   vecEquiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -500,7 +504,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- tagM "eqjoin/1" $ proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
   
   vecEquiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -523,7 +527,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
 
   -- There is only one difference between EquiJoinS and NestJoinS. For
   -- NestJoinS, we 'segment' after the join, i.e. use the left input
@@ -550,7 +554,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
     qs <- selectM (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
@@ -724,3 +728,67 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos, mP posnew pos'] qs
 
     return (DVec qr1 cols1, PVec qr2)
+
+  -- FIXME none of vecReshape, vecReshapeS, vecTranspose and
+  -- vecTransposeS deals with empty inner inputs correctly!
+  vecReshape n (DVec q cols) = do
+    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
+    qo <- projM [eP descr (ConstE $ nat 1), cP pos] 
+          $ distinctM 
+          $ proj [mP pos descr] qi
+    return (DVec qo [], DVec qi cols)
+
+  vecReshapeS n (DVec q cols) = do
+    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    qr <- -- Make the new descriptors valid globally 
+          rownumM descr'' [descr, descr'] Nothing
+          -- Assign the inner list elements to sublists. Generated
+          -- descriptors are _per_ inner list!
+          $ projM (itemProj cols [cP descr, cP pos, eP descr' dExpr])
+          -- Generate absolute positions for the inner lists
+          $ rownum pos' [pos] (Just descr) q
+  
+    -- We can compute the 'middle' descriptor vector from the original
+    -- inner vector.
+    qm <- distinctM $ proj [cP descr, mP pos descr''] qr
+
+    qi <- proj (itemProj cols [mP descr descr'', cP pos]) qr
+    
+    return (DVec qm [], DVec qi cols) 
+
+  vecTranspose (DVec q cols) = do
+    qi <- projM (itemProj cols [mP descr descr', mP pos pos'])
+          -- Generate new positions. We use absolute positions as the
+          -- new descriptor here. This implements the swapping of row
+          -- and column ids (here: descr and pos) that is the core of
+          -- transposition.
+          $ rownumM pos' [descr', pos] Nothing
+          -- Generate absolute positions for the inner lists
+          $ rownum descr' [pos] (Just descr) q
+
+    qo <- projM [eP descr (ConstE $ nat 1), cP pos] 
+          $ distinctM 
+          $ proj [mP pos descr] qi
+
+    return (DVec qo [], DVec qi cols)
+
+  vecTransposeS (DVec qo _) (DVec qi cols) = do
+    qr  <- -- Generate new globally valid positions for the inner vector
+           rownumM pos' [descr', absPos] Nothing
+           -- Absolute positions form the new inner descriptor. However, so
+           -- far they are relative to the outer descriptor. Here, make them
+           -- "globally" valid.
+           $ rowrankM descr' [(descro, Asc), (absPos, Asc)]
+           -- As usual, generate absolute positions
+           $ rownumM absPos [posi] (Just descri)
+           -- Join middle and inner vector because we need to know to which
+           -- outer list each leaf element belongs
+           $ eqJoinM poso descri
+               (proj [mP descro descr, mP poso pos] qo)
+               (proj (itemProj cols [mP descri descr, mP posi pos]) qi)
+
+    qi' <- proj (itemProj cols [mP descr descr', mP pos pos']) qr
+    qm  <- distinctM $ proj [mP descr descro, mP pos descr'] qr
+
+    return (DVec qm [], DVec qi' cols)

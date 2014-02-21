@@ -77,6 +77,18 @@ concat e = let t = typeOf e
                     then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
                     else P.error P.$ "NKLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
 
+-- reshape :: [a] -> [[a]]
+reshape :: P.Integer -> Expr -> Expr
+reshape n e = 
+    let t = typeOf e 
+    in AppE1 (ListT t) (Prim1 (Reshape n) P.$ t .-> ListT t) e
+
+-- transpose :: [[a]] -> [[a]]
+transpose :: Expr -> Expr
+transpose e = 
+    let t = typeOf e
+    in AppE1 t (Prim1 Transpose P.$ t .-> t) e
+
 sum :: Expr -> Expr
 sum e = let (ListT t) = typeOf e
          in if isNum t

@@ -1,10 +1,13 @@
 -- FIXME complete rules
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Properties.Card where
 
 import Control.Applicative
 
 import Database.Algebra.VL.Data
+
+import Database.DSH.Impossible
   
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
@@ -53,10 +56,14 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr [] _ -> Right $ VProp True
     GroupAggr _ _  -> Right c
-    Only -> undefined
-    Singleton -> undefined
+    Only -> $unimplemented
+    Singleton -> $unimplemented
     Number -> Right c
     NumberS -> Right c
+    Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
@@ -87,6 +94,7 @@ inferCardOneBinOp c1 c2 op =
     SemiJoinS _ _ -> return $ VPropPair False False
     AntiJoin _ _ -> return $ VPropPair False False
     AntiJoinS _ _ -> return $ VPropPair False False
+    TransposeS -> return $ VPropPair False False
     ZipS -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c

@@ -66,6 +66,10 @@ data Prim1 = FLength Type
            | FNubL Type
            | FNumber Type
            | FNumberL Type
+           | FTranspose Type
+           | FTransposeL Type
+           | FReshape Integer Type
+           | FReshapeL Integer Type
     deriving (Eq, Generic)
     
 instance Show Prim1 where
@@ -108,6 +112,10 @@ instance Show Prim1 where
     show (FNubL _)       = "nubL"
     show (FNumber _)     = "number"
     show (FNumberL _)    = "numberL"
+    show (FTranspose _)  = "transpose"
+    show (FTransposeL _) = "transposeL"
+    show (FReshape n _)  = printf "reshape(%d)" n
+    show (FReshapeL n _) = printf "reshapeL(%d)" n
     
 data Prim2 = FGroupWithKey Type
            | FGroupWithKeyL Type
@@ -174,6 +182,8 @@ instance Show Prim2 where
     show (FDropWith _)        = "dropWithS"
     show (FCartProduct _)     = "cartProduct"
     show (FCartProductL _)    = "cartProductL"
+    show (FNestProduct _)     = "nestProduct"
+    show (FNestProductL _)    = "nestProductL"
     show (FEquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (show e1) (show e2)
     show (FEquiJoinL e1 e2 _) = printf "equiJoinL(%s, %s)" (show e1) (show e2)
     show (FNestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (show e1) (show e2)

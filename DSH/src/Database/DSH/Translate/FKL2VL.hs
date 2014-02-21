@@ -118,6 +118,10 @@ papp1 t f =
         FNubL _             -> nubLift
         FNumber _           -> numberPrim
         FNumberL _          -> numberLift
+        FTranspose _        -> transposePrim
+        FTransposeL _       -> transposeLift
+        FReshape n _        -> reshapePrim n
+        FReshapeL n _       -> reshapeLift n
 
 papp2 :: Prim2 -> Shape -> Shape -> Graph VL Shape
 papp2 f =

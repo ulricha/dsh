@@ -222,8 +222,8 @@ serializeProject q =
           let projCol (c', ColE c) = return (c', c)
               projCol _            = fail "no match"
 
-              lookupFail a abs = case lookup a abs of
-                  Just b  -> return b
+              lookupFail x xys = case lookup x xys of
+                  Just y  -> return y
                   Nothing -> fail "no match"
 
           colMap <- mapM projCol $(v "projs")
