@@ -18,7 +18,7 @@ import           Text.Printf
                  
 import           Database.DSH.Impossible
 import           Database.DSH.CompileFlattening
-import           Database.DSH.ExecuteFlattening
+import           Database.DSH.Execute
 
 import           Database.DSH.Internals
 import           Database.HDBC

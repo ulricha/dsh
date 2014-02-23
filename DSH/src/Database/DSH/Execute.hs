@@ -7,7 +7,11 @@
 {-# LANGUAGE TransformListComp     #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 
-module Database.DSH.ExecuteFlattening(executeSQL) where
+-- | This module implements the execution of query bundles and the
+-- construction of nested values from the resulting vector bundle.
+module Database.DSH.Execute
+  ( executeSQL
+  ) where
 
 import           Database.DSH.Impossible
 import           Database.DSH.Internals

@@ -95,7 +95,7 @@ Library
   Other-modules:     Database.DSH.Internals
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
-                     Database.DSH.ExecuteFlattening
+                     Database.DSH.Execute
                      Database.DSH.Externals
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Data.Op
