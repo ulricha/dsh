@@ -110,9 +110,11 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
-fromQX100 c (Q a) =  do
+fromQX100 c (Q a) =  undefined
+{-
     (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
     frExp <$> (executeX100Query c $ X100 q)
+-}
 
 fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
 fromQ c (Q a) = $unimplemented

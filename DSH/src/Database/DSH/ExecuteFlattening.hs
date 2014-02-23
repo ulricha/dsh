@@ -7,25 +7,16 @@
 {-# LANGUAGE TransformListComp     #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 
-module Database.DSH.ExecuteFlattening() where
+module Database.DSH.ExecuteFlattening(executeSQL) where
 
 import           Database.DSH.Impossible
 import           Database.DSH.Internals
 
 import           Database.HDBC
 
-import           Control.Exception                     (evaluate)
-import           Control.Monad
-
-import           GHC.Exts
-
-import           Data.Convertible.Base
-import           Data.List                             (foldl', transpose)
-import           Data.Maybe                            (fromJust)
-import           Data.Text                             (Text(), pack)
+import           Data.List
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
-import           Text.Printf
 
 import           Database.DSH.Common.Data.DBCode
 import           Database.DSH.Common.Data.QueryPlan
@@ -75,20 +66,58 @@ data TabLayout a where
     TPair :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabLayout (a, b)
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execAll :: IConnection conn => conn -> TopLayout SqlCode -> Type a -> IO (TabLayout a)
-execAll conn lyt ty =
+execNested :: IConnection conn => conn -> TopLayout SqlCode -> Type a -> IO (TabLayout a)
+execNested conn lyt ty =
     case (lyt, ty) of
         (InColumn i, t)               -> return $ TCol t (itemCol i)
         (Pair lyt1 lyt2, PairT t1 t2) -> do
-            lyt1' <- execAll conn lyt1 t1
-            lyt2' <- execAll conn lyt2 t2
+            lyt1' <- execNested conn lyt1 t1
+            lyt2' <- execNested conn lyt2 t2
             return $ TPair ty lyt1' lyt2'
         (Nest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
             tab   <- fetchAllRowsMap' stmt
-            clyt' <- execAll conn clyt t
+            clyt' <- execNested conn clyt t
             return $ TNest ty tab clyt'
         (_, _) -> error "Type does not match query structure"
+
+------------------------------------------------------------------------------
+-- Construct result values from vectors
+
+fromVector :: Reify a => SqlTable -> TabLayout a -> Exp [a]
+fromVector tab tlyt =
+    let slyt = segmentLayout tlyt
+    in ListE $ D.toList $ foldl' (vecIter slyt) D.empty tab
+
+vecIter :: SegLayout a -> D.DList (Exp a) -> SqlRow -> D.DList (Exp a)
+vecIter slyt vals row = 
+    let val = mkVal slyt row
+    in D.snoc vals val
+
+fromPrim :: SqlTable -> TabLayout a -> Exp a
+fromPrim tab tlyt =
+    let slyt = segmentLayout tlyt
+    in case tab of
+           [row] -> mkVal slyt row
+           _     -> $impossible
+
+executeSQL :: IConnection conn => conn -> TopShape SqlCode -> Type a -> IO (Exp a)
+executeSQL conn shape ty = 
+    case (shape, ty) of
+        (ValueVector (SqlCode sqlQuery) lyt, ListT ety) -> do
+            stmt <- prepare conn sqlQuery
+            tab  <- fetchAllRowsMap' stmt
+            tlyt <- execNested conn lyt ety
+            return $ fromVector tab tlyt
+        (PrimVal (SqlCode sqlQuery) lyt, _) -> do
+            stmt <- prepare conn sqlQuery
+            tab  <- fetchAllRowsMap' stmt
+            tlyt <- execNested conn lyt ty
+            return $ fromPrim tab tlyt
+        _ -> $impossible
+            
+------------------------------------------------------------------------------
+-- Construct nested result values from segmented vectors
 
 -- | A map from segment descriptor to list expressions
 type SegMap a = IM.IntMap (Exp a)
@@ -112,6 +141,7 @@ data SegAcc a = SegAcc { currSeg :: Int
                        , currVec :: D.DList (Exp a)
                        }
 
+
 -- | Construct a segment map from a segmented vector
 fromSegVector :: Reify a => SqlTable -> TabLayout a -> SegMap [a]
 fromSegVector tab tlyt =
@@ -133,16 +163,19 @@ segIter lyt acc row =
                 , currVec = D.singleton val
                 }
 
+------------------------------------------------------------------------------
+-- Construct values from table rows    
+
 -- | Construct a value from a vector row according to the given layout
 mkVal :: SegLayout a -> SqlRow -> Exp a
 mkVal lyt row =
     case lyt of
-        SPair ty lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
-        SNest ty segmap    -> let pos = posCol row
+        SPair _ lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
+        SNest _ segmap    -> let pos = posCol row
                               in case IM.lookup pos segmap of
                                   Just v  -> v
                                   Nothing -> ListE []
-        SCol ty c          -> scalarFromSql (col c row) ty
+        SCol ty c         -> scalarFromSql (col c row) ty
 
 -- | Construct a scalar value from a SQL value
 scalarFromSql :: SqlValue -> Type a -> Exp a
