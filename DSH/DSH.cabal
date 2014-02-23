@@ -82,7 +82,8 @@ Library
                      kure               >= 2.14.0,
                      ansi-wl-pprint,
                      set-monad,
-                     either
+                     either,
+                     dlist
                      
   Hs-source-dirs:    src
   GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults

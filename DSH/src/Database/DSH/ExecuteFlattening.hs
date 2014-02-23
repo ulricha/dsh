@@ -5,18 +5,17 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TransformListComp     #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 
 module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..), X100(..)) where
 
 import           Database.DSH.Impossible
 import           Database.DSH.Internals
 
-import           Database.X100Client                   hiding (X100)
-
 import           Database.HDBC
 
 import           Control.Exception                     (evaluate)
+import           Control.Monad
 
 import           GHC.Exts
 
@@ -31,246 +30,137 @@ import           Text.Printf
 import           Database.DSH.Common.Data.DBCode
 import           Database.DSH.Common.Data.QueryPlan
 
-data SQL a = SQL (TopShape SQLCode)
-
-data X100 a = X100 (TopShape X100Code)
-
-textToChar :: Exp Text -> Exp Char
-textToChar (TextE t) = CharE (Txt.head t)
-textToChar _               = error $ "textToChar: Not a char value"
+import qualified Data.Map as M
+import qualified Data.IntMap.Strict as IM
+import qualified Data.DList as D
 
 
-executeSQLQuery :: forall a. forall conn. (IConnection conn, Reify a) => conn -> SQL a -> IO (Exp a)
-executeSQLQuery c (SQL q) = do
-    let et = reify (undefined :: a)
-    
-    case et of
-        (ListT _) -> do
-            n <- makeNormSQL c q et
-            return $ concatN $ reverse $ map snd n
-        _         -> do
-            n <- makeNormSQLPrim c q et
-            return $ n
+itemCol :: Int -> String
+itemCol 1 = "item1"
+itemCol 2 = "item2"
+itemCol 3 = "item3"
+itemCol 4 = "item4"
+itemCol 5 = "item5"
+itemCol 6 = "item6"
+itemCol 7 = "item7"
+itemCol 8 = "item8"
+itemCol 9 = "item9"
+itemCol 10 = "item10"
+itemCol n = "item" ++ show n
 
+type SqlRow = M.Map String SqlValue
+type SqlTable = [SqlRow]
 
-executeX100Query :: forall a. (Reify a) => X100Info -> X100 a -> IO (Exp a)
-executeX100Query c (X100 q) = let et = reify (undefined :: a)
-                                  in case et of
-                                        (ListT _) -> do
-                                                      n <- makeNormX100 c q et
-                                                      return $ concatN $ reverse $ map snd n
-                                        _ -> do
-                                                n <- makeNormX100Prim c q et
-                                                return n
+col :: String -> SqlRow -> SqlValue
+col c r = 
+    case M.lookup c r of
+        Just v  -> v
+        Nothing -> $impossible
 
-constructVector :: X100Info -> TopLayout X100Code -> [(Int, [(Int, [X100Data])])] -> Type [a] -> IO [(Int, Exp [a])]
-constructVector _ (InColumn i) parted t = do
-                                            return $ normaliseX100List t i parted
-constructVector c (Nest v lyt) parted t@(ListT _) =
-                                        case t of
-                                            (ListT t1@(ListT _)) -> do
-                                                            inner <- makeNormX100 c (ValueVector v lyt) t1
-                                                            return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-                                            _ -> error "constructVector: Not a nested list"
-constructVector c (Pair p1 p2) parted (ListT (PairT t1 t2)) = do
-                                                                    v1 <- constructVector c p1 parted $ ListT t1
-                                                                    v2 <- constructVector c p2 parted $ ListT t2
-                                                                    return $ makeTuple v1 v2
-constructVector _ v _ t = error $ "result " ++ show v ++ " with type: " ++ show t
+int32 :: SqlValue -> Int
+int32 (SqlInt32 i) = fromIntegral i
+int32 _            = $impossible
 
-constructVectorSQL :: IConnection conn => conn -> TopLayout SQLCode -> [(String, Int)] -> [(Int, [(Int, [SqlValue])])] -> Type [a] -> IO [(Int, Exp [a])]
-constructVectorSQL _ (InColumn i) pos parted t = do
-                                            let i' = snd $ pos !! (i - 1)
-                                            return $ normaliseList t i' parted
-constructVectorSQL c (Nest v lyt) _ parted t@(ListT _) =
-                                        case t of
-                                          (ListT t1@(ListT _)) -> do
-                                                            inner <- makeNormSQL c (ValueVector v lyt) t1
-                                                            return $ constructDescriptor t (map (\(i, p) -> (i, map fst p)) parted) inner
-                                          _ -> error "constructVectorSQL: Not a nested list"
-constructVectorSQL c (Pair p1 p2) pos parted (ListT (PairT t1 t2)) = do
-                                                                    v1 <- constructVectorSQL c p1 pos parted $ ListT t1
-                                                                    v2 <- constructVectorSQL c p2 pos parted $ ListT t2
-                                                                    return $ makeTuple v1 v2
-constructVectorSQL _ _ _ _ _ = $impossible
+posCol :: SqlRow -> Int
+posCol row = int32 $ col "pos" row
 
-makeTuple :: [(Int, Exp [a])] -> [(Int, Exp [b])] -> [(Int, Exp [(a, b)])]
-makeTuple ((i1, vs1):v1) ((i2, vs2):v2) | i1 == i2  = (i1, zipNorm vs1 vs2) : makeTuple v1 v2
-                                        | otherwise = error "makeTuple: Cannot zip"
-makeTuple []             []                         = []
-makeTuple _              _                          = $impossible
+descrCol :: SqlRow -> Int
+descrCol row = int32 $ col "descr" row
 
-zipNorm :: Exp [a] -> Exp [b] -> Exp [(a, b)]
-zipNorm (ListE es1) (ListE es2) = ListE [PairE e1 e2 | (e1, e2) <- zip es1 es2]
-zipNorm _ _ = error "zipNorm: Cannot zip"
+data TabLayout a = TCol (Type a) String
+                 | TNest (Type [a]) SqlTable (TabLayout a)
+                 | TPair (Type (a, b)) (TabLayout a) (TabLayout b)
 
-makeNormX100 :: X100Info -> TopShape X100Code -> Type [a] -> IO [(Int, Exp [a])]
-makeNormX100 c (ValueVector (X100Code _ q) p) t = do
-                                                   (X100Res _ res) <- doX100Query c q
-                                                   let parted = partByIterX100 res
-                                                   constructVector c p parted t
-makeNormX100 _ _ _ = error "makeNormX100: Not a list value vector"
+-- | Traverse the layout and execute all subqueries for nested vectors
+execAll :: IConnection conn => conn -> TopLayout SQLCode -> Type a -> IO (TabLayout a)
+execAll conn lyt ty =
+    case (lyt, ty) of
+        (InColumn i, t)               -> return $ TCol t (itemCol i)
+        (Pair lyt1 lyt2, PairT t1 t2) -> do
+            lyt1' <- execAll conn lyt1 t1
+            lyt2' <- execAll conn lyt2 t2
+            return $ TPair ty lyt1' lyt2'
+        (Nest sqlQuery clyt, ListT t) -> do
+            stmt  <- prepare conn sqlQuery
+            tab   <- fetchAllRowsMap' stmt
+            clyt' <- execAll conn clyt t
+            return $ TNest ty tab clyt'
+        (_, _) -> error "Type does not match query structure"
 
-makeNormX100Prim :: (Reify a) => X100Info -> TopShape X100Code -> Type a -> IO (Exp a)
-makeNormX100Prim c (PrimVal (X100Code _ q) p) t = do
-                                        (X100Res _ res) <- doX100Query c q
-                                        let parted = partByIterX100 res
-                                        [(_, (ListE [n]))] <- constructVector c p parted (ListT t)
-                                        return n
-makeNormX100Prim _ _ _ = error "makeNormX100Prim: Not a primitive value query"
+type SegMap a = IM.IntMap (Exp a)
 
-makeNormSQLPrim :: (IConnection conn, Reify a) => conn -> TopShape SQLCode -> Type a -> IO (Exp a)
-makeNormSQLPrim c (PrimVal (SQLCode _ s q) p) t = do
-                                        (r, d) <- doSQLQuery c q
-                                        let (iC, ri) = schemeToResult s d
-                                        let parted = partByIter iC r
-                                        [(_, (ListE [n]))] <- constructVectorSQL c p ri parted (ListT t)
-                                        return n
-makeNormSQLPrim _ _ _ = error "makeNormSQLPrim: Not a primitive value query"
+data SegLayout a = SCol (Type a) String
+                 | SNest (SegMap a)
+                 | SPair (SegLayout a) (SegLayout a)
 
-makeNormSQL :: IConnection conn => conn -> TopShape SQLCode -> Type [a] -> IO [(Int, Exp [a])]
-makeNormSQL c (ValueVector (SQLCode _ s q) p) t = do
-                                                    (r, d) <- doSQLQuery c q
-                                                    let (iC, ri) = schemeToResult s d
-                                                    let parted = partByIter iC r
-                                                    constructVectorSQL c p ri parted t
-makeNormSQL _ _ _ = error "makeNormSQL: Not a value vector"
+-- | Construct values for nested vectors in the layout.
+segmentLayout :: TabLayout a -> SegLayout a
+segmentLayout tlyt =
+    case tlyt of
+        TCol t s          -> SCol t s
+        TNest tab clyt    -> SNest (fromSegVector tab clyt)
+        TPair clyt1 clyt2 -> SPair (segmentLayout clyt1) (segmentLayout clyt2)
 
-constructDescriptor :: Reify a => Type [[a]] -> [(Int, [Int])] -> [(Int, Exp [a])] -> [(Int, Exp [[a]])]
-constructDescriptor t@(ListT t1) ((i, vs):outers) inners = let (r, inners') = nestList t1 vs inners
-                                                            in (i, ListE r) : constructDescriptor t outers inners'
-constructDescriptor _            []               _      = []
+data SegAcc a = SegAcc { currSeg :: Int
+                       , segMap  :: SegMap [a]
+                       , currVec :: D.DList (Exp a)
+                       }
 
-nestList :: Reify a => Type [a] -> [Int] -> [(Int, Exp [a])] -> ([Exp [a]], [(Int, Exp [a])])
-nestList t ps'@(p:ps) ls@((d,n):lists) | p == d = n `combine` (nestList t ps lists)
-                                       | p <  d = ListE [] `combine` (nestList t ps ls)
-                                       | p >  d = nestList t ps' lists
-nestList t (_:ps)     []                         = ListE [] `combine` (nestList t ps [])
-nestList _ []         ls                         = ([], ls)
-nestList _ _ _ = error "nestList $ Not a neted list"
+fromSegVector :: SqlTable -> TabLayout a -> SegMap [a]
+fromSegVector tab tlyt =
+    let slyt = segmentLayout tlyt
+        initialAcc = SegAcc { currSeg = 0, segMap = IM.empty, currVec = D.empty }
+        finalAcc = foldl' (segIter slyt) initialAcc tab
+    in IM.insert (currSeg finalAcc) (ListE $ D.toList $ currVec finalAcc) (segMap finalAcc)
 
-combine :: Exp [a] -> ([Exp [a]], [(Int, Exp [a])]) -> ([Exp [a]], [(Int, Exp [a])])
-combine n (ns, r) = (n:ns, r)
+-- Fold iterator that constructs a map from segment descriptor to the
+-- list value that is represented by that segment
+segIter :: SegLayout a -> SegAcc [a] -> SqlRow -> SegAcc [a]
+segIter lyt acc row = 
+    let val   = mkVal lyt row
+        descr = descrCol row
+    in if descr == currSeg acc
+       then acc { currVec = D.snoc (currVec acc) val }
+       else acc { currSeg = descr
+                , segMap  = IM.insert (currSeg acc) (ListE $ D.toList $ currVec acc) (segMap acc)
+                , currVec = D.singleton val
+                }
 
-concatN :: Reify a => [Exp [a]] -> Exp [a]
-concatN ns@((ListE _): _) = foldl' (\(ListE e1) (ListE e2) -> ListE (e2 ++ e1)) (ListE []) ns
-concatN []                = ListE []
-concatN _                 = error "concatN: Not a list of lists"
+-- | Construct a value from a vector row according to the given layout
+mkVal :: SegLayout a -> SqlRow -> Exp a
+mkVal lyt row =
+    case lyt of
+        SPair lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
+        SNest segmap    -> let pos = posCol row
+                           in case IM.lookup pos segmap of
+                                  Just v  -> v
+                                  Nothing -> ListE []
+        SCol t c        -> scalarFromSql (col c row) t 
 
-normaliseList :: Type [a] -> Int -> [(Int, [(Int, [SqlValue])])] -> [(Int, Exp [a])]
-normaliseList (ListT t1) c vs = reverse $ foldl' (\tl (i, v) -> (i, ListE (map ((normalise t1 c) . snd) v)):tl) [] vs
-
-normaliseX100List :: Type [a] -> Int -> [(Int, [(Int, [X100Data])])] -> [(Int, Exp [a])]
-normaliseX100List (ListT t1) index vs = reverse $ foldl' (\tl (i, v) -> (i, ListE (map ((normaliseX100 t1) . (!! (index - 1)) . snd) v)):tl) [] vs
-
-normalise :: Type a -> Int -> [SqlValue] -> Exp a
-normalise UnitT _ _ = UnitE
-normalise t i v = convert' (v !! i) t
-
-convert' :: SqlValue -> Type a -> Exp a
-convert' SqlNull         UnitT    = UnitE
-convert' (SqlInteger i)  IntegerT = IntegerE i
-convert' (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
-convert' (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
-convert' (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
-convert' (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
-convert' (SqlDouble d)  DoubleT  = DoubleE d
-convert' (SqlRational d) DoubleT = DoubleE $ fromRational d
-convert' (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
-convert' (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
-convert' (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
-convert' (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
-convert' (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
-convert' (SqlBool b) BoolT       = BoolE b
-convert' (SqlInteger i) BoolT    = BoolE (i /= 0)
-convert' (SqlInt32 i)   BoolT    = BoolE (i /= 0)
-convert' (SqlInt64 i)   BoolT    = BoolE (i /= 0)
-convert' (SqlWord32 i)  BoolT    = BoolE (i /= 0)
-convert' (SqlWord64 i)  BoolT    = BoolE (i /= 0)
-convert' (SqlChar c) CharT       = CharE c
-convert' (SqlString (c:_)) CharT = CharE c
-convert' (SqlByteString c) CharT = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
-convert' (SqlString t) TextT     = TextE (Txt.pack t)
-convert' (SqlByteString s) TextT = TextE (Txt.decodeUtf8 s)
-convert' sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
-
-normaliseX100 :: Type a -> X100Data -> Exp a
-normaliseX100 UnitT _ = UnitE
-normaliseX100 t v = convert (v, t)
-
-instance Convertible (X100Data, Type a) (Exp a) where
-    safeConvert (Str s, TextT) = Right $ TextE (pack s)
-    safeConvert (Str s, CharT) = Right $ CharE (head s)
-    safeConvert (UChr i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (SChr i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (SInt i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (UInt i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (SSht i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (USht i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (SLng i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (ULng i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (UIDX i, BoolT) = Right $ BoolE (i /= 0)
-    safeConvert (SInt i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (UInt i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (SChr i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (UChr i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (SSht i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (USht i, IntegerT) = Right $ IntegerE (toInteger i)
-    safeConvert (SLng i, IntegerT) = Right $ IntegerE i
-    safeConvert (ULng i, IntegerT) = Right $ IntegerE i
-    safeConvert (UIDX i, IntegerT) = Right $ IntegerE i
-    safeConvert (Dbl d, DoubleT) = Right $ DoubleE d
-    safeConvert (d, t) = error $ printf "cannot convert (%s, %s) to Norm" (show d) (show t)
-
-doSQLQuery :: IConnection conn => conn -> String -> IO ([[SqlValue]], [(String, SqlColDesc)])
-doSQLQuery c q = do
-    sth <- prepare c q
-    _ <- execute sth []
-    res <- dshFetchAllRowsStrict sth
-    resDescr <- describeResult sth
-    return (res, resDescr)
-
-doX100Query :: X100Info -> String -> IO X100Result
-doX100Query c q = executeQuery c q
-
-dshFetchAllRowsStrict :: Statement -> IO [[SqlValue]]
-dshFetchAllRowsStrict stmt = go []
-  where
-  go :: [[SqlValue]] -> IO [[SqlValue]]
-  go acc = do  mRow <- fetchRow stmt
-               case mRow of
-                 Nothing   -> return (reverse acc)
-                 Just row  -> do mapM_ evaluate row
-                                 go (row : acc)
-
-partByIterX100 :: [X100Column] -> [(Int, [(Int, [X100Data])])]
-partByIterX100 d = pbi d'
-    where
-        d' :: [(Int, Int, [X100Data])]
-        d' = case d of
-                [descr, p] -> zipWith (\x y -> (x, y, [])) (map convert descr) (map convert p)
-                (descr:(p:vs)) -> zip3 (map convert descr) (map convert p) $ transpose vs
-                _          -> $impossible
-        pbi :: [(Int, Int, [X100Data])] -> [(Int, [(Int, [X100Data])])]
-        pbi vs = [ (the i, zip p it) | (i, p, it) <- vs
-                                     , then group by i using groupWith]
-
-partByIter :: Int -> [[SqlValue]] -> [(Int, [(Int, [SqlValue])])]
-partByIter iC vals = pbi (zip [1..] vals)
-    where
-        pbi :: [(Int, [SqlValue])] -> [(Int, [(Int, [SqlValue])])]
-        pbi ((p,v):vs) = let i = getIter v
-                             (vi, vr) = span (\v' -> i == (getIter $ snd v')) vs
-                          in (i, (p, v):vi) : pbi vr
-        pbi []         = []
-        getIter :: [SqlValue] -> Int
-        getIter vs = ((fromSql (vs !! iC))::Int)
-
-type ResultInfo = (Int, [(String, Int)])
-
--- | Transform algebraic plan scheme info into resultinfo
-schemeToResult :: Schema -> [(String, SqlColDesc)] -> ResultInfo
-schemeToResult (itN, col) resDescr = let resColumns = flip zip [0..] $ map (\(c, _) -> takeWhile (\a -> a /= '_') c) resDescr
-                                         itC = fromJust $ lookup itN resColumns
-                                      in (itC, map (\(n, _) -> (n, fromJust $ lookup n resColumns)) col)
+scalarFromSql :: SqlValue -> Type a -> Exp a
+scalarFromSql SqlNull         UnitT    = UnitE
+scalarFromSql (SqlInteger i)  IntegerT = IntegerE i
+scalarFromSql (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlDouble d)  DoubleT    = DoubleE d
+scalarFromSql (SqlRational d) DoubleT = DoubleE $ fromRational d
+scalarFromSql (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
+scalarFromSql (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
+scalarFromSql (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
+scalarFromSql (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
+scalarFromSql (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
+scalarFromSql (SqlBool b) BoolT       = BoolE b
+scalarFromSql (SqlInteger i) BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlInt32 i)   BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlInt64 i)   BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlWord32 i)  BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlWord64 i)  BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlChar c) CharT       = CharE c
+scalarFromSql (SqlString (c:_)) CharT = CharE c
+scalarFromSql (SqlByteString c) CharT = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
+scalarFromSql (SqlString t) TextT     = TextE (Txt.pack t)
+scalarFromSql (SqlByteString s) TextT = TextE (Txt.decodeUtf8 s)
+scalarFromSql sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
 
