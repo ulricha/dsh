@@ -7,7 +7,7 @@
 {-# LANGUAGE TransformListComp     #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 
-module Database.DSH.ExecuteFlattening(executeSQLQuery, executeX100Query, SQL(..), X100(..)) where
+module Database.DSH.ExecuteFlattening() where
 
 import           Database.DSH.Impossible
 import           Database.DSH.Internals
@@ -51,6 +51,7 @@ itemCol n = "item" ++ show n
 type SqlRow = M.Map String SqlValue
 type SqlTable = [SqlRow]
 
+-- | Look up a named column in the current row
 col :: String -> SqlRow -> SqlValue
 col c r = 
     case M.lookup c r of
@@ -67,12 +68,14 @@ posCol row = int32 $ col "pos" row
 descrCol :: SqlRow -> Int
 descrCol row = int32 $ col "descr" row
 
-data TabLayout a = TCol (Type a) String
-                 | TNest (Type [a]) SqlTable (TabLayout a)
-                 | TPair (Type (a, b)) (TabLayout a) (TabLayout b)
+-- | Row layout with nesting data in the form of raw SQL results
+data TabLayout a where
+    TCol  :: Type a -> String -> TabLayout a
+    TNest :: Reify a => Type [a] -> SqlTable -> TabLayout a -> TabLayout [a]
+    TPair :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabLayout (a, b)
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execAll :: IConnection conn => conn -> TopLayout SQLCode -> Type a -> IO (TabLayout a)
+execAll :: IConnection conn => conn -> TopLayout SqlCode -> Type a -> IO (TabLayout a)
 execAll conn lyt ty =
     case (lyt, ty) of
         (InColumn i, t)               -> return $ TCol t (itemCol i)
@@ -80,42 +83,46 @@ execAll conn lyt ty =
             lyt1' <- execAll conn lyt1 t1
             lyt2' <- execAll conn lyt2 t2
             return $ TPair ty lyt1' lyt2'
-        (Nest sqlQuery clyt, ListT t) -> do
+        (Nest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
             tab   <- fetchAllRowsMap' stmt
             clyt' <- execAll conn clyt t
             return $ TNest ty tab clyt'
         (_, _) -> error "Type does not match query structure"
 
+-- | A map from segment descriptor to list expressions
 type SegMap a = IM.IntMap (Exp a)
 
-data SegLayout a = SCol (Type a) String
-                 | SNest (SegMap a)
-                 | SPair (SegLayout a) (SegLayout a)
+-- | Row layout with nesting data in the form of segment maps
+data SegLayout a where
+    SCol  :: Type a -> String -> SegLayout a
+    SNest :: Reify a => Type [a] -> SegMap [a] -> SegLayout [a]
+    SPair :: (Reify a, Reify b) => Type (a, b) -> SegLayout a -> SegLayout b -> SegLayout (a, b)
 
 -- | Construct values for nested vectors in the layout.
 segmentLayout :: TabLayout a -> SegLayout a
 segmentLayout tlyt =
     case tlyt of
-        TCol t s          -> SCol t s
-        TNest tab clyt    -> SNest (fromSegVector tab clyt)
-        TPair clyt1 clyt2 -> SPair (segmentLayout clyt1) (segmentLayout clyt2)
+        TCol ty s            -> SCol ty s
+        TNest ty tab clyt    -> SNest ty (fromSegVector tab clyt)
+        TPair ty clyt1 clyt2 -> SPair ty (segmentLayout clyt1) (segmentLayout clyt2)
 
 data SegAcc a = SegAcc { currSeg :: Int
                        , segMap  :: SegMap [a]
                        , currVec :: D.DList (Exp a)
                        }
 
-fromSegVector :: SqlTable -> TabLayout a -> SegMap [a]
+-- | Construct a segment map from a segmented vector
+fromSegVector :: Reify a => SqlTable -> TabLayout a -> SegMap [a]
 fromSegVector tab tlyt =
     let slyt = segmentLayout tlyt
         initialAcc = SegAcc { currSeg = 0, segMap = IM.empty, currVec = D.empty }
         finalAcc = foldl' (segIter slyt) initialAcc tab
     in IM.insert (currSeg finalAcc) (ListE $ D.toList $ currVec finalAcc) (segMap finalAcc)
 
--- Fold iterator that constructs a map from segment descriptor to the
--- list value that is represented by that segment
-segIter :: SegLayout a -> SegAcc [a] -> SqlRow -> SegAcc [a]
+-- | Fold iterator that constructs a map from segment descriptor to
+-- the list value that is represented by that segment
+segIter :: Reify a => SegLayout a -> SegAcc a -> SqlRow -> SegAcc a
 segIter lyt acc row = 
     let val   = mkVal lyt row
         descr = descrCol row
@@ -130,37 +137,38 @@ segIter lyt acc row =
 mkVal :: SegLayout a -> SqlRow -> Exp a
 mkVal lyt row =
     case lyt of
-        SPair lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
-        SNest segmap    -> let pos = posCol row
-                           in case IM.lookup pos segmap of
+        SPair ty lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
+        SNest ty segmap    -> let pos = posCol row
+                              in case IM.lookup pos segmap of
                                   Just v  -> v
                                   Nothing -> ListE []
-        SCol t c        -> scalarFromSql (col c row) t 
+        SCol ty c          -> scalarFromSql (col c row) ty
 
+-- | Construct a scalar value from a SQL value
 scalarFromSql :: SqlValue -> Type a -> Exp a
-scalarFromSql SqlNull         UnitT    = UnitE
-scalarFromSql (SqlInteger i)  IntegerT = IntegerE i
-scalarFromSql (SqlInt32 i)    IntegerT = IntegerE $ fromIntegral i
-scalarFromSql (SqlInt64 i)    IntegerT = IntegerE $ fromIntegral i
-scalarFromSql (SqlWord32 i)   IntegerT = IntegerE $ fromIntegral i
-scalarFromSql (SqlWord64 i)   IntegerT = IntegerE $ fromIntegral i
-scalarFromSql (SqlDouble d)  DoubleT    = DoubleE d
-scalarFromSql (SqlRational d) DoubleT = DoubleE $ fromRational d
-scalarFromSql (SqlInteger d)  DoubleT = DoubleE $ fromIntegral d
-scalarFromSql (SqlInt32 d)    DoubleT = DoubleE $ fromIntegral d
-scalarFromSql (SqlInt64 d)    DoubleT = DoubleE $ fromIntegral d
-scalarFromSql (SqlWord32 d)   DoubleT = DoubleE $ fromIntegral d
-scalarFromSql (SqlWord64 d)   DoubleT = DoubleE $ fromIntegral d
-scalarFromSql (SqlBool b) BoolT       = BoolE b
-scalarFromSql (SqlInteger i) BoolT    = BoolE (i /= 0)
-scalarFromSql (SqlInt32 i)   BoolT    = BoolE (i /= 0)
-scalarFromSql (SqlInt64 i)   BoolT    = BoolE (i /= 0)
-scalarFromSql (SqlWord32 i)  BoolT    = BoolE (i /= 0)
-scalarFromSql (SqlWord64 i)  BoolT    = BoolE (i /= 0)
-scalarFromSql (SqlChar c) CharT       = CharE c
-scalarFromSql (SqlString (c:_)) CharT = CharE c
-scalarFromSql (SqlByteString c) CharT = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
-scalarFromSql (SqlString t) TextT     = TextE (Txt.pack t)
-scalarFromSql (SqlByteString s) TextT = TextE (Txt.decodeUtf8 s)
-scalarFromSql sql                 _   = error $ "Unsupported SqlValue: "  ++ show sql
+scalarFromSql SqlNull           UnitT    = UnitE
+scalarFromSql (SqlInteger i)    IntegerT = IntegerE i
+scalarFromSql (SqlInt32 i)      IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlInt64 i)      IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlWord32 i)     IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlWord64 i)     IntegerT = IntegerE $ fromIntegral i
+scalarFromSql (SqlDouble d)     DoubleT  = DoubleE d
+scalarFromSql (SqlRational d)   DoubleT  = DoubleE $ fromRational d
+scalarFromSql (SqlInteger d)    DoubleT  = DoubleE $ fromIntegral d
+scalarFromSql (SqlInt32 d)      DoubleT  = DoubleE $ fromIntegral d
+scalarFromSql (SqlInt64 d)      DoubleT  = DoubleE $ fromIntegral d
+scalarFromSql (SqlWord32 d)     DoubleT  = DoubleE $ fromIntegral d
+scalarFromSql (SqlWord64 d)     DoubleT  = DoubleE $ fromIntegral d
+scalarFromSql (SqlBool b)       BoolT    = BoolE b
+scalarFromSql (SqlInteger i)    BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlInt32 i)      BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlInt64 i)      BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlWord32 i)     BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlWord64 i)     BoolT    = BoolE (i /= 0)
+scalarFromSql (SqlChar c)       CharT    = CharE c
+scalarFromSql (SqlString (c:_)) CharT    = CharE c
+scalarFromSql (SqlByteString c) CharT    = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
+scalarFromSql (SqlString t)     TextT    = TextE (Txt.pack t)
+scalarFromSql (SqlByteString s) TextT    = TextE (Txt.decodeUtf8 s)
+scalarFromSql sql               _        = error $ "Unsupported SqlValue: "  ++ show sql
 
