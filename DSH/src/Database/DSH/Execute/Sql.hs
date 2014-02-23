@@ -1,15 +1,9 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ParallelListComp      #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE TransformListComp     #-}
-{-# OPTIONS_GHC -fno-warn-orphans  #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GADTs           #-}
 
 -- | This module implements the execution of query bundles and the
 -- construction of nested values from the resulting vector bundle.
-module Database.DSH.Execute
+module Database.DSH.Execute.Sql
   ( executeSQL
   ) where
 
