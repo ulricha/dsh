@@ -50,8 +50,9 @@ col c r =
         Nothing -> error $ printf "col lookup %s failed in %s" c (show r)
 
 int32 :: SqlValue -> Int
-int32 (SqlInt32 i) = fromIntegral i
-int32 _            = $impossible
+int32 (SqlInt32 i)   = fromIntegral i
+int32 (SqlInteger i) = fromIntegral i
+int32 v              = error $ show v
 
 posCol :: SqlRow -> Int
 posCol row = int32 $ col "pos" row
