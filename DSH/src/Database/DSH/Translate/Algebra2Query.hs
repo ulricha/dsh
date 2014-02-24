@@ -27,12 +27,12 @@ generateX100Query x100Plan = convertQuery $ queryShape x100Plan
     m' = nodeMap $ queryDag x100Plan
 
     convertQuery :: TopShape DVec -> TopShape X100Code
-    convertQuery (PrimVal (DVec r' _) l)     = PrimVal (X100Code r' $ generateQuery m' r') $ convertLayout l
-    convertQuery (ValueVector (DVec r' _) l) = ValueVector (X100Code r' $ generateQuery m' r') $ convertLayout l
+    convertQuery (PrimVal (DVec r' _) l)     = PrimVal (X100Code $ generateQuery m' r') $ convertLayout l
+    convertQuery (ValueVector (DVec r' _) l) = ValueVector (X100Code $ generateQuery m' r') $ convertLayout l
 
     convertLayout :: TopLayout DVec -> TopLayout X100Code
     convertLayout (InColumn i)         = InColumn i
-    convertLayout (Nest (DVec r' _) l) = Nest (X100Code r' $ generateQuery m' r') $ convertLayout l
+    convertLayout (Nest (DVec r' _) l) = Nest (X100Code $ generateQuery m' r') $ convertLayout l
     convertLayout (Pair p1 p2)         = Pair (convertLayout p1) (convertLayout p2)
 
 -- | In a query shape, render each root node for the algebraic plan

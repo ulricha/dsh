@@ -96,6 +96,7 @@ Library
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
                      Database.DSH.Execute.Sql
+                     Database.DSH.Execute.X100
                      Database.DSH.Externals
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Data.Op

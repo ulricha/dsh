@@ -2,8 +2,7 @@
 {-# LANGUAGE GADTs           #-}
 
 -- | This module implements the execution of query bundles and the
--- construction of nested values from the resulting vector bundle for
--- a SQL backend
+-- construction of nested values from the resulting vector bundle.
 module Database.DSH.Execute.Sql
   ( executeSql
   ) where
