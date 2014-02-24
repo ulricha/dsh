@@ -4,7 +4,7 @@
 -- | This module implements the execution of query bundles and the
 -- construction of nested values from the resulting vector bundle.
 module Database.DSH.Execute.Sql
-  ( executeSQL
+  ( executeSql
   ) where
 
 import           Database.DSH.Impossible
@@ -99,8 +99,8 @@ fromPrim tab tlyt =
            [row] -> mkVal slyt row
            _     -> $impossible
 
-executeSQL :: IConnection conn => conn -> TopShape SqlCode -> Type a -> IO (Exp a)
-executeSQL conn shape ty = 
+executeSql :: IConnection conn => conn -> TopShape SqlCode -> Type a -> IO (Exp a)
+executeSql conn shape ty = 
     case (shape, ty) of
         (ValueVector (SqlCode sqlQuery) lyt, ListT ety) -> do
             stmt <- prepare conn sqlQuery

@@ -1,10 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | This module provides the flattening implementation of DSH.
+-- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
-  ( -- * Running queries via the Flattening backend
+  ( -- * Executing queries
     fromQX100
-  , fromQ
+  , runQ
     -- * Debug functions
   , debugVL
   , debugVLOpt
@@ -63,6 +63,16 @@ nkl2X100Alg e = let q = optimizeComprehensions e
                     t = T.typeOf e
                 in (q, t)
 
+nkl2Sql :: CL.Expr -> TopShape SqlCode
+nkl2Sql e = optimizeComprehensions e
+            |> desugarComprehensions
+            |> flatten
+            |> specializeVectorOps
+            |> optimizeVLDefault
+            |> implementVectorOpsPF
+            |> optimizeTA
+            |> generateSqlQueries
+
 nkl2X100File :: String -> CL.Expr -> IO ()
 nkl2X100File prefix e = optimizeComprehensions e
                         |> desugarComprehensions
@@ -110,14 +120,20 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
-fromQX100 c (Q a) =  undefined
+fromQX100 c (Q a) =  $unimplemented
+
 {-
     (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
     frExp <$> (executeX100Query c $ X100 q)
 -}
 
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = $unimplemented
+-- | Run a query on a SQL backend
+runQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+runQ conn (Q q) = do
+    let ty = reify (undefined :: a)
+    q' <- toComprehensions (getTableInfo conn) q
+    let sqlQueryBundle = nkl2Sql q'
+    frExp <$> executeSql conn sqlQueryBundle ty
                   
 -- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()

@@ -14,6 +14,7 @@ import Database.Algebra.X100.Render
 import Database.Algebra.Pathfinder
 import Database.Algebra.SQL.Util
 import Database.Algebra.SQL.Compatibility
+import Database.Algebra.SQL.Materialization.CTE
 
 import Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
 import Database.DSH.VL.Data.DBVector
@@ -42,7 +43,7 @@ generateSqlQueries :: QueryPlan PFAlgebra -> TopShape SqlCode
 generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
   where
     roots = rootNodes $ queryDag taPlan
-    (_sqlShared, sqlQueries) = renderOutputDSHWith PostgreSQL $unimplemented (queryDag taPlan)
+    (_sqlShared, sqlQueries) = renderOutputDSHWith PostgreSQL materialize (queryDag taPlan)
     nodeToQuery  = zip roots sqlQueries
     lookupNode n = maybe $impossible SqlCode $ lookup n nodeToQuery
 
