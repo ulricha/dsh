@@ -11,6 +11,7 @@ module Database.DSH.Compiler
   , debugX100VL
   , debugTA
   , debugTAOpt
+  , runPrint
   ) where
 
 import           GHC.Exts
@@ -173,6 +174,11 @@ debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
     e' <- toComprehensions (getX100TableInfo c) e
     nkl2VLFile prefix e'
+    
+-- | Convenience function: execute a query on a flattening backend and
+-- print its result
+runPrint :: (Show a, QA a, IConnection conn) => conn -> Q a -> IO ()
+runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
 -- | Retrieve through the given database connection information on the
 -- table (columns with their types) which name is given as the second

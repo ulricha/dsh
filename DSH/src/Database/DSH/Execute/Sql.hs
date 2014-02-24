@@ -2,10 +2,13 @@
 {-# LANGUAGE GADTs           #-}
 
 -- | This module implements the execution of query bundles and the
--- construction of nested values from the resulting vector bundle.
+-- construction of nested values from the resulting vector bundle for
+-- a SQL backend
 module Database.DSH.Execute.Sql
   ( executeSql
   ) where
+
+import           Text.Printf
 
 import           Database.DSH.Impossible
 import           Database.DSH.Internals
@@ -45,7 +48,7 @@ col :: String -> SqlRow -> SqlValue
 col c r = 
     case M.lookup c r of
         Just v  -> v
-        Nothing -> $impossible
+        Nothing -> error $ printf "col lookup %s failed in %s" c (show r)
 
 int32 :: SqlValue -> Int
 int32 (SqlInt32 i) = fromIntegral i
@@ -74,6 +77,7 @@ execNested conn lyt ty =
             return $ TPair ty lyt1' lyt2'
         (Nest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
+            _     <- execute stmt []
             tab   <- fetchAllRowsMap' stmt
             clyt' <- execNested conn clyt t
             return $ TNest ty tab clyt'
@@ -104,11 +108,13 @@ executeSql conn shape ty =
     case (shape, ty) of
         (ValueVector (SqlCode sqlQuery) lyt, ListT ety) -> do
             stmt <- prepare conn sqlQuery
+            _    <- execute stmt []
             tab  <- fetchAllRowsMap' stmt
             tlyt <- execNested conn lyt ety
             return $ fromVector tab tlyt
         (PrimVal (SqlCode sqlQuery) lyt, _) -> do
             stmt <- prepare conn sqlQuery
+            _    <- execute stmt []
             tab  <- fetchAllRowsMap' stmt
             tlyt <- execNested conn lyt ty
             return $ fromPrim tab tlyt
