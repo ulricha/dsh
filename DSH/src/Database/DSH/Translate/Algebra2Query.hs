@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Translate.Algebra2Query 
-    ( generateX100Query
+    ( generateX100Queries
     , generateSqlQueries
     ) where
 
@@ -20,8 +20,8 @@ import Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
 import Database.DSH.VL.Data.DBVector
 import Database.DSH.Common.Data.DBCode
 
-generateX100Query :: QueryPlan X100Algebra -> TopShape X100Code
-generateX100Query x100Plan = convertQuery $ queryShape x100Plan
+generateX100Queries :: QueryPlan X100Algebra -> TopShape X100Code
+generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
  where
     m' :: NodeMap X100Algebra
     m' = nodeMap $ queryDag x100Plan

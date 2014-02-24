@@ -9,6 +9,7 @@ module Database.DSH.Compiler
   , debugVL
   , debugVLOpt
   , debugX100VL
+  , debugX100
   , debugTA
   , debugTAOpt
   , runPrint
@@ -17,9 +18,9 @@ module Database.DSH.Compiler
 import           GHC.Exts
 import           Text.Printf
                  
-import           Database.DSH.Impossible
 import           Database.DSH.CompileFlattening
 import           Database.DSH.Execute.Sql
+import           Database.DSH.Execute.X100
 
 import           Database.DSH.Internals
 import           Database.HDBC
@@ -53,16 +54,14 @@ import           Data.Convertible                                ()
 
 -- Different versions of the flattening compiler pipeline
 
-nkl2X100Alg :: CL.Expr -> (TopShape X100Code, T.Type)
-nkl2X100Alg e = let q = optimizeComprehensions e
-                        |> desugarComprehensions
-                        |> flatten
-                        |> specializeVectorOps
-                        |> optimizeVLDefault
-                        |> implementVectorOpsX100
-                        |> generateX100Query
-                    t = T.typeOf e
-                in (q, t)
+nkl2X100Alg :: CL.Expr -> TopShape X100Code
+nkl2X100Alg e = optimizeComprehensions e
+                |> desugarComprehensions
+                |> flatten
+                |> specializeVectorOps
+                |> optimizeVLDefault
+                |> implementVectorOpsX100
+                |> generateX100Queries
 
 nkl2Sql :: CL.Expr -> TopShape SqlCode
 nkl2Sql e = optimizeComprehensions e
@@ -121,12 +120,11 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
 fromQX100 :: QA a => X100Info -> Q a -> IO a
-fromQX100 c (Q a) =  $unimplemented
-
-{-
-    (q, _) <- nkl2X100Alg <$> toComprehensions (getX100TableInfo c) a
-    frExp <$> (executeX100Query c $ X100 q)
--}
+fromQX100 conn (Q q) = do
+    let ty = reify (undefined :: a)
+    q' <- toComprehensions (getX100TableInfo conn) q
+    let x100QueryBundle = nkl2X100Alg q'
+    frExp <$> executeX100 conn x100QueryBundle ty
 
 -- | Run a query on a SQL backend
 runQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
@@ -174,9 +172,9 @@ debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
     e' <- toComprehensions (getX100TableInfo c) e
     nkl2VLFile prefix e'
-    
--- | Convenience function: execute a query on a flattening backend and
--- print its result
+
+-- | Convenience function: execute a query on a SQL backend and print
+-- its result
 runPrint :: (Show a, QA a, IConnection conn) => conn -> Q a -> IO ()
 runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
