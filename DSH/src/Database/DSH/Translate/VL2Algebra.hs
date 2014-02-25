@@ -1,34 +1,36 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.Translate.VL2Algebra(implementVectorOpsX100, implementVectorOpsPF) where
 
 import           Data.List                                             (intercalate)
-
-import           Database.Algebra.Pathfinder                           (PFAlgebra)
-import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
-
-
-import           Database.Algebra.Pathfinder                           (initLoop)
-import           Database.Algebra.X100.Data                            (X100Algebra)
-import           Database.Algebra.X100.Data.Create                     (dummy)
-import           Database.DSH.VL.PathfinderVectorPrimitives ()
-
 import qualified Data.IntMap                                           as IM
 import qualified Data.Map                                              as M
 
+import           Control.Monad.State
+import           Control.Applicative
+
+import           Database.Algebra.Pathfinder                           (PFAlgebra)
+import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
+import           Database.Algebra.Pathfinder                           (initLoop)
+import           Database.Algebra.X100.Data                            (X100Algebra)
+import           Database.Algebra.X100.Data.Create                     (dummy)
 import           Database.Algebra.Dag                                  (AlgebraDag, nodeMap)
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common                           hiding (BinOp)
 import qualified Database.Algebra.Dag.Common                           as C
 import           Database.Algebra.VL.Data                              hiding (DBCol, Pair)
 import qualified Database.Algebra.VL.Data                              as V
+
+
 import           Database.DSH.Translate.FKL2VL              ()
 import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.VL.VectorPrimitives
 import           Database.DSH.VL.X100VectorPrimitives       ()
+import           Database.DSH.VL.PathfinderVectorPrimitives ()
 
 import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Impossible
 
-import           Control.Monad.State
-import           Control.Applicative
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
@@ -253,21 +255,14 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
--- FIXME singleton and only should really never occur and can
--- hopefully be eliminated completely. Let's see if it blows up.
+-- singleton and only are just markers for the transition between
+-- non-list values and lists with one element (representation of both
+-- is the same).
 singleton :: Res -> Res
-singleton = undefined
-{-
-singleton (RDBP c cs) = RDVec c cs
-singleton _           = error "singleton: Not a DBP"
--}
+singleton = id
 
 only :: Res -> Res
-only = undefined
-{-
-only (RDVec c cs) = RDBP c cs
-only _            = error "only: Not a DVec"
--}
+only = id
 
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of

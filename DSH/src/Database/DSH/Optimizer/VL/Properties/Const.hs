@@ -119,8 +119,8 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
 
-    Only             -> $unimplemented
-    Singleton        -> $unimplemented
+    Only             -> return c
+    Singleton        -> return c
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV

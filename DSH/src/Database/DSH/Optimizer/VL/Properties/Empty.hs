@@ -31,21 +31,21 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    UniqueS -> Right e
-    Aggr _ -> Right $ VProp False
-    DescToRename -> Right e
-    Segment -> Right e
-    Unsegment -> Right e
-    Reverse -> let ue = unp e in liftM2 VPropPair ue ue
-    ReverseS -> let ue = unp e in liftM2 VPropPair ue ue
-    FalsePositions -> Right e
-    ProjectRename _  -> Right e
-    Project _   -> Right e
-    Select _       -> Right e
-    SortSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
+    UniqueS         -> Right e
+    Aggr _          -> Right $ VProp False
+    DescToRename    -> Right e
+    Segment         -> Right e
+    Unsegment       -> Right e
+    Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
+    ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
+    FalsePositions  -> Right e
+    ProjectRename _ -> Right e
+    Project _       -> Right e
+    Select _        -> Right e
+    SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
     GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
-    Only             -> $unimplemented
-    Singleton        -> $unimplemented
+    Only            -> Right e
+    Singleton       -> Right e
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!

@@ -156,8 +156,8 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
         VPropPair _ _        -> error "ReqColumns.R3/2"
         VPropTriple cols1 cols2 cols3 -> VPropTriple cols1 cols2 (unp (union (VProp cols3) ownReqColumns))
 
-    Only -> undefined
-    Singleton -> undefined
+    Only -> childReqColumns `union` ownReqColumns
+    Singleton -> childReqColumns `union` ownReqColumns
 
 
 inferReqColumnsBinOp :: BottomUpProps
