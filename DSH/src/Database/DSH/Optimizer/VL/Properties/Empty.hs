@@ -6,8 +6,6 @@ import Control.Monad
   
 import Database.Algebra.VL.Data
 
-import Database.DSH.Impossible
-  
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
   
@@ -24,6 +22,7 @@ inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
     SingletonDescr              -> Right $ VProp False
+    Empty _ -> Right $ VProp True
     Lit _ []  -> Right $ VProp True
     Lit _ _   -> Right $ VProp False
     TableRef              _ _ _ -> Right $ VProp False

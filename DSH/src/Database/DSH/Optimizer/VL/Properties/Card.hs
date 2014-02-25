@@ -7,8 +7,6 @@ import Control.Applicative
 
 import Database.Algebra.VL.Data
 
-import Database.DSH.Impossible
-  
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
 
@@ -18,9 +16,10 @@ unp = unpack "Properties.Card"
 inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
-    SingletonDescr                -> Right $ VProp True
-    Lit _ rows  -> Right $ VProp $ length rows == 1
-    TableRef              _ _ _   -> Right $ VProp False
+    SingletonDescr   -> Right $ VProp True
+    Lit _ rows       -> Right $ VProp $ length rows == 1
+    TableRef _ _ _   -> Right $ VProp False
+    Empty _          -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op = 

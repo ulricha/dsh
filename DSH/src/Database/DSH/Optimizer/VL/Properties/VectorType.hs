@@ -6,8 +6,6 @@ module Database.DSH.Optimizer.VL.Properties.VectorType where
 import Control.Monad
 import Data.Functor
        
-import Database.DSH.Impossible
-
 import Database.DSH.Optimizer.VL.Properties.Types
   
 import Database.Algebra.VL.Data
@@ -24,6 +22,7 @@ inferVectorTypeNullOp op =
     SingletonDescr               -> Right $ VProp $ ValueVector 0
     Lit t _                      -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
+    Empty w                      -> Right $ VProp $ ValueVector w
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
