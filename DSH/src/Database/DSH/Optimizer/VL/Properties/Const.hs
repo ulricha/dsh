@@ -45,7 +45,6 @@ inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
     SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
-    Empty w                           -> return $ VProp $ DBVConst NonConstDescr (map (const NonConstPL) [1 .. w])
     -- do not include the first two columns in the payload columns because they represent descr and pos.
     Lit colTypes rows      ->
       if null rows

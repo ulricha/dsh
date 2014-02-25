@@ -22,7 +22,6 @@ inferVectorTypeNullOp op =
     SingletonDescr               -> Right $ VProp $ ValueVector 0
     Lit t _                      -> Right $ VProp $ ValueVector $ length t
     TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
-    Empty w                      -> Right $ VProp $ ValueVector w
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s

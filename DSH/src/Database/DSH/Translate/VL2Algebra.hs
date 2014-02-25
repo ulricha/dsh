@@ -21,8 +21,6 @@ import qualified Database.Algebra.Dag.Common                           as C
 import           Database.Algebra.VL.Data                              hiding (DBCol, Pair)
 import qualified Database.Algebra.VL.Data                              as V
 
-import           Database.DSH.Impossible
-
 import           Database.DSH.Translate.FKL2VL              ()
 import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.VL.VectorPrimitives
@@ -324,7 +322,6 @@ translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
 translateNullary SingletonDescr      = fromDVec <$> singletonDescr
 translateNullary (Lit tys vals)      = fromDVec <$> vecLit tys vals
 translateNullary (TableRef n tys ks) = fromDVec <$> vecTableRef n tys ks
-translateNullary (Empty _)           = $impossible
 
 -- | Insert SerializeRel operators in TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.

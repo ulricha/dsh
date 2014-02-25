@@ -22,7 +22,6 @@ inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
     SingletonDescr              -> Right $ VProp False
-    Empty _ -> Right $ VProp True
     Lit _ []  -> Right $ VProp True
     Lit _ _   -> Right $ VProp False
     TableRef              _ _ _ -> Right $ VProp False

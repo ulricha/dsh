@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
+       
+import Debug.Trace
 
 import           Control.Applicative
 import           Control.Monad
@@ -17,10 +19,11 @@ pruneEmpty = postOrder inferBottomUp emptyRules
 
 emptyRules :: VLRuleSet BottomUpProps
 emptyRules = [ emptyAppendLeftR1
-             , emptyAppendLeftR3
-             , emptyAppendRightR3
+             -- , emptyAppendLeftR2
+             -- , emptyAppendLeftR3
              , emptyAppendRightR1
-             , emptyAppendRightR2
+             -- , emptyAppendRightR2
+             -- , emptyAppendRightR3
              ]
 
 isEmpty :: AlgNode -> VLMatch BottomUpProps Bool
@@ -36,12 +39,15 @@ emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
   $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
+        trace "leftR1" $ return ()
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do
           logRewrite "Empty.Append.Left.R1" q
           replace q $(v "q2") |])
 
+-- FIXME re-add rules when 
+{-
 -- If the left input is empty, renaming will make the inner vector
 -- empty as well.
 emptyAppendLeftR2 :: VLRule BottomUpProps
@@ -67,16 +73,20 @@ emptyAppendLeftR3 q =
         return $ do
           logRewrite "Empty.Append.Left.R3" q
           replace q $(v "qv") |])
+-}
 
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
   $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
+        trace "rightR1" $ return ()
+        
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewrite "Empty.Append.Right.R1" q
           replace q $(v "q1") |])
 
+{-
 -- If the right input is empty, renaming will make the inner vector
 -- empty as well.
 emptyAppendRightR3 :: VLRule BottomUpProps
@@ -100,3 +110,4 @@ emptyAppendRightR2 q =
         return $ do
           logRewrite "Empty.Append.Right.R2" q
           void $ replace q $(v "qv") |])
+-}
