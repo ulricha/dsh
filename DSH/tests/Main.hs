@@ -13,18 +13,11 @@ import           Database.DSH (Q, QA)
 
 import           ComprehensionTests
 
-#if !defined(isDBPH) & !defined(isX100)
-#define isFerry
-#endif
-
--- import Database.DSH.Interpreter (fromQSQL)
-#ifdef isDBPH
-import           Database.DSH.Compiler (fromQ)
-#elif isX100
-import           Database.DSH.Compiler (fromQX100)
-#define isDBPH
+-- import Database.DSH.Interpreter (runQSQL)
+#ifdef isX100
+import           Database.DSH.Compiler (runQX100)
 #else
-import           Database.DSH.Compiler (fromQ)
+import           Database.DSH.Compiler (runQ)
 #endif
 
 #ifdef isX100
@@ -209,34 +202,26 @@ tests_lists = testGroup "Lists"
         , testProperty "cons" $ prop_cons
         , testProperty "snoc" $ prop_snoc
         , testProperty "take" $ prop_take
-#ifndef isDBPH
         , testProperty "drop" $ prop_drop
-#endif
         , testProperty "take ++ drop" $ prop_takedrop
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
         , testProperty "the" $ prop_the
-#ifdef isX100
         , testProperty "last" $ prop_last
-#endif
         , testProperty "init" $ prop_init
         , testProperty "null" $ prop_null
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
         , testProperty "index" $ prop_index
-#ifdef isX100
         , testProperty "index [[]]" $ prop_index_nest
-#endif
         , testProperty "reverse" $ prop_reverse
         , testProperty "reverse [[]]" $ prop_reverse_nest
         , testProperty "append" $ prop_append
         , testProperty "append nest" $ prop_append_nest
         , testProperty "groupWith" $ prop_groupWith
         , testProperty "groupWithKey" $ prop_groupWithKey
-#ifdef isX100
         , testProperty "groupWith length" $ prop_groupWith_length
         , testProperty "groupWithKey length" $ prop_groupWithKey_length
-#endif
         , testProperty "sortWith" $ prop_sortWith
         , testProperty "and" $ prop_and
         , testProperty "or" $ prop_or
@@ -260,10 +245,8 @@ tests_lists = testGroup "Lists"
         , testProperty "lookup" $ prop_lookup
         , testProperty "zip" $ prop_zip
         , testProperty "zip3" $ prop_zip3
-#ifndef isDBPH
         , testProperty "zipWith" $ prop_zipWith
         , testProperty "zipWith3" $ prop_zipWith3
-#endif
         , testProperty "unzip" $ prop_unzip
         , testProperty "unzip3" $ prop_unzip3
         , testProperty "nub" $ prop_nub
@@ -278,9 +261,7 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "Lifted neq" $ prop_map_neq
         , testProperty "Lifted cond" $ prop_map_cond
         , testProperty "Lifted cond tuples" $ prop_map_cond_tuples
-#ifndef isFerry
         , testProperty "Lifted cond + concat" $ prop_concatmapcond
-#endif
         , testProperty "Lifted lt" $ prop_map_lt
         , testProperty "Lifted lte" $ prop_map_lte
         , testProperty "Lifted gt" $ prop_map_gt
@@ -289,9 +270,7 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "Lifted concat" $ prop_map_concat
         , testProperty "Lifted fst" $ prop_map_fst
         , testProperty "Lifted snd" $ prop_map_snd
-#ifdef isX100
         , testProperty "Lifted the" $ prop_map_the
-#endif
         --, testProperty "Lifed and" $ prop_map_and
         , testProperty "map (map (*2))" $ prop_map_map_mul
         , testProperty "map (map (map (*2)))" $ prop_map_map_map_mul
@@ -300,23 +279,17 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "Lifted groupWithKey" $ prop_map_groupWithKey
         , testProperty "Lifted sortWith" $ prop_map_sortWith
         , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
-#ifdef isX100
         , testProperty "Lifted groupWithKey length" $ prop_map_groupWithKey_length
-#endif
         , testProperty "Lifted length" $ prop_map_length
         , testProperty "Lifted length on [[(a,b)]]" $ prop_map_length_tuple
         , testProperty "Sortwith length nested" $ prop_sortWith_length_nest
-#ifdef isX100
         , testProperty "GroupWithKey length nested" $ prop_groupWithKey_length_nest
-#endif
         , testProperty "Lift minimum" $ prop_map_minimum
         , testProperty "map (map minimum)" $ prop_map_map_minimum
         , testProperty "Lift maximum" $ prop_map_maximum
         , testProperty "map (map maximum)" $ prop_map_map_maximum
         , testProperty "map integer_to_double" $ prop_map_integer_to_double
-#ifdef isX100
         , testProperty "map tail" $ prop_map_tail
-#endif
         , testProperty "map unzip" $ prop_map_unzip
         , testProperty "map reverse" $ prop_map_reverse
         , testProperty "map reverse [[]]" $ prop_map_reverse_nest
@@ -384,10 +357,10 @@ makeProp :: (Eq b, QA a, QA b, Show a, Show b)
 makeProp f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
-    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
@@ -408,10 +381,10 @@ makePropDouble :: (QA a, Show a)
 makePropDouble f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
-    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
@@ -426,10 +399,10 @@ makePropListDouble :: (QA a, Show a)
 makePropListDouble f1 f2 arg = monadicIO $ do
 #ifdef isX100
     c  <- run $ getConn
-    db <- run $ fromQX100 c $ f1 (Q.toQ arg)
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
 #else
     c  <- run $ getConn
-    db <- run $ fromQ c $ f1 (Q.toQ arg)
+    db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
@@ -1146,10 +1119,10 @@ makeEqAssertion :: (Show a, Eq a, QA a) => String -> Q.Q a -> a -> Assertion
 makeEqAssertion msg q r = do
 #ifdef isX100
     c  <- getConn
-    r' <- fromQX100 c $ q
+    r' <- runQX100 c $ q
 #else
     c  <- getConn
-    r' <- fromQ c q
+    r' <- runQ c q
     HDBC.disconnect c
 #endif
     assertEqual msg r r'

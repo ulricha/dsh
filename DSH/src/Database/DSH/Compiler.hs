@@ -3,7 +3,7 @@
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
   ( -- * Executing queries
-    fromQX100
+    runQX100
   , runQ
     -- * Debug functions
   , debugVL
@@ -119,8 +119,8 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
-fromQX100 :: QA a => X100Info -> Q a -> IO a
-fromQX100 conn (Q q) = do
+runQX100 :: QA a => X100Info -> Q a -> IO a
+runQX100 conn (Q q) = do
     let ty = reify (undefined :: a)
     q' <- toComprehensions (getX100TableInfo conn) q
     let x100QueryBundle = nkl2X100Alg q'
