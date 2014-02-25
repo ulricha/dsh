@@ -588,7 +588,7 @@ instance VectorAlgebra PFAlgebra where
 
   selectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
-    qs <- select (BinAppE (binOp $ VL.COp op) (ColE absPos) (ConstE posConst')) qe
+    qs <- select (BinAppE (binOp $ VL.COp op) (ColE pos) (ConstE posConst')) qe
 
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
