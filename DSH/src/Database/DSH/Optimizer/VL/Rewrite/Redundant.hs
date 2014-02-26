@@ -35,9 +35,10 @@ redundantRules = [ introduceSelect
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
                          , distDescConstant
-                         , pushZipThroughProjectLeft
-                         , pushZipThroughProjectRight
                          , sameInputZip
+                         , sameInputZipProject
+                         , sameInputZipProjectLeft
+                         , sameInputZipProjectRight
                          ]
 
 redundantRulesTopDown :: VLRuleSet TopDownProps
@@ -116,38 +117,6 @@ shiftCols offset expr =
         Column1 i       -> Column1 (offset + i)
         Constant1 c     -> Constant1 c
 
--- | Push a Zip operator through a projection in the left input
-pushZipThroughProjectLeft :: VLRule BottomUpProps
-pushZipThroughProjectLeft q =
-  $(pattern 'q "(q1=Project es (q11)) Zip (q2)"
-    [| do
-        predicate $ $(v "q1") /= $(v "q2")
-        
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Zip.Project.Left" q
-          let es' = $(v "es") ++ [ Column1 $ w1 + i | i <- [1 .. w2] ]
-          qp <- insert $ BinOp Zip $(v "q11") $(v "q2")
-          void $ replaceWithNew q $ UnOp (Project es') qp |])
-
--- | Push a Zip operator through a projection in the right input
-pushZipThroughProjectRight :: VLRule BottomUpProps
-pushZipThroughProjectRight q =
-  $(pattern 'q "(q1) Zip (q2=Project es (q22))"
-    [| do
-        predicate $ $(v "q1") /= $(v "q2")
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Zip.Project.Right" q
-               
-          let es' = [ Column1 i | i <- [1 .. w1] ] ++ [ shiftCols w1 e | e <- $(v "es") ]
-
-          qp <- insert $ BinOp Zip $(v "q1") $(v "q22")
-          void $ replaceWithNew q $ UnOp (Project es') qp |])
-          
 -- | Replace a Zip operaor with a projection if both inputs are the same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
@@ -157,9 +126,43 @@ sameInputZip q =
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         
         return $ do
-          logRewrite "Redundant.Zip.SameInput" q
+          logRewrite "Redundant.Zip" q
           let ps = map Column1 [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
+
+sameInputZipProject :: VLRule BottomUpProps
+sameInputZipProject q =
+  $(pattern 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project" q
+          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
+
+sameInputZipProjectLeft :: VLRule BottomUpProps
+sameInputZipProjectLeft q =
+  $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Left" q
+          let proj = $(v "ps1") ++ (map Column1 [1 .. w])
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+sameInputZipProjectRight :: VLRule BottomUpProps
+sameInputZipProjectRight q =
+  $(pattern 'q "(q1) Zip (Project ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Right" q
+          let proj = (map Column1 [1 .. w]) ++ $(v "ps2")
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 
 -- | Employ a specialized operator if the sorting criteria are simply
