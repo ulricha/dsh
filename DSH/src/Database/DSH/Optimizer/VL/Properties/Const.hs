@@ -125,12 +125,12 @@ inferConstVecUnOp c op =
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
       
     Number -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
     NumberS -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
     SortSimple _ -> do
       (d, cs) <- unp c >>= fromDBV
