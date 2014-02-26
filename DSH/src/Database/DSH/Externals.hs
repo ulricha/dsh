@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Database.DSH.Externals where
        
@@ -450,10 +451,10 @@ tail :: (QA a) => Q [a] -> Q [a]
 tail (Q as) = Q (AppE Tail as)
 
 take :: (QA a) => Q Integer -> Q [a] -> Q [a]
-take (Q i) (Q as) = Q (AppE Take (PairE i as))
+take i xs = map fst $ filter (\xp -> snd xp <= i) $ number xs
 
 drop :: (QA a) => Q Integer -> Q [a] -> Q [a]
-drop (Q i) (Q as) = Q (AppE Drop (PairE i as))
+drop i xs = map fst $ filter (\xp -> snd xp > i) $ number xs
 
 map :: (QA a,QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
 map f (Q as) = Q (AppE Map (PairE (LamE (toLam f)) as))
@@ -535,13 +536,21 @@ minimum (Q as) = Q (AppE Minimum as)
 -- * Sublists
 
 splitAt :: (QA a) => Q Integer -> Q [a] -> Q ([a],[a])
-splitAt (Q i) (Q as) = Q (AppE SplitAt (PairE i as))
+splitAt i xs = pair (take i xs) (drop i xs)
 
+-- FIXME might be implemented using non-dense numbering!
 takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile f (Q as) = Q (AppE TakeWhile (PairE (LamE (toLam f)) as))
+takeWhile p xs = 
+    let ys  = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
+        maxPos = minimum $ map (\xposp -> snd $ fst xposp) $ filter (\xposp -> not (snd xposp)) ys
+    in map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) < maxPos) ys
 
+-- FIXME might be implemented using non-dense numbering!
 dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile f (Q as) = Q (AppE DropWhile (PairE (LamE (toLam f)) as))
+dropWhile p xs = 
+    let ys  = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
+        minPos = minimum $ map (\xposp -> snd $ fst xposp) $ filter (\xposp -> not (snd xposp)) ys
+    in map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) >= minPos) ys
 
 span :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
 span f as = pair (takeWhile f as) (dropWhile f as)
