@@ -1,7 +1,7 @@
 module Database.DSH.VL.VectorPrimitives where
 
 import Database.DSH.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, Expr1, Expr2, Nat, AggrFun)
+import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -46,16 +46,10 @@ class VectorAlgebra a where
   vecReverse :: DVec -> GraphM r a (DVec, PVec)
   vecReverseS :: DVec -> GraphM r a (DVec, PVec)
   
-  -- FIXME this operator is too specialized. Could be implemented with NOT, PROJECT
-  -- and some operator that materializes positions.
-  falsePositions :: DVec -> GraphM r a DVec
-
   vecSelect:: Expr1 -> DVec -> GraphM r a DVec
 
   vecSortSimple :: [Expr1] -> DVec -> GraphM r a (DVec, PVec)
   vecGroupSimple :: [Expr1] -> DVec -> GraphM r a (DVec, DVec, PVec)
-
-  projectRename :: ISTransProj -> ISTransProj -> DVec -> GraphM r a RVec
 
   vecProject :: [Expr1] -> DVec -> GraphM r a DVec
   

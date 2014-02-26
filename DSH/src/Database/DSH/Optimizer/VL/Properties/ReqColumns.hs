@@ -94,10 +94,6 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     Reverse -> ownReqColumns `union` childReqColumns
     ReverseS -> ownReqColumns `union` childReqColumns
 
-    FalsePositions -> one
-
-    ProjectRename _ -> none `union` childReqColumns
-
     Project ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
 
     Select e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)

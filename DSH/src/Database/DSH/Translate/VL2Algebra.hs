@@ -279,8 +279,6 @@ translateUnOp u c = case u of
     GroupSimple es -> do
         (qo, qi, p) <- vecGroupSimple es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromProp p)
-    ProjectRename (posnewP, posoldP) -> fromRename 
-                                        <$> projectRename posnewP posoldP (toDVec c)
     Project cols -> fromDVec <$> vecProject cols (toDVec c)
     Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
@@ -288,7 +286,6 @@ translateUnOp u c = case u of
     ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
-    FalsePositions -> fromDVec <$> falsePositions (toDVec c)
     SelectPos1 op pos -> do
         (d, p) <- selectPos1 (toDVec c) op pos
         return $ RPair (fromDVec d) (fromRename p)

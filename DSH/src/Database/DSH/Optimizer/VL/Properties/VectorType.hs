@@ -37,7 +37,6 @@ inferVectorTypeUnOp s op =
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    FalsePositions -> Right $ VProp $ ValueVector 1
     SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     R1 -> 
@@ -54,7 +53,6 @@ inferVectorTypeUnOp s op =
       case s of
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
-    ProjectRename _ -> Right $ VProp RenameVector
 
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 

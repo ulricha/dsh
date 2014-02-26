@@ -36,11 +36,9 @@ seed (UnOp op _)   =
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
-    FalsePositions     -> vPropSeed
     Select     _       -> vPropSeed
     SortSimple _       -> vPropSeed
     GroupSimple _      -> vPropSeed
-    ProjectRename _    -> vPropSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     GroupAggr _ _      -> vPropSeed

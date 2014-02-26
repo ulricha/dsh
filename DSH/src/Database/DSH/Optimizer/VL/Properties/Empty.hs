@@ -36,8 +36,6 @@ inferEmptyUnOp e op =
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
-    FalsePositions  -> Right e
-    ProjectRename _ -> Right e
     Project _       -> Right e
     Select _        -> Right e
     SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue

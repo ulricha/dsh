@@ -29,10 +29,8 @@ inferCardOneUnOp c op =
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c
-    ProjectRename _ -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    FalsePositions -> Right c
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1S _ _ -> Right $ VPropPair False False
     Select _ -> Right $ VProp False

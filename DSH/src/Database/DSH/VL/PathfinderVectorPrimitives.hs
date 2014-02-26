@@ -100,11 +100,6 @@ projAddColsM cols projs mq = do
 projIdentity :: [DBCol] -> AlgNode -> GraphM r PFAlgebra AlgNode
 projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 
-transProj :: AttrName -> VL.ISTransProj -> Proj
-transProj target VL.STPosCol   = mP target pos
-transProj target VL.STDescrCol = mP target descr
-transProj _      VL.STNumber   = $impossible
-
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
@@ -354,13 +349,6 @@ instance VectorAlgebra PFAlgebra where
           $ rownumM pos' [pos] Nothing
           $ select (expr1 expr) q
     return $ DVec qs cols
-
-  falsePositions (DVec q1 _) = do
-    qr <- projM [cP descr, mP pos pos'', mP item pos']
-          $ rownumM pos'' [pos] Nothing
-          $ selectM (UnAppE Not (ColE item))
-          $ rownum pos' [pos] (Just descr) q1
-    return $ DVec qr [1]
 
   vecTableRef tableName columns keys = do
     q <- -- generate the pos column
@@ -614,16 +602,6 @@ instance VectorAlgebra PFAlgebra where
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs
     qp <- proj [ mP posold pos, cP posnew ] qs
     return $ (DVec qr cols, RVec qp)
-
-  projectRename posnewProj posoldProj (DVec q _) = do
-    qn <- rownum pos'' [descr, pos] Nothing q
-    qr <- case (posnewProj, posoldProj) of
-            (VL.STNumber, VL.STNumber) -> proj [mP posnew pos'', mP posold pos''] qn
-            (VL.STNumber, p)           -> proj [mP posnew pos'', transProj posold p] qn
-            (p, VL.STNumber)           -> proj [transProj posnew p, mP posold pos''] qn
-            (p1, p2)                   -> proj [transProj posnew p1, transProj posold p2] qn
-
-    return $ RVec qr
 
   vecProject projs (DVec q _) = do
     let projs' = zipWith (\i e -> (itemi i, expr1 e)) [1 .. length projs] projs

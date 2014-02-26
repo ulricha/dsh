@@ -95,19 +95,6 @@ inferConstVecUnOp c op =
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    FalsePositions -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
-
-    ProjectRename (targetIS, _)  -> do
-      -- FIXME this is not precise -- take care of the source space.
-      (d, _) <- unp c >>= fromDBV
-      let d' = case targetIS of
-            STDescrCol -> d
-            STPosCol -> NonConstDescr
-            STNumber -> NonConstDescr
-      return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
-
     Project projExprs   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
       constCols'              <- mapM (constExpr1 constCols) projExprs
