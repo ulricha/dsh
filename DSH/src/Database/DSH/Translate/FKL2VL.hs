@@ -140,10 +140,6 @@ papp2 f =
         FAppendL _         -> appendLift
         FIndex _           -> indexPrim
         FIndexL _          -> indexLift
-        FTake _            -> takePrim
-        FTakeL _           -> takeLift
-        FDrop _            -> dropPrim
-        FDropL _           -> dropLift
         FZip _             -> zipPrim
         FZipL _            -> zipLift
         FCartProduct _     -> cartProductPrim
@@ -158,10 +154,6 @@ papp2 f =
         FSemiJoinL e1 e2 _ -> semiJoinLift e1 e2
         FAntiJoin e1 e2 _  -> antiJoinPrim e1 e2
         FAntiJoinL e1 e2 _ -> antiJoinLift e1 e2
-        FTakeWith _        -> takeWithS
-        FTakeWithL _       -> takeWithL
-        FDropWith _        -> dropWithS
-        FDropWithL _       -> dropWithL
 
 constructClosureEnv :: [String] -> Graph a [(String, Shape)]
 constructClosureEnv [] = return []

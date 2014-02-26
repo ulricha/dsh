@@ -5,8 +5,6 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
   
-import           Debug.Trace
-  
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Pretty
@@ -65,11 +63,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.Filter         -> NKL.Filter 
               CL.Append         -> NKL.Append
               CL.Index          -> NKL.Index 
-              CL.Take           -> NKL.Take
-              CL.Drop           -> NKL.Drop 
               CL.Zip            -> NKL.Zip
-              CL.TakeWhile      -> NKL.TakeWhile
-              CL.DropWhile      -> NKL.DropWhile
               CL.CartProduct    -> NKL.CartProduct
               CL.NestProduct    -> NKL.NestProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
@@ -160,11 +154,12 @@ guardTuplify x v1 v2 v =
         
 debugPrint :: NKL.Expr -> String
 debugPrint e =
+
         "\nDesugared NKL =====================================================================\n"
         ++ pp e 
         ++ "\n==================================================================================="
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = let e' = expr e in trace (debugPrint e') e'
+desugarComprehensions e = let e' = expr e in {- trace (debugPrint e') -} e'
 

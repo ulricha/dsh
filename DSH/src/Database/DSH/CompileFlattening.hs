@@ -172,17 +172,12 @@ compileApp f args =
        Index        -> compileApp2 CP.index args
        SortWith     -> compileApp2 CP.sortWith args
        Cons         -> compileApp2 CP.consOpt args
-       Take         -> compileApp2 CP.take args
-       Drop         -> compileApp2 CP.drop args
        Map          -> compileApp2 CP.map args
        ConcatMap    -> compileApp2 CP.concatMap args
        Append       -> compileApp2 CP.append args
        Filter       -> compileApp2 CP.filter args
        GroupWithKey -> compileApp2 CP.groupWithKey args
        Zip          -> compileApp2 CP.zip args
-       DropWhile    -> compileApp2 CP.dropWhile args
-       TakeWhile    -> compileApp2 CP.takeWhile args
-       SplitAt      -> compileApp2 CP.splitAt args
        Equ          -> compileApp2 CP.eq args
        Conj         -> compileApp2 CP.conj args
        Disj         -> compileApp2 CP.disj args

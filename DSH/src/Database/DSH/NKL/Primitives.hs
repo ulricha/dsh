@@ -1,4 +1,4 @@
-module Database.DSH.NKL.Primitives (Expr, splitAt, ($), break, span, dropWhile, takeWhile, max, min, zip, take, drop, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like, number) where
+module Database.DSH.NKL.Primitives (Expr, ($), max, min, zip, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like, number) where
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
@@ -256,35 +256,6 @@ lte e1 e2 = let t1 = typeOf e1
                   then BinOp boolT LtE e1 e2
                   else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
 
-break :: Expr -> Expr -> Expr
-break e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
-                  t2@(ListT tl) = typeOf e2
-                  notF = Lam t1 "break_not_f" (not (e1 $ (var ta "break_not_f")))
-               in if ta P.== tl
-                   then pair (takeWhile notF e2) (dropWhile notF e2)
-                   else P.error P.$ "NKLPrims.break: Cannot apply break to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
-span :: Expr -> Expr -> Expr
-span e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
-                 t2@(ListT tl) = typeOf e2
-              in if ta P.== tl
-                  then pair (takeWhile e1 e2) (dropWhile e1 e2)
-                  else P.error P.$ "NKLPrims.span: Cannot apply span to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
-takeWhile :: Expr -> Expr -> Expr
-takeWhile e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
-                      t2@(ListT tl) = typeOf e2
-                   in if ta P.== tl
-                        then AppE2 t2 (Prim2 TakeWhile P.$ t1 .-> t2 .-> t2) e1 e2
-                        else P.error P.$ "NKLPrims.takeWhile: Cannot apply takeWhile to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
-dropWhile :: Expr -> Expr -> Expr
-dropWhile e1 e2 = let t1@(FunT ta BoolT) = typeOf e1
-                      t2@(ListT tl) = typeOf e2
-                   in if ta P.== tl
-                        then AppE2 t2 (Prim2 DropWhile P.$ t1 .-> t2 .-> t2) e1 e2
-                        else P.error P.$ "NKLPrims.dropWhile: Cannot apply dropWhile to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
@@ -319,20 +290,6 @@ cons e1 e2 = let t1 = typeOf e1
                    then BinOp t Cons e1 e2
                    else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
 
-take :: Expr -> Expr -> Expr
-take e1 e2 = let t1 = typeOf e1
-                 t2@(ListT _) = typeOf e2
-              in if t1 P.== intT
-                    then AppE2 t2 (Prim2 Take P.$ t1 .-> t2 .-> t2) e1 e2
-                    else P.error P.$ "NKLPrims.take: Cannot apply take to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
-drop :: Expr -> Expr -> Expr
-drop e1 e2 = let t1 = typeOf e1
-                 t2@(ListT _) = typeOf e2
-              in if t1 P.== intT
-                    then AppE2 t2 (Prim2 Drop P.$ t1 .-> t2 .-> t2) e1 e2
-                    else P.error P.$ "NKLPrims.drop: Cannot apply take to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
-
 max :: Expr -> Expr -> Expr
 max e1 e2 = cond (e1 `gt` e2) e1 e2
 
@@ -343,9 +300,6 @@ zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(ListT t1') = typeOf e1
                 t2@(ListT t2') = typeOf e2
              in AppE2 (listT P.$ pairT t1' t2') (Prim2 Zip P.$ t1 .-> t2 .-> listT (pairT t1' t2')) e1 e2
-
-splitAt :: Expr -> Expr -> Expr
-splitAt e1 e2 = pair (take e1 e2) (drop e1 e2)
 
 var :: Type -> P.String -> Expr
 var = Var

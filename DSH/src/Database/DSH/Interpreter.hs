@@ -49,14 +49,6 @@ evaluate c e = case e of
     AppE Tail as -> do
       (ListE as1) <- evaluate c as
       return $ ListE (tail as1)
-    AppE Take (PairE i as) -> do
-      (IntegerE i1) <- evaluate c i
-      (ListE as1) <- evaluate c as
-      return $ ListE (take (fromIntegral i1) as1)
-    AppE Drop (PairE i as) -> do
-      (IntegerE i1) <- evaluate c i
-      (ListE as1) <- evaluate c as
-      return $ ListE (drop (fromIntegral i1) as1)
     AppE Map (PairE (LamE f) as) -> do
       (ListE as1) <- evaluate c as
       evaluate c $ ListE (map f as1)
@@ -139,19 +131,6 @@ evaluate c e = case e of
     AppE Minimum as -> do
       (ListE as1) <- evaluate c as
       return $ minimumBy compareExp as1
-    AppE SplitAt (PairE i as) -> do
-      (IntegerE i1) <- evaluate c i
-      (ListE as1) <- evaluate c as
-      let r = splitAt (fromIntegral i1) as1
-      return $ PairE (ListE (fst r)) (ListE (snd r))
-    AppE TakeWhile (PairE (LamE f) as) -> do
-      (ListE as1) <- evaluate c as
-      (ListE as2) <- evaluate c (ListE (map f as1))
-      return $ ListE (map fst $ takeWhile (\(_,BoolE b) -> b) $ zip as1 as2)
-    AppE DropWhile (PairE (LamE f) as) -> do
-      (ListE as1) <- evaluate c as
-      (ListE as2) <- evaluate c (ListE (map f as1))
-      return $ ListE (map fst $ dropWhile (\(_,BoolE b) -> b) $ zip as1 as2)
     AppE Zip (PairE as bs) -> do
       (ListE as1) <- evaluate c as
       (ListE bs1) <- evaluate c bs

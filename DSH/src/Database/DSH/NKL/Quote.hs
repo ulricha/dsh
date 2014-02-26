@@ -316,11 +316,7 @@ prim2s = [ reserved "map" >> return (NKL.Prim2 NKL.Map)
          , reserved "filter" >> return (NKL.Prim2 NKL.Filter)
          , reserved "append" >> return (NKL.Prim2 NKL.Append)
          , reserved "index" >> return (NKL.Prim2 NKL.Index)
-         , reserved "take" >> return (NKL.Prim2 NKL.Take)
-         , reserved "drop" >> return (NKL.Prim2 NKL.Drop)
          , reserved "zip" >> return (NKL.Prim2 NKL.Zip)
-         , reserved "takeWhile" >> return (NKL.Prim2 NKL.TakeWhile)
-         , reserved "dropWhile" >> return (NKL.Prim2 NKL.DropWhile)
          , reserved "cartProduct" >> return (NKL.Prim2 NKL.CartProduct)
          ]
 

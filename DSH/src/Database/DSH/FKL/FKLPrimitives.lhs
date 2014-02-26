@@ -110,36 +110,6 @@ groupWithKeyLPrim f e = let arg1 = mapLPrim f e
                             t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.FGroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 
-takeWithVal :: Type -> Expr
-takeWithVal t = doubleArgClo t "take_f" "take_xs" takeWithPrim takeWithLPrim
-
-takeWithPrim :: Expr -> Expr -> Expr
-takeWithPrim f e = let arg1 = mapPrim f e
-                       t1 = typeOf arg1
-                       t2 = typeOf e
-                    in F.PApp2 t2 (F.FTakeWith (t1 .-> t2 .-> t2)) arg1 e
-
-takeWithLPrim :: Expr -> Expr -> Expr
-takeWithLPrim f e = let arg1 = mapLPrim f e
-                        t1 = typeOf arg1 
-                        t2 = typeOf e
-                     in F.PApp2 t2 (F.FTakeWithL (t1 .-> t2 .-> t2)) arg1 e
-
-dropWithVal :: Type -> Expr
-dropWithVal t = doubleArgClo t "drop_f" "drop_xs" dropWithPrim dropWithLPrim
-
-dropWithPrim :: Expr -> Expr -> Expr
-dropWithPrim f e = let arg1 = mapPrim f e
-                       t1 = typeOf arg1
-                       t2 = typeOf e
-                    in F.PApp2 t2 (F.FDropWith (t1 .-> t2 .-> t2)) arg1 e
-
-dropWithLPrim :: Expr -> Expr -> Expr
-dropWithLPrim f e = let arg1 = mapLPrim f e
-                        t1 = typeOf arg1 
-                        t2 = typeOf e
-                     in F.PApp2 t2 (F.FDropWithL (t1 .-> t2 .-> t2)) arg1 e
-
 pairVal :: Type -> Expr
 pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 
@@ -154,32 +124,6 @@ pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                       t2@(ListT t2') = typeOf e2
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.FPairL (t1 .-> t2 .-> rt)) e1 e2 
-
-takeVal :: Type -> Expr
-takeVal t = doubleArgClo t "take_e1" "take_e2" takePrim takeLPrim
-
-takePrim :: Expr -> Expr -> Expr
-takePrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                  in F.PApp2 t2 (F.FTake (t1 .-> t2 .-> t2)) e1 e2
-
-takeLPrim :: Expr -> Expr -> Expr
-takeLPrim e1 e2 = let t1 = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t2 (F.FTakeL (t1 .-> t2 .-> t2)) e1 e2
-
-dropVal :: Type -> Expr
-dropVal t = doubleArgClo t "drop_e1" "drop_e2" dropPrim dropLPrim
-
-dropPrim :: Expr -> Expr -> Expr
-dropPrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                  in F.PApp2 t2 (F.FDrop (t1 .-> t2 .-> t2)) e1 e2
-
-dropLPrim :: Expr -> Expr -> Expr
-dropLPrim e1 e2 = let t1 = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t2 (F.FDropL (t1 .-> t2 .-> t2)) e1 e2
 
 zipVal :: Type -> Expr
 zipVal t = doubleArgClo t "zip_e1" "zip_e2" zipPrim zipLPrim

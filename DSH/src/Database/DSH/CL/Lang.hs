@@ -136,10 +136,8 @@ instance Show (Prim1 t) where
 data Prim2Op = Map | ConcatMap | GroupWithKey
              | SortWith | Pair
              | Filter | Append
-             | Index | Take
-             | Drop | Zip
-             | TakeWhile
-             | DropWhile
+             | Index
+             | Zip
              | CartProduct
              | NestProduct
              | EquiJoin JoinExpr JoinExpr
@@ -159,11 +157,7 @@ instance Show Prim2Op where
   show Filter       = "filter"
   show Append       = "append"
   show Index        = "index"
-  show Take         = "take"
-  show Drop         = "drop"
   show Zip          = "zip"
-  show TakeWhile    = "takeWhile"
-  show DropWhile    = "dropWhile"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
   show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)

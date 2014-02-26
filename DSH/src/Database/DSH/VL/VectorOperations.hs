@@ -46,52 +46,6 @@ integerToDoubleL (ValueVector v lyt) = do
     return $ ValueVector v' lyt
 integerToDoubleL _ = $impossible
 
-takeWithS ::  Shape -> Shape -> Graph VL Shape
-takeWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
-    (qb', _, _) <- (qb `vlAppend`) =<< literalSingletonTable boolT (VLBool False)
-    qfs         <- vlFalsePositions qb'
-    one         <- literal intT (VLInt 1)
-    (p, _)      <- vlSelectPos qfs Eq one
-    (r, prop)   <- vlSelectPos q Lt =<< vlOnly p
-    lyt'        <- chainRenameFilter prop lyt
-    return $ ValueVector r lyt'
-takeWithS _ _ = error "takeWithS: Should not be possible"
-
-dropWithS ::  Shape -> Shape -> Graph VL Shape
-dropWithS (ValueVector qb (InColumn 1)) (ValueVector q lyt) = do
-    (qb', _, _) <- (qb `vlAppend`) =<< literalSingletonTable boolT (VLBool False)
-    minF        <- vlAggr (AggrMin (Column1 1)) =<< vlFalsePositions qb'
-    (r, prop)   <- vlSelectPos q GtE minF
-    lyt'        <- chainRenameFilter prop lyt
-    return $ ValueVector r lyt'
-dropWithS _ _ = error "dropWithS: Should not be possible"
-
-takeWithL ::  Shape -> Shape -> Graph VL Shape
-takeWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = do
-    f           <- literal boolT (VLBool False)
-    (fs, _)     <- vlDistPrim f qd
-    (qb', _, _) <- vlAppend qb =<< vlSegment fs
-    qfs         <- vlFalsePositions qb'
-    one         <- literal intT (VLInt 1)
-    (ones, _)   <- vlDistPrim one qd
-    (p, _)      <- vlSelectPosS qfs Eq ones
-    (r, prop)   <- vlSelectPosS q Lt p
-    lyt'        <- chainRenameFilter prop lyt
-    return $ ValueVector qd (Nest r lyt')
-takeWithL _ _ = error "takeWithL: Should not be possible"
-
--- FIXME I don't get this shit.
-dropWithL ::  Shape -> Shape -> Graph VL Shape
-dropWithL (ValueVector _ (Nest qb (InColumn 1))) (ValueVector qd (Nest q lyt)) = do
-    f           <- literal boolT (VLBool False)
-    (fs, _ )    <- vlDistPrim f qd
-    (qb', _, _) <- vlAppend qb =<< vlSegment fs
-    minF        <- vlAggrS (AggrMin (Column1 1)) $unimplemented =<< vlFalsePositions qb'
-    (r, prop)   <- vlSelectPosS q GtE minF
-    lyt'        <- chainRenameFilter prop lyt
-    return $ ValueVector qd (Nest r lyt')
-dropWithL _ _ = error "dropWithL: Should not be possible"
-
 zipPrim ::  Shape -> Shape -> Graph VL Shape
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q' <- vlZip q1 q2
@@ -202,34 +156,6 @@ antiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) =
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
 antiJoinLift _ _ _ _ = $impossible
-
-takePrim ::  Shape -> Shape -> Graph VL Shape
-takePrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
-    (q', r) <- vlSelectPos q LtE i
-    lyt'    <- chainRenameFilter r lyt
-    return $ ValueVector q' lyt'
-takePrim _ _ = error "takePrim: Should not be possible"
-
-takeLift ::  Shape -> Shape -> Graph VL Shape
-takeLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
-    (q', r) <- vlSelectPosS q LtE is
-    lyt'    <- chainRenameFilter r lyt
-    return $ ValueVector d (Nest q' lyt')
-takeLift _ _ = error "takeLift: Should not be possible"
-
-dropPrim ::  Shape -> Shape -> Graph VL Shape
-dropPrim (PrimVal i (InColumn 1)) (ValueVector q lyt) = do
-    (q', r) <- vlSelectPos q Gt i
-    lyt'    <- chainRenameFilter r lyt
-    return $ ValueVector q' lyt'
-dropPrim _ _ = error "droprim: Should not be possible"
-
-dropLift ::  Shape -> Shape -> Graph VL Shape
-dropLift (ValueVector is (InColumn 1)) (ValueVector d (Nest q lyt)) = do
-    (q', r) <- vlSelectPosS q Gt is
-    lyt'    <- chainRenameFilter r lyt
-    return $ ValueVector d (Nest q' lyt')
-dropLift _ _ = error "dropLift: Should not be possible"
 
 nubPrim ::  Shape -> Graph VL Shape
 nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q

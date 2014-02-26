@@ -131,10 +131,6 @@ data Prim2 = FGroupWithKey Type
            | FAppendL Type
            | FIndex Type
            | FIndexL Type
-           | FTake Type
-           | FTakeL Type
-           | FDrop Type
-           | FDropL Type
            | FZip Type
            | FZipL Type
            | FCartProduct Type
@@ -149,10 +145,6 @@ data Prim2 = FGroupWithKey Type
            | FSemiJoinL JoinExpr JoinExpr Type
            | FAntiJoin JoinExpr JoinExpr Type
            | FAntiJoinL JoinExpr JoinExpr Type
-           | FTakeWith Type
-           | FTakeWithL Type
-           | FDropWith Type
-           | FDropWithL Type
     deriving (Eq, Generic)
 
 instance Show Prim2 where
@@ -170,16 +162,8 @@ instance Show Prim2 where
     show (FAppendL _)         = "appendL"
     show (FIndex _)           = "index"
     show (FIndexL _)          = "indexL"
-    show (FTake _)            = "take"
-    show (FTakeL _)           = "takeL"
-    show (FDrop _)            = "drop"
-    show (FDropL _)           = "dropL"
     show (FZip _)             = "zip"
     show (FZipL _)            = "zipL"
-    show (FTakeWithL _)       = "takeWithL"
-    show (FTakeWith _)        = "takeWithS"
-    show (FDropWithL _)       = "dropWithL"
-    show (FDropWith _)        = "dropWithS"
     show (FCartProduct _)     = "cartProduct"
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"

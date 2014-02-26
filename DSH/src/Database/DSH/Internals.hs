@@ -73,18 +73,13 @@ data Fun a b where
     Min             :: Fun (a,a) a
     Max             :: Fun (a,a) a
     Cons            :: Fun (a,[a]) [a]
-    Take            :: Fun (Integer,[a]) [a]
-    Drop            :: Fun (Integer,[a]) [a]
     Index           :: Fun ([a],Integer) a
-    SplitAt         :: Fun (Integer,[a]) ([a],[a])
     Zip             :: Fun ([a],[b]) [(a,b)]
     Map             :: Fun (a -> b,[a]) [b]
     ConcatMap       :: Fun (a -> [b],[a]) [b]
     Filter          :: Fun (a -> Bool,[a]) [a]
     GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
     SortWith        :: Fun (a -> b,[a]) [a]
-    TakeWhile       :: Fun (a -> Bool,[a]) [a]
-    DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
     Like            :: Fun (Text,Text) Bool
     Transpose       :: Fun [[a]] [[a]]
@@ -161,18 +156,13 @@ instance Show (Fun a b) where
     show Min  = "min"
     show Max  = "max"
     show Cons = "cons"
-    show Take = "take"
-    show Drop = "drop"
     show Index = "index"
-    show SplitAt = "splitAt"
     show Zip = "zip"
     show Map = "map"
     show ConcatMap = "concatMap"
     show Filter = "filter"
     show GroupWithKey = "groupWithKey"
     show SortWith = "sortWith"
-    show TakeWhile = "takeWhile"
-    show DropWhile = "dropWhile"
     show Cond = "cond"
     show Append = "append"
     show Like = "like"
