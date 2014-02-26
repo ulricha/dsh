@@ -562,7 +562,7 @@ minPrim _ = $impossible
 minLift ::  Shape -> Graph VL Shape
 minLift (ValueVector d (Nest q (InColumn 1))) = do
     r <- vlDescToRename d
-    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) $unimplemented q
+    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) d q
     return $ ValueVector x (InColumn 1)
 minLift _ = $impossible
 
