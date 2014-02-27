@@ -275,6 +275,8 @@ instance VectorAlgebra PFAlgebra where
     qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
     qd <- case a of
+            -- FIXME this is wrong: consider a list of negative
+            -- integers... -> use antijoin/difference
             VL.AggrSum t _ -> let (dt, dv) = sumDefault t
                               in aggrM [(Max (ColE item), item)] []
                                  $ return qa `unionM` (litTable dv item dt)
@@ -287,6 +289,8 @@ instance VectorAlgebra PFAlgebra where
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
+            -- FIXME this is wrong: consider a list of negative
+            -- integers... -> use antijoin/difference
             VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
                               $ return qa
                                 `unionM`
