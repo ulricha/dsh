@@ -250,6 +250,7 @@ tests_lists = testGroup "Lists"
         , testProperty "unzip" $ prop_unzip
         , testProperty "unzip3" $ prop_unzip3
         , testProperty "nub" $ prop_nub
+        , testProperty "number" $ prop_number
         ]
 
 tests_lifted :: Test
@@ -318,6 +319,7 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map dropWhile" $ prop_map_dropWhile
         , testProperty "map span" $ prop_map_span
         , testProperty "map break" $ prop_map_break
+        , testProperty "map number" $ prop_map_number
         ]
         
 tests_comprehensions :: Test
@@ -1061,6 +1063,13 @@ prop_negate_integer = makeProp Q.negate negate
 
 prop_negate_double :: Double -> Property
 prop_negate_double = makePropDouble Q.negate negate
+
+prop_number :: [Integer] -> Property
+prop_number = makeProp (Q.map Q.snd . Q.number) (\xs -> map snd $ zip xs [1..])
+
+prop_map_number :: [[Integer]] -> Property
+prop_map_number = makeProp (Q.map (Q.map Q.snd . Q.number))
+                            (map (\xs -> map snd $ zip xs [1..]))
                    
 -- * Comprehensions
 prop_eqjoin :: ([Integer], [Integer]) -> Property
