@@ -541,9 +541,13 @@ splitAt i xs = pair (take i xs) (drop i xs)
 -- FIXME might be implemented using non-dense numbering!
 takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
 takeWhile p xs = 
-    let ys  = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
-        maxPos = minimum $ map (\xposp -> snd $ fst xposp) $ filter (\xposp -> not (snd xposp)) ys
-    in map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) < maxPos) ys
+    let ys            = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
+        notQualifying = filter (\xposp -> not (snd xposp)) ys
+        maxPos = minimum $ map (\xposp -> snd $ fst xposp) notQualifying
+     
+    in cond (null notQualifying) 
+            xs
+            (map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) < maxPos) ys)
 
 -- FIXME might be implemented using non-dense numbering!
 dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
