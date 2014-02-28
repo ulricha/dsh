@@ -251,6 +251,8 @@ tests_lists = testGroup "Lists"
         , testProperty "unzip3" $ prop_unzip3
         , testProperty "nub" $ prop_nub
         , testProperty "number" $ prop_number
+        , testProperty "reshape" $ prop_reshape
+        , testProperty "transpose" $ prop_transpose
         ]
 
 tests_lifted :: Test
@@ -320,6 +322,8 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map span" $ prop_map_span
         , testProperty "map break" $ prop_map_break
         , testProperty "map number" $ prop_map_number
+        , testProperty "map reshape" $ prop_map_reshape
+        -- , testProperty "map transpose" $ prop_map_transpose
         ]
         
 tests_comprehensions :: Test
@@ -336,6 +340,7 @@ tests_hunit :: Test
 tests_hunit = testGroup "HUnit"
     [ testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
+    , testCase "hmap_transpose" hmap_transpose
     ]
 
 tests :: [Test]
@@ -1070,6 +1075,28 @@ prop_number = makeProp (Q.map Q.snd . Q.number) (\xs -> map snd $ zip xs [1..])
 prop_map_number :: [[Integer]] -> Property
 prop_map_number = makeProp (Q.map (Q.map Q.snd . Q.number))
                             (map (\xs -> map snd $ zip xs [1..]))
+
+prop_transpose :: [[Integer]] -> Property
+prop_transpose = makeProp Q.transpose transpose
+
+{-
+prop_map_transpose :: [[[Integer]]] -> Property
+prop_map_transpose xss = 
+    (all (not . null) (xss :: [[[Integer]]])
+    &&
+    and (map (all (not . null)) xss))
+    ==> makeProp (Q.map Q.transpose) (map transpose)
+-}
+
+reshape :: Int -> [a] -> [[a]]
+reshape _ [] = []
+reshape i xs = take i xs : reshape i (drop i xs)
+
+prop_reshape :: [Integer] -> Property
+prop_reshape = makeProp (Q.reshape 5) (reshape 5)
+             
+prop_map_reshape :: [[Integer]] -> Property
+prop_map_reshape = makeProp (Q.map (Q.reshape 8)) (map (reshape 8))
                    
 -- * Comprehensions
 prop_eqjoin :: ([Integer], [Integer]) -> Property
@@ -1135,6 +1162,28 @@ makeEqAssertion msg q r = do
     HDBC.disconnect c
 #endif
     assertEqual msg r r'
+
+hmap_transpose :: Assertion
+hmap_transpose = makeEqAssertion "hmap_transpose" (Q.map Q.transpose (Q.toQ xss)) res
+  where
+    xss :: [[[Integer]]]
+    xss = [ [ [10, 20, 30]
+            , [40, 50, 60]]
+          , [ [100, 200]
+            , [300, 400]
+            , [500, 600]]
+          ]
+
+    res :: [[[Integer]]]
+    res = [ [ [10, 40]
+            , [20, 50]
+            , [30, 60]
+            ]
+          , [ [100, 300, 500]
+            , [200, 400, 600]
+            ]
+          ]
+
   
 heqjoin_nested1 :: Assertion
 heqjoin_nested1 = makeEqAssertion "heqjoin_nested" eqjoin_nested1 res
