@@ -466,9 +466,11 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
+    -- Only difference between NestProductS and CardProductS: segment
+    -- after the join.
     q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
            $ rownumM pos [descr, descr', pos, pos'] Nothing
-           $ eqJoinM descr descr'
+           $ eqJoinM descr descrk'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
@@ -722,14 +724,15 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qo [], DVec qi cols)
 
   vecReshapeS n (DVec q cols) = do
-    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    let dExpr = BinAppE Div (BinAppE Minus (ColE absPos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qr <- -- Make the new descriptors valid globally 
+          -- FIXME need a rowrank instead!
           rownumM descr'' [descr, descr'] Nothing
           -- Assign the inner list elements to sublists. Generated
           -- descriptors are _per_ inner list!
           $ projM (itemProj cols [cP descr, cP pos, eP descr' dExpr])
           -- Generate absolute positions for the inner lists
-          $ rownum pos' [pos] (Just descr) q
+          $ rownum absPos [pos] (Just descr) q
   
     -- We can compute the 'middle' descriptor vector from the original
     -- inner vector.
