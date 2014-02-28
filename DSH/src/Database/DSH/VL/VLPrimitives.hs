@@ -291,58 +291,58 @@ vlZipS (DVec c1 _) (DVec c2 _) = do
                               r3 <- rvec $ insertNode $ UnOp R3 r
                               return (r1, r2, r3)
                               
-vlCartProduct :: DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlCartProduct :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlCartProduct (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProduct c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
-  r2 <- rvec $ insertNode $ UnOp R2 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-vlCartProductS :: DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlCartProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProductS c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
-  r2 <- rvec $ insertNode $ UnOp R2 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-vlEquiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlEquiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlEquiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (EquiJoin e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
-  r2 <- rvec $ insertNode $ UnOp R2 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-vlEquiJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlEquiJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlEquiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (EquiJoinS e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
-  r2 <- rvec $ insertNode $ UnOp R2 r
+  r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-vlNestJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlNestJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlNestJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
     let e1' = joinExpr e1
         e2' = joinExpr e2
     r  <- insertNode $ BinOp (NestJoinS e1' e2') c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
-    r2 <- rvec $ insertNode $ UnOp R2 r
+    r2 <- pvec $ insertNode $ UnOp R2 r
     r3 <- pvec $ insertNode $ UnOp R3 r
     return (r1, r2, r3)
     
 
-vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, RVec, PVec)
+vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r <- insertNode $ BinOp NestProductS c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
-    r2 <- rvec $ insertNode $ UnOp R2 r
+    r2 <- pvec $ insertNode $ UnOp R2 r
     r3 <- pvec $ insertNode $ UnOp R3 r
     return (r1, r2, r3)
      
