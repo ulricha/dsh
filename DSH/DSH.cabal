@@ -214,53 +214,71 @@ Library
 --                        aeson
 --   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 -- 
-Executable vlopt
-  Hs-Source-Dirs:   src
-  Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
-  Build-depends:       base,
-                       TableAlgebra >= 2.0.0,
-                       containers,
-                       template-haskell,
-                       pretty,
-                       bytestring,
-                       mtl,
-                       aeson,
-                       ansi-wl-pprint
-  GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
-
-Executable vlprop
-  Hs-Source-Dirs:   src
-  Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
-  Build-depends:       base,
-                       TableAlgebra >= 2.0.0,
-                       containers,
-                       mtl,
-                       bytestring,
-                       pretty,
-                       aeson,
-                       ansi-wl-pprint,
-                       template-haskell
-  GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
+-- Executable vlopt
+--   Hs-Source-Dirs:   src
+--   Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
+--   Build-depends:       base,
+--                        TableAlgebra >= 2.0.0,
+--                        containers,
+--                        template-haskell,
+--                        pretty,
+--                        bytestring,
+--                        mtl,
+--                        aeson,
+--                        ansi-wl-pprint
+--   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
+-- 
+-- Executable vlprop
+--   Hs-Source-Dirs:   src
+--   Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
+--   Build-depends:       base,
+--                        TableAlgebra >= 2.0.0,
+--                        containers,
+--                        mtl,
+--                        bytestring,
+--                        pretty,
+--                        aeson,
+--                        ansi-wl-pprint,
+--                        template-haskell
+--   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 --                   
--- Test-Suite Flattening_x100
---     type:       exitcode-stdio-1.0
---     Hs-Source-Dirs: tests
---     Main-is:       Main.hs
---     Build-depends: base               >= 4.2 && < 5,
---                    containers,
---                    QuickCheck         >= 2.4,
---                    DSH                >= 0.7.8.1,
---                    text               >= 0.11,
---                    X100Client         >= 0.0.2,
---                    derive             >= 2.5,
---                    test-framework-quickcheck2 >= 0.2.12.1,
---                    test-framework-hunit,
---                    test-framework >= 0.6,
---                    HUnit
---     cpp-options: -DisX100
---     GHC-Options: -Wall 
---     extensions: CPP
---     
+
+executable vldot
+    Main-is: Database/DSH/Tools/VLDotGen.hs
+    GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
+    hs-source-dirs:   src
+    build-depends:    base >= 4.2 && < 5, 
+                      aeson >= 0.6, 
+                      mtl >= 2.0.1.0, 
+                      containers >= 0.3.0.0, 
+                      parsec,
+                      transformers,
+                      template-haskell >= 2.4.0.0, 
+                      pretty >= 1.0.1.1, 
+                      fgl, 
+                      ghc-prim >= 0.2,
+                      bytestring >= 0.9,
+                      TableAlgebra
+
+Test-Suite Flattening_x100
+    type:       exitcode-stdio-1.0
+    Hs-Source-Dirs: tests
+    Main-is:       Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   containers,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   text               >= 0.11,
+                   X100Client         >= 0.0.2,
+                   derive             >= 2.5,
+                   test-framework-quickcheck2 >= 0.2.12.1,
+                   test-framework-hunit,
+                   test-framework >= 0.6,
+                   HUnit
+    cpp-options: -DisX100
+    GHC-Options: -Wall 
+    extensions: CPP
+    
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests

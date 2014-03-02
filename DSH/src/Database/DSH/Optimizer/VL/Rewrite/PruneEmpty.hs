@@ -12,7 +12,7 @@ import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.VL.Data
+import           Database.DSH.VL.Lang
 
 pruneEmpty :: VLRewrite Bool
 pruneEmpty = postOrder inferBottomUp emptyRules

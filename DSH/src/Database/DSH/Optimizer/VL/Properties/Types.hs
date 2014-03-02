@@ -2,8 +2,8 @@ module Database.DSH.Optimizer.VL.Properties.Types where
 
 import           Text.PrettyPrint
 
-import           Database.Algebra.VL.Data
-import           Database.Algebra.VL.Render.Dot
+import           Database.DSH.VL.Lang
+import           Database.DSH.VL.Render.Dot
 
 data VectorProp a = VProp a
                   | VPropPair a a

@@ -8,8 +8,8 @@ import           Control.Monad
        
 import           Database.Algebra.Dag.Builder
 import qualified Database.Algebra.Dag.Common as Alg
-import           Database.Algebra.VL.Data                      (VL(), UnOp(Project), Expr1(..))
-import           Database.Algebra.VL.Render.JSON               ()
+import           Database.DSH.VL.Lang                      (VL(), UnOp(Project), Expr1(..))
+import           Database.DSH.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
 import           Database.DSH.Common.Data.Type 

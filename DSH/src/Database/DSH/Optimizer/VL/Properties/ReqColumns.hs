@@ -5,7 +5,7 @@ module Database.DSH.Optimizer.VL.Properties.ReqColumns where
 import Database.DSH.Impossible
 
 import qualified Data.List as L
-import           Database.Algebra.VL.Data
+import           Database.DSH.VL.Lang
 import Database.DSH.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> a

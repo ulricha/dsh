@@ -16,8 +16,8 @@ import           Database.DSH.Impossible
 
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.VL.Data                 hiding (DBCol)
-import qualified Database.Algebra.VL.Data                 as D
+import           Database.DSH.VL.Lang                 hiding (DBCol)
+import qualified Database.DSH.VL.Lang                 as D
 
 dvec :: GraphM r a AlgNode -> GraphM r a DVec
 dvec = fmap (flip DVec [])
@@ -54,31 +54,6 @@ typeToVLType t = case t of
   Ty.ListT t'    -> D.VLList (typeToVLType t')
   Ty.FunT _ _    -> error "VLPrimitives: Functions can not occur in operator plans"
   Ty.VarT _      -> error "VLPrimitives: Variables can not occur in operator plans"
-
-binOpToVecOp :: O.ScalarBinOp -> D.VecOp
-binOpToVecOp op = case op of
-  O.Add  -> D.NOp D.Add
-  O.Sub  -> D.NOp D.Sub
-  O.Div  -> D.NOp D.Div
-  O.Mul  -> D.NOp D.Mul
-  O.Mod  -> D.NOp D.Mod
-  O.Cons -> $impossible
-  O.Conj -> D.BOp D.Conj
-  O.Disj -> D.BOp D.Disj
-  O.Like -> D.Like
-  _      -> D.COp $ operToCompOp op
-
-unOpToVecOp :: O.ScalarUnOp -> D.VecUnOp
-unOpToVecOp op = $unimplemented
-
-operToCompOp :: O.ScalarBinOp -> D.VecCompOp
-operToCompOp op = case op of
-  O.Eq   -> D.Eq
-  O.Gt   -> D.Gt
-  O.GtE  -> D.GtE
-  O.Lt   -> D.Lt
-  O.LtE  -> D.LtE
-  _      -> error "VLPrimitives.operToComOp: not a comparison operator"
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -119,10 +94,10 @@ joinExpr expr = offsetExpr $ aux expr
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
     aux :: JoinExpr -> ColExpr
-    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 (binOpToVecOp op) 
+    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 op 
                                              (offsetExpr $ aux e1) 
                                              (offsetExpr $ aux e2)
-    aux (UnOpJ _ NotJ e)    = Expr $ UnApp1 D.Not (offsetExpr $ aux e)
+    aux (UnOpJ _ NotJ e)    = Expr $ UnApp1 O.Not (offsetExpr $ aux e)
     aux (UnOpJ _ FstJ e)    = aux e
     aux (UnOpJ _ SndJ e)    = 
         case Ty.typeOf e of
@@ -249,37 +224,37 @@ vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n tys ks
 
 vlUnExpr :: O.ScalarUnOp -> DVec -> GraphM r VL DVec
 vlUnExpr o (DVec c _) =
-    dvec $ insertNode $ UnOp (Project [UnApp1 ($unimplemented o) (Column1 1)]) c
+    dvec $ insertNode $ UnOp (Project [UnApp1 o (Column1 1)]) c
 
 vlBinExpr :: O.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
                                      $ insertNode
-                                     $ BinOp (BinExpr (BinApp2 (binOpToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
+                                     $ BinOp (BinExpr (BinApp2 o (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
 vlSelectPos :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do
-                                        r <- insertNode $ BinOp (SelectPos (operToCompOp op)) c1 c2
+                                        r <- insertNode $ BinOp (SelectPos op) c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
 vlSelectPos1 :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = do
-                                        r <- insertNode $ UnOp (SelectPos1 (operToCompOp op) posConst) c1
+                                        r <- insertNode $ UnOp (SelectPos1 op posConst) c1
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
 vlSelectPosS :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
-                                          r <- insertNode $ BinOp (SelectPosS (operToCompOp op)) c1 c2
+                                          r <- insertNode $ BinOp (SelectPosS op) c1 c2
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
 vlSelectPos1S :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1S (DVec c1 _) op posConst = do
-                                          r <- insertNode $ UnOp (SelectPos1S (operToCompOp op) posConst) c1
+                                          r <- insertNode $ UnOp (SelectPos1S op posConst) c1
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)

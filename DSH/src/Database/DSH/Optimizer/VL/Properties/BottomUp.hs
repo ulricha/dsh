@@ -4,8 +4,8 @@ import Text.Printf
 
 import Database.Algebra.Dag
 import Database.Algebra.Dag.Common
-import Database.Algebra.VL.Data
 
+import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Aux
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Card

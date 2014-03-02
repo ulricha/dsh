@@ -9,8 +9,8 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
-import qualified Database.Algebra.VL.Data as VL
+import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
+import qualified Database.DSH.VL.Lang as VL
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -518,7 +518,7 @@ ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _) <- vlDistPrim qb q1
     (d1, p1) <- vlRestrict q1 d1'
-    qb' <- vlProject qb [UnApp1 VL.Not (Column1 1)]
+    qb' <- vlUnExpr Not qb
     (d2', _) <- vlDistPrim qb' q2
     (d2, p2) <- vlRestrict q2 d2'
     r1 <- renameOuter' p1 lyt1

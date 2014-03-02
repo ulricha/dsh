@@ -23,14 +23,14 @@ data ScalarBinOp = Add
                  | Conj 
                  | Disj 
                  | Like
-    deriving (Eq, Ord, Generic, Data, Typeable)
+    deriving (Read, Eq, Ord, Generic, Data, Typeable)
 
 data ScalarUnOp = Not
                 | CastDouble
                 | Sin | Cos | Tan
                 | ASin | ACos | ATan
                 | Sqrt | Exp | Log
-                deriving (Eq, Ord, Generic, Data, Typeable)
+                deriving (Read, Eq, Ord, Generic, Data, Typeable)
     
 instance Show ScalarBinOp where
     show Add = "+"

@@ -7,13 +7,13 @@ module Database.DSH.Export
   ) where
 
 import           Database.Algebra.Dag
-import           Database.Algebra.VL.Data                      hiding (Pair)
+import           Database.DSH.VL.Lang                      hiding (Pair)
 import           Database.Algebra.X100.Data
 import           Database.Algebra.Pathfinder.Data.Algebra
 
 import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
 
-import qualified Database.Algebra.VL.Render.JSON               as VLJSON
+import qualified Database.DSH.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON
 import qualified Database.Algebra.Pathfinder.Render.JSON       as PFJSON
 

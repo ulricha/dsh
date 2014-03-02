@@ -18,8 +18,8 @@ import           Database.Algebra.Dag                                  (AlgebraD
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common                           hiding (BinOp)
 import qualified Database.Algebra.Dag.Common                           as C
-import           Database.Algebra.VL.Data                              hiding (DBCol, Pair)
-import qualified Database.Algebra.VL.Data                              as V
+import           Database.DSH.VL.Lang                              hiding (DBCol, Pair)
+import qualified Database.DSH.VL.Lang                              as V
 
 import           Database.DSH.Translate.FKL2VL              ()
 import           Database.DSH.VL.Data.DBVector

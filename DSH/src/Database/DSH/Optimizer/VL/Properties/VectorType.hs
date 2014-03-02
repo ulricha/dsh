@@ -8,7 +8,7 @@ import Data.Functor
        
 import Database.DSH.Optimizer.VL.Properties.Types
   
-import Database.Algebra.VL.Data
+import Database.DSH.VL.Lang
   
 {- Implement more checks: check the input types for correctness -}
 

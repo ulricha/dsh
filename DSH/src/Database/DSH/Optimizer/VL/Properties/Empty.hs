@@ -4,7 +4,7 @@ module Database.DSH.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
   
-import Database.Algebra.VL.Data
+import Database.DSH.VL.Lang
 
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common

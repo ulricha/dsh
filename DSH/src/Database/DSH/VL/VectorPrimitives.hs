@@ -1,7 +1,8 @@
 module Database.DSH.VL.VectorPrimitives where
 
+import Database.DSH.Common.Data.Op
 import Database.DSH.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), Expr1, Expr2, Nat, AggrFun)
+import Database.DSH.VL.Lang (VLType(), TypedColumn, Key, VLVal(), Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -40,8 +41,8 @@ class VectorAlgebra a where
   vecAggrS :: AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
-  selectPos1 :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
-  selectPos1S :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
+  selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
+  selectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
 
   vecReverse :: DVec -> GraphM r a (DVec, PVec)
   vecReverseS :: DVec -> GraphM r a (DVec, PVec)
@@ -82,8 +83,8 @@ class VectorAlgebra a where
   vecBinExpr :: Expr2 -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME could be implemented using number and select
-  selectPos :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
-  selectPosS :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
+  selectPos :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
+  selectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
 
   -- FIXME better name: zip
   vecZip :: DVec -> DVec -> GraphM r a DVec

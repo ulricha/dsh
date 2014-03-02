@@ -9,9 +9,10 @@ import           GHC.Exts
        
 import           Debug.Trace
 
-import           Control.Applicative                         hiding (Const)
+import           Control.Applicative               hiding (Const)
 
-import qualified Database.Algebra.VL.Data                    as VL
+import qualified Database.DSH.Common.Data.Op       as Op
+import qualified Database.DSH.VL.Lang              as VL
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.VL.VectorPrimitives
@@ -103,24 +104,25 @@ projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
-binOp :: VL.VecOp -> BinFun
-binOp (VL.NOp VL.Add)  = Plus
-binOp (VL.NOp VL.Sub)  = Minus
-binOp (VL.NOp VL.Div)  = Div
-binOp (VL.NOp VL.Mul)  = Times
-binOp (VL.NOp VL.Mod)  = Modulo
-binOp (VL.COp VL.Eq)   = Eq
-binOp (VL.COp VL.Gt)   = Gt
-binOp (VL.COp VL.GtE)  = GtE
-binOp (VL.COp VL.Lt)   = Lt
-binOp (VL.COp VL.LtE)  = LtE
-binOp (VL.BOp VL.Conj) = And
-binOp (VL.BOp VL.Disj) = Or
-binOp VL.Like          = Like
+binOp :: Op.ScalarBinOp -> BinFun
+binOp Op.Add  = Plus
+binOp Op.Sub  = Minus
+binOp Op.Div  = Div
+binOp Op.Mul  = Times
+binOp Op.Mod  = Modulo
+binOp Op.Eq   = Eq
+binOp Op.Gt   = Gt
+binOp Op.GtE  = GtE
+binOp Op.Lt   = Lt
+binOp Op.LtE  = LtE
+binOp Op.Conj = And
+binOp Op.Disj = Or
+binOp Op.Like = Like
 
-unOp :: VL.VecUnOp -> UnFun
-unOp VL.Not                    = Not
-unOp (VL.CastOp VL.CastDouble) = Cast doubleT
+unOp :: Op.ScalarUnOp -> UnFun
+unOp Op.Not          = Not
+unOp (Op.CastDouble) = Cast doubleT
+unOp _ = $unimplemented
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
@@ -549,7 +551,7 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
-    qs <- selectM (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
+    qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
           $ crossM 
               (return qe) 
               (proj [mP item' item] qi)
@@ -557,8 +559,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            VL.Lt  -> projAddCols cols [mP posnew pos] qs
-            VL.LtE -> projAddCols cols [mP posnew pos] qs
+            Op.Lt  -> projAddCols cols [mP posnew pos] qs
+            Op.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -569,7 +571,7 @@ instance VectorAlgebra PFAlgebra where
   
   selectPosS (DVec qe cols) op (DVec qi _) = do
     qs <- rownumM posnew [pos] Nothing
-          $ selectM (BinAppE (binOp $ VL.COp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
+          $ selectM (BinAppE (binOp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
           $ eqJoinM descr pos'
               (rownum absPos [pos] (Just descr) qe)
               (proj [mP pos' pos, mP item' item] qi)
@@ -580,13 +582,13 @@ instance VectorAlgebra PFAlgebra where
 
   selectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
-    qs <- select (BinAppE (binOp $ VL.COp op) (ColE pos) (ConstE posConst')) qe
+    qs <- select (BinAppE (binOp op) (ColE pos) (ConstE posConst')) qe
 
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            VL.Lt  -> projAddCols cols [mP posnew pos] qs
-            VL.LtE -> projAddCols cols [mP posnew pos] qs
+            Op.Lt  -> projAddCols cols [mP posnew pos] qs
+            Op.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -600,7 +602,7 @@ instance VectorAlgebra PFAlgebra where
   selectPos1S (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] Nothing
-          $ selectM (BinAppE (binOp (VL.COp op)) (ColE absPos) (ConstE posConst'))
+          $ selectM (BinAppE (binOp op) (ColE absPos) (ConstE posConst'))
           $ rownum absPos [pos] (Just descr) qe
           
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs

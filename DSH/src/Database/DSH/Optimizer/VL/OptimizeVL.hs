@@ -3,10 +3,10 @@ module Database.DSH.Optimizer.VL.OptimizeVL where
 import qualified Data.IntMap                                                      as M
 
 import qualified Database.Algebra.Dag                                             as Dag
-import           Database.Algebra.VL.Data
 
 import           Database.DSH.Common.Data.QueryPlan
 
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Optimizer.Common.Rewrite

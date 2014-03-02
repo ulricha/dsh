@@ -5,9 +5,9 @@ module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) wher
 import Control.Applicative
 import Control.Monad
 
-import Database.Algebra.VL.Data
 import Database.Algebra.Dag.Common
 
+import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Rewrite.Common
