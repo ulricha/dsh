@@ -55,8 +55,8 @@ typeToVLType t = case t of
   Ty.FunT _ _    -> error "VLPrimitives: Functions can not occur in operator plans"
   Ty.VarT _      -> error "VLPrimitives: Variables can not occur in operator plans"
 
-operToVecOp :: O.Oper -> D.VecOp
-operToVecOp op = case op of
+binOpToVecOp :: O.ScalarBinOp -> D.VecOp
+binOpToVecOp op = case op of
   O.Add  -> D.NOp D.Add
   O.Sub  -> D.NOp D.Sub
   O.Div  -> D.NOp D.Div
@@ -68,7 +68,10 @@ operToVecOp op = case op of
   O.Like -> D.Like
   _      -> D.COp $ operToCompOp op
 
-operToCompOp :: O.Oper -> D.VecCompOp
+unOpToVecOp :: O.ScalarUnOp -> D.VecUnOp
+unOpToVecOp op = $unimplemented
+
+operToCompOp :: O.ScalarBinOp -> D.VecCompOp
 operToCompOp op = case op of
   O.Eq   -> D.Eq
   O.Gt   -> D.Gt
@@ -116,7 +119,7 @@ joinExpr expr = offsetExpr $ aux expr
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
     aux :: JoinExpr -> ColExpr
-    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 (operToVecOp op) 
+    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 (binOpToVecOp op) 
                                              (offsetExpr $ aux e1) 
                                              (offsetExpr $ aux e2)
     aux (UnOpJ _ NotJ e)    = Expr $ UnApp1 D.Not (offsetExpr $ aux e)
@@ -244,33 +247,37 @@ vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
 vlTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DVec
 vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n tys ks
 
-vlBinExpr :: O.Oper -> DVec -> DVec -> GraphM r VL DVec
+vlUnExpr :: O.ScalarUnOp -> DVec -> GraphM r VL DVec
+vlUnExpr o (DVec c _) =
+    dvec $ insertNode $ UnOp (Project [UnApp1 ($unimplemented o) (Column1 1)]) c
+
+vlBinExpr :: O.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
                                      $ insertNode
-                                     $ BinOp (BinExpr (BinApp2 (operToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
+                                     $ BinOp (BinExpr (BinApp2 (binOpToVecOp o) (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
-vlSelectPos :: DVec -> O.Oper -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPos :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do
                                         r <- insertNode $ BinOp (SelectPos (operToCompOp op)) c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlSelectPos1 :: DVec -> O.Oper -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1 :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = do
                                         r <- insertNode $ UnOp (SelectPos1 (operToCompOp op) posConst) c1
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlSelectPosS :: DVec -> O.Oper -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPosS :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
                                           r <- insertNode $ BinOp (SelectPosS (operToCompOp op)) c1 c2
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
-vlSelectPos1S :: DVec -> O.Oper -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1S :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1S (DVec c1 _) op posConst = do
                                           r <- insertNode $ UnOp (SelectPos1S (operToCompOp op) posConst) c1
                                           r1 <- dvec $ insertNode $ UnOp R1 r

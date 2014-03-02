@@ -77,8 +77,13 @@ toJoinExpr n = do
     let prim1 :: (Prim1 a) -> TranslateC Expr UnOp
         prim1 (Prim1 Fst _) = return FstJ
         prim1 (Prim1 Snd _) = return SndJ
-        prim1 (Prim1 Not _) = return NotJ
         prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
+    
+    let unop :: ScalarUnOp -> TranslateC Expr UnOp
+        unop Not = return NotJ
+        unop _   = fail "toJoinExpr: scalar unary op can't be translated to join primitive"
+         
+
         
     case e of
         AppE1 t p _   -> do
@@ -86,6 +91,9 @@ toJoinExpr n = do
             appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
         BinOp t _ _ _ -> do
             binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
+        UnOp t op _ -> do
+            op' <- unop op
+            unopT (toJoinExpr n) (\_ _ e1 -> UnOpJ t op' e1)
         Lit t v       -> do
             return $ ConstJ t v
         Var t x       -> do
@@ -144,7 +152,7 @@ isFlatExpr expr =
     case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        AppE1 _ (Prim1 Not _) e -> isFlatExpr e
+        UnOp _ Not e            -> isFlatExpr e
         BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
         Var _ _                 -> True
         Lit _ _                 -> True

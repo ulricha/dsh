@@ -1,4 +1,4 @@
-module Database.DSH.NKL.Primitives (Expr, ($), max, min, zip, snoc, nub, null, last, index, append, init, filter, all, any, integerToDouble, and, or, reverse, unzip, length, not, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like, number) where
+module Database.DSH.NKL.Primitives (Expr, ($), max, min, zip, snoc, nub, null, last, index, append, init, filter, all, any, and, or, reverse, unzip, length, concat, sum, avg, the, minimum, maximum, head, tail, fst, snd, map, groupWithKey, sortWith, pair, add, sub, div, mul, mod, eq, gt, lt, gte, lte, conj, disj, cons, var, table, lambda, cond, unit, int, bool, string, double, nil, list, consOpt, like, number) where
     
 import qualified Prelude as P
 import           Prelude (Bool(..))
@@ -35,11 +35,13 @@ unzip e = let (ListT (PairT t1 t2)) = typeOf e
               right = map (lambda (PairT t1 t2 .-> t2) "__*unzr*" (snd (var (PairT t1 t2) "__*unzr*"))) e
            in pair left right
                  
+{-
 not :: Expr -> Expr
 not e = let t = typeOf e
          in if boolT P.== t
                 then AppE1 boolT (Prim1 Not P.$ t .-> t) e
                 else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ pp t
+-}
 
 all :: Expr -> Expr -> Expr
 all f e = and (map f e)
@@ -62,11 +64,13 @@ or e = let t = typeOf e
                 then AppE1 boolT (Prim1 Or P.$ t .-> boolT) e
                 else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ pp t
 
+{-
 integerToDouble :: Expr -> Expr
 integerToDouble e = let t = typeOf e
                      in if intT P.== t
                          then AppE1 doubleT (Prim1 IntegerToDouble P.$ t .-> doubleT) e
                          else P.error P.$ "NKLPrims.integerToDouble: Cannot apply integerToDouble to an argument of type: " P.++ pp t
+-}
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e

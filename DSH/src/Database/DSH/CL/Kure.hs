@@ -27,6 +27,7 @@ module Database.DSH.CL.Kure
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
     , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
+    , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
     
@@ -64,6 +65,7 @@ data CrumbC = AppFun
             | AppE2Arg2
             | BinOpArg1
             | BinOpArg2
+            | UnOpArg
             | LamBody
             | IfCond
             | IfThen
@@ -189,7 +191,7 @@ appe2R t1 t2 = appe2T t1 t2 AppE2
                      
 binopT :: Monad m => Translate CompCtx m Expr a1
                   -> Translate CompCtx m Expr a2
-                  -> (Type -> Oper -> a1 -> a2 -> b)
+                  -> (Type -> ScalarBinOp -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 binopT t1 t2 f = translate $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
@@ -199,6 +201,18 @@ binopT t1 t2 f = translate $ \c expr -> case expr of
 binopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
+
+unopT :: Monad m => Translate CompCtx m Expr a
+                 -> (Type -> ScalarUnOp -> a -> b)
+                 -> Translate CompCtx m Expr b
+unopT t f = translate $ \ctx expr -> case expr of
+                     UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
+                     _            -> fail "not an unary operator application"
+{-# INLINE unopT #-}
+
+unopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
+unopR t = unopT t UnOp
+{-# INLINE unopR #-}
                      
 lamT :: Monad m => Translate CompCtx m Expr a
                 -> (Type -> Ident -> a -> b)
@@ -383,6 +397,7 @@ instance Walker CompCtx CL where
             AppE1{} -> appe1R (extractR r)
             AppE2{} -> appe2R (extractR r) (extractR r)
             BinOp{} -> binopR (extractR r) (extractR r)
+            UnOp{}  -> unopR (extractR r)
             Lam{}   -> lamR (extractR r)
             If{}    -> ifR (extractR r) (extractR r) (extractR r)
             Lit{}   -> idR

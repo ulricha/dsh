@@ -12,6 +12,16 @@ import Database.DSH.Common.Data.Type(Typed, typeOf, Type)
 
 import GHC.Generics (Generic)
 
+-- Signal wether a scalar operator is applied in its lifted or
+-- unlifted form.
+data Lifted a = Lifted a
+              | NotLifted a
+              deriving (Eq, Generic)
+
+instance Show a => Show (Lifted a) where
+    show (Lifted x)    = (show x) ++ "^L"
+    show (NotLifted x) = show x
+
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [Column] [Key]
           | PApp1   Type Prim1 Expr
@@ -19,18 +29,17 @@ data Expr = Table   Type String [Column] [Key]
           | PApp3   Type Prim3 Expr Expr Expr
           | CloApp  Type Expr Expr
           | CloLApp Type Expr Expr
-          | If      Type Expr Expr Expr -- | If expr1 then expr2 else expr3
-          | BinOp   Type Op Expr Expr -- | Apply Op to expr1 and expr2 (apply for primitive infix operators)
-          | Const   Type Val  -- | Constant value
-          | Var     Type Ident  -- | Variable lifted to level i
+          | If      Type Expr Expr Expr
+          | BinOp   Type (Lifted ScalarBinOp) Expr Expr
+          | UnOp    Type (Lifted ScalarUnOp) Expr
+          | Const   Type Val
+          | Var     Type Ident
           | Clo     Type Ident [Ident] Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
           | AClo    Type Ident [Ident] Ident Expr Expr
     deriving (Eq, Generic)
 
 data Prim1 = FLength Type
            | FLengthL Type
-           | FNot Type
-           | FNotL Type
            | FConcat Type
            | FConcatL Type
            | FFst Type
@@ -48,8 +57,6 @@ data Prim1 = FLength Type
            | FThe Type
            | FTheL Type
            | FQuickConcat Type
-           | FIntegerToDouble Type
-           | FIntegerToDoubleL Type
            | FTail Type
            | FTailL Type
            | FReverse Type
@@ -75,8 +82,6 @@ data Prim1 = FLength Type
 instance Show Prim1 where
     show (FLength _)     = "length"
     show (FLengthL _)    = "lengthL"
-    show (FNot _)        = "not"
-    show (FNotL _)       = "notL"
     show (FConcatL _)    = "concatL"
     show (FFst _)        = "fst"
     show (FSnd _)        = "snd"
@@ -94,8 +99,6 @@ instance Show Prim1 where
     show (FMinimumL _)   = "minimumL"
     show (FMaximum _)    = "maximum"
     show (FMaximumL _)   = "maximumL"
-    show (FIntegerToDouble _) = "integerToDouble"
-    show (FIntegerToDoubleL _) = "integerToDoubleL"
     show (FTail _)       = "tail"
     show (FTailL _)      = "tailL"
     show (FReverse _)    = "reverse"
@@ -184,15 +187,16 @@ instance Show Prim3 where
     show (FCombine _) = "combine"
 
 instance Typed Expr where
-    typeOf (Table t _ _ _) = t
-    typeOf (PApp1 t _ _) = t
-    typeOf (PApp2 t _ _ _) = t
-    typeOf (PApp3 t _ _ _ _) = t
-    typeOf (If t _ _ _) = t
-    typeOf (BinOp t _ _ _) = t
-    typeOf (Const t _) = t
-    typeOf (Var t _) = t
-    typeOf (CloApp t _ _) = t
-    typeOf (CloLApp t _ _) = t
-    typeOf (Clo t _ _ _ _ _) = t
+    typeOf (Table t _ _ _)    = t
+    typeOf (PApp1 t _ _)      = t
+    typeOf (PApp2 t _ _ _)    = t
+    typeOf (PApp3 t _ _ _ _)  = t
+    typeOf (If t _ _ _)       = t
+    typeOf (BinOp t _ _ _)    = t
+    typeOf (UnOp t _ _)       = t
+    typeOf (Const t _)        = t
+    typeOf (Var t _)          = t
+    typeOf (CloApp t _ _)     = t
+    typeOf (CloLApp t _ _)    = t
+    typeOf (Clo t _ _ _ _ _)  = t
     typeOf (AClo t _ _ _ _ _) = t

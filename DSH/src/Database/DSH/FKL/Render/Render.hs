@@ -23,6 +23,7 @@ render (If _ e1 e2 e3) = let e1' = render e1
 render (BinOp _ o e1 e2) = let e1' = render e1
                                e2' = render e2
                             in parens $ e1' <+> text (show o) <+> e2'
+render (UnOp _ o e) = text (show o) <> parens (render e)
 render (Const _ v) = renderC v
 render (Var _ x) = text x
 render (Clo _ l vs x f fl) = text "<<" <+> text (l ++ ", ") <+> text (show vs) <> text ", \\" <+> text x  <+> text " -> " <+> render f <> text ", \\" <+> text x <+> text " -> "<+> render fl  <> text ">>"

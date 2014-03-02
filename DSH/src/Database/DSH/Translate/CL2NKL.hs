@@ -30,7 +30,6 @@ prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
 prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
   where o' = case o of
                CL.Length           -> NKL.Length 
-               CL.Not              -> NKL.Not 
                CL.Concat           -> NKL.Concat 
                CL.Sum              -> NKL.Sum 
                CL.Avg              -> NKL.Avg 
@@ -40,7 +39,6 @@ prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
                CL.Head             -> NKL.Head 
                CL.Minimum          -> NKL.Minimum 
                CL.Maximum          -> NKL.Maximum 
-               CL.IntegerToDouble  -> NKL.IntegerToDouble 
                CL.Tail             -> NKL.Tail 
                CL.Reverse          -> NKL.Reverse 
                CL.And              -> NKL.And 
@@ -79,6 +77,7 @@ expr (CL.AppE1 t p e)            = NKL.AppE1 t (prim1 p) (expr e)
 expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = expr $ CP.concat $ CP.map f xs
 expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o (expr e1) (expr e2)
+expr (CL.UnOp t o e)             = NKL.UnOp t o (expr e)
 expr (CL.Lam t v e)              = NKL.Lam t v (expr e)
 expr (CL.If t c th el)           = NKL.If t (expr c) (expr th) (expr el)
 expr (CL.Lit t v)                = NKL.Const t v

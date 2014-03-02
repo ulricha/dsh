@@ -92,10 +92,10 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length |  Not |  Concat 
+data Prim1Op = Length | Concat 
              | Sum | Avg | The | Fst | Snd 
              | Head | Minimum | Maximum 
-             | IntegerToDouble | Tail 
+             | Tail 
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
@@ -107,7 +107,6 @@ data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
   show Length          = "length"
-  show Not             = "not"
   show Concat          = "concat"
   show Sum             = "sum"
   show Avg             = "avg"
@@ -117,7 +116,6 @@ instance Show Prim1Op where
   show Head            = "head"
   show Minimum         = "minimum"
   show Maximum         = "maximum"
-  show IntegerToDouble = "integerToDouble"
   show Tail            = "tail"
   show Reverse         = "reverse"
   show And             = "and"
@@ -189,7 +187,8 @@ data Expr  = Table Type String [Column] [Key]
            | App Type Expr Expr              
            | AppE1 Type (Prim1 Type) Expr   
            | AppE2 Type (Prim2 Type) Expr Expr 
-           | BinOp Type Oper Expr Expr        
+           | BinOp Type ScalarBinOp Expr Expr        
+           | UnOp Type ScalarUnOp Expr
            | Lam Type Ident Expr              
            | If Type Expr Expr Expr
            | Lit Type Val
@@ -206,6 +205,7 @@ instance Pretty Expr where
     pretty (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
+    pretty (UnOp _ o e)       = text (show o) <> parens (text $ show e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if" 
                              <+> pretty c 
@@ -260,6 +260,7 @@ instance Typed Expr where
   typeOf (Lam t _ _)     = t
   typeOf (If t _ _ _)    = t
   typeOf (BinOp t _ _ _) = t
+  typeOf (UnOp t _ _)    = t
   typeOf (Lit t _)       = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t

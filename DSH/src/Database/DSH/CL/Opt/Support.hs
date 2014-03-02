@@ -90,7 +90,6 @@ complexPrim2 op =
 complexPrim1 :: Prim1Op -> Bool
 complexPrim1 op =
     case op of
-        Not    -> False
         Concat -> False
         Fst    -> False
         Snd    -> False
@@ -107,7 +106,7 @@ complexPathT = do
         If _ _ _ _                                 -> trace "if" ret
         AppE2 _ (Prim2 op _) _ _ | complexPrim2 op -> trace "app2" ret
         AppE1 _ (Prim1 op _) _   | complexPrim1 op -> trace "app1" ret
-        e -> trace ("fail " ++ pp e) $ fail "not a complex expression"
+        e -> fail "not a complex expression"
 
 factorR :: TranslateC CL (Ident, Expr, Expr)
 factorR = do

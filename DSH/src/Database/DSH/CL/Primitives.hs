@@ -6,6 +6,8 @@ import Debug.Trace
 import qualified Prelude as P
 import           Prelude (Bool(..))
 
+import           Text.Printf
+
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Data.Type
@@ -38,12 +40,6 @@ unzip e = let (ListT (PairT t1 t2)) = typeOf e
               right = map (lambda (PairT t1 t2 .-> t2) "__*unzr*" (snd (var (PairT t1 t2) "__*unzr*"))) e
            in pair left right
                  
-not :: Expr -> Expr
-not e = let t = typeOf e
-         in if boolT P.== t
-                then AppE1 boolT (Prim1 Not P.$ t .-> t) e
-                else P.error P.$ "NKLPrims.not: Cannot apply not to an argument of type: " P.++ P.show t
-
 all :: Expr -> Expr -> Expr
 all f e = and (map f e)
 
@@ -64,12 +60,6 @@ or e = let t = typeOf e
          in if listT boolT P.== t
                 then AppE1 boolT (Prim1 Or P.$ t .-> boolT) e
                 else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
-
-integerToDouble :: Expr -> Expr
-integerToDouble e = let t = typeOf e
-                     in if intT P.== t
-                         then AppE1 doubleT (Prim1 IntegerToDouble P.$ t .-> doubleT) e
-                         else P.error P.$ "NKLPrims.integerToDouble: Cannot apply integerToDouble to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
@@ -210,6 +200,23 @@ index e1 e2 = let t1@(ListT t) = typeOf e1
                 in if intT P.== t2
                     then AppE2 t (Prim2 Index P.$ t1 .-> t2 .-> t) e1 e2
                     else P.error P.$ "NKLPrims.index: Cannot perform index with given arguments."
+
+scalarUnOp :: ScalarUnOp -> Expr -> Expr
+scalarUnOp op e =
+    let t = typeOf e
+    in case (op, t) of
+           (Not, BoolT)       -> UnOp t op e
+           (CastDouble, IntT) -> UnOp t op e
+           (Sin, DoubleT)     -> UnOp t op e
+           (Cos, DoubleT)     -> UnOp t op e
+           (Tan, DoubleT)     -> UnOp t op e
+           (Sqrt, DoubleT)    -> UnOp t op e
+           (Log, DoubleT)     -> UnOp t op e
+           (Exp, DoubleT)     -> UnOp t op e
+           (ASin, DoubleT)    -> UnOp t op e
+           (ACos, DoubleT)    -> UnOp t op e
+           (ATan, DoubleT)    -> UnOp t op e
+           (_, _)             -> P.error P.$ printf "Primitives.scalarUnOp: %s" (P.show (op, t))
 
 add :: Expr -> Expr -> Expr
 add e1 e2 = let t1 = typeOf e1

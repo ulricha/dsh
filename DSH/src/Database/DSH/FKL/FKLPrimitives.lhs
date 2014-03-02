@@ -376,17 +376,6 @@ reverseLPrim :: Expr -> Expr
 reverseLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.FReverseL $ t1 .-> t1) e1
 
-notVal :: Type -> Expr
-notVal t = singleArgClo t "not_v" notPrim notLPrim
-
-notPrim :: Expr -> Expr
-notPrim e1 = let t1@(BoolT) = typeOf e1
-              in F.PApp1 t1 (F.FNot $ t1 .-> t1) e1
-              
-notLPrim :: Expr -> Expr 
-notLPrim e1 = let t1@(ListT BoolT) = typeOf e1
-               in F.PApp1 t1 (F.FNotL $ t1 .-> t1) e1
-
 andVal :: Type -> Expr
 andVal t = singleArgClo t "and_v" andPrim andLPrim
 
@@ -409,17 +398,6 @@ orPrim e1 = let t1@(ListT BoolT) = typeOf e1
 orLPrim :: Expr -> Expr 
 orLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
             in F.PApp1 t (F.FOrL $ t1 .-> t) e1
-
-integerToDoubleVal :: Type -> Expr
-integerToDoubleVal t = singleArgClo t "integerToDouble_v" integerToDoublePrim integerToDoubleLPrim
-
-integerToDoublePrim :: Expr -> Expr
-integerToDoublePrim e1 = let t1@(IntT) = typeOf e1
-                          in F.PApp1 DoubleT (F.FIntegerToDouble $ t1 .-> DoubleT) e1
-
-integerToDoubleLPrim :: Expr -> Expr 
-integerToDoubleLPrim e1 = let t1@(ListT IntT) = typeOf e1
-                          in F.PApp1 (ListT DoubleT) (F.FIntegerToDoubleL $ t1 .-> ListT DoubleT) e1
 
 sumVal :: Type -> Expr
 sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim
@@ -584,20 +562,34 @@ ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
 ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
 ifPrimM = liftM3 ifPrim
     
-opPrim :: Type -> Oper -> Expr -> Expr -> Expr     
-opPrim t o e1 e2 = let t' = typeOf e1
-                    in case (t', o) of
-                        (PairT _ _, Eq) -> opPrim t Conj (opPrim t Eq (fstPrim e1) (fstPrim e2)) (opPrim t Eq (sndPrim e1) (sndPrim e2))
-                        _ -> BinOp t (Op o False) e1 e2
+binPrim :: Type -> ScalarBinOp -> Expr -> Expr -> Expr     
+binPrim t o e1 e2 = 
+    let t' = typeOf e1
+    in case (t', o) of
+           (PairT _ _, Eq) -> binPrim t Conj (binPrim t Eq (fstPrim e1) (fstPrim e2)) 
+                                             (binPrim t Eq (sndPrim e1) (sndPrim e2))
+           _               -> BinOp t (NotLifted o) e1 e2
 
-opPrimM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
-opPrimM t o = liftM2 (opPrim t o)
+binPrimM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binPrimM t o = liftM2 (binPrim t o)
 
-opPrimL :: Type -> Oper -> Expr -> Expr -> Expr
-opPrimL t o = BinOp t (Op o True) 
+binPrimL :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
+binPrimL t o = BinOp t (Lifted o) 
 
-opPrimLM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
-opPrimLM t o = liftM2 (opPrimL t o)
+binPrimLM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binPrimLM t o = liftM2 (binPrimL t o)
+
+unPrim :: Type -> ScalarUnOp -> Expr -> Expr
+unPrim t o e = UnOp t (NotLifted o) e
+
+unPrimM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unPrimM t o = liftM (unPrim t o)
+
+unPrimL :: Type -> ScalarUnOp -> Expr -> Expr
+unPrimL t o e = UnOp t (Lifted o) e
+
+unPrimLM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unPrimLM t o = liftM (unPrimL t o)
 
 clo :: Type -> String -> [String] -> String -> Expr -> Expr -> Expr
 clo = Clo

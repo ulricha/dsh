@@ -6,7 +6,7 @@ module Database.DSH.Common.Data.JoinExpr
     ) where
        
 import Data.Data
-import Data.Typeable
+import Data.Typeable()
        
 import Database.DSH.Common.Data.Op
 import Database.DSH.Common.Data.Val
@@ -22,7 +22,7 @@ instance Show UnOp where
     show FstJ = "fst"
     show SndJ = "snd"
 
-data JoinExpr = BinOpJ Type Oper JoinExpr JoinExpr
+data JoinExpr = BinOpJ Type ScalarBinOp JoinExpr JoinExpr
               | UnOpJ Type UnOp JoinExpr
               | ConstJ Type Val
               | InputJ Type

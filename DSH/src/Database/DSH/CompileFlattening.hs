@@ -190,10 +190,19 @@ compileApp f args =
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one
+       IntegerToDouble -> compileApp1 (CP.scalarUnOp O.CastDouble) args
+       Not             -> compileApp1 (CP.scalarUnOp O.Not) args
+       Sin             -> compileApp1 (CP.scalarUnOp O.Sin) args
+       Cos             -> compileApp1 (CP.scalarUnOp O.Cos) args
+       Tan             -> compileApp1 (CP.scalarUnOp O.Tan) args
+       ASin            -> compileApp1 (CP.scalarUnOp O.ASin) args
+       ACos            -> compileApp1 (CP.scalarUnOp O.ACos) args
+       ATan            -> compileApp1 (CP.scalarUnOp O.ATan) args
+       Sqrt            -> compileApp1 (CP.scalarUnOp O.Sqrt) args
+       Log             -> compileApp1 (CP.scalarUnOp O.Log) args
+       Exp             -> compileApp1 (CP.scalarUnOp O.Exp) args
        Fst             -> compileApp1 CP.fst args
        Snd             -> compileApp1 CP.snd args
-       Not             -> compileApp1 CP.not args
-       IntegerToDouble -> compileApp1 CP.integerToDouble args
        Head            -> compileApp1 CP.head args
        Tail            -> compileApp1 CP.tail args
        Minimum         -> compileApp1 CP.minimum args
@@ -264,6 +273,7 @@ resugar expr =
 
     CL.AppE2 t p1 e1 e2 -> CL.AppE2 t p1 (resugar e1) (resugar e2)
     CL.BinOp t op e1 e2 -> CL.BinOp t op (resugar e1) (resugar e2)
+    CL.UnOp t op e -> CL.UnOp t op (resugar e)
     CL.Lam t v e1 -> CL.Lam t v (resugar e1)
     
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)

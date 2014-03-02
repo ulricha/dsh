@@ -9,7 +9,8 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), VecCastOp(..), VecUnOp(..), AggrFun(..))
+import           Database.Algebra.VL.Data (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
+import qualified Database.Algebra.VL.Data as VL
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -21,30 +22,6 @@ import           Database.DSH.Common.Data.Type
 import           Database.DSH.Common.Data.Expr
 import           Database.DSH.Common.Data.JoinExpr
 import qualified Database.DSH.Common.Data.Val as V
-
-notS :: Shape -> Graph VL Shape
-notS (PrimVal v lyt) = do
-    v' <- vlProject v [UnApp1 Not (Column1 1)]
-    return $ PrimVal v' lyt
-notS _ = $impossible
-
-notL :: Shape -> Graph VL Shape
-notL (ValueVector v lyt) = do
-    v' <- vlProject v [UnApp1 Not (Column1 1)]
-    return $ ValueVector v' lyt
-notL _ = $impossible
-
-integerToDoubleS :: Shape -> Graph VL Shape
-integerToDoubleS (PrimVal v lyt) = do
-    v' <- vlProject v [UnApp1 (CastOp CastDouble) (Column1 1)]
-    return $ PrimVal v' lyt
-integerToDoubleS _ = $impossible
-
-integerToDoubleL :: Shape -> Graph VL Shape
-integerToDoubleL (ValueVector v lyt) = do
-    v' <- vlProject v [UnApp1 (CastOp CastDouble) (Column1 1)]
-    return $ ValueVector v' lyt
-integerToDoubleL _ = $impossible
 
 zipPrim ::  Shape -> Shape -> Graph VL Shape
 zipPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -541,7 +518,7 @@ ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _) <- vlDistPrim qb q1
     (d1, p1) <- vlRestrict q1 d1'
-    qb' <- vlProject qb [UnApp1 Not (Column1 1)]
+    qb' <- vlProject qb [UnApp1 VL.Not (Column1 1)]
     (d2', _) <- vlDistPrim qb' q2
     (d2, p2) <- vlRestrict q2 d2'
     r1 <- renameOuter' p1 lyt1

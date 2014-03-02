@@ -11,7 +11,7 @@ import Database.DSH.Internals
 import Database.DSH.Impossible
 import Database.DSH.TH
 
-import Prelude ( Eq, Ord, Num(..), Fractional(..), Show(..)
+import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..), Show(..)
                , Bool(..), Char, Integer, Double, String, Maybe(..), Either(..)
                , id, undefined, ($), (.))
 import qualified Prelude as P
@@ -185,6 +185,18 @@ instance Num (Exp Double) where
 instance Fractional (Exp Double) where
   (/) e1 e2    = AppE Div (PairE e1 e2)
   fromRational = DoubleE . fromRational
+
+instance Floating (Exp Double) where
+  pi     = DoubleE 3.141592653589793
+  sin e  = AppE Sin e
+  cos e  = AppE Cos e
+  tan e  = AppE Tan e
+  sqrt e = AppE Sqrt e
+  exp e  = AppE Exp e
+  log e  = AppE Log e
+  asin e = AppE ASin e
+  acos e = AppE ACos e
+  atan e = AppE ATan e
 
 instance Num (Q Integer) where
   (+) (Q e1) (Q e2) = Q (e1 + e2)

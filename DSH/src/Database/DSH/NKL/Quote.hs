@@ -55,7 +55,7 @@ data ExprQ = Table TypeQ String [Column] [NKL.Key]
            | App TypeQ ExprQ ExprQ
            | AppE1 TypeQ (NKL.Prim1 TypeQ) ExprQ
            | AppE2 TypeQ (NKL.Prim2 TypeQ) ExprQ ExprQ
-           | BinOp TypeQ Oper ExprQ ExprQ
+           | BinOp TypeQ ScalarBinOp ExprQ ExprQ
            | Lam TypeQ Var ExprQ
            | If TypeQ ExprQ ExprQ ExprQ
            | Const TypeQ Val
@@ -281,7 +281,6 @@ typ = do { void $ char '\''; AntiT <$> AntiBind <$> identifier }
       
 prim1s :: [Parse (TypeQ -> NKL.Prim1 TypeQ)]
 prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
-         , reserved "not" >> return (NKL.Prim1 NKL.Not)
          , reserved "concat" >> return (NKL.Prim1 NKL.Concat)
          , reserved "sum" >> return (NKL.Prim1 NKL.Sum)
          , reserved "avg" >> return (NKL.Prim1 NKL.Avg)
@@ -291,7 +290,6 @@ prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
          , reserved "head" >> return (NKL.Prim1 NKL.Head)
          , reserved "minimum" >> return (NKL.Prim1 NKL.Minimum)
          , reserved "maximum" >> return (NKL.Prim1 NKL.Maximum)
-         , reserved "integerToDouble" >> return (NKL.Prim1 NKL.IntegerToDouble)
          , reserved "tail" >> return (NKL.Prim1 NKL.Tail)
          , reserved "reverse" >> return (NKL.Prim1 NKL.Reverse)
          , reserved "and" >> return (NKL.Prim1 NKL.And)
@@ -341,7 +339,7 @@ val = (IntV <$> natural)
                        ; return $ PairV v1 v2
                        } )
                        
-op :: Parse Oper
+op :: Parse ScalarBinOp
 op = choice [ reservedOp "+" >> return Add
             , reservedOp "-" >> return Sub
             , reservedOp "/" >> return Div

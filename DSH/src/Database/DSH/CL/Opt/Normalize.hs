@@ -63,7 +63,7 @@ normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
 -- => or [ p | x <- xs ]
 normalizeExistentialR :: RewriteC Qual
 normalizeExistentialR = do
-    GuardQ (AppE1 _ (Prim1 Not _) 
+    GuardQ (UnOp _ Not
                (BinOp _ Eq 
                    (AppE1 _ (Prim1 Length _) 
                        (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
@@ -86,7 +86,7 @@ normalizeUniversal1R = do
                 (Lit _ (IntV 0))) <- idR
 
     return $ GuardQ (P.and (Comp (listT boolT) 
-                           (P.not p) 
+                           (P.scalarUnOp Not p) 
                            (S (BindQ x xs))))
                            
 -- | Normalize a guard expressing universal quantification
@@ -95,12 +95,12 @@ normalizeUniversal1R = do
 -- and [ not p | x <- xs ]
 normalizeUniversal2R :: RewriteC Qual
 normalizeUniversal2R = do
-    GuardQ (AppE1 _ (Prim1 Not _)
+    GuardQ (UnOp _ Not
                 (AppE1 _ (Prim1 Or _)
                          (Comp _ p (S (BindQ y ys))))) <- idR
     
     return $ GuardQ (P.and (Comp (listT boolT)
-                                 (P.not p)
+                                 (P.scalarUnOp Not p)
                                  (S (BindQ y ys))))
                            
 normQualR :: RewriteC Qual

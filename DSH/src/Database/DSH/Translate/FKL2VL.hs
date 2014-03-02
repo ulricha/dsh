@@ -7,7 +7,7 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 import           Control.Monad
        
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.Dag.Common(Algebra(UnOp))
+import qualified Database.Algebra.Dag.Common as Alg
 import           Database.Algebra.VL.Data                      (VL(), UnOp(Project), Expr1(..))
 import           Database.Algebra.VL.Render.JSON               ()
 import           Database.DSH.Common.Data.Op
@@ -24,23 +24,31 @@ fkl2VL expr =
     case expr of
         Table _ n cs ks -> dbTable n cs ks
         Const t v -> mkLiteral t v
-        BinOp _ (Op Cons False) e1 e2 -> do 
+        BinOp _ (NotLifted Cons) e1 e2 -> do 
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
             cons e1' e2'
-        BinOp _ (Op Cons True)  e1 e2 -> do 
+        BinOp _ (Lifted Cons)  e1 e2 -> do 
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
             consLift e1' e2'
-        BinOp _ (Op o False) e1 e2    -> do 
+        BinOp _ (NotLifted o) e1 e2    -> do 
             PrimVal p1 lyt <- fkl2VL e1
             PrimVal p2 _   <- fkl2VL e2
             p              <- vlBinExpr o p1 p2
             return $ PrimVal p lyt
-        BinOp _ (Op o True) e1 e2     -> do 
+        BinOp _ (Lifted o) e1 e2     -> do 
             ValueVector p1 lyt <- fkl2VL e1
             ValueVector p2 _   <- fkl2VL e2
             p                  <- vlBinExpr o p1 p2
+            return $ ValueVector p lyt
+        UnOp _ (NotLifted o) e1 -> do 
+            PrimVal p1 lyt <- fkl2VL e1
+            p              <- vlUnExpr o p1
+            return $ PrimVal p lyt
+        UnOp _ (Lifted o) e1 -> do 
+            ValueVector p1 lyt <- fkl2VL e1
+            p                  <- vlUnExpr o p1
             return $ ValueVector p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2VL eb
@@ -88,8 +96,6 @@ papp1 t f =
         FAvgL _             -> avgLift
         FThe _              -> the
         FTheL _             -> theL
-        FNot _              -> notS
-        FNotL _             -> notL
         FFst _              -> fstA
         FSnd _              -> sndA
         FFstL _             -> fstL
@@ -100,8 +106,6 @@ papp1 t f =
         FMinimumL _         -> minLift
         FMaximum _          -> maxPrim
         FMaximumL _         -> maxLift
-        FIntegerToDouble _  -> integerToDoubleS
-        FIntegerToDoubleL _ -> integerToDoubleL
         FTail _             -> tailS
         FTailL _            -> tailL
         FReverse _          -> reversePrim
@@ -195,7 +199,7 @@ insertTopProjections g = do
   insertProj lyt q project vector describe = do
       let width = QP.columnsInLayout lyt
           cols  = [1 .. width]
-      qp   <- insertNode $ UnOp (project $ map Column1 cols) q
+      qp   <- insertNode $ Alg.UnOp (project $ map Column1 cols) q
       lyt' <- traverseLayout lyt
       return $ describe (vector qp cols) lyt'
 

@@ -84,6 +84,15 @@ data Fun a b where
     Like            :: Fun (Text,Text) Bool
     Transpose       :: Fun [[a]] [[a]]
     Reshape         :: Integer -> Fun [a] [[a]]
+    Sin             :: Fun Double Double
+    Cos             :: Fun Double Double
+    Tan             :: Fun Double Double
+    Sqrt            :: Fun Double Double
+    Exp             :: Fun Double Double
+    Log             :: Fun Double Double
+    ASin            :: Fun Double Double
+    ACos            :: Fun Double Double
+    ATan            :: Fun Double Double
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -171,6 +180,15 @@ instance Show (Fun a b) where
     show Guard = "guard"
     show (Reshape n) = printf "reshape(%d)" n
     show Transpose = "transpose"
+    show Sin = "sin"
+    show Cos = "cos"
+    show Tan = "tan"
+    show Sqrt = "sqrt"
+    show Exp = "exp"
+    show Log = "log"
+    show ASin = "asin"
+    show ACos = "acos"
+    show ATan = "atan"
 
 -- Reify instances
 
