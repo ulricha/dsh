@@ -218,6 +218,18 @@ instance Fractional (Q Double) where
   (/) (Q e1) (Q e2) = Q (e1 / e2)
   fromRational = Q . DoubleE . fromRational
 
+instance Floating (Q Double) where
+  pi         = Q pi
+  sin (Q e)  = Q (sin e)
+  cos (Q e)  = Q (cos e)
+  tan (Q e)  = Q (tan e)
+  asin (Q e) = Q (asin e)
+  acos (Q e) = Q (acos e)
+  atan (Q e) = Q (atan e)
+  exp (Q e)  = Q (exp e)
+  log (Q e)  = Q (log e)
+  sqrt (Q e) = Q (sqrt e)
+
 -- View instances
 
 instance View (Q ()) where
