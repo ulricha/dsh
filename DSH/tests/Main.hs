@@ -167,6 +167,15 @@ tests_numerics = testGroup "Numerics"
   , testProperty "signum_double" $ prop_signum_double
   , testProperty "negate_integer" $ prop_negate_integer
   , testProperty "negate_double" $ prop_negate_double
+  , testProperty "trig_sin" $ prop_trig_sin
+  , testProperty "trig_cos" $ prop_trig_cos
+  , testProperty "trig_tan" $ prop_trig_tan
+  , testProperty "trig_asin" $ prop_trig_asin
+  , testProperty "trig_acos" $ prop_trig_acos
+  , testProperty "trig_atan" $ prop_trig_atan
+  , testProperty "sqrt" $ prop_sqrt
+  , testProperty "log" $ prop_log
+  , testProperty "exp" $ prop_exp
   ]
 
 tests_maybe :: Test
@@ -324,6 +333,15 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map number" $ prop_map_number
         , testProperty "map reshape" $ prop_map_reshape
         -- , testProperty "map transpose" $ prop_map_transpose
+        , testProperty "map sin" $ prop_map_trig_sin
+        , testProperty "map cos" $ prop_map_trig_cos
+        , testProperty "map tan" $ prop_map_trig_tan
+        , testProperty "map asin" $ prop_map_trig_asin
+        , testProperty "map acos" $ prop_map_trig_acos
+        , testProperty "map atan" $ prop_map_trig_atan
+        , testProperty "map log" $ prop_map_log
+        , testProperty "map exp" $ prop_map_exp
+        , testProperty "map sqrt" $ prop_map_sqrt
         ]
         
 tests_comprehensions :: Test
@@ -395,7 +413,7 @@ makePropDouble f1 f2 arg = monadicIO $ do
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
-    let eps = 1.0E-8 :: Double;
+    let eps = 1.0E-3 :: Double;
     assert (abs (db - hs) < eps)
 
 makePropListDouble :: (QA a, Show a)
@@ -413,7 +431,7 @@ makePropListDouble f1 f2 arg = monadicIO $ do
     run $ HDBC.disconnect c
 #endif
     let hs = f2 arg
-    let eps = 1.0E-8 :: Double;
+    let eps = 1.0E-3 :: Double;
     assert $ and [abs (d - h) < eps | (d, h) <- zip db hs]
 
 uncurryQ :: (QA a, QA b) => (Q a -> Q b -> Q c) -> Q (a,b) -> Q c
@@ -1069,6 +1087,36 @@ prop_negate_integer = makeProp Q.negate negate
 prop_negate_double :: Double -> Property
 prop_negate_double = makePropDouble Q.negate negate
 
+prop_trig_sin :: Double -> Property
+prop_trig_sin = makePropDouble Q.sin sin
+
+prop_trig_cos :: Double -> Property
+prop_trig_cos = makePropDouble Q.cos cos
+
+prop_trig_tan :: Double -> Property
+prop_trig_tan = makePropDouble Q.tan tan
+
+prop_exp :: Double -> Property
+prop_exp = makePropDouble Q.exp exp
+
+prop_log :: Double -> Property
+prop_log d = d > 0 ==> makePropDouble Q.log log d
+
+prop_sqrt :: Double -> Property
+prop_sqrt d = d > 0 ==> makePropDouble Q.sqrt sqrt d
+
+arc :: Double -> Bool
+arc d = d >= -1 && d <= 1
+
+prop_trig_asin :: Double -> Property
+prop_trig_asin d = arc d ==>  makePropDouble Q.asin asin d
+
+prop_trig_acos :: Double -> Property
+prop_trig_acos d = arc d ==> makePropDouble Q.acos acos d
+
+prop_trig_atan :: Double -> Property
+prop_trig_atan = makePropDouble Q.atan atan
+
 prop_number :: [Integer] -> Property
 prop_number = makeProp (Q.map Q.snd . Q.number) (\xs -> map snd $ zip xs [1..])
 
@@ -1097,6 +1145,33 @@ prop_reshape = makeProp (Q.reshape 5) (reshape 5)
              
 prop_map_reshape :: [[Integer]] -> Property
 prop_map_reshape = makeProp (Q.map (Q.reshape 8)) (map (reshape 8))
+
+prop_map_trig_sin :: [Double] -> Property
+prop_map_trig_sin = makePropListDouble (Q.map Q.sin) (map sin)
+
+prop_map_trig_cos :: [Double] -> Property
+prop_map_trig_cos = makePropListDouble (Q.map Q.cos) (map cos)
+
+prop_map_trig_tan :: [Double] -> Property
+prop_map_trig_tan = makePropListDouble (Q.map Q.tan) (map tan)
+
+prop_map_trig_asin :: [Double] -> Property
+prop_map_trig_asin ds = all arc ds ==> makePropListDouble (Q.map Q.asin) (map asin) ds
+
+prop_map_trig_acos :: [Double] -> Property
+prop_map_trig_acos ds = all arc ds ==> makePropListDouble (Q.map Q.acos) (map acos) ds
+
+prop_map_trig_atan :: [Double] -> Property
+prop_map_trig_atan = makePropListDouble (Q.map Q.atan) (map atan)
+
+prop_map_exp :: [Double] -> Property
+prop_map_exp = makePropListDouble (Q.map Q.exp) (map exp)
+
+prop_map_log :: [Double] -> Property
+prop_map_log ds = all (> 0) ds ==> makePropListDouble (Q.map Q.log) (map log) ds
+
+prop_map_sqrt :: [Double] -> Property
+prop_map_sqrt ds = all (> 0) ds ==> makePropListDouble (Q.map Q.sqrt) (map sqrt) ds
                    
 -- * Comprehensions
 prop_eqjoin :: ([Integer], [Integer]) -> Property
