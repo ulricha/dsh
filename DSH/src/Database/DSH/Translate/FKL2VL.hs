@@ -10,7 +10,6 @@ import           Database.Algebra.Dag.Builder
 import qualified Database.Algebra.Dag.Common as Alg
 import           Database.DSH.VL.Lang                      (VL(), UnOp(Project), Expr1(..))
 import           Database.DSH.VL.Render.JSON               ()
-import           Database.DSH.Common.Data.Op
 import qualified Database.DSH.Common.Data.QueryPlan as QP
 import           Database.DSH.Common.Data.Type 
 import           Database.DSH.FKL.Data.FKL
@@ -24,14 +23,6 @@ fkl2VL expr =
     case expr of
         Table _ n cs ks -> dbTable n cs ks
         Const t v -> mkLiteral t v
-        BinOp _ (NotLifted Cons) e1 e2 -> do 
-            e1' <- fkl2VL e1
-            e2' <- fkl2VL e2
-            cons e1' e2'
-        BinOp _ (Lifted Cons)  e1 e2 -> do 
-            e1' <- fkl2VL e1
-            e2' <- fkl2VL e2
-            consLift e1' e2'
         BinOp _ (NotLifted o) e1 e2    -> do 
             PrimVal p1 lyt <- fkl2VL e1
             PrimVal p2 _   <- fkl2VL e2
@@ -146,6 +137,8 @@ papp2 f =
         FIndexL _          -> indexLift
         FZip _             -> zipPrim
         FZipL _            -> zipLift
+        FCons _            -> cons
+        FConsL _           -> consLift
         FCartProduct _     -> cartProductPrim
         FCartProductL _    -> cartProductLift
         FNestProduct _     -> nestProductPrim

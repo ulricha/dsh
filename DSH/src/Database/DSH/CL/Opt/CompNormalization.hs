@@ -82,7 +82,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
             -- x <- [v]
             BindQ x (Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
             -- x <- v : []
-            BindQ x (BinOp _ Cons v (Lit _ (ListV []))) -> return (x, v)
+            BindQ x (AppE2 _ (Prim2 Cons _) v (Lit _ (ListV []))) -> return (x, v)
             _                                           -> fail "qualR: no match"
             
     -- Try to match the pattern at the end of the qualifier list

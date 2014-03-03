@@ -62,6 +62,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.Append         -> NKL.Append
               CL.Index          -> NKL.Index 
               CL.Zip            -> NKL.Zip
+              CL.Cons           -> NKL.Cons
               CL.CartProduct    -> NKL.CartProduct
               CL.NestProduct    -> NKL.NestProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
@@ -101,8 +102,10 @@ desugar t e qs =
       where xt = elemT $ typeOf xs
             rt = elemT t
     
-    (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e' empty) empty
-      where empty = CL.Lit t (ListV [])
+    (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.AppE2 t (CL.Prim2 CL.Cons consTy) e' empty) empty
+      where 
+        empty  = CL.Lit t (ListV [])
+        consTy = elemT t .-> t .-> t
 
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.

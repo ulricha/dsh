@@ -122,7 +122,7 @@ binOp Op.Like = Like
 unOp :: Op.ScalarUnOp -> UnFun
 unOp Op.Not          = Not
 unOp (Op.CastDouble) = Cast doubleT
-unOp _ = $unimplemented
+unOp _               = $unimplemented
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)

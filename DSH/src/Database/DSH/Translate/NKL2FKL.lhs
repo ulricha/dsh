@@ -190,6 +190,7 @@ prim2Transform (N.Prim2 N.Filter t) = filterVal t
 prim2Transform (N.Prim2 N.Append t) = appendVal t
 prim2Transform (N.Prim2 N.Index t) = indexVal t
 prim2Transform (N.Prim2 N.Zip t) = zipVal t
+prim2Transform (N.Prim2 N.Cons t) = consVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 prim2Transform (N.Prim2 N.NestProduct t) = nestProductVal t
 prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
@@ -206,16 +207,18 @@ in order to achieve this we transform all lambdas and replace all primitive
 operations by their flat counterparts (described in the next chapter).
 
 The transformation described in this section is very similar to the
-transformation described in \cite{Jones08}. Our implementation is somewhat
-different from the transformation described in \cite{Jones08} to make the result
-more suitable for our execution platform, databases. As we are targeting
-databases instead of GPUs or C-vector libraries. For instance it is better for
-us to avoid the use index operations as these are very costly on a database. We
-can, luckily, avoid the introduction of index operations.
+transformation described in \cite{Jones08}. Our implementation is
+somewhat different from the transformation described in \cite{Jones08}
+to make the result more suitable for our execution platform,
+databases. As we are targeting databases instead of GPUs or C-vector
+libraries. For instance it is better for us to avoid the use of index
+operations as these are very costly on a database. We can, luckily,
+avoid the introduction of index operations.
 
-The transformation consists out of two functions, the first merely translates a
-part of an NKL tree into an FKL tree. The second however lifts such a tree into
-a vector form (which is included in every function).
+The transformation consists out of two functions, the first merely
+translates a part of an NKL tree into an FKL tree. The second however
+lifts such a tree into a vector form (which is included in every
+function).
 
 \begin{code} 
 transform :: N.Expr            ->  TransM F.Expr
@@ -281,7 +284,7 @@ lift en   (N.Lam t arg e)          = do
 \end{code}
         
 Literal data and database tables are simply distributed over the iteration
-context. Variables are always bound in the closure, we therefor do not have to
+context. Variables are always bound in the closure, we therefore do not have to
 lift them (when we dist a closure over a list we actually distributed over the
 values contained in the closure). Top level variables do not exist in our
 language, they are represented by the primitives.

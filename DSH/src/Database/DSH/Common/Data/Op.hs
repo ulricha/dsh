@@ -19,7 +19,6 @@ data ScalarBinOp = Add
                  | GtE 
                  | Lt  
                  | LtE 
-                 | Cons 
                  | Conj 
                  | Disj 
                  | Like
@@ -43,7 +42,6 @@ instance Show ScalarBinOp where
     show GtE = ">="
     show Lt  = "<"
     show LtE = "<="
-    show Cons = ":"
     show Conj = "&&"
     show Disj = "||"
     show Like = "LIKE"

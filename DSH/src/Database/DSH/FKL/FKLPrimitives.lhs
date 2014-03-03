@@ -110,6 +110,22 @@ groupWithKeyLPrim f e = let arg1 = mapLPrim f e
                             t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.FGroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 
+consVal :: Type -> Expr
+consVal t = doubleArgClo t "cons_e1" "cons_e2" consPrim consLPrim
+
+consPrim :: Expr -> Expr -> Expr
+consPrim e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.FCons (t1 .-> t2 .-> t2)) e1 e2
+
+consLPrim :: Expr -> Expr -> Expr
+consLPrim e1 e2 =
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.FConsL (t1 .-> t2 .-> t2)) e1 e2
+
+
 pairVal :: Type -> Expr
 pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
 
@@ -119,6 +135,7 @@ pairPrim e1 e2 = let t1 = typeOf e1
                      rt = pairT t1 t2
                   in F.PApp2 rt (F.FPair (t1 .-> t2 .-> rt)) e1 e2
 
+-- FIXME lifted pair is equivalent to zip!
 pairLPrim :: Expr -> Expr -> Expr
 pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                       t2@(ListT t2') = typeOf e2

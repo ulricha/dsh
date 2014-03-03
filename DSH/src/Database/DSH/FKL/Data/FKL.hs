@@ -136,6 +136,8 @@ data Prim2 = FGroupWithKey Type
            | FIndexL Type
            | FZip Type
            | FZipL Type
+           | FCons Type
+           | FConsL Type
            | FCartProduct Type
            | FCartProductL Type
            | FNestProduct Type
@@ -167,6 +169,8 @@ instance Show Prim2 where
     show (FIndexL _)          = "indexL"
     show (FZip _)             = "zip"
     show (FZipL _)            = "zipL"
+    show (FCons _)            = "cons"
+    show (FConsL _)           = "consL"
     show (FCartProduct _)     = "cartProduct"
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"

@@ -350,7 +350,6 @@ op = choice [ reservedOp "+" >> return Add
             , reservedOp ">=" >> return GtE
             , reservedOp "<" >> return Lt
             , reservedOp "<=" >> return LtE
-            , reservedOp ":" >> return Cons
             , reservedOp "&&" >> return Conj
             , reservedOp "||" >> return Disj
             , reservedOp "LIKE" >> return Like

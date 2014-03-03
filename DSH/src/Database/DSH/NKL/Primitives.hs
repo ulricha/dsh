@@ -291,7 +291,7 @@ cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
                  t@(ListT t2) = typeOf e2
               in if t1 P.== t2
-                   then BinOp t Cons e1 e2
+                   then AppE2 t (Prim2 Cons (t1 .-> t .-> t)) e1 e2
                    else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ pp t1 P.++ " and: " P.++ pp t2
 
 max :: Expr -> Expr -> Expr

@@ -10,7 +10,6 @@ import           Debug.Trace
 import           Control.Applicative
 
 import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
-import qualified Database.DSH.VL.Lang as VL
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector

@@ -257,7 +257,7 @@ resugar expr =
       case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
+        CL.Lam _ v (CL.AppE2 _ (CL.Prim2 CL.Cons _) e (CL.Lit _ (V.ListV []))) ->
           resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- Same case as above, just with a literal list in the lambda body.

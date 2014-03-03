@@ -136,6 +136,7 @@ data Prim2Op = Map
              | Append
              | Index 
              | Zip
+             | Cons
              | CartProduct
              | NestProduct
              | EquiJoin JoinExpr JoinExpr
@@ -155,6 +156,7 @@ instance Show Prim2Op where
   show Append       = "append"
   show Index        = "index"
   show Zip          = "zip"
+  show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
   show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)
