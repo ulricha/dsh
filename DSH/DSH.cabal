@@ -130,6 +130,10 @@ Library
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
                      Database.DSH.Translate.VL2Algebra
+
+                     Database.DSH.VL.Lang
+                     Database.DSH.VL.Render.Dot
+                     Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Data.DBVector
                      Database.DSH.VL.Data.GraphVector
                      Database.DSH.VL.MetaPrimitives
