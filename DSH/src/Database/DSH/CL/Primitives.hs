@@ -20,7 +20,7 @@ f $ e = let tf = typeOf f
             (ta, tr) = splitType tf
          in if ta P.== te
               then App tr f e
-              else P.error P.$ "NKLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
+              else P.error P.$ "CLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
 
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
@@ -30,7 +30,7 @@ length :: Expr -> Expr
 length e = let t = typeOf e
             in if isList t
                  then AppE1 intT (Prim1 Length P.$ t .-> intT) e
-                 else P.error P.$ "NKLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++
+                 else P.error P.$ "CLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++
                                   "\nThe provided argument is: " P.++ P.show e
 
 
@@ -53,19 +53,19 @@ and :: Expr -> Expr
 and e = let t = typeOf e
          in if listT boolT P.== t
                 then AppE1 boolT (Prim1 And P.$ t .-> boolT) e
-                else P.error P.$ "NKLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
+                else P.error P.$ "CLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
 
 or :: Expr -> Expr
 or e = let t = typeOf e
          in if listT boolT P.== t
                 then AppE1 boolT (Prim1 Or P.$ t .-> boolT) e
-                else P.error P.$ "NKLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
+                else P.error P.$ "CLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
             in if listDepth t P.> 1
                     then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
-                    else P.error P.$ "NKLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
+                    else P.error P.$ "CLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
 
 -- reshape :: [a] -> [[a]]
 reshape :: P.Integer -> Expr -> Expr
@@ -83,25 +83,25 @@ sum :: Expr -> Expr
 sum e = let (ListT t) = typeOf e
          in if isNum t
                 then AppE1 t (Prim1 Sum P.$ ListT t .-> t) e
-                else P.error P.$ "NKLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                else P.error P.$ "CLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 avg :: Expr -> Expr
 avg e = let (ListT t) = typeOf e
          in if isNum t
                 then AppE1 t (Prim1 Avg P.$ ListT t .-> t) e
-                else P.error P.$ "NKLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (ListT t)
+                else P.error P.$ "CLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (ListT t)
 
 minimum :: Expr -> Expr
 minimum e = let (ListT t) = typeOf e
              in if isNum t
                  then AppE1 t (Prim1 Minimum P.$ ListT t .-> t) e
-                 else P.error P.$ "NKLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                 else P.error P.$ "CLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 maximum :: Expr -> Expr
 maximum e = let (ListT t) = typeOf e
              in if isNum t
                  then AppE1 t (Prim1 Maximum P.$ ListT t .-> t) e
-                 else P.error P.$ "NKLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                 else P.error P.$ "CLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
 
 the :: Expr -> Expr
 the e = let (ListT t) = typeOf e
@@ -147,7 +147,7 @@ map f es = let ft@(FunT ta tr) = typeOf f
                te@(ListT t)    = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
-                 else P.error P.$ "NKLPrims.map: Cannot apply map to a function of type: \n" 
+                 else P.error P.$ "CLPrims.map: Cannot apply map to a function of type: \n" 
                                   P.++ P.show ft 
                                   P.++ "\n and an argument of type: \n" 
                                   P.++ P.show te
@@ -172,14 +172,14 @@ groupWithKey f es = let ft@(FunT ta tk) = typeOf f
                         tr            = listT P.$ pairT tk te
                     in if t P.== ta
                        then AppE2 tr (Prim2 GroupWithKey P.$ ft .-> te .-> tr) f es
-                       else P.error P.$ "NKLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+                       else P.error P.$ "CLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 sortWith :: Expr -> Expr -> Expr
 sortWith f es = let ft@(FunT ta _) = typeOf f
                     te@(ListT t) = typeOf es
                  in if t P.== ta
                         then AppE2 te (Prim2 SortWith P.$ ft .-> te .-> te) f es
-                        else P.error P.$ "NKLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+                        else P.error P.$ "CLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 pair :: Expr -> Expr -> Expr
 pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (V.PairV v1 v2)
@@ -192,21 +192,21 @@ append e1 e2 = let t1@(ListT _) = typeOf e1
                    t2@(ListT _) = typeOf e2
                 in if t1 P.== t2
                     then AppE2 t1 (Prim2 Append P.$ t1 .-> t1 .-> t1) e1 e2
-                    else P.error P.$ "NKLPrims.append: Cannot append two list with different types"
+                    else P.error P.$ "CLPrims.append: Cannot append two list with different types"
 
 index :: Expr -> Expr -> Expr
 index e1 e2 = let t1@(ListT t) = typeOf e1
                   t2 = typeOf e2
                 in if intT P.== t2
                     then AppE2 t (Prim2 Index P.$ t1 .-> t2 .-> t) e1 e2
-                    else P.error P.$ "NKLPrims.index: Cannot perform index with given arguments."
+                    else P.error P.$ "CLPrims.index: Cannot perform index with given arguments."
 
 scalarUnOp :: ScalarUnOp -> Expr -> Expr
 scalarUnOp op e =
     let t = typeOf e
     in case (op, t) of
            (Not, BoolT)       -> UnOp t op e
-           (CastDouble, IntT) -> UnOp t op e
+           (CastDouble, IntT) -> UnOp DoubleT op e
            (Sin, DoubleT)     -> UnOp t op e
            (Cos, DoubleT)     -> UnOp t op e
            (Tan, DoubleT)     -> UnOp t op e
@@ -223,104 +223,104 @@ add e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
                  then BinOp t1 Add e1 e2
-                 else P.error P.$ "NKLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                 else P.error P.$ "CLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 sub :: Expr -> Expr -> Expr
 sub e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
                   then BinOp t1 Sub e1 e2
-                  else P.error P.$ "NKLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else P.error P.$ "CLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 div :: Expr -> Expr -> Expr
 div e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
                   then BinOp t1 Div e1 e2
-                  else P.error P.$ "NKLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else P.error P.$ "CLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 mul :: Expr -> Expr -> Expr
 mul e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
                   then BinOp t1 Mul e1 e2
-                  else P.error P.$ "NKLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else trace ((P.show e1) P.++ " " P.++ (P.show e2)) P.$ P.error P.$ "CLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2 
 
 mod :: Expr -> Expr -> Expr
 mod e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== intT P.&& t2 P.== intT
                   then BinOp t1 Mod e1 e2
-                  else P.error P.$ "NKLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else P.error P.$ "CLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 eq :: Expr -> Expr -> Expr
 eq e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
                  then BinOp boolT Eq e1 e2
-                 else P.error P.$ "NKLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                 else P.error P.$ "CLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gt :: Expr -> Expr -> Expr
 gt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
                  then BinOp boolT Gt e1 e2
-                 else P.error P.$ "NKLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                 else P.error P.$ "CLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lt :: Expr -> Expr -> Expr
 lt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
                  then BinOp boolT Lt e1 e2
-                 else P.error P.$ "NKLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                 else P.error P.$ "CLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gte :: Expr -> Expr -> Expr
 gte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
                   then BinOp boolT GtE e1 e2
-                  else P.error P.$ "NKLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else P.error P.$ "CLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lte :: Expr -> Expr -> Expr
 lte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
                   then BinOp boolT LtE e1 e2
-                  else P.error P.$ "NKLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                  else P.error P.$ "CLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
                    then BinOp boolT Conj e1 e2
-                   else P.error P.$ "NKLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                   else P.error P.$ "CLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 disj :: Expr -> Expr -> Expr
 disj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
                    then BinOp boolT Disj e1 e2
-                   else P.error P.$ "NKLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                   else P.error P.$ "CLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
                    
 like :: Expr -> Expr -> Expr
 like e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
              in if t1 P.== stringT P.&& t2 P.== stringT
                 then BinOp boolT Like e1 e2
-                else P.error P.$ "NKLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
+                else P.error P.$ "CLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
 
 snoc :: Expr -> Expr -> Expr
 snoc e1 e2 = let t1@(ListT t) = typeOf e1
               in if t P.== typeOf e2
                     then append e1 (cons e2 P.$ nil t1)
-                    else P.error P.$ "NKLPrims.snoc: Cannot apply snoc to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show (typeOf e2)
+                    else P.error P.$ "CLPrims.snoc: Cannot apply snoc to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show (typeOf e2)
 
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
                  t@(ListT t2) = typeOf e2
               in if t1 P.== t2
                    then AppE2 t (Prim2 Cons (t1 .-> t .-> t)) e1 e2
-                   else P.error P.$ "NKLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                   else P.error P.$ "CLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 max :: Expr -> Expr -> Expr
 max e1 e2 = cond (e1 `gt` e2) e1 e2
@@ -348,7 +348,7 @@ cond eb et ee = let tb = typeOf eb
                     te = typeOf ee
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
-                      else P.error P.$ "NKLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
+                      else P.error P.$ "CLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
                       
 nestjoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
 nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys

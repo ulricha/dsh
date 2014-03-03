@@ -161,6 +161,7 @@ tests_numerics = testGroup "Numerics"
   , testProperty "mul_double" $ prop_mul_double
   , testProperty "div_double" $ prop_div_double
   , testProperty "integer_to_double" $ prop_integer_to_double
+  , testProperty "integer_to_double_+" $ prop_integer_to_double_arith
   , testProperty "abs_integer" $ prop_abs_integer
   , testProperty "abs_double" $ prop_abs_double
   , testProperty "signum_integer" $ prop_signum_integer
@@ -1065,6 +1066,10 @@ prop_div_double (x,y) =
 
 prop_integer_to_double :: Integer -> Property
 prop_integer_to_double = makePropDouble Q.integerToDouble fromInteger
+
+prop_integer_to_double_arith :: (Integer, Double) -> Property
+prop_integer_to_double_arith = makePropDouble (\x -> (Q.integerToDouble (Q.fst x)) + (Q.snd x))
+                                              (\(i, d) -> fromInteger i + d)
 
 prop_map_integer_to_double :: [Integer] -> Property
 prop_map_integer_to_double = makePropListDouble (Q.map Q.integerToDouble) (map fromInteger)
