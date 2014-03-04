@@ -77,17 +77,30 @@ renderProj :: Doc -> Expr1 -> Doc
 renderProj d e = d <> colon <> renderExpr1 e
 
 renderExpr1 :: Expr1 -> Doc
-renderExpr1 (BinApp1 op e1 e2) = (parens $ renderExpr1 e1) <+> (text $ show op) <+> (parens $ renderExpr1 e2)
+renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ show op) <+> (parenthize1 e2)
 renderExpr1 (UnApp1 op e)      = (text $ show op) <+> (parens $ renderExpr1 e)
 renderExpr1 (Constant1 val)    = renderTblVal val
 renderExpr1 (Column1 c)        = text "col" <> int c
 
+parenthize1 :: Expr1 -> Doc
+parenthize1 e@(Constant1 _)   = renderExpr1 e
+parenthize1 e@(Column1 _)     = renderExpr1 e
+parenthize1 e@(BinApp1 _ _ _) = parens $ renderExpr1 e
+parenthize1 e@(UnApp1 _ _)    = parens $ renderExpr1 e
+
 renderExpr2 :: Expr2 -> Doc
-renderExpr2 (BinApp2 op e1 e2)   = (parens $ renderExpr2 e1) <+> (text $ show op) <+> (parens $ renderExpr2 e2)
+renderExpr2 (BinApp2 op e1 e2)   = (parenthize2 e1) <+> (text $ show op) <+> (parenthize2 e2)
 renderExpr2 (UnApp2 op e)        = (text $ show op) <+> (parens $ renderExpr2 e)
 renderExpr2 (Constant2 val)      = renderTblVal val
 renderExpr2 (Column2Left (L c))  = text "lcol" <> int c
 renderExpr2 (Column2Right (R c)) = text "rcol" <> int c
+
+parenthize2 :: Expr2 -> Doc
+parenthize2 e@(Constant2 _)    = renderExpr2 e
+parenthize2 e@(Column2Left _)  = renderExpr2 e
+parenthize2 e@(Column2Right _) = renderExpr2 e
+parenthize2 e@(BinApp2 _ _ _)  = parens $ renderExpr2 e
+parenthize2 e@(UnApp2 _ _)     = parens $ renderExpr2 e
 
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
