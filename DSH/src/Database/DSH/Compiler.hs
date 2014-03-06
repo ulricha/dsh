@@ -9,6 +9,7 @@ module Database.DSH.Compiler
   , debugVL
   , debugVLOpt
   , debugX100VL
+  , debugX100VLOpt
   , debugX100
   , debugTA
   , debugTAOpt
@@ -164,6 +165,13 @@ debugVL prefix c (Q e) = do
 debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
+    nkl2VLFileOpt prefix e'
+
+-- | Debugging function: dump the optimized VL query plan (DAG) for a
+-- query to a file (X100 version).
+debugX100VLOpt :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100VLOpt prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
     nkl2VLFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
