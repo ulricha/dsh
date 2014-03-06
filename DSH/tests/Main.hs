@@ -262,6 +262,7 @@ tests_lists = testGroup "Lists"
         , testProperty "nub" $ prop_nub
         , testProperty "number" $ prop_number
         , testProperty "reshape" $ prop_reshape
+        , testProperty "reshape2" $ prop_reshape2
         , testProperty "transpose" $ prop_transpose
         ]
 
@@ -333,6 +334,7 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map break" $ prop_map_break
         , testProperty "map number" $ prop_map_number
         , testProperty "map reshape" $ prop_map_reshape
+        , testProperty "map reshape2" $ prop_map_reshape2
         -- , testProperty "map transpose" $ prop_map_transpose
         , testProperty "map sin" $ prop_map_trig_sin
         , testProperty "map cos" $ prop_map_trig_cos
@@ -1004,7 +1006,6 @@ prop_zip = makeProp (uncurryQ Q.zip) (uncurry zip)
 prop_map_zip :: ([Integer], [[Integer]]) -> Property
 prop_map_zip = makeProp (\z -> Q.map (Q.zip $ Q.fst z) $ Q.snd z) (\(x, y) -> map (zip x) y)
 
-
 prop_zipWith :: ([Integer], [Integer]) -> Property
 prop_zipWith = makeProp (uncurryQ $ Q.zipWith (+)) (uncurry $ zipWith (+))
 
@@ -1147,9 +1148,15 @@ reshape i xs = take i xs : reshape i (drop i xs)
 
 prop_reshape :: [Integer] -> Property
 prop_reshape = makeProp (Q.reshape 5) (reshape 5)
+
+prop_reshape2 :: [Integer] -> Property
+prop_reshape2 = makeProp (Q.reshape 2) (reshape 2)
              
 prop_map_reshape :: [[Integer]] -> Property
 prop_map_reshape = makeProp (Q.map (Q.reshape 8)) (map (reshape 8))
+
+prop_map_reshape2 :: [[Integer]] -> Property
+prop_map_reshape2 = makeProp (Q.map (Q.reshape 2)) (map (reshape 2))
 
 prop_map_trig_sin :: [Double] -> Property
 prop_map_trig_sin = makePropListDouble (Q.map Q.sin) (map sin)
