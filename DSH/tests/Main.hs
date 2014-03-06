@@ -359,7 +359,9 @@ tests_comprehensions = testGroup "Comprehensions"
     
 tests_hunit :: Test
 tests_hunit = testGroup "HUnit"
-    [ testCase "heqjoin_nested1" heqjoin_nested1
+    [ testCase "hnegative_sum" hnegative_sum
+    , testCase "hnegative_map_sum" hnegative_map_sum
+    , testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
     , testCase "hmap_transpose" hmap_transpose
     ]
@@ -1249,6 +1251,20 @@ makeEqAssertion msg q r = do
     HDBC.disconnect c
 #endif
     assertEqual msg r r'
+    
+hnegative_sum :: Assertion
+hnegative_sum = makeEqAssertion "hnegative_sum" (Q.sum (Q.toQ xs)) (sum xs)
+  where
+    xs :: [Integer]
+    xs = [-1, -4, -5, 2]
+
+hnegative_map_sum :: Assertion
+hnegative_map_sum = makeEqAssertion "hnegative_map_sum" 
+                                    (Q.map Q.sum (Q.toQ xss)) 
+                                    (map sum xss)
+  where
+    xss :: [[Integer]]
+    xss = [[10, 20, 30], [-10, -20, -30], [], [0]]
 
 hmap_transpose :: Assertion
 hmap_transpose = makeEqAssertion "hmap_transpose" (Q.map Q.transpose (Q.toQ xss)) res
