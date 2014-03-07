@@ -81,21 +81,19 @@ factorR = do
     return (x, singletonExpr, simplifiedPred)
 
 factorQualR :: RewriteC (NL Qual)
-factorQualR = do
-    GuardQ p :* qs <- idR
-    (x, xs, p') <- constT (return $ inject $ p) >>> factorR
-    return $ BindQ x xs :* GuardQ p' :* qs
-
-factorQualEndR :: RewriteC (NL Qual)
-factorQualEndR = do
-    S (GuardQ p) <- idR
-    debugPretty "factorQualEndR" p
-    (x, xs, p') <- constT (return $ inject $ p) >>> factorR
-    return $ BindQ x xs :* (S $ GuardQ p')
+factorQualR =
+    readerT $ \case
+        GuardQ p :* qs -> do
+            (x, xs, p') <- constT (return $ inject $ p) >>> factorR
+            return $ BindQ x xs :* GuardQ p' :* qs
+        S (GuardQ p) -> do
+            (x, xs, p') <- constT (return $ inject $ p) >>> factorR
+            return $ BindQ x xs :* (S $ GuardQ p')
+        _ -> fail "no match"
 
 factorConstantPredsR :: RewriteC CL
 factorConstantPredsR = do
     Comp t h qs <- promoteT idR
-    qs' <- constT (return qs) >>> onetdR (factorQualR <+ factorQualEndR)
+    qs' <- constT (return qs) >>> onetdR factorQualR
     return $ inject $ Comp t h qs'
     
