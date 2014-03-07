@@ -653,9 +653,10 @@ instance VectorAlgebra PFAlgebra where
     qr <- projAddCols cols [eP nrItem (UnAppE (Cast natT) (ColE pos))] q
     return $ DVec qr (cols ++ [nrIndex])
   
-  -- The Pathfinder implementation of lifted number does not come for free: To
-  -- generate the absolute numbers for every sublist (i.e. descriptor
-  -- partition), we have to use a partitioned rownumber.
+  -- The Pathfinder implementation of lifted number does not come for
+  -- free: To generate the absolute numbers for every sublist
+  -- (i.e. descriptor partition), we have to use a partitioned
+  -- rownumber.
   vecNumberS (DVec q cols) = do
     let nrIndex = length cols + 1
         nrItem = itemi nrIndex
@@ -692,7 +693,6 @@ instance VectorAlgebra PFAlgebra where
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
   
-  -- FIXME re-check semantics!
   vecAntiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
@@ -714,7 +714,7 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qr1 cols1, PVec qr2)
 
   -- FIXME none of vecReshape, vecReshapeS, vecTranspose and
-  -- vecTransposeS deals with empty inner inputs correctly!
+  -- vecTransposeS deal with empty inner inputs correctly!
   vecReshape n (DVec q cols) = do
     let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
