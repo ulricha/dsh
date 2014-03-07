@@ -19,6 +19,7 @@ import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Support
 import Database.DSH.CL.Opt.PredPushdown
 import Database.DSH.CL.Opt.Normalize
+import Database.DSH.CL.Opt.PartialEval
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
 import Database.DSH.CL.Opt.NestJoin
@@ -55,36 +56,39 @@ nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoin
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
+
+-- | Perform a top-down traversal of a query expression, looking for
+-- rewrite opportunities on comprehensions and other expressions.
+descendR :: RewriteC CL
+descendR = readerT $ \case
+
+    ExprCL (Comp _ _ _) -> optCompR
+
+    -- On non-comprehensions, try to clean up before descending
+    ExprCL _            -> repeatR (onetdR cleanupR) >+> anyR descendR
+
+    -- We are looking only for expressions. On non-expressions, simply descend.
+    _                   -> anyR descendR
+
+
+-- | Optimize single comprehensions during a top-down traversal
+optCompR :: RewriteC CL
+optCompR = do
+    c@(Comp _ _ _) <- promoteT idR
+    debugPretty "optCompR at" c
+
+    repeatR $ do
+          -- e <- promoteT idR
+          -- debugPretty "comp at" (e :: Expr)
+          (normalizeAlwaysR
+             <+ compNormEarlyR
+             <+ predpushdownR
+             <+ flatjoinsR
+             <+ anyR descendR
+             ) >>> debugShow "after comp"
             
 optimizeR :: RewriteC CL
 optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytdR factorConstantPredsR)
-  where
-    descendR :: RewriteC CL
-    descendR = readerT $ \case
-
-        ExprCL (Comp _ _ _) -> optCompR
-
-        -- On non-comprehensions, try to clean up before descending
-        ExprCL _            -> repeatR (onetdR cleanupR) >+> anyR descendR
-
-        -- We are looking only for expressions. On non-expressions, simply descend.
-        _                   -> anyR descendR
-
-
-    optCompR :: RewriteC CL
-    optCompR = do
-        c@(Comp _ _ _) <- promoteT idR
-        debugPretty "optCompR at" c
-
-        repeatR $ do
-              -- e <- promoteT idR
-              -- debugPretty "comp at" (e :: Expr)
-              (normalizeAlwaysR
-                 <+ compNormEarlyR
-                 <+ predpushdownR
-                 <+ flatjoinsR
-                 <+ anyR descendR
-                 ) >>> debugShow "after comp"
         
 {-
 -- debug function
