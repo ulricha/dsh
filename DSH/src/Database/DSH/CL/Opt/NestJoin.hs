@@ -88,7 +88,7 @@ data NestedComp = NestedComp
 -- comprehension. The inner comprehension must feature only one
 -- generator.
 
--- FIXME don't descend into comprehensions
+-- FIXME don't descend into comprehensions, or lambdas!
 searchNestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
 searchNestedCompT x = 
     onetdT $ do
@@ -104,6 +104,9 @@ searchNestedCompT x =
         p <- snocPathToPath <$> absPathT
         return (p, NestedComp t h (y, ys) guards)
 
+-- | Transform a suitable comprehension that was either nested in a
+-- comprehension head or in a guard expression and the corresponding
+-- outer generator.
 unnestWorkerT
   :: NestedComp                   -- ^ The nested comprehension
   -> (Ident, Expr)                -- ^ The outer generator
@@ -179,11 +182,14 @@ unnestWorkerT headComp (x, xs) = do
             g : gs -> Comp ti h' (BindQ innerVar (P.snd joinVar) :* fromListSafe g gs)
             []     -> Comp ti h' (S $ BindQ innerVar (P.snd joinVar))
 
-    return (headComp', xs', substR x joinVar)
+    let tuplifyOuterR :: RewriteC CL
+        tuplifyOuterR = substR x $ P.fst joinVar
+
+    return (headComp', xs', tuplifyOuterR)
 
 unnestFromHeadR :: RewriteC CL
 unnestFromHeadR = do
-    Comp to _ qso <- promoteT idR
+    Comp to ho qso <- promoteT idR
 
     -- We need one generator on a comprehension
     (x, xs, qsr) <- case qso of
@@ -203,17 +209,21 @@ unnestFromHeadR = do
     
     -- The relative path to the comprehension to be replaced, starting
     -- from the head expression
+    -- FIXME use withLocalPathT
     relCompPath <- relativePathT headCompPath
 
-    ExprCL ho' <- pathT [CompHead] $ pathR relCompPath (constT $ return $ inject headComp')
+    ExprCL tuplifiedHo <- constNodeT ho >>> tryR tuplifyOuterR
+    ExprCL unnestedHo  <- constNodeT tuplifiedHo >>> pathR relCompPath (constNodeT headComp')
 
     -- In the outer comprehension's qualifier list, x is replaced by
     -- the first pair component of the join result.
-    qsr' <- constT (return $ map inject qsr) 
-            >>> mapT (tryR tuplifyOuterR)
+    qsr' <- constT (return $ map inject qsr)
+            >>> mapT (tryR tuplifyOuterR) 
             >>> mapT projectT
 
-    return $ inject $ Comp to ho' (fromListSafe (BindQ x nestOp) qsr')
+    -- ExprCL tuplifiedHead <- constNodeT ho' >>> tryR tuplifyOuterR
+
+    return $ inject $ Comp to unnestedHo (fromListSafe (BindQ x nestOp) qsr')
 
 {-
 
@@ -311,7 +321,7 @@ unnestGuardR candGuards failedGuards = do
     h'              <- childT CompHead tuplifyR >>> projectT
     let tuplifyM e = constNodeT e >>> tuplifyR >>> projectT
     candGuards'     <- mapM tuplifyM candGuards
-    failedGuards'   <- mapM tuplifyM candGuards
+    failedGuards'   <- mapM tuplifyM failedGuards
     return (inject $ Comp t h' qs', candGuards', guardExpr : failedGuards')
 
 -- | Returns the tuplifying rewrite for the outer generator variable

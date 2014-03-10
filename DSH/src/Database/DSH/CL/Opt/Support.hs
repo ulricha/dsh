@@ -45,7 +45,7 @@ complexPrim1 op =
 complexPathT :: TranslateC CL [(Expr, PathC)]
 complexPathT = do
     ExprCL e <- idR
-    debugPretty "complexPathT" e
+    -- debugPretty "complexPathT" e
     path <- snocPathToPath <$> absPathT
     let ret = return [(e, path)]
     case e of
