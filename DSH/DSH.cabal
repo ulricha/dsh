@@ -82,7 +82,7 @@ Library
                      kure               >= 2.14.0,
                      ansi-wl-pprint,
                      set-monad,
-                     either,
+                     either             >= 4.0,
                      dlist
                      
   Hs-source-dirs:    src

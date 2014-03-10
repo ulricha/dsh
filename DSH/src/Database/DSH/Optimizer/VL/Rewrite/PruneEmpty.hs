@@ -2,8 +2,6 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.PruneEmpty(pruneEmpty) where
        
-import Debug.Trace
-
 import           Control.Applicative
 import           Control.Monad
 
@@ -39,7 +37,6 @@ emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
   $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
-        trace "leftR1" $ return ()
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do
@@ -79,8 +76,6 @@ emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
   $(pattern 'q "R1 ((q1) Append (q2))"
     [| do
-        trace "rightR1" $ return ()
-        
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
           logRewrite "Empty.Append.Right.R1" q
