@@ -305,6 +305,7 @@ unnestQualsR = do
             (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p >>> unnestGuardT (x, xs) p
             constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
             return $ S $ BindQ x xs'
+        _ -> fail "no match"
 
 -- | Trigger the search for unnesting opportunities in the qualifier
 -- list and tuplify comprehension head and remaining qualifiers on
