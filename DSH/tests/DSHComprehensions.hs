@@ -146,3 +146,35 @@ np3 njxs njys = [ [ x + y | y <- toQ njys ] | x <- toQ njxs ]
 
 np4 :: [Integer] -> [Integer] -> Q [[Integer]]
 np4 njxs njys = [ [ y | y <- toQ njys, x > y ] | x <- toQ njxs ]
+
+njg1 :: [Integer] -> [(Integer, Integer)] -> Q [Integer]
+njg1 njgxs njgzs =
+  [ x
+  | x <- toQ njgxs
+  , x < 8
+  , sum [ snd z | z <- toQ njgzs, fst z == x ] > 100
+  ]
+
+njg2 :: [Integer] -> [Integer] -> Q [Integer]
+njg2 njgxs njgys =
+  [ x
+  | x <- toQ njgxs
+  , and [ y > 1 | y <- toQ njgys, x == y ]
+  , x < 8
+  ]
+
+njg3 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> Q [(Integer, Integer)]
+njg3 njgxs njgys njgzs =
+  [ pair x y
+  | x <- toQ njgxs
+  , y <- toQ njgys
+  , length [ toQ () | z <- toQ njgzs, fst z == x ] > 2
+  ]
+
+njg4 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> Q [Integer]
+njg4 njgxs njgys njgzs =
+  [ x
+  | x <- toQ njgxs
+  , length [ toQ () | y <- toQ njgys, x == y ] 
+    > length [ toQ () | z <- toQ njgzs, fst z == x ]
+  ]

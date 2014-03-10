@@ -44,6 +44,14 @@ tests_nest_head_hunit = testGroup "HUnit head nesting"
     , testCase "hnp4" hnp4
     ]
 
+tests_nest_guard_hunit :: Test
+tests_nest_guard_hunit = testGroup "HUnit guard nesting"
+    [ testCase "hnjg1" hnjg1
+    , testCase "hnjg2" hnjg2
+    , testCase "hnjg3" hnjg3
+    , testCase "hnjg4" hnjg4
+    ]
+
 ---------------------------------------------------------------------------------
 -- QuickCheck properties for comprehensions
 
@@ -166,10 +174,22 @@ hnp3 = makeEqAssertion "hnp3" (C.np3 njxs1 njys1) (np3 njxs1 njys1)
 hnp4 :: Assertion
 hnp4 = makeEqAssertion "hnp4" (C.np4 njxs1 njys1) (np4 njxs1 njys1)
 
+hnjg1 :: Assertion
+hnjg1 = makeEqAssertion "hnjg1" (C.njg1 njgxs1 njgzs1) (njg1 njgxs1 njgzs1)
+
+hnjg2 :: Assertion
+hnjg2 = makeEqAssertion "hnjg2" (C.njg2 njgxs1 njgys1) (njg2 njgxs1 njgys1)
+
+hnjg3 :: Assertion
+hnjg3 = makeEqAssertion "hnjg3" (C.njg3 njgxs1 njgys1 njgzs1) (njg3 njgxs1 njgys1 njgzs1)
+
+hnjg4 :: Assertion
+hnjg4 = makeEqAssertion "hnjg4" (C.njg4 njgxs1 njgys1 njgzs1) (njg4 njgxs1 njgys1 njgzs1)
 
 pair :: a -> b -> (a, b)
 pair = (,)
 
+-- Head/NestJoin
 nj1 :: [Integer] -> [Integer] -> [[Integer]]
 nj1 njxs njys = 
     [ [ y | y <- njys, x == y ]
@@ -219,6 +239,7 @@ nj9 njxs njys = [ [ x + y | y <- njys, x + 1 == y, y > 2, x < 6 ] | x <- njxs ]
 nj10 :: [Integer] -> [Integer] -> [Integer]
 nj10 njxs njys = [ x + sum [ x * y | y <- njys, x == y ] | x <- njxs ]
 
+-- Head/NestProduct
 np1 :: [Integer] -> [Integer] -> [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- njys ] | x <- njxs ]
 
@@ -230,3 +251,46 @@ np3 njxs njys = [ [ x + y | y <- njys ] | x <- njxs ]
 
 np4 :: [Integer] -> [Integer] -> [[Integer]]
 np4 njxs njys = [ [ y | y <- njys, x > y ] | x <- njxs ]
+
+-- Guard/NestJoin
+
+njgxs1 :: [Integer]
+njgxs1 = [1,2,3,4,5,6,7,8,12]
+
+njgys1 :: [Integer]
+njgys1 = [2,3,2,4,5,5,9,12,2,2,13]
+
+njgzs1 :: [(Integer, Integer)]
+njgzs1 = [(2, 20), (5, 60), (3, 30), (3, 80), (4, 40), (5, 10), (5, 30), (12, 120)]
+
+njg1 :: [Integer] -> [(Integer, Integer)] -> [Integer]
+njg1 njgxs njgzs =
+  [ x
+  | x <- njgxs
+  , x < 8
+  , sum [ snd z | z <- njgzs, fst z == x ] > 100
+  ]
+
+njg2 :: [Integer] -> [Integer] -> [Integer]
+njg2 njgxs njgys =
+  [ x
+  | x <- njgxs
+  , and [ y > 1 | y <- njgys, x == y ]
+  , x < 8
+  ]
+
+njg3 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> [(Integer, Integer)]
+njg3 njgxs njgys njgzs =
+  [ pair x y
+  | x <- njgxs
+  , y <- njgys
+  , length [ () | z <- njgzs, fst z == x ] > 2
+  ]
+
+njg4 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> [Integer]
+njg4 njgxs njgys njgzs =
+  [ x
+  | x <- njgxs
+  , length [ () | y <- njgys, x == y ] 
+    > length [ () | z <- njgzs, fst z == x ]
+  ]
