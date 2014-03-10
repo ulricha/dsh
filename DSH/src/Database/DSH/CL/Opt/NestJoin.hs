@@ -7,21 +7,19 @@
 -- | Deal with nested comprehensions by introducing explicit nesting
 -- operators (NestJoin, NestProduct).
 module Database.DSH.CL.Opt.NestJoin
-  ( nestjoinHeadR
-  , nestjoinGuardR
-  , combineNestJoinsR 
+  ( nestjoinR
   ) where
   
 import           Control.Applicative((<$>))
 import           Control.Arrow
 
 import           Data.Either
-
 import qualified Data.Foldable as F
-
 import           Data.List
 import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
 import qualified Data.List.NonEmpty as N
+import qualified Data.Set as S
+import qualified Data.Map as M
 
 import           Database.DSH.Impossible
 
@@ -31,6 +29,11 @@ import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
 
 import           Database.DSH.CL.Opt.Aux
+
+nestjoinR :: RewriteC CL
+nestjoinR = unnestFromHeadR <+ unnestFromGuardR
+
+
 {-
 
 New plan: have simpler rules and code by extracting only one head
@@ -72,20 +75,22 @@ type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual)
 -- comprehensions nested in the head. We collect the expressions themself as
 -- well as the paths to them.
 
-data HeadComp = HeadComp
-    { hPath   :: PathC
-    , hType   :: Type
+data NestedComp = NestedComp
+    { hType   :: Type
     , hHead   :: Expr
     , hGen    :: (Ident, Expr)
     , hGuards :: [Expr]
     }
 
--- Search for a comprehension in an outer comprehension's head that is
--- eligible for unnesting. 'x' is the outer comprehension's generator
--- variable and must not occur in the generator of the inner
--- comprehension. The inner comprehension must feature only one generator.
-searchHeadCompT :: Ident -> TranslateC CL HeadComp
-searchHeadCompT x = 
+-- | Search for a comprehension in an outer comprehension's head that
+-- is eligible for unnesting. 'x' is the outer comprehension's
+-- generator variable and must not occur in the generator of the inner
+-- comprehension. The inner comprehension must feature only one
+-- generator.
+
+-- FIXME don't descend into comprehensions
+searchNestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
+searchNestedCompT x = 
     onetdT $ do
         Comp t h qs <- promoteT idR
         (y, ys, qsr) <- case qs of
@@ -97,24 +102,16 @@ searchHeadCompT x =
         guards <- constT $ mapM fromGuard qsr
 
         p <- snocPathToPath <$> absPathT
-        return $ HeadComp p t h (y, ys) guards
+        return (p, NestedComp t h (y, ys) guards)
 
-unnestFromHeadR :: RewriteC CL
-unnestFromHeadR = do
-    Comp to _ qso <- promoteT idR
-
-    -- We need one generator on a comprehension
-    (x, xs, qsr) <- case qso of
-                        S (BindQ x xs)    -> return (x, xs, [])
-                        BindQ x xs :* qsr -> return (x, xs, toList qsr)
-                        _                 -> fail "no match"
-
-    -- More precisely, we need *exactly one* generator on the
-    -- comprehension
-    guardM $ all isGuard qsr
-    
-    headComp <- childT CompHead (searchHeadCompT x)
-
+unnestWorkerT
+  :: NestedComp                   -- ^ The nested comprehension
+  -> (Ident, Expr)                -- ^ The outer generator
+  -> TranslateC CL ( Expr         -- ^ Return replacement for the inner comprehension,
+                   , Expr         -- outer generator with nesting op
+                   , RewriteC CL  -- and the tuplify rewrite for the outer generator variable.
+                   )
+unnestWorkerT headComp (x, xs) = do
     let (y, ys) = hGen headComp
 
     let (joinPredCandidates, nonJoinPreds) = partition (isEquiJoinPred x y) 
@@ -182,21 +179,41 @@ unnestFromHeadR = do
             g : gs -> Comp ti h' (BindQ innerVar (P.snd joinVar) :* fromListSafe g gs)
             []     -> Comp ti h' (S $ BindQ innerVar (P.snd joinVar))
 
+    return (headComp', xs', substR x joinVar)
+
+unnestFromHeadR :: RewriteC CL
+unnestFromHeadR = do
+    Comp to _ qso <- promoteT idR
+
+    -- We need one generator on a comprehension
+    (x, xs, qsr) <- case qso of
+                        S (BindQ x xs)    -> return (x, xs, [])
+                        BindQ x xs :* qsr -> return (x, xs, toList qsr)
+                        _                 -> fail "no match"
+
+    -- More precisely, we need *exactly one* generator on the
+    -- comprehension
+    guardM $ all isGuard qsr
+    
+    (headCompPath, headComp) <- childT CompHead (searchNestedCompT x)
+
+    (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
+
     -- Insert the replacement for the nested comprehension.
     
     -- The relative path to the comprehension to be replaced, starting
     -- from the head expression
-    compPath <- relativePathT $ hPath headComp
+    relCompPath <- relativePathT headCompPath
 
-    ExprCL ho' <- pathT [CompHead] $ pathR compPath (constT $ return $ inject headComp')
+    ExprCL ho' <- pathT [CompHead] $ pathR relCompPath (constT $ return $ inject headComp')
 
     -- In the outer comprehension's qualifier list, x is replaced by
     -- the first pair component of the join result.
     qsr' <- constT (return $ map inject qsr) 
-            >>> mapT (tryR $ substR x (P.fst joinVar))
+            >>> mapT (tryR tuplifyOuterR)
             >>> mapT projectT
 
-    return $ inject $ Comp to ho' (fromListSafe (BindQ x xs') qsr')
+    return $ inject $ Comp to ho' (fromListSafe (BindQ x nestOp) qsr')
 
 {-
 
@@ -220,124 +237,10 @@ relativePathT :: Path a -> TranslateC b (Path a)
 relativePathT p = do
     curPath <- snocPathToPath <$> absPathT
     return $ drop (1 + length curPath) p
+
+constNodeT :: (Injection a CL, Monad m) => a -> Translate c m b CL
+constNodeT expr = constT $ return $ inject expr
         
-dropPrefix :: Eq a => Path a -> Path a -> Path a
-dropPrefix prefix xs = drop (1 + length prefix) xs
-
--- | Construct a left-deep tuple from at least two expressions
-mkTuple :: Expr -> NonEmpty Expr -> Expr
-mkTuple e1 es = F.foldl1 P.pair (e1 <| es)
-
-constExprT :: Monad m => Expr -> Translate c m CL CL
-constExprT expr = constT $ return $ inject expr
-        
--- | Factor out expressions from a single-generator comprehension head, such
--- that only (pairs of) the generator variable and nested comprehensions in the
--- head remain. Beware: This rewrite /must/ be combined with a rewrite that
--- makes progress on the comprehension. Otherwise, a loop might occur when used
--- in a top-down fashion.
-factoroutHeadR :: RewriteC CL
-factoroutHeadR = do factoroutEndR <+ factoroutR
-  where 
-    factoroutEndR :: RewriteC CL
-    factoroutEndR = do
-        curr@(Comp t h (S (BindQ x xs))) <- promoteT idR
-        -- debugUnit "factoroutEndR at" curr
-        mkheadmapR curr t h x xs []
-        
-    factoroutR :: RewriteC CL
-    factoroutR = do
-        curr@(Comp t h ((BindQ x xs) :* qs)) <- promoteT idR
-
-        -- Currently, we only allow additional guards, not qualifiers.
-        -- FIXME this might be extendable to additional qualifiers
-        guardM $ all isGuard (toList qs)
-        -- debugUnit "factoroutR at" curr
-
-        mkheadmapR curr t h x xs (toList qs)
-
-mkheadmapR 
-  :: Expr          -- ^ The current comprehension
-  -> Type          -- ^ Type of the current comprehension
-  -> Expr          -- ^ Comprehension head
-  -> Ident         -- ^ Variable bound by the generator
-  -> Expr          -- ^ Generator source
-  -> [Qual]        -- ^ Possible additional guards
-  -> RewriteC CL
-mkheadmapR curr t h x xs qs = do
-
-
-    -- Collect interesting expressions from the comprehension head 
-    (vars, comps) <- partitionEithers <$> (oneT $ collectExprT x)
-
-    -- We abort if we did not find any interesting comprehensions in the head
-    guardM $ not $ null comps
-    
-    -- debugUnit "mkheadmapR found" (vars, comps)
-
-    pathPrefix <- absPathT >>^ snocPathToPath
-
-    let varTy = elemT $ typeOf xs
-
-        varExpr   = if null vars 
-                    then [] 
-                    else [(Var varTy x, map (dropPrefix pathPrefix) vars)]
-
-        -- Reconstruct comprehension expressions from the collected fragments
-        compExprs = map (\(p, t', h', qs') -> (Comp t' h' qs', [dropPrefix pathPrefix p])) comps
-        
-        exprs     = varExpr ++ compExprs
-        
-    -- trace ("collected: " ++ show (varExpr ++ compExprs)) $ return ()
-    -- trace ("currently at: " ++ show curr ++ " --- " ++ show pathPrefix) $ return ()
-        
-    (mapBody, h', headTy) <- case exprs of
-              -- If there is only one interesting expression (which must be a
-              -- comprehension), we don't need to construct tuples.
-              [(comp@(Comp _ _ _), [path])] -> do
-                  let lamVarTy = typeOf comp
-
-                  -- Replace the comprehension with the lambda variable
-                  mapBody <- (oneT $ pathR path (constT $ return $ inject $ Var lamVarTy x)) >>> projectT
-
-                  return (mapBody, comp, lamVarTy)
-
-              -- If there are multiple expressions, we construct a left-deep tuple
-              -- and replace the original expressions in the head with the appropriate
-              -- tuple constructors.
-              es@(e1 : e2 : er)    -> do
-                  let -- Construct a tuple from all interesting expressions
-                      headTuple      = mkTuple (fst e1) (fmap fst $ e2 :| er)
-
-                      lamVarTy       = typeOf headTuple
-                      lamVar         = Var lamVarTy x
-                      
-                      -- Map all paths to a tuple accessor for the tuple we
-                      -- constructed for the comprehension head
-                      tupleAccessors = zipWith (\paths i -> (tupleAt lamVar (length es) i, paths))
-                                               (map snd es)
-                                               [1..]
-                                               
-                      
-                      -- For each path, construct a rewrite to replace the
-                      -- original expression at this path with the tuple
-                      -- accessor
-                      rewritePerPath = [ pathR path (constExprT ta) 
-                                       | (ta, paths) <- tupleAccessors
-                                       , path <- paths ]
-                                       
-                  mapBody <- (oneT $ serialise rewritePerPath) >>> projectT
-                  return (mapBody, headTuple, lamVarTy)
-
-              _            -> $impossible
-              
-    let qs' = case fromList qs of
-                  Just qsTail -> (BindQ x xs) :* qsTail
-                  Nothing     -> S (BindQ x xs)
-              
-    let lamTy = headTy .-> (elemT t)
-    return $ inject $ P.map (Lam lamTy x mapBody) (Comp (listT headTy) h' qs')
-
 ------------------------------------------------------------------
 -- Nestjoin introduction: unnesting in a comprehension head
 
@@ -347,16 +250,9 @@ mkheadmapR curr t h x xs qs = do
 --   [ h | x <- xs, qs ]
 -- 
 -- where the header h contains x and multiple comprehensions c1, ...,
--- cn. factoroutHeadR normalizes the head into the following form:
---
---   [ ((((x, c1), c2), ...,), cn) | x <- xs, qs ]
---
--- Note that the header is a left-deep nested pair of x and all header
--- comprehensions. x does not _need_ to occur here.
--- 
--- We start from this normal form and additionally require that all additional
--- qualifiers in qs are guards. We reduce this to a base case, where only a
--- single comprehension occurs in the head:
+-- cn. We start from this normal form and additionally require that
+-- all additional qualifiers in qs are guards. We reduce this to a
+-- base case, where only a single comprehension occurs in the head:
 --
 --   [ [ f x y | y <- ys, p x y ] | x <- xs, qs], ..., [ cn | x <- xs, qs ]
 --
@@ -381,267 +277,10 @@ mkheadmapR curr t h x xs qs = do
 -- left input into a stack of nestjoins and removes the zips.
 
     
--- FIXME this should work on left-deep tuples
-tupleComponentsT :: TranslateC CL (NonEmpty Expr)
-tupleComponentsT = do
-    AppE2 _ (Prim2 Pair _) _ _ <- promoteT idR
-    N.reverse <$> descendT
-    
-  where
-    descendT :: TranslateC CL (NonEmpty Expr)
-    descendT = descendPairT <+ singleT
-    
-    descendPairT :: TranslateC CL (NonEmpty Expr)
-    descendPairT = do
-        AppE2 _ (Prim2 Pair _) _ e <- promoteT idR
-        tl <- childT AppE2Arg1 descendT
-        return $ e <| tl
-        
-    singleT :: TranslateC CL (NonEmpty Expr)
-    singleT = (:| []) <$> (promoteT idR)
-
 fromGuard :: Monad m => Qual -> m Expr
 fromGuard (GuardQ e)  = return e
 fromGuard (BindQ _ _) = fail "not a guard"
     
--- | Base case for nestjoin introduction: consider comprehensions in which only
--- a single inner comprehension occurs in the head.
-unnestHeadBaseT :: TranslateC CL Expr
-unnestHeadBaseT = singleCompT <+ varCompPairT <+ varCompPairEndT
-  where
-    mknestjoinT 
-      :: Type    -- ^ Type of the outer comprehension
-      -> Type    -- ^ Type of the inner comprehension
-      -> Expr    -- ^ Head of the inner comprehension
-      -> Ident   -- ^ Variable for the inner generator
-      -> Expr    -- ^ Source for the inner generator
-      -> [Qual]  -- ^ Inner predicates
-      -> Ident   -- ^ Outer generator variable
-      -> Expr    -- ^ Outer generator source
-      -> [Qual]  -- ^ Possibly additional outer qualifiers
-      -> TranslateC CL Expr
-    mknestjoinT t1 t2 h y ys innerQuals x xs outerPreds = do
-
-        -- First, make sure that we don't run into a loop:
-        -- If [ h x y | y <- ys, p x y ] | x <- xs ]
-        -- => [ [ h (fst x) y | y <- snd x, p x y ] | x <- xs NP ys ]
-        -- then we will loop forever, because there is always a comprehension
-        -- in the head.
-        guardM $ not $ x `elem` freeVars ys
-
-        -- On the inner comprehension, there should be only predicates
-        -- (besides y <- ys...)
-        innerPreds <- constT $ mapM fromGuard innerQuals
-
-        -- We expect (at least) one predicate which can be used to
-        -- construct the join.
-        (joinPredCandidates, nonJoinPreds) <- return $ partition (isEquiJoinPred x y) innerPreds
-
-        -- Determine which operator to use to implement the
-        -- nesting. If there is a join predicate, we use a
-        -- nestjoin. Only if there is no matching join predicate, we
-        -- use a nested cartesian product (nestproduct).
-        (joinOp, remJoinPreds) <- case joinPredCandidates of
-            [] -> return (NestProduct, [])
-            p : ps -> do
-                -- Split the join predicate
-                (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
-                return (NestJoin leftExpr rightExpr, ps)
-                
-        -- Identify predicates which only refer to y and can be
-        -- evaluated on the right nestjoin input.
-        let (yPreds, leftOverPreds) = partition ((== [y]) . freeVars) nonJoinPreds
-
-        -- Left over we have predicates which (propably) refer to both
-        -- x and y and are not/can not be used as the join predicate.
-        --    [ [ e x y | y <- ys, p x y, p' x y ] | x <- xs ]
-        -- => [ [ e [fst y/x][snd y/y] | y <- snd x, p'[fst y/x][snd y/y] ] | x <- xs nj(p) ys ]
-  
-        let xt       = elemT $ typeOf xs
-            yt       = elemT $ typeOf ys
-            tupType  = pairT xt (listT (pairT xt yt))
-            joinType = listT xt .-> (listT yt .-> listT tupType)
-            joinVar  = Var tupType x
-            
-        -- If there are inner predicates which only refer to y,
-        -- evaluate them on the right (ys) nestjoin input.
-        let ys' = case fromList yPreds of
-                      Just ps -> Comp (listT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
-                      Nothing -> ys
-
-        -- the nestjoin operator combining xs and ys: 
-        -- xs nj(p) ys
-        let xs'        = AppE2 (listT tupType) (Prim2 joinOp joinType) xs ys'
-
-        innerVar <- freshNameT
-
-        let tuplifyInnerVarR :: Expr -> TranslateC CL Expr
-            tuplifyInnerVarR e = constT (return $ inject e) 
-                                >>> tuplifyR innerVar (x, xt) (y, yt)
-                                >>> projectT
-
-        -- In the head of the inner comprehension, replace x and y
-        -- with the corresponding pair components of the inner lists
-        -- in the join result.
-        h' <- tuplifyInnerVarR h
-
-        -- Do the same on left over predicates, which will be
-        -- evaluated on the nestjoin result.
-        remPreds <- sequence $ map tuplifyInnerVarR (remJoinPreds ++ leftOverPreds)
-        let remGuards = map GuardQ remPreds
-
-        -- Construct the inner comprehension with the tuplified head
-        -- and apply left-over predicates to the inner comprehension.
-        let headComp = case remGuards of
-                g : gs -> Comp t2 h' (BindQ innerVar (P.snd joinVar) :* fromListSafe g gs)
-                []     -> Comp t2 h' (S $ BindQ innerVar (P.snd joinVar))
-                
-        -- In the outer comprehension, x is replaced by the first pair
-        -- component of the join result.
-        preds' <- constT (return $ map inject outerPreds) 
-                  >>> mapT (tryR $ substR x (P.fst joinVar))
-                  >>> mapT projectT
-
-        let qs = case fromList preds' of
-                     Just npreds -> (BindQ x xs') :* npreds
-                     Nothing     -> S (BindQ x xs')
-                
-        return $ Comp t1 headComp qs
-
-    
-    -- The base case: a single comprehension nested in the head of the outer
-    -- comprehension. 
-    -- [ [ h y | y <- ys, p ] | x <- xs ]
-    singleCompT :: TranslateC CL Expr
-    singleCompT = readerT $ \case
-        -- Assume only a single outer qualifier here.
-        -- [ [ h y | y <- ys, p ] | x <- xs ]
-        ExprCL (Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) (S (BindQ x xs))) -> 
-            mknestjoinT t1 t2 h y ys (toList ps) x xs []
-
-        ExprCL (Comp t1 (Comp t2 h ((S (BindQ y ys)) )) (S (BindQ x xs))) -> 
-            mknestjoinT t1 t2 h y ys [] x xs []
-
-         -- Assume more than one outer qualifier here. However, we are
-         -- conservative and expect only predicates as additional qualifiers
-         -- here. This could propably be extended to more generators, as long
-         -- as those generators do not bind variables which occur free in the
-         -- inner comprehension.
-        -- [ [ h | y <- ys, p ] | x <- xs, qs ]
-        ExprCL (Comp t1 (Comp t2 h ((BindQ y ys) :* ps)) ((BindQ x xs) :* qs)) -> do
-            guardM $ all isGuard $ toList qs
-            mknestjoinT t1 t2 h y ys (toList ps) x xs (toList qs)
-
-        ExprCL (Comp t1 (Comp t2 h ((S (BindQ y ys)))) ((BindQ x xs) :* qs)) -> do
-            guardM $ all isGuard $ toList qs
-            mknestjoinT t1 t2 h y ys [] x xs (toList qs)
-
-        _ -> fail "no match"
-
-    -- The head of the outer comprehension consists of a pair of generator
-    -- variable and inner comprehension
-    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
-    varCompPairEndT :: TranslateC CL Expr
-    varCompPairEndT = do
-        Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) (S (BindQ x' _)) <- promoteT idR
-
-        guardM $ x == x'
-        
-        -- Reduce to the base case, then unnest, then patch the variable back in
-        (removeVarR <+ removeVarEndR) >>> injectT >>> singleCompT >>> arr (patchVar x)
-
-    varCompPairT :: TranslateC CL Expr
-    varCompPairT = do
-        Comp _ (AppE2 _ (Prim2 Pair _) (Var _ x) _) ((BindQ x' _) :* qs) <- promoteT idR
-        
-        guardM $ x == x'
-
-        -- Only allow guards as additional qualifiers
-        guardM $ all isGuard (toList qs)
-
-        -- Reduce to the base case, then unnest, then patch the variable back in
-        (removeVarR <+ removeVarEndR) >>> injectT >>> singleCompT >>> arr (patchVar x)
-        
-    -- Support rewrite: remove the variable from the outer comprehension head
-    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
-    -- => [ [ h y | y <- ys, p ] | x <- xs ]
-    removeVarEndR :: TranslateC CL Expr
-    removeVarEndR = do
-        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) (S (BindQ x' xs)) <- promoteT idR
-        guardM $ x == x'
-        let t' = listT $ sndT t
-        return $ Comp t' comp (S (BindQ x xs))
-
-    -- Support rewrite: remove the variable from the outer comprehension head
-    -- [ (x, [ h y | y <- ys, p ]) | x <- xs ]
-    -- => [ [ h y | y <- ys, p ] | x <- xs ]
-    removeVarR :: TranslateC CL Expr
-    removeVarR = do
-        Comp _ (AppE2 t (Prim2 Pair _) (Var _ x) comp) ((BindQ x' xs) :* qs) <- promoteT idR
-
-        guardM $ x == x'
-
-        -- Only allow guards as additional qualifiers
-        guardM $ all isGuard (toList qs)
-
-        let t' = listT $ sndT t
-        return $ Comp t' comp ((BindQ x xs) :* qs)
-
-patchVar :: Ident -> Expr -> Expr
-patchVar x c =
-    case c of
-        Comp _ e qs@(S (BindQ x' je)) | x == x'    -> patch e je qs
-        Comp _ e qs@((BindQ x' je) :* _) | x == x' -> patch e je qs
-        _                                          -> $impossible
-        
-  where 
-    patch :: Expr -> Expr -> (NL Qual) -> Expr
-    patch e je qs =
-        let joinBindType = elemT $ typeOf je
-            e'           = P.pair (P.fst (Var joinBindType x)) e
-            resultType   = listT $ pairT (fstT joinBindType) (typeOf e)
-        in Comp resultType e' qs
-
-unnestHeadR :: RewriteC CL
-unnestHeadR = simpleHeadR <+ tupleHeadR
-
-  where 
-    simpleHeadR :: RewriteC CL
-    simpleHeadR = do
-        unnestHeadBaseT >>> injectT
-
-    tupleHeadR :: RewriteC CL
-    tupleHeadR = do
-        -- e <- promoteT idR
-        -- debugUnit "tupleHeadR at" (e :: Expr)
-        Comp _ _ qs <- promoteT idR
-  
-        headExprs <- oneT tupleComponentsT 
-        -- debugUnit "tupleHeadR collected" headExprs
-        
-        let mkSingleComp :: Expr -> Expr
-            mkSingleComp expr = Comp (listT $ typeOf expr) expr qs
-            
-            headExprs' = case headExprs of
-                v@(Var _ _) :| (comp : comps) -> P.pair v comp :| comps
-                comps                         -> comps
-                
-            singleComps = fmap mkSingleComp headExprs'
-            
-        -- debugUnit "tupleheadR singleComps" singleComps
-            
-        -- FIXME fail if all translates failed -> define alternative to mapT
-        unnestedComps <- constT (return singleComps) >>> mapT (injectT >>> unnestHeadBaseT)
-        
-        return $ inject $ F.foldl1 P.zip unnestedComps
-        
-nestjoinHeadR :: RewriteC CL
-nestjoinHeadR = do
-    Comp _ _ _ <- promoteT idR
-    -- debugUnit "nestjoinR at" c
-    -- FIXME ensure that we choose the right child
-    unnestHeadR <+ (factoroutHeadR >>> childR AppE2Arg2 unnestHeadR)
-
 --------------------------------------------------------------------------------
 -- Nestjoin introduction: unnesting comprehensions from complex predicates
 
@@ -657,191 +296,73 @@ nestjoinHeadR = do
 -- with
 --
 --   c = [ fst x/x] | y <- snd x ]
-nestjoinGuardR :: RewriteC CL
-nestjoinGuardR = do
-    Comp t _ _          <- promoteT idR 
-    (tuplifyHeadR, qs') <- statefulT idR 
-                           $ childT CompQuals (anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) 
-                                       >>> projectT)
+
+-- | Store not only the tuplifying rewrite in the state, but also the
+-- rewritten guard expression.
+-- FIXME this is a rather ugly hack
+type GuardM = CompSM (RewriteC CL, Maybe Expr)
+
+unnestGuardR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
+unnestGuardR candGuards failedGuards = do
+    Comp t _ _      <- promoteT idR 
+    let unnestR = anytdR (promoteR (unnestQualsEndR <+ unnestQualsR)) >>> projectT
+    ((tuplifyR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
                                        
-    h'                  <- childT CompHead tuplifyHeadR >>> projectT
-    return $ inject $ Comp t h' qs'
+    h'              <- childT CompHead tuplifyR >>> projectT
+    let tuplifyM e = constNodeT e >>> tuplifyR >>> projectT
+    candGuards'     <- mapM tuplifyM candGuards
+    failedGuards'   <- mapM tuplifyM candGuards
+    return (inject $ Comp t h' qs', candGuards', guardExpr : failedGuards')
+
+-- | Returns the tuplifying rewrite for the outer generator variable
+-- 'x', the new generator with the nesting operator, and the modified
+-- predicate.
+unnestGuardT :: (Ident, Expr) -> Expr -> TranslateC CL (RewriteC CL, Expr, Expr)
+unnestGuardT (x, xs) guardExpr = do
+    -- search for an unnestable comrehension
+    (headCompPath, headComp) <- withLocalPathT 
+                                $ constNodeT guardExpr >>> searchNestedCompT x
+
+    -- combine inner and outer comprehension
+    (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
+
+    -- Insert the new inner comprehension into the original guard
+    -- expression
+    ExprCL simplifiedGuardExpr <- constNodeT guardExpr 
+                                  >>> pathR headCompPath (constNodeT headComp')
+
+    -- Tuplify occurences of 'x' in the guard.
+    ExprCL tuplifiedGuardExpr <- constNodeT simplifiedGuardExpr 
+                                 >>> tryR tuplifyOuterR
+
+    return (tuplifyOuterR, nestOp, tuplifiedGuardExpr)
     
-  where
-  
-    unnestGuardT :: Ident -> Expr -> TranslateC Expr (RewriteC CL, Expr, Expr)
-    unnestGuardT x xs = do
+unnestQualsEndR :: Rewrite CompCtx GuardM (NL Qual)
+unnestQualsEndR = do
+    BindQ x xs :* (S (GuardQ p)) <- idR
+    (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p >>> unnestGuardT (x, xs) p
+    constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
+    return $ S $ BindQ x xs'
+
+unnestQualsR :: Rewrite CompCtx GuardM (NL Qual)
+unnestQualsR = do
+    BindQ x xs :* GuardQ p :* qs <- idR
+    (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p >>> unnestGuardT (x, xs) p
+    constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
+    qs' <- liftstateT $ constNodeT qs >>> tuplifyHeadR >>> projectT
+    return $ BindQ x xs' :* qs'
+
+-- Insert the current guard into the qualifier list and try the
+-- unnesting rewrite
+unnestGuardWorkerR :: MergeGuard
+unnestGuardWorkerR comp guardExpr candGuards failedGuards = do
+    let C ty h qs = comp
+    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    let compWithGuard = constT $ return $ ExprCL $ Comp ty h (insertGuard guardExpr env qs)
+    (comp', candGuards', failedGuards') <- compWithGuard >>> unnestGuardR candGuards failedGuards
+    ExprCL (Comp ty h qs) <- return comp'
+    return (C ty h qs, candGuards', failedGuards')
+
+unnestFromGuardR :: RewriteC CL
+unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
     
-        -- debugUnit "unnestGuard at" (e :: Expr)
-        -- FIXME passing x is not necessary since we are not interested in
-        -- collecting variables.
-        -- Collect exactly one comprehension from the predicate.
-        (_, [(path, t, f, qs)]) <- partitionEithers <$> extractT (collectExprT x)
-        -- debugUnit "unnestGuardT collected" (path, t, f, qs)
-        
-        -- Check the shape of the inner qualifier list
-        BindQ y ys :* (S (GuardQ q))  <- return qs
-        
-        -- Do we have a join predicate?
-        (leftExpr, rightExpr)         <- constT (return q) >>> splitJoinPredT x y
-        
-        let xt       = elemT $ typeOf xs
-            yt       = elemT $ typeOf ys
-            tupType  = pairT xt (listT yt)
-            joinType = listT xt .-> (listT yt .-> listT tupType)
-            joinVar  = Var tupType x
-            
-            -- The nestjoin combining xs and ys
-            xs'      = AppE2 (listT tupType) (Prim2 (NestJoin leftExpr rightExpr) joinType) 
-                             xs 
-                             ys
-            
-            tuplifyHeadR = substR x (P.fst joinVar)
-            
-        pathPrefix <- absPathT >>^ snocPathToPath
-        let relPath = dropPrefix pathPrefix path
-        
-        -- debugUnit "pathPrefix, path, relPath" (pathPrefix, path, relPath)
-
-        -- Substitute the body of the guard comprehension. As x might not occur,
-        -- we need to guard the call.
-        f' <- constT (return $ inject f) >>> (tryR tuplifyHeadR) >>> projectT
-        
-        -- debugUnit "f'" f'
-
-        let c = Comp t f' (S (BindQ y (P.snd joinVar)))
-        
-        -- p[fst x/x][c/e'] 
-
-        -- FIXME this looks a bit fragile. Actually, the tuplify substitution
-        -- should not kill the path to the comprehension, but it would be better
-        -- to be sure about this.
-        p' <- injectT
-              >>> (tryR tuplifyHeadR)
-              >>> anyR (pathR relPath (constT (return $ inject c))) 
-              >>> projectT
-              
-        -- debugUnit "p'" p'
-        
-        return (tuplifyHeadR, xs', p')
-        
-    unnestQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
-    unnestQualsEndR = do
-        BindQ x xs :* (S (GuardQ p)) <- idR
-        -- debugUnit "qualsEndR at" c
-        (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
-        -- debugUnit "qualsEndR (1)" xs'
-        constT $ modify (>>> tuplifyHeadR)
-        return $ BindQ x xs' :* (S (GuardQ p'))
-
-    unnestQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
-    unnestQualsR = do
-        BindQ x xs :* GuardQ p :* qs <- idR
-        (tuplifyHeadR, xs', p') <- liftstateT $ constT (return p) >>> unnestGuardT x xs
-        constT $ modify (>>> tuplifyHeadR)
-        qs' <- liftstateT $ constT (return $ inject qs) >>> tuplifyHeadR >>> projectT
-        return $ BindQ x xs' :* GuardQ p' :* qs'
-    
----------------------------------------------------------------------------------
--- Support rewrites which are specific to nestjoin introduction (i.e. cleaning
--- up the remains)
-
--- | Clean up a pattern left by nestjoin introduction (nested comprehension head)
--- 
--- zip [ f | x <- xs △_p1 ys, qs1 ]
---     [ g | x <- xs △_p2 zs, qs2 ]
---
--- =>
--- 
--- [ pair f[fst x/x] g[fst (fst x)/fst x]
--- | x <- (xs △_p1 ys) △_p2' zs
--- , qs[fst x/x]
--- ]
---
--- Soundness of this rewrite can be motivated by the following fact: |xs △ ys| = |xs|
-
-combineNestJoinsR :: RewriteC CL
-combineNestJoinsR = do
-    AppE2 _ (Prim2 Zip _) (Comp _ f qs) (Comp _ g qs') <- promoteT idR
-    
-    case (qs, qs') of
-        ( S (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)),
-          S (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)))       -> do
-
-            guardM $ x == x'
-            guardM $ xs == xs'
-            inject <$> fst <$> combineCompsT x xsys zs f g p1 p2
-              
-        ( (BindQ x xsys@(AppE2 _ (Prim2 (NestJoin _ _) _) xs _)) :* qgs,
-          (BindQ x' (AppE2 _ (Prim2 (NestJoin p1 p2) _) xs' zs)) :* qgs') -> do
-
-            guardM $ x == x'
-            guardM $ xs == xs'
-            guardM $ qgs == qgs'
-
-            (Comp t h (S q), tuplifyxR) <- combineCompsT x xsys zs f g p1 p2
-            qgs'' <- constT (return $ inject qgs) >>> tuplifyxR >>> projectT
-            return $ inject $ Comp t h (q :* qgs'')
-          
-        (_, _) ->
-            fail "no match" 
-
-  where
-  
-    combineCompsT
-      :: Ident 
-      -> Expr 
-      -> Expr
-      -> Expr
-      -> Expr
-      -> JoinExpr
-      -> JoinExpr
-      -> TranslateC CL (Expr, RewriteC CL)
-    combineCompsT x xsys zs f g p1 p2 = do
-        -- We need to change the left join predicate of the outer nestjoin,
-        -- because the type of its input changed (from xs to nj(xs, ys)
-        
-        -- The element type of the inner join
-        let innerJoinType = case typeOf xsys of
-                                ListT t -> t
-                                _       -> $impossible
-
-        let p1'      = substJoinExpr p1 innerJoinType
-            -- The nestjoin between nj(xs, ys) and zs
-            joinExpr = P.nestjoin xsys zs p1' p2
-            qs       = S (BindQ x joinExpr)
-
-           -- The element type of the combined nestjoin
-            xt   = elemT $ typeOf joinExpr
-        
-            xVar = Var xt x
-
-            -- f[fst x/x]
-            tuplifyxR = substR x (P.fst xVar)
-
-        f' <- constT (return $ inject f) >>> tuplifyxR >>> projectT
-        
-        -- g[fst (fst x)/fst x]
-        g' <- constT (return $ inject g) >>> (tryR $ anybuR $ replaceFstR x xt) >>> projectT
-
-        -- Combine head expressions from both comprehensions by pairing them
-        let h = P.pair f' g'
-            
-        return (Comp (listT $ typeOf h) h qs, tuplifyxR)
-        
-    replaceFstR :: Ident -> Type -> RewriteC CL
-    replaceFstR x xt = do
-        AppE1 _ (Prim1 Fst _) (Var _ x') <- promoteT idR
-        guardM $ x == x'
-        return $ inject $ P.fst $ P.fst $ Var xt x
-        
-    -- | Change all occurences of the join input in the predicate into accesses
-    -- to the first tuple component of the input
-    substJoinExpr :: JoinExpr -> Type -> JoinExpr
-    substJoinExpr expr inputType =
-        case expr of
-            (BinOpJ t op e1 e2) -> BinOpJ t op (substJoinExpr e1 inputType) 
-                                              (substJoinExpr e2 inputType)
-            (UnOpJ t op e1)     -> UnOpJ t op (substJoinExpr e1 inputType)
-            (ConstJ t v)        -> ConstJ t v
-            (InputJ t)          -> UnOpJ t FstJ (InputJ inputType)

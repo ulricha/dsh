@@ -43,16 +43,6 @@ compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
            
-nestJoinsR :: RewriteC CL
-nestJoinsR = ((nestjoinHeadR >>> tryR cleanupNestJoinR) >>> debugTrace "nestjoinhead")
-             <+ (nestjoinGuardR >>> debugTrace "nestjoinguard")
-            
-  where
-    cleanupNestJoinR :: RewriteC CL
-    -- FIXME OPT anytdR could go away. combineNestJoinsR matches either the
-    -- current expression or the second child expression (when head was factored
-    -- out, i.e. a map introduced).
-    cleanupNestJoinR = repeatR $ anytdR (combineNestJoinsR >>> debugTrace "combinenestjoins")
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
@@ -88,7 +78,7 @@ optCompR = do
              ) >>> debugShow "after comp"
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR nestJoinsR >+> anytdR factorConstantPredsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR (repeatR nestjoinR) >+> anytdR factorConstantPredsR)
         
 {-
 -- debug function

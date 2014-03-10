@@ -22,7 +22,7 @@ module Database.DSH.CL.Kure
 
       -- * The KURE context
     , CompCtx(..), CrumbC(..), PathC, initialCtx, freeIn, boundIn
-    , inScopeNames, bindQual, bindVar
+    , inScopeNames, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
@@ -125,6 +125,11 @@ freshNameT = do
     ctx <- contextT
     constT $ freshName (inScopeNames ctx)
 
+-- | Perform a translate with an empty path, i.e. a path starting from
+-- the current node.
+withLocalPathT :: Monad m => Translate CompCtx m a b -> Translate CompCtx m a b
+withLocalPathT t = translate $ \c a -> apply t (c { cl_path = SnocPath [] }) a
+
 --------------------------------------------------------------------------------
 -- Support for stateful translates
 
@@ -136,6 +141,7 @@ statefulT s t = resultT (stateful s) t
 -- | Turn a regular rewrite into a stateful rewrite
 liftstateT :: Translate CompCtx (CompM Int) a b -> Translate CompCtx (CompSM s) a b
 liftstateT t = resultT liftstate t
+
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
