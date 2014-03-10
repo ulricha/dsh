@@ -10,7 +10,6 @@ module Main where
        
 import           ComprehensionTests
 import           CombinatorTests
-import           Common
 
 #ifdef isX100
 import           Database.X100Client
@@ -20,10 +19,7 @@ import           Database.HDBC.PostgreSQL
 #endif
 
 import           System.Environment
-import           Test.Framework (Test, defaultMainWithArgs, testGroup)
-import           Test.Framework.Providers.HUnit
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
-import           Test.HUnit(Assertion)
+import           Test.Framework (Test, defaultMainWithArgs)
 import           Test.QuickCheck
 
 import           Data.List
@@ -54,21 +50,15 @@ main = do
 
 tests :: [Test]
 tests =
-    [ tests_boolean
+    [ tests_comprehensions
+    , tests_combinators_hunit
+    , tests_join_hunit
+    , tests_nest_head_hunit
+    , tests_boolean
     , tests_tuples
     , tests_numerics
     , tests_maybe
     , tests_either
     , tests_lists
     , tests_lifted
-    , tests_comprehensions
-    , tests_combinators_hunit
-    , tests_join_hunit
     ]
-
--- * Comprehensions
-             
--------------------------------------------------------------------------
--- HUnit tests
-
-

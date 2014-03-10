@@ -79,3 +79,70 @@ semijoin =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6] :: Q [Integer])
     in [ x | x <- xs , x `elem` ys ]
+
+----------------------------------------------------------------------
+-- Comprehensions for HUnit NestJoin/NestProduct tests
+
+nj1 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj1 njxs njys = 
+    [ [ y | y <- toQ njys, x == y ]
+    | x <- toQ njxs
+    ]
+
+nj2 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj2 njxs njys = 
+    [ pair x [ y | y <- toQ njys, x == y ]
+    | x <- toQ njxs
+    ]
+
+nj3 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj3 njxs njys = 
+    [ pair x ([ y | y <- toQ njys, x == y ] ++ (toQ [100, 200, 300]))
+    | x <- toQ njxs
+    ]
+
+nj4 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj4 njxs njys = 
+      [ pair x ([ y | y <- toQ njys, x == y ] ++ [ z | z <- toQ njys, x == z ])
+      | x <- toQ njxs
+      ]
+
+-- Code incurs DistSeg for the literal 15.
+nj5 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj5 njxs njys = 
+      [ pair x [ y | y <- toQ njys, x + y > 15 ]
+      | x <- toQ njxs
+      ]
+
+nj6 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj6 njxs njys = 
+      [ pair x [ y | y <- toQ njys, x + y > 10, y < 7 ]
+      | x <- toQ njxs
+      ]
+
+-- SQL code for outer query has empty SELECT CLAUSE
+nj7 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj7 njxs njys = 
+    [ [ x + y | y <- toQ njys, x + 2 == y ] | x <- toQ njxs ]
+
+nj8 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj8 njxs njys = [ [ x + y | y <- toQ njys, x == y, y < 5 ] | x <- toQ njxs, x > 3 ]
+
+nj9 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ njxs ]
+
+nj10 :: [Integer] -> [Integer] -> Q [Integer]
+nj10 njxs njys = [ x + sum [ x * y | y <- toQ njys, x == y ] | x <- toQ njxs ]
+
+np1 :: [Integer] -> [Integer] -> Q [[Integer]]
+np1 njxs njys = [ [ x * y * 2 | y <- toQ njys ] | x <- toQ njxs ]
+	
+
+np2 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+np2 njxs njys = [ pair x [ y * 2 | y <- toQ njys ] | x <- toQ njxs ]
+
+np3 :: [Integer] -> [Integer] -> Q [[Integer]]
+np3 njxs njys = [ [ x + y | y <- toQ njys ] | x <- toQ njxs ]
+
+np4 :: [Integer] -> [Integer] -> Q [[Integer]]
+np4 njxs njys = [ [ y | y <- toQ njys, x > y ] | x <- toQ njxs ]
