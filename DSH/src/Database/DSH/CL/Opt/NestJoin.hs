@@ -9,7 +9,7 @@
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinR
   ) where
-  
+
 import           Control.Applicative((<$>))
 import           Control.Arrow
 
@@ -48,31 +48,37 @@ data NestedComp = NestedComp
     , hGuards :: [Expr]
     }
 
--- | Search for a comprehension in an outer comprehension's head that
--- is eligible for unnesting. 'x' is the outer comprehension's
--- generator variable and must not occur in the generator of the inner
--- comprehension. The inner comprehension must feature only one
--- generator.
-
 fromGuard :: Monad m => Qual -> m Expr
 fromGuard (GuardQ e)  = return e
 fromGuard (BindQ _ _) = fail "not a guard"
 
--- FIXME don't descend into comprehensions, or lambdas!
+-- | Check if a comprehension is eligible for unnesting. This is the
+-- case if the outer generator variable 'x' does not occur in the
+-- inner generator and if there is only one inner generator.
+nestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
+nestedCompT x = do
+    Comp t h qs <- promoteT idR
+    (y, ys, qsr) <- case qs of
+        S (BindQ y ys)    -> return (y, ys, [])
+        BindQ y ys :* qsr -> return (y, ys, toList qsr)
+        _                 -> fail "no match"
+
+    guardM $ not $ x `elem` freeVars ys
+    guards <- constT $ mapM fromGuard qsr
+
+    p <- snocPathToPath <$> absPathT
+    return (p, NestedComp t h (y, ys) guards)
+
+-- | Traverse though an expression and search for a comprehension that
+-- is eligible for unnesting.
 searchNestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
-searchNestedCompT x = 
-    onetdT $ do
-        Comp t h qs <- promoteT idR
-        (y, ys, qsr) <- case qs of
-            S (BindQ y ys)    -> return (y, ys, [])
-            BindQ y ys :* qsr -> return (y, ys, toList qsr)
-            _                 -> fail "no match"
-
-        guardM $ not $ x `elem` freeVars ys
-        guards <- constT $ mapM fromGuard qsr
-
-        p <- snocPathToPath <$> absPathT
-        return (p, NestedComp t h (y, ys) guards)
+searchNestedCompT x =
+    readerT $ \e -> case e of
+        ExprCL Comp{} -> nestedCompT x
+        ExprCL Lam{}  -> fail "don't descent into lambdas"
+        ExprCL _      -> oneT $ searchNestedCompT x
+        _             -> fail "only traverse through expressions"
+        
 
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
@@ -141,9 +147,9 @@ unnestWorkerT headComp (x, xs) = do
     innerVar <- freshNameT
 
     let tuplifyInnerVarR :: Expr -> TranslateC CL Expr
-        tuplifyInnerVarR e = constT (return $ inject e) 
-                            >>> tuplifyR innerVar (x, xt) (y, yt)
-                            >>> projectT
+        tuplifyInnerVarR e =  constNodeT e
+                              >>> tuplifyR innerVar (x, xt) (y, yt)
+                              >>> projectT
 
     -- In the head of the inner comprehension, replace x and y
     -- with the corresponding pair components of the inner lists
