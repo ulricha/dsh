@@ -122,3 +122,4 @@ normalizeAlwaysR :: RewriteC CL
 normalizeAlwaysR = do
     Comp _ _ _ <- promoteT idR 
     childR CompQuals $ promoteR normalizeQualifiersR
+

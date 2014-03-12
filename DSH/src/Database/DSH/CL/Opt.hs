@@ -42,6 +42,9 @@ compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 -- introduction
 compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
+
+buUnnestR :: RewriteC CL
+buUnnestR = zipCorrelatedR <+ repeatR nestjoinR
            
 
 --------------------------------------------------------------------------------
@@ -78,7 +81,7 @@ optCompR = do
              ) >>> debugShow "after comp"
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR (repeatR nestjoinR) >+> anytdR factorConstantPredsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR buUnnestR >+> anytdR factorConstantPredsR)
         
 {-
 -- debug function

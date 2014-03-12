@@ -8,10 +8,12 @@
 -- operators (NestJoin, NestProduct).
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinR
+  , zipCorrelatedR
   ) where
 
 import           Control.Applicative((<$>))
 import           Control.Arrow
+import           Control.Monad
 
 import           Data.Either
 import qualified Data.Foldable as F
@@ -144,7 +146,7 @@ unnestWorkerT headComp (x, xs) = do
     -- xs nj(p) ys
     let xs'        = AppE2 (listT tupType) (Prim2 nestOp joinType) xs ys'
 
-    innerVar <- freshNameT
+    innerVar <- freshNameT []
 
     let tuplifyInnerVarR :: Expr -> TranslateC CL Expr
         tuplifyInnerVarR e =  constNodeT e
@@ -347,3 +349,96 @@ unnestGuardWorkerR comp guardExpr candGuards failedGuards = do
 
 unnestFromGuardR :: RewriteC CL
 unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
+
+
+--------------------------------------------------------------------------------
+-- Rules that bring nested comprehension patterns into forms that are
+-- suitable for unnesting
+
+-- | De-Normalization: This rule is the inverse of rule M-Norm-3
+-- [ [ f y | y <- g x ] x <- xs ]
+-- =>
+-- [ [ f z | z <- y ] | y <- [ g x | x <- xs ] ]
+-- provided that
+-- (a) g is complex/expensive
+-- (b) g contains a comprehension
+-- 
+-- The original comprehension produces a collection for every rule of
+-- the outer collection xs and then directly performs an action on all
+-- elements of the inner collections. The problem here is that the
+-- comprehension nested in g might be combined into a nesting operator
+-- with xs (maybe even a nestjoin), but the enclosing comprehension
+-- blocks this.
+
+--------------------------------------------------------------------------------
+-- Other forms of unnesting
+
+-- 
+
+isComplexExpr :: Expr -> Bool
+isComplexExpr e = 
+    case e of
+        Comp{}                   -> True
+        If{}                     -> True
+        App{}                    -> True
+        BinOp{}                  -> True
+        UnOp{}                   -> True
+        Lam{}                    -> True
+        AppE2 _ (Prim2 op _) _ _ -> complexPrim2 op
+        AppE1 _ (Prim1 op _) _   -> complexPrim1 op
+        Lit{}                    -> False
+        Var{}                    -> False
+        Table{}                  -> False
+
+containsComplexExprT :: TranslateC CL ()
+containsComplexExprT = onetdT isComplexExprT
+  where
+    isComplexExprT :: TranslateC CL ()
+    isComplexExprT = do
+        e <- promoteT idR
+        guardM $ isComplexExpr e
+        return ()
+        
+-- | If a inner comprehension iterates over a complex function of the
+-- outer element, pull the function out. The motivation of this
+-- rewrite is the following: f is work performed in the head for every
+-- x. The rewrite does not change that (f actually has to be performed
+-- for every x), but it moves the work out of the head. This might
+-- enable subsequent rewrites to move f out of the head of other
+-- enclosing comprehensions as well (model use case: dft).
+-- 
+-- [ [ e x y | y <- f x ] | x <- xs ] 
+-- => [ [ f [x/fst z] y | y <- snd z ] | z <- zip xs [ f x | x <- xs ] ] 
+-- 
+-- provided that f is "complex".
+-- 
+-- We need the zip to provide the correlation between one x and the
+-- group produced by f for this particular x. 
+-- 
+-- Note: This rule is actually a special case of the inverse M-Norm-3
+-- rule provided above.
+zipCorrelatedR :: RewriteC CL
+zipCorrelatedR = do
+    Comp to (Comp ti e (S (BindQ y f))) (S (BindQ x xs)) <- promoteT idR
+    
+    let fvs = freeVars e 
+    guardM $ x `elem` fvs && y `elem` fvs
+
+    guardM $ x `elem` freeVars f
+
+    -- Is f complex as required?
+    void $ pathT [CompHead, CompQuals, QualsSingleton, BindQualExpr] containsComplexExprT
+
+    z <- freshNameT [y]
+
+    let genComp = Comp (listT $ typeOf f) f (S $ BindQ x xs)
+        zipGen  = P.zip xs genComp
+        zt      = elemT $ typeOf zipGen 
+        zv      = Var zt z
+
+    ExprCL f' <- constNodeT e >>> substR x (P.fst zv)
+
+    let innerComp = Comp ti f' (S $ BindQ y (P.snd zv))
+        outerComp = Comp to innerComp (S (BindQ z zipGen))
+
+    return $ inject outerComp

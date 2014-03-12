@@ -120,10 +120,10 @@ freeIn :: Ident -> CompCtx -> Bool
 freeIn n ctx = n `M.notMember` (cl_bindings ctx)
 
 -- | Generate a fresh name that is not bound in the current context.
-freshNameT :: TranslateC a Ident
-freshNameT = do
+freshNameT :: [Ident] -> TranslateC a Ident
+freshNameT avoidNames = do
     ctx <- contextT
-    constT $ freshName (inScopeNames ctx)
+    constT $ freshName (avoidNames ++ inScopeNames ctx)
 
 -- | Perform a translate with an empty path, i.e. a path starting from
 -- the current node.

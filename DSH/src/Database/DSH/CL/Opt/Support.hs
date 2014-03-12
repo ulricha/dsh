@@ -26,21 +26,7 @@ import           Database.DSH.CL.Opt.Aux
 -- better name
 -- do the same for comprehension heads
 
-complexPrim2 :: Prim2Op -> Bool
-complexPrim2 op = 
-    case op of
-        Map       -> False
-        ConcatMap -> False
-        Pair      -> False
-        _         -> True
 
-complexPrim1 :: Prim1Op -> Bool
-complexPrim1 op =
-    case op of
-        Concat -> False
-        Fst    -> False
-        Snd    -> False
-        _      -> True
 
 complexPathT :: TranslateC CL [(Expr, PathC)]
 complexPathT = do
@@ -64,7 +50,7 @@ factorR = do
     (complexExpr, complexPath) : _ <- return $ filter (null . freeVars . fst) candidateExprs
     
     debugMsg "carnary1"
-    x                          <- freshNameT
+    x                          <- freshNameT []
     guardM $ null $ freeVars complexExpr
     debugMsg "carnary2"
     let complexType = typeOf complexExpr

@@ -26,6 +26,9 @@ module Database.DSH.CL.Opt.Aux
     , Comp(..)
     , MergeGuard
     , mergeGuardsIterR
+      -- * Classification of expressions
+    , complexPrim1
+    , complexPrim2
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -354,6 +357,25 @@ onetdSpineT t = do
         _                -> $impossible
 
 --------------------------------------------------------------------------------
+-- Classification of expressions
+
+complexPrim2 :: Prim2Op -> Bool
+complexPrim2 op = 
+    case op of
+        Map       -> False
+        ConcatMap -> False
+        Pair      -> False
+        _         -> True
+
+complexPrim1 :: Prim1Op -> Bool
+complexPrim1 op =
+    case op of
+        Concat -> False
+        Fst    -> False
+        Snd    -> False
+        _      -> True
+
+--------------------------------------------------------------------------------
 -- Simple debugging combinators
 
 -- | trace output of the value being rewritten; use for debugging only.
@@ -361,7 +383,7 @@ prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
 prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
            
 debug :: Pretty a => String -> a -> b -> b
-debug msg a b =
+debug msg a b = -- b
     trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
 
 debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
@@ -371,8 +393,7 @@ debugMsg :: Monad m => String -> m ()
 debugMsg msg = trace msg $ return ()
 
 debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr = either (const origExpr) id mExpr
-{-
+debugOpt origExpr mExpr = -- either (const origExpr) id mExpr
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
     
@@ -388,7 +409,6 @@ debugOpt origExpr mExpr = either (const origExpr) id mExpr
         "Optimized query ===================================================================\n"
         ++ pp e 
         ++ "\n===================================================================================="
--}
         
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = prettyR "Before >>>>>>"
@@ -399,4 +419,4 @@ debugTrace :: Monad m => String -> Rewrite c m a
 debugTrace msg = trace msg idR
 
 debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-debugShow msg = prettyR (msg ++ "\n")
+debugShow msg = idR -- prettyR (msg ++ "\n")
