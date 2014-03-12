@@ -64,7 +64,8 @@ nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 ly
     (qj, qp1, qp2) <- vlNestProductS qv1 qv2
     lyt1'          <- chainReorder qp1 lyt1
     lyt2'          <- chainReorder qp2 lyt2
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj (Pair lyt1' lyt2'))))
+    let lytJ       = zipLayout lyt1' lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj lytJ)))
 nestProductLift _ _ = $impossible
 
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
@@ -102,7 +103,8 @@ nestJoinLift e1 e2 (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2
     (qj, qp1, qp2) <- vlNestJoinS e1 e2 qv1 qv2
     lyt1'          <- chainReorder qp1 lyt1
     lyt2'          <- chainReorder qp2 lyt2
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj (Pair lyt1' lyt2'))))
+    let lytJ = zipLayout lyt1' lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj lytJ)))
 nestJoinLift _ _ _ _ = $impossible
 
 semiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
@@ -573,7 +575,7 @@ fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column1 cols)
     return $ ValueVector proj p1'
-fstL s = error $ show s
+fstL s = error $ "fstL: " ++ show s
 
 sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
