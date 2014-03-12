@@ -15,8 +15,6 @@ module Database.DSH.CL.Opt.CompNormalization
        
 import Control.Arrow
                  
-import Debug.Trace
-
 import Database.DSH.Impossible
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
@@ -145,3 +143,4 @@ m_norm_4R = $unimplemented
 -- | M-Norm-5: Unnest nested comprehensions over an idempotent monad.
 m_norm_5R :: RewriteC CL
 m_norm_5R = $unimplemented
+

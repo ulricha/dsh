@@ -9,6 +9,7 @@
 module Database.DSH.CL.Opt.NestJoin
   ( nestjoinR
   , zipCorrelatedR
+  , nestingGenR
   ) where
 
 import           Control.Applicative((<$>))
@@ -440,5 +441,47 @@ zipCorrelatedR = do
 
     let innerComp = Comp ti f' (S $ BindQ y (P.snd zv))
         outerComp = Comp to innerComp (S (BindQ z zipGen))
+
+    return $ inject outerComp
+
+--------------------------------------------------------------------------------
+-- Normalization of nesting patterns
+
+-- | Consider the case in which a comprehension is hidden in the
+-- generator of an inner comprehension, such that the generator
+-- depends on the outer variable and the inner comprehension can not
+-- be unnested.
+-- 
+-- In this case, perform the inverse rewrite to M-Norm-3: Nest the
+-- generator expression into the outer comprehension
+-- 
+-- [ [ e y | y <- g x ] | x <- xs ]
+-- =>
+-- [ [ e y | y <- z ] | z <- [ g x | x <- xs ] ]
+-- 
+-- provided that g contains at least one unnestable comprehension
+--
+-- Important: This is the dual rewrite to M-Norm-3. An unconditional
+-- application will lead into a rewriting loop. It **must** be
+-- combined with a rewrite that makes progress on g and xs.
+nestingGenR :: RewriteC CL
+nestingGenR = do
+    xx@(Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs))) <- promoteT idR
+    
+    -- Generator expression g should depend on x (otherwise we could
+    -- unnest directly
+    guardM $ x `elem` freeVars g
+
+    -- Generator expression g should contain at least one unnestable
+    -- comprehension
+    void $ constNodeT g >>> searchNestedCompT x
+
+    z <- freshNameT []
+
+    let gty = typeOf g
+
+    let innerComp = Comp ti e (S (BindQ y (Var gty z)))
+        genComp   = Comp (listT gty) g (S (BindQ x xs))
+        outerComp = Comp to innerComp (S (BindQ z genComp))
 
     return $ inject outerComp

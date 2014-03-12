@@ -44,9 +44,13 @@ compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
 
 buUnnestR :: RewriteC CL
-buUnnestR = zipCorrelatedR <+ repeatR nestjoinR
-           
-
+buUnnestR = 
+    zipCorrelatedR 
+    <+ repeatR nestjoinR 
+    -- If the inverse M-Norm-3 succeeds, try to unnest the new
+    -- generator
+    <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
+   
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
 

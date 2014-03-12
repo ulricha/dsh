@@ -32,6 +32,7 @@ module Database.DSH.CL.Opt.Aux
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
+    , prettyR
     , debug
     , debugPretty
     , debugMsg
