@@ -94,11 +94,11 @@ class VectorAlgebra a where
 
   vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec)
 
   vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec)
   
   vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
   vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)

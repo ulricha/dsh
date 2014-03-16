@@ -61,11 +61,10 @@ nestProductPrim _ _ = $impossible
 
 nestProductLift :: Shape -> Shape -> Graph VL Shape
 nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp1, qp2) <- vlNestProductS qv1 qv2
-    lyt1'          <- chainReorder qp1 lyt1
-    lyt2'          <- chainReorder qp2 lyt2
-    let lytJ       = zipLayout lyt1' lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj lytJ)))
+    (qj, qp2) <- vlNestProductS qv1 qv2
+    lyt2'     <- chainReorder qp2 lyt2
+    let lytJ  = zipLayout lyt1 lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
 nestProductLift _ _ = $impossible
 
 equiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
@@ -100,11 +99,10 @@ nestJoinPrim _ _ _ _ = $impossible
 -- i.e. use the left input positions as descriptors
 nestJoinLift :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape
 nestJoinLift e1 e2 (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp1, qp2) <- vlNestJoinS e1 e2 qv1 qv2
-    lyt1'          <- chainReorder qp1 lyt1
-    lyt2'          <- chainReorder qp2 lyt2
-    let lytJ = zipLayout lyt1' lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1' (Nest qj lytJ)))
+    (qj, qp2) <- vlNestJoinS e1 e2 qv1 qv2
+    lyt2'     <- chainReorder qp2 lyt2
+    let lytJ  = zipLayout lyt1 lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
 nestJoinLift _ _ _ _ = $impossible
 
 semiJoinPrim :: JoinExpr -> JoinExpr -> Shape -> Shape -> Graph VL Shape

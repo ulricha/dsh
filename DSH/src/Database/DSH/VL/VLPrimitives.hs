@@ -309,24 +309,21 @@ vlEquiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-vlNestJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlNestJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlNestJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
     let e1' = joinExpr e1
         e2' = joinExpr e2
     r  <- insertNode $ BinOp (NestJoinS e1' e2') c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- pvec $ insertNode $ UnOp R2 r
-    r3 <- pvec $ insertNode $ UnOp R3 r
-    return (r1, r2, r3)
+    return (r1, r2)
     
-
-vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r <- insertNode $ BinOp NestProductS c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- pvec $ insertNode $ UnOp R2 r
-    r3 <- pvec $ insertNode $ UnOp R3 r
-    return (r1, r2, r3)
+    return (r1, r2)
      
 vlSemiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
 vlSemiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
