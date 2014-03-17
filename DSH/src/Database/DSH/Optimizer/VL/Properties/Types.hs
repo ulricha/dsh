@@ -39,6 +39,7 @@ newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
 
 data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
+                             , nonEmptyProp         :: VectorProp Bool
                              , constProp            :: VectorProp ConstVec
                              , card1Prop            :: VectorProp Bool
                              , vectorTypeProp       :: VectorProp VectorType

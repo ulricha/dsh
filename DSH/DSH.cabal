@@ -159,6 +159,7 @@ Library
                      Database.DSH.Optimizer.VL.Properties.Common
                      Database.DSH.Optimizer.VL.Properties.Const
                      Database.DSH.Optimizer.VL.Properties.Empty
+                     Database.DSH.Optimizer.VL.Properties.NonEmpty
                      Database.DSH.Optimizer.VL.Properties.ReqColumns
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types

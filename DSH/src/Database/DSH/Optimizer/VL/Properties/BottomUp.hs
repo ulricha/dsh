@@ -11,6 +11,7 @@ import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Card
 import Database.DSH.Optimizer.VL.Properties.Const
 import Database.DSH.Optimizer.VL.Properties.Empty
+import Database.DSH.Optimizer.VL.Properties.NonEmpty
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.VectorType
 
@@ -42,33 +43,39 @@ inferWorker op node pm =
 
 inferNullOp :: NullOp -> Either String BottomUpProps
 inferNullOp op = do
-  opEmpty <- inferEmptyNullOp op
-  opConst <- inferConstVecNullOp op
-  opType <- inferVectorTypeNullOp op
-  opCard <- inferCardOneNullOp op
+  opEmpty    <- inferEmptyNullOp op
+  opNonEmpty <- inferNonEmptyNullOp op
+  opConst    <- inferConstVecNullOp op
+  opType     <- inferVectorTypeNullOp op
+  opCard     <- inferCardOneNullOp op
   return $ BUProps { emptyProp = opEmpty
+                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
 
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
-  opEmpty <- inferEmptyUnOp (emptyProp cProps) op
-  opType <- inferVectorTypeUnOp (vectorTypeProp cProps) op
-  opConst <- inferConstVecUnOp (constProp cProps) op
-  opCard <- inferCardOneUnOp (card1Prop cProps) op
+  opEmpty    <- inferEmptyUnOp (emptyProp cProps) op
+  opNonEmpty <- inferEmptyUnOp (emptyProp cProps) op
+  opType     <- inferVectorTypeUnOp (vectorTypeProp cProps) op
+  opConst    <- inferConstVecUnOp (constProp cProps) op
+  opCard     <- inferCardOneUnOp (card1Prop cProps) op
   return $ BUProps { emptyProp = opEmpty
+                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
 
 inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
-  opEmpty <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
-  opType <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
-  opConst <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
-  opCard <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
+  opEmpty    <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
+  opNonEmpty <- inferEmptyBinOp (emptyProp c1Props) (emptyProp c2Props) op
+  opType     <- inferVectorTypeBinOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) op
+  opConst    <- inferConstVecBinOp (constProp c1Props) (constProp c2Props) op
+  opCard     <- inferCardOneBinOp (card1Prop c1Props) (card1Prop c2Props) op
   return $ BUProps { emptyProp = opEmpty
+                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
@@ -79,11 +86,13 @@ inferTerOp :: TerOp
            -> BottomUpProps
            -> Either String BottomUpProps
 inferTerOp op c1Props c2Props c3Props = do
-  opEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
-  opType <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) (vectorTypeProp c3Props) op
-  opConst <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
-  opCard <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
+  opEmpty    <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
+  opNonEmpty <- inferEmptyTerOp (emptyProp c1Props) (emptyProp c2Props) (emptyProp c3Props) op
+  opType     <- inferVectorTypeTerOp (vectorTypeProp c1Props) (vectorTypeProp c2Props) (vectorTypeProp c3Props) op
+  opConst    <- inferConstVecTerOp (constProp c1Props) (constProp c2Props) (constProp c3Props) op
+  opCard     <- inferCardOneTerOp (card1Prop c1Props) (card1Prop c2Props) (card1Prop c3Props) op
   return $ BUProps { emptyProp = opEmpty
+                   , nonEmptyProp = opNonEmpty
                    , constProp = opConst
                    , card1Prop = opCard
                    , vectorTypeProp = opType }
