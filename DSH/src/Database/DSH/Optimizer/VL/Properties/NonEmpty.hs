@@ -23,8 +23,8 @@ inferNonEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferNonEmptyNullOp op =
   case op of
     SingletonDescr  -> Right $ VProp False
-    Lit _ []        -> Right $ VProp True
-    Lit _ _         -> Right $ VProp False
+    Lit _ []        -> Right $ VProp False
+    Lit _ _         -> Right $ VProp True
     TableRef _ _ hs -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
     
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)

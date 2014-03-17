@@ -1,12 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
-       
+
 import Control.Applicative
 import Control.Monad
 
 import Database.Algebra.Dag.Common
 
+import Database.DSH.Common.Lang
 import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types
@@ -20,13 +21,38 @@ aggregationRules = [ inlineAggrProject
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ -- pushExprThroughGroupBy
+aggregationRulesBottomUp = [ nonEmptyAggr
+                           , nonEmptyAggrS
                            ]
 
 groupingToAggregation :: VLRewrite Bool
 groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
                                                        , applyToAll noProps aggregationRules
                                                        ]
+
+nonEmptyAggr :: VLRule BottomUpProps
+nonEmptyAggr q =
+  $(pattern 'q "Aggr arg (q1)"
+    [| do
+        (PossiblyEmpty, argFun) <- return $(v "arg")
+        VProp ne <- nonEmptyProp <$> properties $(v "q1")
+        predicate ne
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.Aggr" q
+            void $ replaceWithNew q $ UnOp (Aggr (NonEmpty, argFun)) $(v "q1") |])
+
+nonEmptyAggrS :: VLRule BottomUpProps
+nonEmptyAggrS q =
+  $(pattern 'q "(q1) AggrS arg (q2)"
+    [| do
+        (PossiblyEmpty, argFun) <- return $(v "arg")
+        VProp ne <- nonEmptyProp <$> properties $(v "q2")
+        predicate ne
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.AggrS" q
+            void $ replaceWithNew q $ BinOp (AggrS (NonEmpty, argFun)) $(v "q1") $(v "q2") |])
 
 -- | If an expression operator is applied to the R2 output of GroupBy,
 -- push the expression below the GroupBy operator. This rewrite
