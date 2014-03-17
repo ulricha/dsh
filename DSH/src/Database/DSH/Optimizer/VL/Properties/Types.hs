@@ -39,6 +39,15 @@ newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
 
 data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
+                             -- Documents wether a vector is
+                             -- statically known to be not empty. For
+                             -- a flat vector (i.e. a vector with only
+                             -- one segment) t his property is true if
+                             -- we can statically decide that the
+                             -- vector is not empty. For an inner
+                             -- vector, i.e. a vector with multiple
+                             -- segments, it is true if *every*
+                             -- segment is non-empty.
                              , nonEmptyProp         :: VectorProp Bool
                              , constProp            :: VectorProp ConstVec
                              , card1Prop            :: VectorProp Bool
