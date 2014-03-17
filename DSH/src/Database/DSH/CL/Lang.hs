@@ -5,11 +5,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
-  ( module Database.DSH.Common.Data.Op
-  , module Database.DSH.Common.Data.Expr
-  , module Database.DSH.Common.Data.JoinExpr
-  , module Database.DSH.Common.Data.Val
-  , module Database.DSH.Common.Data.Type
+  ( module Database.DSH.Common.Type
   , Expr(..)
   , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
   , Qual(..), isGuard, isBind
@@ -30,11 +26,8 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.Data.Op
-import           Database.DSH.Common.Data.Expr
-import           Database.DSH.Common.Data.JoinExpr
-import           Database.DSH.Common.Data.Val
-import           Database.DSH.Common.Data.Type
+import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.Common.Type
   
 --------------------------------------------------------------------------------
 -- A simple type of nonempty lists, used for comprehension qualifiers
@@ -138,10 +131,10 @@ data Prim2Op = Map | ConcatMap | GroupWithKey
              | Zip | Cons
              | CartProduct
              | NestProduct
-             | EquiJoin JoinExpr JoinExpr
-             | NestJoin JoinExpr JoinExpr
-             | SemiJoin JoinExpr JoinExpr
-             | AntiJoin JoinExpr JoinExpr
+             | EquiJoin L.JoinExpr L.JoinExpr
+             | NestJoin L.JoinExpr L.JoinExpr
+             | SemiJoin L.JoinExpr L.JoinExpr
+             | AntiJoin L.JoinExpr L.JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -170,7 +163,7 @@ instance Show (Prim2 t) where
 --------------------------------------------------------------------------------
 -- CL expressions
 
-data Qual = BindQ Ident Expr
+data Qual = BindQ L.Ident Expr
           | GuardQ Expr
           deriving (Eq, Ord, Show)
           
@@ -184,16 +177,16 @@ isBind (BindQ _ _)  = True
 
 data Comp = C Type Expr (NL Qual)
 
-data Expr  = Table Type String [Column] [Key] 
+data Expr  = Table Type String [L.Column] [L.Key] 
            | App Type Expr Expr              
            | AppE1 Type (Prim1 Type) Expr   
            | AppE2 Type (Prim2 Type) Expr Expr 
-           | BinOp Type ScalarBinOp Expr Expr        
-           | UnOp Type ScalarUnOp Expr
-           | Lam Type Ident Expr              
+           | BinOp Type L.ScalarBinOp Expr Expr        
+           | UnOp Type L.ScalarUnOp Expr
+           | Lam Type L.Ident Expr              
            | If Type Expr Expr Expr
-           | Lit Type Val
-           | Var Type Ident
+           | Lit Type L.Val
+           | Var Type L.Ident
            | Comp Type Expr (NL Qual)
            deriving (Show)
            

@@ -6,10 +6,8 @@
 
 module Database.DSH.VL.VLPrimitives where
        
-import qualified Database.DSH.Common.Data.Op   as O
-import qualified Database.DSH.Common.Data.Type as Ty
-import qualified Database.DSH.Common.Data.Val as V
-import           Database.DSH.Common.Data.JoinExpr
+import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Type as Ty
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Impossible
@@ -34,12 +32,12 @@ emptyVL = NullaryOp $ TableRef "Null" [] []
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
-pVal :: V.Val -> VLVal
-pVal (V.IntV i)    = VLInt i
-pVal (V.BoolV b)   = VLBool b
-pVal (V.StringV s) = VLString s
-pVal (V.DoubleV d) = VLDouble d
-pVal V.UnitV       = VLUnit
+pVal :: L.Val -> VLVal
+pVal (L.IntV i)    = VLInt i
+pVal (L.BoolV b)   = VLBool b
+pVal (L.StringV s) = VLString s
+pVal (L.DoubleV d) = VLDouble d
+pVal L.UnitV       = VLUnit
 pVal _             = error "pVal: Not a supported value"
 
 typeToVLType :: Ty.Type -> VLType
@@ -86,25 +84,25 @@ addOffset :: Int -> ColExpr -> ColExpr
 addOffset i (Expr e)   = $impossible
 addOffset i (Offset o) = Offset $ o + i
 
-joinExpr :: JoinExpr -> Expr1
+joinExpr :: L.JoinExpr -> Expr1
 joinExpr expr = offsetExpr $ aux expr
   where
     -- Construct expressions in a bottom-up way. For a given join
     -- expression, return the following: 
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
-    aux :: JoinExpr -> ColExpr
-    aux (BinOpJ _ op e1 e2) = Expr $ BinApp1 op 
-                                             (offsetExpr $ aux e1) 
-                                             (offsetExpr $ aux e2)
-    aux (UnOpJ _ NotJ e)    = Expr $ UnApp1 O.Not (offsetExpr $ aux e)
-    aux (UnOpJ _ FstJ e)    = aux e
-    aux (UnOpJ _ SndJ e)    = 
+    aux :: L.JoinExpr -> ColExpr
+    aux (L.BinOpJ _ op e1 e2)   = Expr $ BinApp1 op 
+                                                 (offsetExpr $ aux e1) 
+                                                 (offsetExpr $ aux e2)
+    aux (L.UnOpJ _ L.NotJ e)    = Expr $ UnApp1 L.Not (offsetExpr $ aux e)
+    aux (L.UnOpJ _ L.FstJ e)    = aux e
+    aux (L.UnOpJ _ L.SndJ e)    = 
         case Ty.typeOf e of
             Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
             _             -> $impossible
-    aux (ConstJ _ v)        = Expr $ Constant1 $ pVal v
-    aux (InputJ _)          = Offset 0
+    aux (L.ConstJ _ v)          = Expr $ Constant1 $ pVal v
+    aux (L.InputJ _)            = Offset 0
   
 
 ----------------------------------------------------------------------------------
@@ -219,40 +217,40 @@ vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = do
 vlLit :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
 vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
 
-vlTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r VL DVec
+vlTableRef :: String -> [VLColumn] -> [L.Key] -> GraphM r VL DVec
 vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n tys ks
 
-vlUnExpr :: O.ScalarUnOp -> DVec -> GraphM r VL DVec
+vlUnExpr :: L.ScalarUnOp -> DVec -> GraphM r VL DVec
 vlUnExpr o (DVec c _) =
     dvec $ insertNode $ UnOp (Project [UnApp1 o (Column1 1)]) c
 
-vlBinExpr :: O.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
+vlBinExpr :: L.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
                                      $ insertNode
                                      $ BinOp (BinExpr (BinApp2 o (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
 
-vlSelectPos :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do
                                         r <- insertNode $ BinOp (SelectPos op) c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlSelectPos1 :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = do
                                         r <- insertNode $ UnOp (SelectPos1 op posConst) c1
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlSelectPosS :: DVec -> O.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
                                           r <- insertNode $ BinOp (SelectPosS op) c1 c2
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
-vlSelectPos1S :: DVec -> O.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
 vlSelectPos1S (DVec c1 _) op posConst = do
                                           r <- insertNode $ UnOp (SelectPos1S op posConst) c1
                                           r1 <- dvec $ insertNode $ UnOp R1 r
@@ -289,7 +287,7 @@ vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-vlEquiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlEquiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlEquiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -299,7 +297,7 @@ vlEquiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-vlEquiJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlEquiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlEquiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -309,7 +307,7 @@ vlEquiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
 
-vlNestJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlNestJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlNestJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
     let e1' = joinExpr e1
         e2' = joinExpr e2
@@ -325,7 +323,7 @@ vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
      
-vlSemiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
 vlSemiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -334,7 +332,7 @@ vlSemiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-vlSemiJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
 vlSemiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -343,7 +341,7 @@ vlSemiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-vlAntiJoin :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
 vlAntiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -352,7 +350,7 @@ vlAntiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
 
-vlAntiJoinS :: JoinExpr -> JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
 vlAntiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
   let e1' = joinExpr e1
       e2' = joinExpr e2

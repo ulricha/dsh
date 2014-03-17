@@ -27,7 +27,7 @@ import           Database.DSH.VL.VectorPrimitives
 import           Database.DSH.VL.X100VectorPrimitives       ()
 import           Database.DSH.VL.PathfinderVectorPrimitives ()
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 

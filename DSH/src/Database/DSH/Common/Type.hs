@@ -1,13 +1,10 @@
-%if False
-\begin{code}
-
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
 
-module Database.DSH.Common.Data.Type 
+module Database.DSH.Common.Type 
  ( isNum
  , extractPairT
  , isList
@@ -60,30 +57,16 @@ instance Pretty Type where
     pretty UnitT         = text "()"
     pretty (ListT t)     = brackets $ pretty t
     pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
-\end{code}
-%endif
-{
-We use the following type language to type our input language with (the Nested Kernel Language). We also use this type scheme for several intermediate languages.
 
-%include syntaxdef.fmt
-%include types.fmt
-%format (VarT (x)) = " x "
-%format NatT = " \const{NatT}"
-  
-\newcommand{\typeLang}{
-\begin{code}
+-- | We use the following type language to type our input language
+-- with (the Nested Kernel Language). We also use this type scheme for
+-- several intermediate languages.
 data Type  = FunT Type Type
            | NatT | IntT | BoolT | DoubleT
            -- FIXME What the fuck is a VarT?
            | StringT | UnitT | VarT String
            | PairT Type Type |  ListT Type
-\end{code}
-}
-\typeLang
-%}
-%if False
-\begin{code}
-    deriving (Show, Eq, Ord, Generic, Data, Typeable)
+           deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 infixr 6 .->
 
@@ -210,8 +193,5 @@ isFuns (FunT _ _) = True
 isFuns (PairT _ _) = False
 isFuns _         = False 
 
-
 class Typed a where
   typeOf :: a -> Type
-\end{code}
-%endif

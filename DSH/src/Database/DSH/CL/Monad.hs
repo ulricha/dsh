@@ -20,7 +20,7 @@ import Control.Monad
        
 import Language.KURE
 
-import Database.DSH.CL.Lang
+import Database.DSH.Common.Lang(Ident)
 
 --------------------------------------------------------------------------------
 -- | The rewriting monad. Currently, it only provides fresh names

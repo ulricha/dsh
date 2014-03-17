@@ -1,7 +1,7 @@
 module Database.DSH.FKL.Render.Render where
     
 import Database.DSH.FKL.Data.FKL
-import qualified Database.DSH.Common.Data.Val as V
+import Database.DSH.Common.Lang
 
 import Text.PrettyPrint hiding (render)
 import Data.List (intersperse)
@@ -31,11 +31,11 @@ render (AClo _ l vs x f fl) = text "<<" <+> text l <+> text (show vs) <> text ",
 render (CloApp _ f a) = parens $ render f <+> text ":$" <+> (parens $ render a)
 render (CloLApp _ f a) = parens $ render f <+> text ":$l" <+> (parens $ render a)
 
-renderC :: V.Val -> Doc
-renderC (V.IntV i)      = int i
-renderC (V.StringV s)   = text $ show s
-renderC (V.DoubleV d)   = double d
-renderC (V.BoolV b)     = text $ show b
-renderC (V.UnitV)       = text $ "()"
-renderC (V.ListV es)    = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
-renderC (V.PairV e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"
+renderC :: Val -> Doc
+renderC (IntV i)      = int i
+renderC (StringV s)   = text $ show s
+renderC (DoubleV d)   = double d
+renderC (BoolV b)     = text $ show b
+renderC (UnitV)       = text $ "()"
+renderC (ListV es)    = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
+renderC (PairV e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"

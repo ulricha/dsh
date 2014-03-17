@@ -99,13 +99,10 @@ Library
                      Database.DSH.Execute.X100
                      Database.DSH.Externals
                      Database.DSH.Common.Pretty
-                     Database.DSH.Common.Data.Op
-                     Database.DSH.Common.Data.Type
-                     Database.DSH.Common.Data.Val
-                     Database.DSH.Common.Data.Expr
-                     Database.DSH.Common.Data.JoinExpr
-                     Database.DSH.Common.Data.QueryPlan
-                     Database.DSH.Common.Data.DBCode
+                     Database.DSH.Common.Type
+                     Database.DSH.Common.Lang
+                     Database.DSH.Common.QueryPlan
+                     Database.DSH.Common.DBCode
                      Database.DSH.Common.TransM
                      Database.DSH.Export
                      Database.DSH.CL.Lang
@@ -125,7 +122,6 @@ Library
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Lang
-                     Database.DSH.NKL.Primitives
                      Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
@@ -261,7 +257,8 @@ executable vldot
                       fgl, 
                       ghc-prim >= 0.2,
                       bytestring >= 0.9,
-                      TableAlgebra
+                      TableAlgebra,
+                      ansi-wl-pprint
 
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0

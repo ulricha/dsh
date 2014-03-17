@@ -1,8 +1,8 @@
 module Database.DSH.VL.VectorPrimitives where
 
-import Database.DSH.Common.Data.Op
+import Database.DSH.Common.Lang
 import Database.DSH.VL.Data.DBVector
-import Database.DSH.VL.Lang (VLType(), TypedColumn, Key, VLVal(), Expr1, Expr2, Nat, AggrFun)
+import Database.DSH.VL.Lang (VLType(), VLColumn, VLVal(), Expr1, Expr2, Nat, AggrFun)
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -25,7 +25,7 @@ class VectorAlgebra a where
   singletonDescr :: GraphM r a DVec
   
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
-  vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
+  vecTableRef :: String -> [VLColumn] -> [Key] -> GraphM r a DVec
 
   vecUniqueS :: DVec -> GraphM r a DVec
 

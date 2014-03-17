@@ -6,7 +6,7 @@ import qualified Database.Algebra.Dag                                           
 
 import           Database.Algebra.Pathfinder.Data.Algebra
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Optimizer.Common.Rewrite

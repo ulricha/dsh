@@ -7,6 +7,8 @@ import           Text.PrettyPrint
 
 import qualified Database.Algebra.Dag        as Dag
 import           Database.Algebra.Dag.Common as C
+
+import           Database.DSH.Common.Lang
 import           Database.DSH.VL.Lang
 
 nodeToDoc :: AlgNode -> Doc
@@ -60,8 +62,11 @@ escape [] = []
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
-renderTableType :: TypedColumn -> Doc
-renderTableType (c, t) = text c <> text "::" <> renderColumnType t
+renderColName :: ColName -> Doc
+renderColName (ColName c) = text c
+
+renderTableType :: VLColumn -> Doc
+renderTableType (c, t) = renderColName c <> text "::" <> renderColumnType t
 
 renderTableKeys :: [Key] -> Doc
 renderTableKeys [x] = renderTableKey x
@@ -69,9 +74,7 @@ renderTableKeys (x:xs) = renderTableKey x $$ renderTableKeys xs
 renderTableKeys [] = text "NOKEY"
 
 renderTableKey :: Key -> Doc
-renderTableKey [x] = text x
-renderTableKey (x:xs) = text x <> comma <+> renderTableKey xs
-renderTableKey [] = text "NOKEY"
+renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
 
 renderProj :: Doc -> Expr1 -> Doc
 renderProj d e = d <> colon <> renderExpr1 e

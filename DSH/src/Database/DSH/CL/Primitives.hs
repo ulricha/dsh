@@ -9,10 +9,7 @@ import           Prelude (Bool(..))
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
-import           Database.DSH.Common.Pretty
-import           Database.DSH.Common.Data.Type
-import           Database.DSH.Common.Data.Op
-import qualified Database.DSH.Common.Data.Val as V
+import qualified Database.DSH.Common.Lang as L
 
 ($) :: Expr -> Expr -> Expr
 f $ e = let tf = typeOf f
@@ -182,7 +179,7 @@ sortWith f es = let ft@(FunT ta _) = typeOf f
                         else P.error P.$ "CLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
 
 pair :: Expr -> Expr -> Expr
-pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (V.PairV v1 v2)
+pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.PairV v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Prim2 Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
@@ -201,112 +198,112 @@ index e1 e2 = let t1@(ListT t) = typeOf e1
                     then AppE2 t (Prim2 Index P.$ t1 .-> t2 .-> t) e1 e2
                     else P.error P.$ "CLPrims.index: Cannot perform index with given arguments."
 
-scalarUnOp :: ScalarUnOp -> Expr -> Expr
+scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
 scalarUnOp op e =
     let t = typeOf e
     in case (op, t) of
-           (Not, BoolT)       -> UnOp t op e
-           (CastDouble, IntT) -> UnOp DoubleT op e
-           (Sin, DoubleT)     -> UnOp t op e
-           (Cos, DoubleT)     -> UnOp t op e
-           (Tan, DoubleT)     -> UnOp t op e
-           (Sqrt, DoubleT)    -> UnOp t op e
-           (Log, DoubleT)     -> UnOp t op e
-           (Exp, DoubleT)     -> UnOp t op e
-           (ASin, DoubleT)    -> UnOp t op e
-           (ACos, DoubleT)    -> UnOp t op e
-           (ATan, DoubleT)    -> UnOp t op e
+           (L.Not, BoolT)       -> UnOp t op e
+           (L.CastDouble, IntT) -> UnOp DoubleT op e
+           (L.Sin, DoubleT)     -> UnOp t op e
+           (L.Cos, DoubleT)     -> UnOp t op e
+           (L.Tan, DoubleT)     -> UnOp t op e
+           (L.Sqrt, DoubleT)    -> UnOp t op e
+           (L.Log, DoubleT)     -> UnOp t op e
+           (L.Exp, DoubleT)     -> UnOp t op e
+           (L.ASin, DoubleT)    -> UnOp t op e
+           (L.ACos, DoubleT)    -> UnOp t op e
+           (L.ATan, DoubleT)    -> UnOp t op e
            (_, _)             -> P.error P.$ printf "Primitives.scalarUnOp: %s" (P.show (op, t))
 
 add :: Expr -> Expr -> Expr
 add e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                 then BinOp t1 Add e1 e2
+                 then BinOp t1 L.Add e1 e2
                  else P.error P.$ "CLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 sub :: Expr -> Expr -> Expr
 sub e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 Sub e1 e2
+                  then BinOp t1 L.Sub e1 e2
                   else P.error P.$ "CLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 div :: Expr -> Expr -> Expr
 div e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 Div e1 e2
+                  then BinOp t1 L.Div e1 e2
                   else P.error P.$ "CLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 mul :: Expr -> Expr -> Expr
 mul e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 Mul e1 e2
+                  then BinOp t1 L.Mul e1 e2
                   else trace ((P.show e1) P.++ " " P.++ (P.show e2)) P.$ P.error P.$ "CLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2 
 
 mod :: Expr -> Expr -> Expr
 mod e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== intT P.&& t2 P.== intT
-                  then BinOp t1 Mod e1 e2
+                  then BinOp t1 L.Mod e1 e2
                   else P.error P.$ "CLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 eq :: Expr -> Expr -> Expr
 eq e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT Eq e1 e2
+                 then BinOp boolT L.Eq e1 e2
                  else P.error P.$ "CLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gt :: Expr -> Expr -> Expr
 gt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT Gt e1 e2
+                 then BinOp boolT L.Gt e1 e2
                  else P.error P.$ "CLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lt :: Expr -> Expr -> Expr
 lt e1 e2 = let t1 = typeOf e1
                t2 = typeOf e2
             in if t1 P.== t2
-                 then BinOp boolT Lt e1 e2
+                 then BinOp boolT L.Lt e1 e2
                  else P.error P.$ "CLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 gte :: Expr -> Expr -> Expr
 gte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
-                  then BinOp boolT GtE e1 e2
+                  then BinOp boolT L.GtE e1 e2
                   else P.error P.$ "CLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 lte :: Expr -> Expr -> Expr
 lte e1 e2 = let t1 = typeOf e1
                 t2 = typeOf e2
              in if t1 P.== t2
-                  then BinOp boolT LtE e1 e2
+                  then BinOp boolT L.LtE e1 e2
                   else P.error P.$ "CLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 conj :: Expr -> Expr -> Expr
 conj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT Conj e1 e2
+                   then BinOp boolT L.Conj e1 e2
                    else P.error P.$ "CLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
 disj :: Expr -> Expr -> Expr
 disj e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT Disj e1 e2
+                   then BinOp boolT L.Disj e1 e2
                    else P.error P.$ "CLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
                    
 like :: Expr -> Expr -> Expr
 like e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
              in if t1 P.== stringT P.&& t2 P.== stringT
-                then BinOp boolT Like e1 e2
+                then BinOp boolT L.Like e1 e2
                 else P.error P.$ "CLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
 
 snoc :: Expr -> Expr -> Expr
@@ -336,7 +333,7 @@ zip e1 e2 = let t1@(ListT t1') = typeOf e1
 var :: Type -> P.String -> Expr
 var = Var
 
-table :: Type -> P.String -> [Column] -> [Key] -> Expr
+table :: Type -> P.String -> [L.Column] -> [L.Key] -> Expr
 table = Table
 
 lambda :: Type -> P.String -> Expr -> Expr
@@ -350,13 +347,13 @@ cond eb et ee = let tb = typeOf eb
                       then If te eb et ee
                       else P.error P.$ "CLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
                       
-nestjoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+nestjoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys
   where
     resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
     joinType = typeOf xs .-> typeOf ys .-> resType
     
-equijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+equijoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 equijoin xs ys p1 p2 = AppE2 rt (Prim2 (EquiJoin p1 p2) jt) xs ys
   where
     xst = typeOf xs
@@ -364,14 +361,14 @@ equijoin xs ys p1 p2 = AppE2 rt (Prim2 (EquiJoin p1 p2) jt) xs ys
     rt  = pairT (elemT xst) (elemT yst)
     jt  = xst .-> yst .-> rt
 
-semijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+semijoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 semijoin xs ys p1 p2 = AppE2 xst (Prim2 (SemiJoin p1 p2) jt) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
     jt  = xst .-> yst .-> xst
     
-antijoin :: Expr -> Expr -> JoinExpr -> JoinExpr -> Expr
+antijoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 antijoin xs ys p1 p2 = AppE2 xst (Prim2 (AntiJoin p1 p2) jt) xs ys
   where
     xst = typeOf xs
@@ -379,22 +376,22 @@ antijoin xs ys p1 p2 = AppE2 xst (Prim2 (AntiJoin p1 p2) jt) xs ys
     jt  = xst .-> yst .-> xst
 
 unit :: Expr
-unit = Lit unitT V.UnitV
+unit = Lit unitT L.UnitV
 
 int :: P.Int -> Expr
-int i = Lit intT (V.IntV i)
+int i = Lit intT (L.IntV i)
 
 bool :: P.Bool -> Expr
-bool b = Lit boolT (V.BoolV b)
+bool b = Lit boolT (L.BoolV b)
 
 string :: P.String -> Expr
-string s = Lit stringT (V.StringV s)
+string s = Lit stringT (L.StringV s)
 
 double :: P.Double -> Expr
-double d = Lit doubleT (V.DoubleV d)
+double d = Lit doubleT (L.DoubleV d)
 
 nil :: Type -> Expr
-nil t = Lit t (V.ListV [])
+nil t = Lit t (L.ListV [])
 
 list :: Type -> [Expr] -> Expr
 list t es = toListT (nil t) es
@@ -406,9 +403,9 @@ toListT :: Expr -> [Expr] -> Expr
 toListT n es = primList (P.reverse es) n
     where
         primList :: [Expr] -> Expr -> Expr
-        primList ((Lit _ v):vs) (Lit ty (V.ListV xs)) = primList vs (Lit ty (V.ListV (v:xs)))
+        primList ((Lit _ v):vs) (Lit ty (L.ListV xs)) = primList vs (Lit ty (L.ListV (v:xs)))
         primList [] e = e
-        primList vs c@(Lit _ (V.ListV [])) = consList vs c
+        primList vs c@(Lit _ (L.ListV [])) = consList vs c
         primList vs e = consList vs e
         consList :: [Expr] -> Expr -> Expr
         consList xs e = P.foldl (P.flip cons) e xs

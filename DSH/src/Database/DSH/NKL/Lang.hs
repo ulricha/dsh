@@ -11,32 +11,27 @@ module Database.DSH.NKL.Lang
   , Prim2Op(..)
   , Prim1(..)
   , Prim2(..)
-  , Column
-  , Key
   ) where
 
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
-import           Database.DSH.Common.Data.Op
-import           Database.DSH.Common.Data.JoinExpr
-import           Database.DSH.Common.Data.Expr
-import           Database.DSH.Common.Data.Val(Val())
-import           Database.DSH.Common.Data.Type(Type, Typed, typeOf)
+import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.Common.Type(Type, Typed, typeOf)
   
 import qualified Data.Set as S
 
 -- | Nested Kernel Language (NKL) expressions
-data Expr  = Table Type String [Column] [Key]
+data Expr  = Table Type String [L.Column] [L.Key]
            | App Type Expr Expr
            | AppE1 Type (Prim1 Type) Expr
            | AppE2 Type (Prim2 Type) Expr Expr
-           | BinOp Type ScalarBinOp Expr Expr
-           | UnOp Type ScalarUnOp Expr
-           | Lam Type Ident Expr
+           | BinOp Type L.ScalarBinOp Expr Expr
+           | UnOp Type L.ScalarUnOp Expr
+           | Lam Type L.Ident Expr
            | If Type Expr Expr Expr
-           | Const Type Val
-           | Var Type Ident
+           | Const Type L.Val
+           | Var Type L.Ident
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
@@ -139,10 +134,10 @@ data Prim2Op = Map
              | Cons
              | CartProduct
              | NestProduct
-             | EquiJoin JoinExpr JoinExpr
-             | NestJoin JoinExpr JoinExpr
-             | SemiJoin JoinExpr JoinExpr
-             | AntiJoin JoinExpr JoinExpr
+             | EquiJoin L.JoinExpr L.JoinExpr
+             | NestJoin L.JoinExpr L.JoinExpr
+             | SemiJoin L.JoinExpr L.JoinExpr
+             | AntiJoin L.JoinExpr L.JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)

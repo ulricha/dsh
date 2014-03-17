@@ -1,4 +1,4 @@
-module Database.DSH.Common.Data.DBCode where
+module Database.DSH.Common.DBCode where
 
 data X100Code = X100Code String
      

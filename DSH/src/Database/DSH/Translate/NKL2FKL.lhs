@@ -17,8 +17,8 @@ import qualified Database.DSH.NKL.Lang as N
 import           Database.DSH.Common.TransM
 
 import           Database.DSH.FKL.FKLPrimitives
-import           Database.DSH.Common.Data.Type
-import           Database.DSH.Common.Data.Op
+import           Database.DSH.Common.Type
+import           Database.DSH.Common.Lang
 
 import qualified Data.Set as S
 

@@ -11,7 +11,7 @@ import           Database.DSH.VL.Lang                      hiding (Pair)
 import           Database.Algebra.X100.Data
 import           Database.Algebra.Pathfinder.Data.Algebra
 
-import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
+import           Database.DSH.Common.QueryPlan
 
 import qualified Database.DSH.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON

@@ -11,7 +11,7 @@ import           Debug.Trace
 
 import           Control.Applicative               hiding (Const)
 
-import qualified Database.DSH.Common.Data.Op       as Op
+import qualified Database.DSH.Common.Lang          as L
 import qualified Database.DSH.VL.Lang              as VL
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.DBVector
@@ -104,24 +104,24 @@ projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
-binOp :: Op.ScalarBinOp -> BinFun
-binOp Op.Add  = Plus
-binOp Op.Sub  = Minus
-binOp Op.Div  = Div
-binOp Op.Mul  = Times
-binOp Op.Mod  = Modulo
-binOp Op.Eq   = Eq
-binOp Op.Gt   = Gt
-binOp Op.GtE  = GtE
-binOp Op.Lt   = Lt
-binOp Op.LtE  = LtE
-binOp Op.Conj = And
-binOp Op.Disj = Or
-binOp Op.Like = Like
+binOp :: L.ScalarBinOp -> BinFun
+binOp L.Add  = Plus
+binOp L.Sub  = Minus
+binOp L.Div  = Div
+binOp L.Mul  = Times
+binOp L.Mod  = Modulo
+binOp L.Eq   = Eq
+binOp L.Gt   = Gt
+binOp L.GtE  = GtE
+binOp L.Lt   = Lt
+binOp L.LtE  = LtE
+binOp L.Conj = And
+binOp L.Disj = Or
+binOp L.Like = Like
 
-unOp :: Op.ScalarUnOp -> UnFun
-unOp Op.Not          = Not
-unOp (Op.CastDouble) = Cast doubleT
+unOp :: L.ScalarUnOp -> UnFun
+unOp L.Not          = Not
+unOp (L.CastDouble) = Cast doubleT
 unOp _               = $unimplemented
 
 expr1 :: VL.Expr1 -> Expr
@@ -361,15 +361,15 @@ instance VectorAlgebra PFAlgebra where
          rownumM pos orderCols Nothing
          -- map table columns to item columns, add constant descriptor
          $ projM (eP descr (ConstE (nat 1)) : [ mP (itemi i) c | (c, i) <- numberedColNames ])
-         $ dbTable tableName taColumns (map Key keys)
+         $ dbTable tableName taColumns (map Key taKeys)
     return $ DVec q (map snd numberedColNames)
 
     where
-      numberedColNames = zipWith (\c i -> (fst c, i)) columns [1..]
+      numberedColNames = zipWith (\((L.ColName c), _) i -> (c, i)) columns [1..]
       
-      taColumns = [ (c, algTy t) | (c, t) <- columns ]
+      taColumns = [ (c, algTy t) | (L.ColName c, t) <- columns ]
 
-      taKeys = map (\k -> [ itemi $ colIndex c | c <- k ]) keys
+      taKeys =    [ [ itemi $ colIndex c | L.ColName c <- k ] | L.Key k <- keys ]
       
       colIndex :: AttrName -> Int
       colIndex n =
@@ -557,8 +557,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            Op.Lt  -> projAddCols cols [mP posnew pos] qs
-            Op.LtE -> projAddCols cols [mP posnew pos] qs
+            L.Lt  -> projAddCols cols [mP posnew pos] qs
+            L.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -585,8 +585,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            Op.Lt  -> projAddCols cols [mP posnew pos] qs
-            Op.LtE -> projAddCols cols [mP posnew pos] qs
+            L.Lt  -> projAddCols cols [mP posnew pos] qs
+            L.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs

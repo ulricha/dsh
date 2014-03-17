@@ -25,6 +25,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 
 import           Database.DSH.Impossible
+import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure

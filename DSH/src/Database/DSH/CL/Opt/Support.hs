@@ -14,6 +14,7 @@ import Debug.Trace
 import           Control.Applicative
 import           Control.Arrow
 
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P

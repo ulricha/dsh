@@ -9,7 +9,7 @@ import           Control.Monad
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 
 import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Data.DBVector

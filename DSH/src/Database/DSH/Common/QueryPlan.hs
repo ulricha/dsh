@@ -3,7 +3,7 @@
 -- | A QueryPlan describes the computation of the top-level query
 -- result from algebraic plans over some algebra and describes how the
 -- result's structure is encoded by the individual queries.
-module Database.DSH.Common.Data.QueryPlan where
+module Database.DSH.Common.QueryPlan where
        
 import GHC.Generics(Generic)
 

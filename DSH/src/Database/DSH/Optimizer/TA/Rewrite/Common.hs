@@ -4,7 +4,7 @@ import qualified Data.IntMap                                              as M
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 
 import           Database.DSH.Optimizer.Common.Rewrite
 

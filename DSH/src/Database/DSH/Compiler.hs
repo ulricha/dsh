@@ -32,8 +32,8 @@ import qualified Database.X100Client                             as X
 
 import qualified Database.DSH.CL.Lang                 as CL
 import           Database.DSH.CL.Opt
-import           Database.DSH.Common.Data.QueryPlan
-import qualified Database.DSH.Common.Data.Type        as T
+import           Database.DSH.Common.QueryPlan
+import qualified Database.DSH.Common.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Optimizer.TA.OptimizeTA
@@ -42,7 +42,7 @@ import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import           Database.DSH.Common.Data.DBCode
+import           Database.DSH.Common.DBCode
 
 import qualified Data.List                                       as L
 

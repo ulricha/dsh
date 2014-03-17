@@ -10,8 +10,8 @@ import           Database.Algebra.Dag.Builder
 import qualified Database.Algebra.Dag.Common as Alg
 import           Database.DSH.VL.Lang                      (VL(), UnOp(Project), Expr1(..))
 import           Database.DSH.VL.Render.JSON               ()
-import qualified Database.DSH.Common.Data.QueryPlan as QP
-import           Database.DSH.Common.Data.Type 
+import qualified Database.DSH.Common.QueryPlan as QP
+import           Database.DSH.Common.Type 
 import           Database.DSH.FKL.Data.FKL
 import           Database.DSH.VL.Data.GraphVector   hiding (Pair)
 import           Database.DSH.VL.Data.DBVector
