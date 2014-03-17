@@ -1,6 +1,6 @@
 module Database.DSH.VL.VectorPrimitives where
 
-import Database.DSH.Common.Data.Op
+import Database.DSH.Common.Lang
 import Database.DSH.VL.Data.DBVector
 import Database.DSH.VL.Lang
 
@@ -25,7 +25,7 @@ class VectorAlgebra a where
   singletonDescr :: GraphM r a DVec
   
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
-  vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
+  vecTableRef :: String -> [VLColumn] -> [Key] -> GraphM r a DVec
 
   vecUniqueS :: DVec -> GraphM r a DVec
 

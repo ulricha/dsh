@@ -11,11 +11,10 @@ import           Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
-import qualified Database.DSH.Common.Data.Op as O
-import qualified Database.DSH.Common.Data.Type as T
-import qualified Database.DSH.Common.Data.Val as V
+import qualified Database.DSH.Common.Type as T
+import qualified Database.DSH.Common.Lang as L
 
-import           Database.DSH.Internals as D
+import           Database.DSH.Internals
 import           Data.Text (unpack)
 
 import qualified Data.Map as M
@@ -134,15 +133,16 @@ translate (TableE (TableDB tableName ks)) = do
         then return ()
         else error tableTypeError
 
-    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (String, T.Type)
+    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (L.ColName, T.Type)
         matchTypes (colName, _, typesCompatible) dshType =
             if typesCompatible dshType
-            then (colName, dshType)
+            then (L.ColName colName, dshType)
             else error tableTypeError
 
     let cols = zipWith matchTypes tableDescr ts
+        keys = [ L.Key [ L.ColName c | c <- k ] | k <- ks ]
 
-    return $ CP.table (translateType ty) tableName cols ks
+    return $ CP.table (translateType ty) tableName cols keys
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
 
@@ -190,17 +190,17 @@ compileApp f args =
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one
-       IntegerToDouble -> compileApp1 (CP.scalarUnOp O.CastDouble) args
-       Not             -> compileApp1 (CP.scalarUnOp O.Not) args
-       Sin             -> compileApp1 (CP.scalarUnOp O.Sin) args
-       Cos             -> compileApp1 (CP.scalarUnOp O.Cos) args
-       Tan             -> compileApp1 (CP.scalarUnOp O.Tan) args
-       ASin            -> compileApp1 (CP.scalarUnOp O.ASin) args
-       ACos            -> compileApp1 (CP.scalarUnOp O.ACos) args
-       ATan            -> compileApp1 (CP.scalarUnOp O.ATan) args
-       Sqrt            -> compileApp1 (CP.scalarUnOp O.Sqrt) args
-       Log             -> compileApp1 (CP.scalarUnOp O.Log) args
-       Exp             -> compileApp1 (CP.scalarUnOp O.Exp) args
+       IntegerToDouble -> compileApp1 (CP.scalarUnOp L.CastDouble) args
+       Not             -> compileApp1 (CP.scalarUnOp L.Not) args
+       Sin             -> compileApp1 (CP.scalarUnOp L.Sin) args
+       Cos             -> compileApp1 (CP.scalarUnOp L.Cos) args
+       Tan             -> compileApp1 (CP.scalarUnOp L.Tan) args
+       ASin            -> compileApp1 (CP.scalarUnOp L.ASin) args
+       ACos            -> compileApp1 (CP.scalarUnOp L.ACos) args
+       ATan            -> compileApp1 (CP.scalarUnOp L.ATan) args
+       Sqrt            -> compileApp1 (CP.scalarUnOp L.Sqrt) args
+       Log             -> compileApp1 (CP.scalarUnOp L.Log) args
+       Exp             -> compileApp1 (CP.scalarUnOp L.Exp) args
        Fst             -> compileApp1 CP.fst args
        Snd             -> compileApp1 CP.snd args
        Head            -> compileApp1 CP.head args
@@ -257,11 +257,11 @@ resugar expr =
       case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.AppE2 _ (CL.Prim2 CL.Cons _) e (CL.Lit _ (V.ListV []))) ->
+        CL.Lam _ v (CL.AppE2 _ (CL.Prim2 CL.Cons _) e (CL.Lit _ (L.ListV []))) ->
           resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- Same case as above, just with a literal list in the lambda body.
-        CL.Lam _ v (CL.Lit lt (CL.ListV [s])) -> 
+        CL.Lam _ v (CL.Lit lt (L.ListV [s])) -> 
           resugar $ CL.Comp t (CL.Lit (CL.elemT lt) s) (S (CL.BindQ v xs'))
 
         -- concatMap (\x -> [ e | qs ]) xs

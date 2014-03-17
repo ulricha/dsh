@@ -18,8 +18,8 @@ import           Data.List
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
 
-import           Database.DSH.Common.Data.DBCode
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.DBCode
+import           Database.DSH.Common.QueryPlan
 
 import qualified Data.Map as M
 import qualified Data.IntMap.Strict as IM

@@ -2,16 +2,17 @@
 
 module Database.DSH.VL.Render.JSON(serializePlan, deserializePlan, planToFile, planFromFile) where
 
-import GHC.Generics(Generic)
+import           GHC.Generics(Generic)
 import qualified Data.IntMap as M
-import Control.Monad
+import           Control.Monad
 
 import qualified Data.ByteString.Lazy.Char8 as BL
-import Data.Aeson (ToJSON, FromJSON, encode, decode)
+import           Data.Aeson (ToJSON, FromJSON, encode, decode)
 
-import Database.DSH.Common.Data.Op
-import Database.Algebra.Dag.Common
-import Database.DSH.VL.Lang
+import           Database.Algebra.Dag.Common
+
+import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.VL.Lang
 
 instance ToJSON TerOp where
 instance ToJSON BinOp where
@@ -25,9 +26,11 @@ instance ToJSON Expr1 where
 instance ToJSON LeftCol where
 instance ToJSON RightCol where
 instance ToJSON AggrFun where
-instance ToJSON ScalarBinOp where
-instance ToJSON ScalarUnOp where
 instance ToJSON Empty where
+instance ToJSON L.ScalarBinOp where
+instance ToJSON L.ScalarUnOp where
+instance ToJSON L.Key where
+instance ToJSON L.ColName where
 
 instance FromJSON TerOp where
 instance FromJSON BinOp where
@@ -41,9 +44,11 @@ instance FromJSON Expr1 where
 instance FromJSON LeftCol where
 instance FromJSON RightCol where
 instance FromJSON AggrFun where
-instance FromJSON ScalarBinOp where
-instance FromJSON ScalarUnOp where
 instance FromJSON Empty where
+instance FromJSON L.ScalarBinOp where
+instance FromJSON L.ScalarUnOp where
+instance FromJSON L.ColName where
+instance FromJSON L.Key
 
 instance ToJSON Plan where
 instance FromJSON Plan where

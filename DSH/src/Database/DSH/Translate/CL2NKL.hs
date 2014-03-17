@@ -8,9 +8,8 @@ module Database.DSH.Translate.CL2NKL
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Pretty
-import           Database.DSH.Common.Data.Type
-import           Database.DSH.Common.Data.Val
-import           Database.DSH.Common.Data.Op
+import           Database.DSH.Common.Type
+import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang(toList, fromList)
@@ -148,7 +147,7 @@ productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) =
 productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) = 
   productify e ((CL.GuardQ p) : (CL.BindQ x xs) : qs)
   
-guardTuplify :: (Injection a CL, Show a) => CL.Ident -> (CL.Ident, Type) -> (CL.Ident, Type) -> a -> a
+guardTuplify :: (Injection a CL, Show a) => Ident -> (Ident, Type) -> (Ident, Type) -> a -> a
 guardTuplify x v1 v2 v = 
     case applyT (tuplifyR x v1 v2) v of
         Left _   -> v

@@ -6,13 +6,13 @@
 
 module Database.DSH.VL.Lang where
 
-import GHC.Generics                (Generic)
+import           GHC.Generics                (Generic)
 
-import Database.Algebra.Aux
-import Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
-import Database.Algebra.Dag.Common
+import           Database.Algebra.Aux
+import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
+import           Database.Algebra.Dag.Common
 
-import Database.DSH.Common.Data.Op
+import qualified Database.DSH.Common.Lang as L
 
 type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
@@ -21,9 +21,7 @@ data VLType = Nat | Int | Bool |  Double
             | Pair VLType VLType | VLList VLType
             deriving (Eq, Ord, Generic, Show, Read)
 
-type DataColumn = String
-type TypedColumn = (DataColumn, VLType)
-type Key = [DataColumn]
+type VLColumn = (L.ColName, VLType)
 type DBCol = Int
 
 data Empty = NonEmpty
@@ -37,8 +35,8 @@ data AggrFun = AggrSum VLType Expr1
              | AggrCount
                deriving (Eq, Ord, Show, Read, Generic)
 
-data Expr1 = BinApp1 ScalarBinOp Expr1 Expr1
-           | UnApp1 ScalarUnOp Expr1
+data Expr1 = BinApp1 L.ScalarBinOp Expr1 Expr1
+           | UnApp1 L.ScalarUnOp Expr1
            | Column1 DBCol
            | Constant1 VLVal
            deriving (Eq, Ord, Show, Generic, Read)
@@ -46,8 +44,8 @@ data Expr1 = BinApp1 ScalarBinOp Expr1 Expr1
 newtype LeftCol = L DBCol deriving (Eq, Ord, Show, Generic)
 newtype RightCol = R DBCol deriving (Eq, Ord, Show, Generic)
 
-data Expr2 = BinApp2 ScalarBinOp Expr2 Expr2
-           | UnApp2 ScalarUnOp Expr2
+data Expr2 = BinApp2 L.ScalarBinOp Expr2 Expr2
+           | UnApp2 L.ScalarUnOp Expr2
            | Column2Left LeftCol
            | Column2Right RightCol
            | Constant2 VLVal
@@ -90,7 +88,7 @@ data VLVal = VLInt Int
 
 data NullOp = SingletonDescr
             | Lit [VLType] [[VLVal]]
-            | TableRef String [TypedColumn] [Key]
+            | TableRef String [VLColumn] [L.Key]
             deriving (Eq, Ord, Generic, Show)
 
 data UnOp = UniqueS
@@ -108,8 +106,8 @@ data UnOp = UniqueS
           | Select Expr1
           | Only
           | Singleton
-          | SelectPos1 ScalarBinOp Nat
-          | SelectPos1S ScalarBinOp Nat
+          | SelectPos1 L.ScalarBinOp Nat
+          | SelectPos1S L.ScalarBinOp Nat
           | GroupAggr [Expr1] [AggrFun]
           | Aggr (Empty, AggrFun)
           | SortSimple [Expr1]
@@ -131,8 +129,8 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Append     -- (DBV, RenameVector, RenameVector)
            | Restrict -- VL (DBV, RenameVector)
            | BinExpr Expr2
-           | SelectPos ScalarBinOp -- (DBV, RenameVector)
-           | SelectPosS ScalarBinOp -- (DBV, RenameVector)
+           | SelectPos L.ScalarBinOp -- (DBV, RenameVector)
+           | SelectPosS L.ScalarBinOp -- (DBV, RenameVector)
            | Zip
            | ZipS            -- (DBV, RenameVector, RenameVector)
            | CartProduct

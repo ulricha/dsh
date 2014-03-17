@@ -23,10 +23,8 @@ module Database.DSH.FKL.FKLPrimitives where
        
 import Database.DSH.FKL.Data.FKL as F
 import Database.DSH.Common.Pretty
-import Database.DSH.Common.Data.Val
-import Database.DSH.Common.Data.Op
-import Database.DSH.Common.Data.Type
-import Database.DSH.Common.Data.JoinExpr
+import Database.DSH.Common.Lang
+import Database.DSH.Common.Type
 
 import Control.Monad
 \end{code}

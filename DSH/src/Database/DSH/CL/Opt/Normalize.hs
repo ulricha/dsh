@@ -14,6 +14,7 @@ module Database.DSH.CL.Opt.Normalize
 import           Control.Arrow
 import           Debug.Trace
        
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P

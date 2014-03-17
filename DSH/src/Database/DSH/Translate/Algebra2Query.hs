@@ -16,9 +16,9 @@ import Database.Algebra.SQL.Util
 import Database.Algebra.SQL.Compatibility
 import Database.Algebra.SQL.Materialization.CTE
 
-import Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
+import Database.DSH.Common.QueryPlan
 import Database.DSH.VL.Data.DBVector
-import Database.DSH.Common.Data.DBCode
+import Database.DSH.Common.DBCode
 
 generateX100Queries :: QueryPlan X100Algebra -> TopShape X100Code
 generateX100Queries x100Plan = convertQuery $ queryShape x100Plan

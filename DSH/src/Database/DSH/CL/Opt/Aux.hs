@@ -53,6 +53,7 @@ import           Language.KURE
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Monad

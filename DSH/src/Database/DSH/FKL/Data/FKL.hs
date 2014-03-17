@@ -4,11 +4,8 @@ module Database.DSH.FKL.Data.FKL where
 
 import           Text.Printf
 
-import Database.DSH.Common.Data.Op
-import Database.DSH.Common.Data.Expr
-import Database.DSH.Common.Data.JoinExpr
-import Database.DSH.Common.Data.Val(Val())
-import Database.DSH.Common.Data.Type(Typed, typeOf, Type)
+import Database.DSH.Common.Lang
+import Database.DSH.Common.Type(Typed, typeOf, Type)
 
 import GHC.Generics (Generic)
 
