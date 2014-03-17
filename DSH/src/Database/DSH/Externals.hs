@@ -271,8 +271,11 @@ instance IsString (Q Text) where
 
 -- * Referring to persistent tables
 
-table :: (QA a, TA a) => String -> Emptiness -> [Key] -> Q [a]
-table name e ks = Q (TableE (TableDB name (TableHints ks e)))
+defaultHints :: TableHints
+defaultHints = TableHints [] PossiblyEmpty
+
+table :: (QA a, TA a) => String -> TableHints -> Q [a]
+table name hints = Q (TableE (TableDB name hints))
 
 tableCSV :: (QA a, TA a) => String -> Q [a]
 tableCSV filename = Q (TableE (TableCSV filename))
