@@ -277,8 +277,8 @@ instance VectorAlgebra PFAlgebra where
     qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
     qd <- case emptyInput of
-              VL.NonEmpty      -> return qa
-              VL.PossiblyEmpty -> 
+              L.NonEmpty      -> return qa
+              L.PossiblyEmpty -> 
                   case a of
                       -- FIXME this is wrong: consider a list of negative
                       -- integers... -> use antijoin/difference
@@ -294,8 +294,8 @@ instance VectorAlgebra PFAlgebra where
   vecAggrS emptyInput a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case emptyInput of
-              VL.NonEmpty -> return qa
-              VL.PossiblyEmpty -> 
+              L.NonEmpty -> return qa
+              L.PossiblyEmpty -> 
                   case a of
                       -- FIXME this is wrong: consider a list of negative
                       -- integers... -> use antijoin/difference
@@ -362,7 +362,7 @@ instance VectorAlgebra PFAlgebra where
           $ select (expr1 expr) q
     return $ DVec qs cols
 
-  vecTableRef tableName columns keys = do
+  vecTableRef tableName columns hints = do
     q <- -- generate the pos column
          rownumM pos orderCols Nothing
          -- map table columns to item columns, add constant descriptor
@@ -375,7 +375,7 @@ instance VectorAlgebra PFAlgebra where
       
       taColumns = [ (c, algTy t) | (L.ColName c, t) <- columns ]
 
-      taKeys =    [ [ itemi $ colIndex c | L.ColName c <- k ] | L.Key k <- keys ]
+      taKeys =    [ [ itemi $ colIndex c | L.ColName c <- k ] | L.Key k <- L.keysHint hints ]
       
       colIndex :: AttrName -> Int
       colIndex n =

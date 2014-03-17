@@ -22,7 +22,7 @@ import           Database.DSH.Common.Type(Type, Typed, typeOf)
 import qualified Data.Set as S
 
 -- | Nested Kernel Language (NKL) expressions
-data Expr  = Table Type String [L.Column] [L.Key]
+data Expr  = Table Type String [L.Column] L.TableHints
            | App Type Expr Expr
            | AppE1 Type (Prim1 Type) Expr
            | AppE2 Type (Prim2 Type) Expr Expr

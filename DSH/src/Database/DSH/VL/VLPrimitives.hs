@@ -27,7 +27,7 @@ rvec :: GraphM r a AlgNode -> GraphM r a RVec
 rvec = fmap RVec
 
 emptyVL :: VL
-emptyVL = NullaryOp $ TableRef "Null" [] []
+emptyVL = NullaryOp $ TableRef "Null" [] (L.TableHints [] L.PossiblyEmpty)
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
@@ -133,10 +133,10 @@ vlSort (DVec c1 _) (DVec c2 _) = do
                                   return (r1, r2)
 
 vlAggr :: AggrFun -> DVec -> GraphM r VL DVec
-vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr (PossiblyEmpty, aFun)) c
+vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr (L.PossiblyEmpty, aFun)) c
 
 vlAggrS :: AggrFun -> DVec -> DVec -> GraphM r VL DVec
-vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS (PossiblyEmpty, aFun)) c1 c2
+vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS (L.PossiblyEmpty, aFun)) c1 c2
 
 vlDescToRename :: DVec -> GraphM r VL RVec
 vlDescToRename (DVec c _) = rvec $ insertNode $ UnOp DescToRename c
@@ -217,8 +217,8 @@ vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = do
 vlLit :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
 vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
 
-vlTableRef :: String -> [VLColumn] -> [L.Key] -> GraphM r VL DVec
-vlTableRef n tys ks = dvec $ insertNode $ NullaryOp $ TableRef n tys ks
+vlTableRef :: String -> [VLColumn] -> L.TableHints -> GraphM r VL DVec
+vlTableRef n tys hs = dvec $ insertNode $ NullaryOp $ TableRef n tys hs
 
 vlUnExpr :: L.ScalarUnOp -> DVec -> GraphM r VL DVec
 vlUnExpr o (DVec c _) =

@@ -651,7 +651,7 @@ singletonPrim ::  Shape -> Graph VL Shape
 singletonPrim (PrimVal q1 lyt) = flip ValueVector lyt <$> vlSingleton q1
 singletonPrim _ = error "singletonPrim: Should not be possible"
 
-dbTable ::  String -> [L.Column] -> [L.Key] -> Graph VL Shape
+dbTable ::  String -> [L.Column] -> L.TableHints -> Graph VL Shape
 dbTable n cs ks = do
     t <- vlTableRef n (map (mapSnd typeToVLType) cs) ks
     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])

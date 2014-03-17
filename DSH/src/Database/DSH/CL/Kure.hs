@@ -147,10 +147,10 @@ liftstateT t = resultT liftstate t
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
 
-tableT :: Monad m => (Type -> String -> [L.Column] -> [L.Key] -> b)
+tableT :: Monad m => (Type -> String -> [L.Column] -> L.TableHints -> b)
                   -> Translate CompCtx m Expr b
 tableT f = contextfreeT $ \expr -> case expr of
-                      Table ty n cs ks -> return $ f ty n cs ks
+                      Table ty n cs hs -> return $ f ty n cs hs
                       _                -> fail "not a table node"
 {-# INLINE tableT #-}                      
                       

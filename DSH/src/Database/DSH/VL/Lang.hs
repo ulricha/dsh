@@ -24,10 +24,6 @@ data VLType = Nat | Int | Bool |  Double
 type VLColumn = (L.ColName, VLType)
 type DBCol = Int
 
-data Empty = NonEmpty
-           | PossiblyEmpty
-           deriving (Eq, Ord, Show, Read, Generic)
-
 data AggrFun = AggrSum VLType Expr1
              | AggrMin Expr1
              | AggrMax Expr1
@@ -88,7 +84,7 @@ data VLVal = VLInt Int
 
 data NullOp = SingletonDescr
             | Lit [VLType] [[VLVal]]
-            | TableRef String [VLColumn] [L.Key]
+            | TableRef String [VLColumn] L.TableHints
             deriving (Eq, Ord, Generic, Show)
 
 data UnOp = UniqueS
@@ -109,7 +105,7 @@ data UnOp = UniqueS
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
           | GroupAggr [Expr1] [AggrFun]
-          | Aggr (Empty, AggrFun)
+          | Aggr (L.Emptiness, AggrFun)
           | SortSimple [Expr1]
           | GroupSimple [Expr1]
           | Reshape Integer
@@ -119,7 +115,7 @@ data UnOp = UniqueS
 
 data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Sort        -- (DBV, PropVector)
-           | AggrS (Empty, AggrFun)
+           | AggrS (L.Emptiness, AggrFun)
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)
            | DistSeg   -- (DBV, PropVector)

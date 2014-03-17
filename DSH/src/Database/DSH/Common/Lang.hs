@@ -85,6 +85,17 @@ type Column = (ColName, Type)
 -- | Table keys
 newtype Key = Key [ColName] deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+-- | Is the table guaranteed to be not empty?
+data Emptiness = NonEmpty
+               | PossiblyEmpty
+               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+-- | Catalog information hints that users may give to DSH
+data TableHints = TableHints 
+    { keysHint     :: [Key]
+    , nonEmptyHint :: Emptiness
+    } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
 -- | Identifiers
 type Ident = String
 

@@ -333,7 +333,7 @@ zip e1 e2 = let t1@(ListT t1') = typeOf e1
 var :: Type -> P.String -> Expr
 var = Var
 
-table :: Type -> P.String -> [L.Column] -> [L.Key] -> Expr
+table :: Type -> P.String -> [L.Column] -> L.TableHints -> Expr
 table = Table
 
 lambda :: Type -> P.String -> Expr -> Expr

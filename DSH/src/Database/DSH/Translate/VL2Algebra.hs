@@ -318,7 +318,7 @@ translateUnOp u c = case u of
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
 translateNullary SingletonDescr      = fromDVec <$> singletonDescr
 translateNullary (Lit tys vals)      = fromDVec <$> vecLit tys vals
-translateNullary (TableRef n tys ks) = fromDVec <$> vecTableRef n tys ks
+translateNullary (TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 
 -- | Insert SerializeRel operators in TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.

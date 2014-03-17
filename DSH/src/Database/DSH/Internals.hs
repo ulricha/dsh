@@ -22,7 +22,22 @@ data Exp a where
   VarE      :: (Reify a)           => Integer -> Exp a
   TableE    :: (Reify a)           => Table -> Exp [a]
 
-data Table = TableDB String [[String]] | TableCSV  String deriving (Eq, Ord, Show)
+-- | A combination of column names that form a candidate key
+newtype Key = Key [String] deriving (Eq, Ord, Show)
+
+-- | Is the table guaranteed to be not empty?
+data Emptiness = NonEmpty
+               | PossiblyEmpty
+               deriving (Eq, Ord, Show)
+
+-- | Catalog information hints that users may give to DSH
+data TableHints = TableHints 
+    { keysHint     :: [Key]
+    , nonEmptyHint :: Emptiness
+    } deriving (Eq, Ord, Show)
+
+data Table = TableDB String TableHints
+           | TableCSV  String deriving (Eq, Ord, Show)
 
 data Type a where
   UnitT     :: Type ()

@@ -21,7 +21,7 @@ import           Database.DSH.VL.VectorOperations
 fkl2VL :: Expr -> Graph VL Shape
 fkl2VL expr =
     case expr of
-        Table _ n cs ks -> dbTable n cs ks
+        Table _ n cs hs -> dbTable n cs hs
         Const t v -> mkLiteral t v
         BinOp _ (NotLifted o) e1 e2    -> do 
             PrimVal p1 lyt <- fkl2VL e1

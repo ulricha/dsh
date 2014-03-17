@@ -222,7 +222,7 @@ function).
 
 \begin{code} 
 transform :: N.Expr            ->  TransM F.Expr
-transform (N.Table t n c k)    =   pure $ F.Table t n c k
+transform (N.Table t n c h)    =   pure $ F.Table t n c h
 transform (N.App _t e1 e2)     =   cloAppM (transform e1) (transform e2)
 transform (N.AppE1 _ p e1)     =   cloAppM (pure $ prim1Transform p) (transform e1)
 transform (N.AppE2 _ p e1 e2)  =   cloAppM (cloAppM (pure $ prim2Transform p) (transform e1)) (transform e2)

@@ -25,7 +25,7 @@ class VectorAlgebra a where
   singletonDescr :: GraphM r a DVec
   
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
-  vecTableRef :: String -> [VLColumn] -> [Key] -> GraphM r a DVec
+  vecTableRef :: String -> [VLColumn] -> TableHints -> GraphM r a DVec
 
   vecUniqueS :: DVec -> GraphM r a DVec
 
@@ -37,8 +37,8 @@ class VectorAlgebra a where
   vecSegment :: DVec -> GraphM r a DVec
   vecUnsegment :: DVec -> GraphM r a DVec
   
-  vecAggr :: Empty -> AggrFun -> DVec -> GraphM r a DVec
-  vecAggrS :: Empty -> AggrFun -> DVec -> DVec -> GraphM r a DVec
+  vecAggr :: Emptiness -> AggrFun -> DVec -> GraphM r a DVec
+  vecAggrS :: Emptiness -> AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
   selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)

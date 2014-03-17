@@ -20,7 +20,7 @@ instance Show a => Show (Lifted a) where
     show (NotLifted x) = show x
 
 -- | Data type expr represents flat kernel language.
-data Expr = Table   Type String [Column] [Key]
+data Expr = Table   Type String [Column] TableHints
           | PApp1   Type Prim1 Expr
           | PApp2   Type Prim2 Expr Expr 
           | PApp3   Type Prim3 Expr Expr Expr

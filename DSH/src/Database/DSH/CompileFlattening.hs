@@ -109,7 +109,7 @@ translate (e@(LamE _)) =
             let ty = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
             CP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
         _ -> $impossible
-translate (TableE (TableDB tableName ks)) = do
+translate (TableE (TableDB tableName hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
     
@@ -140,11 +140,24 @@ translate (TableE (TableDB tableName ks)) = do
             else error tableTypeError
 
     let cols = zipWith matchTypes tableDescr ts
-        keys = [ L.Key [ L.ColName c | c <- k ] | k <- ks ]
 
-    return $ CP.table (translateType ty) tableName cols keys
+    return $ CP.table (translateType ty) tableName cols (compileHints hints)
+
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
+
+compileHints :: TableHints -> L.TableHints
+compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
+                                  , L.nonEmptyHint = ne $ nonEmptyHint hints
+                                  }
+  where
+    keys :: [Key] -> [L.Key]
+    keys ks = [ L.Key [ L.ColName c | c <- k ] | Key k <- ks ]
+
+    ne :: Emptiness -> L.Emptiness
+    ne NonEmpty      = L.NonEmpty
+    ne PossiblyEmpty = L.PossiblyEmpty
+                                   
 
 compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, (b, c)) -> Compile CL.Expr
 compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3

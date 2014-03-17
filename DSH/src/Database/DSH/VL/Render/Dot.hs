@@ -26,9 +26,9 @@ lookupTags n m = Map.findWithDefault [] n m
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
 
-renderEmpty :: Empty -> Doc
-renderEmpty NonEmpty      = text "_ne"
-renderEmpty PossiblyEmpty = empty
+renderEmptyAggr :: Emptiness -> Doc
+renderEmptyAggr NonEmpty      = text "_ne"
+renderEmptyAggr PossiblyEmpty = empty
 
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
@@ -72,10 +72,18 @@ renderColName (ColName c) = text c
 renderTableType :: VLColumn -> Doc
 renderTableType (c, t) = renderColName c <> text "::" <> renderColumnType t
 
+renderTableHints :: TableHints -> Doc
+renderTableHints hs = renderTableKeys (keysHint hs) <> renderEmptiness (nonEmptyHint hs)
+
+renderEmptiness :: Emptiness -> Doc
+renderEmptiness NonEmpty      = text " NONEMPTY"
+renderEmptiness PossiblyEmpty = empty
+
 renderTableKeys :: [Key] -> Doc
-renderTableKeys [x] = renderTableKey x
+renderTableKeys [x]    = renderTableKey x
 renderTableKeys (x:xs) = renderTableKey x $$ renderTableKeys xs
-renderTableKeys [] = text "NOKEY"
+renderTableKeys []     = empty
+
 
 renderTableKey :: Key -> Doc
 renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
@@ -115,8 +123,8 @@ opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" emp
 opDotLabel tm i (NullaryOp (Lit tys vals)) = labelToDoc i "LIT"
         (bracketList renderColumnType tys <> comma
         $$ renderData vals) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef n tys ks)) = labelToDoc i "TableRef"
-        (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableKeys ks)
+opDotLabel tm i (NullaryOp (TableRef n tys hs)) = labelToDoc i "TableRef"
+        (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableHints hs)
         (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
@@ -140,10 +148,10 @@ opDotLabel tm i (UnOp Singleton _) = labelToDoc i "Singleton" empty (lookupTags 
 opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr1 g <+> bracketList renderAggrFun as) (lookupTags i tm)
-opDotLabel tm i (UnOp (Aggr (e, a)) _) = labelToDoc i "Aggr" (renderEmpty e <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (UnOp (Aggr (e, a)) _) = labelToDoc i "Aggr" (renderEmptyAggr e <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
-opDotLabel tm i (BinOp (AggrS (e, a)) _ _) = labelToDoc i "AggrS" (renderEmpty e <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (BinOp (AggrS (e, a)) _ _) = labelToDoc i "AggrS" (renderEmptyAggr e <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortSimple cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupSimple cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)

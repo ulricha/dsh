@@ -26,11 +26,12 @@ instance ToJSON Expr1 where
 instance ToJSON LeftCol where
 instance ToJSON RightCol where
 instance ToJSON AggrFun where
-instance ToJSON Empty where
+instance ToJSON L.Emptiness where
 instance ToJSON L.ScalarBinOp where
 instance ToJSON L.ScalarUnOp where
 instance ToJSON L.Key where
 instance ToJSON L.ColName where
+instance ToJSON L.TableHints where
 
 instance FromJSON TerOp where
 instance FromJSON BinOp where
@@ -44,11 +45,12 @@ instance FromJSON Expr1 where
 instance FromJSON LeftCol where
 instance FromJSON RightCol where
 instance FromJSON AggrFun where
-instance FromJSON Empty where
+instance FromJSON L.Emptiness where
 instance FromJSON L.ScalarBinOp where
 instance FromJSON L.ScalarUnOp where
 instance FromJSON L.ColName where
-instance FromJSON L.Key
+instance FromJSON L.Key where
+instance FromJSON L.TableHints
 
 instance ToJSON Plan where
 instance FromJSON Plan where
