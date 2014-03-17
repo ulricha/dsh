@@ -64,10 +64,10 @@ pushExprThroughGroupBy q =
 -- merely selects the column.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
-  $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
+  $(pattern 'q "(qo) AggrS arg (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afun' = case $(v "afun") of
+        let afun' = case snd $(v "arg") of
                         AggrMax e   -> AggrMax $ mergeExpr1 env e
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
@@ -76,14 +76,14 @@ inlineAggrProject q =
 
         return $ do
             logRewrite "Aggregation.Normalize.InlineProject" q
-            void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
+            void $ replaceWithNew q $ BinOp (AggrS (fst $(v "arg"), afun')) $(v "qo") $(v "qi") |])
 
           
 -- | Check if we have an operator combination which is eligible for moving to a
 -- GroupAggr operator.
 matchAggr :: AlgNode -> VLMatch () (AggrFun, AlgNode)
 matchAggr q = do
-  BinOp (AggrS aggrFun) _ _ <- getOperator q
+  BinOp (AggrS (_, aggrFun)) _ _ <- getOperator q
   return (aggrFun, q)
   
 projectionCol :: Expr1 -> VLMatch () DBCol

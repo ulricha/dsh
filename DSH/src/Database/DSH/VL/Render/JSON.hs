@@ -27,6 +27,7 @@ instance ToJSON RightCol where
 instance ToJSON AggrFun where
 instance ToJSON ScalarBinOp where
 instance ToJSON ScalarUnOp where
+instance ToJSON Empty where
 
 instance FromJSON TerOp where
 instance FromJSON BinOp where
@@ -42,6 +43,7 @@ instance FromJSON RightCol where
 instance FromJSON AggrFun where
 instance FromJSON ScalarBinOp where
 instance FromJSON ScalarUnOp where
+instance FromJSON Empty where
 
 instance ToJSON Plan where
 instance FromJSON Plan where

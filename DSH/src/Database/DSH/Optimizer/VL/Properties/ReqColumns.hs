@@ -80,8 +80,8 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     ReshapeS _ -> ownReqColumns `union` childReqColumns
     UniqueS -> ownReqColumns `union` childReqColumns
 
-    Aggr AggrCount -> none `union` childReqColumns
-    Aggr _         -> one
+    Aggr (_, AggrCount) -> none `union` childReqColumns
+    Aggr _              -> one
 
     DescToRename -> none `union` childReqColumns
 
@@ -175,8 +175,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
         _                 -> $impossible
 
-    AggrS AggrCount -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
-    AggrS _         -> (childReqColumns1 `union` none, one)
+    AggrS (_, AggrCount) -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
+    AggrS _              -> (childReqColumns1 `union` none, one)
 
     DistPrim -> (childReqColumns1 `union` ownReqColumns, childReqColumns2 `union` none)
 

@@ -135,10 +135,10 @@ vlSort (DVec c1 _) (DVec c2 _) = do
                                   return (r1, r2)
 
 vlAggr :: AggrFun -> DVec -> GraphM r VL DVec
-vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr aFun) c
+vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr (PossiblyEmpty, aFun)) c
 
 vlAggrS :: AggrFun -> DVec -> DVec -> GraphM r VL DVec
-vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS aFun) c1 c2
+vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS (PossiblyEmpty, aFun)) c1 c2
 
 vlDescToRename :: DVec -> GraphM r VL RVec
 vlDescToRename (DVec c _) = rvec $ insertNode $ UnOp DescToRename c

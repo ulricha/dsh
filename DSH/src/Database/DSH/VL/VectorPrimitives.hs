@@ -2,7 +2,7 @@ module Database.DSH.VL.VectorPrimitives where
 
 import Database.DSH.Common.Data.Op
 import Database.DSH.VL.Data.DBVector
-import Database.DSH.VL.Lang (VLType(), TypedColumn, Key, VLVal(), Expr1, Expr2, Nat, AggrFun)
+import Database.DSH.VL.Lang
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -37,8 +37,8 @@ class VectorAlgebra a where
   vecSegment :: DVec -> GraphM r a DVec
   vecUnsegment :: DVec -> GraphM r a DVec
   
-  vecAggr :: AggrFun -> DVec -> GraphM r a DVec
-  vecAggrS :: AggrFun -> DVec -> DVec -> GraphM r a DVec
+  vecAggr :: Empty -> AggrFun -> DVec -> GraphM r a DVec
+  vecAggrS :: Empty -> AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
   selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)

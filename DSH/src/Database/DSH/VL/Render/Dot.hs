@@ -24,6 +24,10 @@ lookupTags n m = Map.findWithDefault [] n m
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
 
+renderEmpty :: Empty -> Doc
+renderEmpty NonEmpty      = text "_ne"
+renderEmpty PossiblyEmpty = empty
+
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
                                         [renderExpr1 c]
@@ -133,10 +137,10 @@ opDotLabel tm i (UnOp Singleton _) = labelToDoc i "Singleton" empty (lookupTags 
 opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr1 g <+> bracketList renderAggrFun as) (lookupTags i tm)
-opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (UnOp (Aggr (e, a)) _) = labelToDoc i "Aggr" (renderEmpty e <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
-opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (BinOp (AggrS (e, a)) _ _) = labelToDoc i "AggrS" (renderEmpty e <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortSimple cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupSimple cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)

@@ -272,36 +272,42 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return $ (DVec qr1 cols, PVec qr2)
 
-  vecAggr a (DVec q _) = do
+  vecAggr emptyInput a (DVec q _) = do
     -- The aggr operator itself
     qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
-    qd <- case a of
-            -- FIXME this is wrong: consider a list of negative
-            -- integers... -> use antijoin/difference
-            VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                              in aggrM [(Max (ColE item), item)] []
-                                 $ return qa `unionM` (litTable dv item dt)
-            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
-                              $ return qa `unionM` (litTable (int 0) item intT)
-            _              -> return qa
+    qd <- case emptyInput of
+              VL.NonEmpty      -> return qa
+              VL.PossiblyEmpty -> 
+                  case a of
+                      -- FIXME this is wrong: consider a list of negative
+                      -- integers... -> use antijoin/difference
+                      VL.AggrSum t _ -> let (dt, dv) = sumDefault t
+                                        in aggrM [(Max (ColE item), item)] []
+                                           $ return qa `unionM` (litTable dv item dt)
+                      VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
+                                        $ return qa `unionM` (litTable (int 0) item intT)
+                      _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
     return $ DVec qp [1]
 
-  vecAggrS a (DVec qo _) (DVec qi _) = do
+  vecAggrS emptyInput a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
-    qd <- case a of
-            -- FIXME this is wrong: consider a list of negative
-            -- integers... -> use antijoin/difference
-            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                              $ return qa
-                                `unionM`
-                                proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                              $ return qa
-                                `unionM`
-                                proj [mP descr pos, eP item (ConstE $ int 0)] qo
-            _              -> return qa
+    qd <- case emptyInput of
+              VL.NonEmpty -> return qa
+              VL.PossiblyEmpty -> 
+                  case a of
+                      -- FIXME this is wrong: consider a list of negative
+                      -- integers... -> use antijoin/difference
+                      VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                        $ return qa
+                                          `unionM`
+                                          proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
+                      VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                        $ return qa
+                                          `unionM`
+                                          proj [mP descr pos, eP item (ConstE $ int 0)] qo
+                      _              -> return qa
     qp <- rownum pos [descr] Nothing qd
     -- We have to unnest the inner vector (i.e. surrogate join) to get
     -- the outer descriptor values (segmented aggregates remove one

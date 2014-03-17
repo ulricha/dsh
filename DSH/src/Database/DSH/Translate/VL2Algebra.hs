@@ -192,7 +192,7 @@ translateBinOp b c1 c2 = case b of
 
     BinExpr e -> fromDVec <$> vecBinExpr e (toDVec c1) (toDVec c2)
 
-    AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
+    AggrS (e, a) -> fromDVec <$> vecAggrS e a (toDVec c1) (toDVec c2)
 
     SelectPos o -> do
         (v, r) <- selectPos (toDVec c1) o (toDVec c2)
@@ -272,7 +272,7 @@ translateUnOp u c = case u of
     Segment       -> fromDVec <$> vecSegment (toDVec c)
     Unsegment     -> fromDVec <$> vecUnsegment (toDVec c)
     Select e      -> fromDVec <$> vecSelect e (toDVec c)
-    Aggr a        -> fromDVec <$> vecAggr a (toDVec c)
+    Aggr (e, a)   -> fromDVec <$> vecAggr e a (toDVec c)
     SortSimple es -> do
         (d, p) <- vecSortSimple es (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
