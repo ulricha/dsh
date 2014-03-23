@@ -54,6 +54,8 @@ Extra-source-files:  examples/Example01.hs
                      examples/Makefile
                      tests/Main.hs
 		     tests/ComprehensionTests.hs
+		     tests/DSHComprehensions.hs
+		     tests/CombinatorTests.hs
                      tests/Makefile
 
 Cabal-version:       >= 1.8
