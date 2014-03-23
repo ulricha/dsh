@@ -1,8 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE LambdaCase #-}
     
 -- | This module performs optimizations on the Comprehension Language (CL).
 module Database.DSH.CL.Opt 
