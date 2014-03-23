@@ -15,9 +15,11 @@ import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrProject
+                   , inlineAggrNonEmptyProject
                    , flatGrouping
                    , simpleGrouping
                    , simpleGroupingProject
+                   , mergeNonEmptyAggrs
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
@@ -29,6 +31,22 @@ groupingToAggregation :: VLRewrite Bool
 groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
                                                        , applyToAll noProps aggregationRules
                                                        ]
+
+appendNE :: N.NonEmpty a -> N.NonEmpty a -> N.NonEmpty a
+appendNE (x N.:| xs) (y N.:| ys) = x N.:| (xs ++ (y : ys))
+
+mergeNonEmptyAggrs :: VLRule ()
+mergeNonEmptyAggrs q =
+  $(pattern 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
+    [| do
+        predicate $ $(v "qo1") == $(v "qo2")
+        predicate $ $(v "qi1") == $(v "qi2")
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.Merge" q
+            let afuns  = appendNE $(v "afuns1")  $(v "afuns2")
+            let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
+            void $ replaceWithNew q aggrOp |])
 
 nonEmptyAggr :: VLRule BottomUpProps
 nonEmptyAggr q =
@@ -84,8 +102,7 @@ pushExprThroughGroupBy q =
           -- Replace the CompExpr1L operator with a projection on the new column
           void $ replaceWithNew q $ UnOp (Project [Column1 $ w + 1]) r2Node |])
 
--- | Merge a projection into an aggregate operator if the projection
--- merely selects the column.
+-- | Merge a projection into an aggregate operator.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
   $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
@@ -101,6 +118,27 @@ inlineAggrProject q =
         return $ do
             logRewrite "Aggregation.Normalize.InlineProject" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
+
+-- | Merge a projection into an aggregate operator. We restrict this
+-- to only one aggregate function. Therefore, merging of projections
+-- must happen before merging of aggregate operators
+inlineAggrNonEmptyProject :: VLRule ()
+inlineAggrNonEmptyProject q =
+  $(pattern 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
+    [| do
+        afun N.:| [] <- return $(v "afuns")
+        let env = zip [1..] $(v "proj")
+        let afun' = case $(v "afun") of
+                        AggrMax e   -> AggrMax $ mergeExpr1 env e
+                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
+                        AggrMin e   -> AggrMin $ mergeExpr1 env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrCount   -> AggrCount
+
+        return $ do
+            logRewrite "Aggregation.Normalize.InlineProject" q
+            let aggrOp = BinOp (AggrNonEmptyS (afun' N.:| [])) $(v "qo") $(v "qi")
+            void $ replaceWithNew q aggrOp |])
 
           
 -- | Check if we have an operator combination which is eligible for moving to a
