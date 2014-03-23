@@ -16,7 +16,7 @@ import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Rewrite.Common
 
 optExpressions :: VLRewrite Bool
-optExpressions = iteratively $ postOrder inferBottomUp expressionRules
+optExpressions = iteratively $ applyToAll inferBottomUp expressionRules
 
 expressionRules :: VLRuleSet BottomUpProps
 expressionRules = [ constInputLeft

@@ -13,7 +13,7 @@ import           Database.Algebra.Dag.Common
 import           Database.DSH.VL.Lang
 
 pruneEmpty :: VLRewrite Bool
-pruneEmpty = postOrder inferBottomUp emptyRules
+pruneEmpty = applyToAll inferBottomUp emptyRules
 
 emptyRules :: VLRuleSet BottomUpProps
 emptyRules = [ emptyAppendLeftR1
