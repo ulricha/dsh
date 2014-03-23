@@ -3,12 +3,13 @@
 -- FIXME introduce consistency checks for schema inference
 module Database.DSH.Optimizer.VL.Properties.VectorType where
 
-import Control.Monad
-import Data.Functor
+import           Control.Monad
+import           Data.Functor
+import qualified Data.List.NonEmpty as N
        
-import Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Properties.Types
   
-import Database.DSH.VL.Lang
+import           Database.DSH.VL.Lang
   
 {- Implement more checks: check the input types for correctness -}
 
@@ -32,6 +33,7 @@ inferVectorTypeUnOp s op =
   case op of
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
+    AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
@@ -67,7 +69,7 @@ inferVectorTypeUnOp s op =
           Left "Input of GroupSimple is not a value vector"
     Only -> VProp <$> unpack s
     Singleton -> VProp <$> unpack s
-    GroupAggr g as -> Right $ VProp $ ValueVector (length g + length as)
+    GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s
         return $ VProp $ ValueVector (w + 1)
@@ -105,6 +107,7 @@ inferVectorTypeBinOp s1 s2 op =
         _                                                    -> 
           Left "Input of SortWith is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
+    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)

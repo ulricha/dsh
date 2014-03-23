@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.VLPrimitives where
-       
+
 import qualified Database.DSH.Common.Lang as L
 import qualified Database.DSH.Common.Type as Ty
 import           Database.DSH.VL.Data.DBVector
@@ -133,10 +133,10 @@ vlSort (DVec c1 _) (DVec c2 _) = do
                                   return (r1, r2)
 
 vlAggr :: AggrFun -> DVec -> GraphM r VL DVec
-vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr (L.PossiblyEmpty, aFun)) c
+vlAggr aFun (DVec c _) = dvec $ insertNode $ UnOp (Aggr aFun) c
 
 vlAggrS :: AggrFun -> DVec -> DVec -> GraphM r VL DVec
-vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS (L.PossiblyEmpty, aFun)) c1 c2
+vlAggrS aFun (DVec c1 _) (DVec c2 _) = dvec $ insertNode $ BinOp (AggrS aFun) c1 c2
 
 vlDescToRename :: DVec -> GraphM r VL RVec
 vlDescToRename (DVec c _) = rvec $ insertNode $ UnOp DescToRename c

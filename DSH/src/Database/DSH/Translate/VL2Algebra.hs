@@ -192,7 +192,9 @@ translateBinOp b c1 c2 = case b of
 
     BinExpr e -> fromDVec <$> vecBinExpr e (toDVec c1) (toDVec c2)
 
-    AggrS (e, a) -> fromDVec <$> vecAggrS e a (toDVec c1) (toDVec c2)
+    AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
+
+    AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
 
     SelectPos o -> do
         (v, r) <- selectPos (toDVec c1) o (toDVec c2)
@@ -263,16 +265,17 @@ only = id
 
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
-    Singleton     -> return $ singleton c
-    Only          -> return $ only c
-    UniqueS       -> fromDVec <$> vecUniqueS (toDVec c)
-    Number        -> fromDVec <$> vecNumber (toDVec c)
-    NumberS       -> fromDVec <$> vecNumberS (toDVec c)
-    DescToRename  -> fromRenameVector <$> descToRename (toDVec c)
-    Segment       -> fromDVec <$> vecSegment (toDVec c)
-    Unsegment     -> fromDVec <$> vecUnsegment (toDVec c)
-    Select e      -> fromDVec <$> vecSelect e (toDVec c)
-    Aggr (e, a)   -> fromDVec <$> vecAggr e a (toDVec c)
+    Singleton        -> return $ singleton c
+    Only             -> return $ only c
+    UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
+    Number           -> fromDVec <$> vecNumber (toDVec c)
+    NumberS          -> fromDVec <$> vecNumberS (toDVec c)
+    DescToRename     -> fromRenameVector <$> descToRename (toDVec c)
+    Segment          -> fromDVec <$> vecSegment (toDVec c)
+    Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
+    Select e         -> fromDVec <$> vecSelect e (toDVec c)
+    Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
+    AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     SortSimple es -> do
         (d, p) <- vecSortSimple es (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)

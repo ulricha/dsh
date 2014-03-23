@@ -1,8 +1,9 @@
 module Database.DSH.VL.VectorPrimitives where
 
-import Database.DSH.Common.Lang
-import Database.DSH.VL.Data.DBVector
-import Database.DSH.VL.Lang
+import qualified Data.List.NonEmpty as N
+import           Database.DSH.Common.Lang
+import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Lang
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -37,8 +38,10 @@ class VectorAlgebra a where
   vecSegment :: DVec -> GraphM r a DVec
   vecUnsegment :: DVec -> GraphM r a DVec
   
-  vecAggr :: Emptiness -> AggrFun -> DVec -> GraphM r a DVec
-  vecAggrS :: Emptiness -> AggrFun -> DVec -> DVec -> GraphM r a DVec
+  vecAggr :: AggrFun -> DVec -> GraphM r a DVec
+  vecAggrS :: AggrFun -> DVec -> DVec -> GraphM r a DVec
+  vecAggrNonEmpty :: N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
+  vecAggrNonEmptyS :: N.NonEmpty AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
   selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
@@ -63,7 +66,7 @@ class VectorAlgebra a where
   -- operates segmented, i.e. always groups by descr first. This
   -- operator must be used with care: It does not determine the
   -- complete set of descr value to check for empty inner lists.
-  vecGroupAggr :: [Expr1] -> [AggrFun] -> DVec -> GraphM r a DVec
+  vecGroupAggr :: [Expr1] -> N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
 
   vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc

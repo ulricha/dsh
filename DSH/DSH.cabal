@@ -85,10 +85,11 @@ Library
                      ansi-wl-pprint,
                      set-monad,
                      either             >= 4.0,
-                     dlist
+                     dlist,
+                     semigroups
                      
   Hs-source-dirs:    src
-  GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
+  GHC-Options:       -Wall -auto-all
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -261,7 +262,8 @@ executable vldot
                       ghc-prim >= 0.2,
                       bytestring >= 0.9,
                       TableAlgebra,
-                      ansi-wl-pprint
+                      ansi-wl-pprint,
+                      semigroups
 
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0

@@ -8,6 +8,8 @@ module Database.DSH.VL.Lang where
 
 import           GHC.Generics                (Generic)
 
+import qualified Data.List.NonEmpty as N
+
 import           Database.Algebra.Aux
 import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
 import           Database.Algebra.Dag.Common
@@ -104,8 +106,9 @@ data UnOp = UniqueS
           | Singleton
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
-          | GroupAggr [Expr1] [AggrFun]
-          | Aggr (L.Emptiness, AggrFun)
+          | GroupAggr [Expr1] (N.NonEmpty AggrFun)
+          | Aggr AggrFun
+          | AggrNonEmpty (N.NonEmpty AggrFun)
           | SortSimple [Expr1]
           | GroupSimple [Expr1]
           | Reshape Integer
@@ -115,7 +118,8 @@ data UnOp = UniqueS
 
 data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Sort        -- (DBV, PropVector)
-           | AggrS (L.Emptiness, AggrFun)
+           | AggrS AggrFun
+           | AggrNonEmptyS (N.NonEmpty AggrFun)
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)
            | DistSeg   -- (DBV, PropVector)

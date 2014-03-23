@@ -25,6 +25,7 @@ inferCardOneUnOp c op =
   case op of
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
+    AggrNonEmpty _ -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
@@ -67,6 +68,7 @@ inferCardOneBinOp c1 c2 op =
     GroupBy -> return $ VPropTriple False False False
     Sort -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
+    AggrNonEmptyS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     DistSeg -> return $ VPropPair False False

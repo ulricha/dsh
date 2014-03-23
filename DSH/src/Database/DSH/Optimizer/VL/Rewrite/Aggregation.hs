@@ -2,16 +2,16 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
 
-import Control.Applicative
-import Control.Monad
+import           Control.Applicative
+import           Control.Monad
+import qualified Data.List.NonEmpty as N
 
-import Database.Algebra.Dag.Common
+import           Database.Algebra.Dag.Common
 
-import Database.DSH.Common.Lang
-import Database.DSH.VL.Lang
-import Database.DSH.Optimizer.Common.Rewrite
-import Database.DSH.Optimizer.VL.Properties.Types
-import Database.DSH.Optimizer.VL.Rewrite.Common
+import           Database.DSH.VL.Lang
+import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrProject
@@ -32,27 +32,25 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
 
 nonEmptyAggr :: VLRule BottomUpProps
 nonEmptyAggr q =
-  $(pattern 'q "Aggr arg (q1)"
+  $(pattern 'q "Aggr aggrFun (q1)"
     [| do
-        (PossiblyEmpty, argFun) <- return $(v "arg")
-        VProp ne <- nonEmptyProp <$> properties $(v "q1")
-        predicate ne
+        VProp True <- nonEmptyProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.Aggr" q
-            void $ replaceWithNew q $ UnOp (Aggr (NonEmpty, argFun)) $(v "q1") |])
+            let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
+            void $ replaceWithNew q aggrOp |])
 
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
-  $(pattern 'q "(q1) AggrS arg (q2)"
+  $(pattern 'q "(q1) AggrS aggrFun (q2)"
     [| do
-        (PossiblyEmpty, argFun) <- return $(v "arg")
-        VProp ne <- nonEmptyProp <$> properties $(v "q2")
-        predicate ne
+        VProp True <- nonEmptyProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.AggrS" q
-            void $ replaceWithNew q $ BinOp (AggrS (NonEmpty, argFun)) $(v "q1") $(v "q2") |])
+            let aggrOp = BinOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q1") $(v "q2")
+            void $ replaceWithNew q aggrOp |])
 
 -- | If an expression operator is applied to the R2 output of GroupBy,
 -- push the expression below the GroupBy operator. This rewrite
@@ -90,10 +88,10 @@ pushExprThroughGroupBy q =
 -- merely selects the column.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
-  $(pattern 'q "(qo) AggrS arg (Project proj (qi))"
+  $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afun' = case snd $(v "arg") of
+        let afun' = case $(v "afun") of
                         AggrMax e   -> AggrMax $ mergeExpr1 env e
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
@@ -102,14 +100,14 @@ inlineAggrProject q =
 
         return $ do
             logRewrite "Aggregation.Normalize.InlineProject" q
-            void $ replaceWithNew q $ BinOp (AggrS (fst $(v "arg"), afun')) $(v "qo") $(v "qi") |])
+            void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
 
           
 -- | Check if we have an operator combination which is eligible for moving to a
 -- GroupAggr operator.
 matchAggr :: AlgNode -> VLMatch () (AggrFun, AlgNode)
 matchAggr q = do
-  BinOp (AggrS (_, aggrFun)) _ _ <- getOperator q
+  BinOp (AggrS aggrFun) _ _ <- getOperator q
   return (aggrFun, q)
   
 projectionCol :: Expr1 -> VLMatch () DBCol
@@ -175,7 +173,7 @@ flatGrouping q =
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions
         groupByParents <- getParents q
-        funs <- mapM matchAggr groupByParents
+        funs@(f : fs)  <- mapM matchAggr groupByParents
         
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
@@ -188,7 +186,7 @@ flatGrouping q =
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
           -- add columns at the end.
-          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (map fst funs)) $(v "q1")
+          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (fst f N.:| map fst fs)) $(v "q1")
 
           -- For every aggregate function, generate a projection which only
           -- leaves the aggregate column. Function receives the node of the

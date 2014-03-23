@@ -32,6 +32,7 @@ inferNonEmptyUnOp e op =
   case op of
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp True
+    AggrNonEmpty _  -> Right $ VProp True
     DescToRename    -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
@@ -85,33 +86,34 @@ inferNonEmptyBinOp e1 e2 op =
       let e   = ue1 && ue2
       return $ VPropPair e e
 
-    DistPrim      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) ue2)
-    DistDesc      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    DistSeg       -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    PropRename    -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
-    PropFilter    -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    PropReorder   -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    Append        -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
-    Restrict      -> return $ VPropPair False False
-    BinExpr _     -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
-    AggrS _       -> return $ VProp True
-    SelectPos _   -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    SelectPosS _  -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    Zip           -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
-    ZipS          -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    CartProduct   -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    CartProductS  -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    NestProductS  -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    EquiJoin _ _  -> return $ VPropTriple False False False
-    EquiJoinS _ _ -> return $ VPropTriple False False False
-    NestJoinS _ _ -> return $ VPropTriple False False False
-    SemiJoin _ _  -> return $ VPropPair False False
-    SemiJoinS _ _ -> return $ VPropPair False False
-    AntiJoin _ _  -> return $ VPropPair False False
-    AntiJoinS _ _ -> return $ VPropPair False False
+    DistPrim        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) ue2)
+    DistDesc        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    DistSeg         -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    PropRename      -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
+    PropFilter      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    PropReorder     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
+    Restrict        -> return $ VPropPair False False
+    BinExpr _       -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
+    AggrS _         -> return $ VProp True
+    AggrNonEmptyS _ -> return $ VProp True
+    SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    SelectPosS _    -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    Zip             -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
+    ZipS            -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
+    CartProduct     -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
+    CartProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
+    NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
+    EquiJoin _ _    -> return $ VPropTriple False False False
+    EquiJoinS _ _   -> return $ VPropTriple False False False
+    NestJoinS _ _   -> return $ VPropTriple False False False
+    SemiJoin _ _    -> return $ VPropPair False False
+    SemiJoinS _ _   -> return $ VPropPair False False
+    AntiJoin _ _    -> return $ VPropPair False False
+    AntiJoinS _ _   -> return $ VPropPair False False
     -- FIXME This documents the current behaviour of the algebraic
     -- implementations, not what _should_ happen!
-    TransposeS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
+    TransposeS      -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
     
 inferNonEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferNonEmptyTerOp e1 e2 e3 op =

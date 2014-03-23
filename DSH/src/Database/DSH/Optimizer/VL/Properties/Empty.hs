@@ -31,6 +31,7 @@ inferEmptyUnOp e op =
   case op of
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp False
+    AggrNonEmpty _  -> Right $ VProp False
     DescToRename    -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
@@ -95,6 +96,7 @@ inferEmptyBinOp e1 e2 op =
     Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     BinExpr _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     AggrS _ -> return $ VProp False
+    AggrNonEmptyS _ -> return $ VProp False
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))

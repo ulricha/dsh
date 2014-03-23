@@ -2,12 +2,13 @@
 
 module Database.DSH.Optimizer.VL.Properties.Const where
 
-import Data.List
-import Text.Printf
+import qualified Data.List.NonEmpty as N
+import           Data.List
+import           Text.Printf
 
-import Database.DSH.VL.Lang
-import Database.DSH.Optimizer.VL.Properties.Common
-import Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.VL.Lang
+import           Database.DSH.Optimizer.VL.Properties.Common
+import           Database.DSH.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
@@ -73,6 +74,9 @@ inferConstVecUnOp c op =
     Aggr _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
+    AggrNonEmpty _ -> do
+      return $ VProp $ DBVConst (ConstDescr (N 1)) [NonConstPL]
+
     DescToRename -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
@@ -115,7 +119,7 @@ inferConstVecUnOp c op =
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
+      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
       
     Number -> do
       (d, cols) <- unp c >>= fromDBV
@@ -178,6 +182,9 @@ inferConstVecBinOp c1 c2 op =
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     AggrS _ -> do
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+
+    AggrNonEmptyS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do

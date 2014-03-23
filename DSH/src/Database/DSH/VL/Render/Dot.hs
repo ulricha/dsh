@@ -1,6 +1,7 @@
 module Database.DSH.VL.Render.Dot(renderVLDot, renderTblVal) where
 
 import qualified Data.IntMap                 as Map
+import qualified Data.List.NonEmpty          as N
 import           Data.List
 
 import           Text.PrettyPrint
@@ -25,10 +26,6 @@ lookupTags n m = Map.findWithDefault [] n m
 
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
-
-renderEmptyAggr :: Emptiness -> Doc
-renderEmptyAggr NonEmpty      = text "_ne"
-renderEmptyAggr PossiblyEmpty = empty
 
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
@@ -147,11 +144,13 @@ opDotLabel tm i (UnOp Only _) = labelToDoc i "Only" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Singleton _) = labelToDoc i "Singleton" empty (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr1 g <+> bracketList renderAggrFun as) (lookupTags i tm)
-opDotLabel tm i (UnOp (Aggr (e, a)) _) = labelToDoc i "Aggr" (renderEmptyAggr e <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr1 g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
-opDotLabel tm i (BinOp (AggrS (e, a)) _ _) = labelToDoc i "AggrS" (renderEmptyAggr e <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (BinOp (AggrNonEmptyS as) _ _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortSimple cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupSimple cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
 opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)
@@ -193,38 +192,40 @@ opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags
 opDotLabel tm i (BinOp TransposeS _ _) = labelToDoc i "TransposeS" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
-opDotColor (BinOp DistDesc _ _)        = DCRed
-opDotColor (BinOp CartProduct _ _)     = DCRed
-opDotColor (BinOp CartProductS _ _)    = DCRed
-opDotColor (BinOp NestProductS _ _)    = DCRed
-opDotColor (BinOp (EquiJoin _ _) _ _)  = DCGreen
-opDotColor (BinOp (EquiJoinS _ _) _ _) = DCGreen
-opDotColor (BinOp (NestJoinS _ _) _ _) = DCGreen
-opDotColor (BinOp (SemiJoin _ _) _ _)  = DCGreen
-opDotColor (BinOp (SemiJoinS _ _) _ _) = DCGreen
-opDotColor (BinOp (AntiJoin _ _) _ _)  = DCGreen
-opDotColor (BinOp (AntiJoinS _ _) _ _) = DCGreen
-opDotColor (BinOp Zip _ _)             = DCYelloGreen
-opDotColor (BinOp Sort _ _)            = DCTomato
-opDotColor (UnOp (SortSimple _) _)     = DCTomato
-opDotColor (BinOp GroupBy _ _)         = DCTomato
-opDotColor (UnOp (GroupSimple _) _)    = DCTomato
-opDotColor (BinOp PropRename _ _)      = DCTan
-opDotColor (BinOp PropReorder _ _)     = DCTan
-opDotColor (BinOp DistSeg _ _)         = DCTan
-opDotColor (BinOp Restrict _ _)        = DCDodgerBlue
-opDotColor (TerOp Combine _ _ _)       = DCDodgerBlue
-opDotColor (UnOp (Select _) _)         = DCLightSkyBlue
-opDotColor (UnOp (Aggr _) _)           = DCCrimson
-opDotColor (BinOp (AggrS _) _ _)       = DCCrimson
-opDotColor (UnOp (GroupAggr _ _) _)    = DCTomato
-opDotColor (UnOp (Project _) _)        = DCLightSkyBlue
-opDotColor (BinOp (BinExpr _) _ _)     = DCDodgerBlue
-opDotColor (UnOp Transpose _)          = DCHotPink
-opDotColor (BinOp TransposeS _ _)      = DCHotPink
-opDotColor (UnOp (ReshapeS _) _)       = DCHotPink
-opDotColor (UnOp (Reshape _) _)        = DCHotPink
-opDotColor _ = DCGray
+opDotColor (BinOp DistDesc _ _)          = DCRed
+opDotColor (BinOp CartProduct _ _)       = DCRed
+opDotColor (BinOp CartProductS _ _)      = DCRed
+opDotColor (BinOp NestProductS _ _)      = DCRed
+opDotColor (BinOp (EquiJoin _ _) _ _)    = DCGreen
+opDotColor (BinOp (EquiJoinS _ _) _ _)   = DCGreen
+opDotColor (BinOp (NestJoinS _ _) _ _)   = DCGreen
+opDotColor (BinOp (SemiJoin _ _) _ _)    = DCGreen
+opDotColor (BinOp (SemiJoinS _ _) _ _)   = DCGreen
+opDotColor (BinOp (AntiJoin _ _) _ _)    = DCGreen
+opDotColor (BinOp (AntiJoinS _ _) _ _)   = DCGreen
+opDotColor (BinOp Zip _ _)               = DCYelloGreen
+opDotColor (BinOp Sort _ _)              = DCTomato
+opDotColor (UnOp (SortSimple _) _)       = DCTomato
+opDotColor (BinOp GroupBy _ _)           = DCTomato
+opDotColor (UnOp (GroupSimple _) _)      = DCTomato
+opDotColor (BinOp PropRename _ _)        = DCTan
+opDotColor (BinOp PropReorder _ _)       = DCTan
+opDotColor (BinOp DistSeg _ _)           = DCTan
+opDotColor (BinOp Restrict _ _)          = DCDodgerBlue
+opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
+opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
+opDotColor (UnOp (Aggr _) _)             = DCCrimson
+opDotColor (BinOp (AggrS _) _ _)         = DCCrimson
+opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
+opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
+opDotColor (UnOp (GroupAggr _ _) _)      = DCTomato
+opDotColor (UnOp (Project _) _)          = DCLightSkyBlue
+opDotColor (BinOp (BinExpr _) _ _)       = DCDodgerBlue
+opDotColor (UnOp Transpose _)            = DCHotPink
+opDotColor (BinOp TransposeS _ _)        = DCHotPink
+opDotColor (UnOp (ReshapeS _) _)         = DCHotPink
+opDotColor (UnOp (Reshape _) _)          = DCHotPink
+opDotColor _                             = DCGray
 
 -- Dot colors
 data DotColor = DCTomato

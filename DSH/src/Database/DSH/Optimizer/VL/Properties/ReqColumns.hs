@@ -5,8 +5,9 @@ module Database.DSH.Optimizer.VL.Properties.ReqColumns where
 import Database.DSH.Impossible
 
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as N
 import           Database.DSH.VL.Lang
-import Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> a
 unp (VProp x) = x
@@ -48,6 +49,13 @@ reqExpr2ColsRight (Column2Right (R col)) = [col]
 reqExpr2ColsRight (Column2Left _)        = []
 reqExpr2ColsRight (Constant2 _)          = []
 
+aggrReqCols :: AggrFun -> [DBCol]
+aggrReqCols (AggrSum _ e) = reqExpr1Cols e
+aggrReqCols (AggrMin e)   = reqExpr1Cols e
+aggrReqCols (AggrMax e)   = reqExpr1Cols e
+aggrReqCols (AggrAvg e)   = reqExpr1Cols e
+aggrReqCols AggrCount     = []
+
 allCols :: BottomUpProps -> VectorProp ReqCols
 allCols props = case vectorTypeProp props of
                  (VProp (ValueVector w)) -> VProp $ Just [1 .. w]
@@ -80,8 +88,13 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
     ReshapeS _ -> ownReqColumns `union` childReqColumns
     UniqueS -> ownReqColumns `union` childReqColumns
 
-    Aggr (_, AggrCount) -> none `union` childReqColumns
-    Aggr _              -> one
+    Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
+                    `union` 
+                    childReqColumns
+
+    AggrNonEmpty aggrFuns -> (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
+                             `union`
+                             childReqColumns
 
     DescToRename -> none `union` childReqColumns
 
@@ -114,14 +127,7 @@ inferReqColumnsUnOp ownReqColumns childReqColumns op =
                        `union` 
                        (VProp $ Just $ L.nub $ concatMap reqExpr1Cols gs 
                                                ++ 
-                                               concatMap aggrInputCol as)
-
-      where aggrInputCol :: AggrFun -> [DBCol]
-            aggrInputCol (AggrMax e)   = reqExpr1Cols e
-            aggrInputCol (AggrMin e)   = reqExpr1Cols e
-            aggrInputCol (AggrSum _ e) = reqExpr1Cols e
-            aggrInputCol (AggrAvg e)   = reqExpr1Cols e
-            aggrInputCol AggrCount     = []
+                                               concatMap aggrReqCols (N.toList as))
 
     SortSimple exprs -> childReqColumns 
                         `union` 
@@ -175,8 +181,19 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
         _                 -> $impossible
 
-    AggrS (_, AggrCount) -> (childReqColumns1 `union` none, childReqColumns2 `union` none)
-    AggrS _              -> (childReqColumns1 `union` none, one)
+    AggrS aggrFun        -> let fromLeft  = childReqColumns1 `union` none
+                                fromRight = (VProp $ Just $ aggrReqCols aggrFun)
+                                            `union`
+                                            childReqColumns2
+                            in (fromLeft, fromRight)
+
+    AggrNonEmptyS aggrFuns -> let fromLeft  = childReqColumns1 `union` none 
+                                  fromRight = (VProp 
+                                               $ Just 
+                                               $ concatMap aggrReqCols (N.toList aggrFuns))
+                                              `union`
+                                              childReqColumns2
+                              in (fromLeft, fromRight)
 
     DistPrim -> (childReqColumns1 `union` ownReqColumns, childReqColumns2 `union` none)
 

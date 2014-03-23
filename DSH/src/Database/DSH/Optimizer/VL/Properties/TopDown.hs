@@ -41,6 +41,7 @@ seed (UnOp op _)   =
     GroupSimple _      -> vPropSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
+    AggrNonEmpty _     -> vPropSeed
     GroupAggr _ _      -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
@@ -70,6 +71,7 @@ seed (BinOp op _ _) =
     PropRename         -> vPropSeed
     BinExpr    _       -> vPropSeed
     AggrS _            -> vPropSeed
+    AggrNonEmptyS _    -> vPropSeed
     Zip                -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed

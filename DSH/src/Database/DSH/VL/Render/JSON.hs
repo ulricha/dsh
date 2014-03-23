@@ -1,16 +1,20 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.VL.Render.JSON(serializePlan, deserializePlan, planToFile, planFromFile) where
 
 import           GHC.Generics(Generic)
 import qualified Data.IntMap as M
+import qualified Data.List.NonEmpty as N
 import           Control.Monad
+import           Data.Functor
 
 import qualified Data.ByteString.Lazy.Char8 as BL
-import           Data.Aeson (ToJSON, FromJSON, encode, decode)
+import           Data.Aeson (ToJSON, FromJSON, toJSON, parseJSON, encode, decode)
 
 import           Database.Algebra.Dag.Common
 
+import           Database.DSH.Impossible
 import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.VL.Lang
 
@@ -32,6 +36,9 @@ instance ToJSON L.ScalarUnOp where
 instance ToJSON L.Key where
 instance ToJSON L.ColName where
 instance ToJSON L.TableHints where
+instance ToJSON a => ToJSON (N.NonEmpty a) where
+    toJSON nl = toJSON $ N.toList nl
+  
 
 instance FromJSON TerOp where
 instance FromJSON BinOp where
@@ -51,6 +58,13 @@ instance FromJSON L.ScalarUnOp where
 instance FromJSON L.ColName where
 instance FromJSON L.Key where
 instance FromJSON L.TableHints
+instance FromJSON a => FromJSON (N.NonEmpty a) where
+    parseJSON doc = fromList <$> parseJSON doc
+
+fromList :: [a] -> N.NonEmpty a
+fromList [] = $impossible
+fromList (x : xs) = x N.:| xs
+            
 
 instance ToJSON Plan where
 instance FromJSON Plan where

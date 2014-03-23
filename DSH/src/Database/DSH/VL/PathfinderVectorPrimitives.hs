@@ -10,6 +10,7 @@ import           GHC.Exts
 import           Debug.Trace
 
 import           Control.Applicative               hiding (Const)
+import qualified Data.List.NonEmpty                as N
 
 import qualified Database.DSH.Common.Lang          as L
 import qualified Database.DSH.VL.Lang              as VL
@@ -272,42 +273,36 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return $ (DVec qr1 cols, PVec qr2)
 
-  vecAggr emptyInput a (DVec q _) = do
+  vecAggr a (DVec q _) = do
     -- The aggr operator itself
     qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
-    qd <- case emptyInput of
-              L.NonEmpty      -> return qa
-              L.PossiblyEmpty -> 
-                  case a of
-                      -- FIXME this is wrong: consider a list of negative
-                      -- integers... -> use antijoin/difference
-                      VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                                        in aggrM [(Max (ColE item), item)] []
-                                           $ return qa `unionM` (litTable dv item dt)
-                      VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
-                                        $ return qa `unionM` (litTable (int 0) item intT)
-                      _              -> return qa
+    qd <- case a of
+              -- FIXME this is wrong: consider a list of negative
+              -- integers... -> use antijoin/difference
+              VL.AggrSum t _ -> let (dt, dv) = sumDefault t
+                                in aggrM [(Max (ColE item), item)] []
+                                   $ return qa `unionM` (litTable dv item dt)
+              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
+                                $ return qa `unionM` (litTable (int 0) item intT)
+              _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
     return $ DVec qp [1]
 
-  vecAggrS emptyInput a (DVec qo _) (DVec qi _) = do
+  vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
-    qd <- case emptyInput of
-              L.NonEmpty -> return qa
-              L.PossiblyEmpty -> 
-                  case a of
-                      -- FIXME this is wrong: consider a list of negative
-                      -- integers... -> use antijoin/difference
-                      VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                        $ return qa
-                                          `unionM`
-                                          proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-                      VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                        $ return qa
-                                          `unionM`
-                                          proj [mP descr pos, eP item (ConstE $ int 0)] qo
-                      _              -> return qa
+    qd <- case a of
+              -- FIXME this is wrong: consider a list of negative
+              -- integers... -> use antijoin/difference
+              VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                $ return qa
+                                  `unionM`
+                                  proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
+              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                $ return qa
+                                  `unionM`
+                                  proj [mP descr pos, eP item (ConstE $ int 0)] qo
+              _              -> return qa
     qp <- rownum pos [descr] Nothing qd
     -- We have to unnest the inner vector (i.e. surrogate join) to get
     -- the outer descriptor values (segmented aggregates remove one
@@ -644,12 +639,12 @@ instance VectorAlgebra PFAlgebra where
 
         pw = length groupExprs
   
-        pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- aggrFuns | i <- [1..] ]
+        pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- N.toList aggrFuns | i <- [1..] ]
                  
     qa <- rownumM pos [descr] Nothing
           $ aggr pfAggrFuns partAttrs q
 
-    return $ DVec qa [1 .. length groupExprs + length aggrFuns]
+    return $ DVec qa [1 .. length groupExprs + N.length aggrFuns]
   
   vecNumber (DVec q cols) = do
     let nrIndex = length cols + 1
