@@ -54,8 +54,9 @@ descendR = readerT $ \case
 
     ExprCL (Comp _ _ _) -> optCompR
 
-    -- On non-comprehensions, try to clean up before descending
-    ExprCL _            -> repeatR (onetdR partialEvalR) >+> anyR descendR
+    -- On non-comprehensions, try to apply partial evaluation rules
+    -- before descending
+    ExprCL _            -> repeatR partialEvalR >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
     _                   -> anyR descendR
