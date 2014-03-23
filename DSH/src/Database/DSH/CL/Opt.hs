@@ -80,15 +80,6 @@ optCompR = do
 optimizeR :: RewriteC CL
 optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR buUnnestR >+> anytdR factorConstantPredsR)
         
-{-
--- debug function
-depth :: Expr -> (Int, Int)
-depth e = (maximum ps, length ps)
-  where ps = map length $ either (const []) id $ applyExpr (collectT rootPathT) e
-  
-        rootPathT = absPathT >>^ snocPathToPath
--}
-           
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = {- trace ("(depth, count) "++ show (depth expr)) $ -} debugOpt expr optimizedExpr
 

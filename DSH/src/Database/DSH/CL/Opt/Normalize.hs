@@ -12,14 +12,11 @@ module Database.DSH.CL.Opt.Normalize
   ) where
   
 import           Control.Arrow
-import           Debug.Trace
        
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
-import           Database.DSH.CL.Opt.Support
-import           Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are applied only at the start of
@@ -104,31 +101,35 @@ normalizeUniversal2R = do
                                  (P.scalarUnOp Not p)
                                  (S (BindQ y ys))))
                            
-normQualR :: RewriteC Qual
-normQualR = normalizeExistentialR 
+normQualWorkR :: RewriteC Qual
+normQualWorkR = normalizeExistentialR 
             <+ normalizeUniversal1R
             <+ normalizeUniversal2R
     
-normalizeQualifiersR :: RewriteC (NL Qual)
-normalizeQualifiersR = 
+normQualR :: RewriteC (NL Qual)
+normQualR = 
     anytdR $ readerT $ \case
         q :* qs -> do
-            q' <- constT (return q) >>> normQualR
+            q' <- constT (return q) >>> normQualWorkR
             return $ q' :* qs
         S q     -> do
-            q' <- constT (return q) >>> normQualR
+            q' <- constT (return q) >>> normQualWorkR
             return $ S q'
 
 -- | Eliminate a comprehension with an identity head
 -- [ x | x <- xs ] => xs
+-- FIXME does this pattern occur at all?
 identityCompR :: RewriteC Expr
 identityCompR = do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
     guardM $ x == x'
     return xs
                       
-normalizeAlwaysR :: RewriteC CL
-normalizeAlwaysR = do
+normalizeQualifiersR :: RewriteC CL
+normalizeQualifiersR = do
     Comp _ _ _ <- promoteT idR 
-    childR CompQuals $ promoteR normalizeQualifiersR
+    childR CompQuals $ promoteR normQualR
+
+normalizeAlwaysR :: RewriteC CL
+normalizeAlwaysR = normalizeQualifiersR
 
