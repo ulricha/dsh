@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE ParallelListComp #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.Expressions where
 
@@ -10,6 +11,7 @@ import Control.Applicative
 
 import Database.Algebra.Dag.Common
 
+import Database.DSH.Impossible
 import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types
@@ -19,9 +21,7 @@ optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ applyToAll inferBottomUp expressionRules
 
 expressionRules :: VLRuleSet BottomUpProps
-expressionRules = [ constInputLeft
-                  , constInputRight
-                  , mergeExpr2SameInput
+expressionRules = [ mergeExpr2SameInput
                   , mergeExpr12
                   , mergeExpr11
                   , mergeExpr21Right
@@ -29,20 +29,20 @@ expressionRules = [ constInputLeft
                   , identityProject
                   ]
 
-replaceLeftCol :: Expr2 -> Expr2 -> Expr2
-replaceLeftCol col' e =
+replaceLeftCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
+replaceLeftCol env e =
     case e of
-        BinApp2 o e1 e2   -> BinApp2 o (replaceLeftCol col' e1) (replaceLeftCol col' e2)
-        UnApp2 o e1       -> UnApp2 o (replaceLeftCol col' e1)
-        Column2Left (L _) -> col'
+        BinApp2 o e1 e2   -> BinApp2 o (replaceLeftCol env e1) (replaceLeftCol env e2)
+        UnApp2 o e1       -> UnApp2 o (replaceLeftCol env e1)
+        Column2Left (L c) -> maybe $impossible id (lookup c env)
         _                 -> e
 
-replaceRightCol :: Expr2 -> Expr2 -> Expr2
-replaceRightCol col' e =
+replaceRightCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
+replaceRightCol env e =
     case e of
-        BinApp2 o e1 e2    -> BinApp2 o (replaceRightCol col' e1) (replaceRightCol col' e2)
-        UnApp2 o e1        -> UnApp2 o (replaceRightCol col' e1)
-        Column2Right (R _) -> col'
+        BinApp2 o e1 e2    -> BinApp2 o (replaceRightCol env e1) (replaceRightCol env e2)
+        UnApp2 o e1        -> UnApp2 o (replaceRightCol env e1)
+        Column2Right (R c) -> maybe $impossible id (lookup c env)
         _                  -> e
 
 replaceCol :: Expr1 -> Expr1 -> Expr1
@@ -103,47 +103,6 @@ expr2ToExpr1 (Column2Left (L c))  = Column1 c
 expr2ToExpr1 (Column2Right (R c)) = Column1 c
 expr2ToExpr1 (Constant2 val)      = Constant1 val
 
--- Rewrite rules
-
--- Merge BinExpr operators with input projections in various combinations
-
--- Remove the left input from a CompExpr operator if the input is constant
-constInputLeft :: VLRule BottomUpProps
-constInputLeft q =
-  $(pattern 'q "(q1) BinExpr expr (q2)"
-    [| do
-        constCols <- liftM constProp $ properties $(v "q1")
-        let c = leftCol $(v "expr")
-        constVal <- case constCols of
-                      VProp (DBVConst _ plc) ->
-                        case plc !! (c - 1) of
-                          ConstPL val -> return val
-                          NonConstPL  -> fail "no match"
-                      _ -> fail "no match"
-        return $ do
-          logRewrite "Expr.Const.Left" q
-          let expr' = expr2ToExpr1 $ replaceLeftCol (Constant2 constVal) $(v "expr")
-          void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q2") |])
-
--- Remove the right input from a CompExpr operator if the input is constant
-constInputRight :: VLRule BottomUpProps
-constInputRight q =
-  $(pattern 'q "(q1) BinExpr expr (q2)"
-    [| do
-        constant <- liftM constProp $ properties $(v "q2")
-        let c = rightCol $(v "expr")
-        constVal <- case constant of
-                      VProp (DBVConst _ constPayload) ->
-                        case constPayload !! (c - 1) of
-                          ConstPL val -> return val
-                          NonConstPL  -> fail "no match"
-                      _ -> fail "no match"
-        return $ do
-          logRewrite "Expr.Const.Right" q
-          let expr' = expr2ToExpr1 $ replaceRightCol (Constant2 constVal) $(v "expr")
-          void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q1") |])
-
-
 -- Merge multiple stacked CompExpr operators if they have the same input.
 
 -- FIXME this is way too hackish. Implement a clean solution to insert expressions into
@@ -194,7 +153,7 @@ mergeExpr12 q =
         return $ do
           logRewrite "Expr.Merge.12" q
           let e1' = expr1ToExpr2Right $(v "e1")
-              e' = replaceRightCol $(v "e2") e1'
+              e' = replaceRightCol [(1, $(v "e2"))] e1'
               op = BinOp (BinExpr e') $(v "q1") $(v "q2")
           void $ replaceWithNew q op |])
 
@@ -202,20 +161,20 @@ mergeExpr21Right :: VLRule BottomUpProps
 mergeExpr21Right q =
   $(pattern 'q "(q1) BinExpr e2 (Project es (q2))"
     [| do
-        [e1] <- return $(v "es")
+        let env = zip [1..] (map expr1ToExpr2Right $(v "es"))
         return $ do
           logRewrite "Expr.Merge.21.Right" q
-          let e2' = replaceRightCol (expr1ToExpr2Right $(v "e1")) $(v "e2")
+          let e2' = replaceRightCol env $(v "e2")
           void $ replaceWithNew q $ BinOp (BinExpr e2') $(v "q1") $(v "q2") |])
 
 mergeExpr21Left :: VLRule BottomUpProps
 mergeExpr21Left q =
   $(pattern 'q "(Project es (q1)) BinExpr e2 (q2)"
     [| do
-        [e1] <- return $(v "es")
+        let env = zip [1..] (map expr1ToExpr2Left $(v "es"))
         return $ do
           logRewrite "Expr.Merge.21.Left" q
-          let e2' = replaceLeftCol (expr1ToExpr2Left $(v "e1")) $(v "e2")
+          let e2' = replaceLeftCol env $(v "e2")
           void $ replaceWithNew q $ BinOp (BinExpr e2') $(v "q1") $(v "q2") |])
 
 identityProject :: VLRule BottomUpProps
