@@ -118,6 +118,14 @@ normalizeQualifiersR =
         S q     -> do
             q' <- constT (return q) >>> normQualR
             return $ S q'
+
+-- | Eliminate a comprehension with an identity head
+-- [ x | x <- xs ] => xs
+identityCompR :: RewriteC Expr
+identityCompR = do
+    Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
+    guardM $ x == x'
+    return xs
                       
 normalizeAlwaysR :: RewriteC CL
 normalizeAlwaysR = do

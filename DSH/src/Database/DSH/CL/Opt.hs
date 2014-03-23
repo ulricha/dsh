@@ -10,8 +10,6 @@ module Database.DSH.CL.Opt
   
 import Control.Arrow
        
-import Database.DSH.Impossible
-
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 
@@ -26,11 +24,6 @@ import Database.DSH.CL.Opt.NestJoin
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
-
--- Clean up remains and perform partial evaluation on the current node
-cleanupR :: RewriteC CL
-cleanupR = (extractR partialEvalR <+ extractR houseCleaningR <+ normalizeAlwaysR) 
-           >>> debugShow "after cleanup"
 
 -- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
@@ -62,7 +55,7 @@ descendR = readerT $ \case
     ExprCL (Comp _ _ _) -> optCompR
 
     -- On non-comprehensions, try to clean up before descending
-    ExprCL _            -> repeatR (onetdR cleanupR) >+> anyR descendR
+    ExprCL _            -> repeatR (onetdR partialEvalR) >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
     _                   -> anyR descendR
