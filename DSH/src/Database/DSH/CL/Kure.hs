@@ -379,6 +379,8 @@ instance Injection (NL Qual) CL where
     project _            = Nothing
 
     
+-- FIXME putting an INLINE pragma on allR would propably lead to good
+-- things. However, with 7.6.3 it triggers a GHC panic.
 instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
     allR r = 

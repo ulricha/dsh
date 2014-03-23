@@ -69,8 +69,6 @@ optCompR = do
     debugPretty "optCompR at" c
 
     repeatR $ do
-          -- e <- promoteT idR
-          -- debugPretty "comp at" (e :: Expr)
           (normalizeAlwaysR
              <+ compNormEarlyR
              <+ predpushdownR
@@ -82,9 +80,6 @@ optimizeR :: RewriteC CL
 optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR buUnnestR >+> anytdR factorConstantPredsR)
         
 optimizeComprehensions :: Expr -> Expr
-optimizeComprehensions expr = {- trace ("(depth, count) "++ show (depth expr)) $ -} debugOpt expr optimizedExpr
-
+optimizeComprehensions expr = debugOpt expr optimizedExpr
   where
-    -- optimizedExpr = applyExpr (strategy >>> projectT) expr
-    -- optimizedExpr = applyExpr (test >>> projectT) expr
     optimizedExpr = applyExpr (optimizeR >>> projectT) expr
