@@ -7,8 +7,6 @@ module Database.DSH.VL.PathfinderVectorPrimitives() where
 
 import           GHC.Exts
        
-import           Debug.Trace
-
 import           Control.Applicative               hiding (Const)
 import qualified Data.List.NonEmpty                as N
 
@@ -160,7 +158,7 @@ sumDefault :: VL.VLType -> (ATy, AVal)
 sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
-sumDefault t         = trace (show t) $impossible
+sumDefault t         = $impossible
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -289,6 +287,19 @@ instance VectorAlgebra PFAlgebra where
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
     return $ DVec qp [1]
 
+  vecAggrNonEmpty as (DVec q _) = do
+    let resCols = [1 .. N.length as]
+    
+    let aggrFuns = [ (aggrFun a, itemi i)
+                   | a <- N.toList as
+                   | i <- resCols
+                   ]
+
+    qa <- projM (itemProj resCols [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1)])
+          $ aggr aggrFuns [] q
+
+    return $ DVec qa resCols
+
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
@@ -312,6 +323,27 @@ instance VectorAlgebra PFAlgebra where
              (proj [mP descr' descr, mP pos' pos] qo)
              (return qp))
     return $ DVec qr [1]
+
+  vecAggrNonEmptyS as (DVec qo _) (DVec qi _) = do
+    let resCols = [1 .. N.length as]
+    
+    let aggrFuns = [ (aggrFun a, itemi i)
+                   | a <- N.toList as
+                   | i <- resCols
+                   ]
+
+    -- Compute aggregate output per segment and new positions
+    qa <- projM (itemProj resCols [cP descr, cP pos])
+          $ rownumM pos [descr] Nothing
+          $ aggr aggrFuns [(descr, ColE descr)] qi
+
+    -- Remove one level of nesting.
+    qr <- projM (itemProj resCols [mP descr descr', cP pos])
+          $ eqJoinM pos' descr
+             (proj [mP descr' descr, mP pos' pos] qo)
+             (return qa)
+
+    return $ DVec qr resCols
 
   vecReverse (DVec q cols) = do
     q' <- rownum' pos' [(pos, Desc)] Nothing q
