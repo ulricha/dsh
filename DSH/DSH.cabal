@@ -168,6 +168,10 @@ Library
                      Database.DSH.Optimizer.VL.Properties.Types
                      Database.DSH.Optimizer.VL.Properties.VectorType
 
+                     Database.DSH.Optimizer.X100.OptimizeX100
+                     Database.DSH.Optimizer.X100.Rewrite.Common
+                     Database.DSH.Optimizer.X100.Rewrite.Project
+
                      Database.DSH.Optimizer.TA.Properties.BottomUp
                      Database.DSH.Optimizer.TA.Properties.TopDown
                      Database.DSH.Optimizer.TA.Properties.Types

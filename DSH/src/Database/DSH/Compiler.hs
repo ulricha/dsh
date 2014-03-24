@@ -37,6 +37,7 @@ import qualified Database.DSH.Common.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Optimizer.TA.OptimizeTA
+import           Database.DSH.Optimizer.X100.OptimizeX100
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
@@ -62,6 +63,7 @@ nkl2X100Alg e = optimizeComprehensions e
                 |> specializeVectorOps
                 |> optimizeVLDefault
                 |> implementVectorOpsX100
+                |> optimizeX100Default
                 |> generateX100Queries
 
 nkl2Sql :: CL.Expr -> TopShape SqlCode
@@ -81,6 +83,7 @@ nkl2X100File prefix e = optimizeComprehensions e
                         |> specializeVectorOps
                         |> optimizeVLDefault
                         |> implementVectorOpsX100
+                        |> optimizeX100Default
                         |> (exportX100Plan prefix)
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
