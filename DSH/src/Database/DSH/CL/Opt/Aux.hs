@@ -385,8 +385,8 @@ prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
 prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
            
 debug :: Pretty a => String -> a -> b -> b
-debug msg a b = -- b
-    trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+debug msg a b = b
+    -- trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
 
 debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
 debugPretty msg a = debug msg a (return ())
@@ -395,7 +395,8 @@ debugMsg :: Monad m => String -> m ()
 debugMsg msg = trace msg $ return ()
 
 debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr = -- either (const origExpr) id mExpr
+debugOpt origExpr mExpr = either (const origExpr) id mExpr
+{-
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
     
@@ -411,6 +412,7 @@ debugOpt origExpr mExpr = -- either (const origExpr) id mExpr
         "Optimized query ===================================================================\n"
         ++ pp e 
         ++ "\n===================================================================================="
+-}
         
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = prettyR "Before >>>>>>"

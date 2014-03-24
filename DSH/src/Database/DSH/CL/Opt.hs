@@ -21,14 +21,13 @@ import Database.DSH.CL.Opt.NestJoin
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
 
--- FIXME add m_norm_1R once tables for benchmark queries exist
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
 compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 
--- | Comprehension normalization rules 4 and 5. Beware: these rewrites should
--- propably occur late in the chain, as they might prohibit semijoin/antijoin
--- introduction
+-- | Comprehension normalization rules 4 and 5. Beware: these rewrites
+-- should propably occur late in the chain, as they might prohibit
+-- semijoin/antijoin introduction
 compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
 
