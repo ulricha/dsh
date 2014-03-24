@@ -262,25 +262,6 @@ executable vldot
                       ansi-wl-pprint,
                       semigroups
 
-Test-Suite Flattening_x100
-    type:       exitcode-stdio-1.0
-    Hs-Source-Dirs: tests
-    Main-is:       Main.hs
-    Build-depends: base               >= 4.2 && < 5,
-                   containers,
-                   QuickCheck         >= 2.4,
-                   DSH                >= 0.7.8.1,
-                   text               >= 0.11,
-                   X100Client         >= 0.0.2,
-                   derive             >= 2.5,
-                   test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework-hunit,
-                   test-framework >= 0.6,
-                   HUnit
-    cpp-options: -DisX100
-    GHC-Options: -Wall 
-    extensions: CPP
-    
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
