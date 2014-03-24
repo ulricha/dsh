@@ -5,14 +5,11 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
   
-import           Debug.Trace
-  
 import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Pretty
-import           Database.DSH.Common.Data.Type
-import           Database.DSH.Common.Data.Val
-import           Database.DSH.Common.Data.Op
+import           Database.DSH.Common.Type
+import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang(toList, fromList)
@@ -32,7 +29,6 @@ prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
 prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
   where o' = case o of
                CL.Length           -> NKL.Length 
-               CL.Not              -> NKL.Not 
                CL.Concat           -> NKL.Concat 
                CL.Sum              -> NKL.Sum 
                CL.Avg              -> NKL.Avg 
@@ -42,7 +38,6 @@ prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
                CL.Head             -> NKL.Head 
                CL.Minimum          -> NKL.Minimum 
                CL.Maximum          -> NKL.Maximum 
-               CL.IntegerToDouble  -> NKL.IntegerToDouble 
                CL.Tail             -> NKL.Tail 
                CL.Reverse          -> NKL.Reverse 
                CL.And              -> NKL.And 
@@ -65,11 +60,8 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
               CL.Filter         -> NKL.Filter 
               CL.Append         -> NKL.Append
               CL.Index          -> NKL.Index 
-              CL.Take           -> NKL.Take
-              CL.Drop           -> NKL.Drop 
               CL.Zip            -> NKL.Zip
-              CL.TakeWhile      -> NKL.TakeWhile
-              CL.DropWhile      -> NKL.DropWhile
+              CL.Cons           -> NKL.Cons
               CL.CartProduct    -> NKL.CartProduct
               CL.NestProduct    -> NKL.NestProduct
               CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
@@ -85,6 +77,7 @@ expr (CL.AppE1 t p e)            = NKL.AppE1 t (prim1 p) (expr e)
 expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = expr $ CP.concat $ CP.map f xs
 expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o (expr e1) (expr e2)
+expr (CL.UnOp t o e)             = NKL.UnOp t o (expr e)
 expr (CL.Lam t v e)              = NKL.Lam t v (expr e)
 expr (CL.If t c th el)           = NKL.If t (expr c) (expr th) (expr el)
 expr (CL.Lit t v)                = NKL.Const t v
@@ -108,8 +101,10 @@ desugar t e qs =
       where xt = elemT $ typeOf xs
             rt = elemT t
     
-    (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.BinOp t Cons e' empty) empty
-      where empty = CL.Lit t (ListV [])
+    (e', CL.GuardQ p)   -> expr $ CL.If t p (CL.AppE2 t (CL.Prim2 CL.Cons consTy) e' empty) empty
+      where 
+        empty  = CL.Lit t (ListV [])
+        consTy = elemT t .-> t .-> t
 
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.
@@ -152,7 +147,7 @@ productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) =
 productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) = 
   productify e ((CL.GuardQ p) : (CL.BindQ x xs) : qs)
   
-guardTuplify :: (Injection a CL, Show a) => CL.Ident -> (CL.Ident, Type) -> (CL.Ident, Type) -> a -> a
+guardTuplify :: (Injection a CL, Show a) => Ident -> (Ident, Type) -> (Ident, Type) -> a -> a
 guardTuplify x v1 v2 v = 
     case applyT (tuplifyR x v1 v2) v of
         Left _   -> v
@@ -160,11 +155,12 @@ guardTuplify x v1 v2 v =
         
 debugPrint :: NKL.Expr -> String
 debugPrint e =
+
         "\nDesugared NKL =====================================================================\n"
         ++ pp e 
         ++ "\n==================================================================================="
 
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
-desugarComprehensions e = let e' = expr e in trace (debugPrint e') e'
+desugarComprehensions e = let e' = expr e in {- trace (debugPrint e') -} e'
 

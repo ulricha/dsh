@@ -6,7 +6,7 @@ import qualified Database.Algebra.Dag                                           
 
 import           Database.Algebra.Pathfinder.Data.Algebra
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Optimizer.Common.Rewrite
@@ -44,5 +44,5 @@ runPipeline d sh pipeline debug = (d', rewriteLog, sh')
 
 optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
 optimizeTA plan =
-  let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
+  let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline False
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }

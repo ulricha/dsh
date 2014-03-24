@@ -7,12 +7,11 @@ module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 import           Control.Monad
        
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.Dag.Common(Algebra(UnOp))
-import           Database.Algebra.VL.Data                      (VL(), UnOp(Project), Expr1(..))
-import           Database.Algebra.VL.Render.JSON               ()
-import           Database.DSH.Common.Data.Op
-import qualified Database.DSH.Common.Data.QueryPlan as QP
-import           Database.DSH.Common.Data.Type 
+import qualified Database.Algebra.Dag.Common as Alg
+import           Database.DSH.VL.Lang                      (VL(), UnOp(Project), Expr1(..))
+import           Database.DSH.VL.Render.JSON               ()
+import qualified Database.DSH.Common.QueryPlan as QP
+import           Database.DSH.Common.Type 
 import           Database.DSH.FKL.Data.FKL
 import           Database.DSH.VL.Data.GraphVector   hiding (Pair)
 import           Database.DSH.VL.Data.DBVector
@@ -22,25 +21,25 @@ import           Database.DSH.VL.VectorOperations
 fkl2VL :: Expr -> Graph VL Shape
 fkl2VL expr =
     case expr of
-        Table _ n cs ks -> dbTable n cs ks
+        Table _ n cs hs -> dbTable n cs hs
         Const t v -> mkLiteral t v
-        BinOp _ (Op Cons False) e1 e2 -> do 
-            e1' <- fkl2VL e1
-            e2' <- fkl2VL e2
-            cons e1' e2'
-        BinOp _ (Op Cons True)  e1 e2 -> do 
-            e1' <- fkl2VL e1
-            e2' <- fkl2VL e2
-            consLift e1' e2'
-        BinOp _ (Op o False) e1 e2    -> do 
+        BinOp _ (NotLifted o) e1 e2    -> do 
             PrimVal p1 lyt <- fkl2VL e1
             PrimVal p2 _   <- fkl2VL e2
             p              <- vlBinExpr o p1 p2
             return $ PrimVal p lyt
-        BinOp _ (Op o True) e1 e2     -> do 
+        BinOp _ (Lifted o) e1 e2     -> do 
             ValueVector p1 lyt <- fkl2VL e1
             ValueVector p2 _   <- fkl2VL e2
             p                  <- vlBinExpr o p1 p2
+            return $ ValueVector p lyt
+        UnOp _ (NotLifted o) e1 -> do 
+            PrimVal p1 lyt <- fkl2VL e1
+            p              <- vlUnExpr o p1
+            return $ PrimVal p lyt
+        UnOp _ (Lifted o) e1 -> do 
+            ValueVector p1 lyt <- fkl2VL e1
+            p                  <- vlUnExpr o p1
             return $ ValueVector p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2VL eb
@@ -88,8 +87,6 @@ papp1 t f =
         FAvgL _             -> avgLift
         FThe _              -> the
         FTheL _             -> theL
-        FNot _              -> notS
-        FNotL _             -> notL
         FFst _              -> fstA
         FSnd _              -> sndA
         FFstL _             -> fstL
@@ -100,8 +97,6 @@ papp1 t f =
         FMinimumL _         -> minLift
         FMaximum _          -> maxPrim
         FMaximumL _         -> maxLift
-        FIntegerToDouble _  -> integerToDoubleS
-        FIntegerToDoubleL _ -> integerToDoubleL
         FTail _             -> tailS
         FTailL _            -> tailL
         FReverse _          -> reversePrim
@@ -140,12 +135,10 @@ papp2 f =
         FAppendL _         -> appendLift
         FIndex _           -> indexPrim
         FIndexL _          -> indexLift
-        FTake _            -> takePrim
-        FTakeL _           -> takeLift
-        FDrop _            -> dropPrim
-        FDropL _           -> dropLift
         FZip _             -> zipPrim
         FZipL _            -> zipLift
+        FCons _            -> cons
+        FConsL _           -> consLift
         FCartProduct _     -> cartProductPrim
         FCartProductL _    -> cartProductLift
         FNestProduct _     -> nestProductPrim
@@ -158,10 +151,6 @@ papp2 f =
         FSemiJoinL e1 e2 _ -> semiJoinLift e1 e2
         FAntiJoin e1 e2 _  -> antiJoinPrim e1 e2
         FAntiJoinL e1 e2 _ -> antiJoinLift e1 e2
-        FTakeWith _        -> takeWithS
-        FTakeWithL _       -> takeWithL
-        FDropWith _        -> dropWithS
-        FDropWithL _       -> dropWithL
 
 constructClosureEnv :: [String] -> Graph a [(String, Shape)]
 constructClosureEnv [] = return []
@@ -203,7 +192,7 @@ insertTopProjections g = do
   insertProj lyt q project vector describe = do
       let width = QP.columnsInLayout lyt
           cols  = [1 .. width]
-      qp   <- insertNode $ UnOp (project $ map Column1 cols) q
+      qp   <- insertNode $ Alg.UnOp (project $ map Column1 cols) q
       lyt' <- traverseLayout lyt
       return $ describe (vector qp cols) lyt'
 

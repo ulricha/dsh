@@ -1,7 +1,9 @@
 module Database.DSH.VL.VectorPrimitives where
 
-import Database.DSH.VL.Data.DBVector
-import Database.Algebra.VL.Data (VLType(), TypedColumn, Key, VLVal(), VecCompOp(), ISTransProj, Expr1, Expr2, Nat, AggrFun)
+import qualified Data.List.NonEmpty as N
+import           Database.DSH.Common.Lang
+import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Lang
 
 -- FIXME this should import a module from TableAlgebra which defines
 -- common types like schema info and abstract column types.
@@ -24,7 +26,7 @@ class VectorAlgebra a where
   singletonDescr :: GraphM r a DVec
   
   vecLit :: [VLType] -> [[VLVal]] -> GraphM r a DVec
-  vecTableRef :: String -> [TypedColumn] -> [Key] -> GraphM r a DVec
+  vecTableRef :: String -> [VLColumn] -> TableHints -> GraphM r a DVec
 
   vecUniqueS :: DVec -> GraphM r a DVec
 
@@ -38,24 +40,20 @@ class VectorAlgebra a where
   
   vecAggr :: AggrFun -> DVec -> GraphM r a DVec
   vecAggrS :: AggrFun -> DVec -> DVec -> GraphM r a DVec
+  vecAggrNonEmpty :: N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
+  vecAggrNonEmptyS :: N.NonEmpty AggrFun -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME operator too specialized. should be implemented using number + select
-  selectPos1 :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
-  selectPos1S :: DVec -> VecCompOp -> Nat -> GraphM r a (DVec, RVec)
+  selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
+  selectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
 
   vecReverse :: DVec -> GraphM r a (DVec, PVec)
   vecReverseS :: DVec -> GraphM r a (DVec, PVec)
   
-  -- FIXME this operator is too specialized. Could be implemented with NOT, PROJECT
-  -- and some operator that materializes positions.
-  falsePositions :: DVec -> GraphM r a DVec
-
   vecSelect:: Expr1 -> DVec -> GraphM r a DVec
 
   vecSortSimple :: [Expr1] -> DVec -> GraphM r a (DVec, PVec)
   vecGroupSimple :: [Expr1] -> DVec -> GraphM r a (DVec, DVec, PVec)
-
-  projectRename :: ISTransProj -> ISTransProj -> DVec -> GraphM r a RVec
 
   vecProject :: [Expr1] -> DVec -> GraphM r a DVec
   
@@ -68,7 +66,7 @@ class VectorAlgebra a where
   -- operates segmented, i.e. always groups by descr first. This
   -- operator must be used with care: It does not determine the
   -- complete set of descr value to check for empty inner lists.
-  vecGroupAggr :: [Expr1] -> [AggrFun] -> DVec -> GraphM r a DVec
+  vecGroupAggr :: [Expr1] -> N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
 
   vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc
@@ -88,8 +86,8 @@ class VectorAlgebra a where
   vecBinExpr :: Expr2 -> DVec -> DVec -> GraphM r a DVec
 
   -- FIXME could be implemented using number and select
-  selectPos :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
-  selectPosS :: DVec -> VecCompOp -> DVec -> GraphM r a (DVec, RVec)
+  selectPos :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
+  selectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
 
   -- FIXME better name: zip
   vecZip :: DVec -> DVec -> GraphM r a DVec
@@ -97,13 +95,13 @@ class VectorAlgebra a where
   -- FIXME better name: zipSeg
   vecZipS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
-  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
-  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
-  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec)
 
-  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
-  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
-  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec, PVec)
+  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec)
   
   vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
   vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)

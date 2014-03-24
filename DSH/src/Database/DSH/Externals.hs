@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Database.DSH.Externals where
        
@@ -10,7 +11,7 @@ import Database.DSH.Internals
 import Database.DSH.Impossible
 import Database.DSH.TH
 
-import Prelude ( Eq, Ord, Num(..), Fractional(..), Show(..)
+import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..), Show(..)
                , Bool(..), Char, Integer, Double, String, Maybe(..), Either(..)
                , id, undefined, ($), (.))
 import qualified Prelude as P
@@ -185,6 +186,18 @@ instance Fractional (Exp Double) where
   (/) e1 e2    = AppE Div (PairE e1 e2)
   fromRational = DoubleE . fromRational
 
+instance Floating (Exp Double) where
+  pi     = DoubleE 3.141592653589793
+  sin e  = AppE Sin e
+  cos e  = AppE Cos e
+  tan e  = AppE Tan e
+  sqrt e = AppE Sqrt e
+  exp e  = AppE Exp e
+  log e  = AppE Log e
+  asin e = AppE ASin e
+  acos e = AppE ACos e
+  atan e = AppE ATan e
+
 instance Num (Q Integer) where
   (+) (Q e1) (Q e2) = Q (e1 + e2)
   (*) (Q e1) (Q e2) = Q (e1 * e2)
@@ -204,6 +217,18 @@ instance Num (Q Double) where
 instance Fractional (Q Double) where
   (/) (Q e1) (Q e2) = Q (e1 / e2)
   fromRational = Q . DoubleE . fromRational
+
+instance Floating (Q Double) where
+  pi         = Q pi
+  sin (Q e)  = Q (sin e)
+  cos (Q e)  = Q (cos e)
+  tan (Q e)  = Q (tan e)
+  asin (Q e) = Q (asin e)
+  acos (Q e) = Q (acos e)
+  atan (Q e) = Q (atan e)
+  exp (Q e)  = Q (exp e)
+  log (Q e)  = Q (log e)
+  sqrt (Q e) = Q (sqrt e)
 
 -- View instances
 
@@ -246,14 +271,11 @@ instance IsString (Q Text) where
 
 -- * Referring to persistent tables
 
-table :: (QA a, TA a) => String -> Q [a]
-table name = Q (TableE (TableDB name []))
+defaultHints :: TableHints
+defaultHints = TableHints [] PossiblyEmpty
 
-tableDB :: (QA a, TA a) => String -> Q [a]
-tableDB name = Q (TableE (TableDB name []))
-
-tableWithKeys :: (QA a, TA a) => String -> [[String]] -> Q [a]
-tableWithKeys name keys = Q (TableE (TableDB name keys))
+table :: (QA a, TA a) => String -> TableHints -> Q [a]
+table name hints = Q (TableE (TableDB name hints))
 
 tableCSV :: (QA a, TA a) => String -> Q [a]
 tableCSV filename = Q (TableE (TableCSV filename))
@@ -450,10 +472,10 @@ tail :: (QA a) => Q [a] -> Q [a]
 tail (Q as) = Q (AppE Tail as)
 
 take :: (QA a) => Q Integer -> Q [a] -> Q [a]
-take (Q i) (Q as) = Q (AppE Take (PairE i as))
+take i xs = map fst $ filter (\xp -> snd xp <= i) $ number xs
 
 drop :: (QA a) => Q Integer -> Q [a] -> Q [a]
-drop (Q i) (Q as) = Q (AppE Drop (PairE i as))
+drop i xs = map fst $ filter (\xp -> snd xp > i) $ number xs
 
 map :: (QA a,QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
 map f (Q as) = Q (AppE Map (PairE (LamE (toLam f)) as))
@@ -535,13 +557,25 @@ minimum (Q as) = Q (AppE Minimum as)
 -- * Sublists
 
 splitAt :: (QA a) => Q Integer -> Q [a] -> Q ([a],[a])
-splitAt (Q i) (Q as) = Q (AppE SplitAt (PairE i as))
+splitAt i xs = pair (take i xs) (drop i xs)
 
+-- FIXME might be implemented using non-dense numbering!
 takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile f (Q as) = Q (AppE TakeWhile (PairE (LamE (toLam f)) as))
+takeWhile p xs = 
+    let ys            = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
+        notQualifying = filter (\xposp -> not (snd xposp)) ys
+        maxPos = minimum $ map (\xposp -> snd $ fst xposp) notQualifying
+     
+    in cond (null notQualifying) 
+            xs
+            (map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) < maxPos) ys)
 
+-- FIXME might be implemented using non-dense numbering!
 dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile f (Q as) = Q (AppE DropWhile (PairE (LamE (toLam f)) as))
+dropWhile p xs = 
+    let ys  = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
+        minPos = minimum $ map (\xposp -> snd $ fst xposp) $ filter (\xposp -> not (snd xposp)) ys
+    in map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) >= minPos) ys
 
 span :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q ([a],[a])
 span f as = pair (takeWhile f as) (dropWhile f as)

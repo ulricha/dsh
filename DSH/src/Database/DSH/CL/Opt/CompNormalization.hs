@@ -15,9 +15,8 @@ module Database.DSH.CL.Opt.CompNormalization
        
 import Control.Arrow
                  
-import Debug.Trace
-
 import Database.DSH.Impossible
+import Database.DSH.Common.Lang
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Opt.Aux
@@ -82,7 +81,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
             -- x <- [v]
             BindQ x (Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
             -- x <- v : []
-            BindQ x (BinOp _ Cons v (Lit _ (ListV []))) -> return (x, v)
+            BindQ x (AppE2 _ (Prim2 Cons _) v (Lit _ (ListV []))) -> return (x, v)
             _                                           -> fail "qualR: no match"
             
     -- Try to match the pattern at the end of the qualifier list
@@ -145,3 +144,4 @@ m_norm_4R = $unimplemented
 -- | M-Norm-5: Unnest nested comprehensions over an idempotent monad.
 m_norm_5R :: RewriteC CL
 m_norm_5R = $unimplemented
+

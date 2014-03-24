@@ -1,19 +1,22 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | This module provides the flattening implementation of DSH.
+-- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
-  ( -- * Debug functions
-    debugVL
+  ( -- * Executing queries
+    runQ
+    -- * Debug functions
+  , debugVL
   , debugVLOpt
   , debugTA
   , debugTAOpt
+  , runPrint
   ) where
 
 import           Text.Printf
 import           GHC.Exts
                  
-import           Database.DSH.Impossible
 import           Database.DSH.CompileFlattening
+import           Database.DSH.Execute.Sql
 
 import           Database.DSH.Internals
 import           Database.HDBC
@@ -21,7 +24,8 @@ import qualified Database.HDBC                                   as H
 
 import qualified Database.DSH.CL.Lang                 as CL
 import           Database.DSH.CL.Opt
-import qualified Database.DSH.Common.Data.Type        as T
+import           Database.DSH.Common.QueryPlan
+import qualified Database.DSH.Common.Type        as T
 import           Database.DSH.Export
 import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Optimizer.TA.OptimizeTA
@@ -29,6 +33,8 @@ import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
+import           Database.DSH.Translate.Algebra2Query
+import           Database.DSH.Common.DBCode
 
 import qualified Data.List                                       as L
 
@@ -40,6 +46,16 @@ import           Data.Convertible                                ()
 (|>) = flip ($)
 
 -- Different versions of the flattening compiler pipeline
+
+nkl2Sql :: CL.Expr -> TopShape SqlCode
+nkl2Sql e = optimizeComprehensions e
+            |> desugarComprehensions
+            |> flatten
+            |> specializeVectorOps
+            |> optimizeVLDefault
+            |> implementVectorOpsPF
+            |> optimizeTA
+            |> generateSqlQueries
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix e = optimizeComprehensions e
@@ -77,8 +93,13 @@ nkl2VLFileOpt prefix e = optimizeComprehensions e
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
-fromQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
-fromQ c (Q a) = $unimplemented
+-- | Run a query on a SQL backend
+runQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+runQ conn (Q q) = do
+    let ty = reify (undefined :: a)
+    q' <- toComprehensions (getTableInfo conn) q
+    let sqlQueryBundle = nkl2Sql q'
+    frExp <$> executeSql conn sqlQueryBundle ty
                   
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
@@ -105,6 +126,11 @@ debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
+
+-- | Convenience function: execute a query on a SQL backend and print
+-- its result
+runPrint :: (Show a, QA a, IConnection conn) => conn -> Q a -> IO ()
+runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
 -- | Retrieve through the given database connection information on the
 -- table (columns with their types) which name is given as the second

@@ -3,10 +3,10 @@ module Database.DSH.Optimizer.VL.OptimizeVL where
 import qualified Data.IntMap                                                      as M
 
 import qualified Database.Algebra.Dag                                             as Dag
-import           Database.Algebra.VL.Data
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Optimizer.Common.Rewrite
@@ -42,7 +42,7 @@ assemblePipeline s = mapM (flip lookup rewriteClasses) s
 
 optimizeVL :: [RewriteClass] -> QueryPlan VL -> QueryPlan VL
 optimizeVL pipeline plan =
-  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline True
+  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
 
 optimizeVL' :: [RewriteClass] -> QueryPlan VL -> (QueryPlan VL, Log)

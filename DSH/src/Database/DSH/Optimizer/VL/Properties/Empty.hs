@@ -4,10 +4,8 @@ module Database.DSH.Optimizer.VL.Properties.Empty where
 
 import Control.Monad
   
-import Database.Algebra.VL.Data
+import Database.DSH.VL.Lang
 
-import Database.DSH.Impossible
-  
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
   
@@ -31,21 +29,20 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
-    UniqueS -> Right e
-    Aggr _ -> Right $ VProp False
-    DescToRename -> Right e
-    Segment -> Right e
-    Unsegment -> Right e
-    Reverse -> let ue = unp e in liftM2 VPropPair ue ue
-    ReverseS -> let ue = unp e in liftM2 VPropPair ue ue
-    FalsePositions -> Right e
-    ProjectRename _  -> Right e
-    Project _   -> Right e
-    Select _       -> Right e
-    SortSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
+    UniqueS         -> Right e
+    Aggr _          -> Right $ VProp False
+    AggrNonEmpty _  -> Right $ VProp False
+    DescToRename    -> Right e
+    Segment         -> Right e
+    Unsegment       -> Right e
+    Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
+    ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
+    Project _       -> Right e
+    Select _        -> Right e
+    SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
     GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
-    Only             -> $unimplemented
-    Singleton        -> $unimplemented
+    Only            -> Right e
+    Singleton       -> Right e
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -99,6 +96,7 @@ inferEmptyBinOp e1 e2 op =
     Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     BinExpr _ -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     AggrS _ -> return $ VProp False
+    AggrNonEmptyS _ -> return $ VProp False
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))

@@ -3,20 +3,17 @@
 module Database.DSH.Export
   ( exportVLPlan
   , exportX100Plan
-  , exportX100Code
-  , exportSQL
   , exportTAPlan
   ) where
 
 import           Database.Algebra.Dag
-import           Database.Algebra.VL.Data                      hiding (Pair)
+import           Database.DSH.VL.Lang                      hiding (Pair)
 import           Database.Algebra.X100.Data
 import           Database.Algebra.Pathfinder.Data.Algebra
 
-import           Database.DSH.Common.Data.QueryPlan hiding (mkQueryPlan)
-import           Database.DSH.Common.Data.DBCode
+import           Database.DSH.Common.QueryPlan
 
-import qualified Database.Algebra.VL.Render.JSON               as VLJSON
+import qualified Database.DSH.VL.Render.JSON               as VLJSON
 import qualified Database.Algebra.X100.JSON                    as X100JSON
 import qualified Database.Algebra.Pathfinder.Render.JSON       as PFJSON
 
@@ -52,38 +49,3 @@ exportTAPlan prefix pfPlan = do
                                , nodeMap $ queryDag pfPlan
                                )
   writeFile shapePath $ show $ queryShape pfPlan
-
-query :: String -> String -> (a -> (Int, String)) -> TopShape a -> IO ()
-query prefix suffix extract (ValueVector q l) = do
-  let (i, s) = extract q
-      f      = prefix ++ "_" ++ (show i) ++ suffix
-  writeFile f s
-  layout prefix suffix extract l
-query prefix suffix extract (PrimVal q l)     = do
-  let (i, s) = extract q
-      f      = prefix ++ "_" ++ (show i) ++ suffix
-  writeFile f s
-  layout prefix suffix extract l
-
-layout :: String -> String -> (a -> (Int, String)) -> TopLayout a -> IO ()
-layout _      _      _        (InColumn _) = return ()
-layout prefix suffix extract (Nest q l)   = do
-  let (i, s) = extract q
-      f      = prefix ++ "_" ++ (show i) ++ suffix
-  writeFile f s
-  layout prefix suffix extract l
-layout prefix suffix extract (Pair l1 l2) = do
-  layout prefix suffix extract l1
-  layout prefix suffix extract l2
-
-fromX100 :: X100Code -> (Int, String)
-fromX100 (X100Code i s) = (i, s)
-
-fromSQL :: SQLCode -> (Int, String)
-fromSQL (SQLCode i _ s) = (i, s)
-
-exportX100Code :: String -> TopShape X100Code -> IO ()
-exportX100Code prefix q = query prefix ".vwq" fromX100 q
-
-exportSQL :: String -> TopShape SQLCode -> IO ()
-exportSQL prefix q = query prefix ".sql" fromSQL q

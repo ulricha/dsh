@@ -23,10 +23,8 @@ module Database.DSH.FKL.FKLPrimitives where
        
 import Database.DSH.FKL.Data.FKL as F
 import Database.DSH.Common.Pretty
-import Database.DSH.Common.Data.Val
-import Database.DSH.Common.Data.Op
-import Database.DSH.Common.Data.Type
-import Database.DSH.Common.Data.JoinExpr
+import Database.DSH.Common.Lang
+import Database.DSH.Common.Type
 
 import Control.Monad
 \end{code}
@@ -110,35 +108,21 @@ groupWithKeyLPrim f e = let arg1 = mapLPrim f e
                             t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.FGroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 
-takeWithVal :: Type -> Expr
-takeWithVal t = doubleArgClo t "take_f" "take_xs" takeWithPrim takeWithLPrim
+consVal :: Type -> Expr
+consVal t = doubleArgClo t "cons_e1" "cons_e2" consPrim consLPrim
 
-takeWithPrim :: Expr -> Expr -> Expr
-takeWithPrim f e = let arg1 = mapPrim f e
-                       t1 = typeOf arg1
-                       t2 = typeOf e
-                    in F.PApp2 t2 (F.FTakeWith (t1 .-> t2 .-> t2)) arg1 e
+consPrim :: Expr -> Expr -> Expr
+consPrim e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.FCons (t1 .-> t2 .-> t2)) e1 e2
 
-takeWithLPrim :: Expr -> Expr -> Expr
-takeWithLPrim f e = let arg1 = mapLPrim f e
-                        t1 = typeOf arg1 
-                        t2 = typeOf e
-                     in F.PApp2 t2 (F.FTakeWithL (t1 .-> t2 .-> t2)) arg1 e
+consLPrim :: Expr -> Expr -> Expr
+consLPrim e1 e2 =
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.FConsL (t1 .-> t2 .-> t2)) e1 e2
 
-dropWithVal :: Type -> Expr
-dropWithVal t = doubleArgClo t "drop_f" "drop_xs" dropWithPrim dropWithLPrim
-
-dropWithPrim :: Expr -> Expr -> Expr
-dropWithPrim f e = let arg1 = mapPrim f e
-                       t1 = typeOf arg1
-                       t2 = typeOf e
-                    in F.PApp2 t2 (F.FDropWith (t1 .-> t2 .-> t2)) arg1 e
-
-dropWithLPrim :: Expr -> Expr -> Expr
-dropWithLPrim f e = let arg1 = mapLPrim f e
-                        t1 = typeOf arg1 
-                        t2 = typeOf e
-                     in F.PApp2 t2 (F.FDropWithL (t1 .-> t2 .-> t2)) arg1 e
 
 pairVal :: Type -> Expr
 pairVal t = doubleArgClo t "pair_e1" "pair_e2" pairPrim pairLPrim
@@ -149,37 +133,12 @@ pairPrim e1 e2 = let t1 = typeOf e1
                      rt = pairT t1 t2
                   in F.PApp2 rt (F.FPair (t1 .-> t2 .-> rt)) e1 e2
 
+-- FIXME lifted pair is equivalent to zip!
 pairLPrim :: Expr -> Expr -> Expr
 pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                       t2@(ListT t2') = typeOf e2
                       rt = listT (pairT t1' t2')
                    in F.PApp2 rt (F.FPairL (t1 .-> t2 .-> rt)) e1 e2 
-
-takeVal :: Type -> Expr
-takeVal t = doubleArgClo t "take_e1" "take_e2" takePrim takeLPrim
-
-takePrim :: Expr -> Expr -> Expr
-takePrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                  in F.PApp2 t2 (F.FTake (t1 .-> t2 .-> t2)) e1 e2
-
-takeLPrim :: Expr -> Expr -> Expr
-takeLPrim e1 e2 = let t1 = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t2 (F.FTakeL (t1 .-> t2 .-> t2)) e1 e2
-
-dropVal :: Type -> Expr
-dropVal t = doubleArgClo t "drop_e1" "drop_e2" dropPrim dropLPrim
-
-dropPrim :: Expr -> Expr -> Expr
-dropPrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                  in F.PApp2 t2 (F.FDrop (t1 .-> t2 .-> t2)) e1 e2
-
-dropLPrim :: Expr -> Expr -> Expr
-dropLPrim e1 e2 = let t1 = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t2 (F.FDropL (t1 .-> t2 .-> t2)) e1 e2
 
 zipVal :: Type -> Expr
 zipVal t = doubleArgClo t "zip_e1" "zip_e2" zipPrim zipLPrim
@@ -432,17 +391,6 @@ reverseLPrim :: Expr -> Expr
 reverseLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
                 in F.PApp1 t1 (F.FReverseL $ t1 .-> t1) e1
 
-notVal :: Type -> Expr
-notVal t = singleArgClo t "not_v" notPrim notLPrim
-
-notPrim :: Expr -> Expr
-notPrim e1 = let t1@(BoolT) = typeOf e1
-              in F.PApp1 t1 (F.FNot $ t1 .-> t1) e1
-              
-notLPrim :: Expr -> Expr 
-notLPrim e1 = let t1@(ListT BoolT) = typeOf e1
-               in F.PApp1 t1 (F.FNotL $ t1 .-> t1) e1
-
 andVal :: Type -> Expr
 andVal t = singleArgClo t "and_v" andPrim andLPrim
 
@@ -465,17 +413,6 @@ orPrim e1 = let t1@(ListT BoolT) = typeOf e1
 orLPrim :: Expr -> Expr 
 orLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
             in F.PApp1 t (F.FOrL $ t1 .-> t) e1
-
-integerToDoubleVal :: Type -> Expr
-integerToDoubleVal t = singleArgClo t "integerToDouble_v" integerToDoublePrim integerToDoubleLPrim
-
-integerToDoublePrim :: Expr -> Expr
-integerToDoublePrim e1 = let t1@(IntT) = typeOf e1
-                          in F.PApp1 DoubleT (F.FIntegerToDouble $ t1 .-> DoubleT) e1
-
-integerToDoubleLPrim :: Expr -> Expr 
-integerToDoubleLPrim e1 = let t1@(ListT IntT) = typeOf e1
-                          in F.PApp1 (ListT DoubleT) (F.FIntegerToDoubleL $ t1 .-> ListT DoubleT) e1
 
 sumVal :: Type -> Expr
 sumVal t = singleArgClo t "sum_v" sumPrim sumLPrim
@@ -640,20 +577,34 @@ ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
 ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
 ifPrimM = liftM3 ifPrim
     
-opPrim :: Type -> Oper -> Expr -> Expr -> Expr     
-opPrim t o e1 e2 = let t' = typeOf e1
-                    in case (t', o) of
-                        (PairT _ _, Eq) -> opPrim t Conj (opPrim t Eq (fstPrim e1) (fstPrim e2)) (opPrim t Eq (sndPrim e1) (sndPrim e2))
-                        _ -> BinOp t (Op o False) e1 e2
+binPrim :: Type -> ScalarBinOp -> Expr -> Expr -> Expr     
+binPrim t o e1 e2 = 
+    let t' = typeOf e1
+    in case (t', o) of
+           (PairT _ _, Eq) -> binPrim t Conj (binPrim t Eq (fstPrim e1) (fstPrim e2)) 
+                                             (binPrim t Eq (sndPrim e1) (sndPrim e2))
+           _               -> BinOp t (NotLifted o) e1 e2
 
-opPrimM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
-opPrimM t o = liftM2 (opPrim t o)
+binPrimM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binPrimM t o = liftM2 (binPrim t o)
 
-opPrimL :: Type -> Oper -> Expr -> Expr -> Expr
-opPrimL t o = BinOp t (Op o True) 
+binPrimL :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
+binPrimL t o = BinOp t (Lifted o) 
 
-opPrimLM :: Monad m => Type -> Oper -> m Expr -> m Expr -> m Expr
-opPrimLM t o = liftM2 (opPrimL t o)
+binPrimLM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binPrimLM t o = liftM2 (binPrimL t o)
+
+unPrim :: Type -> ScalarUnOp -> Expr -> Expr
+unPrim t o e = UnOp t (NotLifted o) e
+
+unPrimM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unPrimM t o = liftM (unPrim t o)
+
+unPrimL :: Type -> ScalarUnOp -> Expr -> Expr
+unPrimL t o e = UnOp t (Lifted o) e
+
+unPrimLM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unPrimLM t o = liftM (unPrimL t o)
 
 clo :: Type -> String -> [String] -> String -> Expr -> Expr -> Expr
 clo = Clo

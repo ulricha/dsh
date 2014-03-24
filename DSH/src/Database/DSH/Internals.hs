@@ -22,7 +22,22 @@ data Exp a where
   VarE      :: (Reify a)           => Integer -> Exp a
   TableE    :: (Reify a)           => Table -> Exp [a]
 
-data Table = TableDB String [[String]] | TableCSV  String deriving (Eq, Ord, Show)
+-- | A combination of column names that form a candidate key
+newtype Key = Key [String] deriving (Eq, Ord, Show)
+
+-- | Is the table guaranteed to be not empty?
+data Emptiness = NonEmpty
+               | PossiblyEmpty
+               deriving (Eq, Ord, Show)
+
+-- | Catalog information hints that users may give to DSH
+data TableHints = TableHints 
+    { keysHint     :: [Key]
+    , nonEmptyHint :: Emptiness
+    } deriving (Eq, Ord, Show)
+
+data Table = TableDB String TableHints
+           | TableCSV  String deriving (Eq, Ord, Show)
 
 data Type a where
   UnitT     :: Type ()
@@ -73,22 +88,26 @@ data Fun a b where
     Min             :: Fun (a,a) a
     Max             :: Fun (a,a) a
     Cons            :: Fun (a,[a]) [a]
-    Take            :: Fun (Integer,[a]) [a]
-    Drop            :: Fun (Integer,[a]) [a]
     Index           :: Fun ([a],Integer) a
-    SplitAt         :: Fun (Integer,[a]) ([a],[a])
     Zip             :: Fun ([a],[b]) [(a,b)]
     Map             :: Fun (a -> b,[a]) [b]
     ConcatMap       :: Fun (a -> [b],[a]) [b]
     Filter          :: Fun (a -> Bool,[a]) [a]
     GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
     SortWith        :: Fun (a -> b,[a]) [a]
-    TakeWhile       :: Fun (a -> Bool,[a]) [a]
-    DropWhile       :: Fun (a -> Bool,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
     Like            :: Fun (Text,Text) Bool
     Transpose       :: Fun [[a]] [[a]]
     Reshape         :: Integer -> Fun [a] [[a]]
+    Sin             :: Fun Double Double
+    Cos             :: Fun Double Double
+    Tan             :: Fun Double Double
+    Sqrt            :: Fun Double Double
+    Exp             :: Fun Double Double
+    Log             :: Fun Double Double
+    ASin            :: Fun Double Double
+    ACos            :: Fun Double Double
+    ATan            :: Fun Double Double
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -161,18 +180,13 @@ instance Show (Fun a b) where
     show Min  = "min"
     show Max  = "max"
     show Cons = "cons"
-    show Take = "take"
-    show Drop = "drop"
     show Index = "index"
-    show SplitAt = "splitAt"
     show Zip = "zip"
     show Map = "map"
     show ConcatMap = "concatMap"
     show Filter = "filter"
     show GroupWithKey = "groupWithKey"
     show SortWith = "sortWith"
-    show TakeWhile = "takeWhile"
-    show DropWhile = "dropWhile"
     show Cond = "cond"
     show Append = "append"
     show Like = "like"
@@ -181,6 +195,15 @@ instance Show (Fun a b) where
     show Guard = "guard"
     show (Reshape n) = printf "reshape(%d)" n
     show Transpose = "transpose"
+    show Sin = "sin"
+    show Cos = "cos"
+    show Tan = "tan"
+    show Sqrt = "sqrt"
+    show Exp = "exp"
+    show Log = "log"
+    show ASin = "asin"
+    show ACos = "acos"
+    show ATan = "atan"
 
 -- Reify instances
 

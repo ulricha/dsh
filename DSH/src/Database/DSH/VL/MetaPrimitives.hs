@@ -2,7 +2,7 @@
 
 module Database.DSH.VL.MetaPrimitives where
 
-import Database.Algebra.VL.Data (VL())
+import Database.DSH.VL.Lang (VL())
 import Database.DSH.Impossible
 import Database.DSH.VL.Data.DBVector
 import Database.DSH.VL.Data.GraphVector

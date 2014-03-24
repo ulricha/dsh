@@ -6,8 +6,8 @@ import qualified Data.IntMap as M
 
 import Database.Algebra.Dag.Common
 import Database.Algebra.Dag
-import Database.Algebra.VL.Data
 
+import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Aux
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.ReqColumns
@@ -36,13 +36,12 @@ seed (UnOp op _)   =
     DescToRename       -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
-    FalsePositions     -> vPropSeed
     Select     _       -> vPropSeed
     SortSimple _       -> vPropSeed
     GroupSimple _      -> vPropSeed
-    ProjectRename _    -> vPropSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
+    AggrNonEmpty _     -> vPropSeed
     GroupAggr _ _      -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
@@ -72,6 +71,7 @@ seed (BinOp op _ _) =
     PropRename         -> vPropSeed
     BinExpr    _       -> vPropSeed
     AggrS _            -> vPropSeed
+    AggrNonEmptyS _    -> vPropSeed
     Zip                -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed

@@ -2,14 +2,13 @@
 
 module Database.DSH.Optimizer.VL.Properties.Const where
 
-import Data.List
-import Text.Printf
+import qualified Data.List.NonEmpty as N
+import           Data.List
+import           Text.Printf
 
-import Database.DSH.Impossible
-
-import Database.Algebra.VL.Data
-import Database.DSH.Optimizer.VL.Properties.Common
-import Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.VL.Lang
+import           Database.DSH.Optimizer.VL.Properties.Common
+import           Database.DSH.Optimizer.VL.Properties.Types
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
@@ -43,6 +42,12 @@ constExpr1 constCols e =
         BinApp1 op e1 e2 -> return NonConstPL
         UnApp1 op e1     -> return NonConstPL
 
+nonConstPVec :: ConstVec
+nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
+
+nonConstRVec :: ConstVec
+nonConstRVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
+
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
@@ -68,6 +73,9 @@ inferConstVecUnOp c op =
 
     Aggr _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+
+    AggrNonEmpty _ -> do
+      return $ VProp $ DBVConst (ConstDescr (N 1)) [NonConstPL]
 
     DescToRename -> do
       (d, _) <- unp c >>= fromDBV
@@ -97,19 +105,6 @@ inferConstVecUnOp c op =
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    FalsePositions -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
-
-    ProjectRename (targetIS, _)  -> do
-      -- FIXME this is not precise -- take care of the source space.
-      (d, _) <- unp c >>= fromDBV
-      let d' = case targetIS of
-            STDescrCol -> d
-            STPosCol -> NonConstDescr
-            STNumber -> NonConstDescr
-      return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d')
-
     Project projExprs   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
       constCols'              <- mapM (constExpr1 constCols) projExprs
@@ -119,20 +114,20 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
 
-    Only             -> $unimplemented
-    Singleton        -> $unimplemented
+    Only             -> return c
+    Singleton        -> return c
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (length as) ])
+      return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
       
     Number -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
     NumberS -> do
-      (d, _) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d [NonConstPL]
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
     SortSimple _ -> do
       (d, cs) <- unp c >>= fromDBV
@@ -189,6 +184,9 @@ inferConstVecBinOp c1 c2 op =
     AggrS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
+    AggrNonEmptyS _ -> do
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+
     DistPrim -> do
       (d, _)    <- unp c2 >>= fromDBV
       (_, cols) <- unp c1 >>= fromDBV
@@ -234,9 +232,7 @@ inferConstVecBinOp c1 c2 op =
             (ConstDescr n1, ConstDescr n2) | n1 == n2 -> ConstDescr n1
             _                                         -> NonConstDescr
 
-          propVecs = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-
-      return $ VPropTriple (DBVConst d constCols) propVecs propVecs
+      return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
 
     Restrict -> do
       (d, cols) <- unp c1 >>= fromDBV
@@ -282,10 +278,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
     CartProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -294,10 +288,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
     NestProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -306,10 +298,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
     EquiJoin _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -318,10 +308,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
     EquiJoinS _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -330,10 +318,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
     NestJoinS _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -342,10 +328,8 @@ inferConstVecBinOp c1 c2 op =
       let constCols = cols1 ++ cols2
 
       -- FIXME check propVec components for correctness/preciseness
-      let propVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
-
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) propVec propVec
+      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
       
     SemiJoin _ _ -> do
       (_, cols1) <- unp c1 >>= fromDBV

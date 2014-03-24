@@ -1,32 +1,74 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
-       
-import Control.Applicative
-import Control.Monad
 
-import Database.Algebra.VL.Data
-import Database.Algebra.Dag.Common
+import           Control.Applicative
+import           Control.Monad
+import qualified Data.List.NonEmpty as N
 
-import Database.DSH.Optimizer.Common.Rewrite
-import Database.DSH.Optimizer.VL.Properties.Types
-import Database.DSH.Optimizer.VL.Rewrite.Common
+import           Database.Algebra.Dag.Common
+
+import           Database.DSH.VL.Lang
+import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrProject
+                   , inlineAggrNonEmptyProject
                    , flatGrouping
                    , simpleGrouping
                    , simpleGroupingProject
+                   , mergeNonEmptyAggrs
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
-aggregationRulesBottomUp = [ -- pushExprThroughGroupBy
+aggregationRulesBottomUp = [ nonEmptyAggr
+                           , nonEmptyAggrS
                            ]
 
 groupingToAggregation :: VLRewrite Bool
 groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
                                                        , applyToAll noProps aggregationRules
                                                        ]
+
+appendNE :: N.NonEmpty a -> N.NonEmpty a -> N.NonEmpty a
+appendNE (x N.:| xs) (y N.:| ys) = x N.:| (xs ++ (y : ys))
+
+mergeNonEmptyAggrs :: VLRule ()
+mergeNonEmptyAggrs q =
+  $(pattern 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
+    [| do
+        predicate $ $(v "qo1") == $(v "qo2")
+        predicate $ $(v "qi1") == $(v "qi2")
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.Merge" q
+            let afuns  = appendNE $(v "afuns1")  $(v "afuns2")
+            let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
+            void $ replaceWithNew q aggrOp |])
+
+nonEmptyAggr :: VLRule BottomUpProps
+nonEmptyAggr q =
+  $(pattern 'q "Aggr aggrFun (q1)"
+    [| do
+        VProp True <- nonEmptyProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.Aggr" q
+            let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
+            void $ replaceWithNew q aggrOp |])
+
+nonEmptyAggrS :: VLRule BottomUpProps
+nonEmptyAggrS q =
+  $(pattern 'q "(q1) AggrS aggrFun (q2)"
+    [| do
+        VProp True <- nonEmptyProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Aggregation.NonEmpty.AggrS" q
+            let aggrOp = BinOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q1") $(v "q2")
+            void $ replaceWithNew q aggrOp |])
 
 -- | If an expression operator is applied to the R2 output of GroupBy,
 -- push the expression below the GroupBy operator. This rewrite
@@ -60,8 +102,7 @@ pushExprThroughGroupBy q =
           -- Replace the CompExpr1L operator with a projection on the new column
           void $ replaceWithNew q $ UnOp (Project [Column1 $ w + 1]) r2Node |])
 
--- | Merge a projection into an aggregate operator if the projection
--- merely selects the column.
+-- | Merge a projection into an aggregate operator.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
   $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
@@ -77,6 +118,27 @@ inlineAggrProject q =
         return $ do
             logRewrite "Aggregation.Normalize.InlineProject" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
+
+-- | Merge a projection into an aggregate operator. We restrict this
+-- to only one aggregate function. Therefore, merging of projections
+-- must happen before merging of aggregate operators
+inlineAggrNonEmptyProject :: VLRule ()
+inlineAggrNonEmptyProject q =
+  $(pattern 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
+    [| do
+        afun N.:| [] <- return $(v "afuns")
+        let env = zip [1..] $(v "proj")
+        let afun' = case $(v "afun") of
+                        AggrMax e   -> AggrMax $ mergeExpr1 env e
+                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
+                        AggrMin e   -> AggrMin $ mergeExpr1 env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrCount   -> AggrCount
+
+        return $ do
+            logRewrite "Aggregation.Normalize.InlineProject" q
+            let aggrOp = BinOp (AggrNonEmptyS (afun' N.:| [])) $(v "qo") $(v "qi")
+            void $ replaceWithNew q aggrOp |])
 
           
 -- | Check if we have an operator combination which is eligible for moving to a
@@ -149,7 +211,7 @@ flatGrouping q =
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions
         groupByParents <- getParents q
-        funs <- mapM matchAggr groupByParents
+        funs@(f : fs)  <- mapM matchAggr groupByParents
         
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
@@ -162,7 +224,7 @@ flatGrouping q =
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
           -- add columns at the end.
-          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (map fst funs)) $(v "q1")
+          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (fst f N.:| map fst fs)) $(v "q1")
 
           -- For every aggregate function, generate a projection which only
           -- leaves the aggregate column. Function receives the node of the

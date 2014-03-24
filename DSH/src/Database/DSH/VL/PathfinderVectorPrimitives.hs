@@ -7,11 +7,11 @@ module Database.DSH.VL.PathfinderVectorPrimitives() where
 
 import           GHC.Exts
        
-import           Debug.Trace
+import           Control.Applicative               hiding (Const)
+import qualified Data.List.NonEmpty                as N
 
-import           Control.Applicative                         hiding (Const)
-
-import qualified Database.Algebra.VL.Data                    as VL
+import qualified Database.DSH.Common.Lang          as L
+import qualified Database.DSH.VL.Lang              as VL
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.VL.VectorPrimitives
@@ -100,32 +100,28 @@ projAddColsM cols projs mq = do
 projIdentity :: [DBCol] -> AlgNode -> GraphM r PFAlgebra AlgNode
 projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 
-transProj :: AttrName -> VL.ISTransProj -> Proj
-transProj target VL.STPosCol   = mP target pos
-transProj target VL.STDescrCol = mP target descr
-transProj _      VL.STNumber   = $impossible
-
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
-binOp :: VL.VecOp -> BinFun
-binOp (VL.NOp VL.Add)  = Plus
-binOp (VL.NOp VL.Sub)  = Minus
-binOp (VL.NOp VL.Div)  = Div
-binOp (VL.NOp VL.Mul)  = Times
-binOp (VL.NOp VL.Mod)  = Modulo
-binOp (VL.COp VL.Eq)   = Eq
-binOp (VL.COp VL.Gt)   = Gt
-binOp (VL.COp VL.GtE)  = GtE
-binOp (VL.COp VL.Lt)   = Lt
-binOp (VL.COp VL.LtE)  = LtE
-binOp (VL.BOp VL.Conj) = And
-binOp (VL.BOp VL.Disj) = Or
-binOp VL.Like          = Like
+binOp :: L.ScalarBinOp -> BinFun
+binOp L.Add  = Plus
+binOp L.Sub  = Minus
+binOp L.Div  = Div
+binOp L.Mul  = Times
+binOp L.Mod  = Modulo
+binOp L.Eq   = Eq
+binOp L.Gt   = Gt
+binOp L.GtE  = GtE
+binOp L.Lt   = Lt
+binOp L.LtE  = LtE
+binOp L.Conj = And
+binOp L.Disj = Or
+binOp L.Like = Like
 
-unOp :: VL.VecUnOp -> UnFun
-unOp VL.Not                    = Not
-unOp (VL.CastOp VL.CastDouble) = Cast doubleT
+unOp :: L.ScalarUnOp -> UnFun
+unOp L.Not          = Not
+unOp (L.CastDouble) = Cast doubleT
+unOp _               = $unimplemented
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
@@ -162,7 +158,7 @@ sumDefault :: VL.VLType -> (ATy, AVal)
 sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
-sumDefault t         = trace (show t) $impossible
+sumDefault t         = $impossible
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
@@ -280,27 +276,44 @@ instance VectorAlgebra PFAlgebra where
     qa <- aggr [(aggrFun a, item)] [] q
     -- For sum and length, add the default value for empty inputs
     qd <- case a of
-            VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                              in aggrM [(Max (ColE item), item)] []
-                                 $ return qa `unionM` (litTable dv item dt)
-            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
-                              $ return qa `unionM` (litTable (int 0) item intT)
-            _              -> return qa
+              -- FIXME this is wrong: consider a list of negative
+              -- integers... -> use antijoin/difference
+              VL.AggrSum t _ -> let (dt, dv) = sumDefault t
+                                in aggrM [(Max (ColE item), item)] []
+                                   $ return qa `unionM` (litTable dv item dt)
+              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
+                                $ return qa `unionM` (litTable (int 0) item intT)
+              _              -> return qa
     qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
     return $ DVec qp [1]
+
+  vecAggrNonEmpty as (DVec q _) = do
+    let resCols = [1 .. N.length as]
+    
+    let aggrFuns = [ (aggrFun a, itemi i)
+                   | a <- N.toList as
+                   | i <- resCols
+                   ]
+
+    qa <- projM (itemProj resCols [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1)])
+          $ aggr aggrFuns [] q
+
+    return $ DVec qa resCols
 
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
-            VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                              $ return qa
-                                `unionM`
-                                proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-            VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                              $ return qa
-                                `unionM`
-                                proj [mP descr pos, eP item (ConstE $ int 0)] qo
-            _              -> return qa
+              -- FIXME this is wrong: consider a list of negative
+              -- integers... -> use antijoin/difference
+              VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                $ return qa
+                                  `unionM`
+                                  proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
+              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
+                                $ return qa
+                                  `unionM`
+                                  proj [mP descr pos, eP item (ConstE $ int 0)] qo
+              _              -> return qa
     qp <- rownum pos [descr] Nothing qd
     -- We have to unnest the inner vector (i.e. surrogate join) to get
     -- the outer descriptor values (segmented aggregates remove one
@@ -310,6 +323,27 @@ instance VectorAlgebra PFAlgebra where
              (proj [mP descr' descr, mP pos' pos] qo)
              (return qp))
     return $ DVec qr [1]
+
+  vecAggrNonEmptyS as (DVec qo _) (DVec qi _) = do
+    let resCols = [1 .. N.length as]
+    
+    let aggrFuns = [ (aggrFun a, itemi i)
+                   | a <- N.toList as
+                   | i <- resCols
+                   ]
+
+    -- Compute aggregate output per segment and new positions
+    qa <- projM (itemProj resCols [cP descr, cP pos])
+          $ rownumM pos [descr] Nothing
+          $ aggr aggrFuns [(descr, ColE descr)] qi
+
+    -- Remove one level of nesting.
+    qr <- projM (itemProj resCols [mP descr descr', cP pos])
+          $ eqJoinM pos' descr
+             (proj [mP descr' descr, mP pos' pos] qo)
+             (return qa)
+
+    return $ DVec qr resCols
 
   vecReverse (DVec q cols) = do
     q' <- rownum' pos' [(pos, Desc)] Nothing q
@@ -355,27 +389,20 @@ instance VectorAlgebra PFAlgebra where
           $ select (expr1 expr) q
     return $ DVec qs cols
 
-  falsePositions (DVec q1 _) = do
-    qr <- projM [cP descr, mP pos pos'', mP item pos']
-          $ rownumM pos'' [pos] Nothing
-          $ selectM (UnAppE Not (ColE item))
-          $ rownum pos' [pos] (Just descr) q1
-    return $ DVec qr [1]
-
-  vecTableRef tableName columns keys = do
+  vecTableRef tableName columns hints = do
     q <- -- generate the pos column
          rownumM pos orderCols Nothing
          -- map table columns to item columns, add constant descriptor
          $ projM (eP descr (ConstE (nat 1)) : [ mP (itemi i) c | (c, i) <- numberedColNames ])
-         $ dbTable tableName taColumns (map Key keys)
+         $ dbTable tableName taColumns (map Key taKeys)
     return $ DVec q (map snd numberedColNames)
 
     where
-      numberedColNames = zipWith (\c i -> (fst c, i)) columns [1..]
+      numberedColNames = zipWith (\((L.ColName c), _) i -> (c, i)) columns [1..]
       
-      taColumns = [ (c, algTy t) | (c, t) <- columns ]
+      taColumns = [ (c, algTy t) | (L.ColName c, t) <- columns ]
 
-      taKeys = map (\k -> [ itemi $ colIndex c | c <- k ]) keys
+      taKeys =    [ [ itemi $ colIndex c | L.ColName c <- k ] | L.Key k <- L.keysHint hints ]
       
       colIndex :: AttrName -> Int
       colIndex n =
@@ -451,7 +478,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
 
   vecCartProductS (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -466,7 +493,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
 
   -- FIXME merge common parts of vecCartProductS and vecNestProductS
   vecNestProductS (DVec q1 cols1) (DVec q2 cols2) = do
@@ -480,9 +507,8 @@ instance VectorAlgebra PFAlgebra where
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
-    qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp2)
     
   vecEquiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -504,7 +530,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- tagM "eqjoin/1" $ proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
   
   vecEquiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -527,7 +553,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
 
   -- There is only one difference between EquiJoinS and NestJoinS. For
   -- NestJoinS, we 'segment' after the join, i.e. use the left input
@@ -552,12 +578,11 @@ instance VectorAlgebra PFAlgebra where
                     ] ++ shiftProj2) q2)
 
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
-    qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
-    return (DVec qv (cols1 ++ cols2'), RVec qp1, PVec qp2)
+    return (DVec qv (cols1 ++ cols2'), PVec qp2)
   
   selectPos (DVec qe cols) op (DVec qi _) = do
-    qs <- selectM (BinAppE (binOp $ VL.COp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
+    qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
           $ crossM 
               (return qe) 
               (proj [mP item' item] qi)
@@ -565,8 +590,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            VL.Lt  -> projAddCols cols [mP posnew pos] qs
-            VL.LtE -> projAddCols cols [mP posnew pos] qs
+            L.Lt  -> projAddCols cols [mP posnew pos] qs
+            L.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -577,7 +602,7 @@ instance VectorAlgebra PFAlgebra where
   
   selectPosS (DVec qe cols) op (DVec qi _) = do
     qs <- rownumM posnew [pos] Nothing
-          $ selectM (BinAppE (binOp $ VL.COp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
+          $ selectM (BinAppE (binOp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
           $ eqJoinM descr pos'
               (rownum absPos [pos] (Just descr) qe)
               (proj [mP pos' pos, mP item' item] qi)
@@ -588,13 +613,13 @@ instance VectorAlgebra PFAlgebra where
 
   selectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
-    qs <- select (BinAppE (binOp $ VL.COp op) (ColE absPos) (ConstE posConst')) qe
+    qs <- select (BinAppE (binOp op) (ColE pos) (ConstE posConst')) qe
 
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            VL.Lt  -> projAddCols cols [mP posnew pos] qs
-            VL.LtE -> projAddCols cols [mP posnew pos] qs
+            L.Lt  -> projAddCols cols [mP posnew pos] qs
+            L.LtE -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -608,22 +633,12 @@ instance VectorAlgebra PFAlgebra where
   selectPos1S (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] Nothing
-          $ selectM (BinAppE (binOp (VL.COp op)) (ColE absPos) (ConstE posConst'))
+          $ selectM (BinAppE (binOp op) (ColE absPos) (ConstE posConst'))
           $ rownum absPos [pos] (Just descr) qe
           
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs
     qp <- proj [ mP posold pos, cP posnew ] qs
     return $ (DVec qr cols, RVec qp)
-
-  projectRename posnewProj posoldProj (DVec q _) = do
-    qn <- rownum pos'' [descr, pos] Nothing q
-    qr <- case (posnewProj, posoldProj) of
-            (VL.STNumber, VL.STNumber) -> proj [mP posnew pos'', mP posold pos''] qn
-            (VL.STNumber, p)           -> proj [mP posnew pos'', transProj posold p] qn
-            (p, VL.STNumber)           -> proj [transProj posnew p, mP posold pos''] qn
-            (p1, p2)                   -> proj [transProj posnew p1, transProj posold p2] qn
-
-    return $ RVec qr
 
   vecProject projs (DVec q _) = do
     let projs' = zipWith (\i e -> (itemi i, expr1 e)) [1 .. length projs] projs
@@ -656,12 +671,12 @@ instance VectorAlgebra PFAlgebra where
 
         pw = length groupExprs
   
-        pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- aggrFuns | i <- [1..] ]
+        pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- N.toList aggrFuns | i <- [1..] ]
                  
     qa <- rownumM pos [descr] Nothing
           $ aggr pfAggrFuns partAttrs q
 
-    return $ DVec qa [1 .. length groupExprs + length aggrFuns]
+    return $ DVec qa [1 .. length groupExprs + N.length aggrFuns]
   
   vecNumber (DVec q cols) = do
     let nrIndex = length cols + 1
@@ -669,9 +684,10 @@ instance VectorAlgebra PFAlgebra where
     qr <- projAddCols cols [eP nrItem (UnAppE (Cast natT) (ColE pos))] q
     return $ DVec qr (cols ++ [nrIndex])
   
-  -- The Pathfinder implementation of lifted number does not come for free: To
-  -- generate the absolute numbers for every sublist (i.e. descriptor
-  -- partition), we have to use a partitioned rownumber.
+  -- The Pathfinder implementation of lifted number does not come for
+  -- free: To generate the absolute numbers for every sublist
+  -- (i.e. descriptor partition), we have to use a partitioned
+  -- rownumber.
   vecNumberS (DVec q cols) = do
     let nrIndex = length cols + 1
         nrItem = itemi nrIndex
@@ -708,7 +724,6 @@ instance VectorAlgebra PFAlgebra where
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
   
-  -- FIXME re-check semantics!
   vecAntiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
@@ -730,7 +745,7 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qr1 cols1, PVec qr2)
 
   -- FIXME none of vecReshape, vecReshapeS, vecTranspose and
-  -- vecTransposeS deals with empty inner inputs correctly!
+  -- vecTransposeS deal with empty inner inputs correctly!
   vecReshape n (DVec q cols) = do
     let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qi <- proj (itemProj cols [cP pos, eP descr dExpr]) q
@@ -740,14 +755,15 @@ instance VectorAlgebra PFAlgebra where
     return (DVec qo [], DVec qi cols)
 
   vecReshapeS n (DVec q cols) = do
-    let dExpr = BinAppE Div (BinAppE Minus (ColE pos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
+    let dExpr = BinAppE Div (BinAppE Minus (ColE absPos) (ConstE $ int 1)) (ConstE $ int $ n + 1)
     qr <- -- Make the new descriptors valid globally 
+          -- FIXME need a rowrank instead!
           rownumM descr'' [descr, descr'] Nothing
           -- Assign the inner list elements to sublists. Generated
           -- descriptors are _per_ inner list!
           $ projM (itemProj cols [cP descr, cP pos, eP descr' dExpr])
           -- Generate absolute positions for the inner lists
-          $ rownum pos' [pos] (Just descr) q
+          $ rownum absPos [pos] (Just descr) q
   
     -- We can compute the 'middle' descriptor vector from the original
     -- inner vector.

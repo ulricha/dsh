@@ -362,11 +362,7 @@ prim2s = [ reserved "map" >> return (CL.Prim2 CL.Map)
          , reserved "filter" >> return (CL.Prim2 CL.Filter)
          , reserved "append" >> return (CL.Prim2 CL.Append)
          , reserved "index" >> return (CL.Prim2 CL.Index)
-         , reserved "take" >> return (CL.Prim2 CL.Take)
-         , reserved "drop" >> return (CL.Prim2 CL.Drop)
          , reserved "zip" >> return (CL.Prim2 CL.Zip)
-         , reserved "takeWhile" >> return (CL.Prim2 CL.TakeWhile)
-         , reserved "dropWhile" >> return (CL.Prim2 CL.DropWhile)
          , reserved "cartProduct" >> return (CL.Prim2 CL.CartProduct)
          ]
 

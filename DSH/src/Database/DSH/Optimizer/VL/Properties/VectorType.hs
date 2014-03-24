@@ -3,14 +3,13 @@
 -- FIXME introduce consistency checks for schema inference
 module Database.DSH.Optimizer.VL.Properties.VectorType where
 
-import Control.Monad
-import Data.Functor
+import           Control.Monad
+import           Data.Functor
+import qualified Data.List.NonEmpty as N
        
-import Database.DSH.Impossible
-
-import Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Properties.Types
   
-import Database.Algebra.VL.Data
+import           Database.DSH.VL.Lang
   
 {- Implement more checks: check the input types for correctness -}
 
@@ -34,12 +33,12 @@ inferVectorTypeUnOp s op =
   case op of
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
+    AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
     DescToRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    FalsePositions -> Right $ VProp $ ValueVector 1
     SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
     R1 -> 
@@ -56,7 +55,6 @@ inferVectorTypeUnOp s op =
       case s of
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
-    ProjectRename _ -> Right $ VProp RenameVector
 
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
@@ -69,9 +67,9 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    Only -> $unimplemented
-    Singleton -> $unimplemented
-    GroupAggr g as -> Right $ VProp $ ValueVector (length g + length as)
+    Only -> VProp <$> unpack s
+    Singleton -> VProp <$> unpack s
+    GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s
         return $ VProp $ ValueVector (w + 1)
@@ -109,6 +107,7 @@ inferVectorTypeBinOp s1 s2 op =
         _                                                    -> 
           Left "Input of SortWith is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
+    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)

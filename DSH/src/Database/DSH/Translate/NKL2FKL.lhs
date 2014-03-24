@@ -17,7 +17,8 @@ import qualified Database.DSH.NKL.Lang as N
 import           Database.DSH.Common.TransM
 
 import           Database.DSH.FKL.FKLPrimitives
-import           Database.DSH.Common.Data.Type
+import           Database.DSH.Common.Type
+import           Database.DSH.Common.Lang
 
 import qualified Data.Set as S
 
@@ -160,7 +161,6 @@ flatTransform = transform
 
 prim1Transform :: (N.Prim1 Type) -> F.Expr
 prim1Transform (N.Prim1 N.Length t) = lengthVal t
-prim1Transform (N.Prim1 N.Not t) = notVal t
 prim1Transform (N.Prim1 N.Concat t) = concatVal t
 prim1Transform (N.Prim1 N.Sum t) = sumVal t
 prim1Transform (N.Prim1 N.Avg t) = avgVal t
@@ -170,7 +170,6 @@ prim1Transform (N.Prim1 N.The t) = theVal t
 prim1Transform (N.Prim1 N.Head t) = headVal t
 prim1Transform (N.Prim1 N.Fst t) = fstVal t
 prim1Transform (N.Prim1 N.Snd t) = sndVal t
-prim1Transform (N.Prim1 N.IntegerToDouble t) = integerToDoubleVal t
 prim1Transform (N.Prim1 N.Tail t) = tailVal t
 prim1Transform (N.Prim1 N.Reverse t) = reverseVal t
 prim1Transform (N.Prim1 N.And t) = andVal t
@@ -190,11 +189,8 @@ prim2Transform (N.Prim2 N.Pair t) = pairVal t
 prim2Transform (N.Prim2 N.Filter t) = filterVal t 
 prim2Transform (N.Prim2 N.Append t) = appendVal t
 prim2Transform (N.Prim2 N.Index t) = indexVal t
-prim2Transform (N.Prim2 N.Take t) = takeVal t
-prim2Transform (N.Prim2 N.Drop t) = dropVal t
 prim2Transform (N.Prim2 N.Zip t) = zipVal t
-prim2Transform (N.Prim2 N.TakeWhile t) = takeWithVal t
-prim2Transform (N.Prim2 N.DropWhile t) = dropWithVal t
+prim2Transform (N.Prim2 N.Cons t) = consVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 prim2Transform (N.Prim2 N.NestProduct t) = nestProductVal t
 prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
@@ -211,20 +207,22 @@ in order to achieve this we transform all lambdas and replace all primitive
 operations by their flat counterparts (described in the next chapter).
 
 The transformation described in this section is very similar to the
-transformation described in \cite{Jones08}. Our implementation is somewhat
-different from the transformation described in \cite{Jones08} to make the result
-more suitable for our execution platform, databases. As we are targeting
-databases instead of GPUs or C-vector libraries. For instance it is better for
-us to avoid the use index operations as these are very costly on a database. We
-can, luckily, avoid the introduction of index operations.
+transformation described in \cite{Jones08}. Our implementation is
+somewhat different from the transformation described in \cite{Jones08}
+to make the result more suitable for our execution platform,
+databases. As we are targeting databases instead of GPUs or C-vector
+libraries. For instance it is better for us to avoid the use of index
+operations as these are very costly on a database. We can, luckily,
+avoid the introduction of index operations.
 
-The transformation consists out of two functions, the first merely translates a
-part of an NKL tree into an FKL tree. The second however lifts such a tree into
-a vector form (which is included in every function).
+The transformation consists out of two functions, the first merely
+translates a part of an NKL tree into an FKL tree. The second however
+lifts such a tree into a vector form (which is included in every
+function).
 
 \begin{code} 
 transform :: N.Expr            ->  TransM F.Expr
-transform (N.Table t n c k)    =   pure $ F.Table t n c k
+transform (N.Table t n c h)    =   pure $ F.Table t n c h
 transform (N.App _t e1 e2)     =   cloAppM (transform e1) (transform e2)
 transform (N.AppE1 _ p e1)     =   cloAppM (pure $ prim1Transform p) (transform e1)
 transform (N.AppE2 _ p e1 e2)  =   cloAppM (cloAppM (pure $ prim2Transform p) (transform e1)) (transform e2)
@@ -233,7 +231,8 @@ transform (N.Lam t arg e)      =   do
                                     n <- getFreshVar
                                     cloM t n fvs arg (transform e) (lift (F.Var (listT (VarT "a")) n) e)
 transform (N.If _ e1 e2 e3)    =   ifPrimM (transform e1) (transform e2) (transform e3)
-transform (N.BinOp t o e1 e2)  =   opPrimM t o (transform e1) (transform e2)
+transform (N.BinOp t o e1 e2)  =   binPrimM t o (transform e1) (transform e2)
+transform (N.UnOp t o e)       =   unPrimM t o (transform e)
 transform (N.Const t v)        =   pure $ F.Const t v
 transform (N.Var t x)          =   pure $ F.Var t x
 
@@ -274,9 +273,10 @@ lift en   (N.If _ e1 e2 e3)        = do
                                       e3' <- cloLM rt n fvs n2' (transform e3) (lift n2 e3) 
                                       
                                       let e2'' = restrictPrim e2' e1' `cloLApp` restrictPrim en e1'
-                                      let e3'' = restrictPrim e3' (notLPrim e1') `cloLApp` restrictPrim en (notLPrim e1')
+                                      let e3'' = restrictPrim e3' (unPrimL BoolT Not e1') `cloLApp` restrictPrim en (unPrimL BoolT Not e1')
                                       pure $ combinePrim e1' e2'' e3''                                                                                                                                          
-lift en   (N.BinOp t o e1 e2)      = opPrimLM t o (lift en e1) (lift en e2)
+lift en   (N.BinOp t o e1 e2)      = binPrimLM t o (lift en e1) (lift en e2)
+lift en   (N.UnOp t o e)           = unPrimLM t o (lift en e)
 lift en   (N.Lam t arg e)          = do
                                       let (F.Var _ n') = en
                                       let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
@@ -284,7 +284,7 @@ lift en   (N.Lam t arg e)          = do
 \end{code}
         
 Literal data and database tables are simply distributed over the iteration
-context. Variables are always bound in the closure, we therefor do not have to
+context. Variables are always bound in the closure, we therefore do not have to
 lift them (when we dist a closure over a list we actually distributed over the
 values contained in the closure). Top level variables do not exist in our
 language, they are represented by the primitives.

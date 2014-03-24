@@ -5,11 +5,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
-  ( module Database.DSH.Common.Data.Op
-  , module Database.DSH.Common.Data.Expr
-  , module Database.DSH.Common.Data.JoinExpr
-  , module Database.DSH.Common.Data.Val
-  , module Database.DSH.Common.Data.Type
+  ( module Database.DSH.Common.Type
   , Expr(..)
   , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
   , Qual(..), isGuard, isBind
@@ -30,11 +26,8 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.Data.Op
-import           Database.DSH.Common.Data.Expr
-import           Database.DSH.Common.Data.JoinExpr
-import           Database.DSH.Common.Data.Val
-import           Database.DSH.Common.Data.Type
+import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.Common.Type
   
 --------------------------------------------------------------------------------
 -- A simple type of nonempty lists, used for comprehension qualifiers
@@ -92,10 +85,10 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length |  Not |  Concat 
+data Prim1Op = Length | Concat 
              | Sum | Avg | The | Fst | Snd 
              | Head | Minimum | Maximum 
-             | IntegerToDouble | Tail 
+             | Tail 
              | Reverse | And | Or 
              | Init | Last | Nub 
              | Number | Guard
@@ -107,7 +100,6 @@ data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
   show Length          = "length"
-  show Not             = "not"
   show Concat          = "concat"
   show Sum             = "sum"
   show Avg             = "avg"
@@ -117,7 +109,6 @@ instance Show Prim1Op where
   show Head            = "head"
   show Minimum         = "minimum"
   show Maximum         = "maximum"
-  show IntegerToDouble = "integerToDouble"
   show Tail            = "tail"
   show Reverse         = "reverse"
   show And             = "and"
@@ -136,16 +127,14 @@ instance Show (Prim1 t) where
 data Prim2Op = Map | ConcatMap | GroupWithKey
              | SortWith | Pair
              | Filter | Append
-             | Index | Take
-             | Drop | Zip
-             | TakeWhile
-             | DropWhile
+             | Index
+             | Zip | Cons
              | CartProduct
              | NestProduct
-             | EquiJoin JoinExpr JoinExpr
-             | NestJoin JoinExpr JoinExpr
-             | SemiJoin JoinExpr JoinExpr
-             | AntiJoin JoinExpr JoinExpr
+             | EquiJoin L.JoinExpr L.JoinExpr
+             | NestJoin L.JoinExpr L.JoinExpr
+             | SemiJoin L.JoinExpr L.JoinExpr
+             | AntiJoin L.JoinExpr L.JoinExpr
              deriving (Eq, Ord)
              
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -159,11 +148,8 @@ instance Show Prim2Op where
   show Filter       = "filter"
   show Append       = "append"
   show Index        = "index"
-  show Take         = "take"
-  show Drop         = "drop"
   show Zip          = "zip"
-  show TakeWhile    = "takeWhile"
-  show DropWhile    = "dropWhile"
+  show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
   show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)
@@ -177,7 +163,7 @@ instance Show (Prim2 t) where
 --------------------------------------------------------------------------------
 -- CL expressions
 
-data Qual = BindQ Ident Expr
+data Qual = BindQ L.Ident Expr
           | GuardQ Expr
           deriving (Eq, Ord, Show)
           
@@ -191,15 +177,16 @@ isBind (BindQ _ _)  = True
 
 data Comp = C Type Expr (NL Qual)
 
-data Expr  = Table Type String [Column] [Key] 
+data Expr  = Table Type String [L.Column] L.TableHints
            | App Type Expr Expr              
            | AppE1 Type (Prim1 Type) Expr   
            | AppE2 Type (Prim2 Type) Expr Expr 
-           | BinOp Type Oper Expr Expr        
-           | Lam Type Ident Expr              
+           | BinOp Type L.ScalarBinOp Expr Expr        
+           | UnOp Type L.ScalarUnOp Expr
+           | Lam Type L.Ident Expr              
            | If Type Expr Expr Expr
-           | Lit Type Val
-           | Var Type Ident
+           | Lit Type L.Val
+           | Var Type L.Ident
            | Comp Type Expr (NL Qual)
            deriving (Show)
            
@@ -212,6 +199,7 @@ instance Pretty Expr where
     pretty (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
+    pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if" 
                              <+> pretty c 
@@ -266,6 +254,7 @@ instance Typed Expr where
   typeOf (Lam t _ _)     = t
   typeOf (If t _ _ _)    = t
   typeOf (BinOp t _ _ _) = t
+  typeOf (UnOp t _ _)    = t
   typeOf (Lit t _)       = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t

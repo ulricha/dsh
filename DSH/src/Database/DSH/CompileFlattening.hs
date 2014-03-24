@@ -11,11 +11,10 @@ import           Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
-import qualified Database.DSH.Common.Data.Op as O
-import qualified Database.DSH.Common.Data.Type as T
-import qualified Database.DSH.Common.Data.Val as V
+import qualified Database.DSH.Common.Type as T
+import qualified Database.DSH.Common.Lang as L
 
-import           Database.DSH.Internals as D
+import           Database.DSH.Internals
 import           Data.Text (unpack)
 
 import qualified Data.Map as M
@@ -110,7 +109,7 @@ translate (e@(LamE _)) =
             let ty = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
             CP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
         _ -> $impossible
-translate (TableE (TableDB tableName ks)) = do
+translate (TableE (TableDB tableName hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
     
@@ -134,17 +133,31 @@ translate (TableE (TableDB tableName ks)) = do
         then return ()
         else error tableTypeError
 
-    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (String, T.Type)
+    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (L.ColName, T.Type)
         matchTypes (colName, _, typesCompatible) dshType =
             if typesCompatible dshType
-            then (colName, dshType)
+            then (L.ColName colName, dshType)
             else error tableTypeError
 
     let cols = zipWith matchTypes tableDescr ts
 
-    return $ CP.table (translateType ty) tableName cols ks
+    return $ CP.table (translateType ty) tableName cols (compileHints hints)
+
 translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
+
+compileHints :: TableHints -> L.TableHints
+compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
+                                  , L.nonEmptyHint = ne $ nonEmptyHint hints
+                                  }
+  where
+    keys :: [Key] -> [L.Key]
+    keys ks = [ L.Key [ L.ColName c | c <- k ] | Key k <- ks ]
+
+    ne :: Emptiness -> L.Emptiness
+    ne NonEmpty      = L.NonEmpty
+    ne PossiblyEmpty = L.PossiblyEmpty
+                                   
 
 compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, (b, c)) -> Compile CL.Expr
 compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
@@ -172,17 +185,12 @@ compileApp f args =
        Index        -> compileApp2 CP.index args
        SortWith     -> compileApp2 CP.sortWith args
        Cons         -> compileApp2 CP.consOpt args
-       Take         -> compileApp2 CP.take args
-       Drop         -> compileApp2 CP.drop args
        Map          -> compileApp2 CP.map args
        ConcatMap    -> compileApp2 CP.concatMap args
        Append       -> compileApp2 CP.append args
        Filter       -> compileApp2 CP.filter args
        GroupWithKey -> compileApp2 CP.groupWithKey args
        Zip          -> compileApp2 CP.zip args
-       DropWhile    -> compileApp2 CP.dropWhile args
-       TakeWhile    -> compileApp2 CP.takeWhile args
-       SplitAt      -> compileApp2 CP.splitAt args
        Equ          -> compileApp2 CP.eq args
        Conj         -> compileApp2 CP.conj args
        Disj         -> compileApp2 CP.disj args
@@ -195,10 +203,19 @@ compileApp f args =
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one
+       IntegerToDouble -> compileApp1 (CP.scalarUnOp L.CastDouble) args
+       Not             -> compileApp1 (CP.scalarUnOp L.Not) args
+       Sin             -> compileApp1 (CP.scalarUnOp L.Sin) args
+       Cos             -> compileApp1 (CP.scalarUnOp L.Cos) args
+       Tan             -> compileApp1 (CP.scalarUnOp L.Tan) args
+       ASin            -> compileApp1 (CP.scalarUnOp L.ASin) args
+       ACos            -> compileApp1 (CP.scalarUnOp L.ACos) args
+       ATan            -> compileApp1 (CP.scalarUnOp L.ATan) args
+       Sqrt            -> compileApp1 (CP.scalarUnOp L.Sqrt) args
+       Log             -> compileApp1 (CP.scalarUnOp L.Log) args
+       Exp             -> compileApp1 (CP.scalarUnOp L.Exp) args
        Fst             -> compileApp1 CP.fst args
        Snd             -> compileApp1 CP.snd args
-       Not             -> compileApp1 CP.not args
-       IntegerToDouble -> compileApp1 CP.integerToDouble args
        Head            -> compileApp1 CP.head args
        Tail            -> compileApp1 CP.tail args
        Minimum         -> compileApp1 CP.minimum args
@@ -253,11 +270,11 @@ resugar expr =
       case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.BinOp _ O.Cons e (CL.Lit _ (V.ListV []))) ->
+        CL.Lam _ v (CL.AppE2 _ (CL.Prim2 CL.Cons _) e (CL.Lit _ (L.ListV []))) ->
           resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- Same case as above, just with a literal list in the lambda body.
-        CL.Lam _ v (CL.Lit lt (CL.ListV [s])) -> 
+        CL.Lam _ v (CL.Lit lt (L.ListV [s])) -> 
           resugar $ CL.Comp t (CL.Lit (CL.elemT lt) s) (S (CL.BindQ v xs'))
 
         -- concatMap (\x -> [ e | qs ]) xs
@@ -269,6 +286,7 @@ resugar expr =
 
     CL.AppE2 t p1 e1 e2 -> CL.AppE2 t p1 (resugar e1) (resugar e2)
     CL.BinOp t op e1 e2 -> CL.BinOp t op (resugar e1) (resugar e2)
+    CL.UnOp t op e -> CL.UnOp t op (resugar e)
     CL.Lam t v e1 -> CL.Lam t v (resugar e1)
     
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)

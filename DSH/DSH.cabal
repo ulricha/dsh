@@ -54,6 +54,8 @@ Extra-source-files:  examples/Example01.hs
                      examples/Makefile
                      tests/Main.hs
 		     tests/ComprehensionTests.hs
+		     tests/DSHComprehensions.hs
+		     tests/CombinatorTests.hs
                      tests/Makefile
 
 Cabal-version:       >= 1.8
@@ -80,10 +82,12 @@ Library
                      kure               >= 2.14.0,
                      ansi-wl-pprint,
                      set-monad,
-                     either
+                     either             >= 4.0,
+                     dlist,
+                     semigroups
                      
   Hs-source-dirs:    src
-  GHC-Options:       -Wall  -fno-warn-orphans  -fno-warn-type-defaults
+  GHC-Options:       -Wall -auto-all
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -92,16 +96,13 @@ Library
   Other-modules:     Database.DSH.Internals
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
-                     Database.DSH.ExecuteFlattening
+                     Database.DSH.Execute.Sql
                      Database.DSH.Externals
                      Database.DSH.Common.Pretty
-                     Database.DSH.Common.Data.Op
-                     Database.DSH.Common.Data.Type
-                     Database.DSH.Common.Data.Val
-                     Database.DSH.Common.Data.Expr
-                     Database.DSH.Common.Data.JoinExpr
-                     Database.DSH.Common.Data.QueryPlan
-                     Database.DSH.Common.Data.DBCode
+                     Database.DSH.Common.Type
+                     Database.DSH.Common.Lang
+                     Database.DSH.Common.QueryPlan
+                     Database.DSH.Common.DBCode
                      Database.DSH.Common.TransM
                      Database.DSH.Export
                      Database.DSH.CL.Lang
@@ -114,19 +115,22 @@ Library
                      Database.DSH.CL.Opt.PredPushdown
                      Database.DSH.CL.Opt.Normalize
                      Database.DSH.CL.Opt.CompNormalization
+                     Database.DSH.CL.Opt.PartialEval
                      Database.DSH.CL.Opt.FlatJoin
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.FKL.Data.FKL
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
-                     Database.DSH.NKL.Quote
                      Database.DSH.NKL.Lang
-                     Database.DSH.NKL.Primitives
-                     Database.DSH.NKL.Opt
+                     Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
                      Database.DSH.Translate.VL2Algebra
+
+                     Database.DSH.VL.Lang
+                     Database.DSH.VL.Render.Dot
+                     Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Data.DBVector
                      Database.DSH.VL.Data.GraphVector
                      Database.DSH.VL.MetaPrimitives
@@ -155,6 +159,7 @@ Library
                      Database.DSH.Optimizer.VL.Properties.Common
                      Database.DSH.Optimizer.VL.Properties.Const
                      Database.DSH.Optimizer.VL.Properties.Empty
+                     Database.DSH.Optimizer.VL.Properties.NonEmpty
                      Database.DSH.Optimizer.VL.Properties.ReqColumns
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
@@ -219,7 +224,8 @@ Library
 --                        pretty,
 --                        bytestring,
 --                        mtl,
---                        aeson
+--                        aeson,
+--                        ansi-wl-pprint
 --   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
 -- 
 -- Executable vlprop
@@ -231,44 +237,66 @@ Library
 --                        mtl,
 --                        bytestring,
 --                        pretty,
---                        aeson
+--                        aeson,
+--                        ansi-wl-pprint,
+--                        template-haskell
 --   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
 --                   
--- Test-Suite Flattening_x100
---     type:       exitcode-stdio-1.0
---     Hs-Source-Dirs: tests
---     Main-is:       Main.hs
---     Build-depends: base               >= 4.2 && < 5,
---                    containers,
---                    QuickCheck         >= 2.4,
---                    DSH                >= 0.7.8.1,
---                    text               >= 0.11,
---                    X100Client         >= 0.0.2,
---                    derive             >= 2.5,
---                    test-framework-quickcheck2 >= 0.2.12.1,
---                    test-framework-hunit,
---                    test-framework >= 0.6,
---                    HUnit
---     cpp-options: -DisX100
---     GHC-Options: -Wall 
---     extensions: CPP
---     
--- Test-Suite Flattening_TA
---     type:       exitcode-stdio-1.0
---     Hs-Source-Dirs : tests
---     Main-is:       Main.hs
---     Build-depends: base               >= 4.2 && < 5,
---                    QuickCheck         >= 2.4,
---                    DSH                >= 0.7.8.1,
---                    containers,
---                    text               >= 0.11,
---                    HDBC-postgresql    >= 2.3,
---                    HDBC               >= 2.3,
---                    derive             >= 2.5,
---                    test-framework-quickcheck2 >= 0.2.12.1,
---                    test-framework-hunit,
---                    test-framework >= 0.6,
---                    HUnit
---     cpp-options: -DisDBPH
---     GHC-Options: -Wall 
---     extensions: CPP
+
+executable vldot
+    Main-is: Database/DSH/Tools/VLDotGen.hs
+    GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
+    hs-source-dirs:   src
+    build-depends:    base >= 4.2 && < 5, 
+                      aeson >= 0.6, 
+                      mtl >= 2.0.1.0, 
+                      containers >= 0.3.0.0, 
+                      parsec,
+                      transformers,
+                      template-haskell >= 2.4.0.0, 
+                      pretty >= 1.0.1.1, 
+                      fgl, 
+                      ghc-prim >= 0.2,
+                      bytestring >= 0.9,
+                      TableAlgebra,
+                      ansi-wl-pprint,
+                      semigroups
+
+Test-Suite Flattening_x100
+    type:       exitcode-stdio-1.0
+    Hs-Source-Dirs: tests
+    Main-is:       Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   containers,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   text               >= 0.11,
+                   X100Client         >= 0.0.2,
+                   derive             >= 2.5,
+                   test-framework-quickcheck2 >= 0.2.12.1,
+                   test-framework-hunit,
+                   test-framework >= 0.6,
+                   HUnit
+    cpp-options: -DisX100
+    GHC-Options: -Wall 
+    extensions: CPP
+    
+Test-Suite Flattening_TA
+    type:       exitcode-stdio-1.0
+    Hs-Source-Dirs : tests
+    Main-is:       Main.hs
+    Build-depends: base               >= 4.2 && < 5,
+                   QuickCheck         >= 2.4,
+                   DSH                >= 0.7.8.1,
+                   containers,
+                   text               >= 0.11,
+                   HDBC-postgresql    >= 2.3,
+                   HDBC               >= 2.3,
+                   derive             >= 2.5,
+                   test-framework-quickcheck2 >= 0.2.12.1,
+                   test-framework-hunit,
+                   test-framework >= 0.6,
+                   HUnit
+    cpp-options: -DisDBPH
+    GHC-Options: -Wall 
+    Extensions: CPP

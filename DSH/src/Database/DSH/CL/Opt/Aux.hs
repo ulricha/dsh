@@ -26,9 +26,13 @@ module Database.DSH.CL.Opt.Aux
     , Comp(..)
     , MergeGuard
     , mergeGuardsIterR
+      -- * Classification of expressions
+    , complexPrim1
+    , complexPrim2
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
+    , prettyR
     , debug
     , debugPretty
     , debugMsg
@@ -49,6 +53,7 @@ import           Language.KURE
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Monad
@@ -77,8 +82,13 @@ toJoinExpr n = do
     let prim1 :: (Prim1 a) -> TranslateC Expr UnOp
         prim1 (Prim1 Fst _) = return FstJ
         prim1 (Prim1 Snd _) = return SndJ
-        prim1 (Prim1 Not _) = return NotJ
         prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
+    
+    let unop :: ScalarUnOp -> TranslateC Expr UnOp
+        unop Not = return NotJ
+        unop _   = fail "toJoinExpr: scalar unary op can't be translated to join primitive"
+         
+
         
     case e of
         AppE1 t p _   -> do
@@ -86,6 +96,9 @@ toJoinExpr n = do
             appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
         BinOp t _ _ _ -> do
             binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
+        UnOp t op _ -> do
+            op' <- unop op
+            unopT (toJoinExpr n) (\_ _ e1 -> UnOpJ t op' e1)
         Lit t v       -> do
             return $ ConstJ t v
         Var t x       -> do
@@ -144,7 +157,7 @@ isFlatExpr expr =
     case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        AppE1 _ (Prim1 Not _) e -> isFlatExpr e
+        UnOp _ Not e            -> isFlatExpr e
         BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
         Var _ _                 -> True
         Lit _ _                 -> True
@@ -346,6 +359,25 @@ onetdSpineT t = do
         _                -> $impossible
 
 --------------------------------------------------------------------------------
+-- Classification of expressions
+
+complexPrim2 :: Prim2Op -> Bool
+complexPrim2 op = 
+    case op of
+        Map       -> False
+        ConcatMap -> False
+        Pair      -> False
+        _         -> True
+
+complexPrim1 :: Prim1Op -> Bool
+complexPrim1 op =
+    case op of
+        Concat -> False
+        Fst    -> False
+        Snd    -> False
+        _      -> True
+
+--------------------------------------------------------------------------------
 -- Simple debugging combinators
 
 -- | trace output of the value being rewritten; use for debugging only.
@@ -353,8 +385,8 @@ prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
 prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
            
 debug :: Pretty a => String -> a -> b -> b
-debug msg a b =
-    trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+debug msg a b = b
+    -- trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
 
 debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
 debugPretty msg a = debug msg a (return ())
@@ -363,7 +395,8 @@ debugMsg :: Monad m => String -> m ()
 debugMsg msg = trace msg $ return ()
 
 debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr =
+debugOpt origExpr mExpr = either (const origExpr) id mExpr
+{-
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
     
@@ -379,6 +412,7 @@ debugOpt origExpr mExpr =
         "Optimized query ===================================================================\n"
         ++ pp e 
         ++ "\n===================================================================================="
+-}
         
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = prettyR "Before >>>>>>"
@@ -389,4 +423,4 @@ debugTrace :: Monad m => String -> Rewrite c m a
 debugTrace msg = trace msg idR
 
 debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-debugShow msg = prettyR (msg ++ "\n")
+debugShow msg = idR -- prettyR (msg ++ "\n")

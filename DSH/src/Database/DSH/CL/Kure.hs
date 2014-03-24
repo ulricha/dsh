@@ -22,11 +22,12 @@ module Database.DSH.CL.Kure
 
       -- * The KURE context
     , CompCtx(..), CrumbC(..), PathC, initialCtx, freeIn, boundIn
-    , inScopeNames, bindQual, bindVar
+    , inScopeNames, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
     , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
     , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
+    , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
     
@@ -45,6 +46,7 @@ import           Language.KURE
 import           Language.KURE.Lens
        
 import           Database.DSH.Common.Pretty
+import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Monad
                  
@@ -64,6 +66,7 @@ data CrumbC = AppFun
             | AppE2Arg2
             | BinOpArg1
             | BinOpArg2
+            | UnOpArg
             | LamBody
             | IfCond
             | IfThen
@@ -86,7 +89,7 @@ type AbsPathC = AbsolutePath CrumbC
 type PathC = Path CrumbC
 
 -- | The context for KURE-based CL rewrites
-data CompCtx = CompCtx { cl_bindings :: M.Map Ident Type 
+data CompCtx = CompCtx { cl_bindings :: M.Map L.Ident Type 
                        , cl_path     :: AbsPathC
                        }
                        
@@ -100,7 +103,7 @@ initialCtx :: CompCtx
 initialCtx = CompCtx { cl_bindings = M.empty, cl_path = mempty }
 
 -- | Record a variable binding in the context
-bindVar :: Ident -> Type -> CompCtx -> CompCtx
+bindVar :: L.Ident -> Type -> CompCtx -> CompCtx
 bindVar n ty ctx = ctx { cl_bindings = M.insert n ty (cl_bindings ctx) }
 
 -- | If the qualifier represents a generator, bind the variable in the context.
@@ -108,20 +111,25 @@ bindQual :: CompCtx -> Qual -> CompCtx
 bindQual ctx (BindQ n e) = bindVar n (elemT $ typeOf e) ctx
 bindQual ctx _           = ctx
          
-inScopeNames :: CompCtx -> [Ident]
+inScopeNames :: CompCtx -> [L.Ident]
 inScopeNames = M.keys . cl_bindings
 
-boundIn :: Ident -> CompCtx -> Bool
+boundIn :: L.Ident -> CompCtx -> Bool
 boundIn n ctx = n `M.member` (cl_bindings ctx)
 
-freeIn :: Ident -> CompCtx -> Bool
+freeIn :: L.Ident -> CompCtx -> Bool
 freeIn n ctx = n `M.notMember` (cl_bindings ctx)
 
 -- | Generate a fresh name that is not bound in the current context.
-freshNameT :: TranslateC a Ident
-freshNameT = do
+freshNameT :: [L.Ident] -> TranslateC a L.Ident
+freshNameT avoidNames = do
     ctx <- contextT
-    constT $ freshName (inScopeNames ctx)
+    constT $ freshName (avoidNames ++ inScopeNames ctx)
+
+-- | Perform a translate with an empty path, i.e. a path starting from
+-- the current node.
+withLocalPathT :: Monad m => Translate CompCtx m a b -> Translate CompCtx m a b
+withLocalPathT t = translate $ \c a -> apply t (c { cl_path = SnocPath [] }) a
 
 --------------------------------------------------------------------------------
 -- Support for stateful translates
@@ -135,13 +143,14 @@ statefulT s t = resultT (stateful s) t
 liftstateT :: Translate CompCtx (CompM Int) a b -> Translate CompCtx (CompSM s) a b
 liftstateT t = resultT liftstate t
 
+
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
 
-tableT :: Monad m => (Type -> String -> [Column] -> [Key] -> b)
+tableT :: Monad m => (Type -> String -> [L.Column] -> L.TableHints -> b)
                   -> Translate CompCtx m Expr b
 tableT f = contextfreeT $ \expr -> case expr of
-                      Table ty n cs ks -> return $ f ty n cs ks
+                      Table ty n cs hs -> return $ f ty n cs hs
                       _                -> fail "not a table node"
 {-# INLINE tableT #-}                      
                       
@@ -189,7 +198,7 @@ appe2R t1 t2 = appe2T t1 t2 AppE2
                      
 binopT :: Monad m => Translate CompCtx m Expr a1
                   -> Translate CompCtx m Expr a2
-                  -> (Type -> Oper -> a1 -> a2 -> b)
+                  -> (Type -> L.ScalarBinOp -> a1 -> a2 -> b)
                   -> Translate CompCtx m Expr b
 binopT t1 t2 f = translate $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
@@ -199,9 +208,21 @@ binopT t1 t2 f = translate $ \c expr -> case expr of
 binopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
+
+unopT :: Monad m => Translate CompCtx m Expr a
+                 -> (Type -> L.ScalarUnOp -> a -> b)
+                 -> Translate CompCtx m Expr b
+unopT t f = translate $ \ctx expr -> case expr of
+                     UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
+                     _            -> fail "not an unary operator application"
+{-# INLINE unopT #-}
+
+unopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
+unopR t = unopT t UnOp
+{-# INLINE unopR #-}
                      
 lamT :: Monad m => Translate CompCtx m Expr a
-                -> (Type -> Ident -> a -> b)
+                -> (Type -> L.Ident -> a -> b)
                 -> Translate CompCtx m Expr b
 lamT t f = translate $ \c expr -> case expr of
                      Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@LamBody) e
@@ -231,7 +252,7 @@ ifR :: Monad m => Rewrite CompCtx m Expr
 ifR t1 t2 t3 = ifT t1 t2 t3 If               
 {-# INLINE ifR #-}                      
                     
-litT :: Monad m => (Type -> Val -> b) -> Translate CompCtx m Expr b
+litT :: Monad m => (Type -> L.Val -> b) -> Translate CompCtx m Expr b
 litT f = contextfreeT $ \expr -> case expr of
                     Lit ty v -> return $ f ty v
                     _          -> fail "not a constant"
@@ -241,7 +262,7 @@ litR :: Monad m => Rewrite CompCtx m Expr
 litR = litT Lit
 {-# INLINE litR #-}                      
                     
-varT :: Monad m => (Type -> Ident -> b) -> Translate CompCtx m Expr b
+varT :: Monad m => (Type -> L.Ident -> b) -> Translate CompCtx m Expr b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
                     _        -> fail "not a variable"
@@ -271,7 +292,7 @@ compR t1 t2 = compT t1 t2 Comp
 -- Congruence combinators for qualifiers
 
 bindQualT :: Monad m => Translate CompCtx m Expr a 
-                     -> (Ident -> a -> b) 
+                     -> (L.Ident -> a -> b) 
                      -> Translate CompCtx m Qual b
 bindQualT t f = translate $ \ctx expr -> case expr of
                 BindQ n e -> f n <$> apply t (ctx@@BindQualExpr) e
@@ -358,6 +379,8 @@ instance Injection (NL Qual) CL where
     project _            = Nothing
 
     
+-- FIXME putting an INLINE pragma on allR would propably lead to good
+-- things. However, with 7.6.3 it triggers a GHC panic.
 instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
     allR r = 
@@ -383,6 +406,7 @@ instance Walker CompCtx CL where
             AppE1{} -> appe1R (extractR r)
             AppE2{} -> appe2R (extractR r) (extractR r)
             BinOp{} -> binopR (extractR r) (extractR r)
+            UnOp{}  -> unopR (extractR r)
             Lam{}   -> lamR (extractR r)
             If{}    -> ifR (extractR r) (extractR r) (extractR r)
             Lit{}   -> idR

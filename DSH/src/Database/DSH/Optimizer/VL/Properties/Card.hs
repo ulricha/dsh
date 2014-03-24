@@ -5,10 +5,8 @@ module Database.DSH.Optimizer.VL.Properties.Card where
 
 import Control.Applicative
 
-import Database.Algebra.VL.Data
+import Database.DSH.VL.Lang
 
-import Database.DSH.Impossible
-  
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.Common
 
@@ -18,23 +16,22 @@ unp = unpack "Properties.Card"
 inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
-    SingletonDescr                -> Right $ VProp True
-    Lit _ rows  -> Right $ VProp $ length rows == 1
-    TableRef              _ _ _   -> Right $ VProp False
+    SingletonDescr   -> Right $ VProp True
+    Lit _ rows       -> Right $ VProp $ length rows == 1
+    TableRef _ _ _   -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op = 
   case op of
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
+    AggrNonEmpty _ -> Right $ VProp True
     DescToRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c
-    ProjectRename _ -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    FalsePositions -> Right c
     SelectPos1 _ _ -> Right $ VPropPair False False
     SelectPos1S _ _ -> Right $ VPropPair False False
     Select _ -> Right $ VProp False
@@ -56,8 +53,8 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr [] _ -> Right $ VProp True
     GroupAggr _ _  -> Right c
-    Only -> $unimplemented
-    Singleton -> $unimplemented
+    Only -> Right $ VProp True
+    Singleton -> Right $ VProp True
     Number -> Right c
     NumberS -> Right c
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -71,6 +68,7 @@ inferCardOneBinOp c1 c2 op =
     GroupBy -> return $ VPropTriple False False False
     Sort -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
+    AggrNonEmptyS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     DistSeg -> return $ VPropPair False False

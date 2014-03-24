@@ -38,7 +38,7 @@ import           Database.Algebra.Rewrite.Properties
 import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal
 
-import           Database.DSH.Common.Data.QueryPlan
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Data.DBVector
 
 --------------------------------------------------------------
