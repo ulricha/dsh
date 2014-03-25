@@ -162,6 +162,13 @@ vlDistSeg (DVec c1 _) (DVec c2 _) = do
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
+vlAlign :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlAlign (DVec c1 _) (DVec c2 _) = do
+                                        r <- insertNode $ BinOp Align c1 c2
+                                        r1 <- dvec $ insertNode $ UnOp R1 r
+                                        r2 <- pvec $ insertNode $ UnOp R2 r
+                                        return (r1, r2)
+
 -- | pvecRvec uses a propagation vector to rename a vector (no filtering or reordering).
 vlPropRename :: RVec -> DVec -> GraphM r VL DVec
 vlPropRename (RVec c1) (DVec c2 _) = dvec $ insertNode $ BinOp PropRename c1 c2

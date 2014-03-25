@@ -207,6 +207,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
         VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
         _                -> error "DistSeg"
 
+    Align ->
+      case ownReqColumns of
+        VPropPair cols _ -> partitionCols childBUProps1 childBUProps2 cols
+        _                -> error "Align"
+
     PropRename      -> (na, childReqColumns2 `union` ownReqColumns)
 
     PropFilter      ->

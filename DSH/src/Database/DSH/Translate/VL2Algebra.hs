@@ -172,6 +172,10 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecDistSeg (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
+    Align -> do
+        (v, p) <- vecAlign (toDVec c1) (toDVec c2)
+        return $ RPair (fromDVec v) (fromProp p)
+
     PropRename -> fromDVec <$> vecPropRename (toRenameVector c1) (toDVec c2)
 
     PropFilter -> do

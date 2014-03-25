@@ -1,8 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
     
--- FIXME uses of non-sum/count segmented aggregates need a proper
--- argument for the outer vector.
-
 module Database.DSH.VL.VectorOperations where
 
 import           Debug.Trace
@@ -500,10 +497,12 @@ avgLift (ValueVector d1 (Nest q (InColumn 1))) =
 avgLift _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape
-distL (ValueVector q1 lyt1) (ValueVector d (Nest o _)) = do
-    (v, p) <- vlDistSeg q1 o
-    lyt1' <- chainReorder p lyt1
-    return $ ValueVector d (Nest v lyt1')
+distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
+    (qa, p)             <- vlAlign q1 q2
+    lyt1'               <- chainReorder p lyt1
+    let lyt             = zipLayout lyt1' lyt2
+    ValueVector qf lytf <- fstL $ ValueVector qa lyt
+    return $ ValueVector d (Nest qf lytf)
 distL (AClosure n v i xs x f fl) q2 = do
     v' <- distL v q2
     xs' <- mapEnv (\y -> distL y v') xs

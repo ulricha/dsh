@@ -72,7 +72,8 @@ class VectorAlgebra a where
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc
   vecDistPrim :: DVec -> DVec -> GraphM r a (DVec, PVec)
   vecDistDesc :: DVec -> DVec -> GraphM r a (DVec, PVec)
-  vecDistSeg :: DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecDistSeg  :: DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecAlign    :: DVec -> DVec -> GraphM r a (DVec, PVec)
 
   -- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
   vecPropRename :: RVec -> DVec -> GraphM r a DVec

@@ -123,6 +123,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)
            | DistSeg   -- (DBV, PropVector)
+           | Align     -- (DBV, PropVector)
            | PropRename
            | PropFilter -- (DBV, PropVector)
            | PropReorder -- (DBV, PropVector)

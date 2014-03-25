@@ -72,6 +72,7 @@ inferCardOneBinOp c1 c2 op =
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     DistSeg -> return $ VPropPair False False
+    Align -> return $ VPropPair False False
     PropRename -> return $ VProp False
     PropFilter -> return $ VPropPair False False
     PropReorder -> return $ VPropPair False False

@@ -111,6 +111,12 @@ inferVectorTypeBinOp s1 s2 op =
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)
+
+    Align -> do
+        ValueVector w1 <- unpack s1
+        ValueVector w2 <- unpack s2
+        return $ VPropPair (ValueVector $ w1 + w2) PropVector
+
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
