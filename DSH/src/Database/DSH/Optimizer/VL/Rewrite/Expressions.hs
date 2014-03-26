@@ -197,4 +197,3 @@ identityProject q =
           logRewrite "Project.Identity" q
           replace q $(v "q1") |])
 
-       

@@ -19,7 +19,7 @@ removeRedundancy =
     iteratively $ sequenceRewrites [ cleanup
                                    , applyToAll noProps redundantRules
                                    , applyToAll inferBottomUp redundantRulesBottomUp
-                                   , applyToAll inferTopDown redundantRulesTopDown
+                                   , applyToAll inferProperties redundantRulesAllProps
                                    ]
 
 cleanup :: VLRewrite Bool
@@ -41,8 +41,11 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProjectRight
                          ]
 
-redundantRulesTopDown :: VLRuleSet TopDownProps
-redundantRulesTopDown = [ unreferencedDistSeg ]
+redundantRulesAllProps :: VLRuleSet Properties
+redundantRulesAllProps = [ unreferencedAlign
+                         , unreferencedProject
+                         -- , alignedOnlyLeft
+                         ]
 
 introduceSelect :: VLRule ()
 introduceSelect q =
@@ -97,17 +100,45 @@ distDescConstant q =
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the DistSeg altogether, as the
 -- shape of the inner vector is not changed by DistSeg.
-unreferencedDistSeg :: VLRule TopDownProps
-unreferencedDistSeg q =
-  $(pattern 'q  "R1 ((_) DistSeg (qd))"
+unreferencedAlign :: VLRule Properties
+unreferencedAlign q =
+  $(pattern 'q  "R1 ((_) Align (qd))"
     [| do
-        VProp (Just reqCols) <- reqColumnsProp <$> properties q
+        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
         predicate $ null reqCols
 
         return $ do
-          logRewrite "Redundant.UnreferencedDistSeg" q
+          logRewrite "Redundant.Unreferenced.Align" q
           void $ replace q $(v "qd") |])
-        
+
+unreferencedProject :: VLRule Properties
+unreferencedProject q =
+  $(pattern 'q "Project _ (q1)"
+     [| do
+         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
+         predicate $ null reqCols
+  
+         return $ do
+           logRewrite "Redundant.Unreferenced.Project" q
+           void $ replace q $(v "q1") |])
+
+{-
+-- Housekeeping rule: Align takes only
+alignedOnlyLeft :: VLRule Properties
+alignedOnlyLeft q =
+  $(pattern 'q "(q1) Align (Project _ (q2))"
+    [| do
+        -- check that only columns from the right input (outer vector)
+        -- are required
+        props                 <- properties q
+        VProp (Just reqCols)  <- return $ reqColumnsProp $ td props
+        VProp (ValueVector w) <- return $ vectorTypeProp $ bu props
+        predicate $ all (<= w) reqCols
+  
+        return $ do
+          logRewrite "Redundant.Align.Project" q
+          void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
+-}
           
 shiftCols :: Int -> Expr1 -> Expr1
 shiftCols offset expr =
