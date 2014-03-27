@@ -85,7 +85,7 @@ data VLVal = VLInt Int
            deriving (Eq, Ord, Generic, Show, Read)
 
 data NullOp = SingletonDescr
-            | Lit [VLType] [[VLVal]]
+            | Lit L.Emptiness [VLType] [[VLVal]]
             | TableRef String [VLColumn] L.TableHints
             deriving (Eq, Ord, Generic, Show)
 

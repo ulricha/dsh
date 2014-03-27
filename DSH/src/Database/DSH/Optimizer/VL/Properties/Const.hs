@@ -53,7 +53,7 @@ inferConstVecNullOp op =
   case op of
     SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit colTypes rows      ->
+    Lit _ colTypes rows      ->
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
       else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols

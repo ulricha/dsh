@@ -214,8 +214,8 @@ vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = do
                                                r3 <- rvec $ insertNode $ UnOp R3 r
                                                return (r1, r2, r3)
 
-vlLit :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
-vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
+vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
+vlLit em tys vals = dvec $ insertNode $ NullaryOp $ Lit em (map typeToVLType tys) vals
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> GraphM r VL DVec
 vlTableRef n tys hs = dvec $ insertNode $ NullaryOp $ TableRef n tys hs

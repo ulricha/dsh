@@ -142,8 +142,12 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             let cols'     = filter (/= w) cols
             VProp (Just cols') ∪ childReqColumns
     
-        Reverse    -> ownReqColumns ∪ childReqColumns
-        ReverseS   -> ownReqColumns ∪ childReqColumns
+        Reverse    -> do
+            cols <- fst <$> fromPropPair ownReqColumns 
+            VProp cols ∪ childReqColumns
+        ReverseS   -> do
+            cols <- fst <$> fromPropPair ownReqColumns 
+            VProp cols ∪ childReqColumns
     
         Project ps -> childReqColumns ∪ (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
     
@@ -168,13 +172,15 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                                    concatMap aggrReqCols (N.toList as))
     
         SortSimple exprs -> do
-            ownReqColumns' <- ownReqColumns 
+            cols <- fst <$> fromPropPair ownReqColumns
+            ownReqColumns' <- VProp cols
                               ∪ 
                               (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
             childReqColumns ∪ ownReqColumns'
     
         GroupSimple exprs -> do
-            ownReqColumns' <- ownReqColumns 
+            (_, colsi, _) <- fromPropTriple ownReqColumns
+            ownReqColumns' <- VProp colsi
                               ∪ 
                               (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
             childReqColumns ∪ ownReqColumns'
@@ -268,7 +274,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           return (na, fromRight)
   
       PropFilter      -> do
-          fromRight <- childReqColumns2 ∪ ownReqColumns
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
   
       PropReorder -> do
