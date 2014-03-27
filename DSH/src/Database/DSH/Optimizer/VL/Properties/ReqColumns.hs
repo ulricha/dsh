@@ -15,7 +15,7 @@ import           Database.DSH.Optimizer.VL.Properties.Types
 (∪) (VProp (Just cols1)) (VProp Nothing)      = return $ VProp $ Just $ cols1
 (∪) (VProp Nothing)      (VProp (Just cols2)) = return $ VProp $ Just $ cols2
 (∪) (VProp Nothing)      (VProp Nothing)      = return $ VProp $ Nothing
-(∪) p1                   p2                   = fail $ "ReqColumns.union" 
+(∪) p1                   p2                   = Left $ "ReqColumns.union" 
                                                        ++ " " 
                                                        ++ (show p1) 
                                                        ++ " " 
@@ -248,8 +248,9 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
                        childReqColumns2
           return (fromLeft, fromRight)
   
-      DistPrim -> (,) <$> (childReqColumns1 ∪ ownReqColumns) 
-                      <*> (childReqColumns2 ∪ none)
+      DistPrim -> do
+          cols <- fst <$> fromPropPair ownReqColumns
+          (,) <$> (childReqColumns1 ∪ VProp cols) <*> (childReqColumns2 ∪ none)
   
       DistDesc -> do
           cols      <- fst <$> fromPropPair ownReqColumns
