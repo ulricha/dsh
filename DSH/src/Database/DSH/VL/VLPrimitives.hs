@@ -155,13 +155,6 @@ vlDistDesc (DVec c1 _) (DVec c2 _) = do
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlDistSeg :: DVec -> DVec -> GraphM r VL (DVec, PVec)
-vlDistSeg (DVec c1 _) (DVec c2 _) = do
-                                        r <- insertNode $ BinOp DistSeg c1 c2
-                                        r1 <- dvec $ insertNode $ UnOp R1 r
-                                        r2 <- pvec $ insertNode $ UnOp R2 r
-                                        return (r1, r2)
-
 vlAlign :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlAlign (DVec c1 _) (DVec c2 _) = do
                                         r <- insertNode $ BinOp Align c1 c2

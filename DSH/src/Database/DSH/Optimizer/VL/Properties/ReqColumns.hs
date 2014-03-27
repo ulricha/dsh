@@ -258,12 +258,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ none
           return (fromLeft, fromRight)
   
-      DistSeg -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- VProp cols ∪ childReqColumns1
-          fromRight <- childReqColumns2 ∪ none
-          return (fromLeft, fromRight)
-
       Align -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols

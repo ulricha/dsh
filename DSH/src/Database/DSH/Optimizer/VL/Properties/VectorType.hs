@@ -110,7 +110,6 @@ inferVectorTypeBinOp s1 s2 op =
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
-    DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)
 
     Align -> do
         ValueVector w1 <- unpack s1

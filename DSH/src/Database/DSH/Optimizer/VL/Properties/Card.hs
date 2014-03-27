@@ -71,7 +71,6 @@ inferCardOneBinOp c1 c2 op =
     AggrNonEmptyS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
-    DistSeg -> return $ VPropPair False False
     Align -> return $ VPropPair False False
     PropRename -> return $ VProp False
     PropFilter -> return $ VPropPair False False
