@@ -40,6 +40,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
                          , alignParents
+                         , stackedAlign
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -161,6 +162,27 @@ alignParents q =
              -- Then, re-link all parents of the right Align input to
              -- the projection.
              forM_ nonAlignParents $ \p -> replaceChild p $(v "q2") projNode |])
+
+-- | If an outer vector is aligned multiple times with some inner
+-- vector (i.e. stacked Align operators with the same left input), one
+-- Align is sufficient.
+stackedAlign :: VLRule BottomUpProps
+stackedAlign q =
+  $(pattern 'q "R1 ((q11) Align (qr1=R1 ((q12) Align (q2))))"
+    [| do
+        predicate $ $(v "q11") == $(v "q12")
+        VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
+        VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
+  
+        return $ do
+            logRewrite "Redundant.Align.Stacked" q
+            
+            -- Aligning multiple times duplicates the left input's
+            -- columns.
+            let dupColsProj = map Column1 ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
+            projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
+
+            replace q projNode |])
 
 {-
 -- Housekeeping rule: Align takes only
