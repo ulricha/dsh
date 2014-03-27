@@ -1,6 +1,7 @@
 module Database.DSH.Optimizer.VL.Properties.TopDown(inferTopDownProperties) where
 
 import Control.Monad.State
+import Text.Printf
   
 import qualified Data.IntMap as M
 
@@ -104,35 +105,46 @@ lookupProps n = do
 replaceProps :: AlgNode -> TopDownProps -> State InferenceState ()
 replaceProps n p = modify (M.insert n p)
 
-inferUnOp :: TopDownProps -> TopDownProps -> UnOp -> TopDownProps
-inferUnOp ownProps cp op =
-    TDProps { reqColumnsProp = inferReqColumnsUnOp (reqColumnsProp ownProps) (reqColumnsProp cp) op }
+inferUnOp :: BottomUpProps -> TopDownProps -> TopDownProps -> UnOp -> Either String TopDownProps
+inferUnOp childBUProps ownProps cp op = do
+    cols <- inferReqColumnsUnOp childBUProps
+                                (reqColumnsProp ownProps) 
+                                (reqColumnsProp cp) 
+                                op
+    return $ TDProps { reqColumnsProp = cols }
 
 inferBinOp :: BottomUpProps 
-              -> BottomUpProps
-              -> TopDownProps 
-              -> TopDownProps 
-              -> TopDownProps 
-              -> BinOp 
-              -> (TopDownProps, TopDownProps)
-inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op =
-  let (crc1', crc2') = inferReqColumnsBinOp childBUProps1 childBUProps2 (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) op
-      cp1' = TDProps { reqColumnsProp = crc1' }
-      cp2' = TDProps { reqColumnsProp = crc2' }
-  in (cp1', cp2')
+           -> BottomUpProps
+           -> TopDownProps 
+           -> TopDownProps 
+           -> TopDownProps 
+           -> BinOp 
+           -> Either String (TopDownProps, TopDownProps)
+inferBinOp childBUProps1 childBUProps2 ownProps cp1 cp2 op = do
+    (crc1', crc2') <- inferReqColumnsBinOp childBUProps1 
+                                           childBUProps2 
+                                           (reqColumnsProp ownProps) 
+                                           (reqColumnsProp cp1) 
+                                           (reqColumnsProp cp2) op
+    let cp1' = TDProps { reqColumnsProp = crc1' }
+        cp2' = TDProps { reqColumnsProp = crc2' }
+    return (cp1', cp2')
 
 inferTerOp :: TopDownProps 
-              -> TopDownProps 
-              -> TopDownProps 
-              -> TopDownProps 
-              -> TerOp 
-              -> (TopDownProps, TopDownProps, TopDownProps)
-inferTerOp ownProps cp1 cp2 cp3 op =
-  let (crc1', crc2', crc3') = inferReqColumnsTerOp (reqColumnsProp ownProps) (reqColumnsProp cp1) (reqColumnsProp cp2) (reqColumnsProp cp3) op
-      cp1' = TDProps { reqColumnsProp = crc1' }
-      cp2' = TDProps { reqColumnsProp = crc2' }
-      cp3' = TDProps { reqColumnsProp = crc3' }
-  in (cp1', cp2', cp3')
+           -> TopDownProps 
+           -> TopDownProps 
+           -> TopDownProps 
+           -> TerOp 
+           -> Either String (TopDownProps, TopDownProps, TopDownProps)
+inferTerOp ownProps cp1 cp2 cp3 op = do
+    (crc1', crc2', crc3') <- inferReqColumnsTerOp (reqColumnsProp ownProps) 
+                                                  (reqColumnsProp cp1) 
+                                                  (reqColumnsProp cp2) 
+                                                  (reqColumnsProp cp3) op
+    let cp1' = TDProps { reqColumnsProp = crc1' }
+        cp2' = TDProps { reqColumnsProp = crc2' }
+        cp3' = TDProps { reqColumnsProp = crc3' }
+    return (cp1', cp2', cp3')
 
 inferChildProperties :: NodeMap BottomUpProps -> AlgebraDag VL -> AlgNode -> State InferenceState ()
 inferChildProperties buPropMap d n = do
@@ -141,24 +153,31 @@ inferChildProperties buPropMap d n = do
         NullaryOp _ -> return ()
         UnOp op c -> do
             cp <- lookupProps c
-            let cp' = inferUnOp ownProps cp op
+            let buProps = lookupUnsafe buPropMap "TopDown.infer" c
+            let cp' = checkError n $ inferUnOp buProps ownProps cp op
             replaceProps c cp'
         BinOp op c1 c2 -> do
             cp1 <- lookupProps c1
             cp2 <- lookupProps c2
             let buProps1 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c1
                 buProps2 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c2
-            let (cp1', cp2') = inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
+            let (cp1', cp2') = checkError n $ inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
             replaceProps c1 cp1'
             replaceProps c2 cp2'
         TerOp op c1 c2 c3 -> do
           cp1 <- lookupProps c1
           cp2 <- lookupProps c2
           cp3 <- lookupProps c3
-          let (cp1', cp2', cp3') = inferTerOp ownProps cp1 cp2 cp3 op
+          let (cp1', cp2', cp3') = checkError n $ inferTerOp ownProps cp1 cp2 cp3 op
           replaceProps c1 cp1'
           replaceProps c2 cp2'
           replaceProps c3 cp3'
+
+checkError :: AlgNode -> Either String p -> p
+checkError n (Left msg) = 
+    let completeMsg   = printf "Inference failed at node %d\n%s" n msg
+    in error completeMsg
+checkError _ (Right props) = props
     
 -- | Infer properties during a top-down traversal.
 inferTopDownProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag VL -> NodeMap TopDownProps

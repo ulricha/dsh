@@ -2,23 +2,24 @@
 
 module Database.DSH.Optimizer.VL.Properties.ReqColumns where
 
-import Database.DSH.Impossible
-
+import           Control.Applicative
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as N
+
 import           Database.DSH.VL.Lang
 import           Database.DSH.Optimizer.VL.Properties.Types
 
-unp :: Show a => VectorProp a -> a
-unp (VProp x) = x
-unp x         = error $ "ReqColumns.unp " ++ (show x)
 
-union :: VectorProp ReqCols -> VectorProp ReqCols -> VectorProp ReqCols
-union (VProp (Just cols1)) (VProp (Just cols2)) = VProp $ Just $ cols1 `L.union` cols2
-union (VProp (Just cols1)) (VProp Nothing)      = VProp $ Just $ cols1
-union (VProp Nothing)      (VProp (Just cols2)) = VProp $ Just $ cols2
-union (VProp Nothing)      (VProp Nothing)      = VProp $ Nothing
-union p1                   p2                   = error ("ReqColumns.union" ++ " " ++ (show p1) ++ " " ++ (show p2))
+(∪) :: VectorProp ReqCols -> VectorProp ReqCols -> Either String (VectorProp ReqCols)
+(∪) (VProp (Just cols1)) (VProp (Just cols2)) = return $ VProp $ Just $ cols1 `L.union` cols2
+(∪) (VProp (Just cols1)) (VProp Nothing)      = return $ VProp $ Just $ cols1
+(∪) (VProp Nothing)      (VProp (Just cols2)) = return $ VProp $ Just $ cols2
+(∪) (VProp Nothing)      (VProp Nothing)      = return $ VProp $ Nothing
+(∪) p1                   p2                   = Left $ "ReqColumns.union" 
+                                                       ++ " " 
+                                                       ++ (show p1) 
+                                                       ++ " " 
+                                                       ++ (show p2)
 
 none :: VectorProp ReqCols
 none = VProp $ Just []
@@ -56,290 +57,345 @@ aggrReqCols (AggrMax e)   = reqExpr1Cols e
 aggrReqCols (AggrAvg e)   = reqExpr1Cols e
 aggrReqCols AggrCount     = []
 
-allCols :: BottomUpProps -> VectorProp ReqCols
-allCols props = case vectorTypeProp props of
-                 (VProp (ValueVector w)) -> VProp $ Just [1 .. w]
-                 _                       -> error "ReqColumns.allCols: ValueVector expected"
+fromProp :: Show a => VectorProp a -> Either String a
+fromProp (VProp p) = return p
+fromProp x         = fail $ "ReqColumns.fromProp " ++ (show x)
 
-partitionCols :: BottomUpProps -> BottomUpProps -> ReqCols -> (VectorProp ReqCols, VectorProp ReqCols)
-partitionCols childBUProps1 childBUProps2 ownReqCols =
-  let childType1 = unp $ vectorTypeProp childBUProps1
-      childType2 = unp $ vectorTypeProp childBUProps2
-  in
-   case ownReqCols of
-     Just cols ->
-       case (childType1, childType2) of
-         -- If both inputs are ValueVectors, map the required columns to the respective inputs
-         (ValueVector w1, ValueVector w2) ->
-           let leftReqCols  = cols `L.intersect` [1 .. w1]
-               rightReqCols = cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
-           in (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
-         _                                -> error ("partitionCols " ++ (show childType1) ++ " " ++ (show childType2))
-     Nothing -> (na, na)
+fromPropPair :: VectorProp a -> Either String (a, a)
+fromPropPair (VPropPair x y) = return (x, y)
+fromPropPair _               = fail "not a property pair"
 
-inferReqColumnsUnOp :: VectorProp ReqCols
-                -> VectorProp ReqCols
-                -> UnOp
-                -> VectorProp ReqCols
-inferReqColumnsUnOp ownReqColumns childReqColumns op =
-  case op of
-    Transpose -> ownReqColumns `union` childReqColumns
-    Reshape _ -> ownReqColumns `union` childReqColumns
-    ReshapeS _ -> ownReqColumns `union` childReqColumns
-    UniqueS -> ownReqColumns `union` childReqColumns
+fromPropTriple :: VectorProp a -> Either String (a, a, a)
+fromPropTriple (VPropTriple x y z) = return (x, y, z)
+fromPropTriple _                   = fail "not a property triple"
 
-    Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
-                    `union` 
-                    childReqColumns
+allCols :: BottomUpProps -> Either String (VectorProp ReqCols)
+allCols props = do
+    VProp (ValueVector w) <- return $ vectorTypeProp props
+    return $ VProp $ Just [1 .. w]
 
-    AggrNonEmpty aggrFuns -> (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
-                             `union`
-                             childReqColumns
+-- | For operators that combine two value vectors in a product-like
+-- manner (products, joins, zips, ...), map the columns that are
+-- required from above to the respective input columns.
+partitionCols :: BottomUpProps   -- ^ Available columns in the left input
+              -> BottomUpProps   -- ^ Available columns in the right input
+              -> ReqCols         -- ^ Columns required from above
+              -> Either String (VectorProp ReqCols, VectorProp ReqCols)
+partitionCols childBUProps1 childBUProps2 ownReqCols = do
+    ValueVector w1 <- fromProp $ vectorTypeProp childBUProps1
+    ValueVector w2 <- fromProp $ vectorTypeProp childBUProps2
 
-    DescToRename -> none `union` childReqColumns
+    let cols = maybe [] id ownReqCols
+    
+    -- If both inputs are ValueVectors, map the required columns to
+    -- the respective inputs
+    let leftReqCols  = cols `L.intersect` [1 .. w1]
+        rightReqCols = cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
+    return (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
 
-    Segment -> ownReqColumns `union` childReqColumns
-    Unsegment -> ownReqColumns `union` childReqColumns
+-- | Infer required columns for unary operators
+inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
+                    -> VectorProp ReqCols     -- ^ Columns required from the current node
+                    -> VectorProp ReqCols     -- ^ Columns required from the input node
+                    -> UnOp                   -- ^ Current operator
+                    -> Either String (VectorProp ReqCols)
+inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
+    case op of
+        Transpose  -> do
+            cols <- snd <$> fromPropPair ownReqColumns
+            childReqColumns ∪ VProp cols
 
-    Number -> none
-    NumberS -> none
+        Reshape _  -> do
+            cols <- snd <$> fromPropPair ownReqColumns
+            VProp cols ∪ childReqColumns
 
-    Reverse -> ownReqColumns `union` childReqColumns
-    ReverseS -> ownReqColumns `union` childReqColumns
+        ReshapeS _ -> do
+            cols <- snd <$> fromPropPair ownReqColumns
+            VProp cols ∪ childReqColumns
 
-    Project ps -> childReqColumns `union` (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+        UniqueS    -> ownReqColumns ∪ childReqColumns
+    
+        Aggr aggrFun -> (VProp $ Just $ aggrReqCols aggrFun)
+                        ∪ 
+                        childReqColumns
+    
+        AggrNonEmpty aggrFuns -> (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
+                                 ∪
+                                 childReqColumns
+    
+        DescToRename -> none ∪ childReqColumns
+    
+        Segment    -> ownReqColumns ∪ childReqColumns
+        Unsegment  -> ownReqColumns ∪ childReqColumns
+    
+        -- Numbering operators add one column at the end. We have to
+        -- determine the column index of the new column and remove it
+        -- from the set of required columns
+        Number     -> do
+            ValueVector w <- fromProp $ vectorTypeProp childBUProps
+            Just cols     <- fromProp ownReqColumns
+            let cols'     = filter (/= w) cols
+            VProp (Just cols') ∪ childReqColumns
+        NumberS    -> do
+            ValueVector w <- fromProp $ vectorTypeProp childBUProps
+            (Just cols)   <- fromProp ownReqColumns
+            let cols'     = filter (/= w) cols
+            VProp (Just cols') ∪ childReqColumns
+    
+        Reverse    -> ownReqColumns ∪ childReqColumns
+        ReverseS   -> ownReqColumns ∪ childReqColumns
+    
+        Project ps -> childReqColumns ∪ (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+    
+        Select e   -> do
+            ownReqColumns' <- ownReqColumns ∪ (VProp $ Just $ reqExpr1Cols e)
+            ownReqColumns' ∪ childReqColumns
+    
+        SelectPos1 _ _   -> do
+            cols <- fst <$> fromPropPair ownReqColumns
+            childReqColumns ∪ (VProp cols)
+    
+        SelectPos1S _ _   -> do
+            cols <- fst <$> fromPropPair ownReqColumns
+            childReqColumns ∪ (VProp cols)
+            
+        -- We don't need to look at the columns required from above,
+        -- because they can only be a subset of (gs ++ as).
+        GroupAggr gs as -> childReqColumns 
+                           ∪ 
+                           (VProp $ Just $ L.nub $ concatMap reqExpr1Cols gs 
+                                                   ++ 
+                                                   concatMap aggrReqCols (N.toList as))
+    
+        SortSimple exprs -> do
+            ownReqColumns' <- ownReqColumns 
+                              ∪ 
+                              (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+            childReqColumns ∪ ownReqColumns'
+    
+        GroupSimple exprs -> do
+            ownReqColumns' <- ownReqColumns 
+                              ∪ 
+                              (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+            childReqColumns ∪ ownReqColumns'
+    
+        R1               ->
+            case childReqColumns of
+                VProp _                       -> fail $ "ReqColumns.R1 " ++ (show childReqColumns)
+                VPropPair cols1 cols2         -> do
+                    cols1' <- fromProp =<< VProp cols1 ∪ ownReqColumns
+                    return $ VPropPair cols1' cols2
+                VPropTriple cols1 cols2 cols3 -> do
+                    cols1' <- fromProp =<< VProp cols1 ∪ ownReqColumns
+                    return $ VPropTriple cols1' cols2 cols3
+    
+        R2               ->
+            case childReqColumns of
+                VProp _                       -> fail "ReqColumns.R2"
+                VPropPair cols1 cols2         -> do
+                    cols2' <- fromProp =<< VProp cols2 ∪ ownReqColumns
+                    return $ VPropPair cols1 cols2'
+                VPropTriple cols1 cols2 cols3 -> do
+                    cols2' <- fromProp =<< VProp cols2 ∪ ownReqColumns
+                    return $ VPropTriple cols1 cols2' cols3
+    
+        R3               ->
+            case childReqColumns of
+                VProp _                       -> fail "ReqColumns.R3/1"
+                VPropPair _ _                 -> fail "ReqColumns.R3/2"
+                VPropTriple cols1 cols2 cols3 -> do
+                    cols3' <- fromProp =<< VProp cols3 ∪ ownReqColumns
+                    return $ VPropTriple cols1 cols2 cols3'
+    
+        Only      -> childReqColumns ∪ ownReqColumns
+        Singleton -> childReqColumns ∪ ownReqColumns
 
-    Select e -> childReqColumns `union` (VProp $ Just $ reqExpr1Cols e)
 
-    SelectPos1 _ _   ->
-      case ownReqColumns of
-        VPropPair cols _ -> childReqColumns `union` (VProp cols)
-        _                -> error "SelectPos1"
-
-    SelectPos1S _ _   ->
-      case ownReqColumns of
-        VPropPair cols _ -> childReqColumns `union` (VProp cols)
-        _                -> error "SelectPos1L"
-        
-    -- We don't need to look at the columns required from above, because they
-    -- can only be a subset of (gs ++ as).
-    GroupAggr gs as -> childReqColumns 
-                       `union` 
-                       (VProp $ Just $ L.nub $ concatMap reqExpr1Cols gs 
-                                               ++ 
-                                               concatMap aggrReqCols (N.toList as))
-
-    SortSimple exprs -> childReqColumns 
-                        `union` 
-                        ownReqColumns 
-                        `union` 
-                        (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
-
-    GroupSimple exprs -> childReqColumns
-                         `union`
-                         ownReqColumns
-                         `union`
-                         (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
-
-    R1               ->
-      case childReqColumns of
-        VProp _                       -> error $ "ReqColumns.R1 " ++ (show childReqColumns)
-        VPropPair cols1 cols2         -> VPropPair (unp (union (VProp cols1) ownReqColumns)) cols2
-        VPropTriple cols1 cols2 cols3 -> VPropTriple (unp (union (VProp cols1) ownReqColumns)) cols2 cols3
-
-    R2               ->
-      case childReqColumns of
-        VProp _              -> error "ReqColumns.R2"
-        VPropPair cols1 cols2      -> VPropPair cols1 (unp (union (VProp cols2) ownReqColumns))
-        VPropTriple cols1 cols2 cols3 -> VPropTriple cols1 (unp (union (VProp cols2) ownReqColumns)) cols3
-    R3               ->
-      case childReqColumns of
-        VProp _              -> error "ReqColumns.R3/1"
-        VPropPair _ _        -> error "ReqColumns.R3/2"
-        VPropTriple cols1 cols2 cols3 -> VPropTriple cols1 cols2 (unp (union (VProp cols3) ownReqColumns))
-
-    Only -> childReqColumns `union` ownReqColumns
-    Singleton -> childReqColumns `union` ownReqColumns
-
-
+-- | Infer required columns for binary operators
 inferReqColumnsBinOp :: BottomUpProps
-                        -> BottomUpProps
-                        -> VectorProp ReqCols
-                        -> VectorProp ReqCols
-                        -> VectorProp ReqCols
-                        -> BinOp
-                        -> (VectorProp ReqCols, VectorProp ReqCols)
+                     -> BottomUpProps
+                     -> VectorProp ReqCols
+                     -> VectorProp ReqCols
+                     -> VectorProp ReqCols
+                     -> BinOp
+                     -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-    GroupBy         ->
-      case ownReqColumns of
-        VPropTriple _ cols _ -> (allCols childBUProps1, childReqColumns2 `union` (VProp cols))
-        _                    -> $impossible
-
-    Sort        ->
-      case ownReqColumns of
-        VPropPair cols _  -> (allCols childBUProps1, union childReqColumns2 (VProp cols))
-        _                 -> $impossible
-
-    AggrS aggrFun        -> let fromLeft  = childReqColumns1 `union` none
-                                fromRight = (VProp $ Just $ aggrReqCols aggrFun)
-                                            `union`
-                                            childReqColumns2
-                            in (fromLeft, fromRight)
-
-    AggrNonEmptyS aggrFuns -> let fromLeft  = childReqColumns1 `union` none 
-                                  fromRight = (VProp 
-                                               $ Just 
-                                               $ concatMap aggrReqCols (N.toList aggrFuns))
-                                              `union`
-                                              childReqColumns2
-                              in (fromLeft, fromRight)
-
-    DistPrim -> (childReqColumns1 `union` ownReqColumns, childReqColumns2 `union` none)
-
-    DistDesc ->
-      case ownReqColumns of
-        VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
-        _                -> error "DistDesc"
-
-    DistSeg ->
-      case ownReqColumns of
-        VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, childReqColumns2 `union` none)
-        _                -> error "DistSeg"
-
-    Align ->
-      case ownReqColumns of
-        VPropPair cols _ -> partitionCols childBUProps1 childBUProps2 cols
-        _                -> error "Align"
-
-    PropRename      -> (na, childReqColumns2 `union` ownReqColumns)
-
-    PropFilter      ->
-      case ownReqColumns of
-        VPropPair cols _ -> (na, childReqColumns2 `union` (VProp cols))
-        _                -> error "PropFilter"
-
-    PropReorder ->
-      case ownReqColumns of
-        VPropPair cols _ -> (na, (VProp cols) `union` childReqColumns2)
-        _                -> error "PropReorder"
-
-    Append ->
-      case ownReqColumns of
-        VPropTriple cols _ _ -> (union (VProp cols) childReqColumns1, union (VProp cols) childReqColumns2)
-        _                    -> error "Append"
-
-    Restrict ->
-      case ownReqColumns of
-        VPropPair cols _ -> (union (VProp cols) childReqColumns1, one)
-        _                -> error "RestrictVec"
-
-    BinExpr e ->
-      let reqColsLeft  = (VProp $ Just $ reqExpr2ColsLeft e) `union` childReqColumns1
-          reqColsRight = (VProp $ Just $ reqExpr2ColsRight e) `union` childReqColumns2
-      in (reqColsLeft, reqColsRight)
-
-    SelectPos _ ->
-      case ownReqColumns of
-        VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, one)
-        _                -> error "SelectPos"
-    SelectPosS _ ->
-      case ownReqColumns of
-        VPropPair cols _ -> ((VProp cols) `union` childReqColumns1, one)
-        _                -> error "SelectPosL"
-
-    Zip -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns)
-
-    CartProduct ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
-        _                     -> error "ReqColumns.CartProduct"
-
-    CartProductS ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
-        _                     -> error "ReqColumns.CartProduct"
-
-    NestProductS ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> partitionCols childBUProps1 childBUProps2 cols1
-        _                     -> error "ReqColumns.NestProduct"
-
-    EquiJoin le re ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> 
-          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
-              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
-              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
-          in (leftReqCols', rightReqCols')
-        _                     -> error "ReqColumns.EquiJoin"
-
-    EquiJoinS le re ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> 
-          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
-              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
-              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
-          in (leftReqCols', rightReqCols')
-        _                     -> error "ReqColumns.EquiJoinS"
-
-    NestJoinS le re ->
-      case ownReqColumns of
-        VPropTriple cols1 _ _ -> 
-          let (leftReqCols, rightReqCols) = partitionCols childBUProps1 childBUProps2 cols1
-              leftReqCols'  = union (VProp $ Just $ reqExpr1Cols le) leftReqCols
-              rightReqCols' = union (VProp $ Just $ reqExpr1Cols re) rightReqCols
-          in (leftReqCols', rightReqCols')
-        _                     -> error "ReqColumns.NestJoinS"
-
-    -- FIXME recheck for correctness
-    ZipS -> partitionCols childBUProps1 childBUProps2 (unp ownReqColumns) 
-    
-    -- For a semijoin, we only require the columns used in the join argument
-    -- from the right input.
-    SemiJoin e1 e2 -> 
-      case ownReqColumns of
-        VPropPair cols1 _ -> 
-          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.SemiJoin"
-
-    -- For a semijoin, we only require the columns used in the join argument
-    -- from the right input.
-    SemiJoinS e1 e2 -> 
-      case ownReqColumns of
-        VPropPair cols1 _ -> 
-          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.SemiJoinS"
-
-    -- For a antijoin, we only require the columns used in the join argument
-    -- from the right input.
-    AntiJoin e1 e2 -> 
-      case ownReqColumns of
-        VPropPair cols1 _ -> 
-          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.AntiJoin"
-
-    -- For a antijoin, we only require the columns used in the join argument
-    -- from the right input.
-    AntiJoinS e1 e2 -> 
-      case ownReqColumns of
-        VPropPair cols1 _ -> 
-          (union (VProp $ Just $ reqExpr1Cols e1) (VProp cols1), VProp $ Just $ reqExpr1Cols e2)
-        _                     -> error "ReqColumns.AntiJoinS"
-
-    TransposeS -> (childReqColumns1 `union` none, childReqColumns2 `union` ownReqColumns)
-    
-    
-
+      GroupBy         -> do
+          (_, cols, _)  <- fromPropTriple ownReqColumns
+          colsFromLeft  <- allCols childBUProps1
+          colsFromRight <- childReqColumns2 ∪ (VProp cols)
+          return (colsFromLeft, colsFromRight)
+  
+      Sort            -> do
+          cols          <- fst <$> fromPropPair ownReqColumns
+          colsFromLeft  <- allCols childBUProps1
+          colsFromRight <- childReqColumns2 ∪ (VProp cols)
+          return (colsFromLeft, colsFromRight)
+  
+      AggrS aggrFun   -> do
+          fromLeft  <- childReqColumns1 ∪ none
+          fromRight <- (VProp $ Just $ aggrReqCols aggrFun)
+                       ∪
+                       childReqColumns2
+          return (fromLeft, fromRight)
+  
+      AggrNonEmptyS aggrFuns -> do
+          fromLeft  <- childReqColumns1 ∪ none 
+          fromRight <- (VProp $ Just 
+                              $ concatMap aggrReqCols (N.toList aggrFuns))
+                       ∪
+                       childReqColumns2
+          return (fromLeft, fromRight)
+  
+      DistPrim -> do
+          cols <- fst <$> fromPropPair ownReqColumns
+          (,) <$> (childReqColumns1 ∪ VProp cols) <*> (childReqColumns2 ∪ none)
+  
+      DistDesc -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- VProp cols ∪ childReqColumns1
+          fromRight <- childReqColumns2 ∪ none
+          return (fromLeft, fromRight)
+  
+      DistSeg -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- VProp cols ∪ childReqColumns1
+          fromRight <- childReqColumns2 ∪ none
+          return (fromLeft, fromRight)
+  
+      PropRename -> do
+          fromRight <- childReqColumns2 ∪ ownReqColumns
+          return (na, fromRight)
+  
+      PropFilter      -> do
+          fromRight <- childReqColumns2 ∪ ownReqColumns
+          return (na, fromRight)
+  
+      PropReorder -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
+  
+      Append -> do
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          fromLeft     <- (VProp cols) ∪ childReqColumns1
+          fromRight    <- (VProp cols) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+  
+      Restrict -> do
+          cols     <- fst <$> fromPropPair ownReqColumns
+          fromLeft <- VProp cols ∪ childReqColumns1
+          return (fromLeft, one)
+  
+      BinExpr e -> do
+          reqColsLeft  <- (VProp $ Just $ reqExpr2ColsLeft e) ∪ childReqColumns1
+          reqColsRight <- (VProp $ Just $ reqExpr2ColsRight e) ∪ childReqColumns2
+          return (reqColsLeft, reqColsRight)
+  
+      SelectPos _ -> do
+          cols     <- fst <$> fromPropPair ownReqColumns
+          fromLeft <- VProp cols ∪ childReqColumns1
+          return (fromLeft, one)
+  
+      SelectPosS _ -> do
+          cols     <- fst <$> fromPropPair ownReqColumns
+          fromLeft <- VProp cols ∪ childReqColumns1
+          return (fromLeft, one)
+  
+      Zip -> do 
+          cols <- fromProp ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+  
+      CartProduct -> do
+          (cols1, _, _)       <- fromPropTriple ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+  
+      CartProductS -> do
+          (cols1, _, _)       <- fromPropTriple ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+  
+      NestProductS -> do
+          cols1 <- fst <$> fromPropPair ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+  
+      EquiJoin le re -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          leftReqCols'                <- (VProp $ Just $ reqExpr1Cols le) ∪ leftReqCols
+          rightReqCols'               <- (VProp $ Just $ reqExpr1Cols re) ∪ rightReqCols
+          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+  
+      EquiJoinS le re -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          leftReqCols'                <- (VProp $ Just $ reqExpr1Cols le) ∪ leftReqCols
+          rightReqCols'               <- (VProp $ Just $ reqExpr1Cols re) ∪ rightReqCols
+          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+  
+      NestJoinS le re -> do
+          cols1                       <- fst <$> fromPropPair ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          leftReqCols'                <- (VProp $ Just $ reqExpr1Cols le) ∪ leftReqCols
+          rightReqCols'               <- (VProp $ Just $ reqExpr1Cols re) ∪ rightReqCols
+          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+  
+      ZipS -> do
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
+      
+      -- For a semijoin, we only require the columns used in the join argument
+      -- from the right input.
+      SemiJoin e1 e2 -> do
+          cols1     <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- ((VProp $ Just $ reqExpr1Cols e1) ∪ VProp cols1) >>= (∪ childReqColumns1)
+          fromRight <- (VProp $ Just $ reqExpr1Cols e2) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+  
+      -- For a semijoin, we only require the columns used in the join argument
+      -- from the right input.
+      SemiJoinS e1 e2 -> do
+          cols1     <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- ((VProp $ Just $ reqExpr1Cols e1) ∪ VProp cols1) >>= (∪ childReqColumns1)
+          fromRight <- (VProp $ Just $ reqExpr1Cols e2) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+  
+      -- For a antijoin, we only require the columns used in the join argument
+      -- from the right input.
+      AntiJoin e1 e2 -> do
+          cols1     <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- ((VProp $ Just $ reqExpr1Cols e1) ∪ VProp cols1) >>= (∪ childReqColumns1)
+          fromRight <- (VProp $ Just $ reqExpr1Cols e2) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+  
+      -- For a antijoin, we only require the columns used in the join argument
+      -- from the right input.
+      AntiJoinS e1 e2 -> do
+          cols1     <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- ((VProp $ Just $ reqExpr1Cols e1) ∪ VProp cols1) >>= (∪ childReqColumns1)
+          fromRight <- (VProp $ Just $ reqExpr1Cols e2) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+  
+      TransposeS -> do
+          cols      <- snd <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (none, fromRight)
+  
 inferReqColumnsTerOp :: VectorProp ReqCols
-                 -> VectorProp ReqCols
-                 -> VectorProp ReqCols
-                 -> VectorProp ReqCols
-                 -> TerOp
-                 -> (VectorProp ReqCols, VectorProp ReqCols, VectorProp ReqCols)
-inferReqColumnsTerOp ownReqColumns _ childReqColumns2 _ op =
-  case op of
-    Combine ->
-      case ownReqColumns of
-        VPropTriple cols _ _ -> (one, union (VProp cols) childReqColumns2, union (VProp cols) childReqColumns2)
-        _                    -> error "Combine"
+                     -> VectorProp ReqCols
+                     -> VectorProp ReqCols
+                     -> VectorProp ReqCols
+                     -> TerOp
+                     -> Either String (VectorProp ReqCols, VectorProp ReqCols, VectorProp ReqCols)
+inferReqColumnsTerOp ownReqColumns _ childReqColumns2 childReqColumns3 op =
+    case op of
+        Combine -> do
+            (cols, _, _) <- fromPropTriple ownReqColumns
+            fromLeft     <- VProp cols ∪ childReqColumns2
+            fromRight    <- VProp cols ∪ childReqColumns3
+            return (one, fromLeft, fromRight)

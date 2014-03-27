@@ -27,6 +27,8 @@ expressionRules = [ mergeExpr2SameInput
                   , mergeExpr21Right
                   , mergeExpr21Left 
                   , identityProject
+                  , leftOnlyBinExpr
+                  , rightOnlyBinExpr
                   ]
 
 replaceLeftCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
@@ -196,4 +198,47 @@ identityProject q =
         return $ do
           logRewrite "Project.Identity" q
           replace q $(v "q1") |])
+
+leftOnlyExpr :: Expr2 -> Bool
+leftOnlyExpr expr = 
+    case expr of
+        BinApp2 _ e1 e2 -> leftOnlyExpr e1 && leftOnlyExpr e2
+        UnApp2 _ e      -> leftOnlyExpr e
+        Constant2 _     -> True
+        Column2Left _   -> True
+        Column2Right _  -> False
+
+rightOnlyExpr :: Expr2 -> Bool
+rightOnlyExpr expr = 
+    case expr of
+        BinApp2 _ e1 e2 -> rightOnlyExpr e1 && rightOnlyExpr e2
+        UnApp2 _ e      -> rightOnlyExpr e
+        Constant2 _     -> True
+        Column2Left _   -> False
+        Column2Right _  -> True
+
+-- | If a binary expression op references only columns from it's left
+-- input, replace it with a simple projection.
+leftOnlyBinExpr :: VLRule p
+leftOnlyBinExpr q = 
+  $(pattern 'q "(q1) BinExpr expr (_)"
+    [| do
+        predicate $ leftOnlyExpr $(v "expr")
+       
+        return $ do
+          logRewrite "Expr.Bin.LeftOnly" q
+          let expr' = expr2ToExpr1 $(v "expr")
+          void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q1") |])
+
+-- | Mirrored dual of `leftOnlyBinExpr`
+rightOnlyBinExpr :: VLRule p
+rightOnlyBinExpr q = 
+  $(pattern 'q "(_) BinExpr expr (q2)"
+    [| do
+        predicate $ rightOnlyExpr $(v "expr")
+       
+        return $ do
+          logRewrite "Expr.Bin.RightOnly" q
+          let expr' = expr2ToExpr1 $(v "expr")
+          void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q2") |])
 
