@@ -17,7 +17,7 @@ inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
     SingletonDescr   -> Right $ VProp True
-    Lit _ rows       -> Right $ VProp $ length rows == 1
+    Lit _ _ rows     -> Right $ VProp $ length rows == 1
     TableRef _ _ _   -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)

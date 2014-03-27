@@ -20,9 +20,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr               -> Right $ VProp $ ValueVector 0
-    Lit t _                      -> Right $ VProp $ ValueVector $ length t
-    TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr  -> Right $ VProp $ ValueVector 0
+    Lit _ t _       -> Right $ VProp $ ValueVector $ length t
+    TableRef _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s

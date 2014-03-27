@@ -253,7 +253,7 @@ reverseLift _ = error "vlReverseSift: Should not be possible"
 
 andPrim ::  Shape -> Graph VL Shape
 andPrim (ValueVector d (InColumn 1)) = do
-    p         <- literalSingletonTable boolT (VLBool True)
+    p         <- literal boolT (VLBool True)
     (r, _, _) <- vlAppend p d
     v         <- vlAggr (AggrMin (Column1 1)) r
     return $ PrimVal v (InColumn 1)
@@ -270,7 +270,7 @@ andLift _ = error "andLift: Should not be possible"
 
 orPrim ::  Shape -> Graph VL Shape
 orPrim (ValueVector d (InColumn 1)) = do
-    p         <- literalSingletonTable boolT (VLBool False)
+    p         <- literal boolT (VLBool False)
     (r, _, _) <- vlAppend p d
     v         <- vlAggr (AggrMax (Column1 1))r
     return $ PrimVal v (InColumn 1)
@@ -542,7 +542,7 @@ pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     let lyt = zipLayout lyt1 lyt2
     return $ PrimVal q lyt
 pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    d <- vlLit [] [[VLNat 1, VLNat 1]]
+    d   <- vlLit L.PossiblyEmpty [] [[VLNat 1, VLNat 1]]
     q1' <- vlUnsegment q1
     q2' <- vlUnsegment q2
     let lyt = zipLayout (Nest q1' lyt1) (Nest q2' lyt2)
@@ -659,14 +659,19 @@ dbTable n cs ks = do
 mkLiteral ::  Type -> L.Val -> Graph VL Shape
 mkLiteral t@(ListT _) (L.ListV es) = do
     ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
-    (flip ValueVector layout) <$> (vlLit (reverse descHd) $ map reverse descV)
+    let emptinessFlag = case es of
+          []    -> L.PossiblyEmpty
+          _ : _ -> L.NonEmpty
+    (flip ValueVector layout) <$> (vlLit emptinessFlag (reverse descHd) $ map reverse descV)
 mkLiteral (FunT _ _) _  = error "Not supported"
 mkLiteral t e           = do
     ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    flip PrimVal layout <$> vlLit (reverse descHd) [(reverse descV)]
+    flip PrimVal layout <$> vlLit L.NonEmpty (reverse descHd) [(reverse descV)]
                             
 type Table = ([Type], [[VLVal]])
 
+-- FIXME Check if inner list literals are nonempty and use flag VL
+-- literals appropriately.
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Graph VL (Table, Layout, Int)
 toPlan (descHd, descV) (ListT t) c es = 
     case t of
@@ -680,10 +685,10 @@ toPlan (descHd, descV) (ListT t) c es =
             let vs = map fromListVal es
             let d = mkDescriptor $ map length vs
             ((hd, vs'), l, _) <- toPlan d t 1 (concat vs)
-            n <- vlLit (reverse hd) (map reverse vs')
+            n <- vlLit L.PossiblyEmpty (reverse hd) (map reverse vs')
             return ((descHd, descV), Nest n l, c)
                                                                  
-        FunT _ _ -> error "Function are not db values"
+        FunT _ _ -> error "Functions are not db values"
 
         _ -> let (hd, vs) = mkColumn t es
              in return ((hd:descHd, zipWith (:) vs descV), (InColumn c), c + 1)
@@ -694,10 +699,7 @@ toPlan (descHd, descV) t c v =
     in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
 literal :: Type -> VLVal -> GraphM r VL DVec
-literal t v = vlLit [t] [[VLNat 1, VLNat 1, v]]
-
-literalSingletonTable :: Type -> VLVal -> GraphM r VL DVec
-literalSingletonTable t v = vlLit [t] [[VLNat 1, VLNat 1, v]]
+literal t v = vlLit L.NonEmpty [t] [[VLNat 1, VLNat 1, v]]
 
 fromListVal :: L.Val -> [L.Val]
 fromListVal (L.ListV es) = es

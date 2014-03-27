@@ -117,8 +117,8 @@ parenthize2 e@(UnApp2 _ _)     = parens $ renderExpr2 e
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit tys vals)) = labelToDoc i "LIT"
-        (bracketList renderColumnType tys <> comma
+opDotLabel tm i (NullaryOp (Lit em tys vals)) = labelToDoc i "LIT"
+        (renderEmptiness em <+> bracketList renderColumnType tys <> comma
         $$ renderData vals) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef n tys hs)) = labelToDoc i "TableRef"
         (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableHints hs)
