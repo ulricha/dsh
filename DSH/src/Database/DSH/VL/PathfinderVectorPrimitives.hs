@@ -263,14 +263,6 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- PVec <$> proj [cP posold, mP posnew pos] q
     return $ (qr1, qr2)
 
-  vecDistSeg (DVec q1 cols) (DVec q2 _) = do
-    q <- eqJoinM pos' descr 
-           (proj (itemProj cols [mP pos' pos]) q1) 
-           (proj [cP descr, cP pos] q2)
-    qr1 <- tagM "distLift/1" $ proj (itemProj cols [cP descr, cP pos]) q
-    qr2 <- proj [mP posold pos', mP posnew pos] q
-    return $ (DVec qr1 cols, PVec qr2)
-
   vecAlign (DVec q1 cols1) (DVec q2 cols2) = do
     let cols2'    = [ i + length cols1 | i <- cols2 ]
         shiftProj = [ mP (itemi i') (itemi i) | i <- cols2 | i' <- cols2' ]
