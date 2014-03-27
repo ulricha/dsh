@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Debug.Trace
+
 import Control.Monad
 import Control.Applicative
 
@@ -104,14 +106,24 @@ distDescConstant q =
 -- shape of the inner vector is not changed by DistSeg.
 unreferencedAlign :: VLRule Properties
 unreferencedAlign q =
-  $(pattern 'q  "R1 ((_) Align (qd))"
+  $(pattern 'q  "R1 ((q1) Align (q2))"
     [| do
-        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
-        predicate $ null reqCols
+        VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
+        VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
+        VProp (ValueVector w2) <- vectorTypeProp <$> bu <$> properties $(v "q2")
+  
+        -- Check that only columns from the right input are required
+        predicate $ all (> w1) reqCols
 
         return $ do
           logRewrite "Redundant.Unreferenced.Align" q
-          void $ replace q $(v "qd") |])
+
+          -- FIXME HACKHACKHACK
+          let padProj = [ Constant1 $ VLInt 42 | _ <- [1..w1] ]
+                        ++
+                        [ Column1 i | i <- [1..w2] ]
+
+          void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
 unreferencedProject :: VLRule Properties
 unreferencedProject q =
