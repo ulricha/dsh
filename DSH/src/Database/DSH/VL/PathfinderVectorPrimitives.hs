@@ -271,6 +271,18 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return $ (DVec qr1 cols, PVec qr2)
 
+  vecAlign (DVec q1 cols1) (DVec q2 cols2) = do
+    let cols2'    = [ i + length cols1 | i <- cols2 ]
+        shiftProj = [ mP (itemi i') (itemi i) | i <- cols2 | i' <- cols2' ]
+        resCols   = cols1 ++ cols2'
+    q   <- eqJoinM pos' descr
+             (proj (itemProj cols1 [mP pos' pos]) q1)
+             (proj ([cP descr, cP pos] ++ shiftProj) q2)
+
+    qr1 <- proj (itemProj resCols [cP descr, cP pos]) q
+    qr2 <- proj [mP posold pos', mP posnew pos] q
+    return (DVec qr1 resCols, PVec qr2)
+
   vecAggr a (DVec q _) = do
     -- The aggr operator itself
     qa <- aggr [(aggrFun a, item)] [] q
