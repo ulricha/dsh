@@ -67,8 +67,6 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    Only -> VProp <$> unpack s
-    Singleton -> VProp <$> unpack s
     GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s

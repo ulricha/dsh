@@ -213,9 +213,6 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                     cols3' <- fromProp =<< VProp cols3 ∪ ownReqColumns
                     return $ VPropTriple cols1 cols2 cols3'
     
-        Only      -> childReqColumns ∪ ownReqColumns
-        Singleton -> childReqColumns ∪ ownReqColumns
-
 
 -- | Infer required columns for binary operators
 inferReqColumnsBinOp :: BottomUpProps
