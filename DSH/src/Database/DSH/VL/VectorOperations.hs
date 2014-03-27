@@ -177,7 +177,7 @@ lastPrim (ValueVector qs lyt) = do
     i      <- vlAggr AggrCount qs
     (q, r) <- vlSelectPos qs L.Eq i
     lyt'   <- chainRenameFilter r lyt
-    flip PrimVal lyt' <$> vlOnly q
+    return $ PrimVal q lyt'
 lastPrim _ = error "lastPrim: Should not be possible"
 
 lastLift ::  Shape -> Graph VL Shape
@@ -208,7 +208,7 @@ indexPrim (ValueVector qs lyt) (PrimVal i _) = do
     i'     <- vlBinExpr L.Add i one
     (q, r) <- vlSelectPos qs L.Eq i'
     lyt'   <- chainRenameFilter r lyt
-    flip PrimVal lyt' <$> vlOnly q
+    return $ PrimVal q lyt'
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
 indexLift ::  Shape -> Shape -> Graph VL Shape
@@ -294,7 +294,7 @@ the (ValueVector d lyt@(Nest _ _)) = do
 the (ValueVector d lyt) = do
     (q', prop) <- vlSelectPos1 d L.Eq (N 1)
     lyt'       <- chainRenameFilter prop lyt
-    flip PrimVal lyt' <$> vlOnly q'
+    return $ PrimVal q' lyt'
 the _ = error "the: Should not be possible"
 
 tailS ::  Shape -> Graph VL Shape
@@ -523,10 +523,8 @@ ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d, _, _) <- vlAppend d1 d2
     return $ ValueVector d lyt'
 ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
-    q1' <- vlSingleton q1
-    q2' <- vlSingleton q2
-    (ValueVector q lyt) <- ifList qb (ValueVector q1' lyt1) (ValueVector q2' lyt2)
-    flip PrimVal lyt <$> vlOnly q
+    (ValueVector q lyt) <- ifList qb (ValueVector q1 lyt1) (ValueVector q2 lyt2)
+    return $ PrimVal q lyt
 ifList _ _ _ = $impossible
 
 pairOpL ::  Shape -> Shape -> Graph VL Shape
@@ -648,7 +646,7 @@ singletonVec (ValueVector q lyt) = do
 singletonVec _ = error "singletonVec: Should not be possible"
 
 singletonPrim ::  Shape -> Graph VL Shape
-singletonPrim (PrimVal q1 lyt) = flip ValueVector lyt <$> vlSingleton q1
+singletonPrim (PrimVal q1 lyt) = return $ ValueVector q1 lyt
 singletonPrim _ = error "singletonPrim: Should not be possible"
 
 dbTable ::  String -> [L.Column] -> L.TableHints -> Graph VL Shape

@@ -114,9 +114,6 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
 
-    Only             -> return c
-    Singleton        -> return c
-
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])

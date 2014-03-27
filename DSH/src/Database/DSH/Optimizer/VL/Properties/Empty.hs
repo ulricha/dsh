@@ -41,8 +41,6 @@ inferEmptyUnOp e op =
     Select _        -> Right e
     SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
     GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
-    Only            -> Right e
-    Singleton       -> Right e
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!

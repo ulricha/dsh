@@ -254,19 +254,8 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
--- singleton and only are just markers for the transition between
--- non-list values and lists with one element (representation of both
--- is the same).
-singleton :: Res -> Res
-singleton = id
-
-only :: Res -> Res
-only = id
-
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
-    Singleton        -> return $ singleton c
-    Only             -> return $ only c
     UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     Number           -> fromDVec <$> vecNumber (toDVec c)
     NumberS          -> fromDVec <$> vecNumberS (toDVec c)

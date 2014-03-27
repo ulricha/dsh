@@ -52,8 +52,6 @@ seed (UnOp op _)   =
     Transpose          -> vPropPairSeed
     Reshape _          -> vPropPairSeed
     ReshapeS _         -> vPropPairSeed
-    Only               -> undefined
-    Singleton          -> undefined
 
 seed (BinOp op _ _) = 
   case op of

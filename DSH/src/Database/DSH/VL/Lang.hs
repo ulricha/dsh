@@ -102,8 +102,6 @@ data UnOp = UniqueS
           | R3
           | Project [Expr1]
           | Select Expr1
-          | Only
-          | Singleton
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
           | GroupAggr [Expr1] (N.NonEmpty AggrFun)

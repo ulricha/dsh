@@ -400,9 +400,3 @@ vlReshapeS n (DVec qi _) = do
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
     return (r1, r2)
-
-vlSingleton :: DVec -> GraphM r VL DVec
-vlSingleton (DVec c _) = dvec $ insertNode $ UnOp Singleton c
-
-vlOnly :: DVec -> GraphM r VL DVec
-vlOnly (DVec c _) = dvec $ insertNode $ UnOp Only c
