@@ -23,23 +23,22 @@ inferWorker op node pm =
            let c1Props = lookupUnsafe pm "no children properties" c1
                c2Props = lookupUnsafe pm "no children properties" c2
                c3Props = lookupUnsafe pm "no children properties" c3
-           in checkError node [c1Props, c2Props, c3Props] $ inferTerOp vl c1Props c2Props c3Props
+           in checkError node [c1Props, c2Props, c3Props] pm $ inferTerOp vl c1Props c2Props c3Props
          BinOp vl c1 c2 ->
            let c1Props = lookupUnsafe pm "no children properties" c1
                c2Props = lookupUnsafe pm "no children properties" c2
-           in checkError node [c1Props, c2Props] $ inferBinOp vl c1Props c2Props
+           in checkError node [c1Props, c2Props] pm $ inferBinOp vl c1Props c2Props
          UnOp vl c ->
            let cProps = lookupUnsafe pm "no children properties" c
-           in checkError node [cProps] $ inferUnOp vl cProps
-         NullaryOp vl -> checkError node [] $ inferNullOp vl
+           in checkError node [cProps] pm $ inferUnOp vl cProps
+         NullaryOp vl -> checkError node [] pm $ inferNullOp vl
 
-  where
-    checkError :: AlgNode -> [BottomUpProps] -> Either String BottomUpProps -> BottomUpProps
-    checkError n childProps (Left msg) = 
-        let childPropsMsg = concatMap ((++) "\n" . show) childProps
-            completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg childPropsMsg (show pm)
-        in error completeMsg
-    checkError _ _ (Right props) = props
+checkError :: AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
+checkError n childProps propMap (Left msg) = 
+    let childPropsMsg = concatMap ((++) "\n" . show) childProps
+        completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg childPropsMsg (show propMap)
+    in error completeMsg
+checkError _ _ _ (Right props) = props
 
 inferNullOp :: NullOp -> Either String BottomUpProps
 inferNullOp op = do

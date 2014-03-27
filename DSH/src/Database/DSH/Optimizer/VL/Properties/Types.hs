@@ -60,7 +60,8 @@ type ReqCols = Maybe [DBCol]
 data TopDownProps = TDProps { reqColumnsProp :: VectorProp ReqCols } deriving (Show)
 
 data Properties = Properties { bu :: BottomUpProps
-                             , td :: TopDownProps }
+                             , td :: TopDownProps
+                             }
 
 class Renderable a where
   renderProp :: a -> Doc
