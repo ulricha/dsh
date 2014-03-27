@@ -39,6 +39,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProject
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
+                         , alignParents
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -121,6 +122,45 @@ unreferencedProject q =
          return $ do
            logRewrite "Redundant.Unreferenced.Project" q
            void $ replace q $(v "q1") |])
+
+nonAlignOp :: AlgNode -> VLMatch p Bool
+nonAlignOp n = do
+    op <- getOperator n
+    case op of
+        BinOp Align _ _ -> return False
+        _               -> return True
+
+-- | The Align operator keeps shape and columns of its right
+-- input. When this right input is referenced by other operators than
+-- Align, we can move this operators to the Align output.
+-- 
+-- This is beneficial if a composed expression depends on the Align
+-- output (some lifted environment value) as well as the original
+-- (inner) vector. In that case, we can rewrite things such that only
+-- the Align operator is referenced (not its right input). In
+-- consequence, The expression has only one source and can be merged
+-- into a projection.
+alignParents :: VLRule BottomUpProps
+alignParents q =
+  $(pattern 'q "R1 ((q1) Align (q2))"
+     [| do
+         parentNodes     <- getParents $(v "q2")
+         nonAlignParents <- filterM nonAlignOp parentNodes
+         predicate $ not $ null $ nonAlignParents
+         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q1")
+         VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.Parents" q
+
+             -- First, insert a projection on top of Align that leaves
+             -- only the columns from Align's right input.
+             let origColsProj = [ Column1 $ w1 + i | i <- [1 .. w2] ]
+             projNode <- insert $ UnOp (Project origColsProj) q
+  
+             -- Then, re-link all parents of the right Align input to
+             -- the projection.
+             forM_ nonAlignParents $ \p -> replaceChild p $(v "q2") projNode |])
 
 {-
 -- Housekeeping rule: Align takes only
