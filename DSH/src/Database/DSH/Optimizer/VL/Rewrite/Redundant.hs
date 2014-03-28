@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Text.Printf
+
 import Debug.Trace
 
 import Control.Monad
@@ -42,13 +44,12 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
                          , alignParents
-                         , stackedAlign
+                         -- , stackedAlign
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
-redundantRulesAllProps = [ unreferencedAlign
-                         , unreferencedProject
-                         -- , alignedOnlyLeft
+redundantRulesAllProps = [ -- unreferencedAlign
+                           alignedOnlyLeft
                          ]
 
 introduceSelect :: VLRule ()
@@ -125,17 +126,6 @@ unreferencedAlign q =
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
-unreferencedProject :: VLRule Properties
-unreferencedProject q =
-  $(pattern 'q "Project _ (q1)"
-     [| do
-         VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties q
-         predicate $ null reqCols
-  
-         return $ do
-           logRewrite "Redundant.Unreferenced.Project" q
-           void $ replace q $(v "q1") |])
-
 nonAlignOp :: AlgNode -> VLMatch p Bool
 nonAlignOp n = do
     op <- getOperator n
@@ -159,7 +149,8 @@ alignParents q =
      [| do
          parentNodes     <- getParents $(v "q2")
          nonAlignParents <- filterM nonAlignOp parentNodes
-         predicate $ not $ null $ nonAlignParents
+         predicate $ not $ null nonAlignParents
+
          VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q1")
          VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
 
@@ -196,23 +187,21 @@ stackedAlign q =
 
             replace q projNode |])
 
-{-
--- Housekeeping rule: Align takes only
+-- Housekeeping rule: If only columns from the left Align input are
+-- referenced, remove projections on the right input.
 alignedOnlyLeft :: VLRule Properties
 alignedOnlyLeft q =
   $(pattern 'q "(q1) Align (Project _ (q2))"
     [| do
-        -- check that only columns from the right input (outer vector)
+        -- check that only columns from the left input (outer vector)
         -- are required
-        props                 <- properties q
-        VProp (Just reqCols)  <- return $ reqColumnsProp $ td props
-        VProp (ValueVector w) <- return $ vectorTypeProp $ bu props
+        VPropPair (Just reqCols) _  <- reqColumnsProp <$> td <$> properties q
+        VProp (ValueVector w)       <- vectorTypeProp <$> bu <$> properties $(v "q1")
         predicate $ all (<= w) reqCols
   
         return $ do
           logRewrite "Redundant.Align.Project" q
           void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
--}
           
 shiftCols :: Int -> Expr1 -> Expr1
 shiftCols offset expr =
