@@ -48,8 +48,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
-redundantRulesAllProps = [ -- unreferencedAlign
-                           alignedOnlyLeft
+redundantRulesAllProps = [ unreferencedAlign
+                         , alignedOnlyLeft
                          ]
 
 introduceSelect :: VLRule ()
