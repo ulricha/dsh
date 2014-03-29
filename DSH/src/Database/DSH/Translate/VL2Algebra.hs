@@ -168,8 +168,8 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
-    DistSeg -> do
-        (v, p) <- vecDistSeg (toDVec c1) (toDVec c2)
+    Align -> do
+        (v, p) <- vecAlign (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
     PropRename -> fromDVec <$> vecPropRename (toRenameVector c1) (toDVec c2)
@@ -254,19 +254,8 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
--- singleton and only are just markers for the transition between
--- non-list values and lists with one element (representation of both
--- is the same).
-singleton :: Res -> Res
-singleton = id
-
-only :: Res -> Res
-only = id
-
 translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
-    Singleton        -> return $ singleton c
-    Only             -> return $ only c
     UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     Number           -> fromDVec <$> vecNumber (toDVec c)
     NumberS          -> fromDVec <$> vecNumberS (toDVec c)
@@ -320,7 +309,7 @@ translateUnOp u c = case u of
 
 translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
 translateNullary SingletonDescr      = fromDVec <$> singletonDescr
-translateNullary (Lit tys vals)      = fromDVec <$> vecLit tys vals
+translateNullary (Lit _ tys vals)    = fromDVec <$> vecLit tys vals
 translateNullary (TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 
 -- | Insert SerializeRel operators in TableAlgebra plans to define

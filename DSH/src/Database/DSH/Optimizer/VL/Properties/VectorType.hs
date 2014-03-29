@@ -20,9 +20,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr               -> Right $ VProp $ ValueVector 0
-    Lit t _                      -> Right $ VProp $ ValueVector $ length t
-    TableRef              _ cs _ -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr  -> Right $ VProp $ ValueVector 0
+    Lit _ t _       -> Right $ VProp $ ValueVector $ length t
+    TableRef _ cs _ -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
@@ -67,8 +67,6 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    Only -> VProp <$> unpack s
-    Singleton -> VProp <$> unpack s
     GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s
@@ -110,7 +108,12 @@ inferVectorTypeBinOp s1 s2 op =
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
-    DistSeg -> liftM2 VPropPair (unpack s1) (Right PropVector)
+
+    Align -> do
+        ValueVector w1 <- unpack s1
+        ValueVector w2 <- unpack s2
+        return $ VPropPair (ValueVector $ w1 + w2) PropVector
+
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)

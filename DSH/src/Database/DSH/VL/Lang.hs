@@ -85,7 +85,7 @@ data VLVal = VLInt Int
            deriving (Eq, Ord, Generic, Show, Read)
 
 data NullOp = SingletonDescr
-            | Lit [VLType] [[VLVal]]
+            | Lit L.Emptiness [VLType] [[VLVal]]
             | TableRef String [VLColumn] L.TableHints
             deriving (Eq, Ord, Generic, Show)
 
@@ -102,8 +102,6 @@ data UnOp = UniqueS
           | R3
           | Project [Expr1]
           | Select Expr1
-          | Only
-          | Singleton
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
           | GroupAggr [Expr1] (N.NonEmpty AggrFun)
@@ -122,7 +120,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | AggrNonEmptyS (N.NonEmpty AggrFun)
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)
-           | DistSeg   -- (DBV, PropVector)
+           | Align     -- (DBV, PropVector)
            | PropRename
            | PropFilter -- (DBV, PropVector)
            | PropReorder -- (DBV, PropVector)

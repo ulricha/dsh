@@ -21,10 +21,10 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr              -> Right $ VProp False
-    Lit _ []  -> Right $ VProp True
-    Lit _ _   -> Right $ VProp False
-    TableRef              _ _ _ -> Right $ VProp False
+    SingletonDescr -> Right $ VProp False
+    Lit _ _ []     -> Right $ VProp True
+    Lit _ _ _      -> Right $ VProp False
+    TableRef _ _ _ -> Right $ VProp False
     
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
@@ -41,8 +41,6 @@ inferEmptyUnOp e op =
     Select _        -> Right e
     SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
     GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
-    Only            -> Right e
-    Singleton       -> Right e
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -88,7 +86,7 @@ inferEmptyBinOp e1 e2 op =
 
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    DistSeg -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    Align -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PropRename -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     PropFilter -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     PropReorder -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))

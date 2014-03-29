@@ -17,7 +17,7 @@ inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
     SingletonDescr   -> Right $ VProp True
-    Lit _ rows       -> Right $ VProp $ length rows == 1
+    Lit _ _ rows     -> Right $ VProp $ length rows == 1
     TableRef _ _ _   -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
@@ -53,8 +53,6 @@ inferCardOneUnOp c op =
         _                 -> Left "Properties.Card: not a triple"
     GroupAggr [] _ -> Right $ VProp True
     GroupAggr _ _  -> Right c
-    Only -> Right $ VProp True
-    Singleton -> Right $ VProp True
     Number -> Right c
     NumberS -> Right c
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -71,7 +69,7 @@ inferCardOneBinOp c1 c2 op =
     AggrNonEmptyS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
-    DistSeg -> return $ VPropPair False False
+    Align -> return $ VPropPair False False
     PropRename -> return $ VProp False
     PropFilter -> return $ VPropPair False False
     PropReorder -> return $ VPropPair False False

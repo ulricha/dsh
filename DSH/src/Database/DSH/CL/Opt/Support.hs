@@ -36,10 +36,10 @@ complexPathT = do
     path <- snocPathToPath <$> absPathT
     let ret = return [(e, path)]
     case e of
-        Comp _ _ _                                 -> trace "comp" ret
-        If _ _ _ _                                 -> trace "if" ret
-        AppE2 _ (Prim2 op _) _ _ | complexPrim2 op -> trace "app2" ret
-        AppE1 _ (Prim1 op _) _   | complexPrim1 op -> trace "app1" ret
+        Comp _ _ _                                 -> ret
+        If _ _ _ _                                 -> ret
+        AppE2 _ (Prim2 op _) _ _ | complexPrim2 op -> ret
+        AppE1 _ (Prim1 op _) _   | complexPrim1 op -> ret
         _ -> fail "not a complex expression"
 
 factorR :: TranslateC CL (Ident, Expr, Expr)
