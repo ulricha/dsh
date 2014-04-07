@@ -482,11 +482,13 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
+
     q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [pos', pos'] Nothing
+           $ rownumM pos [pos', pos''] Nothing
            $ crossM
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ((mP pos'' pos) : shiftProj2) q2)
+
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
@@ -498,7 +500,7 @@ instance VectorAlgebra PFAlgebra where
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
     q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ rownumM pos [descr, descr', pos', pos''] Nothing
            $ eqJoinM descr descr'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
@@ -513,8 +515,9 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
+
     q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ rownumM pos [descr, pos', pos''] Nothing
            $ eqJoinM descr descr'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
@@ -578,7 +581,7 @@ instance VectorAlgebra PFAlgebra where
         itemProj2  = map (cP . itemi) cols2'
 
     q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [pos', pos''] Nothing
+           $ rownumM pos [descr, pos', pos''] Nothing
            $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj ([ cP descr
                     , mP pos' pos
