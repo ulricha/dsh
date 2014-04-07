@@ -249,37 +249,25 @@ reverseLift (ValueVector d (Nest d1 lyt)) = do
 reverseLift _ = error "vlReverseSift: Should not be possible"
 
 andPrim ::  Shape -> Graph VL Shape
-andPrim (ValueVector d (InColumn 1)) = do
-    p         <- literal boolT (VLBool True)
-    (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMin (Column1 1)) r
-    return $ PrimVal v (InColumn 1)
+andPrim (ValueVector q (InColumn 1)) = do
+    PrimVal <$> (vlAggr (AggrAll (Column1 1)) q) <*> pure (InColumn 1)
 andPrim _ = error "andPrim: Should not be possible"
 
 andLift ::  Shape -> Graph VL Shape
 andLift (ValueVector d (Nest q (InColumn 1))) = do
-    t           <- literal boolT (VLBool True)
-    (ts, _)     <- vlDistPrim t d
-    ts'         <- vlSegment ts
-    (res, _, _) <- vlAppend ts' q
-    minLift (ValueVector d (Nest res (InColumn 1)))
+    qv <- vlAggrS (AggrAll (Column1 1)) d q
+    return $ ValueVector d (Nest qv (InColumn 1))
 andLift _ = error "andLift: Should not be possible"
 
 orPrim ::  Shape -> Graph VL Shape
-orPrim (ValueVector d (InColumn 1)) = do
-    p         <- literal boolT (VLBool False)
-    (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMax (Column1 1))r
-    return $ PrimVal v (InColumn 1)
+orPrim (ValueVector q (InColumn 1)) =
+    PrimVal <$> (vlAggr (AggrAny (Column1 1)) q) <*> pure (InColumn 1)
 orPrim _ = error "orPrim: Should not be possible"
 
 orLift ::  Shape -> Graph VL Shape
 orLift (ValueVector d (Nest q (InColumn 1))) = do
-    t           <- literal boolT (VLBool False)
-    (ts, _)     <- vlDistPrim t d
-    ts'         <- vlSegment ts
-    (res, _, _) <- vlAppend ts' q
-    maxLift (ValueVector d (Nest res (InColumn 1)))
+    qv <- vlAggrS (AggrAll (Column1 1)) d q
+    return $ ValueVector d (Nest qv (InColumn 1))
 orLift _ = error "orLift: Should not be possible"
 
                                         

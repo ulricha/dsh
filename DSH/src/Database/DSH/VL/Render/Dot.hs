@@ -33,6 +33,8 @@ renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnT
 renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr1 c]
 renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr1 c]
 renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr1 c]
+renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr1 c]
+renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr1 c]
 renderAggrFun AggrCount     = renderFun (text "count") []
 
 renderColumnType :: VLType -> Doc

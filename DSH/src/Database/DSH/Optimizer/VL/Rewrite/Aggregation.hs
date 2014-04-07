@@ -113,6 +113,8 @@ inlineAggrProject q =
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
                         AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
                         AggrCount   -> AggrCount
 
         return $ do
@@ -133,6 +135,8 @@ inlineAggrNonEmptyProject q =
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
                         AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
                         AggrCount   -> AggrCount
 
         return $ do

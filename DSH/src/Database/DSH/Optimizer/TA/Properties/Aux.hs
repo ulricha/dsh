@@ -43,8 +43,7 @@ aggrInput (Max e)  = exprCols e
 aggrInput (Min e)  = exprCols e
 aggrInput (Sum e)  = exprCols e
 aggrInput (All e)  = exprCols e
-aggrInput (Prod e) = exprCols e
-aggrInput (Dist e) = exprCols e
+aggrInput (Any e)  = exprCols e
 aggrInput Count    = S.empty
 
 mapCol :: Proj -> S.Set (AttrName, AttrName)

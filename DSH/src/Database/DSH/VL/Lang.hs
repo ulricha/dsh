@@ -30,6 +30,8 @@ data AggrFun = AggrSum VLType Expr1
              | AggrMin Expr1
              | AggrMax Expr1
              | AggrAvg Expr1
+             | AggrAll Expr1
+             | AggrAny Expr1
              | AggrCount
                deriving (Eq, Ord, Show, Read, Generic)
 

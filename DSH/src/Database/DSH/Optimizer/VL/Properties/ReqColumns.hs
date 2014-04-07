@@ -55,6 +55,8 @@ aggrReqCols (AggrSum _ e) = reqExpr1Cols e
 aggrReqCols (AggrMin e)   = reqExpr1Cols e
 aggrReqCols (AggrMax e)   = reqExpr1Cols e
 aggrReqCols (AggrAvg e)   = reqExpr1Cols e
+aggrReqCols (AggrAll e)   = reqExpr1Cols e
+aggrReqCols (AggrAny e)   = reqExpr1Cols e
 aggrReqCols AggrCount     = []
 
 fromProp :: Show a => VectorProp a -> Either String a
