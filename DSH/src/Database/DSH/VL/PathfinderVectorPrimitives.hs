@@ -156,9 +156,24 @@ aggrFun (VL.AggrSum _ e) = Sum $ expr1 e
 aggrFun (VL.AggrMin e)   = Min $ expr1 e
 aggrFun (VL.AggrMax e)   = Max $ expr1 e
 aggrFun (VL.AggrAvg e)   = Avg $ expr1 e
+aggrFun (VL.AggrAll e)   = All $ expr1 e
+aggrFun (VL.AggrAny e)   = Any $ expr1 e
 aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
+
+-- | For a segmented aggregate operator, apply the aggregate
+-- function's default value for the empty segments. The first argument
+-- specifies the outer descriptor vector, while the second argument
+-- specifies the result vector of the aggregate.
+segAggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r PFAlgebra AlgNode
+segAggrDefault qo qa dv =
+    return qa
+    `unionM`
+    projM [cP descr, eP item (ConstE dv)]
+        (differenceM
+            (proj [mP descr pos] qo)
+            (proj [cP descr] qa))
 
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
@@ -327,23 +342,15 @@ instance VectorAlgebra PFAlgebra where
 
     return $ DVec qa resCols
 
+
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
-              -- FIXME this is wrong: consider a list of negative
-              -- integers... -> use antijoin/difference
-              VL.AggrSum t _ -> let dv = snd $ sumDefault t
-                                in return qa
-                                   `unionM`
-                                   projM [cP descr, eP item (ConstE dv)]
-                                       (differenceM
-                                           (proj [mP descr pos] qo)
-                                           (proj [cP descr] qa))
+              VL.AggrSum t _ -> segAggrDefault qo qa (snd $ sumDefault t)
+              VL.AggrAny _   -> segAggrDefault qo qa (bool False)
+              VL.AggrAll _   -> segAggrDefault qo qa (bool True)
                                 
-              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                $ return qa
-                                  `unionM`
-                                  proj [mP descr pos, eP item (ConstE $ int 0)] qo
+              VL.AggrCount   -> segAggrDefault qo qa (int 0)
               _              -> return qa
     qp <- rownum pos [descr] Nothing qd
     -- We have to unnest the inner vector (i.e. surrogate join) to get
