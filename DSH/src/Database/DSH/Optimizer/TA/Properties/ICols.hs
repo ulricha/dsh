@@ -54,7 +54,7 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
              in (leftICols', rightICols')
 
          DisjUnion _  -> (leftICols ∪ ownICols, rightICols ∪ ownICols)
-         Difference _ -> undefined
+         Difference _ -> (leftICols ∪ leftCols, rightICols ∪ leftCols)
                 
 inferIColsUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
 inferIColsUnOp ownICols childICols op = 

@@ -285,19 +285,34 @@ instance VectorAlgebra PFAlgebra where
 
   vecAggr a (DVec q _) = do
     -- The aggr operator itself
-    qa <- aggr [(aggrFun a, item)] [] q
-    -- For sum and length, add the default value for empty inputs
+    qa <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] 
+          $ aggr [(aggrFun a, item)] [] q
+    -- For sum, add the default value for empty inputs
     qd <- case a of
-              -- FIXME this is wrong: consider a list of negative
-              -- integers... -> use antijoin/difference
-              VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                                in aggrM [(Max (ColE item), item)] []
-                                   $ return qa `unionM` (litTable dv item dt)
-              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
-                                $ return qa `unionM` (litTable (int 0) item intT)
-              _              -> return qa
-    qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
-    return $ DVec qp [1]
+              VL.AggrSum t _ -> do
+                  let dv = snd $ sumDefault t
+                  -- If the input is empty, produce a tuple with the default value.
+                  qd <- projM [eP descr (ConstE $ nat 2), eP pos (ConstE $ nat 1), eP item (ConstE dv)]
+                        $ (litTable (nat 1) descr ANat)
+                          `differenceM`
+                          (proj [cP descr] q)
+
+                  -- For an empty input, there will be two tuples in
+                  -- the union result: the sum output with null and
+                  -- the default value.
+                  qu <- qa `union` qd
+
+                  -- Perform an argmax on the descriptor to get either
+                  -- the sum output (for a non-empty input) or the
+                  -- default value (which has a higher descriptor).
+                  projM [eP descr (ConstE $ nat 1), cP pos, cP item]
+                     $ eqJoinM descr' descr
+                          (aggr [(Max $ ColE descr, descr')] [] qu)
+                          (return qu)
+
+              _ -> return qa
+
+    return $ DVec qd [1]
 
   vecAggrNonEmpty as (DVec q _) = do
     let resCols = [1 .. N.length as]
@@ -317,10 +332,14 @@ instance VectorAlgebra PFAlgebra where
     qd <- case a of
               -- FIXME this is wrong: consider a list of negative
               -- integers... -> use antijoin/difference
-              VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                $ return qa
-                                  `unionM`
-                                  proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
+              VL.AggrSum t _ -> let dv = snd $ sumDefault t
+                                in return qa
+                                   `unionM`
+                                   projM [cP descr, eP item (ConstE dv)]
+                                       (differenceM
+                                           (proj [mP descr pos] qo)
+                                           (proj [cP descr] qa))
+                                
               VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
                                 $ return qa
                                   `unionM`
