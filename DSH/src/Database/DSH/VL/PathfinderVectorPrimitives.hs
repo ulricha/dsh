@@ -187,7 +187,7 @@ aggrDefault q qa dv = do
             (proj [cP descr] q)
 
     -- For an empty input, there will be two tuples in
-    -- the union result: the aggregate output with null
+    -- the union result: the aggregate output with NULL
     -- and the default value.
     qu <- qa `union` qd
 
