@@ -32,6 +32,7 @@ cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 redundantRules :: VLRuleSet ()
 redundantRules = [ introduceSelect
                  , simpleSort 
+                 , sortProject
                  , pullProjectPropRename
                  , pullProjectPropReorder
                  ]
@@ -281,6 +282,21 @@ simpleSort q =
               qr2' <- insert $ UnOp R2 qs
               mapM_ (\qr2 -> replace qr2 qr2') r2Parents
             else return () |])
+
+-- | Pull a projection on a Sort operator's input over the Sort
+-- operator. This rewrite should enable the SortSimple rewrite when
+-- the common source of Sort's left and right inputs is obstructed by
+-- a projection.
+sortProject :: VLRule ()
+sortProject q =
+  $(pattern 'q "R1 ((q1) Sort (Project proj (q2)))"
+   [| do
+       return $ do
+         logRewrite "Redundant.Sort.PullProject" q
+         sortNode <- insert $ BinOp Sort $(v "q1") $(v "q2")
+         r1Node   <- insert $ UnOp R1 sortNode
+         void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+         
 
 ------------------------------------------------------------------------------
 -- Projection pullup
