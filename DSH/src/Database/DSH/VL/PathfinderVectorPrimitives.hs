@@ -175,6 +175,31 @@ segAggrDefault qo qa dv =
             (proj [mP descr pos] qo)
             (proj [cP descr] qa))
 
+-- | If an aggregate's input is empty, add the aggregate functions
+-- default value. The first argument 'q' is the original input vector,
+-- whereas the second argument 'qa' is the aggregate's output.
+aggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r PFAlgebra AlgNode
+aggrDefault q qa dv = do
+    -- If the input is empty, produce a tuple with the default value.
+    qd <- projM [eP descr (ConstE $ nat 2), eP pos (ConstE $ nat 1), eP item (ConstE dv)]
+          $ (litTable (nat 1) descr ANat)
+            `differenceM`
+            (proj [cP descr] q)
+
+    -- For an empty input, there will be two tuples in
+    -- the union result: the aggregate output with null
+    -- and the default value.
+    qu <- qa `union` qd
+
+    -- Perform an argmax on the descriptor to get either
+    -- the sum output (for a non-empty input) or the
+    -- default value (which has a higher descriptor).
+    projM [eP descr (ConstE $ nat 1), cP pos, cP item]
+       $ eqJoinM descr' descr
+            (aggr [(Max $ ColE descr, descr')] [] qu)
+            (return qu)
+
+
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
 sumDefault :: VL.VLType -> (ATy, AVal)
@@ -304,28 +329,10 @@ instance VectorAlgebra PFAlgebra where
           $ aggr [(aggrFun a, item)] [] q
     -- For sum, add the default value for empty inputs
     qd <- case a of
-              VL.AggrSum t _ -> do
-                  let dv = snd $ sumDefault t
-                  -- If the input is empty, produce a tuple with the default value.
-                  qd <- projM [eP descr (ConstE $ nat 2), eP pos (ConstE $ nat 1), eP item (ConstE dv)]
-                        $ (litTable (nat 1) descr ANat)
-                          `differenceM`
-                          (proj [cP descr] q)
-
-                  -- For an empty input, there will be two tuples in
-                  -- the union result: the sum output with null and
-                  -- the default value.
-                  qu <- qa `union` qd
-
-                  -- Perform an argmax on the descriptor to get either
-                  -- the sum output (for a non-empty input) or the
-                  -- default value (which has a higher descriptor).
-                  projM [eP descr (ConstE $ nat 1), cP pos, cP item]
-                     $ eqJoinM descr' descr
-                          (aggr [(Max $ ColE descr, descr')] [] qu)
-                          (return qu)
-
-              _ -> return qa
+              VL.AggrSum t _ -> aggrDefault q qa (snd $ sumDefault t)
+              VL.AggrAll _   -> aggrDefault q qa (bool True)
+              VL.AggrAny _   -> aggrDefault q qa (bool False)
+              _              -> return qa
 
     return $ DVec qd [1]
 
