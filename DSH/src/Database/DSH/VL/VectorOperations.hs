@@ -266,9 +266,10 @@ orPrim _ = error "orPrim: Should not be possible"
 
 orLift ::  Shape -> Graph VL Shape
 orLift (ValueVector d (Nest q (InColumn 1))) = do
-    qv <- vlAggrS (AggrAll (Column1 1)) d q
+    qv <- vlAggrS (AggrAny (Column1 1)) d q
     return $ ValueVector qv (InColumn 1)
 orLift _ = error "orLift: Should not be possible"
+
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
     (_, prop)      <- vlSelectPos1 d L.Eq (N 1)
