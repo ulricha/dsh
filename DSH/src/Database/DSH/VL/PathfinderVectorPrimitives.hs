@@ -359,14 +359,14 @@ instance VectorAlgebra PFAlgebra where
                                 
               VL.AggrCount   -> segAggrDefault qo qa (int 0)
               _              -> return qa
-    qp <- rownum pos [descr] Nothing qd
+
     -- We have to unnest the inner vector (i.e. surrogate join) to get
     -- the outer descriptor values (segmented aggregates remove one
     -- list type constructor)
-    qr <- projM [mP descr descr', cP pos, cP item]
+    qr <- projM [mP descr descr', mP pos pos', cP item]
           $ (eqJoinM pos' descr
              (proj [mP descr' descr, mP pos' pos] qo)
-             (return qp))
+             (return qd))
     return $ DVec qr [1]
 
   vecAggrNonEmptyS as (DVec qo _) (DVec qi _) = do
