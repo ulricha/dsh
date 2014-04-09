@@ -35,6 +35,7 @@ redundantRules = [ introduceSelect
                  , sortProject
                  , pullProjectPropRename
                  , pullProjectPropReorder
+                 , pullProjectRestrict
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -300,6 +301,19 @@ sortProject q =
 
 ------------------------------------------------------------------------------
 -- Projection pullup
+
+-- | Pull a projection atop a Restrict operator. This rewrite mainly
+-- serves to clear the way for merging of Combine/Restrict
+-- combinations into scalar conditional expressions.
+pullProjectRestrict :: VLRule ()
+pullProjectRestrict q =
+  $(pattern 'q "R1 ((Project projs (q1)) Restrict (qb))"
+     [| do
+          return $ do
+            logRewrite "Redundant.Project.Restrict" q
+            restrictNode <- insert $ BinOp Restrict $(v "q1") $(v "qb")
+            r1Node       <- insert $ UnOp R1 restrictNode
+            void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might
