@@ -41,6 +41,7 @@ constExpr1 constCols e =
         -- FIXME implement constant folding
         BinApp1 op e1 e2 -> return NonConstPL
         UnApp1 op e1     -> return NonConstPL
+        If1 c t e        -> return NonConstPL
 
 nonConstPVec :: ConstVec
 nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)

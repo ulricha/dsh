@@ -2,10 +2,6 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
-import Text.Printf
-
-import Debug.Trace
-
 import Control.Monad
 import Control.Applicative
 
@@ -212,6 +208,7 @@ shiftCols offset expr =
         UnApp1 o e1     -> UnApp1 o (shiftCols offset e1)
         Column1 i       -> Column1 (offset + i)
         Constant1 c     -> Constant1 c
+        If1 c t e       -> If1 (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
 
 -- | Replace a Zip operaor with a projection if both inputs are the same.
 sameInputZip :: VLRule BottomUpProps

@@ -95,12 +95,19 @@ renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ show op) <+> (pare
 renderExpr1 (UnApp1 op e)      = (text $ show op) <+> (parens $ renderExpr1 e)
 renderExpr1 (Constant1 val)    = renderTblVal val
 renderExpr1 (Column1 c)        = text "col" <> int c
+renderExpr1 (If1 c t e)        = text "if" 
+                                 <+> renderExpr1 c 
+                                 <+> text "then" 
+                                 <+> renderExpr1 t 
+                                 <+> text "else" 
+                                 <+> renderExpr1 e
 
 parenthize1 :: Expr1 -> Doc
 parenthize1 e@(Constant1 _)   = renderExpr1 e
 parenthize1 e@(Column1 _)     = renderExpr1 e
 parenthize1 e@(BinApp1 _ _ _) = parens $ renderExpr1 e
 parenthize1 e@(UnApp1 _ _)    = parens $ renderExpr1 e
+parenthize1 e@(If1 _ _ _)     = renderExpr1 e
 
 renderExpr2 :: Expr2 -> Doc
 renderExpr2 (BinApp2 op e1 e2)   = (parenthize2 e1) <+> (text $ show op) <+> (parenthize2 e2)
@@ -108,6 +115,12 @@ renderExpr2 (UnApp2 op e)        = (text $ show op) <+> (parens $ renderExpr2 e)
 renderExpr2 (Constant2 val)      = renderTblVal val
 renderExpr2 (Column2Left (L c))  = text "lcol" <> int c
 renderExpr2 (Column2Right (R c)) = text "rcol" <> int c
+renderExpr2 (If2 c t e)          = text "if" 
+                                   <+> renderExpr2 c 
+                                   <+> text "then" 
+                                   <+> renderExpr2 t 
+                                   <+> text "else" 
+                                   <+> renderExpr2 e
 
 parenthize2 :: Expr2 -> Doc
 parenthize2 e@(Constant2 _)    = renderExpr2 e
@@ -115,6 +128,7 @@ parenthize2 e@(Column2Left _)  = renderExpr2 e
 parenthize2 e@(Column2Right _) = renderExpr2 e
 parenthize2 e@(BinApp2 _ _ _)  = parens $ renderExpr2 e
 parenthize2 e@(UnApp2 _ _)     = parens $ renderExpr2 e
+parenthize2 e@(If2 _ _ _)      = renderExpr2 e
 
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc

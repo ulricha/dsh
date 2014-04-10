@@ -29,6 +29,7 @@ expressionRules = [ mergeExpr2SameInput
                   , identityProject
                   , leftOnlyBinExpr
                   , rightOnlyBinExpr
+                  , mergeSelectProject
                   ]
 
 replaceLeftCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
@@ -104,22 +105,25 @@ expr2ToExpr1 (UnApp2 o e)         = UnApp1 o (expr2ToExpr1 e)
 expr2ToExpr1 (Column2Left (L c))  = Column1 c
 expr2ToExpr1 (Column2Right (R c)) = Column1 c
 expr2ToExpr1 (Constant2 val)      = Constant1 val
+expr2ToExpr1 (If2 c t e)          = If1 (expr2ToExpr1 c) (expr2ToExpr1 t) (expr2ToExpr1 e)
 
 -- Merge multiple stacked CompExpr operators if they have the same input.
 
 -- FIXME this is way too hackish. Implement a clean solution to insert expressions into
 -- other expressions
 expr1ToExpr2Right :: Expr1 -> Expr2
-expr1ToExpr2Right e =
-    case e of
+expr1ToExpr2Right expr =
+    case expr of
+        If1 c t e       -> If2 (expr1ToExpr2Right c) (expr1ToExpr2Right t) (expr1ToExpr2Right e)
         BinApp1 o e1 e2 -> BinApp2 o (expr1ToExpr2Right e1) (expr1ToExpr2Right e2)
         UnApp1 o e1     -> UnApp2 o (expr1ToExpr2Right e1)
         Column1 c       -> Column2Right (R c)
         Constant1 val   -> Constant2 val
 
 expr1ToExpr2Left :: Expr1 -> Expr2
-expr1ToExpr2Left e =
-    case e of
+expr1ToExpr2Left expr =
+    case expr of
+        If1 c t e       -> If2 (expr1ToExpr2Left c) (expr1ToExpr2Left t) (expr1ToExpr2Left e)
         BinApp1 o e1 e2 -> BinApp2 o (expr1ToExpr2Left e1) (expr1ToExpr2Left e2)
         UnApp1 o e1     -> UnApp2 o (expr1ToExpr2Left e1)
         Column1 c       -> Column2Left (L c)
@@ -146,6 +150,16 @@ mergeExpr11 q =
           let env  = zip [1..] $(v "es2")
               es1' = map (mergeExpr1 env) $(v "es1")
           void $ replaceWithNew q $ UnOp (Project es1') $(v "q1") |])
+
+mergeSelectProject :: VLRule BottomUpProps
+mergeSelectProject q =
+  $(pattern 'q "Select p (Project projs (q1))"
+     [| do
+        return $ do
+          logRewrite "Expr.Merge.Select" q
+          let env = zip [1..] $(v "projs")
+          let p'  = mergeExpr1 env $(v "p")
+          void $ replaceWithNew q $ UnOp (Select p') $(v "q1") |])
 
 mergeExpr12 :: VLRule BottomUpProps
 mergeExpr12 q =
@@ -203,6 +217,7 @@ leftOnlyExpr :: Expr2 -> Bool
 leftOnlyExpr expr = 
     case expr of
         BinApp2 _ e1 e2 -> leftOnlyExpr e1 && leftOnlyExpr e2
+        If2 c t e       -> all leftOnlyExpr [c, t, e]
         UnApp2 _ e      -> leftOnlyExpr e
         Constant2 _     -> True
         Column2Left _   -> True
@@ -213,6 +228,7 @@ rightOnlyExpr expr =
     case expr of
         BinApp2 _ e1 e2 -> rightOnlyExpr e1 && rightOnlyExpr e2
         UnApp2 _ e      -> rightOnlyExpr e
+        If2 c t e       -> all rightOnlyExpr [c, t, e]
         Constant2 _     -> True
         Column2Left _   -> False
         Column2Right _  -> True
