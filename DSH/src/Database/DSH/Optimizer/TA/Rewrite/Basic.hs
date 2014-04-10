@@ -52,6 +52,7 @@ mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
     inline (UnAppE op e)      = UnAppE op (inline e)
     inline (ColE c)           = fromMaybe (failedLookup c) (lookup c proj2)
     inline (ConstE val)       = ConstE val
+    inline (IfE c t e)        = IfE (inline c) (inline t) (inline e)
 
     failedLookup :: AttrName -> a
     failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"

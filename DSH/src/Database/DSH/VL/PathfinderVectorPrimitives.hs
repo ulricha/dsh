@@ -22,6 +22,7 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 
 -- Some general helpers
 
+
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
 pos       = "pos"
@@ -136,6 +137,7 @@ expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
 expr1 (VL.UnApp1 op e)      = UnAppE (unOp op) (expr1 e)
 expr1 (VL.Column1 c)        = ColE $ itemi c
 expr1 (VL.Constant1 v)      = ConstE $ algVal v
+expr1 (VL.If1 c t e)        = IfE (expr1 c) (expr1 t) (expr1 e)
 
 -- | Vl Expr2 considers two input vectors and may reference columns from the
 -- left and right side. Columns from the left map directly to item columns. For
@@ -146,6 +148,7 @@ expr2 (VL.UnApp2 op e)           = UnAppE (unOp op) (expr2 e)
 expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
 expr2 (VL.Column2Right (VL.R c)) = ColE $ itemi' c
 expr2 (VL.Constant2 v)           = ConstE $ algVal v
+expr2 (VL.If2 c t e)             = IfE (expr2 c) (expr2 t) (expr2 e)
 
 colProjection :: VL.Expr1 -> Maybe DBCol
 colProjection (VL.Column1 c) = Just c

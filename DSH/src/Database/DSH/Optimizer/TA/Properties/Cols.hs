@@ -73,6 +73,7 @@ exprTy childCols expr =
         ConstE v        -> valType v
         BinAppE f e1 e2 -> binAppTy f (exprTy childCols e1) (exprTy childCols e2)
         UnAppE f _      -> unAppTy f
+        IfE _ t _       -> exprTy childCols t
 
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions
