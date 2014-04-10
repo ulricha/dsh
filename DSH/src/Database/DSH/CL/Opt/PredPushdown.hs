@@ -9,14 +9,9 @@ module Database.DSH.CL.Opt.PredPushdown
   ( predpushdownR
   ) where
   
-import Debug.Trace
-
 import           Control.Applicative
 import           Control.Arrow
 import qualified Data.Set as S
-import qualified Data.Map as M
-
-import Database.DSH.Impossible
 
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang

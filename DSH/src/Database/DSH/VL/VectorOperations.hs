@@ -642,6 +642,6 @@ mkColumn t vs = (t, [pVal v | v <- vs])
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths = 
     let header = []
-        body = map (\(d, p) -> [VLNat $ fromIntegral p, VLNat $ fromIntegral d]) 
+        body = map (\(d, p) -> [VLNat $ fromInteger p, VLNat $ fromInteger d]) 
                $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
     in (header, body)

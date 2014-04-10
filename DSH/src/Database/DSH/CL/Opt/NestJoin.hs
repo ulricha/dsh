@@ -16,15 +16,10 @@ import           Control.Applicative((<$>))
 import           Control.Arrow
 import           Control.Monad
 
-import           Data.Either
-import qualified Data.Foldable as F
 import           Data.List
-import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
-import qualified Data.List.NonEmpty as N
 import qualified Data.Set as S
 import qualified Data.Map as M
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Lang
@@ -40,8 +35,6 @@ nestjoinR = unnestFromGuardR <+ unnestFromHeadR
 --------------------------------------------------------------------------------
 -- Common code for unnesting from a comprehension head and from
 -- comprehension guards
-
-type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual) 
 
 -- A representation of a nested comprehension which is eligible for
 -- unnesting
