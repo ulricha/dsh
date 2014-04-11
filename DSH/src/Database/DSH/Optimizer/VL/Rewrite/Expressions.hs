@@ -159,7 +159,8 @@ mergeSelectProject q =
           logRewrite "Expr.Merge.Select" q
           let env = zip [1..] $(v "projs")
           let p'  = mergeExpr1 env $(v "p")
-          void $ replaceWithNew q $ UnOp (Select p') $(v "q1") |])
+          selectNode <- insert $ UnOp (Select p') $(v "q1")
+          void $ replaceWithNew q $ UnOp (Project $(v "projs")) selectNode |])
 
 mergeExpr12 :: VLRule BottomUpProps
 mergeExpr12 q =
