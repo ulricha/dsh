@@ -87,7 +87,7 @@ Library
                      semigroups
                      
   Hs-source-dirs:    src
-  GHC-Options:       -Wall -auto-all
+  GHC-Options:       -Wall -auto-all -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Interpreter
@@ -261,6 +261,7 @@ executable vldot
                       TableAlgebra,
                       ansi-wl-pprint,
                       semigroups
+    GHC-Options: -Wall -fno-warn-orphans
 
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
@@ -279,5 +280,5 @@ Test-Suite Flattening_TA
                    test-framework >= 0.6,
                    HUnit
     cpp-options: -DisDBPH
-    GHC-Options: -Wall 
+    GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP

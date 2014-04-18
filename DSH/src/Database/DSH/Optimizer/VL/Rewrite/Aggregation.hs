@@ -14,7 +14,8 @@ import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Rewrite.Common
 
 aggregationRules :: VLRuleSet ()
-aggregationRules = [ inlineAggrProject
+aggregationRules = [ inlineAggrSProject
+                   , inlineAggrProject
                    , inlineAggrNonEmptyProject
                    , flatGrouping
                    , simpleGrouping
@@ -102,9 +103,28 @@ pushExprThroughGroupBy q =
           -- Replace the CompExpr1L operator with a projection on the new column
           void $ replaceWithNew q $ UnOp (Project [Column1 $ w + 1]) r2Node |])
 
--- | Merge a projection into an aggregate operator.
+-- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
+  $(pattern 'q "Aggr afun (Project proj (qi))"
+    [| do
+        let env = zip [1..] $(v "proj")
+        let afun' = case $(v "afun") of
+                        AggrMax e   -> AggrMax $ mergeExpr1 env e
+                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
+                        AggrMin e   -> AggrMin $ mergeExpr1 env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrCount   -> AggrCount
+
+        return $ do
+            logRewrite "Aggregation.Normalize.Aggr.Project" q
+            void $ replaceWithNew q $ UnOp (Aggr afun') $(v "qi") |])
+
+-- | Merge a projection into a segmented aggregate operator.
+inlineAggrSProject :: VLRule ()
+inlineAggrSProject q =
   $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
@@ -113,17 +133,43 @@ inlineAggrProject q =
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
                         AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
                         AggrCount   -> AggrCount
 
         return $ do
-            logRewrite "Aggregation.Normalize.InlineProject" q
+            logRewrite "Aggregation.Normalize.AggrS.Project" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
 
--- | Merge a projection into an aggregate operator. We restrict this
--- to only one aggregate function. Therefore, merging of projections
--- must happen before merging of aggregate operators
+-- | Merge a projection into a non-empty aggregate operator. We
+-- restrict this to only one aggregate function. Therefore, merging of
+-- projections must happen before merging of aggregate operators
 inlineAggrNonEmptyProject :: VLRule ()
 inlineAggrNonEmptyProject q =
+  $(pattern 'q "AggrNonEmpty afuns (Project proj (qi))"
+    [| do
+        afun N.:| [] <- return $(v "afuns")
+        let env = zip [1..] $(v "proj")
+        let afun' = case $(v "afun") of
+                        AggrMax e   -> AggrMax $ mergeExpr1 env e
+                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
+                        AggrMin e   -> AggrMin $ mergeExpr1 env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrCount   -> AggrCount
+
+        return $ do
+            logRewrite "Aggregation.Normalize.AggrNonEmpty.Project" q
+            let aggrOp = UnOp (AggrNonEmpty (afun' N.:| [])) $(v "qi")
+            void $ replaceWithNew q aggrOp |])
+
+-- | Merge a projection into a non-empty segmented aggregate
+-- operator. We restrict this to only one aggregate
+-- function. Therefore, merging of projections must happen before
+-- merging of aggregate operators
+inlineAggrSNonEmptyProject :: VLRule ()
+inlineAggrSNonEmptyProject q =
   $(pattern 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
     [| do
         afun N.:| [] <- return $(v "afuns")
@@ -133,10 +179,12 @@ inlineAggrNonEmptyProject q =
                         AggrSum t e -> AggrSum t $ mergeExpr1 env e 
                         AggrMin e   -> AggrMin $ mergeExpr1 env e
                         AggrAvg e   -> AggrAvg $ mergeExpr1 env e
+                        AggrAny e   -> AggrAny $ mergeExpr1 env e
+                        AggrAll e   -> AggrAll $ mergeExpr1 env e
                         AggrCount   -> AggrCount
 
         return $ do
-            logRewrite "Aggregation.Normalize.InlineProject" q
+            logRewrite "Aggregation.Normalize.AggrNonEmptyS.Project" q
             let aggrOp = BinOp (AggrNonEmptyS (afun' N.:| [])) $(v "qo") $(v "qi")
             void $ replaceWithNew q aggrOp |])
 

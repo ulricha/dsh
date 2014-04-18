@@ -415,16 +415,31 @@ prop_cond :: Bool -> Property
 prop_cond = makeProp (\b -> Q.cond b 0 1) (\b -> if b then (0 :: Integer) else 1)
 
 prop_cond_tuples :: (Bool, (Integer, Integer)) -> Property
-prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
+prop_cond_tuples = makeProp (\b -> Q.cond (Q.fst b) 
+                                          (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) 
+                                          (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) 
+                            (\b -> if fst b 
+                                   then (fst $ snd b, fst $ snd b) 
+                                   else (snd $ snd b, snd $ snd b))
 
 prop_cond_list_tuples :: (Bool, ([[Integer]], [[Integer]])) -> Property
-prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b) (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) (\b -> if fst b then (fst $ snd b, fst $ snd b) else (snd $ snd b, snd $ snd b))
+prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b) 
+                                               (Q.pair (Q.fst $ Q.snd b) (Q.fst $ Q.snd b)) 
+                                               (Q.pair (Q.snd $ Q.snd b) (Q.snd $ Q.snd b))) 
+                                 (\b -> if fst b 
+                                        then (fst $ snd b, fst $ snd b) 
+                                        else (snd $ snd b, snd $ snd b))
 
 prop_map_cond :: [Bool] -> Property
 prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
 
 prop_map_cond_tuples :: [Bool] -> Property
-prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b (Q.toQ (0, 10) :: Q (Integer, Integer)) (Q.toQ (1, 11)))) (map (\b -> if b then (0, 10) else (1, 11)))
+prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b 
+                                                     (Q.toQ (0, 10) :: Q (Integer, Integer)) 
+                                                     (Q.toQ (1, 11)))) 
+                                (map (\b -> if b 
+                                            then (0, 10) 
+                                            else (1, 11)))
 
 prop_concatmapcond :: [Integer] -> Property
 prop_concatmapcond l1 =

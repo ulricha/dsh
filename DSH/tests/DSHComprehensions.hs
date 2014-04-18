@@ -13,6 +13,13 @@ import Database.DSH
 ---------------------------------------------------------------
 -- Comprehensions for quickcheck tests
 
+cartprod :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+cartprod (view -> (xs, ys)) =
+  [ tuple2 x y
+  | x <- xs
+  , y <- ys
+  ]
+
 eqjoin :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 eqjoin (view -> (xs, ys)) = 
   [ tuple2 x y

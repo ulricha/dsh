@@ -155,9 +155,9 @@ vlDistDesc (DVec c1 _) (DVec c2 _) = do
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
-vlDistSeg :: DVec -> DVec -> GraphM r VL (DVec, PVec)
-vlDistSeg (DVec c1 _) (DVec c2 _) = do
-                                        r <- insertNode $ BinOp DistSeg c1 c2
+vlAlign :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlAlign (DVec c1 _) (DVec c2 _) = do
+                                        r <- insertNode $ BinOp Align c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
@@ -214,8 +214,8 @@ vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = do
                                                r3 <- rvec $ insertNode $ UnOp R3 r
                                                return (r1, r2, r3)
 
-vlLit :: [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
-vlLit tys vals = dvec $ insertNode $ NullaryOp $ Lit (map typeToVLType tys) vals
+vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
+vlLit em tys vals = dvec $ insertNode $ NullaryOp $ Lit em (map typeToVLType tys) vals
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> GraphM r VL DVec
 vlTableRef n tys hs = dvec $ insertNode $ NullaryOp $ TableRef n tys hs
@@ -400,9 +400,3 @@ vlReshapeS n (DVec qi _) = do
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- dvec $ insertNode $ UnOp R2 r
     return (r1, r2)
-
-vlSingleton :: DVec -> GraphM r VL DVec
-vlSingleton (DVec c _) = dvec $ insertNode $ UnOp Singleton c
-
-vlOnly :: DVec -> GraphM r VL DVec
-vlOnly (DVec c _) = dvec $ insertNode $ UnOp Only c

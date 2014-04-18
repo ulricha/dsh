@@ -32,7 +32,8 @@ unionss :: Ord a => S.Set (S.Set a) -> S.Set a
 unionss = S.foldr (∪) S.empty
 
 exprCols :: Expr -> S.Set AttrName
-exprCols (BinAppE _ e1 e2) = (exprCols e1) ∪ (exprCols e2)
+exprCols (BinAppE _ e1 e2) = exprCols e1 ∪ exprCols e2
+exprCols (IfE c t e)       = exprCols c ∪ exprCols t ∪ exprCols e
 exprCols (UnAppE _ e)      = exprCols e
 exprCols (ColE c)          = S.singleton c
 exprCols (ConstE _)        = S.empty
@@ -43,8 +44,7 @@ aggrInput (Max e)  = exprCols e
 aggrInput (Min e)  = exprCols e
 aggrInput (Sum e)  = exprCols e
 aggrInput (All e)  = exprCols e
-aggrInput (Prod e) = exprCols e
-aggrInput (Dist e) = exprCols e
+aggrInput (Any e)  = exprCols e
 aggrInput Count    = S.empty
 
 mapCol :: Proj -> S.Set (AttrName, AttrName)

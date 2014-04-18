@@ -41,6 +41,7 @@ constExpr1 constCols e =
         -- FIXME implement constant folding
         BinApp1 op e1 e2 -> return NonConstPL
         UnApp1 op e1     -> return NonConstPL
+        If1 c t e        -> return NonConstPL
 
 nonConstPVec :: ConstVec
 nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
@@ -53,7 +54,7 @@ inferConstVecNullOp op =
   case op of
     SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit colTypes rows      ->
+    Lit _ colTypes rows      ->
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
       else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
@@ -113,9 +114,6 @@ inferConstVecUnOp c op =
     Select _       -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d cols
-
-    Only             -> return c
-    Singleton        -> return c
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
@@ -196,10 +194,10 @@ inferConstVecBinOp c1 c2 op =
       (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    DistSeg -> do
-      (d, _) <- unp c2 >>= fromDBV
-      (_, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+    Align -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (d, cols2) <- unp c2 >>= fromDBV
+      return $ VPropPair (DBVConst d (cols1 ++ cols2)) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     PropRename -> do
       (_, cols) <- unp c2 >>= fromDBV

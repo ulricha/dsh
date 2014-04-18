@@ -48,6 +48,15 @@ binAppTy f t1 _t2 =
 unAppTy :: UnFun -> ATy
 unAppTy Not      = ABool
 unAppTy (Cast t) = t
+unAppTy Sin      = ADouble
+unAppTy Cos      = ADouble
+unAppTy Tan      = ADouble
+unAppTy ASin     = ADouble
+unAppTy ACos     = ADouble
+unAppTy ATan     = ADouble
+unAppTy Log      = ADouble
+unAppTy Sqrt     = ADouble
+unAppTy Exp      = ADouble
 
 valType :: AVal -> ATy
 valType (VInt _)    = AInt
@@ -64,6 +73,7 @@ exprTy childCols expr =
         ConstE v        -> valType v
         BinAppE f e1 e2 -> binAppTy f (exprTy childCols e1) (exprTy childCols e2)
         UnAppE f _      -> unAppTy f
+        IfE _ t _       -> exprTy childCols t
 
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions
@@ -73,8 +83,7 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
   where
     resType = case aggr of
         All _  -> ABool
-        Prod _ -> undefined
-        Dist _ -> undefined
+        Any _  -> ABool
         Count  -> AInt
         Avg e  -> numAggr $ exprTy childCols e
         Max e  -> numAggr $ exprTy childCols e
