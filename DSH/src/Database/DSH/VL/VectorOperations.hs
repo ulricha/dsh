@@ -246,43 +246,8 @@ reverseLift (ValueVector d (Nest d1 lyt)) = do
     (d1', p) <- vlReverseS d1
     lyt'     <- chainReorder p lyt
     return (ValueVector d (Nest d1' lyt'))
-reverseLift _ = error "vlReverseSift: Should not be possible"
+reverseLift _ = error "vlReverseLift: Should not be possible"
 
-andPrim ::  Shape -> Graph VL Shape
-andPrim (ValueVector d (InColumn 1)) = do
-    p         <- literal boolT (VLBool True)
-    (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMin (Column1 1)) r
-    return $ PrimVal v (InColumn 1)
-andPrim _ = error "andPrim: Should not be possible"
-
-andLift ::  Shape -> Graph VL Shape
-andLift (ValueVector d (Nest q (InColumn 1))) = do
-    t           <- literal boolT (VLBool True)
-    (ts, _)     <- vlDistPrim t d
-    ts'         <- vlSegment ts
-    (res, _, _) <- vlAppend ts' q
-    minLift (ValueVector d (Nest res (InColumn 1)))
-andLift _ = error "andLift: Should not be possible"
-
-orPrim ::  Shape -> Graph VL Shape
-orPrim (ValueVector d (InColumn 1)) = do
-    p         <- literal boolT (VLBool False)
-    (r, _, _) <- vlAppend p d
-    v         <- vlAggr (AggrMax (Column1 1))r
-    return $ PrimVal v (InColumn 1)
-orPrim _ = error "orPrim: Should not be possible"
-
-orLift ::  Shape -> Graph VL Shape
-orLift (ValueVector d (Nest q (InColumn 1))) = do
-    t           <- literal boolT (VLBool False)
-    (ts, _)     <- vlDistPrim t d
-    ts'         <- vlSegment ts
-    (res, _, _) <- vlAppend ts' q
-    maxLift (ValueVector d (Nest res (InColumn 1)))
-orLift _ = error "orLift: Should not be possible"
-
-                                        
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
     (_, prop)      <- vlSelectPos1 d L.Eq (N 1)
@@ -450,51 +415,16 @@ mapEnv f  ((x, p):xs) = do
     return $ (x, p') : xs'
 mapEnv _f []          = return []
 
-minPrim ::  Shape -> Graph VL Shape
-minPrim (ValueVector q (InColumn 1)) =
-    PrimVal <$> vlAggr (AggrMin (Column1 1)) q <*> (pure $ InColumn 1)
-minPrim _ = $impossible
+aggrPrim :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrPrim afun (ValueVector q (InColumn 1)) =
+    PrimVal <$> vlAggr (afun (Column1 1)) q <*> (pure $ InColumn 1)
+aggrPrim _ _ = $impossible
 
-minLift ::  Shape -> Graph VL Shape
-minLift (ValueVector d (Nest q (InColumn 1))) = do
-    r <- vlDescToRename d
-    x <- vlPropRename r =<< vlAggrS (AggrMin (Column1 1)) d q
-    return $ ValueVector x (InColumn 1)
-minLift _ = $impossible
-
-maxPrim ::  Shape -> Graph VL Shape
-maxPrim (ValueVector q (InColumn 1)) = 
-    flip PrimVal (InColumn 1) <$> vlAggr (AggrMax (Column1 1)) q
-maxPrim _ = $impossible
-
-maxLift ::  Shape -> Graph VL Shape
-maxLift (ValueVector d (Nest q (InColumn 1))) = do
-    r <- vlDescToRename d
-    x <- vlPropRename r =<< vlAggrS (AggrMax (Column1 1)) d q
-    return $ ValueVector x (InColumn 1)
-maxLift _ = $impossible
-
-sumPrim ::  Type -> Shape -> Graph VL Shape
-sumPrim t (ValueVector q (InColumn 1)) = do
-    x <- vlAggr (AggrSum (typeToVLType t) (Column1 1)) q
-    return $ PrimVal x (InColumn 1) 
-sumPrim _ _ = $impossible
-
-avgPrim :: Shape -> Graph VL Shape
-avgPrim (ValueVector q (InColumn 1)) = 
-    flip PrimVal (InColumn 1) <$> vlAggr (AggrAvg (Column1 1)) q
-avgPrim _ = $impossible
-
-sumLift :: Type -> Shape -> Graph VL Shape
-sumLift (ListT t) (ValueVector d1 (Nest q (InColumn 1))) = do
-    x <- vlAggrS (AggrSum (typeToVLType t) (Column1 1)) d1 q
-    return $ ValueVector x (InColumn 1) 
-sumLift _ _ = $impossible
-
-avgLift :: Shape -> Graph VL Shape
-avgLift (ValueVector d1 (Nest q (InColumn 1))) = 
-    flip ValueVector (InColumn 1) <$> vlAggrS (AggrAvg (Column1 1)) d1 q
-avgLift _ = $impossible
+aggrLift :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrLift afun (ValueVector d (Nest q (InColumn 1))) = do
+    qr <- vlAggrS (afun (Column1 1)) d q
+    return $ ValueVector qr (InColumn 1)
+aggrLift _ _ = $impossible
 
 distL ::  Shape -> Shape -> Graph VL Shape
 distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
@@ -712,6 +642,6 @@ mkColumn t vs = (t, [pVal v | v <- vs])
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths = 
     let header = []
-        body = map (\(d, p) -> [VLNat $ fromIntegral p, VLNat $ fromIntegral d]) 
+        body = map (\(d, p) -> [VLNat $ fromInteger p, VLNat $ fromInteger d]) 
                $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
     in (header, body)

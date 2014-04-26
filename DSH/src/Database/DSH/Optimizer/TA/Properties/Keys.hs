@@ -5,11 +5,12 @@
 
 module Database.DSH.Optimizer.TA.Properties.Keys where
 
-import Data.List
+import           Data.List
 import qualified Data.Set.Monad as S
 
 import           Database.Algebra.Pathfinder.Data.Algebra
 
+import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
                  
@@ -25,6 +26,7 @@ subsetsOfSize n s
         go k l (x:xs)
             | k == l = [x:xs]
             | otherwise = map (x:) (go (k-1) (l-1) xs) ++ go k (l-1) xs
+        go k l [] = $impossible
 
 -- | Enumerate all subsets of size n
 

@@ -10,16 +10,12 @@ module Database.DSH.CL.Opt.FlatJoin
   
 import Control.Applicative
 import Control.Arrow
-import Data.Either
 import qualified Data.Map as M
 import qualified Data.Set as S
-       
-import Database.DSH.Impossible
        
 import Database.DSH.Common.Lang
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Lang
-import Database.DSH.CL.Opt.Aux
 import Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
 

@@ -33,6 +33,8 @@ renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnT
 renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr1 c]
 renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr1 c]
 renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr1 c]
+renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr1 c]
+renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr1 c]
 renderAggrFun AggrCount     = renderFun (text "count") []
 
 renderColumnType :: VLType -> Doc
@@ -93,12 +95,19 @@ renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ show op) <+> (pare
 renderExpr1 (UnApp1 op e)      = (text $ show op) <+> (parens $ renderExpr1 e)
 renderExpr1 (Constant1 val)    = renderTblVal val
 renderExpr1 (Column1 c)        = text "col" <> int c
+renderExpr1 (If1 c t e)        = text "if" 
+                                 <+> renderExpr1 c 
+                                 <+> text "then" 
+                                 <+> renderExpr1 t 
+                                 <+> text "else" 
+                                 <+> renderExpr1 e
 
 parenthize1 :: Expr1 -> Doc
 parenthize1 e@(Constant1 _)   = renderExpr1 e
 parenthize1 e@(Column1 _)     = renderExpr1 e
 parenthize1 e@(BinApp1 _ _ _) = parens $ renderExpr1 e
 parenthize1 e@(UnApp1 _ _)    = parens $ renderExpr1 e
+parenthize1 e@(If1 _ _ _)     = renderExpr1 e
 
 renderExpr2 :: Expr2 -> Doc
 renderExpr2 (BinApp2 op e1 e2)   = (parenthize2 e1) <+> (text $ show op) <+> (parenthize2 e2)
@@ -106,6 +115,12 @@ renderExpr2 (UnApp2 op e)        = (text $ show op) <+> (parens $ renderExpr2 e)
 renderExpr2 (Constant2 val)      = renderTblVal val
 renderExpr2 (Column2Left (L c))  = text "lcol" <> int c
 renderExpr2 (Column2Right (R c)) = text "rcol" <> int c
+renderExpr2 (If2 c t e)          = text "if" 
+                                   <+> renderExpr2 c 
+                                   <+> text "then" 
+                                   <+> renderExpr2 t 
+                                   <+> text "else" 
+                                   <+> renderExpr2 e
 
 parenthize2 :: Expr2 -> Doc
 parenthize2 e@(Constant2 _)    = renderExpr2 e
@@ -113,6 +128,7 @@ parenthize2 e@(Column2Left _)  = renderExpr2 e
 parenthize2 e@(Column2Right _) = renderExpr2 e
 parenthize2 e@(BinApp2 _ _ _)  = parens $ renderExpr2 e
 parenthize2 e@(UnApp2 _ _)     = parens $ renderExpr2 e
+parenthize2 e@(If2 _ _ _)      = renderExpr2 e
 
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
@@ -271,7 +287,7 @@ escapeChar '\"' = ['\\', '"']
 escapeChar c = [c]
 
 -- Type of Dot style options
-data DotStyle = Solid
+data DotStyle = Dashed
 
 -- label of Dot nodes
 type DotLabel = String
@@ -301,8 +317,8 @@ renderDotNode (DotNode n l c s) =
     <> semi
     where styleDoc =
               case s of
-                  Just Solid -> comma <+> text "solid"
-                  Nothing -> empty
+                  Just Dashed -> comma <+> text "style=dashed"
+                  Nothing     -> empty
 
 renderDotEdge :: DotEdge -> Doc
 renderDotEdge (DotEdge u v) = int u <+> text "->" <+> int v <> semi
@@ -317,7 +333,7 @@ renderDot ns es = text "digraph" <> (braces $ preamble $$ nodeSection $$ edgeSec
 constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, VL) -> DotNode
 constructDotNode rootNodes ts (n, op) =
     if elem n rootNodes then
-        DotNode n l c (Just Solid)
+        DotNode n l c (Just Dashed)
     else
         DotNode n l c Nothing
     where l = escapeLabel $ render $ opDotLabel ts n op

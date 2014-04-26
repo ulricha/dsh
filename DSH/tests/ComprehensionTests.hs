@@ -11,14 +11,14 @@ import           Test.Framework.Providers.HUnit
 
 tests_comprehensions :: Test
 tests_comprehensions = testGroup "Comprehensions"
-    [ testProperty "eqjoin" prop_eqjoin
+    [ testProperty "cartprod" prop_cartprod
+    , testProperty "eqjoin" prop_eqjoin
     , testProperty "eqjoinproj" prop_eqjoinproj
     , testProperty "eqjoinpred" prop_eqjoinpred
     , testProperty "eqjoin3" prop_eqjoin3
     , testProperty "eqjoin_nested" prop_eqjoin_nested
     , testProperty "nestjoin" prop_nestjoin
     ]
-    
 
 tests_join_hunit :: Test
 tests_join_hunit = testGroup "HUnit joins"
@@ -54,6 +54,10 @@ tests_nest_guard_hunit = testGroup "HUnit guard nesting"
 
 ---------------------------------------------------------------------------------
 -- QuickCheck properties for comprehensions
+
+prop_cartprod :: ([Integer], [Integer]) -> Property
+prop_cartprod = makeProp C.cartprod
+                         (\(xs, ys) -> [ (x, y) | x <- xs, y <- ys])
 
 prop_eqjoin :: ([Integer], [Integer]) -> Property
 prop_eqjoin = makeProp C.eqjoin 

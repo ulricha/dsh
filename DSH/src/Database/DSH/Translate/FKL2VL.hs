@@ -8,7 +8,7 @@ import           Control.Monad
        
 import           Database.Algebra.Dag.Builder
 import qualified Database.Algebra.Dag.Common as Alg
-import           Database.DSH.VL.Lang                      (VL(), UnOp(Project), Expr1(..))
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Render.JSON               ()
 import qualified Database.DSH.Common.QueryPlan as QP
 import           Database.DSH.Common.Type 
@@ -81,10 +81,10 @@ papp1 t f =
         FLength _           -> lengthV
         FLengthL _          -> lengthLift
         FConcatL _          -> concatLift
-        FSum _              -> sumPrim t
-        FSumL _             -> sumLift t
-        FAvg _              -> avgPrim
-        FAvgL _             -> avgLift
+        FSum _              -> aggrPrim $ AggrSum $ typeToVLType t
+        FSumL _             -> aggrLift $ AggrSum $ typeToVLType $ elemT t
+        FAvg _              -> aggrPrim AggrAvg
+        FAvgL _             -> aggrLift AggrAvg
         FThe _              -> the
         FTheL _             -> theL
         FFst _              -> fstA
@@ -93,18 +93,18 @@ papp1 t f =
         FSndL _             -> sndL
         FConcat _           -> concatV
         FQuickConcat _      -> quickConcatV
-        FMinimum _          -> minPrim
-        FMinimumL _         -> minLift
-        FMaximum _          -> maxPrim
-        FMaximumL _         -> maxLift
+        FMinimum _          -> aggrPrim AggrMin
+        FMinimumL _         -> aggrLift AggrMin
+        FMaximum _          -> aggrPrim AggrMax
+        FMaximumL _         -> aggrLift AggrMax
         FTail _             -> tailS
         FTailL _            -> tailL
         FReverse _          -> reversePrim
         FReverseL _         -> reverseLift
-        FAnd _              -> andPrim
-        FAndL _             -> andLift
-        FOr _               -> orPrim
-        FOrL _              -> orLift
+        FAnd _              -> aggrPrim AggrAll
+        FAndL _             -> aggrLift AggrAll
+        FOr _               -> aggrPrim AggrAny
+        FOrL _              -> aggrLift AggrAny
         FInit _             -> initPrim
         FInitL _            -> initLift
         FLast _             -> lastPrim

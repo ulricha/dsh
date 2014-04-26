@@ -16,15 +16,10 @@ import           Control.Applicative((<$>))
 import           Control.Arrow
 import           Control.Monad
 
-import           Data.Either
-import qualified Data.Foldable as F
 import           Data.List
-import           Data.List.NonEmpty(NonEmpty((:|)), (<|))
-import qualified Data.List.NonEmpty as N
 import qualified Data.Set as S
 import qualified Data.Map as M
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 
 import           Database.DSH.CL.Lang
@@ -40,8 +35,6 @@ nestjoinR = unnestFromGuardR <+ unnestFromHeadR
 --------------------------------------------------------------------------------
 -- Common code for unnesting from a comprehension head and from
 -- comprehension guards
-
-type HeadExpr = Either PathC (PathC, Type, Expr, NL Qual) 
 
 -- A representation of a nested comprehension which is eligible for
 -- unnesting
@@ -97,14 +90,13 @@ constNodeT expr = constT $ return $ inject expr
 
 -- | Transform a suitable comprehension that was either nested in a
 -- comprehension head or in a guard expression and the corresponding
--- outer generator.
+-- outer generator. Returns a replacement for the inner comprehension,
+-- outer generator with nesting op and the tuplify rewrite for the
+-- outer generator variable.
 unnestWorkerT
   :: NestedComp                   -- ^ The nested comprehension
   -> (Ident, Expr)                -- ^ The outer generator
-  -> TranslateC CL ( Expr         -- ^ Return replacement for the inner comprehension,
-                   , Expr         -- outer generator with nesting op
-                   , RewriteC CL  -- and the tuplify rewrite for the outer generator variable.
-                   )
+  -> TranslateC CL (Expr, Expr, RewriteC CL)
 unnestWorkerT headComp (x, xs) = do
     let (y, ys) = hGen headComp
 

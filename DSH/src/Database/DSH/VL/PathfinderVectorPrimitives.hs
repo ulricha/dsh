@@ -22,6 +22,7 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 
 -- Some general helpers
 
+
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
 pos       = "pos"
@@ -121,13 +122,22 @@ binOp L.Like = Like
 unOp :: L.ScalarUnOp -> UnFun
 unOp L.Not          = Not
 unOp (L.CastDouble) = Cast doubleT
-unOp _               = $unimplemented
+unOp L.Sin          = Sin
+unOp L.Cos          = Cos
+unOp L.Tan          = Tan
+unOp L.ASin         = ASin
+unOp L.ACos         = ACos
+unOp L.ATan         = ATan
+unOp L.Sqrt         = Sqrt
+unOp L.Exp          = Exp
+unOp L.Log          = Log
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
 expr1 (VL.UnApp1 op e)      = UnAppE (unOp op) (expr1 e)
 expr1 (VL.Column1 c)        = ColE $ itemi c
 expr1 (VL.Constant1 v)      = ConstE $ algVal v
+expr1 (VL.If1 c t e)        = IfE (expr1 c) (expr1 t) (expr1 e)
 
 -- | Vl Expr2 considers two input vectors and may reference columns from the
 -- left and right side. Columns from the left map directly to item columns. For
@@ -138,6 +148,7 @@ expr2 (VL.UnApp2 op e)           = UnAppE (unOp op) (expr2 e)
 expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
 expr2 (VL.Column2Right (VL.R c)) = ColE $ itemi' c
 expr2 (VL.Constant2 v)           = ConstE $ algVal v
+expr2 (VL.If2 c t e)             = IfE (expr2 c) (expr2 t) (expr2 e)
 
 colProjection :: VL.Expr1 -> Maybe DBCol
 colProjection (VL.Column1 c) = Just c
@@ -148,9 +159,49 @@ aggrFun (VL.AggrSum _ e) = Sum $ expr1 e
 aggrFun (VL.AggrMin e)   = Min $ expr1 e
 aggrFun (VL.AggrMax e)   = Max $ expr1 e
 aggrFun (VL.AggrAvg e)   = Avg $ expr1 e
+aggrFun (VL.AggrAll e)   = All $ expr1 e
+aggrFun (VL.AggrAny e)   = Any $ expr1 e
 aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
+
+-- | For a segmented aggregate operator, apply the aggregate
+-- function's default value for the empty segments. The first argument
+-- specifies the outer descriptor vector, while the second argument
+-- specifies the result vector of the aggregate.
+segAggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r PFAlgebra AlgNode
+segAggrDefault qo qa dv =
+    return qa
+    `unionM`
+    projM [cP descr, eP item (ConstE dv)]
+        (differenceM
+            (proj [mP descr pos] qo)
+            (proj [cP descr] qa))
+
+-- | If an aggregate's input is empty, add the aggregate functions
+-- default value. The first argument 'q' is the original input vector,
+-- whereas the second argument 'qa' is the aggregate's output.
+aggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r PFAlgebra AlgNode
+aggrDefault q qa dv = do
+    -- If the input is empty, produce a tuple with the default value.
+    qd <- projM [eP descr (ConstE $ nat 2), eP pos (ConstE $ nat 1), eP item (ConstE dv)]
+          $ (litTable (nat 1) descr ANat)
+            `differenceM`
+            (proj [cP descr] q)
+
+    -- For an empty input, there will be two tuples in
+    -- the union result: the aggregate output with NULL
+    -- and the default value.
+    qu <- qa `union` qd
+
+    -- Perform an argmax on the descriptor to get either
+    -- the sum output (for a non-empty input) or the
+    -- default value (which has a higher descriptor).
+    projM [eP descr (ConstE $ nat 1), cP pos, cP item]
+       $ eqJoinM descr' descr
+            (aggr [(Max $ ColE descr, descr')] [] qu)
+            (return qu)
+
 
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
@@ -277,19 +328,16 @@ instance VectorAlgebra PFAlgebra where
 
   vecAggr a (DVec q _) = do
     -- The aggr operator itself
-    qa <- aggr [(aggrFun a, item)] [] q
-    -- For sum and length, add the default value for empty inputs
+    qa <- projM [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] 
+          $ aggr [(aggrFun a, item)] [] q
+    -- For sum, add the default value for empty inputs
     qd <- case a of
-              -- FIXME this is wrong: consider a list of negative
-              -- integers... -> use antijoin/difference
-              VL.AggrSum t _ -> let (dt, dv) = sumDefault t
-                                in aggrM [(Max (ColE item), item)] []
-                                   $ return qa `unionM` (litTable dv item dt)
-              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [] 
-                                $ return qa `unionM` (litTable (int 0) item intT)
+              VL.AggrSum t _ -> aggrDefault q qa (snd $ sumDefault t)
+              VL.AggrAll _   -> aggrDefault q qa (bool True)
+              VL.AggrAny _   -> aggrDefault q qa (bool False)
               _              -> return qa
-    qp <- proj [eP descr (ConstE $ nat 1), eP pos (ConstE $ nat 1), cP item] qd
-    return $ DVec qp [1]
+
+    return $ DVec qd [1]
 
   vecAggrNonEmpty as (DVec q _) = do
     let resCols = [1 .. N.length as]
@@ -304,28 +352,24 @@ instance VectorAlgebra PFAlgebra where
 
     return $ DVec qa resCols
 
+
   vecAggrS a (DVec qo _) (DVec qi _) = do
     qa <- aggr [(aggrFun a, item)] [(descr, ColE descr)] qi
     qd <- case a of
-              -- FIXME this is wrong: consider a list of negative
-              -- integers... -> use antijoin/difference
-              VL.AggrSum t _ -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                $ return qa
-                                  `unionM`
-                                  proj [mP descr pos, eP item (ConstE $ snd $ sumDefault t)] qo
-              VL.AggrCount   -> aggrM [(Max (ColE item), item)] [(descr, ColE descr)]
-                                $ return qa
-                                  `unionM`
-                                  proj [mP descr pos, eP item (ConstE $ int 0)] qo
+              VL.AggrSum t _ -> segAggrDefault qo qa (snd $ sumDefault t)
+              VL.AggrAny _   -> segAggrDefault qo qa (bool False)
+              VL.AggrAll _   -> segAggrDefault qo qa (bool True)
+                                
+              VL.AggrCount   -> segAggrDefault qo qa (int 0)
               _              -> return qa
-    qp <- rownum pos [descr] Nothing qd
+
     -- We have to unnest the inner vector (i.e. surrogate join) to get
     -- the outer descriptor values (segmented aggregates remove one
     -- list type constructor)
-    qr <- projM [mP descr descr', cP pos, cP item]
+    qr <- projM [mP descr descr', mP pos pos', cP item]
           $ (eqJoinM pos' descr
              (proj [mP descr' descr, mP pos' pos] qo)
-             (return qp))
+             (return qd))
     return $ DVec qr [1]
 
   vecAggrNonEmptyS as (DVec qo _) (DVec qi _) = do
@@ -474,11 +518,13 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
+
     q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [pos', pos'] Nothing
+           $ rownumM pos [pos', pos''] Nothing
            $ crossM
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ((mP pos'' pos) : shiftProj2) q2)
+
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
@@ -490,7 +536,7 @@ instance VectorAlgebra PFAlgebra where
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
     q <- projM ([cP descr, cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ rownumM pos [descr, descr', pos', pos''] Nothing
            $ eqJoinM descr descr'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
@@ -505,8 +551,9 @@ instance VectorAlgebra PFAlgebra where
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
         itemProj2  = map (cP . itemi) cols2'
+
     q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [descr, descr', pos, pos'] Nothing
+           $ rownumM pos [descr, pos', pos''] Nothing
            $ eqJoinM descr descr'
              (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
              (proj ([mP descr' descr, mP pos'' pos] ++ shiftProj2) q2)
@@ -570,7 +617,7 @@ instance VectorAlgebra PFAlgebra where
         itemProj2  = map (cP . itemi) cols2'
 
     q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
-           $ rownumM pos [pos', pos''] Nothing
+           $ rownumM pos [descr, pos', pos''] Nothing
            $ thetaJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
              (proj ([ cP descr
                     , mP pos' pos

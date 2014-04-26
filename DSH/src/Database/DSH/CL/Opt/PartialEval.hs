@@ -9,13 +9,8 @@ module Database.DSH.CL.Opt.PartialEval
   ( partialEvalR
   ) where
   
-import Debug.Trace
-
-import           Control.Arrow
-
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
-import           Database.DSH.CL.Opt.Aux
 
 --------------------------------------------------------------------------------
 -- Partial evaluation rules

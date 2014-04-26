@@ -30,6 +30,8 @@ data AggrFun = AggrSum VLType Expr1
              | AggrMin Expr1
              | AggrMax Expr1
              | AggrAvg Expr1
+             | AggrAll Expr1
+             | AggrAny Expr1
              | AggrCount
                deriving (Eq, Ord, Show, Read, Generic)
 
@@ -37,6 +39,7 @@ data Expr1 = BinApp1 L.ScalarBinOp Expr1 Expr1
            | UnApp1 L.ScalarUnOp Expr1
            | Column1 DBCol
            | Constant1 VLVal
+           | If1 Expr1 Expr1 Expr1
            deriving (Eq, Ord, Show, Generic, Read)
 
 newtype LeftCol = L DBCol deriving (Eq, Ord, Show, Generic)
@@ -47,6 +50,7 @@ data Expr2 = BinApp2 L.ScalarBinOp Expr2 Expr2
            | Column2Left LeftCol
            | Column2Right RightCol
            | Constant2 VLVal
+           | If2 Expr2 Expr2 Expr2
            deriving (Eq, Ord, Show, Generic)
 
 newtype Nat = N Int deriving (Eq, Ord, Generic, Show, Read)

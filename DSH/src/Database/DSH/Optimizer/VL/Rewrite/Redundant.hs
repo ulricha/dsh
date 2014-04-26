@@ -2,16 +2,13 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
-import Text.Printf
-
-import Debug.Trace
-
 import Control.Monad
 import Control.Applicative
 
 import Database.Algebra.Dag.Common
 
 import Database.DSH.VL.Lang
+import Database.DSH.Common.Lang
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.VectorType
@@ -32,8 +29,11 @@ cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 redundantRules :: VLRuleSet ()
 redundantRules = [ introduceSelect
                  , simpleSort 
+                 , sortProject
                  , pullProjectPropRename
                  , pullProjectPropReorder
+                 , pullProjectRestrict
+                 , scalarConditional
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -210,6 +210,7 @@ shiftCols offset expr =
         UnApp1 o e1     -> UnApp1 o (shiftCols offset e1)
         Column1 i       -> Column1 (offset + i)
         Constant1 c     -> Constant1 c
+        If1 c t e       -> If1 (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
 
 -- | Replace a Zip operaor with a projection if both inputs are the same.
 sameInputZip :: VLRule BottomUpProps
@@ -282,8 +283,63 @@ simpleSort q =
               mapM_ (\qr2 -> replace qr2 qr2') r2Parents
             else return () |])
 
+-- | Pull a projection on a Sort operator's input over the Sort
+-- operator. This rewrite should enable the SortSimple rewrite when
+-- the common source of Sort's left and right inputs is obstructed by
+-- a projection.
+sortProject :: VLRule ()
+sortProject q =
+  $(pattern 'q "R1 ((q1) Sort (Project proj (q2)))"
+   [| do
+       return $ do
+         logRewrite "Redundant.Sort.PullProject" q
+         sortNode <- insert $ BinOp Sort $(v "q1") $(v "q2")
+         r1Node   <- insert $ UnOp R1 sortNode
+         void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
+-- | Under a number of conditions, a combination of Combine and Select
+-- (Restrict) operators implements a scalar conditional that can be
+-- simply mapped to an 'if' expression evaluated on the input vector.
+scalarConditional :: VLRule ()
+scalarConditional q =
+  $(pattern 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (Select pred2 (q2))) (Project elseProj (Select negPred (q3))))"
+    [| do
+        -- All branches must work on the same input vector
+        predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
+
+        -- The condition projection as well as the projections for
+        -- then and else branches must produce single columns.
+        [predExpr] <- return $(v "predProj")
+        [thenExpr] <- return $(v "thenProj")
+        [elseExpr] <- return $(v "elseProj")
+
+        -- The condition for the boolean vector must be the same as
+        -- the selection condition for the then-branch.
+        predicate $ predExpr == $(v "pred2")
+        
+        -- The selection condition must be the negated form of the
+        -- then-condition.
+        predicate $ (UnApp1 Not predExpr) == $(v "negPred")
+
+        return $ do
+          logRewrite "Redundant.ScalarConditional" q
+          void $ replaceWithNew q $ UnOp (Project [If1 predExpr thenExpr elseExpr]) $(v "q1") |])
+        
 ------------------------------------------------------------------------------
 -- Projection pullup
+
+-- | Pull a projection atop a Restrict operator. This rewrite mainly
+-- serves to clear the way for merging of Combine/Restrict
+-- combinations into scalar conditional expressions.
+pullProjectRestrict :: VLRule ()
+pullProjectRestrict q =
+  $(pattern 'q "R1 ((Project projs (q1)) Restrict (qb))"
+     [| do
+          return $ do
+            logRewrite "Redundant.Project.Restrict" q
+            restrictNode <- insert $ BinOp Restrict $(v "q1") $(v "qb")
+            r1Node       <- insert $ UnOp R1 restrictNode
+            void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might
@@ -309,3 +365,4 @@ pullProjectPropReorder q =
            reorderNode <- insert $ BinOp PropReorder $(v "qp") $(v "qv")
            r1Node      <- insert $ UnOp R1 reorderNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
