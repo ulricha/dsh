@@ -6,6 +6,8 @@ module Database.DSH.Compiler
     runQX100
   , runQ
     -- * Debug functions
+  , debugQ
+  , debugQX100
   , debugVL
   , debugVLOpt
   , debugX100VL
@@ -56,66 +58,73 @@ import           Data.Convertible                                ()
 -- Different versions of the flattening compiler pipeline
 
 nkl2X100Alg :: CL.Expr -> TopShape X100Code
-nkl2X100Alg e = optimizeComprehensions e
-                |> desugarComprehensions
-                |> flatten
-                |> specializeVectorOps
-                |> optimizeVLDefault
-                |> implementVectorOpsX100
-                |> generateX100Queries
+nkl2X100Alg e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsX100
+    |> generateX100Queries
 
 nkl2Sql :: CL.Expr -> TopShape SqlCode
-nkl2Sql e = optimizeComprehensions e
-            |> desugarComprehensions
-            |> flatten
-            |> specializeVectorOps
-            |> optimizeVLDefault
-            |> implementVectorOpsPF
-            |> optimizeTA
-            |> generateSqlQueries
+nkl2Sql e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsPF
+    |> optimizeTA
+    |> generateSqlQueries
 
 nkl2X100File :: String -> CL.Expr -> IO ()
-nkl2X100File prefix e = optimizeComprehensions e
-                        |> desugarComprehensions
-                        |> flatten
-                        |> specializeVectorOps
-                        |> optimizeVLDefault
-                        |> implementVectorOpsX100
-                        |> (exportX100Plan prefix)
+nkl2X100File prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsX100
+    |> (exportX100Plan prefix)
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e = optimizeComprehensions e
-                      |> desugarComprehensions
-                      |> flatten
-                      |> specializeVectorOps
-                      |> optimizeVLDefault
-                      |> implementVectorOpsPF
-                      |> (exportTAPlan prefix)
+nkl2TAFile prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsPF
+    |> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e = optimizeComprehensions e
-                         |> desugarComprehensions
-                         |> flatten
-                         |> specializeVectorOps
-                         |> optimizeVLDefault
-                         |> implementVectorOpsPF
-                         |> optimizeTA
-                         |> (exportTAPlan prefix)
+nkl2TAFileOpt prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsPF
+    |> optimizeTA
+    |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e = optimizeComprehensions e
-                      |> desugarComprehensions
-                      |> flatten
-                      |> specializeVectorOps
-                      |> exportVLPlan prefix
+nkl2VLFile prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e = optimizeComprehensions e
-                         |> desugarComprehensions
-                         |> flatten
-                         |> specializeVectorOps
-                         |> optimizeVLDefault
-                         |> exportVLPlan prefix
+nkl2VLFileOpt prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> exportVLPlan prefix
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
@@ -180,6 +189,18 @@ debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100VL prefix c (Q e) = do
     e' <- toComprehensions (getX100TableInfo c) e
     nkl2VLFile prefix e'
+
+-- | Dump all intermediate algebra representations (VL, TA) to files.
+debugQ :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugQ prefix conn q = do
+    debugVLOpt prefix conn q
+    debugTAOpt prefix conn q
+
+-- | Dump all intermediate algebra representations (VL, X100) to files
+debugQX100 :: QA a => String -> X100Info -> Q a -> IO ()
+debugQX100 prefix conn q = do
+    debugX100VLOpt prefix conn q
+    debugX100 prefix conn q
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
