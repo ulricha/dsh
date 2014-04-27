@@ -19,40 +19,35 @@ module Database.DSH.Compiler
   , runPrint
   ) where
 
-import           GHC.Exts
-import           Text.Printf
-                 
+import           Control.Applicative
+import           Data.Convertible                         ()
+
+import qualified Database.HDBC                            as H
+
+import           Database.X100Client                      hiding (X100, tableName)
+
 import           Database.DSH.CompileFlattening
 import           Database.DSH.Execute.Sql
 import           Database.DSH.Execute.X100
 
-import           Database.DSH.Internals
-import           Database.HDBC
-import qualified Database.HDBC                                   as H
-
-import           Database.X100Client                             hiding (X100, tableName)
-import qualified Database.X100Client                             as X
-
-import qualified Database.DSH.CL.Lang                 as CL
+import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
+import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
-import qualified Database.DSH.Common.Type        as T
 import           Database.DSH.Export
-import           Database.DSH.Optimizer.VL.OptimizeVL
+import           Database.DSH.Internals
 import           Database.DSH.Optimizer.TA.OptimizeTA
+import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Optimizer.X100.OptimizeX100
+import           Database.DSH.Schema
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import           Database.DSH.Common.DBCode
 
-import qualified Data.List                                       as L
 
-import           Control.Applicative
 
-import           Data.Convertible                                ()
 
 (|>) :: a -> (a -> b) -> b
 (|>) = flip ($)
@@ -60,7 +55,7 @@ import           Data.Convertible                                ()
 -- Different versions of the flattening compiler pipeline
 
 nkl2X100Alg :: CL.Expr -> TopShape X100Code
-nkl2X100Alg e = 
+nkl2X100Alg e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -71,7 +66,7 @@ nkl2X100Alg e =
     |> generateX100Queries
 
 nkl2Sql :: CL.Expr -> TopShape SqlCode
-nkl2Sql e = 
+nkl2Sql e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -82,7 +77,7 @@ nkl2Sql e =
     |> generateSqlQueries
 
 nkl2X100File :: String -> CL.Expr -> IO ()
-nkl2X100File prefix e = 
+nkl2X100File prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -92,7 +87,7 @@ nkl2X100File prefix e =
     |> (exportX100Plan prefix)
 
 nkl2X100FileOpt :: String -> CL.Expr -> IO ()
-nkl2X100FileOpt prefix e = 
+nkl2X100FileOpt prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -103,7 +98,7 @@ nkl2X100FileOpt prefix e =
     |> (exportX100Plan prefix)
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e = 
+nkl2TAFile prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -113,7 +108,7 @@ nkl2TAFile prefix e =
     |> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e = 
+nkl2TAFileOpt prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -124,7 +119,7 @@ nkl2TAFileOpt prefix e =
     |> (exportTAPlan prefix)
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e = 
+nkl2VLFile prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -132,7 +127,7 @@ nkl2VLFile prefix e =
     |> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e = 
+nkl2VLFileOpt prefix e =
     optimizeComprehensions e
     |> desugarComprehensions
     |> flatten
@@ -151,13 +146,13 @@ runQX100 conn (Q q) = do
     frExp <$> executeX100 conn x100QueryBundle ty
 
 -- | Run a query on a SQL backend
-runQ :: (QA a, IConnection conn) => conn -> Q a -> IO a
+runQ :: (QA a, H.IConnection conn) => conn -> Q a -> IO a
 runQ conn (Q q) = do
     let ty = reify (undefined :: a)
     q' <- toComprehensions (getTableInfo conn) q
     let sqlQueryBundle = nkl2Sql q'
     frExp <$> executeSql conn sqlQueryBundle ty
-                  
+
 -- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugX100 prefix c (Q e) = do
@@ -171,27 +166,27 @@ debugX100Opt prefix c (Q e) = do
     nkl2X100FileOpt (prefix ++ "_opt") e'
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
-debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugTA :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFile prefix e'
 
 -- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
-debugTAOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugTAOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugTAOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (SQL version).
-debugVL :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugVL :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugVL prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFile prefix e'
 
 -- | Debugging function: dump the optimized VL query plan (DAG) for a
 -- query to a file (SQL version).
-debugVLOpt :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugVLOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
@@ -211,7 +206,7 @@ debugX100VL prefix c (Q e) = do
     nkl2VLFile prefix e'
 
 -- | Dump all intermediate algebra representations (VL, TA) to files.
-debugQ :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
+debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugQ prefix conn q = do
     debugVLOpt prefix conn q
     debugTAOpt prefix conn q
@@ -225,69 +220,6 @@ debugQX100 prefix conn q = do
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
-runPrint :: (Show a, QA a, IConnection conn) => conn -> Q a -> IO ()
+runPrint :: (Show a, QA a, H.IConnection conn) => conn -> Q a -> IO ()
 runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
--- | Retrieve through the given database connection information on the
--- table (columns with their types) which name is given as the second
--- argument.
-getTableInfo :: IConnection conn => conn -> String -> IO [(String, String, (T.Type -> Bool))]
-getTableInfo conn tableName = do
-    info <- H.describeTable conn tableName
-    case info of
-        []    -> error $ printf "Unknown table %s" tableName
-        _ : _ -> return $ toTableDescr info
-
-  where
-    toTableDescr :: [(String, SqlColDesc)] -> [(String, String, T.Type -> Bool)]
-    toTableDescr cols = sortWith (\(n, _, _) -> n)
-                        [ (name, show colTy, compatibleType colTy) 
-                        | (name, props) <- cols
-                        , let colTy = colType props
-                        ]
-                        
-
-    compatibleType :: SqlTypeId -> T.Type -> Bool
-    compatibleType dbT hsT = 
-        case hsT of
-            T.UnitT   -> True
-            T.BoolT   -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlBitT]
-            T.StringT -> L.elem dbT [SqlCharT, SqlWCharT, SqlVarCharT]
-            T.IntT    -> L.elem dbT [SqlSmallIntT, SqlIntegerT, SqlTinyIntT, SqlBigIntT, SqlNumericT]
-            T.DoubleT -> L.elem dbT [SqlDecimalT, SqlRealT, SqlFloatT, SqlDoubleT]
-            t         -> error $ printf "Unsupported column type %s for table %s" (show t) (show tableName)
-
-getX100TableInfo :: X100Info -> String -> IO [(String, String, (T.Type -> Bool))]
-getX100TableInfo c n = do
-    t <- X.describeTable' c n
-    return [ (colName col, show lType, compatibleType lType)
-           | col <- sortWith colName $ columns t
-           , let lType = logicalType col
-           ]
-  where
-    compatibleType :: LType -> T.Type -> Bool
-    compatibleType lt t =
-        case lt of
-            LBool       -> t == T.BoolT || t == T.UnitT
-            LInt1       -> t == T.IntT  || t == T.UnitT
-            LUInt1      -> t == T.IntT  || t == T.UnitT
-            LInt2       -> t == T.IntT  || t == T.UnitT
-            LUInt2      -> t == T.IntT  || t == T.UnitT
-            LInt4       -> t == T.IntT  || t == T.UnitT
-            LUInt4      -> t == T.IntT  || t == T.UnitT
-            LInt8       -> t == T.IntT  || t == T.UnitT
-            LUInt8      -> t == T.IntT  || t == T.UnitT
-            LInt16      -> t == T.IntT  || t == T.UnitT
-            LUIDX       -> t == T.NatT  || t == T.UnitT
-            LDec        -> t == T.DoubleT
-            LFlt4       -> t == T.DoubleT
-            LFlt8       -> t == T.DoubleT
-            LMoney      -> t == T.DoubleT
-            LChar       -> t == T.StringT
-            LVChar      -> t == T.StringT
-            LDate       -> t == T.IntT
-            LTime       -> t == T.IntT
-            LTimeStamp  -> t == T.IntT
-            LIntervalDS -> t == T.IntT
-            LIntervalYM -> t == T.IntT
-            LUnknown s  -> error $ "Unknown DB type" ++ show s
