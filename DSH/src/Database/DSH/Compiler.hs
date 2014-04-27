@@ -13,6 +13,7 @@ module Database.DSH.Compiler
   , debugX100VL
   , debugX100VLOpt
   , debugX100
+  , debugX100Opt
   , debugTA
   , debugTAOpt
   , runPrint
@@ -88,6 +89,16 @@ nkl2X100File prefix e =
     |> specializeVectorOps
     |> optimizeVLDefault
     |> implementVectorOpsX100
+    |> (exportX100Plan prefix)
+
+nkl2X100FileOpt :: String -> CL.Expr -> IO ()
+nkl2X100FileOpt prefix e = 
+    optimizeComprehensions e
+    |> desugarComprehensions
+    |> flatten
+    |> specializeVectorOps
+    |> optimizeVLDefault
+    |> implementVectorOpsX100
     |> optimizeX100Default
     |> (exportX100Plan prefix)
 
@@ -153,6 +164,12 @@ debugX100 prefix c (Q e) = do
     e' <- toComprehensions (getX100TableInfo c) e
     nkl2X100File prefix e'
 
+-- | Debugging function: dump the optimized X100 plan (DAG) to a file.
+debugX100Opt :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100Opt prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
+    nkl2X100FileOpt (prefix ++ "_opt") e'
+
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: (QA a, IConnection conn) => String -> conn -> Q a -> IO ()
 debugTA prefix c (Q e) = do
@@ -204,6 +221,7 @@ debugQX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugQX100 prefix conn q = do
     debugX100VLOpt prefix conn q
     debugX100 prefix conn q
+    debugX100Opt prefix conn q
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
