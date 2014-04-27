@@ -287,7 +287,7 @@ escapeChar '\"' = ['\\', '"']
 escapeChar c = [c]
 
 -- Type of Dot style options
-data DotStyle = Solid
+data DotStyle = Dashed
 
 -- label of Dot nodes
 type DotLabel = String
@@ -317,8 +317,8 @@ renderDotNode (DotNode n l c s) =
     <> semi
     where styleDoc =
               case s of
-                  Just Solid -> comma <+> text "solid"
-                  Nothing -> empty
+                  Just Dashed -> comma <+> text "style=dashed"
+                  Nothing     -> empty
 
 renderDotEdge :: DotEdge -> Doc
 renderDotEdge (DotEdge u v) = int u <+> text "->" <+> int v <> semi
@@ -333,7 +333,7 @@ renderDot ns es = text "digraph" <> (braces $ preamble $$ nodeSection $$ edgeSec
 constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, VL) -> DotNode
 constructDotNode rootNodes ts (n, op) =
     if elem n rootNodes then
-        DotNode n l c (Just Solid)
+        DotNode n l c (Just Dashed)
     else
         DotNode n l c Nothing
     where l = escapeLabel $ render $ opDotLabel ts n op
