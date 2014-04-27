@@ -147,6 +147,7 @@ Library
                      Database.DSH.TH
 
                      Database.DSH.Optimizer.Common.Aux
+                     Database.DSH.Optimizer.Common.Rewrite
 
 --                     Database.DSH.Optimizer.X100.Rewrite.Common
 --                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
