@@ -198,8 +198,6 @@ compileApp f args =
        Lte          -> compileApp2 CP.lte args
        Gte          -> compileApp2 CP.gte args
        Gt           -> compileApp2 CP.gt args
-       Max          -> compileApp2 CP.max args
-       Min          -> compileApp2 CP.min args
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one

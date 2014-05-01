@@ -319,12 +319,6 @@ cons e1 e2 = let t1 = typeOf e1
                    then AppE2 t (Prim2 Cons (t1 .-> t .-> t)) e1 e2
                    else P.error P.$ "CLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
 
-max :: Expr -> Expr -> Expr
-max e1 e2 = cond (e1 `gt` e2) e1 e2
-
-min :: Expr -> Expr -> Expr
-min e1 e2 = cond (e1 `gt` e2) e2 e1
-
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(ListT t1') = typeOf e1
                 t2@(ListT t2') = typeOf e2

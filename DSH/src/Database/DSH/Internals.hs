@@ -85,8 +85,6 @@ data Fun a b where
     Gt              :: Fun (a,a) Bool
     Conj            :: Fun (Bool,Bool) Bool
     Disj            :: Fun (Bool,Bool) Bool
-    Min             :: Fun (a,a) a
-    Max             :: Fun (a,a) a
     Cons            :: Fun (a,[a]) [a]
     Index           :: Fun ([a],Integer) a
     Zip             :: Fun ([a],[b]) [(a,b)]
@@ -177,8 +175,6 @@ instance Show (Fun a b) where
     show Gt  = ">"
     show Conj = "&&"
     show Disj = "||"
-    show Min  = "min"
-    show Max  = "max"
     show Cons = "cons"
     show Index = "index"
     show Zip = "zip"

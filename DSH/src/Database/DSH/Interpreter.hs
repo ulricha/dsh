@@ -71,24 +71,6 @@ evaluate c e = case e of
              $ map fst
              $ sortBy (\(_,a1) (_,a2) -> compareExp a1 a2)
              $ zip as1 as2
-    (AppE Max (PairE e1 e2)) ->
-      case reify (undefined :: a) of
-          IntegerT -> do (IntegerE v1) <- evaluate c e1
-                         (IntegerE v2) <- evaluate c e2
-                         return $ IntegerE (max v1 v2)
-          DoubleT  -> do (DoubleE v1) <- evaluate c e1
-                         (DoubleE v2) <- evaluate c e2
-                         return $ DoubleE (max v1 v2)
-          _ -> $impossible
-    (AppE Min (PairE e1 e2)) ->
-      case reify (undefined :: a) of
-          IntegerT -> do (IntegerE v1) <- evaluate c e1
-                         (IntegerE v2) <- evaluate c e2
-                         return $ IntegerE (min v1 v2)
-          DoubleT  -> do (DoubleE v1) <- evaluate c e1
-                         (DoubleE v2) <- evaluate c e2
-                         return $ DoubleE (min v1 v2)
-          _ -> $impossible
     AppE Last as -> do
       (ListE as1) <- evaluate c as
       return $ last as1
