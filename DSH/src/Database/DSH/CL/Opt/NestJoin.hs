@@ -112,8 +112,9 @@ unnestWorkerT headComp (x, xs) = do
         [] -> return (NestProduct, [])
         p : ps -> do
             -- Split the join predicate
-            (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
-            return (NestJoin leftExpr rightExpr, ps)
+            joinConjunct <- constT (return p) >>> splitJoinPredT x y
+            
+            return (NestJoin $ singlePred joinConjunct, ps)
 
     -- Identify predicates which only refer to y and can be evaluated
     -- on the right nestjoin input.

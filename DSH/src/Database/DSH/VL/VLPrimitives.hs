@@ -294,34 +294,40 @@ vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-vlEquiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlEquiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlThetaJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
-  r  <- insertNode $ BinOp (EquiJoin e1' e2') c1 c2
+  r  <- insertNode $ BinOp (ThetaJoin e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
+-}
 
-vlEquiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlEquiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlThetaJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
-  r  <- insertNode $ BinOp (EquiJoinS e1' e2') c1 c2
+  r  <- insertNode $ BinOp (ThetaJoinS e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
+-}
 
-vlNestJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
-vlNestJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlNestJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlNestJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
     let e1' = joinExpr e1
         e2' = joinExpr e2
     r  <- insertNode $ BinOp (NestJoinS e1' e2') c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
+-}
     
 vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlNestProductS (DVec c1 _) (DVec c2 _) = do
@@ -330,41 +336,49 @@ vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
      
-vlSemiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlSemiJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (SemiJoin e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
+-}
 
-vlSemiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlSemiJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (SemiJoinS e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
+-}
 
-vlAntiJoin :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoin e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlAntiJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (AntiJoin e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
+-}
 
-vlAntiJoinS :: L.JoinExpr -> L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoinS e1 e2 (DVec c1 _) (DVec c2 _) = do
+vlAntiJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+{-
   let e1' = joinExpr e1
       e2' = joinExpr e2
   r  <- insertNode $ BinOp (AntiJoinS e1' e2') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
+-}
   
 vlReverse :: DVec -> GraphM r VL (DVec, PVec)
 vlReverse (DVec c _) = do

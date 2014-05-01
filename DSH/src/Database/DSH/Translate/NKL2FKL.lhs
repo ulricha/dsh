@@ -38,7 +38,7 @@ processor perform the same operations at the same time, this is however not
 easily achievable for arbitrarily nested data in an efficient manner. We can
 however transform a nested program into a flat program, which we can then
 execute in parallel.  The flattening transformation eliminates all occurrences
-of |map|, primitive operations are lifted to their vector equivalents.
+of |map|, primitive operations are lifted to their vector thetavalents.
 
 \section{Lifting, an intuition}
 
@@ -193,10 +193,10 @@ prim2Transform (N.Prim2 N.Zip t) = zipVal t
 prim2Transform (N.Prim2 N.Cons t) = consVal t
 prim2Transform (N.Prim2 N.CartProduct t) = cartProductVal t
 prim2Transform (N.Prim2 N.NestProduct t) = nestProductVal t
-prim2Transform (N.Prim2 (N.EquiJoin e1 e2) t) = equiJoinVal e1 e2 t
-prim2Transform (N.Prim2 (N.NestJoin e1 e2) t) = nestJoinVal e1 e2 t
-prim2Transform (N.Prim2 (N.SemiJoin e1 e2) t) = semiJoinVal e1 e2 t
-prim2Transform (N.Prim2 (N.AntiJoin e1 e2) t) = antiJoinVal e1 e2 t
+prim2Transform (N.Prim2 (N.ThetaJoin p) t) = thetaJoinVal p t
+prim2Transform (N.Prim2 (N.NestJoin p) t) = nestJoinVal p t
+prim2Transform (N.Prim2 (N.SemiJoin p) t) = semiJoinVal p t
+prim2Transform (N.Prim2 (N.AntiJoin p) t) = antiJoinVal p t
 \end{code}
 %endif
 

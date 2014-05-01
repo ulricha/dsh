@@ -97,21 +97,22 @@ pushPredicateR x p = do
     readerT $ \case
         -- For regular joins and products, predicates might apply to
         -- the left or right input.
-        ExprCL (AppE2 _ (Prim2 (EquiJoin _ _) _) _ _) -> pushLeftOrRightTupleR x p
-        ExprCL (AppE2 _ (Prim2 CartProduct _) _ _)    -> pushLeftOrRightTupleR x p
+        ExprCL (AppE2 _ (Prim2 (ThetaJoin _) _) _ _) -> pushLeftOrRightTupleR x p
+        ExprCL (AppE2 _ (Prim2 CartProduct _) _ _)   -> pushLeftOrRightTupleR x p
     
         -- For nesting operators, a guard can only refer to the left
         -- input, i.e. the original outer generator.
 
+        -- FIXME why commented out?
         -- ExprCL (AppE2 _ (Prim2 (NestProduct _ _) _) _ _) -> pushLeftTupleR p
-        ExprCL (AppE2 _ (Prim2 (NestJoin _ _) _) _ _)    -> pushLeftTupleR x p
+        ExprCL (AppE2 _ (Prim2 (NestJoin _) _) _ _)  -> pushLeftTupleR x p
 
         -- Semi- and Antijoin operators produce a subset of their left
         -- input. A filter can only apply to the left input,
         -- consequently.
-        ExprCL (AppE2 _ (Prim2 (SemiJoin _ _) _) _ _) -> pushLeftR x p
-        ExprCL (AppE2 _ (Prim2 (AntiJoin _ _) _) _ _) -> pushLeftR x p
-        _                                             -> fail "expression does not allow predicate pushing"
+        ExprCL (AppE2 _ (Prim2 (SemiJoin _) _) _ _)  -> pushLeftR x p
+        ExprCL (AppE2 _ (Prim2 (AntiJoin _) _) _ _)  -> pushLeftR x p
+        _                                            -> fail "expression does not allow predicate pushing"
 
 pushQualsR :: RewriteC CL
 pushQualsR = do

@@ -125,6 +125,9 @@ data JoinConjunct = JoinConjunct JoinExpr BinRelOp JoinExpr
 newtype JoinPredicate = JoinPred (N.NonEmpty JoinConjunct)
                       deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+singlePred :: JoinConjunct -> JoinPredicate
+singlePred c = JoinPred $ c N.:| []
+
 data JoinBinOp = JBNumOp BinNumOp
                | JBStringOp BinStringOp
                deriving (Show, Eq, Ord, Generic, Data, Typeable)

@@ -4,7 +4,7 @@ module Database.DSH.FKL.Data.FKL where
 
 import           Text.Printf
 
-import           Database.DSH.Common.Lang
+import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 
@@ -21,19 +21,19 @@ instance Show a => Show (Lifted a) where
     show (NotLifted x) = show x
 
 -- | Data type expr represents flat kernel language.
-data Expr = Table   Type String [Column] TableHints
+data Expr = Table   Type String [L.Column] L.TableHints
           | PApp1   Type Prim1 Expr
           | PApp2   Type Prim2 Expr Expr
           | PApp3   Type Prim3 Expr Expr Expr
           | CloApp  Type Expr Expr
           | CloLApp Type Expr Expr
           | If      Type Expr Expr Expr
-          | BinOp   Type (Lifted ScalarBinOp) Expr Expr
-          | UnOp    Type (Lifted ScalarUnOp) Expr
-          | Const   Type Val
-          | Var     Type Ident
-          | Clo     Type Ident [Ident] Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
-          | AClo    Type Ident [Ident] Ident Expr Expr
+          | BinOp   Type (Lifted L.ScalarBinOp) Expr Expr
+          | UnOp    Type (Lifted L.ScalarUnOp) Expr
+          | Const   Type L.Val
+          | Var     Type L.Ident
+          | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
+          | AClo    Type L.Ident [L.Ident] L.Ident Expr Expr
     deriving (Eq, Generic)
 
 data Prim1 = FLength Type
@@ -140,14 +140,14 @@ data Prim2 = FGroupWithKey Type
            | FCartProductL Type
            | FNestProduct Type
            | FNestProductL Type
-           | FEquiJoin JoinExpr JoinExpr Type
-           | FEquiJoinL JoinExpr JoinExpr Type
-           | FNestJoin JoinExpr JoinExpr Type
-           | FNestJoinL JoinExpr JoinExpr Type
-           | FSemiJoin JoinExpr JoinExpr Type
-           | FSemiJoinL JoinExpr JoinExpr Type
-           | FAntiJoin JoinExpr JoinExpr Type
-           | FAntiJoinL JoinExpr JoinExpr Type
+           | FThetaJoin L.JoinPredicate Type
+           | FThetaJoinL L.JoinPredicate Type
+           | FNestJoin L.JoinPredicate Type
+           | FNestJoinL L.JoinPredicate Type
+           | FSemiJoin L.JoinPredicate Type
+           | FSemiJoinL L.JoinPredicate Type
+           | FAntiJoin L.JoinPredicate Type
+           | FAntiJoinL L.JoinPredicate Type
     deriving (Eq, Generic)
 
 instance Show Prim2 where
@@ -173,14 +173,14 @@ instance Show Prim2 where
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"
     show (FNestProductL _)    = "nestProductL"
-    show (FEquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (pp e1) (pp e2)
-    show (FEquiJoinL e1 e2 _) = printf "equiJoinL(%s, %s)" (pp e1) (pp e2)
-    show (FNestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (pp e1) (pp e2)
-    show (FNestJoinL e1 e2 _) = printf "nestJoinL(%s, %s)" (pp e1) (pp e2)
-    show (FSemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (pp e1) (pp e2)
-    show (FSemiJoinL e1 e2 _) = printf "semiJoinL(%s, %s)" (pp e1) (pp e2)
-    show (FAntiJoin e1 e2 _)  = printf "antiJoinS(%s, %s)" (pp e1) (pp e2)
-    show (FAntiJoinL e1 e2 _) = printf "antiJoinL(%s, %s)" (pp e1) (pp e2)
+    show (FThetaJoin p _)  = printf "equiJoinS_%s" (pp p)
+    show (FThetaJoinL p _) = printf "equiJoinL_%s" (pp p)
+    show (FNestJoin p _)  = printf "nestJoinS_%s" (pp p)
+    show (FNestJoinL p _) = printf "nestJoinL_%s" (pp p)
+    show (FSemiJoin p _)  = printf "semiJoinS_%s" (pp p)
+    show (FSemiJoinL p _) = printf "semiJoinL_%s" (pp p)
+    show (FAntiJoin p _)  = printf "antiJoinS_%s" (pp p)
+    show (FAntiJoinL p _) = printf "antiJoinL_%s" (pp p)
 
 data Prim3 = FCombine Type
     deriving (Eq, Generic)

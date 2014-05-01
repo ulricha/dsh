@@ -53,22 +53,22 @@ prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
 prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
 prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
   where o' = case o of
-              CL.Map            -> NKL.Map 
-              CL.GroupWithKey   -> NKL.GroupWithKey
-              CL.SortWith       -> NKL.SortWith 
-              CL.Pair           -> NKL.Pair
-              CL.Filter         -> NKL.Filter 
-              CL.Append         -> NKL.Append
-              CL.Index          -> NKL.Index 
-              CL.Zip            -> NKL.Zip
-              CL.Cons           -> NKL.Cons
-              CL.CartProduct    -> NKL.CartProduct
-              CL.NestProduct    -> NKL.NestProduct
-              CL.EquiJoin e1 e2 -> NKL.EquiJoin e1 e2
-              CL.NestJoin e1 e2 -> NKL.NestJoin e1 e2
-              CL.SemiJoin e1 e2 -> NKL.SemiJoin e1 e2
-              CL.AntiJoin e1 e2 -> NKL.AntiJoin e1 e2
-              CL.ConcatMap      -> $impossible
+              CL.Map          -> NKL.Map 
+              CL.GroupWithKey -> NKL.GroupWithKey
+              CL.SortWith     -> NKL.SortWith 
+              CL.Pair         -> NKL.Pair
+              CL.Filter       -> NKL.Filter 
+              CL.Append       -> NKL.Append
+              CL.Index        -> NKL.Index 
+              CL.Zip          -> NKL.Zip
+              CL.Cons         -> NKL.Cons
+              CL.CartProduct  -> NKL.CartProduct
+              CL.NestProduct  -> NKL.NestProduct
+              CL.ThetaJoin p  -> NKL.ThetaJoin p
+              CL.NestJoin p   -> NKL.NestJoin p
+              CL.SemiJoin p   -> NKL.SemiJoin p
+              CL.AntiJoin p   -> NKL.AntiJoin p
+              CL.ConcatMap    -> $impossible
 
 expr :: CL.Expr -> NKL.Expr
 expr (CL.Table t s cs ks)        = NKL.Table t s cs ks

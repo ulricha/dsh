@@ -135,10 +135,10 @@ data Prim2Op = Map
              | Cons
              | CartProduct
              | NestProduct
-             | EquiJoin L.JoinExpr L.JoinExpr
-             | NestJoin L.JoinExpr L.JoinExpr
-             | SemiJoin L.JoinExpr L.JoinExpr
-             | AntiJoin L.JoinExpr L.JoinExpr
+             | ThetaJoin L.JoinPredicate
+             | NestJoin L.JoinPredicate
+             | SemiJoin L.JoinPredicate
+             | AntiJoin L.JoinPredicate
              deriving (Eq, Ord)
 
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
@@ -155,10 +155,10 @@ instance Show Prim2Op where
   show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
-  show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (pp e1) (pp e2)
-  show (NestJoin e1 e2) = printf "△ (%s | %s)" (pp e1) (pp e2)
-  show (SemiJoin e1 e2) = printf "⋉ (%s | %s)" (pp e1) (pp e2)
-  show (AntiJoin e1 e2) = printf "▷ (%s | %s)" (pp e1) (pp e2)
+  show (ThetaJoin p) = printf "⨝_%s" (pp p)
+  show (NestJoin p)  = printf "△_%s" (pp p)
+  show (SemiJoin p)  = printf "⋉_%s" (pp p)
+  show (AntiJoin p)  = printf "▷_%s" (pp p)
 
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
