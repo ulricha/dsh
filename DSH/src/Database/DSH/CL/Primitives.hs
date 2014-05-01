@@ -1,15 +1,16 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
-       
-import Debug.Trace
-    
-import qualified Prelude as P
-import           Prelude (Bool(..))
+
+import           Prelude                  (Bool (..))
+import qualified Prelude                  as P
 
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.Impossible
 
 ($) :: Expr -> Expr -> Expr
 f $ e = let tf = typeOf f
@@ -36,7 +37,7 @@ unzip e = let (ListT (PairT t1 t2)) = typeOf e
               left  = map (lambda (PairT t1 t2 .-> t1) "__*unzl*" (fst (var (PairT t1 t2) "__*unzl*"))) e
               right = map (lambda (PairT t1 t2 .-> t2) "__*unzr*" (snd (var (PairT t1 t2) "__*unzr*"))) e
            in pair left right
-                 
+
 all :: Expr -> Expr -> Expr
 all f e = and (map f e)
 
@@ -66,13 +67,13 @@ concat e = let t = typeOf e
 
 -- reshape :: [a] -> [[a]]
 reshape :: P.Integer -> Expr -> Expr
-reshape n e = 
-    let t = typeOf e 
+reshape n e =
+    let t = typeOf e
     in AppE1 (ListT t) (Prim1 (Reshape n) P.$ t .-> ListT t) e
 
 -- transpose :: [[a]] -> [[a]]
 transpose :: Expr -> Expr
-transpose e = 
+transpose e =
     let t = typeOf e
     in AppE1 t (Prim1 Transpose P.$ t .-> t) e
 
@@ -119,22 +120,22 @@ tail e = let (ListT t) = typeOf e
 nub :: Expr -> Expr
 nub e = let (ListT t) = typeOf e
          in AppE1 (ListT t) (Prim1 Nub P.$ ListT t .-> ListT t) e
-         
+
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
            in AppE1 (ListT (PairT t IntT )) (Prim1 Number P.$ ListT t .-> ListT (PairT t IntT )) e
-           
+
 guard :: Expr -> Expr
 guard e = AppE1 (listT UnitT) (Prim1 Guard P.$ boolT .-> listT UnitT) e
 
 init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
         in AppE1 (ListT t) (Prim1 Init P.$ ListT t .-> ListT t) e
-         
+
 fst :: Expr -> Expr
 fst e = let t@(PairT t1 _) = typeOf e
          in AppE1 t1 (Prim1 Fst P.$ t .-> t1) e
-         
+
 snd :: Expr -> Expr
 snd e = let t@(PairT _ t2) = typeOf e
          in AppE1 t2 (Prim1 Snd P.$ t .-> t2) e
@@ -144,13 +145,13 @@ map f es = let ft@(FunT ta tr) = typeOf f
                te@(ListT t)    = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
-                 else P.error P.$ "CLPrims.map: Cannot apply map to a function of type: \n" 
-                                  P.++ P.show ft 
-                                  P.++ "\n and an argument of type: \n" 
+                 else P.error P.$ "CLPrims.map: Cannot apply map to a function of type: \n"
+                                  P.++ P.show ft
+                                  P.++ "\n and an argument of type: \n"
                                   P.++ P.show te
                                   P.++ "\n"
                                   P.++ P.show f
-                                  
+
 concatMap :: Expr -> Expr -> Expr
 concatMap f es = let ft@(FunT ta tr) = typeOf f
                      te@(ListT t)    = typeOf es
@@ -198,113 +199,7 @@ index e1 e2 = let t1@(ListT t) = typeOf e1
                     then AppE2 t (Prim2 Index P.$ t1 .-> t2 .-> t) e1 e2
                     else P.error P.$ "CLPrims.index: Cannot perform index with given arguments."
 
-scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
-scalarUnOp op e =
-    let t = typeOf e
-    in case (op, t) of
-           (L.Not, BoolT)       -> UnOp t op e
-           (L.CastDouble, IntT) -> UnOp DoubleT op e
-           (L.Sin, DoubleT)     -> UnOp t op e
-           (L.Cos, DoubleT)     -> UnOp t op e
-           (L.Tan, DoubleT)     -> UnOp t op e
-           (L.Sqrt, DoubleT)    -> UnOp t op e
-           (L.Log, DoubleT)     -> UnOp t op e
-           (L.Exp, DoubleT)     -> UnOp t op e
-           (L.ASin, DoubleT)    -> UnOp t op e
-           (L.ACos, DoubleT)    -> UnOp t op e
-           (L.ATan, DoubleT)    -> UnOp t op e
-           (_, _)             -> P.error P.$ printf "Primitives.scalarUnOp: %s" (P.show (op, t))
 
-add :: Expr -> Expr -> Expr
-add e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if isNum t1 P.&& t1 P.== t2
-                 then BinOp t1 L.Add e1 e2
-                 else P.error P.$ "CLPrims.add: Cannot apply add to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-sub :: Expr -> Expr -> Expr
-sub e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 L.Sub e1 e2
-                  else P.error P.$ "CLPrims.sub: Cannot apply sub to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-div :: Expr -> Expr -> Expr
-div e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 L.Div e1 e2
-                  else P.error P.$ "CLPrims.div: Cannot apply div to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-mul :: Expr -> Expr -> Expr
-mul e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if isNum t1 P.&& t1 P.== t2
-                  then BinOp t1 L.Mul e1 e2
-                  else trace ((P.show e1) P.++ " " P.++ (P.show e2)) P.$ P.error P.$ "CLPrims.mul: Cannot apply mul to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2 
-
-mod :: Expr -> Expr -> Expr
-mod e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if t1 P.== intT P.&& t2 P.== intT
-                  then BinOp t1 L.Mod e1 e2
-                  else P.error P.$ "CLPrims.mod: Cannot apply mod to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-eq :: Expr -> Expr -> Expr
-eq e1 e2 = let t1 = typeOf e1
-               t2 = typeOf e2
-            in if t1 P.== t2
-                 then BinOp boolT L.Eq e1 e2
-                 else P.error P.$ "CLPrims.eq: Cannot apply eq to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-gt :: Expr -> Expr -> Expr
-gt e1 e2 = let t1 = typeOf e1
-               t2 = typeOf e2
-            in if t1 P.== t2
-                 then BinOp boolT L.Gt e1 e2
-                 else P.error P.$ "CLPrims.gt: Cannot apply gt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-lt :: Expr -> Expr -> Expr
-lt e1 e2 = let t1 = typeOf e1
-               t2 = typeOf e2
-            in if t1 P.== t2
-                 then BinOp boolT L.Lt e1 e2
-                 else P.error P.$ "CLPrims.lt: Cannot apply lt to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-gte :: Expr -> Expr -> Expr
-gte e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if t1 P.== t2
-                  then BinOp boolT L.GtE e1 e2
-                  else P.error P.$ "CLPrims.gte: Cannot apply gte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-lte :: Expr -> Expr -> Expr
-lte e1 e2 = let t1 = typeOf e1
-                t2 = typeOf e2
-             in if t1 P.== t2
-                  then BinOp boolT L.LtE e1 e2
-                  else P.error P.$ "CLPrims.lte: Cannot apply lte to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-conj :: Expr -> Expr -> Expr
-conj e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT L.Conj e1 e2
-                   else P.error P.$ "CLPrims.conj: Cannot apply conj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-
-disj :: Expr -> Expr -> Expr
-disj e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in if t1 P.== boolT P.&& t1 P.== t2
-                   then BinOp boolT L.Disj e1 e2
-                   else P.error P.$ "CLPrims.disj: Cannot apply disj to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
-                   
-like :: Expr -> Expr -> Expr
-like e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-             in if t1 P.== stringT P.&& t2 P.== stringT
-                then BinOp boolT L.Like e1 e2
-                else P.error P.$ "CLPrims.like: Cannot apply like to arguments of type: "P.++ P.show t1 P.++ " and " P.++ P.show t2
 
 snoc :: Expr -> Expr -> Expr
 snoc e1 e2 = let t1@(ListT t) = typeOf e1
@@ -340,13 +235,16 @@ cond eb et ee = let tb = typeOf eb
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
                       else P.error P.$ "CLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
-                      
+
+---------------------------------------------------------------------------------------
+-- Smart constructors for join operators
+
 nestjoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 nestjoin xs ys p1 p2 = AppE2 resType (Prim2 (NestJoin p1 p2) joinType) xs ys
   where
     resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
     joinType = typeOf xs .-> typeOf ys .-> resType
-    
+
 equijoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 equijoin xs ys p1 p2 = AppE2 rt (Prim2 (EquiJoin p1 p2) jt) xs ys
   where
@@ -361,13 +259,16 @@ semijoin xs ys p1 p2 = AppE2 xst (Prim2 (SemiJoin p1 p2) jt) xs ys
     xst = typeOf xs
     yst = typeOf ys
     jt  = xst .-> yst .-> xst
-    
+
 antijoin :: Expr -> Expr -> L.JoinExpr -> L.JoinExpr -> Expr
 antijoin xs ys p1 p2 = AppE2 xst (Prim2 (AntiJoin p1 p2) jt) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
     jt  = xst .-> yst .-> xst
+
+---------------------------------------------------------------------------------------
+-- Literal value constructors
 
 unit :: Expr
 unit = Lit unitT L.UnitV
@@ -392,7 +293,7 @@ list t es = toListT (nil t) es
 
 consOpt :: Expr -> Expr -> Expr
 consOpt e1 e2 = toListT e2 [e1]
-        
+
 toListT :: Expr -> [Expr] -> Expr
 toListT n es = primList (P.reverse es) n
     where
@@ -403,3 +304,104 @@ toListT n es = primList (P.reverse es) n
         primList vs e = consList vs e
         consList :: [Expr] -> Expr -> Expr
         consList xs e = P.foldl (P.flip cons) e xs
+
+---------------------------------------------------------------------------------------
+-- Smart constructors for scalar unary operators
+
+scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
+scalarUnOp op e =
+    let t = typeOf e
+    in case (op, t) of
+           (L.SUNumOp _, DoubleT)                 -> UnOp t op e
+           (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
+           (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
+           (L.SUDateOp, _)                        -> $unimplemented
+           (_, _)                                 -> P.error err
+               where err = printf "CLPrims.scalarUnOp: %s" (P.show (op, t))
+
+castDouble :: Expr -> Expr
+castDouble = scalarUnOp (L.SUCastOp L.CastDouble)
+
+not :: Expr -> Expr
+not = scalarUnOp (L.SUBoolOp L.Not)
+
+sin :: Expr -> Expr
+sin = scalarUnOp (L.SUNumOp L.Sin)
+
+cos :: Expr -> Expr
+cos = scalarUnOp (L.SUNumOp L.Cos)
+
+tan :: Expr -> Expr
+tan = scalarUnOp (L.SUNumOp L.Tan)
+
+asin :: Expr -> Expr
+asin = scalarUnOp (L.SUNumOp L.ASin)
+
+acos :: Expr -> Expr
+acos = scalarUnOp (L.SUNumOp L.ACos)
+
+atan :: Expr -> Expr
+atan = scalarUnOp (L.SUNumOp L.ATan)
+
+log :: Expr -> Expr
+log = scalarUnOp (L.SUNumOp L.Log)
+
+sqrt :: Expr -> Expr
+sqrt = scalarUnOp (L.SUNumOp L.Sqrt)
+
+exp :: Expr -> Expr
+exp = scalarUnOp (L.SUNumOp L.Exp)
+
+---------------------------------------------------------------------------------------
+-- Smart constructors for scalar binary operators
+
+scalarBinOp :: L.ScalarBinOp -> Expr -> Expr -> Expr
+scalarBinOp op e1 e2 =
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in case (op, t1, t2) of
+           (L.SBNumOp _, _, _) | t1 P.== t2 P.&& isNum t1 P.&& isNum t2 -> BinOp t1 op e1 e2
+           (L.SBRelOp _, _, _) | t1 P.== t2                             -> BinOp BoolT op e1 e2
+           (L.SBBoolOp _, BoolT, BoolT)                                 -> BinOp BoolT op e1 e2
+           (L.SBStringOp L.Like, StringT, StringT)                      -> BinOp BoolT op e1 e2
+           _                                                            -> P.error err
+               where err = printf "CLPrims.scalarBinOp: %s" (P.show (op, t1, t2))
+
+add :: Expr -> Expr -> Expr
+add = scalarBinOp (L.SBNumOp L.Add)
+
+sub :: Expr -> Expr -> Expr
+sub = scalarBinOp (L.SBNumOp L.Sub)
+
+mul :: Expr -> Expr -> Expr
+mul = scalarBinOp (L.SBNumOp L.Mul)
+
+div :: Expr -> Expr -> Expr
+div = scalarBinOp (L.SBNumOp L.Div)
+
+mod :: Expr -> Expr -> Expr
+mod = scalarBinOp (L.SBNumOp L.Mod)
+
+eq :: Expr -> Expr -> Expr
+eq = scalarBinOp (L.SBRelOp L.Eq)
+
+gt :: Expr -> Expr -> Expr
+gt = scalarBinOp (L.SBRelOp L.Gt)
+
+lt :: Expr -> Expr -> Expr
+lt = scalarBinOp (L.SBRelOp L.Lt)
+
+gte :: Expr -> Expr -> Expr
+gte = scalarBinOp (L.SBRelOp L.GtE)
+
+lte :: Expr -> Expr -> Expr
+lte = scalarBinOp (L.SBRelOp L.LtE)
+
+conj :: Expr -> Expr -> Expr
+conj = scalarBinOp (L.SBBoolOp L.Conj)
+
+disj :: Expr -> Expr -> Expr
+disj = scalarBinOp (L.SBBoolOp L.Disj)
+
+like :: Expr -> Expr -> Expr
+like = scalarBinOp (L.SBStringOp L.Like)

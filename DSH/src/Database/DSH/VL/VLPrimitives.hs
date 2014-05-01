@@ -82,6 +82,14 @@ addOffset :: Int -> ColExpr -> ColExpr
 addOffset i (Expr e)   = $impossible
 addOffset i (Offset o) = Offset $ o + i
 
+toGeneralBinOp :: L.JoinBinOp -> L.ScalarBinOp
+toGeneralBinOp (L.JBNumOp o)    = L.SBNumOp o
+toGeneralBinOp (L.JBStringOp o) = L.SBStringOp o
+
+toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
+toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
+toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
+
 joinExpr :: L.JoinExpr -> Expr1
 joinExpr expr = offsetExpr $ aux expr
   where
@@ -90,17 +98,18 @@ joinExpr expr = offsetExpr $ aux expr
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
     aux :: L.JoinExpr -> ColExpr
-    aux (L.BinOpJ _ op e1 e2)   = Expr $ BinApp1 op 
-                                                 (offsetExpr $ aux e1) 
-                                                 (offsetExpr $ aux e2)
-    aux (L.UnOpJ _ L.NotJ e)    = Expr $ UnApp1 L.Not (offsetExpr $ aux e)
-    aux (L.UnOpJ _ L.FstJ e)    = aux e
-    aux (L.UnOpJ _ L.SndJ e)    = 
+    -- FIXME VL joins should include join expressions!
+    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp1 (toGeneralBinOp op)
+                                                (offsetExpr $ aux e1) 
+                                                (offsetExpr $ aux e2)
+    aux (L.JUnOp _ op e)       = Expr $ UnApp1 (toGeneralUnOp op) (offsetExpr $ aux e)
+    aux (L.JFst _ e)           = aux e
+    aux (L.JSnd _ e)           = 
         case Ty.typeOf e of
             Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
             _             -> $impossible
-    aux (L.ConstJ _ v)          = Expr $ Constant1 $ pVal v
-    aux (L.InputJ _)            = Offset 0
+    aux (L.JLit _ v)           = Expr $ Constant1 $ pVal v
+    aux (L.JInput _)           = Offset 0
   
 
 ----------------------------------------------------------------------------------

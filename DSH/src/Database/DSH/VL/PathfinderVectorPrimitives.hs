@@ -105,6 +105,8 @@ itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
 binOp :: L.ScalarBinOp -> BinFun
+binOp = $unimplemented
+{- FIXME
 binOp L.Add  = Plus
 binOp L.Sub  = Minus
 binOp L.Div  = Div
@@ -118,8 +120,11 @@ binOp L.LtE  = LtE
 binOp L.Conj = And
 binOp L.Disj = Or
 binOp L.Like = Like
+-}
 
 unOp :: L.ScalarUnOp -> UnFun
+unOp = $unimplemented
+{- FIXME
 unOp L.Not          = Not
 unOp (L.CastDouble) = Cast doubleT
 unOp L.Sin          = Sin
@@ -131,6 +136,7 @@ unOp L.ATan         = ATan
 unOp L.Sqrt         = Sqrt
 unOp L.Exp          = Exp
 unOp L.Log          = Log
+-}
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)
@@ -641,8 +647,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            L.Lt  -> projAddCols cols [mP posnew pos] qs
-            L.LtE -> projAddCols cols [mP posnew pos] qs
+            (L.SBRelOp L.Lt)  -> projAddCols cols [mP posnew pos] qs
+            (L.SBRelOp L.LtE) -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs
@@ -669,8 +675,8 @@ instance VectorAlgebra PFAlgebra where
     q' <- case op of
             -- If we select positions from the beginning, we can re-use the old
             -- positions
-            L.Lt  -> projAddCols cols [mP posnew pos] qs
-            L.LtE -> projAddCols cols [mP posnew pos] qs
+            (L.SBRelOp L.Lt)  -> projAddCols cols [mP posnew pos] qs
+            (L.SBRelOp L.LtE) -> projAddCols cols [mP posnew pos] qs
             -- Only if selected positions don't start at the beginning (i.e. 1)
             -- do we have to recompute them.
             _      -> rownum posnew [pos] Nothing qs

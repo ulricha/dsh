@@ -106,7 +106,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
 m_norm_3R :: RewriteC CL
 m_norm_3R = do
-    Comp t h _ <- promoteT idR
+    Comp t _ _ <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
     h'                  <- childT CompHead (tryR tuplifyHeadR) >>> projectT
     return $ inject $ Comp t h' qs'

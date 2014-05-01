@@ -167,7 +167,7 @@ basicAntiJoinR :: RewriteC (NL Qual)
 basicAntiJoinR = do
     -- [ ... | ..., x <- xs, and [ not p | y <- ys ], ... ]
     BindQ x xs :* GuardQ (AppE1 _ (Prim1 And _) 
-                                  (Comp _ (UnOp _ Not p)
+                                  (Comp _ (UnOp _ (SUBoolOp Not) p)
                                           (S (BindQ y ys))))  :* qs <- idR
     q' <- mkantijoinT p x y xs ys
     return $ q' :* qs
@@ -177,7 +177,7 @@ basicAntiJoinEndR :: RewriteC (NL Qual)
 basicAntiJoinEndR = do
     -- [ ... | ..., x <- xs, and [ True | y <- ys, not p ] ]
     BindQ x xs :* S (GuardQ (AppE1 _ (Prim1 And _) 
-                                     (Comp _ (UnOp _ Not p)
+                                     (Comp _ (UnOp _ (SUBoolOp Not) p)
                                              (S (BindQ y ys))))) <- idR
     q' <- mkantijoinT p x y xs ys
     return (S q')
@@ -188,7 +188,7 @@ basicAntiJoinEndR = do
 notinR :: RewriteC (NL Qual)
 notinR = do
     BindQ x xs :* 
-        (GuardQ (UnOp _ Not
+        (GuardQ (UnOp _ (SUBoolOp Not)
                          (AppE1 _ (Prim1 Or _)
                                   (Comp _ q (BindQ y ys :* (S (GuardQ p))))))) :* qs <- idR
                                   
@@ -200,7 +200,7 @@ notinR = do
 notinEndR :: RewriteC (NL Qual)
 notinEndR = do
     BindQ x xs :* 
-        (S (GuardQ (UnOp _ Not
+        (S (GuardQ (UnOp _ (SUBoolOp Not)
                             (AppE1 _ (Prim1 Or _)
                                      (Comp _ q (BindQ y ys :* (S (GuardQ p)))))))) <- idR
                                   
@@ -253,7 +253,7 @@ mkClass15AntiJoinT x xs y ys p q = do
     
     -- => [ ... | ..., x <- xs antijoin(p1, p2) [ y | y <- ys, not q ], ...]
     let q' = BindQ x (P.antijoin xs 
-                                 (Comp yst (Var yt y) (BindQ y ys :* (S (GuardQ (P.scalarUnOp Not q))))) 
+                                 (Comp yst (Var yt y) (BindQ y ys :* (S (GuardQ (P.scalarUnOp (SUBoolOp Not) q))))) 
                                  p1 p2)
     return q'
 

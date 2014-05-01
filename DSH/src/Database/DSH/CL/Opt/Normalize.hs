@@ -31,12 +31,12 @@ splitConjunctsR = splitR <+ splitEndR
   where
     splitR :: RewriteC (NL Qual)
     splitR = do
-        (GuardQ (BinOp _ Conj p1 p2)) :* qs <- idR
+        (GuardQ (BinOp _ (SBBoolOp Conj) p1 p2)) :* qs <- idR
         return $ GuardQ p1 :* GuardQ p2 :* qs
     
     splitEndR :: RewriteC (NL Qual)
     splitEndR = do
-        (S (GuardQ (BinOp _ Conj p1 p2))) <- idR
+        (S (GuardQ (BinOp _ (SBBoolOp Conj) p1 p2))) <- idR
         return $ GuardQ p1 :* (S $ GuardQ p2)
         
 normalizeOnceR :: RewriteC CL
@@ -61,8 +61,8 @@ normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
 -- => or [ p | x <- xs ]
 normalizeExistentialR :: RewriteC Qual
 normalizeExistentialR = do
-    GuardQ (UnOp _ Not
-               (BinOp _ Eq 
+    GuardQ (UnOp _ (SUBoolOp Not)
+               (BinOp _ (SBRelOp Eq)
                    (AppE1 _ (Prim1 Length _) 
                        (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                    (Lit _ (IntV 0)))) <- idR
@@ -78,13 +78,13 @@ normalizeUniversal1R :: RewriteC Qual
 normalizeUniversal1R = do
     -- c <- idR
     -- debugUnit "normalizeUniversalR" c
-    GuardQ (BinOp _ Eq 
+    GuardQ (BinOp _ (SBRelOp Eq)
                 (AppE1 _ (Prim1 Length _) 
                     (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
                 (Lit _ (IntV 0))) <- idR
 
     return $ GuardQ (P.and (Comp (listT boolT) 
-                           (P.scalarUnOp Not p) 
+                           (P.scalarUnOp (SUBoolOp Not) p) 
                            (S (BindQ x xs))))
                            
 -- | Normalize a guard expressing universal quantification
@@ -93,12 +93,12 @@ normalizeUniversal1R = do
 -- and [ not p | x <- xs ]
 normalizeUniversal2R :: RewriteC Qual
 normalizeUniversal2R = do
-    GuardQ (UnOp _ Not
+    GuardQ (UnOp _ (SUBoolOp Not)
                 (AppE1 _ (Prim1 Or _)
                          (Comp _ p (S (BindQ y ys))))) <- idR
     
     return $ GuardQ (P.and (Comp (listT boolT)
-                                 (P.scalarUnOp Not p)
+                                 (P.scalarUnOp (SUBoolOp Not) p)
                                  (S (BindQ y ys))))
                            
 normQualWorkR :: RewriteC Qual

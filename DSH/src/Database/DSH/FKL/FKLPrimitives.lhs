@@ -581,9 +581,10 @@ binPrim :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
 binPrim t o e1 e2 = 
     let t' = typeOf e1
     in case (t', o) of
-           (PairT _ _, Eq) -> binPrim t Conj (binPrim t Eq (fstPrim e1) (fstPrim e2)) 
-                                             (binPrim t Eq (sndPrim e1) (sndPrim e2))
-           _               -> BinOp t (NotLifted o) e1 e2
+           (PairT _ _, SBRelOp Eq) -> 
+               binPrim t (SBBoolOp Conj) (binPrim t (SBRelOp Eq) (fstPrim e1) (fstPrim e2)) 
+                                         (binPrim t (SBRelOp Eq) (sndPrim e1) (sndPrim e2))
+           _                       -> BinOp t (NotLifted o) e1 e2
 
 binPrimM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
 binPrimM t o = liftM2 (binPrim t o)

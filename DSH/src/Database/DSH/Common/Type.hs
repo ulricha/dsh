@@ -74,14 +74,14 @@ data Type  = FunT Type Type
 infixr 6 .->
 
 isNum :: Type -> Bool
-isNum IntT = True
-isNum DoubleT = True
-isNum (VarT _) = False
-isNum (FunT _ _) = False
-isNum BoolT = False
-isNum StringT = False
-isNum UnitT = False
-isNum (ListT _) = False
+isNum IntT        = True
+isNum DoubleT     = True
+isNum (VarT _)    = False
+isNum (FunT _ _)  = False
+isNum BoolT       = False
+isNum StringT     = False
+isNum UnitT       = False
+isNum (ListT _)   = False
 isNum (PairT _ _) = False
       
 domainT :: Type -> Type

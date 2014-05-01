@@ -273,7 +273,7 @@ lift en   (N.If _ e1 e2 e3)        = do
                                       e3' <- cloLM rt n fvs n2' (transform e3) (lift n2 e3) 
                                       
                                       let e2'' = restrictPrim e2' e1' `cloLApp` restrictPrim en e1'
-                                      let e3'' = restrictPrim e3' (unPrimL BoolT Not e1') `cloLApp` restrictPrim en (unPrimL BoolT Not e1')
+                                      let e3'' = restrictPrim e3' (unPrimL BoolT (SUBoolOp Not) e1') `cloLApp` restrictPrim en (unPrimL BoolT (SUBoolOp Not) e1')
                                       pure $ combinePrim e1' e2'' e3''                                                                                                                                          
 lift en   (N.BinOp t o e1 e2)      = binPrimLM t o (lift en e1) (lift en e2)
 lift en   (N.UnOp t o e)           = unPrimLM t o (lift en e)

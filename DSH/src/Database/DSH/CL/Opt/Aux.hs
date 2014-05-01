@@ -75,35 +75,38 @@ applyT t e = runCompM $ apply t initialCtx (inject e)
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
+toJoinBinOp :: Monad m => ScalarBinOp -> m JoinBinOp
+toJoinBinOp (SBNumOp o)     = return $ JBNumOp o
+toJoinBinOp (SBStringOp o)  = return $ JBStringOp o
+toJoinBinOp (SBRelOp _)     = fail "toJoinBinOp: join expressions can't contain relational ops"
+toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain boolean ops"
+
+toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
+toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
+toJoinUnOp (SUCastOp o) = return $ JUCastOp o
+toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
+toJoinUnOp SUDateOp     = $unimplemented
+
 toJoinExpr :: Ident -> TranslateC Expr JoinExpr
 toJoinExpr n = do
     e <- idR
     
-    let prim1 :: (Prim1 a) -> TranslateC Expr UnOp
-        prim1 (Prim1 Fst _) = return FstJ
-        prim1 (Prim1 Snd _) = return SndJ
-        prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
-    
-    let unop :: ScalarUnOp -> TranslateC Expr UnOp
-        unop Not = return NotJ
-        unop _   = fail "toJoinExpr: scalar unary op can't be translated to join primitive"
-         
-
-        
     case e of
-        AppE1 t p _   -> do
-            p' <- prim1 p
-            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
-        BinOp t _ _ _ -> do
-            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
-        UnOp t op _ -> do
-            op' <- unop op
-            unopT (toJoinExpr n) (\_ _ e1 -> UnOpJ t op' e1)
+        AppE1 _ (Prim1 Fst _) _   -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JFst t e1)
+        AppE1 _ (Prim1 Snd _) _   -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JSnd t e1)
+        BinOp _ o _ _ -> do
+            o' <- constT $ toJoinBinOp o
+            binopT (toJoinExpr n) (toJoinExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
+        UnOp _ o _ -> do
+            o' <- constT $ toJoinUnOp o
+            unopT (toJoinExpr n) (\t _ e1 -> JUnOp t o' e1)
         Lit t v       -> do
-            return $ ConstJ t v
+            return $ JLit t v
         Var t x       -> do
             guardMsg (n == x) "toJoinExpr: wrong name"
-            return $ InputJ t
+            return $ JInput t
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
             
@@ -114,7 +117,7 @@ toJoinExpr n = do
 -- function.
 splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
 splitJoinPredT x y = do
-    BinOp _ Eq e1 e2 <- idR
+    BinOp _ (SBRelOp Eq) e1 e2 <- idR
 
     let fv1 = freeVars e1
         fv2 = freeVars e2
@@ -132,7 +135,7 @@ splitJoinPredT x y = do
 -- are scalar expressions on exactly one of the join candidate
 -- variables.
 isEquiJoinPred :: Ident -> Ident -> Expr -> Bool
-isEquiJoinPred x y (BinOp _ Eq e1 e2) = 
+isEquiJoinPred x y (BinOp _ (SBRelOp Eq) e1 e2) = 
     isFlatExpr e1 && isFlatExpr e1
     && ([x] == freeVars e1 && [y] == freeVars e2
         || [x] == freeVars e2 && [y] == freeVars e1)
@@ -157,7 +160,7 @@ isFlatExpr expr =
     case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        UnOp _ Not e            -> isFlatExpr e
+        UnOp _ (SUBoolOp Not) e -> isFlatExpr e
         BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
         Var _ _                 -> True
         Lit _ _                 -> True

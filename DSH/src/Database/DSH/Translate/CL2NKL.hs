@@ -140,7 +140,7 @@ productify e ((CL.BindQ x xs) : (CL.GuardQ p)   : qs) =
 productify e ((CL.GuardQ p1)  : (CL.GuardQ p2)  : qs) = 
   productify e (q' : qs)
 
-  where q' = CL.GuardQ $ CL.BinOp boolT Conj p1 p2
+  where q' = CL.GuardQ $ CL.BinOp boolT (SBBoolOp Conj) p1 p2
            
 -- [ e | p1, x <- xs, qs ] = [ e | x <- filter (\x -> p) xs, qs ]
 -- FIXME this seems wrong

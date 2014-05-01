@@ -13,48 +13,6 @@ import Data.List
 import Database.DSH.Common.Type
 
 -----------------------------------------------------------------------------
--- Join operator arguments: limited expressions that can be used on joins
-
-data UnOp = NotJ
-          | FstJ
-          | SndJ
-          deriving (Eq, Ord, Data, Typeable)
-          
-instance Show UnOp where
-    show NotJ = "not"
-    show FstJ = "fst"
-    show SndJ = "snd"
-
-data JoinExpr = BinOpJ Type ScalarBinOp JoinExpr JoinExpr
-              | UnOpJ Type UnOp JoinExpr
-              | ConstJ Type Val
-              | InputJ Type
-              deriving (Eq, Ord, Data, Typeable)
-
-instance Typed JoinExpr where
-    typeOf (BinOpJ t _ _ _) = t
-    typeOf (UnOpJ t _ _)    = t
-    typeOf (ConstJ t _)     = t
-    typeOf (InputJ t)       = t
-              
-instance Show JoinExpr where
-    show (BinOpJ _ op e1 e2) = parenthize e1 +++ show op +++ parenthize e2
-    show (UnOpJ _ op e1)     = show op +++ parenthize e1
-    show (ConstJ _ v)        = show v
-    show (InputJ _)          = "i"
-    
-(+++) :: String -> String -> String
-s1 +++ s2 = s1 ++ " " ++ s2
-    
-parenthize :: JoinExpr -> String
-parenthize e =
-    case e of
-        BinOpJ _ _ _ _ -> "(" ++ show e ++ ")"
-        UnOpJ _ _ _    -> "(" ++ show e ++ ")"
-        ConstJ _ _     -> show e
-        InputJ _       -> show e
-
------------------------------------------------------------------------------
 -- Common types for backend expressions
 
 -- | Basic values in both FKL and NKL. 
@@ -99,59 +57,107 @@ data TableHints = TableHints
 -- | Identifiers
 type Ident = String
 
-data Op = Op ScalarBinOp Bool
-    deriving (Eq, Ord, Generic)
-    
-data ScalarBinOp = Add 
-                 | Sub 
-                 | Div 
-                 | Mul 
-                 | Mod 
-                 | Eq  
-                 | Gt  
-                 | GtE 
-                 | Lt  
-                 | LtE 
-                 | Conj 
-                 | Disj 
-                 | Like
-    deriving (Read, Eq, Ord, Generic, Data, Typeable)
+-----------------------------------------------------------------------------
+-- Scalar operators
 
-data ScalarUnOp = Not
-                | CastDouble
-                | Sin | Cos | Tan
-                | ASin | ACos | ATan
-                | Sqrt | Exp | Log
-                deriving (Read, Eq, Ord, Generic, Data, Typeable)
-    
-instance Show ScalarBinOp where
-    show Add = "+"
-    show Sub = "-"
-    show Div = "/"
-    show Mul = "*"
-    show Mod = "%"
-    show Eq  = "=="
-    show Gt  = ">"
-    show GtE = ">="
-    show Lt  = "<"
-    show LtE = "<="
-    show Conj = "&&"
-    show Disj = "||"
-    show Like = "LIKE"
+data UnCastOp = CastDouble
+                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
 
-instance Show ScalarUnOp where
-    show Not        = "not"
-    show CastDouble = "double"
-    show Sin        = "sin"
-    show Cos        = "cos"
-    show Tan        = "tan"
-    show Log        = "log"
-    show Exp        = "exp"
-    show Sqrt       = "sqrt"
-    show ASin       = "asin"
-    show ACos       = "acos"
-    show ATan       = "atan"
+data UnBoolOp = Not
+                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data UnNumOp = Sin 
+             | Cos 
+             | Tan 
+             | ASin 
+             | ACos 
+             | ATan 
+             | Sqrt 
+             | Exp 
+             | Log
+             deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data ScalarUnOp = SUNumOp UnNumOp 
+                | SUBoolOp UnBoolOp
+                | SUCastOp UnCastOp
+                | SUDateOp
+                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data BinNumOp = Add 
+              | Sub 
+              | Div 
+              | Mul 
+              | Mod
+              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data BinRelOp = Eq 
+              | Gt 
+              | GtE 
+              | Lt 
+              | LtE
+              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data BinBoolOp = Conj 
+               | Disj
+                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data BinStringOp = Like -- | StringAppend | Contains
+                   deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+-- FIXME this would be a good fit for PatternSynonyms
+data ScalarBinOp = SBNumOp BinNumOp
+                 | SBRelOp BinRelOp
+                 | SBBoolOp BinBoolOp
+                 | SBStringOp BinStringOp
+                 deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+
+-----------------------------------------------------------------------------
+-- Join operator arguments: limited expressions that can be used on joins
+
+data JoinConjunct = JoinConjunct JoinExpr BinRelOp JoinExpr
+
+data JoinBinOp = JBNumOp BinNumOp
+               | JBStringOp BinStringOp
+               deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data JoinUnOp = JUNumOp UnNumOp
+              | JUCastOp UnCastOp
+              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+
+data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
+              | JUnOp Type JoinUnOp JoinExpr
+              | JFst Type JoinExpr
+              | JSnd Type JoinExpr
+              | JLit Type Val 
+              | JInput Type
+              deriving (Eq, Ord, Generic, Data, Typeable)
+
+instance Typed JoinExpr where
+    typeOf (JBinOp t _ _ _) = t
+    typeOf (JUnOp t _ _)    = t
+    typeOf (JFst t _)       = t
+    typeOf (JSnd t _)       = t
+    typeOf (JLit t _)       = t
+    typeOf (JInput t)       = t
+              
+instance Show JoinExpr where
+    show (JBinOp _ op e1 e2) = parenthize e1 +++ show op +++ parenthize e2
+    show (JUnOp _ op e1)     = show op +++ parenthize e1
+    show (JFst _ e)          = "fst" +++ parenthize e
+    show (JSnd _ e)          = "snd" +++ parenthize e
+    show (JLit _ v)          = show v
+    show (JInput _)          = "input"
     
-instance Show Op where
-    show (Op o True) = show o ++ "^" ++ "1"
-    show (Op o False) = show o
+(+++) :: String -> String -> String
+s1 +++ s2 = s1 ++ " " ++ s2
+    
+parenthize :: JoinExpr -> String
+parenthize e =
+    case e of
+        JBinOp _ _ _ _ -> "(" ++ show e ++ ")"
+        JUnOp _ _ _    -> "(" ++ show e ++ ")"
+        JFst _ _       -> "(" ++ show e ++ ")"
+        JSnd _ _       -> "(" ++ show e ++ ")"
+        JLit  _ _      -> show e
+        JInput _       -> show e

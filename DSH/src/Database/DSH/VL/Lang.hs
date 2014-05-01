@@ -137,6 +137,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | ZipS            -- (DBV, RenameVector, RenameVector)
            | CartProduct
            | CartProductS
+           -- FIXME VL joins should include join expressions!
            | EquiJoin Expr1 Expr1
            | EquiJoinS Expr1 Expr1
            | SemiJoin Expr1 Expr1
