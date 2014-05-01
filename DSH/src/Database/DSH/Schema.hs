@@ -65,7 +65,6 @@ getX100TableInfo c n = do
             LInt8       -> t == T.IntT  || t == T.UnitT
             LUInt8      -> t == T.IntT  || t == T.UnitT
             LInt16      -> t == T.IntT  || t == T.UnitT
-            LUIDX       -> t == T.NatT  || t == T.UnitT
             LDec        -> t == T.DoubleT
             LFlt4       -> t == T.DoubleT
             LFlt8       -> t == T.DoubleT

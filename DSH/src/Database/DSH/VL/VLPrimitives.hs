@@ -42,7 +42,6 @@ pVal _             = error "pVal: Not a supported value"
 
 typeToVLType :: Ty.Type -> VLType
 typeToVLType t = case t of
-  Ty.NatT        -> D.Nat
   Ty.IntT        -> D.Int
   Ty.BoolT       -> D.Bool
   Ty.StringT     -> D.String
@@ -60,7 +59,6 @@ typeToVLType t = case t of
 recordWidth :: Ty.Type -> Int
 recordWidth t =
     case t of
-        Ty.NatT        -> 1
         Ty.IntT        -> 1
         Ty.BoolT       -> 1
         Ty.DoubleT     -> 1
