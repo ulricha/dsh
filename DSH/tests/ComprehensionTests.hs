@@ -56,57 +56,39 @@ tests_nest_guard_hunit = testGroup "HUnit guard nesting"
 -- QuickCheck properties for comprehensions
 
 prop_cartprod :: ([Integer], [Integer]) -> Property
-prop_cartprod = makeProp C.cartprod
-                         (\(xs, ys) -> [ (x, y) | x <- xs, y <- ys])
+prop_cartprod = makeProp C.cartprod cartprod_native
+  where
+    cartprod_native (xs, ys) = [ (x, y) | x <- xs, y <- ys]
 
 prop_eqjoin :: ([Integer], [Integer]) -> Property
-prop_eqjoin = makeProp C.eqjoin 
-                       (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , x == y ])
+prop_eqjoin = makeProp C.eqjoin eqjoin_native
+  where
+    eqjoin_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y ]
 
 prop_eqjoinproj :: ([Integer], [Integer]) -> Property
-prop_eqjoinproj = 
-  makeProp C.eqjoinproj (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , (2 * x) == y ])
+prop_eqjoinproj = makeProp C.eqjoinproj eqjoinproj_native
+  where
+    eqjoinproj_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , (2 * x) == y ]
   
 prop_eqjoinpred :: (Integer, [Integer], [Integer]) -> Property
-prop_eqjoinpred =
-  makeProp C.eqjoinpred
-           (\(x', xs, ys) ->
-             [ (x, y)
-             | x <- xs
-             , y <- ys
-             , x == y
-             , x > x'
-             ])
+prop_eqjoinpred = makeProp C.eqjoinpred eqjoinpred_native
+  where
+    eqjoinpred_native (x', xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y , x > x']
 
 prop_eqjoin3 :: ([Integer], [Integer], [Integer]) -> Property
-prop_eqjoin3 =
-  makeProp C.eqjoin3
-           (\(xs, ys, zs) ->
-             [ (x, y, z)
-             | x <- xs
-             , y <- ys
-             , z <- zs
-             , x == y
-             , y == z
-             ])
+prop_eqjoin3 = makeProp C.eqjoin3 eqjoin3_native
+  where
+    eqjoin3_native (xs, ys, zs) = [ (x, y, z) | x <- xs , y <- ys , z <- zs , x == y , y == z]
              
 prop_eqjoin_nested :: ([(Integer, [Integer])], [Integer]) -> Property
-prop_eqjoin_nested =
-  makeProp C.eqjoin_nested
-           (\(xs, ys) ->
-             [ (x, y)
-             | x <- xs
-             , y <- ys
-             , fst x == y
-             ])
+prop_eqjoin_nested = makeProp C.eqjoin_nested eqjoin_nested_native
+  where
+    eqjoin_nested_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , fst x == y]
 
 prop_nestjoin :: ([Integer], [Integer]) -> Property
-prop_nestjoin =
-  makeProp C.nestjoin
-           (\(xs, ys) ->
-             [ (x, [ y | y <- ys, x == y ])
-             | x <- xs
-             ])
+prop_nestjoin = makeProp C.nestjoin nestjoin_native 
+  where
+    nestjoin_native (xs, ys) = [ (x, [ y | y <- ys, x == y ]) | x <- xs]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
