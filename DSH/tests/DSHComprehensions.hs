@@ -46,6 +46,32 @@ eqjoinpred (view -> (x', xs, ys)) =
   , x > x'
   ]
 
+eqjointuples :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+eqjointuples (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  ]
+
+thetajoin_eq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+thetajoin_eq (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  , y1 == x2
+  ]
+
+thetajoin_neq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+thetajoin_neq (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  , y1 /= x2
+  ]
+
 eqjoin3 :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
 eqjoin3 (view -> (xs, ys, zs)) = 
   [ tuple3 x y z
@@ -56,12 +82,29 @@ eqjoin3 (view -> (xs, ys, zs)) =
   , y == z
   ]
   
-eqjoin_nested :: Q ([(Integer, [Integer])], [Integer]) -> Q [((Integer, [Integer]), Integer)]
-eqjoin_nested args =
+eqjoin_nested_left :: Q ([(Integer, [Integer])], [Integer]) -> Q [((Integer, [Integer]), Integer)]
+eqjoin_nested_left args =
   [ pair x y
   | x <- fst args
   , y <- snd args
   , fst x == y
+  ]
+
+eqjoin_nested_right :: Q ([Integer], [(Integer, [Integer])]) -> Q [(Integer, (Integer, [Integer]))]
+eqjoin_nested_right args =
+  [ pair x y
+  | x <- fst args
+  , y <- snd args
+  , x == fst y
+  ]
+
+eqjoin_nested_both :: Q ([(Integer, [Integer])], [(Integer, [Integer])]) 
+                   -> Q [((Integer, [Integer]), (Integer, [Integer]))]
+eqjoin_nested_both args =
+  [ pair x y
+  | x <- fst args
+  , y <- snd args
+  , fst x == fst y
   ]
 
 nestjoin :: Q ([Integer], [Integer]) -> Q [(Integer, [Integer])]
