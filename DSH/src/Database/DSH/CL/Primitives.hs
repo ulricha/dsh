@@ -31,12 +31,6 @@ length e = let t = typeOf e
                                   "\nThe provided argument is: " P.++ P.show e
 
 
-unzip :: Expr -> Expr
-unzip e = let (ListT (PairT t1 t2)) = typeOf e
-              left  = map (lambda (PairT t1 t2 .-> t1) "__*unzl*" (fst (var (PairT t1 t2) "__*unzl*"))) e
-              right = map (lambda (PairT t1 t2 .-> t2) "__*unzr*" (snd (var (PairT t1 t2) "__*unzr*"))) e
-           in pair left right
-                 
 all :: Expr -> Expr -> Expr
 all f e = and (map f e)
 
