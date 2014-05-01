@@ -1,21 +1,24 @@
-{-# LANGUAGE GADTs              #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE GADTs              #-}
 
 module Database.DSH.Common.Lang where
 
-import Data.Data
-import Data.Typeable()
-import GHC.Generics
+import           Data.Data
+import           Data.Typeable                ()
+import           GHC.Generics
 
-import Data.List
+import           Data.List
+import qualified Data.List.NonEmpty           as N
+import           Text.PrettyPrint.ANSI.Leijen
 
-import Database.DSH.Common.Type
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Type
 
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
 
--- | Basic values in both FKL and NKL. 
+-- | Basic values in both FKL and NKL.
 data Val where
     ListV   :: [Val] -> Val
     IntV    :: Int -> Val
@@ -25,7 +28,7 @@ data Val where
     PairV   :: Val -> Val -> Val
     UnitV   :: Val
     deriving (Eq, Ord, Generic, Data, Typeable)
-    
+
 instance Show Val where
   show (ListV vs)    = "[" ++ (intercalate ", " $ map show vs) ++ "]"
   show (IntV i)      = show i
@@ -36,10 +39,10 @@ instance Show Val where
   show UnitV         = "()"
 
 newtype ColName = ColName String deriving (Eq, Ord, Show, Data, Typeable, Generic)
-  
+
 -- | Typed table columns
 type Column = (ColName, Type)
-     
+
 -- | Table keys
 newtype Key = Key [ColName] deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -49,7 +52,7 @@ data Emptiness = NonEmpty
                deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 -- | Catalog information hints that users may give to DSH
-data TableHints = TableHints 
+data TableHints = TableHints
     { keysHint     :: [Key]
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -61,77 +64,82 @@ type Ident = String
 -- Scalar operators
 
 data UnCastOp = CastDouble
-                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 data UnBoolOp = Not
-                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data UnNumOp = Sin 
-             | Cos 
-             | Tan 
-             | ASin 
-             | ACos 
-             | ATan 
-             | Sqrt 
-             | Exp 
+data UnNumOp = Sin
+             | Cos
+             | Tan
+             | ASin
+             | ACos
+             | ATan
+             | Sqrt
+             | Exp
              | Log
-             deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+             deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data ScalarUnOp = SUNumOp UnNumOp 
+data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
                 | SUDateOp
-                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data BinNumOp = Add 
-              | Sub 
-              | Div 
-              | Mul 
+data BinNumOp = Add
+              | Sub
+              | Div
+              | Mul
               | Mod
-              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data BinRelOp = Eq 
-              | Gt 
-              | GtE 
-              | Lt 
+data BinRelOp = Eq
+              | Gt
+              | GtE
+              | Lt
               | LtE
-              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+              | NEq
+              deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data BinBoolOp = Conj 
+data BinBoolOp = Conj
                | Disj
-                deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 data BinStringOp = Like -- | StringAppend | Contains
-                   deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                   deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 -- FIXME this would be a good fit for PatternSynonyms
 data ScalarBinOp = SBNumOp BinNumOp
                  | SBRelOp BinRelOp
                  | SBBoolOp BinBoolOp
                  | SBStringOp BinStringOp
-                 deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
 
 data JoinConjunct = JoinConjunct JoinExpr BinRelOp JoinExpr
+                  deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+newtype JoinPredicate = JoinPred (N.NonEmpty JoinConjunct)
+                      deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 data JoinBinOp = JBNumOp BinNumOp
                | JBStringOp BinStringOp
-               deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+               deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 data JoinUnOp = JUNumOp UnNumOp
               | JUCastOp UnCastOp
-              deriving (Show, Read, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
               | JUnOp Type JoinUnOp JoinExpr
               | JFst Type JoinExpr
               | JSnd Type JoinExpr
-              | JLit Type Val 
+              | JLit Type Val
               | JInput Type
-              deriving (Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 instance Typed JoinExpr where
     typeOf (JBinOp t _ _ _) = t
@@ -140,24 +148,79 @@ instance Typed JoinExpr where
     typeOf (JSnd t _)       = t
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
-              
-instance Show JoinExpr where
-    show (JBinOp _ op e1 e2) = parenthize e1 +++ show op +++ parenthize e2
-    show (JUnOp _ op e1)     = show op +++ parenthize e1
-    show (JFst _ e)          = "fst" +++ parenthize e
-    show (JSnd _ e)          = "snd" +++ parenthize e
-    show (JLit _ v)          = show v
-    show (JInput _)          = "input"
-    
-(+++) :: String -> String -> String
-s1 +++ s2 = s1 ++ " " ++ s2
-    
-parenthize :: JoinExpr -> String
+
+-----------------------------------------------------------------------------
+-- Pretty-printing of stuff
+
+parenthize :: JoinExpr -> Doc
 parenthize e =
     case e of
-        JBinOp _ _ _ _ -> "(" ++ show e ++ ")"
-        JUnOp _ _ _    -> "(" ++ show e ++ ")"
-        JFst _ _       -> "(" ++ show e ++ ")"
-        JSnd _ _       -> "(" ++ show e ++ ")"
-        JLit  _ _      -> show e
-        JInput _       -> show e
+        JBinOp _ _ _ _ -> parens $ pretty e
+        JUnOp _ _ _    -> parens $ pretty e
+        JFst _ _       -> parens $ pretty e
+        JSnd _ _       -> parens $ pretty e
+        JLit  _ _      -> pretty e
+        JInput _       -> pretty e
+
+instance Pretty Val where
+    pretty (ListV xs)    = list $ map pretty xs
+    pretty (IntV i)      = int i
+    pretty (BoolV b)     = bool b
+    pretty (StringV s)   = string s
+    pretty (DoubleV d)   = double d
+    pretty (PairV v1 v2) = tupled $ [ pretty v1, pretty v2 ]
+    pretty UnitV         = text "()"
+
+instance Pretty BinRelOp where
+    pretty Eq  = text "=="
+    pretty Gt  = text ">"
+    pretty Lt  = text "<"
+    pretty GtE = text ">="
+    pretty LtE = text "<="
+    pretty NEq = text "/="
+
+instance Pretty BinStringOp where
+    pretty Like = text "LIKE"
+
+instance Pretty BinNumOp where
+    pretty Add = text "+"
+    pretty Sub = text "-"
+    pretty Div = text "/"
+    pretty Mul = text "*"
+    pretty Mod = text "%"
+
+instance Pretty UnNumOp where
+    pretty Sin  = text "sin"
+    pretty Cos  = text "cos"
+    pretty Tan  = text "tan"
+    pretty Sqrt = text "sqrt"
+    pretty Exp  = text "exp"
+    pretty Log  = text "log"
+    pretty ASin = text "asin"
+    pretty ACos = text "acos"
+    pretty ATan = text "atan"
+
+instance Pretty UnCastOp where
+    pretty CastDouble = text "double"
+
+instance Pretty JoinUnOp where
+    pretty (JUNumOp o)  = pretty o
+    pretty (JUCastOp o) = pretty o
+
+instance Pretty JoinBinOp where
+    pretty (JBNumOp o)    = pretty o
+    pretty (JBStringOp o) = pretty o
+
+instance Pretty JoinExpr where
+    pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
+    pretty (JUnOp _ op e)      = pretty op <+> parenthize e
+    pretty (JFst _ e)          = text "fst" <+> parenthize e
+    pretty (JSnd _ e)          = text "snd" <+> parenthize e
+    pretty (JLit _ v)          = pretty v
+    pretty (JInput _)          = text "INP"
+
+instance Pretty JoinConjunct where
+    pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
+
+instance Pretty JoinPredicate where
+    pretty (JoinPred ps) = brackets $ hsep $ punctuate (text "&&") $ map pretty $ N.toList ps

@@ -4,10 +4,11 @@ module Database.DSH.FKL.Data.FKL where
 
 import           Text.Printf
 
-import Database.DSH.Common.Lang
-import Database.DSH.Common.Type(Typed, typeOf, Type)
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 
-import GHC.Generics (Generic)
+import           GHC.Generics               (Generic)
 
 -- Signal wether a scalar operator is applied in its lifted or
 -- unlifted form.
@@ -22,7 +23,7 @@ instance Show a => Show (Lifted a) where
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [Column] TableHints
           | PApp1   Type Prim1 Expr
-          | PApp2   Type Prim2 Expr Expr 
+          | PApp2   Type Prim2 Expr Expr
           | PApp3   Type Prim3 Expr Expr Expr
           | CloApp  Type Expr Expr
           | CloLApp Type Expr Expr
@@ -75,7 +76,7 @@ data Prim1 = FLength Type
            | FReshape Integer Type
            | FReshapeL Integer Type
     deriving (Eq, Generic)
-    
+
 instance Show Prim1 where
     show (FLength _)     = "length"
     show (FLengthL _)    = "lengthL"
@@ -116,7 +117,7 @@ instance Show Prim1 where
     show (FTransposeL _) = "transposeL"
     show (FReshape n _)  = printf "reshape(%d)" n
     show (FReshapeL n _) = printf "reshapeL(%d)" n
-    
+
 data Prim2 = FGroupWithKey Type
            | FGroupWithKeyL Type
            | FSortWithS Type
@@ -153,7 +154,7 @@ instance Show Prim2 where
     show (FGroupWithKey _)    = "groupWithKey"
     show (FGroupWithKeyL _)   = "groupWithKeyL"
     show (FSortWithS _)       = "sortWithS"
-    show (FSortWithL _)       = "sortWithL" 
+    show (FSortWithL _)       = "sortWithL"
     show (FDist _)            = "dist"
     show (FDistL _)           = "distL"
     show (FRestrict _)        = "restrict"
@@ -172,14 +173,14 @@ instance Show Prim2 where
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"
     show (FNestProductL _)    = "nestProductL"
-    show (FEquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (show e1) (show e2)
-    show (FEquiJoinL e1 e2 _) = printf "equiJoinL(%s, %s)" (show e1) (show e2)
-    show (FNestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (show e1) (show e2)
-    show (FNestJoinL e1 e2 _) = printf "nestJoinL(%s, %s)" (show e1) (show e2)
-    show (FSemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (show e1) (show e2)
-    show (FSemiJoinL e1 e2 _) = printf "semiJoinL(%s, %s)" (show e1) (show e2)
-    show (FAntiJoin e1 e2 _)  = printf "antiJoinS(%s, %s)" (show e1) (show e2)
-    show (FAntiJoinL e1 e2 _) = printf "antiJoinL(%s, %s)" (show e1) (show e2)
+    show (FEquiJoin e1 e2 _)  = printf "equiJoinS(%s, %s)" (pp e1) (pp e2)
+    show (FEquiJoinL e1 e2 _) = printf "equiJoinL(%s, %s)" (pp e1) (pp e2)
+    show (FNestJoin e1 e2 _)  = printf "nestJoinS(%s, %s)" (pp e1) (pp e2)
+    show (FNestJoinL e1 e2 _) = printf "nestJoinL(%s, %s)" (pp e1) (pp e2)
+    show (FSemiJoin e1 e2 _)  = printf "semiJoinS(%s, %s)" (pp e1) (pp e2)
+    show (FSemiJoinL e1 e2 _) = printf "semiJoinL(%s, %s)" (pp e1) (pp e2)
+    show (FAntiJoin e1 e2 _)  = printf "antiJoinS(%s, %s)" (pp e1) (pp e2)
+    show (FAntiJoinL e1 e2 _) = printf "antiJoinL(%s, %s)" (pp e1) (pp e2)
 
 data Prim3 = FCombine Type
     deriving (Eq, Generic)

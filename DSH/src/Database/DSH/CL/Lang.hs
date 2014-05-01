@@ -1,61 +1,66 @@
-{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.CL.Lang
-  ( module Database.DSH.Common.Type
-  , Expr(..)
-  , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
-  , Qual(..), isGuard, isBind
-  , Typed(..)
-  , Prim1Op(..)
-  , Prim2Op(..)
-  , Prim1(..)
-  , Prim2(..)
-  ) where
+    ( module Database.DSH.Common.Type
+    , Expr(..)
+    , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
+    , Qual(..), isGuard, isBind
+    , Typed(..)
+    , Prim1Op(..)
+    , Prim2Op(..)
+    , Prim1(..)
+    , Prim2(..)
+    ) where
 
-import           Control.Applicative hiding (empty)
-                 
-import qualified Data.Foldable as F
-import qualified Data.Traversable as T
+import           Control.Applicative          hiding (empty)
+
+import qualified Data.Foldable                as F
+import qualified Data.List.NonEmpty           as N
+import qualified Data.Traversable             as T
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
-import           Database.DSH.Impossible
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Type
-  
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Impossible
+
 --------------------------------------------------------------------------------
--- A simple type of nonempty lists, used for comprehension qualifiers
+-- A simple type of nonempty lists, used for comprehension
+-- qualifiers. This type is used instead of Data.List.NonEmpty to have
+-- a proper list spine for which Kure traversals can be defined
+-- easily.
 
 data NL a = a :* (NL a)
           | S a
           deriving (Eq, Ord)
-          
+
 infixr :*
-          
+
 instance Show a => Show (NL a) where
     show = show . toList
 
 instance Pretty a => Pretty (NL a) where
     pretty = pretty . toList
-          
+
 instance Functor NL where
     fmap f (a :* as) = (f a) :* (fmap f as)
     fmap f (S a)     = S (f a)
-    
+
 instance F.Foldable NL where
     foldr f z (a :* as) = f a (F.foldr f z as)
     foldr f z (S a)     = f a z
-    
+
 instance T.Traversable NL where
     traverse f (a :* as) = (:*) <$> (f a) <*> (T.traverse f as)
     traverse f (S a)     = S <$> (f a)
-    
+
 toList :: NL a -> [a]
 toList (a :* as) = a : toList as
 toList (S a)     = [a]
@@ -85,17 +90,17 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length | Concat 
-             | Sum | Avg | The | Fst | Snd 
-             | Head | Minimum | Maximum 
-             | Tail 
-             | Reverse | And | Or 
-             | Init | Last | Nub 
+data Prim1Op = Length | Concat
+             | Sum | Avg | The | Fst | Snd
+             | Head | Minimum | Maximum
+             | Tail
+             | Reverse | And | Or
+             | Init | Last | Nub
              | Number | Guard
              | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
-             
+
 data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
@@ -120,23 +125,28 @@ instance Show Prim1Op where
   show Guard           = "guard"
   show Transpose       = "transpose"
   show (Reshape n)     = printf "reshape(%d)" n
-  
+
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o
 
-data Prim2Op = Map | ConcatMap | GroupWithKey
-             | SortWith | Pair
-             | Filter | Append
+data Prim2Op = Map 
+             | ConcatMap 
+             | GroupWithKey
+             | SortWith 
+             | Pair
+             | Filter 
+             | Append
              | Index
-             | Zip | Cons
+             | Zip 
+             | Cons
              | CartProduct
              | NestProduct
-             | EquiJoin L.JoinExpr L.JoinExpr
-             | NestJoin L.JoinExpr L.JoinExpr
-             | SemiJoin L.JoinExpr L.JoinExpr
-             | AntiJoin L.JoinExpr L.JoinExpr
+             | ThetaJoin L.JoinPredicate
+             | NestJoin L.JoinPredicate
+             | SemiJoin L.JoinPredicate
+             | AntiJoin L.JoinPredicate
              deriving (Eq, Ord)
-             
+
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
@@ -152,11 +162,11 @@ instance Show Prim2Op where
   show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
-  show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)
-  show (NestJoin e1 e2) = printf "△ (%s | %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2) = printf "⋉ (%s | %s)" (show e1) (show e2)
-  show (AntiJoin e1 e2) = printf "▷ (%s | %s)" (show e1) (show e2)
-  
+  show (ThetaJoin p) = printf "⨝_%s" (pp p)
+  show (NestJoin p)  = printf "△_%s" (pp p)
+  show (SemiJoin p)  = printf "⋉_%s" (pp p)
+  show (AntiJoin p)  = printf "▷_%s" (pp p)
+
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
 
@@ -166,7 +176,7 @@ instance Show (Prim2 t) where
 data Qual = BindQ L.Ident Expr
           | GuardQ Expr
           deriving (Eq, Ord, Show)
-          
+
 isGuard :: Qual -> Bool
 isGuard (GuardQ _)   = True
 isGuard (BindQ _ _)  = False
@@ -178,18 +188,18 @@ isBind (BindQ _ _)  = True
 data Comp = C Type Expr (NL Qual)
 
 data Expr  = Table Type String [L.Column] L.TableHints
-           | App Type Expr Expr              
-           | AppE1 Type (Prim1 Type) Expr   
-           | AppE2 Type (Prim2 Type) Expr Expr 
-           | BinOp Type L.ScalarBinOp Expr Expr        
+           | App Type Expr Expr
+           | AppE1 Type (Prim1 Type) Expr
+           | AppE2 Type (Prim2 Type) Expr Expr
+           | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
-           | Lam Type L.Ident Expr              
+           | Lam Type L.Ident Expr
            | If Type Expr Expr Expr
            | Lit Type L.Val
            | Var Type L.Ident
            | Comp Type Expr (NL Qual)
            deriving (Show)
-           
+
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
@@ -201,26 +211,26 @@ instance Pretty Expr where
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
-    pretty (If _ c t e)       = text "if" 
-                             <+> pretty c 
-                             <+> text "then" 
-                             <+> (parenthize t) 
-                             <+> text "else" 
+    pretty (If _ c t e)       = text "if"
+                             <+> pretty c
+                             <+> text "then"
+                             <+> (parenthize t)
+                             <+> text "else"
                              <+> (parenthize e)
     pretty (Lit _ v)          = text $ show v
     pretty (Var _ s)          = text s
-                                   
+
     pretty (Comp _ e qs) = encloseSep lbracket rbracket empty docs
                          where docs = (char ' ' <> pretty e <> char ' ') : qsDocs
-                               qsDocs = 
+                               qsDocs =
                                  case qs of
-                                   q :* qs' -> (char '|' <+> pretty q) 
+                                   q :* qs' -> (char '|' <+> pretty q)
                                                : [ char ',' <+> pretty q' | q' <- toList qs' ]
-                                              
+
                                    S q      -> [char '|' <+> pretty q]
 
 parenthize :: Expr -> Doc
-parenthize e = 
+parenthize e =
     case e of
         Var _ _        -> pretty e
         Lit _ _        -> pretty e
@@ -232,16 +242,18 @@ instance Pretty Qual where
     pretty (BindQ i e) = text i <+> text "<-" <+> pretty e
     pretty (GuardQ e)  = pretty e
 
+-- Binary relational operators are pretty-printed different from other
+-- combinators
 isRelOp :: Prim2 t -> Bool
-isRelOp o = 
+isRelOp o =
     case o of
-        Prim2 (EquiJoin _ _) _ -> True
-        Prim2 (NestJoin _ _) _ -> True
-        Prim2 (SemiJoin _ _) _ -> True
-        Prim2 (AntiJoin _ _) _ -> True
+        Prim2 (ThetaJoin _) _  -> True
+        Prim2 (NestJoin _) _   -> True
+        Prim2 (SemiJoin _) _   -> True
+        Prim2 (AntiJoin _) _   -> True
         _                      -> False
-                               
-                                   
+
+
 
 deriving instance Eq Expr
 deriving instance Ord Expr
@@ -258,5 +270,5 @@ instance Typed Expr where
   typeOf (Lit t _)       = t
   typeOf (Var t _)       = t
   typeOf (Comp t _ _)    = t
-  
+
 

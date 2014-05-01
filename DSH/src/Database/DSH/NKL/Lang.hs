@@ -1,5 +1,5 @@
-{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 
@@ -16,10 +16,11 @@ module Database.DSH.NKL.Lang
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
-import qualified Database.DSH.Common.Lang as L
-import           Database.DSH.Common.Type(Type, Typed, typeOf)
-  
-import qualified Data.Set as S
+import qualified Database.DSH.Common.Lang     as L
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Type     (Type, Typed, typeOf)
+
+import qualified Data.Set                     as S
 
 -- | Nested Kernel Language (NKL) expressions
 data Expr  = Table Type String [L.Column] L.TableHints
@@ -53,17 +54,17 @@ instance Pretty Expr where
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
-    pretty (If _ c t e)       = text "if" 
-                             <+> pretty c 
-                             <+> text "then" 
-                             <+> (parenthize t) 
-                             <+> text "else" 
+    pretty (If _ c t e)       = text "if"
+                             <+> pretty c
+                             <+> text "then"
+                             <+> (parenthize t)
+                             <+> text "else"
                              <+> (parenthize e)
     pretty (Const _ v)        = text $ show v
     pretty (Var _ s)          = text s
 
 parenthize :: Expr -> Doc
-parenthize e = 
+parenthize e =
     case e of
         Var _ _        -> pretty e
         Const _ _      -> pretty e
@@ -85,17 +86,17 @@ freeVars (UnOp _ _ e)      = freeVars e
 freeVars (Const _ _)       = S.empty
 freeVars (Var _ x)         = S.singleton x
 
-data Prim1Op = Length | Concat 
-             | Sum | Avg | The | Fst | Snd 
-             | Head | Minimum | Maximum 
-             | Tail 
-             | Reverse | And | Or 
-             | Init | Last | Nub 
+data Prim1Op = Length | Concat
+             | Sum | Avg | The | Fst | Snd
+             | Head | Minimum | Maximum
+             | Tail
+             | Reverse | And | Or
+             | Init | Last | Nub
              | Number
              | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
-             
+
 data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 
 instance Show Prim1Op where
@@ -123,13 +124,13 @@ instance Show Prim1Op where
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o
 
-data Prim2Op = Map 
+data Prim2Op = Map
              | GroupWithKey
-             | SortWith 
+             | SortWith
              | Pair
-             | Filter 
+             | Filter
              | Append
-             | Index 
+             | Index
              | Zip
              | Cons
              | CartProduct
@@ -139,7 +140,7 @@ data Prim2Op = Map
              | SemiJoin L.JoinExpr L.JoinExpr
              | AntiJoin L.JoinExpr L.JoinExpr
              deriving (Eq, Ord)
-             
+
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
@@ -154,10 +155,10 @@ instance Show Prim2Op where
   show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
-  show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (show e1) (show e2)
-  show (NestJoin e1 e2) = printf "△ (%s | %s)" (show e1) (show e2)
-  show (SemiJoin e1 e2) = printf "⋉ (%s | %s)" (show e1) (show e2)
-  show (AntiJoin e1 e2) = printf "▷ (%s | %s)" (show e1) (show e2)
-  
+  show (EquiJoin e1 e2) = printf "⨝ (%s | %s)" (pp e1) (pp e2)
+  show (NestJoin e1 e2) = printf "△ (%s | %s)" (pp e1) (pp e2)
+  show (SemiJoin e1 e2) = printf "⋉ (%s | %s)" (pp e1) (pp e2)
+  show (AntiJoin e1 e2) = printf "▷ (%s | %s)" (pp e1) (pp e2)
+
 instance Show (Prim2 t) where
   show (Prim2 o _) = show o
