@@ -14,7 +14,6 @@ import           CombinatorTests
 #ifdef isX100
 import           Database.X100Client
 #else
-import qualified Database.HDBC as HDBC
 import           Database.HDBC.PostgreSQL
 #endif
 
