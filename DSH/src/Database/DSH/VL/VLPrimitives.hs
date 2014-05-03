@@ -1,4 +1,4 @@
--- FIXME should be able to combine most of the functions        
+-- FIXME should be able to combine most of the functions
 
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TemplateHaskell      #-}
@@ -6,16 +6,16 @@
 
 module Database.DSH.VL.VLPrimitives where
 
-import qualified Database.DSH.Common.Lang as L
-import qualified Database.DSH.Common.Type as Ty
+import qualified Database.DSH.Common.Lang      as L
+import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.VL.Data.DBVector
 
 import           Database.DSH.Impossible
 
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common
-import           Database.DSH.VL.Lang                 hiding (DBCol)
-import qualified Database.DSH.VL.Lang                 as D
+import           Database.DSH.VL.Lang          hiding (DBCol)
+import qualified Database.DSH.VL.Lang          as D
 
 dvec :: GraphM r a AlgNode -> GraphM r a DVec
 dvec = fmap (flip DVec [])
@@ -90,31 +90,41 @@ toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
 toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
 toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
 
+toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr1
+toVLjoinConjunct (L.JoinConjunct e1 o e2) = 
+    L.JoinConjunct (joinExpr e1) o (joinExpr e2)
+
+toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr1
+toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
+
+-- Convert join expressions into VL expressions. The main challenge
+-- here is convert sequences of tuple accessors (fst/snd) into VL
+-- column indices.
 joinExpr :: L.JoinExpr -> Expr1
 joinExpr expr = offsetExpr $ aux expr
   where
     -- Construct expressions in a bottom-up way. For a given join
-    -- expression, return the following: 
+    -- expression, return the following:
     -- pair accessors   -> column offset in the flat relational representation
     -- scalar operation -> corresponding VL expression
     aux :: L.JoinExpr -> ColExpr
     -- FIXME VL joins should include join expressions!
     aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp1 (toGeneralBinOp op)
-                                                (offsetExpr $ aux e1) 
+                                                (offsetExpr $ aux e1)
                                                 (offsetExpr $ aux e2)
     aux (L.JUnOp _ op e)       = Expr $ UnApp1 (toGeneralUnOp op) (offsetExpr $ aux e)
     aux (L.JFst _ e)           = aux e
-    aux (L.JSnd _ e)           = 
+    aux (L.JSnd _ e)           =
         case Ty.typeOf e of
             Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
             _             -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant1 $ pVal v
     aux (L.JInput _)           = Offset 0
-  
+
 
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
-  
+
 vlUniqueS :: DVec -> GraphM r VL DVec
 vlUniqueS (DVec c _) = dvec $ insertNode $ UnOp UniqueS c
 
@@ -277,7 +287,7 @@ vlZipS (DVec c1 _) (DVec c2 _) = do
                               r2 <- rvec $ insertNode $ UnOp R2 r
                               r3 <- rvec $ insertNode $ UnOp R3 r
                               return (r1, r2, r3)
-                              
+
 vlCartProduct :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlCartProduct (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProduct c1 c2
@@ -285,7 +295,7 @@ vlCartProduct (DVec c1 _) (DVec c2 _) = do
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
-  
+
 vlCartProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
 vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r  <- insertNode $ BinOp CartProductS c1 c2
@@ -293,93 +303,72 @@ vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
-  
+
 vlThetaJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlThetaJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (ThetaJoin e1' e2') c1 c2
+vlThetaJoin joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (ThetaJoin joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
--}
 
 vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlThetaJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (ThetaJoinS e1' e2') c1 c2
+vlThetaJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (ThetaJoinS joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- pvec $ insertNode $ UnOp R2 r
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
--}
 
 vlNestJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
-vlNestJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-    let e1' = joinExpr e1
-        e2' = joinExpr e2
-    r  <- insertNode $ BinOp (NestJoinS e1' e2') c1 c2
+vlNestJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+    let joinPred' = toVLJoinPred joinPred
+    r  <- insertNode $ BinOp (NestJoinS joinPred') c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
--}
-    
+
 vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r <- insertNode $ BinOp NestProductS c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
-     
+
 vlSemiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (SemiJoin e1' e2') c1 c2
+vlSemiJoin joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (SemiJoin joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
--}
 
 vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (SemiJoinS e1' e2') c1 c2
+vlSemiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (SemiJoinS joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
--}
 
 vlAntiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (AntiJoin e1' e2') c1 c2
+vlAntiJoin joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (AntiJoin joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
--}
 
 vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
-{-
-  let e1' = joinExpr e1
-      e2' = joinExpr e2
-  r  <- insertNode $ BinOp (AntiJoinS e1' e2') c1 c2
+vlAntiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+  let joinPred' = toVLJoinPred joinPred
+  r  <- insertNode $ BinOp (AntiJoinS joinPred') c1 c2
   r1 <- dvec $ insertNode $ UnOp R1 r
   r2 <- rvec $ insertNode $ UnOp R2 r
   return (r1, r2)
--}
-  
+
 vlReverse :: DVec -> GraphM r VL (DVec, PVec)
 vlReverse (DVec c _) = do
                       r <- insertNode $ UnOp Reverse c
