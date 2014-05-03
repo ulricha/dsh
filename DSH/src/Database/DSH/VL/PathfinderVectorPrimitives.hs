@@ -567,7 +567,8 @@ instance VectorAlgebra PFAlgebra where
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp2)
     
-  vecEquiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
+  vecThetaJoin joinPred (DVec q1 cols1) (DVec q2 cols2) = do $unimplemented
+  {-
     let itemProj1  = map (cP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
@@ -588,8 +589,10 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+  -}
   
-  vecEquiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
+  vecThetaJoinS joinPred (DVec q1 cols1) (DVec q2 cols2) = do $unimplemented
+  {-
     let itemProj1  = map (cP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
@@ -611,12 +614,14 @@ instance VectorAlgebra PFAlgebra where
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+  -}
 
   -- There is only one difference between EquiJoinS and NestJoinS. For
   -- NestJoinS, we 'segment' after the join, i.e. use the left input
   -- positions as the result descriptor.
   -- FIXME merge the common parts.
-  vecNestJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 cols2) = do
+  vecNestJoinS joinPred (DVec q1 cols1) (DVec q2 cols2) = do $unimplemented
+  {-
     let itemProj1  = map (cP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
         shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
@@ -637,6 +642,7 @@ instance VectorAlgebra PFAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp2)
+  -}
   
   selectPos (DVec qe cols) op (DVec qi _) = do
     qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
@@ -751,7 +757,8 @@ instance VectorAlgebra PFAlgebra where
     qr <- rownum nrItem [pos] (Just descr) q
     return $ DVec qr (cols ++ [nrIndex])
   
-  vecSemiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
+  vecSemiJoin joinPred (DVec q1 cols1) (DVec q2 _) = do $unimplemented
+  {-
     q <- rownumM pos [posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ semiJoinM [(tmpCol, tmpCol', EqJ)]
@@ -760,8 +767,10 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "semijoin/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  -}
   
-  vecSemiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
+  vecSemiJoinS joinPred (DVec q1 cols1) (DVec q2 _) = do $unimplemented
+  {-
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ semiJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
@@ -770,8 +779,10 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "semijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  -}
   
-  vecAntiJoin leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
+  vecAntiJoin joinPred (DVec q1 cols1) (DVec q2 _) = do $unimplemented
+  {-
     q <- rownumM pos [posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ antiJoinM [(tmpCol, tmpCol', EqJ)]
@@ -780,8 +791,10 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "antijoin/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  -}
   
-  vecAntiJoinS leftExpr rightExpr (DVec q1 cols1) (DVec q2 _) = do
+  vecAntiJoinS joinPred (DVec q1 cols1) (DVec q2 _) = do $unimplemented
+  {-
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ antiJoinM [(descr, descr', EqJ), (tmpCol, tmpCol', EqJ)]
@@ -790,6 +803,7 @@ instance VectorAlgebra PFAlgebra where
     qj <- tagM "antijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
+  -}
   
   vecSortSimple sortExprs (DVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, expr1 e)) [1..] sortExprs

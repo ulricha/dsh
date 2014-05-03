@@ -117,7 +117,7 @@ toJoinExpr n = do
 -- (equality with simple projection expressions on both sides) or if
 -- one side of the predicate has free variables which are not the
 -- variables of the qualifiers given to the function.
-splitJoinPredT :: Ident -> Ident -> TranslateC Expr JoinConjunct
+splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinConjunct JoinExpr)
 splitJoinPredT x y = do
     BinOp _ (SBRelOp op) e1 e2 <- idR
 

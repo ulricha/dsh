@@ -181,56 +181,56 @@ nestProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                              t2@(ListT t2') = typeOf e2
                           in F.PApp2 t2 (F.FNestProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-thetaJoinVal :: JoinPredicate -> Type -> Expr
+thetaJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
 thetaJoinVal p t = doubleArgClo t "thetaJoin_e1" "thetaJoin_e2" (thetaJoinPrim p) (thetaJoinLPrim p)
                   
-thetaJoinPrim :: JoinPredicate -> Expr -> Expr -> Expr
+thetaJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 thetaJoinPrim p e1 e2 = let t1 = typeOf e1
                             t2 = typeOf e2
                         in F.PApp2 t2 (F.FThetaJoin p (t1 .-> t2 .-> PairT t1 t2)) e1 e2
                          
-thetaJoinLPrim :: JoinPredicate -> Expr -> Expr -> Expr
+thetaJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 thetaJoinLPrim p e1 e2 = let t1@(ListT t1') = typeOf e1
                              t2@(ListT t2') = typeOf e2
                          in F.PApp2 t2 (F.FThetaJoinL p (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-nestJoinVal :: JoinPredicate -> Type -> Expr
+nestJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
 nestJoinVal p t = doubleArgClo t "nestJoin_e1" "nestJoin_e2" (nestJoinPrim p) (nestJoinLPrim p)
                   
-nestJoinPrim :: JoinPredicate -> Expr -> Expr -> Expr
+nestJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 nestJoinPrim p e1 e2 = let xst@(ListT xt) = typeOf e1
                            yst@(ListT yt) = typeOf e2
                            tr = listT $ pairT xt (listT yt)
                        in F.PApp2 tr (F.FNestJoin p (xst .-> yst .-> tr)) e1 e2
                          
-nestJoinLPrim :: JoinPredicate -> Expr -> Expr -> Expr
+nestJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 nestJoinLPrim p e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
                             yst@(ListT yt) = typeOf e2
                             tr = listT $ listT $ pairT xt yt
                         in F.PApp2 tr (F.FNestJoinL p (xst .-> yst .-> tr)) e1 e2
 
-semiJoinVal :: JoinPredicate -> Type -> Expr
+semiJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
 semiJoinVal p t = doubleArgClo t "semiJoin_e1" "semiJoin_e2" (semiJoinPrim p) (semiJoinLPrim p)
                   
-semiJoinPrim :: JoinPredicate -> Expr -> Expr -> Expr
+semiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 semiJoinPrim p e1 e2 = let t1 = typeOf e1
                            t2 = typeOf e2
                        in F.PApp2 t2 (F.FSemiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-semiJoinLPrim :: JoinPredicate -> Expr -> Expr -> Expr
+semiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 semiJoinLPrim p e1 e2 = let t1 = typeOf e1
                             t2 = typeOf e2
                         in F.PApp2 t2 (F.FSemiJoinL p (t1 .-> t2 .-> t1)) e1 e2
 
-antiJoinVal :: JoinPredicate -> Type -> Expr
+antiJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
 antiJoinVal p t = doubleArgClo t "antiJoin_e1" "antiJoin_e2" (antiJoinPrim p) (antiJoinLPrim p)
                   
-antiJoinPrim :: JoinPredicate -> Expr -> Expr -> Expr
+antiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 antiJoinPrim p e1 e2 = let t1 = typeOf e1
                            t2 = typeOf e2
                        in F.PApp2 t2 (F.FAntiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-antiJoinLPrim :: JoinPredicate -> Expr -> Expr -> Expr
+antiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
 antiJoinLPrim p e1 e2 = let t1 = typeOf e1
                             t2 = typeOf e2
                         in F.PApp2 t2 (F.FAntiJoinL p (t1 .-> t2 .-> t1)) e1 e2

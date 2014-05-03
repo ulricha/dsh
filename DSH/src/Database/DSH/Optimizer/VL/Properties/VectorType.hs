@@ -138,13 +138,13 @@ inferVectorTypeBinOp s1 s2 op =
     CartProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProduct"
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProductS"
-    EquiJoin _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoin"
-    EquiJoinS _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "EquiJoinS"
-    NestJoinS _ _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
-    SemiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    SemiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    AntiJoin _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    AntiJoinS _ _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
+    ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
+    NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
+    SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SemiJoinS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    AntiJoinS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
 
     TransposeS -> liftM2 VPropPair (return $ ValueVector 0) (unpack s2)
 

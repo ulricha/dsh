@@ -140,14 +140,14 @@ data Prim2 = FGroupWithKey Type
            | FCartProductL Type
            | FNestProduct Type
            | FNestProductL Type
-           | FThetaJoin L.JoinPredicate Type
-           | FThetaJoinL L.JoinPredicate Type
-           | FNestJoin L.JoinPredicate Type
-           | FNestJoinL L.JoinPredicate Type
-           | FSemiJoin L.JoinPredicate Type
-           | FSemiJoinL L.JoinPredicate Type
-           | FAntiJoin L.JoinPredicate Type
-           | FAntiJoinL L.JoinPredicate Type
+           | FThetaJoin (L.JoinPredicate L.JoinExpr) Type
+           | FThetaJoinL (L.JoinPredicate L.JoinExpr) Type
+           | FNestJoin (L.JoinPredicate L.JoinExpr) Type
+           | FNestJoinL (L.JoinPredicate L.JoinExpr) Type
+           | FSemiJoin (L.JoinPredicate L.JoinExpr) Type
+           | FSemiJoinL (L.JoinPredicate L.JoinExpr) Type
+           | FAntiJoin (L.JoinPredicate L.JoinExpr) Type
+           | FAntiJoinL (L.JoinPredicate L.JoinExpr) Type
     deriving (Eq, Generic)
 
 instance Show Prim2 where

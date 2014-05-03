@@ -74,13 +74,13 @@ seed (BinOp op _ _) =
     Zip                -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed
-    EquiJoin _ _       -> vPropTripleSeed
-    EquiJoinS _ _      -> vPropTripleSeed
-    SemiJoin _ _       -> vPropPairSeed
-    SemiJoinS _ _      -> vPropPairSeed
-    AntiJoin _ _       -> vPropPairSeed
-    AntiJoinS _ _      -> vPropPairSeed
-    NestJoinS _ _      -> vPropPairSeed
+    ThetaJoin _         -> vPropTripleSeed
+    ThetaJoinS _        -> vPropTripleSeed
+    SemiJoin _         -> vPropPairSeed
+    SemiJoinS _        -> vPropPairSeed
+    AntiJoin _         -> vPropPairSeed
+    AntiJoinS _        -> vPropPairSeed
+    NestJoinS _        -> vPropPairSeed
     NestProductS       -> vPropPairSeed
     TransposeS         -> vPropPairSeed
     

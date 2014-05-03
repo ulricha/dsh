@@ -61,26 +61,26 @@ nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 ly
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
 nestProductLift _ _ = $impossible
 
-thetaJoinPrim :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-thetaJoinPrim pred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (q', p1, p2) <- vlThetaJoin pred q1 q2
+thetaJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+thetaJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+    (q', p1, p2) <- vlThetaJoin joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
 thetaJoinPrim _ _ _ = $impossible
 
-thetaJoinLift :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-thetaJoinLift pred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-    (q', p1, p2) <- vlThetaJoinS pred q1 q2
+thetaJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+thetaJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', p1, p2) <- vlThetaJoinS joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
 thetaJoinLift _ _ _ = $impossible
 
-nestJoinPrim :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-nestJoinPrim pred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+nestJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q1' <- vlSegment q1
-    ValueVector qj lytJ <- thetaJoinPrim pred (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+    ValueVector qj lytJ <- thetaJoinPrim joinPred (ValueVector q1' lyt1) (ValueVector q2 lyt2)
     return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestJoinPrim _ _ _ = $impossible
 
@@ -91,38 +91,38 @@ nestJoinPrim _ _ _ = $impossible
 -- not work here, as the lifted thetajoin joins on the
 -- descriptors. Therefore, we have to 'segment' **after** the join,
 -- i.e. use the left input positions as descriptors
-nestJoinLift :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-nestJoinLift pred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestJoinS pred qv1 qv2
+nestJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinLift joinPred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
+    (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
     let lytJ  = zipLayout lyt1 lyt2'
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
 nestJoinLift _ _ _ = $impossible
 
-semiJoinPrim :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-semiJoinPrim pred (ValueVector q1 lyt1) (ValueVector q2 _) = do
-    (qj, r) <- vlSemiJoin pred q1 q2
+semiJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- vlSemiJoin joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector qj lyt1'
 semiJoinPrim _ _ _ = $impossible
     
-semiJoinLift :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-semiJoinLift pred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlSemiJoinS pred q1 q2
+semiJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlSemiJoinS joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
 semiJoinLift _ _ _ = $impossible
 
-antiJoinPrim :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-antiJoinPrim pred (ValueVector q1 lyt1) (ValueVector q2 _) = do
-    (qj, r) <- vlAntiJoin pred q1 q2
+antiJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- vlAntiJoin joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector qj lyt1'
 antiJoinPrim _ _ _ = $impossible
     
-antiJoinLift :: L.JoinPredicate -> Shape -> Shape -> Graph VL Shape
-antiJoinLift pred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlAntiJoinS pred q1 q2
+antiJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlAntiJoinS joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
 antiJoinLift _ _ _ = $impossible

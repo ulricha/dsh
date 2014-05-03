@@ -102,13 +102,13 @@ inferNonEmptyBinOp e1 e2 op =
     CartProduct     -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     CartProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    EquiJoin _ _    -> return $ VPropTriple False False False
-    EquiJoinS _ _   -> return $ VPropTriple False False False
-    NestJoinS _ _   -> return $ VPropTriple False False False
-    SemiJoin _ _    -> return $ VPropPair False False
-    SemiJoinS _ _   -> return $ VPropPair False False
-    AntiJoin _ _    -> return $ VPropPair False False
-    AntiJoinS _ _   -> return $ VPropPair False False
+    ThetaJoin _      -> return $ VPropTriple False False False
+    ThetaJoinS _     -> return $ VPropTriple False False False
+    NestJoinS _     -> return $ VPropTriple False False False
+    SemiJoin _      -> return $ VPropPair False False
+    SemiJoinS _     -> return $ VPropPair False False
+    AntiJoin _      -> return $ VPropPair False False
+    AntiJoinS _     -> return $ VPropPair False False
     -- FIXME This documents the current behaviour of the algebraic
     -- implementations, not what _should_ happen!
     TransposeS      -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))

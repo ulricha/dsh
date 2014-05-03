@@ -119,13 +119,13 @@ data ScalarBinOp = SBNumOp BinNumOp
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
 
-data JoinConjunct = JoinConjunct JoinExpr BinRelOp JoinExpr
-                  deriving (Show, Eq, Ord, Generic, Data, Typeable)
+data JoinConjunct e = JoinConjunct e BinRelOp e
+                    deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-newtype JoinPredicate = JoinPred (N.NonEmpty JoinConjunct)
-                      deriving (Show, Eq, Ord, Generic, Data, Typeable)
+newtype JoinPredicate e = JoinPred (N.NonEmpty (JoinConjunct e))
+                        deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-singlePred :: JoinConjunct -> JoinPredicate
+singlePred :: JoinConjunct e -> JoinPredicate e
 singlePred c = JoinPred $ c N.:| []
 
 data JoinBinOp = JBNumOp BinNumOp
@@ -226,10 +226,10 @@ instance Pretty JoinExpr where
     pretty (JLit _ v)          = pretty v
     pretty (JInput _)          = text "I"
 
-instance Pretty JoinConjunct where
+instance Pretty e => Pretty (JoinConjunct e) where
     pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
 
-instance Pretty JoinPredicate where
+instance Pretty e => Pretty (JoinPredicate e) where
     pretty (JoinPred ps) = brackets $ hsep $ punctuate (text "&&") $ map pretty $ N.toList ps
 
 

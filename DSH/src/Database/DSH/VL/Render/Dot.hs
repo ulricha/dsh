@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Database.DSH.VL.Render.Dot(renderVLDot, renderTblVal) where
 
 import qualified Data.IntMap                 as Map
@@ -9,6 +11,7 @@ import           Text.PrettyPrint
 import qualified Database.Algebra.Dag        as Dag
 import           Database.Algebra.Dag.Common as C
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.VL.Lang
 
@@ -89,6 +92,16 @@ renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
 
 renderProj :: Doc -> Expr1 -> Doc
 renderProj d e = d <> colon <> renderExpr1 e
+
+renderJoinConjunct :: JoinConjunct Expr1 -> Doc
+renderJoinConjunct (JoinConjunct e1 o e2) = 
+    parenthize1 e1 <+> (text $ show o) <+> (parenthize1 e2)
+
+renderJoinPred :: JoinPredicate Expr1 -> Doc
+renderJoinPred (JoinPred conjs) = brackets
+                                  $ hsep 
+                                  $ punctuate (text "&&")
+                                  $ map renderJoinConjunct $ N.toList conjs
 
 renderExpr1 :: Expr1 -> Doc
 renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ show op) <+> (parenthize1 e2)
@@ -185,20 +198,20 @@ opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "CartProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (EquiJoin e1 e2) _ _) =
-  labelToDoc i "EquiJoin" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (EquiJoinS e1 e2) _ _) =
-  labelToDoc i "EquiJoinS" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (NestJoinS e1 e2) _ _) =
-  labelToDoc i "NestJoinS" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoin e1 e2) _ _) =
-  labelToDoc i "SemiJoin" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (SemiJoinS e1 e2) _ _) =
-  labelToDoc i "SemiJoinS" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoin e1 e2) _ _) =
-  labelToDoc i "AntiJoin" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
-opDotLabel tm i (BinOp (AntiJoinS e1 e2) _ _) =
-  labelToDoc i "AntiJoinS" ((renderExpr1 e1) <+> (renderExpr1 e2)) (lookupTags i tm)
+opDotLabel tm i (BinOp (ThetaJoin p) _ _) =
+  labelToDoc i "ThetaJoin" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
+  labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (NestJoinS p) _ _) =
+  labelToDoc i "NestJoinS" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (SemiJoin p) _ _) =
+  labelToDoc i "SemiJoin" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (SemiJoinS p) _ _) =
+  labelToDoc i "SemiJoinS" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (AntiJoin p) _ _) =
+  labelToDoc i "AntiJoin" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
+  labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (UnOp (ReshapeS n) _) = 
   labelToDoc i "ReshapeS" (integer n) (lookupTags i tm)
 opDotLabel tm i (UnOp Transpose _) = labelToDoc i "Transpose" empty (lookupTags i tm)
@@ -210,13 +223,13 @@ opDotColor (BinOp DistDesc _ _)          = DCRed
 opDotColor (BinOp CartProduct _ _)       = DCRed
 opDotColor (BinOp CartProductS _ _)      = DCRed
 opDotColor (BinOp NestProductS _ _)      = DCRed
-opDotColor (BinOp (EquiJoin _ _) _ _)    = DCGreen
-opDotColor (BinOp (EquiJoinS _ _) _ _)   = DCGreen
-opDotColor (BinOp (NestJoinS _ _) _ _)   = DCGreen
-opDotColor (BinOp (SemiJoin _ _) _ _)    = DCGreen
-opDotColor (BinOp (SemiJoinS _ _) _ _)   = DCGreen
-opDotColor (BinOp (AntiJoin _ _) _ _)    = DCGreen
-opDotColor (BinOp (AntiJoinS _ _) _ _)   = DCGreen
+opDotColor (BinOp (ThetaJoin _) _ _)    = DCGreen
+opDotColor (BinOp (ThetaJoinS _) _ _)   = DCGreen
+opDotColor (BinOp (NestJoinS _) _ _)   = DCGreen
+opDotColor (BinOp (SemiJoin _) _ _)    = DCGreen
+opDotColor (BinOp (SemiJoinS _) _ _)   = DCGreen
+opDotColor (BinOp (AntiJoin _) _ _)    = DCGreen
+opDotColor (BinOp (AntiJoinS _) _ _)   = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
 opDotColor (BinOp Sort _ _)              = DCTomato
 opDotColor (UnOp (SortSimple _) _)       = DCTomato

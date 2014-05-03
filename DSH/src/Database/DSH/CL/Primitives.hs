@@ -232,13 +232,13 @@ cond eb et ee = let tb = typeOf eb
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators
 
-nestjoin :: Expr -> Expr -> L.JoinPredicate -> Expr
+nestjoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 nestjoin xs ys p = AppE2 resType (Prim2 (NestJoin p) joinType) xs ys
   where
     resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
     joinType = typeOf xs .-> typeOf ys .-> resType
 
-thetajoin :: Expr -> Expr -> L.JoinPredicate -> Expr
+thetajoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 thetajoin xs ys p = AppE2 rt (Prim2 (ThetaJoin p) jt) xs ys
   where
     xst = typeOf xs
@@ -246,14 +246,14 @@ thetajoin xs ys p = AppE2 rt (Prim2 (ThetaJoin p) jt) xs ys
     rt  = pairT (elemT xst) (elemT yst)
     jt  = xst .-> yst .-> rt
 
-semijoin :: Expr -> Expr -> L.JoinPredicate -> Expr
+semijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 semijoin xs ys p = AppE2 xst (Prim2 (SemiJoin p) jt) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
     jt  = xst .-> yst .-> xst
 
-antijoin :: Expr -> Expr -> L.JoinPredicate -> Expr
+antijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 antijoin xs ys p = AppE2 xst (Prim2 (AntiJoin p) jt) xs ys
   where
     xst = typeOf xs

@@ -135,10 +135,10 @@ data Prim2Op = Map
              | Cons
              | CartProduct
              | NestProduct
-             | ThetaJoin L.JoinPredicate
-             | NestJoin L.JoinPredicate
-             | SemiJoin L.JoinPredicate
-             | AntiJoin L.JoinPredicate
+             | ThetaJoin (L.JoinPredicate L.JoinExpr)
+             | NestJoin (L.JoinPredicate L.JoinExpr)
+             | SemiJoin (L.JoinPredicate L.JoinExpr)
+             | AntiJoin (L.JoinPredicate L.JoinExpr)
              deriving (Eq, Ord)
 
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)

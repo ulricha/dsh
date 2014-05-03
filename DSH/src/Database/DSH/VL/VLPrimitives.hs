@@ -294,8 +294,8 @@ vlCartProductS (DVec c1 _) (DVec c2 _) = do
   r3 <- pvec $ insertNode $ UnOp R3 r
   return (r1, r2, r3)
   
-vlThetaJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlThetaJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+vlThetaJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -306,8 +306,8 @@ vlThetaJoin pred (DVec c1 _) (DVec c2 _) = do undefined
   return (r1, r2, r3)
 -}
 
-vlThetaJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
-vlThetaJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -318,8 +318,8 @@ vlThetaJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
   return (r1, r2, r3)
 -}
 
-vlNestJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, PVec)
-vlNestJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+vlNestJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlNestJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
     let e1' = joinExpr e1
         e2' = joinExpr e2
@@ -336,8 +336,8 @@ vlNestProductS (DVec c1 _) (DVec c2 _) = do
     r2 <- pvec $ insertNode $ UnOp R2 r
     return (r1, r2)
      
-vlSemiJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+vlSemiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -347,8 +347,8 @@ vlSemiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
   return (r1, r2)
 -}
 
-vlSemiJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlSemiJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -358,8 +358,8 @@ vlSemiJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
   return (r1, r2)
 -}
 
-vlAntiJoin :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
+vlAntiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoin pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2
@@ -369,8 +369,8 @@ vlAntiJoin pred (DVec c1 _) (DVec c2 _) = do undefined
   return (r1, r2)
 -}
 
-vlAntiJoinS :: L.JoinPredicate -> DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlAntiJoinS pred (DVec c1 _) (DVec c2 _) = do undefined
+vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoinS pred (DVec c1 _) (DVec c2 _) = do $unimplemented
 {-
   let e1' = joinExpr e1
       e2' = joinExpr e2

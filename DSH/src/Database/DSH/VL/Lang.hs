@@ -138,13 +138,13 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | CartProduct
            | CartProductS
            -- FIXME VL joins should include join expressions!
-           | EquiJoin Expr1 Expr1
-           | EquiJoinS Expr1 Expr1
-           | SemiJoin Expr1 Expr1
-           | SemiJoinS Expr1 Expr1
-           | AntiJoin Expr1 Expr1
-           | AntiJoinS Expr1 Expr1
-           | NestJoinS Expr1 Expr1
+           | ThetaJoin (L.JoinPredicate Expr1)
+           | ThetaJoinS (L.JoinPredicate Expr1)
+           | SemiJoin (L.JoinPredicate Expr1)
+           | SemiJoinS (L.JoinPredicate Expr1)
+           | AntiJoin (L.JoinPredicate Expr1)
+           | AntiJoinS (L.JoinPredicate Expr1)
+           | NestJoinS (L.JoinPredicate Expr1)
            | NestProductS
            | TransposeS
     deriving (Eq, Ord, Generic, Show)
