@@ -316,7 +316,7 @@ eq (Q a) (Q b) = Q (AppE Equ (PairE a b))
 (==) = eq
 
 neq :: (QA a,Eq a) => Q a -> Q a -> Q Bool
-neq a b = not (eq a b)
+neq (Q a) (Q b) = Q (AppE NEq (PairE a b))
 
 (/=) :: (QA a,Eq a) => Q a -> Q a -> Q Bool
 (/=) = neq

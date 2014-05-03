@@ -81,6 +81,7 @@ data Fun a b where
     Lt              :: Fun (a,a) Bool
     Lte             :: Fun (a,a) Bool
     Equ             :: Fun (a,a) Bool
+    NEq             :: Fun (a,a) Bool
     Gte             :: Fun (a,a) Bool
     Gt              :: Fun (a,a) Bool
     Conj            :: Fun (Bool,Bool) Bool
@@ -171,6 +172,7 @@ instance Show (Fun a b) where
     show Lt  = "<"
     show Lte = "<="
     show Equ = "=="
+    show NEq = "/="
     show Gte = ">="
     show Gt  = ">"
     show Conj = "&&"

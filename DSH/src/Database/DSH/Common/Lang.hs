@@ -192,6 +192,10 @@ instance Pretty BinNumOp where
     pretty Mul = text "*"
     pretty Mod = text "%"
 
+instance Pretty BinBoolOp where
+    pretty Conj = text "&&"
+    pretty Disj = text "||"
+
 instance Pretty UnNumOp where
     pretty Sin  = text "sin"
     pretty Cos  = text "cos"
@@ -220,10 +224,17 @@ instance Pretty JoinExpr where
     pretty (JFst _ e)          = text "fst" <+> parenthize e
     pretty (JSnd _ e)          = text "snd" <+> parenthize e
     pretty (JLit _ v)          = pretty v
-    pretty (JInput _)          = text "INP"
+    pretty (JInput _)          = text "I"
 
 instance Pretty JoinConjunct where
     pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
 
 instance Pretty JoinPredicate where
     pretty (JoinPred ps) = brackets $ hsep $ punctuate (text "&&") $ map pretty $ N.toList ps
+
+
+instance Pretty ScalarBinOp where
+    pretty (SBNumOp o)    = pretty o
+    pretty (SBRelOp o)    = pretty o
+    pretty (SBBoolOp o)   = pretty o
+    pretty (SBStringOp o) = pretty o

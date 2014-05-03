@@ -378,6 +378,9 @@ mod = scalarBinOp (L.SBNumOp L.Mod)
 eq :: Expr -> Expr -> Expr
 eq = scalarBinOp (L.SBRelOp L.Eq)
 
+neq :: Expr -> Expr -> Expr
+neq = scalarBinOp (L.SBRelOp L.NEq)
+
 gt :: Expr -> Expr -> Expr
 gt = scalarBinOp (L.SBRelOp L.Gt)
 

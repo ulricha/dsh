@@ -192,6 +192,7 @@ compileApp f args =
        GroupWithKey -> compileApp2 CP.groupWithKey args
        Zip          -> compileApp2 CP.zip args
        Equ          -> compileApp2 CP.eq args
+       NEq          -> compileApp2 CP.neq args
        Conj         -> compileApp2 CP.conj args
        Disj         -> compileApp2 CP.disj args
        Lt           -> compileApp2 CP.lt args
