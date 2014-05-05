@@ -143,7 +143,7 @@ splitJoinPredT x y = do
 -- are scalar expressions on exactly one of the join candidate
 -- variables.
 isThetaJoinPred :: Ident -> Ident -> Expr -> Bool
-isThetaJoinPred x y (BinOp _ (SBRelOp Eq) e1 e2) =
+isThetaJoinPred x y (BinOp _ (SBRelOp _) e1 e2) =
     isFlatExpr e1 && isFlatExpr e1
     && ([x] == freeVars e1 && [y] == freeVars e2
         || [x] == freeVars e2 && [y] == freeVars e1)
