@@ -12,6 +12,7 @@ import qualified Database.Algebra.Dag        as Dag
 import           Database.Algebra.Dag.Common as C
 
 import           Database.DSH.Impossible
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
 import           Database.DSH.VL.Lang
 
@@ -104,8 +105,8 @@ renderJoinPred (JoinPred conjs) = brackets
                                   $ map renderJoinConjunct $ N.toList conjs
 
 renderExpr1 :: Expr1 -> Doc
-renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ show op) <+> (parenthize1 e2)
-renderExpr1 (UnApp1 op e)      = (text $ show op) <+> (parens $ renderExpr1 e)
+renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthize1 e2)
+renderExpr1 (UnApp1 op e)      = (text $ pp op) <+> (parens $ renderExpr1 e)
 renderExpr1 (Constant1 val)    = renderTblVal val
 renderExpr1 (Column1 c)        = text "col" <> int c
 renderExpr1 (If1 c t e)        = text "if" 

@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell    #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE GADTs              #-}
@@ -12,6 +13,7 @@ import           Data.List
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 
@@ -238,3 +240,12 @@ instance Pretty ScalarBinOp where
     pretty (SBRelOp o)    = pretty o
     pretty (SBBoolOp o)   = pretty o
     pretty (SBStringOp o) = pretty o
+
+instance Pretty UnBoolOp where
+    pretty Not = text "not"
+
+instance Pretty ScalarUnOp where
+    pretty (SUNumOp op)  = pretty op
+    pretty (SUBoolOp op) = pretty op
+    pretty (SUCastOp op) = pretty op
+    pretty SUDateOp      = $unimplemented
