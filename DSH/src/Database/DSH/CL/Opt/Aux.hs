@@ -11,6 +11,7 @@ module Database.DSH.CL.Opt.Aux
       -- * Monad rewrites with additional state
     , TuplifyM
       -- * Converting predicate expressions into join predicates
+    , toJoinExpr
     , splitJoinPredT
     -- * Pushing guards towards the front of a qualifier list
     , isEquiJoinPred
@@ -114,9 +115,9 @@ toJoinExpr n = do
 
 -- | Try to transform an expression into a thetajoin predicate. This
 -- will fail if either the expression does not have the correct shape
--- (equality with simple projection expressions on both sides) or if
--- one side of the predicate has free variables which are not the
--- variables of the qualifiers given to the function.
+-- (relational operator with simple projection expressions on both
+-- sides) or if one side of the predicate has free variables which are
+-- not the variables of the qualifiers given to the function.
 splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinConjunct JoinExpr)
 splitJoinPredT x y = do
     BinOp _ (SBRelOp op) e1 e2 <- idR

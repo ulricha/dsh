@@ -1,25 +1,26 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE LambdaCase          #-}
-    
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+
 -- | This module implements predicate pushdown on comprehensions.
 module Database.DSH.CL.Opt.PredPushdown
   ( predpushdownR
   ) where
-  
+
 import           Control.Applicative
 import           Control.Arrow
-import qualified Data.Set as S
+import qualified Data.List.NonEmpty       as N
+import qualified Data.Set                 as S
 
-import           Database.DSH.Common.Lang
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.Common.Lang
 
 --------------------------------------------------------------------------------
--- Push a comprehension guard through a join operator
+-- Auxiliary functions
 
 -- | Return path to occurence of variable x
 varPathT :: Ident -> TranslateC CL PathC
@@ -45,6 +46,9 @@ unTuplifyR isTupleOp path = pathR path $ do
     AppE1 ty (Prim1 op _) (Var _ x)  <- promoteT idR
     guardM $ isTupleOp op
     return $ inject $ Var ty x
+
+--------------------------------------------------------------------------
+-- Push a guard into a branch of a join operator
 
 -- | Try to push predicate into the left input of a binary operator
 -- which produces tuples: equijoin, nestjoin, nestproduct
@@ -87,19 +91,84 @@ pushLeftOrRightTupleR x p = pushLeftTupleR x p <+ pushRightTupleR x p
 -- which produces only the left input, i.e. semijoin, antijoin
 pushLeftR :: Ident -> Expr -> RewriteC CL
 pushLeftR x p = do
-    AppE2 ty op xs ys <- promoteT idR 
+    AppE2 ty op xs ys <- promoteT idR
     let xst = typeOf xs
     let xs' = Comp xst (Var (elemT xst) x) (BindQ x xs :* (S $ GuardQ p))
     return $ inject $ AppE2 ty op xs' ys
 
+--------------------------------------------------------------------------
+-- Merging of join predicates into already established theta-join
+-- operators
+--
+-- A predicate can be merged into a theta-join as an additional
+-- conjunct if it has the shape of a join predicate and if its left
+-- expression refers only to the fst component of the join pair and
+-- the right expression refers only to the snd component (or vice
+-- versa).
+
+mkMergeableJoinPredT :: Ident -> Expr -> BinRelOp -> Expr -> TranslateC CL (JoinConjunct JoinExpr)
+mkMergeableJoinPredT x leftExpr op rightExpr = do
+    let constLeftExpr = constT $ return $ inject leftExpr
+        constRightExpr = constT $ return $ inject rightExpr
+
+    leftVarPaths  <- constLeftExpr >>> allVarPathsT x
+    rightVarPaths <- constRightExpr >>> allVarPathsT x
+
+    leftExpr'     <- constLeftExpr
+                         >>> andR (map (unTuplifyR (== Fst)) leftVarPaths)
+                         >>> projectT
+                         >>> toJoinExpr x
+
+    rightExpr'    <- constRightExpr
+                         >>> andR (map (unTuplifyR (== Snd)) rightVarPaths)
+                         >>> projectT
+                         >>> toJoinExpr x
+
+    return $ JoinConjunct leftExpr' op rightExpr'
+
+mirrorRelOp :: BinRelOp -> BinRelOp
+mirrorRelOp Eq  = Eq
+mirrorRelOp Gt  = Lt
+mirrorRelOp GtE = LtE
+mirrorRelOp Lt  = Gt
+mirrorRelOp LtE = GtE
+mirrorRelOp NEq = NEq
+
+splitMergeablePredT :: Ident -> Expr -> TranslateC CL (JoinConjunct JoinExpr)
+splitMergeablePredT x p = do
+    ExprCL (BinOp _ (SBRelOp op) leftExpr rightExpr) <- return $ inject p
+    guardM $ freeVars p == [x]
+
+    -- We might have e1(fst x) op e2(snd x) or e1(snd x) op e2(fst x)
+    mkMergeableJoinPredT x leftExpr op rightExpr
+      <+ mkMergeableJoinPredT x rightExpr (mirrorRelOp op) leftExpr
+
+-- | If a predicate can be turned into a join predicate, merge it into
+-- the current theta join.
+mergePredIntoJoinR :: Ident -> Expr -> RewriteC CL
+mergePredIntoJoinR x p = do
+    AppE2 t (Prim2 (ThetaJoin (JoinPred ps)) tj) xs ys <- promoteT idR
+    joinConjunct <- splitMergeablePredT x p
+
+    let extendedJoin = ThetaJoin (JoinPred $ joinConjunct N.<| ps)
+
+    return $ inject $ AppE2 t (Prim2 extendedJoin tj) xs ys
+
+
+--------------------------------------------------------------------------
+-- Take remaining comprehension guards and try to either merge them
+-- into a join or push them into a join input.
+
 pushPredicateR :: Ident -> Expr -> RewriteC CL
 pushPredicateR x p = do
     readerT $ \case
-        -- For regular joins and products, predicates might apply to
-        -- the left or right input.
-        ExprCL (AppE2 _ (Prim2 (ThetaJoin _) _) _ _) -> pushLeftOrRightTupleR x p
+        -- First, try to merge the predicate into the join. For
+        -- regular joins and products, non-join predicates might apply
+        -- to the left or right input.
+        ExprCL (AppE2 _ (Prim2 (ThetaJoin _) _) _ _) -> mergePredIntoJoinR x p
+                                                        <+ pushLeftOrRightTupleR x p
         ExprCL (AppE2 _ (Prim2 CartProduct _) _ _)   -> pushLeftOrRightTupleR x p
-    
+
         -- For nesting operators, a guard can only refer to the left
         -- input, i.e. the original outer generator.
 

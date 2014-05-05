@@ -230,7 +230,7 @@ instance Pretty e => Pretty (JoinConjunct e) where
     pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
 
 instance Pretty e => Pretty (JoinPredicate e) where
-    pretty (JoinPred ps) = brackets $ hsep $ punctuate (text "&&") $ map pretty $ N.toList ps
+    pretty (JoinPred ps) = list $ map pretty $ N.toList ps
 
 
 instance Pretty ScalarBinOp where
