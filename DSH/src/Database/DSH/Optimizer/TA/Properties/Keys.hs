@@ -137,13 +137,17 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
                            ∪
                            [ k 
                            | k <- leftKeys
-                           , (_, ColE b, EqJ) <- S.fromList preds
+                           , (_, be, p) <- S.fromList preds
+                           , p == EqJ
+                           , b            <- singleCol be
                            , (ss b) ∈ rightKeys
                            ]
                            ∪
                            [ k 
                            | k <- rightKeys
-                           , (ColE a, _, EqJ) <- S.fromList preds
+                           , (ae, _, p) <- S.fromList preds
+                           , p == EqJ
+                           , a            <- singleCol ae
                            , (ss a) ∈ leftKeys
                            ]
                            ∪
@@ -153,5 +157,9 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
         AntiJoin _    -> leftKeys
         DisjUnion _   -> S.empty -- FIXME need domain property.
         Difference _  -> leftKeys
+
+singleCol :: Expr -> S.Set AttrName
+singleCol (ColE c) = S.singleton c
+singleCol _        = S.empty
 
 
