@@ -59,6 +59,7 @@ tests_nest_guard_hunit = testGroup "HUnit guard nesting"
     , testCase "hnjg2" hnjg2
     , testCase "hnjg3" hnjg3
     , testCase "hnjg4" hnjg4
+    , testCase "hnjg5" hnjg5
     ]
 
 ---------------------------------------------------------------------------------
@@ -238,6 +239,9 @@ hnjg3 = makeEqAssertion "hnjg3" (C.njg3 njgxs1 njgys1 njgzs1) (njg3 njgxs1 njgys
 hnjg4 :: Assertion
 hnjg4 = makeEqAssertion "hnjg4" (C.njg4 njgxs1 njgys1 njgzs1) (njg4 njgxs1 njgys1 njgzs1)
 
+hnjg5 :: Assertion
+hnjg5 = makeEqAssertion "hnjg5" (C.njg5 njgxs1 njgys1) (njg5 njgxs1 njgys1)
+
 pair :: a -> b -> (a, b)
 pair = (,)
 
@@ -348,4 +352,11 @@ njg4 njgxs njgys njgzs =
   | x <- njgxs
   , length [ () | y <- njgys, x == y ]
     > length [ () | z <- njgzs, fst z == x ]
+  ]
+
+njg5 :: [Integer] -> [Integer] -> [Integer]
+njg5 njgxs njgys =
+  [ x
+  | x <- njgxs
+  , sum [ y | y <- njgys, x < y, y > 5 ] < 10
   ]

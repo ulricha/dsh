@@ -248,3 +248,10 @@ njg4 njgxs njgys njgzs =
   , length [ toQ () | y <- toQ njgys, x == y ] 
     > length [ toQ () | z <- toQ njgzs, fst z == x ]
   ]
+
+njg5 :: [Integer] -> [Integer] -> Q [Integer]
+njg5 njgxs njgys =
+  [ x
+  | x <- toQ njgxs
+  , sum [ y | y <- toQ njgys, x < y, y > 5 ] < 10
+  ]
