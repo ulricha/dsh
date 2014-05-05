@@ -759,41 +759,53 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec qr (cols ++ [nrIndex])
 
   vecSemiJoin joinPred (DVec q1 cols1) (DVec q2 cols2) = do
+    let cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+
     q <- rownumM pos [posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ semiJoinM (joinPredicate (length cols1) joinPred)
              (proj (itemProj cols1 [cP descr, cP pos]) q1)
-             (proj (itemProj cols2 [mP descr' descr]) q2)
+             (proj shiftProj2 q2)
     qj <- tagM "semijoin/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
 
   vecSemiJoinS joinPred (DVec q1 cols1) (DVec q2 cols2) = do
+    let cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ semiJoinM ((ColE descr, ColE descr', EqJ) : joinPredicate (length cols1) joinPred)
              (proj (itemProj cols1 [cP descr, cP pos]) q1)
-             (proj (itemProj cols2 [mP descr' descr]) q2)
+             (proj ([mP descr' descr] ++ shiftProj2) q2)
     qj <- tagM "semijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
 
   vecAntiJoin joinPred (DVec q1 cols1) (DVec q2 cols2) = do
+    let cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+
     q <- rownumM pos [posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ antiJoinM (joinPredicate (length cols1) joinPred)
              (proj (itemProj cols1 [cP descr, cP pos]) q1)
-             (proj (itemProj cols2 []) q2)
+             (proj shiftProj2 q2)
     qj <- tagM "antijoin/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
 
   vecAntiJoinS joinPred (DVec q1 cols1) (DVec q2 cols2) = do
+    let cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+
     q <- rownumM pos [descr, posold] Nothing
          $ projM (itemProj cols1 [cP descr, mP posold pos])
          $ antiJoinM ((ColE descr, ColE descr', EqJ) : joinPredicate (length cols1) joinPred)
              (proj (itemProj cols1 [cP descr, cP pos]) q1)
-             (proj (itemProj cols2 [mP descr' descr]) q2)
+             (proj ([mP descr' descr] ++ shiftProj2) q2)
     qj <- tagM "antijoinLift/1" $ proj (itemProj cols1 [cP descr, cP pos]) q
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
