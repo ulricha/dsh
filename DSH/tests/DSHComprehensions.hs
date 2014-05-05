@@ -127,8 +127,26 @@ eqjoin_nested1 =
 semijoin :: Q [Integer]
 semijoin = 
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
-        ys = (toQ [2, 4, 6] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs , x `elem` ys ]
+
+semijoin_range :: Q [Integer]
+semijoin_range = 
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6] :: Q [Integer])
+    in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
+
+antijoin :: Q [Integer]
+antijoin =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs , not $ x `elem` ys ]
+
+antijoin_range :: Q [Integer]
+antijoin_range =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs , not $ x `elem` [ y | y <- ys, y < 5 ] ]
 
 ----------------------------------------------------------------------
 -- Comprehensions for HUnit NestJoin/NestProduct tests

@@ -29,6 +29,9 @@ tests_join_hunit :: Test
 tests_join_hunit = testGroup "HUnit joins"
     [ testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
+    , testCase "hsemijoin_range" hsemijoin
+    , testCase "hantijoin" hantijoin
+    , testCase "hantijoin_range" hantijoin
     ]
 
 tests_nest_head_hunit :: Test
@@ -150,8 +153,22 @@ heqjoin_nested1 = makeEqAssertion "heqjoin_nested" C.eqjoin_nested1 res
 hsemijoin :: Assertion
 hsemijoin = makeEqAssertion "hsemijoin" C.semijoin res
   where
-    res = [2, 4, 6]
+    res = [2, 4, 6, 7]
 
+hsemijoin_range :: Assertion
+hsemijoin_range = makeEqAssertion "hsemijoin_range" C.semijoin_range res
+  where
+    res = [2, 4]
+
+hantijoin :: Assertion
+hantijoin = makeEqAssertion "hantijoin" C.antijoin res
+  where
+    res = [1, 3, 5]
+
+hantijoin_range :: Assertion
+hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
+  where
+    res = [1, 3]
 
 
 -----------------------------------------------------------------------
