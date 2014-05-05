@@ -188,7 +188,6 @@ nj6 njxs njys =
       | x <- toQ njxs
       ]
 
--- SQL code for outer query has empty SELECT CLAUSE
 nj7 :: [Integer] -> [Integer] -> Q [[Integer]]
 nj7 njxs njys = 
     [ [ x + y | y <- toQ njys, x + 2 == y ] | x <- toQ njxs ]
@@ -201,6 +200,9 @@ nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ
 
 nj10 :: [Integer] -> [Integer] -> Q [Integer]
 nj10 njxs njys = [ x + sum [ x * y | y <- toQ njys, x == y ] | x <- toQ njxs ]
+
+nj11 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj11 njxs njys = [ [ x + y | y <- toQ njys, x > y, x < y * 2 ] | x <- toQ njxs ]
 
 np1 :: [Integer] -> [Integer] -> Q [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- toQ njys ] | x <- toQ njxs ]

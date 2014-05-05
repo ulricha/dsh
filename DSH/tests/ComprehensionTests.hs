@@ -46,6 +46,7 @@ tests_nest_head_hunit = testGroup "HUnit head nesting"
     , testCase "hnj8" hnj8
     , testCase "hnj9" hnj9
     , testCase "hnj10" hnj10
+    , testCase "hnj11" hnj11
     , testCase "hnp1" hnp1
     , testCase "hnp2" hnp2
     , testCase "hnp3" hnp3
@@ -210,6 +211,9 @@ hnj9 = makeEqAssertion "hnj9" (C.nj9 njxs1 njys1) (nj9 njxs1 njys1)
 hnj10 :: Assertion
 hnj10 = makeEqAssertion "hnj10" (C.nj10 njxs1 njys1) (nj10 njxs1 njys1)
 
+hnj11 :: Assertion
+hnj11 = makeEqAssertion "hnj11" (C.nj11 njxs1 njys1) (nj11 njxs1 njys1)
+
 hnp1 :: Assertion
 hnp1 = makeEqAssertion "hnp1" (C.np1 njxs1 njys1) (np1 njxs1 njys1)
 
@@ -286,6 +290,9 @@ nj9 njxs njys = [ [ x + y | y <- njys, x + 1 == y, y > 2, x < 6 ] | x <- njxs ]
 
 nj10 :: [Integer] -> [Integer] -> [Integer]
 nj10 njxs njys = [ x + sum [ x * y | y <- njys, x == y ] | x <- njxs ]
+
+nj11 :: [Integer] -> [Integer] -> [[Integer]]
+nj11 njxs njys = [ [ x + y | y <- njys, x > y, x < y * 2 ] | x <- njxs ]
 
 -- Head/NestProduct
 np1 :: [Integer] -> [Integer] -> [[Integer]]
