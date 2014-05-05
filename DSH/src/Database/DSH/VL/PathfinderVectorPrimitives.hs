@@ -105,38 +105,34 @@ itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
 
 binOp :: L.ScalarBinOp -> BinFun
-binOp = $unimplemented
-{- FIXME
-binOp L.Add  = Plus
-binOp L.Sub  = Minus
-binOp L.Div  = Div
-binOp L.Mul  = Times
-binOp L.Mod  = Modulo
-binOp L.Eq   = Eq
-binOp L.Gt   = Gt
-binOp L.GtE  = GtE
-binOp L.Lt   = Lt
-binOp L.LtE  = LtE
-binOp L.Conj = And
-binOp L.Disj = Or
-binOp L.Like = Like
--}
+binOp (L.SBNumOp L.Add)     = Plus
+binOp (L.SBNumOp L.Sub)     = Minus
+binOp (L.SBNumOp L.Div)     = Div
+binOp (L.SBNumOp L.Mul)     = Times
+binOp (L.SBNumOp L.Mod)     = Modulo
+binOp (L.SBRelOp L.Eq)      = Eq
+binOp (L.SBRelOp L.NEq)     = NEq
+binOp (L.SBRelOp L.Gt)      = Gt
+binOp (L.SBRelOp L.GtE)     = GtE
+binOp (L.SBRelOp L.Lt)      = Lt
+binOp (L.SBRelOp L.LtE)     = LtE
+binOp (L.SBBoolOp L.Conj)   = And
+binOp (L.SBBoolOp L.Disj)   = Or
+binOp (L.SBStringOp L.Like) = Like
 
 unOp :: L.ScalarUnOp -> UnFun
-unOp = $unimplemented
-{- FIXME
-unOp L.Not          = Not
-unOp (L.CastDouble) = Cast doubleT
-unOp L.Sin          = Sin
-unOp L.Cos          = Cos
-unOp L.Tan          = Tan
-unOp L.ASin         = ASin
-unOp L.ACos         = ACos
-unOp L.ATan         = ATan
-unOp L.Sqrt         = Sqrt
-unOp L.Exp          = Exp
-unOp L.Log          = Log
--}
+unOp (L.SUBoolOp L.Not)          = Not
+unOp (L.SUCastOp (L.CastDouble)) = Cast doubleT
+unOp (L.SUNumOp L.Sin)           = Sin
+unOp (L.SUNumOp L.Cos)           = Cos
+unOp (L.SUNumOp L.Tan)           = Tan
+unOp (L.SUNumOp L.ASin)          = ASin
+unOp (L.SUNumOp L.ACos)          = ACos
+unOp (L.SUNumOp L.ATan)          = ATan
+unOp (L.SUNumOp L.Sqrt)          = Sqrt
+unOp (L.SUNumOp L.Exp)           = Exp
+unOp (L.SUNumOp L.Log)           = Log
+unOp L.SUDateOp                  = $unimplemented
 
 expr1 :: VL.Expr1 -> Expr
 expr1 (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1 e1) (expr1 e2)

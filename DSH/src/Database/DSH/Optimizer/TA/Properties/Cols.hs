@@ -33,6 +33,7 @@ binAppTy f t1 _t2 =
         LtE       -> ABool
         GtE       -> ABool
         Eq        -> ABool
+        NEq       -> ABool
         Contains  -> ABool
         SimilarTo -> ABool
         Like      -> ABool
