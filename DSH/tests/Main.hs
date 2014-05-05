@@ -49,11 +49,11 @@ main = do
 
 tests :: [Test]
 tests =
-    [ tests_comprehensions
-    , tests_combinators_hunit
-    , tests_join_hunit
+    [ tests_join_hunit
     , tests_nest_head_hunit
     , tests_nest_guard_hunit
+    , tests_combinators_hunit
+    , tests_comprehensions
     , tests_boolean
     , tests_tuples
     , tests_numerics
