@@ -61,71 +61,71 @@ nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 ly
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
 nestProductLift _ _ = $impossible
 
-equiJoinPrim :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-equiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (q', p1, p2) <- vlEquiJoin e1 e2 q1 q2
+thetaJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+thetaJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+    (q', p1, p2) <- vlThetaJoin joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
-equiJoinPrim _ _ _ _ = $impossible
+thetaJoinPrim _ _ _ = $impossible
 
-equiJoinLift :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-equiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-    (q', p1, p2) <- vlEquiJoinS e1 e2 q1 q2
+thetaJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+thetaJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', p1, p2) <- vlThetaJoinS joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
     return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
-equiJoinLift _ _ _ _ = $impossible
+thetaJoinLift _ _ _ = $impossible
 
-nestJoinPrim :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-nestJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+nestJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q1' <- vlSegment q1
-    ValueVector qj lytJ <- equiJoinPrim e1 e2 (ValueVector q1' lyt1) (ValueVector q2 lyt2)
+    ValueVector qj lytJ <- thetaJoinPrim joinPred (ValueVector q1' lyt1) (ValueVector q2 lyt2)
     return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
-nestJoinPrim _ _ _ _ = $impossible
+nestJoinPrim _ _ _ = $impossible
 
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]] 
 
 -- For the unlifted nestjoin, we could segment the left (outer) input
--- and then use the regular equijoin implementation. This trick does
--- not work here, as the lifted equijoin joins on the
+-- and then use the regular thetajoin implementation. This trick does
+-- not work here, as the lifted thetajoin joins on the
 -- descriptors. Therefore, we have to 'segment' **after** the join,
 -- i.e. use the left input positions as descriptors
-nestJoinLift :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-nestJoinLift e1 e2 (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestJoinS e1 e2 qv1 qv2
+nestJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+nestJoinLift joinPred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
+    (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
     let lytJ  = zipLayout lyt1 lyt2'
     return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
-nestJoinLift _ _ _ _ = $impossible
+nestJoinLift _ _ _ = $impossible
 
-semiJoinPrim :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-semiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 _) = do
-    (qj, r) <- vlSemiJoin e1 e2 q1 q2
+semiJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- vlSemiJoin joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector qj lyt1'
-semiJoinPrim _ _ _ _ = $impossible
+semiJoinPrim _ _ _ = $impossible
     
-semiJoinLift :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-semiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlSemiJoinS e1 e2 q1 q2
+semiJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+semiJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlSemiJoinS joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
-semiJoinLift _ _ _ _ = $impossible
+semiJoinLift _ _ _ = $impossible
 
-antiJoinPrim :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-antiJoinPrim e1 e2 (ValueVector q1 lyt1) (ValueVector q2 _) = do
-    (qj, r) <- vlAntiJoin e1 e2 q1 q2
+antiJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
+    (qj, r) <- vlAntiJoin joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector qj lyt1'
-antiJoinPrim _ _ _ _ = $impossible
+antiJoinPrim _ _ _ = $impossible
     
-antiJoinLift :: L.JoinExpr -> L.JoinExpr -> Shape -> Shape -> Graph VL Shape
-antiJoinLift e1 e2 (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlAntiJoinS e1 e2 q1 q2
+antiJoinLift :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Graph VL Shape
+antiJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlAntiJoinS joinPred q1 q2
     lyt1'   <- chainRenameFilter r lyt1
     return $ ValueVector d1 (Nest qj lyt1')
-antiJoinLift _ _ _ _ = $impossible
+antiJoinLift _ _ _ = $impossible
 
 nubPrim ::  Shape -> Graph VL Shape
 nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q
@@ -150,7 +150,7 @@ numberLift _ = error "numberLift: Should not be possible"
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
     i       <- vlAggr AggrCount q
-    (q', r) <- vlSelectPos q L.Lt i
+    (q', r) <- vlSelectPos q (L.SBRelOp L.Lt) i
     lyt'    <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
 initPrim _ = error "initPrim: Should not be possible"
@@ -158,7 +158,7 @@ initPrim _ = error "initPrim: Should not be possible"
 initLift ::  Shape -> Graph VL Shape
 initLift (ValueVector qs (Nest q lyt)) = do
     is      <- vlAggrS AggrCount qs q
-    (q', r) <- vlSelectPosS q L.Lt is
+    (q', r) <- vlSelectPosS q (L.SBRelOp L.Lt) is
     lyt'    <- chainRenameFilter r lyt
     return $ ValueVector qs (Nest q' lyt')
 initLift _ = error "initLift: Should not be possible"
@@ -166,13 +166,13 @@ initLift _ = error "initLift: Should not be possible"
 lastPrim ::  Shape -> Graph VL Shape
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
     i              <- vlAggr AggrCount qs
-    (q, r)         <- vlSelectPos qs L.Eq i
+    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i
     (Nest qr lyt') <- chainRenameFilter r lyt
     re             <- vlDescToRename q
     renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
     i      <- vlAggr AggrCount qs
-    (q, r) <- vlSelectPos qs L.Eq i
+    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i
     lyt'   <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 lastPrim _ = error "lastPrim: Should not be possible"
@@ -180,13 +180,13 @@ lastPrim _ = error "lastPrim: Should not be possible"
 lastLift ::  Shape -> Graph VL Shape
 lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
     is       <- vlAggrS AggrCount d qs
-    (qs', r) <- vlSelectPosS qs L.Eq is
+    (qs', r) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'     <- chainRenameFilter r lyt
     re       <- vlDescToRename qs'
     ValueVector d <$> renameOuter' re lyt'
 lastLift (ValueVector d (Nest qs lyt)) = do
     is       <- vlAggrS AggrCount d qs
-    (qs', r) <- vlSelectPosS qs L.Eq is
+    (qs', r) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'     <- chainRenameFilter r lyt
     re       <- vlDescToRename d
     renameOuter re (ValueVector qs' lyt')
@@ -195,15 +195,15 @@ lastLift _ = error "lastLift: Should not be possible"
 indexPrim ::  Shape -> Shape -> Graph VL Shape
 indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
     one            <- literal intT (VLInt 1)
-    i'             <- vlBinExpr L.Add i one
-    (q, r)         <- vlSelectPos qs L.Eq i'
+    i'             <- vlBinExpr (L.SBNumOp L.Add) i one
+    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i'
     (Nest qr lyt') <- chainRenameFilter r lyt
     re             <- vlDescToRename q
     renameOuter re $ ValueVector qr lyt'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
     one    <- literal intT (VLInt 1)
-    i'     <- vlBinExpr L.Add i one
-    (q, r) <- vlSelectPos qs L.Eq i'
+    i'     <- vlBinExpr (L.SBNumOp L.Add) i one
+    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
     lyt'   <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 indexPrim _ _ = error "indexPrim: Should not be possible"
@@ -212,16 +212,16 @@ indexLift ::  Shape -> Shape -> Graph VL Shape
 indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
     one       <- literal intT (VLInt 1)
     (ones, _) <- vlDistPrim one is
-    is'       <- vlBinExpr L.Add is ones
-    (qs', r)  <- vlSelectPosS qs L.Eq is'
+    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
+    (qs', r)  <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
     lyt'      <- chainRenameFilter r lyt
     re        <- vlDescToRename qs'
     ValueVector d <$> renameOuter' re lyt'
 indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
     one       <- literal intT (VLInt 1)
     (ones, _) <- vlDistPrim one is
-    is'       <- vlBinExpr L.Add is ones
-    (qs', r)  <- vlSelectPosS qs L.Eq is'
+    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
+    (qs', r)  <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
     lyt'      <- chainRenameFilter r lyt
     re        <- vlDescToRename d
     renameOuter re (ValueVector qs' lyt')
@@ -250,11 +250,11 @@ reverseLift _ = error "vlReverseLift: Should not be possible"
 
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
-    (_, prop)      <- vlSelectPos1 d L.Eq (N 1)
+    (_, prop)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     (Nest q' lyt') <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-    (q', prop) <- vlSelectPos1 d L.Eq (N 1)
+    (q', prop) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     lyt'       <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
 the _ = error "the: Should not be possible"
@@ -262,14 +262,14 @@ the _ = error "the: Should not be possible"
 tailS ::  Shape -> Graph VL Shape
 tailS (ValueVector d lyt) = do
     p          <- literal intT (VLInt 1)
-    (q', prop) <- vlSelectPos d L.Gt p
+    (q', prop) <- vlSelectPos d (L.SBRelOp L.Gt) p
     lyt'       <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 tailS _ = error "tailS: Should not be possible"
 
 theL ::  Shape -> Graph VL Shape
 theL (ValueVector d (Nest q lyt)) = do
-    (v, p2) <- vlSelectPos1S q L.Eq (N 1)
+    (v, p2) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
     prop    <- vlDescToRename d
     lyt'    <- chainRenameFilter p2 lyt
     (v', _) <- vlPropFilter prop v
@@ -280,7 +280,7 @@ tailL ::  Shape -> Graph VL Shape
 tailL (ValueVector d (Nest q lyt)) = do
     one     <- literal intT (VLInt 1)
     (p, _)  <- vlDistPrim one d
-    (v, p2) <- vlSelectPosS q L.Gt p
+    (v, p2) <- vlSelectPosS q (L.SBRelOp L.Gt) p
     lyt'    <- chainRenameFilter p2 lyt
     return $ ValueVector d (Nest v lyt')
 tailL _ = error "tailL: Should not be possible"
@@ -443,7 +443,7 @@ ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _) <- vlDistPrim qb q1
     (d1, p1) <- vlRestrict q1 d1'
-    qb' <- vlUnExpr L.Not qb
+    qb' <- vlUnExpr (L.SUBoolOp L.Not) qb
     (d2', _) <- vlDistPrim qb' q2
     (d2, p2) <- vlRestrict q2 d2'
     r1 <- renameOuter' p1 lyt1

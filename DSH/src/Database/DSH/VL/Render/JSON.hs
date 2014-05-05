@@ -31,11 +31,20 @@ instance ToJSON LeftCol where
 instance ToJSON RightCol where
 instance ToJSON AggrFun where
 instance ToJSON L.Emptiness where
+instance ToJSON L.BinStringOp where
+instance ToJSON L.BinNumOp where
+instance ToJSON L.BinRelOp where
+instance ToJSON L.BinBoolOp where
 instance ToJSON L.ScalarBinOp where
+instance ToJSON L.UnCastOp where
+instance ToJSON L.UnBoolOp where
+instance ToJSON L.UnNumOp where
 instance ToJSON L.ScalarUnOp where
 instance ToJSON L.Key where
 instance ToJSON L.ColName where
 instance ToJSON L.TableHints where
+instance ToJSON e => ToJSON (L.JoinConjunct e)
+instance ToJSON e => ToJSON (L.JoinPredicate e)
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON nl = toJSON $ N.toList nl
   
@@ -53,11 +62,20 @@ instance FromJSON LeftCol where
 instance FromJSON RightCol where
 instance FromJSON AggrFun where
 instance FromJSON L.Emptiness where
+instance FromJSON L.BinStringOp where
+instance FromJSON L.BinNumOp where
+instance FromJSON L.BinRelOp where
+instance FromJSON L.BinBoolOp where
 instance FromJSON L.ScalarBinOp where
+instance FromJSON L.UnCastOp where
+instance FromJSON L.UnBoolOp where
+instance FromJSON L.UnNumOp where
 instance FromJSON L.ScalarUnOp where
 instance FromJSON L.ColName where
 instance FromJSON L.Key where
 instance FromJSON L.TableHints
+instance FromJSON e => FromJSON (L.JoinConjunct e)
+instance FromJSON e => FromJSON (L.JoinPredicate e)
 instance FromJSON a => FromJSON (N.NonEmpty a) where
     parseJSON doc = fromList <$> parseJSON doc
 

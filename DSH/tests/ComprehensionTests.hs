@@ -1,13 +1,13 @@
 module ComprehensionTests where
 
 import           Common
-import qualified DSHComprehensions as C
+import qualified DSHComprehensions                    as C
 
-import           Test.QuickCheck
-import           Test.HUnit(Assertion)
-import           Test.Framework (Test, testGroup)
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.Framework                       (Test, testGroup)
 import           Test.Framework.Providers.HUnit
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.HUnit                           (Assertion)
+import           Test.QuickCheck
 
 tests_comprehensions :: Test
 tests_comprehensions = testGroup "Comprehensions"
@@ -15,8 +15,13 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "eqjoin" prop_eqjoin
     , testProperty "eqjoinproj" prop_eqjoinproj
     , testProperty "eqjoinpred" prop_eqjoinpred
+    , testProperty "eqjointuples" prop_eqjointuples
+    , testProperty "thetajoin_eq" prop_thetajoin_eq
+    , testProperty "thetajoin_neq" prop_thetajoin_neq
     , testProperty "eqjoin3" prop_eqjoin3
-    , testProperty "eqjoin_nested" prop_eqjoin_nested
+    , testProperty "eqjoin_nested_left" prop_eqjoin_nested_left
+    , testProperty "eqjoin_nested_right" prop_eqjoin_nested_right
+    , testProperty "eqjoin_nested_both" prop_eqjoin_nested_both
     , testProperty "nestjoin" prop_nestjoin
     ]
 
@@ -24,6 +29,9 @@ tests_join_hunit :: Test
 tests_join_hunit = testGroup "HUnit joins"
     [ testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
+    , testCase "hsemijoin_range" hsemijoin
+    , testCase "hantijoin" hantijoin
+    , testCase "hantijoin_range" hantijoin
     ]
 
 tests_nest_head_hunit :: Test
@@ -38,6 +46,7 @@ tests_nest_head_hunit = testGroup "HUnit head nesting"
     , testCase "hnj8" hnj8
     , testCase "hnj9" hnj9
     , testCase "hnj10" hnj10
+    , testCase "hnj11" hnj11
     , testCase "hnp1" hnp1
     , testCase "hnp2" hnp2
     , testCase "hnp3" hnp3
@@ -50,63 +59,86 @@ tests_nest_guard_hunit = testGroup "HUnit guard nesting"
     , testCase "hnjg2" hnjg2
     , testCase "hnjg3" hnjg3
     , testCase "hnjg4" hnjg4
+    , testCase "hnjg5" hnjg5
     ]
 
 ---------------------------------------------------------------------------------
 -- QuickCheck properties for comprehensions
 
 prop_cartprod :: ([Integer], [Integer]) -> Property
-prop_cartprod = makeProp C.cartprod
-                         (\(xs, ys) -> [ (x, y) | x <- xs, y <- ys])
+prop_cartprod = makeProp C.cartprod cartprod_native
+  where
+    cartprod_native (xs, ys) = [ (x, y) | x <- xs, y <- ys]
 
 prop_eqjoin :: ([Integer], [Integer]) -> Property
-prop_eqjoin = makeProp C.eqjoin 
-                       (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , x == y ])
+prop_eqjoin = makeProp C.eqjoin eqjoin_native
+  where
+    eqjoin_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y ]
 
 prop_eqjoinproj :: ([Integer], [Integer]) -> Property
-prop_eqjoinproj = 
-  makeProp C.eqjoinproj (\(xs, ys) -> [ (x, y) | x <- xs , y <- ys , (2 * x) == y ])
-  
+prop_eqjoinproj = makeProp C.eqjoinproj eqjoinproj_native
+  where
+    eqjoinproj_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , (2 * x) == y ]
+
 prop_eqjoinpred :: (Integer, [Integer], [Integer]) -> Property
-prop_eqjoinpred =
-  makeProp C.eqjoinpred
-           (\(x', xs, ys) ->
-             [ (x, y)
-             | x <- xs
-             , y <- ys
-             , x == y
-             , x > x'
-             ])
+prop_eqjoinpred = makeProp C.eqjoinpred eqjoinpred_native
+  where
+    eqjoinpred_native (x', xs, ys) = [ (x, y) | x <- xs , y <- ys , x == y , x > x']
+
+prop_eqjointuples :: ([(Integer, Integer)], [(Integer, Integer)]) -> Property
+prop_eqjointuples = makeProp C.eqjointuples eqjointuples_native
+  where
+    eqjointuples_native (xs, ys) = [ (x1 * x2, y1, y2)
+                                   | (x1, x2) <- xs
+                                   , (y1, y2) <- ys
+                                   , x1 == y2
+                                   ]
+
+prop_thetajoin_eq :: ([(Integer, Integer)], [(Integer, Integer)]) -> Property
+prop_thetajoin_eq = makeProp C.thetajoin_eq thetajoin_eq_native
+  where
+    thetajoin_eq_native (xs, ys) = [ (x1 * x2, y1, y2)
+                                   | (x1, x2) <- xs
+                                   , (y1, y2) <- ys
+                                   , x1 == y2
+                                   , y1 == x2
+                                   ]
+
+prop_thetajoin_neq :: ([(Integer, Integer)], [(Integer, Integer)]) -> Property
+prop_thetajoin_neq = makeProp C.thetajoin_neq thetajoin_neq_native
+  where
+    thetajoin_neq_native (xs, ys) = [ (x1 * x2, y1, y2)
+                                    | (x1, x2) <- xs
+                                    , (y1, y2) <- ys
+                                    , x1 == y2
+                                    , y1 /= x2
+                                    ]
+
 
 prop_eqjoin3 :: ([Integer], [Integer], [Integer]) -> Property
-prop_eqjoin3 =
-  makeProp C.eqjoin3
-           (\(xs, ys, zs) ->
-             [ (x, y, z)
-             | x <- xs
-             , y <- ys
-             , z <- zs
-             , x == y
-             , y == z
-             ])
-             
-prop_eqjoin_nested :: ([(Integer, [Integer])], [Integer]) -> Property
-prop_eqjoin_nested =
-  makeProp C.eqjoin_nested
-           (\(xs, ys) ->
-             [ (x, y)
-             | x <- xs
-             , y <- ys
-             , fst x == y
-             ])
+prop_eqjoin3 = makeProp C.eqjoin3 eqjoin3_native
+  where
+    eqjoin3_native (xs, ys, zs) = [ (x, y, z) | x <- xs , y <- ys , z <- zs , x == y , y == z]
+
+prop_eqjoin_nested_left :: ([(Integer, [Integer])], [Integer]) -> Property
+prop_eqjoin_nested_left = makeProp C.eqjoin_nested_left eqjoin_nested_left_native
+  where
+    eqjoin_nested_left_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , fst x == y]
+
+prop_eqjoin_nested_right :: ([Integer], [(Integer, [Integer])]) -> Property
+prop_eqjoin_nested_right = makeProp C.eqjoin_nested_right eqjoin_nested_right_native
+  where
+    eqjoin_nested_right_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , x == fst y]
+
+prop_eqjoin_nested_both :: ([(Integer, [Integer])], [(Integer, [Integer])]) -> Property
+prop_eqjoin_nested_both = makeProp C.eqjoin_nested_both eqjoin_nested_both_native
+  where
+    eqjoin_nested_both_native (xs, ys) = [ (x, y) | x <- xs , y <- ys , fst x == fst y]
 
 prop_nestjoin :: ([Integer], [Integer]) -> Property
-prop_nestjoin =
-  makeProp C.nestjoin
-           (\(xs, ys) ->
-             [ (x, [ y | y <- ys, x == y ])
-             | x <- xs
-             ])
+prop_nestjoin = makeProp C.nestjoin nestjoin_native
+  where
+    nestjoin_native (xs, ys) = [ (x, [ y | y <- ys, x == y ]) | x <- xs]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
@@ -122,10 +154,24 @@ heqjoin_nested1 = makeEqAssertion "heqjoin_nested" C.eqjoin_nested1 res
 
 hsemijoin :: Assertion
 hsemijoin = makeEqAssertion "hsemijoin" C.semijoin res
-  where 
-    res = [2, 4, 6]
-    
-  
+  where
+    res = [2, 4, 6, 7]
+
+hsemijoin_range :: Assertion
+hsemijoin_range = makeEqAssertion "hsemijoin_range" C.semijoin_range res
+  where
+    res = [2, 4]
+
+hantijoin :: Assertion
+hantijoin = makeEqAssertion "hantijoin" C.antijoin res
+  where
+    res = [1, 3, 5]
+
+hantijoin_range :: Assertion
+hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
+  where
+    res = [1, 3]
+
 
 -----------------------------------------------------------------------
 -- HUnit tests for nestjoin/nestproduct
@@ -166,6 +212,9 @@ hnj9 = makeEqAssertion "hnj9" (C.nj9 njxs1 njys1) (nj9 njxs1 njys1)
 hnj10 :: Assertion
 hnj10 = makeEqAssertion "hnj10" (C.nj10 njxs1 njys1) (nj10 njxs1 njys1)
 
+hnj11 :: Assertion
+hnj11 = makeEqAssertion "hnj11" (C.nj11 njxs1 njys1) (nj11 njxs1 njys1)
+
 hnp1 :: Assertion
 hnp1 = makeEqAssertion "hnp1" (C.np1 njxs1 njys1) (np1 njxs1 njys1)
 
@@ -190,48 +239,51 @@ hnjg3 = makeEqAssertion "hnjg3" (C.njg3 njgxs1 njgys1 njgzs1) (njg3 njgxs1 njgys
 hnjg4 :: Assertion
 hnjg4 = makeEqAssertion "hnjg4" (C.njg4 njgxs1 njgys1 njgzs1) (njg4 njgxs1 njgys1 njgzs1)
 
+hnjg5 :: Assertion
+hnjg5 = makeEqAssertion "hnjg5" (C.njg5 njgxs1 njgys1) (njg5 njgxs1 njgys1)
+
 pair :: a -> b -> (a, b)
 pair = (,)
 
 -- Head/NestJoin
 nj1 :: [Integer] -> [Integer] -> [[Integer]]
-nj1 njxs njys = 
+nj1 njxs njys =
     [ [ y | y <- njys, x == y ]
     | x <- njxs
     ]
 
 nj2 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
-nj2 njxs njys = 
+nj2 njxs njys =
     [ pair x [ y | y <- njys, x == y ]
     | x <- njxs
     ]
 
 nj3 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
-nj3 njxs njys = 
+nj3 njxs njys =
     [ pair x ([ y | y <- njys, x == y ] ++ ([100, 200, 300]))
     | x <- njxs
     ]
 
 nj4 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
-nj4 njxs njys = 
+nj4 njxs njys =
       [ pair x ([ y | y <- njys, x == y ] ++ [ z | z <- njys, x == z ])
       | x <- njxs
       ]
 
 nj5 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
-nj5 njxs njys = 
+nj5 njxs njys =
       [ pair x [ y | y <- njys, x + y > 15 ]
       | x <- njxs
       ]
 
 nj6 :: [Integer] -> [Integer] -> [(Integer, [Integer])]
-nj6 njxs njys = 
+nj6 njxs njys =
       [ pair x [ y | y <- njys, x + y > 10, y < 7 ]
       | x <- njxs
       ]
 
 nj7 :: [Integer] -> [Integer] -> [[Integer]]
-nj7 njxs njys = 
+nj7 njxs njys =
     [ [ x + y | y <- njys, x + 2 == y ] | x <- njxs ]
 
 nj8 :: [Integer] -> [Integer] -> [[Integer]]
@@ -242,6 +294,9 @@ nj9 njxs njys = [ [ x + y | y <- njys, x + 1 == y, y > 2, x < 6 ] | x <- njxs ]
 
 nj10 :: [Integer] -> [Integer] -> [Integer]
 nj10 njxs njys = [ x + sum [ x * y | y <- njys, x == y ] | x <- njxs ]
+
+nj11 :: [Integer] -> [Integer] -> [[Integer]]
+nj11 njxs njys = [ [ x + y | y <- njys, x > y, x < y * 2 ] | x <- njxs ]
 
 -- Head/NestProduct
 np1 :: [Integer] -> [Integer] -> [[Integer]]
@@ -295,6 +350,13 @@ njg4 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> [Integer]
 njg4 njgxs njgys njgzs =
   [ x
   | x <- njgxs
-  , length [ () | y <- njgys, x == y ] 
+  , length [ () | y <- njgys, x == y ]
     > length [ () | z <- njgzs, fst z == x ]
+  ]
+
+njg5 :: [Integer] -> [Integer] -> [Integer]
+njg5 njgxs njgys =
+  [ x
+  | x <- njgxs
+  , sum [ y | y <- njgys, x < y, y > 5 ] < 10
   ]

@@ -50,7 +50,6 @@ instance Pretty Type where
     pretty (VarT v)      = text v
     pretty (FunT t1 t2)  = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty IntT          = text "Int"
-    pretty NatT          = text "Nat"
     pretty BoolT         = text "Bool"
     pretty DoubleT       = text "Double"
     pretty StringT       = text "String"
@@ -58,28 +57,31 @@ instance Pretty Type where
     pretty (ListT t)     = brackets $ pretty t
     pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
 
--- | We use the following type language to type our input language
--- with (the Nested Kernel Language). We also use this type scheme for
--- several intermediate languages.
+-- | We use the following type language to type the various
+-- intermediate languages.
 data Type  = FunT Type Type
-           | NatT | IntT | BoolT | DoubleT
+           | IntT 
+           | BoolT 
+           | DoubleT
+           | StringT 
+           | UnitT 
            -- FIXME What the fuck is a VarT?
-           | StringT | UnitT | VarT String
-           | PairT Type Type |  ListT Type
+           | VarT String
+           | PairT Type Type 
+           | ListT Type
            deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 infixr 6 .->
 
 isNum :: Type -> Bool
-isNum IntT = True
-isNum NatT = True
-isNum DoubleT = True
-isNum (VarT _) = False
-isNum (FunT _ _) = False
-isNum BoolT = False
-isNum StringT = False
-isNum UnitT = False
-isNum (ListT _) = False
+isNum IntT        = True
+isNum DoubleT     = True
+isNum (VarT _)    = False
+isNum (FunT _ _)  = False
+isNum BoolT       = False
+isNum StringT     = False
+isNum UnitT       = False
+isNum (ListT _)   = False
 isNum (PairT _ _) = False
       
 domainT :: Type -> Type

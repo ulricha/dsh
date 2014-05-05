@@ -32,7 +32,7 @@ mkeqjoinT
   -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
 mkeqjoinT joinPred x y xs ys = do
     -- The predicate must be an equi join predicate
-    (leftExpr, rightExpr) <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
+    joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
 
     -- Conditions for the rewrite are fulfilled. 
     let xst          = typeOf xs
@@ -44,7 +44,7 @@ mkeqjoinT joinPred x y xs ys = do
         tuplifyHeadR = tuplifyR x (x, xt) (y, yt)
         joinGen      = BindQ x 
                          (AppE2 pt 
-                           (Prim2 (EquiJoin leftExpr rightExpr) jt) 
+                           (Prim2 (ThetaJoin (singlePred joinConjunct)) jt) 
                            xs ys)
 
     return (tuplifyHeadR, joinGen)
@@ -87,7 +87,7 @@ eqjoinQualsR = onetdR (eqjoinQualEndR <+ eqjoinQualR)
     
 eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
 eqjoinR currentGuards testedGuards = do
-    e@(Comp t _ _)      <- promoteT idR
+    Comp t _ _          <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
     e'                  <- (tryR $ childT CompHead tuplifyHeadR) >>> projectT
     -- FIXME should propably wrap tuplifyHeadR in tryR
@@ -103,14 +103,14 @@ eqjoinR currentGuards testedGuards = do
 -- occur free in the predicate and no further correlation takes place.
 mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
 mksemijoinT joinPred x y xs ys = do
-    (leftExpr, rightExpr) <- constT (return joinPred) >>> splitJoinPredT x y
+    joinConjunct <- constT (return joinPred) >>> splitJoinPredT x y
 
     let xst = typeOf xs
         yst = typeOf ys
         jt  = xst .-> yst .-> xst
 
     -- => [ ... | ..., x <- xs semijoin(p1, p2) ys, ... ]
-    return $ BindQ x (AppE2 xst (Prim2 (SemiJoin leftExpr rightExpr) jt) xs ys)
+    return $ BindQ x (AppE2 xst (Prim2 (SemiJoin $ singlePred joinConjunct) jt) xs ys)
 
 -- | Match a IN semijoin pattern in the middle of a qualifier list
 elemR :: RewriteC (NL Qual)
@@ -149,14 +149,14 @@ semijoinR = do
 -- the predicate and no further correlation takes place.
 mkantijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
 mkantijoinT joinPred x y xs ys = do
-    (leftExpr, rightExpr) <- constT (return joinPred) >>> splitJoinPredT x y
+    joinConjunct <- constT (return joinPred) >>> splitJoinPredT x y
 
     let xst = typeOf xs
         yst = typeOf ys
         jt  = xst .-> yst .-> xst
 
     -- => [ ... | ..., x <- xs antijoin(p1, p2) ys, ... ]
-    return $ BindQ x (AppE2 xst (Prim2 (AntiJoin leftExpr rightExpr) jt) xs ys)
+    return $ BindQ x (AppE2 xst (Prim2 (AntiJoin $ singlePred joinConjunct) jt) xs ys)
 
 -- | Match the basic antijoin pattern in the middle of a qualifier list. This is
 -- essentially the operator definition, generalized to multiple qualifiers and
@@ -167,7 +167,7 @@ basicAntiJoinR :: RewriteC (NL Qual)
 basicAntiJoinR = do
     -- [ ... | ..., x <- xs, and [ not p | y <- ys ], ... ]
     BindQ x xs :* GuardQ (AppE1 _ (Prim1 And _) 
-                                  (Comp _ (UnOp _ Not p)
+                                  (Comp _ (UnOp _ (SUBoolOp Not) p)
                                           (S (BindQ y ys))))  :* qs <- idR
     q' <- mkantijoinT p x y xs ys
     return $ q' :* qs
@@ -177,7 +177,7 @@ basicAntiJoinEndR :: RewriteC (NL Qual)
 basicAntiJoinEndR = do
     -- [ ... | ..., x <- xs, and [ True | y <- ys, not p ] ]
     BindQ x xs :* S (GuardQ (AppE1 _ (Prim1 And _) 
-                                     (Comp _ (UnOp _ Not p)
+                                     (Comp _ (UnOp _ (SUBoolOp Not) p)
                                              (S (BindQ y ys))))) <- idR
     q' <- mkantijoinT p x y xs ys
     return (S q')
@@ -188,7 +188,7 @@ basicAntiJoinEndR = do
 notinR :: RewriteC (NL Qual)
 notinR = do
     BindQ x xs :* 
-        (GuardQ (UnOp _ Not
+        (GuardQ (UnOp _ (SUBoolOp Not)
                          (AppE1 _ (Prim1 Or _)
                                   (Comp _ q (BindQ y ys :* (S (GuardQ p))))))) :* qs <- idR
                                   
@@ -200,7 +200,7 @@ notinR = do
 notinEndR :: RewriteC (NL Qual)
 notinEndR = do
     BindQ x xs :* 
-        (S (GuardQ (UnOp _ Not
+        (S (GuardQ (UnOp _ (SUBoolOp Not)
                             (AppE1 _ (Prim1 Or _)
                                      (Comp _ q (BindQ y ys :* (S (GuardQ p)))))))) <- idR
                                   
@@ -246,15 +246,14 @@ mkClass15AntiJoinT x xs y ys p q = do
     
     -- The range predicate must have the form of a join predicate. This
     -- implicitly checks that the range predicate ranges over x and y.
-    (p1, p2) <- constT (return p) >>> splitJoinPredT x y
+    joinConjunct <- constT (return p) >>> splitJoinPredT x y
     
     let yst = typeOf ys
         yt  = elemT yst
     
     -- => [ ... | ..., x <- xs antijoin(p1, p2) [ y | y <- ys, not q ], ...]
-    let q' = BindQ x (P.antijoin xs 
-                                 (Comp yst (Var yt y) (BindQ y ys :* (S (GuardQ (P.scalarUnOp Not q))))) 
-                                 p1 p2)
+    let ys' = Comp yst (Var yt y) (BindQ y ys :* (S (GuardQ (P.scalarUnOp (SUBoolOp Not) q))))
+        q'  = BindQ x (P.antijoin xs ys' (singlePred joinConjunct))
     return q'
 
 universalQualsR :: RewriteC (NL Qual)

@@ -192,28 +192,27 @@ compileApp f args =
        GroupWithKey -> compileApp2 CP.groupWithKey args
        Zip          -> compileApp2 CP.zip args
        Equ          -> compileApp2 CP.eq args
+       NEq          -> compileApp2 CP.neq args
        Conj         -> compileApp2 CP.conj args
        Disj         -> compileApp2 CP.disj args
        Lt           -> compileApp2 CP.lt args
        Lte          -> compileApp2 CP.lte args
        Gte          -> compileApp2 CP.gte args
        Gt           -> compileApp2 CP.gt args
-       Max          -> compileApp2 CP.max args
-       Min          -> compileApp2 CP.min args
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one
-       IntegerToDouble -> compileApp1 (CP.scalarUnOp L.CastDouble) args
-       Not             -> compileApp1 (CP.scalarUnOp L.Not) args
-       Sin             -> compileApp1 (CP.scalarUnOp L.Sin) args
-       Cos             -> compileApp1 (CP.scalarUnOp L.Cos) args
-       Tan             -> compileApp1 (CP.scalarUnOp L.Tan) args
-       ASin            -> compileApp1 (CP.scalarUnOp L.ASin) args
-       ACos            -> compileApp1 (CP.scalarUnOp L.ACos) args
-       ATan            -> compileApp1 (CP.scalarUnOp L.ATan) args
-       Sqrt            -> compileApp1 (CP.scalarUnOp L.Sqrt) args
-       Log             -> compileApp1 (CP.scalarUnOp L.Log) args
-       Exp             -> compileApp1 (CP.scalarUnOp L.Exp) args
+       IntegerToDouble -> compileApp1 CP.castDouble args
+       Not             -> compileApp1 CP.not args
+       Sin             -> compileApp1 CP.sin args
+       Cos             -> compileApp1 CP.cos args
+       Tan             -> compileApp1 CP.tan args
+       ASin            -> compileApp1 CP.asin args
+       ACos            -> compileApp1 CP.acos args
+       ATan            -> compileApp1 CP.atan args
+       Sqrt            -> compileApp1 CP.sqrt args
+       Log             -> compileApp1 CP.log args
+       Exp             -> compileApp1 CP.exp args
        Fst             -> compileApp1 CP.fst args
        Snd             -> compileApp1 CP.snd args
        Head            -> compileApp1 CP.head args

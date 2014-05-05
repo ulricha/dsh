@@ -1,8 +1,9 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE QuasiQuotes         #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
     
 -- | Deal with nested comprehensions by introducing explicit nesting
 -- operators (NestJoin, NestProduct).
@@ -19,6 +20,7 @@ import           Control.Monad
 import           Data.List
 import qualified Data.Set as S
 import qualified Data.Map as M
+import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.Common.Lang
 
@@ -100,7 +102,7 @@ unnestWorkerT
 unnestWorkerT headComp (x, xs) = do
     let (y, ys) = hGen headComp
 
-    let (joinPredCandidates, nonJoinPreds) = partition (isEquiJoinPred x y) 
+    let (joinPredCandidates, nonJoinPreds) = partition (isThetaJoinPred x y) 
                                                        (hGuards headComp)
 
     -- Determine which operator to use to implement the nesting. If
@@ -108,12 +110,14 @@ unnestWorkerT headComp (x, xs) = do
     -- no matching join predicate, we use a nested cartesian product
     -- (nestproduct).
     -- FIXME include all join predicates on the join operator
-    (nestOp, remJoinPreds) <- case joinPredCandidates of
-        [] -> return (NestProduct, [])
+    nestOp <- case joinPredCandidates of
+        [] -> return NestProduct
         p : ps -> do
             -- Split the join predicate
-            (leftExpr, rightExpr) <- constT (return p) >>> splitJoinPredT x y
-            return (NestJoin leftExpr rightExpr, ps)
+            p'  <- constT (return p) >>> splitJoinPredT x y
+            ps' <- constT (return ps) >>> mapT (splitJoinPredT x y)
+           
+            return $ NestJoin $ JoinPred $ p' N.:| ps'
 
     -- Identify predicates which only refer to y and can be evaluated
     -- on the right nestjoin input.
@@ -154,7 +158,7 @@ unnestWorkerT headComp (x, xs) = do
 
     -- Do the same on left over predicates, which will be
     -- evaluated on the nestjoin result.
-    remPreds <- sequence $ map tuplifyInnerVarR (remJoinPreds ++ leftOverPreds)
+    remPreds <- sequence $ map tuplifyInnerVarR leftOverPreds
     let remGuards = map GuardQ remPreds
 
     -- Construct the inner comprehension with the tuplified head

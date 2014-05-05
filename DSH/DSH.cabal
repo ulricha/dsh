@@ -96,6 +96,7 @@ Library
   Other-modules:     Database.DSH.Internals
                      Database.DSH.CompileFlattening
                      Database.DSH.CSV
+                     Database.DSH.Schema
                      Database.DSH.Execute.Sql
                      Database.DSH.Externals
                      Database.DSH.Common.Pretty

@@ -222,32 +222,32 @@ translateBinOp b c1 c2 = case b of
         (v, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p2)
 
-    (EquiJoin e1 e2) -> do
-        (v, p1, p2) <- vecEquiJoin e1 e2 (toDVec c1) (toDVec c2)
+    (ThetaJoin p) -> do
+        (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    (EquiJoinS e1 e2) -> do
-        (v, p1, p2) <- vecEquiJoinS e1 e2 (toDVec c1) (toDVec c2)
+    (ThetaJoinS p) -> do
+        (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    (NestJoinS e1 e2) -> do
-        (v, p2) <- vecNestJoinS e1 e2 (toDVec c1) (toDVec c2)
+    (NestJoinS p) -> do
+        (v, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p2)
 
-    (SemiJoin e1 e2) -> do
-        (v, r) <- vecSemiJoin e1 e2 (toDVec c1) (toDVec c2)
+    (SemiJoin p) -> do
+        (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (SemiJoinS e1 e2) -> do
-        (v, r) <- vecSemiJoinS e1 e2 (toDVec c1) (toDVec c2)
+    (SemiJoinS p) -> do
+        (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (AntiJoin e1 e2) -> do
-        (v, r) <- vecAntiJoin e1 e2 (toDVec c1) (toDVec c2)
+    (AntiJoin p) -> do
+        (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (AntiJoinS e1 e2) -> do
-        (v, r) <- vecAntiJoinS e1 e2 (toDVec c1) (toDVec c2)
+    (AntiJoinS p) -> do
+        (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
     TransposeS -> do

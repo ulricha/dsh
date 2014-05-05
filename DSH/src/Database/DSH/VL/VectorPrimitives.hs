@@ -99,15 +99,15 @@ class VectorAlgebra a where
   vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec)
 
-  vecEquiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecEquiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecThetaJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecThetaJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec)
   
-  vecSemiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
-  vecSemiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecSemiJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecSemiJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
-  vecAntiJoin :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
-  vecAntiJoinS :: Expr1 -> Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecAntiJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecAntiJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
   vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 

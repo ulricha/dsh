@@ -316,7 +316,7 @@ eq (Q a) (Q b) = Q (AppE Equ (PairE a b))
 (==) = eq
 
 neq :: (QA a,Eq a) => Q a -> Q a -> Q Bool
-neq a b = not (eq a b)
+neq (Q a) (Q b) = Q (AppE NEq (PairE a b))
 
 (/=) :: (QA a,Eq a) => Q a -> Q a -> Q Bool
 (/=) = neq
@@ -346,10 +346,10 @@ gt (Q a) (Q b) = Q (AppE Gt (PairE a b))
 (>) = gt
 
 min :: (QA a,Ord a) => Q a -> Q a -> Q a
-min (Q a) (Q b) = Q (AppE Min (PairE a b))
+min a b = cond (a < b) a b
 
 max :: (QA a,Ord a) => Q a -> Q a -> Q a
-max (Q a) (Q b) = Q (AppE Max (PairE a b))
+max a b = cond (a > b) a b
     
 mod :: Q Integer -> Q Integer -> Q Integer
 mod (Q a) (Q b) = Q (AppE Mod (PairE a b))

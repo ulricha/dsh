@@ -299,7 +299,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
-    EquiJoin _ _ -> do
+    ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 
@@ -309,7 +309,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
-    EquiJoinS _ _ -> do
+    ThetaJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 
@@ -319,7 +319,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
 
-    NestJoinS _ _ -> do
+    NestJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 
@@ -329,7 +329,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
       
-    SemiJoin _ _ -> do
+    SemiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       
       -- FIXME This is propably too pessimistic for the source descriptor
@@ -338,7 +338,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME This is propably too pessimistic for the descr 
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
-    SemiJoinS _ _ -> do
+    SemiJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       
       -- FIXME This is propably too pessimistic for the source descriptor
@@ -347,7 +347,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME This is propably too pessimistic for the descr 
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
-    AntiJoin _ _ -> do
+    AntiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       
       -- FIXME This is propably too pessimistic for the source descriptor
@@ -356,7 +356,7 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME This is propably too pessimistic for the descr 
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
-    AntiJoinS _ _ -> do
+    AntiJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
       
       -- FIXME This is propably too pessimistic for the source descriptor

@@ -20,11 +20,10 @@ module CombinatorTests
 import           Common
 
 import qualified Database.DSH as Q
-import           Database.DSH (Q, QA)
 
 import           Test.QuickCheck
-import           Test.HUnit(assertEqual, Assertion)
-import           Test.Framework (Test, defaultMainWithArgs, testGroup)
+import           Test.HUnit(Assertion)
+import           Test.Framework (Test, testGroup)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.Framework.Providers.HUnit
 import           Data.DeriveTH
@@ -39,30 +38,50 @@ import           Data.Either
 import           GHC.Exts
 
 data D0 = C01 deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D0
 Q.deriveDSH ''D0
 
 data D1 a = C11 a deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D1
 Q.deriveDSH ''D1
 
 data D2 a b = C21 a b b a deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D2
 Q.deriveDSH ''D2
 
-data D3 = C31 | C32 deriving (Eq,Ord,Show)
+data D3 = C31 
+        | C32 
+        deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D3
 Q.deriveDSH ''D3
 
-data D4 a = C41 a | C42 deriving (Eq,Ord,Show)
+data D4 a = C41 a 
+          | C42 
+          deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D4
 Q.deriveDSH ''D4
 
-data D5 a = C51 a | C52 | C53 a a | C54 a a a deriving (Eq,Ord,Show)
+data D5 a = C51 a 
+          | C52 
+          | C53 a a 
+          | C54 a a a 
+          deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D5
 Q.deriveDSH ''D5
 
-data D6 a b c d e = C61 { c611 :: a, c612 :: (a,b,c,d) } | C62 | C63 a b | C64 (a,b,c) | C65 a b c d e deriving (Eq,Ord,Show)
+data D6 a b c d e = C61 { c611 :: a, c612 :: (a,b,c,d) } 
+                  | C62 
+                  | C63 a b 
+                  | C64 (a,b,c) 
+                  | C65 a b c d e 
+                  deriving (Eq,Ord,Show)
+
 derive makeArbitrary ''D6
 Q.deriveDSH ''D6
 
@@ -170,7 +189,8 @@ tests_either = testGroup "Either"
 
 tests_lists :: Test
 tests_lists = testGroup "Lists"
-        [ testProperty "head" $ prop_head
+        [ testProperty "singleton" prop_singleton
+        , testProperty "head" $ prop_head
         , testProperty "tail" $ prop_tail
         , testProperty "cons" $ prop_cons
         , testProperty "snoc" $ prop_snoc
@@ -431,11 +451,12 @@ prop_cond_list_tuples = makeProp (\b -> Q.cond (Q.fst b)
                                         else (snd $ snd b, snd $ snd b))
 
 prop_map_cond :: [Bool] -> Property
-prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q Integer) 1)) (map (\b -> if b then 0 else 1))
+prop_map_cond = makeProp (Q.map (\b -> Q.cond b (0 :: Q.Q Integer) 1)) 
+                         (map (\b -> if b then 0 else 1))
 
 prop_map_cond_tuples :: [Bool] -> Property
 prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b 
-                                                     (Q.toQ (0, 10) :: Q (Integer, Integer)) 
+                                                     (Q.toQ (0, 10) :: Q.Q (Integer, Integer)) 
                                                      (Q.toQ (1, 11)))) 
                                 (map (\b -> if b 
                                             then (0, 10) 
@@ -522,10 +543,10 @@ prop_mapMaybe = makeProp (Q.mapMaybe id) (mapMaybe id)
 -- * Either
 
 prop_left :: Integer -> Property
-prop_left = makeProp (Q.left :: Q Integer -> Q (Either Integer Integer)) Left
+prop_left = makeProp (Q.left :: Q.Q Integer -> Q.Q (Either Integer Integer)) Left
 
 prop_right :: Integer -> Property
-prop_right = makeProp (Q.right :: Q Integer -> Q (Either Integer Integer)) Right
+prop_right = makeProp (Q.right :: Q.Q Integer -> Q.Q (Either Integer Integer)) Right
 
 prop_isLeft :: Either Integer Integer -> Property
 prop_isLeft = makeProp Q.isLeft (\e -> case e of {Left _ -> True; Right _ -> False;})

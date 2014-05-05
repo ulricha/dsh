@@ -14,7 +14,6 @@ import           CombinatorTests
 #ifdef isX100
 import           Database.X100Client
 #else
-import qualified Database.HDBC as HDBC
 import           Database.HDBC.PostgreSQL
 #endif
 
@@ -50,11 +49,11 @@ main = do
 
 tests :: [Test]
 tests =
-    [ tests_comprehensions
-    , tests_combinators_hunit
-    , tests_join_hunit
+    [ tests_join_hunit
     , tests_nest_head_hunit
     , tests_nest_guard_hunit
+    , tests_combinators_hunit
+    , tests_comprehensions
     , tests_boolean
     , tests_tuples
     , tests_numerics

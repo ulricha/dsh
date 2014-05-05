@@ -21,7 +21,7 @@ type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 data VLType = Nat | Int | Bool |  Double
             | String | Unit
             | Pair VLType VLType | VLList VLType
-            deriving (Eq, Ord, Generic, Show, Read)
+            deriving (Eq, Ord, Generic, Show)
 
 type VLColumn = (L.ColName, VLType)
 type DBCol = Int
@@ -33,14 +33,14 @@ data AggrFun = AggrSum VLType Expr1
              | AggrAll Expr1
              | AggrAny Expr1
              | AggrCount
-               deriving (Eq, Ord, Show, Read, Generic)
+               deriving (Eq, Ord, Show, Generic)
 
 data Expr1 = BinApp1 L.ScalarBinOp Expr1 Expr1
            | UnApp1 L.ScalarUnOp Expr1
            | Column1 DBCol
            | Constant1 VLVal
            | If1 Expr1 Expr1 Expr1
-           deriving (Eq, Ord, Show, Generic, Read)
+           deriving (Eq, Ord, Show, Generic)
 
 newtype LeftCol = L DBCol deriving (Eq, Ord, Show, Generic)
 newtype RightCol = R DBCol deriving (Eq, Ord, Show, Generic)
@@ -137,13 +137,14 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | ZipS            -- (DBV, RenameVector, RenameVector)
            | CartProduct
            | CartProductS
-           | EquiJoin Expr1 Expr1
-           | EquiJoinS Expr1 Expr1
-           | SemiJoin Expr1 Expr1
-           | SemiJoinS Expr1 Expr1
-           | AntiJoin Expr1 Expr1
-           | AntiJoinS Expr1 Expr1
-           | NestJoinS Expr1 Expr1
+           -- FIXME VL joins should include join expressions!
+           | ThetaJoin (L.JoinPredicate Expr1)
+           | ThetaJoinS (L.JoinPredicate Expr1)
+           | SemiJoin (L.JoinPredicate Expr1)
+           | SemiJoinS (L.JoinPredicate Expr1)
+           | AntiJoin (L.JoinPredicate Expr1)
+           | AntiJoinS (L.JoinPredicate Expr1)
+           | NestJoinS (L.JoinPredicate Expr1)
            | NestProductS
            | TransposeS
     deriving (Eq, Ord, Generic, Show)

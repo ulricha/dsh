@@ -1,17 +1,20 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiWayIf            #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 -- | Common tools for rewrites
-module Database.DSH.CL.Opt.Aux 
+module Database.DSH.CL.Opt.Aux
     ( applyExpr
     , applyT
       -- * Monad rewrites with additional state
     , TuplifyM
       -- * Converting predicate expressions into join predicates
+    , toJoinExpr
     , splitJoinPredT
     -- * Pushing guards towards the front of a qualifier list
-    , isEquiJoinPred
+    , isThetaJoinPred
     , isSemiJoinPred
     , isAntiJoinPred
       -- * Free and bound variables
@@ -41,22 +44,22 @@ module Database.DSH.CL.Opt.Aux
     , debugTrace
     , debugShow
     ) where
-    
+
 import           Control.Arrow
-import qualified Data.Foldable as F
-import           Data.List
-import           Debug.Trace
-import qualified Data.Set as S
 import           Data.Either
+import qualified Data.Foldable              as F
+import           Data.List
+import qualified Data.Set                   as S
+import           Debug.Trace
 
-import           Language.KURE                 
+import           Language.KURE
 
-import           Database.DSH.Impossible
-import           Database.DSH.Common.Pretty
-import           Database.DSH.Common.Lang
-import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Monad
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Impossible
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
@@ -70,86 +73,94 @@ applyExpr f e = runCompM $ apply f initialCtx (inject e)
 -- | Run a translate on any value which can be injected into CL
 applyT :: Injection a CL => TranslateC CL b -> a -> Either String b
 applyT t e = runCompM $ apply t initialCtx (inject e)
-          
+
 
 --------------------------------------------------------------------------------
 -- Rewrite general expressions into equi-join predicates
 
+toJoinBinOp :: Monad m => ScalarBinOp -> m JoinBinOp
+toJoinBinOp (SBNumOp o)     = return $ JBNumOp o
+toJoinBinOp (SBStringOp o)  = return $ JBStringOp o
+toJoinBinOp (SBRelOp _)     = fail "toJoinBinOp: join expressions can't contain relational ops"
+toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain boolean ops"
+
+toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
+toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
+toJoinUnOp (SUCastOp o) = return $ JUCastOp o
+toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
+toJoinUnOp SUDateOp     = $unimplemented
+
 toJoinExpr :: Ident -> TranslateC Expr JoinExpr
 toJoinExpr n = do
     e <- idR
-    
-    let prim1 :: (Prim1 a) -> TranslateC Expr UnOp
-        prim1 (Prim1 Fst _) = return FstJ
-        prim1 (Prim1 Snd _) = return SndJ
-        prim1 _             = fail "toJoinExpr: primitive can't be translated to join primitive"
-    
-    let unop :: ScalarUnOp -> TranslateC Expr UnOp
-        unop Not = return NotJ
-        unop _   = fail "toJoinExpr: scalar unary op can't be translated to join primitive"
-         
 
-        
     case e of
-        AppE1 t p _   -> do
-            p' <- prim1 p
-            appe1T (toJoinExpr n) (\_ _ e1 -> UnOpJ t p' e1)
-        BinOp t _ _ _ -> do
-            binopT (toJoinExpr n) (toJoinExpr n) (\_ o e1 e2 -> BinOpJ t o e1 e2)
-        UnOp t op _ -> do
-            op' <- unop op
-            unopT (toJoinExpr n) (\_ _ e1 -> UnOpJ t op' e1)
+        AppE1 _ (Prim1 Fst _) _   -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JFst t e1)
+        AppE1 _ (Prim1 Snd _) _   -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JSnd t e1)
+        BinOp _ o _ _ -> do
+            o' <- constT $ toJoinBinOp o
+            binopT (toJoinExpr n) (toJoinExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
+        UnOp _ o _ -> do
+            o' <- constT $ toJoinUnOp o
+            unopT (toJoinExpr n) (\t _ e1 -> JUnOp t o' e1)
         Lit t v       -> do
-            return $ ConstJ t v
+            return $ JLit t v
         Var t x       -> do
             guardMsg (n == x) "toJoinExpr: wrong name"
-            return $ InputJ t
+            return $ JInput t
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
-            
--- | Try to transform an expression into an equijoin predicate. This will fail
--- if either the expression does not have the correct shape (equality with
--- simple projection expressions on both sides) or if one side of the predicate
--- has free variables which are not the variables of the qualifiers given to the
--- function.
-splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinExpr, JoinExpr)
-splitJoinPredT x y = do
-    BinOp _ Eq e1 e2 <- idR
 
-    let fv1 = freeVars e1
-        fv2 = freeVars e2
-        
-    if [x] == fv1 && [y] == fv2
-        then binopT (toJoinExpr x) (toJoinExpr y) (\_ _ e1' e2' -> (e1', e2'))
-        else if [y] == fv1 && [x] == fv2
-             then binopT (toJoinExpr y) (toJoinExpr x) (\_ _ e1' e2' -> (e2', e1'))
-             else fail "splitJoinPredT: not an equi-join predicate"
+-- | Try to transform an expression into a thetajoin predicate. This
+-- will fail if either the expression does not have the correct shape
+-- (relational operator with simple projection expressions on both
+-- sides) or if one side of the predicate has free variables which are
+-- not the variables of the qualifiers given to the function.
+splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinConjunct JoinExpr)
+splitJoinPredT x y = do
+    BinOp _ (SBRelOp op) e1 e2 <- idR
+
+    [x'] <- return $ freeVars e1
+    [y'] <- return $ freeVars e2
+
+    let mkPred e1 e2 = JoinConjunct e1 op e2
+
+    if | x == x' && y == y' -> binopT (toJoinExpr x)
+                                      (toJoinExpr y)
+                                      (\_ _ e1' e2' -> mkPred e1' e2')
+       | y == x' && x == y' -> binopT (toJoinExpr y)
+                                      (toJoinExpr x)
+                                      (\_ _ e1' e2' -> mkPred e2' e1')
+       | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
+
 
 --------------------------------------------------------------------------------
 -- Distinguish certain kinds of guards
 
--- | An expression qualifies for an equijoin predicate if both sides
+-- | An expression qualifies for a thetajoin predicate if both sides
 -- are scalar expressions on exactly one of the join candidate
 -- variables.
-isEquiJoinPred :: Ident -> Ident -> Expr -> Bool
-isEquiJoinPred x y (BinOp _ Eq e1 e2) = 
+isThetaJoinPred :: Ident -> Ident -> Expr -> Bool
+isThetaJoinPred x y (BinOp _ (SBRelOp _) e1 e2) =
     isFlatExpr e1 && isFlatExpr e1
     && ([x] == freeVars e1 && [y] == freeVars e2
         || [x] == freeVars e2 && [y] == freeVars e1)
-isEquiJoinPred _ _ _ = False
+isThetaJoinPred _ _ _ = False
 
--- | Does the predicate look like an existential quantifier? 
+-- | Does the predicate look like an existential quantifier?
 isSemiJoinPred :: Ident -> Expr -> Bool
-isSemiJoinPred x (AppE1 _ (Prim1 Or _) 
-                           (Comp _ p 
-                                   (S (BindQ y _)))) = isEquiJoinPred x y p
+isSemiJoinPred x (AppE1 _ (Prim1 Or _)
+                           (Comp _ p
+                                   (S (BindQ y _)))) = isThetaJoinPred x y p
 isSemiJoinPred _  _                                  = False
 
--- | Does the predicate look like an universal quantifier? 
+-- | Does the predicate look like an universal quantifier?
 isAntiJoinPred :: Ident -> Expr -> Bool
-isAntiJoinPred x (AppE1 _ (Prim1 And _) 
+isAntiJoinPred x (AppE1 _ (Prim1 And _)
                            (Comp _ p
-                                   (S (BindQ y _)))) = isEquiJoinPred x y p
+                                   (S (BindQ y _)))) = isThetaJoinPred x y p
 isAntiJoinPred _  _                                  = False
 
 isFlatExpr :: Expr -> Bool
@@ -157,12 +168,12 @@ isFlatExpr expr =
     case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        UnOp _ Not e            -> isFlatExpr e
+        UnOp _ _ e              -> isFlatExpr e
         BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
         Var _ _                 -> True
         Lit _ _                 -> True
         _                       -> False
-        
+
 --------------------------------------------------------------------------------
 -- Computation of free variables
 
@@ -170,7 +181,7 @@ freeVarsT :: TranslateC CL [Ident]
 freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
                                                 guardM (v `freeIn` ctx)
                                                 return [v]
-                                                
+
 -- | Compute free variables of the given expression
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr freeVarsT
@@ -178,7 +189,7 @@ freeVars = either error id . applyExpr freeVarsT
 -- | Compute all identifiers bound by a qualifier list
 compBoundVars :: F.Foldable f => f Qual -> [Ident]
 compBoundVars qs = F.foldr aux [] qs
-  where 
+  where
     aux :: Qual -> [Ident] -> [Ident]
     aux (BindQ n _) ns = n : ns
     aux (GuardQ _) ns  = ns
@@ -191,7 +202,7 @@ alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
                v' <- constT $ freshName (inScopeNames ctx)
                let varTy = domainT lamTy
                lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
-              
+
 nonBinder :: Expr -> Bool
 nonBinder expr =
     case expr of
@@ -199,7 +210,7 @@ nonBinder expr =
         Var _ _    -> False
         Comp _ _ _ -> False
         _          -> True
-                                                
+
 substR :: Ident -> Expr -> RewriteC CL
 substR v s = readerT $ \case
     -- Occurence of the variable to be replaced
@@ -211,30 +222,30 @@ substR v s = readerT $ \case
     -- A lambda which does not shadow v and in which v occurs free. If the
     -- lambda variable occurs free in the substitute, we rename the lambda
     -- variable to avoid name capturing.
-    ExprCL (Lam _ n e) | n /= v && v `elem` freeVars e -> 
+    ExprCL (Lam _ n e) | n /= v && v `elem` freeVars e ->
         if n `elem` freeVars s
         then promoteR alphaLamR >>> substR v s
         else promoteR $ lamR (extractR $ substR v s)
 
     -- A lambda which shadows v -> don't descend
     ExprCL (Lam _ _ _)                                 -> idR
-    
+
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
     ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
-    
+
     ExprCL (Lit _ _)                                   -> idR
     ExprCL (Table _ _ _ _)                             -> idR
     ExprCL _                                           -> anyR $ substR v s
-    
+
     -- Don't substitute past shadowingt generators
     QualsCL ((BindQ n _) :* _) | n == v                -> promoteR $ qualsR (extractR $ substR v s) idR
     QualsCL (_ :* _)                                   -> promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
     QualsCL (S _)                                      -> promoteR $ qualsemptyR (extractR $ substR v s)
     QualCL _                                           -> anyR $ substR v s
-    
+
 
 --------------------------------------------------------------------------------
 -- Tuplifying variables
@@ -243,7 +254,7 @@ substR v s = readerT $ \case
 -- tuplifyR z c y e = e[fst z/x][snd z/y]
 tuplifyR :: Ident -> (Ident, Type) -> (Ident, Type) -> RewriteC CL
 tuplifyR v (v1, t1) (v2, t2) = substR v1 v1Rep >+> substR v2 v2Rep
-  where 
+  where
     (v1Rep, v2Rep) = tupleVars v t1 t2
 
 tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
@@ -263,11 +274,11 @@ insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
 insertGuard guardExpr initialEnv quals = go initialEnv quals
   where
     go :: S.Set Ident -> NL Qual -> NL Qual
-    go env (S q)             = 
+    go env (S q)             =
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* S q
         else q :* (S $ GuardQ guardExpr)
-    go env (q@(BindQ x _) :* qs) = 
+    go env (q@(BindQ x _) :* qs) =
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* q :* qs
         else q :* go (S.insert x env) qs
@@ -304,7 +315,7 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
         tryNextGuard = do
             -- Try to combine p with some generators
             (comp', ps', testedGuards') <- mergeGuardR comp p ps testedGuards
-            
+
             -- On success, back out to give other rewrites
             -- (i.e. predicate pushdown) a chance.
             return (comp', ps' ++ testedGuards')
@@ -314,7 +325,7 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
         tryOtherGuards = tryGuards mergeGuardR comp ps (p : testedGuards)
 
     tryNextGuard <+ tryOtherGuards
-        
+
 -- No guards left to try and none succeeded
 tryGuards _ _ [] _ = fail "no predicate could be merged"
 
@@ -325,14 +336,14 @@ tryGuards _ _ [] _ = fail "no predicate could be merged"
 mergeGuardsIterR :: MergeGuard -> RewriteC CL
 mergeGuardsIterR mergeGuardR = do
     ExprCL (Comp ty e qs) <- idR
-    
+
     -- Separate generators from guards
     ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
     let initialComp = C ty e (fromListSafe g gs)
 
     -- Try to merge one guard with some generators
-    (C _ e' qs', remGuards) <- constT (return ()) 
+    (C _ e' qs', remGuards) <- constT (return ())
                                >>> tryGuards mergeGuardR initialComp guards []
 
     -- If there are any guards remaining which we could not turn into
@@ -347,9 +358,9 @@ mergeGuardsIterR mergeGuardR = do
 
 -- | Traverse the spine of a NL list top-down and apply the translation as soon
 -- as possible.
-onetdSpineT 
-  :: (ReadPath c Int, MonadCatch m, Walker c CL) 
-  => Translate c m CL b 
+onetdSpineT
+  :: (ReadPath c Int, MonadCatch m, Walker c CL)
+  => Translate c m CL b
   -> Translate c m CL b
 onetdSpineT t = do
     n <- idR
@@ -362,7 +373,7 @@ onetdSpineT t = do
 -- Classification of expressions
 
 complexPrim2 :: Prim2Op -> Bool
-complexPrim2 op = 
+complexPrim2 op =
     case op of
         Map       -> False
         ConcatMap -> False
@@ -383,10 +394,12 @@ complexPrim1 op =
 -- | trace output of the value being rewritten; use for debugging only.
 prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
 prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
-           
+
 debug :: Pretty a => String -> a -> b -> b
 debug msg a b = b
-    -- trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+{-
+    trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+-}
 
 debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
 debugPretty msg a = debug msg a (return ())
@@ -399,26 +412,26 @@ debugOpt origExpr mExpr = either (const origExpr) id mExpr
 {-
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
-    
-  where 
+
+  where
     showOrig :: Expr -> String
     showOrig e =
         "\nOriginal query ====================================================================\n"
-        ++ pp e 
+        ++ pp e
         ++ "\n==================================================================================="
-        
+
     showOpt :: Expr -> String
     showOpt e =
         "Optimized query ===================================================================\n"
-        ++ pp e 
+        ++ pp e
         ++ "\n===================================================================================="
 -}
-        
+
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = prettyR "Before >>>>>>"
                >>> r
                >>> prettyR ">>>>>>> After"
-               
+
 debugTrace :: Monad m => String -> Rewrite c m a
 debugTrace msg = trace msg idR
 

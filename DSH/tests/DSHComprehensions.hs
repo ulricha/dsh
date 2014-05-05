@@ -46,6 +46,32 @@ eqjoinpred (view -> (x', xs, ys)) =
   , x > x'
   ]
 
+eqjointuples :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+eqjointuples (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  ]
+
+thetajoin_eq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+thetajoin_eq (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  , y1 == x2
+  ]
+
+thetajoin_neq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
+thetajoin_neq (view -> (xs, ys)) =
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- xs
+  , (view -> (y1, y2)) <- ys
+  , x1 == y2
+  , y1 /= x2
+  ]
+
 eqjoin3 :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
 eqjoin3 (view -> (xs, ys, zs)) = 
   [ tuple3 x y z
@@ -56,12 +82,29 @@ eqjoin3 (view -> (xs, ys, zs)) =
   , y == z
   ]
   
-eqjoin_nested :: Q ([(Integer, [Integer])], [Integer]) -> Q [((Integer, [Integer]), Integer)]
-eqjoin_nested args =
+eqjoin_nested_left :: Q ([(Integer, [Integer])], [Integer]) -> Q [((Integer, [Integer]), Integer)]
+eqjoin_nested_left args =
   [ pair x y
   | x <- fst args
   , y <- snd args
   , fst x == y
+  ]
+
+eqjoin_nested_right :: Q ([Integer], [(Integer, [Integer])]) -> Q [(Integer, (Integer, [Integer]))]
+eqjoin_nested_right args =
+  [ pair x y
+  | x <- fst args
+  , y <- snd args
+  , x == fst y
+  ]
+
+eqjoin_nested_both :: Q ([(Integer, [Integer])], [(Integer, [Integer])]) 
+                   -> Q [((Integer, [Integer]), (Integer, [Integer]))]
+eqjoin_nested_both args =
+  [ pair x y
+  | x <- fst args
+  , y <- snd args
+  , fst x == fst y
   ]
 
 nestjoin :: Q ([Integer], [Integer]) -> Q [(Integer, [Integer])]
@@ -84,8 +127,26 @@ eqjoin_nested1 =
 semijoin :: Q [Integer]
 semijoin = 
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
-        ys = (toQ [2, 4, 6] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs , x `elem` ys ]
+
+semijoin_range :: Q [Integer]
+semijoin_range = 
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6] :: Q [Integer])
+    in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
+
+antijoin :: Q [Integer]
+antijoin =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs , not $ x `elem` ys ]
+
+antijoin_range :: Q [Integer]
+antijoin_range =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs , not $ x `elem` [ y | y <- ys, y < 5 ] ]
 
 ----------------------------------------------------------------------
 -- Comprehensions for HUnit NestJoin/NestProduct tests
@@ -127,7 +188,6 @@ nj6 njxs njys =
       | x <- toQ njxs
       ]
 
--- SQL code for outer query has empty SELECT CLAUSE
 nj7 :: [Integer] -> [Integer] -> Q [[Integer]]
 nj7 njxs njys = 
     [ [ x + y | y <- toQ njys, x + 2 == y ] | x <- toQ njxs ]
@@ -140,6 +200,9 @@ nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ
 
 nj10 :: [Integer] -> [Integer] -> Q [Integer]
 nj10 njxs njys = [ x + sum [ x * y | y <- toQ njys, x == y ] | x <- toQ njxs ]
+
+nj11 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj11 njxs njys = [ [ x + y | y <- toQ njys, x > y, x < y * 2 ] | x <- toQ njxs ]
 
 np1 :: [Integer] -> [Integer] -> Q [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- toQ njys ] | x <- toQ njxs ]
@@ -184,4 +247,11 @@ njg4 njgxs njgys njgzs =
   | x <- toQ njgxs
   , length [ toQ () | y <- toQ njgys, x == y ] 
     > length [ toQ () | z <- toQ njgzs, fst z == x ]
+  ]
+
+njg5 :: [Integer] -> [Integer] -> Q [Integer]
+njg5 njgxs njgys =
+  [ x
+  | x <- toQ njgxs
+  , sum [ y | y <- toQ njgys, x < y, y > 5 ] < 10
   ]

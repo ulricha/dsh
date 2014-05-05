@@ -319,7 +319,7 @@ scalarConditional q =
         
         -- The selection condition must be the negated form of the
         -- then-condition.
-        predicate $ (UnApp1 Not predExpr) == $(v "negPred")
+        predicate $ (UnApp1 (SUBoolOp Not) predExpr) == $(v "negPred")
 
         return $ do
           logRewrite "Redundant.ScalarConditional" q

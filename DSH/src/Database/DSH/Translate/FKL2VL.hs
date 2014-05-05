@@ -1,43 +1,42 @@
-{-# LANGUAGE RelaxedPolyRec  #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections   #-}
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
 import           Control.Monad
-       
+
 import           Database.Algebra.Dag.Builder
-import qualified Database.Algebra.Dag.Common as Alg
-import           Database.DSH.VL.Lang
-import           Database.DSH.VL.Render.JSON               ()
-import qualified Database.DSH.Common.QueryPlan as QP
-import           Database.DSH.Common.Type 
+import qualified Database.Algebra.Dag.Common      as Alg
+import qualified Database.DSH.Common.QueryPlan    as QP
+import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Data.FKL
-import           Database.DSH.VL.Data.GraphVector   hiding (Pair)
 import           Database.DSH.VL.Data.DBVector
-import           Database.DSH.VL.VLPrimitives
+import           Database.DSH.VL.Data.GraphVector hiding (Pair)
+import           Database.DSH.VL.Lang
+import           Database.DSH.VL.Render.JSON      ()
 import           Database.DSH.VL.VectorOperations
+import           Database.DSH.VL.VLPrimitives
 
 fkl2VL :: Expr -> Graph VL Shape
 fkl2VL expr =
     case expr of
         Table _ n cs hs -> dbTable n cs hs
         Const t v -> mkLiteral t v
-        BinOp _ (NotLifted o) e1 e2    -> do 
+        BinOp _ (NotLifted o) e1 e2    -> do
             PrimVal p1 lyt <- fkl2VL e1
             PrimVal p2 _   <- fkl2VL e2
             p              <- vlBinExpr o p1 p2
             return $ PrimVal p lyt
-        BinOp _ (Lifted o) e1 e2     -> do 
+        BinOp _ (Lifted o) e1 e2     -> do
             ValueVector p1 lyt <- fkl2VL e1
             ValueVector p2 _   <- fkl2VL e2
             p                  <- vlBinExpr o p1 p2
             return $ ValueVector p lyt
-        UnOp _ (NotLifted o) e1 -> do 
+        UnOp _ (NotLifted o) e1 -> do
             PrimVal p1 lyt <- fkl2VL e1
             p              <- vlUnExpr o p1
             return $ PrimVal p lyt
-        UnOp _ (Lifted o) e1 -> do 
+        UnOp _ (Lifted o) e1 -> do
             ValueVector p1 lyt <- fkl2VL e1
             p                  <- vlUnExpr o p1
             return $ ValueVector p lyt
@@ -47,7 +46,7 @@ fkl2VL expr =
             e2' <- fkl2VL e2
             ifList eb' e1' e2'
         PApp1 t f arg -> do
-            arg' <- fkl2VL arg 
+            arg' <- fkl2VL arg
             papp1 t f arg'
         PApp2 _ f arg1 arg2 -> do
             arg1' <- fkl2VL arg1
@@ -143,17 +142,17 @@ papp2 f =
         FCartProductL _    -> cartProductLift
         FNestProduct _     -> nestProductPrim
         FNestProductL _    -> nestProductLift
-        FEquiJoin e1 e2 _  -> equiJoinPrim e1 e2
-        FEquiJoinL e1 e2 _ -> equiJoinLift e1 e2
-        FNestJoin e1 e2 _  -> nestJoinPrim e1 e2
-        FNestJoinL e1 e2 _ -> nestJoinLift e1 e2
-        FSemiJoin e1 e2 _  -> semiJoinPrim e1 e2
-        FSemiJoinL e1 e2 _ -> semiJoinLift e1 e2
-        FAntiJoin e1 e2 _  -> antiJoinPrim e1 e2
-        FAntiJoinL e1 e2 _ -> antiJoinLift e1 e2
+        FThetaJoin p _     -> thetaJoinPrim p
+        FThetaJoinL p _    -> thetaJoinLift p
+        FNestJoin p _      -> nestJoinPrim p
+        FNestJoinL p _     -> nestJoinLift p
+        FSemiJoin p _      -> semiJoinPrim p
+        FSemiJoinL p _     -> semiJoinLift p
+        FAntiJoin p _      -> antiJoinPrim p
+        FAntiJoinL p _     -> antiJoinLift p
 
 constructClosureEnv :: [String] -> Graph a [(String, Shape)]
-constructClosureEnv [] = return []
+constructClosureEnv []     = return []
 constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosureEnv xs)
 
 -- For each top node, determine the number of columns the vector has and insert
@@ -164,25 +163,25 @@ insertTopProjections g = do
   shape <- g
   let shape' = QP.exportShape shape
   traverseShape shape'
-  
-  where 
+
+  where
   traverseShape :: (QP.TopShape DVec) -> Graph VL (QP.TopShape DVec)
-  traverseShape (QP.ValueVector (DVec q _) lyt) = 
+  traverseShape (QP.ValueVector (DVec q _) lyt) =
       insertProj lyt q Project DVec QP.ValueVector
-  traverseShape (QP.PrimVal (DVec q _) lyt)     = 
+  traverseShape (QP.PrimVal (DVec q _) lyt)     =
       insertProj lyt q Project DVec QP.PrimVal
-  
+
   traverseLayout :: (QP.TopLayout DVec) -> Graph VL (QP.TopLayout DVec)
-  traverseLayout (QP.InColumn c) = 
+  traverseLayout (QP.InColumn c) =
       return $ QP.InColumn c
   traverseLayout (QP.Pair lyt1 lyt2) = do
       lyt1' <- traverseLayout lyt1
       lyt2' <- traverseLayout lyt2
       return $ QP.Pair lyt1' lyt2'
-  traverseLayout (QP.Nest (DVec q _) lyt) = 
+  traverseLayout (QP.Nest (DVec q _) lyt) =
     insertProj lyt q Project DVec QP.Nest
-    
-  insertProj 
+
+  insertProj
     :: QP.TopLayout DVec               -- The node's layout
     -> AlgNode                         -- The top node to consider
     -> ([Expr1] -> UnOp)               -- Constructor for the projection op

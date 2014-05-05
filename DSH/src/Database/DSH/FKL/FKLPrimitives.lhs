@@ -133,7 +133,7 @@ pairPrim e1 e2 = let t1 = typeOf e1
                      rt = pairT t1 t2
                   in F.PApp2 rt (F.FPair (t1 .-> t2 .-> rt)) e1 e2
 
--- FIXME lifted pair is equivalent to zip!
+-- FIXME lifted pair is thetavalent to zip!
 pairLPrim :: Expr -> Expr -> Expr
 pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                       t2@(ListT t2') = typeOf e2
@@ -181,59 +181,59 @@ nestProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
                              t2@(ListT t2') = typeOf e2
                           in F.PApp2 t2 (F.FNestProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-equiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
-equiJoinVal je1 je2 t = doubleArgClo t "equiJoin_e1" "equiJoin_e2" (equiJoinPrim je1 je2) (equiJoinLPrim je1 je2)
+thetaJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
+thetaJoinVal p t = doubleArgClo t "thetaJoin_e1" "thetaJoin_e2" (thetaJoinPrim p) (thetaJoinLPrim p)
                   
-equiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-equiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
-                                 t2 = typeOf e2
-                             in F.PApp2 t2 (F.FEquiJoin je1 je2 (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+thetaJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+thetaJoinPrim p e1 e2 = let t1 = typeOf e1
+                            t2 = typeOf e2
+                        in F.PApp2 t2 (F.FThetaJoin p (t1 .-> t2 .-> PairT t1 t2)) e1 e2
                          
-equiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-equiJoinLPrim je1 je2 e1 e2 = let t1@(ListT t1') = typeOf e1
-                                  t2@(ListT t2') = typeOf e2
-                              in F.PApp2 t2 (F.FEquiJoinL je1 je2 (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+thetaJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+thetaJoinLPrim p e1 e2 = let t1@(ListT t1') = typeOf e1
+                             t2@(ListT t2') = typeOf e2
+                         in F.PApp2 t2 (F.FThetaJoinL p (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-nestJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
-nestJoinVal je1 je2 t = doubleArgClo t "nestJoin_e1" "nestJoin_e2" (nestJoinPrim je1 je2) (nestJoinLPrim je1 je2)
+nestJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
+nestJoinVal p t = doubleArgClo t "nestJoin_e1" "nestJoin_e2" (nestJoinPrim p) (nestJoinLPrim p)
                   
-nestJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-nestJoinPrim je1 je2 e1 e2 = let xst@(ListT xt) = typeOf e1
-                                 yst@(ListT yt) = typeOf e2
-                                 tr = listT $ pairT xt (listT yt)
-                             in F.PApp2 tr (F.FNestJoin je1 je2 (xst .-> yst .-> tr)) e1 e2
+nestJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+nestJoinPrim p e1 e2 = let xst@(ListT xt) = typeOf e1
+                           yst@(ListT yt) = typeOf e2
+                           tr = listT $ pairT xt (listT yt)
+                       in F.PApp2 tr (F.FNestJoin p (xst .-> yst .-> tr)) e1 e2
                          
-nestJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-nestJoinLPrim je1 je2 e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
-                                  yst@(ListT yt) = typeOf e2
-                                  tr = listT $ listT $ pairT xt yt
-                              in F.PApp2 tr (F.FNestJoinL je1 je2 (xst .-> yst .-> tr)) e1 e2
+nestJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+nestJoinLPrim p e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
+                            yst@(ListT yt) = typeOf e2
+                            tr = listT $ listT $ pairT xt yt
+                        in F.PApp2 tr (F.FNestJoinL p (xst .-> yst .-> tr)) e1 e2
 
-semiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
-semiJoinVal je1 je2 t = doubleArgClo t "semiJoin_e1" "semiJoin_e2" (semiJoinPrim je1 je2) (semiJoinLPrim je1 je2)
+semiJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
+semiJoinVal p t = doubleArgClo t "semiJoin_e1" "semiJoin_e2" (semiJoinPrim p) (semiJoinLPrim p)
                   
-semiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-semiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
-                                 t2 = typeOf e2
-                             in F.PApp2 t2 (F.FSemiJoin je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+semiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+semiJoinPrim p e1 e2 = let t1 = typeOf e1
+                           t2 = typeOf e2
+                       in F.PApp2 t2 (F.FSemiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-semiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-semiJoinLPrim je1 je2 e1 e2 = let t1 = typeOf e1
-                                  t2 = typeOf e2
-                              in F.PApp2 t2 (F.FSemiJoinL je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+semiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+semiJoinLPrim p e1 e2 = let t1 = typeOf e1
+                            t2 = typeOf e2
+                        in F.PApp2 t2 (F.FSemiJoinL p (t1 .-> t2 .-> t1)) e1 e2
 
-antiJoinVal :: JoinExpr -> JoinExpr -> Type -> Expr
-antiJoinVal je1 je2 t = doubleArgClo t "antiJoin_e1" "antiJoin_e2" (antiJoinPrim je1 je2) (antiJoinLPrim je1 je2)
+antiJoinVal :: JoinPredicate JoinExpr  -> Type -> Expr
+antiJoinVal p t = doubleArgClo t "antiJoin_e1" "antiJoin_e2" (antiJoinPrim p) (antiJoinLPrim p)
                   
-antiJoinPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-antiJoinPrim je1 je2 e1 e2 = let t1 = typeOf e1
-                                 t2 = typeOf e2
-                             in F.PApp2 t2 (F.FAntiJoin je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+antiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+antiJoinPrim p e1 e2 = let t1 = typeOf e1
+                           t2 = typeOf e2
+                       in F.PApp2 t2 (F.FAntiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-antiJoinLPrim :: JoinExpr -> JoinExpr -> Expr -> Expr -> Expr
-antiJoinLPrim je1 je2 e1 e2 = let t1 = typeOf e1
-                                  t2 = typeOf e2
-                              in F.PApp2 t2 (F.FAntiJoinL je1 je2 (t1 .-> t2 .-> t1)) e1 e2
+antiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+antiJoinLPrim p e1 e2 = let t1 = typeOf e1
+                            t2 = typeOf e2
+                        in F.PApp2 t2 (F.FAntiJoinL p (t1 .-> t2 .-> t1)) e1 e2
 
 appendVal :: Type -> Expr
 appendVal t = doubleArgClo t "append_e1" "append_e2" appendPrim appendLPrim
@@ -581,9 +581,10 @@ binPrim :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
 binPrim t o e1 e2 = 
     let t' = typeOf e1
     in case (t', o) of
-           (PairT _ _, Eq) -> binPrim t Conj (binPrim t Eq (fstPrim e1) (fstPrim e2)) 
-                                             (binPrim t Eq (sndPrim e1) (sndPrim e2))
-           _               -> BinOp t (NotLifted o) e1 e2
+           (PairT _ _, SBRelOp Eq) -> 
+               binPrim t (SBBoolOp Conj) (binPrim t (SBRelOp Eq) (fstPrim e1) (fstPrim e2)) 
+                                         (binPrim t (SBRelOp Eq) (sndPrim e1) (sndPrim e2))
+           _                       -> BinOp t (NotLifted o) e1 e2
 
 binPrimM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
 binPrimM t o = liftM2 (binPrim t o)
