@@ -29,8 +29,8 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
              ( leftICols ∪ (ownICols ∩ leftCols) ∪ (S.singleton leftJoinCol)
              , rightICols ∪ (ownICols ∩rightCols) ∪ (S.singleton rightJoinCol) )
          ThetaJoin cs -> 
-             let leftExprCols = S.fromList $ map (\(l, _, _) -> l) cs
-                 rightExprCols = S.fromList $ map (\(_, r, _) -> r) cs
+             let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
+                 rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
                  leftICols' = leftICols ∪ (ownICols ∩ leftCols) ∪ leftExprCols
                  rightICols' = rightICols ∪ (ownICols ∩ rightCols) ∪ rightExprCols
@@ -39,15 +39,15 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
          -- From the left, we require all columns required by us, in addition to
          -- the left join columns.
          SemiJoin cs -> 
-             let leftExprCols = S.fromList $ map (\(l, _, _) -> l) cs
-                 rightExprCols = S.fromList $ map (\(_, r, _) -> r) cs
+             let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
+                 rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
                  leftICols' = leftICols ∪ ownICols ∪ leftExprCols
                  rightICols' = rightExprCols
              in (leftICols', rightICols')
          AntiJoin cs -> 
-             let leftExprCols = S.fromList $ map (\(l, _, _) -> l) cs
-                 rightExprCols = S.fromList $ map (\(_, r, _) -> r) cs
+             let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
+                 rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
                  leftICols' = leftICols ∪ ownICols ∪ leftExprCols
                  rightICols' = rightExprCols

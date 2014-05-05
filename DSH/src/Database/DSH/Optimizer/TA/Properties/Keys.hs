@@ -137,13 +137,13 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
                            ∪
                            [ k 
                            | k <- leftKeys
-                           , (_, b, EqJ) <- S.fromList preds
+                           , (_, ColE b, EqJ) <- S.fromList preds
                            , (ss b) ∈ rightKeys
                            ]
                            ∪
                            [ k 
                            | k <- rightKeys
-                           , (a, _, EqJ) <- S.fromList preds
+                           , (ColE a, _, EqJ) <- S.fromList preds
                            , (ss a) ∈ leftKeys
                            ]
                            ∪

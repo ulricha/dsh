@@ -11,6 +11,9 @@ import           Database.Algebra.Pathfinder.Data.Algebra
 
 import Database.DSH.Optimizer.TA.Properties.Aux
 
+flatten :: S.Set (S.Set AttrName) -> S.Set AttrName
+flatten = S.foldl' (∪) S.empty
+
 
 inferUseBinOp :: S.Set AttrName    
                 -> S.Set AttrName  
@@ -28,32 +31,32 @@ inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
                               , rightUse ∪ (ss jc2) ∪ [ c | c <- rightCols, c ∈ ownUse ] )
          ThetaJoin ps -> ( leftUse 
                            ∪ 
-                           [ a | (a, _, _) <- S.fromList ps ]
+                           flatten [ exprCols a | (a, _, _) <- S.fromList ps ]
                            ∪ 
                            [ c | c <- leftCols, c ∈ ownUse ]
                          , rightUse 
                            ∪ 
-                           [ b | (_, b, _) <- S.fromList ps ]
+                           flatten [ exprCols b | (_, b, _) <- S.fromList ps ]
                            ∪ 
                            [ c | c <- rightCols, c ∈ ownUse ]
                          )
          SemiJoin ps  -> ( leftUse
                            ∪ 
-                           [ a | (a, _, _) <- S.fromList ps ]
+                           flatten [ exprCols a | (a, _, _) <- S.fromList ps ]
                            ∪ 
                            [ c | c <- leftCols, c ∈ ownUse ]
                          , rightUse
                            ∪
-                           [ b | (_, b, _) <- S.fromList ps ]
+                           flatten [ exprCols b | (_, b, _) <- S.fromList ps ]
                          )
          AntiJoin ps  -> ( leftUse
                            ∪ 
-                           [ a | (a, _, _) <- S.fromList ps ]
+                           flatten [ exprCols a | (a, _, _) <- S.fromList ps ]
                            ∪ 
                            [ c | c <- leftCols, c ∈ ownUse ]
                          , rightUse
                            ∪
-                           [ b | (_, b, _) <- S.fromList ps ])
+                           flatten [ exprCols b | (_, b, _) <- S.fromList ps ])
 
          DisjUnion _  -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
          Difference _ -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
