@@ -14,7 +14,7 @@ module Database.DSH.CL.Opt.Aux
     , toJoinExpr
     , splitJoinPredT
     -- * Pushing guards towards the front of a qualifier list
-    , isEquiJoinPred
+    , isThetaJoinPred
     , isSemiJoinPred
     , isAntiJoinPred
       -- * Free and bound variables
@@ -139,28 +139,28 @@ splitJoinPredT x y = do
 --------------------------------------------------------------------------------
 -- Distinguish certain kinds of guards
 
--- | An expression qualifies for an equijoin predicate if both sides
+-- | An expression qualifies for a thetajoin predicate if both sides
 -- are scalar expressions on exactly one of the join candidate
 -- variables.
-isEquiJoinPred :: Ident -> Ident -> Expr -> Bool
-isEquiJoinPred x y (BinOp _ (SBRelOp Eq) e1 e2) =
+isThetaJoinPred :: Ident -> Ident -> Expr -> Bool
+isThetaJoinPred x y (BinOp _ (SBRelOp Eq) e1 e2) =
     isFlatExpr e1 && isFlatExpr e1
     && ([x] == freeVars e1 && [y] == freeVars e2
         || [x] == freeVars e2 && [y] == freeVars e1)
-isEquiJoinPred _ _ _ = False
+isThetaJoinPred _ _ _ = False
 
 -- | Does the predicate look like an existential quantifier?
 isSemiJoinPred :: Ident -> Expr -> Bool
 isSemiJoinPred x (AppE1 _ (Prim1 Or _)
                            (Comp _ p
-                                   (S (BindQ y _)))) = isEquiJoinPred x y p
+                                   (S (BindQ y _)))) = isThetaJoinPred x y p
 isSemiJoinPred _  _                                  = False
 
 -- | Does the predicate look like an universal quantifier?
 isAntiJoinPred :: Ident -> Expr -> Bool
 isAntiJoinPred x (AppE1 _ (Prim1 And _)
                            (Comp _ p
-                                   (S (BindQ y _)))) = isEquiJoinPred x y p
+                                   (S (BindQ y _)))) = isThetaJoinPred x y p
 isAntiJoinPred _  _                                  = False
 
 isFlatExpr :: Expr -> Bool
@@ -168,7 +168,7 @@ isFlatExpr expr =
     case expr of
         AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
         AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        UnOp _ (SUBoolOp Not) e -> isFlatExpr e
+        UnOp _ _ e              -> isFlatExpr e
         BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
         Var _ _                 -> True
         Lit _ _                 -> True
