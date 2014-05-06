@@ -20,7 +20,6 @@ module Database.DSH.Compiler
   ) where
 
 import           Control.Applicative
-import           Data.Convertible                         ()
 
 import qualified Database.HDBC                            as H
 
