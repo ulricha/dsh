@@ -19,7 +19,6 @@ module Database.DSH.CL.Lang
 import           Control.Applicative          hiding (empty)
 
 import qualified Data.Foldable                as F
-import qualified Data.List.NonEmpty           as N
 import qualified Data.Traversable             as T
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -184,8 +183,6 @@ isGuard (BindQ _ _)  = False
 isBind :: Qual -> Bool
 isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
-
-data Comp = C Type Expr (NL Qual)
 
 data Expr  = Table Type String [L.Column] L.TableHints
            | App Type Expr Expr

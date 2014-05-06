@@ -52,9 +52,6 @@ itemi i = "item" ++ show i
 itemi' :: Int -> AttrName
 itemi' i = "itemtmp" ++ show i
 
-exprcoli :: Int -> AttrName
-exprcoli i = "expr" ++ show i
-
 algVal :: VL.VLVal -> AVal
 algVal (VL.VLInt i) = int (fromIntegral i)
 algVal (VL.VLBool t) = bool t
@@ -62,14 +59,6 @@ algVal VL.VLUnit = int (-1)
 algVal (VL.VLString s) = string s
 algVal (VL.VLDouble d) = double d
 algVal (VL.VLNat n) = nat $ fromIntegral n
-
-algConstType :: VL.VLVal -> ATy
-algConstType (VL.VLInt _)    = AInt
-algConstType (VL.VLNat _)    = ANat
-algConstType (VL.VLBool _)   = ABool
-algConstType (VL.VLString _) = AStr
-algConstType (VL.VLDouble _) = ADouble
-algConstType VL.VLUnit       = ANat
 
 algTy :: VL.VLType -> ATy
 algTy (VL.Int) = intT
@@ -214,7 +203,7 @@ sumDefault :: VL.VLType -> (ATy, AVal)
 sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
-sumDefault t         = $impossible
+sumDefault _         = $impossible
 
 doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r PFAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do

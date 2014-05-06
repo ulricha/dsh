@@ -125,7 +125,7 @@ splitJoinPredT x y = do
     [x'] <- return $ freeVars e1
     [y'] <- return $ freeVars e2
 
-    let mkPred e1 e2 = JoinConjunct e1 op e2
+    let mkPred el er = JoinConjunct el op er
 
     if | x == x' && y == y' -> binopT (toJoinExpr x)
                                       (toJoinExpr y)
@@ -202,14 +202,6 @@ alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
                v' <- constT $ freshName (inScopeNames ctx)
                let varTy = domainT lamTy
                lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
-
-nonBinder :: Expr -> Bool
-nonBinder expr =
-    case expr of
-        Lam _ _ _  -> False
-        Var _ _    -> False
-        Comp _ _ _ -> False
-        _          -> True
 
 substR :: Ident -> Expr -> RewriteC CL
 substR v s = readerT $ \case

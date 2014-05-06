@@ -3,7 +3,6 @@
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
 
-import           Prelude                  (Bool (..))
 import qualified Prelude                  as P
 
 import           Text.Printf

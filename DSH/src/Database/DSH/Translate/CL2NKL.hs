@@ -109,7 +109,7 @@ desugar t e qs =
 -- | Turn multiple qualifiers into one qualifier using cartesian products and
 -- filters to express nested iterations and predicates.
 productify :: CL.Expr -> [CL.Qual] -> (CL.Expr, CL.Qual)
-productify e []                                 = $impossible
+productify _ []                                 = $impossible
 productify e [q]                                = (e, q)
            
 -- [ e | x <- xs, y <- ys, qs ] = 

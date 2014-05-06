@@ -39,9 +39,9 @@ constExpr1 constCols e =
                             then Left (printf "constExpr1 %s %d" (show constCols) i)
                             else return $ constCols !! (i - 1)
         -- FIXME implement constant folding
-        BinApp1 op e1 e2 -> return NonConstPL
-        UnApp1 op e1     -> return NonConstPL
-        If1 c t e        -> return NonConstPL
+        BinApp1 _ _ _    -> return NonConstPL
+        UnApp1 _ _       -> return NonConstPL
+        If1 _ _ _        -> return NonConstPL
 
 nonConstPVec :: ConstVec
 nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)

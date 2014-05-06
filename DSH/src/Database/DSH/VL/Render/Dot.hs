@@ -11,7 +11,6 @@ import           Text.PrettyPrint
 import qualified Database.Algebra.Dag        as Dag
 import           Database.Algebra.Dag.Common as C
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
 import           Database.DSH.VL.Lang

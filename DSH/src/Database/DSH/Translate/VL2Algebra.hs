@@ -14,7 +14,7 @@ import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
 import           Database.Algebra.Pathfinder                           (initLoop)
 import           Database.Algebra.X100.Data                            (X100Algebra)
 import           Database.Algebra.X100.Data.Create                     (dummy)
-import           Database.Algebra.Dag                                  (AlgebraDag, nodeMap)
+import           Database.Algebra.Dag                                  (nodeMap)
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common                           hiding (BinOp)
 import qualified Database.Algebra.Dag.Common                           as C
