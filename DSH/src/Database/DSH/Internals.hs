@@ -37,7 +37,6 @@ data TableHints = TableHints
     } deriving (Eq, Ord, Show)
 
 data Table = TableDB String TableHints
-           | TableCSV  String deriving (Eq, Ord, Show)
 
 data Type a where
   UnitT     :: Type ()

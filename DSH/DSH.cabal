@@ -67,16 +67,12 @@ Flag debug
 Library
   Extensions:        CPP
   Build-depends:     base               >= 4.5 && < 5,
-                     ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
-                     array              >= 0.4,
-                     syb                >= 0.3,
                      mtl                >= 2.1,
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
                      template-haskell   >= 2.8.0.0,
-                     csv                >= 0.1.2,
                      parsec,
                      X100Client         >= 0.0.2,
                      pretty             >= 1.0.1.1,
@@ -99,12 +95,10 @@ Library
   GHC-Options:       -Wall -auto-all -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
-                     Database.DSH.Interpreter
                      Database.DSH.Compiler
 
   Other-modules:     Database.DSH.Internals
                      Database.DSH.CompileFlattening
-                     Database.DSH.CSV
                      Database.DSH.Schema
                      Database.DSH.Execute.Sql
                      Database.DSH.Execute.X100
