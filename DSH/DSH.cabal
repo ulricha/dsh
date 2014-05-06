@@ -85,7 +85,6 @@ Library
                      set-monad,
                      either             >= 4.0,
                      dlist,
-                     semigroups
                      
   Hs-source-dirs:    src
 
