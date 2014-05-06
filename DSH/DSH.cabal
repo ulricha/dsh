@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.8.2.3
+Version:             0.9.0
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -43,7 +43,7 @@ Description:
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Alexander Ulrich, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          alexander.ulrich@uni-tuebingen.de, jeroen.weijers@uni-tuebingen.de
+Maintainer:          alexander.ulrich@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
@@ -78,8 +78,6 @@ Library
                      X100Client         >= 0.0.2,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
-		     -- FIXME uniplate dependency not necessary
-                     uniplate,
                      X100Client         >= 0.0.2,
                      TableAlgebra       >= 2.0.0,
                      semigroups,
