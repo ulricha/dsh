@@ -13,26 +13,19 @@ module Database.DSH.Compiler
   , runPrint
   ) where
 
-import           Text.Printf
-import           GHC.Exts
-                 
 import           Control.Applicative
-
-import qualified Database.HDBC                            as H
 
 import           Database.DSH.CompileFlattening
 import           Database.DSH.Execute.Sql
 
 import           Database.DSH.Internals
-import           Database.HDBC
-import qualified Database.HDBC                                   as H
+import qualified Database.HDBC                        as H
 
 import qualified Database.DSH.CL.Lang                 as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
-import           Database.DSH.Internals
 import           Database.DSH.Optimizer.TA.OptimizeTA
 import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Schema
@@ -41,8 +34,6 @@ import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
-import           Database.DSH.Translate.Algebra2Query
-import           Database.DSH.Common.DBCode
 
 (|>) :: a -> (a -> b) -> b
 (|>) = flip ($)
