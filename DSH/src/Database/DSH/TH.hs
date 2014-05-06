@@ -68,7 +68,14 @@ deriveTyConQA name tyVarBndrs cons = do
 -- Deriving the Rep type function
 
 deriveRep :: Type -> [Con] -> Dec
+-- GHC-7.8.2 (template-haskell-2.9.0.0) has a trivial but incompatible
+-- modification: two arguments of TySynInstD are now encapsulated in a
+-- TySynEqn constructor
+#if MIN_VERSION_template_haskell(2,9,0)
+deriveRep typ cons = TySynInstD ''DSH.Rep $ TySynEqn [typ] (deriveRepCons cons)
+#else
 deriveRep typ cons = TySynInstD ''DSH.Rep [typ] (deriveRepCons cons)
+#endif
 
 deriveRepCons :: [Con] -> Type
 deriveRepCons []  = error errMsgExoticType
@@ -207,7 +214,11 @@ deriveTyConView name tyVarBndrs con = do
   let typ2 = if null typs
                 then AppT (ConT ''DSH.Q) (ConT ''())
                 else foldl AppT (TupleT (length typs)) (map (AppT (ConT ''DSH.Q)) typs)
+#if MIN_VERSION_template_haskell(2,9,0)
+  let toViewDecTF = TySynInstD ''DSH.ToView $ TySynEqn [typ1] typ2
+#else
   let toViewDecTF = TySynInstD ''DSH.ToView [typ1] typ2
+#endif
   viewDec <- deriveToView (length typs)
   return [InstanceD context instanceHead [toViewDecTF, viewDec]]
 
@@ -257,7 +268,12 @@ deriveTyConElim name tyVarBndrs cons = do
 
 deriveEliminator :: Type -> Type -> [Con] -> Dec
 deriveEliminator typ resTy cons =
+#if MIN_VERSION_template_haskell(2,9,0)
+  TySynInstD ''DSH.Eliminator $ TySynEqn [typ,resTy] (deriveEliminatorCons resTy cons)
+#else
   TySynInstD ''DSH.Eliminator [typ,resTy] (deriveEliminatorCons resTy cons)
+#endif
+
 
 deriveEliminatorCons :: Type -> [Con] -> Type
 deriveEliminatorCons _ []  = error errMsgExoticType
@@ -504,9 +520,9 @@ countConstructors name = do
 
 errMsgExoticType :: String
 errMsgExoticType =
-  "Automatic derivation of DSH related type class instances only works for Haskell 98\
-   \ types. Derivation of View patters is only supported for single-constructor data\
-   \ types."
+  "Automatic derivation of DSH related type class instances only works for Haskell 98\n"
+  ++ "types. Derivation of View patterns is only supported for single-constructor data\n"
+  ++ "types."
 
 errMsgBaseRecCons :: String
 errMsgBaseRecCons =
