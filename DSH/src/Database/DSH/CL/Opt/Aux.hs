@@ -50,7 +50,10 @@ import           Data.Either
 import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
+
+#ifdef DEBUG
 import           Debug.Trace
+#endif
 
 import           Language.KURE
 
@@ -383,41 +386,49 @@ complexPrim1 op =
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
 
--- | trace output of the value being rewritten; use for debugging only.
+-- | Trace output of the value being rewritten; use for debugging only.
 prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
-prettyR msg = acceptR (\ a -> trace (msg ++ pp a) True)
+#ifdef DEBUG
+prettyR msg = acceptR (\a -> trace (msg ++ pp a) True)
+#else
+prettyR _ = idR
+#endif
 
 debug :: Pretty a => String -> a -> b -> b
-debug msg a b = b
-{-
-    trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
--}
+#ifdef DEBUG
+debug msg a b = trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
+#else
+debug _ _ b = b
+#endif
 
 debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
 debugPretty msg a = debug msg a (return ())
 
 debugMsg :: Monad m => String -> m ()
+#ifdef DEBUG
 debugMsg msg = trace msg $ return ()
+#else
+debugMsg _ = return ()
+#endif
 
 debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr = either (const origExpr) id mExpr
-{-
+debugOpt origExpr mExpr = 
+#ifdef DEBUG
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
 
   where
+    padSep :: String -> String
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '='
+
     showOrig :: Expr -> String
-    showOrig e =
-        "\nOriginal query ====================================================================\n"
-        ++ pp e
-        ++ "\n==================================================================================="
+    showOrig e = padSep "Original Query" ++ pp e ++ padSep ""
 
     showOpt :: Expr -> String
-    showOpt e =
-        "Optimized query ===================================================================\n"
-        ++ pp e
-        ++ "\n===================================================================================="
--}
+    showOpt e = padSep "Optimized Query" ++ pp e ++ padSep ""
+#else
+    either (const origExpr) id mExpr
+#endif
 
 debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
 debugPipeR r = prettyR "Before >>>>>>"
@@ -425,7 +436,16 @@ debugPipeR r = prettyR "Before >>>>>>"
                >>> prettyR ">>>>>>> After"
 
 debugTrace :: Monad m => String -> Rewrite c m a
+#ifdef DEBUG
 debugTrace msg = trace msg idR
+#else
+debugTrace _ = idR
+#endif
 
 debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-debugShow msg = idR -- prettyR (msg ++ "\n")
+#ifdef DEBUG
+debugShow msg = prettyR (msg ++ "\n")
+#else
+debugShow _ = idR
+#endif
+

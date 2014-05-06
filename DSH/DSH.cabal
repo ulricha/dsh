@@ -60,6 +60,10 @@ Extra-source-files:  examples/Example01.hs
 
 Cabal-version:       >= 1.8
 
+Flag debug
+  Description: Enable debug support
+  Default:     False
+
 Library
   Extensions:        CPP
   Build-depends:     base               >= 4.5 && < 5,
@@ -88,6 +92,10 @@ Library
                      semigroups
                      
   Hs-source-dirs:    src
+
+  if flag(debug)
+    CPP-Options:     -DDEBUG
+
   GHC-Options:       -Wall -auto-all -fno-warn-orphans
 
   Exposed-modules:   Database.DSH

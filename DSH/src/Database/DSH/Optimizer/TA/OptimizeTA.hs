@@ -44,5 +44,9 @@ runPipeline d sh pipeline debug = (d', rewriteLog, sh')
 
 optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
 optimizeTA plan =
+#ifdef DEBUG
+  let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True
+#else
   let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline False
+#endif
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
