@@ -11,9 +11,9 @@ import Database.DSH.Internals
 import Database.DSH.Impossible
 import Database.DSH.TH
 
-import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..), Show(..)
-               , Bool(..), Char, Integer, Double, String, Maybe(..), Either(..)
-               , id, undefined, ($), (.))
+import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)
+               , Bool(..), Char, Integer, Double, Maybe(..), Either(..)
+               , id, ($), (.))
 import qualified Prelude as P
 
 import Data.String
@@ -197,6 +197,11 @@ instance Floating (Exp Double) where
   asin e = AppE ASin e
   acos e = AppE ACos e
   atan e = AppE ATan e
+  sinh   = $unimplemented
+  cosh   = $unimplemented
+  asinh  = $unimplemented
+  atanh  = $unimplemented
+  acosh  = $unimplemented
 
 instance Num (Q Integer) where
   (+) (Q e1) (Q e2) = Q (e1 + e2)
@@ -229,6 +234,11 @@ instance Floating (Q Double) where
   exp (Q e)  = Q (exp e)
   log (Q e)  = Q (log e)
   sqrt (Q e) = Q (sqrt e)
+  sinh   = $unimplemented
+  cosh   = $unimplemented
+  asinh  = $unimplemented
+  atanh  = $unimplemented
+  acosh  = $unimplemented
 
 -- View instances
 

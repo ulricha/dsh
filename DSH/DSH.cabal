@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.8.2.3
+Version:             0.9.0
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -43,7 +43,7 @@ Description:
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Alexander Ulrich, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          alexander.ulrich@uni-tuebingen.de, jeroen.weijers@uni-tuebingen.de
+Maintainer:          alexander.ulrich@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
@@ -60,7 +60,12 @@ Extra-source-files:  examples/Example01.hs
 
 Cabal-version:       >= 1.8
 
+Flag debug
+  Description: Enable debug support
+  Default:     False
+
 Library
+  Extensions:        CPP
   Build-depends:     base               >= 4.5 && < 5,
                      ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
@@ -70,14 +75,13 @@ Library
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
-                     convertible        >= 1.0.11.0,
-                     template-haskell   >= 2.7,
+                     template-haskell   >= 2.8.0.0,
                      csv                >= 0.1.2,
                      parsec,
-                     pretty >= 1.0.1.1,
-                     aeson >= 0.6.0.0,
-                     uniplate,
-                     TableAlgebra >= 2.0.0,
+                     pretty             >= 1.0.1.1,
+                     aeson              >= 0.6.0.0,
+                     X100Client         >= 0.0.2,
+                     TableAlgebra       >= 2.0.0,
                      semigroups,
                      kure               >= 2.14.0,
                      ansi-wl-pprint,
@@ -87,6 +91,10 @@ Library
                      semigroups
                      
   Hs-source-dirs:    src
+
+  if flag(debug)
+    CPP-Options:     -DDEBUG
+
   GHC-Options:       -Wall -auto-all -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
@@ -259,7 +267,7 @@ executable vldot
                       containers >= 0.3.0.0, 
                       parsec,
                       transformers,
-                      template-haskell >= 2.4.0.0, 
+                      template-haskell >= 2.8.0.0, 
                       pretty >= 1.0.1.1, 
                       fgl, 
                       ghc-prim >= 0.2,

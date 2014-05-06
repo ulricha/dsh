@@ -326,10 +326,10 @@ unnestGuardR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
 unnestGuardR candGuards failedGuards = do
     Comp t _ _      <- promoteT idR 
     let unnestR = anytdR (promoteR unnestQualsR) >>> projectT
-    ((tuplifyR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
+    ((tuplifyVarR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
                                        
-    h'              <- childT CompHead tuplifyR >>> projectT
-    let tuplifyM e = constNodeT e >>> tuplifyR >>> projectT
+    h'              <- childT CompHead tuplifyVarR >>> projectT
+    let tuplifyM e = constNodeT e >>> tuplifyVarR >>> projectT
     candGuards'     <- mapM tuplifyM candGuards
     failedGuards'   <- mapM tuplifyM failedGuards
     return (inject $ Comp t h' qs', candGuards', guardExpr : failedGuards')
@@ -342,8 +342,8 @@ unnestGuardWorkerR comp guardExpr candGuards failedGuards = do
     env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
     let compWithGuard = constT $ return $ ExprCL $ Comp ty h (insertGuard guardExpr env qs)
     (comp', candGuards', failedGuards') <- compWithGuard >>> unnestGuardR candGuards failedGuards
-    ExprCL (Comp ty h qs) <- return comp'
-    return (C ty h qs, candGuards', failedGuards')
+    ExprCL (Comp _ h' qs') <- return comp'
+    return (C ty h' qs', candGuards', failedGuards')
 
 unnestFromGuardR :: RewriteC CL
 unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
@@ -463,7 +463,7 @@ zipCorrelatedR = do
 -- combined with a rewrite that makes progress on g and xs.
 nestingGenR :: RewriteC CL
 nestingGenR = do
-    xx@(Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs))) <- promoteT idR
+    Comp  to (Comp ti e (S (BindQ y g))) (S (BindQ x xs)) <- promoteT idR
     
     -- Generator expression g should depend on x (otherwise we could
     -- unnest directly

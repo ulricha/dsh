@@ -9,8 +9,6 @@ module Database.DSH.CL.Opt.Support
   ( factorConstantPredsR
   ) where
   
-import Debug.Trace
-
 import           Control.Applicative
 import           Control.Arrow
 

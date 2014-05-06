@@ -42,7 +42,11 @@ assemblePipeline s = mapM (flip lookup rewriteClasses) s
 
 optimizeVL :: [RewriteClass] -> QueryPlan VL -> QueryPlan VL
 optimizeVL pipeline plan =
+#ifdef DEBUG
+  let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline True
+#else
   let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
+#endif
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
 
 optimizeVL' :: [RewriteClass] -> QueryPlan VL -> (QueryPlan VL, Log)

@@ -79,7 +79,7 @@ offsetExpr (Offset o) = Column1 $ o + 1
 offsetExpr (Expr e)   = e
 
 addOffset :: Int -> ColExpr -> ColExpr
-addOffset i (Expr e)   = $impossible
+addOffset _ (Expr _)   = $impossible
 addOffset i (Offset o) = Offset $ o + i
 
 toGeneralBinOp :: L.JoinBinOp -> L.ScalarBinOp

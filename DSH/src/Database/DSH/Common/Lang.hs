@@ -14,7 +14,6 @@ import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 
 -----------------------------------------------------------------------------

@@ -17,7 +17,6 @@ import           Text.Printf
 import           GHC.Exts
                  
 import           Control.Applicative
-import           Data.Convertible                         ()
 
 import qualified Database.HDBC                            as H
 
