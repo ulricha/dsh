@@ -89,13 +89,25 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length | Concat
-             | Sum | Avg | The | Fst | Snd
-             | Head | Minimum | Maximum
+data Prim1Op = Length 
+             | Concat
+             | Null
+             | Sum 
+             | Avg 
+             | The 
+             | Fst 
+             | Snd
+             | Head 
+             | Minimum 
+             | Maximum
              | Tail
-             | Reverse | And | Or
-             | Init | Last | Nub
-             | Number | Guard
+             | Reverse 
+             | And | Or
+             | Init 
+             | Last 
+             | Nub
+             | Number 
+             | Guard
              | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
@@ -105,6 +117,7 @@ data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 instance Show Prim1Op where
   show Length          = "length"
   show Concat          = "concat"
+  show Null            = "null"
   show Sum             = "sum"
   show Avg             = "avg"
   show The             = "the"

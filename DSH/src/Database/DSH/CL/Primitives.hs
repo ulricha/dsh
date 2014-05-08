@@ -39,7 +39,12 @@ any :: Expr -> Expr -> Expr
 any f e = or (map f e)
 
 null :: Expr -> Expr
-null e = length e `eq` int 0
+null e =
+    if isList t
+    then AppE1 boolT (Prim1 Null P.$ t .-> boolT) e
+    else tyErr "null"
+
+  where t = typeOf e
 
 and :: Expr -> Expr
 and e = let t = typeOf e

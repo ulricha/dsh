@@ -29,30 +29,48 @@ import qualified Database.DSH.NKL.Lang as NKL
 -- iterations are expressed in the form of cartesian products. The resulting
 -- single-qualifier comprehension should then be easy to desugar (just a map).
 
-prim1 :: CL.Prim1 Type -> NKL.Prim1 Type
-prim1 (CL.Prim1 o t) = NKL.Prim1 o' t
-  where o' = case o of
-               CL.Length           -> NKL.Length 
-               CL.Concat           -> NKL.Concat 
-               CL.Sum              -> NKL.Sum 
-               CL.Avg              -> NKL.Avg 
-               CL.The              -> NKL.The 
-               CL.Fst              -> NKL.Fst 
-               CL.Snd              -> NKL.Snd 
-               CL.Head             -> NKL.Head 
-               CL.Minimum          -> NKL.Minimum 
-               CL.Maximum          -> NKL.Maximum 
-               CL.Tail             -> NKL.Tail 
-               CL.Reverse          -> NKL.Reverse 
-               CL.And              -> NKL.And 
-               CL.Or               -> NKL.Or 
-               CL.Init             -> NKL.Init 
-               CL.Last             -> NKL.Last 
-               CL.Nub              -> NKL.Nub 
-               CL.Number           -> NKL.Number 
-               (CL.Reshape n)      -> NKL.Reshape n
-               CL.Transpose        -> NKL.Transpose
-               CL.Guard            -> $impossible
+prim1 :: Type -> CL.Prim1 Type -> CL.Expr -> NKL.Expr
+prim1 t (CL.Prim1 o ot) e = mkApp t ot (expr e)
+  where 
+    mkApp = 
+        case o of
+            CL.Length           -> mkPrim1 NKL.Length 
+            CL.Concat           -> mkPrim1 NKL.Concat 
+            -- Null in explicit form is useful during CL optimization
+            -- to easily recognize universal/existential patterns. In
+            -- backend implementations however, there currently is no
+            -- need to store it explicitly. Therefore, we implement it
+            -- using length in NKL.
+            CL.Null             -> nklLength
+            CL.Sum              -> mkPrim1 NKL.Sum 
+            CL.Avg              -> mkPrim1 NKL.Avg 
+            CL.The              -> mkPrim1 NKL.The 
+            CL.Fst              -> mkPrim1 NKL.Fst 
+            CL.Snd              -> mkPrim1 NKL.Snd 
+            CL.Head             -> mkPrim1 NKL.Head 
+            CL.Minimum          -> mkPrim1 NKL.Minimum 
+            CL.Maximum          -> mkPrim1 NKL.Maximum 
+            CL.Tail             -> mkPrim1 NKL.Tail 
+            CL.Reverse          -> mkPrim1 NKL.Reverse 
+            CL.And              -> mkPrim1 NKL.And 
+            CL.Or               -> mkPrim1 NKL.Or 
+            CL.Init             -> mkPrim1 NKL.Init 
+            CL.Last             -> mkPrim1 NKL.Last 
+            CL.Nub              -> mkPrim1 NKL.Nub 
+            CL.Number           -> mkPrim1 NKL.Number 
+            (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
+            CL.Transpose        -> mkPrim1 NKL.Transpose
+            CL.Guard            -> $impossible
+    
+    nklLength _ _ ne = NKL.BinOp boolT 
+                                 (SBRelOp Eq)
+                                 (NKL.Const intT $ IntV 0)
+                                 (NKL.AppE1 intT 
+                                            (NKL.Prim1 NKL.Length (typeOf ne .-> intT)) 
+                                            ne)
+                                       
+    mkPrim1 nop nt nopt ne = NKL.AppE1 nt (NKL.Prim1 nop nopt) ne
+                                   
 
 prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
 prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
@@ -77,7 +95,7 @@ prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
 expr :: CL.Expr -> NKL.Expr
 expr (CL.Table t s cs ks)        = NKL.Table t s cs ks
 expr (CL.App t e1 e2)            = NKL.App t (expr e1) (expr e2)
-expr (CL.AppE1 t p e)            = NKL.AppE1 t (prim1 p) (expr e)
+expr (CL.AppE1 t p e)            = prim1 t p e
 expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = expr $ CP.concat $ CP.map f xs
 expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o (expr e1) (expr e2)
