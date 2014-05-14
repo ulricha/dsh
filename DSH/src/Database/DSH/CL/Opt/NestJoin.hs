@@ -47,9 +47,6 @@ data NestedComp = NestedComp
     , hGuards :: [Expr]
     }
 
-fromGuard :: Monad m => Qual -> m Expr
-fromGuard (GuardQ e)  = return e
-fromGuard (BindQ _ _) = fail "not a guard"
 
 -- | Check if a comprehension is eligible for unnesting. This is the
 -- case if the outer generator variable 'x' does not occur in the

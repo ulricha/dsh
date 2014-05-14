@@ -20,17 +20,17 @@ import Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
 
 --------------------------------------------------------------------------------
--- Introduce simple equi joins
+-- Introduce simple theta joins
 
 -- | Concstruct an equijoin generator
-mkeqjoinT 
+mkthetajoinT 
   :: Expr  -- ^ The predicate
   -> Ident -- ^ Identifier from the first generator
   -> Ident -- ^ Identifier from the second generator
   -> Expr  -- ^ First generator expression
   -> Expr  -- ^ Second generator expression
   -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
-mkeqjoinT joinPred x y xs ys = do
+mkthetajoinT joinPred x y xs ys = do
     -- The predicate must be an equi join predicate
     joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
 
@@ -55,7 +55,7 @@ eqjoinQualR = do
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* GuardQ p :* qs <- promoteT idR
     
-    (tuplifyHeadR, q') <- mkeqjoinT p x y xs ys
+    (tuplifyHeadR, q') <- mkthetajoinT p x y xs ys
                                
     -- Next, we apply the tuplifyHeadR rewrite to the tail, i.e. to all following
     -- qualifiers
@@ -75,7 +75,7 @@ eqjoinQualEndR = do
     -- We need two generators followed by a predicate
     BindQ x xs :* BindQ y ys :* (S (GuardQ p)) <- promoteT idR
 
-    (tuplifyHeadR, q') <- mkeqjoinT p x y xs ys
+    (tuplifyHeadR, q') <- mkthetajoinT p x y xs ys
 
     -- The tuplify rewrite must be handed to the top level
     constT $ put tuplifyHeadR

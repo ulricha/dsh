@@ -12,11 +12,15 @@ module Database.DSH.CL.Opt.Normalize
   ) where
   
 import           Control.Arrow
+import qualified Data.Foldable              as F
+import qualified Data.Traversable           as T
        
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
+import           Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are applied only at the start of
@@ -45,91 +49,44 @@ normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are interleaved with other rewrites.
 
--- These rewrites are meant to only normalize certain patterns stemming from the
--- source program. However, they have to be interleaved with general
--- comprehension unnesting and optimization, as they might depend on a pushdown
--- of predicates, e.g.:
+------------------------------------------------------------------
+-- Normalization of null occurences
 
--- [ ... | y <- ys, not $ null [ e | x <- xs, p x y, q x ] ]
--- => 
--- [ ... | y <- ys, not $ null [ e | x <- filter (\x -> q x) xs, p x y ]
--- =>
--- [ ... | y <- ys, or [ p x y | x <- filter (\x -> q x) ] ]
+-- length xs == 0 => null xs
+zeroLengthLeftR :: RewriteC CL
+zeroLengthLeftR = do
+    (BinOp _ (SBRelOp Eq)
+             (AppE1 _ (Prim1 Length _) xs)
+             (Lit _ (IntV 0))) <- promoteT idR
 
--- | Normalize a guard expressing existential quantification:
--- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
--- => or [ p | x <- xs ]
-normalizeExistentialR :: RewriteC Qual
-normalizeExistentialR = do
-    GuardQ (UnOp _ (SUBoolOp Not)
-               (BinOp _ (SBRelOp Eq)
-                   (AppE1 _ (Prim1 Length _) 
-                       (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
-                   (Lit _ (IntV 0)))) <- idR
+    return $ inject $ P.null xs
 
-    return $ GuardQ (P.or (Comp (listT boolT) 
-                          p 
-                          (S (BindQ x xs))))
+-- 0 == length xs => null xs
+zeroLengthRightR :: RewriteC CL
+zeroLengthRightR = do
+    (BinOp _ (SBRelOp Eq)
+             (Lit _ (IntV 0))
+             (AppE1 _ (Prim1 Length _) xs)) <- promoteT idR
 
--- | Normalize a guard expressing universal quantification:
--- null [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ not p | x <- xs ]
-normalizeUniversal1R :: RewriteC Qual
-normalizeUniversal1R = do
-    -- c <- idR
-    -- debugUnit "normalizeUniversalR" c
-    GuardQ (BinOp _ (SBRelOp Eq)
-                (AppE1 _ (Prim1 Length _) 
-                    (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
-                (Lit _ (IntV 0))) <- idR
+    return $ inject $ P.null xs
 
-    return $ GuardQ (P.and (Comp (listT boolT) 
-                           (P.scalarUnOp (SUBoolOp Not) p) 
-                           (S (BindQ x xs))))
-                           
--- | Normalize a guard expressing universal quantification
--- not (or [ p | x <- xs ])
--- =>
--- and [ not p | x <- xs ]
-normalizeUniversal2R :: RewriteC Qual
-normalizeUniversal2R = do
-    GuardQ (UnOp _ (SUBoolOp Not)
-                (AppE1 _ (Prim1 Or _)
-                         (Comp _ p (S (BindQ y ys))))) <- idR
+-- null [ _ | x <- xs, p1, p2, ... ] 
+-- => and [ not (p1 && p2 && ...) | x <- xs ]
+comprehensionNullR :: RewriteC CL
+comprehensionNullR = do
+    AppE1 _ (Prim1 Null _) (Comp _ _ qs) <- promoteT idR
     
-    return $ GuardQ (P.and (Comp (listT boolT)
-                                 (P.scalarUnOp (SUBoolOp Not) p)
-                                 (S (BindQ y ys))))
-                           
-normQualWorkR :: RewriteC Qual
-normQualWorkR = normalizeExistentialR 
-            <+ normalizeUniversal1R
-            <+ normalizeUniversal2R
-    
-normQualR :: RewriteC (NL Qual)
-normQualR = 
-    anytdR $ readerT $ \case
-        q :* qs -> do
-            q' <- constT (return q) >>> normQualWorkR
-            return $ q' :* qs
-        S q     -> do
-            q' <- constT (return q) >>> normQualWorkR
-            return $ S q'
+    -- We need exactly one generator and at least one guard.
+    BindQ x xs :* guards <- return $ qs
+    guardExprs           <- constT $ T.mapM fromGuard guards
 
--- | Eliminate a comprehension with an identity head
--- [ x | x <- xs ] => xs
--- FIXME does this pattern occur at all?
-identityCompR :: RewriteC Expr
-identityCompR = do
-    Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
-    guardM $ x == x'
-    return xs
-                      
-normalizeQualifiersR :: RewriteC CL
-normalizeQualifiersR = do
-    Comp _ _ _ <- promoteT idR 
-    childR CompQuals $ promoteR normQualR
+    -- Merge all guards into a conjunctive form
+    let conjPred = P.not $ F.foldl1 P.conj guardExprs
+    return $ inject $ P.and $ Comp boolT conjPred (S $ BindQ x xs)
+
+normalizeExprs :: RewriteC CL
+normalizeExprs = zeroLengthLeftR <+ zeroLengthRightR
 
 normalizeAlwaysR :: RewriteC CL
-normalizeAlwaysR = normalizeQualifiersR
+normalizeAlwaysR = normalizeExprs
 

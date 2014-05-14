@@ -32,6 +32,7 @@ module Database.DSH.CL.Opt.Aux
       -- * Classification of expressions
     , complexPrim1
     , complexPrim2
+    , fromGuard
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -291,6 +292,7 @@ fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
+
 -- | Type of worker functions that merge guards into generators. It
 -- receives the comprehension itself (with a qualifier list that
 -- consists solely of generators), the current candidate guard
@@ -382,6 +384,10 @@ complexPrim1 op =
         Fst    -> False
         Snd    -> False
         _      -> True
+
+fromGuard :: Monad m => Qual -> m Expr
+fromGuard (GuardQ e)  = return e
+fromGuard (BindQ _ _) = fail "not a guard"
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
