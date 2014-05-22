@@ -2,30 +2,30 @@
 
 module Database.DSH.Translate.VL2Algebra(implementVectorOpsX100, implementVectorOpsPF) where
 
-import           Data.List                                             (intercalate)
-import qualified Data.IntMap                                           as IM
-import qualified Data.Map                                              as M
+import qualified Data.IntMap                                as IM
+import           Data.List                                  (intercalate)
+import qualified Data.Map                                   as M
 
-import           Control.Monad.State
 import           Control.Applicative
+import           Control.Monad.State
 
-import           Database.Algebra.Pathfinder                           (PFAlgebra)
-import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
-import           Database.Algebra.Pathfinder                           (initLoop)
-import           Database.Algebra.X100.Data                            (X100Algebra)
-import           Database.Algebra.X100.Data.Create                     (dummy)
-import           Database.Algebra.Dag                                  (nodeMap)
+import           Database.Algebra.Dag                       (nodeMap)
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.Dag.Common                           hiding (BinOp)
-import qualified Database.Algebra.Dag.Common                           as C
-import           Database.DSH.VL.Lang                              hiding (DBCol, Pair)
-import qualified Database.DSH.VL.Lang                              as V
+import           Database.Algebra.Dag.Common                hiding (BinOp)
+import qualified Database.Algebra.Dag.Common                as C
+import           Database.Algebra.Pathfinder                (PFAlgebra)
+import           Database.Algebra.Pathfinder                (initLoop)
+import qualified Database.Algebra.Pathfinder.Data.Algebra   as TA
+import           Database.Algebra.X100.Data                 (X100Algebra)
+import           Database.Algebra.X100.Data.Create          (dummy)
+import           Database.DSH.VL.Lang                       hiding (DBCol, Pair)
+import qualified Database.DSH.VL.Lang                       as V
 
 import           Database.DSH.Translate.FKL2VL              ()
 import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.PathfinderVectorPrimitives ()
 import           Database.DSH.VL.VectorPrimitives
 import           Database.DSH.VL.X100VectorPrimitives       ()
-import           Database.DSH.VL.PathfinderVectorPrimitives ()
 
 import           Database.DSH.Common.QueryPlan
 
@@ -110,8 +110,8 @@ translate vlNodes n = do
             let vlOp = getVL n vlNodes
             r' <- case vlOp of
                 TerOp t c1 c2 c3 -> do
-                    c1' <- translate vlNodes c1 
-                    c2' <- translate vlNodes c2 
+                    c1' <- translate vlNodes c1
+                    c2' <- translate vlNodes c2
                     c3' <- translate vlNodes c3
                     lift $ translateTerOp t c1' c2' c3'
                 C.BinOp b c1 c2    -> do
@@ -137,14 +137,14 @@ pp m = intercalate ",\n" $ map show $ IM.toList m
 vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape DVec) -> G a (TopShape DVec)
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
-    
+
     refreshShape plan
   where
     roots :: [AlgNode]
     roots = rootsFromTopShape plan
 
 translateTerOp :: VectorAlgebra a => TerOp -> Res -> Res -> Res -> GraphM () a Res
-translateTerOp t c1 c2 c3 = 
+translateTerOp t c1 c2 c3 =
     case t of
         Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
@@ -184,6 +184,10 @@ translateBinOp b c1 c2 = case b of
 
     Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
+
+    AppendS -> do
+        (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
 
     Restrict -> do
@@ -318,8 +322,8 @@ translateNullary (TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 -- surrogate (i.e. descr) columns from information in DVec.
 insertSerialize :: G PFAlgebra (TopShape DVec) -> G PFAlgebra (TopShape DVec)
 insertSerialize g = g >>= traverseShape
-  
-  where 
+
+  where
     traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
     traverseShape (ValueVector dvec lyt) = do
         mLyt' <- traverseLayout lyt
@@ -330,7 +334,7 @@ insertSerialize g = g >>= traverseShape
             Nothing   -> do
                 dvec' <- insertOp dvec noDescr needRelPos
                 return $ ValueVector dvec' lyt
-        
+
     traverseShape (PrimVal dvec lyt)     = do
         mLyt' <- traverseLayout lyt
         case mLyt' of
@@ -340,7 +344,7 @@ insertSerialize g = g >>= traverseShape
             Nothing   -> do
                 dvec' <- insertOp dvec noDescr noPos
                 return $ PrimVal dvec' lyt
-    
+
     traverseLayout :: (TopLayout DVec) -> G PFAlgebra (Maybe (TopLayout DVec))
     traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
@@ -361,7 +365,7 @@ insertSerialize g = g >>= traverseShape
                 dvec' <- insertOp dvec needDescr needRelPos
                 return $ Just $ Nest dvec' lyt
 
-      
+
     -- | Insert a Serialize node for the given vector
     insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G PFAlgebra DVec
     insertOp (DVec q cols) descr pos = do

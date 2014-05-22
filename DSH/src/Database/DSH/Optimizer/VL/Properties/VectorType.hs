@@ -125,6 +125,14 @@ inferVectorTypeBinOp s1 s2 op =
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
+    AppendS -> 
+      case (s1, s2) of
+        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
+          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
+        (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
+          Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
+        v -> 
+          Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     BinExpr _ -> Right $ VProp $ ValueVector 1

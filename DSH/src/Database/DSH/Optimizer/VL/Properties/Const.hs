@@ -232,6 +232,21 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
 
+    AppendS -> do
+      (d1, cols1) <- unp c1 >>= fromDBV
+      (d2, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = map sameConst $ zip cols1 cols2
+
+          sameConst ((ConstPL v1), (ConstPL v2)) | v1 == v2 = ConstPL v1
+          sameConst (_, _)                                  = NonConstPL
+
+          d = case (d1, d2) of
+            (ConstDescr n1, ConstDescr n2) | n1 == n2 -> ConstDescr n1
+            _                                         -> NonConstDescr
+
+      return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
+
     Restrict -> do
       (d, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))

@@ -189,6 +189,7 @@ opDotLabel tm i (BinOp PropRename _ _) = labelToDoc i "PropRename" empty (lookup
 opDotLabel tm i (BinOp PropFilter _ _) = labelToDoc i "PropFilter" empty (lookupTags i tm)
 opDotLabel tm i (BinOp PropReorder _ _) = labelToDoc i "PropReorder" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
+opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Restrict _ _) = labelToDoc i "Restrict" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (BinExpr expr) _ _) = labelToDoc i "BinExpr" (renderExpr2 expr) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)

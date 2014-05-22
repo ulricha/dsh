@@ -75,6 +75,7 @@ inferCardOneBinOp c1 c2 op =
     PropReorder -> return $ VPropPair False False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
+    AppendS -> Right $ VPropTriple False False False
     Restrict -> Right $ VPropPair False False
     BinExpr _ -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     SelectPos _ -> return $ VPropPair False False
