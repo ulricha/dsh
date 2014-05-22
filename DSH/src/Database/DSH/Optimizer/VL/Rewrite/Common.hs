@@ -80,3 +80,8 @@ mergeExpr1 env expr =
                                Just expr' -> expr'
                                Nothing    -> $impossible
         _               -> expr
+
+-- | Unwrap a constant value
+constVal :: Monad m => ConstPayload -> m Expr1
+constVal (ConstPL val) = return $ Constant1 val
+constVal _             = fail "no match"

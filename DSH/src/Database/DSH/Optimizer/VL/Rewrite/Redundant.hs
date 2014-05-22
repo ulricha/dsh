@@ -70,9 +70,6 @@ distPrimConstant q =
   $(pattern 'q "R1 ((qp) DistPrim (qv))"
     [| do
         qvProps <- properties $(v "qp")
-        let constVal (ConstPL val) = return $ Constant1 val
-            constVal _             = fail "no match"
-
 
         constProjs <- case constProp qvProps of
           VProp (DBVConst _ cols) -> mapM constVal cols
@@ -90,9 +87,6 @@ distDescConstant q =
     [| do
         pv <- properties $(v "qv")
         VProp True <- return $ card1Prop pv
-
-        let constVal (ConstPL val) = return $ Constant1 val
-            constVal _             = fail "no match"
 
         VProp (DBVConst _ cols) <- return $ constProp pv
         constProjs              <- mapM constVal cols

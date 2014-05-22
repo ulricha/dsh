@@ -8,6 +8,7 @@ module Database.DSH.Optimizer.VL.Rewrite.Expressions where
 
 import Control.Monad
 import Control.Applicative
+import Data.Maybe
 
 import Database.Algebra.Dag.Common
 
@@ -32,73 +33,33 @@ expressionRules = [ mergeExpr2SameInput
                   , mergeSelectProject
                   ]
 
+-- | Traverse a *Expr2* and apply given functions to column
+-- references.
+mapExpr2Cols :: (LeftCol -> Expr2) -> (RightCol -> Expr2) -> Expr2 -> Expr2
+mapExpr2Cols leftFun rightFun expr = case expr of
+    BinApp2 op e1 e2 -> BinApp2 op (mapExpr2Cols leftFun rightFun e1)
+                                   (mapExpr2Cols leftFun rightFun e1)
+    UnApp2 op e1     -> UnApp2 op (mapExpr2Cols leftFun rightFun e1)
+    Column2Left c    -> leftFun c
+    Column2Right c   -> rightFun c
+    Constant2 v      -> Constant2 v
+    If2 c t e        -> If2 (mapExpr2Cols leftFun rightFun c)
+                            (mapExpr2Cols leftFun rightFun t)
+                            (mapExpr2Cols leftFun rightFun e)
+
 replaceLeftCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
-replaceLeftCol env e =
-    case e of
-        BinApp2 o e1 e2   -> BinApp2 o (replaceLeftCol env e1) (replaceLeftCol env e2)
-        UnApp2 o e1       -> UnApp2 o (replaceLeftCol env e1)
-        Column2Left (L c) -> maybe $impossible id (lookup c env)
-        _                 -> e
+replaceLeftCol env expr = mapExpr2Cols replaceLeftCol Column2Right expr
+  where
+    replaceLeftCol :: LeftCol -> Expr2
+    replaceLeftCol (L c) = maybe $impossible id (lookup c env)
 
 replaceRightCol :: [(DBCol, Expr2)] -> Expr2 -> Expr2
-replaceRightCol env e =
-    case e of
-        BinApp2 o e1 e2    -> BinApp2 o (replaceRightCol env e1) (replaceRightCol env e2)
-        UnApp2 o e1        -> UnApp2 o (replaceRightCol env e1)
-        Column2Right (R c) -> maybe $impossible id (lookup c env)
-        _                  -> e
+replaceRightCol env expr = mapExpr2Cols Column2Left replaceRightCol expr
+  where
+    replaceRightCol :: RightCol -> Expr2
+    replaceRightCol (R c) = maybe $impossible id (lookup c env)
 
-replaceCol :: Expr1 -> Expr1 -> Expr1
-replaceCol col' e =
-    case e of
-        BinApp1 o e1 e2 -> BinApp1 o (replaceCol col' e1) (replaceCol col' e2)
-        UnApp1 o e1     -> UnApp1 o (replaceCol col' e1)
-        Column1 _       -> col'
-        _               -> e
 
-leftCol :: Expr2 -> DBCol
-leftCol e =
-  let leftCol' :: Expr2 -> Maybe DBCol
-      leftCol' (BinApp2 _ e1 e2) =
-        case leftCol' e1 of
-          Just c  -> Just c
-          Nothing -> leftCol' e2
-      leftCol' (UnApp2 _ e1) = leftCol' e1
-      leftCol' (Column2Left (L c)) = Just c
-      leftCol' _ = Nothing
-  in
-   case leftCol' e of
-    Just c -> c
-    Nothing -> error $ "CompExpr2(L) expression does not reference its left input" ++ (show e)
-
-rightCol :: Expr2 -> DBCol
-rightCol e =
-  let rightCol' (BinApp2 _ e1 e2) =
-        case rightCol' e1 of
-          Just c  -> Just c
-          Nothing -> rightCol' e2
-      rightCol' (UnApp2 _ e1) = rightCol' e1
-      rightCol' (Column2Right (R c)) = Just c
-      rightCol' _ = Nothing
-  in
-   case rightCol' e of
-    Just c -> c
-    Nothing -> error $ "CompExpr2(L) expression does not reference its right input" ++ (show e)
-
-col :: Expr1 -> DBCol
-col e =
-  let col' (BinApp1 _ e1 e2) =
-          case col' e1 of
-              Just c  -> Just c
-              Nothing -> col' e2
-      col' (UnApp1 _ e1) = col' e1
-      col' (Column1 c) = Just c
-      col' _ = Nothing
-  in
-   case col' e of
-    Just c -> c
-    Nothing -> error "CompExpr1L expression does not reference its right input"
-    
 expr2ToExpr1 :: Expr2 -> Expr1
 expr2ToExpr1 (BinApp2 o e1 e2)    = BinApp1 o (expr2ToExpr1 e1) (expr2ToExpr1 e2)
 expr2ToExpr1 (UnApp2 o e)         = UnApp1 o (expr2ToExpr1 e)
@@ -258,4 +219,3 @@ rightOnlyBinExpr q =
           logRewrite "Expr.Bin.RightOnly" q
           let expr' = expr2ToExpr1 $(v "expr")
           void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q2") |])
-
