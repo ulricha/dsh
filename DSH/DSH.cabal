@@ -78,7 +78,7 @@ Library
                      aeson              >= 0.6.0.0,
                      X100Client         >= 0.0.2,
                      TableAlgebra       >= 2.0.0,
-                     kure               >= 2.14.0,
+                     kure               >= 2.16.1,
                      either             >= 4.0,
                      semigroups,
                      ansi-wl-pprint,

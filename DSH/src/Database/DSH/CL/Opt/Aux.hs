@@ -7,7 +7,7 @@
 -- | Common tools for rewrites
 module Database.DSH.CL.Opt.Aux
     ( applyExpr
-    , applyT
+    , applyInjectable
       -- * Monad rewrites with additional state
     , TuplifyM
       -- * Converting predicate expressions into join predicates
@@ -74,8 +74,8 @@ applyExpr :: TranslateC CL b -> Expr -> Either String b
 applyExpr f e = runCompM $ apply f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
-applyT :: Injection a CL => TranslateC CL b -> a -> Either String b
-applyT t e = runCompM $ apply t initialCtx (inject e)
+applyInjectable :: Injection a CL => TranslateC CL b -> a -> Either String b
+applyInjectable t e = runCompM $ apply t initialCtx (inject e)
 
 
 --------------------------------------------------------------------------------

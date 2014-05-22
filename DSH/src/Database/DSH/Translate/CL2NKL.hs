@@ -153,7 +153,7 @@ productify e ((CL.GuardQ p)   : (CL.BindQ x xs) : qs) =
   
 guardTuplify :: (Injection a CL, Show a) => Ident -> (Ident, Type) -> (Ident, Type) -> a -> a
 guardTuplify x v1 v2 v = 
-    case applyT (tuplifyR x v1 v2) v of
+    case applyInjectable (tuplifyR x v1 v2) v of
         Left _   -> v
         Right v' -> maybe $impossible id (project v')
         
