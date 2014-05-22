@@ -2,32 +2,28 @@
 
 module Database.DSH.Translate.VL2Algebra(implementVectorOpsX100, implementVectorOpsPF) where
 
-import           Data.List                                             (intercalate)
-import qualified Data.IntMap                                           as IM
-import qualified Data.Map                                              as M
+import qualified Data.IntMap                                as IM
+import           Data.List
+import qualified Data.Map                                   as M
 
-import           Control.Monad.State
 import           Control.Applicative
+import           Control.Monad.State
 
-import           Database.Algebra.Pathfinder                           (PFAlgebra)
-import qualified Database.Algebra.Pathfinder.Data.Algebra as TA
-import           Database.Algebra.Pathfinder                           (initLoop)
-import           Database.Algebra.X100.Data                            (X100Algebra)
-import           Database.Algebra.X100.Data.Create                     (dummy)
-import           Database.Algebra.Dag                                  (nodeMap)
+import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Builder
-import           Database.Algebra.Dag.Common                           hiding (BinOp)
-import qualified Database.Algebra.Dag.Common                           as C
-import           Database.DSH.VL.Lang                              hiding (DBCol, Pair)
-import qualified Database.DSH.VL.Lang                              as V
-
-import           Database.DSH.Translate.FKL2VL              ()
-import           Database.DSH.VL.Data.DBVector
-import           Database.DSH.VL.VectorPrimitives
-import           Database.DSH.VL.X100VectorPrimitives       ()
-import           Database.DSH.VL.PathfinderVectorPrimitives ()
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.Pathfinder
+import qualified Database.Algebra.Pathfinder.Data.Algebra   as TA
+import           Database.Algebra.X100.Data                 (X100Algebra)
+import           Database.Algebra.X100.Data.Create          (dummy)
 
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Translate.FKL2VL              ()
+import           Database.DSH.VL.Data.DBVector
+import qualified Database.DSH.VL.Lang                       as V
+import           Database.DSH.VL.PathfinderVectorPrimitives ()
+import           Database.DSH.VL.VectorPrimitives
+import           Database.DSH.VL.X100VectorPrimitives       ()
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
@@ -97,7 +93,7 @@ refreshShape (PrimVal (DVec n _) lyt) = do
             return $ PrimVal (DVec n' cs) lyt'
         x -> error $ show x
 
-translate :: VectorAlgebra a => NodeMap VL -> AlgNode -> G a Res
+translate :: VectorAlgebra a => NodeMap V.VL -> AlgNode -> G a Res
 translate vlNodes n = do
     r <- fromDict n
 
@@ -110,11 +106,11 @@ translate vlNodes n = do
             let vlOp = getVL n vlNodes
             r' <- case vlOp of
                 TerOp t c1 c2 c3 -> do
-                    c1' <- translate vlNodes c1 
-                    c2' <- translate vlNodes c2 
+                    c1' <- translate vlNodes c1
+                    c2' <- translate vlNodes c2
                     c3' <- translate vlNodes c3
                     lift $ translateTerOp t c1' c2' c3'
-                C.BinOp b c1 c2    -> do
+                BinOp b c1 c2    -> do
                     c1' <- translate vlNodes c1
                     c2' <- translate vlNodes c2
                     lift $ translateBinOp b c1' c2'
@@ -126,191 +122,191 @@ translate vlNodes n = do
             insertTranslation n r'
             return r'
 
-getVL :: AlgNode -> NodeMap VL -> VL
+getVL :: AlgNode -> NodeMap V.VL -> V.VL
 getVL n vlNodes = case IM.lookup n vlNodes of
     Just op -> op
     Nothing -> error $ "getVL: node " ++ (show n) ++ " not in VL nodes map " ++ (pp vlNodes)
 
-pp :: NodeMap VL -> String
+pp :: NodeMap V.VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra a => (NodeMap VL, TopShape DVec) -> G a (TopShape DVec)
+vl2Algebra :: VectorAlgebra a => (NodeMap V.VL, TopShape DVec) -> G a (TopShape DVec)
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
-    
+
     refreshShape plan
   where
     roots :: [AlgNode]
     roots = rootsFromTopShape plan
 
-translateTerOp :: VectorAlgebra a => TerOp -> Res -> Res -> Res -> GraphM () a Res
-translateTerOp t c1 c2 c3 = 
+translateTerOp :: VectorAlgebra a => V.TerOp -> Res -> Res -> Res -> GraphM () a Res
+translateTerOp t c1 c2 c3 =
     case t of
-        Combine -> do
+        V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
             return $ RTriple (fromDVec d) (fromRenameVector r1) (fromRenameVector r2)
 
 translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> GraphM () a Res
 translateBinOp b c1 c2 = case b of
-    GroupBy -> do
+    V.GroupBy -> do
         (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec d) (fromDVec v) (fromProp p)
 
-    Sort -> do
+    V.Sort -> do
         (d, p) <- vecSort (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec d) (fromProp p)
 
-    DistPrim -> do
+    V.DistPrim -> do
         (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
-    DistDesc -> do
+    V.DistDesc -> do
         (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
-    Align -> do
+    V.Align -> do
         (v, p) <- vecAlign (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
-    PropRename -> fromDVec <$> vecPropRename (toRenameVector c1) (toDVec c2)
+    V.PropRename -> fromDVec <$> vecPropRename (toRenameVector c1) (toDVec c2)
 
-    PropFilter -> do
+    V.PropFilter -> do
         (v, r) <- vecPropFilter (toRenameVector c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    PropReorder -> do
+    V.PropReorder -> do
         (v, p) <- vecPropReorder (toProp c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p)
 
-    Append -> do
+    V.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
 
-    Restrict -> do
+    V.Restrict -> do
         (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    BinExpr e -> fromDVec <$> vecBinExpr e (toDVec c1) (toDVec c2)
+    V.BinExpr e -> fromDVec <$> vecBinExpr e (toDVec c1) (toDVec c2)
 
-    AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
+    V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
-    AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
+    V.AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
 
-    SelectPos o -> do
+    V.SelectPos o -> do
         (v, r) <- selectPos (toDVec c1) o (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    SelectPosS o -> do
+    V.SelectPosS o -> do
         (v, r) <- selectPosS (toDVec c1) o (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
+    V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
 
-    ZipS -> do
+    V.ZipS -> do
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
 
-    CartProduct -> do
+    V.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    CartProductS -> do
+    V.CartProductS -> do
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    NestProductS -> do
+    V.NestProductS -> do
         (v, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p2)
 
-    (ThetaJoin p) -> do
+    V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    (ThetaJoinS p) -> do
+    V.ThetaJoinS p -> do
         (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
 
-    (NestJoinS p) -> do
+    V.NestJoinS p -> do
         (v, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromProp p2)
 
-    (SemiJoin p) -> do
+    V.SemiJoin p -> do
         (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (SemiJoinS p) -> do
+    V.SemiJoinS p -> do
         (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (AntiJoin p) -> do
+    V.AntiJoin p -> do
         (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    (AntiJoinS p) -> do
+    V.AntiJoinS p -> do
         (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    TransposeS -> do
+    V.TransposeS -> do
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
-translateUnOp :: VectorAlgebra a => UnOp -> Res -> GraphM () a Res
+translateUnOp :: VectorAlgebra a => V.UnOp -> Res -> GraphM () a Res
 translateUnOp u c = case u of
-    UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
-    Number           -> fromDVec <$> vecNumber (toDVec c)
-    NumberS          -> fromDVec <$> vecNumberS (toDVec c)
-    DescToRename     -> fromRenameVector <$> descToRename (toDVec c)
-    Segment          -> fromDVec <$> vecSegment (toDVec c)
-    Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
-    Select e         -> fromDVec <$> vecSelect e (toDVec c)
-    Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
-    AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
-    SortSimple es -> do
+    V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
+    V.Number           -> fromDVec <$> vecNumber (toDVec c)
+    V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
+    V.DescToRename     -> fromRenameVector <$> descToRename (toDVec c)
+    V.Segment          -> fromDVec <$> vecSegment (toDVec c)
+    V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
+    V.Select e         -> fromDVec <$> vecSelect e (toDVec c)
+    V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
+    V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
+    V.SortSimple es -> do
         (d, p) <- vecSortSimple es (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
-    GroupSimple es -> do
+    V.GroupSimple es -> do
         (qo, qi, p) <- vecGroupSimple es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromProp p)
-    Project cols -> fromDVec <$> vecProject cols (toDVec c)
-    Reverse      -> do
+    V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
+    V.Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
-    ReverseS      -> do
+    V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RPair (fromDVec d) (fromProp p)
-    SelectPos1 op pos -> do
+    V.SelectPos1 op pos -> do
         (d, p) <- selectPos1 (toDVec c) op pos
         return $ RPair (fromDVec d) (fromRenameVector p)
-    SelectPos1S op pos -> do
+    V.SelectPos1S op pos -> do
         (d, p) <- selectPos1S (toDVec c) op pos
         return $ RPair (fromDVec d) (fromRenameVector p)
-    GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
+    V.GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
-    Reshape n -> do
+    V.Reshape n -> do
         (qo, qi) <- vecReshape n (toDVec c)
         return $ RPair (fromDVec qo) (fromDVec qi)
-    ReshapeS n -> do
+    V.ReshapeS n -> do
         (qo, qi) <- vecReshapeS n (toDVec c)
         return $ RPair (fromDVec qo) (fromDVec qi)
-    Transpose -> do
+    V.Transpose -> do
         (qo, qi) <- vecTranspose (toDVec c)
         return $ RPair (fromDVec qo) (fromDVec qi)
-    R1            -> case c of
+    V.R1            -> case c of
         (RPair c1 _)     -> return c1
         (RTriple c1 _ _) -> return c1
         _                -> error "R1: Not a tuple"
-    R2            -> case c of
+    V.R2            -> case c of
         (RPair _ c2)     -> return c2
         (RTriple _ c2 _) -> return c2
         _                -> error "R2: Not a tuple"
-    R3            -> case c of
+    V.R3            -> case c of
         (RTriple _ _ c3) -> return c3
         _                -> error "R3: Not a tuple"
 
-translateNullary :: VectorAlgebra a => NullOp -> GraphM () a Res
-translateNullary SingletonDescr      = fromDVec <$> singletonDescr
-translateNullary (Lit _ tys vals)    = fromDVec <$> vecLit tys vals
-translateNullary (TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
+translateNullary :: VectorAlgebra a => V.NullOp -> GraphM () a Res
+translateNullary V.SingletonDescr      = fromDVec <$> singletonDescr
+translateNullary (V.Lit _ tys vals)    = fromDVec <$> vecLit tys vals
+translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 
 -- | Insert SerializeRel operators in TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.
@@ -318,8 +314,8 @@ translateNullary (TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 -- surrogate (i.e. descr) columns from information in DVec.
 insertSerialize :: G PFAlgebra (TopShape DVec) -> G PFAlgebra (TopShape DVec)
 insertSerialize g = g >>= traverseShape
-  
-  where 
+
+  where
     traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
     traverseShape (ValueVector dvec lyt) = do
         mLyt' <- traverseLayout lyt
@@ -330,7 +326,7 @@ insertSerialize g = g >>= traverseShape
             Nothing   -> do
                 dvec' <- insertOp dvec noDescr needRelPos
                 return $ ValueVector dvec' lyt
-        
+
     traverseShape (PrimVal dvec lyt)     = do
         mLyt' <- traverseLayout lyt
         case mLyt' of
@@ -340,7 +336,7 @@ insertSerialize g = g >>= traverseShape
             Nothing   -> do
                 dvec' <- insertOp dvec noDescr noPos
                 return $ PrimVal dvec' lyt
-    
+
     traverseLayout :: (TopLayout DVec) -> G PFAlgebra (Maybe (TopLayout DVec))
     traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
@@ -361,7 +357,7 @@ insertSerialize g = g >>= traverseShape
                 dvec' <- insertOp dvec needDescr needRelPos
                 return $ Just $ Nest dvec' lyt
 
-      
+
     -- | Insert a Serialize node for the given vector
     insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G PFAlgebra DVec
     insertOp (DVec q cols) descr pos = do
@@ -378,13 +374,13 @@ insertSerialize g = g >>= traverseShape
     needRelPos = TA.RelPos ["pos"]
     noPos      = TA.NoPos
 
-implementVectorOpsX100 :: QueryPlan VL -> QueryPlan X100Algebra
+implementVectorOpsX100 :: QueryPlan V.VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
   where
     x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
     (opMap, shape, tagMap) = runG dummy x100Plan
 
-implementVectorOpsPF :: QueryPlan VL -> QueryPlan PFAlgebra
+implementVectorOpsPF :: QueryPlan V.VL -> QueryPlan PFAlgebra
 implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
   where
     taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
