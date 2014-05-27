@@ -60,8 +60,12 @@ Extra-source-files:  examples/Example01.hs
 
 Cabal-version:       >= 1.8
 
-Flag debug
-  Description: Enable debug support
+Flag debugcomp
+  Description: Print debugging information for comprehension rewrites
+  Default:     False
+
+Flag debuggraph
+  Description: Print debugging information for graph rewrites (VL, TA, X100)
   Default:     False
 
 Library
@@ -87,8 +91,11 @@ Library
                      
   Hs-source-dirs:    src
 
-  if flag(debug)
-    CPP-Options:     -DDEBUG
+  if flag(debugcomp)
+    CPP-Options:     -DDEBUGCOMP
+  
+  if flag(debuggraph)
+    CPP-Options:     -DDEBUGGRAPH
 
   GHC-Options:       -Wall -auto-all -fno-warn-orphans
 

@@ -51,7 +51,7 @@ import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
 
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 import           Debug.Trace
 #endif
 
@@ -388,14 +388,14 @@ complexPrim1 op =
 
 -- | Trace output of the value being rewritten; use for debugging only.
 prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 prettyR msg = acceptR (\a -> trace (msg ++ pp a) True)
 #else
 prettyR _ = idR
 #endif
 
 debug :: Pretty a => String -> a -> b -> b
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 debug msg a b = trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
 #else
 debug _ _ b = b
@@ -405,7 +405,7 @@ debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
 debugPretty msg a = debug msg a (return ())
 
 debugMsg :: Monad m => String -> m ()
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 debugMsg msg = trace msg $ return ()
 #else
 debugMsg _ = return ()
@@ -413,7 +413,7 @@ debugMsg _ = return ()
 
 debugOpt :: Expr -> Either String Expr -> Expr
 debugOpt origExpr mExpr = 
-#ifdef DEBUG
+#ifdef DEBUGCOMP
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
 
@@ -436,14 +436,14 @@ debugPipeR r = prettyR "Before >>>>>>"
                >>> prettyR ">>>>>>> After"
 
 debugTrace :: Monad m => String -> Rewrite c m a
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 debugTrace msg = trace msg idR
 #else
 debugTrace _ = idR
 #endif
 
 debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 debugShow msg = prettyR (msg ++ "\n")
 #else
 debugShow _ = idR
