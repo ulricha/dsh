@@ -207,12 +207,14 @@ debugX100VL prefix c (Q e) = do
 -- | Dump all intermediate algebra representations (VL, TA) to files.
 debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugQ prefix conn q = do
+    debugVL prefix conn q
     debugVLOpt prefix conn q
     debugTAOpt prefix conn q
 
 -- | Dump all intermediate algebra representations (VL, X100) to files
 debugQX100 :: QA a => String -> X100Info -> Q a -> IO ()
 debugQX100 prefix conn q = do
+    debugX100VL prefix conn q
     debugX100VLOpt prefix conn q
     debugX100 prefix conn q
     debugX100Opt prefix conn q
