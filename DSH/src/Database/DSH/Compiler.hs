@@ -132,7 +132,7 @@ nkl2VLFileOpt prefix e =
     |> flatten
     |> specializeVectorOps
     |> optimizeVLDefault
-    |> exportVLPlan prefix
+    |> exportVLPlan (prefix ++ "_opt")
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
