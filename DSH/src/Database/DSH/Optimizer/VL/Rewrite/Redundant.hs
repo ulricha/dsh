@@ -41,11 +41,12 @@ redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
                          , distDescConstant
                          , sameInputZip
+                         , sameInputZipProject
+                         , sameInputZipProjectLeft
+                         , sameInputZipProjectRight
                          , alignParents
                          , selectConstPos
                          , selectConstPosS
-                         , pushZipThroughProjectRight
-                         , pushZipThroughProjectLeft
                          -- , stackedAlign
                          ]
 
@@ -222,30 +223,39 @@ sameInputZip q =
           let ps = map Column [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-pushZipThroughProjectLeft :: VLRule BottomUpProps
-pushZipThroughProjectLeft q =
+sameInputZipProject :: VLRule BottomUpProps
+sameInputZipProject q =
+  $(pattern 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project" q
+          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
+
+sameInputZipProjectLeft :: VLRule BottomUpProps
+sameInputZipProjectLeft q =
   $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
     [| do
+        predicate $ $(v "q1") == $(v "q2")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Left" q
-          let proj = $(v "ps1") ++ (map Column [w1+1 .. w1+w2])
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+          let proj = $(v "ps1") ++ (map Column [1..w1])
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-pushZipThroughProjectRight :: VLRule BottomUpProps
-pushZipThroughProjectRight q =
+sameInputZipProjectRight :: VLRule BottomUpProps
+sameInputZipProjectRight q =
   $(pattern 'q "(q1) Zip (Project ps2 (q2))"
     [| do
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Right" q
-          let proj = map Column [1..w1] ++ map (shiftCols w1) $(v "ps2")
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+          let proj = (map Column [1 .. w]) ++ $(v "ps2")
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 --------------------------------------------------------------------------------
 -- Specialization of sorting
