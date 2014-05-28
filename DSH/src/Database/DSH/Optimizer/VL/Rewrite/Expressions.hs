@@ -44,7 +44,7 @@ mapExpr2Cols leftFun rightFun expr = case expr of
     UnApp2 op e1     -> UnApp2 op (mapExpr2Cols leftFun rightFun e1)
     Column2Left c    -> leftFun c
     Column2Right c   -> rightFun c
-    Constant2 v      -> Constant2 v
+    Constant2 val    -> Constant2 val
     If2 c t e        -> If2 (mapExpr2Cols leftFun rightFun c)
                             (mapExpr2Cols leftFun rightFun t)
                             (mapExpr2Cols leftFun rightFun e)
@@ -286,3 +286,4 @@ constBinExprRight q =
         return $ do
           logRewrite "Expr.Bin.Constant.Right" q
           void $ replaceWithNew q $ BinOp (BinExpr expr') $(v "q1") $(v "q2") |])
+
