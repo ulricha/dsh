@@ -85,12 +85,13 @@ evalBinOp op v1 v2 =
                 SBBoolOp _   -> $impossible
                 SBStringOp _ -> $impossible
         (VLUnit, VLUnit)           -> mzero
+        _                          -> $impossible
 
 evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal
 evalUnOp _ _ = mzero
 
-constExpr1 :: [ConstPayload] -> Expr1 -> Either String ConstPayload
-constExpr1 constCols expr =
+constExpr :: [ConstPayload] -> Expr -> Either String ConstPayload
+constExpr constCols expr =
     case eval expr of
         Just v  -> return $ ConstPL v
         Nothing -> return NonConstPL
@@ -99,17 +100,17 @@ constExpr1 constCols expr =
     env :: [(DBCol, VLVal)]
     env = mkEnv constCols
 
-    eval :: Expr1 -> Maybe VLVal
-    eval (Constant1 v)      = return v
-    eval (Column1 i)        = lookup i env
-    eval (BinApp1 op e1 e2) = do
+    eval :: Expr -> Maybe VLVal
+    eval (Constant v)      = return v
+    eval (Column i)        = lookup i env
+    eval (BinApp op e1 e2) = do
         v1 <- eval e1
         v2 <- eval e2
         evalBinOp op v1 v2
-    eval (UnApp1 op e1)     = do
+    eval (UnApp op e1)     = do
         v <- eval e1
         evalUnOp op v
-    eval (If1 c t e)        = do
+    eval (If c t e)        = do
         cv <- eval c
         case cv of
             VLBool True  -> eval t
@@ -184,7 +185,7 @@ inferConstVecUnOp c op =
 
     Project projExprs   -> do
       (constDescr, constCols) <- unp c >>= fromDBV
-      constCols'              <- mapM (constExpr1 constCols) projExprs
+      constCols'              <- mapM (constExpr constCols) projExprs
       return $ VProp $ DBVConst constDescr constCols'
 
     Select _       -> do
@@ -311,12 +312,6 @@ inferConstVecBinOp c1 c2 op =
     Restrict -> do
       (d, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-
-    BinExpr _ -> do
-      (d1, _) <- unp c1 >>= fromDBV
-      (_, _) <- unp c2 >>= fromDBV
-
-      return $ VProp $ DBVConst d1 [NonConstPL]
 
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV

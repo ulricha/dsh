@@ -123,38 +123,27 @@ unOp (L.SUNumOp L.Exp)           = Exp
 unOp (L.SUNumOp L.Log)           = Log
 unOp L.SUDateOp                  = $unimplemented
 
-expr1Offset :: Int -> VL.Expr1 -> Expr
-expr1Offset o (VL.BinApp1 op e1 e2) = BinAppE (binOp op) (expr1Offset o e1) (expr1Offset o e2)
-expr1Offset o (VL.UnApp1 op e)      = UnAppE (unOp op) (expr1Offset o e)
-expr1Offset o (VL.Column1 c)        = ColE $ itemi $ c + o
-expr1Offset _ (VL.Constant1 v)      = ConstE $ algVal v
-expr1Offset o (VL.If1 c t e)        = IfE (expr1Offset o c) (expr1Offset o t) (expr1Offset o e)
+taExprOffset :: Int -> VL.Expr -> Expr
+taExprOffset o (VL.BinApp op e1 e2) = BinAppE (binOp op) (taExprOffset o e1) (taExprOffset o e2)
+taExprOffset o (VL.UnApp op e)      = UnAppE (unOp op) (taExprOffset o e)
+taExprOffset o (VL.Column c)        = ColE $ itemi $ c + o
+taExprOffset _ (VL.Constant v)      = ConstE $ algVal v
+taExprOffset o (VL.If c t e)        = IfE (taExprOffset o c) (taExprOffset o t) (taExprOffset o e)
 
-expr1 :: VL.Expr1 -> Expr
-expr1 = expr1Offset 0
+taExpr :: VL.Expr -> Expr
+taExpr = taExprOffset 0
 
--- | Vl Expr2 considers two input vectors and may reference columns from the
--- left and right side. Columns from the left map directly to item columns. For
--- right input columns, temporary column names are used.
-expr2 :: VL.Expr2 -> Expr
-expr2 (VL.BinApp2 op e1 e2)      = BinAppE (binOp op) (expr2 e1) (expr2 e2)
-expr2 (VL.UnApp2 op e)           = UnAppE (unOp op) (expr2 e)
-expr2 (VL.Column2Left (VL.L c))  = ColE $ itemi c
-expr2 (VL.Column2Right (VL.R c)) = ColE $ itemi' c
-expr2 (VL.Constant2 v)           = ConstE $ algVal v
-expr2 (VL.If2 c t e)             = IfE (expr2 c) (expr2 t) (expr2 e)
-
-colProjection :: VL.Expr1 -> Maybe DBCol
-colProjection (VL.Column1 c) = Just c
-colProjection _              = Nothing
+colProjection :: VL.Expr -> Maybe DBCol
+colProjection (VL.Column c) = Just c
+colProjection _             = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
-aggrFun (VL.AggrSum _ e) = Sum $ expr1 e
-aggrFun (VL.AggrMin e)   = Min $ expr1 e
-aggrFun (VL.AggrMax e)   = Max $ expr1 e
-aggrFun (VL.AggrAvg e)   = Avg $ expr1 e
-aggrFun (VL.AggrAll e)   = All $ expr1 e
-aggrFun (VL.AggrAny e)   = Any $ expr1 e
+aggrFun (VL.AggrSum _ e) = Sum $ taExpr e
+aggrFun (VL.AggrMin e)   = Min $ taExpr e
+aggrFun (VL.AggrMax e)   = Max $ taExpr e
+aggrFun (VL.AggrAvg e)   = Avg $ taExpr e
+aggrFun (VL.AggrAll e)   = All $ taExpr e
+aggrFun (VL.AggrAny e)   = Any $ taExpr e
 aggrFun VL.AggrCount     = Count
 
 -- Common building blocks
@@ -215,11 +204,11 @@ doZip (q1, cols1) (q2, cols2) = do
            (proj ((mP pos' pos):[ mP (itemi $ i + offset) (itemi i) | i <- cols2 ]) q2)
   return (r, cols')
 
-joinPredicate :: Int -> L.JoinPredicate VL.Expr1 -> SemInfJoin
+joinPredicate :: Int -> L.JoinPredicate VL.Expr -> SemInfJoin
 joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
   where
-    joinConjunct :: L.JoinConjunct VL.Expr1 -> (Expr, Expr, JoinRel)
-    joinConjunct (L.JoinConjunct e1 op e2) = (expr1 e1, expr1Offset o e2, joinOp op)
+    joinConjunct :: L.JoinConjunct VL.Expr -> (Expr, Expr, JoinRel)
+    joinConjunct (L.JoinConjunct e1 op e2) = (taExpr e1, taExprOffset o e2, joinOp op)
 
     joinOp :: L.BinRelOp -> JoinRel
     joinOp L.Eq  = EqJ
@@ -232,16 +221,6 @@ joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
 -- The VectorAlgebra instance for Pathfinder algebra
 
 instance VectorAlgebra PFAlgebra where
-
-  vecBinExpr expr (DVec q1 _) (DVec q2 cols2) = do
-    let colShift = [ mP (itemi' i) (itemi i) | i <- cols2 ]
-    q <- projM [cP descr, cP pos, eP item (expr2 expr)]
-         $ eqJoinM pos pos'
-             (return q1)
-             -- shift the column names on the right to avoid name collisions
-             (proj ((mP pos' pos) : colShift) q2)
-
-    return $ DVec q [1]
 
   vecZip (DVec q1 cols1) (DVec q2 cols2) = do
     (r, cols') <- doZip (q1, cols1) (q2, cols2)
@@ -442,7 +421,7 @@ instance VectorAlgebra PFAlgebra where
   vecSelect expr (DVec q cols) = do
     qs <- projM (itemProj cols [cP descr, mP pos pos'])
           $ rownumM pos' [pos] Nothing
-          $ select (expr1 expr) q
+          $ select (taExpr expr) q
     return $ DVec qs cols
 
   vecTableRef tableName columns hints = do
@@ -500,7 +479,7 @@ instance VectorAlgebra PFAlgebra where
   vecGroupSimple groupExprs (DVec q1 cols1) = do
       -- apply the grouping expressions and compute surrogate values
       -- from the grouping values
-      let groupProjs = [ eP (itemi' i) (expr1 e) | e <- groupExprs | i <- [1..] ]
+      let groupProjs = [ eP (itemi' i) (taExpr e) | e <- groupExprs | i <- [1..] ]
           groupCols = map fst groupProjs
       qg <- rowrankM resCol [ (c, Asc) | c <- (descr : groupCols) ]
             $ proj (itemProj cols1 (cP descr : groupProjs)) q1
@@ -694,7 +673,7 @@ instance VectorAlgebra PFAlgebra where
     return $ (DVec qr cols, RVec qp)
 
   vecProject projs (DVec q _) = do
-    let projs' = zipWith (\i e -> (itemi i, expr1 e)) [1 .. length projs] projs
+    let projs' = zipWith (\i e -> (itemi i, taExpr e)) [1 .. length projs] projs
     qr <- proj ([cP descr, cP pos] ++ projs') q
     return $ DVec qr [1 .. (length projs)]
 
@@ -720,7 +699,7 @@ instance VectorAlgebra PFAlgebra where
   vecGroupAggr groupExprs aggrFuns (DVec q _) = do
     let partAttrs = (descr, ColE descr)
                     :
-                    [ eP (itemi i) (expr1 e) | e <- groupExprs | i <- [1..] ]
+                    [ eP (itemi i) (taExpr e) | e <- groupExprs | i <- [1..] ]
 
         pw = length groupExprs
 
@@ -800,7 +779,7 @@ instance VectorAlgebra PFAlgebra where
     return $ (DVec qj cols1, RVec r)
 
   vecSortSimple sortExprs (DVec q1 cols1) = do
-    let sortProjs = zipWith (\i e -> (itemi' i, expr1 e)) [1..] sortExprs
+    let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
     qs <- rownumM pos' (map fst sortProjs) Nothing
           $ projAddCols cols1 sortProjs q1
 

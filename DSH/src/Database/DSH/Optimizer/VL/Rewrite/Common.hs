@@ -71,15 +71,16 @@ lookupR2Parents q = do
   ps <- parents q
   filterM isR2 ps
 
-mergeExpr1 :: [(DBCol, Expr1)] -> Expr1 -> Expr1
-mergeExpr1 env expr =
+mergeExpr :: [(DBCol, Expr)] -> Expr -> Expr
+mergeExpr env expr =
     case expr of
-        BinApp1 o e1 e2 -> BinApp1 o (mergeExpr1 env e1) (mergeExpr1 env e2)
-        UnApp1 o e1     -> UnApp1 o (mergeExpr1 env e1)
-        Column1 c       -> case lookup c env of
+        BinApp o e1 e2 -> BinApp o (mergeExpr env e1) (mergeExpr env e2)
+        UnApp o e1     -> UnApp o (mergeExpr env e1)
+        Column c       -> case lookup c env of
                                Just expr' -> expr'
                                Nothing    -> $impossible
-        _               -> expr
+        If c t e       -> If (mergeExpr env c) (mergeExpr env t) (mergeExpr env e)
+        Constant _     -> expr
 
 -- | Unwrap a constant value
 constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a

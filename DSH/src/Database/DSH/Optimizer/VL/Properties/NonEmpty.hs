@@ -92,7 +92,6 @@ inferNonEmptyBinOp e1 e2 op =
     PropReorder     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     Restrict        -> return $ VPropPair False False
-    BinExpr _       -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     AggrS _         -> return $ VProp True
     AggrNonEmptyS _ -> return $ VProp True
     SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))

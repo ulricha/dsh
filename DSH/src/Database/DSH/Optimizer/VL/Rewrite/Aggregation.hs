@@ -82,7 +82,7 @@ pushExprThroughGroupBy q =
     [| do
         [e] <- return $(v "projs")
         case e of
-          Column1 _ -> fail "no match"
+          Column _ -> fail "no match"
           _         -> return ()
         
         -- get vector type of right grouping input to determine the
@@ -93,7 +93,7 @@ pushExprThroughGroupBy q =
           logRewrite "Aggregation.Normalize.PushProject" q
           -- Introduce a new column below the GroupBy operator which contains
           -- the expression result
-          let proj = map Column1 [1 .. w] ++ [e]
+          let proj = map Column [1 .. w] ++ [e]
           projectNode <- insert $ UnOp (Project proj) $(v "qp")
           
           -- Link the GroupBy operator to the new projection
@@ -101,7 +101,7 @@ pushExprThroughGroupBy q =
           r2Node      <- replaceWithNew $(v "qr2") $ UnOp R2 groupNode
           
           -- Replace the CompExpr1L operator with a projection on the new column
-          void $ replaceWithNew q $ UnOp (Project [Column1 $ w + 1]) r2Node |])
+          void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) r2Node |])
 
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
@@ -110,12 +110,12 @@ inlineAggrProject q =
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr1 env e
-                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
-                        AggrMin e   -> AggrMin $ mergeExpr1 env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
-                        AggrAny e   -> AggrAny $ mergeExpr1 env e
-                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrMax e   -> AggrMax $ mergeExpr env e
+                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrMin e   -> AggrMin $ mergeExpr env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr env e
+                        AggrAny e   -> AggrAny $ mergeExpr env e
+                        AggrAll e   -> AggrAll $ mergeExpr env e
                         AggrCount   -> AggrCount
 
         return $ do
@@ -129,12 +129,12 @@ inlineAggrSProject q =
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr1 env e
-                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
-                        AggrMin e   -> AggrMin $ mergeExpr1 env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
-                        AggrAny e   -> AggrAny $ mergeExpr1 env e
-                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrMax e   -> AggrMax $ mergeExpr env e
+                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrMin e   -> AggrMin $ mergeExpr env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr env e
+                        AggrAny e   -> AggrAny $ mergeExpr env e
+                        AggrAll e   -> AggrAll $ mergeExpr env e
                         AggrCount   -> AggrCount
 
         return $ do
@@ -151,12 +151,12 @@ inlineAggrNonEmptyProject q =
         afun N.:| [] <- return $(v "afuns")
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr1 env e
-                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
-                        AggrMin e   -> AggrMin $ mergeExpr1 env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
-                        AggrAny e   -> AggrAny $ mergeExpr1 env e
-                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrMax e   -> AggrMax $ mergeExpr env e
+                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrMin e   -> AggrMin $ mergeExpr env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr env e
+                        AggrAny e   -> AggrAny $ mergeExpr env e
+                        AggrAll e   -> AggrAll $ mergeExpr env e
                         AggrCount   -> AggrCount
 
         return $ do
@@ -175,12 +175,12 @@ inlineAggrSNonEmptyProject q =
         afun N.:| [] <- return $(v "afuns")
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr1 env e
-                        AggrSum t e -> AggrSum t $ mergeExpr1 env e 
-                        AggrMin e   -> AggrMin $ mergeExpr1 env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr1 env e
-                        AggrAny e   -> AggrAny $ mergeExpr1 env e
-                        AggrAll e   -> AggrAll $ mergeExpr1 env e
+                        AggrMax e   -> AggrMax $ mergeExpr env e
+                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrMin e   -> AggrMin $ mergeExpr env e
+                        AggrAvg e   -> AggrAvg $ mergeExpr env e
+                        AggrAny e   -> AggrAny $ mergeExpr env e
+                        AggrAll e   -> AggrAll $ mergeExpr env e
                         AggrCount   -> AggrCount
 
         return $ do
@@ -196,8 +196,8 @@ matchAggr q = do
   BinOp (AggrS aggrFun) _ _ <- getOperator q
   return (aggrFun, q)
   
-projectionCol :: Expr1 -> VLMatch () DBCol
-projectionCol (Column1 c) = return c
+projectionCol :: Expr -> VLMatch () DBCol
+projectionCol (Column c) = return c
 projectionCol _           = fail "no match"
 
 -- If grouping is performed by simple scalar expressions, we can
@@ -229,7 +229,7 @@ simpleGroupingProject q =
           let projs = $(v "projs2") ++ $(v "projs1")
           projectNode <- insert $ UnOp (Project projs) $(v "q1")
 
-          let groupExprs = [ Column1 $ i + length $(v "projs2") 
+          let groupExprs = [ Column $ i + length $(v "projs2") 
                            | i <- [1 .. length $(v "projs1")]
                            ]
 
@@ -239,7 +239,7 @@ simpleGroupingProject q =
 
           -- Remove the additional grouping columns from the inner vector
           r2Node <- insert $ UnOp R2 groupNode
-          let origSchemaProj = map Column1 [1 .. length $(v "projs2")]
+          let origSchemaProj = map Column [1 .. length $(v "projs2")]
           topProjectNode <- insert $ UnOp (Project origSchemaProj) r2Node
           replace q topProjectNode
 
@@ -280,7 +280,7 @@ flatGrouping q =
           -- aggregation result resides.
           let insertAggrProject :: AlgNode -> DBCol -> VLRewrite ()
               insertAggrProject oldAggrNode aggrCol = 
-                void $ replaceWithNew oldAggrNode $ UnOp (Project [Column1 aggrCol]) aggrNode
+                void $ replaceWithNew oldAggrNode $ UnOp (Project [Column aggrCol]) aggrNode
 
           let gw = length $(v "groupExprs")
 
@@ -292,7 +292,7 @@ flatGrouping q =
           r1s <- lookupR1Parents $(v "qg")
           if length r1s > 0
             then do
-              let projs = map Column1 [1 .. length $(v "groupExprs")]
+              let projs = map Column [1 .. length $(v "groupExprs")]
               r1ProjectNode <- insert $ UnOp (Project projs) aggrNode
               mapM_ (\r1 -> replace r1 r1ProjectNode) r1s
             else return () |])

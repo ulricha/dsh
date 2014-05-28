@@ -26,32 +26,21 @@ data VLType = Nat | Int | Bool |  Double
 type VLColumn = (L.ColName, VLType)
 type DBCol = Int
 
-data AggrFun = AggrSum VLType Expr1
-             | AggrMin Expr1
-             | AggrMax Expr1
-             | AggrAvg Expr1
-             | AggrAll Expr1
-             | AggrAny Expr1
+data AggrFun = AggrSum VLType Expr
+             | AggrMin Expr
+             | AggrMax Expr
+             | AggrAvg Expr
+             | AggrAll Expr
+             | AggrAny Expr
              | AggrCount
                deriving (Eq, Ord, Show, Generic)
 
-data Expr1 = BinApp1 L.ScalarBinOp Expr1 Expr1
-           | UnApp1 L.ScalarUnOp Expr1
-           | Column1 DBCol
-           | Constant1 VLVal
-           | If1 Expr1 Expr1 Expr1
-           deriving (Eq, Ord, Show, Generic)
-
-newtype LeftCol = L DBCol deriving (Eq, Ord, Show, Generic)
-newtype RightCol = R DBCol deriving (Eq, Ord, Show, Generic)
-
-data Expr2 = BinApp2 L.ScalarBinOp Expr2 Expr2
-           | UnApp2 L.ScalarUnOp Expr2
-           | Column2Left LeftCol
-           | Column2Right RightCol
-           | Constant2 VLVal
-           | If2 Expr2 Expr2 Expr2
-           deriving (Eq, Ord, Show, Generic)
+data Expr = BinApp L.ScalarBinOp Expr Expr
+                | UnApp L.ScalarUnOp Expr
+                | Column DBCol
+                | Constant VLVal
+                | If Expr Expr Expr
+                deriving (Eq, Ord, Show, Generic)
 
 newtype Nat = N Int deriving (Eq, Ord, Generic, Show, Read)
 
@@ -104,15 +93,15 @@ data UnOp = UniqueS
           | R1
           | R2
           | R3
-          | Project [Expr1]
-          | Select Expr1
+          | Project [Expr]
+          | Select Expr
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
-          | GroupAggr [Expr1] (N.NonEmpty AggrFun)
+          | GroupAggr [Expr] (N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
-          | SortSimple [Expr1]
-          | GroupSimple [Expr1]
+          | SortSimple [Expr]
+          | GroupSimple [Expr]
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
@@ -130,7 +119,6 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | PropReorder -- (DBV, PropVector)
            | Append     -- (DBV, RenameVector, RenameVector)
            | Restrict -- VL (DBV, RenameVector)
-           | BinExpr Expr2
            | SelectPos L.ScalarBinOp -- (DBV, RenameVector)
            | SelectPosS L.ScalarBinOp -- (DBV, RenameVector)
            | Zip
@@ -138,13 +126,13 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | CartProduct
            | CartProductS
            -- FIXME VL joins should include join expressions!
-           | ThetaJoin (L.JoinPredicate Expr1)
-           | ThetaJoinS (L.JoinPredicate Expr1)
-           | SemiJoin (L.JoinPredicate Expr1)
-           | SemiJoinS (L.JoinPredicate Expr1)
-           | AntiJoin (L.JoinPredicate Expr1)
-           | AntiJoinS (L.JoinPredicate Expr1)
-           | NestJoinS (L.JoinPredicate Expr1)
+           | ThetaJoin (L.JoinPredicate Expr)
+           | ThetaJoinS (L.JoinPredicate Expr)
+           | SemiJoin (L.JoinPredicate Expr)
+           | SemiJoinS (L.JoinPredicate Expr)
+           | AntiJoin (L.JoinPredicate Expr)
+           | AntiJoinS (L.JoinPredicate Expr)
+           | NestJoinS (L.JoinPredicate Expr)
            | NestProductS
            | TransposeS
     deriving (Eq, Ord, Generic, Show)

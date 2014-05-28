@@ -6,7 +6,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
+import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr(..), AggrFun(..))
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -415,14 +415,14 @@ mapEnv f  ((x, p):xs) = do
     return $ (x, p') : xs'
 mapEnv _f []          = return []
 
-aggrPrim :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrPrim :: (Expr -> AggrFun) -> Shape -> Graph VL Shape
 aggrPrim afun (ValueVector q (InColumn 1)) =
-    PrimVal <$> vlAggr (afun (Column1 1)) q <*> (pure $ InColumn 1)
+    PrimVal <$> vlAggr (afun (Column 1)) q <*> (pure $ InColumn 1)
 aggrPrim _ _ = $impossible
 
-aggrLift :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrLift :: (Expr -> AggrFun) -> Shape -> Graph VL Shape
 aggrLift afun (ValueVector d (Nest q (InColumn 1))) = do
-    qr <- vlAggrS (afun (Column1 1)) d q
+    qr <- vlAggrS (afun (Column 1)) d q
     return $ ValueVector qr (InColumn 1)
 aggrLift _ _ = $impossible
 
@@ -488,14 +488,14 @@ fstA ::  Shape -> Graph VL Shape
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
 fstA (PrimVal q (Pair p1 _p2)) = do
     let (p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ PrimVal proj p1'
 fstA e1 = error $ "fstA: " ++ show e1
 
 fstL ::  Shape -> Graph VL Shape
 fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ ValueVector proj p1'
 fstL s = error $ "fstL: " ++ show s
 
@@ -503,14 +503,14 @@ sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 sndA (PrimVal q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ PrimVal proj p2'
 sndA _ = $impossible
     
 sndL ::  Shape -> Graph VL Shape
 sndL (ValueVector q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ ValueVector proj p2'
 sndL s = trace (show s) $ $impossible
      

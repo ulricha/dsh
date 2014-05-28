@@ -25,10 +25,7 @@ instance ToJSON NullOp where
 instance ToJSON Nat where
 instance ToJSON VLVal where
 instance ToJSON VLType where
-instance ToJSON Expr2 where
-instance ToJSON Expr1 where
-instance ToJSON LeftCol where
-instance ToJSON RightCol where
+instance ToJSON Expr where
 instance ToJSON AggrFun where
 instance ToJSON L.Emptiness where
 instance ToJSON L.BinStringOp where
@@ -56,10 +53,7 @@ instance FromJSON NullOp where
 instance FromJSON Nat where
 instance FromJSON VLVal where
 instance FromJSON VLType where
-instance FromJSON Expr2 where
-instance FromJSON Expr1 where
-instance FromJSON LeftCol where
-instance FromJSON RightCol where
+instance FromJSON Expr where
 instance FromJSON AggrFun where
 instance FromJSON L.Emptiness where
 instance FromJSON L.BinStringOp where

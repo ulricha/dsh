@@ -186,8 +186,6 @@ translateBinOp b c1 c2 = case b of
         (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)
 
-    V.BinExpr e -> fromDVec <$> vecBinExpr e (toDVec c1) (toDVec c2)
-
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
     V.AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)

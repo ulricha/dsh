@@ -50,12 +50,12 @@ class VectorAlgebra a where
   vecReverse :: DVec -> GraphM r a (DVec, PVec)
   vecReverseS :: DVec -> GraphM r a (DVec, PVec)
   
-  vecSelect:: Expr1 -> DVec -> GraphM r a DVec
+  vecSelect:: Expr -> DVec -> GraphM r a DVec
 
-  vecSortSimple :: [Expr1] -> DVec -> GraphM r a (DVec, PVec)
-  vecGroupSimple :: [Expr1] -> DVec -> GraphM r a (DVec, DVec, PVec)
+  vecSortSimple :: [Expr] -> DVec -> GraphM r a (DVec, PVec)
+  vecGroupSimple :: [Expr] -> DVec -> GraphM r a (DVec, DVec, PVec)
 
-  vecProject :: [Expr1] -> DVec -> GraphM r a DVec
+  vecProject :: [Expr] -> DVec -> GraphM r a DVec
   
   vecGroupBy :: DVec -> DVec -> GraphM r a (DVec, DVec, PVec)
 
@@ -66,7 +66,7 @@ class VectorAlgebra a where
   -- operates segmented, i.e. always groups by descr first. This
   -- operator must be used with care: It does not determine the
   -- complete set of descr value to check for empty inner lists.
-  vecGroupAggr :: [Expr1] -> N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
+  vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
 
   vecSort :: DVec -> DVec -> GraphM r a (DVec, PVec)
   -- FIXME is distprim really necessary? could maybe be replaced by distdesc
@@ -83,8 +83,6 @@ class VectorAlgebra a where
   vecAppend :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
   vecRestrict :: DVec -> DVec -> GraphM r a (DVec, RVec)
   
-  vecBinExpr :: Expr2 -> DVec -> DVec -> GraphM r a DVec
-
   -- FIXME could be implemented using number and select
   selectPos :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
   selectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
@@ -99,15 +97,15 @@ class VectorAlgebra a where
   vecCartProductS :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
   vecNestProductS :: DVec -> DVec -> GraphM r a (DVec, PVec)
 
-  vecThetaJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecThetaJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
-  vecNestJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, PVec)
+  vecThetaJoin :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecThetaJoinS :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, PVec, PVec)
+  vecNestJoinS :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, PVec)
   
-  vecSemiJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
-  vecSemiJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecSemiJoin :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecSemiJoinS :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
-  vecAntiJoin :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
-  vecAntiJoinS :: JoinPredicate Expr1 -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecAntiJoin :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, RVec)
+  vecAntiJoinS :: JoinPredicate Expr -> DVec -> DVec -> GraphM r a (DVec, RVec)
 
   vecCombine :: DVec -> DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 

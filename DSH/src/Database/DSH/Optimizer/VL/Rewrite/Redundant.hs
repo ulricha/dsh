@@ -41,12 +41,11 @@ redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
                          , distDescConstant
                          , sameInputZip
-                         , sameInputZipProject
-                         , sameInputZipProjectLeft
-                         , sameInputZipProjectRight
                          , alignParents
                          , selectConstPos
                          , selectConstPosS
+                         , pushZipThroughProjectRight
+                         , pushZipThroughProjectLeft
                          -- , stackedAlign
                          ]
 
@@ -64,7 +63,7 @@ introduceSelect q =
 
         return $ do
           logRewrite "Redundant.Select" q
-          void $ replaceWithNew q $ UnOp (Select $(v "e")) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (Select e) $(v "q1") |])
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -75,7 +74,7 @@ distPrimConstant q =
         qvProps <- properties $(v "qp")
 
         constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM (constVal Constant1) cols
+          VProp (DBVConst _ cols) -> mapM (constVal Constant) cols
           _                       -> fail "no match"
 
         return $ do
@@ -92,7 +91,7 @@ distDescConstant q =
         VProp True <- return $ card1Prop pv
 
         VProp (DBVConst _ cols) <- return $ constProp pv
-        constProjs              <- mapM (constVal Constant1) cols
+        constProjs              <- mapM (constVal Constant) cols
 
         return $ do
           logRewrite "Redundant.DistDesc.Constant" q
@@ -117,9 +116,9 @@ unreferencedAlign q =
           logRewrite "Redundant.Unreferenced.Align" q
 
           -- FIXME HACKHACKHACK
-          let padProj = [ Constant1 $ VLInt 42 | _ <- [1..w1] ]
+          let padProj = [ Constant $ VLInt 42 | _ <- [1..w1] ]
                         ++
-                        [ Column1 i | i <- [1..w2] ]
+                        [ Column i | i <- [1..w2] ]
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
@@ -156,7 +155,7 @@ alignParents q =
 
              -- First, insert a projection on top of Align that leaves
              -- only the columns from Align's right input.
-             let origColsProj = [ Column1 $ w1 + i | i <- [1 .. w2] ]
+             let origColsProj = [ Column $ w1 + i | i <- [1 .. w2] ]
              projNode <- insert $ UnOp (Project origColsProj) q
 
              -- Then, re-link all parents of the right Align input to
@@ -179,7 +178,7 @@ stackedAlign q =
 
             -- Aligning multiple times duplicates the left input's
             -- columns.
-            let dupColsProj = map Column1 ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
+            let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
             projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
 
             replace q projNode |])
@@ -200,16 +199,17 @@ alignedOnlyLeft q =
           logRewrite "Redundant.Align.Project" q
           void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
 
-shiftCols :: Int -> Expr1 -> Expr1
+shiftCols :: Int -> Expr -> Expr
 shiftCols offset expr =
     case expr of
-        BinApp1 o e1 e2 -> BinApp1 o (shiftCols offset e1) (shiftCols offset e2)
-        UnApp1 o e1     -> UnApp1 o (shiftCols offset e1)
-        Column1 i       -> Column1 (offset + i)
-        Constant1 c     -> Constant1 c
-        If1 c t e       -> If1 (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
+        BinApp o e1 e2 -> BinApp o (shiftCols offset e1) (shiftCols offset e2)
+        UnApp o e1     -> UnApp o (shiftCols offset e1)
+        Column i       -> Column (offset + i)
+        Constant c     -> Constant c
+        If c t e       -> If (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
 
--- | Replace a Zip operaor with a projection if both inputs are the same.
+-- | Replace a Zip operator with a projection if both inputs are the
+-- same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
   $(pattern 'q "(q1) Zip (q2)"
@@ -219,43 +219,33 @@ sameInputZip q =
 
         return $ do
           logRewrite "Redundant.Zip" q
-          let ps = map Column1 [1 .. w]
+          let ps = map Column [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
-sameInputZipProject :: VLRule BottomUpProps
-sameInputZipProject q =
-  $(pattern 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Zip.Project" q
-          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
-
-sameInputZipProjectLeft :: VLRule BottomUpProps
-sameInputZipProjectLeft q =
+pushZipThroughProjectLeft :: VLRule BottomUpProps
+pushZipThroughProjectLeft q =
   $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
     [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Left" q
-          let proj = $(v "ps1") ++ (map Column1 [1 .. w])
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+          let proj = $(v "ps1") ++ (map Column [w1+1 .. w1+w2])
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
-sameInputZipProjectRight :: VLRule BottomUpProps
-sameInputZipProjectRight q =
+pushZipThroughProjectRight :: VLRule BottomUpProps
+pushZipThroughProjectRight q =
   $(pattern 'q "(q1) Zip (Project ps2 (q2))"
     [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Right" q
-          let proj = (map Column1 [1 .. w]) ++ $(v "ps2")
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-
+          let proj = map Column [1..w1] ++ map (shiftCols w1) $(v "ps2")
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
 -- | Employ a specialized operator if the sorting criteria are simply
 -- a selection of columns from the input vector.
@@ -316,11 +306,11 @@ scalarConditional q =
 
         -- The selection condition must be the negated form of the
         -- then-condition.
-        predicate $ (UnApp1 (SUBoolOp Not) predExpr) == $(v "negPred")
+        predicate $ (UnApp (SUBoolOp Not) predExpr) == $(v "negPred")
 
         return $ do
           logRewrite "Redundant.ScalarConditional" q
-          void $ replaceWithNew q $ UnOp (Project [If1 predExpr thenExpr elseExpr]) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (Project [If predExpr thenExpr elseExpr]) $(v "q1") |])
 
 ------------------------------------------------------------------------------
 -- Projection pullup

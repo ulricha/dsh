@@ -68,7 +68,6 @@ seed (BinOp op _ _) =
     SelectPos _        -> vPropPairSeed
     SelectPosS _       -> vPropPairSeed
     PropRename         -> vPropSeed
-    BinExpr    _       -> vPropSeed
     AggrS _            -> vPropSeed
     AggrNonEmptyS _    -> vPropSeed
     Zip                -> vPropSeed

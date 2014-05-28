@@ -32,12 +32,12 @@ renderFun name args = name <> parens (hsep $ punctuate comma args)
 
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
-                                        [renderExpr1 c]
-renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr1 c]
-renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr1 c]
-renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr1 c]
-renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr1 c]
-renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr1 c]
+                                        [renderExpr c]
+renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr c]
+renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr c]
+renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr c]
+renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
+renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
 renderAggrFun AggrCount     = renderFun (text "count") []
 
 renderColumnType :: VLType -> Doc
@@ -90,58 +90,37 @@ renderTableKeys []     = empty
 renderTableKey :: Key -> Doc
 renderTableKey (Key ks) = hsep $ punctuate comma $ map renderColName ks
 
-renderProj :: Doc -> Expr1 -> Doc
-renderProj d e = d <> colon <> renderExpr1 e
+renderProj :: Doc -> Expr -> Doc
+renderProj d e = d <> colon <> renderExpr e
 
-renderJoinConjunct :: JoinConjunct Expr1 -> Doc
+renderJoinConjunct :: JoinConjunct Expr -> Doc
 renderJoinConjunct (JoinConjunct e1 o e2) = 
     parenthize1 e1 <+> (text $ show o) <+> (parenthize1 e2)
 
-renderJoinPred :: JoinPredicate Expr1 -> Doc
+renderJoinPred :: JoinPredicate Expr -> Doc
 renderJoinPred (JoinPred conjs) = brackets
                                   $ hsep 
                                   $ punctuate (text "&&")
                                   $ map renderJoinConjunct $ N.toList conjs
 
-renderExpr1 :: Expr1 -> Doc
-renderExpr1 (BinApp1 op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthize1 e2)
-renderExpr1 (UnApp1 op e)      = (text $ pp op) <+> (parens $ renderExpr1 e)
-renderExpr1 (Constant1 val)    = renderTblVal val
-renderExpr1 (Column1 c)        = text "col" <> int c
-renderExpr1 (If1 c t e)        = text "if" 
-                                 <+> renderExpr1 c 
+renderExpr :: Expr -> Doc
+renderExpr (BinApp op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthize1 e2)
+renderExpr (UnApp op e)      = (text $ pp op) <+> (parens $ renderExpr e)
+renderExpr (Constant val)    = renderTblVal val
+renderExpr (Column c)        = text "col" <> int c
+renderExpr (If c t e)        = text "if" 
+                                 <+> renderExpr c 
                                  <+> text "then" 
-                                 <+> renderExpr1 t 
+                                 <+> renderExpr t 
                                  <+> text "else" 
-                                 <+> renderExpr1 e
+                                 <+> renderExpr e
 
-parenthize1 :: Expr1 -> Doc
-parenthize1 e@(Constant1 _)   = renderExpr1 e
-parenthize1 e@(Column1 _)     = renderExpr1 e
-parenthize1 e@(BinApp1 _ _ _) = parens $ renderExpr1 e
-parenthize1 e@(UnApp1 _ _)    = parens $ renderExpr1 e
-parenthize1 e@(If1 _ _ _)     = renderExpr1 e
-
-renderExpr2 :: Expr2 -> Doc
-renderExpr2 (BinApp2 op e1 e2)   = (parenthize2 e1) <+> (text $ show op) <+> (parenthize2 e2)
-renderExpr2 (UnApp2 op e)        = (text $ show op) <+> (parens $ renderExpr2 e)
-renderExpr2 (Constant2 val)      = renderTblVal val
-renderExpr2 (Column2Left (L c))  = text "lcol" <> int c
-renderExpr2 (Column2Right (R c)) = text "rcol" <> int c
-renderExpr2 (If2 c t e)          = text "if" 
-                                   <+> renderExpr2 c 
-                                   <+> text "then" 
-                                   <+> renderExpr2 t 
-                                   <+> text "else" 
-                                   <+> renderExpr2 e
-
-parenthize2 :: Expr2 -> Doc
-parenthize2 e@(Constant2 _)    = renderExpr2 e
-parenthize2 e@(Column2Left _)  = renderExpr2 e
-parenthize2 e@(Column2Right _) = renderExpr2 e
-parenthize2 e@(BinApp2 _ _ _)  = parens $ renderExpr2 e
-parenthize2 e@(UnApp2 _ _)     = parens $ renderExpr2 e
-parenthize2 e@(If2 _ _ _)      = renderExpr2 e
+parenthize1 :: Expr -> Doc
+parenthize1 e@(Constant _)   = renderExpr e
+parenthize1 e@(Column _)     = renderExpr e
+parenthize1 e@(BinApp _ _ _) = parens $ renderExpr e
+parenthize1 e@(UnApp _ _)    = parens $ renderExpr e
+parenthize1 e@(If _ _ _)     = renderExpr e
 
 -- create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
@@ -168,18 +147,18 @@ opDotLabel tm i (UnOp (Project pCols) _) =
   where pLabel = valCols
         valCols = bracketList (\(j, p) -> renderProj (itemLabel j) p) $ zip ([1..] :: [Int]) pCols
         itemLabel j = (text "i") <> (int j)
-opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr1 e) (lookupTags i tm)
+opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr e) (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr1 g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrNonEmptyS as) _ _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (UnOp (SortSimple cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupSimple cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr1 cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (SortSimple cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupSimple cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Sort _ _) = labelToDoc i "Sort" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistPrim _ _) = labelToDoc i "DistPrim" empty (lookupTags i tm)
@@ -190,7 +169,6 @@ opDotLabel tm i (BinOp PropFilter _ _) = labelToDoc i "PropFilter" empty (lookup
 opDotLabel tm i (BinOp PropReorder _ _) = labelToDoc i "PropReorder" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Restrict _ _) = labelToDoc i "Restrict" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (BinExpr expr) _ _) = labelToDoc i "BinExpr" (renderExpr2 expr) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPosS o) _ _) = labelToDoc i "SelectPosS" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "Zip" empty (lookupTags i tm)
@@ -247,7 +225,6 @@ opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
 opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
 opDotColor (UnOp (GroupAggr _ _) _)      = DCTomato
 opDotColor (UnOp (Project _) _)          = DCLightSkyBlue
-opDotColor (BinOp (BinExpr _) _ _)       = DCDodgerBlue
 opDotColor (UnOp Transpose _)            = DCHotPink
 opDotColor (BinOp TransposeS _ _)        = DCHotPink
 opDotColor (UnOp (ReshapeS _) _)         = DCHotPink

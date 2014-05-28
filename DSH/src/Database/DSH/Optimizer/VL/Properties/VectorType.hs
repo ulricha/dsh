@@ -127,7 +127,6 @@ inferVectorTypeBinOp s1 s2 op =
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    BinExpr _ -> Right $ VProp $ ValueVector 1
     SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     Zip ->
