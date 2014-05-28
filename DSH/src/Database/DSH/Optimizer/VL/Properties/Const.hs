@@ -2,13 +2,16 @@
 
 module Database.DSH.Optimizer.VL.Properties.Const where
 
-import qualified Data.List.NonEmpty as N
+import           Control.Monad
 import           Data.List
-import           Text.Printf
+import qualified Data.List.NonEmpty                          as N
+import           Data.Maybe
 
-import           Database.DSH.VL.Lang
+import Database.DSH.Impossible
 import           Database.DSH.Optimizer.VL.Properties.Common
 import           Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.VL.Lang
+import           Database.DSH.Common.Lang
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
@@ -31,17 +34,90 @@ fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
 fromPropVec (PropVecConst s t)  = Right (s, t)
 fromPropVec _                   = Left "Properties.Const fromPropVec"
 
+--------------------------------------------------------------------------------
+-- Evaluation of constant expressions
+
+-- FIXME finish remaining cases, only integer numeric operations so
+-- far.
+
+mkEnv :: [ConstPayload] -> [(DBCol, VLVal)]
+mkEnv constCols = mapMaybe envEntry $ zip [1..] constCols
+  where
+    envEntry :: (DBCol, ConstPayload) -> Maybe (DBCol, VLVal)
+    envEntry (_, NonConstPL) = mzero
+    envEntry (c, ConstPL v)  = return (c, v)
+
+evalNumOp :: BinNumOp -> Int -> Int -> Int
+evalNumOp op v1 v2 =
+    case op of
+        Add -> v1 + v2
+        Sub -> v1 - v2
+        Div -> v1 `div` v2
+        Mul -> v1 * v2
+        Mod -> v1 `mod` v2
+
+evalBinOp :: ScalarBinOp -> VLVal -> VLVal -> Maybe VLVal
+evalBinOp op v1 v2 =
+    case (v1, v2) of
+        (VLInt i1, VLInt i2)       ->
+            case op of
+                SBNumOp nop  -> return $ VLInt $ evalNumOp nop i1 i2
+                SBRelOp rop  -> mzero
+                SBBoolOp _   -> $impossible
+                SBStringOp _ -> $impossible
+                
+        (VLBool b1, VLBool b2)     ->
+            case op of
+                SBBoolOp _   -> mzero
+                SBRelOp rop  -> mzero
+                SBNumOp nop  -> $impossible
+                SBStringOp _ -> $impossible
+        (VLString s1, VLString s2) ->
+            case op of
+                SBRelOp rop  -> mzero
+                SBStringOp _ -> mzero
+                SBBoolOp _   -> $impossible
+                SBNumOp nop  -> $impossible
+        (VLDouble d1, VLDouble d2) ->
+            case op of
+                SBRelOp rop  -> mzero
+                SBNumOp nop  -> mzero
+                SBBoolOp _   -> $impossible
+                SBStringOp _ -> $impossible
+        (VLUnit, VLUnit)           -> mzero
+
+evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal
+evalUnOp _ _ = mzero
+
 constExpr1 :: [ConstPayload] -> Expr1 -> Either String ConstPayload
-constExpr1 constCols e = 
-    case e of
-        Constant1 v      -> return $ ConstPL v
-        Column1 i        -> if length constCols < i - 1
-                            then Left (printf "constExpr1 %s %d" (show constCols) i)
-                            else return $ constCols !! (i - 1)
-        -- FIXME implement constant folding
-        BinApp1 _ _ _    -> return NonConstPL
-        UnApp1 _ _       -> return NonConstPL
-        If1 _ _ _        -> return NonConstPL
+constExpr1 constCols expr =
+    case eval expr of
+        Just v  -> return $ ConstPL v
+        Nothing -> return NonConstPL
+
+  where
+    env :: [(DBCol, VLVal)]
+    env = mkEnv constCols
+
+    eval :: Expr1 -> Maybe VLVal
+    eval (Constant1 v)      = return v
+    eval (Column1 i)        = lookup i env
+    eval (BinApp1 op e1 e2) = do
+        v1 <- eval e1
+        v2 <- eval e2
+        evalBinOp op v1 v2
+    eval (UnApp1 op e1)     = do
+        v <- eval e1
+        evalUnOp op v
+    eval (If1 c t e)        = do
+        cv <- eval c
+        case cv of
+            VLBool True  -> eval t
+            VLBool False -> eval e
+            _            -> mzero
+
+--------------------------------------------------------------------------------
+-- Stuff
 
 nonConstPVec :: ConstVec
 nonConstPVec = PropVecConst (SC NonConstDescr) (TC NonConstDescr)
@@ -92,11 +168,11 @@ inferConstVecUnOp c op =
 
     SelectPos1 _ _ -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPos1S _ _ -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     Reverse -> do
       (d, cs) <- unp c >>= fromDBV
@@ -118,7 +194,7 @@ inferConstVecUnOp c op =
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
-      
+
     Number -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (cols ++ [NonConstPL])
@@ -169,8 +245,8 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME handle the special case of constant payload columns in the right input (qe)
       (dq, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropTriple (DBVConst dq cols1) 
-                           (DBVConst NonConstDescr cols2) 
+      return $ VPropTriple (DBVConst dq cols1)
+                           (DBVConst NonConstDescr cols2)
                            (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     Sort -> do
@@ -328,41 +404,41 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
-      
+
     SemiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
-      
+
       -- FIXME This is propably too pessimistic for the source descriptor
       let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
 
-      -- FIXME This is propably too pessimistic for the descr 
+      -- FIXME This is propably too pessimistic for the descr
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
     SemiJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
-      
+
       -- FIXME This is propably too pessimistic for the source descriptor
       let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-  
-      -- FIXME This is propably too pessimistic for the descr 
+
+      -- FIXME This is propably too pessimistic for the descr
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
     AntiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
-      
+
       -- FIXME This is propably too pessimistic for the source descriptor
       let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
 
-      -- FIXME This is propably too pessimistic for the descr 
+      -- FIXME This is propably too pessimistic for the descr
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
     AntiJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
-      
+
       -- FIXME This is propably too pessimistic for the source descriptor
       let renameVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
-  
-      -- FIXME This is propably too pessimistic for the descr 
+
+      -- FIXME This is propably too pessimistic for the descr
       return $ VPropPair (DBVConst NonConstDescr cols1) renameVec
 
     TransposeS -> do
