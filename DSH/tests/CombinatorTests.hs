@@ -6,16 +6,16 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module CombinatorTests 
-  ( tests_types
-  , tests_boolean
-  , tests_tuples
-  , tests_numerics
-  , tests_maybe
-  , tests_either
-  , tests_lists
-  , tests_lifted
-  , tests_combinators_hunit
-  ) where
+    ( tests_types
+    , tests_boolean
+    , tests_tuples
+    , tests_numerics
+    , tests_maybe
+    , tests_either
+    , tests_lists
+    , tests_lifted
+    , tests_combinators_hunit
+    ) where
 
 import           Common
 
