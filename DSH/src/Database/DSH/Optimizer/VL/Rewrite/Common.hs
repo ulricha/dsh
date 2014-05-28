@@ -82,6 +82,6 @@ mergeExpr1 env expr =
         _               -> expr
 
 -- | Unwrap a constant value
-constVal :: Monad m => ConstPayload -> m Expr1
-constVal (ConstPL val) = return $ Constant1 val
-constVal _             = fail "no match"
+constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a
+constVal wrap (ConstPL val) = return $ wrap val
+constVal _             _    = fail "no match"

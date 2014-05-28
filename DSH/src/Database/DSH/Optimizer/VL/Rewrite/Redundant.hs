@@ -72,7 +72,7 @@ distPrimConstant q =
         qvProps <- properties $(v "qp")
 
         constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM constVal cols
+          VProp (DBVConst _ cols) -> mapM (constVal Constant1) cols
           _                       -> fail "no match"
           
         return $ do
@@ -89,7 +89,7 @@ distDescConstant q =
         VProp True <- return $ card1Prop pv
 
         VProp (DBVConst _ cols) <- return $ constProp pv
-        constProjs              <- mapM constVal cols
+        constProjs              <- mapM (constVal Constant1) cols
 
         return $ do
           logRewrite "Redundant.DistDesc.Constant" q

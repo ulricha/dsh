@@ -31,6 +31,8 @@ expressionRules = [ mergeExpr2SameInput
                   , leftOnlyBinExpr
                   , rightOnlyBinExpr
                   , mergeSelectProject
+                  , constBinExprLeft
+                  , constBinExprRight
                   ]
 
 -- | Traverse a *Expr2* and apply given functions to column
@@ -38,7 +40,7 @@ expressionRules = [ mergeExpr2SameInput
 mapExpr2Cols :: (LeftCol -> Expr2) -> (RightCol -> Expr2) -> Expr2 -> Expr2
 mapExpr2Cols leftFun rightFun expr = case expr of
     BinApp2 op e1 e2 -> BinApp2 op (mapExpr2Cols leftFun rightFun e1)
-                                   (mapExpr2Cols leftFun rightFun e1)
+                                   (mapExpr2Cols leftFun rightFun e2)
     UnApp2 op e1     -> UnApp2 op (mapExpr2Cols leftFun rightFun e1)
     Column2Left c    -> leftFun c
     Column2Right c   -> rightFun c
@@ -219,3 +221,68 @@ rightOnlyBinExpr q =
           logRewrite "Expr.Bin.RightOnly" q
           let expr' = expr2ToExpr1 $(v "expr")
           void $ replaceWithNew q $ UnOp (Project [expr']) $(v "q2") |])
+
+------------------------------------------------------------------------------
+-- Constant expression inputs
+
+insertConstantsLeft :: [(DBCol, VLVal)] -> Expr2 -> Expr2
+insertConstantsLeft env expr =
+    mapExpr2Cols leftConstant Column2Right expr
+  where
+    leftConstant (L c) =
+        case lookup c env of
+            Just v  -> Constant2 v
+            Nothing -> Column2Left (L c)
+
+insertConstantsRight :: [(DBCol, VLVal)] -> Expr2 -> Expr2
+insertConstantsRight env expr =
+    mapExpr2Cols Column2Left rightConstant expr
+  where
+    rightConstant (R c) =
+        case lookup c env of
+            Just v  -> Constant2 v
+            Nothing -> Column2Right (R c)
+
+liftPairRight :: Monad m => (a, m b) -> m (a, b)
+liftPairRight (a, mb) = mb >>= \b -> return (a, b)
+
+mapPair :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
+mapPair f g (a, b) = (f a, g b)
+
+-- | If there are any constant columns in the left input of a BinExpr
+-- operator, inline them.
+constBinExprLeft :: VLRule BottomUpProps
+constBinExprLeft q =
+  $(pattern 'q "(q1) BinExpr expr (q2)"
+    [| do
+        VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
+        let envEntry = liftPairRight . mapPair id (constVal id)
+        let constEnv = mapMaybe envEntry $ zip [1..] constCols
+        predicate $ not $ null constEnv
+        let expr' = insertConstantsLeft constEnv $(v "expr")
+  
+        -- To avoid rewriting loops, ensure that a change occured.
+        predicate $ expr' /= $(v "expr")
+
+        return $ do
+          logRewrite "Expr.Bin.Constant.Left" q
+          void $ replaceWithNew q $ BinOp (BinExpr expr') $(v "q1") $(v "q2") |])
+
+-- | If there are any constant columns in the right input of a BinExpr
+-- operator, inline them.
+constBinExprRight :: VLRule BottomUpProps
+constBinExprRight q =
+  $(pattern 'q "(q1) BinExpr expr (q2)"
+    [| do
+        VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q2")
+        let envEntry = liftPairRight . mapPair id (constVal id)
+        let constEnv = mapMaybe envEntry $ zip [1..] constCols
+        predicate $ not $ null constEnv
+        let expr' = insertConstantsRight constEnv $(v "expr")
+  
+        -- To avoid rewriting loops, ensure that a change occured.
+        predicate $ expr' /= $(v "expr")
+
+        return $ do
+          logRewrite "Expr.Bin.Constant.Right" q
+          void $ replaceWithNew q $ BinOp (BinExpr expr') $(v "q1") $(v "q2") |])
