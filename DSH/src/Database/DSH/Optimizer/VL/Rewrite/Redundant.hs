@@ -247,6 +247,9 @@ pushZipThroughProjectRight q =
           zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
+--------------------------------------------------------------------------------
+-- Specialization of sorting
+
 -- | Employ a specialized operator if the sorting criteria are simply
 -- a selection of columns from the input vector.
 simpleSort :: VLRule ()
