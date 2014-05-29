@@ -118,6 +118,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | PropFilter -- (DBV, PropVector)
            | PropReorder -- (DBV, PropVector)
            | Append     -- (DBV, RenameVector, RenameVector)
+           | AppendS
            | Restrict -- VL (DBV, RenameVector)
            | SelectPos L.ScalarBinOp -- (DBV, RenameVector)
            | SelectPosS L.ScalarBinOp -- (DBV, RenameVector)

@@ -228,11 +228,12 @@ indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
 indexLift _ _ = error "indexLift: Should not be possible"
 
 appendPrim ::  Shape -> Shape -> Graph VL Shape
-appendPrim = appendR
+appendPrim = appendVec
 
 appendLift ::  Shape -> Shape -> Graph VL Shape
-appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = ValueVector d <$> appendR' lyt1 lyt2
-appendLift _ _ = error "appendLift: Should not be possible"
+appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = do
+    ValueVector d <$> appendLayout lyt1 lyt2
+appendLift _ _ = $impossible
     
 reversePrim ::  Shape -> Graph VL Shape
 reversePrim (ValueVector d lyt) = do
@@ -343,10 +344,10 @@ lengthV q = do
 cons ::  Shape -> Shape -> Graph VL Shape
 cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
     n <- singletonPrim q1
-    appendR n q2
+    appendVec n q2
 cons q1 q2 = do
     n <- singletonVec q1
-    appendR n q2
+    appendVec n q2
 
 consLift ::  Shape -> Shape -> Graph VL Shape
 consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
@@ -354,7 +355,7 @@ consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
     (v, p1, p2) <- vlAppend s qi
     lyt1'       <- renameOuter' p1 lyt1
     lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendR' lyt1' lyt2'
+    lyt'        <- appendLayout lyt1' lyt2'
     return $ ValueVector q2 (Nest v lyt')
 consLift _ _ = $impossible
                         
@@ -375,7 +376,7 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
     (v, p1, p2) <- vlCombine qb q1 q2
     lyt1'       <- renameOuter' p1 lyt1
     lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendR' lyt1' lyt2'
+    lyt'        <- appendLayout lyt1' lyt2'
     return $ ValueVector v lyt'
 combine _ _ _ = $impossible
 
@@ -441,14 +442,14 @@ distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ s
 
 ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (d1', _) <- vlDistPrim qb q1
-    (d1, p1) <- vlRestrict q1 d1'
-    qb' <- vlUnExpr (L.SUBoolOp L.Not) qb
-    (d2', _) <- vlDistPrim qb' q2
-    (d2, p2) <- vlRestrict q2 d2'
-    r1 <- renameOuter' p1 lyt1
-    r2 <- renameOuter' p2 lyt2
-    lyt' <- appendR' r1 r2
+    (d1', _)  <- vlDistPrim qb q1
+    (d1, p1)  <- vlRestrict q1 d1'
+    qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
+    (d2', _)  <- vlDistPrim qb' q2
+    (d2, p2)  <- vlRestrict q2 d2'
+    lyt1'     <- renameOuter' p1 lyt1
+    lyt2'     <- renameOuter' p2 lyt2
+    lyt'      <- appendLayout lyt1' lyt2'
     (d, _, _) <- vlAppend d1 d2
     return $ ValueVector d lyt'
 ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do

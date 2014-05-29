@@ -57,6 +57,7 @@ seed (BinOp op _ _) =
   case op of
     GroupBy            -> vPropTripleSeed
     Append             -> vPropTripleSeed
+    AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed
     Sort               -> vPropPairSeed
     DistPrim           -> vPropPairSeed

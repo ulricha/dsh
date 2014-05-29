@@ -182,6 +182,10 @@ translateBinOp b c1 c2 = case b of
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
 
+    V.AppendS -> do
+        (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
+
     V.Restrict -> do
         (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRenameVector r)

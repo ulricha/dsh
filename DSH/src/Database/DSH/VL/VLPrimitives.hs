@@ -210,6 +210,14 @@ vlAppend (DVec c1 _) (DVec c2 _) = do
                                 r3 <- rvec $ insertNode $ UnOp R3 r
                                 return (r1, r2, r3)
 
+vlAppendS :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlAppendS (DVec c1 _) (DVec c2 _) = do
+                                r <- insertNode $ BinOp AppendS c1 c2
+                                r1 <- dvec $ insertNode $ UnOp R1 r
+                                r2 <- rvec $ insertNode $ UnOp R2 r
+                                r3 <- rvec $ insertNode $ UnOp R3 r
+                                return (r1, r2, r3)
+
 vlSegment :: DVec -> GraphM r VL DVec
 vlSegment (DVec c _) = dvec $ insertNode $ UnOp Segment c
 

@@ -91,6 +91,7 @@ inferNonEmptyBinOp e1 e2 op =
     PropFilter      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     PropReorder     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
+    AppendS         -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     Restrict        -> return $ VPropPair False False
     AggrS _         -> return $ VProp True
     AggrNonEmptyS _ -> return $ VProp True

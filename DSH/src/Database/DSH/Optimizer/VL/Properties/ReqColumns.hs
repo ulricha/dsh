@@ -286,6 +286,12 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight    <- (VProp cols) ∪ childReqColumns2
           return (fromLeft, fromRight)
 
+      AppendS -> do
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          fromLeft     <- (VProp cols) ∪ childReqColumns1
+          fromRight    <- (VProp cols) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+
       Restrict -> do
           cols     <- fst <$> fromPropPair ownReqColumns
           fromLeft <- VProp cols ∪ childReqColumns1

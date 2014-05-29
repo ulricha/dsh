@@ -80,7 +80,10 @@ class VectorAlgebra a where
   vecPropFilter :: RVec -> DVec -> GraphM r a (DVec, RVec)
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
   vecPropReorder :: PVec -> DVec -> GraphM r a (DVec, PVec)
+
   vecAppend :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
+  vecAppendS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
+
   vecRestrict :: DVec -> DVec -> GraphM r a (DVec, RVec)
   
   -- FIXME could be implemented using number and select

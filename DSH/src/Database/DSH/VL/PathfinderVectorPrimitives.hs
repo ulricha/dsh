@@ -405,6 +405,20 @@ instance VectorAlgebra PFAlgebra where
     return $ DVec q []
 
   vecAppend (DVec q1 cols) (DVec q2 _) = do
+    q <- rownumM posnew [ordCol, pos] Nothing
+           $ projAddCols cols [eP ordCol (ConstE (nat 1))] q1
+             `unionM`
+             projAddCols cols [eP ordCol (ConstE (nat 2))] q2
+    qv <- tagM "append r" (proj (itemProj cols [mP pos posnew, cP descr]) q)
+    qp1 <- tagM "append r1"
+           $ projM [mP posold pos, cP posnew]
+           $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 1)) q
+    qp2 <- tagM "append r2"
+           $ projM [mP posold pos, cP posnew]
+           $ select (BinAppE Eq (ColE ordCol) (ConstE $ nat 2)) q
+    return $ (DVec qv cols, RVec qp1, RVec qp2)
+
+  vecAppendS (DVec q1 cols) (DVec q2 _) = do
     q <- rownumM posnew [descr, ordCol, pos] Nothing
            $ projAddCols cols [eP ordCol (ConstE (nat 1))] q1
              `unionM`
