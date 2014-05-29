@@ -81,6 +81,8 @@ class VectorAlgebra a where
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
   vecPropReorder :: PVec -> DVec -> GraphM r a (DVec, PVec)
 
+  vecUnbox :: DVec -> DVec -> GraphM r a (DVec, RVec)
+
   vecAppend :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
   vecAppendS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 

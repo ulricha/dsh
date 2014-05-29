@@ -117,6 +117,7 @@ inferVectorTypeBinOp s1 s2 op =
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
+    Unbox -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     Append -> 
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 

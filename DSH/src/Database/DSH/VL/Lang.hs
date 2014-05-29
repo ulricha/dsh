@@ -117,7 +117,18 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | PropRename
            | PropFilter -- (DBV, PropVector)
            | PropReorder -- (DBV, PropVector)
-           | Append     -- (DBV, RenameVector, RenameVector)
+           
+           -- | Specialized unbox operator that merges DescrToRename
+           -- and PropRename. It takes an inner and outer vector, and
+           -- pulls the segment that is referenced by the outer vector
+           -- into the outer segment. Notice that there must be
+           -- /exactly one/ segment referenced by the outer
+           -- vector. Inner segments that are not referenced are
+           -- silently discarded.
+           -- 
+           -- Output: @(DVec, RVec)@
+           | Unbox
+           | Append
            | AppendS
            | Restrict -- VL (DBV, RenameVector)
            | SelectPos L.ScalarBinOp -- (DBV, RenameVector)

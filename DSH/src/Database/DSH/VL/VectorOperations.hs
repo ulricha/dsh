@@ -352,7 +352,7 @@ cons q1 q2 = do
 consLift ::  Shape -> Shape -> Graph VL Shape
 consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
     s           <- vlSegment q1
-    (v, p1, p2) <- vlAppend s qi
+    (v, p1, p2) <- vlAppendS s qi
     lyt1'       <- renameOuter' p1 lyt1
     lyt2'       <- renameOuter' p2 lyt2
     lyt'        <- appendLayout lyt1' lyt2'

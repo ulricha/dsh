@@ -45,19 +45,19 @@ fromDict n = do
 insertTranslation :: VectorAlgebra a => AlgNode -> Res -> G a ()
 insertTranslation n res = modify (M.insert n res)
 
-fromProp :: PVec -> Res
-fromProp (PVec p) = Prop p
+fromPVec :: PVec -> Res
+fromPVec (PVec p) = Prop p
 
-toProp :: Res -> PVec
-toProp (Prop p) = PVec p
-toProp _       = error "toProp: Not a prop vector"
+toPVec :: Res -> PVec
+toPVec (Prop p) = PVec p
+toPVec _       = error "toPVec: Not a prop vector"
 
-fromRenameVector :: RVec -> Res
-fromRenameVector (RVec r) = Rename r
+fromRVec :: RVec -> Res
+fromRVec (RVec r) = Rename r
 
-toRenameVector :: Res -> RVec
-toRenameVector (Rename r) = RVec r
-toRenameVector _          = error "toRenameVector: Not a rename vector"
+toRVec :: Res -> RVec
+toRVec (Rename r) = RVec r
+toRVec _          = error "toRVec: Not a rename vector"
 
 fromDVec :: DVec -> Res
 fromDVec (DVec n cs) = RDVec n cs
@@ -144,51 +144,55 @@ translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
-            return $ RTriple (fromDVec d) (fromRenameVector r1) (fromRenameVector r2)
+            return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
 translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> GraphM () a Res
 translateBinOp b c1 c2 = case b of
     V.GroupBy -> do
         (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec d) (fromDVec v) (fromProp p)
+        return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
 
     V.Sort -> do
         (d, p) <- vecSort (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec d) (fromProp p)
+        return $ RPair (fromDVec d) (fromPVec p)
 
     V.DistPrim -> do
         (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p)
+        return $ RPair (fromDVec v) (fromPVec p)
 
     V.DistDesc -> do
         (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p)
+        return $ RPair (fromDVec v) (fromPVec p)
 
     V.Align -> do
         (v, p) <- vecAlign (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p)
+        return $ RPair (fromDVec v) (fromPVec p)
 
-    V.PropRename -> fromDVec <$> vecPropRename (toRenameVector c1) (toDVec c2)
+    V.PropRename -> fromDVec <$> vecPropRename (toRVec c1) (toDVec c2)
 
     V.PropFilter -> do
-        (v, r) <- vecPropFilter (toRenameVector c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        (v, r) <- vecPropFilter (toRVec c1) (toDVec c2)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.PropReorder -> do
-        (v, p) <- vecPropReorder (toProp c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p)
+        (v, p) <- vecPropReorder (toPVec c1) (toDVec c2)
+        return $ RPair (fromDVec v) (fromPVec p)
+
+    V.Unbox -> do
+        (v, r) <- vecUnbox (toDVec c1) (toDVec c2)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
+        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
     V.AppendS -> do
         (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
+        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
     V.Restrict -> do
         (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
@@ -196,57 +200,57 @@ translateBinOp b c1 c2 = case b of
 
     V.SelectPos o -> do
         (v, r) <- selectPos (toDVec c1) o (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.SelectPosS o -> do
         (v, r) <- selectPosS (toDVec c1) o (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
 
     V.ZipS -> do
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromRenameVector r1) (fromRenameVector r2)
+        return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
     V.CartProduct -> do
         (v, p1, p2) <- vecCartProduct (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.CartProductS -> do
         (v, p1, p2) <- vecCartProductS (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.NestProductS -> do
         (v, p2) <- vecNestProductS (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p2)
+        return $ RPair (fromDVec v) (fromPVec p2)
 
     V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.ThetaJoinS p -> do
         (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec v) (fromProp p1) (fromProp p2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.NestJoinS p -> do
         (v, p2) <- vecNestJoinS p (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromProp p2)
+        return $ RPair (fromDVec v) (fromPVec p2)
 
     V.SemiJoin p -> do
         (v, r) <- vecSemiJoin p (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.SemiJoinS p -> do
         (v, r) <- vecSemiJoinS p (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.AntiJoin p -> do
         (v, r) <- vecAntiJoin p (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.AntiJoinS p -> do
         (v, r) <- vecAntiJoinS p (toDVec c1) (toDVec c2)
-        return $ RPair (fromDVec v) (fromRenameVector r)
+        return $ RPair (fromDVec v) (fromRVec r)
 
     V.TransposeS -> do
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
@@ -257,7 +261,7 @@ translateUnOp u c = case u of
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
-    V.DescToRename     -> fromRenameVector <$> descToRename (toDVec c)
+    V.DescToRename     -> fromRVec <$> descToRename (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Select e         -> fromDVec <$> vecSelect e (toDVec c)
@@ -265,23 +269,23 @@ translateUnOp u c = case u of
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.SortSimple es -> do
         (d, p) <- vecSortSimple es (toDVec c)
-        return $ RPair (fromDVec d) (fromProp p)
+        return $ RPair (fromDVec d) (fromPVec p)
     V.GroupSimple es -> do
         (qo, qi, p) <- vecGroupSimple es (toDVec c)
-        return $ RTriple (fromDVec qo) (fromDVec qi) (fromProp p)
+        return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do
         (d, p) <- vecReverse (toDVec c)
-        return $ RPair (fromDVec d) (fromProp p)
+        return $ RPair (fromDVec d) (fromPVec p)
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
-        return $ RPair (fromDVec d) (fromProp p)
+        return $ RPair (fromDVec d) (fromPVec p)
     V.SelectPos1 op pos -> do
         (d, p) <- selectPos1 (toDVec c) op pos
-        return $ RPair (fromDVec d) (fromRenameVector p)
+        return $ RPair (fromDVec d) (fromRVec p)
     V.SelectPos1S op pos -> do
         (d, p) <- selectPos1S (toDVec c) op pos
-        return $ RPair (fromDVec d) (fromRenameVector p)
+        return $ RPair (fromDVec d) (fromRVec p)
     V.GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do

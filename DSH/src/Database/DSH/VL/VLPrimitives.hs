@@ -179,9 +179,16 @@ vlAlign (DVec c1 _) (DVec c2 _) = do
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
--- | pvecRvec uses a propagation vector to rename a vector (no filtering or reordering).
+-- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
 vlPropRename :: RVec -> DVec -> GraphM r VL DVec
 vlPropRename (RVec c1) (DVec c2 _) = dvec $ insertNode $ BinOp PropRename c1 c2
+
+vlUnbox :: DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlUnbox (DVec c1 _) (DVec c2 _) = do
+    r <- insertNode $ BinOp Unbox c1 c2
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- rvec $ insertNode $ UnOp R2 r
+    return (r1, r2)
 
 -- | pvecFilter uses a pvecagation vector to rvec and filter a vector (no reordering).
 vlPropFilter :: RVec -> DVec -> GraphM r VL (DVec, RVec)

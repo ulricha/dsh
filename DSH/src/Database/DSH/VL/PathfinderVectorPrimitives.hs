@@ -249,6 +249,23 @@ instance VectorAlgebra PFAlgebra where
     (p, (RVec r)) <- vecPropFilter (RVec q1) e2
     return (p, PVec r)
 
+  vecUnbox (DVec qo _) (DVec qi cols) = do
+    -- Perform a segment join between inner and outer vectors. This
+    -- implicitly discards any unreferenced segments in qi.
+    q <- projM (itemProj cols [cP descr, cP posnew, mP posold pos'])
+         $ rownumM posnew [pos] Nothing
+         $ eqJoinM pos descr'
+             (return qo)
+             (proj (itemProj cols [mP descr' descr, mP pos' pos]) qi)
+
+    -- The unboxed vector containing one segment from the inner vector.
+    qv <- proj (itemProj cols [cP descr, mP pos posnew]) q
+    -- A rename vector in case the inner vector has inner vectors as
+    -- well.
+    qr <- proj [cP posnew, cP posold] q
+
+    return (DVec qv cols, RVec qr)
+
   vecRestrict (DVec q1 cols) (DVec qm _) = do
     q <- rownumM pos'' [pos] Nothing
            $ selectM (ColE resCol)

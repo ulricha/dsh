@@ -39,8 +39,8 @@ chainReorder p (Nest q lyt) = do
 chainReorder p (Pair l1 l2) = 
     Pair <$> chainReorder p l1 <*> chainReorder p l2
 
--- | renameOuter renames and filters a vector according to a propagation vector
--- Changes are not propagated to inner vectors.
+-- | renameOuter renames and filters a vector according to a rename
+-- vector. Changes are not propagated to inner vectors.
 renameOuter :: RVec -> Shape -> Graph VL Shape
 renameOuter p (ValueVector q lyt) = flip ValueVector lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
