@@ -12,7 +12,6 @@ import Data.Maybe
 
 import Database.Algebra.Dag.Common
 
-import Database.DSH.Impossible
 import Database.DSH.VL.Lang
 import Database.DSH.Optimizer.Common.Rewrite
 import Database.DSH.Optimizer.VL.Properties.Types

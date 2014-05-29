@@ -150,7 +150,7 @@ inlineAggrNonEmptyProject q =
     [| do
         afun N.:| [] <- return $(v "afuns")
         let env = zip [1..] $(v "proj")
-        let afun' = case $(v "afun") of
+        let afun' = case afun of
                         AggrMax e   -> AggrMax $ mergeExpr env e
                         AggrSum t e -> AggrSum t $ mergeExpr env e 
                         AggrMin e   -> AggrMin $ mergeExpr env e
@@ -174,7 +174,7 @@ inlineAggrSNonEmptyProject q =
     [| do
         afun N.:| [] <- return $(v "afuns")
         let env = zip [1..] $(v "proj")
-        let afun' = case $(v "afun") of
+        let afun' = case afun of
                         AggrMax e   -> AggrMax $ mergeExpr env e
                         AggrSum t e -> AggrSum t $ mergeExpr env e 
                         AggrMin e   -> AggrMin $ mergeExpr env e
@@ -196,10 +196,6 @@ matchAggr q = do
   BinOp (AggrS aggrFun) _ _ <- getOperator q
   return (aggrFun, q)
   
-projectionCol :: Expr -> VLMatch () DBCol
-projectionCol (Column c) = return c
-projectionCol _           = fail "no match"
-
 -- If grouping is performed by simple scalar expressions, we can
 -- employ a simpler operator.
 simpleGrouping :: VLRule ()

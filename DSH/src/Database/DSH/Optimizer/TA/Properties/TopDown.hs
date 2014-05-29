@@ -81,15 +81,16 @@ inferChildProperties buPropMap d n = do
             let (cp1', cp2') = inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
             replaceProps c1 cp1'
             replaceProps c2 cp2'
-        TerOp op c1 c2 c3 -> $impossible
+        TerOp _ _ _ _ -> $impossible
         
 -- | Infer properties during a top-down traversal.
 inferAllProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag PFAlgebra -> NodeMap AllProps
-inferAllProperties buPropMap topOrderedNodes d = let tdPropMap = execState action initialMap  
-                                                 in case mergeProps buPropMap tdPropMap of
-                                                        Just ps -> ps
-                                                        Nothing -> $impossible
+inferAllProperties buPropMap topOrderedNodes d = 
+    case mergeProps buPropMap tdPropMap of
+        Just ps -> ps
+        Nothing -> $impossible
   where 
+    tdPropMap = execState action initialMap
     action = mapM_ (inferChildProperties buPropMap d) topOrderedNodes
 
     initialMap = M.map (const seed) $ nodeMap d

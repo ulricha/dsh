@@ -26,7 +26,7 @@ subsetsOfSize n s
         go k l (x:xs)
             | k == l = [x:xs]
             | otherwise = map (x:) (go (k-1) (l-1) xs) ++ go k (l-1) xs
-        go k l [] = $impossible
+        go _ _ [] = $impossible
 
 -- | Enumerate all subsets of size n
 

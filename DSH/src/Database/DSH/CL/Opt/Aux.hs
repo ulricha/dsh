@@ -70,11 +70,11 @@ import           Database.DSH.Impossible
 type TuplifyM = CompSM (RewriteC CL)
 
 -- | Run a translate on an expression without context
-applyExpr :: TranslateC CL b -> Expr -> Either String b
+applyExpr :: TransformC CL b -> Expr -> Either String b
 applyExpr f e = runCompM $ apply f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
-applyInjectable :: Injection a CL => TranslateC CL b -> a -> Either String b
+applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
 applyInjectable t e = runCompM $ apply t initialCtx (inject e)
 
 
@@ -93,7 +93,7 @@ toJoinUnOp (SUCastOp o) = return $ JUCastOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
 toJoinUnOp SUDateOp     = $unimplemented
 
-toJoinExpr :: Ident -> TranslateC Expr JoinExpr
+toJoinExpr :: Ident -> TransformC Expr JoinExpr
 toJoinExpr n = do
     e <- idR
 
@@ -121,7 +121,7 @@ toJoinExpr n = do
 -- (relational operator with simple projection expressions on both
 -- sides) or if one side of the predicate has free variables which are
 -- not the variables of the qualifiers given to the function.
-splitJoinPredT :: Ident -> Ident -> TranslateC Expr (JoinConjunct JoinExpr)
+splitJoinPredT :: Ident -> Ident -> TransformC Expr (JoinConjunct JoinExpr)
 splitJoinPredT x y = do
     BinOp _ (SBRelOp op) e1 e2 <- idR
 
@@ -180,7 +180,7 @@ isFlatExpr expr =
 --------------------------------------------------------------------------------
 -- Computation of free variables
 
-freeVarsT :: TranslateC CL [Ident]
+freeVarsT :: TransformC CL [Ident]
 freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
                                                 guardM (v `freeIn` ctx)
                                                 return [v]
@@ -297,16 +297,16 @@ fromQual (GuardQ p)  = Right p
 -- expression, guard expressions that have to be tried and guard
 -- expressions that have been tried already. Last two are necessary if
 -- the merging steps leads to tuplification.
-type MergeGuard = Comp -> Expr -> [Expr] -> [Expr] -> TranslateC () (Comp, [Expr], [Expr])
+type MergeGuard = Comp -> Expr -> [Expr] -> [Expr] -> TransformC () (Comp, [Expr], [Expr])
 
 tryGuards :: MergeGuard  -- ^ The worker function
           -> Comp        -- ^ The current state of the comprehension
           -> [Expr]      -- ^ Guards to try
           -> [Expr]      -- ^ Guards that have been tried and failed
-          -> TranslateC () (Comp, [Expr])
+          -> TransformC () (Comp, [Expr])
 -- Try the next guard
 tryGuards mergeGuardR comp (p : ps) testedGuards = do
-    let tryNextGuard :: TranslateC () (Comp, [Expr])
+    let tryNextGuard :: TransformC () (Comp, [Expr])
         tryNextGuard = do
             -- Try to combine p with some generators
             (comp', ps', testedGuards') <- mergeGuardR comp p ps testedGuards
@@ -316,7 +316,7 @@ tryGuards mergeGuardR comp (p : ps) testedGuards = do
             return (comp', ps' ++ testedGuards')
 
         -- If the current guard failed, try the next ones.
-        tryOtherGuards :: TranslateC () (Comp, [Expr])
+        tryOtherGuards :: TransformC () (Comp, [Expr])
         tryOtherGuards = tryGuards mergeGuardR comp ps (p : testedGuards)
 
     tryNextGuard <+ tryOtherGuards
@@ -327,7 +327,7 @@ tryGuards _ _ [] _ = fail "no predicate could be merged"
 -- | Try to build flat joins (equi-, semi- and antijoins) from a
 -- comprehensions qualifier list.
 -- FIXME only try on those predicates that look like equi-/anti-/semi-join predicates.
--- FIXME TranslateC () ... is an ugly abuse of the rewrite system
+-- FIXME TransformC () ... is an ugly abuse of the rewrite system
 mergeGuardsIterR :: MergeGuard -> RewriteC CL
 mergeGuardsIterR mergeGuardR = do
     ExprCL (Comp ty e qs) <- idR
@@ -355,8 +355,8 @@ mergeGuardsIterR mergeGuardR = do
 -- as possible.
 onetdSpineT
   :: (ReadPath c Int, MonadCatch m, Walker c CL)
-  => Translate c m CL b
-  -> Translate c m CL b
+  => Transform c m CL b
+  -> Transform c m CL b
 onetdSpineT t = do
     n <- idR
     case n of

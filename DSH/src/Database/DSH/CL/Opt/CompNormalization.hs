@@ -33,12 +33,12 @@ m_norm_1R = do
     return $ inject $ Lit t (ListV [])
     
   where 
-    patternT :: TranslateC (NL Qual) Bool
+    patternT :: TransformC (NL Qual) Bool
     patternT = do
         BindQ _ (Lit _ (ListV [])) :* _ <- idR
         return True
         
-    patternEndT :: TranslateC (NL Qual) Bool
+    patternEndT :: TransformC (NL Qual) Bool
     patternEndT = do
         (S (BindQ _ (Lit _ (ListV [])))) <- idR
         return True
@@ -74,7 +74,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
     normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
 
     -- Match the pattern (singleton generator) on a qualifier
-    qualT :: TranslateC Qual (Ident, Expr)
+    qualT :: TransformC Qual (Ident, Expr)
     qualT = do
         q <- idR
         case q of
@@ -113,7 +113,7 @@ m_norm_3R = do
     
   where
   
-    qualT :: TranslateC Qual (Ident, Expr, NL Qual)
+    qualT :: TransformC Qual (Ident, Expr, NL Qual)
     qualT = do
         BindQ x (Comp _ h' qs'') <- idR
         return (x, h', qs'')

@@ -62,26 +62,26 @@ evalBinOp op v1 v2 =
         (VLInt i1, VLInt i2)       ->
             case op of
                 SBNumOp nop  -> return $ VLInt $ evalNumOp nop i1 i2
-                SBRelOp rop  -> mzero
+                SBRelOp _    -> mzero
                 SBBoolOp _   -> $impossible
                 SBStringOp _ -> $impossible
                 
         (VLBool b1, VLBool b2)     ->
             case op of
                 SBBoolOp _   -> mzero
-                SBRelOp rop  -> mzero
-                SBNumOp nop  -> $impossible
+                SBRelOp _    -> mzero
+                SBNumOp _    -> $impossible
                 SBStringOp _ -> $impossible
         (VLString s1, VLString s2) ->
             case op of
-                SBRelOp rop  -> mzero
+                SBRelOp _    -> mzero
                 SBStringOp _ -> mzero
                 SBBoolOp _   -> $impossible
-                SBNumOp nop  -> $impossible
+                SBNumOp _    -> $impossible
         (VLDouble d1, VLDouble d2) ->
             case op of
-                SBRelOp rop  -> mzero
-                SBNumOp nop  -> mzero
+                SBRelOp _    -> mzero
+                SBNumOp _    -> mzero
                 SBBoolOp _   -> $impossible
                 SBStringOp _ -> $impossible
         (VLUnit, VLUnit)           -> mzero

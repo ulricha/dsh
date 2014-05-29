@@ -27,7 +27,7 @@ import           Database.DSH.CL.Opt.Aux
 
 
 
-complexPathT :: TranslateC CL [(Expr, PathC)]
+complexPathT :: TransformC CL [(Expr, PathC)]
 complexPathT = do
     ExprCL e <- idR
     -- debugPretty "complexPathT" e
@@ -40,7 +40,7 @@ complexPathT = do
         AppE1 _ (Prim1 op _) _   | complexPrim1 op -> ret
         _ -> fail "not a complex expression"
 
-factorR :: TranslateC CL (Ident, Expr, Expr)
+factorR :: TransformC CL (Ident, Expr, Expr)
 factorR = do
     -- Collect largest complex expressions in all childs
     candidateExprs <- allT $ onetdT complexPathT

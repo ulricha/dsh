@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module contains functionality to retrieve information about
 -- the schema of actual database tables.
 module Database.DSH.Schema
@@ -9,11 +11,12 @@ import qualified Data.List                as L
 import           GHC.Exts
 import           Text.Printf
 
+import qualified Database.HDBC            as H
 import           Database.X100Client      hiding (X100, tableName)
 import qualified Database.X100Client      as X
 
+import           Database.DSH.Impossible
 import qualified Database.DSH.Common.Type as T
-import qualified Database.HDBC            as H
 
 -- | Retrieve through the given database connection information on the
 -- table (columns with their types) which name is given as the second
@@ -76,4 +79,7 @@ getX100TableInfo c n = do
             LTimeStamp  -> t == T.IntT
             LIntervalDS -> t == T.IntT
             LIntervalYM -> t == T.IntT
+            -- We use UIDX only for administrative columns, not for
+            -- payload.
+            LUIDX       -> $impossible
             LUnknown s  -> error $ "Unknown DB type" ++ show s

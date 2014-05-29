@@ -200,15 +200,6 @@ alignedOnlyLeft q =
           logRewrite "Redundant.Align.Project" q
           void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
 
-shiftCols :: Int -> Expr -> Expr
-shiftCols offset expr =
-    case expr of
-        BinApp o e1 e2 -> BinApp o (shiftCols offset e1) (shiftCols offset e2)
-        UnApp o e1     -> UnApp o (shiftCols offset e1)
-        Column i       -> Column (offset + i)
-        Constant c     -> Constant c
-        If c t e       -> If (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
-
 -- | Replace a Zip operator with a projection if both inputs are the
 -- same.
 sameInputZip :: VLRule BottomUpProps
