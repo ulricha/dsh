@@ -38,8 +38,8 @@ seed (UnOp op _)   =
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     Select     _       -> vPropSeed
-    SortScalarS _      -> vPropSeed
-    GroupScalarS _     -> vPropSeed
+    SortScalarS _      -> vPropPairSeed
+    GroupScalarS _     -> vPropTripleSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     AggrNonEmpty _     -> vPropSeed

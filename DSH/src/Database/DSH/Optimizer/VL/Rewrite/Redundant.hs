@@ -47,6 +47,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , alignParents
                          , selectConstPos
                          , selectConstPosS
+                         , completeSort
                          -- , stackedAlign
                          ]
 
@@ -260,7 +261,7 @@ simpleSort q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Sort.ScalarS" q
+          logRewrite "Redundant.Sort.Scalar" q
           qs <- insert $ UnOp (SortScalarS $(v "ps")) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 qs
           r2Parents <- lookupR2Parents $(v "qs")
@@ -273,6 +274,32 @@ simpleSort q =
               qr2' <- insert $ UnOp R2 qs
               mapM_ (\qr2 -> replace qr2 qr2') r2Parents
             else return () |])
+
+-- | Special case: a vector is sorted by all its item columns.
+completeSort :: VLRule BottomUpProps
+completeSort q =
+  $(pattern 'q "R1 ((q1) SortS (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Sort.Complete" q
+          let sortProj = map Column [1..w]
+          qs <- insert $ UnOp (SortScalarS sortProj) $(v "q1")
+          void $ replaceWithNew q $ UnOp R1 qs
+
+          r2Parents <- lookupR2Parents $(v "qs")
+
+          -- If there are any R2 nodes linking to the original sort operators
+          -- (i.e. there are inner vectors to which changes must be propagated),
+          -- they have to be rewired to the new SortScalarS operator.
+          if not $ null r2Parents
+            then do
+              qr2' <- insert $ UnOp R2 qs
+              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
+            else return () |])
+          
 
 -- | Pull a projection on a Sort operator's input over the Sort
 -- operator. This rewrite should enable the SortScalarS rewrite when

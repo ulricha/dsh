@@ -35,7 +35,7 @@ isEmpty q = do
 is simply the right input. -}
 emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
-  $(pattern 'q "R1 ((q1) Append (q2))"
+  $(pattern 'q "R1 ((q1) [Append | AppendS] (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
@@ -74,7 +74,7 @@ emptyAppendLeftR3 q =
 
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
-  $(pattern 'q "R1 ((q1) Append (q2))"
+  $(pattern 'q "R1 ((q1) [Append | AppendS] (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
