@@ -278,19 +278,21 @@ vlSelectPos1 (DVec c1 _) op posConst = do
                                         r3 <- rvec $ insertNode $ UnOp R3 r
                                         return (r1, r2, r3)
 
-vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
                                           r <- insertNode $ BinOp (SelectPosS op) c1 c2
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
-                                          return (r1, r2)
+                                          r3 <- rvec $ insertNode $ UnOp R3 r
+                                          return (r1, r2, r3)
 
-vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPos1S (DVec c1 _) op posConst = do
                                           r <- insertNode $ UnOp (SelectPos1S op posConst) c1
                                           r1 <- dvec $ insertNode $ UnOp R1 r
                                           r2 <- rvec $ insertNode $ UnOp R2 r
-                                          return (r1, r2)
+                                          r3 <- rvec $ insertNode $ UnOp R3 r
+                                          return (r1, r2, r3)
 
 vlProject :: DVec -> [Expr] -> GraphM r VL DVec
 vlProject (DVec c _) projs = dvec $ insertNode $ UnOp (Project projs) c

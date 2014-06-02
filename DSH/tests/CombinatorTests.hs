@@ -207,7 +207,8 @@ tests_lists = testGroup "Lists"
         , testProperty "null" $ prop_null
         , testProperty "length" $ prop_length
         , testProperty "length tuple list" $ prop_length_tuple
-        , testProperty "index" $ prop_index
+        , testProperty "index [Integer]" $ prop_index
+        , testProperty "index [(Integer, [Integer])]" $ prop_index_pair
         , testProperty "index [[]]" $ prop_index_nest
         , testProperty "reverse" $ prop_reverse
         , testProperty "reverse [[]]" $ prop_reverse_nest
@@ -633,6 +634,13 @@ prop_index (l, i) =
                  (\(a,b) -> a !! fromIntegral b)
                  (l, i)
 
+prop_index_pair :: ([(Integer, [Integer])], Integer) -> Property
+prop_index_pair (l, i) =
+        i > 0 && i < fromIntegral (length l)               
+    ==> makeProp (uncurryQ (Q.!!))
+                 (\(a,b) -> a !! fromIntegral b)
+                 (l, i)
+
 prop_index_nest :: ([[Integer]], Integer)  -> Property
 prop_index_nest (l, i) =
      i > 0 && i < fromIntegral (length l)
@@ -649,7 +657,7 @@ prop_map_index (l, is) =
 
 prop_map_index_nest :: ([[Integer]], [Integer])  -> Property
 prop_map_index_nest (l, is) =
-   and [i >= 0 && i < 3 * fromIntegral (length l) | i <-  is]
+     and [i >= 0 && i < 3 * fromIntegral (length l) | i <-  is]
  ==> makeProp (\z -> Q.map (((Q.fst z) Q.++ (Q.fst z) Q.++ (Q.fst z)) Q.!!) (Q.snd z))
             (\(a,b) -> map ((a ++ a ++ a) !!) (map fromIntegral b))
             (l, is)

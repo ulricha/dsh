@@ -49,7 +49,7 @@ inferEmptyUnOp e op =
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
     SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    SelectPos1S _ _ -> let ue = unp e in liftM2 VPropPair ue ue
+    SelectPos1S _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr _ _ -> Right $ VProp False
     Number -> Right e
@@ -97,7 +97,7 @@ inferEmptyBinOp e1 e2 op =
     AggrS _ -> return $ VProp False
     AggrNonEmptyS _ -> return $ VProp False
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)
-    SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
