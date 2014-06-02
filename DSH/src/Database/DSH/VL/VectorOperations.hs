@@ -157,9 +157,9 @@ initPrim _ = error "initPrim: Should not be possible"
 
 initLift ::  Shape -> Graph VL Shape
 initLift (ValueVector qs (Nest q lyt)) = do
-    is      <- vlAggrS AggrCount qs q
-    (q', r) <- vlSelectPosS q (L.SBRelOp L.Lt) is
-    lyt'    <- chainRenameFilter r lyt
+    is         <- vlAggrS AggrCount qs q
+    (q', r, _) <- vlSelectPosS q (L.SBRelOp L.Lt) is
+    lyt'       <- chainRenameFilter r lyt
     return $ ValueVector qs (Nest q' lyt')
 initLift _ = error "initLift: Should not be possible"
 
@@ -179,16 +179,16 @@ lastPrim _ = error "lastPrim: Should not be possible"
 
 lastLift ::  Shape -> Graph VL Shape
 lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
-    is       <- vlAggrS AggrCount d qs
-    (qs', r) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'     <- chainRenameFilter r lyt
-    re       <- vlDescToRename qs'
+    is          <- vlAggrS AggrCount d qs
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlDescToRename qs'
     ValueVector d <$> renameOuter' re lyt'
 lastLift (ValueVector d (Nest qs lyt)) = do
-    is       <- vlAggrS AggrCount d qs
-    (qs', r) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'     <- chainRenameFilter r lyt
-    re       <- vlDescToRename d
+    is          <- vlAggrS AggrCount d qs
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlDescToRename d
     renameOuter re (ValueVector qs' lyt')
 lastLift _ = error "lastLift: Should not be possible"
 
@@ -210,21 +210,21 @@ indexPrim (ValueVector qs lyt) (PrimVal i _) = do
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
 indexLift ::  Shape -> Shape -> Graph VL Shape
-indexLift (ValueVector d (Nest qs lyt@(Nest _ _))) (ValueVector is (InColumn 1)) = do
+indexLift (ValueVector d (Nest qs (Nest qi lyti))) (ValueVector is (InColumn 1)) = do
     one       <- literal intT (VLInt 1)
     (ones, _) <- vlDistPrim one is
     is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (qs', r)  <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    lyt'      <- chainRenameFilter r lyt
-    re        <- vlDescToRename qs'
-    ValueVector d <$> renameOuter' re lyt'
+    (_, _, u) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
+    (qu, ri)  <- vlUnbox u qi
+    lyti'     <- chainRenameFilter ri lyti
+    return $ ValueVector d (Nest qu lyti')
 indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
-    one       <- literal intT (VLInt 1)
-    (ones, _) <- vlDistPrim one is
-    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (qs', r)  <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    lyt'      <- chainRenameFilter r lyt
-    re        <- vlDescToRename d
+    one         <- literal intT (VLInt 1)
+    (ones, _)   <- vlDistPrim one is
+    is'         <- vlBinExpr (L.SBNumOp L.Add) is ones
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlDescToRename d
     renameOuter re (ValueVector qs' lyt')
 indexLift _ _ = error "indexLift: Should not be possible"
 
@@ -271,19 +271,19 @@ tailS _ = error "tailS: Should not be possible"
 
 theL ::  Shape -> Graph VL Shape
 theL (ValueVector d (Nest q lyt)) = do
-    (v, p2) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
-    prop    <- vlDescToRename d
-    lyt'    <- chainRenameFilter p2 lyt
-    (v', _) <- vlPropFilter prop v
+    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
+    prop       <- vlDescToRename d
+    lyt'       <- chainRenameFilter p2 lyt
+    (v', _)    <- vlPropFilter prop v
     return $ ValueVector v' lyt'
 theL _ = error "theL: Should not be possible"
 
 tailL ::  Shape -> Graph VL Shape
 tailL (ValueVector d (Nest q lyt)) = do
-    one     <- literal intT (VLInt 1)
-    (p, _)  <- vlDistPrim one d
-    (v, p2) <- vlSelectPosS q (L.SBRelOp L.Gt) p
-    lyt'    <- chainRenameFilter p2 lyt
+    one        <- literal intT (VLInt 1)
+    (p, _)     <- vlDistPrim one d
+    (v, p2, _) <- vlSelectPosS q (L.SBRelOp L.Gt) p
+    lyt'       <- chainRenameFilter p2 lyt
     return $ ValueVector d (Nest v lyt')
 tailL _ = error "tailL: Should not be possible"
 

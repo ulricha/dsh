@@ -40,7 +40,7 @@ inferVectorTypeUnOp s op =
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
     SelectPos1 _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
-    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right RenameVector)
+    SelectPos1S _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -137,7 +137,7 @@ inferVectorTypeBinOp s1 s2 op =
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
-    SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     Zip ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2

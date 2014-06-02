@@ -676,7 +676,8 @@ instance VectorAlgebra PFAlgebra where
 
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs
     qp <- proj [ mP posold pos, cP posnew ] qs
-    return $ (DVec qr cols, RVec qp)
+    qu <- proj [ mP posnew descr, mP posold pos] qs
+    return $ (DVec qr cols, RVec qp, RVec qu)
 
   vecSelectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
@@ -696,8 +697,8 @@ instance VectorAlgebra PFAlgebra where
     qu <- proj [ mP posold pos, mP posnew descr ] q'
     return $ (DVec qr cols, RVec qp, RVec qu)
 
-  -- If we select positions in a lifted way, we need to recompute positions in
-  -- any case.
+  -- If we select positions in a lifted way, we need to recompute
+  -- positions in any case.
   vecSelectPos1S (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] Nothing
@@ -706,7 +707,8 @@ instance VectorAlgebra PFAlgebra where
 
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) qs
     qp <- proj [ mP posold pos, cP posnew ] qs
-    return $ (DVec qr cols, RVec qp)
+    qu <- proj [ mP posold pos, mP posnew descr ] qs
+    return $ (DVec qr cols, RVec qp, RVec qu)
 
   vecProject projs (DVec q _) = do
     let projs' = zipWith (\i e -> (itemi i, taExpr e)) [1 .. length projs] projs

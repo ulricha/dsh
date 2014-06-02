@@ -30,7 +30,7 @@ seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
     SelectPos1 _ _     -> vPropTripleSeed
-    SelectPos1S _ _    -> vPropPairSeed 
+    SelectPos1S _ _    -> vPropTripleSeed 
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
     UniqueS            -> vPropSeed
@@ -68,7 +68,7 @@ seed (BinOp op _ _) =
     Unbox              -> vPropPairSeed
     Restrict           -> vPropPairSeed
     SelectPos _        -> vPropTripleSeed
-    SelectPosS _       -> vPropPairSeed
+    SelectPosS _       -> vPropTripleSeed
     PropRename         -> vPropSeed
     AggrS _            -> vPropSeed
     AggrNonEmptyS _    -> vPropSeed

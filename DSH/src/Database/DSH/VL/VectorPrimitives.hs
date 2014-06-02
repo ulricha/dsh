@@ -67,7 +67,7 @@ class VectorAlgebra a where
     -- vector provides a position offset /for each segment/. The
     -- operator produces the same triple of vectors as its non-segmented
     -- variant.
-    vecSelectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
+    vecSelectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec, RVec)
   
     -- | Filter a vector positionally on a /constant/ position.
     vecSelectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec, RVec)
@@ -75,7 +75,7 @@ class VectorAlgebra a where
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
+    vecSelectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec, RVec)
   
     -- | Reverse a vector.
     vecReverse :: DVec -> GraphM r a (DVec, PVec)
