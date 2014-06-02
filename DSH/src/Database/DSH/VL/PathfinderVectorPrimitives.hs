@@ -249,20 +249,21 @@ instance VectorAlgebra PFAlgebra where
     (p, (RVec r)) <- vecPropFilter (RVec q1) e2
     return (p, PVec r)
 
-  vecUnbox (DVec qo _) (DVec qi cols) = do
-    -- Perform a segment join between inner and outer vectors. This
-    -- implicitly discards any unreferenced segments in qi.
-    q <- projM (itemProj cols [cP descr, cP posnew, mP posold pos'])
-         $ rownumM posnew [pos] Nothing
-         $ eqJoinM pos descr'
-             (return qo)
+  vecUnbox (RVec qu) (DVec qi cols) = do
+    -- Perform a segment join between inner vector and outer unboxing
+    -- rename vector. This implicitly discards any unreferenced
+    -- segments in qi.
+    q <- projM (itemProj cols [mP descr posnew, cP pos, mP posold pos'])
+         $ rownumM pos [pos'] Nothing
+         $ eqJoinM posold descr'
+             (return qu)
              (proj (itemProj cols [mP descr' descr, mP pos' pos]) qi)
 
     -- The unboxed vector containing one segment from the inner vector.
-    qv <- proj (itemProj cols [cP descr, mP pos posnew]) q
+    qv <- proj (itemProj cols [cP descr, cP pos]) q
     -- A rename vector in case the inner vector has inner vectors as
     -- well.
-    qr <- proj [cP posnew, cP posold] q
+    qr <- proj [mP posnew pos, cP posold] q
 
     return (DVec qv cols, RVec qr)
 
@@ -644,7 +645,7 @@ instance VectorAlgebra PFAlgebra where
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (DVec qv (cols1 ++ cols2'), PVec qp2)
 
-  selectPos (DVec qe cols) op (DVec qi _) = do
+  vecSelectPos (DVec qe cols) op (DVec qi _) = do
     qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
           $ crossM
               (return qe)
@@ -660,10 +661,13 @@ instance VectorAlgebra PFAlgebra where
             _      -> rownum posnew [pos] Nothing qs
 
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) q'
+    -- A regular rename vector for re-aligning inner vectors
     qp <- proj [ mP posold pos, cP posnew ] q'
-    return $ (DVec qr cols, RVec qp)
+    -- An unboxing rename vector
+    qu <- proj [ mP posold pos, mP posnew descr ] q'
+    return $ (DVec qr cols, RVec qp, RVec qu)
 
-  selectPosS (DVec qe cols) op (DVec qi _) = do
+  vecSelectPosS (DVec qe cols) op (DVec qi _) = do
     qs <- rownumM posnew [pos] Nothing
           $ selectM (BinAppE (binOp op) (ColE absPos) (UnAppE (Cast natT) (ColE item')))
           $ eqJoinM descr pos'
@@ -674,7 +678,7 @@ instance VectorAlgebra PFAlgebra where
     qp <- proj [ mP posold pos, cP posnew ] qs
     return $ (DVec qr cols, RVec qp)
 
-  selectPos1 (DVec qe cols) op (VL.N posConst) = do
+  vecSelectPos1 (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- select (BinAppE (binOp op) (ColE pos) (ConstE posConst')) qe
 
@@ -689,11 +693,12 @@ instance VectorAlgebra PFAlgebra where
 
     qr <- proj (itemProj cols [cP descr, mP pos posnew]) q'
     qp <- proj [ mP posold pos, cP posnew ] q'
-    return $ (DVec qr cols, RVec qp)
+    qu <- proj [ mP posold pos, mP posnew descr ] q'
+    return $ (DVec qr cols, RVec qp, RVec qu)
 
   -- If we select positions in a lifted way, we need to recompute positions in
   -- any case.
-  selectPos1S (DVec qe cols) op (VL.N posConst) = do
+  vecSelectPos1S (DVec qe cols) op (VL.N posConst) = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] Nothing
           $ selectM (BinAppE (binOp op) (ColE absPos) (ConstE posConst'))

@@ -149,9 +149,9 @@ numberLift _ = error "numberLift: Should not be possible"
 
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
-    i       <- vlAggr AggrCount q
-    (q', r) <- vlSelectPos q (L.SBRelOp L.Lt) i
-    lyt'    <- chainRenameFilter r lyt
+    i          <- vlAggr AggrCount q
+    (q', r, _) <- vlSelectPos q (L.SBRelOp L.Lt) i
+    lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
 initPrim _ = error "initPrim: Should not be possible"
 
@@ -166,14 +166,14 @@ initLift _ = error "initLift: Should not be possible"
 lastPrim ::  Shape -> Graph VL Shape
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
     i              <- vlAggr AggrCount qs
-    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i
+    (q, r, _)      <- vlSelectPos qs (L.SBRelOp L.Eq) i
     (Nest qr lyt') <- chainRenameFilter r lyt
     re             <- vlDescToRename q
     renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
-    i      <- vlAggr AggrCount qs
-    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i
-    lyt'   <- chainRenameFilter r lyt
+    i         <- vlAggr AggrCount qs
+    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i
+    lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 lastPrim _ = error "lastPrim: Should not be possible"
 
@@ -193,18 +193,19 @@ lastLift (ValueVector d (Nest qs lyt)) = do
 lastLift _ = error "lastLift: Should not be possible"
 
 indexPrim ::  Shape -> Shape -> Graph VL Shape
-indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
-    one            <- literal intT (VLInt 1)
-    i'             <- vlBinExpr (L.SBNumOp L.Add) i one
-    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    (Nest qr lyt') <- chainRenameFilter r lyt
-    re             <- vlDescToRename q
-    renameOuter re $ ValueVector qr lyt'
+indexPrim (ValueVector qs (Nest qi lyti)) (PrimVal i _) = do
+    one       <- literal intT (VLInt 1)
+    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
+    -- Use the unboxing rename vector
+    (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
+    (qu, ri)  <- vlUnbox r qi
+    lyti'     <- chainRenameFilter ri lyti
+    return $ ValueVector qu lyti'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
-    one    <- literal intT (VLInt 1)
-    i'     <- vlBinExpr (L.SBNumOp L.Add) i one
-    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    lyt'   <- chainRenameFilter r lyt
+    one       <- literal intT (VLInt 1)
+    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
+    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
+    lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
@@ -251,11 +252,11 @@ reverseLift _ = error "vlReverseLift: Should not be possible"
 
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
-    (_, prop)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (_, prop, _)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     (Nest q' lyt') <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-    (q', prop) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     lyt'       <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
 the _ = error "the: Should not be possible"
@@ -263,8 +264,8 @@ the _ = error "the: Should not be possible"
 tailS ::  Shape -> Graph VL Shape
 tailS (ValueVector d lyt) = do
     p          <- literal intT (VLInt 1)
-    (q', prop) <- vlSelectPos d (L.SBRelOp L.Gt) p
-    lyt'       <- chainRenameFilter prop lyt
+    (q', r, _) <- vlSelectPos d (L.SBRelOp L.Gt) p
+    lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
 tailS _ = error "tailS: Should not be possible"
 

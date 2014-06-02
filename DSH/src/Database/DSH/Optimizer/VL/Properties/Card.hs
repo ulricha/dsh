@@ -32,7 +32,7 @@ inferCardOneUnOp c op =
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    SelectPos1 _ _ -> Right $ VPropPair False False
+    SelectPos1 _ _ -> Right $ VPropTriple False False False
     SelectPos1S _ _ -> Right $ VPropPair False False
     Select _ -> Right $ VProp False
     SortSimple _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -78,7 +78,7 @@ inferCardOneBinOp c1 c2 op =
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
     Restrict -> Right $ VPropPair False False
-    SelectPos _ -> return $ VPropPair False False
+    SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropPair False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False

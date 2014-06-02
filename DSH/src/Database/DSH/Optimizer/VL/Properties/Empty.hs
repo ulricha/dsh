@@ -48,7 +48,7 @@ inferEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> let ue = unp e in liftM2 VPropPair ue ue
+    SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
     SelectPos1S _ _ -> let ue = unp e in liftM2 VPropPair ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr _ _ -> Right $ VProp False
@@ -68,7 +68,7 @@ inferEmptyUnOp e op =
     R3 ->
       case e of
         VPropTriple _ _ b -> Right $ VProp b
-        _                 -> Left "Properties.Empty: not a triple"
+        p                 -> Left ("Properties.Empty: not a triple" ++ show p)
 
     
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
@@ -96,7 +96,7 @@ inferEmptyBinOp e1 e2 op =
     Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     AggrS _ -> return $ VProp False
     AggrNonEmptyS _ -> return $ VProp False
-    SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)
     SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))

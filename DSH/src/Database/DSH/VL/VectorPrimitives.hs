@@ -43,9 +43,8 @@ class VectorAlgebra a where
   vecAggrNonEmpty :: N.NonEmpty AggrFun -> DVec -> GraphM r a DVec
   vecAggrNonEmptyS :: N.NonEmpty AggrFun -> DVec -> DVec -> GraphM r a DVec
 
-  -- FIXME operator too specialized. should be implemented using number + select
-  selectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
-  selectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
+  vecSelectPos1 :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec, RVec)
+  vecSelectPos1S :: DVec -> ScalarBinOp -> Nat -> GraphM r a (DVec, RVec)
 
   vecReverse :: DVec -> GraphM r a (DVec, PVec)
   vecReverseS :: DVec -> GraphM r a (DVec, PVec)
@@ -81,21 +80,30 @@ class VectorAlgebra a where
   -- | propReorder uses a propagation vector to rename, filter and reorder a vector.
   vecPropReorder :: PVec -> DVec -> GraphM r a (DVec, PVec)
 
-  vecUnbox :: DVec -> DVec -> GraphM r a (DVec, RVec)
-
+  vecUnbox :: RVec -> DVec -> GraphM r a (DVec, RVec)
   vecAppend :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
   vecAppendS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
   vecRestrict :: DVec -> DVec -> GraphM r a (DVec, RVec)
   
-  -- FIXME could be implemented using number and select
-  selectPos :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
-  selectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
+  -- FIXME could be implemented using number and select. OTOH, the
+  -- need to produce unboxing rename vectors indicates that a
+  -- specialized implementation is justified.  
 
-  -- FIXME better name: zip
+  -- | SelectPos filters a vector positionally as specified by the
+  -- comparison operator and the position value from the right
+  -- input. Next to the filtered value vector it produces two rename
+  -- vectors:
+  -- 
+  -- * Mapping old to new positions (for re-aligning inner vectors)
+  -- * Mapping old positions to segment descriptors (for unboxing one 
+  -- inner segment)
+  vecSelectPos :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec, RVec)
+
+  vecSelectPosS :: DVec -> ScalarBinOp -> DVec -> GraphM r a (DVec, RVec)
+
   vecZip :: DVec -> DVec -> GraphM r a DVec
 
-  -- FIXME better name: zipSeg
   vecZipS :: DVec -> DVec -> GraphM r a (DVec, RVec, RVec)
 
   vecCartProduct :: DVec -> DVec -> GraphM r a (DVec, PVec, PVec)

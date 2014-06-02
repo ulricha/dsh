@@ -26,13 +26,13 @@ fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)
 fromDBV x                 = Left $ "Properties.Const fromDBV " ++ (show x)
 
-fromRenameVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromRenameVec (RenameVecConst s t) = Right (s, t)
-fromRenameVec x                    = Left ("Properties.Const fromRenameVec " ++ (show x))
+fromRVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
+fromRVec (RenameVecConst s t) = Right (s, t)
+fromRVec x                    = Left ("Properties.Const fromRVec " ++ (show x))
 
-fromPropVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
-fromPropVec (PropVecConst s t)  = Right (s, t)
-fromPropVec _                   = Left "Properties.Const fromPropVec"
+fromPVec :: ConstVec -> Either String (SourceConstDescr, TargetConstDescr)
+fromPVec (PropVecConst s t)  = Right (s, t)
+fromPVec _                   = Left "Properties.Const fromPVec"
 
 --------------------------------------------------------------------------------
 -- Evaluation of constant expressions
@@ -66,19 +66,19 @@ evalBinOp op v1 v2 =
                 SBBoolOp _   -> $impossible
                 SBStringOp _ -> $impossible
                 
-        (VLBool b1, VLBool b2)     ->
+        (VLBool _, VLBool _)     ->
             case op of
                 SBBoolOp _   -> mzero
                 SBRelOp _    -> mzero
                 SBNumOp _    -> $impossible
                 SBStringOp _ -> $impossible
-        (VLString s1, VLString s2) ->
+        (VLString _, VLString _) ->
             case op of
                 SBRelOp _    -> mzero
                 SBStringOp _ -> mzero
                 SBBoolOp _   -> $impossible
                 SBNumOp _    -> $impossible
-        (VLDouble d1, VLDouble d2) ->
+        (VLDouble _, VLDouble _) ->
             case op of
                 SBRelOp _    -> mzero
                 SBNumOp _    -> mzero
@@ -169,7 +169,9 @@ inferConstVecUnOp c op =
 
     SelectPos1 _ _ -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropTriple (DBVConst d cols) 
+                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPos1S _ _ -> do
       (d, cols) <- unp c >>= fromDBV
@@ -278,21 +280,27 @@ inferConstVecBinOp c1 c2 op =
 
     PropRename -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromRenameVec
+      (SC _, TC target) <- unp c1 >>= fromRVec
 
       return $ VProp $ DBVConst target cols
 
     PropFilter -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromRenameVec
+      (SC _, TC target) <- unp c1 >>= fromRVec
 
       return $ VPropPair (DBVConst target cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     PropReorder -> do
       (_, cols) <- unp c2 >>= fromDBV
-      (SC _, TC target) <- unp c1 >>= fromPropVec
+      (SC _, TC target) <- unp c1 >>= fromPVec
 
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
+
+    Unbox -> do
+      (_, TC descr) <- unp c1 >>= fromRVec
+      (_, cols)     <- unp c2 >>= fromDBV
+
+      return $ VPropPair (DBVConst descr cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     Append -> do
       (d1, cols1) <- unp c1 >>= fromDBV
@@ -331,7 +339,9 @@ inferConstVecBinOp c1 c2 op =
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
 
-      return $ VPropPair (DBVConst d1 cols1) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+      return $ VPropTriple (DBVConst d1 cols1) 
+                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+                           (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPosS _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV

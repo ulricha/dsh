@@ -156,7 +156,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             ownReqColumns' ∪ childReqColumns
 
         SelectPos1 _ _   -> do
-            cols <- fst <$> fromPropPair ownReqColumns
+            (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 
         SelectPos1S _ _   -> do
@@ -283,7 +283,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
       Unbox -> do
           cols      <- fst <$> fromPropPair ownReqColumns
           fromRight <- childReqColumns2 ∪ VProp cols
-          return (none, fromRight)
+          return (na, fromRight)
 
       Append -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
@@ -303,8 +303,8 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           return (fromLeft, one)
 
       SelectPos _ -> do
-          cols     <- fst <$> fromPropPair ownReqColumns
-          fromLeft <- VProp cols ∪ childReqColumns1
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          fromLeft     <- VProp cols ∪ childReqColumns1
           return (fromLeft, one)
 
       SelectPosS _ -> do

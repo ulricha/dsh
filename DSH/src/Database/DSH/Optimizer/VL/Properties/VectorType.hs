@@ -39,8 +39,8 @@ inferVectorTypeUnOp s op =
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SelectPos1 _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right RenameVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -136,7 +136,7 @@ inferVectorTypeBinOp s1 s2 op =
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     Zip ->
       case (s1, s2) of

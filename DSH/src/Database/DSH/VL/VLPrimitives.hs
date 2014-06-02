@@ -183,9 +183,9 @@ vlAlign (DVec c1 _) (DVec c2 _) = do
 vlPropRename :: RVec -> DVec -> GraphM r VL DVec
 vlPropRename (RVec c1) (DVec c2 _) = dvec $ insertNode $ BinOp PropRename c1 c2
 
-vlUnbox :: DVec -> DVec -> GraphM r VL (DVec, RVec)
-vlUnbox (DVec c1 _) (DVec c2 _) = do
-    r <- insertNode $ BinOp Unbox c1 c2
+vlUnbox :: RVec -> DVec -> GraphM r VL (DVec, RVec)
+vlUnbox (RVec c1) (DVec c2 _) = do
+    r  <- insertNode $ BinOp Unbox c1 c2
     r1 <- dvec $ insertNode $ UnOp R1 r
     r2 <- rvec $ insertNode $ UnOp R2 r
     return (r1, r2)
@@ -262,19 +262,21 @@ vlBinExpr o (DVec c1 _) (DVec c2 _) = do
     r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
-vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do
                                         r <- insertNode $ BinOp (SelectPos op) c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
-                                        return (r1, r2)
+                                        r3 <- rvec $ insertNode $ UnOp R3 r
+                                        return (r1, r2, r3)
 
-vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = do
                                         r <- insertNode $ UnOp (SelectPos1 op posConst) c1
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
-                                        return (r1, r2)
+                                        r3 <- rvec $ insertNode $ UnOp R3 r
+                                        return (r1, r2, r3)
 
 vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do

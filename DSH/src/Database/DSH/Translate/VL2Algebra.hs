@@ -179,7 +179,7 @@ translateBinOp b c1 c2 = case b of
         return $ RPair (fromDVec v) (fromPVec p)
 
     V.Unbox -> do
-        (v, r) <- vecUnbox (toDVec c1) (toDVec c2)
+        (v, r) <- vecUnbox (toRVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRVec r)
 
     V.Append -> do
@@ -199,11 +199,11 @@ translateBinOp b c1 c2 = case b of
     V.AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
 
     V.SelectPos o -> do
-        (v, r) <- selectPos (toDVec c1) o (toDVec c2)
-        return $ RPair (fromDVec v) (fromRVec r)
+        (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
+        return $ RTriple (fromDVec v) (fromRVec r) (fromRVec ru)
 
     V.SelectPosS o -> do
-        (v, r) <- selectPosS (toDVec c1) o (toDVec c2)
+        (v, r) <- vecSelectPosS (toDVec c1) o (toDVec c2)
         return $ RPair (fromDVec v) (fromRVec r)
 
     V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
@@ -257,7 +257,7 @@ translateBinOp b c1 c2 = case b of
         return $ RPair (fromDVec qo) (fromDVec qi)
 
 translateUnOp :: VectorAlgebra a => V.UnOp -> Res -> GraphM () a Res
-translateUnOp u c = case u of
+translateUnOp unop c = case unop of
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
@@ -281,10 +281,10 @@ translateUnOp u c = case u of
         (d, p) <- vecReverseS (toDVec c)
         return $ RPair (fromDVec d) (fromPVec p)
     V.SelectPos1 op pos -> do
-        (d, p) <- selectPos1 (toDVec c) op pos
-        return $ RPair (fromDVec d) (fromRVec p)
+        (d, p, u) <- vecSelectPos1 (toDVec c) op pos
+        return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
     V.SelectPos1S op pos -> do
-        (d, p) <- selectPos1S (toDVec c) op pos
+        (d, p) <- vecSelectPos1S (toDVec c) op pos
         return $ RPair (fromDVec d) (fromRVec p)
     V.GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
