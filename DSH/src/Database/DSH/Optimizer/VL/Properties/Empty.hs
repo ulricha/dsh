@@ -39,8 +39,8 @@ inferEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right e
-    SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
+    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -78,7 +78,7 @@ inferEmptyBinOp e1 e2 op =
       let ue1 = unp e1 
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
-    Sort -> do
+    SortS -> do
       ue1 <- unp e1
       ue2 <- unp e2
       let e   = ue1 && ue2

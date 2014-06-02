@@ -205,8 +205,8 @@ simpleGrouping q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Aggregation.Grouping.Simple" q
-          void $ replaceWithNew q $ UnOp (GroupSimple $(v "projs")) $(v "q1") |])
+          logRewrite "Aggregation.Grouping.ScalarS" q
+          void $ replaceWithNew q $ UnOp (GroupScalarS $(v "projs")) $(v "q1") |])
 
 -- If grouping is performed by simple scalar expressions, we can
 -- employ a simpler operator. This pattern arises when the grouping
@@ -219,7 +219,7 @@ simpleGroupingProject q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Aggregation.Grouping.Simple.Project" q
+          logRewrite "Aggregation.Grouping.ScalarS.Project" q
 
           -- Add the grouping columns to the group input projection
           let projs = $(v "projs2") ++ $(v "projs1")
@@ -231,7 +231,7 @@ simpleGroupingProject q =
 
           -- group by the columns that have been added to the input
           -- projection.
-          groupNode <- insert $ UnOp (GroupSimple groupExprs) projectNode
+          groupNode <- insert $ UnOp (GroupScalarS groupExprs) projectNode
 
           -- Remove the additional grouping columns from the inner vector
           r2Node <- insert $ UnOp R2 groupNode
@@ -250,7 +250,7 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(pattern 'q "R2 (qg=GroupSimple groupExprs (q1))"
+  $(pattern 'q "R2 (qg=GroupScalarS groupExprs (q1))"
     [| do
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions

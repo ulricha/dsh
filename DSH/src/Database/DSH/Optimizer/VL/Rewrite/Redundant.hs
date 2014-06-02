@@ -255,19 +255,19 @@ sameInputZipProjectRight q =
 -- a selection of columns from the input vector.
 simpleSort :: VLRule ()
 simpleSort q =
-  $(pattern 'q "R1 (qs=(Project ps (q1)) Sort (q2))"
+  $(pattern 'q "R1 (qs=(Project ps (q1)) SortS (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Sort.Simple" q
-          qs <- insert $ UnOp (SortSimple $(v "ps")) $(v "q1")
+          logRewrite "Redundant.Sort.ScalarS" q
+          qs <- insert $ UnOp (SortScalarS $(v "ps")) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 qs
           r2Parents <- lookupR2Parents $(v "qs")
 
           -- If there are any R2 nodes linking to the original sort operators
           -- (i.e. there are inner vectors to which changes must be propagated),
-          -- they have to be rewired to the new SortSimple operator.
+          -- they have to be rewired to the new SortScalarS operator.
           if not $ null r2Parents
             then do
               qr2' <- insert $ UnOp R2 qs
@@ -275,16 +275,16 @@ simpleSort q =
             else return () |])
 
 -- | Pull a projection on a Sort operator's input over the Sort
--- operator. This rewrite should enable the SortSimple rewrite when
+-- operator. This rewrite should enable the SortScalarS rewrite when
 -- the common source of Sort's left and right inputs is obstructed by
 -- a projection.
 sortProject :: VLRule ()
 sortProject q =
-  $(pattern 'q "R1 ((q1) Sort (Project proj (q2)))"
+  $(pattern 'q "R1 ((q1) SortS (Project proj (q2)))"
    [| do
        return $ do
          logRewrite "Redundant.Sort.PullProject" q
-         sortNode <- insert $ BinOp Sort $(v "q1") $(v "q2")
+         sortNode <- insert $ BinOp SortS $(v "q1") $(v "q2")
          r1Node   <- insert $ UnOp R1 sortNode
          void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 

@@ -144,7 +144,7 @@ vlGroupBy (DVec c1 _) (DVec c2 _) = do
 
 vlSort :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlSort (DVec c1 _) (DVec c2 _) = do
-                                  r <- insertNode $ BinOp Sort c1 c2
+                                  r <- insertNode $ BinOp SortS c1 c2
                                   r1 <- dvec $ insertNode $ UnOp R1 r
                                   r2 <- pvec $ insertNode $ UnOp R2 r
                                   return (r1, r2)

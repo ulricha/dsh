@@ -206,11 +206,11 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
-    SortSimple _ -> do
+    SortScalarS _ -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    GroupSimple es -> do
+    GroupScalarS es -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
                            (DBVConst NonConstDescr (map (const NonConstPL) cs))
@@ -252,7 +252,7 @@ inferConstVecBinOp c1 c2 op =
                            (DBVConst NonConstDescr cols2)
                            (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    Sort -> do
+    SortS -> do
       (d, cols) <- unp c2 >>= fromDBV
       return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 

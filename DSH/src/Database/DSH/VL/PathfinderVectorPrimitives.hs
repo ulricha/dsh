@@ -486,7 +486,7 @@ instance VectorAlgebra PFAlgebra where
                       k : _ -> k
                       []    -> [itemi 1]
 
-  vecSort (DVec qs colss) (DVec qe colse) = do
+  vecSortS (DVec qs colss) (DVec qe colse) = do
     q <- tagM "sortWith"
          $ eqJoinM pos pos''
            (projM [cP pos, cP pos']
@@ -508,7 +508,7 @@ instance VectorAlgebra PFAlgebra where
                                 (proj ((mP pos' pos):[(mP (itemi i) (itemi i)) | i <- colse]) v2)
     return $ (DVec d1 colsg, DVec v colse, PVec p)
 
-  vecGroupSimple groupExprs (DVec q1 cols1) = do
+  vecGroupScalarS groupExprs (DVec q1 cols1) = do
       -- apply the grouping expressions and compute surrogate values
       -- from the grouping values
       let groupProjs = [ eP (itemi' i) (taExpr e) | e <- groupExprs | i <- [1..] ]
@@ -814,7 +814,7 @@ instance VectorAlgebra PFAlgebra where
     r  <- proj [cP posold, mP posold posnew] q
     return $ (DVec qj cols1, RVec r)
 
-  vecSortSimple sortExprs (DVec q1 cols1) = do
+  vecSortScalarS sortExprs (DVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
     qs <- rownumM pos' (map fst sortProjs) Nothing
           $ projAddCols cols1 sortProjs q1

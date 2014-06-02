@@ -152,8 +152,8 @@ translateBinOp b c1 c2 = case b of
         (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
 
-    V.Sort -> do
-        (d, p) <- vecSort (toDVec c1) (toDVec c2)
+    V.SortS -> do
+        (d, p) <- vecSortS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec d) (fromPVec p)
 
     V.DistPrim -> do
@@ -267,11 +267,11 @@ translateUnOp unop c = case unop of
     V.Select e         -> fromDVec <$> vecSelect e (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
-    V.SortSimple es -> do
-        (d, p) <- vecSortSimple es (toDVec c)
+    V.SortScalarS es -> do
+        (d, p) <- vecSortScalarS es (toDVec c)
         return $ RPair (fromDVec d) (fromPVec p)
-    V.GroupSimple es -> do
-        (qo, qi, p) <- vecGroupSimple es (toDVec c)
+    V.GroupScalarS es -> do
+        (qo, qi, p) <- vecGroupScalarS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do

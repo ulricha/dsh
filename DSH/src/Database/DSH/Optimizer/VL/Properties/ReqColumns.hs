@@ -171,14 +171,14 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                                    ++
                                                    concatMap aggrReqCols (N.toList as))
 
-        SortSimple exprs -> do
+        SortScalarS exprs -> do
             cols <- fst <$> fromPropPair ownReqColumns
             ownReqColumns' <- VProp cols
                               ∪
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
-        GroupSimple exprs -> do
+        GroupScalarS exprs -> do
             (_, colsi, _) <- fromPropTriple ownReqColumns
             ownReqColumns' <- VProp colsi
                               ∪
@@ -230,7 +230,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           colsFromRight <- childReqColumns2 ∪ (VProp cols)
           return (colsFromLeft, colsFromRight)
 
-      Sort            -> do
+      SortS            -> do
           cols          <- fst <$> fromPropPair ownReqColumns
           colsFromLeft  <- allCols childBUProps1
           colsFromRight <- childReqColumns2 ∪ (VProp cols)

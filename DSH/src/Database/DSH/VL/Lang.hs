@@ -100,15 +100,15 @@ data UnOp = UniqueS
           | GroupAggr [Expr] (N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
-          | SortSimple [Expr]
-          | GroupSimple [Expr]
+          | SortScalarS [Expr]
+          | GroupScalarS [Expr]
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
     deriving (Eq, Ord, Generic, Show)
 
 data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
-           | Sort        -- (DBV, PropVector)
+           | SortS        -- (DBV, PropVector)
            | AggrS AggrFun
            | AggrNonEmptyS (N.NonEmpty AggrFun)
            | DistPrim   -- (DBV, PropVector)
@@ -130,14 +130,13 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Unbox
            | Append
            | AppendS
-           | Restrict -- VL (DBV, RenameVector)
-           | SelectPos L.ScalarBinOp -- (DBV, RenameVector)
-           | SelectPosS L.ScalarBinOp -- (DBV, RenameVector)
+           | Restrict
+           | SelectPos L.ScalarBinOp
+           | SelectPosS L.ScalarBinOp
            | Zip
-           | ZipS            -- (DBV, RenameVector, RenameVector)
+           | ZipS
            | CartProduct
            | CartProductS
-           -- FIXME VL joins should include join expressions!
            | ThetaJoin (L.JoinPredicate Expr)
            | ThetaJoinS (L.JoinPredicate Expr)
            | SemiJoin (L.JoinPredicate Expr)
