@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module contains functionality to retrieve information about
 -- the schema of actual database tables.
 module Database.DSH.Schema
@@ -8,8 +10,9 @@ import qualified Data.List                as L
 import           GHC.Exts
 import           Text.Printf
 
-import qualified Database.DSH.Common.Type as T
 import qualified Database.HDBC            as H
+
+import qualified Database.DSH.Common.Type as T
 
 -- | Retrieve through the given database connection information on the
 -- table (columns with their types) which name is given as the second

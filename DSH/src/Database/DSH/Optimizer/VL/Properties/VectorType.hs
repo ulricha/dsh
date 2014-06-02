@@ -39,8 +39,8 @@ inferVectorTypeUnOp s op =
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1 _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SelectPos1 _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1S _ _ -> liftM2 VPropPair (unpack s) (Right RenameVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -59,9 +59,9 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VProp <$> unpack s
-    SortSimple _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SortScalarS _ -> liftM2 VPropPair (unpack s) (Right PropVector)
 
-    GroupSimple es -> 
+    GroupScalarS es -> 
       case s of
         VProp t@(ValueVector _) -> 
           Right $ VPropTriple (ValueVector $ length es) t PropVector
@@ -98,7 +98,7 @@ inferVectorTypeBinOp s1 s2 op =
           Right $ VPropTriple t1 t2 PropVector
         _                                                    -> 
           Left "Input of GroupBy is not a value vector"
-    Sort ->
+    SortS ->
       case (s1, s2) of
         (VProp (ValueVector _), VProp t2@(ValueVector _)) -> 
           Right $ VPropPair t2 PropVector
@@ -117,7 +117,16 @@ inferVectorTypeBinOp s1 s2 op =
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
+    Unbox -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     Append -> 
+      case (s1, s2) of
+        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
+          Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
+        (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
+          Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
+        v -> 
+          Left $ "Input of Append is not a ValueVector " ++ (show v)
+    AppendS -> 
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
@@ -127,8 +136,7 @@ inferVectorTypeBinOp s1 s2 op =
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
-    BinExpr _ -> Right $ VProp $ ValueVector 1
-    SelectPos _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     Zip ->
       case (s1, s2) of

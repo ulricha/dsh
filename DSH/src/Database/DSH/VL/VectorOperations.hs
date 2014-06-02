@@ -6,7 +6,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 
-import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr1(..), AggrFun(..))
+import           Database.DSH.VL.Lang (VL(), VLVal(..), Nat(..), Expr(..), AggrFun(..))
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Data.GraphVector
@@ -149,9 +149,9 @@ numberLift _ = error "numberLift: Should not be possible"
 
 initPrim ::  Shape -> Graph VL Shape
 initPrim (ValueVector q lyt) = do
-    i       <- vlAggr AggrCount q
-    (q', r) <- vlSelectPos q (L.SBRelOp L.Lt) i
-    lyt'    <- chainRenameFilter r lyt
+    i          <- vlAggr AggrCount q
+    (q', r, _) <- vlSelectPos q (L.SBRelOp L.Lt) i
+    lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
 initPrim _ = error "initPrim: Should not be possible"
 
@@ -166,14 +166,14 @@ initLift _ = error "initLift: Should not be possible"
 lastPrim ::  Shape -> Graph VL Shape
 lastPrim (ValueVector qs lyt@(Nest _ _)) = do
     i              <- vlAggr AggrCount qs
-    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i
+    (q, r, _)      <- vlSelectPos qs (L.SBRelOp L.Eq) i
     (Nest qr lyt') <- chainRenameFilter r lyt
     re             <- vlDescToRename q
     renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
-    i      <- vlAggr AggrCount qs
-    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i
-    lyt'   <- chainRenameFilter r lyt
+    i         <- vlAggr AggrCount qs
+    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i
+    lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 lastPrim _ = error "lastPrim: Should not be possible"
 
@@ -193,18 +193,19 @@ lastLift (ValueVector d (Nest qs lyt)) = do
 lastLift _ = error "lastLift: Should not be possible"
 
 indexPrim ::  Shape -> Shape -> Graph VL Shape
-indexPrim (ValueVector qs lyt@(Nest _ _)) (PrimVal i _) = do
-    one            <- literal intT (VLInt 1)
-    i'             <- vlBinExpr (L.SBNumOp L.Add) i one
-    (q, r)         <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    (Nest qr lyt') <- chainRenameFilter r lyt
-    re             <- vlDescToRename q
-    renameOuter re $ ValueVector qr lyt'
+indexPrim (ValueVector qs (Nest qi lyti)) (PrimVal i _) = do
+    one       <- literal intT (VLInt 1)
+    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
+    -- Use the unboxing rename vector
+    (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
+    (qu, ri)  <- vlUnbox r qi
+    lyti'     <- chainRenameFilter ri lyti
+    return $ ValueVector qu lyti'
 indexPrim (ValueVector qs lyt) (PrimVal i _) = do
-    one    <- literal intT (VLInt 1)
-    i'     <- vlBinExpr (L.SBNumOp L.Add) i one
-    (q, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    lyt'   <- chainRenameFilter r lyt
+    one       <- literal intT (VLInt 1)
+    i'        <- vlBinExpr (L.SBNumOp L.Add) i one
+    (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
+    lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
 indexPrim _ _ = error "indexPrim: Should not be possible"
 
@@ -228,11 +229,12 @@ indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
 indexLift _ _ = error "indexLift: Should not be possible"
 
 appendPrim ::  Shape -> Shape -> Graph VL Shape
-appendPrim = appendR
+appendPrim = appendVec
 
 appendLift ::  Shape -> Shape -> Graph VL Shape
-appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = ValueVector d <$> appendR' lyt1 lyt2
-appendLift _ _ = error "appendLift: Should not be possible"
+appendLift (ValueVector d lyt1) (ValueVector _ lyt2) = do
+    ValueVector d <$> appendLayout lyt1 lyt2
+appendLift _ _ = $impossible
     
 reversePrim ::  Shape -> Graph VL Shape
 reversePrim (ValueVector d lyt) = do
@@ -250,11 +252,11 @@ reverseLift _ = error "vlReverseLift: Should not be possible"
 
 the ::  Shape -> Graph VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
-    (_, prop)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (_, prop, _)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     (Nest q' lyt') <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-    (q', prop) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     lyt'       <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
 the _ = error "the: Should not be possible"
@@ -262,8 +264,8 @@ the _ = error "the: Should not be possible"
 tailS ::  Shape -> Graph VL Shape
 tailS (ValueVector d lyt) = do
     p          <- literal intT (VLInt 1)
-    (q', prop) <- vlSelectPos d (L.SBRelOp L.Gt) p
-    lyt'       <- chainRenameFilter prop lyt
+    (q', r, _) <- vlSelectPos d (L.SBRelOp L.Gt) p
+    lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
 tailS _ = error "tailS: Should not be possible"
 
@@ -343,18 +345,18 @@ lengthV q = do
 cons ::  Shape -> Shape -> Graph VL Shape
 cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
     n <- singletonPrim q1
-    appendR n q2
+    appendVec n q2
 cons q1 q2 = do
     n <- singletonVec q1
-    appendR n q2
+    appendVec n q2
 
 consLift ::  Shape -> Shape -> Graph VL Shape
 consLift (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
     s           <- vlSegment q1
-    (v, p1, p2) <- vlAppend s qi
+    (v, p1, p2) <- vlAppendS s qi
     lyt1'       <- renameOuter' p1 lyt1
     lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendR' lyt1' lyt2'
+    lyt'        <- appendLayout lyt1' lyt2'
     return $ ValueVector q2 (Nest v lyt')
 consLift _ _ = $impossible
                         
@@ -375,7 +377,7 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
     (v, p1, p2) <- vlCombine qb q1 q2
     lyt1'       <- renameOuter' p1 lyt1
     lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendR' lyt1' lyt2'
+    lyt'        <- appendLayout lyt1' lyt2'
     return $ ValueVector v lyt'
 combine _ _ _ = $impossible
 
@@ -415,14 +417,14 @@ mapEnv f  ((x, p):xs) = do
     return $ (x, p') : xs'
 mapEnv _f []          = return []
 
-aggrPrim :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrPrim :: (Expr -> AggrFun) -> Shape -> Graph VL Shape
 aggrPrim afun (ValueVector q (InColumn 1)) =
-    PrimVal <$> vlAggr (afun (Column1 1)) q <*> (pure $ InColumn 1)
+    PrimVal <$> vlAggr (afun (Column 1)) q <*> (pure $ InColumn 1)
 aggrPrim _ _ = $impossible
 
-aggrLift :: (Expr1 -> AggrFun) -> Shape -> Graph VL Shape
+aggrLift :: (Expr -> AggrFun) -> Shape -> Graph VL Shape
 aggrLift afun (ValueVector d (Nest q (InColumn 1))) = do
-    qr <- vlAggrS (afun (Column1 1)) d q
+    qr <- vlAggrS (afun (Column 1)) d q
     return $ ValueVector qr (InColumn 1)
 aggrLift _ _ = $impossible
 
@@ -441,14 +443,14 @@ distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ s
 
 ifList ::  Shape -> Shape -> Shape -> Graph VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (d1', _) <- vlDistPrim qb q1
-    (d1, p1) <- vlRestrict q1 d1'
-    qb' <- vlUnExpr (L.SUBoolOp L.Not) qb
-    (d2', _) <- vlDistPrim qb' q2
-    (d2, p2) <- vlRestrict q2 d2'
-    r1 <- renameOuter' p1 lyt1
-    r2 <- renameOuter' p2 lyt2
-    lyt' <- appendR' r1 r2
+    (d1', _)  <- vlDistPrim qb q1
+    (d1, p1)  <- vlRestrict q1 d1'
+    qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
+    (d2', _)  <- vlDistPrim qb' q2
+    (d2, p2)  <- vlRestrict q2 d2'
+    lyt1'     <- renameOuter' p1 lyt1
+    lyt2'     <- renameOuter' p2 lyt2
+    lyt'      <- appendLayout lyt1' lyt2'
     (d, _, _) <- vlAppend d1 d2
     return $ ValueVector d lyt'
 ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
@@ -488,14 +490,14 @@ fstA ::  Shape -> Graph VL Shape
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
 fstA (PrimVal q (Pair p1 _p2)) = do
     let (p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ PrimVal proj p1'
 fstA e1 = error $ "fstA: " ++ show e1
 
 fstL ::  Shape -> Graph VL Shape
 fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ ValueVector proj p1'
 fstL s = error $ "fstL: " ++ show s
 
@@ -503,14 +505,14 @@ sndA ::  Shape -> Graph VL Shape
 sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 sndA (PrimVal q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ PrimVal proj p2'
 sndA _ = $impossible
     
 sndL ::  Shape -> Graph VL Shape
 sndL (ValueVector q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column1 cols)
+    proj <- vlProject q (map Column cols)
     return $ ValueVector proj p2'
 sndL s = trace (show s) $ $impossible
      

@@ -29,7 +29,7 @@ mkeqjoinT
   -> Ident -- ^ Identifier from the second generator
   -> Expr  -- ^ First generator expression
   -> Expr  -- ^ Second generator expression
-  -> Translate CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
+  -> Transform CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
 mkeqjoinT joinPred x y xs ys = do
     -- The predicate must be an equi join predicate
     joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
@@ -85,7 +85,7 @@ eqjoinQualEndR = do
 eqjoinQualsR :: Rewrite CompCtx TuplifyM (NL Qual) 
 eqjoinQualsR = onetdR (eqjoinQualEndR <+ eqjoinQualR)
     
-eqjoinR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
+eqjoinR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 eqjoinR currentGuards testedGuards = do
     Comp t _ _          <- promoteT idR
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR eqjoinQualsR >>> projectT)
@@ -101,7 +101,7 @@ eqjoinR currentGuards testedGuards = do
 -- | Construct a semijoin qualifier given a predicate and two generators
 -- Note that the splitJoinPred call implicitly checks that only x and y
 -- occur free in the predicate and no further correlation takes place.
-mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
+mksemijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TransformC (NL Qual) Qual
 mksemijoinT joinPred x y xs ys = do
     joinConjunct <- constT (return joinPred) >>> splitJoinPredT x y
 
@@ -147,7 +147,7 @@ semijoinR = do
 -- | Construct an antijoin qualifier given a predicate and two generators. Note
 -- that the splitJoinPred call implicitly checks that only x and y occur free in
 -- the predicate and no further correlation takes place.
-mkantijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TranslateC (NL Qual) Qual
+mkantijoinT :: Expr -> Ident -> Ident -> Expr -> Expr -> TransformC (NL Qual) Qual
 mkantijoinT joinPred x y xs ys = do
     joinConjunct <- constT (return joinPred) >>> splitJoinPredT x y
 
@@ -239,7 +239,7 @@ universalEndR = do
 -- contains queries in which the range predicate ranges over both relations,
 -- i.e. x and y occur free. The quantifier predicate on the other hand ranges
 -- only over the inner relation.
-mkClass15AntiJoinT :: Ident -> Expr -> Ident -> Expr -> Expr -> Expr -> TranslateC (NL Qual) Qual
+mkClass15AntiJoinT :: Ident -> Expr -> Ident -> Expr -> Expr -> Expr -> TransformC (NL Qual) Qual
 mkClass15AntiJoinT x xs y ys p q = do
     -- Check that the quantifier predicate only ranges over the inner relation
     guardM $ freeVars q == [y]
@@ -284,17 +284,17 @@ mkFlatJoin comp guard guardsToTry leftOverGuards = do
     tryAntijoinR comp' <+ trySemijoinR comp' <+ tryEqjoinR comp'
     
   where
-    tryAntijoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    tryAntijoinR :: CL -> TransformC () (Comp, [Expr], [Expr])
     tryAntijoinR comp' = do
         ExprCL (Comp ty h qs') <- constT (return comp') >>> antijoinR
         return (C ty h qs', guardsToTry, leftOverGuards)
 
-    trySemijoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    trySemijoinR :: CL -> TransformC () (Comp, [Expr], [Expr])
     trySemijoinR comp' = do
         ExprCL (Comp ty h qs') <- constT (return comp') >>> semijoinR
         return (C ty h qs', guardsToTry, leftOverGuards)
 
-    tryEqjoinR :: CL -> TranslateC () (Comp, [Expr], [Expr])
+    tryEqjoinR :: CL -> TransformC () (Comp, [Expr], [Expr])
     tryEqjoinR comp' = do
         res <- constT (return comp') >>> eqjoinR guardsToTry leftOverGuards
         (ExprCL (Comp ty h qs), guardsToTry', leftOverGuards') <- return res

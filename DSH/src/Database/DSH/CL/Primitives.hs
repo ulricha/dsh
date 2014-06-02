@@ -11,13 +11,16 @@ import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.Impossible
 
+tyErr :: P.String -> a
+tyErr comb = P.error ("CL.Primitives type error: " P.++ comb)
+
 ($) :: Expr -> Expr -> Expr
 f $ e = let tf = typeOf f
             te = typeOf e
             (ta, tr) = splitType tf
          in if ta P.== te
               then App tr f e
-              else P.error P.$ "CLPrims.($): Cannot apply a function that expects: " P.++ P.show ta P.++ " to an argument of type: " P.++ P.show te
+              else tyErr "$"
 
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
@@ -25,10 +28,9 @@ reverse e = let t@(ListT _) = typeOf e
 
 length :: Expr -> Expr
 length e = let t = typeOf e
-            in if isList t
-                 then AppE1 intT (Prim1 Length P.$ t .-> intT) e
-                 else P.error P.$ "CLPrims.length: Cannot apply length to an argument of type: " P.++ P.show t P.++
-                                  "\nThe provided argument is: " P.++ P.show e
+           in if isList t
+              then AppE1 intT (Prim1 Length P.$ t .-> intT) e
+              else tyErr "length"
 
 all :: Expr -> Expr -> Expr
 all f e = and (map f e)
@@ -42,20 +44,20 @@ null e = length e `eq` int 0
 and :: Expr -> Expr
 and e = let t = typeOf e
          in if listT boolT P.== t
-                then AppE1 boolT (Prim1 And P.$ t .-> boolT) e
-                else P.error P.$ "CLPrims.and: Cannot apply and to an argument of type: " P.++ P.show t
+            then AppE1 boolT (Prim1 And P.$ t .-> boolT) e
+            else tyErr "and"
 
 or :: Expr -> Expr
 or e = let t = typeOf e
          in if listT boolT P.== t
-                then AppE1 boolT (Prim1 Or P.$ t .-> boolT) e
-                else P.error P.$ "CLPrims.or: Cannot apply or to an argument of type: " P.++ P.show t
+            then AppE1 boolT (Prim1 Or P.$ t .-> boolT) e
+            else tyErr "or"
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
             in if listDepth t P.> 1
-                    then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
-                    else P.error P.$ "CLPrims.concat: Cannot apply concat to an argument of type: " P.++ P.show t
+               then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
+               else tyErr "concat"
 
 -- reshape :: [a] -> [[a]]
 reshape :: P.Integer -> Expr -> Expr
@@ -73,25 +75,25 @@ sum :: Expr -> Expr
 sum e = let (ListT t) = typeOf e
          in if isNum t
                 then AppE1 t (Prim1 Sum P.$ ListT t .-> t) e
-                else P.error P.$ "CLPrims.sum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                else tyErr "sum"
 
 avg :: Expr -> Expr
 avg e = let (ListT t) = typeOf e
          in if isNum t
                 then AppE1 t (Prim1 Avg P.$ ListT t .-> t) e
-                else P.error P.$ "CLPrims.avg: Cannot apply avg to an argument of type: " P.++ P.show (ListT t)
+                else tyErr "avg"
 
 minimum :: Expr -> Expr
 minimum e = let (ListT t) = typeOf e
              in if isNum t
                  then AppE1 t (Prim1 Minimum P.$ ListT t .-> t) e
-                 else P.error P.$ "CLPrims.minimum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                 else tyErr "minimum"
 
 maximum :: Expr -> Expr
 maximum e = let (ListT t) = typeOf e
              in if isNum t
                  then AppE1 t (Prim1 Maximum P.$ ListT t .-> t) e
-                 else P.error P.$ "CLPrims.maximum: Cannot apply sum to an argument of type: " P.++ P.show (ListT t)
+                 else tyErr "maximum"
 
 the :: Expr -> Expr
 the e = let (ListT t) = typeOf e
@@ -137,19 +139,14 @@ map f es = let ft@(FunT ta tr) = typeOf f
                te@(ListT t)    = typeOf es
             in if t P.== ta
                  then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
-                 else P.error P.$ "CLPrims.map: Cannot apply map to a function of type: \n"
-                                  P.++ P.show ft
-                                  P.++ "\n and an argument of type: \n"
-                                  P.++ P.show te
-                                  P.++ "\n"
-                                  P.++ P.show f
+                 else tyErr "map"
 
 concatMap :: Expr -> Expr -> Expr
 concatMap f es = let ft@(FunT ta tr) = typeOf f
                      te@(ListT t)    = typeOf es
                   in if t P.== ta
                      then AppE2 tr (Prim2 ConcatMap (ft .-> (te .-> tr))) f es
-                     else P.error "concatMap type error"
+                     else tyErr "concatMap"
 
 filter :: Expr -> Expr -> Expr
 filter f es = let ft@(FunT _ BoolT) = typeOf f
@@ -162,14 +159,14 @@ groupWithKey f es = let ft@(FunT ta tk) = typeOf f
                         tr            = listT P.$ pairT tk te
                     in if t P.== ta
                        then AppE2 tr (Prim2 GroupWithKey P.$ ft .-> te .-> tr) f es
-                       else P.error P.$ "CLPrims.groupWithKey: Cannot apply groupWithKey to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+                       else tyErr "groupWithKey"
 
 sortWith :: Expr -> Expr -> Expr
 sortWith f es = let ft@(FunT ta _) = typeOf f
                     te@(ListT t) = typeOf es
                  in if t P.== ta
                         then AppE2 te (Prim2 SortWith P.$ ft .-> te .-> te) f es
-                        else P.error P.$ "CLPrims.sortWith: Cannot apply sortWith to a function of type: " P.++ P.show ft P.++ " and an argument of type: " P.++ P.show te
+                        else tyErr "sortWith"
 
 pair :: Expr -> Expr -> Expr
 pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.PairV v1 v2)
@@ -182,14 +179,14 @@ append e1 e2 = let t1@(ListT _) = typeOf e1
                    t2@(ListT _) = typeOf e2
                 in if t1 P.== t2
                     then AppE2 t1 (Prim2 Append P.$ t1 .-> t1 .-> t1) e1 e2
-                    else P.error P.$ "CLPrims.append: Cannot append two list with different types"
+                    else tyErr "append"
 
 index :: Expr -> Expr -> Expr
 index e1 e2 = let t1@(ListT t) = typeOf e1
                   t2 = typeOf e2
                 in if intT P.== t2
                     then AppE2 t (Prim2 Index P.$ t1 .-> t2 .-> t) e1 e2
-                    else P.error P.$ "CLPrims.index: Cannot perform index with given arguments."
+                    else tyErr "index"
 
 
 
@@ -197,19 +194,22 @@ snoc :: Expr -> Expr -> Expr
 snoc e1 e2 = let t1@(ListT t) = typeOf e1
               in if t P.== typeOf e2
                     then append e1 (cons e2 P.$ nil t1)
-                    else P.error P.$ "CLPrims.snoc: Cannot apply snoc to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show (typeOf e2)
+                    else tyErr "snoc"
 
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = let t1 = typeOf e1
                  t@(ListT t2) = typeOf e2
               in if t1 P.== t2
                    then AppE2 t (Prim2 Cons (t1 .-> t .-> t)) e1 e2
-                   else P.error P.$ "CLPrims.cons: Cannot apply cons to arguments of type : " P.++ P.show t1 P.++ " and: " P.++ P.show t2
+                   else tyErr "cons"
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(ListT t1') = typeOf e1
                 t2@(ListT t2') = typeOf e2
-             in AppE2 (listT P.$ pairT t1' t2') (Prim2 Zip P.$ t1 .-> t2 .-> listT (pairT t1' t2')) e1 e2
+             in AppE2 (listT P.$ pairT t1' t2') 
+                      (Prim2 Zip P.$ t1 .-> t2 .-> listT (pairT t1' t2')) 
+                      e1 
+                      e2
 
 var :: Type -> P.String -> Expr
 var = Var
@@ -226,7 +226,7 @@ cond eb et ee = let tb = typeOf eb
                     te = typeOf ee
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
-                      else P.error P.$ "CLPrims.cond: Cannot apply cond to arguments of type : " P.++ P.show tb P.++ ", " P.++ P.show tt P.++ " and: " P.++ P.show te
+                      else tyErr "cond"
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators
@@ -309,7 +309,7 @@ scalarUnOp op e =
            (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
            (L.SUDateOp, _)                        -> $unimplemented
            (_, _)                                 -> P.error err
-               where err = printf "CLPrims.scalarUnOp: %s" (P.show (op, t))
+               where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
 castDouble :: Expr -> Expr
 castDouble = scalarUnOp (L.SUCastOp L.CastDouble)
@@ -357,7 +357,7 @@ scalarBinOp op e1 e2 =
            (L.SBBoolOp _, BoolT, BoolT)                                 -> BinOp BoolT op e1 e2
            (L.SBStringOp L.Like, StringT, StringT)                      -> BinOp BoolT op e1 e2
            _                                                            -> P.error err
-               where err = printf "CLPrims.scalarBinOp: %s" (P.show (op, t1, t2))
+               where err = printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
 
 add :: Expr -> Expr -> Expr
 add = scalarBinOp (L.SBNumOp L.Add)

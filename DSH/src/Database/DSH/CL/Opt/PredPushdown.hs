@@ -23,7 +23,7 @@ import           Database.DSH.Common.Lang
 -- Auxiliary functions
 
 -- | Return path to occurence of variable x
-varPathT :: Ident -> TranslateC CL PathC
+varPathT :: Ident -> TransformC CL PathC
 varPathT x = do
     Var _ x' <- promoteT idR
     guardM $ x == x'
@@ -31,7 +31,7 @@ varPathT x = do
 
 -- | Collect all paths to variable x in the current expression and
 -- turn them into relative paths.
-allVarPathsT :: Ident -> TranslateC CL [PathC]
+allVarPathsT :: Ident -> TransformC CL [PathC]
 allVarPathsT x = do
     varPaths <- collectT $ varPathT x
     guardM $ not $ null varPaths
@@ -106,7 +106,7 @@ pushLeftR x p = do
 -- the right expression refers only to the snd component (or vice
 -- versa).
 
-mkMergeableJoinPredT :: Ident -> Expr -> BinRelOp -> Expr -> TranslateC CL (JoinConjunct JoinExpr)
+mkMergeableJoinPredT :: Ident -> Expr -> BinRelOp -> Expr -> TransformC CL (JoinConjunct JoinExpr)
 mkMergeableJoinPredT x leftExpr op rightExpr = do
     let constLeftExpr = constT $ return $ inject leftExpr
         constRightExpr = constT $ return $ inject rightExpr
@@ -134,7 +134,7 @@ mirrorRelOp Lt  = Gt
 mirrorRelOp LtE = GtE
 mirrorRelOp NEq = NEq
 
-splitMergeablePredT :: Ident -> Expr -> TranslateC CL (JoinConjunct JoinExpr)
+splitMergeablePredT :: Ident -> Expr -> TransformC CL (JoinConjunct JoinExpr)
 splitMergeablePredT x p = do
     ExprCL (BinOp _ (SBRelOp op) leftExpr rightExpr) <- return $ inject p
     guardM $ freeVars p == [x]

@@ -2,21 +2,22 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
-import Control.Monad
-import Control.Applicative
+import           Control.Applicative
+import           Control.Monad
 
-import Database.Algebra.Dag.Common
+import           Database.Algebra.Dag.Common
 
-import Database.DSH.VL.Lang
-import Database.DSH.Common.Lang
-import Database.DSH.Optimizer.Common.Rewrite
-import Database.DSH.Optimizer.VL.Properties.Types
-import Database.DSH.Optimizer.VL.Properties.VectorType
-import Database.DSH.Optimizer.VL.Rewrite.Common
-import Database.DSH.Optimizer.VL.Rewrite.Expressions
+import           Database.DSH.Common.Lang
+import           Database.DSH.Impossible
+import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.VL.Properties.Types
+import           Database.DSH.Optimizer.VL.Properties.VectorType
+import           Database.DSH.Optimizer.VL.Rewrite.Common
+import           Database.DSH.Optimizer.VL.Rewrite.Expressions
+import           Database.DSH.VL.Lang
 
 removeRedundancy :: VLRewrite Bool
-removeRedundancy = 
+removeRedundancy =
     iteratively $ sequenceRewrites [ cleanup
                                    , applyToAll noProps redundantRules
                                    , applyToAll inferBottomUp redundantRulesBottomUp
@@ -28,7 +29,7 @@ cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
 redundantRules = [ introduceSelect
-                 , simpleSort 
+                 , simpleSort
                  , sortProject
                  , pullProjectPropRename
                  , pullProjectPropReorder
@@ -44,6 +45,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
                          , alignParents
+                         , selectConstPos
+                         , selectConstPosS
                          -- , stackedAlign
                          ]
 
@@ -61,7 +64,7 @@ introduceSelect q =
 
         return $ do
           logRewrite "Redundant.Select" q
-          void $ replaceWithNew q $ UnOp (Select $(v "e")) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (Select e) $(v "q1") |])
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -70,14 +73,11 @@ distPrimConstant q =
   $(pattern 'q "R1 ((qp) DistPrim (qv))"
     [| do
         qvProps <- properties $(v "qp")
-        let constVal (ConstPL val) = return $ Constant1 val
-            constVal _             = fail "no match"
-
 
         constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM constVal cols
+          VProp (DBVConst _ cols) -> mapM (constVal Constant) cols
           _                       -> fail "no match"
-          
+
         return $ do
           logRewrite "Redundant.DistPrim.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
@@ -91,11 +91,8 @@ distDescConstant q =
         pv <- properties $(v "qv")
         VProp True <- return $ card1Prop pv
 
-        let constVal (ConstPL val) = return $ Constant1 val
-            constVal _             = fail "no match"
-
         VProp (DBVConst _ cols) <- return $ constProp pv
-        constProjs              <- mapM constVal cols
+        constProjs              <- mapM (constVal Constant) cols
 
         return $ do
           logRewrite "Redundant.DistDesc.Constant" q
@@ -112,7 +109,7 @@ unreferencedAlign q =
         VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
         VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
         VProp (ValueVector w2) <- vectorTypeProp <$> bu <$> properties $(v "q2")
-  
+
         -- Check that only columns from the right input are required
         predicate $ all (> w1) reqCols
 
@@ -120,9 +117,9 @@ unreferencedAlign q =
           logRewrite "Redundant.Unreferenced.Align" q
 
           -- FIXME HACKHACKHACK
-          let padProj = [ Constant1 $ VLInt 42 | _ <- [1..w1] ]
+          let padProj = [ Constant $ VLInt 42 | _ <- [1..w1] ]
                         ++
-                        [ Column1 i | i <- [1..w2] ]
+                        [ Column i | i <- [1..w2] ]
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
@@ -136,7 +133,7 @@ nonAlignOp n = do
 -- | The Align operator keeps shape and columns of its right
 -- input. When this right input is referenced by other operators than
 -- Align, we can move this operators to the Align output.
--- 
+--
 -- This is beneficial if a composed expression depends on the Align
 -- output (some lifted environment value) as well as the original
 -- (inner) vector. In that case, we can rewrite things such that only
@@ -159,9 +156,9 @@ alignParents q =
 
              -- First, insert a projection on top of Align that leaves
              -- only the columns from Align's right input.
-             let origColsProj = [ Column1 $ w1 + i | i <- [1 .. w2] ]
+             let origColsProj = [ Column $ w1 + i | i <- [1 .. w2] ]
              projNode <- insert $ UnOp (Project origColsProj) q
-  
+
              -- Then, re-link all parents of the right Align input to
              -- the projection.
              forM_ nonAlignParents $ \p -> replaceChild p $(v "q2") projNode |])
@@ -176,13 +173,13 @@ stackedAlign q =
         predicate $ $(v "q11") == $(v "q12")
         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
         VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
-  
+
         return $ do
             logRewrite "Redundant.Align.Stacked" q
-            
+
             -- Aligning multiple times duplicates the left input's
             -- columns.
-            let dupColsProj = map Column1 ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
+            let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
             projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
 
             replace q projNode |])
@@ -198,31 +195,23 @@ alignedOnlyLeft q =
         VPropPair (Just reqCols) _  <- reqColumnsProp <$> td <$> properties q
         VProp (ValueVector w)       <- vectorTypeProp <$> bu <$> properties $(v "q1")
         predicate $ all (<= w) reqCols
-  
+
         return $ do
           logRewrite "Redundant.Align.Project" q
           void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
-          
-shiftCols :: Int -> Expr1 -> Expr1
-shiftCols offset expr =
-    case expr of
-        BinApp1 o e1 e2 -> BinApp1 o (shiftCols offset e1) (shiftCols offset e2)
-        UnApp1 o e1     -> UnApp1 o (shiftCols offset e1)
-        Column1 i       -> Column1 (offset + i)
-        Constant1 c     -> Constant1 c
-        If1 c t e       -> If1 (shiftCols offset c) (shiftCols offset t) (shiftCols offset e)
 
--- | Replace a Zip operaor with a projection if both inputs are the same.
+-- | Replace a Zip operator with a projection if both inputs are the
+-- same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
   $(pattern 'q "(q1) Zip (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-        
+
         return $ do
           logRewrite "Redundant.Zip" q
-          let ps = map Column1 [1 .. w]
+          let ps = map Column [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
 sameInputZipProject :: VLRule BottomUpProps
@@ -240,11 +229,11 @@ sameInputZipProjectLeft q =
   $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
           logRewrite "Redundant.Zip.Project.Left" q
-          let proj = $(v "ps1") ++ (map Column1 [1 .. w])
+          let proj = $(v "ps1") ++ (map Column [1..w1])
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 sameInputZipProjectRight :: VLRule BottomUpProps
@@ -256,27 +245,29 @@ sameInputZipProjectRight q =
 
         return $ do
           logRewrite "Redundant.Zip.Project.Right" q
-          let proj = (map Column1 [1 .. w]) ++ $(v "ps2")
+          let proj = (map Column [1 .. w]) ++ $(v "ps2")
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
+--------------------------------------------------------------------------------
+-- Specialization of sorting
 
 -- | Employ a specialized operator if the sorting criteria are simply
 -- a selection of columns from the input vector.
 simpleSort :: VLRule ()
 simpleSort q =
-  $(pattern 'q "R1 (qs=(Project ps (q1)) Sort (q2))"
+  $(pattern 'q "R1 (qs=(Project ps (q1)) SortS (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Sort.Simple" q
-          qs <- insert $ UnOp (SortSimple $(v "ps")) $(v "q1")
-          void $ replaceWithNew q $ UnOp R1 qs 
+          logRewrite "Redundant.Sort.ScalarS" q
+          qs <- insert $ UnOp (SortScalarS $(v "ps")) $(v "q1")
+          void $ replaceWithNew q $ UnOp R1 qs
           r2Parents <- lookupR2Parents $(v "qs")
 
           -- If there are any R2 nodes linking to the original sort operators
           -- (i.e. there are inner vectors to which changes must be propagated),
-          -- they have to be rewired to the new SortSimple operator.
+          -- they have to be rewired to the new SortScalarS operator.
           if not $ null r2Parents
             then do
               qr2' <- insert $ UnOp R2 qs
@@ -284,16 +275,16 @@ simpleSort q =
             else return () |])
 
 -- | Pull a projection on a Sort operator's input over the Sort
--- operator. This rewrite should enable the SortSimple rewrite when
+-- operator. This rewrite should enable the SortScalarS rewrite when
 -- the common source of Sort's left and right inputs is obstructed by
 -- a projection.
 sortProject :: VLRule ()
 sortProject q =
-  $(pattern 'q "R1 ((q1) Sort (Project proj (q2)))"
+  $(pattern 'q "R1 ((q1) SortS (Project proj (q2)))"
    [| do
        return $ do
          logRewrite "Redundant.Sort.PullProject" q
-         sortNode <- insert $ BinOp Sort $(v "q1") $(v "q2")
+         sortNode <- insert $ BinOp SortS $(v "q1") $(v "q2")
          r1Node   <- insert $ UnOp R1 sortNode
          void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
@@ -316,15 +307,15 @@ scalarConditional q =
         -- The condition for the boolean vector must be the same as
         -- the selection condition for the then-branch.
         predicate $ predExpr == $(v "pred2")
-        
+
         -- The selection condition must be the negated form of the
         -- then-condition.
-        predicate $ (UnApp1 (SUBoolOp Not) predExpr) == $(v "negPred")
+        predicate $ (UnApp (SUBoolOp Not) predExpr) == $(v "negPred")
 
         return $ do
           logRewrite "Redundant.ScalarConditional" q
-          void $ replaceWithNew q $ UnOp (Project [If1 predExpr thenExpr elseExpr]) $(v "q1") |])
-        
+          void $ replaceWithNew q $ UnOp (Project [If predExpr thenExpr elseExpr]) $(v "q1") |])
+
 ------------------------------------------------------------------------------
 -- Projection pullup
 
@@ -366,3 +357,33 @@ pullProjectPropReorder q =
            r1Node      <- insert $ UnOp R1 reorderNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
+--------------------------------------------------------------------------------
+-- Positional selection on constants
+
+selectConstPos :: VLRule BottomUpProps
+selectConstPos q =
+  $(pattern 'q "(q1) SelectPos op (qp)"
+    [| do
+         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
+         pos <- case constCols of
+                    [ConstPL (VLInt p)] -> return p
+                    [NonConstPL]        -> fail "no match"
+                    _                   -> $impossible
+
+         return $ do
+           logRewrite "Redundant.SelectPos.Constant" q
+           void $ replaceWithNew q $ UnOp (SelectPos1 $(v "op") (N pos)) $(v "q1") |])
+
+selectConstPosS :: VLRule BottomUpProps
+selectConstPosS q =
+  $(pattern 'q "(q1) SelectPosS op (qp)"
+    [| do
+         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
+         pos <- case constCols of
+                    [ConstPL (VLInt p)] -> return p
+                    [NonConstPL]        -> fail "no match"
+                    _                   -> $impossible
+
+         return $ do
+           logRewrite "Redundant.SelectPosS.Constant" q
+           void $ replaceWithNew q $ UnOp (SelectPos1S $(v "op") (N pos)) $(v "q1") |])

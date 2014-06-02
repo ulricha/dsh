@@ -31,46 +31,30 @@ one = VProp $ Just [1]
 na :: VectorProp ReqCols
 na = VProp Nothing
 
-reqExpr1Cols :: Expr1 -> [DBCol]
-reqExpr1Cols (BinApp1 _ e1 e2) = reqExpr1Cols e1 `L.union` reqExpr1Cols e2
-reqExpr1Cols (UnApp1 _ e)      = reqExpr1Cols e
-reqExpr1Cols (Column1 col)     = [col]
-reqExpr1Cols (Constant1 _)     = []
-reqExpr1Cols (If1 c t e)       = reqExpr1Cols c `L.union` reqExpr1Cols t `L.union` reqExpr1Cols e
+reqExprCols :: Expr -> [DBCol]
+reqExprCols (BinApp _ e1 e2) = reqExprCols e1 `L.union` reqExprCols e2
+reqExprCols (UnApp _ e)      = reqExprCols e
+reqExprCols (Column col)     = [col]
+reqExprCols (Constant _)     = []
+reqExprCols (If c t e)       = reqExprCols c `L.union` reqExprCols t `L.union` reqExprCols e
 
-reqLeftPredCols :: JoinPredicate Expr1 -> [DBCol]
+reqLeftPredCols :: JoinPredicate Expr -> [DBCol]
 reqLeftPredCols (JoinPred cs) = L.nub 
-                                $ concatMap (\(JoinConjunct le _ _) -> reqExpr1Cols le) 
+                                $ concatMap (\(JoinConjunct le _ _) -> reqExprCols le) 
                                 $ N.toList cs
 
-reqRightPredCols :: JoinPredicate Expr1 -> [DBCol]
+reqRightPredCols :: JoinPredicate Expr -> [DBCol]
 reqRightPredCols (JoinPred cs) = L.nub 
-                                $ concatMap (\(JoinConjunct _ _ re) -> reqExpr1Cols re) 
+                                $ concatMap (\(JoinConjunct _ _ re) -> reqExprCols re) 
                                 $ N.toList cs
-
-reqExpr2ColsLeft :: Expr2 -> [DBCol]
-reqExpr2ColsLeft (BinApp2 _ e1 e2)     = reqExpr2ColsLeft e1 `L.union` reqExpr2ColsLeft e2
-reqExpr2ColsLeft (UnApp2 _ e)          = reqExpr2ColsLeft e
-reqExpr2ColsLeft (Column2Left (L col)) = [col]
-reqExpr2ColsLeft (Column2Right _)      = []
-reqExpr2ColsLeft (Constant2 _)         = []
-reqExpr2ColsLeft (If2 c t e)           = reqExpr2ColsLeft c `L.union` reqExpr2ColsLeft t `L.union` reqExpr2ColsLeft e
-
-reqExpr2ColsRight :: Expr2 -> [DBCol]
-reqExpr2ColsRight (BinApp2 _ e1 e2)      = reqExpr2ColsRight e1 `L.union` reqExpr2ColsRight e2
-reqExpr2ColsRight (UnApp2 _ e)           = reqExpr2ColsRight e
-reqExpr2ColsRight (Column2Right (R col)) = [col]
-reqExpr2ColsRight (Column2Left _)        = []
-reqExpr2ColsRight (Constant2 _)          = []
-reqExpr2ColsRight (If2 c t e)            = reqExpr2ColsRight c `L.union` reqExpr2ColsRight t `L.union` reqExpr2ColsRight e
 
 aggrReqCols :: AggrFun -> [DBCol]
-aggrReqCols (AggrSum _ e) = reqExpr1Cols e
-aggrReqCols (AggrMin e)   = reqExpr1Cols e
-aggrReqCols (AggrMax e)   = reqExpr1Cols e
-aggrReqCols (AggrAvg e)   = reqExpr1Cols e
-aggrReqCols (AggrAll e)   = reqExpr1Cols e
-aggrReqCols (AggrAny e)   = reqExpr1Cols e
+aggrReqCols (AggrSum _ e) = reqExprCols e
+aggrReqCols (AggrMin e)   = reqExprCols e
+aggrReqCols (AggrMax e)   = reqExprCols e
+aggrReqCols (AggrAvg e)   = reqExprCols e
+aggrReqCols (AggrAll e)   = reqExprCols e
+aggrReqCols (AggrAny e)   = reqExprCols e
 aggrReqCols AggrCount     = []
 
 fromProp :: Show a => VectorProp a -> Either String a
@@ -165,14 +149,14 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             cols <- fst <$> fromPropPair ownReqColumns
             VProp cols ∪ childReqColumns
 
-        Project ps -> childReqColumns ∪ (VProp $ Just $ L.nub $ concatMap reqExpr1Cols ps)
+        Project ps -> childReqColumns ∪ (VProp $ Just $ L.nub $ concatMap reqExprCols ps)
 
         Select e   -> do
-            ownReqColumns' <- ownReqColumns ∪ (VProp $ Just $ reqExpr1Cols e)
+            ownReqColumns' <- ownReqColumns ∪ (VProp $ Just $ reqExprCols e)
             ownReqColumns' ∪ childReqColumns
 
         SelectPos1 _ _   -> do
-            cols <- fst <$> fromPropPair ownReqColumns
+            (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 
         SelectPos1S _ _   -> do
@@ -183,22 +167,22 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         -- because they can only be a subset of (gs ++ as).
         GroupAggr gs as -> childReqColumns
                            ∪
-                           (VProp $ Just $ L.nub $ concatMap reqExpr1Cols gs
+                           (VProp $ Just $ L.nub $ concatMap reqExprCols gs
                                                    ++
                                                    concatMap aggrReqCols (N.toList as))
 
-        SortSimple exprs -> do
+        SortScalarS exprs -> do
             cols <- fst <$> fromPropPair ownReqColumns
             ownReqColumns' <- VProp cols
                               ∪
-                              (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+                              (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
-        GroupSimple exprs -> do
+        GroupScalarS exprs -> do
             (_, colsi, _) <- fromPropTriple ownReqColumns
             ownReqColumns' <- VProp colsi
                               ∪
-                              (VProp $ Just $ L.nub $ concatMap reqExpr1Cols exprs)
+                              (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
         R1               ->
@@ -246,7 +230,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           colsFromRight <- childReqColumns2 ∪ (VProp cols)
           return (colsFromLeft, colsFromRight)
 
-      Sort            -> do
+      SortS            -> do
           cols          <- fst <$> fromPropPair ownReqColumns
           colsFromLeft  <- allCols childBUProps1
           colsFromRight <- childReqColumns2 ∪ (VProp cols)
@@ -296,7 +280,18 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
 
+      Unbox -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromRight <- childReqColumns2 ∪ VProp cols
+          return (na, fromRight)
+
       Append -> do
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          fromLeft     <- (VProp cols) ∪ childReqColumns1
+          fromRight    <- (VProp cols) ∪ childReqColumns2
+          return (fromLeft, fromRight)
+
+      AppendS -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- (VProp cols) ∪ childReqColumns1
           fromRight    <- (VProp cols) ∪ childReqColumns2
@@ -307,14 +302,9 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromLeft <- VProp cols ∪ childReqColumns1
           return (fromLeft, one)
 
-      BinExpr e -> do
-          reqColsLeft  <- (VProp $ Just $ reqExpr2ColsLeft e) ∪ childReqColumns1
-          reqColsRight <- (VProp $ Just $ reqExpr2ColsRight e) ∪ childReqColumns2
-          return (reqColsLeft, reqColsRight)
-
       SelectPos _ -> do
-          cols     <- fst <$> fromPropPair ownReqColumns
-          fromLeft <- VProp cols ∪ childReqColumns1
+          (cols, _, _) <- fromPropTriple ownReqColumns
+          fromLeft     <- VProp cols ∪ childReqColumns1
           return (fromLeft, one)
 
       SelectPosS _ -> do

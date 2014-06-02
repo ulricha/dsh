@@ -36,9 +36,16 @@ runCompM' :: s -> CompM s a -> (s, Either String a)
 runCompM' s m = compM m s
 
 instance Monad (CompM s) where
-  return = returnM
-  (>>=)  = bindM
-  fail   = failM
+    return = returnM
+    (>>=)  = bindM
+    fail   = failM
+
+instance Functor (CompM s) where
+    fmap = liftM
+
+instance Applicative (CompM s) where
+    pure  = return
+    (<*>) = ap
   
 returnM :: a -> CompM s a
 returnM a = CompM (\n -> (n, Right a))
@@ -62,14 +69,6 @@ catchCompM (CompM st) f = CompM $ \ n -> case st n of
                                         (n', Left msg) -> compM (f msg) n'
                                         (n', Right a)  -> (n', Right a)
 {-# INLINE catchCompM #-}                                        
-
-
-instance Functor (CompM s) where
-  fmap = liftM
-
-instance Applicative (CompM s) where
-  pure  = return
-  (<*>) = ap
 
 suggestName :: CompM Int Ident
 suggestName = CompM (\n -> ((n+1), Right ("v" ++ show n)))

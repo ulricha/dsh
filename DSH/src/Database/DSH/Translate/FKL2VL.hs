@@ -12,12 +12,12 @@ import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Data.FKL
 import           Database.DSH.VL.Data.DBVector
 import           Database.DSH.VL.Data.GraphVector hiding (Pair)
-import           Database.DSH.VL.Lang
+import qualified Database.DSH.VL.Lang as VL
 import           Database.DSH.VL.Render.JSON      ()
 import           Database.DSH.VL.VectorOperations
 import           Database.DSH.VL.VLPrimitives
 
-fkl2VL :: Expr -> Graph VL Shape
+fkl2VL :: Expr -> Graph VL.VL Shape
 fkl2VL expr =
     case expr of
         Table _ n cs hs -> dbTable n cs hs
@@ -74,16 +74,16 @@ fkl2VL expr =
             arg'                      <- fkl2VL arg
             withContext ((n, v):(x, arg'):fvs) undefined $ fkl2VL f2
 
-papp1 :: Type -> Prim1 -> Shape -> Graph VL Shape
+papp1 :: Type -> Prim1 -> Shape -> Graph VL.VL Shape
 papp1 t f =
     case f of
         FLength _           -> lengthV
         FLengthL _          -> lengthLift
         FConcatL _          -> concatLift
-        FSum _              -> aggrPrim $ AggrSum $ typeToVLType t
-        FSumL _             -> aggrLift $ AggrSum $ typeToVLType $ elemT t
-        FAvg _              -> aggrPrim AggrAvg
-        FAvgL _             -> aggrLift AggrAvg
+        FSum _              -> aggrPrim $ VL.AggrSum $ typeToVLType t
+        FSumL _             -> aggrLift $ VL.AggrSum $ typeToVLType $ elemT t
+        FAvg _              -> aggrPrim VL.AggrAvg
+        FAvgL _             -> aggrLift VL.AggrAvg
         FThe _              -> the
         FTheL _             -> theL
         FFst _              -> fstA
@@ -92,18 +92,18 @@ papp1 t f =
         FSndL _             -> sndL
         FConcat _           -> concatV
         FQuickConcat _      -> quickConcatV
-        FMinimum _          -> aggrPrim AggrMin
-        FMinimumL _         -> aggrLift AggrMin
-        FMaximum _          -> aggrPrim AggrMax
-        FMaximumL _         -> aggrLift AggrMax
+        FMinimum _          -> aggrPrim VL.AggrMin
+        FMinimumL _         -> aggrLift VL.AggrMin
+        FMaximum _          -> aggrPrim VL.AggrMax
+        FMaximumL _         -> aggrLift VL.AggrMax
         FTail _             -> tailS
         FTailL _            -> tailL
         FReverse _          -> reversePrim
         FReverseL _         -> reverseLift
-        FAnd _              -> aggrPrim AggrAll
-        FAndL _             -> aggrLift AggrAll
-        FOr _               -> aggrPrim AggrAny
-        FOrL _              -> aggrLift AggrAny
+        FAnd _              -> aggrPrim VL.AggrAll
+        FAndL _             -> aggrLift VL.AggrAll
+        FOr _               -> aggrPrim VL.AggrAny
+        FOrL _              -> aggrLift VL.AggrAny
         FInit _             -> initPrim
         FInitL _            -> initLift
         FLast _             -> lastPrim
@@ -117,7 +117,7 @@ papp1 t f =
         FReshape n _        -> reshapePrim n
         FReshapeL n _       -> reshapeLift n
 
-papp2 :: Prim2 -> Shape -> Shape -> Graph VL Shape
+papp2 :: Prim2 -> Shape -> Shape -> Graph VL.VL Shape
 papp2 f =
     case f of
         FDist _            -> dist
@@ -158,20 +158,20 @@ constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ fromGam x) (constructClosu
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Graph VL Shape -> Graph VL (QP.TopShape DVec)
+insertTopProjections :: Graph VL.VL Shape -> Graph VL.VL (QP.TopShape DVec)
 insertTopProjections g = do
   shape <- g
   let shape' = QP.exportShape shape
   traverseShape shape'
 
   where
-  traverseShape :: (QP.TopShape DVec) -> Graph VL (QP.TopShape DVec)
+  traverseShape :: (QP.TopShape DVec) -> Graph VL.VL (QP.TopShape DVec)
   traverseShape (QP.ValueVector (DVec q _) lyt) =
-      insertProj lyt q Project DVec QP.ValueVector
+      insertProj lyt q VL.Project DVec QP.ValueVector
   traverseShape (QP.PrimVal (DVec q _) lyt)     =
-      insertProj lyt q Project DVec QP.PrimVal
+      insertProj lyt q VL.Project DVec QP.PrimVal
 
-  traverseLayout :: (QP.TopLayout DVec) -> Graph VL (QP.TopLayout DVec)
+  traverseLayout :: (QP.TopLayout DVec) -> Graph VL.VL (QP.TopLayout DVec)
   traverseLayout (QP.InColumn c) =
       return $ QP.InColumn c
   traverseLayout (QP.Pair lyt1 lyt2) = do
@@ -179,24 +179,24 @@ insertTopProjections g = do
       lyt2' <- traverseLayout lyt2
       return $ QP.Pair lyt1' lyt2'
   traverseLayout (QP.Nest (DVec q _) lyt) =
-    insertProj lyt q Project DVec QP.Nest
+    insertProj lyt q VL.Project DVec QP.Nest
 
   insertProj
     :: QP.TopLayout DVec               -- The node's layout
     -> AlgNode                         -- The top node to consider
-    -> ([Expr1] -> UnOp)               -- Constructor for the projection op
+    -> ([VL.Expr] -> VL.UnOp)               -- Constructor for the projection op
     -> (AlgNode -> [DBCol] -> v)       -- DVecector constructor
     -> (v -> (QP.TopLayout DVec) -> t) -- Layout/Shape constructor
-    -> Graph VL t
+    -> Graph VL.VL t
   insertProj lyt q project vector describe = do
       let width = QP.columnsInLayout lyt
           cols  = [1 .. width]
-      qp   <- insertNode $ Alg.UnOp (project $ map Column1 cols) q
+      qp   <- insertNode $ Alg.UnOp (project $ map VL.Column cols) q
       lyt' <- traverseLayout lyt
       return $ describe (vector qp cols) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QP.QueryPlan VL
+specializeVectorOps :: Expr -> QP.QueryPlan VL.VL
 specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runGraph emptyVL (insertTopProjections $ fkl2VL e)

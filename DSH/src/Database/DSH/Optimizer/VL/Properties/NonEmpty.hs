@@ -40,8 +40,8 @@ inferNonEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right $ VProp False
-    SortSimple _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupSimple _   -> let ue = unp e in liftM2 VPropPair ue ue
+    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -49,7 +49,7 @@ inferNonEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> return $ VPropPair False False
+    SelectPos1 _ _ -> return $ VPropTriple False False False
     SelectPos1S _ _ -> return $ VPropPair False False
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr _ _ -> Right e
@@ -78,7 +78,7 @@ inferNonEmptyBinOp e1 e2 op =
     GroupBy -> do
       ue1 <- unp e1 
       return $ VPropTriple ue1 ue1 ue1
-    Sort -> do
+    SortS -> do
       ue1 <- unp e1
       ue2 <- unp e2
       let e   = ue1 && ue2
@@ -90,13 +90,14 @@ inferNonEmptyBinOp e1 e2 op =
     PropRename      -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     PropFilter      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     PropReorder     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    Unbox           -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
+    AppendS         -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     Restrict        -> return $ VPropPair False False
-    BinExpr _       -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     AggrS _         -> return $ VProp True
     AggrNonEmptyS _ -> return $ VProp True
-    SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
-    SelectPosS _    -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)
+    SelectPosS _    -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     Zip             -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     ZipS            -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     CartProduct     -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))

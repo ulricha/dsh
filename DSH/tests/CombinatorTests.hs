@@ -6,16 +6,16 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module CombinatorTests 
-  ( tests_types
-  , tests_boolean
-  , tests_tuples
-  , tests_numerics
-  , tests_maybe
-  , tests_either
-  , tests_lists
-  , tests_lifted
-  , tests_combinators_hunit
-  ) where
+    ( tests_types
+    , tests_boolean
+    , tests_tuples
+    , tests_numerics
+    , tests_maybe
+    , tests_either
+    , tests_lists
+    , tests_lifted
+    , tests_combinators_hunit
+    ) where
 
 import           Common
 
@@ -133,6 +133,8 @@ tests_tuples :: Test
 tests_tuples = testGroup "Tuples"
   [ testProperty "fst" $ prop_fst
   , testProperty "snd" $ prop_snd
+  , testProperty "fst ([], [])" prop_fst_nested
+  , testProperty "snd ([], [])" prop_snd_nested
   ]
 
 tests_numerics :: Test
@@ -572,7 +574,8 @@ prop_cons :: (Integer, [Integer]) -> Property
 prop_cons = makeProp (uncurryQ (Q.<|)) (uncurry (:))
 
 prop_map_cons :: (Integer, [[Integer]]) -> Property
-prop_map_cons = makeProp (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x) (\(x,xs) -> map (x:) xs)
+prop_map_cons = makeProp (\x -> Q.map ((Q.fst x) Q.<|) $ Q.snd x) 
+                         (\(x,xs) -> map (x:) xs)
 
 prop_snoc :: ([Integer], Integer) -> Property
 prop_snoc = makeProp (uncurryQ (Q.|>)) (\(a,b) -> a ++ [b])
@@ -950,6 +953,9 @@ prop_map_nub = makeProp (Q.map Q.nub) (map nub)
 prop_fst :: (Integer, Integer) -> Property
 prop_fst = makeProp Q.fst fst
 
+prop_fst_nested :: ([Integer], [Integer]) -> Property
+prop_fst_nested = makeProp Q.fst fst
+
 prop_map_fst :: [(Integer, Integer)] -> Property
 prop_map_fst = makeProp (Q.map Q.fst) (map fst)
 
@@ -958,6 +964,9 @@ prop_snd = makeProp Q.snd snd
 
 prop_map_snd :: [(Integer, Integer)] -> Property
 prop_map_snd = makeProp (Q.map Q.snd) (map snd)
+
+prop_snd_nested :: ([Integer], [Integer]) -> Property
+prop_snd_nested = makeProp Q.snd snd
 
 -- * Numerics
 

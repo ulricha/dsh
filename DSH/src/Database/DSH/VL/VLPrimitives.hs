@@ -70,12 +70,12 @@ recordWidth t =
         Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
         Ty.ListT _     -> 0
 
-data ColExpr = Offset Int | Expr Expr1
+data ColExpr = Offset Int | Expr Expr
 
 -- | If the child expressions are tuple operators which only give the
 -- column offset, convert it into a proper expression first.
-offsetExpr :: ColExpr -> Expr1
-offsetExpr (Offset o) = Column1 $ o + 1
+offsetExpr :: ColExpr -> Expr
+offsetExpr (Offset o) = Column $ o + 1
 offsetExpr (Expr e)   = e
 
 addOffset :: Int -> ColExpr -> ColExpr
@@ -90,17 +90,17 @@ toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
 toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
 toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
 
-toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr1
+toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) = 
     L.JoinConjunct (joinExpr e1) o (joinExpr e2)
 
-toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr1
+toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr
 toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
 
 -- Convert join expressions into VL expressions. The main challenge
 -- here is convert sequences of tuple accessors (fst/snd) into VL
 -- column indices.
-joinExpr :: L.JoinExpr -> Expr1
+joinExpr :: L.JoinExpr -> Expr
 joinExpr expr = offsetExpr $ aux expr
   where
     -- Construct expressions in a bottom-up way. For a given join
@@ -109,16 +109,16 @@ joinExpr expr = offsetExpr $ aux expr
     -- scalar operation -> corresponding VL expression
     aux :: L.JoinExpr -> ColExpr
     -- FIXME VL joins should include join expressions!
-    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp1 (toGeneralBinOp op)
-                                                (offsetExpr $ aux e1)
-                                                (offsetExpr $ aux e2)
-    aux (L.JUnOp _ op e)       = Expr $ UnApp1 (toGeneralUnOp op) (offsetExpr $ aux e)
+    aux (L.JBinOp _ op e1 e2)  = Expr $ BinApp (toGeneralBinOp op)
+                                               (offsetExpr $ aux e1)
+                                               (offsetExpr $ aux e2)
+    aux (L.JUnOp _ op e)       = Expr $ UnApp (toGeneralUnOp op) (offsetExpr $ aux e)
     aux (L.JFst _ e)           = aux e
     aux (L.JSnd _ e)           =
         case Ty.typeOf e of
             Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
             _             -> $impossible
-    aux (L.JLit _ v)           = Expr $ Constant1 $ pVal v
+    aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 
 
@@ -144,7 +144,7 @@ vlGroupBy (DVec c1 _) (DVec c2 _) = do
 
 vlSort :: DVec -> DVec -> GraphM r VL (DVec, PVec)
 vlSort (DVec c1 _) (DVec c2 _) = do
-                                  r <- insertNode $ BinOp Sort c1 c2
+                                  r <- insertNode $ BinOp SortS c1 c2
                                   r1 <- dvec $ insertNode $ UnOp R1 r
                                   r2 <- pvec $ insertNode $ UnOp R2 r
                                   return (r1, r2)
@@ -179,9 +179,16 @@ vlAlign (DVec c1 _) (DVec c2 _) = do
                                         r2 <- pvec $ insertNode $ UnOp R2 r
                                         return (r1, r2)
 
--- | pvecRvec uses a propagation vector to rename a vector (no filtering or reordering).
+-- | propRename uses a propagation vector to rename a vector (no filtering or reordering).
 vlPropRename :: RVec -> DVec -> GraphM r VL DVec
 vlPropRename (RVec c1) (DVec c2 _) = dvec $ insertNode $ BinOp PropRename c1 c2
+
+vlUnbox :: RVec -> DVec -> GraphM r VL (DVec, RVec)
+vlUnbox (RVec c1) (DVec c2 _) = do
+    r  <- insertNode $ BinOp Unbox c1 c2
+    r1 <- dvec $ insertNode $ UnOp R1 r
+    r2 <- rvec $ insertNode $ UnOp R2 r
+    return (r1, r2)
 
 -- | pvecFilter uses a pvecagation vector to rvec and filter a vector (no reordering).
 vlPropFilter :: RVec -> DVec -> GraphM r VL (DVec, RVec)
@@ -205,6 +212,14 @@ vlSingletonDescr = dvec $ insertNode $ NullaryOp SingletonDescr
 vlAppend :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
 vlAppend (DVec c1 _) (DVec c2 _) = do
                                 r <- insertNode $ BinOp Append c1 c2
+                                r1 <- dvec $ insertNode $ UnOp R1 r
+                                r2 <- rvec $ insertNode $ UnOp R2 r
+                                r3 <- rvec $ insertNode $ UnOp R3 r
+                                return (r1, r2, r3)
+
+vlAppendS :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlAppendS (DVec c1 _) (DVec c2 _) = do
+                                r <- insertNode $ BinOp AppendS c1 c2
                                 r1 <- dvec $ insertNode $ UnOp R1 r
                                 r2 <- rvec $ insertNode $ UnOp R2 r
                                 r3 <- rvec $ insertNode $ UnOp R3 r
@@ -239,26 +254,29 @@ vlTableRef n tys hs = dvec $ insertNode $ NullaryOp $ TableRef n tys hs
 
 vlUnExpr :: L.ScalarUnOp -> DVec -> GraphM r VL DVec
 vlUnExpr o (DVec c _) =
-    dvec $ insertNode $ UnOp (Project [UnApp1 o (Column1 1)]) c
+    dvec $ insertNode $ UnOp (Project [UnApp o (Column 1)]) c
 
 vlBinExpr :: L.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
-vlBinExpr o (DVec c1 _) (DVec c2 _) = dvec
-                                     $ insertNode
-                                     $ BinOp (BinExpr (BinApp2 o (Column2Left $ L 1) (Column2Right $ R 1))) c1 c2
+vlBinExpr o (DVec c1 _) (DVec c2 _) = do
+    z <- insertNode $ BinOp Zip c1 c2
+    r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
+    return r
 
-vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
+vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = do
                                         r <- insertNode $ BinOp (SelectPos op) c1 c2
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
-                                        return (r1, r2)
+                                        r3 <- rvec $ insertNode $ UnOp R3 r
+                                        return (r1, r2, r3)
 
-vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec)
+vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = do
                                         r <- insertNode $ UnOp (SelectPos1 op posConst) c1
                                         r1 <- dvec $ insertNode $ UnOp R1 r
                                         r2 <- rvec $ insertNode $ UnOp R2 r
-                                        return (r1, r2)
+                                        r3 <- rvec $ insertNode $ UnOp R3 r
+                                        return (r1, r2, r3)
 
 vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
@@ -274,7 +292,7 @@ vlSelectPos1S (DVec c1 _) op posConst = do
                                           r2 <- rvec $ insertNode $ UnOp R2 r
                                           return (r1, r2)
 
-vlProject :: DVec -> [Expr1] -> GraphM r VL DVec
+vlProject :: DVec -> [Expr] -> GraphM r VL DVec
 vlProject (DVec c _) projs = dvec $ insertNode $ UnOp (Project projs) c
 
 vlZip :: DVec -> DVec -> GraphM r VL DVec

@@ -143,7 +143,6 @@ translate (TableE (TableDB tableName hints)) = do
 
     return $ CP.table (translateType ty) tableName cols (compileHints hints)
 
-translate (TableE (TableCSV _)) = $impossible
 translate (AppE f args) = compileApp f args
 
 compileHints :: TableHints -> L.TableHints

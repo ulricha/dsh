@@ -54,7 +54,7 @@ fromGuard (BindQ _ _) = fail "not a guard"
 -- | Check if a comprehension is eligible for unnesting. This is the
 -- case if the outer generator variable 'x' does not occur in the
 -- inner generator and if there is only one inner generator.
-nestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
+nestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
 nestedCompT x = do
     Comp t h qs <- promoteT idR
     (y, ys, qsr) <- case qs of
@@ -70,7 +70,7 @@ nestedCompT x = do
 
 -- | Traverse though an expression and search for a comprehension that
 -- is eligible for unnesting.
-searchNestedCompT :: Ident -> TranslateC CL (PathC, NestedComp)
+searchNestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
 searchNestedCompT x =
     readerT $ \e -> case e of
         ExprCL Comp{} -> nestedCompT x
@@ -82,12 +82,12 @@ searchNestedCompT x =
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
 -- child of the current node.
-relativePathT :: Path a -> TranslateC b (Path a)
+relativePathT :: Path a -> TransformC b (Path a)
 relativePathT p = do
     curPath <- snocPathToPath <$> absPathT
     return $ drop (1 + length curPath) p
 
-constNodeT :: (Injection a CL, Monad m) => a -> Translate c m b CL
+constNodeT :: (Injection a CL, Monad m) => a -> Transform c m b CL
 constNodeT expr = constT $ return $ inject expr
 
 -- | Transform a suitable comprehension that was either nested in a
@@ -98,7 +98,7 @@ constNodeT expr = constT $ return $ inject expr
 unnestWorkerT
   :: NestedComp                   -- ^ The nested comprehension
   -> (Ident, Expr)                -- ^ The outer generator
-  -> TranslateC CL (Expr, Expr, RewriteC CL)
+  -> TransformC CL (Expr, Expr, RewriteC CL)
 unnestWorkerT headComp (x, xs) = do
     let (y, ys) = hGen headComp
 
@@ -146,7 +146,7 @@ unnestWorkerT headComp (x, xs) = do
 
     innerVar <- freshNameT []
 
-    let tuplifyInnerVarR :: Expr -> TranslateC CL Expr
+    let tuplifyInnerVarR :: Expr -> TransformC CL Expr
         tuplifyInnerVarR e =  constNodeT e
                               >>> tuplifyR innerVar (x, xt) (y, yt)
                               >>> projectT
@@ -273,7 +273,7 @@ type GuardM = CompSM (RewriteC CL, Maybe Expr)
 -- and unnest it. Returns the tuplifying rewrite for the outer
 -- generator variable 'x', the new generator with the nesting
 -- operator, and the modified predicate.
-unnestGuardT :: (Ident, Expr) -> Expr -> TranslateC CL (RewriteC CL, Expr, Expr)
+unnestGuardT :: (Ident, Expr) -> Expr -> TransformC CL (RewriteC CL, Expr, Expr)
 unnestGuardT (x, xs) guardExpr = do
     -- search for an unnestable comrehension
     (headCompPath, headComp) <- withLocalPathT 
@@ -322,7 +322,7 @@ unnestQualsR = do
 -- remains. We handle this by including the succesfully unnested and
 -- modified guard in the list of failed guard expressions, even on
 -- success.
-unnestGuardR :: [Expr] -> [Expr] -> TranslateC CL (CL, [Expr], [Expr])
+unnestGuardR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 unnestGuardR candGuards failedGuards = do
     Comp t _ _      <- promoteT idR 
     let unnestR = anytdR (promoteR unnestQualsR) >>> projectT
@@ -388,10 +388,10 @@ isComplexExpr e =
         Var{}                    -> False
         Table{}                  -> False
 
-containsComplexExprT :: TranslateC CL ()
+containsComplexExprT :: TransformC CL ()
 containsComplexExprT = onetdT isComplexExprT
   where
-    isComplexExprT :: TranslateC CL ()
+    isComplexExprT :: TransformC CL ()
     isComplexExprT = do
         e <- promoteT idR
         guardM $ isComplexExpr e

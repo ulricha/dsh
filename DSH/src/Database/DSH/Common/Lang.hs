@@ -106,7 +106,7 @@ data BinBoolOp = Conj
                | Disj
                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
-data BinStringOp = Like -- | StringAppend | Contains
+data BinStringOp = Like 
                    deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
 -- FIXME this would be a good fit for PatternSynonyms

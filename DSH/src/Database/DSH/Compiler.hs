@@ -87,7 +87,7 @@ nkl2VLFileOpt prefix e =
     |> flatten
     |> specializeVectorOps
     |> optimizeVLDefault
-    |> exportVLPlan prefix
+    |> exportVLPlan (prefix ++ "_opt")
 
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
@@ -128,6 +128,7 @@ debugVLOpt prefix c (Q e) = do
 -- | Dump all intermediate algebra representations (VL, TA) to files.
 debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugQ prefix conn q = do
+    debugVL prefix conn q
     debugVLOpt prefix conn q
     debugTAOpt prefix conn q
 

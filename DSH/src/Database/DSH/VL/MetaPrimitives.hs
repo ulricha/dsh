@@ -39,8 +39,8 @@ chainReorder p (Nest q lyt) = do
 chainReorder p (Pair l1 l2) = 
     Pair <$> chainReorder p l1 <*> chainReorder p l2
 
--- | renameOuter renames and filters a vector according to a propagation vector
--- Changes are not propagated to inner vectors.
+-- | renameOuter renames and filters a vector according to a rename
+-- vector. Changes are not propagated to inner vectors.
 renameOuter :: RVec -> Shape -> Graph VL Shape
 renameOuter p (ValueVector q lyt) = flip ValueVector lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
@@ -50,25 +50,44 @@ renameOuter' _ l@(InColumn _) = return l
 renameOuter' r (Nest q lyt)   = flip Nest lyt <$> vlPropRename r q 
 renameOuter' r (Pair l1 l2)   = Pair <$> renameOuter' r l1 <*> renameOuter' r l2
                                 
--- | Append two vectors
-appendR :: Shape -> Shape -> Graph VL Shape
-appendR (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (v, p1, p2) <- vlAppend q1 q2
-    lyt1' <- renameOuter' p1 lyt1
-    lyt2' <- renameOuter' p2 lyt2
-    lyt' <- appendR' lyt1' lyt2'
+-- | Append two inner vectors (segment-wise).
+appendInnerVec :: Shape -> Shape -> Graph VL Shape
+appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+    -- Append the current vectors
+    (v, p1, p2) <- vlAppendS q1 q2
+    -- Propagate position changes to descriptors of any inner vectors
+    lyt1'       <- renameOuter' p1 lyt1
+    lyt2'       <- renameOuter' p2 lyt2
+    -- Append the layouts, i.e. actually append all inner vectors
+    lyt'        <- appendLayout lyt1' lyt2'
     return $ ValueVector v lyt'
-appendR _ _ = error "appendR: Should not be possible"
+appendInnerVec _ _ = $impossible
 
-appendR' :: Layout -> Layout -> Graph VL Layout
-appendR' (InColumn i1) (InColumn i2) 
+-- | Append two (outer) vectors regularly.
+appendVec :: Shape -> Shape -> Graph VL Shape
+appendVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+    -- Append the current vectors
+    (v, p1, p2) <- vlAppend q1 q2
+    -- Propagate position changes to descriptors of any inner vectors
+    lyt1'       <- renameOuter' p1 lyt1
+    lyt2'       <- renameOuter' p2 lyt2
+    -- Append the layouts, i.e. actually append all inner vectors
+    lyt'        <- appendLayout lyt1' lyt2'
+    return $ ValueVector v lyt'
+appendVec _ _ = $impossible
+
+-- | Traverse a layout and append all nested vectors that are
+-- encountered.
+appendLayout :: Layout -> Layout -> Graph VL Layout
+appendLayout (InColumn i1) (InColumn i2) 
     | i1 == i2  = return $ InColumn i1
     | otherwise = error "appendR': Incompatible vectors"
-appendR' (Nest q1 lyt1) (Nest q2 lyt2) = do
-    a <- appendR (ValueVector q1 lyt1) (ValueVector q2 lyt2)
+-- Append two nested vectors
+appendLayout (Nest q1 lyt1) (Nest q2 lyt2) = do
+    a <- appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2)
     case a of
         ValueVector q lyt -> return $ Nest q lyt
         _                 -> $impossible
-appendR' (Pair ll1 lr1) (Pair ll2 lr2) = 
-    Pair <$> appendR' ll1 ll2 <*> appendR' lr1 lr2
-appendR' _ _ = error "appendR': Should not be possible"
+appendLayout (Pair ll1 lr1) (Pair ll2 lr2) = 
+    Pair <$> appendLayout ll1 ll2 <*> appendLayout lr1 lr2
+appendLayout _ _ = $impossible

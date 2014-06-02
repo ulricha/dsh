@@ -60,50 +60,49 @@ Extra-source-files:  examples/Example01.hs
 
 Cabal-version:       >= 1.8
 
-Flag debug
-  Description: Enable debug support
+Flag debugcomp
+  Description: Print debugging information for comprehension rewrites
+  Default:     False
+
+Flag debuggraph
+  Description: Print debugging information for graph rewrites (VL, TA, X100)
   Default:     False
 
 Library
   Extensions:        CPP
   Build-depends:     base               >= 4.5 && < 5,
-                     ghc-prim           >= 0.2.0.0,
                      containers         >= 0.4.0.0,
-                     array              >= 0.4,
-                     syb                >= 0.3,
                      mtl                >= 2.1,
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
                      template-haskell   >= 2.8.0.0,
-                     csv                >= 0.1.2,
-                     parsec,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
                      X100Client         >= 0.0.2,
                      TableAlgebra       >= 2.0.0,
+                     kure               >= 2.16.1,
+                     either             >= 4.0,
                      semigroups,
-                     kure               >= 2.14.0,
                      ansi-wl-pprint,
                      set-monad,
-                     either             >= 4.0,
-                     dlist,
-                     semigroups
+                     dlist
                      
   Hs-source-dirs:    src
 
-  if flag(debug)
-    CPP-Options:     -DDEBUG
+  if flag(debugcomp)
+    CPP-Options:     -DDEBUGCOMP
+  
+  if flag(debuggraph)
+    CPP-Options:     -DDEBUGGRAPH
 
   GHC-Options:       -Wall -auto-all -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
-                     Database.DSH.Interpreter
                      Database.DSH.Compiler
 
   Other-modules:     Database.DSH.Internals
                      Database.DSH.CompileFlattening
-                     Database.DSH.CSV
                      Database.DSH.Schema
                      Database.DSH.Execute.Sql
                      Database.DSH.Externals
@@ -259,19 +258,16 @@ Library
 
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
-    GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
+    GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base >= 4.2 && < 5, 
-                      aeson >= 0.6, 
-                      mtl >= 2.0.1.0, 
-                      containers >= 0.3.0.0, 
-                      parsec,
-                      transformers,
-                      template-haskell >= 2.8.0.0, 
-                      pretty >= 1.0.1.1, 
+    build-depends:    base                >= 4.2 && < 5, 
+                      aeson               >= 0.6, 
+                      mtl                 >= 2.0.1.0, 
+                      containers          >= 0.3.0.0, 
+                      template-haskell    >= 2.8.0.0, 
+                      pretty              >= 1.0.1.1, 
+                      bytestring          >= 0.9,
                       fgl, 
-                      ghc-prim >= 0.2,
-                      bytestring >= 0.9,
                       TableAlgebra,
                       ansi-wl-pprint,
                       semigroups
@@ -281,17 +277,17 @@ Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
     Main-is:       Main.hs
-    Build-depends: base               >= 4.2 && < 5,
-                   QuickCheck         >= 2.4,
-                   DSH                >= 0.7.8.1,
+    Build-depends: base                       >= 4.2 && < 5,
+                   QuickCheck                 >= 2.4,
+                   DSH                        >= 0.7.8.1,
                    containers,
-                   text               >= 0.11,
-                   HDBC-postgresql    >= 2.3,
-                   HDBC               >= 2.3,
-                   derive             >= 2.5,
+                   text                       >= 0.11,
+                   HDBC-postgresql            >= 2.3,
+                   HDBC                       >= 2.3,
+                   derive                     >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework-hunit,
-                   test-framework >= 0.6,
+                   test-framework             >= 0.6,
                    HUnit
     cpp-options: -DisDBPH
     GHC-Options: -Wall -fno-warn-orphans
