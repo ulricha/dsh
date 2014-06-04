@@ -3,7 +3,9 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Database.DSH.VL.PathfinderVectorPrimitives() where
+-- | Implementation of vector primitives in terms of table algebra
+-- operators.
+module Database.DSH.VL.TAVectorPrimitives() where
 
 import           GHC.Exts
 
@@ -20,8 +22,8 @@ import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Pathfinder
 import           Database.Algebra.Pathfinder.Data.Algebra
 
+--------------------------------------------------------------------------------
 -- Some general helpers
-
 
 -- | Results are stored in column:
 pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
@@ -218,7 +220,7 @@ joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
     joinOp L.LtE = LeJ
     joinOp L.NEq = NeJ
 
--- The VectorAlgebra instance for Pathfinder algebra
+-- The VectorAlgebra instance for TA algebra
 
 instance VectorAlgebra PFAlgebra where
 
@@ -243,7 +245,7 @@ instance VectorAlgebra PFAlgebra where
     qr2 <- RVec <$> proj [mP posold pos, mP posnew pos'] q
     return $ (qr1, qr2)
 
-  -- For Pathfinder algebra, the filter and reorder cases are the same, since
+  -- For TA algebra, the filter and reorder cases are the same, since
   -- numbering to generate positions is done with a rownum and involves sorting.
   vecPropReorder (PVec q1) e2 = do
     (p, (RVec r)) <- vecPropFilter (RVec q1) e2
@@ -754,7 +756,7 @@ instance VectorAlgebra PFAlgebra where
     qr <- projAddCols cols [eP nrItem (UnAppE (Cast natT) (ColE pos))] q
     return $ DVec qr (cols ++ [nrIndex])
 
-  -- The Pathfinder implementation of lifted number does not come for
+  -- The TA implementation of lifted number does not come for
   -- free: To generate the absolute numbers for every sublist
   -- (i.e. descriptor partition), we have to use a partitioned
   -- rownumber.

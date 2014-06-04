@@ -21,7 +21,7 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Translate.FKL2VL              ()
 import           Database.DSH.VL.Data.DBVector
 import qualified Database.DSH.VL.Lang                       as V
-import           Database.DSH.VL.PathfinderVectorPrimitives ()
+import           Database.DSH.VL.TAVectorPrimitives ()
 import           Database.DSH.VL.VectorPrimitives
 import           Database.DSH.VL.X100VectorPrimitives       ()
 

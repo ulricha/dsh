@@ -144,7 +144,7 @@ Library
                      Database.DSH.VL.Data.DBVector
                      Database.DSH.VL.Data.GraphVector
                      Database.DSH.VL.MetaPrimitives
-                     Database.DSH.VL.PathfinderVectorPrimitives
+                     Database.DSH.VL.TAVectorPrimitives
                      Database.DSH.VL.VectorOperations
                      Database.DSH.VL.VectorPrimitives
                      Database.DSH.VL.VectorPrimitives
