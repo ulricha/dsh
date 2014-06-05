@@ -219,6 +219,8 @@ tests_lists = testGroup "Lists"
         , testProperty "groupWith length" $ prop_groupWith_length
         , testProperty "groupWithKey length" $ prop_groupWithKey_length
         , testProperty "sortWith" $ prop_sortWith
+        , testProperty "sortWith [(,)]" $ prop_sortWith_pair
+        , testProperty "sortWith [(,[])]" $ prop_sortWith_nest
         , testProperty "and" $ prop_and
         , testProperty "or" $ prop_or
         , testProperty "any_zero" $ prop_any_zero
@@ -278,6 +280,8 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "Lifted groupWith" $ prop_map_groupWith
         , testProperty "Lifted groupWithKey" $ prop_map_groupWithKey
         , testProperty "Lifted sortWith" $ prop_map_sortWith
+        , testProperty "Lifted sortWith [(,)]" $ prop_map_sortWith_pair
+        , testProperty "Lifted sortWith [(,[])]" $ prop_map_sortWith_nest
         , testProperty "Lifted sortWith length" $ prop_map_sortWith_length
         , testProperty "Lifted groupWithKey length" $ prop_map_groupWithKey_length
         , testProperty "Lifted length" $ prop_map_length
@@ -730,8 +734,20 @@ prop_groupWithKey_length = makeProp (Q.groupWithKey Q.length) (groupWithKey (fro
 prop_sortWith  :: [Integer] -> Property
 prop_sortWith = makeProp (Q.sortWith id) (sortWith id)
 
+prop_sortWith_pair :: [(Integer, Integer)] -> Property
+prop_sortWith_pair = makeProp (Q.sortWith Q.fst) (sortWith fst)
+
+prop_sortWith_nest  :: [(Integer, [Integer])] -> Property
+prop_sortWith_nest = makeProp (Q.sortWith Q.fst) (sortWith fst)
+
 prop_map_sortWith :: [[Integer]] -> Property
 prop_map_sortWith = makeProp (Q.map (Q.sortWith id)) (map (sortWith id))
+
+prop_map_sortWith_pair :: [[(Integer, Integer)]] -> Property
+prop_map_sortWith_pair = makeProp (Q.map (Q.sortWith Q.fst)) (map (sortWith fst))
+
+prop_map_sortWith_nest :: [[(Integer, [Integer])]] -> Property
+prop_map_sortWith_nest = makeProp (Q.map (Q.sortWith Q.fst)) (map (sortWith fst))
 
 prop_map_sortWith_length :: [[[Integer]]] -> Property
 prop_map_sortWith_length = makeProp (Q.map (Q.sortWith Q.length)) (map (sortWith length))
