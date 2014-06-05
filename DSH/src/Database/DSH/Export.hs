@@ -7,15 +7,14 @@ module Database.DSH.Export
   ) where
 
 import           Database.Algebra.Dag
-import           Database.DSH.VL.Lang                      hiding (Pair)
+import           Database.Algebra.Table.Lang
+import qualified Database.Algebra.Table.Render.JSON as PFJSON
 import           Database.Algebra.X100.Data
-import           Database.Algebra.Pathfinder.Data.Algebra
+import qualified Database.Algebra.X100.JSON         as X100JSON
 
 import           Database.DSH.Common.QueryPlan
-
-import qualified Database.DSH.VL.Render.JSON               as VLJSON
-import qualified Database.Algebra.X100.JSON                    as X100JSON
-import qualified Database.Algebra.Pathfinder.Render.JSON       as PFJSON
+import           Database.DSH.VL.Lang               hiding (Pair)
+import qualified Database.DSH.VL.Render.JSON        as VLJSON
 
 exportVLPlan :: String -> QueryPlan VL -> IO ()
 exportVLPlan prefix vlPlan = do
@@ -39,7 +38,7 @@ exportX100Plan prefix x100Plan = do
                                )
   writeFile shapePath $ show $ queryShape x100Plan
 
-exportTAPlan :: String -> QueryPlan PFAlgebra -> IO ()
+exportTAPlan :: String -> QueryPlan TableAlgebra -> IO ()
 exportTAPlan prefix pfPlan = do
   let planPath = prefix ++ "_ta.plan"
       shapePath = prefix ++ "_ta.shape"

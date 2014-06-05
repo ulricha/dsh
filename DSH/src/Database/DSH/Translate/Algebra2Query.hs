@@ -1,24 +1,24 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Translate.Algebra2Query 
+module Database.DSH.Translate.Algebra2Query
     ( generateX100Queries
     , generateSqlQueries
     ) where
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
-import Database.Algebra.Dag
-import Database.Algebra.Dag.Common
-import Database.Algebra.X100.Data
-import Database.Algebra.X100.Render
-import Database.Algebra.Pathfinder
-import Database.Algebra.SQL.Util
-import Database.Algebra.SQL.Compatibility
-import Database.Algebra.SQL.Materialization.CTE
+import           Database.Algebra.Dag
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.SQL.Compatibility
+import           Database.Algebra.SQL.Materialization.CTE
+import           Database.Algebra.SQL.Util
+import           Database.Algebra.Table.Lang
+import           Database.Algebra.X100.Data
+import           Database.Algebra.X100.Render
 
-import Database.DSH.Common.QueryPlan
-import Database.DSH.VL.Data.DBVector
-import Database.DSH.Common.DBCode
+import           Database.DSH.Common.DBCode
+import           Database.DSH.Common.QueryPlan
+import           Database.DSH.VL.Data.DBVector
 
 generateX100Queries :: QueryPlan X100Algebra -> TopShape X100Code
 generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
@@ -39,7 +39,7 @@ generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
 -- into a separate SQL query.
 
 -- FIXME use materialization "prelude"
-generateSqlQueries :: QueryPlan PFAlgebra -> TopShape SqlCode
+generateSqlQueries :: QueryPlan TableAlgebra -> TopShape SqlCode
 generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
   where
     roots = rootNodes $ queryDag taPlan

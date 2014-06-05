@@ -1,18 +1,16 @@
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Database.DSH.Optimizer.TA.Properties.Types where
 
-import Database.DSH.Impossible
-
-import qualified Data.Set.Monad as S
-
-import Database.Algebra.Pathfinder.Data.Algebra
+import qualified Data.Set.Monad              as S
+import           Database.Algebra.Table.Lang
+import           Database.DSH.Impossible
 
 ----------------------------------------------------------------------------
 -- Property types
 
-data TopDownProps = TDProps { pICols :: S.Set AttrName 
+data TopDownProps = TDProps { pICols :: S.Set AttrName
                             , pUse   :: S.Set AttrName
                             }
 
@@ -28,7 +26,7 @@ type Empty = Bool
 
 type Orders = [(AttrName, [AttrName])]
 
-data BottomUpProps = BUProps { pCols  :: S.Set TypedAttr 
+data BottomUpProps = BUProps { pCols  :: S.Set TypedAttr
      		     	     , pKeys  :: S.Set PKey
                              , pCard1 :: Card1
                              , pEmpty :: Empty
@@ -36,7 +34,7 @@ data BottomUpProps = BUProps { pCols  :: S.Set TypedAttr
      		     	     } deriving (Show)
 
 data AllProps = AllProps { bu :: BottomUpProps, td :: TopDownProps } deriving (Show)
-     
+
 ----------------------------------------------------------------------------
 -- Utility functions on properties
 

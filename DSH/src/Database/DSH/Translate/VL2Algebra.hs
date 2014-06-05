@@ -1,10 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Translate.VL2Algebra(implementVectorOpsX100, implementVectorOpsPF) where
+module Database.DSH.Translate.VL2Algebra
+    ( implementVectorOpsX100
+    , implementVectorOpsPF
+    ) where
 
-import qualified Data.IntMap                                as IM
+import qualified Data.IntMap                          as IM
 import           Data.List
-import qualified Data.Map                                   as M
+import qualified Data.Map                             as M
 
 import           Control.Applicative
 import           Control.Monad.State
@@ -12,18 +15,18 @@ import           Control.Monad.State
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Pathfinder
-import qualified Database.Algebra.Pathfinder.Data.Algebra   as TA
-import           Database.Algebra.X100.Data                 (X100Algebra)
-import           Database.Algebra.X100.Data.Create          (dummy)
+import qualified Database.Algebra.Table.Lang          as TA
+import           Database.Algebra.X100.Data           (X100Algebra)
+import           Database.Algebra.X100.Data.Create    (dummy)
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.Translate.FKL2VL              ()
+import           Database.DSH.Translate.FKL2VL        ()
 import           Database.DSH.VL.Data.DBVector
-import qualified Database.DSH.VL.Lang                       as V
-import           Database.DSH.VL.TAVectorPrimitives ()
+import qualified Database.DSH.VL.Lang                 as V
+import           Database.DSH.VL.TAVectorPrimitives   ()
 import           Database.DSH.VL.VectorPrimitives
-import           Database.DSH.VL.X100VectorPrimitives       ()
+import           Database.DSH.VL.X100VectorPrimitives ()
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
@@ -314,15 +317,15 @@ translateNullary V.SingletonDescr      = fromDVec <$> singletonDescr
 translateNullary (V.Lit _ tys vals)    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 
--- | Insert SerializeRel operators in TableAlgebra plans to define
+-- | Insert SerializeRel operators in TA.TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.
 -- FIXME: once we are a bit more flexible wrt surrogates, determine the
 -- surrogate (i.e. descr) columns from information in DVec.
-insertSerialize :: G PFAlgebra (TopShape DVec) -> G PFAlgebra (TopShape DVec)
+insertSerialize :: G TA.TableAlgebra (TopShape DVec) -> G TA.TableAlgebra (TopShape DVec)
 insertSerialize g = g >>= traverseShape
 
   where
-    traverseShape :: TopShape DVec -> G PFAlgebra (TopShape DVec)
+    traverseShape :: TopShape DVec -> G TA.TableAlgebra (TopShape DVec)
     traverseShape (ValueVector dvec lyt) = do
         mLyt' <- traverseLayout lyt
         case mLyt' of
@@ -343,7 +346,7 @@ insertSerialize g = g >>= traverseShape
                 dvec' <- insertOp dvec noDescr noPos
                 return $ PrimVal dvec' lyt
 
-    traverseLayout :: (TopLayout DVec) -> G PFAlgebra (Maybe (TopLayout DVec))
+    traverseLayout :: (TopLayout DVec) -> G TA.TableAlgebra (Maybe (TopLayout DVec))
     traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
         mLyt1' <- traverseLayout lyt1
@@ -365,7 +368,7 @@ insertSerialize g = g >>= traverseShape
 
 
     -- | Insert a Serialize node for the given vector
-    insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G PFAlgebra DVec
+    insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G TA.TableAlgebra DVec
     insertOp (DVec q cols) descr pos = do
         let cs = map (TA.PayloadCol . ("item" ++) . show) cols
             op = TA.Serialize (descr, pos, cs)
@@ -386,9 +389,9 @@ implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
     x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
     (opMap, shape, tagMap) = runG dummy x100Plan
 
-implementVectorOpsPF :: QueryPlan V.VL -> QueryPlan PFAlgebra
+implementVectorOpsPF :: QueryPlan V.VL -> QueryPlan TA.TableAlgebra
 implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
   where
     taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
     serializedPlan         = insertSerialize taPlan
-    (opMap, shape, tagMap) = runG initLoop serializedPlan
+    (opMap, shape, tagMap) = runG $unimplemented serializedPlan

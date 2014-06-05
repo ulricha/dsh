@@ -2,26 +2,26 @@
 
 module Database.DSH.Optimizer.TA.Properties.BottomUp where
 
-import qualified Data.Set.Monad as S
+import qualified Data.Set.Monad                             as S
 
-import Database.Algebra.Dag
-import Database.Algebra.Dag.Common
-import Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Dag
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.Table.Lang
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
-import Database.DSH.Optimizer.Common.Aux
-import Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.Common.Aux
+import           Database.DSH.Optimizer.Common.Rewrite
 
-import Database.DSH.Optimizer.TA.Properties.Types
-import Database.DSH.Optimizer.TA.Properties.Cols
-import Database.DSH.Optimizer.TA.Properties.Keys
-import Database.DSH.Optimizer.TA.Properties.Card1
-import Database.DSH.Optimizer.TA.Properties.Empty
-import Database.DSH.Optimizer.TA.Properties.Order
+import           Database.DSH.Optimizer.TA.Properties.Card1
+import           Database.DSH.Optimizer.TA.Properties.Cols
+import           Database.DSH.Optimizer.TA.Properties.Empty
+import           Database.DSH.Optimizer.TA.Properties.Keys
+import           Database.DSH.Optimizer.TA.Properties.Order
+import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: PFAlgebra -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker :: TableAlgebra -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker op n pm =
     let res =
            case op of
@@ -47,7 +47,7 @@ inferNullOp op = do
       -- We only care for rownum-generated columns. Therefore, For
       -- unary operators order is empty.
       opOrder = []
-  return $ BUProps { pCols = opCols 
+  return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
@@ -61,7 +61,7 @@ inferUnOp op cProps = do
       opEmpty = inferEmptyUnOp (pEmpty cProps) op
       opCard1 = inferCard1UnOp (pCard1 cProps) (pEmpty cProps) op
       opOrder = inferOrderUnOp (pOrder cProps) op
-  return $ BUProps { pCols = opCols 
+  return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
@@ -75,12 +75,12 @@ inferBinOp op c1Props c2Props = do
       opEmpty = inferEmptyBinOp (pEmpty c1Props) (pEmpty c2Props) op
       opCard1 = inferCard1BinOp (pCard1 c1Props) (pCard1 c2Props) op
       opOrder = inferOrderBinOp (pOrder c1Props) (pOrder c2Props) op
-  return $ BUProps { pCols = opCols 
+  return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
                    , pOrder = opOrder
                    }
 
-inferBottomUpProperties :: AlgebraDag PFAlgebra -> NodeMap BottomUpProps
+inferBottomUpProperties :: AlgebraDag TableAlgebra -> NodeMap BottomUpProps
 inferBottomUpProperties dag = inferBottomUpGeneral inferWorker dag

@@ -4,7 +4,7 @@ import qualified Data.IntMap as M
 
 import qualified Database.Algebra.Dag                                             as Dag
 
-import           Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Data.DBVector
@@ -29,20 +29,20 @@ remove rownums if concrete values not required: use prop, key prop, ?
 
 -}
 
-type RewriteClass = Rewrite PFAlgebra (TopShape DVec) Bool
+type RewriteClass = Rewrite TableAlgebra (TopShape DVec) Bool
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = [cleanup]
 
-runPipeline :: Dag.AlgebraDag PFAlgebra 
+runPipeline :: Dag.AlgebraDag TableAlgebra 
             -> (TopShape DVec)
             -> [RewriteClass] 
             -> Bool 
-            -> (Dag.AlgebraDag PFAlgebra, Log, TopShape DVec)
+            -> (Dag.AlgebraDag TableAlgebra, Log, TopShape DVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
-optimizeTA :: QueryPlan PFAlgebra -> QueryPlan PFAlgebra
+optimizeTA :: QueryPlan TableAlgebra -> QueryPlan TableAlgebra
 optimizeTA plan =
 #ifdef DEBUGGRAPH
   let (d, _rewriteLog, shape) = runPipeline (queryDag plan) (queryShape plan) defaultPipeline True

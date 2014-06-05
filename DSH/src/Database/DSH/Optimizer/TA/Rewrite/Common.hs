@@ -1,6 +1,6 @@
 module Database.DSH.Optimizer.TA.Rewrite.Common where
 
-import qualified Data.IntMap                                              as M
+import qualified Data.IntMap                                   as M
 
 import           Database.Algebra.Dag.Common
 
@@ -8,7 +8,7 @@ import           Database.DSH.Common.QueryPlan
 
 import           Database.DSH.Optimizer.Common.Rewrite
 
-import           Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Table.Lang
 
 import           Database.DSH.VL.Data.DBVector
 
@@ -17,10 +17,10 @@ import           Database.DSH.Optimizer.TA.Properties.TopDown
 import           Database.DSH.Optimizer.TA.Properties.Types
 
   -- Type abbreviations for convenience
-type TARewrite p = Rewrite PFAlgebra (TopShape DVec) p
-type TARule p = Rule PFAlgebra p (TopShape DVec)
-type TARuleSet p = RuleSet PFAlgebra  p (TopShape DVec)
-type TAMatch p = Match PFAlgebra p (TopShape DVec)
+type TARewrite p = Rewrite TableAlgebra (TopShape DVec) p
+type TARule p = Rule TableAlgebra p (TopShape DVec)
+type TARuleSet p = RuleSet TableAlgebra  p (TopShape DVec)
+type TAMatch p = Match TableAlgebra p (TopShape DVec)
 
 inferBottomUp :: TARewrite (NodeMap BottomUpProps)
 inferBottomUp = do

@@ -8,7 +8,7 @@ module Database.DSH.Optimizer.TA.Properties.Keys where
 import           Data.List
 import qualified Data.Set.Monad as S
 
-import           Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.TA.Properties.Aux

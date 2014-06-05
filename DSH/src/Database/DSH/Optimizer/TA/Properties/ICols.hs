@@ -1,14 +1,14 @@
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Infer the input columns required in TableAlgebra plans.
 module Database.DSH.Optimizer.TA.Properties.ICols where
 
-import qualified Data.Set.Monad as S
+import qualified Data.Set.Monad                           as S
 
-import           Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Table.Lang
 
-import Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Aux
 
 inferIColsBinOp :: S.Set AttrName  -- ^ columns that are required from us
                 -> S.Set AttrName  -- ^ Columns required from the left child
@@ -17,18 +17,18 @@ inferIColsBinOp :: S.Set AttrName  -- ^ columns that are required from us
                 -> S.Set AttrName  -- ^ Output of the left child
                 -> BinOp           -- ^ The operator
                 -> (S.Set AttrName, S.Set AttrName)
-inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op = 
+inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
     case op of
          -- Require columns from the originating side.
          Cross _ -> ( leftICols ∪ (ownICols ∩ leftCols)
                     , rightICols ∪ (ownICols ∩ rightCols) )
-    
+
          -- Require columns from the originating side, in addition to the join
          -- columns.
-         EqJoin (leftJoinCol, rightJoinCol) -> 
+         EqJoin (leftJoinCol, rightJoinCol) ->
              ( leftICols ∪ (ownICols ∩ leftCols) ∪ (S.singleton leftJoinCol)
              , rightICols ∪ (ownICols ∩rightCols) ∪ (S.singleton rightJoinCol) )
-         ThetaJoin cs -> 
+         ThetaJoin cs ->
              let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
                  rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
@@ -38,14 +38,14 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
 
          -- From the left, we require all columns required by us, in addition to
          -- the left join columns.
-         SemiJoin cs -> 
+         SemiJoin cs ->
              let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
                  rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
                  leftICols' = leftICols ∪ ownICols ∪ leftExprCols
                  rightICols' = rightExprCols
              in (leftICols', rightICols')
-         AntiJoin cs -> 
+         AntiJoin cs ->
              let leftExprCols = S.unions $ map (\(l, _, _) -> exprCols l) cs
                  rightExprCols = S.unions $ map (\(_, r, _) -> exprCols r) cs
 
@@ -55,22 +55,22 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
 
          DisjUnion _  -> (leftICols ∪ ownICols, rightICols ∪ ownICols)
          Difference _ -> (leftICols ∪ leftCols, rightICols ∪ leftCols)
-                
+
 inferIColsUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
-inferIColsUnOp ownICols childICols op = 
+inferIColsUnOp ownICols childICols op =
     case op of
         -- Require the sorting columns, if the rownum output is required.
-        RowNum (resCol, sortInf, groupCol) -> 
+        RowNum (resCol, sortInf, groupCol) ->
             (S.delete resCol ownICols)
-            ∪ (S.fromList $ map fst sortInf) 
+            ∪ (S.fromList $ map fst sortInf)
             ∪ maybe S.empty S.singleton groupCol
             ∪ childICols
-    
+
         RowRank (resCol, sortInf)   ->
             (S.delete resCol ownICols)
             ∪ (S.fromList $ map fst sortInf)
             ∪ childICols
-        Rank (resCol, sortInf)      -> 
+        Rank (resCol, sortInf)      ->
             (S.delete resCol ownICols)
             ∪ (S.fromList $ map fst sortInf)
             ∪ childICols

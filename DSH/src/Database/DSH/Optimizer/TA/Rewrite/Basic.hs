@@ -2,27 +2,27 @@
 {-# LANGUAGE TupleSections   #-}
 
 module Database.DSH.Optimizer.TA.Rewrite.Basic where
-       
-import Debug.Trace
-import Text.Printf
-       
-import Control.Applicative
-import Control.Monad
-import Data.Maybe
-import Data.Either.Combinators
-import qualified Data.Set.Monad as S
 
-import Database.Algebra.Dag.Common
-import Database.Algebra.Pathfinder.Data.Algebra
+import           Debug.Trace
+import           Text.Printf
 
-import Database.DSH.Impossible
-import Database.DSH.Optimizer.Common.Rewrite
-import Database.DSH.Optimizer.TA.Rewrite.Common
-import Database.DSH.Optimizer.TA.Properties.Types
+import           Control.Applicative
+import           Control.Monad
+import           Data.Either.Combinators
+import           Data.Maybe
+import qualified Data.Set.Monad                             as S
+
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.Table.Lang
+
+import           Database.DSH.Impossible
+import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Rewrite.Common
 
 cleanup :: TARewrite Bool
-cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules 
-                                         , applyToAll inferAll cleanupRulesTopDown 
+cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules
+                                         , applyToAll inferAll cleanupRulesTopDown
                                          ]
 
 cleanupRules :: TARuleSet ()
@@ -32,7 +32,7 @@ cleanupRules = [ stackedProject
                ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
-cleanupRulesTopDown = [ unreferencedRownum 
+cleanupRulesTopDown = [ unreferencedRownum
                       , unreferencedRank
                       , unreferencedProjectCols
                       , unreferencedAggrCols
@@ -67,7 +67,7 @@ stackedProject q =
            let ps = mergeProjections $(v "ps1") $(v "ps2")
            logRewrite "Basic.Project.Merge" q
            void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
-           
+
 
 -- | Eliminate rownums which re-generate positions based on one
 -- sorting column. These rownums typically occur after filtering
@@ -94,39 +94,39 @@ postFilterRownum q =
         predicate $ (S.singleton sortCol) `S.member` keys
 
         -- If we reuse a sorting column, it's type should be int.
-        predicate $ AInt == typeOf sortCol cols 
+        predicate $ AInt == typeOf sortCol cols
 
         return $ do
           logRewrite "Basic.Rownum.Unused" q
           let projs = (res, ColE sortCol) : map (\c -> (c, ColE c)) (map fst $ S.toList cols)
           void $ replaceWithNew q $ UnOp (Project projs) $(v "q1") |])
-       
+
 
 ---------------------------------------------------------------------------
--- ICols rewrites 
+-- ICols rewrites
 
 -- | Prune a rownumber operator if its output is not required
 unreferencedRownum :: TARule AllProps
-unreferencedRownum q = 
+unreferencedRownum q =
   $(pattern 'q "RowNum args (q1)"
     [| do
          (res, _, _) <- return $(v "args")
          neededCols  <- pICols <$> td <$> properties q
          predicate $ not (res `S.member` neededCols)
-         
+
          return $ do
            logRewrite "Basic.ICols.Rownum" q
            replace q $(v "q1") |])
 
 -- | Prune a rownumber operator if its output is not required
 unreferencedRank :: TARule AllProps
-unreferencedRank q = 
+unreferencedRank q =
   $(pattern 'q "[Rank | RowRank] args (q1)"
     [| do
          (res, _) <- return $(v "args")
          neededCols  <- pICols <$> td <$> properties q
          predicate $ not (res `S.member` neededCols)
-         
+
          return $ do
            logRewrite "Basic.ICols.Rank" q
            replace q $(v "q1") |])
@@ -150,7 +150,7 @@ unreferencedProjectCols q =
 -- | Remove aggregate functions whose output is not referenced.
 unreferencedAggrCols :: TARule AllProps
 unreferencedAggrCols q =
-  $(pattern 'q "Aggr args (q1)"                     
+  $(pattern 'q "Aggr args (q1)"
     [| do
         neededCols <- pICols <$> td <$> properties q
         (aggrs, partCols) <- return $(v "args")
@@ -168,7 +168,7 @@ unreferencedAggrCols q =
                   logRewrite "Basic.ICols.Aggr.Prune" q
                   projectNode <- insert $ UnOp (Project partCols) $(v "q1")
                   void $ replaceWithNew q $ UnOp (Distinct ()) projectNode
-          
+
               -- Otherwise, we just prune the unreferenced aggregate functions
               _ : _ -> do
                   logRewrite "Basic.ICols.Aggr.Narrow" q
@@ -198,7 +198,7 @@ inlineSortCols q =
         -- For each sorting column, try to find the original
         -- order-defining sorting columns.
         mSortCols <- mapM (flip lookupSortCol orders) sortCols
-  
+
         -- The rewrite should only fire if something actually changes
         predicate $ any isRight mSortCols
 
@@ -207,7 +207,7 @@ inlineSortCols q =
         return $ do
           logRewrite "Basic.Rownum.Inline" q
           void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', Nothing)) $(v "q1") |])
-        
+
 
 
 ----------------------------------------------------------------------------------
@@ -255,12 +255,12 @@ serializeRowNum q =
       [| do
           -- Absolute positions must not be required
           (d, RelPos [c], reqCols) <- return $(v "scols")
-    
+
           -- The rownum must sort based on only one column which
           -- defines the order.
           (r, sortCols, Nothing) <- return $(v "args")
           predicate $ all ((== Asc) . snd) sortCols
-    
+
           -- The rownum should actually generate the positions
           predicate $ c == r
 
@@ -269,4 +269,4 @@ serializeRowNum q =
           return $ do
               logRewrite "Basic.Serialize.Rownum" q
               void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCols', reqCols)) $(v "q1") |])
-           
+

@@ -1,17 +1,17 @@
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Infer the output schema of TableAlgebra operators.
 module Database.DSH.Optimizer.TA.Properties.Cols where
 
-import qualified Data.Set.Monad as S
+import qualified Data.Set.Monad                             as S
+
+
+import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
-
-import           Database.Algebra.Pathfinder.Data.Algebra
-
-import Database.DSH.Optimizer.TA.Properties.Aux
-import Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Types
 
 ----------------------------------------------------------------------------
 -- Type inference for tablealgebra expressions
@@ -68,7 +68,7 @@ valType (VDec _)    = ADec
 valType (VNat _)    = ANat
 
 exprTy :: S.Set TypedAttr -> Expr -> ATy
-exprTy childCols expr = 
+exprTy childCols expr =
     case expr of
         ColE c          -> typeOf c childCols
         ConstE v        -> valType v
@@ -101,7 +101,7 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
 -- Schema inference for tablealgebra operators
 
 inferColsNullOp :: NullOp -> S.Set TypedAttr
-inferColsNullOp op = 
+inferColsNullOp op =
     case op of
         LitTable _ schema      -> S.fromList schema
         TableRef (_, attrs, _) -> S.fromList attrs
@@ -115,10 +115,10 @@ inferColsUnOp childCols op =
         Project projs         -> S.fromList $ map (\(c, e) -> (c, exprTy childCols e)) projs
         Select _              -> childCols
         Distinct _            -> childCols
-        Aggr (afuns, pexprs)  -> (S.fromList $ map (aggrTy childCols) afuns) 
+        Aggr (afuns, pexprs)  -> (S.fromList $ map (aggrTy childCols) afuns)
                                  ∪
                                  [ (c, exprTy childCols e) | (c, e) <- S.fromList pexprs ]
-        Serialize (md, mp, cs) -> 
+        Serialize (md, mp, cs) ->
             let cols = (S.fromList $ map (\(PayloadCol c) -> c) cs)
                        ∪ (maybe S.empty (\(DescrCol c) -> S.singleton c) md)
                        ∪ posCol mp
@@ -134,6 +134,6 @@ inferColsBinOp leftCols rightCols op =
         AntiJoin _   -> S.union leftCols rightCols
         DisjUnion _  -> leftCols
         Difference _ -> leftCols
-        
-        
-        
+
+
+

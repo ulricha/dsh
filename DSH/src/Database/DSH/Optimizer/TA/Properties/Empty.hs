@@ -2,7 +2,7 @@
 
 module Database.DSH.Optimizer.TA.Properties.Empty where
 
-import           Database.Algebra.Pathfinder.Data.Algebra
+import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Optimizer.TA.Properties.Types
 
