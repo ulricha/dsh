@@ -5,11 +5,11 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE ViewPatterns          #-}
 
-module Database.DSH.Externals where
+module Database.DSH.Frontend.Externals where
        
-import Database.DSH.Internals
+import Database.DSH.Frontend.Internals
+import Database.DSH.Frontend.TH
 import Database.DSH.Impossible
-import Database.DSH.TH
 
 import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)
                , Bool(..), Char, Integer, Double, Maybe(..), Either(..)

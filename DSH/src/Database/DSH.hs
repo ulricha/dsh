@@ -14,9 +14,9 @@
 -- by Database.DSH.
 
 module Database.DSH
-  ( module Database.DSH.Externals
+  ( module Database.DSH.Frontend.Externals
   , Q, QA, TA, Elim, elim, View, view, Key(..), TableHints(..), Emptiness(..)
-  , module Database.DSH.TH
+  , module Database.DSH.Frontend.TH
   , module Data.String
   , module Data.Text
   , module Database.HDBC
@@ -24,9 +24,9 @@ module Database.DSH
   )
   where
 
-import Database.DSH.Externals
-import Database.DSH.Internals (Q,QA,TA,Elim,elim,View,view,Key(..),TableHints(..), Emptiness(..))
-import Database.DSH.TH
+import Database.DSH.Frontend.Externals
+import Database.DSH.Frontend.Internals (Q,QA,TA,Elim,elim,View,view,Key(..),TableHints(..), Emptiness(..))
+import Database.DSH.Frontend.TH
 
 import Data.String (IsString,fromString)
 import Data.Text (Text)

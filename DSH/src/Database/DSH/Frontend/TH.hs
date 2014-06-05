@@ -1,26 +1,29 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.TH ( deriveDSH
-                       , deriveQA
-                       , deriveTupleRangeQA
-                       , deriveTA
-                       , deriveTupleRangeTA
-                       , deriveView
-                       , deriveTupleRangeView
-                       , deriveElim
-                       , deriveSmartConstructors
-                       , deriveTupleRangeSmartConstructors
-                       , generateTableSelectors
-                       ) where
+module Database.DSH.Frontend.TH 
+    ( deriveDSH
+    , deriveQA
+    , deriveTupleRangeQA
+    , deriveTA
+    , deriveTupleRangeTA
+    , deriveView
+    , deriveTupleRangeView
+    , deriveElim
+    , deriveSmartConstructors
+    , deriveTupleRangeSmartConstructors
+    , generateTableSelectors
+    ) where
 
-import qualified Database.DSH.Internals  as DSH
-import qualified Database.DSH.Impossible as DSH
+import           Control.Monad
+import           Control.Applicative
+import           Data.Char
 
-import Control.Monad
-import Control.Applicative
-import Data.Char
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Syntax
+
+import qualified Database.DSH.Frontend.Internals  as DSH
+import           Database.DSH.Impossible
+
 
 -----------------------------------------
 -- Deriving all DSH-relevant instances --
@@ -129,7 +132,7 @@ deriveToExpMainExp names  = foldr1 (AppE . AppE (ConE 'DSH.PairE))
 deriveFrExp :: [Con] -> Q Dec
 deriveFrExp cons = do
   clauses <- sequence (zipWith3 deriveFrExpClause (repeat (length cons)) [0 .. ] cons)
-  imp <- DSH.impossible
+  imp <- impossible
   let lastClause = Clause [WildP] (NormalB imp) []
   return (FunD 'DSH.frExp (clauses ++ [lastClause]))
 

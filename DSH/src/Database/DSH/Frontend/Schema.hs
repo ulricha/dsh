@@ -2,7 +2,7 @@
 
 -- | This module contains functionality to retrieve information about
 -- the schema of actual database tables.
-module Database.DSH.Schema
+module Database.DSH.Frontend.Schema
     ( getTableInfo
     , getX100TableInfo
     ) where

@@ -10,7 +10,7 @@ module Database.DSH.Execute.Sql
 import           Text.Printf
 
 import           Database.DSH.Impossible
-import           Database.DSH.Internals
+import           Database.DSH.Frontend.Internals
 
 import           Database.HDBC
 

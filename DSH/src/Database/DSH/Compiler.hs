@@ -25,7 +25,7 @@ import qualified Database.HDBC                            as H
 
 import           Database.X100Client                      hiding (X100, tableName)
 
-import           Database.DSH.CompileFlattening
+import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Execute.Sql
 import           Database.DSH.Execute.X100
 
@@ -34,11 +34,11 @@ import           Database.DSH.CL.Opt
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
-import           Database.DSH.Internals
+import           Database.DSH.Frontend.Internals
 import           Database.DSH.Optimizer.TA.OptimizeTA
 import           Database.DSH.Optimizer.VL.OptimizeVL
 import           Database.DSH.Optimizer.X100.OptimizeX100
-import           Database.DSH.Schema
+import           Database.DSH.Frontend.Schema
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL

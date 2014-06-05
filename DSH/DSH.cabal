@@ -102,12 +102,13 @@ Library
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
 
-  Other-modules:     Database.DSH.Internals
-                     Database.DSH.CompileFlattening
-                     Database.DSH.Schema
+  Other-modules:     Database.DSH.Frontend.Internals
+                     Database.DSH.Frontend.Schema
+                     Database.DSH.Frontend.Externals
+                     Database.DSH.Frontend.TH
+                     Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.Sql
                      Database.DSH.Execute.X100
-                     Database.DSH.Externals
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
                      Database.DSH.Common.Lang
@@ -151,7 +152,6 @@ Library
                      Database.DSH.VL.VLPrimitives
                      Database.DSH.VL.X100VectorPrimitives
                      Database.DSH.Impossible
-                     Database.DSH.TH
 
                      Database.DSH.Optimizer.Common.Aux
                      Database.DSH.Optimizer.Common.Rewrite

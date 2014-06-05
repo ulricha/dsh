@@ -3,7 +3,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 
-module Database.DSH.CompileFlattening (toComprehensions) where
+-- | Translate DSH frontend expressions (implicitly typed through
+-- GADT) into explicitly typed DSH backend expressions.
+module Database.DSH.Translate.Frontend2CL (toComprehensions) where
        
 import           Database.DSH.Impossible
 
@@ -14,7 +16,7 @@ import qualified Database.DSH.CL.Primitives as CP
 import qualified Database.DSH.Common.Type as T
 import qualified Database.DSH.Common.Lang as L
 
-import           Database.DSH.Internals
+import           Database.DSH.Frontend.Internals
 import           Data.Text (unpack)
 
 import qualified Data.Map as M
@@ -82,7 +84,7 @@ toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
 toComprehensions queryTableInfo e = fmap resugar (runCompile queryTableInfo $ translate e)
 
 -- | Execute the transformation computation. During compilation table
--- information can be retrieved from the database, therefor the result
+-- information can be retrieved from the database, therefore the result
 -- is wrapped in the IO Monad.
 runCompile :: QueryTableInfo -> Compile a -> IO a
 runCompile f = liftM fst . flip runStateT (1, M.empty, f)
@@ -234,7 +236,7 @@ compileApp f args =
        Transpose       -> compileApp1 CP.transpose args
        Reshape n       -> compileApp1 (CP.reshape n) args
 
--- Restore the original comprehension form from the desugared concatMap form.
+-- | Restore the original comprehension form from the desugared concatMap form.
 resugar :: CL.Expr -> CL.Expr
 resugar expr = 
   case expr of 

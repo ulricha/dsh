@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Database.DSH.Internals where
+module Database.DSH.Frontend.Internals where
 
 import Data.Text (Text)
 import Text.Printf
