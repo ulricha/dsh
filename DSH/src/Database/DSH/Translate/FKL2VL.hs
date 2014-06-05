@@ -184,7 +184,7 @@ insertTopProjections g = do
   insertProj
     :: QP.TopLayout DVec               -- The node's layout
     -> AlgNode                         -- The top node to consider
-    -> ([VL.Expr] -> VL.UnOp)               -- Constructor for the projection op
+    -> ([VL.Expr] -> VL.UnOp)          -- Constructor for the projection op
     -> (AlgNode -> [DBCol] -> v)       -- DVecector constructor
     -> (v -> (QP.TopLayout DVec) -> t) -- Layout/Shape constructor
     -> Graph VL.VL t
@@ -199,4 +199,4 @@ insertTopProjections g = do
 specializeVectorOps :: Expr -> QP.QueryPlan VL.VL
 specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
   where
-    (opMap, shape, tagMap) = runGraph emptyVL (insertTopProjections $ fkl2VL e)
+    (opMap, shape, tagMap) = runGraph (insertTopProjections $ fkl2VL e)

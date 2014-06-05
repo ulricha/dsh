@@ -17,9 +17,7 @@ import           Database.Algebra.Dag.Builder
 import           Database.Algebra.Dag.Common
 import qualified Database.Algebra.Table.Lang          as TA
 import           Database.Algebra.X100.Data           (X100Algebra)
-import           Database.Algebra.X100.Data.Create    (dummy)
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Translate.FKL2VL        ()
 import           Database.DSH.VL.Data.DBVector
@@ -30,8 +28,8 @@ import           Database.DSH.VL.X100VectorPrimitives ()
 
 type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
 
-runG :: VectorAlgebra a => a -> G a r -> AlgPlan a r
-runG i c = runGraph i $ fst <$> runStateT c M.empty
+runG :: VectorAlgebra a => G a r -> AlgPlan a r
+runG c = runGraph $ fst <$> runStateT c M.empty
 
 data Res = Prop    AlgNode
          | Rename  AlgNode
@@ -387,11 +385,11 @@ implementVectorOpsX100 :: QueryPlan V.VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
   where
     x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    (opMap, shape, tagMap) = runG dummy x100Plan
+    (opMap, shape, tagMap) = runG x100Plan
 
 implementVectorOpsPF :: QueryPlan V.VL -> QueryPlan TA.TableAlgebra
 implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
   where
     taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
     serializedPlan         = insertSerialize taPlan
-    (opMap, shape, tagMap) = runG $unimplemented serializedPlan
+    (opMap, shape, tagMap) = runG serializedPlan

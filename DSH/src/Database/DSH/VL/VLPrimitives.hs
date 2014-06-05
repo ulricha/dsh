@@ -56,9 +56,6 @@ tripleVec op mkVec1 mkVec2 mkVec3 = do
 
 --------------------------------------------------------------------------------
 
-emptyVL :: VL
-emptyVL = NullaryOp $ TableRef "Null" [] (L.TableHints [] L.PossiblyEmpty)
-
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
