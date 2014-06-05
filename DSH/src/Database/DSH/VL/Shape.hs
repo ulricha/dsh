@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Database.DSH.VL.Data.GraphVector where
 
-import Database.DSH.VL.Data.DBVector
+module Database.DSH.VL.Shape where
 
-import Database.DSH.FKL.Render.Render()
-import Database.DSH.FKL.Data.FKL
+import           Database.Algebra.Dag.Common
 
-import GHC.Generics (Generic)
+import           Database.DSH.FKL.Data.FKL
+import           Database.DSH.FKL.Render.Render ()
+import           Database.DSH.VL.Vector
 
-type Graph a = GraphM Shape a
+import           GHC.Generics                   (Generic)
 
 data Layout = InColumn Int
             | Nest DVec Layout

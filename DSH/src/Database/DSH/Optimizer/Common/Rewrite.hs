@@ -39,7 +39,7 @@ import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal
 
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 
 --------------------------------------------------------------
 -- Versions of rewrite combinators that maintain the TopShape

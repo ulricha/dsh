@@ -13,23 +13,25 @@ import           Control.Applicative
 import           Control.Monad.State
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Builder
+import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 import qualified Database.Algebra.Table.Lang          as TA
 import           Database.Algebra.X100.Data           (X100Algebra)
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Translate.FKL2VL        ()
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.TAVectorPrimitives   ()
 import           Database.DSH.VL.VectorPrimitives
 import           Database.DSH.VL.X100VectorPrimitives ()
 
-type G alg = StateT (M.Map AlgNode Res) (GraphM () alg)
+-- | A layer on top of the DAG builder monad that caches the
+-- translation result of VL nodes.
+type VecBuild alg = StateT (M.Map AlgNode Res) (Build alg)
 
-runG :: VectorAlgebra a => G a r -> AlgPlan a r
-runG c = runGraph $ fst <$> runStateT c M.empty
+runVecBuild :: VectorAlgebra a => VecBuild a r -> AlgPlan a r
+runVecBuild c = runBuild $ fst <$> runStateT c M.empty
 
 data Res = Prop    AlgNode
          | Rename  AlgNode
@@ -38,12 +40,12 @@ data Res = Prop    AlgNode
          | RTriple Res Res Res
          deriving Show
 
-fromDict :: VectorAlgebra a => AlgNode -> G a (Maybe Res)
+fromDict :: VectorAlgebra a => AlgNode -> VecBuild a (Maybe Res)
 fromDict n = do
     dict <- get
     return $ M.lookup n dict
 
-insertTranslation :: VectorAlgebra a => AlgNode -> Res -> G a ()
+insertTranslation :: VectorAlgebra a => AlgNode -> Res -> VecBuild a ()
 insertTranslation n res = modify (M.insert n res)
 
 fromPVec :: PVec -> Res
@@ -67,7 +69,7 @@ toDVec :: Res -> DVec
 toDVec (RDVec n cs) = DVec n cs
 toDVec _            = error "toDVec: Not a DVec"
 
-refreshLyt :: VectorAlgebra a => (TopLayout DVec) -> G a (TopLayout DVec)
+refreshLyt :: VectorAlgebra a => (TopLayout DVec) -> VecBuild a (TopLayout DVec)
 refreshLyt l@(InColumn _) = return l
 refreshLyt (Nest (DVec n _) lyt) = do
     Just n' <- fromDict n
@@ -78,7 +80,7 @@ refreshLyt (Pair l1 l2) = do
     l2' <- refreshLyt l2
     return $ Pair l1' l2'
 
-refreshShape :: VectorAlgebra a => (TopShape DVec) -> G a (TopShape DVec)
+refreshShape :: VectorAlgebra a => (TopShape DVec) -> VecBuild a (TopShape DVec)
 refreshShape (ValueVector (DVec n _) lyt) = do
     v <- fromDict n
     case v of
@@ -94,7 +96,7 @@ refreshShape (PrimVal (DVec n _) lyt) = do
             return $ PrimVal (DVec n' cs) lyt'
         x -> error $ show x
 
-translate :: VectorAlgebra a => NodeMap V.VL -> AlgNode -> G a Res
+translate :: VectorAlgebra a => NodeMap V.VL -> AlgNode -> VecBuild a Res
 translate vlNodes n = do
     r <- fromDict n
 
@@ -131,7 +133,7 @@ getVL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap V.VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra a => (NodeMap V.VL, TopShape DVec) -> G a (TopShape DVec)
+vl2Algebra :: VectorAlgebra a => (NodeMap V.VL, TopShape DVec) -> VecBuild a (TopShape DVec)
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
 
@@ -140,14 +142,14 @@ vl2Algebra (vlNodes, plan) = do
     roots :: [AlgNode]
     roots = rootsFromTopShape plan
 
-translateTerOp :: VectorAlgebra a => V.TerOp -> Res -> Res -> Res -> GraphM () a Res
+translateTerOp :: VectorAlgebra a => V.TerOp -> Res -> Res -> Res -> Build a Res
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
             return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
-translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> GraphM () a Res
+translateBinOp :: VectorAlgebra a => V.BinOp -> Res -> Res -> Build a Res
 translateBinOp b c1 c2 = case b of
     V.GroupBy -> do
         (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
@@ -257,7 +259,7 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
-translateUnOp :: VectorAlgebra a => V.UnOp -> Res -> GraphM () a Res
+translateUnOp :: VectorAlgebra a => V.UnOp -> Res -> Build a Res
 translateUnOp unop c = case unop of
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
@@ -310,7 +312,7 @@ translateUnOp unop c = case unop of
         (RTriple _ _ c3) -> return c3
         _                -> error "R3: Not a tuple"
 
-translateNullary :: VectorAlgebra a => V.NullOp -> GraphM () a Res
+translateNullary :: VectorAlgebra a => V.NullOp -> Build a Res
 translateNullary V.SingletonDescr      = fromDVec <$> singletonDescr
 translateNullary (V.Lit _ tys vals)    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
@@ -319,11 +321,11 @@ translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
 -- descr and order columns as well as the required payload columns.
 -- FIXME: once we are a bit more flexible wrt surrogates, determine the
 -- surrogate (i.e. descr) columns from information in DVec.
-insertSerialize :: G TA.TableAlgebra (TopShape DVec) -> G TA.TableAlgebra (TopShape DVec)
+insertSerialize :: VecBuild TA.TableAlgebra (TopShape DVec) -> VecBuild TA.TableAlgebra (TopShape DVec)
 insertSerialize g = g >>= traverseShape
 
   where
-    traverseShape :: TopShape DVec -> G TA.TableAlgebra (TopShape DVec)
+    traverseShape :: TopShape DVec -> VecBuild TA.TableAlgebra (TopShape DVec)
     traverseShape (ValueVector dvec lyt) = do
         mLyt' <- traverseLayout lyt
         case mLyt' of
@@ -344,7 +346,7 @@ insertSerialize g = g >>= traverseShape
                 dvec' <- insertOp dvec noDescr noPos
                 return $ PrimVal dvec' lyt
 
-    traverseLayout :: (TopLayout DVec) -> G TA.TableAlgebra (Maybe (TopLayout DVec))
+    traverseLayout :: (TopLayout DVec) -> VecBuild TA.TableAlgebra (Maybe (TopLayout DVec))
     traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
         mLyt1' <- traverseLayout lyt1
@@ -366,7 +368,7 @@ insertSerialize g = g >>= traverseShape
 
 
     -- | Insert a Serialize node for the given vector
-    insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> G TA.TableAlgebra DVec
+    insertOp :: DVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> VecBuild TA.TableAlgebra DVec
     insertOp (DVec q cols) descr pos = do
         let cs = map (TA.PayloadCol . ("item" ++) . show) cols
             op = TA.Serialize (descr, pos, cs)
@@ -385,11 +387,11 @@ implementVectorOpsX100 :: QueryPlan V.VL -> QueryPlan X100Algebra
 implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
   where
     x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    (opMap, shape, tagMap) = runG x100Plan
+    (opMap, shape, tagMap) = runVecBuild x100Plan
 
 implementVectorOpsPF :: QueryPlan V.VL -> QueryPlan TA.TableAlgebra
 implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
   where
     taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
     serializedPlan         = insertSerialize taPlan
-    (opMap, shape, tagMap) = runG serializedPlan
+    (opMap, shape, tagMap) = runVecBuild serializedPlan

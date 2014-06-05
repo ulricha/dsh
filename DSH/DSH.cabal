@@ -141,8 +141,8 @@ Library
                      Database.DSH.VL.Lang
                      Database.DSH.VL.Render.Dot
                      Database.DSH.VL.Render.JSON
-                     Database.DSH.VL.Data.DBVector
-                     Database.DSH.VL.Data.GraphVector
+                     Database.DSH.VL.Vector
+                     Database.DSH.VL.Shape
                      Database.DSH.VL.MetaPrimitives
                      Database.DSH.VL.TAVectorPrimitives
                      Database.DSH.VL.VectorOperations

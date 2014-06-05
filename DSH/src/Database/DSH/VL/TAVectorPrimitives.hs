@@ -7,20 +7,21 @@
 -- operators.
 module Database.DSH.VL.TAVectorPrimitives() where
 
-import           GHC.Exts
-
 import           Control.Applicative              hiding (Const)
 import qualified Data.List.NonEmpty               as N
+import           GHC.Exts
+
+import           Database.Algebra.Dag.Build
+import           Database.Algebra.Dag.Common
+import           Database.Algebra.Table.Construct
+import           Database.Algebra.Table.Lang
 
 import qualified Database.DSH.Common.Lang         as L
 import           Database.DSH.Impossible
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
 import           Database.DSH.VL.VectorPrimitives
 
-import           Database.Algebra.Dag.Builder
-import           Database.Algebra.Table.Lang
-import           Database.Algebra.Table.Construct
 
 --------------------------------------------------------------------------------
 -- Some general helpers
@@ -81,15 +82,15 @@ eP = (,)
 mP :: AttrName -> AttrName -> Proj
 mP n o = (n, ColE o)
 
-projAddCols :: [DBCol] -> [Proj] -> AlgNode -> GraphM r TableAlgebra AlgNode
+projAddCols :: [DBCol] -> [Proj] -> AlgNode -> Build TableAlgebra AlgNode
 projAddCols cols projs q = proj ([cP descr, cP pos] ++ map (cP . itemi) cols ++ projs) q
 
-projAddColsM :: [DBCol] -> [Proj] -> GraphM r TableAlgebra AlgNode -> GraphM r TableAlgebra AlgNode
+projAddColsM :: [DBCol] -> [Proj] -> Build TableAlgebra AlgNode -> Build TableAlgebra AlgNode
 projAddColsM cols projs mq = do
   q <- mq
   projAddCols cols projs q
 
-projIdentity :: [DBCol] -> AlgNode -> GraphM r TableAlgebra AlgNode
+projIdentity :: [DBCol] -> AlgNode -> Build TableAlgebra AlgNode
 projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 
 itemProj :: [DBCol] -> [Proj] -> [Proj]
@@ -154,7 +155,7 @@ aggrFun VL.AggrCount     = Count
 -- function's default value for the empty segments. The first argument
 -- specifies the outer descriptor vector, while the second argument
 -- specifies the result vector of the aggregate.
-segAggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r TableAlgebra AlgNode
+segAggrDefault :: AlgNode -> AlgNode -> AVal -> Build TableAlgebra AlgNode
 segAggrDefault qo qa dv =
     return qa
     `unionM`
@@ -166,7 +167,7 @@ segAggrDefault qo qa dv =
 -- | If an aggregate's input is empty, add the aggregate functions
 -- default value. The first argument 'q' is the original input vector,
 -- whereas the second argument 'qa' is the aggregate's output.
-aggrDefault :: AlgNode -> AlgNode -> AVal -> GraphM r TableAlgebra AlgNode
+aggrDefault :: AlgNode -> AlgNode -> AVal -> Build TableAlgebra AlgNode
 aggrDefault q qa dv = do
     -- If the input is empty, produce a tuple with the default value.
     qd <- projM [eP descr (ConstE $ nat 2), eP pos (ConstE $ nat 1), eP item (ConstE dv)]
@@ -196,7 +197,7 @@ sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
 sumDefault _         = $impossible
 
-doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> GraphM r TableAlgebra (AlgNode, [DBCol])
+doZip :: (AlgNode, [DBCol]) -> (AlgNode, [DBCol]) -> Build TableAlgebra (AlgNode, [DBCol])
 doZip (q1, cols1) (q2, cols2) = do
   let offset = length cols1
   let cols' = cols1 ++ map (+offset) cols2

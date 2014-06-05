@@ -18,7 +18,7 @@ import           Database.Algebra.X100.Render
 
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 
 generateX100Queries :: QueryPlan X100Algebra -> TopShape X100Code
 generateX100Queries x100Plan = convertQuery $ queryShape x100Plan

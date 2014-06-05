@@ -10,7 +10,7 @@ import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.Algebra.Table.Lang
 
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 
 import           Database.DSH.Optimizer.TA.Properties.BottomUp
 import           Database.DSH.Optimizer.TA.Properties.TopDown

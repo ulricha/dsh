@@ -4,17 +4,17 @@
 -- result from algebraic plans over some algebra and describes how the
 -- result's structure is encoded by the individual queries.
 module Database.DSH.Common.QueryPlan where
-       
-import GHC.Generics(Generic)
 
-import           Data.Aeson                                  (ToJSON)
+import           GHC.Generics                  (Generic)
+
+import           Data.Aeson                    (ToJSON)
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Builder
+import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.VL.Data.DBVector
-import qualified Database.DSH.VL.Data.GraphVector as GV
+import           Database.DSH.VL.Vector
+import qualified Database.DSH.VL.Shape         as S
 
 -- | A TopLayout describes the tuple structure of values encoded by
 -- one particular query from a bundle.
@@ -70,27 +70,27 @@ isOuterMost :: AlgNode -> TopShape DVec -> Bool
 isOuterMost n (ValueVector (DVec n' _) _) = n == n'
 isOuterMost n (PrimVal (DVec n' _) _)     = n == n'
 
-importShape :: TopShape DVec -> GV.Shape
-importShape (ValueVector (DVec n cols) lyt) = GV.ValueVector (DVec n cols) (importLayout lyt)
-importShape (PrimVal (DVec n cols) lyt)     = GV.PrimVal (DVec n cols) (importLayout lyt)
+importShape :: TopShape DVec -> S.Shape
+importShape (ValueVector (DVec n cols) lyt) = S.ValueVector (DVec n cols) (importLayout lyt)
+importShape (PrimVal (DVec n cols) lyt)     = S.PrimVal (DVec n cols) (importLayout lyt)
 
-importLayout :: TopLayout DVec -> GV.Layout
-importLayout (InColumn i)              = GV.InColumn i
-importLayout (Nest (DVec n cols) lyt) = GV.Nest (DVec n cols) (importLayout lyt)
-importLayout (Pair lyt1 lyt2)          = GV.Pair (importLayout lyt1) (importLayout lyt2)
+importLayout :: TopLayout DVec -> S.Layout
+importLayout (InColumn i)              = S.InColumn i
+importLayout (Nest (DVec n cols) lyt) = S.Nest (DVec n cols) (importLayout lyt)
+importLayout (Pair lyt1 lyt2)          = S.Pair (importLayout lyt1) (importLayout lyt2)
 
 -- | Intermediate shapes may contain constructs that are not allowed
 -- in top-level queries (e.g. closures). Convert to a safe shape which
 -- represents legal top-level results.
-exportShape :: GV.Shape -> TopShape DVec
-exportShape (GV.ValueVector (DVec n cols) lyt) = ValueVector (DVec n cols) (exportLayout lyt)
-exportShape (GV.PrimVal (DVec n cols) lyt)     = PrimVal (DVec n cols) (exportLayout lyt)
+exportShape :: S.Shape -> TopShape DVec
+exportShape (S.ValueVector (DVec n cols) lyt) = ValueVector (DVec n cols) (exportLayout lyt)
+exportShape (S.PrimVal (DVec n cols) lyt)     = PrimVal (DVec n cols) (exportLayout lyt)
 exportShape s                                  = error $ "exportShape: impossible top-level shape " ++ (show s)
 
-exportLayout :: GV.Layout -> TopLayout DVec
-exportLayout (GV.InColumn i)            = InColumn i
-exportLayout (GV.Nest (DVec n cols) lyt) = Nest (DVec n cols) (exportLayout lyt)
-exportLayout (GV.Pair lyt1 lyt2)        = Pair (exportLayout lyt1) (exportLayout lyt2)
+exportLayout :: S.Layout -> TopLayout DVec
+exportLayout (S.InColumn i)             = InColumn i
+exportLayout (S.Nest (DVec n cols) lyt) = Nest (DVec n cols) (exportLayout lyt)
+exportLayout (S.Pair lyt1 lyt2)         = Pair (exportLayout lyt1) (exportLayout lyt2)
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.

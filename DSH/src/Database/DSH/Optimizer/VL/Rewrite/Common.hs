@@ -12,7 +12,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
 
 import           Database.DSH.VL.Lang
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.VL.Properties.BottomUp

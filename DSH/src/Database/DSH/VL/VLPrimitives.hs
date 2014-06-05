@@ -6,11 +6,11 @@ module Database.DSH.VL.VLPrimitives where
 
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 
 import           Database.DSH.Impossible
 
-import           Database.Algebra.Dag.Builder
+import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 import           Database.DSH.VL.Lang          hiding (DBCol)
 import qualified Database.DSH.VL.Lang          as D
@@ -18,24 +18,24 @@ import qualified Database.DSH.VL.Lang          as D
 --------------------------------------------------------------------------------
 -- Construct different types of vectors from algebraic nodes
 
-type VecConst r v = GraphM r VL AlgNode -> GraphM r VL v
+type VecConst r v = Build VL AlgNode -> Build VL v
 
 dvec :: VecConst r DVec
 dvec = fmap (flip DVec [])
 
-pvec :: GraphM r a AlgNode -> GraphM r a PVec
+pvec :: Build a AlgNode -> Build a PVec
 pvec = fmap PVec
 
-rvec :: GraphM r a AlgNode -> GraphM r a RVec
+rvec :: Build a AlgNode -> Build a RVec
 rvec = fmap RVec
      
 --------------------------------------------------------------------------------
 -- Insert VL operators and appropriate R1/R2/R3 nodes
 
-vec :: VL -> VecConst r a -> GraphM r VL a
+vec :: VL -> VecConst r a -> Build VL a
 vec op mkVec = mkVec $ insertNode op
 
-pairVec :: VL -> VecConst r a -> VecConst r b -> GraphM r VL (a, b)
+pairVec :: VL -> VecConst r a -> VecConst r b -> Build VL (a, b)
 pairVec op mkVec1 mkVec2 = do
     r <- insertNode op
     r1 <- mkVec1 $ insertNode $ UnOp R1 r
@@ -46,7 +46,7 @@ tripleVec :: VL
           -> VecConst r a 
           -> VecConst r b 
           -> VecConst r c 
-          -> GraphM r VL (a, b ,c)
+          -> Build VL (a, b ,c)
 tripleVec op mkVec1 mkVec2 mkVec3 = do
     r <- insertNode op
     r1 <- mkVec1 $ insertNode $ UnOp R1 r
@@ -152,184 +152,184 @@ joinExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
 
-vlUniqueS :: DVec -> GraphM r VL DVec
+vlUniqueS :: DVec -> Build VL DVec
 vlUniqueS (DVec c _) = vec (UnOp UniqueS c) dvec
 
-vlNumber :: DVec -> GraphM r VL DVec
+vlNumber :: DVec -> Build VL DVec
 vlNumber (DVec c _) = vec (UnOp Number c) dvec
 
-vlNumberS :: DVec -> GraphM r VL DVec
+vlNumberS :: DVec -> Build VL DVec
 vlNumberS (DVec c _) = vec (UnOp NumberS c) dvec
 
-vlGroupBy :: DVec -> DVec -> GraphM r VL (DVec, DVec, PVec)
+vlGroupBy :: DVec -> DVec -> Build VL (DVec, DVec, PVec)
 vlGroupBy (DVec c1 _) (DVec c2 _) = tripleVec (BinOp GroupBy c1 c2) dvec dvec pvec
 
-vlSort :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlSort :: DVec -> DVec -> Build VL (DVec, PVec)
 vlSort (DVec c1 _) (DVec c2 _) = pairVec (BinOp SortS c1 c2) dvec pvec
 
-vlAggr :: AggrFun -> DVec -> GraphM r VL DVec
+vlAggr :: AggrFun -> DVec -> Build VL DVec
 vlAggr aFun (DVec c _) = vec (UnOp (Aggr aFun) c) dvec
 
-vlAggrS :: AggrFun -> DVec -> DVec -> GraphM r VL DVec
+vlAggrS :: AggrFun -> DVec -> DVec -> Build VL DVec
 vlAggrS aFun (DVec c1 _) (DVec c2 _) = vec (BinOp (AggrS aFun) c1 c2) dvec
 
-vlDescToRename :: DVec -> GraphM r VL RVec
+vlDescToRename :: DVec -> Build VL RVec
 vlDescToRename (DVec c _) = vec (UnOp DescToRename c) rvec
 
-vlDistPrim :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlDistPrim :: DVec -> DVec -> Build VL (DVec, PVec)
 vlDistPrim (DVec c1 _) (DVec c2 _) = pairVec (BinOp DistPrim c1 c2) dvec pvec
 
-vlDistDesc :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlDistDesc :: DVec -> DVec -> Build VL (DVec, PVec)
 vlDistDesc (DVec c1 _) (DVec c2 _) = pairVec (BinOp DistDesc c1 c2) dvec pvec
 
-vlAlign :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlAlign :: DVec -> DVec -> Build VL (DVec, PVec)
 vlAlign (DVec c1 _) (DVec c2 _) = pairVec (BinOp Align c1 c2) dvec pvec
 
-vlPropRename :: RVec -> DVec -> GraphM r VL DVec
+vlPropRename :: RVec -> DVec -> Build VL DVec
 vlPropRename (RVec c1) (DVec c2 _) = vec (BinOp PropRename c1 c2) dvec
 
-vlUnbox :: RVec -> DVec -> GraphM r VL (DVec, RVec)
+vlUnbox :: RVec -> DVec -> Build VL (DVec, RVec)
 vlUnbox (RVec c1) (DVec c2 _) = pairVec (BinOp Unbox c1 c2) dvec rvec
 
-vlPropFilter :: RVec -> DVec -> GraphM r VL (DVec, RVec)
+vlPropFilter :: RVec -> DVec -> Build VL (DVec, RVec)
 vlPropFilter (RVec c1) (DVec c2 _) = pairVec (BinOp PropFilter c1 c2) dvec rvec
 
-vlPropReorder :: PVec -> DVec -> GraphM r VL (DVec, PVec)
+vlPropReorder :: PVec -> DVec -> Build VL (DVec, PVec)
 vlPropReorder (PVec c1) (DVec c2 _) = pairVec (BinOp PropReorder c1 c2) dvec pvec
 
-vlSingletonDescr :: GraphM r VL DVec
+vlSingletonDescr :: Build VL DVec
 vlSingletonDescr = vec (NullaryOp SingletonDescr) dvec
 
-vlAppend :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlAppend :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
 vlAppend (DVec c1 _) (DVec c2 _) = tripleVec (BinOp Append c1 c2) dvec rvec rvec
 
-vlAppendS :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlAppendS :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
 vlAppendS (DVec c1 _) (DVec c2 _) = tripleVec (BinOp AppendS c1 c2) dvec rvec rvec
 
-vlSegment :: DVec -> GraphM r VL DVec
+vlSegment :: DVec -> Build VL DVec
 vlSegment (DVec c _) = vec (UnOp Segment c) dvec
 
-vlUnsegment :: DVec -> GraphM r VL DVec
+vlUnsegment :: DVec -> Build VL DVec
 vlUnsegment (DVec c _) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlRestrict :: DVec -> DVec -> Build VL (DVec, RVec)
 vlRestrict (DVec c1 _) (DVec c2 _) = pairVec (BinOp Restrict c1 c2) dvec rvec
 
-vlCombine :: DVec -> DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlCombine :: DVec -> DVec -> DVec -> Build VL (DVec, RVec, RVec)
 vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = 
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
-vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> GraphM r VL DVec
+vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL DVec
 vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToVLType tys) vals) dvec
 
-vlTableRef :: String -> [VLColumn] -> L.TableHints -> GraphM r VL DVec
+vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL DVec
 vlTableRef n tys hs = vec (NullaryOp $ TableRef n tys hs) dvec
 
-vlUnExpr :: L.ScalarUnOp -> DVec -> GraphM r VL DVec
+vlUnExpr :: L.ScalarUnOp -> DVec -> Build VL DVec
 vlUnExpr o (DVec c _) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
-vlBinExpr :: L.ScalarBinOp -> DVec -> DVec -> GraphM r VL DVec
+vlBinExpr :: L.ScalarBinOp -> DVec -> DVec -> Build VL DVec
 vlBinExpr o (DVec c1 _) (DVec c2 _) = do
     z <- insertNode $ BinOp Zip c1 c2
     r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
-vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> Build VL (DVec, RVec, RVec)
 vlSelectPos (DVec c1 _) op (DVec c2 _) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
-vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec, RVec)
+vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> Build VL (DVec, RVec, RVec)
 vlSelectPos1 (DVec c1 _) op posConst = 
     tripleVec (UnOp (SelectPos1 op posConst) c1) dvec rvec rvec
 
-vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> Build VL (DVec, RVec, RVec)
 vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
-vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> GraphM r VL (DVec, RVec, RVec)
+vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> Build VL (DVec, RVec, RVec)
 vlSelectPos1S (DVec c1 _) op posConst = 
     tripleVec (UnOp (SelectPos1S op posConst) c1) dvec rvec rvec
 
-vlProject :: DVec -> [Expr] -> GraphM r VL DVec
+vlProject :: DVec -> [Expr] -> Build VL DVec
 vlProject (DVec c _) projs = dvec $ insertNode $ UnOp (Project projs) c
 
-vlZip :: DVec -> DVec -> GraphM r VL DVec
+vlZip :: DVec -> DVec -> Build VL DVec
 vlZip (DVec c1 _) (DVec c2 _) = vec (BinOp Zip c1 c2) dvec
 
-vlZipS :: DVec -> DVec -> GraphM r VL (DVec, RVec, RVec)
+vlZipS :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
 vlZipS (DVec c1 _) (DVec c2 _) =
     tripleVec (BinOp ZipS c1 c2) dvec rvec rvec
 
-vlCartProduct :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlCartProduct :: DVec -> DVec -> Build VL (DVec, PVec, PVec)
 vlCartProduct (DVec c1 _) (DVec c2 _) =
     tripleVec (BinOp CartProduct c1 c2) dvec pvec pvec
 
-vlCartProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlCartProductS :: DVec -> DVec -> Build VL (DVec, PVec, PVec)
 vlCartProductS (DVec c1 _) (DVec c2 _) =
     tripleVec (BinOp CartProductS c1 c2) dvec pvec pvec
 
-vlThetaJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec, PVec)
 vlThetaJoin joinPred (DVec c1 _) (DVec c2 _) =
     tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec pvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec, PVec)
+vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec, PVec)
 vlThetaJoinS joinPred (DVec c1 _) (DVec c2 _) =
     tripleVec (BinOp (ThetaJoinS joinPred') c1 c2) dvec pvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlNestJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec)
 vlNestJoinS joinPred (DVec c1 _) (DVec c2 _) =
     pairVec (BinOp (NestJoinS joinPred') c1 c2) dvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestProductS :: DVec -> DVec -> GraphM r VL (DVec, PVec)
+vlNestProductS :: DVec -> DVec -> Build VL (DVec, PVec)
 vlNestProductS (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp NestProductS c1 c2) dvec pvec
 
-vlSemiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
 vlSemiJoin joinPred (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
 vlSemiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlAntiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
 vlAntiJoin joinPred (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> GraphM r VL (DVec, RVec)
+vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
 vlAntiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlReverse :: DVec -> GraphM r VL (DVec, PVec)
+vlReverse :: DVec -> Build VL (DVec, PVec)
 vlReverse (DVec c _) = pairVec (UnOp Reverse c) dvec pvec
 
-vlReverseS :: DVec -> GraphM r VL (DVec, PVec)
+vlReverseS :: DVec -> Build VL (DVec, PVec)
 vlReverseS (DVec c _) = pairVec (UnOp ReverseS c) dvec pvec
 
-vlTranspose :: DVec -> GraphM r VL (DVec, DVec)
+vlTranspose :: DVec -> Build VL (DVec, DVec)
 vlTranspose (DVec c _) = pairVec (UnOp Transpose c) dvec dvec
 
-vlTransposeS :: DVec -> DVec -> GraphM r VL (DVec, DVec)
+vlTransposeS :: DVec -> DVec -> Build VL (DVec, DVec)
 vlTransposeS (DVec c1 _) (DVec c2 _) = do
     pairVec (BinOp TransposeS c1 c2) dvec dvec
 
-vlReshape :: Integer -> DVec -> GraphM r VL (DVec, DVec)
+vlReshape :: Integer -> DVec -> Build VL (DVec, DVec)
 vlReshape n (DVec c _) = do
     pairVec (UnOp (Reshape n) c) dvec dvec
 
-vlReshapeS :: Integer -> DVec -> GraphM r VL (DVec, DVec)
+vlReshapeS :: Integer -> DVec -> Build VL (DVec, DVec)
 vlReshapeS n (DVec c _) = do
     pairVec (UnOp (ReshapeS n) c) dvec dvec

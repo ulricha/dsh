@@ -7,7 +7,7 @@ import qualified Database.Algebra.Dag                                           
 import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Data.DBVector
+import           Database.DSH.VL.Vector
 
 import           Database.DSH.Optimizer.Common.Rewrite
 
