@@ -156,15 +156,6 @@ Library
                      Database.DSH.Optimizer.Common.Aux
                      Database.DSH.Optimizer.Common.Rewrite
 
---                     Database.DSH.Optimizer.X100.Rewrite.Common
---                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
---                     Database.DSH.Optimizer.X100.Rewrite.JoinPushdown
---                     Database.DSH.Optimizer.X100.Rewrite.Key
---                     Database.DSH.Optimizer.X100.Rewrite.ProjectionMerge
---                     Database.DSH.Optimizer.X100.Rewrite.PruneColumns
---                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
---                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
---   
                      Database.DSH.Optimizer.VL.Properties.BottomUp
                      Database.DSH.Optimizer.VL.Properties.Card
                      Database.DSH.Optimizer.VL.Properties.Common
