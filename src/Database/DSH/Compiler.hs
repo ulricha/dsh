@@ -94,7 +94,7 @@ nkl2X100FileOpt prefix e =
     |> optimizeVLDefault
     |> implementVectorOpsX100
     |> optimizeX100Default
-    |> (exportX100Plan prefix)
+    |> exportX100Plan prefix
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix e =
