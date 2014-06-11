@@ -36,11 +36,11 @@ data AggrFun = AggrSum VLType Expr
                deriving (Eq, Ord, Show, Generic)
 
 data Expr = BinApp L.ScalarBinOp Expr Expr
-                | UnApp L.ScalarUnOp Expr
-                | Column DBCol
-                | Constant VLVal
-                | If Expr Expr Expr
-                deriving (Eq, Ord, Show, Generic)
+          | UnApp L.ScalarUnOp Expr
+          | Column DBCol
+          | Constant VLVal
+          | If Expr Expr Expr
+          deriving (Eq, Ord, Show, Generic)
 
 newtype Nat = N Int deriving (Eq, Ord, Generic, Show, Read)
 
