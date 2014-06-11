@@ -85,7 +85,7 @@ class VectorAlgebra a where
     vecReverseS :: DVec -> Build a (DVec, PVec)
 
     -- | Filter a vector by applying a scalar boolean predicate.
-    vecSelect:: Expr -> DVec -> Build a DVec
+    vecSelect:: Expr -> DVec -> Build a (DVec, RVec)
 
     -- | General vector sorting (segmented). The sorting key is
     -- provided by the first input vector.

@@ -201,6 +201,8 @@ tests_lists = testGroup "Lists"
         , testProperty "take ++ drop" $ prop_takedrop
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
+        , testProperty "filter > 42" $ prop_filter_gt
+        , testProperty "filter > 42 (,[])" $ prop_filter_gt_nested
         , testProperty "the" $ prop_the
         , testProperty "last" $ prop_last
         , testProperty "init" $ prop_init
@@ -307,6 +309,8 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map any zero" $ prop_map_any_zero
         , testProperty "map all zero" $ prop_map_all_zero
         , testProperty "map filter" $ prop_map_filter
+        , testProperty "map filter > 42" $ prop_map_filter_gt
+        , testProperty "map filter > 42 (,[])" $ prop_map_filter_gt_nested
         , testProperty "map append" $ prop_map_append
         , testProperty "map index" $ prop_map_index
         , testProperty "map index [[]]" $ prop_map_index_nest
@@ -707,8 +711,20 @@ prop_map_append = makeProp (\z -> Q.map (Q.fst z Q.++) (Q.snd z)) (\(a,b) -> map
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
+prop_filter_gt :: [Integer] -> Property
+prop_filter_gt = makeProp (Q.filter (Q.> 42)) (filter (> 42))
+
+prop_filter_gt_nested :: [(Integer, [Integer])] -> Property
+prop_filter_gt_nested = makeProp (Q.filter ((Q.> 42) . Q.fst)) (filter ((> 42) . fst))
+
 prop_map_filter :: [[Integer]] -> Property
 prop_map_filter = makeProp (Q.map (Q.filter (const $ Q.toQ True))) (map (filter $ const True))
+
+prop_map_filter_gt :: [[Integer]] -> Property
+prop_map_filter_gt = makeProp (Q.map (Q.filter (Q.> 42))) (map (filter (> 42)))
+
+prop_map_filter_gt_nested :: [[(Integer, [Integer])]] -> Property
+prop_map_filter_gt_nested = makeProp (Q.map (Q.filter ((Q.> 42) . Q.fst))) (map (filter ((> 42) . fst)))
 
 prop_groupWith :: [Integer] -> Property
 prop_groupWith = makeProp (Q.groupWith id) (groupWith id)

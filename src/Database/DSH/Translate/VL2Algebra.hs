@@ -267,9 +267,11 @@ translateUnOp unop c = case unop of
     V.DescToRename     -> fromRVec <$> descToRename (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
-    V.Select e         -> fromDVec <$> vecSelect e (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
+    V.Select e         -> do
+        (d, r) <- vecSelect e (toDVec c)
+        return $ RPair (fromDVec d) (fromRVec r)
     V.SortScalarS es -> do
         (d, p) <- vecSortScalarS es (toDVec c)
         return $ RPair (fromDVec d) (fromPVec p)

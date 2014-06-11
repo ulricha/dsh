@@ -194,7 +194,7 @@ inferConstVecUnOp c op =
 
     Select _       -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VProp $ DBVConst d cols
+      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     GroupAggr g as -> do
       (d, _) <- unp c >>= fromDBV

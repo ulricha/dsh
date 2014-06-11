@@ -152,7 +152,8 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
         Project ps -> childReqColumns ∪ (VProp $ Just $ L.nub $ concatMap reqExprCols ps)
 
         Select e   -> do
-            ownReqColumns' <- ownReqColumns ∪ (VProp $ Just $ reqExprCols e)
+            cols           <- fst <$> fromPropPair ownReqColumns
+            ownReqColumns' <- (VProp cols) ∪ (VProp $ Just $ reqExprCols e)
             ownReqColumns' ∪ childReqColumns
 
         SelectPos1 _ _   -> do

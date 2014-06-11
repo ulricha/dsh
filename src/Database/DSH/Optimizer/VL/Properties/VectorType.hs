@@ -4,7 +4,7 @@
 module Database.DSH.Optimizer.VL.Properties.VectorType where
 
 import           Control.Monad
-import           Data.Functor
+import           Control.Applicative
 import qualified Data.List.NonEmpty as N
        
 import           Database.DSH.Optimizer.VL.Properties.Types
@@ -58,7 +58,7 @@ inferVectorTypeUnOp s op =
 
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
-    Select _ -> VProp <$> unpack s
+    Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
     SortScalarS _ -> liftM2 VPropPair (unpack s) (Right PropVector)
 
     GroupScalarS es -> 

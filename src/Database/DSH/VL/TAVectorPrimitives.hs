@@ -454,10 +454,11 @@ instance VectorAlgebra TableAlgebra where
     return $ (DVec qv cols, RVec qp1, RVec qp2)
 
   vecSelect expr (DVec q cols) = do
-    qs <- projM (itemProj cols [cP descr, mP pos pos'])
-          $ rownumM pos' [pos] Nothing
+    qs <- rownumM posnew [pos] Nothing
           $ select (taExpr expr) q
-    return $ DVec qs cols
+    qv <- proj (itemProj cols [cP descr, mP pos posnew]) qs
+    qr <- proj [mP posold pos, cP posnew] qs
+    return (DVec qs cols, RVec qr)
 
   vecTableRef tableName columns hints = do
     q <- -- generate the pos column

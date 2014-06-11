@@ -58,14 +58,27 @@ redundantRulesAllProps = [ unreferencedAlign
 
 introduceSelect :: VLRule ()
 introduceSelect q =
-  $(pattern 'q "R1 ((q1) Restrict (Project es (q2)))"
+  $(pattern 'q "R1 (qr=(q1) Restrict (Project es (q2)))"
     [| do
         [e] <- return $(v "es")
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
           logRewrite "Redundant.Select" q
-          void $ replaceWithNew q $ UnOp (Select e) $(v "q1") |])
+          selectNode <- insert $ UnOp (Select e) $(v "q1")
+          void $ replaceWithNew q $ UnOp R1 selectNode
+
+          r2Parents <- lookupR2Parents $(v "qr")
+
+          -- If there are any R2 nodes linking to the original
+          -- Restrict operator (i.e. there are inner vectors to which
+          -- changes must be propagated), they have to be rewired to
+          -- the new Select operator.
+          if not $ null r2Parents
+            then do
+              qr2' <- insert $ UnOp R2 selectNode
+              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
+            else return () |])
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
