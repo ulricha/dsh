@@ -34,7 +34,7 @@ conjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct JoinExpr))
 conjunctsT x y = readerT $ \e -> case e of
     -- For a logical AND, turn the left and right arguments into lists
     -- of join predicates and combine them.
-    ExprCL (BinOp _ (SBBoolOp Conj) e1 e2) -> do
+    ExprCL (BinOp _ (SBBoolOp Conj) _ _) -> do
         leftConjs  <- childT BinOpArg1 (conjunctsT x y)
         rightConjs <- childT BinOpArg2 (conjunctsT x y)
         return $ leftConjs <> rightConjs
@@ -60,7 +60,7 @@ quantifierPredicateT :: Ident
 quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
     -- non-negated form.
-    ExprCL (PNot conjunctivePred) -> do
+    ExprCL (PNot _) -> do
         conjs <- childT UnOpArg (conjunctsT x y)
         return conjs
 
@@ -75,7 +75,7 @@ quantifierPredicateT x y = readerT $ \q -> case q of
 
 
 universalQualR :: RewriteC (NL Qual)
-universalQualR = readerT $ \qs -> case qs of
+universalQualR = readerT $ \quals -> case quals of
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
     BindQ x xs :* (S (GuardQ (PAnd (Comp _ q (S (BindQ y ys)))))) -> do
@@ -142,9 +142,7 @@ mkClass12AntiJoinT :: (Ident, Expr)               -- ^ Generator variable and ex
                    -> JoinPredicate JoinExpr
                    -> TransformC (NL Qual) Qual
 mkClass12AntiJoinT (x, xs) (y, ys) ps qs = do
-    let xst = typeOf xs
-        xt  = elemT xst
-        yst = typeOf ys
+    let yst = typeOf ys
         yt  = elemT yst
 
     -- [ y | y <- ys, ps ]
@@ -165,9 +163,7 @@ mkClass15AntiJoinT :: (Ident, Expr)               -- ^ Generator variable and ex
                    -> Expr
                    -> TransformC (NL Qual) Qual
 mkClass15AntiJoinT (x, xs) (y, ys) ps qs = do
-    let xst = typeOf xs
-        xt  = elemT xst
-        yst = typeOf ys
+    let yst = typeOf ys
         yt  = elemT yst
 
     -- [ y | y <- ys, not q ]
@@ -182,11 +178,6 @@ mkClass16AntiJoinT :: (Ident, Expr)
                    -> NonEmpty (JoinConjunct JoinExpr)
                    -> TransformC (NL Qual) (Qual)
 mkClass16AntiJoinT (x, xs) ys ps qs = do
-    let xst = typeOf xs
-        xt  = elemT xst
-        yst = typeOf ys
-        yt  = elemT yst
-
     -- xs ▷_(p && not q) ys
     return $ BindQ x (P.antijoin xs ys $ JoinPred $ ps <> qs)
 
