@@ -94,13 +94,14 @@ conjunctsT x y = readerT $ \e -> case e of
     -- predicate.
     _ -> (:|) <$> promoteT (splitJoinPredT x y) <*> pure []
 
-negateRelOp :: Monad m => BinRelOp -> m BinRelOp
+negateRelOp :: BinRelOp -> BinRelOp
 negateRelOp op = case op of
-    Eq  -> return NEq
-    NEq -> return Eq
-    GtE -> return Lt
-    LtE -> return Gt
-    _   -> fail "can not simply negate <, >"
+    Eq  -> NEq
+    NEq -> Eq
+    GtE -> Lt
+    LtE -> Gt
+    Lt  -> GtE
+    Gt  -> LtE
 
 -- | Quantifier predicates that reference inner and outer relation
 -- appear negated on the antijoin.
@@ -115,8 +116,7 @@ quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the predicate is a simple relational operator, but
     -- non-negated, try to negate the operator itself.
     ExprCL (BinOp t (SBRelOp op) e1 e2) -> do
-        op' <- constT $ negateRelOp op
-        let e' = BinOp t (SBRelOp op') e1 e2
+        let e' = BinOp t (SBRelOp $ negateRelOp op) e1 e2
         q' <- constT (return e') >>> splitJoinPredT x y
         return $ q' :| []
         
