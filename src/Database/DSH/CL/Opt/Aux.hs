@@ -117,6 +117,14 @@ toJoinExpr n = do
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
 
+flipRelOp :: BinRelOp -> BinRelOp
+flipRelOp Eq  = Eq
+flipRelOp NEq = NEq
+flipRelOp Gt  = Lt
+flipRelOp Lt  = Gt
+flipRelOp GtE = LtE
+flipRelOp LtE = GtE
+
 -- | Try to transform an expression into a thetajoin predicate. This
 -- will fail if either the expression does not have the correct shape
 -- (relational operator with simple projection expressions on both
@@ -133,10 +141,10 @@ splitJoinPredT x y = do
 
     if | x == x' && y == y' -> binopT (toJoinExpr x)
                                       (toJoinExpr y)
-                                      (\_ _ e1' e2' -> mkPred e1' e2')
+                                      (\_ _ e1' e2' -> JoinConjunct e1' op e2')
        | y == x' && x == y' -> binopT (toJoinExpr y)
                                       (toJoinExpr x)
-                                      (\_ _ e1' e2' -> mkPred e2' e1')
+                                      (\_ _ e1' e2' -> JoinConjunct e2' (flipRelOp op) e1')
        | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
 
 
