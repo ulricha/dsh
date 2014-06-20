@@ -3,11 +3,12 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module Database.DSH.CL.Lang
     ( module Database.DSH.Common.Type
     , Expr(..)
-    , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
+    , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL, toNonEmpty
     , Qual(..), isGuard, isBind
     , Typed(..)
     , Prim1Op(..)
@@ -20,6 +21,7 @@ import           Control.Applicative          hiding (empty)
 
 import qualified Data.Foldable                as F
 import qualified Data.Traversable             as T
+import           Data.List.NonEmpty           (NonEmpty((:|)))
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -77,6 +79,10 @@ fromListSafe :: a -> [a] -> NL a
 fromListSafe a [a1]      = a :* S a1
 fromListSafe a []        = S a
 fromListSafe a (a1 : as) = a :* fromListSafe a1 as
+
+toNonEmpty :: NL a -> NonEmpty a
+toNonEmpty (a :* as) = a :| toList as
+toNonEmpty (S a)     = a :| []
 
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
@@ -209,6 +215,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Var Type L.Ident
            | Comp Type Expr (NL Qual)
            deriving (Show)
+
 
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
