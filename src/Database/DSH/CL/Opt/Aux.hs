@@ -425,7 +425,7 @@ debugOpt origExpr mExpr =
 
   where
     padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '='
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
 
     showOrig :: Expr -> String
     showOrig e = padSep "Original Query" ++ pp e ++ padSep ""
