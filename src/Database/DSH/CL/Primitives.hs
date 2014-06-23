@@ -10,9 +10,13 @@ import           Text.Printf
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.Impossible
+import           Database.DSH.Common.Pretty
 
 tyErr :: P.String -> a
-tyErr comb = P.error ("CL.Primitives type error: " P.++ comb)
+tyErr comb = P.error ("CL.Primitives type error in %s: %s" P.++ comb)
+
+tyErrShow :: P.String -> Type -> a
+tyErrShow comb t = P.error (printf "CL.Primitives type error in %s: %s" comb (pp t))
 
 ($) :: Expr -> Expr -> Expr
 f $ e = let tf = typeOf f
@@ -50,7 +54,7 @@ and :: Expr -> Expr
 and e = let t = typeOf e
          in if listT boolT P.== t
             then AppE1 boolT (Prim1 And P.$ t .-> boolT) e
-            else tyErr "and"
+            else tyErrShow "and" t
 
 or :: Expr -> Expr
 or e = let t = typeOf e
