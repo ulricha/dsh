@@ -13,6 +13,8 @@ module Database.DSH.CL.Opt.Aux
       -- * Converting predicate expressions into join predicates
     , toJoinExpr
     , splitJoinPredT
+    , joinConjunctsT
+    , conjunctsT
     -- * Pushing guards towards the front of a qualifier list
     , isThetaJoinPred
     , isSemiJoinPred
@@ -51,6 +53,9 @@ import           Data.Either
 import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
+import           Data.List.NonEmpty         (NonEmpty ((:|)))
+import           Data.Semigroup
+import           Control.Applicative
 
 #ifdef DEBUGCOMP
 import           Debug.Trace
@@ -146,6 +151,26 @@ splitJoinPredT x y = do
                                       (toJoinExpr x)
                                       (\_ _ e1' e2' -> JoinConjunct e2' (flipRelOp op) e1')
        | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
+
+-- | Split a conjunctive combination of join predicates.
+joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct JoinExpr))
+joinConjunctsT x y = conjunctsT >>> mapT (splitJoinPredT x y)
+
+-- | Split a combination of logical conjunctions into its sub-terms.
+conjunctsT :: TransformC CL (NonEmpty Expr)
+conjunctsT = readerT $ \e -> case e of
+    -- For a logical AND, turn the left and right arguments into lists
+    -- of join predicates and combine them.
+    ExprCL (BinOp _ (SBBoolOp Conj) _ _) -> do
+        leftConjs  <- childT BinOpArg1 conjunctsT
+        rightConjs <- childT BinOpArg2 conjunctsT
+        return $ leftConjs <> rightConjs
+
+    -- For a non-AND expression, try to transform it into a join
+    -- predicate.
+    ExprCL e -> return $ e :| []
+
+    _ -> $impossible
 
 
 --------------------------------------------------------------------------------

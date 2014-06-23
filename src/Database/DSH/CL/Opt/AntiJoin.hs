@@ -29,20 +29,6 @@ import           Database.DSH.Common.Lang
 pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
 pattern PNot e <- UnOp _ (SUBoolOp Not) e
 
--- | Split a conjunctive combination of join predicates.
-conjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct JoinExpr))
-conjunctsT x y = readerT $ \e -> case e of
-    -- For a logical AND, turn the left and right arguments into lists
-    -- of join predicates and combine them.
-    ExprCL (BinOp _ (SBBoolOp Conj) _ _) -> do
-        leftConjs  <- childT BinOpArg1 (conjunctsT x y)
-        rightConjs <- childT BinOpArg2 (conjunctsT x y)
-        return $ leftConjs <> rightConjs
-
-    -- For a non-AND expression, try to transform it into a join
-    -- predicate.
-    _ -> (:|) <$> promoteT (splitJoinPredT x y) <*> pure []
-
 negateRelOp :: BinRelOp -> BinRelOp
 negateRelOp op = case op of
     Eq  -> NEq
@@ -61,7 +47,7 @@ quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
     -- non-negated form.
     ExprCL (PNot _) -> do
-        conjs <- childT UnOpArg (conjunctsT x y)
+        conjs <- childT UnOpArg (joinConjunctsT x y)
         return conjs
 
     -- If the predicate is a simple relational operator, but

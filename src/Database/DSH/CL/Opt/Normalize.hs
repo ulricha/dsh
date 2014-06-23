@@ -56,6 +56,7 @@ pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
 pattern POr xs <- AppE1 _ (Prim1 Or _) xs
 pattern PNot e <- UnOp _ (SUBoolOp Not) e
 pattern PNull e <- AppE1 _ (Prim1 Null _) e
+pattern PTrue = Lit BoolT (BoolV True)
 
 -- Bring a NOT EXISTS pattern into universal quantification form:
 -- not (or [ q | y <- ys, ps ])
