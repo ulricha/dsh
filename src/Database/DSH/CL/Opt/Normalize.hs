@@ -99,7 +99,7 @@ comprehensionNullR = do
 
     -- Merge all guards into a conjunctive form
     let conjPred = P.not $ F.foldl1 P.conj guardExprs
-    return $ inject $ P.and $ Comp boolT conjPred (S $ BindQ x xs)
+    return $ inject $ P.and $ Comp (listT boolT) conjPred (S $ BindQ x xs)
 
 normalizeExprR :: RewriteC CL
 normalizeExprR = zeroLengthR 
