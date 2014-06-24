@@ -44,14 +44,14 @@ factorR :: TransformC CL (Ident, Expr, Expr)
 factorR = do
     -- Collect largest complex expressions in all childs
     candidateExprs <- allT $ onetdT complexPathT
-    debugPretty "collected" candidateExprs
+    -- debugPretty "collected" candidateExprs
     
     (complexExpr, complexPath) : _ <- return $ filter (null . freeVars . fst) candidateExprs
     
-    debugMsg "carnary1"
+    -- debugMsg "carnary1"
     x                          <- freshNameT []
     guardM $ null $ freeVars complexExpr
-    debugMsg "carnary2"
+    -- debugMsg "carnary2"
     let complexType = typeOf complexExpr
     let singletonExpr = P.cons complexExpr (Lit (listT complexType) (ListV []))
 
@@ -61,7 +61,7 @@ factorR = do
     let replacementExpr = constT $ return $ inject $ Var complexType x
 
     ExprCL simplifiedPred <- pathR localPath replacementExpr
-    debugMsg "carnary3"
+    -- debugMsg "carnary3"
 
     return (x, singletonExpr, simplifiedPred)
 

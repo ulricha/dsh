@@ -12,11 +12,10 @@ module Database.DSH.CL.Opt.Normalize
   , normalizeExprR
   ) where
 
-import           Control.Arrow
+import           Control.Monad
 import qualified Data.Foldable              as F
 import qualified Data.Traversable           as T
        
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -47,8 +46,11 @@ splitConjunctsR = splitR <+ splitEndR
 normalizeOnceR :: RewriteC CL
 normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
     
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Simple normalization rewrites that are interleaved with other rewrites.
+
+--------------------------------------------------------------------------------
+-- Normalization rewrites for universal/existential quantification.
 
 pattern PEq e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
 pattern PLength e <- AppE1 _ (Prim1 Length _) e
@@ -56,7 +58,6 @@ pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
 pattern POr xs <- AppE1 _ (Prim1 Or _) xs
 pattern PNot e <- UnOp _ (SUBoolOp Not) e
 pattern PNull e <- AppE1 _ (Prim1 Null _) e
-pattern PTrue = Lit BoolT (BoolV True)
 
 -- Bring a NOT EXISTS pattern into universal quantification form:
 -- not (or [ q | y <- ys, ps ])
@@ -68,7 +69,7 @@ notExistsR = promoteT $ readerT $ \e -> case e of
     PNot (POr (Comp t q (BindQ y ys :* ps))) -> do
     
         -- All remaining qualifiers have to be guards.
-        guardExprs           <- constT $ T.mapM fromGuard ps
+        void $ constT $ T.mapM fromGuard ps
 
         return $ inject $ P.and $ Comp t (P.not q) (BindQ y ys :* ps)
 
@@ -91,17 +92,27 @@ zeroLengthR = promoteT $ readerT $ \e -> case e of
 -- => and [ not (p1 && p2 && ...) | x <- xs ]
 comprehensionNullR :: RewriteC CL
 comprehensionNullR = do
-    PNull (Comp _ _ qs) <- promoteT idR
+    PNull (Comp _ _ (BindQ x xs :* guards)) <- promoteT idR
     
     -- We need exactly one generator and at least one guard.
-    BindQ x xs :* guards <- return $ qs
     guardExprs           <- constT $ T.mapM fromGuard guards
 
     -- Merge all guards into a conjunctive form
     let conjPred = P.not $ F.foldl1 P.conj guardExprs
     return $ inject $ P.and $ Comp (listT boolT) conjPred (S $ BindQ x xs)
 
+-- not $ null [ _ | x <- xs, ps ]
+-- =>
+-- not $ and [ not ps | x <- xs ] (comprehensionNullR)
+-- =>
+-- or [ ps | x <- xs ]
+notNullR :: RewriteC CL
+notNullR = do
+    PNot (PAnd (Comp _ (PNot p) (S (BindQ x xs)))) <- promoteT idR
+    return $ inject $ P.or (Comp (listT boolT) p (S (BindQ x xs)))
+
 normalizeExprR :: RewriteC CL
 normalizeExprR = zeroLengthR 
                  <+ comprehensionNullR
+                 <+ notNullR
                  <+ notExistsR
