@@ -32,9 +32,12 @@ tests_join_hunit :: Test
 tests_join_hunit = testGroup "HUnit joins"
     [ testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
-    , testCase "hsemijoin_range" hsemijoin
+    , testCase "hsemijoin_range" hsemijoin_range
+    , testCase "hsemijoin_quant" hsemijoin_quant
+    , testCase "hsemijoin_not_null" hsemijoin_not_null
     , testCase "hantijoin" hantijoin
-    , testCase "hantijoin_range" hantijoin
+    , testCase "hantijoin_range" hantijoin_range
+    , testCase "hantijoin_null" hantijoin_null
     , testCase "hantijoin_class12" hantijoin_class12
     , testCase "hantijoin_class15" hantijoin_class15
     , testCase "hantijoin_class16" hantijoin_class16
@@ -192,6 +195,16 @@ hsemijoin_range = makeEqAssertion "hsemijoin_range" C.semijoin_range res
   where
     res = [2, 4]
 
+hsemijoin_not_null :: Assertion
+hsemijoin_not_null = makeEqAssertion "hsemijoin_range" C.semijoin_not_null res
+  where
+    res = [2, 4, 6, 7]
+
+hsemijoin_quant :: Assertion
+hsemijoin_quant = makeEqAssertion "hsemijoin_quant" C.semijoin_quant res
+  where
+    res = [6,7]
+
 hantijoin :: Assertion
 hantijoin = makeEqAssertion "hantijoin" C.antijoin res
   where
@@ -201,6 +214,11 @@ hantijoin_range :: Assertion
 hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
   where
     res = [1, 3]
+
+hantijoin_not_null :: Assertion
+hantijoin_not_null = makeEqAssertion "hantijoin_range" C.antijoin_null res
+  where
+    res = [1, 3, 5]
 
 hantijoin_class12 :: Assertion
 hantijoin_class12 = makeEqAssertion "hantijoin_class12" C.antijoin_class12 res
