@@ -137,7 +137,7 @@ semijoin_range =
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
 
 semijoin_quant :: Q [Integer]
-semijjoin_quant = 
+semijoin_quant = 
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs, or [ y > 5 | y <- ys, x == y ] ]

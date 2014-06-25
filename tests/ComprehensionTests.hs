@@ -213,10 +213,10 @@ hantijoin = makeEqAssertion "hantijoin" C.antijoin res
 hantijoin_range :: Assertion
 hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
   where
-    res = [1, 3]
+    res = [1, 3, 5, 6, 7]
 
-hantijoin_not_null :: Assertion
-hantijoin_not_null = makeEqAssertion "hantijoin_range" C.antijoin_null res
+hantijoin_null :: Assertion
+hantijoin_null = makeEqAssertion "hantijoin_range" C.antijoin_null res
   where
     res = [1, 3, 5]
 
