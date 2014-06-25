@@ -275,6 +275,12 @@ executable dft
     Build-depends:  base, X100Client, DSH
     GHC-Options:    -Wall -fno-warn-orphans
 
+executable manual
+    hs-source-dirs: tests
+    main-is:        Manual.hs
+    build-depends:  base, X100Client, DSH, HDBC-postgresql
+    ghc-options:    -Wall -fno-warn-orphans
+
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs: tests
@@ -285,7 +291,7 @@ Test-Suite Flattening_x100
                    DSH                        >= 0.7.8.1,
                    text                       >= 0.11,
                    X100Client                 >= 0.0.2,
-                   derive                     >= 2.5,
+                   --derive                     >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework-hunit,
                    test-framework >= 0.6,
@@ -305,7 +311,7 @@ Test-Suite Flattening_TA
                    text                       >= 0.11,
                    HDBC-postgresql            >= 2.3,
                    HDBC                       >= 2.3,
-                   derive                     >= 2.5,
+                   --derive                     >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework-hunit,
                    test-framework             >= 0.6,
