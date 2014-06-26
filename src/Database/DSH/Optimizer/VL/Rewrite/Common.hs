@@ -20,10 +20,10 @@ import           Database.DSH.Optimizer.VL.Properties.TopDown
 import           Database.DSH.Optimizer.VL.Properties.Types
 
   -- Type abbreviations for convenience
-type VLRewrite p = Rewrite VL (TopShape DVec) p
-type VLRule p = Rule VL p (TopShape DVec)
-type VLRuleSet p = RuleSet VL p (TopShape DVec)
-type VLMatch p = Match VL p (TopShape DVec)
+type VLRewrite p = Rewrite VL (TopShape VLDVec) p
+type VLRule p = Rule VL p (TopShape VLDVec)
+type VLRuleSet p = RuleSet VL p (TopShape VLDVec)
+type VLMatch p = Match VL p (TopShape VLDVec)
 
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do

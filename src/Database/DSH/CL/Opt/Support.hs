@@ -32,6 +32,11 @@ complexPathT = do
     ExprCL e <- idR
     -- debugPretty "complexPathT" e
     path <- snocPathToPath <$> absPathT
+    
+    -- We are only interested in constant expressions that do not
+    -- depend on variables bound by generators in the enclosing
+    -- comprehension.
+    guardM $ null $ freeVars e
     let ret = return [(e, path)]
     case e of
         Comp _ _ _                                 -> ret
@@ -44,14 +49,12 @@ factorR :: TransformC CL (Ident, Expr, Expr)
 factorR = do
     -- Collect largest complex expressions in all childs
     candidateExprs <- allT $ onetdT complexPathT
-    -- debugPretty "collected" candidateExprs
+    debugPretty "collected" candidateExprs
     
-    (complexExpr, complexPath) : _ <- return $ filter (null . freeVars . fst) candidateExprs
+    (complexExpr, complexPath) : _ <- return candidateExprs
     
-    -- debugMsg "carnary1"
-    x                          <- freshNameT []
-    guardM $ null $ freeVars complexExpr
-    -- debugMsg "carnary2"
+    x                              <- freshNameT []
+
     let complexType = typeOf complexExpr
     let singletonExpr = P.cons complexExpr (Lit (listT complexType) (ListV []))
 
@@ -70,9 +73,11 @@ factorQualR =
     readerT $ \case
         GuardQ p :* qs -> do
             (x, xs, p') <- constT (return $ inject $ p) >>> factorR
+            debugMsg "factorQualR success"
             return $ BindQ x xs :* GuardQ p' :* qs
         S (GuardQ p) -> do
             (x, xs, p') <- constT (return $ inject $ p) >>> factorR
+            debugMsg "factorQualR success"
             return $ BindQ x xs :* (S $ GuardQ p')
         _ -> fail "no match"
 
@@ -81,4 +86,3 @@ factorConstantPredsR = do
     Comp t h qs <- promoteT idR
     qs' <- constT (return qs) >>> onetdR factorQualR
     return $ inject $ Comp t h qs'
-    

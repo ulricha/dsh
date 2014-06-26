@@ -10,27 +10,30 @@ import           Database.DSH.VL.Vector
 
 import           GHC.Generics                   (Generic)
 
+-- | Layouts used during compilation to VL DAGs.
 data Layout = InColumn Int
-            | Nest DVec Layout
+            | Nest VLDVec Layout
             | Pair Layout Layout
-    deriving (Show, Generic)
+            deriving (Show, Generic)
 
-data Shape = ValueVector DVec Layout
-           | PrimVal DVec Layout
+-- | 'Shape' is used during the compilation to VL DAGs and might
+-- contain closures.
+data Shape = ValueVector VLDVec Layout
+           | PrimVal VLDVec Layout
            | Closure String [(String, Shape)] String Expr Expr
            | AClosure String Shape Int [(String, Shape)] String Expr Expr
            deriving (Show, Generic)
 
 rootNodes :: Shape -> [AlgNode]
-rootNodes (ValueVector (DVec n _) lyt) = n : rootNodes' lyt
-rootNodes (PrimVal (DVec n _) lyt)     = n : rootNodes' lyt
+rootNodes (ValueVector (VLDVec n) lyt) = n : rootNodes' lyt
+rootNodes (PrimVal (VLDVec n) lyt)     = n : rootNodes' lyt
 rootNodes (Closure _ _ _ _ _)          = error "Function cannot appear as a result value"
 rootNodes (AClosure _ _ _ _ _ _ _)     = error "Function cannot appear as a result value"
 
 rootNodes' :: Layout -> [AlgNode]
 rootNodes' (Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
 rootNodes' (InColumn _) = []
-rootNodes' (Nest (DVec q _) lyt) = q : rootNodes' lyt
+rootNodes' (Nest (VLDVec q) lyt) = q : rootNodes' lyt
 
 columnsInLayout :: Layout -> Int
 columnsInLayout (InColumn _) = 1

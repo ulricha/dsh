@@ -47,7 +47,7 @@ import           Database.DSH.VL.Vector
 
 -- | Replace a root node while maintaining the query structure
 -- information.
-replaceRoot :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o (TopShape DVec) ()
+replaceRoot :: (DagVector v, D.Operator o) => AlgNode -> AlgNode -> R.Rewrite o (TopShape v) ()
 replaceRoot oldRoot newRoot = do
   sh <- R.getExtras
   R.updateExtras $ updateTopShape oldRoot newRoot sh
@@ -55,7 +55,8 @@ replaceRoot oldRoot newRoot = do
 
 -- | Replace a node with a new operator while mainting the query
 -- structure information.
-replaceWithNew :: (D.Operator o, Show o) => AlgNode -> o -> R.Rewrite o (TopShape DVec) AlgNode
+replaceWithNew :: (D.Operator o, Show o, DagVector v) 
+               => AlgNode -> o -> R.Rewrite o (TopShape v) AlgNode
 replaceWithNew oldNode newOp = do
   sh <- R.getExtras
   newNode <- R.replaceWithNew oldNode newOp
@@ -64,7 +65,8 @@ replaceWithNew oldNode newOp = do
 
 -- | Replace a node with another node while maintaining the query
 -- structure information.
-replace :: D.Operator o => AlgNode -> AlgNode -> R.Rewrite o (TopShape DVec) ()
+replace :: (DagVector v, D.Operator o) 
+        => AlgNode -> AlgNode -> R.Rewrite o (TopShape v) ()
 replace oldNode newNode = do
   sh <- R.getExtras
   R.replace oldNode newNode

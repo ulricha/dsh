@@ -15,7 +15,7 @@ import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
 import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
 
-type RewriteClass = Rewrite VL (TopShape DVec) Bool
+type RewriteClass = Rewrite VL (TopShape VLDVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -31,16 +31,16 @@ defaultPipeline = case assemblePipeline "ERGRG" of
 
 runPipeline 
   :: Dag.AlgebraDag VL 
-  -> (TopShape DVec) 
+  -> (TopShape VLDVec) 
   -> [RewriteClass] 
-  -> Bool -> (Dag.AlgebraDag VL, Log, TopShape DVec)
+  -> Bool -> (Dag.AlgebraDag VL, Log, TopShape VLDVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
 assemblePipeline :: String -> Maybe [RewriteClass]
 assemblePipeline s = mapM (flip lookup rewriteClasses) s
 
-optimizeVL :: [RewriteClass] -> QueryPlan VL -> QueryPlan VL
+optimizeVL :: [RewriteClass] -> QueryPlan VL VLDVec -> QueryPlan VL VLDVec
 optimizeVL pipeline plan =
 #ifdef DEBUGGRAPH
   let (d, _, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline True
@@ -49,10 +49,10 @@ optimizeVL pipeline plan =
 #endif
   in QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }
 
-optimizeVL' :: [RewriteClass] -> QueryPlan VL -> (QueryPlan VL, Log)
+optimizeVL' :: [RewriteClass] -> QueryPlan VL VLDVec -> (QueryPlan VL VLDVec, Log)
 optimizeVL' pipeline plan =
   let (d, l, shape) = runPipeline (queryDag plan) (queryShape plan) pipeline False
   in (QueryPlan { queryDag = d, queryShape = shape, queryTags = M.empty }, l)
 
-optimizeVLDefault :: QueryPlan VL -> QueryPlan VL
+optimizeVLDefault :: QueryPlan VL VLDVec -> QueryPlan VL VLDVec
 optimizeVLDefault = optimizeVL defaultPipeline
