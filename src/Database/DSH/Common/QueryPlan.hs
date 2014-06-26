@@ -70,15 +70,6 @@ isOuterMost :: AlgNode -> TopShape DVec -> Bool
 isOuterMost n (ValueVector (DVec n' _) _) = n == n'
 isOuterMost n (PrimVal (DVec n' _) _)     = n == n'
 
-importShape :: TopShape DVec -> S.Shape
-importShape (ValueVector (DVec n cols) lyt) = S.ValueVector (DVec n cols) (importLayout lyt)
-importShape (PrimVal (DVec n cols) lyt)     = S.PrimVal (DVec n cols) (importLayout lyt)
-
-importLayout :: TopLayout DVec -> S.Layout
-importLayout (InColumn i)              = S.InColumn i
-importLayout (Nest (DVec n cols) lyt) = S.Nest (DVec n cols) (importLayout lyt)
-importLayout (Pair lyt1 lyt2)          = S.Pair (importLayout lyt1) (importLayout lyt2)
-
 -- | Intermediate shapes may contain constructs that are not allowed
 -- in top-level queries (e.g. closures). Convert to a safe shape which
 -- represents legal top-level results.
