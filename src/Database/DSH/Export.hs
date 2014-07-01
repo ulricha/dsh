@@ -14,9 +14,10 @@ import qualified Database.Algebra.X100.JSON         as X100JSON
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Lang               hiding (Pair)
+import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Render.JSON        as VLJSON
 
-exportVLPlan :: String -> QueryPlan VL -> IO ()
+exportVLPlan :: String -> QueryPlan VL VLDVec -> IO ()
 exportVLPlan prefix vlPlan = do
   let planPath = prefix ++ "_vl.plan"
       shapePath = prefix ++ "_vl.shape"
@@ -27,7 +28,7 @@ exportVLPlan prefix vlPlan = do
                              )
   writeFile shapePath $ show $ queryShape vlPlan
 
-exportX100Plan :: String -> QueryPlan X100Algebra -> IO ()
+exportX100Plan :: String -> QueryPlan X100Algebra NDVec -> IO ()
 exportX100Plan prefix x100Plan = do
   let planPath = prefix ++ "_x100.plan"
       shapePath = prefix ++ "_x100.shape"
@@ -38,7 +39,7 @@ exportX100Plan prefix x100Plan = do
                                )
   writeFile shapePath $ show $ queryShape x100Plan
 
-exportTAPlan :: String -> QueryPlan TableAlgebra -> IO ()
+exportTAPlan :: String -> QueryPlan TableAlgebra NDVec -> IO ()
 exportTAPlan prefix pfPlan = do
   let planPath = prefix ++ "_ta.plan"
       shapePath = prefix ++ "_ta.shape"

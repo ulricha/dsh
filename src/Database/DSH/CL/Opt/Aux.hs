@@ -13,6 +13,8 @@ module Database.DSH.CL.Opt.Aux
       -- * Converting predicate expressions into join predicates
     , toJoinExpr
     , splitJoinPredT
+    , joinConjunctsT
+    , conjunctsT
     -- * Pushing guards towards the front of a qualifier list
     , isThetaJoinPred
     , isSemiJoinPred
@@ -32,6 +34,7 @@ module Database.DSH.CL.Opt.Aux
       -- * Classification of expressions
     , complexPrim1
     , complexPrim2
+    , fromGuard
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -50,6 +53,9 @@ import           Data.Either
 import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
+import           Data.List.NonEmpty         (NonEmpty ((:|)))
+import           Data.Semigroup
+import           Control.Applicative
 
 #ifdef DEBUGCOMP
 import           Debug.Trace
@@ -116,6 +122,14 @@ toJoinExpr n = do
         _             -> do
             fail "toJoinExpr: can't translate to join expression"
 
+flipRelOp :: BinRelOp -> BinRelOp
+flipRelOp Eq  = Eq
+flipRelOp NEq = NEq
+flipRelOp Gt  = Lt
+flipRelOp Lt  = Gt
+flipRelOp GtE = LtE
+flipRelOp LtE = GtE
+
 -- | Try to transform an expression into a thetajoin predicate. This
 -- will fail if either the expression does not have the correct shape
 -- (relational operator with simple projection expressions on both
@@ -132,11 +146,31 @@ splitJoinPredT x y = do
 
     if | x == x' && y == y' -> binopT (toJoinExpr x)
                                       (toJoinExpr y)
-                                      (\_ _ e1' e2' -> mkPred e1' e2')
+                                      (\_ _ e1' e2' -> JoinConjunct e1' op e2')
        | y == x' && x == y' -> binopT (toJoinExpr y)
                                       (toJoinExpr x)
-                                      (\_ _ e1' e2' -> mkPred e2' e1')
+                                      (\_ _ e1' e2' -> JoinConjunct e2' (flipRelOp op) e1')
        | otherwise          -> fail "splitJoinPredT: not a theta-join predicate"
+
+-- | Split a conjunctive combination of join predicates.
+joinConjunctsT :: Ident -> Ident -> TransformC CL (NonEmpty (JoinConjunct JoinExpr))
+joinConjunctsT x y = conjunctsT >>> mapT (splitJoinPredT x y)
+
+-- | Split a combination of logical conjunctions into its sub-terms.
+conjunctsT :: TransformC CL (NonEmpty Expr)
+conjunctsT = readerT $ \e -> case e of
+    -- For a logical AND, turn the left and right arguments into lists
+    -- of join predicates and combine them.
+    ExprCL (BinOp _ (SBBoolOp Conj) _ _) -> do
+        leftConjs  <- childT BinOpArg1 conjunctsT
+        rightConjs <- childT BinOpArg2 conjunctsT
+        return $ leftConjs <> rightConjs
+
+    -- For a non-AND expression, try to transform it into a join
+    -- predicate.
+    ExprCL e -> return $ e :| []
+
+    _ -> $impossible
 
 
 --------------------------------------------------------------------------------
@@ -291,6 +325,7 @@ fromQual :: Qual -> Either Qual Expr
 fromQual (BindQ x e) = Left $ BindQ x e
 fromQual (GuardQ p)  = Right p
 
+
 -- | Type of worker functions that merge guards into generators. It
 -- receives the comprehension itself (with a qualifier list that
 -- consists solely of generators), the current candidate guard
@@ -383,6 +418,10 @@ complexPrim1 op =
         Snd    -> False
         _      -> True
 
+fromGuard :: Monad m => Qual -> m Expr
+fromGuard (GuardQ e)  = return e
+fromGuard (BindQ _ _) = fail "not a guard"
+
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
 
@@ -419,7 +458,7 @@ debugOpt origExpr mExpr =
 
   where
     padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '='
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
 
     showOrig :: Expr -> String
     showOrig e = padSep "Original Query" ++ pp e ++ padSep ""

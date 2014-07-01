@@ -384,7 +384,7 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
 combine _ _ _ = $impossible
 
 
-outer ::  Shape -> Build VL DVec
+outer ::  Shape -> Build VL VLDVec
 outer (PrimVal _ _)            = $impossible
 outer (ValueVector q _)        = return q
 outer (Closure _ _ _ _ _)      = $impossible
@@ -574,8 +574,8 @@ concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 singletonVec ::  Shape -> Build VL Shape
 singletonVec (ValueVector q lyt) = do
-    (DVec d _) <- vlSingletonDescr
-    return $ ValueVector (DVec d []) (Nest q lyt)
+    VLDVec d <- vlSingletonDescr
+    return $ ValueVector (VLDVec d) (Nest q lyt)
 singletonVec _ = error "singletonVec: Should not be possible"
 
 singletonPrim ::  Shape -> Build VL Shape
@@ -629,7 +629,7 @@ toPlan (descHd, descV) t c v =
     let (hd, v') = mkColumn t v
     in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
-literal :: Type -> VLVal -> Build VL DVec
+literal :: Type -> VLVal -> Build VL VLDVec
 literal t v = vlLit L.NonEmpty [t] [[VLNat 1, VLNat 1, v]]
 
 fromListVal :: L.Val -> [L.Val]

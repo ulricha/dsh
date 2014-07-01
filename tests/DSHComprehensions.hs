@@ -136,17 +136,54 @@ semijoin_range =
         ys = (toQ [2, 4, 6] :: Q [Integer])
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
 
+semijoin_quant :: Q [Integer]
+semijoin_quant = 
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs, or [ y > 5 | y <- ys, x == y ] ]
+
+semijoin_not_null :: Q [Integer]
+semijoin_not_null =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs, not $ null [ y | y <- ys, x == y] ]
+    
+
 antijoin :: Q [Integer]
 antijoin =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs , not $ x `elem` ys ]
 
+antijoin_null :: Q [Integer]
+antijoin_null =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
+    in [ x | x <- xs, null [ y | y <- ys, x == y] ]
+
 antijoin_range :: Q [Integer]
 antijoin_range =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs , not $ x `elem` [ y | y <- ys, y < 5 ] ]
+
+antijoin_class12 :: Q [Integer]
+antijoin_class12 =
+    let xs = toQ ([6,7,8,9,10,12] :: [Integer])
+        ys = toQ ([8,9,12,13,15,16] :: [Integer])
+    in [ x | x <- xs, and [ x < y | y <- ys, y > 10 ]]
+
+antijoin_class15 :: Q [Integer]
+antijoin_class15 =
+    let xs = toQ ([3,4,5,6,7,8] :: [Integer])
+        ys = toQ ([4,5,8,16] :: [Integer])
+    in [ x | x <- xs, and [ y `mod` 4 == 0 | y <- ys, x < y ]]
+
+antijoin_class16 :: Q [Integer]
+antijoin_class16 =
+    let xs = toQ ([3,4,5,6] :: [Integer])
+        ys = toQ ([1,2,3,4,5,6,7,8] :: [Integer])
+    in [ x | x <- xs, and [ y <= 2 * x | y <- ys, x < y ]]
 
 ----------------------------------------------------------------------
 -- Comprehensions for HUnit NestJoin/NestProduct tests
@@ -254,4 +291,28 @@ njg5 njgxs njgys =
   [ x
   | x <- toQ njgxs
   , sum [ y | y <- toQ njgys, x < y, y > 5 ] < 10
+  ]
+
+--------------------------------------------------------------------------------
+-- Comprehensions for QuickCheck antijoin/semijoin tests
+
+aj_class12 :: Q ([Integer], [Integer]) -> Q [Integer]
+aj_class12 (view -> (xs, ys)) = 
+  [ x 
+  | x <- xs
+  , and [ x == y | y <- ys, y > 10 ]
+  ]
+
+aj_class15 :: Q ([Integer], [Integer]) -> Q [Integer]
+aj_class15 (view -> (xs, ys)) = 
+  [ x 
+  | x <- xs
+  , and [ y `mod` 4 == 0 | y <- ys, x < y ]
+  ]
+
+aj_class16 :: Q ([Integer], [Integer]) -> Q [Integer]
+aj_class16 (view -> (xs, ys)) = 
+  [ x 
+  | x <- xs
+  , and [ y <= 2 * x | y <- ys, x < y ]
   ]

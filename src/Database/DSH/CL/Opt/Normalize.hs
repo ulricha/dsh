@@ -2,21 +2,25 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE LambdaCase          #-}
     
 -- | Normalize patterns from source programs (not to be confused with
 -- comprehension normalization)
 module Database.DSH.CL.Opt.Normalize
   ( normalizeOnceR 
-  , normalizeAlwaysR
+  , normalizeExprR
   ) where
-  
-import           Control.Arrow
+
+import           Control.Monad
+import qualified Data.Foldable              as F
+import qualified Data.Traversable           as T
        
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
+import           Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
 -- Simple normalization rewrites that are applied only at the start of
@@ -42,94 +46,73 @@ splitConjunctsR = splitR <+ splitEndR
 normalizeOnceR :: RewriteC CL
 normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
     
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Simple normalization rewrites that are interleaved with other rewrites.
 
--- These rewrites are meant to only normalize certain patterns stemming from the
--- source program. However, they have to be interleaved with general
--- comprehension unnesting and optimization, as they might depend on a pushdown
--- of predicates, e.g.:
+--------------------------------------------------------------------------------
+-- Normalization rewrites for universal/existential quantification.
 
--- [ ... | y <- ys, not $ null [ e | x <- xs, p x y, q x ] ]
--- => 
--- [ ... | y <- ys, not $ null [ e | x <- filter (\x -> q x) xs, p x y ]
+pattern PEq e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
+pattern PLength e <- AppE1 _ (Prim1 Length _) e
+pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
+pattern POr xs <- AppE1 _ (Prim1 Or _) xs
+pattern PNot e <- UnOp _ (SUBoolOp Not) e
+pattern PNull e <- AppE1 _ (Prim1 Null _) e
+
+-- Bring a NOT EXISTS pattern into universal quantification form:
+-- not (or [ q | y <- ys, ps ])
 -- =>
--- [ ... | y <- ys, or [ p x y | x <- filter (\x -> q x) ] ]
+-- and [ not q | y <- ys, ps ]
+notExistsR :: RewriteC CL
+notExistsR = promoteT $ readerT $ \e -> case e of
+    -- With range predicates
+    PNot (POr (Comp t q (BindQ y ys :* ps))) -> do
+    
+        -- All remaining qualifiers have to be guards.
+        void $ constT $ T.mapM fromGuard ps
 
--- | Normalize a guard expressing existential quantification:
--- not $ null [ ... | x <- xs, p ] (not $ length [ ... ] == 0)
--- => or [ p | x <- xs ]
-normalizeExistentialR :: RewriteC Qual
-normalizeExistentialR = do
-    GuardQ (UnOp _ (SUBoolOp Not)
-               (BinOp _ (SBRelOp Eq)
-                   (AppE1 _ (Prim1 Length _) 
-                       (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
-                   (Lit _ (IntV 0)))) <- idR
+        return $ inject $ P.and $ Comp t (P.not q) (BindQ y ys :* ps)
 
-    return $ GuardQ (P.or (Comp (listT boolT) 
-                          p 
-                          (S (BindQ x xs))))
+    -- Without range predicates
+    PNot (POr (Comp t q (S (BindQ y ys)))) -> do
+        return $ inject $ P.and $ Comp t (P.not q) (S $ BindQ y ys)
 
--- | Normalize a guard expressing universal quantification:
--- null [ ... | x <- xs, p ] (length [ ... ] == 0)
--- => and [ not p | x <- xs ]
-normalizeUniversal1R :: RewriteC Qual
-normalizeUniversal1R = do
-    -- c <- idR
-    -- debugUnit "normalizeUniversalR" c
-    GuardQ (BinOp _ (SBRelOp Eq)
-                (AppE1 _ (Prim1 Length _) 
-                    (Comp _ _ (BindQ x xs :* (S (GuardQ p)))))
-                (Lit _ (IntV 0))) <- idR
+    _ -> fail "no match"
 
-    return $ GuardQ (P.and (Comp (listT boolT) 
-                           (P.scalarUnOp (SUBoolOp Not) p) 
-                           (S (BindQ x xs))))
-                           
--- | Normalize a guard expressing universal quantification
--- not (or [ p | x <- xs ])
+-- Normalization of null occurences
+-- length xs == 0 => null xs
+-- 0 == length xs => null xs
+zeroLengthR :: RewriteC CL
+zeroLengthR = promoteT $ readerT $ \e -> case e of
+    PEq (PLength xs) (Lit _ (IntV 0)) -> return $ inject $ P.null xs
+    PEq (Lit _ (IntV 0)) (PLength xs) -> return $ inject $ P.null xs
+    _                                 -> fail "no match"
+
+-- null [ _ | x <- xs, p1, p2, ... ] 
+-- => and [ not (p1 && p2 && ...) | x <- xs ]
+comprehensionNullR :: RewriteC CL
+comprehensionNullR = do
+    PNull (Comp _ _ (BindQ x xs :* guards)) <- promoteT idR
+    
+    -- We need exactly one generator and at least one guard.
+    guardExprs           <- constT $ T.mapM fromGuard guards
+
+    -- Merge all guards into a conjunctive form
+    let conjPred = P.not $ F.foldl1 P.conj guardExprs
+    return $ inject $ P.and $ Comp (listT boolT) conjPred (S $ BindQ x xs)
+
+-- not $ null [ _ | x <- xs, ps ]
 -- =>
--- and [ not p | x <- xs ]
-normalizeUniversal2R :: RewriteC Qual
-normalizeUniversal2R = do
-    GuardQ (UnOp _ (SUBoolOp Not)
-                (AppE1 _ (Prim1 Or _)
-                         (Comp _ p (S (BindQ y ys))))) <- idR
-    
-    return $ GuardQ (P.and (Comp (listT boolT)
-                                 (P.scalarUnOp (SUBoolOp Not) p)
-                                 (S (BindQ y ys))))
-                           
-normQualWorkR :: RewriteC Qual
-normQualWorkR = normalizeExistentialR 
-            <+ normalizeUniversal1R
-            <+ normalizeUniversal2R
-    
-normQualR :: RewriteC (NL Qual)
-normQualR = 
-    anytdR $ readerT $ \case
-        q :* qs -> do
-            q' <- constT (return q) >>> normQualWorkR
-            return $ q' :* qs
-        S q     -> do
-            q' <- constT (return q) >>> normQualWorkR
-            return $ S q'
+-- not $ and [ not ps | x <- xs ] (comprehensionNullR)
+-- =>
+-- or [ ps | x <- xs ]
+notNullR :: RewriteC CL
+notNullR = do
+    PNot (PAnd (Comp _ (PNot p) (S (BindQ x xs)))) <- promoteT idR
+    return $ inject $ P.or (Comp (listT boolT) p (S (BindQ x xs)))
 
--- | Eliminate a comprehension with an identity head
--- [ x | x <- xs ] => xs
--- FIXME does this pattern occur at all?
-identityCompR :: RewriteC Expr
-identityCompR = do
-    Comp _ (Var _ x) (S (BindQ x' xs)) <- idR
-    guardM $ x == x'
-    return xs
-                      
-normalizeQualifiersR :: RewriteC CL
-normalizeQualifiersR = do
-    Comp _ _ _ <- promoteT idR 
-    childR CompQuals $ promoteR normQualR
-
-normalizeAlwaysR :: RewriteC CL
-normalizeAlwaysR = normalizeQualifiersR
-
+normalizeExprR :: RewriteC CL
+normalizeExprR = zeroLengthR 
+                 <+ comprehensionNullR
+                 <+ notNullR
+                 <+ notExistsR

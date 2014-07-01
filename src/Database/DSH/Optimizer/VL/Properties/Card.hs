@@ -34,7 +34,7 @@ inferCardOneUnOp c op =
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
     SelectPos1 _ _ -> Right $ VPropTriple False False False
     SelectPos1S _ _ -> Right $ VPropTriple False False False
-    Select _ -> Right $ VProp False
+    Select _ -> Right $ VPropPair False False
     SortScalarS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 -> 

@@ -39,7 +39,7 @@ inferNonEmptyUnOp e op =
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
-    Select _        -> Right $ VProp False
+    Select _        -> Right $ VPropPair False False
     SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
     GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
 

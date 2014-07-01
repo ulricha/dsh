@@ -20,8 +20,8 @@ import qualified Database.DSH.VL.Lang          as D
 
 type VecConst r v = Build VL AlgNode -> Build VL v
 
-dvec :: VecConst r DVec
-dvec = fmap (flip DVec [])
+dvec :: VecConst r VLDVec
+dvec = fmap VLDVec
 
 pvec :: Build a AlgNode -> Build a PVec
 pvec = fmap PVec
@@ -152,184 +152,184 @@ joinExpr expr = offsetExpr $ aux expr
 ----------------------------------------------------------------------------------
 -- DAG constructor functions for VL operators
 
-vlUniqueS :: DVec -> Build VL DVec
-vlUniqueS (DVec c _) = vec (UnOp UniqueS c) dvec
+vlUniqueS :: VLDVec -> Build VL VLDVec
+vlUniqueS (VLDVec c) = vec (UnOp UniqueS c) dvec
 
-vlNumber :: DVec -> Build VL DVec
-vlNumber (DVec c _) = vec (UnOp Number c) dvec
+vlNumber :: VLDVec -> Build VL VLDVec
+vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 
-vlNumberS :: DVec -> Build VL DVec
-vlNumberS (DVec c _) = vec (UnOp NumberS c) dvec
+vlNumberS :: VLDVec -> Build VL VLDVec
+vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
-vlGroupBy :: DVec -> DVec -> Build VL (DVec, DVec, PVec)
-vlGroupBy (DVec c1 _) (DVec c2 _) = tripleVec (BinOp GroupBy c1 c2) dvec dvec pvec
+vlGroupBy :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroupBy (VLDVec c1) (VLDVec c2) = tripleVec (BinOp GroupBy c1 c2) dvec dvec pvec
 
-vlSort :: DVec -> DVec -> Build VL (DVec, PVec)
-vlSort (DVec c1 _) (DVec c2 _) = pairVec (BinOp SortS c1 c2) dvec pvec
+vlSort :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlSort (VLDVec c1) (VLDVec c2) = pairVec (BinOp SortS c1 c2) dvec pvec
 
-vlAggr :: AggrFun -> DVec -> Build VL DVec
-vlAggr aFun (DVec c _) = vec (UnOp (Aggr aFun) c) dvec
+vlAggr :: AggrFun -> VLDVec -> Build VL VLDVec
+vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
 
-vlAggrS :: AggrFun -> DVec -> DVec -> Build VL DVec
-vlAggrS aFun (DVec c1 _) (DVec c2 _) = vec (BinOp (AggrS aFun) c1 c2) dvec
+vlAggrS :: AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
+vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 
-vlDescToRename :: DVec -> Build VL RVec
-vlDescToRename (DVec c _) = vec (UnOp DescToRename c) rvec
+vlDescToRename :: VLDVec -> Build VL RVec
+vlDescToRename (VLDVec c) = vec (UnOp DescToRename c) rvec
 
-vlDistPrim :: DVec -> DVec -> Build VL (DVec, PVec)
-vlDistPrim (DVec c1 _) (DVec c2 _) = pairVec (BinOp DistPrim c1 c2) dvec pvec
+vlDistPrim :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec
 
-vlDistDesc :: DVec -> DVec -> Build VL (DVec, PVec)
-vlDistDesc (DVec c1 _) (DVec c2 _) = pairVec (BinOp DistDesc c1 c2) dvec pvec
+vlDistDesc :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlDistDesc (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistDesc c1 c2) dvec pvec
 
-vlAlign :: DVec -> DVec -> Build VL (DVec, PVec)
-vlAlign (DVec c1 _) (DVec c2 _) = pairVec (BinOp Align c1 c2) dvec pvec
+vlAlign :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlAlign (VLDVec c1) (VLDVec c2) = pairVec (BinOp Align c1 c2) dvec pvec
 
-vlPropRename :: RVec -> DVec -> Build VL DVec
-vlPropRename (RVec c1) (DVec c2 _) = vec (BinOp PropRename c1 c2) dvec
+vlPropRename :: RVec -> VLDVec -> Build VL VLDVec
+vlPropRename (RVec c1) (VLDVec c2) = vec (BinOp PropRename c1 c2) dvec
 
-vlUnbox :: RVec -> DVec -> Build VL (DVec, RVec)
-vlUnbox (RVec c1) (DVec c2 _) = pairVec (BinOp Unbox c1 c2) dvec rvec
+vlUnbox :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlUnbox (RVec c1) (VLDVec c2) = pairVec (BinOp Unbox c1 c2) dvec rvec
 
-vlPropFilter :: RVec -> DVec -> Build VL (DVec, RVec)
-vlPropFilter (RVec c1) (DVec c2 _) = pairVec (BinOp PropFilter c1 c2) dvec rvec
+vlPropFilter :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlPropFilter (RVec c1) (VLDVec c2) = pairVec (BinOp PropFilter c1 c2) dvec rvec
 
-vlPropReorder :: PVec -> DVec -> Build VL (DVec, PVec)
-vlPropReorder (PVec c1) (DVec c2 _) = pairVec (BinOp PropReorder c1 c2) dvec pvec
+vlPropReorder :: PVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlPropReorder (PVec c1) (VLDVec c2) = pairVec (BinOp PropReorder c1 c2) dvec pvec
 
-vlSingletonDescr :: Build VL DVec
+vlSingletonDescr :: Build VL VLDVec
 vlSingletonDescr = vec (NullaryOp SingletonDescr) dvec
 
-vlAppend :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
-vlAppend (DVec c1 _) (DVec c2 _) = tripleVec (BinOp Append c1 c2) dvec rvec rvec
+vlAppend :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlAppend (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Append c1 c2) dvec rvec rvec
 
-vlAppendS :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
-vlAppendS (DVec c1 _) (DVec c2 _) = tripleVec (BinOp AppendS c1 c2) dvec rvec rvec
+vlAppendS :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlAppendS (VLDVec c1) (VLDVec c2) = tripleVec (BinOp AppendS c1 c2) dvec rvec rvec
 
-vlSegment :: DVec -> Build VL DVec
-vlSegment (DVec c _) = vec (UnOp Segment c) dvec
+vlSegment :: VLDVec -> Build VL VLDVec
+vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 
-vlUnsegment :: DVec -> Build VL DVec
-vlUnsegment (DVec c _) = vec (UnOp Unsegment c) dvec
+vlUnsegment :: VLDVec -> Build VL VLDVec
+vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: DVec -> DVec -> Build VL (DVec, RVec)
-vlRestrict (DVec c1 _) (DVec c2 _) = pairVec (BinOp Restrict c1 c2) dvec rvec
+vlRestrict :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlRestrict (VLDVec c1) (VLDVec c2) = pairVec (BinOp Restrict c1 c2) dvec rvec
 
-vlCombine :: DVec -> DVec -> DVec -> Build VL (DVec, RVec, RVec)
-vlCombine (DVec c1 _) (DVec c2 _) (DVec c3 _) = 
+vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
-vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL DVec
+vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
 vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToVLType tys) vals) dvec
 
-vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL DVec
+vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL VLDVec
 vlTableRef n tys hs = vec (NullaryOp $ TableRef n tys hs) dvec
 
-vlUnExpr :: L.ScalarUnOp -> DVec -> Build VL DVec
-vlUnExpr o (DVec c _) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
+vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec
+vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
-vlBinExpr :: L.ScalarBinOp -> DVec -> DVec -> Build VL DVec
-vlBinExpr o (DVec c1 _) (DVec c2 _) = do
+vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
+vlBinExpr o (VLDVec c1) (VLDVec c2) = do
     z <- insertNode $ BinOp Zip c1 c2
     r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
-vlSelectPos :: DVec -> L.ScalarBinOp -> DVec -> Build VL (DVec, RVec, RVec)
-vlSelectPos (DVec c1 _) op (DVec c2 _) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
+vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
-vlSelectPos1 :: DVec -> L.ScalarBinOp -> Nat -> Build VL (DVec, RVec, RVec)
-vlSelectPos1 (DVec c1 _) op posConst = 
+vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1 (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1 op posConst) c1) dvec rvec rvec
 
-vlSelectPosS :: DVec -> L.ScalarBinOp -> DVec -> Build VL (DVec, RVec, RVec)
-vlSelectPosS (DVec c1 _) op (DVec c2 _) = do
+vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
-vlSelectPos1S :: DVec -> L.ScalarBinOp -> Nat -> Build VL (DVec, RVec, RVec)
-vlSelectPos1S (DVec c1 _) op posConst = 
+vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1S (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1S op posConst) c1) dvec rvec rvec
 
-vlProject :: DVec -> [Expr] -> Build VL DVec
-vlProject (DVec c _) projs = dvec $ insertNode $ UnOp (Project projs) c
+vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
+vlProject (VLDVec c) projs = dvec $ insertNode $ UnOp (Project projs) c
 
-vlZip :: DVec -> DVec -> Build VL DVec
-vlZip (DVec c1 _) (DVec c2 _) = vec (BinOp Zip c1 c2) dvec
+vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
+vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec
 
-vlZipS :: DVec -> DVec -> Build VL (DVec, RVec, RVec)
-vlZipS (DVec c1 _) (DVec c2 _) =
+vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
+vlZipS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp ZipS c1 c2) dvec rvec rvec
 
-vlCartProduct :: DVec -> DVec -> Build VL (DVec, PVec, PVec)
-vlCartProduct (DVec c1 _) (DVec c2 _) =
+vlCartProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlCartProduct (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp CartProduct c1 c2) dvec pvec pvec
 
-vlCartProductS :: DVec -> DVec -> Build VL (DVec, PVec, PVec)
-vlCartProductS (DVec c1 _) (DVec c2 _) =
+vlCartProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlCartProductS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp CartProductS c1 c2) dvec pvec pvec
 
-vlThetaJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec, PVec)
-vlThetaJoin joinPred (DVec c1 _) (DVec c2 _) =
+vlThetaJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlThetaJoin joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec pvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec, PVec)
-vlThetaJoinS joinPred (DVec c1 _) (DVec c2 _) =
+vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (ThetaJoinS joinPred') c1 c2) dvec pvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, PVec)
-vlNestJoinS joinPred (DVec c1 _) (DVec c2 _) =
+vlNestJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlNestJoinS joinPred (VLDVec c1) (VLDVec c2) =
     pairVec (BinOp (NestJoinS joinPred') c1 c2) dvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlNestProductS :: DVec -> DVec -> Build VL (DVec, PVec)
-vlNestProductS (DVec c1 _) (DVec c2 _) = do
+vlNestProductS :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlNestProductS (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp NestProductS c1 c2) dvec pvec
 
-vlSemiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
-vlSemiJoin joinPred (DVec c1 _) (DVec c2 _) = do
+vlSemiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlSemiJoin joinPred (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp (SemiJoin joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
-vlSemiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+vlSemiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlSemiJoinS joinPred (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp (SemiJoinS joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlAntiJoin :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
-vlAntiJoin joinPred (DVec c1 _) (DVec c2 _) = do
+vlAntiJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlAntiJoin joinPred (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp (AntiJoin joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> DVec -> DVec -> Build VL (DVec, RVec)
-vlAntiJoinS joinPred (DVec c1 _) (DVec c2 _) = do
+vlAntiJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlAntiJoinS joinPred (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp (AntiJoinS joinPred') c1 c2) dvec rvec
   where
     joinPred' = toVLJoinPred joinPred
 
-vlReverse :: DVec -> Build VL (DVec, PVec)
-vlReverse (DVec c _) = pairVec (UnOp Reverse c) dvec pvec
+vlReverse :: VLDVec -> Build VL (VLDVec, PVec)
+vlReverse (VLDVec c) = pairVec (UnOp Reverse c) dvec pvec
 
-vlReverseS :: DVec -> Build VL (DVec, PVec)
-vlReverseS (DVec c _) = pairVec (UnOp ReverseS c) dvec pvec
+vlReverseS :: VLDVec -> Build VL (VLDVec, PVec)
+vlReverseS (VLDVec c) = pairVec (UnOp ReverseS c) dvec pvec
 
-vlTranspose :: DVec -> Build VL (DVec, DVec)
-vlTranspose (DVec c _) = pairVec (UnOp Transpose c) dvec dvec
+vlTranspose :: VLDVec -> Build VL (VLDVec, VLDVec)
+vlTranspose (VLDVec c) = pairVec (UnOp Transpose c) dvec dvec
 
-vlTransposeS :: DVec -> DVec -> Build VL (DVec, DVec)
-vlTransposeS (DVec c1 _) (DVec c2 _) = do
+vlTransposeS :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec)
+vlTransposeS (VLDVec c1) (VLDVec c2) = do
     pairVec (BinOp TransposeS c1 c2) dvec dvec
 
-vlReshape :: Integer -> DVec -> Build VL (DVec, DVec)
-vlReshape n (DVec c _) = do
+vlReshape :: Integer -> VLDVec -> Build VL (VLDVec, VLDVec)
+vlReshape n (VLDVec c) = do
     pairVec (UnOp (Reshape n) c) dvec dvec
 
-vlReshapeS :: Integer -> DVec -> Build VL (DVec, DVec)
-vlReshapeS n (DVec c _) = do
+vlReshapeS :: Integer -> VLDVec -> Build VL (VLDVec, VLDVec)
+vlReshapeS n (VLDVec c) = do
     pairVec (UnOp (ReshapeS n) c) dvec dvec

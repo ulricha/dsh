@@ -21,7 +21,7 @@ import           Database.DSH.VL.Vector
 -- into a separate SQL query.
 
 -- FIXME use materialization "prelude"
-generateSqlQueries :: QueryPlan TableAlgebra -> TopShape SqlCode
+generateSqlQueries :: QueryPlan TableAlgebra NDVec -> TopShape SqlCode
 generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
   where
     roots = rootNodes $ queryDag taPlan
@@ -29,15 +29,15 @@ generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
     nodeToQuery  = zip roots sqlQueries
     lookupNode n = maybe $impossible SqlCode $ lookup n nodeToQuery
 
-    renderQueryCode :: TopShape DVec -> TopShape SqlCode
+    renderQueryCode :: TopShape NDVec -> TopShape SqlCode
     renderQueryCode shape =
         case shape of
-            PrimVal (DVec r _) lyt -> PrimVal (lookupNode r) (convertLayout lyt)
-            ValueVector (DVec r _) lyt -> ValueVector (lookupNode r) (convertLayout lyt)
+            PrimVal (ADVec r _) lyt -> PrimVal (lookupNode r) (convertLayout lyt)
+            ValueVector (ADVec r _) lyt -> ValueVector (lookupNode r) (convertLayout lyt)
 
-    convertLayout :: TopLayout DVec -> TopLayout SqlCode
+    convertLayout :: TopLayout NDVec -> TopLayout SqlCode
     convertLayout lyt =
         case lyt of
-            InColumn i           -> InColumn i
-            Nest (DVec r _) clyt -> Nest (lookupNode r) (convertLayout clyt)
-            Pair lyt1 lyt2       -> Pair (convertLayout lyt1) (convertLayout lyt2)
+            InColumn i            -> InColumn i
+            Nest (ADVec r _) clyt -> Nest (lookupNode r) (convertLayout clyt)
+            Pair lyt1 lyt2        -> Pair (convertLayout lyt1) (convertLayout lyt2)

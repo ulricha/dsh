@@ -23,15 +23,24 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "eqjoin_nested_right" prop_eqjoin_nested_right
     , testProperty "eqjoin_nested_both" prop_eqjoin_nested_both
     , testProperty "nestjoin" prop_nestjoin
+    , testProperty "antijoin class12" prop_aj_class12
+    , testProperty "antijoin class15" prop_aj_class15
+    , testProperty "antijoin class16" prop_aj_class16
     ]
 
 tests_join_hunit :: Test
 tests_join_hunit = testGroup "HUnit joins"
     [ testCase "heqjoin_nested1" heqjoin_nested1
     , testCase "hsemijoin" hsemijoin
-    , testCase "hsemijoin_range" hsemijoin
+    , testCase "hsemijoin_range" hsemijoin_range
+    , testCase "hsemijoin_quant" hsemijoin_quant
+    , testCase "hsemijoin_not_null" hsemijoin_not_null
     , testCase "hantijoin" hantijoin
-    , testCase "hantijoin_range" hantijoin
+    , testCase "hantijoin_range" hantijoin_range
+    , testCase "hantijoin_null" hantijoin_null
+    , testCase "hantijoin_class12" hantijoin_class12
+    , testCase "hantijoin_class15" hantijoin_class15
+    , testCase "hantijoin_class16" hantijoin_class16
     ]
 
 tests_nest_head_hunit :: Test
@@ -140,6 +149,30 @@ prop_nestjoin = makeProp C.nestjoin nestjoin_native
   where
     nestjoin_native (xs, ys) = [ (x, [ y | y <- ys, x == y ]) | x <- xs]
 
+prop_aj_class12 :: ([Integer], [Integer]) -> Property
+prop_aj_class12 = makeProp C.aj_class12 aj_class12_native
+  where
+    aj_class12_native (ajxs, ajys) = [ x 
+                                     | x <- ajxs
+                                     , and [ x == y | y <- ajys, y > 10 ]
+                                     ]
+
+prop_aj_class15 :: ([Integer], [Integer]) -> Property
+prop_aj_class15 = makeProp C.aj_class15 aj_class15_native
+  where
+    aj_class15_native (ajxs, ajys) = [ x 
+                                     | x <- ajxs
+                                     , and [ y `mod` 4 == 0 | y <- ajys, x < y ]
+                                     ]
+
+prop_aj_class16 :: ([Integer], [Integer]) -> Property
+prop_aj_class16 = makeProp C.aj_class16 aj_class16_native
+  where
+    aj_class16_native (ajxs, ajys) = [ x 
+                                     | x <- ajxs
+                                     , and [ y <= 2 * x | y <- ajys, x < y ]
+                                     ]
+
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
 
@@ -162,6 +195,16 @@ hsemijoin_range = makeEqAssertion "hsemijoin_range" C.semijoin_range res
   where
     res = [2, 4]
 
+hsemijoin_not_null :: Assertion
+hsemijoin_not_null = makeEqAssertion "hsemijoin_range" C.semijoin_not_null res
+  where
+    res = [2, 4, 6, 7]
+
+hsemijoin_quant :: Assertion
+hsemijoin_quant = makeEqAssertion "hsemijoin_quant" C.semijoin_quant res
+  where
+    res = [6,7]
+
 hantijoin :: Assertion
 hantijoin = makeEqAssertion "hantijoin" C.antijoin res
   where
@@ -170,8 +213,27 @@ hantijoin = makeEqAssertion "hantijoin" C.antijoin res
 hantijoin_range :: Assertion
 hantijoin_range = makeEqAssertion "hantijoin_range" C.antijoin_range res
   where
-    res = [1, 3]
+    res = [1, 3, 5, 6, 7]
 
+hantijoin_null :: Assertion
+hantijoin_null = makeEqAssertion "hantijoin_range" C.antijoin_null res
+  where
+    res = [1, 3, 5]
+
+hantijoin_class12 :: Assertion
+hantijoin_class12 = makeEqAssertion "hantijoin_class12" C.antijoin_class12 res
+  where
+    res = [6,7,8,9,10]
+
+hantijoin_class15 :: Assertion
+hantijoin_class15 = makeEqAssertion "hantijoin_class15" C.antijoin_class15 res
+  where
+    res = [5,6,7,8]
+
+hantijoin_class16 :: Assertion
+hantijoin_class16 = makeEqAssertion "hantijoin_class16" C.antijoin_class16 res
+  where
+    res = [4,5,6]
 
 -----------------------------------------------------------------------
 -- HUnit tests for nestjoin/nestproduct
@@ -360,3 +422,6 @@ njg5 njgxs njgys =
   | x <- njgxs
   , sum [ y | y <- njgys, x < y, y > 5 ] < 10
   ]
+
+--------------------------------------------------------------------------------
+--

@@ -51,7 +51,7 @@ descendR = readerT $ \case
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
-    ExprCL _            -> repeatR partialEvalR >+> anyR descendR
+    ExprCL _            -> repeatR partialEvalR >+> repeatR normalizeExprR >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
     _                   -> anyR descendR
@@ -64,8 +64,7 @@ optCompR = do
     debugPretty "optCompR at" c
 
     repeatR $ do
-          (normalizeAlwaysR
-             <+ compNormEarlyR
+          (compNormEarlyR
              <+ predpushdownR
              <+ flatjoinsR
              <+ anyR descendR

@@ -26,7 +26,7 @@ import           Test.HUnit(Assertion)
 import           Test.Framework (Test, testGroup)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.Framework.Providers.HUnit
-import           Data.DeriveTH
+-- import           Data.DeriveTH
 
 import           Data.Char
 import           Data.Text (Text)
@@ -37,6 +37,7 @@ import           Data.Maybe
 import           Data.Either
 import           GHC.Exts
 
+{-
 data D0 = C01 deriving (Eq,Ord,Show)
 
 derive makeArbitrary ''D0
@@ -85,6 +86,8 @@ data D6 a b c d e = C61 { c611 :: a, c612 :: (a,b,c,d) }
 derive makeArbitrary ''D6
 Q.deriveDSH ''D6
 
+-}
+
 tests_types :: Test
 tests_types = testGroup "Supported Types"
   [ testProperty "()" $ prop_unit
@@ -100,6 +103,7 @@ tests_types = testGroup "Supported Types"
   , testProperty "([], [])" $ prop_tuple_list_integer
   , testProperty "Maybe Integer" $ prop_maybe_integer
   , testProperty "Either Integer Integer" $ prop_either_integer
+{-
   , testProperty "D0" $ prop_d0
   , testProperty "D1" $ prop_d1
   , testProperty "D2" $ prop_d2
@@ -107,6 +111,7 @@ tests_types = testGroup "Supported Types"
   , testProperty "D4" $ prop_d4
   , testProperty "D5" $ prop_d5
   , testProperty "D6" $ prop_d6
+-}
   ]
 
 tests_boolean :: Test
@@ -201,6 +206,8 @@ tests_lists = testGroup "Lists"
         , testProperty "take ++ drop" $ prop_takedrop
         , testProperty "map" $ prop_map
         , testProperty "filter" $ prop_filter
+        , testProperty "filter > 42" $ prop_filter_gt
+        , testProperty "filter > 42 (,[])" $ prop_filter_gt_nested
         , testProperty "the" $ prop_the
         , testProperty "last" $ prop_last
         , testProperty "init" $ prop_init
@@ -307,6 +314,8 @@ tests_lifted = testGroup "Lifted operations"
         , testProperty "map any zero" $ prop_map_any_zero
         , testProperty "map all zero" $ prop_map_all_zero
         , testProperty "map filter" $ prop_map_filter
+        , testProperty "map filter > 42" $ prop_map_filter_gt
+        , testProperty "map filter > 42 (,[])" $ prop_map_filter_gt_nested
         , testProperty "map append" $ prop_map_append
         , testProperty "map index" $ prop_map_index
         , testProperty "map index [[]]" $ prop_map_index_nest
@@ -385,6 +394,8 @@ prop_tuple_list_integer = makeProp id id
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
 
+{-
+
 prop_d0 :: D0 -> Property
 prop_d0 = makeProp id id
 
@@ -405,6 +416,8 @@ prop_d5 = makeProp id id
 
 prop_d6 :: D6 Integer Integer Integer Integer Integer -> Property
 prop_d6 = makeProp id id
+
+-}
 
 -- * Equality, Boolean Logic and Ordering
 
@@ -707,8 +720,20 @@ prop_map_append = makeProp (\z -> Q.map (Q.fst z Q.++) (Q.snd z)) (\(a,b) -> map
 prop_filter :: [Integer] -> Property
 prop_filter = makeProp (Q.filter (const $ Q.toQ True)) (filter $ const True)
 
+prop_filter_gt :: [Integer] -> Property
+prop_filter_gt = makeProp (Q.filter (Q.> 42)) (filter (> 42))
+
+prop_filter_gt_nested :: [(Integer, [Integer])] -> Property
+prop_filter_gt_nested = makeProp (Q.filter ((Q.> 42) . Q.fst)) (filter ((> 42) . fst))
+
 prop_map_filter :: [[Integer]] -> Property
 prop_map_filter = makeProp (Q.map (Q.filter (const $ Q.toQ True))) (map (filter $ const True))
+
+prop_map_filter_gt :: [[Integer]] -> Property
+prop_map_filter_gt = makeProp (Q.map (Q.filter (Q.> 42))) (map (filter (> 42)))
+
+prop_map_filter_gt_nested :: [[(Integer, [Integer])]] -> Property
+prop_map_filter_gt_nested = makeProp (Q.map (Q.filter ((Q.> 42) . Q.fst))) (map (filter ((> 42) . fst)))
 
 prop_groupWith :: [Integer] -> Property
 prop_groupWith = makeProp (Q.groupWith id) (groupWith id)

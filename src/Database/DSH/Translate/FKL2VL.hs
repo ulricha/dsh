@@ -187,45 +187,45 @@ constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ lookupEnv x) (constructClo
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Build VL.VL Shape -> Build VL.VL (QP.TopShape DVec)
+insertTopProjections :: Build VL.VL Shape -> Build VL.VL (QP.TopShape VLDVec)
 insertTopProjections g = do
-  shape <- g
-  let shape' = QP.exportShape shape
-  traverseShape shape'
+    shape <- g
+    let shape' = QP.exportShape shape
+    traverseShape shape'
 
   where
-  traverseShape :: (QP.TopShape DVec) -> Build VL.VL (QP.TopShape DVec)
-  traverseShape (QP.ValueVector (DVec q _) lyt) =
-      insertProj lyt q VL.Project DVec QP.ValueVector
-  traverseShape (QP.PrimVal (DVec q _) lyt)     =
-      insertProj lyt q VL.Project DVec QP.PrimVal
+    traverseShape :: (QP.TopShape VLDVec) -> Build VL.VL (QP.TopShape VLDVec)
+    traverseShape (QP.ValueVector (VLDVec q) lyt) =
+        insertProj lyt q VL.Project VLDVec QP.ValueVector
+    traverseShape (QP.PrimVal (VLDVec q) lyt)     =
+        insertProj lyt q VL.Project VLDVec QP.PrimVal
+  
+    traverseLayout :: (QP.TopLayout VLDVec) -> Build VL.VL (QP.TopLayout VLDVec)
+    traverseLayout (QP.InColumn c) =
+        return $ QP.InColumn c
+    traverseLayout (QP.Pair lyt1 lyt2) = do
+        lyt1' <- traverseLayout lyt1
+        lyt2' <- traverseLayout lyt2
+        return $ QP.Pair lyt1' lyt2'
+    traverseLayout (QP.Nest (VLDVec q) lyt) =
+      insertProj lyt q VL.Project VLDVec QP.Nest
 
-  traverseLayout :: (QP.TopLayout DVec) -> Build VL.VL (QP.TopLayout DVec)
-  traverseLayout (QP.InColumn c) =
-      return $ QP.InColumn c
-  traverseLayout (QP.Pair lyt1 lyt2) = do
-      lyt1' <- traverseLayout lyt1
-      lyt2' <- traverseLayout lyt2
-      return $ QP.Pair lyt1' lyt2'
-  traverseLayout (QP.Nest (DVec q _) lyt) =
-    insertProj lyt q VL.Project DVec QP.Nest
-
-  insertProj
-    :: QP.TopLayout DVec               -- ^ The node's layout
-    -> Alg.AlgNode                     -- ^ The top node to consider
-    -> ([VL.Expr] -> VL.UnOp)          -- ^ Constructor for the projection op
-    -> (Alg.AlgNode -> [DBCol] -> v)   -- ^ Vector constructor
-    -> (v -> (QP.TopLayout DVec) -> t) -- ^ Layout/Shape constructor
-    -> Build VL.VL t
-  insertProj lyt q project vector describe = do
-      let width = QP.columnsInLayout lyt
-          cols  = [1 .. width]
-      qp   <- insertNode $ Alg.UnOp (project $ map VL.Column cols) q
-      lyt' <- traverseLayout lyt
-      return $ describe (vector qp cols) lyt'
+    insertProj
+      :: QP.TopLayout VLDVec               -- ^ The node's layout
+      -> Alg.AlgNode                       -- ^ The top node to consider
+      -> ([VL.Expr] -> VL.UnOp)            -- ^ Constructor for the projection op
+      -> (Alg.AlgNode -> v)                -- ^ Vector constructor
+      -> (v -> (QP.TopLayout VLDVec) -> t) -- ^ Layout/Shape constructor
+      -> Build VL.VL t
+    insertProj lyt q project vector describe = do
+        let width = QP.columnsInLayout lyt
+            cols  = [1 .. width]
+        qp   <- insertNode $ Alg.UnOp (project $ map VL.Column cols) q
+        lyt' <- traverseLayout lyt
+        return $ describe (vector qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QP.QueryPlan VL.VL
+specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
 specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

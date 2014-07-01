@@ -79,7 +79,6 @@ Library
                      template-haskell   >= 2.8.0.0,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
-                     X100Client         >= 0.0.2,
                      TableAlgebra       >= 2.0.0,
                      kure               >= 2.16.1,
                      either             >= 4.0,
@@ -126,6 +125,9 @@ Library
                      Database.DSH.CL.Opt.CompNormalization
                      Database.DSH.CL.Opt.PartialEval
                      Database.DSH.CL.Opt.FlatJoin
+                     Database.DSH.CL.Opt.ThetaJoin
+                     Database.DSH.CL.Opt.SemiJoin
+                     Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.FKL.Data.FKL
                      Database.DSH.FKL.FKLPrimitives
@@ -154,15 +156,6 @@ Library
                      Database.DSH.Optimizer.Common.Aux
                      Database.DSH.Optimizer.Common.Rewrite
 
---                     Database.DSH.Optimizer.X100.Rewrite.Common
---                     Database.DSH.Optimizer.X100.Rewrite.ConstOpt
---                     Database.DSH.Optimizer.X100.Rewrite.JoinPushdown
---                     Database.DSH.Optimizer.X100.Rewrite.Key
---                     Database.DSH.Optimizer.X100.Rewrite.ProjectionMerge
---                     Database.DSH.Optimizer.X100.Rewrite.PruneColumns
---                     Database.DSH.Optimizer.X100.Rewrite.PruneEmpty
---                     Database.DSH.Optimizer.X100.Rewrite.PruneJoins
---   
                      Database.DSH.Optimizer.VL.Properties.BottomUp
                      Database.DSH.Optimizer.VL.Properties.Card
                      Database.DSH.Optimizer.VL.Properties.Common
@@ -173,10 +166,6 @@ Library
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
                      Database.DSH.Optimizer.VL.Properties.VectorType
-
-                     Database.DSH.Optimizer.X100.OptimizeX100
-                     Database.DSH.Optimizer.X100.Rewrite.Common
-                     Database.DSH.Optimizer.X100.Rewrite.Project
 
                      Database.DSH.Optimizer.TA.Properties.BottomUp
                      Database.DSH.Optimizer.TA.Properties.TopDown
@@ -273,6 +262,12 @@ executable vldot
                       semigroups
     GHC-Options: -Wall -fno-warn-orphans
 
+executable manual
+    hs-source-dirs: tests
+    main-is:        Manual.hs
+    build-depends:  base, DSH, HDBC-postgresql
+    ghc-options:    -Wall -fno-warn-orphans
+
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
@@ -284,7 +279,7 @@ Test-Suite Flattening_TA
                    text                       >= 0.11,
                    HDBC-postgresql            >= 2.3,
                    HDBC                       >= 2.3,
-                   derive                     >= 2.5,
+                   --derive                     >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
                    test-framework-hunit,
                    test-framework             >= 0.6,

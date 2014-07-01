@@ -3,11 +3,12 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module Database.DSH.CL.Lang
     ( module Database.DSH.Common.Type
     , Expr(..)
-    , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL
+    , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL, toNonEmpty
     , Qual(..), isGuard, isBind
     , Typed(..)
     , Prim1Op(..)
@@ -20,6 +21,7 @@ import           Control.Applicative          hiding (empty)
 
 import qualified Data.Foldable                as F
 import qualified Data.Traversable             as T
+import           Data.List.NonEmpty           (NonEmpty((:|)))
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
@@ -78,6 +80,10 @@ fromListSafe a [a1]      = a :* S a1
 fromListSafe a []        = S a
 fromListSafe a (a1 : as) = a :* fromListSafe a1 as
 
+toNonEmpty :: NL a -> NonEmpty a
+toNonEmpty (a :* as) = a :| toList as
+toNonEmpty (S a)     = a :| []
+
 reverseNL :: NL a -> NL a
 reverseNL (a :* as) = F.foldl (flip (:*)) (S a) as
 reverseNL (S a)     = S a
@@ -89,13 +95,25 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length | Concat
-             | Sum | Avg | The | Fst | Snd
-             | Head | Minimum | Maximum
+data Prim1Op = Length 
+             | Concat
+             | Null
+             | Sum 
+             | Avg 
+             | The 
+             | Fst 
+             | Snd
+             | Head 
+             | Minimum 
+             | Maximum
              | Tail
-             | Reverse | And | Or
-             | Init | Last | Nub
-             | Number | Guard
+             | Reverse 
+             | And | Or
+             | Init 
+             | Last 
+             | Nub
+             | Number 
+             | Guard
              | Reshape Integer
              | Transpose
              deriving (Eq, Ord)
@@ -105,6 +123,7 @@ data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
 instance Show Prim1Op where
   show Length          = "length"
   show Concat          = "concat"
+  show Null            = "null"
   show Sum             = "sum"
   show Avg             = "avg"
   show The             = "the"
@@ -197,6 +216,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Comp Type Expr (NL Qual)
            deriving (Show)
 
+
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
@@ -206,7 +226,7 @@ instance Pretty Expr where
     pretty (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
-    pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
+    pretty (UnOp _ o e)       = pretty o <> parens (pretty e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if"
                              <+> pretty c
