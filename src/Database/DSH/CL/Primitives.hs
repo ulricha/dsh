@@ -240,6 +240,12 @@ cond eb et ee = let tb = typeOf eb
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators
 
+cartproduct :: Expr -> Expr -> Expr
+cartproduct xs ys = AppE2 resType (Prim2 CartProduct prodType) xs ys
+  where
+    resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
+    prodType = typeOf xs .-> typeOf ys .-> resType
+
 nestjoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 nestjoin xs ys p = AppE2 resType (Prim2 (NestJoin p) joinType) xs ys
   where
