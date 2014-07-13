@@ -5,13 +5,14 @@
 module Database.DSH.Translate.CL2NKL
   ( desugarComprehensions ) where
 
-#ifdef DEBUG
+#ifdef DEBUGCOMP
 import           Debug.Trace
 import           Database.DSH.Common.Pretty
 #endif
   
 import           Database.DSH.Impossible
        
+import Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
 
@@ -178,14 +179,14 @@ guardTuplify x v1 v2 v =
 -- | Express comprehensions in NKL iteration constructs map and concatMap.
 desugarComprehensions :: CL.Expr -> NKL.Expr
 desugarComprehensions e = 
-#ifdef DEBUG
+#ifdef DEBUGCOMP
     trace (debugPrint eo) eo
 
   where
     eo = expr e
 
     padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) 'x'
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
 
     debugPrint :: NKL.Expr -> String
     debugPrint e' = padSep "Desugared NKL" ++ pp e' ++ padSep ""
