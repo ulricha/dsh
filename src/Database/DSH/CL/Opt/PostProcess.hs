@@ -37,6 +37,9 @@ cartProductR :: Rewrite CompCtx TuplifyM (NL Qual)
 cartProductR = do
     readerT $ \e -> case e of
         BindQ x xs :* BindQ y ys :* qs -> do
+            -- xs and ys generators must be independent
+            guardM $ x `notElem` freeVars ys
+
             let (tuplifyHeadR, q') = mkproduct (x, xs) (y, ys)
             -- Next, we apply the tuplifyHeadR rewrite to the tail,
             -- i.e. to all following qualifiers
@@ -52,6 +55,9 @@ cartProductR = do
             return $ q' :* qs'
 
         BindQ x xs :* (S (BindQ y ys)) -> do
+            -- xs and ys generators must be independent
+            guardM $ x `notElem` freeVars ys
+
             let (tuplifyHeadR, q') = mkproduct (x, xs) (y, ys)
 
             -- The tuplify rewrite must be handed to the top level
