@@ -51,7 +51,7 @@ instance Pretty Expr where
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
-    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (text $ show o) <+> (parenthize e2)
+    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
     pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if"
