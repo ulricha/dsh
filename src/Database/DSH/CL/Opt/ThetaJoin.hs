@@ -28,6 +28,9 @@ mkthetajoinT
   -> Expr  -- ^ Second generator expression
   -> Transform CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
 mkthetajoinT joinPred x y xs ys = do
+    -- Generators have to be indepedent
+    guardM $ x `notElem` freeVars ys
+
     -- The predicate must be a join predicate
     joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
 

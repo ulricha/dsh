@@ -105,22 +105,34 @@ universalQualR = readerT $ \quals -> case quals of
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ]]
     BindQ x xs :* (S (GuardQ (PAnd (Comp _ q (S (BindQ y ys)))))) -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
         antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
         return $ S antijoinGen
 
     -- Special case: no range predicate
     -- [ ... | ..., x <- xs, and [ q | y <- ys ], ... ]
     BindQ x xs :* (GuardQ (PAnd (Comp _ q (S (BindQ y ys))))) :* qs -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
         antijoinGen <- mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q
         return $ antijoinGen :* qs
 
     -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ], ... ]
     BindQ x xs :* GuardQ (PAnd (Comp _ q (BindQ y ys :* ps))) :* qs -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
         antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
         return $ antijoinGen :* qs
 
     -- [ ... | ..., x <- xs, and [ q | y <- ys, ps ]]
     BindQ x xs :* (S (GuardQ (PAnd (Comp _ q (BindQ y ys :* ps))))) -> do
+        -- Generators have to be indepedent
+        guardM $ x `notElem` freeVars ys
+
         antijoinGen <- mkUniversalRangeAntiJoinT (x, xs) (y, ys) ps q
         return $ S $ antijoinGen
     _ -> fail "no and pattern"
@@ -232,10 +244,7 @@ mkClass16AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
     -- xs ▷_(p && not q) ys
     return $ BindQ x (P.antijoin xs ys' $ JoinPred $ ps <> qs)
 
-universalQualsR :: RewriteC (NL Qual)
-universalQualsR = onetdR universalQualR
-
 antijoinR :: RewriteC CL
 antijoinR = do
     Comp _ _ _ <- promoteT idR
-    childR CompQuals (promoteR universalQualsR)
+    childR CompQuals (promoteR $ onetdR universalQualR)
