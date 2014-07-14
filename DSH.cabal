@@ -122,6 +122,7 @@ Library
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
                      Database.DSH.CL.Opt.Aux
+                     Database.DSH.CL.Opt.PostProcess
                      Database.DSH.CL.Opt.LoopInvariant
                      Database.DSH.CL.Opt.PredPushdown
                      Database.DSH.CL.Opt.Normalize

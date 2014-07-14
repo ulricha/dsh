@@ -17,6 +17,7 @@ import Database.DSH.CL.Opt.PartialEval
 import Database.DSH.CL.Opt.CompNormalization
 import Database.DSH.CL.Opt.FlatJoin
 import Database.DSH.CL.Opt.NestJoin
+import Database.DSH.CL.Opt.PostProcess
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -69,11 +70,14 @@ optCompR = do
              <+ flatjoinsR
              <+ anyR descendR
              ) >>> debugShow "after comp"
+
+applyOptimizationsR :: RewriteC CL
+applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> 
-                                        anytdR loopInvariantGuardR >+> 
-                                        anybuR buUnnestR)
+optimizeR = normalizeOnceR >+> 
+            repeatR applyOptimizationsR >+>
+            anybuR postProcessCompR
         
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt expr optimizedExpr
