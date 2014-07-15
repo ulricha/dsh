@@ -72,7 +72,6 @@ algTy (VL.String) = stringT
 algTy (VL.Unit) = intT
 algTy (VL.Nat) = natT
 algTy (VL.Pair _ _) = $impossible
-algTy (VL.VLList _) = $impossible
 
 cP :: AttrName -> Proj
 cP a = (a, ColE a)

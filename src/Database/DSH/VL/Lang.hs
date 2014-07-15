@@ -25,7 +25,6 @@ data RowType = Nat
              | String 
              | Unit
              | Pair RowType RowType
-             | VLList RowType
              deriving (Eq, Ord, Generic, Show)
 
 type VLColumn = (L.ColName, RowType)

@@ -75,9 +75,9 @@ typeToRowType t = case t of
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT t'    -> D.VLList (typeToRowType t')
-  Ty.FunT _ _    -> error "VLPrimitives: Functions can not occur in operator plans"
-  Ty.VarT _      -> error "VLPrimitives: Variables can not occur in operator plans"
+  Ty.ListT t'    -> $impossible
+  Ty.FunT _ _    -> $impossible
+  Ty.VarT _      -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
