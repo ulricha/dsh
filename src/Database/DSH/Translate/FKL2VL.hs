@@ -109,8 +109,8 @@ papp1 t f =
         FLength _           -> lengthV
         FLengthL _          -> lengthLift
         FConcatL _          -> concatLift
-        FSum _              -> aggrPrim $ VL.AggrSum $ typeToVLType t
-        FSumL _             -> aggrLift $ VL.AggrSum $ typeToVLType $ elemT t
+        FSum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
+        FSumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
         FAvg _              -> aggrPrim VL.AggrAvg
         FAvgL _             -> aggrLift VL.AggrAvg
         FThe _              -> the

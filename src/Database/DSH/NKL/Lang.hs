@@ -33,6 +33,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | If Type Expr Expr Expr
            | Const Type L.Val
            | Var Type L.Ident
+           | MkTuple Type [Expr]
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
@@ -49,6 +50,7 @@ instance Typed Expr where
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+    pretty (AppE1 _ (Prim1 (TupField i) _) e) = pretty e <> dot <> text (show i)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
@@ -86,12 +88,24 @@ freeVars (UnOp _ _ e)      = freeVars e
 freeVars (Const _ _)       = S.empty
 freeVars (Var _ x)         = S.singleton x
 
-data Prim1Op = Length | Concat
-             | Sum | Avg | The | Fst | Snd
-             | Head | Minimum | Maximum
+data Prim1Op = Length 
+             | Concat
+             | Sum 
+             | Avg 
+             | The 
+             | Fst 
+             | Snd
+             | TupField Int
+             | Head 
+             | Minimum 
+             | Maximum
              | Tail
-             | Reverse | And | Or
-             | Init | Last | Nub
+             | Reverse 
+             | And 
+             | Or
+             | Init 
+             | Last 
+             | Nub
              | Number
              | Reshape Integer
              | Transpose
@@ -106,6 +120,7 @@ instance Show Prim1Op where
   show Avg             = "avg"
   show The             = "the"
   show Fst             = "fst"
+  show (TupField i)    = printf "field(%d)" i
   show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
