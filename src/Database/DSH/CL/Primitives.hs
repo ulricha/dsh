@@ -257,7 +257,7 @@ thetajoin xs ys p = AppE2 rt (Prim2 (ThetaJoin p) jt) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
-    rt  = pairT (elemT xst) (elemT yst)
+    rt  = listT (pairT (elemT xst) (elemT yst))
     jt  = xst .-> yst .-> rt
 
 semijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
