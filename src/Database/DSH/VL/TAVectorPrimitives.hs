@@ -65,13 +65,13 @@ algVal (VL.VLDouble d) = double d
 algVal (VL.VLNat n) = nat $ fromIntegral n
 
 algTy :: VL.RowType -> ATy
-algTy (VL.Int) = intT
-algTy (VL.Double) = doubleT
-algTy (VL.Bool) = boolT
-algTy (VL.String) = stringT
-algTy (VL.Unit) = intT
-algTy (VL.Nat) = natT
-algTy (VL.Pair _ _) = $impossible
+algTy (VL.Int)     = intT
+algTy (VL.Double)  = doubleT
+algTy (VL.Bool)    = boolT
+algTy (VL.String)  = stringT
+algTy (VL.Unit)    = intT
+algTy (VL.Nat)     = natT
+algTy (VL.Tuple _) = $impossible
 
 cP :: AttrName -> Proj
 cP a = (a, ColE a)

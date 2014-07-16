@@ -33,7 +33,7 @@ generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
     convertLayout :: TopLayout NDVec -> TopLayout X100Code
     convertLayout (InColumn i)          = InColumn i
     convertLayout (Nest (ADVec r' _) l) = Nest (X100Code $ generateQuery m' r') $ convertLayout l
-    convertLayout (Pair p1 p2)          = Pair (convertLayout p1) (convertLayout p2)
+    convertLayout (Tuple ls)            = Tuple $ map convertLayout ls
 
 -- | In a query shape, render each root node for the algebraic plan
 -- into a separate SQL query.
@@ -58,4 +58,4 @@ generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
         case lyt of
             InColumn i            -> InColumn i
             Nest (ADVec r _) clyt -> Nest (lookupNode r) (convertLayout clyt)
-            Pair lyt1 lyt2        -> Pair (convertLayout lyt1) (convertLayout lyt2)
+            Tuple lyts            -> Tuple $ map convertLayout lyts

@@ -9,6 +9,7 @@ module Database.DSH.Translate.VL2Algebra
 import qualified Data.IntMap                          as IM
 import           Data.List
 import qualified Data.Map                             as M
+import           Data.Maybe
 
 import           Control.Applicative
 import           Control.Monad.State
@@ -77,10 +78,7 @@ refreshLyt (Nest (VLDVec n) lyt) = do
     Just n' <- fromDict n
     lyt'    <- refreshLyt lyt
     return $ Nest (toDVec n') lyt'
-refreshLyt (Pair l1 l2) = do
-    l1' <- refreshLyt l1
-    l2' <- refreshLyt l2
-    return $ Pair l1' l2'
+refreshLyt (Tuple lyts) = Tuple <$> mapM refreshLyt lyts
 
 refreshShape :: VectorAlgebra v a => TopShape VLDVec -> VecBuild a v (TopShape v)
 refreshShape (ValueVector (VLDVec n) lyt) = do
@@ -353,14 +351,11 @@ insertSerialize g = g >>= traverseShape
 
     traverseLayout :: (TopLayout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (TopLayout NDVec))
     traverseLayout (InColumn _) = return Nothing
-    traverseLayout (Pair lyt1 lyt2) = do
-        mLyt1' <- traverseLayout lyt1
-        mLyt2' <- traverseLayout lyt2
-        case (mLyt1', mLyt2') of
-            (Just lyt1', Just lyt2') -> return $ Just $ Pair lyt1' lyt2'
-            (Just lyt1', Nothing)    -> return $ Just $ Pair lyt1' lyt2
-            (Nothing, Just lyt2')    -> return $ Just $ Pair lyt1 lyt2'
-            (Nothing, Nothing)       -> return Nothing
+    traverseLayout (Tuple lyts) = do
+        mLyts <- mapM traverseLayout lyts
+        if all isNothing mLyts
+            then return Nothing
+            else return $ Just $ Tuple $ zipWith (\l ml -> maybe l id ml) lyts mLyts
     traverseLayout (Nest dvec lyt) = do
         mLyt' <- traverseLayout lyt
         case mLyt' of

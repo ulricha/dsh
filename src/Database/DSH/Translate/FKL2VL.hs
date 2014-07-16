@@ -3,6 +3,7 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
+import           Control.Applicative              hiding (Const)
 import           Control.Monad
 import           Control.Monad.Reader
 
@@ -13,10 +14,10 @@ import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Data.FKL
 import           Database.DSH.Impossible
-import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
 import           Database.DSH.VL.Render.JSON      ()
-import           Database.DSH.VL.Shape            hiding (Pair)
+import           Database.DSH.VL.Shape
+import           Database.DSH.VL.Vector
 import           Database.DSH.VL.VectorOperations
 import           Database.DSH.VL.VLPrimitives
 
@@ -199,16 +200,11 @@ insertTopProjections g = do
         insertProj lyt q VL.Project VLDVec QP.ValueVector
     traverseShape (QP.PrimVal (VLDVec q) lyt)     =
         insertProj lyt q VL.Project VLDVec QP.PrimVal
-  
+
     traverseLayout :: (QP.TopLayout VLDVec) -> Build VL.VL (QP.TopLayout VLDVec)
-    traverseLayout (QP.InColumn c) =
-        return $ QP.InColumn c
-    traverseLayout (QP.Pair lyt1 lyt2) = do
-        lyt1' <- traverseLayout lyt1
-        lyt2' <- traverseLayout lyt2
-        return $ QP.Pair lyt1' lyt2'
-    traverseLayout (QP.Nest (VLDVec q) lyt) =
-      insertProj lyt q VL.Project VLDVec QP.Nest
+    traverseLayout (QP.InColumn c)          = return $ QP.InColumn c
+    traverseLayout (QP.Tuple lyts)          = QP.Tuple <$> mapM traverseLayout lyts
+    traverseLayout (QP.Nest (VLDVec q) lyt) = insertProj lyt q VL.Project VLDVec QP.Nest
 
     insertProj
       :: QP.TopLayout VLDVec               -- ^ The node's layout

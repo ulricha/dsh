@@ -71,7 +71,7 @@ execNested :: IConnection conn => conn -> TopLayout SqlCode -> Type a -> IO (Tab
 execNested conn lyt ty =
     case (lyt, ty) of
         (InColumn i, t)               -> return $ TCol t (itemCol i)
-        (Pair lyt1 lyt2, PairT t1 t2) -> do
+        (Tuple [lyt1, lyt2], PairT t1 t2) -> do
             lyt1' <- execNested conn lyt1 t1
             lyt2' <- execNested conn lyt2 t2
             return $ TPair ty lyt1' lyt2'

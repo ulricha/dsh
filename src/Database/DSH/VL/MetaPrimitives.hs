@@ -15,8 +15,8 @@ import           Database.DSH.VL.VLPrimitives
 
 fromLayout :: Layout -> [DBCol]
 fromLayout (InColumn i) = [i]
-fromLayout (Nest _ _) = []
-fromLayout (Pair l1 l2) = fromLayout l1 ++ fromLayout l2
+fromLayout (Nest _ _)   = []
+fromLayout (Tuple ls)   = concatMap fromLayout ls
 
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
@@ -27,8 +27,7 @@ chainRenameFilter r (Nest q lyt) = do
     (q', r') <- vlPropFilter r q
     lyt'     <- chainRenameFilter r' lyt
     return $ Nest q' lyt'
-chainRenameFilter r (Pair l1 l2) =
-    Pair <$> chainRenameFilter r l1 <*> chainRenameFilter r l2
+chainRenameFilter r (Tuple lyts) = Tuple <$> mapM (chainRenameFilter r) lyts
 
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
@@ -39,8 +38,7 @@ chainReorder p (Nest q lyt) = do
     (q', p') <- vlPropReorder p q
     lyt' <- chainReorder p' lyt
     return $ Nest q' lyt'
-chainReorder p (Pair l1 l2) =
-    Pair <$> chainReorder p l1 <*> chainReorder p l2
+chainReorder p (Tuple lyts) = Tuple <$> mapM (chainReorder p) lyts
 
 -- | renameOuter renames and filters a vector according to a rename
 -- vector. Changes are not propagated to inner vectors.
@@ -51,7 +49,7 @@ renameOuter _ _ = error "renameOuter: Not possible"
 renameOuter' :: RVec -> Layout -> Build VL Layout
 renameOuter' _ l@(InColumn _) = return l
 renameOuter' r (Nest q lyt)   = flip Nest lyt <$> vlPropRename r q
-renameOuter' r (Pair l1 l2)   = Pair <$> renameOuter' r l1 <*> renameOuter' r l2
+renameOuter' r (Tuple lyts)   = Tuple <$> mapM (renameOuter' r) lyts
 
 -- | Append two inner vectors (segment-wise).
 appendInnerVec :: Shape -> Shape -> Build VL Shape
@@ -91,6 +89,6 @@ appendLayout (Nest q1 lyt1) (Nest q2 lyt2) = do
     case a of
         ValueVector q lyt -> return $ Nest q lyt
         _                 -> $impossible
-appendLayout (Pair ll1 lr1) (Pair ll2 lr2) =
-    Pair <$> appendLayout ll1 ll2 <*> appendLayout lr1 lr2
+appendLayout (Tuple lyts1) (Tuple lyts2) =
+    Tuple <$> (mapM (uncurry appendLayout) $ zip lyts1 lyts2)
 appendLayout _ _ = $impossible

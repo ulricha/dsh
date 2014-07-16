@@ -5,6 +5,7 @@ module Database.DSH.VL.VectorOperations where
 import           Debug.Trace
 
 import           Control.Applicative
+import           Data.List
 
 import           Database.Algebra.Dag.Build
 
@@ -52,7 +53,7 @@ nestProductPrim :: Shape -> Shape -> Build VL Shape
 nestProductPrim (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
   q1' <- vlSegment q1
   ValueVector qj lytJ <- cartProductPrim (ValueVector q1' lyt1) (ValueVector q2 lyt2)
-  return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
+  return $ ValueVector q1 (Tuple [lyt1, Nest qj lytJ])
 nestProductPrim _ _ = $impossible
 
 nestProductLift :: Shape -> Shape -> Build VL Shape
@@ -60,7 +61,7 @@ nestProductLift (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 ly
     (qj, qp2) <- vlNestProductS qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
     let lytJ  = zipLayout lyt1 lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
+    return $ ValueVector qd1 (Nest qv1 (Tuple [lyt1, Nest qj lytJ]))
 nestProductLift _ _ = $impossible
 
 thetaJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Build VL Shape
@@ -83,7 +84,7 @@ nestJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Build VL Shape
 nestJoinPrim joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q1' <- vlSegment q1
     ValueVector qj lytJ <- thetaJoinPrim joinPred (ValueVector q1' lyt1) (ValueVector q2 lyt2)
-    return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
+    return $ ValueVector q1 (Tuple [lyt1, Nest qj lytJ])
 nestJoinPrim _ _ _ = $impossible
 
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
@@ -98,7 +99,7 @@ nestJoinLift joinPred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest 
     (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
     let lytJ  = zipLayout lyt1 lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
+    return $ ValueVector qd1 (Nest qv1 (Tuple [lyt1, Nest qj lytJ]))
 nestJoinLift _ _ _ = $impossible
 
 semiJoinPrim :: L.JoinPredicate L.JoinExpr -> Shape -> Shape -> Build VL Shape
@@ -315,14 +316,14 @@ groupByKeyS ::  Shape -> Shape -> Build VL Shape
 groupByKeyS (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d, v, p) <- vlGroupBy q1 q2
     lyt2'     <- chainReorder p lyt2
-    return $ ValueVector d (Pair lyt1 (Nest v lyt2') )
+    return $ ValueVector d (Tuple [lyt1, Nest v lyt2'])
 groupByKeyS _e1 _e2 = error $ "vlGroupByS: Should not be possible "
 
 groupByKeyL ::  Shape -> Shape -> Build VL Shape
 groupByKeyL (ValueVector _ (Nest v1 lyt1)) (ValueVector d2 (Nest v2 lyt2)) = do
     (d, v, p) <- vlGroupBy v1 v2
     lyt2'     <- chainReorder p lyt2
-    return $ ValueVector d2 (Nest d (Pair lyt1 (Nest v lyt2')))
+    return $ ValueVector d2 (Nest d (Tuple [lyt1, Nest v lyt2']))
 groupByKeyL _ _ = error "vlGroupByL: Should not be possible"
 
 concatLift ::  Shape -> Build VL Shape
@@ -489,30 +490,30 @@ pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
 pairOp _ _ = $impossible
 
 fstA ::  Shape -> Build VL Shape
-fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
-fstA (PrimVal q (Pair p1 _p2)) = do
+fstA (PrimVal _q (Tuple [Nest q lyt, _p2])) = return $ ValueVector q lyt
+fstA (PrimVal q (Tuple [p1, _p2])) = do
     let (p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column cols)
     return $ PrimVal proj p1'
 fstA e1 = error $ "fstA: " ++ show e1
 
 fstL ::  Shape -> Build VL Shape
-fstL (ValueVector q (Pair p1 _p2)) = do
-    let(p1', cols) = projectFromPos p1
+fstL (ValueVector q (Tuple [p1,_p2])) = do
+    let (p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column cols)
     return $ ValueVector proj p1'
 fstL s = error $ "fstL: " ++ show s
 
 sndA ::  Shape -> Build VL Shape
-sndA (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
-sndA (PrimVal q (Pair _p1 p2)) = do
+sndA (PrimVal _q (Tuple [_p1, Nest q lyt])) = return $ ValueVector q lyt
+sndA (PrimVal q (Tuple [_p1, p2])) = do
     let (p2', cols) = projectFromPos p2
     proj <- vlProject q (map Column cols)
     return $ PrimVal proj p2'
 sndA _ = $impossible
 
 sndL ::  Shape -> Build VL Shape
-sndL (ValueVector q (Pair _p1 p2)) = do
+sndL (ValueVector q (Tuple [_p1, p2])) = do
     let (p2', cols) = projectFromPos p2
     proj <- vlProject q (map Column cols)
     return $ ValueVector proj p2'
@@ -548,9 +549,13 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
     projectFromPosWork :: Int -> Layout -> (Layout, [DBCol], Int)
     projectFromPosWork c (InColumn i) = (InColumn c, [i], c + 1)
     projectFromPosWork c (Nest q l)   = (Nest q l, [], c)
-    projectFromPosWork c (Pair p1 p2) = let (p1', cols1, c') = projectFromPosWork c p1
-                                            (p2', cols2, c'') = projectFromPosWork c' p2
-                                        in (Pair p1' p2', cols1 ++ cols2, c'')
+    projectFromPosWork c (Tuple lyts) = (Tuple psRes, colsRes, cRes)
+      where
+        (psRes, colsRes, cRes) = foldl' tupleWorker ([], [], c) lyts
+
+    tupleWorker (psAcc, colsAcc, cAcc) lyt = (psAcc ++ [lyt'], colsAcc ++ cols, c')
+      where 
+        (lyt', cols, c') = projectFromPosWork cAcc lyt
 
 quickConcatV :: Shape -> Build VL Shape
 quickConcatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
@@ -585,7 +590,7 @@ singletonPrim _ = error "singletonPrim: Should not be possible"
 dbTable ::  String -> [L.Column] -> L.TableHints -> Build VL Shape
 dbTable n cs ks = do
     t <- vlTableRef n (map (mapSnd typeToRowType) cs) ks
-    return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
+    return $ ValueVector t (Tuple [InColumn i | i <- [1..length cs]])
 
 mkLiteral ::  Type -> L.Val -> Build VL Shape
 mkLiteral t@(ListT _) (L.ListV es) = do
@@ -608,9 +613,9 @@ toPlan (descHd, descV) (ListT t) c es =
     case t of
         PairT t1 t2 -> do
             let (e1s, e2s) = unzip $ map splitVal es
-            (desc', l1, c') <- toPlan (descHd, descV) (ListT t1) c e1s
+            (desc', l1, c')   <- toPlan (descHd, descV) (ListT t1) c e1s
             (desc'', l2, c'') <- toPlan desc' (ListT t2) c' e2s
-            return (desc'', Pair l1 l2, c'')
+            return (desc'', Tuple [l1, l2], c'')
 
         ListT _ -> do
             let vs = map fromListVal es
@@ -618,6 +623,8 @@ toPlan (descHd, descV) (ListT t) c es =
             ((hd, vs'), l, _) <- toPlan d t 1 (concat vs)
             n <- vlLit L.PossiblyEmpty (reverse hd) (map reverse vs')
             return ((descHd, descV), Nest n l, c)
+
+        TupleT ts -> $unimplemented
 
         FunT _ _ -> error "Functions are not db values"
 

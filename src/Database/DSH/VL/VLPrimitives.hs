@@ -74,8 +74,9 @@ typeToRowType t = case t of
   Ty.StringT     -> D.String
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
-  Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT t'    -> $impossible
+  Ty.PairT t1 t2 -> D.Tuple [typeToRowType t1, typeToRowType t2]
+  Ty.TupleT ts   -> D.Tuple (map typeToRowType ts)
+  Ty.ListT _     -> $impossible
   Ty.FunT _ _    -> $impossible
   Ty.VarT _      -> $impossible
 
@@ -95,6 +96,7 @@ recordWidth t =
         Ty.VarT _      -> $impossible
         Ty.FunT _ _    -> $impossible
         Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
+        Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
 data ColExpr = Offset Int | Expr Expr

@@ -20,7 +20,7 @@ import qualified Database.DSH.VL.Shape         as S
 -- one particular query from a bundle.
 data TopLayout q = InColumn Int
                  | Nest q (TopLayout q)
-                 | Pair (TopLayout q) (TopLayout q)
+                 | Tuple [TopLayout q]
                  deriving (Show, Read, Generic)
 
 -- | A TopShape describes the structure of the result produced by a
@@ -37,7 +37,7 @@ instance ToJSON a => ToJSON (TopShape a) where
 rootsFromTopLayout :: DagVector v => TopLayout v -> [AlgNode]
 rootsFromTopLayout (InColumn _)     = []
 rootsFromTopLayout (Nest v lyt)     = vectorNodes v ++ rootsFromTopLayout lyt
-rootsFromTopLayout (Pair lyt1 lyt2) = (rootsFromTopLayout lyt1) ++ (rootsFromTopLayout lyt2)
+rootsFromTopLayout (Tuple lyts) = concatMap rootsFromTopLayout lyts
 
 -- | Extract all plan root nodes stored in the shape
 rootsFromTopShape :: DagVector v => TopShape v -> [AlgNode]
@@ -52,14 +52,14 @@ updateTopShape old new shape =
         PrimVal dbv lyt -> PrimVal (updateVector old new dbv) (updateLayout lyt)
 
   where
-    updateLayout (Nest dbv lyt)   = Nest (updateVector old new dbv) (updateLayout lyt)
-    updateLayout (Pair lyt1 lyt2) = Pair (updateLayout lyt1) (updateLayout lyt2)
-    updateLayout l                = l
+    updateLayout (Nest dbv lyt) = Nest (updateVector old new dbv) (updateLayout lyt)
+    updateLayout (Tuple lyts)   = Tuple $ map updateLayout lyts
+    updateLayout l              = l
 
 columnsInLayout :: TopLayout q -> Int
 columnsInLayout (InColumn _) = 1
 columnsInLayout (Nest _ _)   = 0
-columnsInLayout (Pair p1 p2) = columnsInLayout p1 + columnsInLayout p2
+columnsInLayout (Tuple ps)   = sum $ map columnsInLayout ps
 
 isOuterMost :: AlgNode -> TopShape NDVec -> Bool
 isOuterMost n (ValueVector (ADVec n' _) _) = n == n'
@@ -74,9 +74,9 @@ exportShape (S.PrimVal q lyt)     = PrimVal q (exportLayout lyt)
 exportShape s                     = error $ "exportShape: impossible top-level shape " ++ (show s)
 
 exportLayout :: S.Layout -> TopLayout VLDVec
-exportLayout (S.InColumn i)     = InColumn i
-exportLayout (S.Nest q lyt)     = Nest q (exportLayout lyt)
-exportLayout (S.Pair lyt1 lyt2) = Pair (exportLayout lyt1) (exportLayout lyt2)
+exportLayout (S.InColumn i) = InColumn i
+exportLayout (S.Nest q lyt) = Nest q (exportLayout lyt)
+exportLayout (S.Tuple lyts) = Tuple $ map exportLayout lyts
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.

@@ -24,7 +24,7 @@ data RowType = Nat
              | Double
              | String 
              | Unit
-             | Pair RowType RowType
+             | Tuple [RowType]
              deriving (Eq, Ord, Generic, Show)
 
 type VLColumn = (L.ColName, RowType)
