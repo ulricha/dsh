@@ -64,7 +64,7 @@ algVal (VL.VLString s) = string s
 algVal (VL.VLDouble d) = double d
 algVal (VL.VLNat n) = nat $ fromIntegral n
 
-algTy :: VL.VLType -> ATy
+algTy :: VL.RowType -> ATy
 algTy (VL.Int) = intT
 algTy (VL.Double) = doubleT
 algTy (VL.Bool) = boolT
@@ -72,7 +72,6 @@ algTy (VL.String) = stringT
 algTy (VL.Unit) = intT
 algTy (VL.Nat) = natT
 algTy (VL.Pair _ _) = $impossible
-algTy (VL.VLList _) = $impossible
 
 cP :: AttrName -> Proj
 cP a = (a, ColE a)
@@ -192,7 +191,7 @@ aggrDefault q qa dv = do
 
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
-sumDefault :: VL.VLType -> (ATy, AVal)
+sumDefault :: VL.RowType -> (ATy, AVal)
 sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)

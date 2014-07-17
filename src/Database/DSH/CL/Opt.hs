@@ -10,7 +10,7 @@ import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 
 import Database.DSH.CL.Opt.Aux
-import Database.DSH.CL.Opt.Support
+import Database.DSH.CL.Opt.LoopInvariant
 import Database.DSH.CL.Opt.PredPushdown
 import Database.DSH.CL.Opt.Normalize
 import Database.DSH.CL.Opt.PartialEval
@@ -71,7 +71,9 @@ optCompR = do
              ) >>> debugShow "after comp"
             
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> repeatR (descendR >+> anybuR buUnnestR >+> anytdR factorConstantPredsR)
+optimizeR = normalizeOnceR >+> repeatR (descendR >+> 
+                                        anytdR loopInvariantGuardR >+> 
+                                        anybuR buUnnestR)
         
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt expr optimizedExpr

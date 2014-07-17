@@ -14,6 +14,7 @@ import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
 import           Database.DSH.Common.Lang
+import qualified Database.DSH.CL.Primitives as P
 
 --------------------------------------------------------------------------------
 -- Introduce simple theta joins
@@ -27,6 +28,9 @@ mkthetajoinT
   -> Expr  -- ^ Second generator expression
   -> Transform CompCtx TuplifyM (NL Qual) (RewriteC CL, Qual)
 mkthetajoinT joinPred x y xs ys = do
+    -- Generators have to be indepedent
+    guardM $ x `notElem` freeVars ys
+
     -- The predicate must be a join predicate
     joinConjunct <- constT (return joinPred) >>> (liftstateT $ splitJoinPredT x y)
 
@@ -35,13 +39,8 @@ mkthetajoinT joinPred x y xs ys = do
         yst          = typeOf ys
         xt           = elemT xst
         yt           = elemT yst
-        pt           = listT $ pairT xt yt
-        jt           = xst .-> (yst .-> pt)
         tuplifyHeadR = tuplifyR x (x, xt) (y, yt)
-        joinGen      = BindQ x
-                         (AppE2 pt
-                           (Prim2 (ThetaJoin (singlePred joinConjunct)) jt)
-                           xs ys)
+        joinGen      = BindQ x (P.thetajoin xs ys (singlePred joinConjunct))
 
     return (tuplifyHeadR, joinGen)
 

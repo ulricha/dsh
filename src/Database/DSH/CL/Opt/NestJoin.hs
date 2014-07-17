@@ -99,6 +99,9 @@ unnestWorkerT
 unnestWorkerT headComp (x, xs) = do
     let (y, ys) = hGen headComp
 
+    -- Generators have to be indepedent
+    guardM $ x `notElem` freeVars ys
+
     let (joinPredCandidates, nonJoinPreds) = partition (isThetaJoinPred x y) 
                                                        (hGuards headComp)
 

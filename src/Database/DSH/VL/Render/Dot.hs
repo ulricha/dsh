@@ -40,7 +40,7 @@ renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
 renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
 renderAggrFun AggrCount     = renderFun (text "count") []
 
-renderColumnType :: VLType -> Doc
+renderColumnType :: RowType -> Doc
 renderColumnType = text . show
 
 renderData :: [[VLVal]] -> Doc
@@ -157,10 +157,10 @@ opDotLabel tm i (UnOp (Reshape n) _) =
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrNonEmptyS as) _ _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (UnOp (SortScalarS cols) _) = labelToDoc i "SortSimple" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupScalarS cols) _) = labelToDoc i "GroupSimple" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (SortScalarS cols) _) = labelToDoc i "SortScalarS" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupScalarS cols) _) = labelToDoc i "GroupScalarS" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)
-opDotLabel tm i (BinOp SortS _ _) = labelToDoc i "Sort" empty (lookupTags i tm)
+opDotLabel tm i (BinOp SortS _ _) = labelToDoc i "SortS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistPrim _ _) = labelToDoc i "DistPrim" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistDesc _ _) = labelToDoc i "DistDesc" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
