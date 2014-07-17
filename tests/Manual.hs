@@ -16,8 +16,6 @@ import qualified Prelude as P
 import Database.DSH
 import Database.DSH.Compiler
 
-import Database.X100Client
-
 import Database.HDBC.PostgreSQL
 
 getConn :: Connection
@@ -152,4 +150,4 @@ q is = maximum [ i - i' | (i, i') <- zip is' (mins is') ]
 main :: IO ()
 -- main = debugQ "q" getConn $ q (toQ [1..50])
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
-main = debugQX100 "q1" x100Conn q1
+--main = debugQX100 "q1" x100Conn q1
