@@ -496,6 +496,8 @@ append (Q as) (Q bs) = Q (AppE Append (PairE as bs))
 filter :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
 filter f (Q as) = Q (AppE Filter (PairE (LamE (toLam f)) as))
 
+-- | Partition a list into groups according to the supplied projection
+-- function.
 groupWithKey :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [(b,[a])]
 groupWithKey f (Q as) = Q (AppE GroupWithKey (PairE (LamE (toLam f)) as))
 
