@@ -49,6 +49,9 @@ mergeNonEmptyAggrs q =
             let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
+-- | If we can infer that the vector is not empty, we can employ a
+-- simplified version of the aggregate operator that does not add a
+-- default value for an empty input.
 nonEmptyAggr :: VLRule BottomUpProps
 nonEmptyAggr q =
   $(pattern 'q "Aggr aggrFun (q1)"
@@ -60,6 +63,9 @@ nonEmptyAggr q =
             let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
             void $ replaceWithNew q aggrOp |])
 
+-- | If we can infer that all segments (if there are any) are not
+-- empty, we can employ a simplified version of the aggregate operator
+-- that does not add default values for empty segments.
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
   $(pattern 'q "(q1) AggrS aggrFun (q2)"
