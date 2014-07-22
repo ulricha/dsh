@@ -333,7 +333,7 @@ sortProject q =
 -- simply mapped to an 'if' expression evaluated on the input vector.
 scalarConditional :: VLRule ()
 scalarConditional q =
-  $(pattern 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (Select pred2 (q2))) (Project elseProj (Select negPred (q3))))"
+  $(pattern 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
     [| do
         -- All branches must work on the same input vector
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
