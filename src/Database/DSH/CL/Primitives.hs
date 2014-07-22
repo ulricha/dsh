@@ -6,6 +6,7 @@ module Database.DSH.CL.Primitives where
 import qualified Prelude                  as P
 
 import           Text.Printf
+import           Debug.Trace
 
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang as L
@@ -89,7 +90,7 @@ sum e = let (ListT t) = typeOf e
 avg :: Expr -> Expr
 avg e = let (ListT t) = typeOf e
          in if isNum t
-                then AppE1 t (Prim1 Avg P.$ ListT t .-> t) e
+                then AppE1 doubleT (Prim1 Avg P.$ ListT t .-> doubleT) e
                 else tyErr "avg"
 
 minimum :: Expr -> Expr
@@ -210,7 +211,7 @@ cons e1 e2 = let t1 = typeOf e1
                  t@(ListT t2) = typeOf e2
               in if t1 P.== t2
                    then AppE2 t (Prim2 Cons (t1 .-> t .-> t)) e1 e2
-                   else tyErrShow "cons" [t1, t2]
+                   else trace (pp e1) P.$ trace (pp e2) P.$ tyErrShow "cons" [t1, t2]
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let t1@(ListT t1') = typeOf e1
