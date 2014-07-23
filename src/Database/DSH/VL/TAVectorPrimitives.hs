@@ -823,7 +823,7 @@ instance VectorAlgebra NDVec TableAlgebra where
 
   vecSortScalarS sortExprs (ADVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
-    qs <- rownumM pos' (map fst sortProjs) Nothing
+    qs <- rownumM pos' (map fst sortProjs ++ [pos]) Nothing
           $ projAddCols cols1 sortProjs q1
 
     qr1 <- proj (itemProj cols1 [cP descr, mP pos pos']) qs
