@@ -458,7 +458,7 @@ instance VectorAlgebra NDVec TableAlgebra where
           $ select (taExpr expr) q
     qv <- proj (itemProj cols [cP descr, mP pos posnew]) qs
     qr <- proj [mP posold pos, cP posnew] qs
-    return (ADVec qs cols, RVec qr)
+    return (ADVec qv cols, RVec qr)
 
   vecTableRef tableName columns hints = do
     q <- -- generate the pos column
