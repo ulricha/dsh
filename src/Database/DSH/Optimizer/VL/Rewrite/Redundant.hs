@@ -90,11 +90,9 @@ scalarRestrict q =
           -- Restrict operator (i.e. there are inner vectors to which
           -- changes must be propagated), they have to be rewired to
           -- the new Select operator.
-          if not $ null r2Parents
-            then do
-              qr2' <- insert $ UnOp R2 selectNode
-              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
-            else return () |])
+          when (not $ null r2Parents) $ do
+            qr2' <- insert $ UnOp R2 selectNode
+            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -285,29 +283,18 @@ sameInputZipProjectRight q =
 -- a selection of columns from the input vector.
 simpleSort :: VLRule ()
 simpleSort q =
-  $(pattern 'q "R1 (qs=(Project ps (q1)) SortS (q2))"
+  $(pattern 'q "(Project ps (q1)) SortS (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
           logRewrite "Redundant.Sort.Scalar" q
-          qs <- insert $ UnOp (SortScalarS $(v "ps")) $(v "q1")
-          void $ replaceWithNew q $ UnOp R1 qs
-          r2Parents <- lookupR2Parents $(v "qs")
-
-          -- If there are any R2 nodes linking to the original sort operators
-          -- (i.e. there are inner vectors to which changes must be propagated),
-          -- they have to be rewired to the new SortScalarS operator.
-          if not $ null r2Parents
-            then do
-              qr2' <- insert $ UnOp R2 qs
-              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
-            else return () |])
+          void $ replaceWithNew q $ UnOp (SortScalarS $(v "ps")) $(v "q1") |])
 
 -- | Special case: a vector is sorted by all its item columns.
 completeSort :: VLRule BottomUpProps
 completeSort q =
-  $(pattern 'q "R1 ((q1) SortS (q2))"
+  $(pattern 'q "(q1) SortS (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
@@ -315,20 +302,7 @@ completeSort q =
         return $ do
           logRewrite "Redundant.Sort.Complete" q
           let sortProj = map Column [1..w]
-          qs <- insert $ UnOp (SortScalarS sortProj) $(v "q1")
-          void $ replaceWithNew q $ UnOp R1 qs
-
-          r2Parents <- lookupR2Parents $(v "qs")
-
-          -- If there are any R2 nodes linking to the original sort operators
-          -- (i.e. there are inner vectors to which changes must be propagated),
-          -- they have to be rewired to the new SortScalarS operator.
-          if not $ null r2Parents
-            then do
-              qr2' <- insert $ UnOp R2 qs
-              mapM_ (\qr2 -> replace qr2 qr2') r2Parents
-            else return () |])
-          
+          void $ replaceWithNew q $ UnOp (SortScalarS sortProj) $(v "q1") |])
 
 -- | Pull a projection on a Sort operator's input over the Sort
 -- operator. This rewrite should enable the SortScalarS rewrite when
