@@ -502,15 +502,15 @@ instance VectorAlgebra NDVec TableAlgebra where
     return $ (ADVec qv colse, PVec qp)
 
   vecGroupBy (ADVec v1 colsg) (ADVec v2 colse) = do
-    q' <- rownumM pos' [resCol] Nothing
-          $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i<- colsg]) v1
+    q' <- rownumM pos' [resCol, pos] Nothing
+          $ rowrank resCol ((descr, Asc):[(itemi i, Asc) | i <- colsg]) v1
     d1 <- distinctM
           $ proj (itemProj colsg [cP descr, mP pos resCol]) q'
     p <- proj [mP posold pos, mP posnew pos'] q'
     v <- tagM "groupBy ValueVector"
            $ projM (itemProj colse [cP descr, cP pos])
            $ eqJoinM pos'' pos' (proj [mP descr resCol, mP pos pos', mP pos'' pos] q')
-                                (proj ((mP pos' pos):[(mP (itemi i) (itemi i)) | i <- colse]) v2)
+                                (proj (itemProj colse [mP pos' pos]) v2)
     return $ (ADVec d1 colsg, ADVec v colse, PVec p)
 
   vecGroupScalarS groupExprs (ADVec q1 cols1) = do
@@ -528,7 +528,7 @@ instance VectorAlgebra NDVec TableAlgebra where
                     ++ [ mP (itemi i) c | c <- groupCols | i <- [1..] ]) qg
 
       -- Create new positions for the inner vector
-      qp <- rownum posnew [resCol] Nothing qg
+      qp <- rownum posnew [resCol, pos] Nothing qg
 
       -- Create the inner vector, containing the actual groups
       qi <- proj (itemProj cols1 [mP descr resCol, mP pos posnew]) qp
