@@ -28,7 +28,8 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ introduceSelect
+redundantRules = [ scalarRestrict
+                 , booleanRestrict
                  , simpleSort
                  , sortProject
                  , pullProjectPropRename
@@ -56,15 +57,30 @@ redundantRulesAllProps = [ unreferencedAlign
                          , alignedOnlyLeft
                          ]
 
-introduceSelect :: VLRule ()
-introduceSelect q =
+-- | A Restrict whose children are the same vector is just a Select on
+-- a boolean column.
+booleanRestrict :: VLRule ()
+booleanRestrict q =
+  $(pattern 'q "(q1) Restrict (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Restrict.Bool" q
+          void $ replaceWithNew q $ UnOp (Select $ Column 1) $(v "q1") |])
+
+-- | If the left input of a Restrict operator that builds the
+-- filtering vector is just a simple scalar expression, a scalar
+-- Select can be used instead.
+scalarRestrict :: VLRule ()
+scalarRestrict q =
   $(pattern 'q "R1 (qr=(q1) Restrict (Project es (q2)))"
     [| do
         [e] <- return $(v "es")
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Select" q
+          logRewrite "Redundant.Restrict.Scalar" q
           selectNode <- insert $ UnOp (Select e) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 selectNode
 
