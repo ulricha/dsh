@@ -42,7 +42,7 @@ prim1 t (CL.Prim1 o ot) e = mkApp t ot (expr e)
             -- backend implementations however, there currently is no
             -- need to store it explicitly. Therefore, we implement it
             -- using length in NKL.
-            CL.Null             -> nklLength
+            CL.Null             -> nklNull
             CL.Sum              -> mkPrim1 NKL.Sum 
             CL.Avg              -> mkPrim1 NKL.Avg 
             CL.The              -> mkPrim1 NKL.The 
@@ -63,12 +63,12 @@ prim1 t (CL.Prim1 o ot) e = mkApp t ot (expr e)
             CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.Guard            -> $impossible
     
-    nklLength _ _ ne = NKL.BinOp boolT 
-                                 (SBRelOp Eq)
-                                 (NKL.Const intT $ IntV 0)
-                                 (NKL.AppE1 intT 
-                                            (NKL.Prim1 NKL.Length (typeOf ne .-> intT)) 
-                                            ne)
+    nklNull _ _ ne = NKL.BinOp boolT 
+                               (SBRelOp Eq)
+                               (NKL.Const intT $ IntV 0)
+                               (NKL.AppE1 intT 
+                                          (NKL.Prim1 NKL.Length (typeOf ne .-> intT)) 
+                                          ne)
                                        
     mkPrim1 nop nt nopt ne = NKL.AppE1 nt (NKL.Prim1 nop nopt) ne
                                    
