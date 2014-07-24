@@ -35,6 +35,7 @@ module Database.DSH.CL.Opt.Aux
     , complexPrim1
     , complexPrim2
     , fromGuard
+    , fromGen
       -- * NL spine traversal
     , onetdSpineT
       -- * Debugging
@@ -421,6 +422,10 @@ complexPrim1 op =
 fromGuard :: Monad m => Qual -> m Expr
 fromGuard (GuardQ e)  = return e
 fromGuard (BindQ _ _) = fail "not a guard"
+
+fromGen :: Monad m => Qual -> m (Ident, Expr)
+fromGen (BindQ x xs) = return (x, xs)
+fromGen (GuardQ _)   = fail "not a generator"
 
 --------------------------------------------------------------------------------
 -- Simple debugging combinators
