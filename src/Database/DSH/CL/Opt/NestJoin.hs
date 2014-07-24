@@ -268,7 +268,6 @@ unnestFromHeadR = do
 -- FIXME this is a rather ugly hack
 type GuardM = RewriteStateM (RewriteC CL, Maybe Expr)
 
-
 -- | Search for an eligible nested comprehension in the current guard
 -- and unnest it. Returns the tuplifying rewrite for the outer
 -- generator variable 'x', the new generator with the nesting
