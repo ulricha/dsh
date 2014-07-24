@@ -56,7 +56,6 @@ import           Data.List
 import qualified Data.Set                   as S
 import           Data.List.NonEmpty         (NonEmpty ((:|)))
 import           Data.Semigroup
-import           Control.Applicative
 
 #ifdef DEBUGCOMP
 import           Debug.Trace
@@ -66,23 +65,23 @@ import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Monad
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
 -- qualifier list so that it can be applied to the head expression.
-type TuplifyM = CompSM (RewriteC CL)
+type TuplifyM = RewriteStateM (RewriteC CL)
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runCompM $ apply f initialCtx (inject e)
+applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runCompM $ apply t initialCtx (inject e)
+applyInjectable t e = runRewriteM $ apply t initialCtx (inject e)
 
 
 --------------------------------------------------------------------------------

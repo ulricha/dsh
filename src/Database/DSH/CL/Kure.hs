@@ -12,7 +12,7 @@ module Database.DSH.CL.Kure
     , module Language.KURE.Lens
 
       -- * The KURE monad
-    , CompM, CompSM, TransformC, RewriteC, LensC, freshName, freshNameT
+    , RewriteM, RewriteStateM, TransformC, RewriteC, LensC, freshName, freshNameT
     
       -- * Setters and getters for the translation state
     , get, put, modify
@@ -47,15 +47,15 @@ import           Language.KURE.Lens
        
 import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.Lang as L
+import           Database.DSH.Common.RewriteM
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Monad
                  
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
-type TransformC a b = Transform CompCtx (CompM Int) a b
+type TransformC a b = Transform CompCtx (RewriteM Int) a b
 type RewriteC a     = TransformC a a
-type LensC a b      = Lens CompCtx (CompM Int) a b
+type LensC a b      = Lens CompCtx (RewriteM Int) a b
 
 --------------------------------------------------------------------------------
 
@@ -136,11 +136,11 @@ withLocalPathT t = transform $ \c a -> apply t (c { cl_path = SnocPath [] }) a
 
 -- | Run a stateful transform with an initial state and turn it into a regular
 -- (non-stateful) transform
-statefulT :: s -> Transform CompCtx (CompSM s) a b -> TransformC a (s, b)
+statefulT :: s -> Transform CompCtx (RewriteStateM s) a b -> TransformC a (s, b)
 statefulT s t = resultT (stateful s) t
 
 -- | Turn a regular rewrite into a stateful rewrite
-liftstateT :: Transform CompCtx (CompM Int) a b -> Transform CompCtx (CompSM s) a b
+liftstateT :: Transform CompCtx (RewriteM Int) a b -> Transform CompCtx (RewriteStateM s) a b
 liftstateT t = resultT liftstate t
 
 
