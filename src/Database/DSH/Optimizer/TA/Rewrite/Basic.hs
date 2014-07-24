@@ -177,6 +177,29 @@ unreferencedAggrCols q =
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
 
+{-
+isConstExpr :: Expr -> TAMatch AllProps
+isConstExpr (BinAppE _ e1 e2) = (&&) <$> isConstExpr e1 <*> isConstExpr e2
+isConstExpr (UnAppE _ e1)     = isConstExpr e1
+isConstExpr (ConstE _)        = return True
+isConstExpr (IfE e1 e2 e3)    = and <$> mapM isConstExpr [e1, e2, e3]
+isConstExpr (ColE c)          = do
+    properties $(v "
+
+-- | Prune const columns from aggregation keys
+constAggrKey :: TARule AllProps
+constAggrKey q =
+  $(pattern 'q "Aggr args (q1)"
+    [| do
+         (aggrFuns, keyCols@(_:_)) <- return $(v "args")
+         keyCols' <- filterM (\(_, e) -> not <$> isConstExpr e) keyCols
+         predicate $ length keyCols' < length keyCols
+
+         return $ do
+             logRewrite "Basic.Const.Aggr" q
+             void $ replaceWithNew q $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1") |])
+-}
+
 ----------------------------------------------------------------------------------
 -- Basic Order rewrites
 
