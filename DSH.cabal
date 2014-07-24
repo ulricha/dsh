@@ -114,7 +114,6 @@ Library
                      Database.DSH.Common.Lang
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.DBCode
-                     Database.DSH.Common.TransM
                      Database.DSH.Export
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Monad
