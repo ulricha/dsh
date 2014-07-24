@@ -19,12 +19,19 @@ similar to the the flattening transformation described in
 
 %if False
 \begin{code}
-{-# LANGUAGE TemplateHaskell, TupleSections #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 module Database.DSH.Translate.NKL2FKL (flatten) where
+
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.State hiding (lift)
        
 import qualified Database.DSH.FKL.Data.FKL as F
 import qualified Database.DSH.NKL.Lang as N
-import           Database.DSH.Common.TransM
 
 import           Database.DSH.FKL.FKLPrimitives
 import           Database.DSH.Common.Type
@@ -32,7 +39,26 @@ import           Database.DSH.Common.Lang
 
 import qualified Data.Set as S
 
-import           Control.Applicative
+--------------------------------------------------------------------------------
+-- A monad providing fresh names
+
+newtype TransM a = TransM (State Int a)
+    deriving (Monad, Functor)
+
+deriving instance MonadState Int TransM
+
+getFreshVar :: TransM String
+getFreshVar = do
+                v <- get
+                put $ v + 1
+                return $ "***_FV" ++ show v
+
+instance Applicative TransM where
+    pure  = return
+    (<*>) = ap
+
+runTransform :: TransM a -> a
+runTransform (TransM e) = fst $ flip runState 0 e
 \end{code}
 %endif
 
