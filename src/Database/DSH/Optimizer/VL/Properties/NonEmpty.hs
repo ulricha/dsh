@@ -1,5 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+{-
+
+FIXME semantics need to be clarified.
+
+For an inner vector (one with multiple segments), True means that all
+segments contained in the outer vector will be present. This is
+particularly true for the output of a grouping operator.
+
+For a non-segmented vector, it is true if we can (derived from a base
+tables non-empty property) statically assert that a vector will not be
+empty.
+
+This is all rather unclear. Currently, the main purpose of this
+property is to avoid the special treatment of empty segments in
+segmented aggregates.
+
+-}
+
 module Database.DSH.Optimizer.VL.Properties.NonEmpty where
 
 import Control.Monad
@@ -41,7 +59,10 @@ inferNonEmptyUnOp e op =
     Project _       -> Right e
     Select _        -> Right $ VPropPair False False
     SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    -- If the input is not completely empty (that is, segments exist),
+    -- grouping leads to a nested vector in which every inner segment
+    -- is not empty.
+    GroupScalarS _  -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -75,9 +96,12 @@ inferNonEmptyUnOp e op =
 inferNonEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferNonEmptyBinOp e1 e2 op =
   case op of
+    -- If the input is not completely empty (that is, segments exist),
+    -- grouping leads to a nested vector in which every inner segment
+    -- is not empty.
     GroupBy -> do
       ue1 <- unp e1 
-      return $ VPropTriple ue1 ue1 ue1
+      return $ VPropTriple ue1 True ue1
     SortS -> do
       ue1 <- unp e1
       ue2 <- unp e2

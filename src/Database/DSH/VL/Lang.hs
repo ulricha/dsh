@@ -18,15 +18,19 @@ import qualified Database.DSH.Common.Lang as L
 
 type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
-data VLType = Nat | Int | Bool |  Double
-            | String | Unit
-            | Pair VLType VLType | VLList VLType
-            deriving (Eq, Ord, Generic, Show)
+data RowType = Nat 
+             | Int 
+             | Bool 
+             | Double
+             | String 
+             | Unit
+             | Pair RowType RowType
+             deriving (Eq, Ord, Generic, Show)
 
-type VLColumn = (L.ColName, VLType)
+type VLColumn = (L.ColName, RowType)
 type DBCol = Int
 
-data AggrFun = AggrSum VLType Expr
+data AggrFun = AggrSum RowType Expr
              | AggrMin Expr
              | AggrMax Expr
              | AggrAvg Expr
@@ -78,7 +82,7 @@ data VLVal = VLInt Int
            deriving (Eq, Ord, Generic, Show, Read)
 
 data NullOp = SingletonDescr
-            | Lit L.Emptiness [VLType] [[VLVal]]
+            | Lit L.Emptiness [RowType] [[VLVal]]
             | TableRef String [VLColumn] L.TableHints
             deriving (Eq, Ord, Generic, Show)
 

@@ -4,19 +4,24 @@ module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) wher
 
 import           Control.Applicative
 import           Control.Monad
-import qualified Data.List.NonEmpty as N
+import qualified Data.Foldable                              as F
+import           Data.List.NonEmpty                         (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                         as N
+import           Data.Semigroup
+import qualified Data.Traversable                           as T
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.VL.Lang
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Rewrite.Common
+import           Database.DSH.VL.Lang
 
 aggregationRules :: VLRuleSet ()
 aggregationRules = [ inlineAggrSProject
                    , inlineAggrProject
                    , inlineAggrNonEmptyProject
+                   , inlineAggrSNonEmptyProject
                    , flatGrouping
                    , simpleGrouping
                    , simpleGroupingProject
@@ -33,7 +38,7 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
-appendNE :: N.NonEmpty a -> N.NonEmpty a -> N.NonEmpty a
+appendNE :: NonEmpty a -> NonEmpty a -> NonEmpty a
 appendNE (x N.:| xs) (y N.:| ys) = x N.:| (xs ++ (y : ys))
 
 mergeNonEmptyAggrs :: VLRule ()
@@ -49,6 +54,9 @@ mergeNonEmptyAggrs q =
             let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
+-- | If we can infer that the vector is not empty, we can employ a
+-- simplified version of the aggregate operator that does not add a
+-- default value for an empty input.
 nonEmptyAggr :: VLRule BottomUpProps
 nonEmptyAggr q =
   $(pattern 'q "Aggr aggrFun (q1)"
@@ -60,6 +68,9 @@ nonEmptyAggr q =
             let aggrOp = UnOp (AggrNonEmpty ($(v "aggrFun") N.:| [])) $(v "q1")
             void $ replaceWithNew q aggrOp |])
 
+-- | If we can infer that all segments (if there are any) are not
+-- empty, we can employ a simplified version of the aggregate operator
+-- that does not add default values for empty segments.
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
   $(pattern 'q "(q1) AggrS aggrFun (q2)"
@@ -77,29 +88,29 @@ nonEmptyAggrS q =
 -- that is suitable for rewriting into a VecAggr form. Even if this is
 -- not possible, the rewrite should not do any harm
 pushExprThroughGroupBy :: VLRule BottomUpProps
-pushExprThroughGroupBy q = 
+pushExprThroughGroupBy q =
   $(pattern 'q "Project projs (qr2=R2 (qg=(qc) GroupBy (qp)))"
     [| do
         [e] <- return $(v "projs")
         case e of
           Column _ -> fail "no match"
           _         -> return ()
-        
+
         -- get vector type of right grouping input to determine the
         -- width of the vector
         VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "qp")
-        
+
         return $ do
           logRewrite "Aggregation.Normalize.PushProject" q
           -- Introduce a new column below the GroupBy operator which contains
           -- the expression result
           let proj = map Column [1 .. w] ++ [e]
           projectNode <- insert $ UnOp (Project proj) $(v "qp")
-          
+
           -- Link the GroupBy operator to the new projection
           groupNode   <- replaceWithNew $(v "qg") $ BinOp GroupBy $(v "qc") projectNode
           r2Node      <- replaceWithNew $(v "qr2") $ UnOp R2 groupNode
-          
+
           -- Replace the CompExpr1L operator with a projection on the new column
           void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) r2Node |])
 
@@ -111,7 +122,7 @@ inlineAggrProject q =
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
                         AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrSum t e -> AggrSum t $ mergeExpr env e
                         AggrMin e   -> AggrMin $ mergeExpr env e
                         AggrAvg e   -> AggrAvg $ mergeExpr env e
                         AggrAny e   -> AggrAny $ mergeExpr env e
@@ -130,7 +141,7 @@ inlineAggrSProject q =
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
                         AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrSum t e -> AggrSum t $ mergeExpr env e
                         AggrMin e   -> AggrMin $ mergeExpr env e
                         AggrAvg e   -> AggrAvg $ mergeExpr env e
                         AggrAny e   -> AggrAny $ mergeExpr env e
@@ -152,7 +163,7 @@ inlineAggrNonEmptyProject q =
         let env = zip [1..] $(v "proj")
         let afun' = case afun of
                         AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrSum t e -> AggrSum t $ mergeExpr env e
                         AggrMin e   -> AggrMin $ mergeExpr env e
                         AggrAvg e   -> AggrAvg $ mergeExpr env e
                         AggrAny e   -> AggrAny $ mergeExpr env e
@@ -176,7 +187,7 @@ inlineAggrSNonEmptyProject q =
         let env = zip [1..] $(v "proj")
         let afun' = case afun of
                         AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e 
+                        AggrSum t e -> AggrSum t $ mergeExpr env e
                         AggrMin e   -> AggrMin $ mergeExpr env e
                         AggrAvg e   -> AggrAvg $ mergeExpr env e
                         AggrAny e   -> AggrAny $ mergeExpr env e
@@ -188,14 +199,17 @@ inlineAggrSNonEmptyProject q =
             let aggrOp = BinOp (AggrNonEmptyS (afun' N.:| [])) $(v "qo") $(v "qi")
             void $ replaceWithNew q aggrOp |])
 
-          
+
 -- | Check if we have an operator combination which is eligible for moving to a
 -- GroupAggr operator.
-matchAggr :: AlgNode -> VLMatch () (AggrFun, AlgNode)
+matchAggr :: AlgNode -> VLMatch () (NonEmpty AggrFun, AlgNode)
 matchAggr q = do
-  BinOp (AggrS aggrFun) _ _ <- getOperator q
-  return (aggrFun, q)
-  
+  BinOp op _ _ <- getOperator q
+  case op of
+    AggrS aggrFun          -> return (aggrFun N.:| [], q)
+    AggrNonEmptyS aggrFuns -> return (aggrFuns, q)
+    _                      -> fail "no match"
+
 -- If grouping is performed by simple scalar expressions, we can
 -- employ a simpler operator.
 simpleGrouping :: VLRule ()
@@ -225,7 +239,7 @@ simpleGroupingProject q =
           let projs = $(v "projs2") ++ $(v "projs1")
           projectNode <- insert $ UnOp (Project projs) $(v "q1")
 
-          let groupExprs = [ Column $ i + length $(v "projs2") 
+          let groupExprs = [ Column $ i + length $(v "projs2")
                            | i <- [1 .. length $(v "projs1")]
                            ]
 
@@ -241,11 +255,11 @@ simpleGroupingProject q =
 
           -- Re-wire R1 and R3 parents of the group operator
           replace $(v "qg") groupNode |])
-          
+
 -- We rewrite a combination of GroupBy and aggregation operators into a single
--- VecAggr operator if the following conditions hold: 
+-- VecAggr operator if the following conditions hold:
 --
--- 1. The R2 output of GroupBy is only consumed by aggregation operators (MaxL, 
+-- 1. The R2 output of GroupBy is only consumed by aggregation operators (MaxL,
 --    MinL, VecSumL, LengthSeg)
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
@@ -254,34 +268,35 @@ flatGrouping q =
     [| do
         -- We ensure that all parents of the groupBy are operators which we can
         -- turn into aggregate functions
-        groupByParents <- getParents q
-        funs@(f : fs)  <- mapM matchAggr groupByParents
-        
+        (p : ps)       <- getParents q
+        (aggrFunss, aggrNodes) <- N.unzip <$> T.mapM matchAggr (p :| ps)
+        let aggrFuns = F.foldr1 (<>) aggrFunss
+
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          -- The output format of the new VecAggr operator is 
-          -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the 
-          -- grouping columns and a1, ..., am are the aggregates 
+          -- The output format of the new VecAggr operator is
+          -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the
+          -- grouping columns and a1, ..., am are the aggregates
           -- themselves.
-        
+
           -- We obviously assume that the grouping columns are still present in
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
           -- add columns at the end.
-          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") (fst f N.:| map fst fs)) $(v "q1")
+          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") aggrFuns) $(v "q1")
 
           -- For every aggregate function, generate a projection which only
           -- leaves the aggregate column. Function receives the node of the
-          -- original aggregate operator and the column in which the respective 
+          -- original aggregate operator and the column in which the respective
           -- aggregation result resides.
           let insertAggrProject :: AlgNode -> DBCol -> VLRewrite ()
-              insertAggrProject oldAggrNode aggrCol = 
+              insertAggrProject oldAggrNode aggrCol =
                 void $ replaceWithNew oldAggrNode $ UnOp (Project [Column aggrCol]) aggrNode
 
           let gw = length $(v "groupExprs")
 
-          zipWithM_ insertAggrProject (map snd funs) (map (+ gw) [1 .. length funs])
-          
+          zipWithM_ insertAggrProject (N.toList aggrNodes) (map (+ gw) [1 .. N.length aggrNodes])
+
           -- If the R1 output (that is, the vector which contains the grouping
           -- columns and desribes the group shape) of GroupBy is referenced, we
           -- replace it with a projection on the new VecAggr node.

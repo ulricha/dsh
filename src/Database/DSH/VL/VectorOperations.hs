@@ -584,7 +584,7 @@ singletonPrim _ = error "singletonPrim: Should not be possible"
 
 dbTable ::  String -> [L.Column] -> L.TableHints -> Build VL Shape
 dbTable n cs ks = do
-    t <- vlTableRef n (map (mapSnd typeToVLType) cs) ks
+    t <- vlTableRef n (map (mapSnd typeToRowType) cs) ks
     return $ ValueVector t (foldr1 Pair [InColumn i | i <- [1..length cs]])
 
 mkLiteral ::  Type -> L.Val -> Build VL Shape

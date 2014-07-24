@@ -177,6 +177,29 @@ unreferencedAggrCols q =
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
 
+{-
+isConstExpr :: Expr -> TAMatch AllProps
+isConstExpr (BinAppE _ e1 e2) = (&&) <$> isConstExpr e1 <*> isConstExpr e2
+isConstExpr (UnAppE _ e1)     = isConstExpr e1
+isConstExpr (ConstE _)        = return True
+isConstExpr (IfE e1 e2 e3)    = and <$> mapM isConstExpr [e1, e2, e3]
+isConstExpr (ColE c)          = do
+    properties $(v "
+
+-- | Prune const columns from aggregation keys
+constAggrKey :: TARule AllProps
+constAggrKey q =
+  $(pattern 'q "Aggr args (q1)"
+    [| do
+         (aggrFuns, keyCols@(_:_)) <- return $(v "args")
+         keyCols' <- filterM (\(_, e) -> not <$> isConstExpr e) keyCols
+         predicate $ length keyCols' < length keyCols
+
+         return $ do
+             logRewrite "Basic.Const.Aggr" q
+             void $ replaceWithNew q $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1") |])
+-}
+
 ----------------------------------------------------------------------------------
 -- Basic Order rewrites
 
@@ -248,25 +271,26 @@ serializeProject q =
               void $ replaceWithNew q $ UnOp (Serialize (d', p', reqCols')) $(v "q1") |])
 
 -- | If positions are computed directly under a Serialize operator,
--- try to get rid of it.
+-- try to get rid of it.  FIXME this rewrite should be based on the
+-- order property, so that it considers rownums that are not located
+-- directly under the serialize op.
 serializeRowNum :: TARule ()
 serializeRowNum q =
     $(pattern 'q "Serialize scols (RowNum args (q1))"
       [| do
           -- Absolute positions must not be required
-          (d, RelPos [c], reqCols) <- return $(v "scols")
+          (d, RelPos cs, reqCols) <- return $(v "scols")
 
           -- The rownum must sort based on only one column which
           -- defines the order.
           (r, sortCols, Nothing) <- return $(v "args")
           predicate $ all ((== Asc) . snd) sortCols
 
-          -- The rownum should actually generate the positions
-          predicate $ c == r
+          predicate $ r `elem` cs
 
-          let sortCols' = map fst sortCols
+          let cs' = concatMap (\c -> if c == r then map fst sortCols else [c]) cs
 
           return $ do
               logRewrite "Basic.Serialize.Rownum" q
-              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCols', reqCols)) $(v "q1") |])
+              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos cs', reqCols)) $(v "q1") |])
 

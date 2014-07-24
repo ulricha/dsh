@@ -67,17 +67,17 @@ pVal (L.DoubleV d) = VLDouble d
 pVal L.UnitV       = VLUnit
 pVal _             = error "pVal: Not a supported value"
 
-typeToVLType :: Ty.Type -> VLType
-typeToVLType t = case t of
+typeToRowType :: Ty.Type -> RowType
+typeToRowType t = case t of
   Ty.IntT        -> D.Int
   Ty.BoolT       -> D.Bool
   Ty.StringT     -> D.String
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
-  Ty.PairT t1 t2 -> D.Pair (typeToVLType t1) (typeToVLType t2)
-  Ty.ListT t'    -> D.VLList (typeToVLType t')
-  Ty.FunT _ _    -> error "VLPrimitives: Functions can not occur in operator plans"
-  Ty.VarT _      -> error "VLPrimitives: Variables can not occur in operator plans"
+  Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
+  Ty.ListT t'    -> $impossible
+  Ty.FunT _ _    -> $impossible
+  Ty.VarT _      -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -220,7 +220,7 @@ vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
 vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
-vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToVLType tys) vals) dvec
+vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToRowType tys) vals) dvec
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL VLDVec
 vlTableRef n tys hs = vec (NullaryOp $ TableRef n tys hs) dvec

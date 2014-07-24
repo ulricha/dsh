@@ -115,7 +115,7 @@ nkl2TAFileOpt prefix e =
     |> optimizeVLDefault
     |> implementVectorOpsPF
     |> optimizeTA
-    |> (exportTAPlan prefix)
+    |> exportTAPlan (prefix ++ "_opt")
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
 nkl2VLFile prefix e =
@@ -209,6 +209,7 @@ debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugQ prefix conn q = do
     debugVL prefix conn q
     debugVLOpt prefix conn q
+    debugTA prefix conn q
     debugTAOpt prefix conn q
 
 -- | Dump all intermediate algebra representations (VL, X100) to files
