@@ -248,25 +248,26 @@ serializeProject q =
               void $ replaceWithNew q $ UnOp (Serialize (d', p', reqCols')) $(v "q1") |])
 
 -- | If positions are computed directly under a Serialize operator,
--- try to get rid of it.
+-- try to get rid of it.  FIXME this rewrite should be based on the
+-- order property, so that it considers rownums that are not located
+-- directly under the serialize op.
 serializeRowNum :: TARule ()
 serializeRowNum q =
     $(pattern 'q "Serialize scols (RowNum args (q1))"
       [| do
           -- Absolute positions must not be required
-          (d, RelPos [c], reqCols) <- return $(v "scols")
+          (d, RelPos cs, reqCols) <- return $(v "scols")
 
           -- The rownum must sort based on only one column which
           -- defines the order.
           (r, sortCols, Nothing) <- return $(v "args")
           predicate $ all ((== Asc) . snd) sortCols
 
-          -- The rownum should actually generate the positions
-          predicate $ c == r
+          predicate $ r `elem` cs
 
-          let sortCols' = map fst sortCols
+          let cs' = concatMap (\c -> if c == r then map fst sortCols else [c]) cs
 
           return $ do
               logRewrite "Basic.Serialize.Rownum" q
-              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos sortCols', reqCols)) $(v "q1") |])
+              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos cs', reqCols)) $(v "q1") |])
 
