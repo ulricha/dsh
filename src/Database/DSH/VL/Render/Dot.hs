@@ -40,7 +40,7 @@ renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
 renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
 renderAggrFun AggrCount     = renderFun (text "count") []
 
-renderColumnType :: RowType -> Doc
+renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
 
 renderData :: [[VLVal]] -> Doc

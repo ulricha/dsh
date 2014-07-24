@@ -24,7 +24,7 @@ class VectorAlgebra v a where
     singletonDescr :: Build a v
 
     -- | A vector representing a literal list.
-    vecLit :: [RowType] -> [[VLVal]] -> Build a v
+    vecLit :: [ScalarType] -> [[VLVal]] -> Build a v
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> [VLColumn] -> TableHints -> Build a v

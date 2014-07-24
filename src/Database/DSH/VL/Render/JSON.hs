@@ -24,7 +24,7 @@ instance ToJSON UnOp where
 instance ToJSON NullOp where
 instance ToJSON Nat where
 instance ToJSON VLVal where
-instance ToJSON RowType where
+instance ToJSON ScalarType where
 instance ToJSON Expr where
 instance ToJSON AggrFun where
 instance ToJSON L.Emptiness where
@@ -52,7 +52,7 @@ instance FromJSON UnOp where
 instance FromJSON NullOp where
 instance FromJSON Nat where
 instance FromJSON VLVal where
-instance FromJSON RowType where
+instance FromJSON ScalarType where
 instance FromJSON Expr where
 instance FromJSON AggrFun where
 instance FromJSON L.Emptiness where
