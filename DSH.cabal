@@ -137,6 +137,7 @@ Library
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Lang
                      Database.DSH.NKL.Kure
+                     Database.DSH.NKL.Rewrite
                      Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
