@@ -1,6 +1,8 @@
 module Database.DSH.NKL.Rewrite
     ( substR
+    , subst
     , freeVars
+    , boundVars
     ) where
 
 import Control.Arrow
@@ -17,7 +19,7 @@ applyExpr :: TransformN Expr b -> Expr -> Either String b
 applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
 
 --------------------------------------------------------------------------------
--- Computation of free variables
+-- Computation of free and bound variables
 
 freeVarsT :: TransformN Expr [Ident]
 freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
@@ -28,8 +30,18 @@ freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr freeVarsT
 
+boundVarsT :: TransformN Expr [Ident]
+boundVarsT = fmap nub $ crushbuT $ promoteT $ do Lam _ v _ <- idR
+                                                 return [v]
+
+boundVars :: Expr -> [Ident]
+boundVars = either error id . applyExpr boundVarsT
+
 --------------------------------------------------------------------------------
 -- Substitution
+
+subst :: Ident -> Expr -> Expr -> Expr
+subst x s = either error id . applyExpr (substR x s)
 
 alphaLamR :: RewriteN Expr
 alphaLamR = do 
@@ -39,7 +51,7 @@ alphaLamR = do
     lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
 
 substR :: Ident -> Expr -> RewriteN Expr
-substR v s = readerT $ \e -> case e of
+substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     Var _ n | n == v                          -> return $ inject s
 
@@ -56,3 +68,4 @@ substR v s = readerT $ \e -> case e of
 
     -- A lambda which shadows v -> don't descend
     Lam _ _ _                                 -> idR
+    _                                         -> anyR $ substR v s

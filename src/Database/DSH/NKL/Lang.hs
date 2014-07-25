@@ -32,6 +32,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | If Type Expr Expr Expr
            | Const Type L.Val
            | Var Type L.Ident
+           deriving (Show)
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
