@@ -196,7 +196,7 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    GroupAggr g as -> do
+    GroupAggr (g, as) -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
 

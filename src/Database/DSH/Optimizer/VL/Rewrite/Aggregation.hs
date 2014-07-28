@@ -2,6 +2,9 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
 
+import Debug.Trace
+import Text.Printf
+
 import           Control.Applicative
 import           Control.Monad
 import qualified Data.Foldable                              as F
@@ -26,6 +29,7 @@ aggregationRules = [ inlineAggrSProject
                    , simpleGrouping
                    , simpleGroupingProject
                    , mergeNonEmptyAggrs
+                   , mergeGroupAggr
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
@@ -38,9 +42,6 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
-appendNE :: NonEmpty a -> NonEmpty a -> NonEmpty a
-appendNE (x N.:| xs) (y N.:| ys) = x N.:| (xs ++ (y : ys))
-
 mergeNonEmptyAggrs :: VLRule ()
 mergeNonEmptyAggrs q =
   $(pattern 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
@@ -50,7 +51,8 @@ mergeNonEmptyAggrs q =
 
         return $ do
             logRewrite "Aggregation.NonEmpty.Merge" q
-            let afuns  = appendNE $(v "afuns1")  $(v "afuns2")
+            let afuns  = $(v "afuns1") <> $(v "afuns2")
+            trace ("mergeNonEmptyAggrs " ++ show $(v "afuns1") ++ show $(v "afuns2") ++ " -> " ++ show afuns) $ return ()
             let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
@@ -264,13 +266,8 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(pattern 'q "R2 (qg=GroupScalarS groupExprs (q1))"
+  $(pattern 'q "(_) AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
     [| do
-        -- We ensure that all parents of the groupBy are operators which we can
-        -- turn into aggregate functions
-        (p : ps)       <- getParents q
-        (aggrFunss, aggrNodes) <- N.unzip <$> T.mapM matchAggr (p :| ps)
-        let aggrFuns = F.foldr1 (<>) aggrFunss
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
@@ -278,33 +275,50 @@ flatGrouping q =
           -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the
           -- grouping columns and a1, ..., am are the aggregates
           -- themselves.
+          -- For the moment, we keep only the aggregate output and discard the
+          -- grouping columns. They have to be added later on.
+
+          let gw = length $(v "groupExprs")
+              aw = N.length $(v "afuns")
+              proj = map Column [gw + 1.. aw + gw]
 
           -- We obviously assume that the grouping columns are still present in
           -- the right input of GroupBy at the same position. In combination
           -- with rewrite pushExprThroughGroupBy, this is true since we only
           -- add columns at the end.
-          aggrNode <- insert $ UnOp (GroupAggr $(v "groupExprs") aggrFuns) $(v "q1")
+          groupNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1")
+          void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
 
-          -- For every aggregate function, generate a projection which only
-          -- leaves the aggregate column. Function receives the node of the
-          -- original aggregate operator and the column in which the respective
-          -- aggregation result resides.
-          let insertAggrProject :: AlgNode -> DBCol -> VLRewrite ()
-              insertAggrProject oldAggrNode aggrCol =
-                void $ replaceWithNew oldAggrNode $ UnOp (Project [Column aggrCol]) aggrNode
+mergeGroupAggr :: VLRule ()
+mergeGroupAggr q =
+  $(pattern 'q "(GroupAggr args1 (q1)) Zip (GroupAggr args2 (q2))"
+    [| do
+        let (ges1, afuns1) = $(v "args1")
+        let (ges2, afuns2) = $(v "args2")
 
-          let gw = length $(v "groupExprs")
+        -- The rewrite can be applied if the same input is grouped
+        -- according to the same grouping expressions.
+        predicate $ ges1 == ges2
+        predicate $ $(v "q1") == $(v "q2")
+    
+        return $ do
+          groupNode <- insert $ UnOp (GroupAggr ($(v "ges1"), ($(v "afuns1") <> $(v "afuns2")))) $(v "q1")
 
-          zipWithM_ insertAggrProject (N.toList aggrNodes) (map (+ gw) [1 .. N.length aggrNodes])
+          -- Reconstruct the schema produced by Zip. Note that this
+          -- duplicates the grouping columns.
+          let groupWidth = length $(v "ges1")
+              aggrWidth1 = N.length afuns1
+              aggrWidth2 = N.length afuns2
+              groupCols  = [ Column c | c <- [1 .. groupWidth]]
 
-          -- If the R1 output (that is, the vector which contains the grouping
-          -- columns and desribes the group shape) of GroupBy is referenced, we
-          -- replace it with a projection on the new VecAggr node.
-          r1s <- lookupR1Parents $(v "qg")
-          if length r1s > 0
-            then do
-              let projs = map Column [1 .. length $(v "groupExprs")]
-              r1ProjectNode <- insert $ UnOp (Project projs) aggrNode
-              mapM_ (\r1 -> replace r1 r1ProjectNode) r1s
-            else return () |])
+          let proj = groupCols
+                     ++
+                     [ Column $ c + groupWidth | c <- [1 .. aggrWidth1] ]
+                     ++
+                     groupCols
+                     ++
+                     [ Column $ c + groupWidth + aggrWidth1 | c <- [1 .. aggrWidth2] ]
+
+          void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+                     
 

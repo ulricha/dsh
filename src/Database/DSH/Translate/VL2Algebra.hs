@@ -293,7 +293,7 @@ translateUnOp unop c = case unop of
     V.SelectPos1S op pos -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
-    V.GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
+    V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do
         (qo, qi) <- vecReshape n (toDVec c)

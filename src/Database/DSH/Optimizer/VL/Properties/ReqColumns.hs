@@ -166,7 +166,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
 
         -- We don't need to look at the columns required from above,
         -- because they can only be a subset of (gs ++ as).
-        GroupAggr gs as -> childReqColumns
+        GroupAggr (gs, as) -> childReqColumns
                            ∪
                            (VProp $ Just $ L.nub $ concatMap reqExprCols gs
                                                    ++

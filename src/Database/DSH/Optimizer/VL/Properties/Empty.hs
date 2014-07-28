@@ -51,7 +51,7 @@ inferEmptyUnOp e op =
     SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
     SelectPos1S _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    GroupAggr _ _ -> Right $ VProp False
+    GroupAggr (_, _) -> Right $ VProp False
     Number -> Right e
     NumberS -> Right e
   

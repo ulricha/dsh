@@ -43,7 +43,7 @@ seed (UnOp op _)   =
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     AggrNonEmpty _     -> vPropSeed
-    GroupAggr _ _      -> vPropSeed
+    GroupAggr (_, _)   -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed

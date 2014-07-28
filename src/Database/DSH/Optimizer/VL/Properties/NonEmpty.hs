@@ -73,7 +73,7 @@ inferNonEmptyUnOp e op =
     SelectPos1 _ _ -> return $ VPropTriple False False False
     SelectPos1S _ _ -> return $ VPropTriple False False False
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    GroupAggr _ _ -> Right e
+    GroupAggr (_, _) -> Right e
     Number -> Right e
     NumberS -> Right e
   

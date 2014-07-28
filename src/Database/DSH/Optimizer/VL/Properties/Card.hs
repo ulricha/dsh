@@ -51,8 +51,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    GroupAggr [] _ -> Right $ VProp True
-    GroupAggr _ _  -> Right c
+    GroupAggr ([], _) -> Right $ VProp True
+    GroupAggr (_, _)  -> Right c
     Number -> Right c
     NumberS -> Right c
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
