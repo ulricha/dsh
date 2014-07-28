@@ -45,6 +45,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProject
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
+                         , zipProjectLeft
+                         , zipProjectRight
                          , alignParents
                          , selectConstPos
                          , selectConstPosS
@@ -275,6 +277,45 @@ sameInputZipProjectRight q =
           logRewrite "Redundant.Zip.Project.Right" q
           let proj = (map Column [1 .. w]) ++ $(v "ps2")
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+zipProjectLeft :: VLRule BottomUpProps
+zipProjectLeft q =
+  $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Left" q
+          -- Take the projection expressions from the left and the
+          -- shifted columns from the right.
+          let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+
+shiftExprCols :: Int -> Expr -> Expr
+shiftExprCols offset (BinApp op e1 e2) = BinApp op (shiftExprCols offset e1) (shiftExprCols offset e2)
+shiftExprCols offset (UnApp op e)      = UnApp op (shiftExprCols offset e)
+shiftExprCols offset (Column c)        = Column $ c + offset
+shiftExprCols _      (Constant val)    = Constant val
+shiftExprCols offset (If c t e)        = If (shiftExprCols offset c) 
+                                            (shiftExprCols offset t) 
+                                            (shiftExprCols offset e)
+
+zipProjectRight :: VLRule BottomUpProps
+zipProjectRight q =
+  $(pattern 'q "(q1) Zip (Project p2 (q2))"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip.Project.Left" q
+          -- Take the columns from the left and the expressions from
+          -- the right projection. Since expressions are applied after
+          -- the zip, their column references have to be shifted.
+          let proj = [Column c | c <- [1..w1]] ++ [ shiftExprCols w1 e | e <- $(v "p2") ]
+          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
 --------------------------------------------------------------------------------
 -- Specialization of sorting
