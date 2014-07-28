@@ -2,16 +2,10 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
 
-import Debug.Trace
-import Text.Printf
-
 import           Control.Applicative
 import           Control.Monad
-import qualified Data.Foldable                              as F
-import           Data.List.NonEmpty                         (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                         as N
 import           Data.Semigroup
-import qualified Data.Traversable                           as T
 
 import           Database.Algebra.Dag.Common
 
@@ -53,7 +47,6 @@ mergeNonEmptyAggrs q =
         return $ do
             logRewrite "Aggregation.NonEmpty.Merge" q
             let afuns  = $(v "afuns1") <> $(v "afuns2")
-            trace ("mergeNonEmptyAggrs " ++ show $(v "afuns1") ++ show $(v "afuns2") ++ " -> " ++ show afuns) $ return ()
             let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
@@ -197,16 +190,6 @@ inlineAggrSNonEmptyProject q =
             let aggrOp = BinOp (AggrNonEmptyS afuns') $(v "qo") $(v "qi")
             void $ replaceWithNew q aggrOp |])
 
-
--- | Check if we have an operator combination which is eligible for moving to a
--- GroupAggr operator.
-matchAggr :: AlgNode -> VLMatch () (NonEmpty AggrFun, AlgNode)
-matchAggr q = do
-  BinOp op _ _ <- getOperator q
-  case op of
-    AggrS aggrFun          -> return (aggrFun N.:| [], q)
-    AggrNonEmptyS aggrFuns -> return (aggrFuns, q)
-    _                      -> fail "no match"
 
 -- If grouping is performed by simple scalar expressions, we can
 -- employ a simpler operator.

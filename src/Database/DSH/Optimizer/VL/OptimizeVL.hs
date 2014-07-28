@@ -13,7 +13,6 @@ import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
-import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
 
 type RewriteClass = Rewrite VL (TopShape VLDVec) Bool
 
@@ -21,7 +20,6 @@ rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
                  , ('R', removeRedundancy)
                  , ('C', optExpressions)
-                 -- , ('G', groupingToAggregation)
                  ]
 
 defaultPipeline :: [RewriteClass]
