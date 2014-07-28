@@ -20,6 +20,7 @@ module Database.DSH.Compiler
   ) where
 
 import           Control.Applicative
+import           Control.Arrow
 
 import qualified Database.HDBC                            as H
 
@@ -29,6 +30,9 @@ import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Execute.Sql
 import           Database.DSH.Execute.X100
 
+import qualified Database.DSH.VL.Lang                     as VL
+import           Database.DSH.VL.Vector
+import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.DBCode
@@ -45,95 +49,73 @@ import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
 
-
-
-
-(|>) :: a -> (a -> b) -> b
-(|>) = flip ($)
-
+--------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline
 
+commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
+commonPipeline =
+    optimizeComprehensions
+    >>> desugarComprehensions
+    >>> optimizeNKL
+    >>> flatten
+    >>> specializeVectorOps
+
 nkl2X100Alg :: CL.Expr -> TopShape X100Code
-nkl2X100Alg e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsX100
-    |> optimizeX100Default
-    |> generateX100Queries
+nkl2X100Alg =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> optimizeX100Default
+    >>> generateX100Queries
 
 nkl2Sql :: CL.Expr -> TopShape SqlCode
-nkl2Sql e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> optimizeTA
-    |> generateSqlQueries
+nkl2Sql =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> optimizeTA
+    >>> generateSqlQueries
 
 nkl2X100File :: String -> CL.Expr -> IO ()
-nkl2X100File prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsX100
-    |> (exportX100Plan prefix)
+nkl2X100File prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> (exportX100Plan prefix)
 
 nkl2X100FileOpt :: String -> CL.Expr -> IO ()
-nkl2X100FileOpt prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsX100
-    |> optimizeX100Default
-    |> exportX100Plan prefix
+nkl2X100FileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> optimizeX100Default
+    >>> exportX100Plan prefix
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> (exportTAPlan prefix)
+nkl2TAFile prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> optimizeTA
-    |> exportTAPlan (prefix ++ "_opt")
+nkl2TAFileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> optimizeTA
+    >>> exportTAPlan (prefix ++ "_opt")
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> exportVLPlan prefix
+nkl2VLFile prefix = commonPipeline >>> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> exportVLPlan (prefix ++ "_opt")
+nkl2VLFileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> exportVLPlan (prefix ++ "_opt")
 
+--------------------------------------------------------------------------------
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
 -- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
