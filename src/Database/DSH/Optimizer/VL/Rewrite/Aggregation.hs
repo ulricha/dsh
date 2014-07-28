@@ -30,6 +30,7 @@ aggregationRules = [ inlineAggrSProject
                    , simpleGroupingProject
                    , mergeNonEmptyAggrs
                    , mergeGroupAggr
+                   , mergeGroupWithGroupAggrLeft
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
@@ -297,6 +298,7 @@ mergeGroupAggr q =
         predicate $ $(v "q1") == $(v "q2")
     
         return $ do
+          logRewrite "Aggregation.Normalize.MergeGroupAggr" q
           groupNode <- insert $ UnOp (GroupAggr ($(v "ges1"), ($(v "afuns1") <> $(v "afuns2")))) $(v "q1")
 
           -- Reconstruct the schema produced by Zip. Note that this
@@ -315,5 +317,37 @@ mergeGroupAggr q =
                      [ Column $ c + groupWidth + aggrWidth1 | c <- [1 .. aggrWidth2] ]
 
           void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+
+-- | This is a cleanup rewrite: It applies in a situation when
+-- aggregates have already been merged with GroupScalarS into
+-- GroupAggr. If the GroupAggr output is combined with the R1 output
+-- of GroupScalarS on the same input and grouping expressions via Zip,
+-- the effect is that only the grouping expressions are duplicated.
+mergeGroupWithGroupAggrLeft :: VLRule ()
+mergeGroupWithGroupAggrLeft q =
+  $(pattern 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
+    [| do
+        let (ges', afuns) = $(v "args")
+    
+        -- Input vectors and grouping expressions have to be the same.
+        predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "ges") == ges'
+
+        return $ do
+            logRewrite "Aggregation.Normalize.MergeGroupScalars" q
+            
+            -- To keep the schema, we have to duplicate the grouping
+            -- columns.
+            let groupWidth = length ges'
+                aggrWidth  = N.length afuns
+                groupCols  = [ Column c | c <- [1..groupWidth] ]
+                proj       = groupCols 
+                             ++ 
+                             groupCols
+                             ++
+                             [ Column c | c <- [1..aggrWidth] ]
+
+            groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
                      
 
