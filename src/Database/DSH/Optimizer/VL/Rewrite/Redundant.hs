@@ -14,6 +14,7 @@ import           Database.DSH.Optimizer.VL.Properties.Types
 import           Database.DSH.Optimizer.VL.Properties.VectorType
 import           Database.DSH.Optimizer.VL.Rewrite.Common
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
+import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
 import           Database.DSH.VL.Lang
 
 removeRedundancy :: VLRewrite Bool
@@ -22,6 +23,7 @@ removeRedundancy =
                                    , applyToAll noProps redundantRules
                                    , applyToAll inferBottomUp redundantRulesBottomUp
                                    , applyToAll inferProperties redundantRulesAllProps
+                                   , groupingToAggregation
                                    ]
 
 cleanup :: VLRewrite Bool
@@ -147,7 +149,7 @@ unreferencedAlign q =
           logRewrite "Redundant.Unreferenced.Align" q
 
           -- FIXME HACKHACKHACK
-          let padProj = [ Constant $ VLInt 42 | _ <- [1..w1] ]
+          let padProj = [ Constant $ VLInt 0xdeadbeef | _ <- [1..w1] ]
                         ++
                         [ Column i | i <- [1..w2] ]
 

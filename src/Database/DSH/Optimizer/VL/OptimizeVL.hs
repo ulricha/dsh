@@ -21,11 +21,11 @@ rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
                  , ('R', removeRedundancy)
                  , ('C', optExpressions)
-                 , ('G', groupingToAggregation)
+                 -- , ('G', groupingToAggregation)
                  ]
 
 defaultPipeline :: [RewriteClass]
-defaultPipeline = case assemblePipeline "ERGRG" of
+defaultPipeline = case assemblePipeline "ER" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
