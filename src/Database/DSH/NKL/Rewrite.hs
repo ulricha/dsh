@@ -1,8 +1,11 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module Database.DSH.NKL.Rewrite
     ( substR
     , subst
     , freeVars
     , boundVars
+    , optimizeNKL
     ) where
 
 import Control.Arrow
@@ -10,6 +13,7 @@ import Data.List
 
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
+import Database.DSH.Common.Kure
 import Database.DSH.Common.RewriteM
 import Database.DSH.NKL.Kure
 import Database.DSH.NKL.Lang
@@ -69,3 +73,31 @@ substR v s = readerT $ \expr -> case expr of
     -- A lambda which shadows v -> don't descend
     Lam _ _ _                                 -> idR
     _                                         -> anyR $ substR v s
+
+--------------------------------------------------------------------------------
+-- Simple optimizations
+
+pattern ConcatMap t lam xs <- AppE1 t (Prim1 Concat _) (AppE2 _ (Prim2 Map _) lam xs)
+pattern Singleton e <- AppE2 _ (Prim2 Cons _) e (Const _ (ListV []))
+       
+-- concatMap (\x -> [e x]) xs
+-- =>
+-- map (\x -> e x) xs
+singletonConcatMap :: RewriteN Expr
+singletonConcatMap = do
+    ConcatMap t (Lam _ x (Singleton e)) xs <- idR
+    let xst    = elemT $ typeOf xs
+        bodyTy = typeOf e
+        lamTy  = elemT xst .-> bodyTy
+        mapTy  = xst .-> lamTy .-> t
+
+    return $ AppE2 t (Prim2 Map mapTy) (Lam lamTy x e) xs
+
+nklOptimizations :: RewriteN Expr
+nklOptimizations = anybuR singletonConcatMap
+
+optimizeNKL :: Expr -> Expr
+optimizeNKL expr = debugOpt expr optimizedExpr
+  where
+    optimizedExpr = applyExpr nklOptimizations expr
+        

@@ -28,6 +28,7 @@ import qualified Database.DSH.CL.Lang        as CL
 import qualified Database.DSH.NKL.Primitives as P
 import qualified Database.DSH.NKL.Lang       as NKL
 import           Database.DSH.NKL.Rewrite
+import           Database.DSH.NKL.Rewrite
 
 --------------------------------------------------------------------------------
 -- Conversion of primitive operators

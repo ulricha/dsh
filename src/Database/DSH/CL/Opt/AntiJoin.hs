@@ -12,11 +12,12 @@ import           Data.Semigroup
 import qualified Data.Traversable as T
 import           Data.List
 
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
-import           Database.DSH.Common.Lang
 
 --------------------------------------------------------------------------------
 -- Universal quantification with and without range predicates

@@ -89,14 +89,12 @@ q11 = [ pair k (pv g)
       ]
 -}
 
-{-
 q :: Q [Integer]
 q = [ x 
     | xs <- toQ [[1,2,3],[4,5,6]]
     , x <- xs
     , x == length xs
     ]
--}
 
 {-
 q :: Q [(Integer, Integer)]
@@ -111,6 +109,8 @@ q = [ pair (fst x) (fst y)
     , length (snd x) == length (snd y)
     ]
 -}
+
+{-
 mins :: (Ord a, QA a) => Q [a] -> Q [a]
 mins as = [ minimum [ a' | (view -> (a', i')) <- number as, i' <= i ]
 	  | (view -> (a, i)) <- number as
@@ -137,6 +137,8 @@ q1 = map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
          , tid == tid'
          ]
 
+-}
+
 {-
 mins :: (Ord a, QA a) => Q [a] -> Q [a]
 mins as = [ minimum [ a' | (a', i') <- number as, i' <= i ]
@@ -150,6 +152,6 @@ q is = maximum [ i - i' | (i, i') <- zip is' (mins is') ]
     
 
 main :: IO ()
--- main = debugQ "q" getConn $ q (toQ [1..50])
+main = debugQ "q" getConn $ q
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
-main = debugQX100 "q1" x100Conn q1
+--main = debugQX100 "q1" x100Conn q1

@@ -5,6 +5,8 @@ module Database.DSH.CL.Opt
   ( optimizeComprehensions ) where
   
 import Control.Arrow
+
+import Database.DSH.Common.Kure
        
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure

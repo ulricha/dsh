@@ -115,6 +115,7 @@ Library
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.DBCode
                      Database.DSH.Common.RewriteM
+                     Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure

@@ -38,15 +38,6 @@ module Database.DSH.CL.Opt.Aux
     , fromGen
       -- * NL spine traversal
     , onetdSpineT
-      -- * Debugging
-    , prettyR
-    , debug
-    , debugPretty
-    , debugMsg
-    , debugOpt
-    , debugPipeR
-    , debugTrace
-    , debugShow
     ) where
 
 import           Control.Arrow
@@ -57,16 +48,11 @@ import qualified Data.Set                   as S
 import           Data.List.NonEmpty         (NonEmpty ((:|)))
 import           Data.Semigroup
 
-#ifdef DEBUGCOMP
-import           Debug.Trace
-#endif
-
 import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
 
@@ -142,8 +128,6 @@ splitJoinPredT x y = do
     [x'] <- return $ freeVars e1
     [y'] <- return $ freeVars e2
 
-    let mkPred el er = JoinConjunct el op er
-
     if | x == x' && y == y' -> binopT (toJoinExpr x)
                                       (toJoinExpr y)
                                       (\_ _ e1' e2' -> JoinConjunct e1' op e2')
@@ -168,7 +152,7 @@ conjunctsT = readerT $ \e -> case e of
 
     -- For a non-AND expression, try to transform it into a join
     -- predicate.
-    ExprCL e -> return $ e :| []
+    ExprCL expr -> return $ expr :| []
 
     _ -> $impossible
 
@@ -425,70 +409,3 @@ fromGuard (BindQ _ _) = fail "not a guard"
 fromGen :: Monad m => Qual -> m (Ident, Expr)
 fromGen (BindQ x xs) = return (x, xs)
 fromGen (GuardQ _)   = fail "not a generator"
-
---------------------------------------------------------------------------------
--- Simple debugging combinators
-
--- | Trace output of the value being rewritten; use for debugging only.
-prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-prettyR msg = acceptR (\a -> trace (msg ++ pp a) True)
-#else
-prettyR _ = idR
-#endif
-
-debug :: Pretty a => String -> a -> b -> b
-#ifdef DEBUGCOMP
-debug msg a b = trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
-#else
-debug _ _ b = b
-#endif
-
-debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
-debugPretty msg a = debug msg a (return ())
-
-debugMsg :: Monad m => String -> m ()
-#ifdef DEBUGCOMP
-debugMsg msg = trace msg $ return ()
-#else
-debugMsg _ = return ()
-#endif
-
-debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr = 
-#ifdef DEBUGCOMP
-    trace (showOrig origExpr)
-    $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
-
-  where
-    padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
-
-    showOrig :: Expr -> String
-    showOrig e = padSep "Original Query" ++ pp e ++ padSep ""
-
-    showOpt :: Expr -> String
-    showOpt e = padSep "Optimized Query" ++ pp e ++ padSep ""
-#else
-    either (const origExpr) id mExpr
-#endif
-
-debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
-debugPipeR r = prettyR "Before >>>>>>"
-               >>> r
-               >>> prettyR ">>>>>>> After"
-
-debugTrace :: Monad m => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-debugTrace msg = trace msg idR
-#else
-debugTrace _ = idR
-#endif
-
-debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-debugShow msg = prettyR (msg ++ "\n")
-#else
-debugShow _ = idR
-#endif
-
