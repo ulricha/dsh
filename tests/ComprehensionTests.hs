@@ -26,6 +26,8 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "antijoin class12" prop_aj_class12
     , testProperty "antijoin class15" prop_aj_class15
     , testProperty "antijoin class16" prop_aj_class16
+    , testProperty "backdep" prop_backdep
+    , testProperty "backdep_filter" prop_backdep_filter
     ]
 
 tests_join_hunit :: Test
@@ -172,6 +174,16 @@ prop_aj_class16 = makeProp C.aj_class16 aj_class16_native
                                      | x <- ajxs
                                      , and [ y <= 2 * x | y <- ajys, x < y ]
                                      ]
+
+prop_backdep :: [[Integer]] -> Property
+prop_backdep = makeProp C.backdep backdep_native
+  where
+    backdep_native xss = [x | xs <- xss, x <- xs]
+
+prop_backdep_filter :: [[Integer]] -> Property
+prop_backdep_filter = makeProp C.backdep_filter backdep_filter_native
+  where
+    backdep_filter_native xss = [x | xs <- xss, x <- xs, fromIntegral (length xss) > x]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions
