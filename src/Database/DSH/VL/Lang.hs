@@ -134,7 +134,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Unbox
            | Append
            | AppendS
-           | Restrict
+           | Restrict Expr
            | SelectPos L.ScalarBinOp
            | SelectPosS L.ScalarBinOp
            | Zip

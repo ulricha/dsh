@@ -270,12 +270,11 @@ instance VectorAlgebra NDVec TableAlgebra where
 
     return (ADVec qv cols, RVec qr)
 
-  vecRestrict (ADVec q1 cols) (ADVec qm _) = do
+  vecRestrict e (ADVec q1 cols) (ADVec qm colsm) = do
     q <- rownumM pos'' [pos] Nothing
            $ eqJoinM pos pos' 
                (return q1)
-               (selectM (ColE resCol) 
-                $ proj [mP pos' pos, mP resCol item] qm)
+               (selectM (taExpr e) $ proj (itemProj colsm [mP pos' pos]) qm)
     qr <- tagM "restrictVec/1" $ proj (itemProj cols [mP pos pos'', cP descr]) q
     qp <- proj [mP posold pos, mP posnew pos''] q
     return $ (ADVec qr cols, RVec qp)

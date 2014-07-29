@@ -66,7 +66,7 @@ seed (BinOp op _ _) =
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
     Unbox              -> vPropPairSeed
-    Restrict           -> vPropPairSeed
+    Restrict _         -> vPropPairSeed
     SelectPos _        -> vPropTripleSeed
     SelectPosS _       -> vPropTripleSeed
     PropRename         -> vPropSeed
@@ -175,7 +175,7 @@ checkError :: AlgNode -> [TopDownProps] -> AlgebraDag VL -> Either String p -> p
 checkError n childProps d (Left msg) = 
     let completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg (show childProps) (show $ nodeMap d)
     in error completeMsg
-checkError _ _ d (Right props) = props
+checkError _ _ _ (Right props) = props
     
 -- | Infer properties during a top-down traversal.
 inferTopDownProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag VL -> NodeMap TopDownProps

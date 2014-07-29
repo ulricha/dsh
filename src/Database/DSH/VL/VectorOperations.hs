@@ -365,7 +365,7 @@ consLift _ _ = $impossible
 
 restrict ::  Shape -> Shape -> Build VL Shape
 restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1)) = do
-    (v, p) <- vlRestrict q1 q2
+    (v, p) <- vlRestrict (Column 1) q1 q2
     lyt'   <- chainRenameFilter p lyt
     return $ ValueVector v lyt'
 restrict (AClosure n l i env arg e1 e2) bs = do
@@ -446,10 +446,10 @@ distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ s
 ifList ::  Shape -> Shape -> Shape -> Build VL Shape
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     (d1', _)  <- vlDistPrim qb q1
-    (d1, p1)  <- vlRestrict q1 d1'
+    (d1, p1)  <- vlRestrict (Column 1) q1 d1'
     qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
     (d2', _)  <- vlDistPrim qb' q2
-    (d2, p2)  <- vlRestrict q2 d2'
+    (d2, p2)  <- vlRestrict (Column 1) q2 d2'
     lyt1'     <- renameOuter' p1 lyt1
     lyt2'     <- renameOuter' p2 lyt2
     lyt'      <- appendLayout lyt1' lyt2'

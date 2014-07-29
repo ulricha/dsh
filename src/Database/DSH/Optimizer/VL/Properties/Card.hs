@@ -77,7 +77,7 @@ inferCardOneBinOp c1 c2 op =
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    Restrict -> Right $ VPropPair False False
+    Restrict _ -> Right $ VPropPair False False
     SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)

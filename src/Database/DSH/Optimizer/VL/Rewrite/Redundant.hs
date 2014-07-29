@@ -2,6 +2,7 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Debug.Trace
 import           Control.Applicative
 import           Control.Monad
 
@@ -30,8 +31,8 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ scalarRestrict
-                 , booleanRestrict
+redundantRules = [ mergeProjectRestrict
+                 , scalarRestrict
                  , simpleSort
                  , sortProject
                  , pullProjectPropRename
@@ -53,6 +54,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , selectConstPos
                          , selectConstPosS
                          , completeSort
+                         , restrictZip
                          -- , stackedAlign
                          ]
 
@@ -61,31 +63,32 @@ redundantRulesAllProps = [ unreferencedAlign
                          , alignedOnlyLeft
                          ]
 
--- | A Restrict whose children are the same vector is just a Select on
--- a boolean column.
-booleanRestrict :: VLRule ()
-booleanRestrict q =
-  $(pattern 'q "(q1) Restrict (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
+--------------------------------------------------------------------------------
+-- Restrict rewrites
 
+mergeProjectRestrict :: VLRule ()
+mergeProjectRestrict q =
+  $(pattern 'q "(q1) Restrict p (Project es (q2))"
+    [| do
         return $ do
-          logRewrite "Redundant.Restrict.Bool" q
-          void $ replaceWithNew q $ UnOp (Select $ Column 1) $(v "q1") |])
+          logRewrite "Redundant.Restrict.Project" q
+          let env = zip [1..] $(v "es")
+              p'  = mergeExpr env $(v "p")
+          trace ("mergeProjectRestrict " ++ show $(v "p") ++ " -> " ++ show p') $ return ()
+          void $ replaceWithNew q $ BinOp (Restrict p') $(v "q1") $(v "q2") |])
 
 -- | If the left input of a Restrict operator that builds the
 -- filtering vector is just a simple scalar expression, a scalar
 -- Select can be used instead.
 scalarRestrict :: VLRule ()
 scalarRestrict q =
-  $(pattern 'q "R1 (qr=(q1) Restrict (Project es (q2)))"
+  $(pattern 'q "R1 (qr=(q1) Restrict p (q2))"
     [| do
-        [e] <- return $(v "es")
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
           logRewrite "Redundant.Restrict.Scalar" q
-          selectNode <- insert $ UnOp (Select e) $(v "q1")
+          selectNode <- insert $ UnOp (Select $(v "p")) $(v "q1")
           void $ replaceWithNew q $ UnOp R1 selectNode
 
           r2Parents <- lookupR2Parents $(v "qr")
@@ -97,6 +100,41 @@ scalarRestrict q =
           when (not $ null r2Parents) $ do
             qr2' <- insert $ UnOp R2 selectNode
             mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
+
+-- | If the vector that is to be filtered by Restrict (left input) is
+-- combined with the filter criteria to go into the Restrict
+-- predicate, we might just turn the Restrict into a Select. Columns
+-- from the left are already present after the zip and re-joining them
+-- after selection is not necessary.
+restrictZip :: VLRule BottomUpProps
+restrictZip q =
+  $(pattern 'q "R1 (qr=(q1) Restrict p (qz=(q2) Zip (_)))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        
+        return $ do
+          logRewrite "Redundant.Restrict.Zip" q
+          let proj = [ Column c | c <- [1..w]]
+
+          selNode <- insert $ UnOp (Select $(v "p")) $(v "qz")
+          r1Node <- insert $ UnOp R1 selNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node
+
+          r2Parents <- lookupR2Parents $(v "qr")
+
+          -- If there are any R2 nodes linking to the original
+          -- Restrict operator (i.e. there are inner vectors to which
+          -- changes must be propagated), they have to be rewired to
+          -- the new Select operator.
+          when (not $ null r2Parents) $ do
+            qr2' <- insert $ UnOp R2 selNode
+            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
+
+--------------------------------------------------------------------------------
+-- 
+
+
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -397,11 +435,11 @@ scalarConditional q =
 -- combinations into scalar conditional expressions.
 pullProjectRestrict :: VLRule ()
 pullProjectRestrict q =
-  $(pattern 'q "R1 ((Project projs (q1)) Restrict (qb))"
+  $(pattern 'q "R1 ((Project projs (q1)) Restrict p (qb))"
      [| do
           return $ do
             logRewrite "Redundant.Project.Restrict" q
-            restrictNode <- insert $ BinOp Restrict $(v "q1") $(v "qb")
+            restrictNode <- insert $ BinOp (Restrict $(v "p")) $(v "q1") $(v "qb")
             r1Node       <- insert $ UnOp R1 restrictNode
             void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node |])
 

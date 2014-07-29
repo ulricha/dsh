@@ -144,7 +144,7 @@ class VectorAlgebra v a where
     vecAppend :: v -> v -> Build a (v, RVec, RVec)
     vecAppendS :: v -> v -> Build a (v, RVec, RVec)
 
-    vecRestrict :: v -> v -> Build a (v, RVec)
+    vecRestrict :: Expr -> v -> v -> Build a (v, RVec)
 
     -- | Positionally align two vectors. Basically: @zip xs ys@
     vecZip :: v -> v -> Build a v

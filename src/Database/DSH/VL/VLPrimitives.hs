@@ -75,7 +75,7 @@ typeToRowType t = case t of
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT t'    -> $impossible
+  Ty.ListT _     -> $impossible
   Ty.FunT _ _    -> $impossible
   Ty.VarT _      -> $impossible
 
@@ -212,8 +212,8 @@ vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 vlUnsegment :: VLDVec -> Build VL VLDVec
 vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlRestrict (VLDVec c1) (VLDVec c2) = pairVec (BinOp Restrict c1 c2) dvec rvec
+vlRestrict :: Expr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlRestrict e (VLDVec c1) (VLDVec c2) = pairVec (BinOp (Restrict e) c1 c2) dvec rvec
 
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 

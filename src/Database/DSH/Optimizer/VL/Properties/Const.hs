@@ -334,7 +334,7 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
 
-    Restrict -> do
+    Restrict _ -> do
       (d, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
