@@ -54,6 +54,9 @@ redundantRulesBottomUp = [ distPrimConstant
                          , selectConstPosS
                          , completeSort
                          , restrictZip
+                         , zipConstLeft
+                         , zipConstRight
+                         , zipZipLeft
                          -- , stackedAlign
                          ]
 
@@ -354,6 +357,65 @@ zipProjectRight q =
           let proj = [Column c | c <- [1..w1]] ++ [ shiftExprCols w1 e | e <- $(v "p2") ]
           zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+
+fromConst :: Monad m => ConstPayload -> m VLVal
+fromConst (ConstPL v) = return v
+fromConst NonConstPL  = fail "not a constant"
+
+zipConstLeft :: VLRule BottomUpProps
+zipConstLeft q =
+  $(pattern 'q "(q1) Zip (q2)"
+    [| do
+        prop1                 <- properties $(v "q1")
+        VProp card1           <- return $ card1Prop prop1
+        VProp (DBVConst _ ps) <- return $ constProp prop1
+
+        prop2                 <- properties $(v "q2")
+        VProp card2           <- return $ card1Prop prop2
+        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        vals                  <- mapM fromConst ps
+        predicate $ card1 && card2
+
+        return $ do
+            logRewrite "Redundant.Zip.Constant.Left" q
+            let proj = map Constant vals ++ map Column [1..w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
+
+zipConstRight :: VLRule BottomUpProps
+zipConstRight q =
+  $(pattern 'q "(q1) Zip (q2)"
+    [| do
+        prop1                 <- properties $(v "q1")
+        VProp card1           <- return $ card1Prop prop1
+        w1                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        prop2                 <- properties $(v "q2")
+        VProp card2           <- return $ card1Prop prop2
+        VProp (DBVConst _ ps) <- return $ constProp prop2
+
+
+        vals                  <- mapM fromConst ps
+        predicate $ card1 && card2
+
+        return $ do
+            logRewrite "Redundant.Zip.Constant.Left" q
+            let proj = map Column [1..w1] ++ map Constant vals
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+zipZipLeft :: VLRule BottomUpProps
+zipZipLeft q =
+  $(pattern 'q "(q1) Zip (qz=(q11) Zip (q2))"
+     [| do
+         predicate $ $(v "q1") == $(v "q11")
+
+         w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         wz <- vectorWidth <$> vectorTypeProp <$> properties $(v "qz")
+        
+         return $ do
+             logRewrite "Redundant.Zip.Zip.Left" q
+             let proj = map Column $ [1..w1] ++ [1..wz]
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qz") |])
 
 --------------------------------------------------------------------------------
 -- Specialization of sorting
