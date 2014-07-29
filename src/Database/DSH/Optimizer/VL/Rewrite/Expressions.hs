@@ -39,14 +39,25 @@ mergeExpr1 q =
 
 mergeSelectProject :: VLRule BottomUpProps
 mergeSelectProject q =
-  $(pattern 'q "Select p (Project projs (q1))"
+  $(pattern 'q "R1 (qs=Select p (Project projs (q1)))"
      [| do
         return $ do
           logRewrite "Expr.Merge.Select" q
           let env = zip [1..] $(v "projs")
           let p'  = mergeExpr env $(v "p")
           selectNode <- insert $ UnOp (Select p') $(v "q1")
-          void $ replaceWithNew q $ UnOp (Project $(v "projs")) selectNode |])
+          r1Node     <- insert $ UnOp R1 selectNode
+          void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node
+
+          r2Parents <- lookupR2Parents $(v "qs")
+
+          -- If there are any R2 nodes linking to the original
+          -- Restrict operator (i.e. there are inner vectors to which
+          -- changes must be propagated), they have to be rewired to
+          -- the new Select operator.
+          when (not $ null r2Parents) $ do
+            qr2' <- insert $ UnOp R2 selectNode
+            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
 
 identityProject :: VLRule BottomUpProps
 identityProject q =

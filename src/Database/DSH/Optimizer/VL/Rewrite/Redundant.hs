@@ -2,7 +2,6 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
-import Debug.Trace
 import           Control.Applicative
 import           Control.Monad
 
@@ -74,7 +73,6 @@ mergeProjectRestrict q =
           logRewrite "Redundant.Restrict.Project" q
           let env = zip [1..] $(v "es")
               p'  = mergeExpr env $(v "p")
-          trace ("mergeProjectRestrict " ++ show $(v "p") ++ " -> " ++ show p') $ return ()
           void $ replaceWithNew q $ BinOp (Restrict p') $(v "q1") $(v "q2") |])
 
 -- | If the left input of a Restrict operator that builds the
