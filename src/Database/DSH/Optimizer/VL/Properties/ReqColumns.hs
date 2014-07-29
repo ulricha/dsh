@@ -188,7 +188,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
 
         R1               ->
             case childReqColumns of
-                VProp _                       -> fail $ "ReqColumns.R1 " ++ (show childReqColumns)
+                VProp _                       -> Left $ "ReqColumns.R1 " ++ (show childReqColumns)
                 VPropPair cols1 cols2         -> do
                     cols1' <- fromProp =<< VProp cols1 ∪ ownReqColumns
                     return $ VPropPair cols1' cols2
