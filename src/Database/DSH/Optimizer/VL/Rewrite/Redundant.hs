@@ -381,7 +381,6 @@ zipConstLeft q =
         return $ do
             logRewrite "Redundant.Zip.Constant.Left" q
             let proj = map Constant vals ++ map Column [1..w2]
-            trace ("zipConstLeft " ++ show proj) $ return ()
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
 zipConstRight :: VLRule BottomUpProps
@@ -403,7 +402,6 @@ zipConstRight q =
         return $ do
             logRewrite "Redundant.Zip.Constant.Right" q
             let proj = map Column [1..w1] ++ map Constant vals
-            trace ("zipConstLeft " ++ show proj) $ return ()
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 zipZipLeft :: VLRule BottomUpProps
