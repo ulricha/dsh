@@ -5,6 +5,7 @@ module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 import           Control.Applicative
 import           Control.Monad
 
+import qualified Database.Algebra.Dag as D
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
@@ -281,7 +282,7 @@ sameInputZip q =
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip" q
+          logRewrite "Redundant.Zip.Self" q
           let ps = map Column [1 .. w]
           void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
 
@@ -292,7 +293,7 @@ sameInputZipProject q =
         predicate $ $(v "q1") == $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Zip.Project" q
+          logRewrite "Redundant.Zip.Self.Project" q
           void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
 
 sameInputZipProjectLeft :: VLRule BottomUpProps
@@ -303,7 +304,7 @@ sameInputZipProjectLeft q =
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip.Project.Left" q
+          logRewrite "Redundant.Zip.Self.Project.Left" q
           let proj = $(v "ps1") ++ (map Column [1..w1])
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
@@ -315,7 +316,7 @@ sameInputZipProjectRight q =
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip.Project.Right" q
+          logRewrite "Redundant.Zip.Self.Project.Right" q
           let proj = (map Column [1 .. w]) ++ $(v "ps2")
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
@@ -350,7 +351,7 @@ zipProjectRight q =
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip.Project.Left" q
+          logRewrite "Redundant.Zip.Project.Right" q
           -- Take the columns from the left and the expressions from
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
@@ -359,8 +360,8 @@ zipProjectRight q =
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
 fromConst :: Monad m => ConstPayload -> m VLVal
-fromConst (ConstPL v) = return v
-fromConst NonConstPL  = fail "not a constant"
+fromConst (ConstPL val) = return val
+fromConst NonConstPL    = fail "not a constant"
 
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
@@ -372,7 +373,7 @@ zipConstLeft q =
 
         prop2                 <- properties $(v "q2")
         VProp card2           <- return $ card1Prop prop2
-        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
         vals                  <- mapM fromConst ps
         predicate $ card1 && card2
@@ -380,6 +381,7 @@ zipConstLeft q =
         return $ do
             logRewrite "Redundant.Zip.Constant.Left" q
             let proj = map Constant vals ++ map Column [1..w2]
+            trace ("zipConstLeft " ++ show proj) $ return ()
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
 
 zipConstRight :: VLRule BottomUpProps
@@ -399,13 +401,14 @@ zipConstRight q =
         predicate $ card1 && card2
 
         return $ do
-            logRewrite "Redundant.Zip.Constant.Left" q
+            logRewrite "Redundant.Zip.Constant.Right" q
             let proj = map Column [1..w1] ++ map Constant vals
+            trace ("zipConstLeft " ++ show proj) $ return ()
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 zipZipLeft :: VLRule BottomUpProps
 zipZipLeft q =
-  $(pattern 'q "(q1) Zip (qz=(q11) Zip (q2))"
+  $(pattern 'q "(q1) Zip (qz=(q11) Zip (_))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
