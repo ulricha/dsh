@@ -328,7 +328,7 @@ mergeGroupWithGroupAggrLeft q =
                              ++ 
                              groupCols
                              ++
-                             [ Column c | c <- [1..aggrWidth] ]
+                             [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
