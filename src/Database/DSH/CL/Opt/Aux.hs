@@ -35,6 +35,7 @@ module Database.DSH.CL.Opt.Aux
     , complexPrim1
     , complexPrim2
     , fromGuard
+    , fromQual
     , fromGen
       -- * NL spine traversal
     , onetdSpineT
@@ -305,8 +306,8 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
 -- | A container for the components of a comprehension expression
 data Comp = C Type Expr (NL Qual)
 
-fromQual :: Qual -> Either Qual Expr
-fromQual (BindQ x e) = Left $ BindQ x e
+fromQual :: Qual -> Either (Ident, Expr) Expr
+fromQual (BindQ x e) = Left (x, e)
 fromQual (GuardQ p)  = Right p
 
 
@@ -354,7 +355,7 @@ mergeGuardsIterR mergeGuardR = do
     -- Separate generators from guards
     ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
-    let initialComp = C ty e (fromListSafe g gs)
+    let initialComp = C ty e (fmap (uncurry BindQ) $ fromListSafe g gs)
 
     -- Try to merge one guard with some generators
     (C _ e' qs', remGuards) <- constT (return ())
