@@ -1,8 +1,6 @@
 -- | Smart constructors for NKL combinators
 module Database.DSH.NKL.Primitives where
 
-import Debug.Trace
-
 import           Prelude hiding (filter, map, concat, concatMap, fst, snd)
 import qualified Prelude as P
 import           Text.Printf
@@ -56,7 +54,7 @@ map f es = let ft@(FunT ta tr) = typeOf f
                  else tyErr "map"
 
 concatMap :: Expr -> Expr -> Expr
-concatMap f xs = trace (printf "concatMap %s %s" (pp $ typeOf f) (pp $ typeOf xs)) $ concat $ map f xs
+concatMap f xs = {- trace (printf "concatMap %s %s" (pp $ typeOf f) (pp $ typeOf xs)) $ -} concat $ map f xs
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
