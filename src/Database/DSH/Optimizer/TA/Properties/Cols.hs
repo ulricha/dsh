@@ -92,10 +92,11 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
         Sum e  -> numAggr $ exprTy childCols e
 
     numAggr :: ATy -> ATy
-    numAggr AInt = AInt
-    numAggr ADec = ADec
-    numAggr ANat = ANat
-    numAggr _    = $impossible
+    numAggr AInt    = AInt
+    numAggr ADec    = ADec
+    numAggr ANat    = ANat
+    numAggr ADouble = ADouble
+    numAggr _       = $impossible
 
 ----------------------------------------------------------------------------
 -- Schema inference for tablealgebra operators
