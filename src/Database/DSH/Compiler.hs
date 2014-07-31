@@ -14,13 +14,16 @@ module Database.DSH.Compiler
   ) where
 
 import           Control.Applicative
+import           Control.Arrow
+import qualified Database.HDBC                            as H
 
 import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Execute.Sql
 
-import qualified Database.HDBC                        as H
-
-import qualified Database.DSH.CL.Lang                 as CL
+import qualified Database.DSH.VL.Lang                     as VL
+import           Database.DSH.VL.Vector
+import           Database.DSH.NKL.Rewrite
+import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
@@ -35,60 +38,50 @@ import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import           Database.DSH.Translate.VL2Algebra
 
-(|>) :: a -> (a -> b) -> b
-(|>) = flip ($)
-
+--------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline
 
+commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
+commonPipeline =
+    optimizeComprehensions
+    >>> desugarComprehensions
+    >>> optimizeNKL
+    >>> flatten
+    >>> specializeVectorOps
+
 nkl2Sql :: CL.Expr -> TopShape SqlCode
-nkl2Sql e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> optimizeTA
-    |> generateSqlQueries
+nkl2Sql =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> optimizeTA
+    >>> generateSqlQueries
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> (exportTAPlan prefix)
+nkl2TAFile prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> (exportTAPlan prefix)
 
 nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> implementVectorOpsPF
-    |> optimizeTA
-    |> (exportTAPlan prefix)
+nkl2TAFileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsPF
+    >>> optimizeTA
+    >>> exportTAPlan (prefix ++ "_opt")
 
 nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> exportVLPlan prefix
+nkl2VLFile prefix = commonPipeline >>> exportVLPlan prefix
 
 nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix e =
-    optimizeComprehensions e
-    |> desugarComprehensions
-    |> flatten
-    |> specializeVectorOps
-    |> optimizeVLDefault
-    |> exportVLPlan (prefix ++ "_opt")
+nkl2VLFileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> exportVLPlan (prefix ++ "_opt")
 
+--------------------------------------------------------------------------------
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
 -- | Run a query on a SQL backend
@@ -130,6 +123,7 @@ debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
 debugQ prefix conn q = do
     debugVL prefix conn q
     debugVLOpt prefix conn q
+    debugTA prefix conn q
     debugTAOpt prefix conn q
 
 -- | Convenience function: execute a query on a SQL backend and print

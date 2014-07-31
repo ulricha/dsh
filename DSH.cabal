@@ -111,14 +111,15 @@ Library
                      Database.DSH.Common.Lang
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.DBCode
-                     Database.DSH.Common.TransM
+                     Database.DSH.Common.RewriteM
+                     Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
-                     Database.DSH.CL.Monad
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
                      Database.DSH.CL.Opt.Aux
+                     Database.DSH.CL.Opt.PostProcess
                      Database.DSH.CL.Opt.LoopInvariant
                      Database.DSH.CL.Opt.PredPushdown
                      Database.DSH.CL.Opt.Normalize
@@ -133,6 +134,9 @@ Library
                      Database.DSH.FKL.FKLPrimitives
                      Database.DSH.FKL.Render.Render
                      Database.DSH.NKL.Lang
+                     Database.DSH.NKL.Kure
+                     Database.DSH.NKL.Rewrite
+                     Database.DSH.NKL.Primitives
                      Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL

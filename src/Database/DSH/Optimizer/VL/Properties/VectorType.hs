@@ -67,7 +67,7 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
+    GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s
         return $ VProp $ ValueVector (w + 1)
@@ -135,7 +135,7 @@ inferVectorTypeBinOp s1 s2 op =
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
-    Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    Restrict _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     Zip ->

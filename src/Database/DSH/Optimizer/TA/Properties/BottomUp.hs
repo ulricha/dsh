@@ -21,8 +21,8 @@ import           Database.DSH.Optimizer.TA.Properties.Order
 import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
-inferWorker :: TableAlgebra -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
-inferWorker op n pm =
+inferWorker :: NodeMap TableAlgebra -> TableAlgebra -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
+inferWorker _ op n pm =
     let res =
            case op of
                 TerOp _ _ _ _ -> $impossible

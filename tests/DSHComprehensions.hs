@@ -316,3 +316,14 @@ aj_class16 (view -> (xs, ys)) =
   | x <- xs
   , and [ y <= 2 * x | y <- ys, x < y ]
   ]
+
+
+
+--------------------------------------------------------------------------------
+-- Comprehensions for 
+
+backdep :: Q [[Integer]] -> Q [Integer]
+backdep xss = [ x | xs <- xss, x <- xs ]
+
+backdep_filter :: Q [[Integer]] -> Q [Integer]
+backdep_filter xss = [ x | xs <- xss, x <- xs, length xs > x ]

@@ -51,8 +51,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    GroupAggr [] _ -> Right $ VProp True
-    GroupAggr _ _  -> Right c
+    GroupAggr ([], _) -> Right $ VProp True
+    GroupAggr (_, _)  -> Right c
     Number -> Right c
     NumberS -> Right c
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -77,7 +77,7 @@ inferCardOneBinOp c1 c2 op =
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    Restrict -> Right $ VPropPair False False
+    Restrict _ -> Right $ VPropPair False False
     SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)

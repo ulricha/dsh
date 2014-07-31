@@ -19,20 +19,46 @@ similar to the the flattening transformation described in
 
 %if False
 \begin{code}
-{-# LANGUAGE TemplateHaskell, TupleSections #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 module Database.DSH.Translate.NKL2FKL (flatten) where
+
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.State hiding (lift)
+import           Data.List
        
 import qualified Database.DSH.FKL.Data.FKL as F
 import qualified Database.DSH.NKL.Lang as N
-import           Database.DSH.Common.TransM
+import qualified Database.DSH.NKL.Rewrite as NR
 
 import           Database.DSH.FKL.FKLPrimitives
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
 
-import qualified Data.Set as S
+--------------------------------------------------------------------------------
+-- A monad providing fresh names
 
-import           Control.Applicative
+newtype TransM a = TransM (State Int a)
+    deriving (Monad, Functor)
+
+deriving instance MonadState Int TransM
+
+getFreshVar :: TransM String
+getFreshVar = do
+                v <- get
+                put $ v + 1
+                return $ "***_FV" ++ show v
+
+instance Applicative TransM where
+    pure  = return
+    (<*>) = ap
+
+runTransform :: TransM a -> a
+runTransform (TransM e) = fst $ flip runState 0 e
 \end{code}
 %endif
 
@@ -258,7 +284,7 @@ transform (N.AppE2 _ p e1 e2)  = do
     let app1 = cloAppM (pure $ prim2Transform p) (transform e1)
     cloAppM app1 (transform e2)
 transform (N.Lam t arg e)      = do
-    let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
+    let fvs = filter (\v -> v /= arg) $ NR.freeVars e
     n <- getFreshVar
     cloM t n fvs arg (transform e) (lift (F.Var (listT (VarT "a")) n) e)
 transform (N.If _ e1 e2 e3)    = ifPrimM (transform e1) (transform e2) (transform e3)
@@ -306,7 +332,7 @@ lift en   (N.AppE2 _ p e1 e2)      = do
 lift en   (N.If _ e1 e2 e3)        = do
     e1' <- lift en e1
     let (F.Var t n) = en
-    let fvs = S.toList $ N.freeVars e2 `S.union` N.freeVars e3
+    let fvs = nub $ NR.freeVars e2 ++ NR.freeVars e3
     n1' <- getFreshVar
     let n1 = F.Var (typeOf en) n1'
     n2' <- getFreshVar
@@ -328,7 +354,7 @@ lift en   (N.UnOp t o e)           = unPrimLM t o (lift en e)
 
 lift en   (N.Lam t arg e)          = do
     let (F.Var _ n') = en
-    let fvs = S.toList $ N.freeVars e S.\\ S.singleton arg
+    let fvs = filter (\v -> v /= arg) $ NR.freeVars e
     cloLM (liftType t) n' fvs arg (transform e) (lift en e)
 \end{code}
         

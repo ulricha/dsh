@@ -166,7 +166,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
 
         -- We don't need to look at the columns required from above,
         -- because they can only be a subset of (gs ++ as).
-        GroupAggr gs as -> childReqColumns
+        GroupAggr (gs, as) -> childReqColumns
                            ∪
                            (VProp $ Just $ L.nub $ concatMap reqExprCols gs
                                                    ++
@@ -188,7 +188,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
 
         R1               ->
             case childReqColumns of
-                VProp _                       -> fail $ "ReqColumns.R1 " ++ (show childReqColumns)
+                VProp _                       -> Left $ "ReqColumns.R1 " ++ (show childReqColumns)
                 VPropPair cols1 cols2         -> do
                     cols1' <- fromProp =<< VProp cols1 ∪ ownReqColumns
                     return $ VPropPair cols1' cols2
@@ -298,10 +298,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight    <- (VProp cols) ∪ childReqColumns2
           return (fromLeft, fromRight)
 
-      Restrict -> do
-          cols     <- fst <$> fromPropPair ownReqColumns
-          fromLeft <- VProp cols ∪ childReqColumns1
-          return (fromLeft, one)
+      Restrict e -> do
+          cols      <- fst <$> fromPropPair ownReqColumns
+          fromLeft  <- VProp cols ∪ childReqColumns1
+          let fromRight = VProp $ Just $ reqExprCols e
+          return (fromLeft, fromRight)
 
       SelectPos _ -> do
           (cols, _, _) <- fromPropTriple ownReqColumns

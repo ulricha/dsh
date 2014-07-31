@@ -6,7 +6,6 @@
 module Database.DSH.NKL.Lang
   ( Expr(..)
   , Typed(..)
-  , freeVars
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)
@@ -33,7 +32,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | If Type Expr Expr Expr
            | Const Type L.Val
            | Var Type L.Ident
-           | MkTuple Type [Expr]
+           deriving (Show)
 
 instance Typed Expr where
   typeOf (Table t _ _ _) = t
@@ -75,18 +74,6 @@ parenthize e =
 
 deriving instance Eq Expr
 deriving instance Ord Expr
-
-freeVars :: Expr -> S.Set String
-freeVars (Table _ _ _ _)   = S.empty
-freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
-freeVars (AppE1 _ _ e1)    = freeVars e1
-freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
-freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
-freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (UnOp _ _ e)      = freeVars e
-freeVars (Const _ _)       = S.empty
-freeVars (Var _ x)         = S.singleton x
 
 data Prim1Op = Length 
              | Concat

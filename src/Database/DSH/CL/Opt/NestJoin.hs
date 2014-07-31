@@ -266,8 +266,7 @@ unnestFromHeadR = do
 -- | Store not only the tuplifying rewrite in the state, but also the
 -- rewritten guard expression.
 -- FIXME this is a rather ugly hack
-type GuardM = CompSM (RewriteC CL, Maybe Expr)
-
+type GuardM = RewriteStateM (RewriteC CL, Maybe Expr)
 
 -- | Search for an eligible nested comprehension in the current guard
 -- and unnest it. Returns the tuplifying rewrite for the outer

@@ -195,8 +195,8 @@ translateBinOp b c1 c2 = case b of
         (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
-    V.Restrict -> do
-        (v, r) <- vecRestrict (toDVec c1) (toDVec c2)
+    V.Restrict e -> do
+        (v, r) <- vecRestrict e (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec v) (fromRVec r)
 
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
@@ -293,7 +293,7 @@ translateUnOp unop c = case unop of
     V.SelectPos1S op pos -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
-    V.GroupAggr g as -> fromDVec <$> vecGroupAggr g as (toDVec c)
+    V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
 
     V.Reshape n -> do
         (qo, qi) <- vecReshape n (toDVec c)

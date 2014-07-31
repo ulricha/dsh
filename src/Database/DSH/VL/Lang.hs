@@ -101,7 +101,7 @@ data UnOp = UniqueS
           | Select Expr
           | SelectPos1 L.ScalarBinOp Nat
           | SelectPos1S L.ScalarBinOp Nat
-          | GroupAggr [Expr] (N.NonEmpty AggrFun)
+          | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | SortScalarS [Expr]
@@ -134,7 +134,7 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | Unbox
            | Append
            | AppendS
-           | Restrict
+           | Restrict Expr
            | SelectPos L.ScalarBinOp
            | SelectPosS L.ScalarBinOp
            | Zip
