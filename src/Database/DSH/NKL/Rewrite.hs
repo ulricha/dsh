@@ -45,7 +45,7 @@ boundVars = either error id . applyExpr boundVarsT
 -- Substitution
 
 subst :: Ident -> Expr -> Expr -> Expr
-subst x s = either error id . applyExpr (substR x s)
+subst x s e = either (const e) id $ applyExpr (substR x s) e
 
 alphaLamR :: RewriteN Expr
 alphaLamR = do 
