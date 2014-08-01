@@ -33,12 +33,10 @@ module Database.DSH.NKL.Kure
 import           Control.Monad
 import           Data.Monoid
 import qualified Data.Map as M
-import qualified Data.Foldable as F
 
 import           Language.KURE
 import           Language.KURE.Lens
        
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
