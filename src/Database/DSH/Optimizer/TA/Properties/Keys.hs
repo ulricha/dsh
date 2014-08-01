@@ -31,7 +31,7 @@ subsetsOfSize n s
 -- | Enumerate all subsets of size n
 
 -- | Compute keys for rank and rowrank operators
-rowRankKeys :: AttrName -> S.Set AttrName -> Card1 -> S.Set PKey -> S.Set PKey
+rowRankKeys :: Attr -> S.Set Attr -> Card1 -> S.Set PKey -> S.Set PKey
 rowRankKeys resCol sortCols childCard1 childKeys =
     -- All old keys stay intact
     childKeys
@@ -61,7 +61,7 @@ inferKeysNullOp op =
 
         TableRef (_, _, keys) -> S.fromList $ map (\(Key k) -> ls k) keys
 
-inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set AttrName -> UnOp -> S.Set PKey
+inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set Attr -> UnOp -> S.Set PKey
 inferKeysUnOp childKeys childCard1 childCols op =
     case op of
         RowNum (resCol, _, Nothing)    -> S.insert (ss resCol) childKeys
@@ -158,7 +158,7 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
         DisjUnion _   -> S.empty -- FIXME need domain property.
         Difference _  -> leftKeys
 
-singleCol :: Expr -> S.Set AttrName
+singleCol :: Expr -> S.Set Attr
 singleCol (ColE c) = S.singleton c
 singleCol _        = S.empty
 

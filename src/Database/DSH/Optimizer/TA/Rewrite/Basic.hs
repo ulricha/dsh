@@ -55,7 +55,7 @@ mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
     inline (ConstE val)       = ConstE val
     inline (IfE c t e)        = IfE (inline c) (inline t) (inline e)
 
-    failedLookup :: AttrName -> a
+    failedLookup :: Attr -> a
     failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
                                    c (show proj1) (show proj2))
                            $impossible
@@ -204,7 +204,7 @@ constAggrKey q =
 ----------------------------------------------------------------------------------
 -- Basic Order rewrites
 
-lookupSortCol :: SortAttr -> Orders -> TAMatch AllProps (Either [SortAttr] [SortAttr])
+lookupSortCol :: SortSpec -> Orders -> TAMatch AllProps (Either [SortSpec] [SortSpec])
 lookupSortCol (oldSortCol, Asc) os =
     case lookup oldSortCol os of
         Nothing          -> return $ Left [(oldSortCol, Asc)]

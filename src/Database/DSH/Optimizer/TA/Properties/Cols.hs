@@ -79,7 +79,7 @@ exprTy childCols expr =
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions
 
-aggrTy :: S.Set TypedAttr -> (AggrType, AttrName) -> TypedAttr
+aggrTy :: S.Set TypedAttr -> (AggrType, Attr) -> TypedAttr
 aggrTy childCols (aggr, resCol) = (resCol, resType)
   where
     resType = case aggr of
