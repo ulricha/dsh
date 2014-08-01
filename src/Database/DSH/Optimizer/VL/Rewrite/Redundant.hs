@@ -59,6 +59,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipConstRight
                          , zipZipLeft
                          -- , stackedAlign
+                         , propProductCard1Right
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -559,3 +560,20 @@ selectConstPosS q =
          return $ do
            logRewrite "Redundant.SelectPosS.Constant" q
            void $ replaceWithNew q $ UnOp (SelectPos1S $(v "op") (N pos)) $(v "q1") |])
+
+--------------------------------------------------------------------------------
+-- Rewrites that deal with nested structures and propagation vectors.
+
+-- | When the right input of a cartesian product has cardinality one,
+-- the cardinality of the right input does not change and the
+-- propagation vector for the left input is a NOOP.
+propProductCard1Right :: VLRule BottomUpProps
+propProductCard1Right q =
+  $(pattern 'q "R1 ((R2 ((_) CartProduct (q2))) PropReorder (qi))"
+    [| do
+        VProp True <- card1Prop <$> properties $(v "q2")
+        
+        return $ do
+          logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
+          void $ replace q $(v "qi") |])
+          
