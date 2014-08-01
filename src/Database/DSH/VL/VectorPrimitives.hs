@@ -56,6 +56,8 @@ class VectorAlgebra v a where
     vecAggrNonEmpty :: N.NonEmpty AggrFun -> v -> Build a v
     vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> v -> Build a v
 
+    vecWinAggr :: AggrFun -> WindowSpec -> v -> Build a v
+
     -- | SelectPos filters a vector positionally as specified by the
     -- comparison operator and the position value from the right
     -- input. Next to the filtered value vector it produces two rename

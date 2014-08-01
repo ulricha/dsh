@@ -30,6 +30,9 @@ lookupTags n m = Map.findWithDefault [] n m
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
 
+renderWindowSpec :: WindowSpec -> Doc
+renderWindowSpec WinLtEq = text "<= curr"
+
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
                                         [renderExpr c]
@@ -122,8 +125,11 @@ parenthize1 e@(BinApp _ _ _) = parens $ renderExpr e
 parenthize1 e@(UnApp _ _)    = parens $ renderExpr e
 parenthize1 e@(If _ _ _)     = renderExpr e
 
--- create the node label from an operator description
+-- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
+opDotLabel tm i (UnOp (WinAggr (afun, wspec)) _) = labelToDoc i "WinAggr"
+    (renderAggrFun afun <> comma <+> renderWindowSpec wspec)
+    (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
 opDotLabel tm i (NullaryOp (Lit em tys vals)) = labelToDoc i "LIT"
         (renderEmptiness em <+> bracketList renderColumnType tys <> comma

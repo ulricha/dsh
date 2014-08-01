@@ -4,7 +4,6 @@
 module Database.DSH.VL.Render.JSON(serializePlan, deserializePlan, planToFile, planFromFile) where
 
 import           Control.Monad
-import           Data.Functor
 import qualified Data.IntMap                 as M
 import           Data.List.NonEmpty          (NonEmpty (..))
 import           GHC.Generics                (Generic)
@@ -16,7 +15,6 @@ import qualified Data.ByteString.Lazy.Char8  as BL
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang    as L
-import           Database.DSH.Impossible
 import           Database.DSH.VL.Lang
 
 instance ToJSON TerOp where
@@ -43,6 +41,7 @@ instance ToJSON L.ColName where
 instance ToJSON L.TableHints where
 instance ToJSON e => ToJSON (L.JoinConjunct e)
 instance ToJSON e => ToJSON (L.JoinPredicate e)
+instance ToJSON WindowSpec where
 instance ToJSON a => ToJSON (NonEmpty a) where
     toJSON (n :| nl) = toJSON (n, nl)
 
@@ -71,6 +70,7 @@ instance FromJSON L.Key where
 instance FromJSON L.TableHints
 instance FromJSON e => FromJSON (L.JoinConjunct e)
 instance FromJSON e => FromJSON (L.JoinPredicate e)
+instance FromJSON WindowSpec where
 instance FromJSON a => FromJSON (NonEmpty a) where
     parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n :| nl
 

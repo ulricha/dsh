@@ -221,6 +221,18 @@ joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
     joinOp L.LtE = LeJ
     joinOp L.NEq = NeJ
 
+windowFunction :: VL.AggrFun -> WinFun
+windowFunction (VL.AggrSum _ e) = WinSum $ taExpr e
+windowFunction (VL.AggrMin e)   = WinMin $ taExpr e
+windowFunction (VL.AggrMax e)   = WinMax $ taExpr e
+windowFunction (VL.AggrAvg e)   = WinAvg $ taExpr e
+windowFunction (VL.AggrAll e)   = WinAll $ taExpr e
+windowFunction (VL.AggrAny e)   = WinAny $ taExpr e
+windowFunction VL.AggrCount     = WinCount
+
+frameSpecification :: VL.WindowSpec -> FrameBounds
+frameSpecification VL.WinLtEq = ClosedFrame FSUnboundPrec FECurrRow
+
 -- The VectorAlgebra instance for TA algebra
 
 instance VectorAlgebra NDVec TableAlgebra where
@@ -333,6 +345,12 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr1 <- proj (itemProj resCols [cP descr, cP pos]) q
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return (ADVec qr1 resCols, PVec qr2)
+
+  vecWinAggr a w (ADVec q _) = do
+    let wfun      = windowFunction a
+        frameSpec = frameSpecification w
+    qw <- winFun (item, wfun) [] [(pos, Asc)] (Just frameSpec) q
+    return $ ADVec qw [1]
 
   vecAggr a (ADVec q _) = do
     -- The aggr operator itself

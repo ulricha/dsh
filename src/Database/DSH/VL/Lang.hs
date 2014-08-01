@@ -81,6 +81,12 @@ data VLVal = VLInt Int
            | VLUnit
            deriving (Eq, Ord, Generic, Show, Read)
 
+-- | Specification of a window for the window aggregate operator.
+data WindowSpec = -- | All elements up to and including the current
+                  -- element are in the window
+                  WinLtEq
+                deriving (Eq, Ord, Generic, Show)
+
 data NullOp = SingletonDescr
             | Lit L.Emptiness [RowType] [[VLVal]]
             | TableRef String [VLColumn] L.TableHints
@@ -106,6 +112,7 @@ data UnOp = UniqueS
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | SortScalarS [Expr]
           | GroupScalarS [Expr]
+          | WinAggr (AggrFun, WindowSpec)
           | Reshape Integer
           | ReshapeS Integer
           | Transpose

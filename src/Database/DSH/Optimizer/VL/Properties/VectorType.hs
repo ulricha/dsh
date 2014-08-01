@@ -31,6 +31,7 @@ unpack _         = Left "Input is not a single vector property"
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
 inferVectorTypeUnOp s op = 
   case op of
+    WinAggr _ -> Right $ VProp $ ValueVector 1
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
     AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
