@@ -59,6 +59,12 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
 inferIColsUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferIColsUnOp ownICols childICols op =
     case op of
+        WinFun ((resCol, fun), partAttrs, sortAttrs, _) ->
+            (S.delete resCol ownICols)
+            ∪ (winFunInput fun)
+            ∪ (S.fromList partAttrs)
+            ∪ (S.fromList $ map fst sortAttrs)
+            ∪ childICols
         -- Require the sorting columns, if the rownum output is required.
         RowNum (resCol, sortInf, groupCol) ->
             (S.delete resCol ownICols)

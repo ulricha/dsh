@@ -15,6 +15,7 @@ inferCard1NullOp op =
 inferCard1UnOp :: Card1 -> Empty -> UnOp -> Card1
 inferCard1UnOp childCard1 childEmpty op =
     case op of
+        WinFun _          -> childCard1
         RowNum (_, _, _)  -> childCard1
         RowRank (_, _)    -> childCard1
         Rank (_, _)       -> childCard1

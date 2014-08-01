@@ -64,6 +64,7 @@ inferKeysNullOp op =
 inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set Attr -> UnOp -> S.Set PKey
 inferKeysUnOp childKeys childCard1 childCols op =
     case op of
+        WinFun _                       -> childKeys
         RowNum (resCol, _, Nothing)    -> S.insert (ss resCol) childKeys
         RowNum (resCol, _, Just pattr) -> (S.singleton $ ls [resCol, pattr])
                                           ∪

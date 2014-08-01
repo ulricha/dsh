@@ -57,6 +57,7 @@ update colMap (ordCol, sortCols) =
 inferOrderUnOp :: Orders -> UnOp -> Orders
 inferOrderUnOp childOrder op =
     case op of
+        WinFun _                          -> childOrder
         RowNum (oc, scs, Nothing) 
              | not (null scs) && all ((== Asc) . snd) scs 
                                           -> overwrite (oc, map fst scs) childOrder
