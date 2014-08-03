@@ -1,14 +1,14 @@
 module Database.DSH.FKL.Render.Render where
-    
-import Database.DSH.FKL.Data.FKL
-import Database.DSH.Common.Lang
 
-import Text.PrettyPrint hiding (render)
-import Data.List (intersperse)
+import           Database.DSH.Common.Lang
+import           Database.DSH.FKL.Data.FKL
+
+import           Data.List                 (intersperse)
+import           Text.PrettyPrint          hiding (render)
 
 instance Show Expr where
    show a = show $ render a
-    
+
 render :: Expr -> Doc
 render (Table _ n _c _k) = parens $ text "Table" <+> text n
 render (PApp1 _ f e1) = text (show f) <+> (parens $ render e1)
