@@ -2,7 +2,6 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE LambdaCase            #-} 
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
    
@@ -384,23 +383,23 @@ instance Injection (NL Qual) CL where
 instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
     allR r = 
-        rewrite $ \c -> \case
+        rewrite $ \c cl -> case cl of
             ExprCL expr -> inject <$> apply allRexpr c expr
             QualCL q    -> inject <$> apply allRqual c q
             QualsCL qs  -> inject <$> apply allRquals c qs
     
       where
-        allRquals = readerT $ \case
+        allRquals = readerT $ \qs -> case qs of
             S{}    -> qualsemptyR (extractR r)
             (:*){} -> qualsR (extractR r) (extractR r)
         {-# INLINE allRquals #-}
 
-        allRqual = readerT $ \case
+        allRqual = readerT $ \q -> case q of
             GuardQ{} -> guardQualR (extractR r)
             BindQ{}  -> bindQualR (extractR r)
         {-# INLINE allRqual #-}
 
-        allRexpr = readerT $ \case
+        allRexpr = readerT $ \e -> case e of
             Table{} -> idR
             App{}   -> appR (extractR r) (extractR r)
             AppE1{} -> appe1R (extractR r)

@@ -3,7 +3,6 @@
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE PatternSynonyms     #-}
-{-# LANGUAGE LambdaCase          #-}
     
 -- | Normalize patterns from source programs (not to be confused with
 -- comprehension normalization)
