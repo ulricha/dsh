@@ -20,8 +20,8 @@ import Database.X100Client
 
 import Database.HDBC.PostgreSQL
 
-getConn :: Connection
-getConn = undefined
+getConn :: IO Connection
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'au'"
 
 x100Conn :: X100Info
 x100Conn = undefined
@@ -110,48 +110,58 @@ q = [ pair (fst x) (fst y)
     ]
 -}
 
-{-
-mins :: (Ord a, QA a) => Q [a] -> Q [a]
-mins as = [ minimum [ a' | (view -> (a', i')) <- number as, i' <= i ]
-	  | (view -> (a, i)) <- number as
-	  ]   
+data Packet = Packet
+    { p_dest :: Integer
+    , p_len  :: Integer
+    , p_pid  :: Integer
+    , p_src  :: Integer
+    , p_ts   :: Integer
+    }
 
-q :: Q [Integer] -> Q Integer
-q is = maximum [ i - i' | (view -> (i, i')) <- zip is' (mins is') ]
-  where is' = filter (\i -> i > 15 && i < 42) is
+deriveDSH ''Packet
+deriveTA ''Packet
+generateTableSelectors ''Packet
 
-trades :: Q [(Integer, Integer)]
-trades = toQ [(42, 10)]
+packets :: Q [Packet]
+packets = table "packets" $ TableHints [ Key ["p_pid"]] NonEmpty
 
-portfolio :: Q [Integer]
-portfolio = toQ [23, 2]
+--------------------------------------------------------------------------------
+-- Flow statistics
 
-lastn :: QA a => Integer -> Q [a] -> Q [a]
-lastn n xs = drop (length xs - toQ n) xs
+deltas :: Q [Integer] -> Q [Integer]
+deltas xs = cons 0 (map (\(view -> (a, b)) -> a - b) (zip (drop 1 xs) xs))
 
-q1 = map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
-     $ groupWithKey fst
-         [ pair tid tprice
-         | (view -> (tid, tprice)) <- trades
-         , tid' <- portfolio
-         , tid == tid'
-         ]
+sums :: (QA a, Num a) => Q [a] -> Q [a]
+sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
+          | let nas = number as
+	  , (view -> (a, i)) <- nas
+	  ]
 
--}
+-- | For each packet, compute the ID of the flow that it belongs to
+flowids :: Q [Packet] -> Q [Integer]
+flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas $ map p_tsQ ps ]
 
-{-
-mins :: (Ord a, QA a) => Q [a] -> Q [a]
-mins as = [ minimum [ a' | (a', i') <- number as, i' <= i ]
-	  | (a, i) <- number as
-	  ]   
+-- | For each flow, compute the number of packets and average length
+-- of packets in the flow. A flow is defined as a number of packets
+-- between the same source and destination in which the time gap
+-- between consecutive packets is smaller than 120ms.
+flowStats :: Q [(Integer, Integer, Integer, Double)]
+flowStats = [ tuple4 src 
+                     dst 
+                     (length g)
+                     (avg $ map (p_lenQ . fst) g)
+            | (view -> (k, g)) <- flows
+            , let (view -> (src, dst, _)) = k
+            ]
+  where
+    flows = groupWithKey (\p -> tuple3 (p_srcQ $ fst p) (p_destQ $ fst p) (snd p)) 
+                         $ zip packetsOrdered (flowids packetsOrdered)
 
-q :: Q [Integer] -> Q Integer
-q is = maximum [ i - i' | (i, i') <- zip is' (mins is') ]
-  where is' = filter (\i -> i > 15 && i < 42) is
--}
+    packetsOrdered = sortWith (\p -> tuple3 (p_srcQ p) (p_destQ p) (p_tsQ p)) packets
+
     
 
 main :: IO ()
-main = debugQ "q" getConn $ q
+main = getConn P.>>= \c -> debugQ "q" c flowStats
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
