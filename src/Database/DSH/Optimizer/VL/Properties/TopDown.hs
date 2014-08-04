@@ -29,6 +29,7 @@ seed :: VL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
+    WinAggr _          -> vPropSeed
     SelectPos1 _ _     -> vPropTripleSeed
     SelectPos1S _ _    -> vPropTripleSeed 
     Reverse            -> vPropPairSeed

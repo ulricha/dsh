@@ -101,6 +101,10 @@ inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
                     -> Either String (VectorProp ReqCols)
 inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
     case op of
+        WinAggr (wfun, _) -> do
+            (VProp $ Just $ aggrReqCols wfun)
+            ∪
+            childReqColumns
         Transpose  -> do
             cols <- snd <$> fromPropPair ownReqColumns
             childReqColumns ∪ VProp cols
