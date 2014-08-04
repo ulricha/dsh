@@ -5,7 +5,6 @@ module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 import           Control.Applicative
 import           Control.Monad
 
-import qualified Database.Algebra.Dag as D
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
@@ -16,6 +15,7 @@ import           Database.DSH.Optimizer.VL.Properties.VectorType
 import           Database.DSH.Optimizer.VL.Rewrite.Common
 import           Database.DSH.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Optimizer.VL.Rewrite.Aggregation
+import           Database.DSH.Optimizer.VL.Rewrite.Window
 import           Database.DSH.VL.Lang
 
 removeRedundancy :: VLRewrite Bool
@@ -60,6 +60,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipZipLeft
                          -- , stackedAlign
                          , propProductCard1Right
+                         , runningAgg
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
