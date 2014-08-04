@@ -28,7 +28,7 @@ expressionRules = [ mergeExpr1
 
 mergeExpr1 :: VLRule BottomUpProps
 mergeExpr1 q =
-  $(pattern 'q "Project es1 (Project es2 (q1))"
+  $(dagPatMatch 'q "Project es1 (Project es2 (q1))"
     [| do
 
         return $ do
@@ -39,7 +39,7 @@ mergeExpr1 q =
 
 mergeSelectProject :: VLRule BottomUpProps
 mergeSelectProject q =
-  $(pattern 'q "R1 (qs=Select p (Project projs (q1)))"
+  $(dagPatMatch 'q "R1 (qs=Select p (Project projs (q1)))"
      [| do
         return $ do
           logRewrite "Expr.Merge.Select" q
@@ -61,7 +61,7 @@ mergeSelectProject q =
 
 identityProject :: VLRule BottomUpProps
 identityProject q =
-  $(pattern 'q "Project ps (q1)"
+  $(dagPatMatch 'q "Project ps (q1)"
     [| do
         VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
         predicate $ length $(v "ps") == w
@@ -101,7 +101,7 @@ insertConstants env expr =
 
 constProject :: VLRule BottomUpProps
 constProject q =
-  $(pattern 'q "Project projs (q1)"
+  $(dagPatMatch 'q "Project projs (q1)"
     [| do
         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
         let envEntry = liftPairRight . mapPair id (constVal id)
