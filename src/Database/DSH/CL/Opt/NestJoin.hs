@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
     
 -- | Deal with nested comprehensions by introducing explicit nesting
@@ -305,7 +304,7 @@ unnestGuardT localGenVars (x, xs) guardExpr = do
 -- guard in a qualifier list.
 unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
 unnestQualsR localGenVars = do
-    readerT $ \case
+    readerT $ \qs -> case qs of
         -- In the middle of a qualifier list
         BindQ x xs :* GuardQ p :* qs -> do
             (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p 

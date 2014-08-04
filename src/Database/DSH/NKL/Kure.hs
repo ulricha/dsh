@@ -2,7 +2,6 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE LambdaCase            #-} 
 
 -- | Infrastructure for KURE-based rewrites on NKL expressions
 module Database.DSH.NKL.Kure
@@ -33,12 +32,10 @@ module Database.DSH.NKL.Kure
 import           Control.Monad
 import           Data.Monoid
 import qualified Data.Map as M
-import qualified Data.Foldable as F
 
 import           Language.KURE
 import           Language.KURE.Lens
        
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
@@ -249,7 +246,7 @@ varR = varT Var
        
 instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
-    allR r = readerT $ \case
+    allR r = readerT $ \e -> case e of
             Table{} -> idR
             App{}   -> appR (extractR r) (extractR r)
             AppE1{} -> appe1R (extractR r)

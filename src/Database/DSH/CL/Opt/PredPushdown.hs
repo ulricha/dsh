@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
@@ -161,7 +160,7 @@ mergePredIntoJoinR x p = do
 
 pushPredicateR :: Ident -> Expr -> RewriteC CL
 pushPredicateR x p = do
-    readerT $ \case
+    readerT $ \e -> case e of
         -- First, try to merge the predicate into the join. For
         -- regular joins and products, non-join predicates might apply
         -- to the left or right input.

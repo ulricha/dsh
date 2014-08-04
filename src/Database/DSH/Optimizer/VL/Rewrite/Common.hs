@@ -1,19 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
-
 module Database.DSH.Optimizer.VL.Rewrite.Common where
 
-import qualified Data.IntMap                                              as M
-       
+import qualified Data.IntMap                                   as M
+
 import           Control.Monad
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Impossible
 
+import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Vector
-import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.VL.Properties.BottomUp
 import           Database.DSH.Optimizer.VL.Properties.TopDown

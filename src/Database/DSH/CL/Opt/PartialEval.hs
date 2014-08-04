@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE LambdaCase     #-}
     
 -- | Support rewrites (partial evaluation, house cleaning)
 module Database.DSH.CL.Opt.PartialEval
@@ -38,7 +37,7 @@ sndR = do
     
 partialEvalR :: RewriteC CL
 partialEvalR = 
-    readerT $ \case
+    readerT $ \cl -> case cl of
         ExprCL AppE1{} -> fstR <+ sndR
         ExprCL AppE2{} -> pairR
         _                    -> fail "can't apply partial evaluation rules"

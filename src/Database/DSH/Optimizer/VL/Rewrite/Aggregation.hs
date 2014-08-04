@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-
 module Database.DSH.Optimizer.VL.Rewrite.Aggregation(groupingToAggregation) where
 
 import           Control.Applicative
@@ -77,38 +76,6 @@ nonEmptyAggrS q =
             logRewrite "Aggregation.NonEmpty.AggrS" q
             let aggrOp = BinOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q1") $(v "q2")
             void $ replaceWithNew q aggrOp |])
-
--- | If an expression operator is applied to the R2 output of GroupBy,
--- push the expression below the GroupBy operator. This rewrite
--- assists in turning combinations of GroupBy and Vec* into a form
--- that is suitable for rewriting into a VecAggr form. Even if this is
--- not possible, the rewrite should not do any harm
-pushExprThroughGroupBy :: VLRule BottomUpProps
-pushExprThroughGroupBy q =
-  $(pattern 'q "Project projs (qr2=R2 (qg=(qc) GroupBy (qp)))"
-    [| do
-        [e] <- return $(v "projs")
-        case e of
-          Column _ -> fail "no match"
-          _         -> return ()
-
-        -- get vector type of right grouping input to determine the
-        -- width of the vector
-        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "qp")
-
-        return $ do
-          logRewrite "Aggregation.Normalize.PushProject" q
-          -- Introduce a new column below the GroupBy operator which contains
-          -- the expression result
-          let proj = map Column [1 .. w] ++ [e]
-          projectNode <- insert $ UnOp (Project proj) $(v "qp")
-
-          -- Link the GroupBy operator to the new projection
-          groupNode   <- replaceWithNew $(v "qg") $ BinOp GroupBy $(v "qc") projectNode
-          r2Node      <- replaceWithNew $(v "qr2") $ UnOp R2 groupNode
-
-          -- Replace the CompExpr1L operator with a projection on the new column
-          void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) r2Node |])
 
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
