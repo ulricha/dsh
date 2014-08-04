@@ -83,14 +83,7 @@ inlineAggrProject q =
   $(dagPatMatch 'q "Aggr afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e
-                        AggrMin e   -> AggrMin $ mergeExpr env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr env e
-                        AggrAny e   -> AggrAny $ mergeExpr env e
-                        AggrAll e   -> AggrAll $ mergeExpr env e
-                        AggrCount   -> AggrCount
+        let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.Aggr.Project" q
@@ -102,29 +95,11 @@ inlineAggrSProject q =
   $(dagPatMatch 'q "(qo) AggrS afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afun' = case $(v "afun") of
-                        AggrMax e   -> AggrMax $ mergeExpr env e
-                        AggrSum t e -> AggrSum t $ mergeExpr env e
-                        AggrMin e   -> AggrMin $ mergeExpr env e
-                        AggrAvg e   -> AggrAvg $ mergeExpr env e
-                        AggrAny e   -> AggrAny $ mergeExpr env e
-                        AggrAll e   -> AggrAll $ mergeExpr env e
-                        AggrCount   -> AggrCount
+        let afun' = mapAggrFun (mergeExpr env) $(v "afun")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrS.Project" q
             void $ replaceWithNew q $ BinOp (AggrS afun') $(v "qo") $(v "qi") |])
-
-mergeIntoAggrFun :: [(Int, Expr)] -> AggrFun -> AggrFun
-mergeIntoAggrFun env afun = 
-    case afun of
-        AggrMax e   -> AggrMax $ mergeExpr env e
-        AggrSum t e -> AggrSum t $ mergeExpr env e
-        AggrMin e   -> AggrMin $ mergeExpr env e
-        AggrAvg e   -> AggrAvg $ mergeExpr env e
-        AggrAny e   -> AggrAny $ mergeExpr env e
-        AggrAll e   -> AggrAll $ mergeExpr env e
-        AggrCount   -> AggrCount
 
 -- | Merge a projection into a non-empty aggregate operator. We
 -- restrict this to only one aggregate function. Therefore, merging of
@@ -134,7 +109,7 @@ inlineAggrNonEmptyProject q =
   $(dagPatMatch 'q "AggrNonEmpty afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afuns' = fmap (mergeIntoAggrFun env) $(v "afuns")
+        let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrNonEmpty.Project" q
@@ -150,7 +125,7 @@ inlineAggrSNonEmptyProject q =
   $(dagPatMatch 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
-        let afuns' = fmap (mergeIntoAggrFun env) $(v "afuns")
+        let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrNonEmptyS.Project" q
