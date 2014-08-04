@@ -25,9 +25,7 @@ runningAgg :: VLRule BottomUpProps
 runningAgg q =
   $(dagPatMatch 'q "(_) AggrS afun (R1 ((Segment (Number (q1))) ThetaJoin p (Number (q2))))"
     [| do
-        trace "carnary1" $ return ()
         predicate $ $(v "q1") == $(v "q2")
-        trace "carnary2" $ return ()
 
         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
@@ -35,17 +33,17 @@ runningAgg q =
         -- Number.
         -- FIXME allow other forms of window specifications
         SingleJoinPred (Column nrCol) GtE (Column nrCol') <- return $(v "p")
-        trace "carnary3" $ return ()
         predicate $ nrCol == w + 1 && nrCol' == w + 1
-        trace "carnary4" $ return ()
 
         -- The aggregate should only reference columns from the right
         -- ThetaJoin input, i.e. columns from the partition generated
         -- for a input tuple.
-        trace (show w ++ " " ++ show (aggrReqCols $(v "afun"))) $ return ()
         let isWindowColumn c = c >= w + 2 && c <= 2 * w + 1
         predicate $ all isWindowColumn (aggrReqCols $(v "afun"))
 
         return $ do
-            logRewrite "Window" q
-            void $ replaceWithNew q $ UnOp (WinAggr ($(v "afun"), WinLtEq)) $(v "q1") |])
+            logRewrite "Window.RunningAggr" q
+            -- Shift column references in aggregate functions so that
+            -- they are applied to partition columns.
+            let afun' = mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
+            void $ replaceWithNew q $ UnOp (WinAggr (afun', WinLtEq)) $(v "q1") |])

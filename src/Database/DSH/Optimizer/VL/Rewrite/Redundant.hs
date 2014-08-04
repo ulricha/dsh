@@ -337,15 +337,6 @@ zipProjectLeft q =
           zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
-shiftExprCols :: Int -> Expr -> Expr
-shiftExprCols offset (BinApp op e1 e2) = BinApp op (shiftExprCols offset e1) (shiftExprCols offset e2)
-shiftExprCols offset (UnApp op e)      = UnApp op (shiftExprCols offset e)
-shiftExprCols offset (Column c)        = Column $ c + offset
-shiftExprCols _      (Constant val)    = Constant val
-shiftExprCols offset (If c t e)        = If (shiftExprCols offset c) 
-                                            (shiftExprCols offset t) 
-                                            (shiftExprCols offset e)
-
 zipProjectRight :: VLRule BottomUpProps
 zipProjectRight q =
   $(dagPatMatch 'q "(q1) Zip (Project p2 (q2))"
@@ -357,7 +348,7 @@ zipProjectRight q =
           -- Take the columns from the left and the expressions from
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
-          let proj = [Column c | c <- [1..w1]] ++ [ shiftExprCols w1 e | e <- $(v "p2") ]
+          let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
           zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
