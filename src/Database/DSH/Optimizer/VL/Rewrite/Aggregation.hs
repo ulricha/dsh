@@ -38,7 +38,7 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
 
 mergeNonEmptyAggrs :: VLRule ()
 mergeNonEmptyAggrs q =
-  $(pattern 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
+  $(dagPatMatch 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
     [| do
         predicate $ $(v "qo1") == $(v "qo2")
         predicate $ $(v "qi1") == $(v "qi2")
@@ -54,7 +54,7 @@ mergeNonEmptyAggrs q =
 -- default value for an empty input.
 nonEmptyAggr :: VLRule BottomUpProps
 nonEmptyAggr q =
-  $(pattern 'q "Aggr aggrFun (q1)"
+  $(dagPatMatch 'q "Aggr aggrFun (q1)"
     [| do
         VProp True <- nonEmptyProp <$> properties $(v "q1")
 
@@ -68,7 +68,7 @@ nonEmptyAggr q =
 -- that does not add default values for empty segments.
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
-  $(pattern 'q "(q1) AggrS aggrFun (q2)"
+  $(dagPatMatch 'q "(q1) AggrS aggrFun (q2)"
     [| do
         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
@@ -80,7 +80,7 @@ nonEmptyAggrS q =
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrProject :: VLRule ()
 inlineAggrProject q =
-  $(pattern 'q "Aggr afun (Project proj (qi))"
+  $(dagPatMatch 'q "Aggr afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
@@ -99,7 +99,7 @@ inlineAggrProject q =
 -- | Merge a projection into a segmented aggregate operator.
 inlineAggrSProject :: VLRule ()
 inlineAggrSProject q =
-  $(pattern 'q "(qo) AggrS afun (Project proj (qi))"
+  $(dagPatMatch 'q "(qo) AggrS afun (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afun' = case $(v "afun") of
@@ -131,7 +131,7 @@ mergeIntoAggrFun env afun =
 -- projections must happen before merging of aggregate operators
 inlineAggrNonEmptyProject :: VLRule ()
 inlineAggrNonEmptyProject q =
-  $(pattern 'q "AggrNonEmpty afuns (Project proj (qi))"
+  $(dagPatMatch 'q "AggrNonEmpty afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afuns' = fmap (mergeIntoAggrFun env) $(v "afuns")
@@ -147,7 +147,7 @@ inlineAggrNonEmptyProject q =
 -- merging of aggregate operators
 inlineAggrSNonEmptyProject :: VLRule ()
 inlineAggrSNonEmptyProject q =
-  $(pattern 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
+  $(dagPatMatch 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afuns' = fmap (mergeIntoAggrFun env) $(v "afuns")
@@ -162,7 +162,7 @@ inlineAggrSNonEmptyProject q =
 -- employ a simpler operator.
 simpleGrouping :: VLRule ()
 simpleGrouping q =
-  $(pattern 'q "(Project projs (q1)) GroupBy (q2)"
+  $(dagPatMatch 'q "(Project projs (q1)) GroupBy (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -176,7 +176,7 @@ simpleGrouping q =
 -- and right groupby input.
 simpleGroupingProject :: VLRule ()
 simpleGroupingProject q =
-  $(pattern 'q "R2 (qg=(Project projs1 (q1)) GroupBy (Project projs2 (q2)))"
+  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) GroupBy (Project projs2 (q2)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -212,7 +212,7 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(pattern 'q "(_) AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
+  $(dagPatMatch 'q "(_) AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
     [| do
 
         return $ do
@@ -237,7 +237,7 @@ flatGrouping q =
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =
-  $(pattern 'q "(GroupAggr args1 (q1)) Zip (GroupAggr args2 (q2))"
+  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Zip (GroupAggr args2 (q2))"
     [| do
         let (ges1, afuns1) = $(v "args1")
         let (ges2, afuns2) = $(v "args2")
@@ -275,7 +275,7 @@ mergeGroupAggr q =
 -- the effect is that only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(pattern 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
     

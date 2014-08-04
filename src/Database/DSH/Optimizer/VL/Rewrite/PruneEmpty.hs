@@ -35,7 +35,7 @@ isEmpty q = do
 is simply the right input. -}
 emptyAppendLeftR1 :: VLRule BottomUpProps
 emptyAppendLeftR1 q =
-  $(pattern 'q "R1 ((q1) [Append | AppendS] (q2))"
+  $(dagPatMatch 'q "R1 ((q1) [Append | AppendS] (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
@@ -49,7 +49,7 @@ emptyAppendLeftR1 q =
 -- empty as well.
 emptyAppendLeftR2 :: VLRule BottomUpProps
 emptyAppendLeftR2 q =
-  $(pattern 'q "(R2 ((q1) Append (q2))) PropRename (qv)"
+  $(dagPatMatch 'q "(R2 ((q1) Append (q2))) PropRename (qv)"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
@@ -63,7 +63,7 @@ emptyAppendLeftR2 q =
 -- vectors is simply identity
 emptyAppendLeftR3 :: VLRule BottomUpProps
 emptyAppendLeftR3 q = 
-  $(pattern 'q "(R3 ((q1) Append (q2))) PropRename (qv)" 
+  $(dagPatMatch 'q "(R3 ((q1) Append (q2))) PropRename (qv)" 
     [| do 
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
@@ -74,7 +74,7 @@ emptyAppendLeftR3 q =
 
 emptyAppendRightR1 :: VLRule BottomUpProps
 emptyAppendRightR1 q =
-  $(pattern 'q "R1 ((q1) [Append | AppendS] (q2))"
+  $(dagPatMatch 'q "R1 ((q1) [Append | AppendS] (q2))"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
@@ -86,7 +86,7 @@ emptyAppendRightR1 q =
 -- empty as well.
 emptyAppendRightR3 :: VLRule BottomUpProps
 emptyAppendRightR3 q =
-  $(pattern 'q "(R3 ((q1) Append (q2))) PropRename (qv)"
+  $(dagPatMatch 'q "(R3 ((q1) Append (q2))) PropRename (qv)"
     [| do
         predicate =<< ((&&) <$> (not <$> isEmpty $(v "q1")) <*> (isEmpty $(v "q2")))
         VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "qv")
@@ -99,7 +99,7 @@ emptyAppendRightR3 q =
 -- vectors is simply identity
 emptyAppendRightR2 :: VLRule BottomUpProps
 emptyAppendRightR2 q =
-  $(pattern 'q "(R2 ((q1) Append (q2))) PropRename (qv)"
+  $(dagPatMatch 'q "(R2 ((q1) Append (q2))) PropRename (qv)"
     [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q2")) <*> (not <$> isEmpty $(v "q1")))
         return $ do
