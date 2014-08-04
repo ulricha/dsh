@@ -66,6 +66,7 @@ class VectorAlgebra v a where
     -- * Mapping old to new positions (for re-aligning inner vectors)
     -- * Mapping old positions to segment descriptors (for unboxing one
     -- inner segment)
+    -- FIXME should be restricted to RelOp!
     vecSelectPos :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally /by segment/. The right input

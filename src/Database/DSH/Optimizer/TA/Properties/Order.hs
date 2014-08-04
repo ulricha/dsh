@@ -1,17 +1,17 @@
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Database.DSH.Optimizer.TA.Properties.Order where
 
-import Data.Tuple
-import qualified Data.Set.Monad as S
+import qualified Data.Set.Monad                             as S
+import           Data.Tuple
 
-import Database.Algebra.Table.Lang
+import           Database.Algebra.Table.Lang
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
-import Database.DSH.Optimizer.TA.Properties.Aux
-import Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- | Column 'c' has been overwritten by the current operator. Remove
 -- all associated sorting information.
@@ -21,7 +21,7 @@ invalidate c order = [ o | o@(c', _) <- order, c /= c' ]
 -- | Overwrite (if present) order information for column 'o' with new
 -- information.
 overwrite :: (Attr, [Attr]) -> Orders -> Orders
-overwrite o@(ordCol, _) os = 
+overwrite o@(ordCol, _) os =
     if any ((== ordCol) . fst) os
     then [ o | (oc, _) <- os, oc == ordCol ]
     else o : os
@@ -38,7 +38,7 @@ ordCombinations (s : scs) = dist s (ordCombinations scs)
   where
     dist :: [Attr] -> [[Attr]] -> [[Attr]]
     dist as bs = [ a : b | a <- as, b <- bs ]
-    
+
 -- | Find all new names for column 'c'.
 newCols :: [(Attr, Attr)] -> Attr -> [Attr]
 newCols colMap c = [ cn | (co, cn) <- colMap, co == c ]
@@ -58,10 +58,10 @@ inferOrderUnOp :: Orders -> UnOp -> Orders
 inferOrderUnOp childOrder op =
     case op of
         WinFun _                          -> childOrder
-        RowNum (oc, scs, Nothing) 
-             | not (null scs) && all ((== Asc) . snd) scs 
+        RowNum (oc, scs, Nothing)
+             | not (null scs) && all ((== Asc) . snd) scs
                                           -> overwrite (oc, map fst scs) childOrder
-             | otherwise                                  
+             | otherwise
                                           -> invalidate oc childOrder
         RowNum (resCol, _, _)             -> invalidate resCol childOrder
         RowRank (resCol, _)               -> invalidate resCol childOrder
@@ -69,7 +69,7 @@ inferOrderUnOp childOrder op =
         Select _                          -> childOrder
         Distinct _                        -> childOrder
         Aggr _                            -> []
-        Project projs                     -> 
+        Project projs                     ->
             let colMap = S.toList $ S.map swap $ S.unions $ map mapCol projs
             in concatMap (update colMap) childOrder
         Serialize _                       -> []
@@ -84,4 +84,4 @@ inferOrderBinOp leftChildOrder rightChildOrder op =
         AntiJoin _   -> leftChildOrder
         DisjUnion _  -> []
         Difference _ -> leftChildOrder
-        
+
