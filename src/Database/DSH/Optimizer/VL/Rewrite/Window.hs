@@ -47,3 +47,15 @@ runningAgg q =
             -- they are applied to partition columns.
             let afun' = mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
             void $ replaceWithNew q $ UnOp (WinAggr (afun', WinLtEq)) $(v "q1") |])
+
+inlineWinAggrProject :: VLRule ()
+inlineWinAggrProject q =
+  $(dagPatMatch 'q "WinAggr args (Project proj (q1))"
+    [| do
+        let (afun, frameSpec) = $(v "args")
+            env               = zip [1..] $(v "proj")
+            afun'             = mapAggrFun (mergeExpr env) afun
+
+        return $ do
+            logRewrite "Window.RunningAggr.Project" q
+            void $ replaceWithNew q $ UnOp (WinAggr (afun', frameSpec)) $(v "q1") |])

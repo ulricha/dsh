@@ -39,6 +39,7 @@ redundantRules = [ mergeProjectRestrict
                  , pullProjectPropReorder
                  , pullProjectRestrict
                  , scalarConditional
+                 , inlineWinAggrProject
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
