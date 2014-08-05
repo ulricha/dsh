@@ -230,6 +230,7 @@ opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
 opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)             = DCCrimson
 opDotColor (BinOp (AggrS _) _ _)         = DCCrimson
+opDotColor (UnOp (WinAggr _) _)          = DCTomato
 opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
 opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
 opDotColor (UnOp (GroupAggr (_, _)) _)   = DCTomato
