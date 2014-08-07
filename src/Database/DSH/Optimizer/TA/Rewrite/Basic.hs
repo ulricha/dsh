@@ -62,7 +62,7 @@ mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
 
 stackedProject :: TARule ()
 stackedProject q =
-  $(pattern 'q "Project ps1 (Project ps2 (qi))"
+  $(dagPatMatch 'q "Project ps1 (Project ps2 (qi))"
     [| do
          return $ do
            let ps = mergeProjections $(v "ps1") $(v "ps2")
@@ -78,7 +78,7 @@ stackedProject q =
 -- column. In that case, positions might not be dense anymore.
 postFilterRownum :: TARule AllProps
 postFilterRownum q =
-  $(pattern 'q "RowNum args (q1)"
+  $(dagPatMatch 'q "RowNum args (q1)"
     [| do
         (res, [(sortCol, _)], _) <- return $(v "args")
         useCols <- pUse <$> td <$> properties q
@@ -109,7 +109,7 @@ postFilterRownum q =
 -- | Prune a rownumber operator if its output is not required
 unreferencedRownum :: TARule AllProps
 unreferencedRownum q =
-  $(pattern 'q "RowNum args (q1)"
+  $(dagPatMatch 'q "RowNum args (q1)"
     [| do
          (res, _, _) <- return $(v "args")
          neededCols  <- pICols <$> td <$> properties q
@@ -122,7 +122,7 @@ unreferencedRownum q =
 -- | Prune a rownumber operator if its output is not required
 unreferencedRank :: TARule AllProps
 unreferencedRank q =
-  $(pattern 'q "[Rank | RowRank] args (q1)"
+  $(dagPatMatch 'q "[Rank | RowRank] args (q1)"
     [| do
          (res, _) <- return $(v "args")
          neededCols  <- pICols <$> td <$> properties q
@@ -136,7 +136,7 @@ unreferencedRank q =
 -- are not required.
 unreferencedProjectCols :: TARule AllProps
 unreferencedProjectCols q =
-  $(pattern 'q "Project projs (q1)"
+  $(dagPatMatch 'q "Project projs (q1)"
     [| do
         neededCols <- pICols <$> td <$> properties q
         let neededProjs = filter (flip S.member neededCols . fst) $(v "projs")
@@ -151,7 +151,7 @@ unreferencedProjectCols q =
 -- | Remove aggregate functions whose output is not referenced.
 unreferencedAggrCols :: TARule AllProps
 unreferencedAggrCols q =
-  $(pattern 'q "Aggr args (q1)"
+  $(dagPatMatch 'q "Aggr args (q1)"
     [| do
         neededCols <- pICols <$> td <$> properties q
         (aggrs, partCols) <- return $(v "args")
@@ -190,7 +190,7 @@ isConstExpr (ColE c)          = do
 -- | Prune const columns from aggregation keys
 constAggrKey :: TARule AllProps
 constAggrKey q =
-  $(pattern 'q "Aggr args (q1)"
+  $(dagPatMatch 'q "Aggr args (q1)"
     [| do
          (aggrFuns, keyCols@(_:_)) <- return $(v "args")
          keyCols' <- filterM (\(_, e) -> not <$> isConstExpr e) keyCols
@@ -213,7 +213,7 @@ lookupSortCol (_, Desc)         _  = fail "We only consider ascending orders"
 
 inlineSortColsRownum :: TARule AllProps
 inlineSortColsRownum q =
-  $(pattern 'q "RowNum o (q1)"
+  $(dagPatMatch 'q "RowNum o (q1)"
     [| do
         (resCol, sortCols@(_:_), Nothing) <- return $(v "o")
 
@@ -234,7 +234,7 @@ inlineSortColsRownum q =
 
 inlineSortColsSerialize :: TARule AllProps
 inlineSortColsSerialize q =
-  $(pattern 'q "Serialize scols (q1)"
+  $(dagPatMatch 'q "Serialize scols (q1)"
     [| do
         (d, RelPos cs, reqCols) <- return $(v "scols")
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
@@ -253,7 +253,7 @@ inlineSortColsSerialize q =
 -- | Merge a projection which only maps columns into a Serialize operator.
 serializeProject :: TARule ()
 serializeProject q =
-    $(pattern 'q "Serialize scols (Project projs (q1))"
+    $(dagPatMatch 'q "Serialize scols (Project projs (q1))"
       [| do
           (d, p, reqCols) <- return $(v "scols")
 
@@ -291,7 +291,7 @@ serializeProject q =
 -- directly under the serialize op.
 serializeRowNum :: TARule ()
 serializeRowNum q =
-    $(pattern 'q "Serialize scols (RowNum args (q1))"
+    $(dagPatMatch 'q "Serialize scols (RowNum args (q1))"
       [| do
           -- Absolute positions must not be required
           (d, RelPos cs, reqCols) <- return $(v "scols")

@@ -72,7 +72,7 @@ redundantRulesAllProps = [ unreferencedAlign
 
 mergeProjectRestrict :: VLRule ()
 mergeProjectRestrict q =
-  $(pattern 'q "(q1) Restrict p (Project es (q2))"
+  $(dagPatMatch 'q "(q1) Restrict p (Project es (q2))"
     [| do
         return $ do
           logRewrite "Redundant.Restrict.Project" q
@@ -85,7 +85,7 @@ mergeProjectRestrict q =
 -- Select can be used instead.
 scalarRestrict :: VLRule ()
 scalarRestrict q =
-  $(pattern 'q "R1 (qr=(q1) Restrict p (q2))"
+  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -111,7 +111,7 @@ scalarRestrict q =
 -- after selection is not necessary.
 restrictZip :: VLRule BottomUpProps
 restrictZip q =
-  $(pattern 'q "R1 (qr=(q1) Restrict p (qz=(q2) Zip (_)))"
+  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (qz=(q2) Zip (_)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
@@ -143,7 +143,7 @@ restrictZip q =
 -- is constant.
 distPrimConstant :: VLRule BottomUpProps
 distPrimConstant q =
-  $(pattern 'q "R1 ((qp) DistPrim (qv))"
+  $(dagPatMatch 'q "R1 ((qp) DistPrim (qv))"
     [| do
         qvProps <- properties $(v "qp")
 
@@ -159,7 +159,7 @@ distPrimConstant q =
 -- is constant and consists of only one tuple.
 distDescConstant :: VLRule BottomUpProps
 distDescConstant q =
-  $(pattern 'q "R1 ((qv) DistDesc (qd))"
+  $(dagPatMatch 'q "R1 ((qv) DistDesc (qd))"
     [| do
         pv <- properties $(v "qv")
         VProp True <- return $ card1Prop pv
@@ -177,7 +177,7 @@ distDescConstant q =
 -- shape of the inner vector is not changed by DistSeg.
 unreferencedAlign :: VLRule Properties
 unreferencedAlign q =
-  $(pattern 'q  "R1 ((q1) Align (q2))"
+  $(dagPatMatch 'q  "R1 ((q1) Align (q2))"
     [| do
         VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
         VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
@@ -215,7 +215,7 @@ nonAlignOp n = do
 -- into a projection.
 alignParents :: VLRule BottomUpProps
 alignParents q =
-  $(pattern 'q "R1 ((q1) Align (q2))"
+  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
      [| do
          parentNodes     <- getParents $(v "q2")
          nonAlignParents <- filterM nonAlignOp parentNodes
@@ -241,7 +241,7 @@ alignParents q =
 -- Align is sufficient.
 stackedAlign :: VLRule BottomUpProps
 stackedAlign q =
-  $(pattern 'q "R1 ((q11) Align (qr1=R1 ((q12) Align (q2))))"
+  $(dagPatMatch 'q "R1 ((q11) Align (qr1=R1 ((q12) Align (q2))))"
     [| do
         predicate $ $(v "q11") == $(v "q12")
         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
@@ -261,7 +261,7 @@ stackedAlign q =
 -- referenced, remove projections on the right input.
 alignedOnlyLeft :: VLRule Properties
 alignedOnlyLeft q =
-  $(pattern 'q "(q1) Align (Project _ (q2))"
+  $(dagPatMatch 'q "(q1) Align (Project _ (q2))"
     [| do
         -- check that only columns from the left input (outer vector)
         -- are required
@@ -277,7 +277,7 @@ alignedOnlyLeft q =
 -- same.
 sameInputZip :: VLRule BottomUpProps
 sameInputZip q =
-  $(pattern 'q "(q1) Zip (q2)"
+  $(dagPatMatch 'q "(q1) Zip (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -289,7 +289,7 @@ sameInputZip q =
 
 sameInputZipProject :: VLRule BottomUpProps
 sameInputZipProject q =
-  $(pattern 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
+  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -299,7 +299,7 @@ sameInputZipProject q =
 
 sameInputZipProjectLeft :: VLRule BottomUpProps
 sameInputZipProjectLeft q =
-  $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
+  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -311,7 +311,7 @@ sameInputZipProjectLeft q =
 
 sameInputZipProjectRight :: VLRule BottomUpProps
 sameInputZipProjectRight q =
-  $(pattern 'q "(q1) Zip (Project ps2 (q2))"
+  $(dagPatMatch 'q "(q1) Zip (Project ps2 (q2))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
@@ -323,7 +323,7 @@ sameInputZipProjectRight q =
 
 zipProjectLeft :: VLRule BottomUpProps
 zipProjectLeft q =
-  $(pattern 'q "(Project ps1 (q1)) Zip (q2)"
+  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (q2)"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
@@ -347,7 +347,7 @@ shiftExprCols offset (If c t e)        = If (shiftExprCols offset c)
 
 zipProjectRight :: VLRule BottomUpProps
 zipProjectRight q =
-  $(pattern 'q "(q1) Zip (Project p2 (q2))"
+  $(dagPatMatch 'q "(q1) Zip (Project p2 (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
@@ -366,7 +366,7 @@ fromConst NonConstPL    = fail "not a constant"
 
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
-  $(pattern 'q "(q1) Zip (q2)"
+  $(dagPatMatch 'q "(q1) Zip (q2)"
     [| do
         prop1                 <- properties $(v "q1")
         VProp card1           <- return $ card1Prop prop1
@@ -386,7 +386,7 @@ zipConstLeft q =
 
 zipConstRight :: VLRule BottomUpProps
 zipConstRight q =
-  $(pattern 'q "(q1) Zip (q2)"
+  $(dagPatMatch 'q "(q1) Zip (q2)"
     [| do
         prop1                 <- properties $(v "q1")
         VProp card1           <- return $ card1Prop prop1
@@ -407,7 +407,7 @@ zipConstRight q =
 
 zipZipLeft :: VLRule BottomUpProps
 zipZipLeft q =
-  $(pattern 'q "(q1) Zip (qz=(q11) Zip (_))"
+  $(dagPatMatch 'q "(q1) Zip (qz=(q11) Zip (_))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -426,7 +426,7 @@ zipZipLeft q =
 -- a selection of columns from the input vector.
 simpleSort :: VLRule ()
 simpleSort q =
-  $(pattern 'q "(Project ps (q1)) SortS (q2)"
+  $(dagPatMatch 'q "(Project ps (q1)) SortS (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -437,7 +437,7 @@ simpleSort q =
 -- | Special case: a vector is sorted by all its item columns.
 completeSort :: VLRule BottomUpProps
 completeSort q =
-  $(pattern 'q "(q1) SortS (q2)"
+  $(dagPatMatch 'q "(q1) SortS (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
         VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
@@ -453,7 +453,7 @@ completeSort q =
 -- a projection.
 sortProject :: VLRule ()
 sortProject q =
-  $(pattern 'q "R1 ((q1) SortS (Project proj (q2)))"
+  $(dagPatMatch 'q "R1 ((q1) SortS (Project proj (q2)))"
    [| do
        return $ do
          logRewrite "Redundant.Sort.PullProject" q
@@ -466,7 +466,7 @@ sortProject q =
 -- simply mapped to an 'if' expression evaluated on the input vector.
 scalarConditional :: VLRule ()
 scalarConditional q =
-  $(pattern 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
+  $(dagPatMatch 'q "R1 (Combine (Project predProj (q1)) (Project thenProj (R1 (Select pred2 (q2)))) (Project elseProj (R1 (Select negPred (q3)))))"
     [| do
         -- All branches must work on the same input vector
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
@@ -497,7 +497,7 @@ scalarConditional q =
 -- combinations into scalar conditional expressions.
 pullProjectRestrict :: VLRule ()
 pullProjectRestrict q =
-  $(pattern 'q "R1 ((Project projs (q1)) Restrict p (qb))"
+  $(dagPatMatch 'q "R1 ((Project projs (q1)) Restrict p (qb))"
      [| do
           return $ do
             logRewrite "Redundant.Project.Restrict" q
@@ -513,7 +513,7 @@ pullProjectRestrict q =
 
 pullProjectPropRename :: VLRule ()
 pullProjectPropRename q =
-  $(pattern 'q "(qp) PropRename (Project proj (qv))"
+  $(dagPatMatch 'q "(qp) PropRename (Project proj (qv))"
     [| do
          return $ do
            logRewrite "Redundant.Project.PropRename" q
@@ -522,7 +522,7 @@ pullProjectPropRename q =
 
 pullProjectPropReorder :: VLRule ()
 pullProjectPropReorder q =
-  $(pattern 'q "R1 ((qp) PropReorder (Project proj (qv)))"
+  $(dagPatMatch 'q "R1 ((qp) PropReorder (Project proj (qv)))"
     [| do
          return $ do
            logRewrite "Redundant.Project.Reorder" q
@@ -535,7 +535,7 @@ pullProjectPropReorder q =
 
 selectConstPos :: VLRule BottomUpProps
 selectConstPos q =
-  $(pattern 'q "(q1) SelectPos op (qp)"
+  $(dagPatMatch 'q "(q1) SelectPos op (qp)"
     [| do
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
@@ -549,7 +549,7 @@ selectConstPos q =
 
 selectConstPosS :: VLRule BottomUpProps
 selectConstPosS q =
-  $(pattern 'q "(q1) SelectPosS op (qp)"
+  $(dagPatMatch 'q "(q1) SelectPosS op (qp)"
     [| do
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
@@ -569,7 +569,7 @@ selectConstPosS q =
 -- propagation vector for the left input is a NOOP.
 propProductCard1Right :: VLRule BottomUpProps
 propProductCard1Right q =
-  $(pattern 'q "R1 ((R2 ((_) CartProduct (q2))) PropReorder (qi))"
+  $(dagPatMatch 'q "R1 ((R2 ((_) CartProduct (q2))) PropReorder (qi))"
     [| do
         VProp True <- card1Prop <$> properties $(v "q2")
         
