@@ -12,7 +12,6 @@ module Database.DSH.Common.Kure
 
 import Language.KURE
 import Database.DSH.Common.Pretty
-import Debug.Trace
 import Control.Arrow
 
 --------------------------------------------------------------------------------

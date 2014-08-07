@@ -14,20 +14,16 @@ import           Data.List
 import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.List.NonEmpty          as N
 import qualified Data.Foldable               as F
-import qualified Data.Traversable            as T
   
 import           Database.DSH.Impossible
        
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
 
-import           Database.DSH.CL.Kure
-import           Database.DSH.CL.Lang        (toList, fromList)
+import           Database.DSH.CL.Lang        (toList)
 import qualified Database.DSH.CL.Lang        as CL
 import qualified Database.DSH.NKL.Primitives as P
 import qualified Database.DSH.NKL.Lang       as NKL
-import           Database.DSH.NKL.Rewrite
 import           Database.DSH.NKL.Rewrite
 
 --------------------------------------------------------------------------------
@@ -118,7 +114,7 @@ mkEnv (x, xt) = (x, xt, \n t -> NKL.Var n t) N.:| []
 -- | Account for a new pair that has been added at the top of the
 -- constructed tuple
 updateEnvEntry :: EnvEntry -> EnvEntry
-updateEnvEntry (x, t, ta) = (x, t, \n t -> P.fst $ ta n t)
+updateEnvEntry (x, t, ta) = (x, t, \n t' -> P.fst $ ta n t')
 
 -- | Extend an environment with an additional generator variable.
 extendEnv :: GenEnv -> (Ident, NKL.Expr) -> GenEnv
@@ -183,7 +179,7 @@ takeGens qs                   = ([], qs)
 
 -- | Generate an identifier that does not occur in the list provided.
 freshIdent :: [Ident] -> Ident
-freshIdent names = checkCollision 0 names
+freshIdent names = checkCollision (0 :: Int) names
   where
     checkCollision i ns = if mkName i `elem` ns
                           then checkCollision (i + 1) ns
