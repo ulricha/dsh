@@ -24,7 +24,6 @@ import           Database.DSH.Optimizer.TA.Rewrite.Common
 cleanup :: TARewrite Bool
 cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules
                                          , applyToAll inferAll cleanupRulesTopDown
-                                         , optimizeOrderConstraints
                                          ]
 
 cleanupRules :: TARuleSet ()
@@ -43,24 +42,6 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , inlineSortColsSerialize
                       , inlineSortColsWinFun
                       ]
-
-
--- Apply some auxiliary rewrites before employing order
--- optimizations. The effect of auxiliary rewrites is only preserved
--- if at least one order rewrite succeeds.
-optimizeOrderConstraints :: TARewrite Bool
-optimizeOrderConstraints = 
-    condRewrite $ iteratively $ iteratively (applyToAll inferAll auxRules)
-                                >>
-                                applyToAll inferAll orderRules
-
-  where
-    auxRules   = [ preserveOrderCols ]
-
-    orderRules = [ inlineSortColsRownum
-                 , inlineSortColsSerialize
-                 , inlineSortColsWinFun
-                 ]
 
 ----------------------------------------------------------------------------------
 -- Rewrite rules
@@ -294,63 +275,6 @@ inlineSortColsWinFun q =
         return $ do
             logRewrite "Basic.InlineOrder.WinFun" q
             void $ replaceWithNew q $ UnOp (WinFun args') $(v "q1") |])
-
-origCol :: Expr -> [Attr]
-origCol (ColE c) = [c]
-origCol _        = []
-
--- | If columns that define sort order are removed by a projection,
--- preserve them in the projection. This is an auxiliary rewrite for
--- the inlining of order columns into Serialize, RowNum and WinFun.
---
--- Be careful: This rewrite conflicts with the removal of no-longer
--- referenced columns (icols). It has to be used with rewrites that
--- make progress, otherwise we will end up in a rewriting loop.
-preserveOrderCols :: TARule AllProps
-preserveOrderCols q =
-  $(dagPatMatch 'q "Project proj (q1)"
-     [| do
-         props <- properties $(v "q1")
-
-         let cols      = liftM fst $ pCols $ bu props
-             -- A mapping from old column name to new column name
-             colMap    = [ (c', c) | (c, e) <- $(v "proj"), c' <- origCol e ]
-
-             orders    = pOrder $ bu props
-
-             -- Columns that are preserved by the projection (possibly
-             -- under a new name)
-             inCols  = S.fromList $ map fst colMap
-             outCols = S.fromList $ map fst $(v "proj")
-
-             -- Columns that do not survive the projection
-             lostCols  = S.difference cols inCols
-
-             -- All columns that are used to define orders in columns
-             -- that survive the projection.
-             orderCols = S.fromList 
-                         $ concatMap snd
-                         $ filter (\(oc, _) -> oc `S.member` inCols) orders
-
-             -- Columns defining sort order that are removed by the
-             -- projection.
-             lostOrderCols = S.intersection orderCols lostCols
-
-         predicate $ not $ S.null lostOrderCols
-         let sortProj = zipWith (\i c -> ("ordcol" ++ show i, ColE c)) [1..] (S.toList lostOrderCols)
-
-         predicate $ S.null $ S.intersection (S.fromList $ map fst sortProj) outCols
-
-         return $ do
-             -- Add lost sort columns in a projection.
-             let proj' = $(v "proj") ++ sortProj
-
-             n <- replaceWithNew q $ UnOp (Project proj') $(v "q1")
-
-             logRewrite (printf "Basic.InlineOrder.PreserveOrderCols -> %d" n) q
-             logGeneral $ printf "%s -> %s" (show lostOrderCols) (show proj')
-
-             |])
 
 ----------------------------------------------------------------------------------
 -- Serialize rewrites
