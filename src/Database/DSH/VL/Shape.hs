@@ -46,6 +46,6 @@ zipLayout l1 l2 = let offSet = columnsInLayout l1
                    in Pair l1 l2'
 
 incrementPositions :: Int -> Layout -> Layout
-incrementPositions i (InColumn n)  = (InColumn $ n + i)
+incrementPositions i (InColumn n)  = InColumn $ n + i
 incrementPositions _i v@(Nest _ _) = v
 incrementPositions i (Pair l1 l2)  = Pair (incrementPositions i l1) (incrementPositions i l2)

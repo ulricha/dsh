@@ -14,11 +14,7 @@ import           GHC.Generics               (Generic)
 -- unlifted form.
 data Lifted a = Lifted a
               | NotLifted a
-              deriving (Eq, Generic)
-
-instance Show a => Show (Lifted a) where
-    show (Lifted x)    = (show x) ++ "^L"
-    show (NotLifted x) = show x
+              deriving (Show, Eq, Generic)
 
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [L.Column] L.TableHints
@@ -34,7 +30,7 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | Var     Type L.Ident
           | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
           | AClo    Type L.Ident [L.Ident] L.Ident Expr Expr
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Show)
 
 data Prim1 = FLength Type
            | FLengthL Type
@@ -173,14 +169,14 @@ instance Show Prim2 where
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"
     show (FNestProductL _)    = "nestProductL"
-    show (FThetaJoin p _)  = printf "equiJoinS_%s" (pp p)
-    show (FThetaJoinL p _) = printf "equiJoinL_%s" (pp p)
-    show (FNestJoin p _)  = printf "nestJoinS_%s" (pp p)
-    show (FNestJoinL p _) = printf "nestJoinL_%s" (pp p)
-    show (FSemiJoin p _)  = printf "semiJoinS_%s" (pp p)
-    show (FSemiJoinL p _) = printf "semiJoinL_%s" (pp p)
-    show (FAntiJoin p _)  = printf "antiJoinS_%s" (pp p)
-    show (FAntiJoinL p _) = printf "antiJoinL_%s" (pp p)
+    show (FThetaJoin p _)     = printf "equiJoinS_%s" (pp p)
+    show (FThetaJoinL p _)    = printf "equiJoinL_%s" (pp p)
+    show (FNestJoin p _)      = printf "nestJoinS_%s" (pp p)
+    show (FNestJoinL p _)     = printf "nestJoinL_%s" (pp p)
+    show (FSemiJoin p _)      = printf "semiJoinS_%s" (pp p)
+    show (FSemiJoinL p _)     = printf "semiJoinL_%s" (pp p)
+    show (FAntiJoin p _)      = printf "antiJoinS_%s" (pp p)
+    show (FAntiJoinL p _)     = printf "antiJoinL_%s" (pp p)
 
 data Prim3 = FCombine Type
     deriving (Eq, Generic)
