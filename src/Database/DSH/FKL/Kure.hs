@@ -344,7 +344,6 @@ instance Walker FlatCtx Expr where
             If{}      -> ifR (extractR r) (extractR r) (extractR r)
             Const{}   -> idR
             Var{}     -> idR
-    {-# INLINE allR #-}
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
