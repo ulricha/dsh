@@ -133,9 +133,9 @@ Library
                      Database.DSH.CL.Opt.SemiJoin
                      Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
-                     Database.DSH.FKL.Data.FKL
-                     Database.DSH.FKL.FKLPrimitives
-                     Database.DSH.FKL.Render.Render
+                     Database.DSH.FKL.Lang
+                     Database.DSH.FKL.Primitives
+                     Database.DSH.FKL.Pretty
                      Database.DSH.NKL.Lang
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite

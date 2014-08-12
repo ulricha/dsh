@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Database.DSH.FKL.Data.FKL where
+module Database.DSH.FKL.Lang where
 
 import           Text.Printf
 
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 

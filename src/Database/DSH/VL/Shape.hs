@@ -4,8 +4,7 @@ module Database.DSH.VL.Shape where
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.FKL.Data.FKL
-import           Database.DSH.FKL.Render.Render ()
+import           Database.DSH.FKL.Lang
 import           Database.DSH.VL.Vector
 
 import           GHC.Generics                   (Generic)

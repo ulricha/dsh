@@ -1,7 +1,7 @@
-module Database.DSH.FKL.Render.Render where
+module Database.DSH.FKL.Pretty where
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.FKL.Data.FKL
+import           Database.DSH.FKL.Lang
 
 import           Data.List                 (intersperse)
 import           Text.PrettyPrint.ANSI.Leijen

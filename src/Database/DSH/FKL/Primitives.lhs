@@ -19,9 +19,9 @@ Module containing some primitive operations in AST form.
 
 All of these are helper functions for the flattening transformation
 -}
-module Database.DSH.FKL.FKLPrimitives where
+module Database.DSH.FKL.Primitives where
        
-import Database.DSH.FKL.Data.FKL as F
+import Database.DSH.FKL.Lang       as F
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Type
