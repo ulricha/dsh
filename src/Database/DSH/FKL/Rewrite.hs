@@ -4,7 +4,9 @@ import Data.List
 
 import Database.DSH.Common.Lang
 import Database.DSH.Common.RewriteM
+import Database.DSH.Common.Kure
 import Database.DSH.FKL.Lang
+import Database.DSH.FKL.Pretty()
 import Database.DSH.FKL.Kure
 
 -- | Run a translate on an expression without context
@@ -38,7 +40,9 @@ substR v s = readerT $ \expr -> case expr of
     Var _ _                                   -> idR
 
     -- A closure is closed by definition. There are no opportunities
-    -- for substitution in its body.
+    -- for substitution in its body.  FIXME this is not correct. Have
+    -- to descend into the body when the variable that is substituted
+    -- occurs in the closure environment.
     Clo _ _ _ _ _ _                           -> fail "subst clo"
     AClo _ _ _ _ _ _                          -> fail "subst aclo"
 
@@ -46,3 +50,18 @@ substR v s = readerT $ \expr -> case expr of
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
+
+applyEmptyClosureR :: RewriteF Expr
+applyEmptyClosureR = do
+    CloApp _ (Clo _ _ [] x body _) arg <- idR
+    debugMsg "Trigger applyEmptyClosureR"
+    return $ subst x arg body
+
+fklOptimizations :: RewriteF Expr
+fklOptimizations = anybuR applyEmptyClosureR
+
+optimizeFKL :: Expr -> Expr
+optimizeFKL expr = debugOpt expr optimizedExpr
+  where
+    optimizedExpr = applyExpr fklOptimizations expr
+    
