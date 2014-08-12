@@ -28,7 +28,9 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | UnOp    Type (Lifted L.ScalarUnOp) Expr
           | Const   Type L.Val
           | Var     Type L.Ident
-          | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
+          -- When performing normal function application ignore the
+          -- first value of the freeVars!!!
+          | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr 
           | AClo    Type L.Ident [L.Ident] L.Ident Expr Expr
     deriving (Eq, Generic, Show)
 

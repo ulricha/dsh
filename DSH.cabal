@@ -136,6 +136,7 @@ Library
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
                      Database.DSH.FKL.Pretty
+                     Database.DSH.FKL.Kure
                      Database.DSH.NKL.Lang
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
