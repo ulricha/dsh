@@ -8,3 +8,10 @@ TAGS
 *~
 *.swp
 *#
+cabal.sandbox.config
+.cabal-sandbox
+dist
+*.plan
+*.pdf
+*.shape
+*.sql

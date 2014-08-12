@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE TemplateHaskell       #-}
@@ -226,7 +225,7 @@ alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
                lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
 
 substR :: Ident -> Expr -> RewriteC CL
-substR v s = readerT $ \case
+substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprCL (Var _ n) | n == v                          -> return $ inject s
 

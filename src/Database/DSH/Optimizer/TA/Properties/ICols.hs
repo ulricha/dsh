@@ -10,13 +10,13 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Optimizer.TA.Properties.Aux
 
-inferIColsBinOp :: S.Set AttrName  -- ^ columns that are required from us
-                -> S.Set AttrName  -- ^ Columns required from the left child
-                -> S.Set AttrName  -- ^ Output of the left child
-                -> S.Set AttrName  -- ^ Columns required from the right child
-                -> S.Set AttrName  -- ^ Output of the left child
+inferIColsBinOp :: S.Set Attr  -- ^ columns that are required from us
+                -> S.Set Attr  -- ^ Columns required from the left child
+                -> S.Set Attr  -- ^ Output of the left child
+                -> S.Set Attr  -- ^ Columns required from the right child
+                -> S.Set Attr  -- ^ Output of the left child
                 -> BinOp           -- ^ The operator
-                -> (S.Set AttrName, S.Set AttrName)
+                -> (S.Set Attr, S.Set Attr)
 inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
     case op of
          -- Require columns from the originating side.
@@ -56,7 +56,7 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
          DisjUnion _  -> (leftICols ∪ ownICols, rightICols ∪ ownICols)
          Difference _ -> (leftICols ∪ leftCols, rightICols ∪ leftCols)
 
-inferIColsUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
+inferIColsUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferIColsUnOp ownICols childICols op =
     case op of
         -- Require the sorting columns, if the rownum output is required.

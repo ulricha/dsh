@@ -15,12 +15,12 @@ import Database.DSH.Optimizer.TA.Properties.Types
 
 -- | Column 'c' has been overwritten by the current operator. Remove
 -- all associated sorting information.
-invalidate :: AttrName -> Orders -> Orders
+invalidate :: Attr -> Orders -> Orders
 invalidate c order = [ o | o@(c', _) <- order, c /= c' ]
 
 -- | Overwrite (if present) order information for column 'o' with new
 -- information.
-overwrite :: (AttrName, [AttrName]) -> Orders -> Orders
+overwrite :: (Attr, [Attr]) -> Orders -> Orders
 overwrite o@(ordCol, _) os = 
     if any ((== ordCol) . fst) os
     then [ o | (oc, _) <- os, oc == ordCol ]
@@ -30,22 +30,22 @@ overwrite o@(ordCol, _) os =
 -- old sorting column:
 -- [[a, b, c], [d, e], [f]] => [[a, d, f], [a, e, f], [b, d, f], ...]
 -- [[a, b, c], [], [f]]     => []
-ordCombinations :: [[AttrName]] -> [[AttrName]]
+ordCombinations :: [[Attr]] -> [[Attr]]
 ordCombinations []        = $impossible
 ordCombinations (s : [])  = map (: []) s
 ordCombinations (s : scs) = dist s (ordCombinations scs)
 
   where
-    dist :: [AttrName] -> [[AttrName]] -> [[AttrName]]
+    dist :: [Attr] -> [[Attr]] -> [[Attr]]
     dist as bs = [ a : b | a <- as, b <- bs ]
     
 -- | Find all new names for column 'c'.
-newCols :: [(AttrName, AttrName)] -> AttrName -> [AttrName]
+newCols :: [(Attr, Attr)] -> Attr -> [Attr]
 newCols colMap c = [ cn | (co, cn) <- colMap, co == c ]
 
 -- | Refresh order information with new names for the order column and
 -- new names for the sorting columns.
-update :: [(AttrName, AttrName)] -> (AttrName, [AttrName]) -> Orders
+update :: [(Attr, Attr)] -> (Attr, [Attr]) -> Orders
 update colMap (ordCol, sortCols) =
     let ordCols'  = newCols colMap ordCol
         sortCols' = map (newCols colMap) sortCols

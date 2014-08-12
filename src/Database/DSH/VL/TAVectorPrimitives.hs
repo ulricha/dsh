@@ -28,7 +28,7 @@ import           Database.DSH.VL.VectorPrimitives
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: AttrName
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: Attr
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
@@ -50,10 +50,10 @@ descri    = "descri"
 poso      = "poso"
 posi      = "posi"
 
-itemi :: Int -> AttrName
+itemi :: Int -> Attr
 itemi i = "item" ++ show i
 
-itemi' :: Int -> AttrName
+itemi' :: Int -> Attr
 itemi' i = "itemtmp" ++ show i
 
 algVal :: VL.VLVal -> AVal
@@ -73,13 +73,13 @@ algTy (VL.Unit) = intT
 algTy (VL.Nat) = natT
 algTy (VL.Pair _ _) = $impossible
 
-cP :: AttrName -> Proj
+cP :: Attr -> Proj
 cP a = (a, ColE a)
 
-eP :: AttrName -> Expr -> Proj
+eP :: Attr -> Expr -> Proj
 eP = (,)
 
-mP :: AttrName -> AttrName -> Proj
+mP :: Attr -> Attr -> Proj
 mP n o = (n, ColE o)
 
 projAddCols :: [DBCol] -> [Proj] -> AlgNode -> Build TableAlgebra AlgNode
@@ -207,7 +207,7 @@ doZip (q1, cols1) (q2, cols2) = do
            (proj ((mP pos' pos):[ mP (itemi $ i + offset) (itemi i) | i <- cols2 ]) q2)
   return (r, cols')
 
-joinPredicate :: Int -> L.JoinPredicate VL.Expr -> SemInfJoin
+joinPredicate :: Int -> L.JoinPredicate VL.Expr -> [(Expr, Expr, JoinRel)]
 joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
   where
     joinConjunct :: L.JoinConjunct VL.Expr -> (Expr, Expr, JoinRel)
@@ -475,7 +475,7 @@ instance VectorAlgebra NDVec TableAlgebra where
 
       taKeys =    [ [ itemi $ colIndex c | L.ColName c <- k ] | L.Key k <- L.keysHint hints ]
 
-      colIndex :: AttrName -> Int
+      colIndex :: Attr -> Int
       colIndex n =
           case lookup n numberedColNames of
               Just i  -> i

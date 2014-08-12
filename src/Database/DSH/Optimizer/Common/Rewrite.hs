@@ -33,7 +33,7 @@ import qualified Database.Algebra.Dag                          as D
 import           Database.Algebra.Dag.Common
 import qualified Database.Algebra.Rewrite.DagRewrite           as R
 import           Database.Algebra.Rewrite.Match
-import           Database.Algebra.Rewrite.PatternConstruction  (pattern, v)
+import           Database.Algebra.Rewrite.PatternConstruction  (dagPatMatch, v)
 import           Database.Algebra.Rewrite.Properties
 import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal

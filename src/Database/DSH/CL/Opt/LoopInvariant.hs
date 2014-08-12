@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE LambdaCase          #-}
     
 -- | Extract loop-invariant "complex" expressions from comprehension guards
 module Database.DSH.CL.Opt.LoopInvariant
@@ -101,7 +100,7 @@ invariantExprT localVars = do
 
 invariantQualR :: [Ident] -> RewriteC (NL Qual)
 invariantQualR localVars = do
-    readerT $ \case
+    readerT $ \q -> case q of
         GuardQ p :* qs -> do
             (x, xs, p') <- constT (return $ inject $ p) >>> (invariantExprT localVars)
             return $ BindQ x xs :* GuardQ p' :* qs

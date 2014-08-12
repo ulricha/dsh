@@ -1,19 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
-
 module Database.DSH.Optimizer.VL.Rewrite.Common where
 
-import qualified Data.IntMap                                              as M
-       
+import qualified Data.IntMap                                   as M
+
 import           Control.Monad
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Impossible
 
+import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Vector
-import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.VL.Properties.BottomUp
 import           Database.DSH.Optimizer.VL.Properties.TopDown
@@ -86,3 +85,12 @@ mergeExpr env expr =
 constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a
 constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
+
+mapAggrFun :: (Expr -> Expr) -> AggrFun -> AggrFun
+mapAggrFun f (AggrMax e) = AggrMax $ f e
+mapAggrFun f (AggrSum t e) = AggrSum t $ f e
+mapAggrFun f (AggrMin e) = AggrMin $ f e
+mapAggrFun f (AggrAvg e) = AggrAvg $ f e
+mapAggrFun f (AggrAny e) = AggrAny $ f e
+mapAggrFun f (AggrAll e) = AggrAll $ f e
+mapAggrFun f AggrCount   = AggrCount

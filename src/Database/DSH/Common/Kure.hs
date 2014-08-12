@@ -10,9 +10,12 @@ module Database.DSH.Common.Kure
   , debugShow
   ) where
 
+#ifdef DEBUGCOMP
+import Debug.Trace
+#endif
+
 import Language.KURE
 import Database.DSH.Common.Pretty
-import Debug.Trace
 import Control.Arrow
 
 --------------------------------------------------------------------------------
