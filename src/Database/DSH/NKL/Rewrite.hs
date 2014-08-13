@@ -19,40 +19,40 @@ import Database.DSH.NKL.Kure
 import Database.DSH.NKL.Lang
 
 -- | Run a translate on an expression without context
-applyExpr :: TransformN Expr b -> Expr -> Either String b
-applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
+applyExpr :: [Ident] -> TransformN Expr b -> Expr -> Either String b
+applyExpr nameCtx f e = runRewriteM $ apply f (initialCtx nameCtx) (inject e)
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
 
 freeVarsT :: TransformN Expr [Ident]
-freeVarsT = fmap nub $ crushbuT $ promoteT $ do (ctx, Var _ v) <- exposeT
-                                                guardM (v `freeIn` ctx)
-                                                return [v]
+freeVarsT = fmap nub $ crushbuT $ do (ctx, Var _ v) <- exposeT
+                                     guardM (v `freeIn` ctx)
+                                     return [v]
 
 -- | Compute free variables of the given expression
 freeVars :: Expr -> [Ident]
-freeVars = either error id . applyExpr freeVarsT
+freeVars = either error id . applyExpr [] freeVarsT
 
 boundVarsT :: TransformN Expr [Ident]
-boundVarsT = fmap nub $ crushbuT $ promoteT $ do Lam _ v _ <- idR
-                                                 return [v]
+boundVarsT = fmap nub $ crushbuT $ do Lam _ v _ <- idR
+                                      return [v]
 
 boundVars :: Expr -> [Ident]
-boundVars = either error id . applyExpr boundVarsT
+boundVars = either error id . applyExpr [] boundVarsT
 
 --------------------------------------------------------------------------------
 -- Substitution
 
-subst :: Ident -> Expr -> Expr -> Expr
-subst x s e = either (const e) id $ applyExpr (substR x s) e
+subst :: [Ident] -> Ident -> Expr -> Expr -> Expr
+subst nameCtx x s e = either (const e) id $ applyExpr nameCtx (substR x s) e
 
 alphaLamR :: RewriteN Expr
 alphaLamR = do 
-    Lam lamTy v _ <- idR
-    v'            <- freshNameT [v]
+    Lam lamTy v e <- idR
+    v'            <- freshNameT (v : freeVars e)
     let varTy = domainT lamTy
-    lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
+    lamT (tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
 
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
@@ -67,8 +67,8 @@ substR v s = readerT $ \expr -> case expr of
     -- variable to avoid name capturing.
     Lam _ n e | n /= v && v `elem` freeVars e ->
         if n `elem` freeVars s
-        then promoteR alphaLamR >>> substR v s
-        else promoteR $ lamR (extractR $ substR v s)
+        then alphaLamR >>> substR v s
+        else lamR (substR v s)
 
     -- A lambda which shadows v -> don't descend
     Lam _ _ _                                 -> idR
@@ -99,5 +99,5 @@ nklOptimizations = anybuR singletonConcatMap
 optimizeNKL :: Expr -> Expr
 optimizeNKL expr = debugOpt expr optimizedExpr
   where
-    optimizedExpr = applyExpr nklOptimizations expr
+    optimizedExpr = applyExpr [] nklOptimizations expr
         
