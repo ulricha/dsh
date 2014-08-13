@@ -122,9 +122,9 @@ deriveTA ''Trade
 generateTableSelectors ''Trade
 
 data Portfolio = Portfolio
-    { p_pid         :: Integer
-    , p_tid         :: Text
-    , p_tradedSince :: Integer
+    { po_pid         :: Integer
+    , po_tid         :: Text
+    , po_tradedSince :: Integer
     }
 
 deriveDSH ''Portfolio
@@ -135,7 +135,7 @@ trades :: Q [Trade]
 trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
 
 portfolios :: Q [Portfolio]
-portfolios = table "portfolio" $ TableHints [Key ["p_pid"] ] NonEmpty
+portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
 
 
 lastn :: QA a => Integer -> Q [a] -> Q [a]
@@ -148,8 +148,8 @@ last10 portfolio =
     [ pair (t_tidQ t) (t_priceQ t)
     | t <- trades
     , p <- portfolios
-    , t_tidQ t == p_tidQ p
-    , p_pidQ p == toQ portfolio
+    , t_tidQ t == po_tidQ p
+    , po_pidQ p == toQ portfolio
     ]
 
 main :: IO ()
