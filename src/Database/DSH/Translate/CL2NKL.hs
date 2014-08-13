@@ -10,10 +10,11 @@ import           Debug.Trace
 import           Database.DSH.Common.Pretty
 #endif
 
-import           Data.List
 import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.List.NonEmpty          as N
 import qualified Data.Foldable               as F
+import           Control.Monad.Reader
+import           Control.Applicative
   
 import           Database.DSH.Impossible
        
@@ -29,8 +30,8 @@ import           Database.DSH.NKL.Rewrite
 --------------------------------------------------------------------------------
 -- Conversion of primitive operators
        
-prim1 :: Type -> CL.Prim1 Type -> CL.Expr -> NKL.Expr
-prim1 t (CL.Prim1 o ot) e = mkApp t ot (expr e)
+prim1 :: Type -> CL.Prim1 Type -> CL.Expr -> NameEnv NKL.Expr
+prim1 t (CL.Prim1 o ot) e = mkApp t ot <$> expr e
   where 
     mkApp = 
         case o of
@@ -128,21 +129,23 @@ addGensToEnv gens env = F.foldl' extendEnv env gens
 --------------------------------------------------------------------------------
 -- Conversion of CL expressions to NKL expressions
 
+type NameEnv a = Reader [Ident] a
+
 -- | Map a CL expression to its NKL equivalent by desugaring all
 -- comprehensions.
-expr :: CL.Expr -> NKL.Expr
-expr (CL.Table t s cs ks)        = NKL.Table t s cs ks
-expr (CL.App t e1 e2)            = NKL.App t (expr e1) (expr e2)
+expr :: CL.Expr -> NameEnv NKL.Expr
+expr (CL.Table t s cs ks)        = return $ NKL.Table t s cs ks
+expr (CL.App t e1 e2)            = NKL.App t <$> expr e1 <*> expr e2
 expr (CL.AppE1 t p e)            = prim1 t p e
-expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = P.concatMap (expr f) (expr xs)
-expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) (expr e1) (expr e2)
-expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o (expr e1) (expr e2)
-expr (CL.UnOp t o e)             = NKL.UnOp t o (expr e)
-expr (CL.Lam t v e)              = NKL.Lam t v (expr e)
-expr (CL.If t c th el)           = NKL.If t (expr c) (expr th) (expr el)
-expr (CL.Lit t v)                = NKL.Const t v
-expr (CL.Var t v)                = NKL.Var t v
-expr (CL.Comp t e qs)            = desugarComp t e (toList qs)
+expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = P.concatMap <$> expr f <*> expr xs
+expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) <$> expr e1 <*> expr e2
+expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o <$> expr e1 <*> expr e2
+expr (CL.UnOp t o e)             = NKL.UnOp t o <$> expr e
+expr (CL.Lam t v e)              = NKL.Lam t v <$> local (v :) (expr e)
+expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
+expr (CL.Lit t v)                = return $ NKL.Const t v
+expr (CL.Var t v)                = return $ NKL.Var t v
+expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
 
 --------------------------------------------------------------------------------
 -- Desugaring of comprehensions
@@ -166,9 +169,9 @@ expr (CL.Comp t e qs)            = desugarComp t e (toList qs)
 -- =>
 -- map (\t -> e [x/fst (fst t)] [y/snd (fst t)] [z/snd t])
 --     (filter (\t -> p2[y/snd (fst t)][z/snd t])
---             (concatMap (\t -> concatMap (\z -> [pair t z]) zs)
+--             (concatMap (\t -> concatMap (\z -> [pair t z]) zs[x/fst t][y/snd t])
 --                        (filter (\t -> p1[x/fst t][y/snd t])
---                                (concatMap (\t -> concatMap (\y -> pair t y) ys)
+--                                (concatMap (\t -> concatMap (\y -> pair t y) ys[x/t])
 --                                           xs
      
 -- | Split a qualifier list into a prefix of generators and the
@@ -178,8 +181,10 @@ takeGens (CL.BindQ x xs : qs) = let (binds, rest) = takeGens qs in ((x, xs) : bi
 takeGens qs                   = ([], qs)
 
 -- | Generate an identifier that does not occur in the list provided.
-freshIdent :: [Ident] -> Ident
-freshIdent names = checkCollision (0 :: Int) names
+freshIdent :: [Ident] -> NameEnv Ident
+freshIdent names = do
+    visibleNames <- ask
+    return $ checkCollision (0 :: Int) (names ++ visibleNames)
   where
     checkCollision i ns = if mkName i `elem` ns
                           then checkCollision (i + 1) ns
@@ -208,86 +213,125 @@ nestQualifiers tupConst ((x, xs) : qs) = P.concatMap lam xs
 nestQualifiers tupConst []             = tupConst
 
 -- | Desugar a sequence of generators. 
-desugarGens :: GenEnv -> NKL.Expr -> NonEmpty (Ident, NKL.Expr) -> NKL.Expr
-desugarGens env baseExpr qs = P.concatMap outerLam baseExpr
-  where
-    outerName      = freshIdent $ map fst $ N.toList qs
-    outerLam       = NKL.Lam outerLamType outerName gensExpr
-    outerLamType   = baseElemType .-> typeOf tupConst
-    baseElemType   = elemT $ typeOf baseExpr
+desugarGens :: GenEnv -> NKL.Expr -> NonEmpty (Ident, NKL.Expr) -> NameEnv NKL.Expr
+desugarGens env baseExpr qs = do
+    usedNames <- (++) (map fst $ N.toList qs) <$> ask
+    outerName <- freshIdent usedNames 
 
-    -- Generator expressions might reference variables bound by
-    -- preceding generators. These variables go out of scope during
-    -- desugaring. To eliminate them, we have to replace references to
-    -- generator variables in generator expressions by the appropriate
-    -- tuple accessors for the outer concatMap variable.
-    qs'            = fmap (\(n, e) -> (n, substGenExpr e)) qs
-    substGenExpr e = substTupleAccesses (outerName, baseElemType) env e
+    let baseElemType   = elemT $ typeOf baseExpr
+        
+        -- Generator expressions might reference variables bound by
+        -- preceding generators. These variables go out of scope during
+        -- desugaring. To eliminate them, we have to replace references to
+        -- generator variables in generator expressions by the appropriate
+        -- tuple accessors for the outer concatMap variable.
+        substGenExpr (n, e) = (n, substTupleAccesses usedNames (outerName, baseElemType) env e)
 
-    gensExpr       = nestQualifiers tupConst (N.toList qs')
-    tupConst       = P.singleton $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
-    mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x 
+    let qs'            = fmap substGenExpr qs
+
+        tupConst       = P.singleton $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
+        outerLamType   = baseElemType .-> typeOf tupConst
+        mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x 
+        outerLam       = NKL.Lam outerLamType outerName gensExpr
+        gensExpr       = nestQualifiers tupConst (N.toList qs')
+    return $ P.concatMap outerLam baseExpr
 
 -- | Replace every occurence of a generator variable with the
 -- corresponding tuple access expression.
-substTupleAccesses :: (Ident, Type) -> GenEnv -> NKL.Expr -> NKL.Expr
-substTupleAccesses (n, t) env expr = F.foldr substTupleAccess expr env
+substTupleAccesses :: [Ident] -> (Ident, Type) -> GenEnv -> NKL.Expr -> NKL.Expr
+substTupleAccesses visibleNames (n, t) env e = F.foldr substTupleAccess e env
   where
-    substTupleAccess (x, xt, xta) e = subst x (xta t n) e
+    substTupleAccess (x, xt, xta) e' = subst (n : visibleNames) x (xta t n) e'
 
 qualVar :: CL.Qual -> [Ident]
 qualVar (CL.BindQ x _) = [x]
 qualVar (CL.GuardQ _)  = []
 
+-- | Transform a list of generator expressions to NKL
+-- expressions. Every expression is transformed in the name
+-- environment enriched with the current prefix of the generators.
+genExprs :: NonEmpty (Ident, CL.Expr) -> NameEnv (NonEmpty (Ident, NKL.Expr))
+genExprs ((n, e) :| [])       = do
+    e' <- expr e
+    return $ (n, e') :| []
+genExprs ((n, e) :| (q : qs)) = do
+    e'  <- expr e
+    qs' <- local (n :) (genExprs $ q :| qs)
+    return $ (n, e') N.<| qs'
+
 -- | Desugar a list of qualifiers.
-desugarQualsRec :: GenEnv -> NKL.Expr -> [CL.Qual] -> (GenEnv, NKL.Expr)
+desugarQualsRec :: GenEnv -> NKL.Expr -> [CL.Qual] -> NameEnv (GenEnv, NKL.Expr)
 -- If we encounter a generator, we produce the cartesian product of
 -- the generator prefix of the current qualifier list.
-desugarQualsRec env baseSrc (CL.BindQ x xs : qs) =
-  let (gens, remQuals) = takeGens qs
-      nklGens          = fmap (\(n, e) -> (n, expr e)) ((x, xs) :| gens)
-      baseSrc'         = desugarGens env baseSrc nklGens
-      env'             = addGensToEnv nklGens env 
-  in desugarQualsRec env' baseSrc' remQuals
+desugarQualsRec env baseSrc (CL.BindQ x xs : qs) = do
+    let (gens, remQuals) = takeGens qs
+        genNames         = map fst gens
+    nklGens  <- genExprs ((x, xs) :| gens)
+    baseSrc' <- desugarGens env baseSrc nklGens
+    let env' = addGensToEnv nklGens env 
+
+    local (++ genNames) $ desugarQualsRec env' baseSrc' remQuals
                        
 -- A guard is desugared by filtering the cartesian product of the
 -- generators that have been encountered so far.
-desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = 
-    -- FIXME choose fresh names more carefully
-    let filterName = freshIdent $ concatMap qualVar qs
-        elemType   = elemT $ typeOf baseSrc
+desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
+    p'           <- expr p
+    visibleNames <- ask
+
+    filterName   <- freshIdent $ visibleNames
+    let elemType   = elemT $ typeOf baseSrc
         lamType    = elemType .-> boolT
-        filterExpr = substTupleAccesses (filterName, elemType) env (expr p)
+        filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
         filterLam  = NKL.Lam lamType filterName filterExpr
         filterSrc  = P.filter filterLam baseSrc
-    in desugarQualsRec env filterSrc qs
 
-desugarQualsRec env baseSrc []                    = (env, baseSrc)
+    desugarQualsRec env filterSrc qs
 
-desugarQuals :: [CL.Qual] -> (GenEnv, NKL.Expr)
+desugarQualsRec env baseSrc []                    = return (env, baseSrc)
+
+desugarQuals :: [CL.Qual] -> NameEnv (GenEnv, NKL.Expr)
 desugarQuals []                   = $impossible
+-- FIXME if the first qualifier is a guard, employ an if with a []
+-- then branch.
 desugarQuals (CL.GuardQ p : qs)   = $unimplemented
-desugarQuals (CL.BindQ x xs : qs) = desugarQualsRec (mkEnv (x, xt)) (expr xs) qs
-  where
-    xt      = elemT $ typeOf xs
+desugarQuals (CL.BindQ x xs : qs) = do
+    let xt  = elemT $ typeOf xs
+    let env = mkEnv (x, xt)
+    xs' <- expr xs
+    desugarQualsRec env xs' qs
 
 -- | Desugaring of comprehensions happens in two steps: Desugaring the
 -- qualifiers leads to an expression that produces the (properly
 -- filtered) cartesian product of all qualifiers. The head expression
 -- ist then simply mapped over the resulting list.
-desugarComp :: Type -> CL.Expr -> [CL.Qual] -> NKL.Expr
-desugarComp t e qs = P.map headLam genExpr
-  where
+desugarComprehension:: Type -> CL.Expr -> [CL.Qual] -> NameEnv NKL.Expr
+desugarComprehension t e qs = do
     -- Desugar the qualifiers
-    (env, genExpr) = desugarQuals qs
-    t              = elemT $ typeOf genExpr
+    (env, genExpr) <- desugarQuals qs
 
-    -- In the head expression, turn references to generator variables
-    -- into references to the (freshly chosen) map variable
-    n              = freshIdent $ nub $ freeVars e' ++ freeVars e'
-    e'             = expr e
-    e''            = substTupleAccesses (n, t) env e'
-    headLam        = NKL.Lam (t .-> typeOf e') n e''
+    let genNames = concatMap qualVar qs
+
+    e'             <- local (++ genNames) (expr e)
+    -- All names that are bound in enclosing scopes, including names
+    -- bound by local generators
+    visibleNames   <- (++) genNames <$> ask
+
+    -- Avoid all visible names
+    n              <- freshIdent visibleNames
+
+    let t       = elemT $ typeOf genExpr
+
+        -- In the head expression, turn references to generator
+        -- variables into references to the (freshly chosen) map
+        -- variable. For substitution in the expression, we avoid all
+        -- names that are currently visible, including generator names
+        -- that are by now no longer visible. This should not hurt
+        -- though, as the information is only used for alpha-conversion
+        -- on lambdas during substitution.
+        e''      = substTupleAccesses visibleNames (n, t) env e'
+        headLam  = NKL.Lam (t .-> typeOf e') n e''
+ 
+    return $ P.map headLam genExpr
         
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
@@ -297,7 +341,7 @@ desugarComprehensions e =
     trace (debugPrint eo) eo
 
   where
-    eo = expr e
+    eo = runReader (expr e) []
 
     padSep :: String -> String
     padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
@@ -305,6 +349,6 @@ desugarComprehensions e =
     debugPrint :: NKL.Expr -> String
     debugPrint e' = padSep "Desugared NKL" ++ pp e' ++ padSep ""
 #else
-    expr e
+    runReader (expr e) []
 #endif
 

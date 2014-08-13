@@ -85,3 +85,12 @@ mergeExpr env expr =
 constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a
 constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
+
+mapAggrFun :: (Expr -> Expr) -> AggrFun -> AggrFun
+mapAggrFun f (AggrMax e) = AggrMax $ f e
+mapAggrFun f (AggrSum t e) = AggrSum t $ f e
+mapAggrFun f (AggrMin e) = AggrMin $ f e
+mapAggrFun f (AggrAvg e) = AggrAvg $ f e
+mapAggrFun f (AggrAny e) = AggrAny $ f e
+mapAggrFun f (AggrAll e) = AggrAll $ f e
+mapAggrFun f AggrCount   = AggrCount

@@ -20,8 +20,9 @@ import Database.X100Client
 
 import Database.HDBC.PostgreSQL
 
-getConn :: Connection
-getConn = undefined
+getConn :: IO Connection
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'au'"
+
 
 x100Conn :: X100Info
 x100Conn = undefined
@@ -109,49 +110,49 @@ q = [ pair (fst x) (fst y)
     , length (snd x) == length (snd y)
     ]
 -}
+data Trade = Trade
+    { t_price     :: Double
+    , t_tid       :: Text
+    , t_timestamp :: Integer
+    , t_tradeDate :: Integer
+    }
 
-{-
-mins :: (Ord a, QA a) => Q [a] -> Q [a]
-mins as = [ minimum [ a' | (view -> (a', i')) <- number as, i' <= i ]
-	  | (view -> (a, i)) <- number as
-	  ]   
+deriveDSH ''Trade
+deriveTA ''Trade
+generateTableSelectors ''Trade
 
-q :: Q [Integer] -> Q Integer
-q is = maximum [ i - i' | (view -> (i, i')) <- zip is' (mins is') ]
-  where is' = filter (\i -> i > 15 && i < 42) is
+data Portfolio = Portfolio
+    { po_pid         :: Integer
+    , po_tid         :: Text
+    , po_tradedSince :: Integer
+    }
 
-trades :: Q [(Integer, Integer)]
-trades = toQ [(42, 10)]
+deriveDSH ''Portfolio
+deriveTA ''Portfolio
+generateTableSelectors ''Portfolio
 
-portfolio :: Q [Integer]
-portfolio = toQ [23, 2]
+trades :: Q [Trade]
+trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
+
+portfolios :: Q [Portfolio]
+portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
+
 
 lastn :: QA a => Integer -> Q [a] -> Q [a]
 lastn n xs = drop (length xs - toQ n) xs
 
-q1 = map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
-     $ groupWithKey fst
-         [ pair tid tprice
-         | (view -> (tid, tprice)) <- trades
-         , tid' <- portfolio
-         , tid == tid'
-         ]
-
--}
-
-{-
-mins :: (Ord a, QA a) => Q [a] -> Q [a]
-mins as = [ minimum [ a' | (a', i') <- number as, i' <= i ]
-	  | (a, i) <- number as
-	  ]   
-
-q :: Q [Integer] -> Q Integer
-q is = maximum [ i - i' | (i, i') <- zip is' (mins is') ]
-  where is' = filter (\i -> i > 15 && i < 42) is
--}
-    
+last10 :: Integer -> Q [(Text, [Double])]
+last10 portfolio = 
+    map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
+    $ groupWithKey fst
+    [ pair (t_tidQ t) (t_priceQ t)
+    | t <- trades
+    , p <- portfolios
+    , t_tidQ t == po_tidQ p
+    , po_pidQ p == toQ portfolio
+    ]
 
 main :: IO ()
-main = debugQ "q" getConn $ q
+main = getConn P.>>= \c -> debugQ "q" c $ last10 42
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

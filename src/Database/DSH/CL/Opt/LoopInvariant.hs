@@ -7,6 +7,9 @@
 module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantGuardR
   ) where
+
+import Debug.Trace
+import Text.Printf
   
 import           Control.Applicative
 import           Control.Arrow
@@ -22,7 +25,7 @@ import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.CL.Opt.Aux
 
 traverseT :: [Ident] -> TransformC CL (Expr, PathC)
-traverseT localVars = readerT $ \expr -> case expr of
+traverseT localVars = readerT $ \expr -> trace (printf "traverseT at %s" (pp expr)) $! case expr of
     -- We do not traverse into lambdas and comprehensions which are
     -- nested in our current comprehension.  
     -- 
@@ -33,13 +36,13 @@ traverseT localVars = readerT $ \expr -> case expr of
 
     -- We do not traverse into the mapping argument of higher-order
     -- list combinators
-    ExprCL (AppE2 _ (Prim2 Map _) _ _)          -> childT AppE2Arg2 $ traverseT localVars
-    ExprCL (AppE2 _ (Prim2 ConcatMap _) _ _)    -> childT AppE2Arg2 $ traverseT localVars
-    ExprCL (AppE2 _ (Prim2 Filter _) _ _)       -> childT AppE2Arg2 $ traverseT localVars
-    ExprCL (AppE2 _ (Prim2 GroupWithKey _) _ _) -> childT AppE2Arg2 $ traverseT localVars
-    ExprCL (AppE2 _ (Prim2 SortWith _) _ _)     -> childT AppE2Arg2 $ traverseT localVars
+    ExprCL (AppE2 _ (Prim2 Map _) _ _)          -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ (Prim2 ConcatMap _) _ _)    -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ (Prim2 Filter _) _ _)       -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ (Prim2 GroupWithKey _) _ _) -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ (Prim2 SortWith _) _ _)     -> childT AppE2Arg2 $ searchInvariantExprT localVars
 
-    ExprCL _                                     -> oneT $ traverseT localVars
+    ExprCL _                                     -> oneT $ searchInvariantExprT localVars
     _                                            -> fail "we only consider expressions"
 
 -- | Collect a path to a complex expression
