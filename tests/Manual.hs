@@ -198,6 +198,22 @@ trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
 portfolios :: Q [Portfolio]
 portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
 
+
+lastn :: QA a => Integer -> Q [a] -> Q [a]
+lastn n xs = drop (length xs - toQ n) xs
+
+last10 :: Integer -> Q [(Text, [Double])]
+last10 portfolio = 
+    map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
+    $ groupWithKey fst
+    [ pair (t_tidQ t) (t_priceQ t)
+    | t <- trades
+    , p <- portfolios
+    , t_tidQ t == po_tidQ p
+    , po_pidQ p == toQ portfolio
+    ]
+
+
 -- | For each list element, compute the minimum of all elements up to
 -- the current one.
 mins :: (Ord a, QA a) => Q [a] -> Q [a]

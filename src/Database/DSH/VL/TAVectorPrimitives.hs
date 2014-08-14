@@ -757,16 +757,22 @@ instance VectorAlgebra NDVec TableAlgebra where
     return (ADVec qr allCols, RVec r1, RVec r2)
 
   vecGroupAggr groupExprs aggrFuns (ADVec q _) = do
-    let partAttrs = (descr, ColE descr)
+    let partAttrs = (descr, cP descr)
                     :
-                    [ eP (itemi i) (taExpr e) | e <- groupExprs | i <- [1..] ]
+                    [ (itemi i, eP (itemi i) (taExpr e)) | e <- groupExprs | i <- [1..] ]
 
         pw = length groupExprs
 
         pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- N.toList aggrFuns | i <- [1..] ]
 
-    qa <- rownumM pos [descr] Nothing
-          $ aggr pfAggrFuns partAttrs q
+    -- GroupAggr(e, f) has to mimic the behaviour of GroupScalarS(e) +
+    -- AggrS(f) exactly. GroupScalarS determines the order of the
+    -- groups by the sort order of the grouping keys (implicitly via
+    -- RowRank). GroupAggr has to provide the aggregated groups in the
+    -- same order to be aligned. Therefore, we sort by /all/ grouping
+    -- attributes.
+    qa <- rownumM pos (map fst partAttrs) Nothing
+          $ aggr pfAggrFuns (map snd partAttrs) q
 
     return $ ADVec qa [1 .. length groupExprs + N.length aggrFuns]
 
