@@ -137,22 +137,25 @@ trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
 portfolios :: Q [Portfolio]
 portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
 
+-- | For each list element, compute the minimum of all elements up to
+-- the current one.
+mins :: (Ord a, QA a) => Q [a] -> Q [a]
+mins as = [ minimum [ a' | (view -> (a', i')) <- nas, i' <= i ]
+          | let nas = number as
+	  , (view -> (a, i)) <- nas
+	  ]   
 
-lastn :: QA a => Integer -> Q [a] -> Q [a]
-lastn n xs = drop (length xs - toQ n) xs
+bestProfit :: Text -> Integer -> Q Double
+bestProfit stock date = 
+    maximum [ t_priceQ t - minPrice
+            | (view -> (t, minPrice)) <- zip trades' (mins $ map t_priceQ trades')
+            ]
+                                  
+  where
+    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) trades
 
-last10 :: Integer -> Q [(Text, [Double])]
-last10 portfolio = 
-    map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
-    $ groupWithKey fst
-    [ pair (t_tidQ t) (t_priceQ t)
-    | t <- trades
-    , p <- portfolios
-    , t_tidQ t == po_tidQ p
-    , po_pidQ p == toQ portfolio
-    ]
 
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ last10 42
+main = getConn P.>>= \c -> debugQ "q" c $ bestProfit "ACME" 42
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
