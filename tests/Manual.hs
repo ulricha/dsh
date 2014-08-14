@@ -171,7 +171,53 @@ flowStats = [ tuple4 src
 
     
 
+data Trade = Trade
+    { t_price     :: Double
+    , t_tid       :: Text
+    , t_timestamp :: Integer
+    , t_tradeDate :: Integer
+    }
+
+deriveDSH ''Trade
+deriveTA ''Trade
+generateTableSelectors ''Trade
+
+data Portfolio = Portfolio
+    { po_pid         :: Integer
+    , po_tid         :: Text
+    , po_tradedSince :: Integer
+    }
+
+deriveDSH ''Portfolio
+deriveTA ''Portfolio
+generateTableSelectors ''Portfolio
+
+trades :: Q [Trade]
+trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
+
+portfolios :: Q [Portfolio]
+portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
+
+-- | For each list element, compute the minimum of all elements up to
+-- the current one.
+mins :: (Ord a, QA a) => Q [a] -> Q [a]
+mins as = [ minimum [ a' | (view -> (a', i')) <- nas, i' <= i ]
+          | let nas = number as
+	  , (view -> (a, i)) <- nas
+	  ]   
+
+bestProfit :: Text -> Integer -> Q Double
+bestProfit stock date = 
+    maximum [ t_priceQ t - minPrice
+            | (view -> (t, minPrice)) <- zip trades' (mins $ map t_priceQ trades')
+            ]
+                                  
+  where
+    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) 
+              $ sortWith t_timestampQ trades
+
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c flowStats
+main = getConn P.>>= \c -> debugQ "q" c $ bestProfit "ACME" 42
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

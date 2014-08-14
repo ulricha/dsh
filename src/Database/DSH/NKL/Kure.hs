@@ -31,7 +31,6 @@ module Database.DSH.NKL.Kure
        
 import           Control.Monad
 import           Data.Monoid
-import qualified Data.Map as M
 
 import           Language.KURE
 import           Language.KURE.Lens
@@ -69,7 +68,7 @@ type AbsPathN = AbsolutePath CrumbN
 type PathN = Path CrumbN
 
 -- | The context for KURE-based NKL rewrites
-data NestedCtx = NestedCtx { nkl_bindings :: M.Map Ident Type 
+data NestedCtx = NestedCtx { nkl_bindings :: [Ident]
                            , nkl_path     :: AbsPathN
                            }
                        
@@ -79,21 +78,21 @@ instance ExtendPath NestedCtx CrumbN where
 instance ReadPath NestedCtx CrumbN where
     absPath c = nkl_path c
 
-initialCtx :: NestedCtx
-initialCtx = NestedCtx { nkl_bindings = M.empty, nkl_path = mempty }
+initialCtx :: [Ident] -> NestedCtx
+initialCtx nameCtx = NestedCtx { nkl_bindings = nameCtx, nkl_path = mempty }
 
 -- | Record a variable binding in the context
-bindVar :: Ident -> Type -> NestedCtx -> NestedCtx
-bindVar n ty ctx = ctx { nkl_bindings = M.insert n ty (nkl_bindings ctx) }
+bindVar :: Ident -> NestedCtx -> NestedCtx
+bindVar n ctx = ctx { nkl_bindings = n : nkl_bindings ctx }
 
 inScopeNames :: NestedCtx -> [Ident]
-inScopeNames = M.keys . nkl_bindings
+inScopeNames = nkl_bindings
 
 boundIn :: Ident -> NestedCtx -> Bool
-boundIn n ctx = n `M.member` (nkl_bindings ctx)
+boundIn n ctx = n `elem` (nkl_bindings ctx)
 
 freeIn :: Ident -> NestedCtx -> Bool
-freeIn n ctx = n `M.notMember` (nkl_bindings ctx)
+freeIn n ctx = n `notElem` (nkl_bindings ctx)
 
 -- | Generate a fresh name that is not bound in the current context.
 freshNameT :: [Ident] -> TransformN a Ident
@@ -194,7 +193,7 @@ lamT :: Monad m => Transform NestedCtx m Expr a
                 -> (Type -> Ident -> a -> b)
                 -> Transform NestedCtx m Expr b
 lamT t f = transform $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> apply t (bindVar n (domainT ty) c@@LamBody) e
+                     Lam ty n e -> f ty n <$> apply t (bindVar n c@@LamBody) e
                      _          -> fail "not a lambda"
 {-# INLINE lamT #-}                      
                      

@@ -13,7 +13,19 @@ import           Database.DSH.Common.Lang
 postProcessCompR :: RewriteC CL
 postProcessCompR = do
     Comp _ _ _ <- promoteT idR
-    repeatR (introduceCartProductsR <+ introduceFiltersR)
+    repeatR (introduceCartProductsR <+ introduceFiltersR) >>> identityCompR
+
+--------------------------------------------------------------------------------
+-- Cleaning up
+
+-- FIXME partial evaluation could be useful as well to eliminate tuple
+-- construction
+
+identityCompR :: RewriteC CL
+identityCompR = do
+    Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
+    guardM $ x == x'
+    return $ inject xs
 
 --------------------------------------------------------------------------------
 -- Turn adjacent generators into cartesian products:
