@@ -56,14 +56,26 @@ runningAgg q =
             winNode <- insert $ UnOp (WinAggr (afun', WinLtEq)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) winNode |])
 
-inlineWinAggrProject :: VLRule ()
+inlineWinAggrProject :: VLRule BottomUpProps
 inlineWinAggrProject q =
   $(dagPatMatch 'q "WinAggr args (Project proj (q1))"
     [| do
-        let (afun, frameSpec) = $(v "args")
-            env               = zip [1..] $(v "proj")
-            afun'             = mapAggrFun (mergeExpr env) afun
+        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
         return $ do
             logRewrite "Window.RunningAggr.Project" q
-            void $ replaceWithNew q $ UnOp (WinAggr (afun', frameSpec)) $(v "q1") |])
+
+            let (afun, frameSpec) = $(v "args")
+                env               = zip [1..] $(v "proj")
+                -- Inline column expressions from the projection into
+                -- the window function.
+                afun'             = mapAggrFun (mergeExpr env) afun
+
+                -- WinAggr /adds/ the window function output to the
+                -- input columns. We have to provide the schema of the
+                -- input projection to which the window function
+                -- output is added.
+                proj' = $(v "proj") ++ [Column $ w + 1]
+
+            winNode <- insert $ UnOp (WinAggr (afun', frameSpec)) $(v "q1") 
+            void $ replaceWithNew q $ UnOp (Project proj') winNode |])

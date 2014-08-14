@@ -39,7 +39,6 @@ redundantRules = [ mergeProjectRestrict
                  , pullProjectPropReorder
                  , pullProjectRestrict
                  , scalarConditional
-                 , inlineWinAggrProject
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
@@ -59,9 +58,12 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipConstLeft
                          , zipConstRight
                          , zipZipLeft
+                         , zipWinLeft
+                         , zipWinRight
                          -- , stackedAlign
                          , propProductCard1Right
                          , runningAgg
+                         , inlineWinAggrProject
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -414,6 +416,39 @@ zipZipLeft q =
              logRewrite "Redundant.Zip.Zip.Left" q
              let proj = map Column $ [1..w1] ++ [1..wz]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qz") |])
+
+zipWinRight :: VLRule BottomUpProps
+zipWinRight q =
+  $(dagPatMatch 'q "(q1) Zip (qw=WinAggr args (q2))"
+     [| do
+         predicate $ $(v "q1") == $(v "q2")
+         
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         
+         return $ do
+             logRewrite "Redundant.Zip.Self.Win.Right" q
+             -- We get all columns from the left input. The WinAggr
+             -- operator produces the input column followed the window
+             -- function result.
+             let proj = map Column $ [1 .. w] ++ [1 .. w] ++ [w+1]
+             logGeneral ("zipWinRight " ++ show proj)
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
+
+zipWinLeft :: VLRule BottomUpProps
+zipWinLeft q =
+  $(dagPatMatch 'q "(qw=WinAggr _ (q1)) Zip (q2)"
+     [| do
+         predicate $ $(v "q1") == $(v "q2")
+         
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         
+         return $ do
+             logRewrite "Redundant.Zip.Self.Win.Left" q
+             -- We get all input columns plus the window function
+             -- output from the left. From the right we get all input
+             -- columns.
+             let proj = map Column $ [1 .. w] ++ [w+1] ++ [1 .. w]
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
 
 --------------------------------------------------------------------------------
 -- Specialization of sorting
