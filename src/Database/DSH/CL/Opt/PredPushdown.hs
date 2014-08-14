@@ -153,10 +153,24 @@ mergePredIntoJoinR x p = do
 
     return $ inject $ AppE2 t (Prim2 extendedJoin tj) xs ys
 
+-- | Push into the second argument (input) of some operator that
+-- commutes with selection.
+pushInputR :: Ident -> Expr -> RewriteC CL
+pushInputR x p = do
+    AppE2 t prim e1 xs <- promoteT idR
+
+    let xst = typeOf xs
+        xt  = elemT xt
+        -- We reuse the generator variable for the filter comprehension
+        xs' = Comp xst (Var xt x) (BindQ x xs :* (S $ GuardQ p))
+
+    return $ inject $ AppE2 t prim e1 xs'
 
 --------------------------------------------------------------------------
--- Take remaining comprehension guards and try to either merge them
--- into a join or push them into a join input.
+-- Take remaining comprehension guards and try to push them into the
+-- generator. This might be accomplished by either merging it into a
+-- join, pushing it into a join input or pushing it through some other
+-- operator that commutes with selection (e.g. sorting).
 
 pushPredicateR :: Ident -> Expr -> RewriteC CL
 pushPredicateR x p = do
@@ -180,6 +194,9 @@ pushPredicateR x p = do
         -- consequently.
         ExprCL (AppE2 _ (Prim2 (SemiJoin _) _) _ _)  -> pushLeftR x p
         ExprCL (AppE2 _ (Prim2 (AntiJoin _) _) _ _)  -> pushLeftR x p
+
+        -- Sorting commutes with selection
+        ExprCL (AppE2 _ (Prim2 SortWith _) _ _)      -> pushInputR x p
         _                                            -> fail "expression does not allow predicate pushing"
 
 pushQualsR :: RewriteC CL

@@ -275,6 +275,9 @@ alignedOnlyLeft q =
           logRewrite "Redundant.Align.Project" q
           void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
 
+--------------------------------------------------------------------------------
+-- Zip rewrites
+
 -- | Replace a Zip operator with a projection if both inputs are the
 -- same.
 sameInputZip :: VLRule BottomUpProps
@@ -569,4 +572,3 @@ propProductCard1Right q =
         return $ do
           logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
           void $ replace q $(v "qi") |])
-          
