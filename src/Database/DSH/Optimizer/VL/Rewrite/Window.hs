@@ -46,7 +46,15 @@ runningAgg q =
             -- Shift column references in aggregate functions so that
             -- they are applied to partition columns.
             let afun' = mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
-            void $ replaceWithNew q $ UnOp (WinAggr (afun', WinLtEq)) $(v "q1") |])
+
+            -- The WinAggr operator /adds/ the window function output
+            -- as a new column but keeps the old columns. Because we
+            -- introduce WinAggr starting with Aggrs which only
+            -- produces the aggregate output, we have to insert a
+            -- projection to remove the original input columns and
+            -- only keep the window function output.
+            winNode <- insert $ UnOp (WinAggr (afun', WinLtEq)) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) winNode |])
 
 inlineWinAggrProject :: VLRule ()
 inlineWinAggrProject q =

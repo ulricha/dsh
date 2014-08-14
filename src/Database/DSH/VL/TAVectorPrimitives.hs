@@ -346,10 +346,11 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return (ADVec qr1 resCols, PVec qr2)
 
-  vecWinAggr a w (ADVec q _) = do
+  vecWinAggr a w (ADVec q cols1) = do
     let wfun      = windowFunction a
         frameSpec = frameSpecification w
-    qw <- winFun (item, wfun) [] [(pos, Asc)] (Just frameSpec) q
+        winCol    = itemi $ length cols1 + 1
+    qw <- winFun (winCol, wfun) [] [(pos, Asc)] (Just frameSpec) q
     return $ ADVec qw [1]
 
   vecAggr a (ADVec q _) = do

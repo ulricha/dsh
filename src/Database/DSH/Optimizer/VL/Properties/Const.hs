@@ -147,8 +147,9 @@ inferConstVecNullOp op =
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
-    WinAggr _ -> 
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+    WinAggr _ -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
     UniqueS -> return c
 
