@@ -28,7 +28,8 @@ cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules
 cleanupRules :: TARuleSet ()
 cleanupRules = [ stackedProject
                , serializeProject
-               -- , serializeRowNum
+               , pullProjectWinFun
+               , pullProjectSelect
                ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
@@ -44,32 +45,6 @@ cleanupRulesTopDown = [ unreferencedRownum
 
 ----------------------------------------------------------------------------------
 -- Rewrite rules
-
-mergeProjections :: [Proj] -> [Proj] -> [Proj]
-mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
-
-  where
-    inline :: Expr -> Expr
-    inline (BinAppE op e1 e2) = BinAppE op (inline e1) (inline e2)
-    inline (UnAppE op e)      = UnAppE op (inline e)
-    inline (ColE c)           = fromMaybe (failedLookup c) (lookup c proj2)
-    inline (ConstE val)       = ConstE val
-    inline (IfE c t e)        = IfE (inline c) (inline t) (inline e)
-
-    failedLookup :: Attr -> a
-    failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
-                                   c (show proj1) (show proj2))
-                           $impossible
-
-stackedProject :: TARule ()
-stackedProject q =
-  $(dagPatMatch 'q "Project ps1 (Project ps2 (qi))"
-    [| do
-         return $ do
-           let ps = mergeProjections $(v "ps1") $(v "ps2")
-           logRewrite "Basic.Project.Merge" q
-           void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
-
 
 -- | Eliminate rownums which re-generate positions based on one
 -- sorting column. These rownums typically occur after filtering
@@ -310,3 +285,91 @@ serializeProject q =
           return $ do
               logRewrite "Basic.Serialize.Project" q
               void $ replaceWithNew q $ UnOp (Serialize (d', p', reqCols')) $(v "q1") |])
+
+--------------------------------------------------------------------------------
+-- Pulling projections through other operators and merging them into
+-- other operators
+
+inlineExpr :: [Proj] -> Expr -> Expr
+inlineExpr proj expr = 
+    case expr of
+        BinAppE op e1 e2 -> BinAppE op (inlineExpr proj e1) (inlineExpr proj e2)
+        UnAppE op e      -> UnAppE op (inlineExpr proj e)
+        ColE c           -> fromMaybe (failedLookup c) (lookup c proj)
+        ConstE val       -> ConstE val
+        IfE c t e        -> IfE (inlineExpr proj c) (inlineExpr proj t) (inlineExpr proj e)
+    
+  where
+    failedLookup :: Attr -> a
+    failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
+                                   c (show expr) (show proj))
+                           $impossible
+
+mergeProjections :: [Proj] -> [Proj] -> [Proj]
+mergeProjections proj1 proj2 = map (\(c, e) -> (c, inlineExpr proj2 e)) proj1
+
+stackedProject :: TARule ()
+stackedProject q =
+  $(dagPatMatch 'q "Project ps1 (Project ps2 (qi))"
+    [| do
+         return $ do
+           let ps = mergeProjections $(v "ps1") $(v "ps2")
+           logRewrite "Basic.Project.Merge" q
+           void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
+
+
+
+mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
+mapWinFun f (WinMax e) = WinMax $ f e
+mapWinFun f (WinMin e) = WinMin $ f e
+mapWinFun f (WinSum e) = WinSum $ f e
+mapWinFun f (WinAvg e) = WinAvg $ f e
+mapWinFun f (WinAll e) = WinAll $ f e
+mapWinFun f (WinAny e) = WinAny $ f e
+mapWinFun _ WinCount   = WinCount
+
+mapAggrFun :: (Expr -> Expr) -> AggrType -> AggrType
+mapAggrFun f (Max e) = Max $ f e
+mapAggrFun f (Min e) = Min $ f e
+mapAggrFun f (Sum e) = Sum $ f e
+mapAggrFun f (Avg e) = Avg $ f e
+mapAggrFun f (All e) = All $ f e
+mapAggrFun f (Any e) = Any $ f e
+mapAggrFun _ Count   = Count
+
+pullProjectWinFun :: TARule ()
+pullProjectWinFun q =
+    $(dagPatMatch 'q "WinFun args (Project proj (q1))"
+      [| do
+          -- Only consider window functions without partitioning for
+          -- now. Partitioning requires proper values and inlining
+          -- would be problematic.
+          ((resCol, f), [], sortSpec, frameSpec) <- return $(v "args")
+
+          -- If the window function result overwrites one of the
+          -- projection columns, we can't pull.
+          predicate $ resCol `notElem` (map fst $(v "proj"))
+
+          return $ do
+              logRewrite "Basic.PullProject.WinFun" q
+              
+              -- Merge the projection expressions into window function
+              -- arguments and ordering expressions.
+              let f'        = mapWinFun (inlineExpr $(v "proj")) f
+
+                  sortSpec' = map (\(e, d) -> (inlineExpr $(v "proj") e, d)) sortSpec
+
+                  proj'     = $(v "proj") ++ [(resCol, ColE resCol)]
+
+              winNode <- insert $ UnOp (WinFun ((resCol, f'), [], sortSpec', frameSpec)) $(v "q1")
+              void $ replaceWithNew q $ UnOp (Project proj') winNode |])
+
+pullProjectSelect :: TARule ()
+pullProjectSelect q =
+    $(dagPatMatch 'q "Select p (Project proj (q1))"
+      [| do
+          return $ do
+              logRewrite "Basic.PullProject.Select" q
+              let p' = inlineExpr $(v "proj") $(v "p")
+              selectNode <- insert $ UnOp (Select p') $(v "q1")
+              void $ replaceWithNew q $ UnOp (Project $(v "proj")) selectNode |])
