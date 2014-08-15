@@ -56,9 +56,13 @@ winFunInput (WinAll e)  = exprCols e
 winFunInput (WinAny e)  = exprCols e
 winFunInput WinCount    = S.empty
 
-mapCol :: Proj -> S.Set (Attr, Attr)
-mapCol (a, ColE b) = S.singleton (a, b)
-mapCol _           = S.empty
+mapCol :: Proj -> Maybe (Attr, Attr)
+mapCol (a, ColE b) = Just (a, b)
+mapCol _           = Nothing
+
+mColE :: Expr -> Maybe Attr
+mColE (ColE c) = Just c
+mColE _        = Nothing
 
 posCol :: SerializeOrder -> S.Set Attr
 posCol (AbsPos c)  = S.singleton c

@@ -3,6 +3,7 @@
 
 module Database.DSH.Optimizer.TA.Properties.Order where
 
+import           Data.Maybe
 import qualified Data.Set.Monad                             as S
 import           Data.Tuple
 
@@ -20,11 +21,21 @@ invalidate c order = [ o | o@(c', _) <- order, c /= c' ]
 
 -- | Overwrite (if present) order information for column 'o' with new
 -- information.
-overwrite :: (Attr, [Attr]) -> Orders -> Orders
-overwrite o@(ordCol, _) os =
-    if any ((== ordCol) . fst) os
-    then [ o | (oc, _) <- os, oc == ordCol ]
-    else o : os
+-- FIXME Handle case of arbitrary expressions defining order.
+overwrite :: (Attr, [Expr]) -> Orders -> Orders
+overwrite (resCol, ordExprs) os =
+    if all isJust mOrdCols
+    -- Check if the result column overwrites some older order column
+    then if any ((== resCol) . fst) os
+         then [ (resCol, ordCols) | (oc, _) <- os, oc == resCol ]
+         else (resCol, ordCols) : os
+    -- The order is defined by non-column expressions. We don't handle
+    -- that case currently.
+    else os
+
+  where
+    mOrdCols = map mColE ordExprs
+    ordCols  = catMaybes mOrdCols
 
 -- | Produce all new sorting columns from the list of new names per
 -- old sorting column:
@@ -58,7 +69,7 @@ inferOrderUnOp :: Orders -> UnOp -> Orders
 inferOrderUnOp childOrder op =
     case op of
         WinFun _                          -> childOrder
-        RowNum (oc, scs, Nothing)
+        RowNum (oc, scs, [])
              | not (null scs) && all ((== Asc) . snd) scs
                                           -> overwrite (oc, map fst scs) childOrder
              | otherwise
@@ -70,7 +81,7 @@ inferOrderUnOp childOrder op =
         Distinct _                        -> childOrder
         Aggr _                            -> []
         Project projs                     ->
-            let colMap = S.toList $ S.map swap $ S.unions $ map mapCol projs
+            let colMap = S.toList $ S.map swap $ S.fromList $ mapMaybe mapCol projs
             in concatMap (update colMap) childOrder
         Serialize _                       -> []
 

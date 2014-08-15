@@ -69,11 +69,11 @@ absPos NoPos      = S.empty
 inferUseUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferUseUnOp ownUse childUse op =
     case op of
-        WinFun ((resCol, winFun), partCols, sortCols, _) ->
+        WinFun ((resCol, winFun), partExprs, sortCols, _) ->
             childUse
             ∪ (S.delete resCol ownUse)
-            ∪ (S.fromList partCols)
-            ∪ (S.fromList $ map fst sortCols)
+            ∪ (S.unions $ map exprCols partExprs)
+            ∪ (S.unions $ map (exprCols . fst) sortCols)
             ∪ (winFunInput winFun)
         RowNum (resCol, _, _)     -> childUse ∪ (S.delete resCol ownUse)
         RowRank (resCol, _)       -> childUse ∪ (S.delete resCol ownUse)

@@ -13,7 +13,6 @@ import           Data.Maybe
 import qualified Data.Set.Monad                             as S
 
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Dag(nodeMap)
 import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
@@ -82,7 +81,7 @@ postFilterRownum :: TARule AllProps
 postFilterRownum q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
-        (res, [(sortCol, _)], _) <- return $(v "args")
+        (res, [(ColE sortCol, _)], []) <- return $(v "args")
         useCols <- pUse <$> td <$> properties q
         keys    <- pKeys <$> bu <$> properties $(v "q1")
         cols    <- pCols <$> bu <$> properties $(v "q1")
@@ -211,17 +210,18 @@ constAggrKey q =
 -- original sort column to a list of columns that define the same
 -- order.
 lookupSortCol :: SortSpec -> Orders -> TAMatch AllProps (Either [SortSpec] [SortSpec])
-lookupSortCol (oldSortCol, Asc) os =
+lookupSortCol (ColE oldSortCol, Asc) os =
     case lookup oldSortCol os of
-        Nothing          -> return $ Left [(oldSortCol, Asc)]
-        Just newSortCols -> return $ Right $ map (, Asc) newSortCols
-lookupSortCol (_, Desc)         _  = fail "We only consider ascending orders"
+        Nothing          -> return $ Left [(ColE oldSortCol, Asc)]
+        Just newSortCols -> return $ Right $ map (\c -> (ColE c, Asc)) newSortCols
+lookupSortCol (_, Asc)               _  = fail "only consider column expressions for now"
+lookupSortCol (_, Desc)              _  = fail "only consider ascending orders"
 
 inlineSortColsRownum :: TARule AllProps
 inlineSortColsRownum q =
   $(dagPatMatch 'q "RowNum o (q1)"
     [| do
-        (resCol, sortCols@(_:_), Nothing) <- return $(v "o")
+        (resCol, sortCols@(_:_), []) <- return $(v "o")
 
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
 
@@ -236,7 +236,7 @@ inlineSortColsRownum q =
 
         return $ do
           logRewrite "Basic.InlineOrder.RowNum" q
-          void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', Nothing)) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', [])) $(v "q1") |])
 
 inlineSortColsSerialize :: TARule AllProps
 inlineSortColsSerialize q =
@@ -257,8 +257,6 @@ inlineSortColsWinFun q =
   $(dagPatMatch 'q "WinFun args (q1)"
     [| do
         let (f, part, sortCols, frameSpec) = $(v "args")
-        (d, p, _) <- exposeEnv
-        -- trace (printf "WinFun %d\n%s\n%s" q (show $ nodeMap d) (show p)) $ return ()
 
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
 
