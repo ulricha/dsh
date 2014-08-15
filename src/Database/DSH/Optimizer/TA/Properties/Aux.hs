@@ -57,8 +57,9 @@ winFunInput (WinAny e)  = exprCols e
 winFunInput WinCount    = S.empty
 
 mapCol :: Proj -> Maybe (Attr, Attr)
-mapCol (a, ColE b) = Just (a, b)
-mapCol _           = Nothing
+mapCol (a, ColE b)                   = Just (a, b)
+mapCol (a, UnAppE (Cast _) (ColE b)) = Just (a, b)
+mapCol _                             = Nothing
 
 mColE :: Expr -> Maybe Attr
 mColE (ColE c) = Just c

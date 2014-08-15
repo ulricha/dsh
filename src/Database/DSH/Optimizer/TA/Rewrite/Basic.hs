@@ -9,6 +9,7 @@ import           Text.Printf
 import           Control.Applicative
 import           Control.Monad
 import           Data.Either.Combinators
+import           Data.List                                  hiding (insert)
 import           Data.Maybe
 import qualified Data.Set.Monad                             as S
 
@@ -17,6 +18,7 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
 import           Database.DSH.Optimizer.TA.Rewrite.Common
 
@@ -41,6 +43,7 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , inlineSortColsRownum
                       , inlineSortColsSerialize
                       , inlineSortColsWinFun
+                      , keyPrefixOrdering
                       ]
 
 ----------------------------------------------------------------------------------
@@ -249,6 +252,31 @@ inlineSortColsWinFun q =
             logRewrite "Basic.InlineOrder.WinFun" q
             void $ replaceWithNew q $ UnOp (WinFun args') $(v "q1") |])
 
+isKeyPrefix :: S.Set PKey -> [SortSpec] -> Bool
+isKeyPrefix keys orderCols =
+    case mapM mColE $ map fst orderCols of
+        Just cols -> S.fromList cols `S.member` keys
+        Nothing   -> False
+
+-- | If a prefix of the ordering columns in a rownum operator forms a
+-- key, the suffix can be removed.
+keyPrefixOrdering :: TARule AllProps
+keyPrefixOrdering q =
+  $(dagPatMatch 'q "RowNum args (q1)"
+    [| do
+        (resCol, sortCols, []) <- return $(v "args")
+        keys                   <- pKeys <$> bu <$> properties $(v "q1")
+       
+        -- All non-empty and incomplete prefixes of the ordering
+        -- columns
+        let ordPrefixes = init $ drop 1 (inits sortCols)
+        Just prefix <- return $ find (isKeyPrefix keys) ordPrefixes
+
+        return $ do
+            logRewrite "Basic.SimplifyOrder.KeyPrefix" q
+            let sortCols' = take (length prefix) sortCols
+            void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', [])) $(v "q1") |])
+
 ----------------------------------------------------------------------------------
 -- Serialize rewrites
 
@@ -291,14 +319,14 @@ serializeProject q =
 -- other operators
 
 inlineExpr :: [Proj] -> Expr -> Expr
-inlineExpr proj expr = 
+inlineExpr proj expr =
     case expr of
         BinAppE op e1 e2 -> BinAppE op (inlineExpr proj e1) (inlineExpr proj e2)
         UnAppE op e      -> UnAppE op (inlineExpr proj e)
         ColE c           -> fromMaybe (failedLookup c) (lookup c proj)
         ConstE val       -> ConstE val
         IfE c t e        -> IfE (inlineExpr proj c) (inlineExpr proj t) (inlineExpr proj e)
-    
+
   where
     failedLookup :: Attr -> a
     failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
@@ -352,7 +380,7 @@ pullProjectWinFun q =
 
           return $ do
               logRewrite "Basic.PullProject.WinFun" q
-              
+
               -- Merge the projection expressions into window function
               -- arguments and ordering expressions.
               let f'        = mapWinFun (inlineExpr $(v "proj")) f
