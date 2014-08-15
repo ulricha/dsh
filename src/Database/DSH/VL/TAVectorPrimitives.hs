@@ -351,7 +351,7 @@ instance VectorAlgebra NDVec TableAlgebra where
         frameSpec = frameSpecification w
         winCol    = itemi $ length cols1 + 1
     qw <- winFun (winCol, wfun) [] [(ColE pos, Asc)] (Just frameSpec) q
-    return $ ADVec qw [1]
+    return $ ADVec qw (cols1 ++ [length cols1 + 1])
 
   vecAggr a (ADVec q _) = do
     -- The aggr operator itself
