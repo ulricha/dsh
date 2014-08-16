@@ -104,11 +104,12 @@ data Prim1Op = Length
              | Fst 
              | Snd
              | Head 
+             | Tail
              | Minimum 
              | Maximum
-             | Tail
              | Reverse 
-             | And | Or
+             | And 
+             | Or
              | Init 
              | Last 
              | Nub

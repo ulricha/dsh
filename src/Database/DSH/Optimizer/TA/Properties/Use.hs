@@ -16,12 +16,12 @@ flatten = S.foldl' (∪) S.empty
 
 
 inferUseBinOp :: S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> BinOp
-                -> (S.Set Attr, S.Set Attr)
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> BinOp
+              -> (S.Set Attr, S.Set Attr)
 inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
     case op of
          Cross _      -> ( leftUse ∪ [ c | c <- leftCols, c ∈ ownUse ]
