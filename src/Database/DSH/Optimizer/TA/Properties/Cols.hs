@@ -103,13 +103,15 @@ winFunTy :: S.Set TypedAttr -> (WinFun, Attr) -> TypedAttr
 winFunTy childCols (aggr, resCol) = (resCol, resType)
   where
     resType = case aggr of
-        WinAll _  -> ABool
-        WinAny _  -> ABool
-        WinCount  -> AInt
-        WinAvg e  -> numAggr $ exprTy childCols e
-        WinMax e  -> numAggr $ exprTy childCols e
-        WinMin e  -> numAggr $ exprTy childCols e
-        WinSum e  -> numAggr $ exprTy childCols e
+        WinAll _        -> ABool
+        WinAny _        -> ABool
+        WinCount        -> AInt
+        WinAvg e        -> numAggr $ exprTy childCols e
+        WinMax e        -> numAggr $ exprTy childCols e
+        WinMin e        -> numAggr $ exprTy childCols e
+        WinSum e        -> numAggr $ exprTy childCols e
+        WinFirstValue e -> exprTy childCols e
+        WinLastValue e  -> exprTy childCols e
 
 ----------------------------------------------------------------------------
 -- Schema inference for tablealgebra operators

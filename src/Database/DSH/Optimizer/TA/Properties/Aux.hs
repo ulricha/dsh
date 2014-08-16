@@ -48,13 +48,15 @@ aggrInput (Any e)  = exprCols e
 aggrInput Count    = S.empty
 
 winFunInput :: WinFun -> S.Set Attr
-winFunInput (WinAvg e)  = exprCols e
-winFunInput (WinMax e)  = exprCols e
-winFunInput (WinMin e)  = exprCols e
-winFunInput (WinSum e)  = exprCols e
-winFunInput (WinAll e)  = exprCols e
-winFunInput (WinAny e)  = exprCols e
-winFunInput WinCount    = S.empty
+winFunInput (WinAvg e)        = exprCols e
+winFunInput (WinMax e)        = exprCols e
+winFunInput (WinMin e)        = exprCols e
+winFunInput (WinSum e)        = exprCols e
+winFunInput (WinAll e)        = exprCols e
+winFunInput (WinAny e)        = exprCols e
+winFunInput (WinFirstValue e) = exprCols e
+winFunInput (WinLastValue e)  = exprCols e
+winFunInput WinCount          = S.empty
 
 mapCol :: Proj -> Maybe (Attr, Attr)
 mapCol (a, ColE b)                   = Just (a, b)

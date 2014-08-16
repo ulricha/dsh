@@ -348,13 +348,15 @@ stackedProject q =
 
 
 mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
-mapWinFun f (WinMax e) = WinMax $ f e
-mapWinFun f (WinMin e) = WinMin $ f e
-mapWinFun f (WinSum e) = WinSum $ f e
-mapWinFun f (WinAvg e) = WinAvg $ f e
-mapWinFun f (WinAll e) = WinAll $ f e
-mapWinFun f (WinAny e) = WinAny $ f e
-mapWinFun _ WinCount   = WinCount
+mapWinFun f (WinMax e)        = WinMax $ f e
+mapWinFun f (WinMin e)        = WinMin $ f e
+mapWinFun f (WinSum e)        = WinSum $ f e
+mapWinFun f (WinAvg e)        = WinAvg $ f e
+mapWinFun f (WinAll e)        = WinAll $ f e
+mapWinFun f (WinAny e)        = WinAny $ f e
+mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
+mapWinFun f (WinLastValue e)  = WinLastValue $ f e
+mapWinFun _ WinCount          = WinCount
 
 mapAggrFun :: (Expr -> Expr) -> AggrType -> AggrType
 mapAggrFun f (Max e) = Max $ f e
