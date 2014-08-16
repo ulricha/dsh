@@ -20,9 +20,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr  -> Right $ VProp $ ValueVector 0
-    Lit _ t _       -> Right $ VProp $ ValueVector $ length t
-    TableRef _ cs _ -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr      -> Right $ VProp $ ValueVector 0
+    Lit (_, t, _)       -> Right $ VProp $ ValueVector $ length t
+    TableRef (_, cs, _) -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
@@ -42,8 +42,8 @@ inferVectorTypeUnOp s op =
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1 _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
-    SelectPos1S _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1

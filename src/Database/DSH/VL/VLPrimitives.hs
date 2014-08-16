@@ -220,10 +220,10 @@ vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
 vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
-vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToRowType tys) vals) dvec
+vlLit em tys vals = vec (NullaryOp $ Lit (em, (map typeToRowType tys), vals)) dvec
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL VLDVec
-vlTableRef n tys hs = vec (NullaryOp $ TableRef n tys hs) dvec
+vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
 
 vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec
 vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
@@ -239,7 +239,7 @@ vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) 
 
 vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1 (VLDVec c1) op posConst = 
-    tripleVec (UnOp (SelectPos1 op posConst) c1) dvec rvec rvec
+    tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec rvec rvec
 
 vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
@@ -247,7 +247,7 @@ vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
 
 vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
-    tripleVec (UnOp (SelectPos1S op posConst) c1) dvec rvec rvec
+    tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
 vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
 vlProject (VLDVec c) projs = dvec $ insertNode $ UnOp (Project projs) c

@@ -88,8 +88,8 @@ data WindowSpec = -- | All elements up to and including the current
                 deriving (Eq, Ord, Generic, Show)
 
 data NullOp = SingletonDescr
-            | Lit L.Emptiness [RowType] [[VLVal]]
-            | TableRef String [VLColumn] L.TableHints
+            | Lit (L.Emptiness, [RowType], [[VLVal]])
+            | TableRef (String, [VLColumn], L.TableHints)
             deriving (Eq, Ord, Generic, Show)
 
 data UnOp = UniqueS
@@ -105,8 +105,8 @@ data UnOp = UniqueS
           | R3
           | Project [Expr]
           | Select Expr
-          | SelectPos1 L.ScalarBinOp Nat
-          | SelectPos1S L.ScalarBinOp Nat
+          | SelectPos1 (L.ScalarBinOp, Nat)
+          | SelectPos1S (L.ScalarBinOp, Nat)
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)

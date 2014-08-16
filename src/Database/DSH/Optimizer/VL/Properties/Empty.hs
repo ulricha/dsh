@@ -21,10 +21,10 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr -> Right $ VProp False
-    Lit _ _ []     -> Right $ VProp True
-    Lit _ _ _      -> Right $ VProp False
-    TableRef _ _ _ -> Right $ VProp False
+    SingletonDescr     -> Right $ VProp False
+    Lit (_, _, [])     -> Right $ VProp True
+    Lit (_, _, _)      -> Right $ VProp False
+    TableRef (_, _, _) -> Right $ VProp False
     
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
@@ -49,8 +49,8 @@ inferEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    SelectPos1S _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1S{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
     Number -> Right e

@@ -161,11 +161,11 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             ownReqColumns' <- (VProp cols) ∪ (VProp $ Just $ reqExprCols e)
             ownReqColumns' ∪ childReqColumns
 
-        SelectPos1 _ _   -> do
+        SelectPos1{}   -> do
             (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 
-        SelectPos1S _ _   -> do
+        SelectPos1S{}   -> do
             (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 

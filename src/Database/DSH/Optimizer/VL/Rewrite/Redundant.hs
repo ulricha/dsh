@@ -38,6 +38,8 @@ redundantRules = [ mergeProjectRestrict
                  , pullProjectPropRename
                  , pullProjectPropReorder
                  , pullProjectRestrict
+                 , pullProjectSelectPos1S
+                 , pullProjectPropFilter
                  , scalarConditional
                  ]
 
@@ -561,6 +563,26 @@ pullProjectPropReorder q =
            r1Node      <- insert $ UnOp R1 reorderNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
+pullProjectSelectPos1S :: VLRule ()
+pullProjectSelectPos1S q =
+  $(dagPatMatch 'q "R1 (qs=SelectPos1S args (Project proj (q1)))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.SelectPos1S" q
+           selectNode  <- insert $ UnOp (SelectPos1S $(v "args")) $(v "q1")
+           r1Node      <- insert $ UnOp R1 selectNode
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
+pullProjectPropFilter :: VLRule ()
+pullProjectPropFilter q =
+  $(dagPatMatch 'q "R1 ((q1) PropFilter (Project proj (q2)))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.PropFilter" q
+           filterNode <- insert $ BinOp PropFilter $(v "q1") $(v "q2")
+           r1Node     <- insert $ UnOp R1 filterNode
+           void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
 --------------------------------------------------------------------------------
 -- Positional selection on constants
 
@@ -576,7 +598,7 @@ selectConstPos q =
 
          return $ do
            logRewrite "Redundant.SelectPos.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1 $(v "op") (N pos)) $(v "q1") |])
+           void $ replaceWithNew q $ UnOp (SelectPos1 ($(v "op"), N pos)) $(v "q1") |])
 
 selectConstPosS :: VLRule BottomUpProps
 selectConstPosS q =
@@ -590,7 +612,7 @@ selectConstPosS q =
 
          return $ do
            logRewrite "Redundant.SelectPosS.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1S $(v "op") (N pos)) $(v "q1") |])
+           void $ replaceWithNew q $ UnOp (SelectPos1S ($(v "op"), N pos)) $(v "q1") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.

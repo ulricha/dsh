@@ -131,10 +131,10 @@ opDotLabel tm i (UnOp (WinAggr (afun, wspec)) _) = labelToDoc i "WinAggr"
     (renderAggrFun afun <> comma <+> renderWindowSpec wspec)
     (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit em tys vals)) = labelToDoc i "LIT"
+opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
         (renderEmptiness em <+> bracketList renderColumnType tys <> comma
         $$ renderData vals) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef n tys hs)) = labelToDoc i "TableRef"
+opDotLabel tm i (NullaryOp (TableRef (n, tys, hs))) = labelToDoc i "TableRef"
         (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableHints hs)
         (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
@@ -154,8 +154,8 @@ opDotLabel tm i (UnOp (Project pCols) _) =
         valCols = bracketList (\(j, p) -> renderProj (itemLabel j) p) $ zip ([1..] :: [Int]) pCols
         itemLabel j = (text "i") <> (int j)
 opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1 (o, (N p))) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1S (o, (N p))) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 

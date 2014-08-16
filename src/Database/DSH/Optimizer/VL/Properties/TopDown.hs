@@ -30,8 +30,8 @@ seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
     WinAggr _          -> vPropSeed
-    SelectPos1 _ _     -> vPropTripleSeed
-    SelectPos1S _ _    -> vPropTripleSeed 
+    SelectPos1{}       -> vPropTripleSeed
+    SelectPos1S{}      -> vPropTripleSeed 
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
     UniqueS            -> vPropSeed
