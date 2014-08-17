@@ -73,6 +73,7 @@ redundantRulesAllProps :: VLRuleSet Properties
 redundantRulesAllProps = [ unreferencedAlign
                          , alignedOnlyLeft
                          , firstValueWin
+                         , notReqNumber
                          ]
 
 --------------------------------------------------------------------------------
@@ -639,3 +640,24 @@ propProductCard1Right q =
         return $ do
           logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
           void $ replace q $(v "qi") |])
+
+--------------------------------------------------------------------------------
+-- Eliminating operators whose output is not required
+
+notReqNumber :: VLRule Properties
+notReqNumber q =
+  $(dagPatMatch 'q "Number (q1)"
+    [| do
+        w <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
+        VProp (Just reqCols) <- reqColumnsProp <$> td <$> properties $(v "q")
+
+        -- The number output in column w + 1 must not be required
+        predicate $ all (<= w) reqCols
+
+        return $ do
+          logRewrite "Redundant.Req.Number" q
+          -- Add a dummy column instead of the number output to keep
+          -- column references intact.
+          let proj = map Column [1..w] ++ [Constant $ VLInt 0xdeadbeef]
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+           

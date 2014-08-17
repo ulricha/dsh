@@ -107,7 +107,7 @@ firstValueWin q =
         return $ do
             logRewrite "Window.FirstValue" q
             let winArgs     = (WinFirstValue $ Column 1, (FNPreceding offset))
-                placeHolder = Constant $ VLInt 42
+                placeHolder = Constant $ VLInt 0xdeadbeef
                 proj        = [placeHolder, placeHolder, Column 2, placeHolder]
             winNode <- insert $ UnOp (WinFun winArgs) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj) winNode |])
