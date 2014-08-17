@@ -274,12 +274,6 @@ executable vldot
                       semigroups
     GHC-Options: -Wall -fno-warn-orphans
 
-executable dft
-    hs-source-dirs: examples/dft
-    Main-Is:        Dft.hs
-    Build-depends:  base, X100Client, DSH
-    GHC-Options:    -Wall -fno-warn-orphans
-
 executable manual
     hs-source-dirs: tests
     main-is:        Manual.hs
