@@ -100,7 +100,7 @@ partitionCols childBUProps1 childBUProps2 ownReqCols = do
     -- If both inputs are ValueVectors, map the required columns to
     -- the respective inputs
     let leftReqCols  = cols `L.intersect` [1 .. w1]
-        rightReqCols = cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
+        rightReqCols = map (\c -> c - w1) $ cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
     return (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
 
 -- | Infer required columns for unary operators
