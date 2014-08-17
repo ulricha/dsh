@@ -66,13 +66,13 @@ redundantRulesBottomUp = [ distPrimConstant
                          -- , stackedAlign
                          , propProductCard1Right
                          , runningAggWin
-                         , firstValueWin
                          , inlineWinAggrProject
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
 redundantRulesAllProps = [ unreferencedAlign
                          , alignedOnlyLeft
+                         , firstValueWin
                          ]
 
 --------------------------------------------------------------------------------

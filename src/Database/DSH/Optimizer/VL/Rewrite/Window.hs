@@ -70,13 +70,15 @@ runningAggWin q =
             winNode <- insert $ UnOp (WinFun (afun', FAllPreceding)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) winNode |])
 
-firstValueWin :: VLRule BottomUpProps
+firstValueWin :: VLRule Properties
 firstValueWin q =
   $(dagPatMatch 'q "(UnboxRename (Number (q1))) PropRename (R1 (SelectPos1S selectArgs (R1 ((Segment (Number (q2))) ThetaJoin joinPred (Number (q3))))))"
     [| do
         predicate $ $(v "q1") == $(v "q2") && $(v "q1") == $(v "q3")
 
-        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        w <- vectorWidth <$> vectorTypeProp <$> bu <$> properties $(v "q1")
+
+        VProp (Just [3]) <- reqColumnsProp <$> td <$> properties $(v "q")
 
         -- The evaluation of first_value produces only a single value
         -- for each input column. To employ first_value, the input has
@@ -104,8 +106,11 @@ firstValueWin q =
 
         return $ do
             logRewrite "Window.FirstValue" q
-            let winArgs = (WinFirstValue $ Column 1, (FNPreceding offset))
-            void $ replaceWithNew q $ UnOp (WinFun winArgs) $(v "q1") |])
+            let winArgs     = (WinFirstValue $ Column 1, (FNPreceding offset))
+                placeHolder = Constant $ VLInt 42
+                proj        = [placeHolder, placeHolder, Column 2, placeHolder]
+            winNode <- insert $ UnOp (WinFun winArgs) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Project proj) winNode |])
 
 inlineWinAggrProject :: VLRule BottomUpProps
 inlineWinAggrProject q =
