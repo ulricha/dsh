@@ -67,6 +67,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , propProductCard1Right
                          , runningAggWin
                          , inlineWinAggrProject
+                         , restrictWinFun
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -78,6 +79,27 @@ redundantRulesAllProps = [ unreferencedAlign
 
 --------------------------------------------------------------------------------
 -- Restrict rewrites
+
+-- | Support rewrite: If a WinFun operator /adds/ columns to the
+-- restrict input that are used in the condition, push it down into
+-- the left Restrict input. This helps to turn Restricts into Selects.
+restrictWinFun :: VLRule BottomUpProps
+restrictWinFun q =
+  $(dagPatMatch 'q "R1 ((q1) Restrict pred (qw=WinFun args (q2)))"
+    [| do
+         predicate $ $(v "q1") == $(v "q2")
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         return $ do
+           logRewrite "Redundant.Restrict.WinFun" q
+
+           restrictNode <- insert $ BinOp (Restrict $(v "pred")) $(v "qw") $(v "qw")
+           r1Node       <- insert $ UnOp R1 restrictNode
+
+           -- Remove the window function output.
+           let proj = map Column [1..w]
+           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+           
+
 
 mergeProjectRestrict :: VLRule ()
 mergeProjectRestrict q =
@@ -496,6 +518,9 @@ sortProject q =
          sortNode <- insert $ BinOp SortS $(v "q1") $(v "q2")
          r1Node   <- insert $ UnOp R1 sortNode
          void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+
+--------------------------------------------------------------------------------
+-- Scalar conditionals
 
 -- | Under a number of conditions, a combination of Combine and Select
 -- (Restrict) operators implements a scalar conditional that can be
