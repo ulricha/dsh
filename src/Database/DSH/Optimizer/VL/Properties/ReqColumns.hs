@@ -128,7 +128,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                  ∪
                                  childReqColumns
 
-        DescToRename -> none ∪ childReqColumns
+        UnboxRename -> none ∪ childReqColumns
 
         Segment    -> ownReqColumns ∪ childReqColumns
         Unsegment  -> ownReqColumns ∪ childReqColumns

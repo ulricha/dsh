@@ -37,7 +37,7 @@ inferVectorTypeUnOp s op =
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
     AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
-    DescToRename -> Right $ VProp $ RenameVector
+    UnboxRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)

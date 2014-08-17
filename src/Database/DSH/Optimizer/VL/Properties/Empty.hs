@@ -33,15 +33,15 @@ inferEmptyUnOp e op =
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp False
     AggrNonEmpty _  -> Right $ VProp False
-    DescToRename    -> Right e
+    UnboxRename     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
-    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    SortScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupScalarS _  -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!

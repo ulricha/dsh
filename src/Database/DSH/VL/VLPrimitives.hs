@@ -173,8 +173,8 @@ vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
 vlAggrS :: AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
 vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 
-vlDescToRename :: VLDVec -> Build VL RVec
-vlDescToRename (VLDVec c) = vec (UnOp DescToRename c) rvec
+vlUnboxRename :: VLDVec -> Build VL RVec
+vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) rvec
 
 vlDistPrim :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec

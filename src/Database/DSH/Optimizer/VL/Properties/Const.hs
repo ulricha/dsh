@@ -159,7 +159,7 @@ inferConstVecUnOp c op =
     AggrNonEmpty _ -> do
       return $ VProp $ DBVConst (ConstDescr (N 1)) [NonConstPL]
 
-    DescToRename -> do
+    UnboxRename -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 

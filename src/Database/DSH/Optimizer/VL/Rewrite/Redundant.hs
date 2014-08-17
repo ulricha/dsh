@@ -583,6 +583,10 @@ pullProjectPropFilter q =
            r1Node     <- insert $ UnOp R1 filterNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
+{-
+pullProjectUnboxRename
+-}
+
 --------------------------------------------------------------------------------
 -- Positional selection on constants
 

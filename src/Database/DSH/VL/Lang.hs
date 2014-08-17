@@ -87,6 +87,10 @@ data WindowSpec = -- | All elements up to and including the current
                   WinLtEq
                 deriving (Eq, Ord, Generic, Show)
 
+--------------------------------------------------------------------------------
+-- Vector Language operators. Documentation can be found in module
+-- VectorPrimitives.
+
 data NullOp = SingletonDescr
             | Lit (L.Emptiness, [RowType], [[VLVal]])
             | TableRef (String, [VLColumn], L.TableHints)
@@ -95,7 +99,7 @@ data NullOp = SingletonDescr
 data UnOp = UniqueS
           | Number
           | NumberS
-          | DescToRename
+          | UnboxRename
           | Segment
           | Unsegment
           | Reverse -- (DBV, PropVector)

@@ -35,7 +35,7 @@ seed (UnOp op _)   =
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
     UniqueS            -> vPropSeed
-    DescToRename       -> vPropSeed
+    UnboxRename        -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     Select     _       -> vPropPairSeed
