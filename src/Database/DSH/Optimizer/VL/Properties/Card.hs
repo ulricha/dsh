@@ -26,7 +26,7 @@ inferCardOneUnOp c op =
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
     AggrNonEmpty _ -> Right $ VProp True
-    WinAggr _ -> Right c
+    WinFun _ -> Right c
     UnboxRename -> Right c
     Segment -> Right c
     Unsegment -> Right c

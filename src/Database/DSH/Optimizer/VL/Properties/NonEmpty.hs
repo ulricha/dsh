@@ -48,7 +48,7 @@ inferNonEmptyNullOp op =
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
   case op of
-    WinAggr _       -> Right e
+    WinFun _       -> Right e
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp True
     AggrNonEmpty _  -> Right $ VProp True

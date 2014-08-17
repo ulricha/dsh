@@ -30,8 +30,9 @@ lookupTags n m = Map.findWithDefault [] n m
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
 
-renderWindowSpec :: WindowSpec -> Doc
-renderWindowSpec WinLtEq = text "<= curr"
+renderFrameSpec :: FrameSpec -> Doc
+renderFrameSpec FAllPreceding   = text "allprec"
+renderFrameSpec (FNPreceding n) = int n <+> text "prec"
 
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
@@ -42,6 +43,16 @@ renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr c]
 renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
 renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
 renderAggrFun AggrCount     = renderFun (text "count") []
+
+renderWinFun :: WinFun -> Doc
+renderWinFun (WinSum c)        = renderFun (text "sum") [renderExpr c]
+renderWinFun (WinMin c)        = renderFun (text "min") [renderExpr c]
+renderWinFun (WinMax c)        = renderFun (text "max") [renderExpr c]
+renderWinFun (WinAvg c)        = renderFun (text "avg") [renderExpr c]
+renderWinFun (WinAny c)        = renderFun (text "any") [renderExpr c]
+renderWinFun (WinAll c)        = renderFun (text "all") [renderExpr c]
+renderWinFun (WinFirstValue c) = renderFun (text "all") [renderExpr c]
+renderWinFun WinCount          = renderFun (text "count") []
 
 renderColumnType :: RowType -> Doc
 renderColumnType = text . show
@@ -127,8 +138,8 @@ parenthize1 e@(If _ _ _)     = renderExpr e
 
 -- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
-opDotLabel tm i (UnOp (WinAggr (afun, wspec)) _) = labelToDoc i "WinAggr"
-    (renderAggrFun afun <> comma <+> renderWindowSpec wspec)
+opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
+    (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
 opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
@@ -230,7 +241,7 @@ opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
 opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)             = DCCrimson
 opDotColor (BinOp (AggrS _) _ _)         = DCCrimson
-opDotColor (UnOp (WinAggr _) _)          = DCTomato
+opDotColor (UnOp (WinFun _) _)           = DCTomato
 opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
 opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
 opDotColor (UnOp (GroupAggr (_, _)) _)   = DCTomato

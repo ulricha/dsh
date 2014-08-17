@@ -221,17 +221,19 @@ joinPredicate o (L.JoinPred conjs) = N.toList $ fmap joinConjunct conjs
     joinOp L.LtE = LeJ
     joinOp L.NEq = NeJ
 
-windowFunction :: VL.AggrFun -> WinFun
-windowFunction (VL.AggrSum _ e) = WinSum $ taExpr e
-windowFunction (VL.AggrMin e)   = WinMin $ taExpr e
-windowFunction (VL.AggrMax e)   = WinMax $ taExpr e
-windowFunction (VL.AggrAvg e)   = WinAvg $ taExpr e
-windowFunction (VL.AggrAll e)   = WinAll $ taExpr e
-windowFunction (VL.AggrAny e)   = WinAny $ taExpr e
-windowFunction VL.AggrCount     = WinCount
+windowFunction :: VL.WinFun -> WinFun
+windowFunction (VL.WinSum e)        = WinSum $ taExpr e
+windowFunction (VL.WinMin e)        = WinMin $ taExpr e
+windowFunction (VL.WinMax e)        = WinMax $ taExpr e
+windowFunction (VL.WinAvg e)        = WinAvg $ taExpr e
+windowFunction (VL.WinAll e)        = WinAll $ taExpr e
+windowFunction (VL.WinAny e)        = WinAny $ taExpr e
+windowFunction (VL.WinFirstValue e) = WinFirstValue $ taExpr e
+windowFunction VL.WinCount          = WinCount
 
-frameSpecification :: VL.WindowSpec -> FrameBounds
-frameSpecification VL.WinLtEq = ClosedFrame FSUnboundPrec FECurrRow
+frameSpecification :: VL.FrameSpec -> FrameBounds
+frameSpecification VL.FAllPreceding   = ClosedFrame FSUnboundPrec FECurrRow
+frameSpecification (VL.FNPreceding n) = ClosedFrame (FSValPrec n) FECurrRow
 
 -- The VectorAlgebra instance for TA algebra
 
@@ -346,7 +348,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr2 <- proj [mP posold pos', mP posnew pos] q
     return (ADVec qr1 resCols, PVec qr2)
 
-  vecWinAggr a w (ADVec q cols1) = do
+  vecWinFun a w (ADVec q cols1) = do
     let wfun      = windowFunction a
         frameSpec = frameSpecification w
         winCol    = itemi $ length cols1 + 1

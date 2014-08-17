@@ -40,6 +40,7 @@ redundantRules = [ mergeProjectRestrict
                  , pullProjectRestrict
                  , pullProjectSelectPos1S
                  , pullProjectPropFilter
+                 , pullProjectUnboxRename
                  , scalarConditional
                  ]
 
@@ -64,7 +65,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipWinRight
                          -- , stackedAlign
                          , propProductCard1Right
-                         , runningAgg
+                         , runningAggWin
+                         , firstValueWin
                          , inlineWinAggrProject
                          ]
 
@@ -421,7 +423,7 @@ zipZipLeft q =
 
 zipWinRight :: VLRule BottomUpProps
 zipWinRight q =
-  $(dagPatMatch 'q "(q1) Zip (qw=WinAggr args (q2))"
+  $(dagPatMatch 'q "(q1) Zip (qw=WinFun _ (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
          
@@ -438,7 +440,7 @@ zipWinRight q =
 
 zipWinLeft :: VLRule BottomUpProps
 zipWinLeft q =
-  $(dagPatMatch 'q "(qw=WinAggr _ (q1)) Zip (q2)"
+  $(dagPatMatch 'q "(qw=WinFun _ (q1)) Zip (q2)"
      [| do
          predicate $ $(v "q1") == $(v "q2")
          
@@ -583,9 +585,13 @@ pullProjectPropFilter q =
            r1Node     <- insert $ UnOp R1 filterNode
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
-{-
-pullProjectUnboxRename
--}
+pullProjectUnboxRename :: VLRule ()
+pullProjectUnboxRename q =
+  $(dagPatMatch 'q "UnboxRename (Project _ (q1))"
+    [| do
+         return $ do
+           logRewrite "Redundant.Project.UnboxRename" q
+           void $ replaceWithNew q $ UnOp UnboxRename $(v "q1") |])
 
 --------------------------------------------------------------------------------
 -- Positional selection on constants

@@ -57,6 +57,16 @@ aggrReqCols (AggrAll e)   = reqExprCols e
 aggrReqCols (AggrAny e)   = reqExprCols e
 aggrReqCols AggrCount     = []
 
+winReqCols :: WinFun -> [DBCol]
+winReqCols (WinSum e)        = reqExprCols e
+winReqCols (WinMin e)        = reqExprCols e
+winReqCols (WinMax e)        = reqExprCols e
+winReqCols (WinAvg e)        = reqExprCols e
+winReqCols (WinAll e)        = reqExprCols e
+winReqCols (WinAny e)        = reqExprCols e
+winReqCols (WinFirstValue e) = reqExprCols e
+winReqCols WinCount          = []
+
 fromProp :: Show a => VectorProp a -> Either String a
 fromProp (VProp p) = return p
 fromProp x         = fail $ "ReqColumns.fromProp " ++ (show x)
@@ -101,8 +111,8 @@ inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
                     -> Either String (VectorProp ReqCols)
 inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
     case op of
-        WinAggr (wfun, _) -> do
-            cs <- (VProp $ Just $ aggrReqCols wfun)
+        WinFun (wfun, _) -> do
+            cs <- (VProp $ Just $ winReqCols wfun)
                   ∪
                   childReqColumns
             cs ∪ ownReqColumns

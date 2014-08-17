@@ -95,6 +95,16 @@ mapAggrFun f (AggrAny e) = AggrAny $ f e
 mapAggrFun f (AggrAll e) = AggrAll $ f e
 mapAggrFun _ AggrCount   = AggrCount
 
+mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
+mapWinFun f (WinMax e)        = WinMax $ f e
+mapWinFun f (WinSum e)        = WinSum $ f e
+mapWinFun f (WinMin e)        = WinMin $ f e
+mapWinFun f (WinAvg e)        = WinAvg $ f e
+mapWinFun f (WinAny e)        = WinAny $ f e
+mapWinFun f (WinAll e)        = WinAll $ f e
+mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
+mapWinFun _ WinCount          = WinCount
+
 mapExprCols :: (DBCol -> DBCol) -> Expr -> Expr
 mapExprCols f (BinApp op e1 e2) = BinApp op (mapExprCols f e1) (mapExprCols f e2)
 mapExprCols f (UnApp op e)      = UnApp op (mapExprCols f e)

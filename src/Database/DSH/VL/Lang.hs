@@ -37,7 +37,17 @@ data AggrFun = AggrSum RowType Expr
              | AggrAll Expr
              | AggrAny Expr
              | AggrCount
-               deriving (Eq, Ord, Show, Generic)
+             deriving (Eq, Ord, Show, Generic)
+
+data WinFun = WinSum Expr
+            | WinMin Expr
+            | WinMax Expr
+            | WinAvg Expr
+            | WinAll Expr
+            | WinAny Expr
+            | WinFirstValue Expr
+            | WinCount
+            deriving (Eq, Ord, Show, Generic)
 
 data Expr = BinApp L.ScalarBinOp Expr Expr
           | UnApp L.ScalarUnOp Expr
@@ -82,9 +92,12 @@ data VLVal = VLInt Int
            deriving (Eq, Ord, Generic, Show, Read)
 
 -- | Specification of a window for the window aggregate operator.
-data WindowSpec = -- | All elements up to and including the current
-                  -- element are in the window
-                  WinLtEq
+data FrameSpec = -- | All elements up to and including the current
+                 -- element are in the window
+                 FAllPreceding
+                 -- | All n preceding elements up to and including the
+                 -- current one.
+               | FNPreceding Int
                 deriving (Eq, Ord, Generic, Show)
 
 --------------------------------------------------------------------------------
@@ -116,7 +129,7 @@ data UnOp = UniqueS
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | SortScalarS [Expr]
           | GroupScalarS [Expr]
-          | WinAggr (AggrFun, WindowSpec)
+          | WinFun (WinFun, FrameSpec)
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
