@@ -48,6 +48,7 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , constAggrKey
                       , constRownumCol
                       , constRowRankCol
+                      , constSerializeCol
                       ]
 
 ----------------------------------------------------------------------------------
@@ -169,14 +170,32 @@ constAggrKey :: TARule AllProps
 constAggrKey q =
   $(dagPatMatch 'q "Aggr args (q1)"
     [| do
-         constCols <- pConst <$> bu <$> properties $(v "q1")
+         constCols   <- pConst <$> bu <$> properties $(v "q1")
+         neededCols  <- S.toList <$> pICols <$> td <$> properties q
          (aggrFuns, keyCols@(_:_)) <- return $(v "args")
-         let keyCols' = filter (\(_, e) -> not $ isConstExpr constCols e) keyCols
-         predicate $ length keyCols' < length keyCols
+
+         let keyCols'   = filter (\(_, e) -> not $ isConstExpr constCols e) keyCols
+             prunedKeys = (map fst keyCols) \\ (map fst keyCols')
+
+         predicate $ not $ null prunedKeys
 
          return $ do
              logRewrite "Basic.Const.Aggr" q
-             void $ replaceWithNew q $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1") |])
+             let necessaryKeys = prunedKeys `intersect` neededCols
+
+                 constProj c   = lookup c constCols >>= \v -> return (c, ConstE v)
+
+                 constProjs    = mapMaybe constProj necessaryKeys
+
+                 proj          = map (\(_, c) -> (c, ColE c)) aggrFuns
+                                 ++
+                                 map (\(c, _) -> (c, ColE c)) keyCols'
+                                 ++
+                                 constProjs
+                                 
+
+             aggrNode <- insert $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1")
+             void $ replaceWithNew q $ UnOp (Project proj) aggrNode |])
 
 constRownumCol :: TARule AllProps
 constRownumCol q =
@@ -203,6 +222,20 @@ constRowRankCol q =
          return $ do
              logRewrite "Basic.Const.RowRank" q
              void $ replaceWithNew q $ UnOp (RowRank (resCol, sortCols')) $(v "q1") |])
+
+constSerializeCol :: TARule AllProps
+constSerializeCol q =
+  $(dagPatMatch 'q "Serialize args (q1)"
+    [| do
+         (mDescr, RelPos sortCols, payload) <- return $(v "args")
+         constCols                          <- map fst <$> pConst <$> bu <$> properties $(v "q1")
+
+         let sortCols' = filter (\c -> c `notElem` constCols) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.Serialize" q
+             void $ replaceWithNew q $ UnOp (Serialize (mDescr, RelPos sortCols', payload)) $(v "q1") |])
 
 
 ----------------------------------------------------------------------------------
