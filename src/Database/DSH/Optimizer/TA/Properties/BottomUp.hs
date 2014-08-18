@@ -18,6 +18,7 @@ import           Database.DSH.Optimizer.TA.Properties.Cols
 import           Database.DSH.Optimizer.TA.Properties.Empty
 import           Database.DSH.Optimizer.TA.Properties.Keys
 import           Database.DSH.Optimizer.TA.Properties.Order
+import           Database.DSH.Optimizer.TA.Properties.Const
 import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- FIXME this is (almost) identical to its X100 counterpart -> merge
@@ -40,46 +41,52 @@ inferWorker _ op n pm =
 
 inferNullOp :: NullOp -> Either String BottomUpProps
 inferNullOp op = do
-  let opCols = inferColsNullOp op
-      opKeys = inferKeysNullOp op
+  let opCols  = inferColsNullOp op
+      opKeys  = inferKeysNullOp op
       opEmpty = inferEmptyNullOp op
       opCard1 = inferCard1NullOp op
       -- We only care for rownum-generated columns. Therefore, For
-      -- unary operators order is empty.
+      -- nullary operators order is empty.
       opOrder = []
+      opConst = inferConstNullOp op
   return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
                    , pOrder = opOrder
+                   , pConst = opConst
                    }
 
 inferUnOp :: UnOp -> BottomUpProps -> Either String BottomUpProps
 inferUnOp op cProps = do
-  let opCols = inferColsUnOp (pCols cProps) op
-      opKeys = inferKeysUnOp (pKeys cProps) (pCard1 cProps) (S.map fst $ pCols cProps) op
+  let opCols  = inferColsUnOp (pCols cProps) op
+      opKeys  = inferKeysUnOp (pKeys cProps) (pCard1 cProps) (S.map fst $ pCols cProps) op
       opEmpty = inferEmptyUnOp (pEmpty cProps) op
       opCard1 = inferCard1UnOp (pCard1 cProps) (pEmpty cProps) op
       opOrder = inferOrderUnOp (pOrder cProps) op
+      opConst = inferConstUnOp (pConst cProps) op
   return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
                    , pOrder = opOrder
+                   , pConst = opConst
                    }
 
 inferBinOp :: BinOp -> BottomUpProps -> BottomUpProps -> Either String BottomUpProps
 inferBinOp op c1Props c2Props = do
-  let opCols = inferColsBinOp (pCols c1Props) (pCols c2Props) op
-      opKeys = inferKeysBinOp (pKeys c1Props) (pKeys c2Props) (pCard1 c1Props) (pCard1 c2Props) op
+  let opCols  = inferColsBinOp (pCols c1Props) (pCols c2Props) op
+      opKeys  = inferKeysBinOp (pKeys c1Props) (pKeys c2Props) (pCard1 c1Props) (pCard1 c2Props) op
       opEmpty = inferEmptyBinOp (pEmpty c1Props) (pEmpty c2Props) op
       opCard1 = inferCard1BinOp (pCard1 c1Props) (pCard1 c2Props) op
       opOrder = inferOrderBinOp (pOrder c1Props) (pOrder c2Props) op
+      opConst = inferConstBinOp (pConst c1Props) (pConst c2Props) op
   return $ BUProps { pCols = opCols
                    , pKeys = opKeys
                    , pEmpty = opEmpty
                    , pCard1 = opCard1
                    , pOrder = opOrder
+                   , pConst = opConst
                    }
 
 inferBottomUpProperties :: AlgebraDag TableAlgebra -> NodeMap BottomUpProps

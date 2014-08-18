@@ -189,6 +189,7 @@ Library
                      Database.DSH.Optimizer.TA.Properties.Card1
                      Database.DSH.Optimizer.TA.Properties.Keys
                      Database.DSH.Optimizer.TA.Properties.Order
+                     Database.DSH.Optimizer.TA.Properties.Const
                      Database.DSH.Optimizer.TA.Rewrite.Basic
                      Database.DSH.Optimizer.TA.Rewrite.Common
                      Database.DSH.Optimizer.TA.OptimizeTA
