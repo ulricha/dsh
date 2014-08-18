@@ -69,6 +69,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , runningAggWin
                          , inlineWinAggrProject
                          , restrictWinFun
+                         , pullProjectNumber
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -574,6 +575,21 @@ scalarConditional q =
 
 ------------------------------------------------------------------------------
 -- Projection pullup
+
+pullProjectNumber :: VLRule BottomUpProps
+pullProjectNumber q =
+  $(dagPatMatch 'q "Number (Project proj (q1))"
+    [| do
+         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+             logRewrite "Redundant.Project.Number" q
+
+             -- We have to preserve the numbering column in the
+             -- pulled-up projection.
+             let proj' = $(v "proj") ++ [Column $ w + 1]
+             numberNode <- insert $ UnOp Number $(v "q1")
+             void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
 
 -- | Pull a projection atop a Restrict operator. This rewrite mainly
 -- serves to clear the way for merging of Combine/Restrict
