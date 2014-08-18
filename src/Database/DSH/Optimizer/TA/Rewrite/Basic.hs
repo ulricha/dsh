@@ -20,6 +20,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Properties.Const
 import           Database.DSH.Optimizer.TA.Rewrite.Common
 
 cleanup :: TARewrite Bool
@@ -44,6 +45,9 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , inlineSortColsSerialize
                       , inlineSortColsWinFun
                       , keyPrefixOrdering
+                      , constAggrKey
+                      , constRownumCol
+                      , constRowRankCol
                       ]
 
 ----------------------------------------------------------------------------------
@@ -157,28 +161,49 @@ unreferencedAggrCols q =
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
 
-{-
-isConstExpr :: Expr -> TAMatch AllProps
-isConstExpr (BinAppE _ e1 e2) = (&&) <$> isConstExpr e1 <*> isConstExpr e2
-isConstExpr (UnAppE _ e1)     = isConstExpr e1
-isConstExpr (ConstE _)        = return True
-isConstExpr (IfE e1 e2 e3)    = and <$> mapM isConstExpr [e1, e2, e3]
-isConstExpr (ColE c)          = do
-    properties $(v "
+isConstExpr :: [ConstCol] -> Expr -> Bool
+isConstExpr constCols e = isJust $ constExpr constCols e
 
 -- | Prune const columns from aggregation keys
 constAggrKey :: TARule AllProps
 constAggrKey q =
   $(dagPatMatch 'q "Aggr args (q1)"
     [| do
+         constCols <- pConst <$> bu <$> properties $(v "q1")
          (aggrFuns, keyCols@(_:_)) <- return $(v "args")
-         keyCols' <- filterM (\(_, e) -> not <$> isConstExpr e) keyCols
+         let keyCols' = filter (\(_, e) -> not $ isConstExpr constCols e) keyCols
          predicate $ length keyCols' < length keyCols
 
          return $ do
              logRewrite "Basic.Const.Aggr" q
              void $ replaceWithNew q $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1") |])
--}
+
+constRownumCol :: TARule AllProps
+constRownumCol q =
+  $(dagPatMatch 'q "RowNum args (q1)"
+    [| do
+         constCols                     <- pConst <$> bu <$> properties $(v "q1")
+         (resCol, sortCols, partExprs) <- return $(v "args")
+         let sortCols' = filter (\(e, d) -> not $ isConstExpr constCols e) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.RowNum" q
+             void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', partExprs)) $(v "q1") |])
+
+constRowRankCol :: TARule AllProps
+constRowRankCol q =
+  $(dagPatMatch 'q "RowRank args (q1)"
+    [| do
+         constCols          <- pConst <$> bu <$> properties $(v "q1")
+         (resCol, sortCols) <- return $(v "args")
+         let sortCols' = filter (\(e, _) -> not $ isConstExpr constCols e) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.RowRank" q
+             void $ replaceWithNew q $ UnOp (RowRank (resCol, sortCols')) $(v "q1") |])
+
 
 ----------------------------------------------------------------------------------
 -- Basic Order rewrites
