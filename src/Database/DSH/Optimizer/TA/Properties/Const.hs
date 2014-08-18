@@ -4,7 +4,6 @@
 module Database.DSH.Optimizer.TA.Properties.Const where
 
 import           Data.Maybe
-import qualified Data.Set.Monad                             as S
 import           Data.Tuple
 import           Data.List
 
