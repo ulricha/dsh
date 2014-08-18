@@ -63,6 +63,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipZipLeft
                          , zipWinLeft
                          , zipWinRight
+                         , zipWinRightPush
                          -- , stackedAlign
                          , propProductCard1Right
                          , runningAggWin
@@ -476,6 +477,27 @@ zipWinLeft q =
              -- columns.
              let proj = map Column $ [1 .. w] ++ [w+1] ++ [1 .. w]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qw") |])
+
+isPrecedingFrameSpec :: FrameSpec -> Bool
+isPrecedingFrameSpec fs =
+    case fs of
+        FAllPreceding -> True
+        FNPreceding _ -> True
+
+zipWinRightPush :: VLRule BottomUpProps
+zipWinRightPush q =
+  $(dagPatMatch 'q "(q1) Zip (WinFun args (q2))"
+    [| do
+        let (winFun, frameSpec) = $(v "args")
+        predicate $ isPrecedingFrameSpec frameSpec
+        w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Redundant.Zip.Win.Right" q
+            zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+            let winFun' = mapWinFun (mapExprCols (\c -> c + w1)) winFun
+                args'   = (winFun', frameSpec)
+            void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
 --------------------------------------------------------------------------------
 -- Specialization of sorting
