@@ -193,6 +193,7 @@ Library
                      Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
                      Database.DSH.Optimizer.VL.Rewrite.Redundant
                      Database.DSH.Optimizer.VL.Rewrite.Aggregation
+                     Database.DSH.Optimizer.VL.Rewrite.Window
                      Database.DSH.Optimizer.VL.Rewrite.Unused
 -- 
 -- executable vltox100

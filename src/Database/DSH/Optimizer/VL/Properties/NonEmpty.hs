@@ -40,18 +40,19 @@ mapUnp = mapUnpack "Properties.NonEmpty"
 inferNonEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferNonEmptyNullOp op =
   case op of
-    SingletonDescr        -> Right $ VProp False
-    Lit NonEmpty _ _      -> Right $ VProp True
-    Lit PossiblyEmpty _ _ -> Right $ VProp False
-    TableRef _ _ hs       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
+    SingletonDescr            -> Right $ VProp False
+    Lit (NonEmpty, _, _)      -> Right $ VProp True
+    Lit (PossiblyEmpty, _, _) -> Right $ VProp False
+    TableRef (_, _, hs)       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
     
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
   case op of
+    WinFun _       -> Right e
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp True
     AggrNonEmpty _  -> Right $ VProp True
-    DescToRename    -> Right e
+    UnboxRename     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
@@ -70,8 +71,8 @@ inferNonEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> return $ VPropTriple False False False
-    SelectPos1S _ _ -> return $ VPropTriple False False False
+    SelectPos1{} -> return $ VPropTriple False False False
+    SelectPos1S{} -> return $ VPropTriple False False False
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right e
     Number -> Right e

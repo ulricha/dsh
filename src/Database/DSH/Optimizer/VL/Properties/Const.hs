@@ -131,7 +131,7 @@ inferConstVecNullOp op =
   case op of
     SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit _ colTypes rows      ->
+    Lit (_, colTypes, rows)      ->
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
       else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
@@ -142,11 +142,15 @@ inferConstVecNullOp op =
                                            else NonConstPL
               toConstPayload []          = NonConstPL
 
-    TableRef              _ cols _    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
+    TableRef              (_, cols, _)    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
 
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
+    WinFun _ -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
+
     UniqueS -> return c
 
     Aggr _ -> do
@@ -155,7 +159,7 @@ inferConstVecUnOp c op =
     AggrNonEmpty _ -> do
       return $ VProp $ DBVConst (ConstDescr (N 1)) [NonConstPL]
 
-    DescToRename -> do
+    UnboxRename -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 
@@ -167,13 +171,13 @@ inferConstVecUnOp c op =
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
 
-    SelectPos1 _ _ -> do
+    SelectPos1{}  -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d cols) 
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    SelectPos1S _ _ -> do
+    SelectPos1S{} -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d cols) 
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))

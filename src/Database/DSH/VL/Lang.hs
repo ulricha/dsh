@@ -37,7 +37,17 @@ data AggrFun = AggrSum RowType Expr
              | AggrAll Expr
              | AggrAny Expr
              | AggrCount
-               deriving (Eq, Ord, Show, Generic)
+             deriving (Eq, Ord, Show, Generic)
+
+data WinFun = WinSum Expr
+            | WinMin Expr
+            | WinMax Expr
+            | WinAvg Expr
+            | WinAll Expr
+            | WinAny Expr
+            | WinFirstValue Expr
+            | WinCount
+            deriving (Eq, Ord, Show, Generic)
 
 data Expr = BinApp L.ScalarBinOp Expr Expr
           | UnApp L.ScalarUnOp Expr
@@ -81,15 +91,28 @@ data VLVal = VLInt Int
            | VLUnit
            deriving (Eq, Ord, Generic, Show, Read)
 
+-- | Specification of a window for the window aggregate operator.
+data FrameSpec = -- | All elements up to and including the current
+                 -- element are in the window
+                 FAllPreceding
+                 -- | All n preceding elements up to and including the
+                 -- current one.
+               | FNPreceding Int
+                deriving (Eq, Ord, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Vector Language operators. Documentation can be found in module
+-- VectorPrimitives.
+
 data NullOp = SingletonDescr
-            | Lit L.Emptiness [RowType] [[VLVal]]
-            | TableRef String [VLColumn] L.TableHints
+            | Lit (L.Emptiness, [RowType], [[VLVal]])
+            | TableRef (String, [VLColumn], L.TableHints)
             deriving (Eq, Ord, Generic, Show)
 
 data UnOp = UniqueS
           | Number
           | NumberS
-          | DescToRename
+          | UnboxRename
           | Segment
           | Unsegment
           | Reverse -- (DBV, PropVector)
@@ -99,13 +122,14 @@ data UnOp = UniqueS
           | R3
           | Project [Expr]
           | Select Expr
-          | SelectPos1 L.ScalarBinOp Nat
-          | SelectPos1S L.ScalarBinOp Nat
+          | SelectPos1 (L.ScalarBinOp, Nat)
+          | SelectPos1S (L.ScalarBinOp, Nat)
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | SortScalarS [Expr]
           | GroupScalarS [Expr]
+          | WinFun (WinFun, FrameSpec)
           | Reshape Integer
           | ReshapeS Integer
           | Transpose

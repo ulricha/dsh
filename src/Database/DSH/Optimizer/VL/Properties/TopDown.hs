@@ -29,12 +29,13 @@ seed :: VL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
-    SelectPos1 _ _     -> vPropTripleSeed
-    SelectPos1S _ _    -> vPropTripleSeed 
+    WinFun _           -> vPropSeed
+    SelectPos1{}       -> vPropTripleSeed
+    SelectPos1S{}      -> vPropTripleSeed 
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
     UniqueS            -> vPropSeed
-    DescToRename       -> vPropSeed
+    UnboxRename        -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     Select     _       -> vPropPairSeed

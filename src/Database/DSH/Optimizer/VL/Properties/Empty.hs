@@ -21,26 +21,27 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr -> Right $ VProp False
-    Lit _ _ []     -> Right $ VProp True
-    Lit _ _ _      -> Right $ VProp False
-    TableRef _ _ _ -> Right $ VProp False
+    SingletonDescr     -> Right $ VProp False
+    Lit (_, _, [])     -> Right $ VProp True
+    Lit (_, _, _)      -> Right $ VProp False
+    TableRef (_, _, _) -> Right $ VProp False
     
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
+    WinFun _       -> Right e
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp False
     AggrNonEmpty _  -> Right $ VProp False
-    DescToRename    -> Right e
+    UnboxRename     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
-    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    SortScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupScalarS _  -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -48,8 +49,8 @@ inferEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    SelectPos1S _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1S{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
     GroupAggr (_, _) -> Right $ VProp False
     Number -> Right e

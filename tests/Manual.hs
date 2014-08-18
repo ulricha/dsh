@@ -21,7 +21,6 @@ import Database.HDBC.PostgreSQL
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'au'"
 
-
 xs :: Q [(Integer, Integer)]
 xs = toQ [(3,5),(4,6),(5,7),(6,9)]
 
@@ -105,6 +104,68 @@ q = [ pair (fst x) (fst y)
     , length (snd x) == length (snd y)
     ]
 -}
+
+data Packet = Packet
+    { p_dest :: Integer
+    , p_len  :: Integer
+    , p_pid  :: Integer
+    , p_src  :: Integer
+    , p_ts   :: Integer
+    }
+
+deriveDSH ''Packet
+deriveTA ''Packet
+generateTableSelectors ''Packet
+
+packets :: Q [Packet]
+packets = table "packets" $ TableHints [ Key ["p_pid"]] NonEmpty
+
+--------------------------------------------------------------------------------
+-- Flow statistics
+
+deltas :: Q [Integer] -> Q [Integer]
+deltas xs = cons 0 (map (\(view -> (a, b)) -> a - b) (zip (drop 1 xs) xs))
+
+-- TRY OUT: better or worse than drop?
+deltas' :: Q [Integer] -> Q [Integer]
+deltas' xs = cons 0
+             [ ts - ts'
+             | (view -> (ts, i))   <- number xs
+             , (view -> (ts', i')) <- number xs
+             , i' == i - 1
+             ]
+
+
+sums :: (QA a, Num a) => Q [a] -> Q [a]
+sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
+          | let nas = number as
+	  , (view -> (a, i)) <- nas
+	  ]
+
+-- | For each packet, compute the ID of the flow that it belongs to
+flowids :: Q [Packet] -> Q [Integer]
+flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas' $ map p_tsQ ps ]
+
+-- | For each flow, compute the number of packets and average length
+-- of packets in the flow. A flow is defined as a number of packets
+-- between the same source and destination in which the time gap
+-- between consecutive packets is smaller than 120ms.
+flowStats :: Q [(Integer, Integer, Integer, Double)]
+flowStats = [ tuple4 src 
+                     dst 
+                     (length g)
+                     (avg $ map (p_lenQ . fst) g)
+            | (view -> (k, g)) <- flows
+            , let (view -> (src, dst, _)) = k
+            ]
+  where
+    flows = groupWithKey (\p -> tuple3 (p_srcQ $ fst p) (p_destQ $ fst p) (snd p)) 
+                         $ zip packetsOrdered (flowids packetsOrdered)
+
+    packetsOrdered = sortWith (\p -> tuple3 (p_srcQ p) (p_destQ p) (p_tsQ p)) packets
+
+    
+
 data Trade = Trade
     { t_price     :: Double
     , t_tid       :: Text
@@ -117,9 +178,9 @@ deriveTA ''Trade
 generateTableSelectors ''Trade
 
 data Portfolio = Portfolio
-    { p_pid         :: Integer
-    , p_tid         :: Text
-    , p_tradedSince :: Integer
+    { po_pid         :: Integer
+    , po_tid         :: Text
+    , po_tradedSince :: Integer
     }
 
 deriveDSH ''Portfolio
@@ -130,7 +191,7 @@ trades :: Q [Trade]
 trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
 
 portfolios :: Q [Portfolio]
-portfolios = table "portfolio" $ TableHints [Key ["p_pid"] ] NonEmpty
+portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
 
 
 lastn :: QA a => Integer -> Q [a] -> Q [a]
@@ -143,11 +204,31 @@ last10 portfolio =
     [ pair (t_tidQ t) (t_priceQ t)
     | t <- trades
     , p <- portfolios
-    , t_tidQ t == p_tidQ p
-    , p_pidQ p == toQ portfolio
+    , t_tidQ t == po_tidQ p
+    , po_pidQ p == toQ portfolio
     ]
 
+
+-- | For each list element, compute the minimum of all elements up to
+-- the current one.
+mins :: (Ord a, QA a) => Q [a] -> Q [a]
+mins as = [ minimum [ a' | (view -> (a', i')) <- nas, i' <= i ]
+          | let nas = number as
+	  , (view -> (a, i)) <- nas
+	  ]   
+
+bestProfit :: Text -> Integer -> Q Double
+bestProfit stock date = 
+    maximum [ t_priceQ t - minPrice
+            | (view -> (t, minPrice)) <- zip trades' (mins $ map t_priceQ trades')
+            ]
+                                  
+  where
+    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) 
+              $ sortWith t_timestampQ trades
+
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ last10 42
+main = getConn P.>>= \c -> debugQ "q" c $ bestProfit "ACME" 42
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

@@ -266,10 +266,11 @@ translateUnOp unop c = case unop of
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
-    V.DescToRename     -> fromRVec <$> descToRename (toDVec c)
+    V.UnboxRename      -> fromRVec <$> descToRename (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
+    V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
@@ -287,10 +288,10 @@ translateUnOp unop c = case unop of
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RPair (fromDVec d) (fromPVec p)
-    V.SelectPos1 op pos -> do
+    V.SelectPos1 (op, pos) -> do
         (d, p, u) <- vecSelectPos1 (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
-    V.SelectPos1S op pos -> do
+    V.SelectPos1S (op, pos) -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
@@ -317,9 +318,9 @@ translateUnOp unop c = case unop of
         _                -> error "R3: Not a tuple"
 
 translateNullary :: VectorAlgebra v a => V.NullOp -> Build a (Res v)
-translateNullary V.SingletonDescr      = fromDVec <$> singletonDescr
-translateNullary (V.Lit _ tys vals)    = fromDVec <$> vecLit tys vals
-translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
+translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
+translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
+translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
 
 -- | Insert SerializeRel operators in TA.TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.
