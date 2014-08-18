@@ -51,7 +51,7 @@ renderWinFun (WinMax c)        = renderFun (text "max") [renderExpr c]
 renderWinFun (WinAvg c)        = renderFun (text "avg") [renderExpr c]
 renderWinFun (WinAny c)        = renderFun (text "any") [renderExpr c]
 renderWinFun (WinAll c)        = renderFun (text "all") [renderExpr c]
-renderWinFun (WinFirstValue c) = renderFun (text "all") [renderExpr c]
+renderWinFun (WinFirstValue c) = renderFun (text "first_value") [renderExpr c]
 renderWinFun WinCount          = renderFun (text "count") []
 
 renderColumnType :: RowType -> Doc
