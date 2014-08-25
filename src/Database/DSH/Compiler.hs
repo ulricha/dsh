@@ -61,7 +61,7 @@ commonPipeline =
     >>> flatten
     >>> specializeVectorOps
 
-nkl2X100Alg :: CL.Expr -> TopShape X100Code
+nkl2X100Alg :: CL.Expr -> Shape X100Code
 nkl2X100Alg =
     commonPipeline
     >>> optimizeVLDefault
@@ -69,7 +69,7 @@ nkl2X100Alg =
     >>> optimizeX100Default
     >>> generateX100Queries
 
-nkl2Sql :: CL.Expr -> TopShape SqlCode
+nkl2Sql :: CL.Expr -> Shape SqlCode
 nkl2Sql =
     commonPipeline
     >>> optimizeVLDefault

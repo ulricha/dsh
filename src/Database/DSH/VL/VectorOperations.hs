@@ -130,11 +130,11 @@ antiJoinLift joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)
 antiJoinLift _ _ _ = $impossible
 
 nubPrim ::  Shape VLDVec -> Build VL (Shape VLDVec)
-nubPrim (ValueVector q lyt) = flip ValueVector lyt <$> vlUniqueS q
+nubPrim (ValueVector q lyt) = ValueVector <$> vlUniqueS q <*> pure lyt
 nubPrim _ = error "nubPrim: Should not be possible"
 
 nubLift ::  Shape VLDVec -> Build VL (Shape VLDVec)
-nubLift (ValueVector d (Nest q lyt)) =  ValueVector d . flip Nest lyt <$> vlUniqueS q
+nubLift (ValueVector d (Nest q lyt)) =  ValueVector d <$> (Nest <$> vlUniqueS q <*> pure lyt)
 nubLift _ = error "nubLift: Should not be possible"
 
 numberPrim ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -543,8 +543,8 @@ quickConcatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
 quickConcatV e                  = error $ "Not supported by quickConcatV: " ++ show e
 
 concatV :: Shape VLDVec -> Build VL (Shape VLDVec)
-concatV (ValueVector _ (Nest q lyt)) = flip ValueVector lyt <$> vlUnsegment q
-concatV e                  = error $ "Not supported by concatV: " ++ show e
+concatV (ValueVector _ (Nest q lyt)) = ValueVector <$> vlUnsegment q <*> pure lyt
+concatV e                            = error $ "Not supported by concatV: " ++ show e
 
 singletonVec ::  Shape VLDVec -> Build VL (Shape VLDVec)
 singletonVec (ValueVector q lyt) = do
@@ -563,19 +563,21 @@ dbTable n cs ks = do
 
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
 mkLiteral t@(ListT _) (L.ListV es) = do
-    ((descHd, descV), layout, _) <- toPlan (mkDescriptor [length es]) t 1 es
+    ((descHd, descV), lyt, _) <- toPlan (mkDescriptor [length es]) t 1 es
     let emptinessFlag = case es of
           []    -> L.PossiblyEmpty
           _ : _ -> L.NonEmpty
-    (flip ValueVector layout) <$> (vlLit emptinessFlag (reverse descHd) $ map reverse descV)
+    litNode <- vlLit emptinessFlag (reverse descHd) $ map reverse descV
+    return $ ValueVector litNode lyt
 mkLiteral (FunT _ _) _  = error "Not supported"
 mkLiteral t e           = do
     ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    flip PrimVal layout <$> vlLit L.NonEmpty (reverse descHd) [(reverse descV)]
+    litNode <- vlLit L.NonEmpty (reverse descHd) [(reverse descV)]
+    return $ PrimVal litNode layout
 
 type Table = ([Type], [[VLVal]])
 
--- FIXME Check if inner list literals are nonempty and use flag VL
+-- FIXME Check if inner list literals are nonempty and flag VL
 -- literals appropriately.
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
 toPlan (descHd, descV) (ListT t) c es =

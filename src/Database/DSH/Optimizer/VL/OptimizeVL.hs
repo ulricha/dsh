@@ -14,7 +14,7 @@ import           Database.DSH.Optimizer.VL.Rewrite.Expressions
 import           Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
 import           Database.DSH.Optimizer.VL.Rewrite.Redundant
 
-type RewriteClass = Rewrite VL (TopShape VLDVec) Bool
+type RewriteClass = Rewrite VL (Shape VLDVec) Bool
 
 rewriteClasses :: [(Char, RewriteClass)]
 rewriteClasses = [ ('E', pruneEmpty)
@@ -29,9 +29,9 @@ defaultPipeline = case assemblePipeline "ER" of
 
 runPipeline 
   :: Dag.AlgebraDag VL 
-  -> (TopShape VLDVec) 
+  -> (Shape VLDVec) 
   -> [RewriteClass] 
-  -> Bool -> (Dag.AlgebraDag VL, Log, TopShape VLDVec)
+  -> Bool -> (Dag.AlgebraDag VL, Log, Shape VLDVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 
