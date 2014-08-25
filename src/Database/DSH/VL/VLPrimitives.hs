@@ -77,7 +77,6 @@ typeToRowType t = case t of
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
   Ty.ListT _     -> $impossible
   Ty.FunT _ _    -> $impossible
-  Ty.VarT _      -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -91,8 +90,6 @@ recordWidth t =
         Ty.DoubleT     -> 1
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
-        -- WTF is a VarT
-        Ty.VarT _      -> $impossible
         Ty.FunT _ _    -> $impossible
         Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
         Ty.ListT _     -> 0

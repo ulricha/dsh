@@ -13,7 +13,6 @@ module Database.DSH.Common.Type
  , sndT
  , domainT
  , splitType
- , varsInType
  , listDepth
  , pairT
  , containsTuple
@@ -47,7 +46,6 @@ import Text.PrettyPrint.ANSI.Leijen
 import Database.DSH.Common.Pretty
   
 instance Pretty Type where 
-    pretty (VarT v)      = text v
     pretty (FunT t1 t2)  = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty IntT          = text "Int"
     pretty BoolT         = text "Bool"
@@ -66,8 +64,6 @@ data Type  = FunT Type Type
            | DoubleT
            | StringT 
            | UnitT 
-           -- FIXME What the fuck is a VarT?
-           | VarT String
            | PairT Type Type 
            | TupleT [Type]
            | ListT Type
@@ -78,7 +74,6 @@ infixr 6 .->
 isNum :: Type -> Bool
 isNum IntT        = True
 isNum DoubleT     = True
-isNum (VarT _)    = False
 isNum (FunT _ _)  = False
 isNum BoolT       = False
 isNum StringT     = False
@@ -90,13 +85,6 @@ isNum (TupleT _)  = False
 domainT :: Type -> Type
 domainT (FunT t _) = t
 domainT _          = error "domainT: argument is not a function type"
-
-varsInType :: Type -> [String]
-varsInType (FunT t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (PairT t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (ListT t) = varsInType t
-varsInType (VarT v) = [v]
-varsInType _ = []
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = FunT t1 t2
