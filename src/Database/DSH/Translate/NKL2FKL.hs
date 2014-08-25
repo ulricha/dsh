@@ -67,49 +67,56 @@ prim2 (N.Prim2 p _) =
         N.SemiJoin jp  -> P.semiJoin jp
         N.AntiJoin jp  -> P.antiJoin jp
         
-liftPrim1 :: N.Prim1 Type -> F.Expr -> F.Expr
-liftPrim1 (N.Prim1 p _) =
+liftPrim1 :: F.Prim1 -> F.Expr -> F.Expr
+liftPrim1 p =
     case p of
-        N.Length    -> P.lengthL
-        N.Concat    -> P.concatL
-        N.Sum       -> P.sumL
-        N.Avg       -> P.avgL
-        N.The       -> P.theL
-        N.Fst       -> P.fstL
-        N.Snd       -> P.sndL
-        N.Head      -> P.headL
-        N.Tail      -> P.tailL
-        N.Minimum   -> P.minimumL
-        N.Maximum   -> P.maximumL
-        N.Reverse   -> P.reverseL
-        N.And       -> P.andL
-        N.Or        -> P.orL
-        N.Init      -> P.initL
-        N.Last      -> P.lastL
-        N.Nub       -> P.nubL
-        N.Number    -> P.numberL
-        N.Reshape n -> P.reshapeL n
-        N.Transpose -> P.transposeL
+        F.Length    -> P.lengthL
+        F.Concat    -> P.concatL
+        F.Sum       -> P.sumL
+        F.Avg       -> P.avgL
+        F.The       -> P.theL
+        F.Fst       -> P.fstL
+        F.Snd       -> P.sndL
+        F.Tail      -> P.tailL
+        F.Minimum   -> P.minimumL
+        F.Maximum   -> P.maximumL
+        F.Reverse   -> P.reverseL
+        F.And       -> P.andL
+        F.Or        -> P.orL
+        F.Init      -> P.initL
+        F.Last      -> P.lastL
+        F.Nub       -> P.nubL
+        F.Number    -> P.numberL
+        F.Reshape n -> P.reshapeL n
+        F.Transpose -> P.transposeL
 
-liftPrim2 :: N.Prim2 Type -> F.Expr -> F.Expr -> F.Expr
-liftPrim2 (N.Prim2 p _) =
+liftPrim2 :: F.Prim2 -> F.Expr -> F.Expr -> F.Expr
+liftPrim2 p =
     case p of
-        N.Group        -> P.groupL
-        N.Sort         -> P.sortL
-        N.Restrict     -> P.restrictL
-        N.Pair         -> P.pairL
-        N.Append       -> P.appendL
-        N.Index        -> P.indexL
-        N.Zip          -> P.zipL
-        N.Cons         -> P.consL
-        N.CartProduct  -> P.cartProductL
-        N.NestProduct  -> P.nestProductL
-        N.ThetaJoin jp -> P.thetaJoinL jp
-        N.NestJoin jp  -> P.nestJoinL jp
-        N.SemiJoin jp  -> P.semiJoinL jp
-        N.AntiJoin jp  -> P.antiJoinL jp
+        F.Group        -> P.groupL
+        F.Sort         -> P.sortL
+        F.Restrict     -> P.restrictL
+        F.Pair         -> P.pairL
+        F.Append       -> P.appendL
+        F.Index        -> P.indexL
+        F.Zip          -> P.zipL
+        F.Cons         -> P.consL
+        F.CartProduct  -> P.cartProductL
+        F.NestProduct  -> P.nestProductL
+        F.ThetaJoin jp -> P.thetaJoinL jp
+        F.NestJoin jp  -> P.nestJoinL jp
+        F.SemiJoin jp  -> P.semiJoinL jp
+        F.AntiJoin jp  -> P.antiJoinL jp
         
 
 pushComp :: Ident -> F.Expr -> F.Expr -> F.Expr
-pushComp = $unimplemented
+pushComp x xs v@(F.Const _ _)       = P.concat $ P.dist v xs
+pushComp x xs y@(F.Var _ n)
+    | x == n                    = xs
+    | otherwise                 = P.concat $ P.dist y xs
+pushComp x xs (F.PApp1 _ p e1)    = liftPrim1 p (pushComp x xs e1)
+pushComp x xs (F.PApp2 _ p e1 e2) = liftPrim2 p (pushComp x xs e1) (pushComp x xs e2)
+pushComp x xs (F.UnOp t (F.NotLifted op) e1) = P.unL t op (pushComp x xs e1)
+pushComp x xs (F.BinOp t (F.NotLifted op) e1 e2) = P.binL t op (pushComp x xs e1) (pushComp x xs e2)
+
 

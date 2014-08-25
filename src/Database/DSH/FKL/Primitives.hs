@@ -44,8 +44,8 @@ reshapeL n e =
 
 group :: Expr -> Expr -> Expr
 group gs xs =
-    let xst@(ListT xt) = typeOf xs
-        gst@(ListT gt) = typeOf gs
+    let ListT xt = typeOf xs
+        ListT gt = typeOf gs
         rt             = listT (pairT gt (listT xt))
     in F.PApp2 rt F.Group gs xs
 
@@ -60,14 +60,12 @@ sortL = $unimplemented
 
 cons :: Expr -> Expr -> Expr
 cons e1 e2 = 
-    let t1 = typeOf e1
-        t2 = typeOf e2
+    let t2 = typeOf e2
     in F.PApp2 t2 F.Cons e1 e2
 
 consL :: Expr -> Expr -> Expr
 consL e1 e2 =
-    let t1 = typeOf e1
-        t2 = typeOf e2
+    let t2 = typeOf e2
     in F.PApp2 t2 F.ConsL e1 e2
 
 pair :: Expr -> Expr -> Expr
@@ -80,33 +78,32 @@ pair e1 e2 =
 -- FIXME lifted pair is equivalent to zip!
 pairL :: Expr -> Expr -> Expr
 pairL e1 e2 = 
-    let t1@(ListT t1') = typeOf e1
-        t2@(ListT t2') = typeOf e2
-        rt = listT (pairT t1' t2')
+    let ListT t1' = typeOf e1
+        ListT t2' = typeOf e2
+        rt        = listT (pairT t1' t2')
     in F.PApp2 rt F.PairL e1 e2 
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = 
-    let t1 = typeOf e1
-        t2 = typeOf e2
+    let t2 = typeOf e2
     in F.PApp2 t2 F.Zip e1 e2
 
 zipL :: Expr -> Expr -> Expr
 zipL e1 e2 = 
-    let t1@(ListT t1') = typeOf e1
-        t2@(ListT t2') = typeOf e2
+    let t2@(ListT _) = typeOf e2
     in F.PApp2 t2 F.ZipL e1 e2
                   
 cartProduct :: Expr -> Expr -> Expr
 cartProduct e1 e2 = 
-    let t1 = typeOf e1
-        t2 = typeOf e2
+    let t2 = typeOf e2
+    -- FIXME incorrect result type
     in F.PApp2 t2 F.CartProduct e1 e2
                          
 cartProductL :: Expr -> Expr -> Expr
 cartProductL e1 e2 = 
     let t1@(ListT t1') = typeOf e1
         t2@(ListT t2') = typeOf e2
+    -- FIXME incorrect result type
     in F.PApp2 t2 F.CartProductL e1 e2
 
 nestProduct :: Expr -> Expr -> Expr
@@ -459,7 +456,7 @@ binM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
 binM t o = liftM2 (bin t o)
 
 binL :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
-binL t o = BinOp t (Lifted o) 
+binL t o = BinOp (liftType t) (Lifted o) 
 
 binLM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
 binLM t o = liftM2 (binL t o)
@@ -471,7 +468,7 @@ unM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
 unM t o = liftM (un t o)
 
 unL :: Type -> ScalarUnOp -> Expr -> Expr
-unL t o e = UnOp t (Lifted o) e
+unL t o e = UnOp (liftType t) (Lifted o) e
 
 unLM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
 unLM t o = liftM (unL t o)
