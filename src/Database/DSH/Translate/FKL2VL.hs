@@ -32,13 +32,16 @@ type Env = [(String, Shape)]
 
 type EnvBuild = ReaderT Env (Build VL.VL)
 
+-- FIXME might need those when let-expressions have been introduced.
 lookupEnv :: String -> EnvBuild Shape
 lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
     Nothing -> $impossible
 
+{-
 withEnv :: Env -> EnvBuild a -> EnvBuild a
 withEnv env = local (const env)
+-}
 
 {-
 -- | Evaluate the graph construction computation with a different
@@ -78,10 +81,6 @@ fkl2VL expr =
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
             lift $ ifList eb' e1' e2'
-        PApp1 t f@(FLengthL _) arg@(Var _ n) -> trace ("FLengthL " ++ show arg) $!
-            (ask >>= \env -> trace ("env " ++ show env) $! do
-              arg' <- fkl2VL arg
-              lift $ papp1 t f arg')
         PApp1 t f arg -> do
             arg' <- fkl2VL arg
             lift $ papp1 t f arg'
@@ -89,109 +88,92 @@ fkl2VL expr =
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             lift $ papp2 f arg1' arg2'
-        PApp3 _ (FCombine _) arg1 arg2 arg3 -> do
+        PApp3 _ (Combine _) arg1 arg2 arg3 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
             lift $ combine arg1' arg2' arg3'
         Var _ s -> lookupEnv s
-        Clo _ n fvs x f1 f2 -> do
-            fv <- constructClosureEnv fvs
-            return $ Closure n fv x f1 f2
-        AClo _ n fvs x f1 f2 -> do
-            v  <- lookupEnv n
-            fv <- constructClosureEnv fvs
-            return $ AClosure n v 1 fv x f1 f2
-        CloApp _ c arg -> do
-            Closure _ fvs x f1 _ <- fkl2VL c
-            arg'                 <- fkl2VL arg
-            withEnv ((x, arg'):fvs) $ fkl2VL f1
-        CloLApp _ c arg -> do
-            AClosure n v 1 fvs x _ f2 <- fkl2VL c
-            arg'                      <- fkl2VL arg
-            withEnv ((n, v):(x, arg'):fvs) $ fkl2VL f2
 
 papp1 :: Type -> Prim1 -> Shape -> Build VL.VL Shape
 papp1 t f =
     case f of
-        FLength _           -> lengthV
+        Length _           -> lengthV
+-- FIXME what is wrong here?
 --        FLengthL _          -> lengthLift
-        FLengthL _          -> $impossible
-        FConcatL _          -> concatLift
-        FSum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
-        FSumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
-        FAvg _              -> aggrPrim VL.AggrAvg
-        FAvgL _             -> aggrLift VL.AggrAvg
-        FThe _              -> the
-        FTheL _             -> theL
-        FFst _              -> fstA
-        FSnd _              -> sndA
-        FFstL _             -> fstL
-        FSndL _             -> sndL
-        FConcat _           -> concatV
-        FQuickConcat _      -> quickConcatV
-        FMinimum _          -> aggrPrim VL.AggrMin
-        FMinimumL _         -> aggrLift VL.AggrMin
-        FMaximum _          -> aggrPrim VL.AggrMax
-        FMaximumL _         -> aggrLift VL.AggrMax
-        FTail _             -> tailS
-        FTailL _            -> tailL
-        FReverse _          -> reversePrim
-        FReverseL _         -> reverseLift
-        FAnd _              -> aggrPrim VL.AggrAll
-        FAndL _             -> aggrLift VL.AggrAll
-        FOr _               -> aggrPrim VL.AggrAny
-        FOrL _              -> aggrLift VL.AggrAny
-        FInit _             -> initPrim
-        FInitL _            -> initLift
-        FLast _             -> lastPrim
-        FLastL _            -> lastLift
-        FNub _              -> nubPrim
-        FNubL _             -> nubLift
-        FNumber _           -> numberPrim
-        FNumberL _          -> numberLift
-        FTranspose _        -> transposePrim
-        FTransposeL _       -> transposeLift
-        FReshape n _        -> reshapePrim n
-        FReshapeL n _       -> reshapeLift n
+        LengthL _          -> $impossible
+        ConcatL _          -> concatLift
+        Sum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
+        SumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
+        Avg _              -> aggrPrim VL.AggrAvg
+        AvgL _             -> aggrLift VL.AggrAvg
+        The _              -> the
+        TheL _             -> theL
+        Fst _              -> fstA
+        Snd _              -> sndA
+        FstL _             -> fstL
+        SndL _             -> sndL
+        Concat _           -> concatV
+        QuickConcat _      -> quickConcatV
+        Minimum _          -> aggrPrim VL.AggrMin
+        MinimumL _         -> aggrLift VL.AggrMin
+        Maximum _          -> aggrPrim VL.AggrMax
+        MaximumL _         -> aggrLift VL.AggrMax
+        Tail _             -> tailS
+        TailL _            -> tailL
+        Reverse _          -> reversePrim
+        ReverseL _         -> reverseLift
+        And _              -> aggrPrim VL.AggrAll
+        AndL _             -> aggrLift VL.AggrAll
+        Or _               -> aggrPrim VL.AggrAny
+        OrL _              -> aggrLift VL.AggrAny
+        Init _             -> initPrim
+        InitL _            -> initLift
+        Last _             -> lastPrim
+        LastL _            -> lastLift
+        Nub _              -> nubPrim
+        NubL _             -> nubLift
+        Number _           -> numberPrim
+        NumberL _          -> numberLift
+        Transpose _        -> transposePrim
+        TransposeL _       -> transposeLift
+        Reshape n _        -> reshapePrim n
+        ReshapeL n _       -> reshapeLift n
 
 papp2 :: Prim2 -> Shape -> Shape -> Build VL.VL Shape
 papp2 f =
     case f of
-        FDist _            -> dist
-        FDistL _           -> distL
-        FGroupWithKey _    -> groupByKeyS
-        FGroupWithKeyL _   -> groupByKeyL
-        FSortWithS _       -> sortWithS
-        FSortWithL _       -> sortWithL
-        FRestrict _        -> restrict
-        FUnconcat _        -> unconcatV
-        FPair _            -> pairOp
-        FPairL _           -> pairOpL
-        FAppend _          -> appendPrim
-        FAppendL _         -> appendLift
-        FIndex _           -> indexPrim
-        FIndexL _          -> indexLift
-        FZip _             -> zipPrim
-        FZipL _            -> zipLift
-        FCons _            -> cons
-        FConsL _           -> consLift
-        FCartProduct _     -> cartProductPrim
-        FCartProductL _    -> cartProductLift
-        FNestProduct _     -> nestProductPrim
-        FNestProductL _    -> nestProductLift
-        FThetaJoin p _     -> thetaJoinPrim p
-        FThetaJoinL p _    -> thetaJoinLift p
-        FNestJoin p _      -> nestJoinPrim p
-        FNestJoinL p _     -> nestJoinLift p
-        FSemiJoin p _      -> semiJoinPrim p
-        FSemiJoinL p _     -> semiJoinLift p
-        FAntiJoin p _      -> antiJoinPrim p
-        FAntiJoinL p _     -> antiJoinLift p
-
-constructClosureEnv :: [String] -> EnvBuild Env
-constructClosureEnv []     = return []
-constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ lookupEnv x) (constructClosureEnv xs)
+        Dist _            -> dist
+        DistL _           -> distL
+        Group _           -> groupByKeyS
+        GroupL _          -> groupByKeyL
+        Sort _            -> sortWithS
+        SortL _           -> sortWithL
+        Restrict _        -> restrict
+        RestrictL _       -> $unimplemented
+        Unconcat _        -> unconcatV
+        Pair _            -> pairOp
+        PairL _           -> pairOpL
+        Append _          -> appendPrim
+        AppendL _         -> appendLift
+        Index _           -> indexPrim
+        IndexL _          -> indexLift
+        Zip _             -> zipPrim
+        ZipL _            -> zipLift
+        Cons _            -> cons
+        ConsL _           -> consLift
+        CartProduct _     -> cartProductPrim
+        CartProductL _    -> cartProductLift
+        NestProduct _     -> nestProductPrim
+        NestProductL _    -> nestProductLift
+        ThetaJoin p _     -> thetaJoinPrim p
+        ThetaJoinL p _    -> thetaJoinLift p
+        NestJoin p _      -> nestJoinPrim p
+        NestJoinL p _     -> nestJoinLift p
+        SemiJoin p _      -> semiJoinPrim p
+        SemiJoinL p _     -> semiJoinLift p
+        AntiJoin p _      -> antiJoinPrim p
+        AntiJoinL p _     -> antiJoinLift p
 
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that

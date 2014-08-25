@@ -45,31 +45,6 @@ instance Pretty Expr where
     pretty (Var _ x) = 
         text x
     
-    pretty (Clo _ l vs x f fl) = 
-        encloseSep lcloangle rcloangle comma [text l <+> text (show vs), lambda x f, lambda x fl]
-      where
-        lcloangle = text "<<"
-        rcloangle = text ">>"
-    
-    pretty (AClo _ l vs x f fl) = 
-        encloseSep lcloangle racloangle comma [text l <+> text (show vs), lambda x f, lambda x fl]
-      where
-        lcloangle = text "<<"
-        racloangle = text ">>+"
-    
-    pretty (CloApp _ f a) = parens $ align $ pretty f </> text ":$" </> (parens $ pretty a)
-    
-    pretty (CloLApp _ f a) = parens $ align $ pretty f </> text ":$l" </> (parens $ pretty a)
-
-lambda :: Ident -> Expr -> Doc
-lambda x e = char '\\' <> text x <+> text "->" <+> pretty e
-
-cloAngles :: Doc -> Doc
-cloAngles = angles . angles
-
-acloAngles :: Doc -> Doc
-acloAngles d = (angles $ angles d) <> char '+'
-    
 renderC :: Val -> Doc
 renderC (IntV i)      = int i
 renderC (StringV s)   = text $ show s

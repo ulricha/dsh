@@ -369,10 +369,6 @@ restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1)) = do
     (v, p) <- vlRestrict (Column 1) q1 q2
     lyt'   <- chainRenameFilter p lyt
     return $ ValueVector v lyt'
-restrict (AClosure n l i env arg e1 e2) bs = do
-    l'   <- restrict l bs
-    env' <- mapEnv (flip restrict bs) env
-    return $ AClosure n l' i env' arg e1 e2
 restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
 
 combine ::  Shape -> Shape -> Shape -> Build VL Shape
@@ -388,8 +384,6 @@ combine _ _ _ = $impossible
 outer ::  Shape -> Build VL VLDVec
 outer (PrimVal _ _)            = $impossible
 outer (ValueVector q _)        = return q
-outer (Closure _ _ _ _ _)      = $impossible
-outer (AClosure _ v _ _ _ _ _) = outer v
 
 dist ::  Shape -> Shape -> Build VL Shape
 dist (PrimVal q lyt) q2 = do
@@ -406,10 +400,6 @@ dist (ValueVector q lyt) q2 = do
     o'     <- vlProject o []
     lyt'   <- chainReorder p lyt
     return $ ValueVector o' (Nest d lyt')
-dist (Closure n env x f fl) q2 = do
-    env' <- mapEnv (flip dist q2) env
-    return $ AClosure n q2 1 env' x f fl
-dist _ _ = $impossible
 
 mapEnv :: (Shape -> Build VL Shape)
        -> [(String, Shape)]
@@ -438,10 +428,6 @@ distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
     let lyt             = zipLayout lyt1' lyt2
     ValueVector qf lytf <- fstL $ ValueVector qa lyt
     return $ ValueVector d (Nest qf lytf)
-distL (AClosure n v i xs x f fl) q2 = do
-    v' <- distL v q2
-    xs' <- mapEnv (\y -> distL y v') xs
-    return $ AClosure n v' (i + 1) xs' x f fl
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
 ifList ::  Shape -> Shape -> Shape -> Build VL Shape
@@ -487,7 +473,6 @@ pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
     q2' <- vlUnsegment q2
     let lyt = zipLayout lyt1 (Nest q2' lyt2)
     return $ PrimVal q1 lyt
-pairOp _ _ = $impossible
 
 fstA ::  Shape -> Build VL Shape
 fstA (PrimVal _q (Pair (Nest q lyt) _p2)) = return $ ValueVector q lyt
@@ -555,22 +540,10 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
 
 quickConcatV :: Shape -> Build VL Shape
 quickConcatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
-quickConcatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (quickConcatV v)
-                                                          <*> pure (l - 1)
-                                                          <*> (mapM (\(y, val) -> do
-                                                                                     val' <- quickConcatV val
-                                                                                     return (y, val')) fvs)
-                                                          <*> pure x <*> pure f1 <*> pure f2
 quickConcatV e                  = error $ "Not supported by quickConcatV: " ++ show e
 
 concatV :: Shape -> Build VL Shape
 concatV (ValueVector _ (Nest q lyt)) = flip ValueVector lyt <$> vlUnsegment q
-concatV (AClosure n v l fvs x f1 f2) | l > 1 = AClosure n <$> (concatV v)
-                                                          <*> pure (l - 1)
-                                                          <*> (mapM (\(y, val) -> do
-                                                                                     val' <- concatV val
-                                                                                     return (y, val')) fvs)
-                                                          <*> pure x <*> pure f1 <*> pure f2
 concatV e                  = error $ "Not supported by concatV: " ++ show e
 
 singletonVec ::  Shape -> Build VL Shape

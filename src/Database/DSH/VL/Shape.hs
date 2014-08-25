@@ -4,10 +4,9 @@ module Database.DSH.VL.Shape where
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.FKL.Lang
 import           Database.DSH.VL.Vector
 
-import           GHC.Generics                   (Generic)
+import           GHC.Generics                (Generic)
 
 -- | Layouts used during compilation to VL DAGs.
 data Layout = InColumn Int
@@ -19,15 +18,11 @@ data Layout = InColumn Int
 -- contain closures.
 data Shape = ValueVector VLDVec Layout
            | PrimVal VLDVec Layout
-           | Closure String [(String, Shape)] String Expr Expr
-           | AClosure String Shape Int [(String, Shape)] String Expr Expr
            deriving (Show, Generic)
 
 rootNodes :: Shape -> [AlgNode]
 rootNodes (ValueVector (VLDVec n) lyt) = n : rootNodes' lyt
 rootNodes (PrimVal (VLDVec n) lyt)     = n : rootNodes' lyt
-rootNodes (Closure _ _ _ _ _)          = error "Function cannot appear as a result value"
-rootNodes (AClosure _ _ _ _ _ _ _)     = error "Function cannot appear as a result value"
 
 rootNodes' :: Layout -> [AlgNode]
 rootNodes' (Pair p1 p2) = rootNodes' p1 ++ rootNodes' p2
