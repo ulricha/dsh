@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
 
@@ -5,6 +7,7 @@ import Prelude hiding (fst, snd)
        
 import Text.Printf
 
+import Database.DSH.Impossible
 import Database.DSH.FKL.Lang       as F
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Lang
@@ -38,6 +41,23 @@ reshapeL :: Integer -> Expr -> Expr
 reshapeL n e = 
     let t = typeOf e
     in F.PApp1 (ListT t) (F.ReshapeL n (t .-> ListT t)) e
+
+group :: Expr -> Expr -> Expr
+group gs xs =
+    let xst@(ListT xt) = typeOf xs
+        gst@(ListT gt) = typeOf gs
+        rt             = listT (pairT gt (listT xt))
+    in F.PApp2 rt (F.Group $ gst .-> xst .-> rt) gs xs
+
+groupL :: Expr -> Expr -> Expr
+groupL = $unimplemented
+
+sort :: Expr -> Expr -> Expr
+sort = $unimplemented
+
+sortL :: Expr -> Expr -> Expr
+sortL = $unimplemented
+
 
 {-
 groupWithKey :: Expr -> Expr -> Expr
@@ -75,7 +95,7 @@ pair e1 e2 =
         rt = pairT t1 t2
     in F.PApp2 rt (F.Pair (t1 .-> t2 .-> rt)) e1 e2
 
--- FIXME lifted pair is thetavalent to zip!
+-- FIXME lifted pair is equivalent to zip!
 pairL :: Expr -> Expr -> Expr
 pairL e1 e2 = 
     let t1@(ListT t1') = typeOf e1
@@ -232,6 +252,14 @@ lengthL :: Expr -> Expr
 lengthL e1 = 
     let t1@(ListT (ListT _)) = typeOf e1
     in F.PApp1 (listT intT) (F.LengthL $ t1 .-> listT intT) e1
+
+-- FIXME this is not the right place to perform this step. If at all,
+-- do it during compilation to VL.
+head :: Expr -> Expr
+head = the
+
+headL :: Expr -> Expr
+headL = theL
     
 the :: Expr -> Expr
 the e1 = 
@@ -406,6 +434,9 @@ restrict e1 e2 =
         rt = t1
         ft = t1 .-> listT boolT .-> rt
     in F.PApp2 rt (F.Restrict ft) e1 e2
+
+restrictL :: Expr -> Expr -> Expr
+restrictL = $unimplemented
 
 combine :: Expr -> Expr -> Expr -> Expr
 combine e1 e2 e3 = 
