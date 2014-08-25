@@ -14,10 +14,10 @@ import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
 import qualified Database.DSH.NKL.Rewrite    as NR
 
-flatten :: N.Expr -> F.Expr
+flatten :: N.Expr -> F.Expr LiftedN
 flatten (N.Table t n cs hs)  = F.Table t n cs hs
-flatten (N.UnOp t op e1)     = F.UnOp t (F.NotLifted op) (flatten e1)
-flatten (N.BinOp t op e1 e2) = F.BinOp t (F.NotLifted op) (flatten e1) (flatten e2)
+flatten (N.UnOp t op e1)     = F.UnOp t (F.LiftedN Zero op) (flatten e1)
+flatten (N.BinOp t op e1 e2) = F.BinOp t (F.LiftedN Zero op) (flatten e1) (flatten e2)
 flatten (N.Const t v)        = F.Const t v
 flatten (N.Var t v)          = F.Var t v
 flatten (N.If t ce te ee)    = F.If t (flatten ce) (flatten te) (flatten ee)
