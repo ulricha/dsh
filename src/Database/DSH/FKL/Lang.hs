@@ -24,6 +24,8 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | BinOp   Type (Lifted L.ScalarBinOp) Expr Expr
           | UnOp    Type (Lifted L.ScalarUnOp) Expr
           | Const   Type L.Val
+          -- FIXME variables should not occur after flattening (as
+          -- long as we don't have let bindings).
           | Var     Type L.Ident
     deriving (Eq, Generic, Show)
 
@@ -45,6 +47,13 @@ data Prim1 = Length Type
            | MaximumL Type
            | The Type
            | TheL Type
+           -- | QuickConcat does not unsegment the vector. That is:
+           -- the descriptor might not be normalized and segment
+           -- descriptors other than 1 might occur. This is propably
+           -- ok when we know that a concated vector will be
+           -- unconcated again. We know this statically when
+           -- introducing concat/unconcat for higher-lifted
+           -- primitives.
            | QuickConcat Type
            | Tail Type
            | TailL Type
@@ -69,45 +78,45 @@ data Prim1 = Length Type
     deriving (Eq, Generic)
 
 instance Show Prim1 where
-    show (Length _)     = "length"
-    show (LengthL _)    = "lengthᴸ"
-    show (ConcatL _)    = "concatᴸ"
-    show (Fst _)        = "fst"
-    show (Snd _)        = "snd"
-    show (FstL _)       = "fstᴸ"
-    show (SndL _)       = "sndᴸ"
-    show (Concat _)     = "concat"
+    show (Length _)      = "length"
+    show (LengthL _)     = "lengthᴸ"
+    show (ConcatL _)     = "concatᴸ"
+    show (Fst _)         = "fst"
+    show (Snd _)         = "snd"
+    show (FstL _)        = "fstᴸ"
+    show (SndL _)        = "sndᴸ"
+    show (Concat _)      = "concat"
     show (QuickConcat _) = "quickConcat"
-    show (Sum _)        = "sum"
-    show (Avg _)        = "avg"
-    show (SumL _)       = "sumᴸ"
-    show (AvgL _)       = "avgᴸ"
-    show (The _)        = "the"
-    show (TheL _)       = "theᴸ"
-    show (Minimum _)    = "minimum"
-    show (MinimumL _)   = "minimumᴸ"
-    show (Maximum _)    = "maximum"
-    show (MaximumL _)   = "maximumᴸ"
-    show (Tail _)       = "tail"
-    show (TailL _)      = "tailᴸ"
-    show (Reverse _)    = "reverse"
-    show (ReverseL _)   = "reverseᴸ"
-    show (And _)        = "and"
-    show (AndL _)       = "andᴸ"
-    show (Or _)         = "or"
-    show (OrL _)        = "orᴸ"
-    show (Init _)       = "init"
-    show (InitL _)      = "initᴸ"
-    show (Last _)       = "last"
-    show (LastL _)      = "lastᴸ"
-    show (Nub _)        = "nub"
-    show (NubL _)       = "nubᴸ"
-    show (Number _)     = "number"
-    show (NumberL _)    = "numberᴸ"
-    show (Transpose _)  = "transpose"
-    show (TransposeL _) = "transposeᴸ"
-    show (Reshape n _)  = printf "reshape(%d)" n
-    show (ReshapeL n _) = printf "reshapeᴸ(%d)" n
+    show (Sum _)         = "sum"
+    show (Avg _)         = "avg"
+    show (SumL _)        = "sumᴸ"
+    show (AvgL _)        = "avgᴸ"
+    show (The _)         = "the"
+    show (TheL _)        = "theᴸ"
+    show (Minimum _)     = "minimum"
+    show (MinimumL _)    = "minimumᴸ"
+    show (Maximum _)     = "maximum"
+    show (MaximumL _)    = "maximumᴸ"
+    show (Tail _)        = "tail"
+    show (TailL _)       = "tailᴸ"
+    show (Reverse _)     = "reverse"
+    show (ReverseL _)    = "reverseᴸ"
+    show (And _)         = "and"
+    show (AndL _)        = "andᴸ"
+    show (Or _)          = "or"
+    show (OrL _)         = "orᴸ"
+    show (Init _)        = "init"
+    show (InitL _)       = "initᴸ"
+    show (Last _)        = "last"
+    show (LastL _)       = "lastᴸ"
+    show (Nub _)         = "nub"
+    show (NubL _)        = "nubᴸ"
+    show (Number _)      = "number"
+    show (NumberL _)     = "numberᴸ"
+    show (Transpose _)   = "transpose"
+    show (TransposeL _)  = "transposeᴸ"
+    show (Reshape n _)   = printf "reshape(%d)" n
+    show (ReshapeL n _)  = printf "reshapeᴸ(%d)" n
 
 data Prim2 = Group Type
            | GroupL Type

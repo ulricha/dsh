@@ -1,10 +1,10 @@
-{-
-Module containing some primitive operations in AST form.
-
-All of these are helper functions for the flattening transformation
--}
+-- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
+
+import Prelude hiding (fst, snd)
        
+import Text.Printf
+
 import Database.DSH.FKL.Lang       as F
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Lang
@@ -12,357 +12,416 @@ import Database.DSH.Common.Type
 
 import Control.Monad
 
--- tranposePrim :: [[a]] -> [[a]]
-transposePrim :: Expr -> Expr
-transposePrim e = 
+--------------------------------------------------------------------------------
+-- Smart constructors for primitive combinators
+
+-- tranpose :: [[a]] -> [[a]]
+transpose :: Expr -> Expr
+transpose e = 
     let t = typeOf e 
     in F.PApp1 t (F.Transpose (t .-> t)) e
 
--- transposeLPrim :: [[[a]]] -> [[[a]]]
-transposeLPrim :: Expr -> Expr
-transposeLPrim e = 
+-- transposeL :: [[[a]]] -> [[[a]]]
+transposeL :: Expr -> Expr
+transposeL e = 
     let t = typeOf e
     in F.PApp1 t (F.TransposeL (t .-> t)) e
 
 -- transpose :: [a] -> [[a]]
-reshapePrim :: Integer -> Expr -> Expr
-reshapePrim n e = 
+reshape :: Integer -> Expr -> Expr
+reshape n e = 
     let t = typeOf e
     in F.PApp1 (ListT t) (F.Reshape n (t .-> ListT t)) e
 
 -- transpose :: [[a]] -> [[[a]]]
-reshapeLPrim :: Integer -> Expr -> Expr
-reshapeLPrim n e = 
+reshapeL :: Integer -> Expr -> Expr
+reshapeL n e = 
     let t = typeOf e
     in F.PApp1 (ListT t) (F.ReshapeL n (t .-> ListT t)) e
 
 {-
-groupWithKeyPrim :: Expr -> Expr -> Expr
-groupWithKeyPrim f e = let arg1 = mapPrim f e
+groupWithKey :: Expr -> Expr -> Expr
+groupWithKey f e = let arg1 = map f e
                            t1@(FunT _ tk) = typeOf arg1
                            t2           = typeOf e
                            t3           = listT $ pairT tk t2
                        in F.PApp2 t3 (F.GroupWithKey (t1 .-> t2 .-> t3)) arg1 e
 
-groupWithKeyLPrim :: Expr -> Expr -> Expr
-groupWithKeyLPrim f e = let arg1 = mapLPrim f e
+groupWithKeyL :: Expr -> Expr -> Expr
+groupWithKeyL f e = let arg1 = mapL f e
                             t1@(FunT _ tk) = typeOf arg1 
                             t2           = typeOf e
                             t3           = listT $ pairT tk t2
                         in F.PApp2 t3 (F.GroupWithKeyL (t1 .-> t2 .-> t3)) arg1 e 
 -}
 
-consPrim :: Expr -> Expr -> Expr
-consPrim e1 e2 = 
+cons :: Expr -> Expr -> Expr
+cons e1 e2 = 
     let t1 = typeOf e1
         t2 = typeOf e2
     in F.PApp2 t2 (F.Cons (t1 .-> t2 .-> t2)) e1 e2
 
-consLPrim :: Expr -> Expr -> Expr
-consLPrim e1 e2 =
+consL :: Expr -> Expr -> Expr
+consL e1 e2 =
     let t1 = typeOf e1
         t2 = typeOf e2
     in F.PApp2 t2 (F.ConsL (t1 .-> t2 .-> t2)) e1 e2
 
 
-pairPrim :: Expr -> Expr -> Expr
-pairPrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                     rt = pairT t1 t2
-                  in F.PApp2 rt (F.Pair (t1 .-> t2 .-> rt)) e1 e2
+pair :: Expr -> Expr -> Expr
+pair e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+        rt = pairT t1 t2
+    in F.PApp2 rt (F.Pair (t1 .-> t2 .-> rt)) e1 e2
 
 -- FIXME lifted pair is thetavalent to zip!
-pairLPrim :: Expr -> Expr -> Expr
-pairLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
-                      t2@(ListT t2') = typeOf e2
-                      rt = listT (pairT t1' t2')
-                   in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
+pairL :: Expr -> Expr -> Expr
+pairL e1 e2 = 
+    let t1@(ListT t1') = typeOf e1
+        t2@(ListT t2') = typeOf e2
+        rt = listT (pairT t1' t2')
+    in F.PApp2 rt (F.PairL (t1 .-> t2 .-> rt)) e1 e2 
 
-zipPrim :: Expr -> Expr -> Expr
-zipPrim e1 e2 = let t1 = typeOf e1
-                    t2 = typeOf e2
-                 in F.PApp2 t2 (F.Zip (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+zip :: Expr -> Expr -> Expr
+zip e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.Zip (t1 .-> t2 .-> PairT t1 t2)) e1 e2
 
-zipLPrim :: Expr -> Expr -> Expr
-zipLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
-                     t2@(ListT t2') = typeOf e2
-                  in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+zipL :: Expr -> Expr -> Expr
+zipL e1 e2 = 
+    let t1@(ListT t1') = typeOf e1
+        t2@(ListT t2') = typeOf e2
+    in F.PApp2 t2 (F.ZipL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
                   
-cartProductPrim :: Expr -> Expr -> Expr
-cartProductPrim e1 e2 = let t1 = typeOf e1
-                            t2 = typeOf e2
-                         in F.PApp2 t2 (F.CartProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+cartProduct :: Expr -> Expr -> Expr
+cartProduct e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.CartProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
                          
-cartProductLPrim :: Expr -> Expr -> Expr
-cartProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
-                             t2@(ListT t2') = typeOf e2
-                          in F.PApp2 t2 (F.CartProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+cartProductL :: Expr -> Expr -> Expr
+cartProductL e1 e2 = 
+    let t1@(ListT t1') = typeOf e1
+        t2@(ListT t2') = typeOf e2
+    in F.PApp2 t2 (F.CartProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-nestProductPrim :: Expr -> Expr -> Expr
-nestProductPrim e1 e2 = let t1 = typeOf e1
-                            t2 = typeOf e2
-                         -- [a] -> [b] -> [(a, [(a, b)])]
-                         in F.PApp2 t2 (F.NestProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+nestProduct :: Expr -> Expr -> Expr
+nestProduct e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+        -- [a] -> [b] -> [(a, [(a, b)])]
+    in F.PApp2 t2 (F.NestProduct (t1 .-> t2 .-> PairT t1 t2)) e1 e2
                          
-nestProductLPrim :: Expr -> Expr -> Expr
-nestProductLPrim e1 e2 = let t1@(ListT t1') = typeOf e1
-                             t2@(ListT t2') = typeOf e2
-                          in F.PApp2 t2 (F.NestProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+nestProductL :: Expr -> Expr -> Expr
+nestProductL e1 e2 = 
+    let t1@(ListT t1') = typeOf e1
+        t2@(ListT t2') = typeOf e2
+    in F.PApp2 t2 (F.NestProductL (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-thetaJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-thetaJoinPrim p e1 e2 = let t1 = typeOf e1
-                            t2 = typeOf e2
-                        in F.PApp2 t2 (F.ThetaJoin p (t1 .-> t2 .-> PairT t1 t2)) e1 e2
+thetaJoin :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+thetaJoin p e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.ThetaJoin p (t1 .-> t2 .-> PairT t1 t2)) e1 e2
                          
-thetaJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-thetaJoinLPrim p e1 e2 = let t1@(ListT t1') = typeOf e1
-                             t2@(ListT t2') = typeOf e2
-                         in F.PApp2 t2 (F.ThetaJoinL p (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
+thetaJoinL :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+thetaJoinL p e1 e2 = 
+    let t1@(ListT t1') = typeOf e1
+        t2@(ListT t2') = typeOf e2
+    in F.PApp2 t2 (F.ThetaJoinL p (t1 .-> t2 .-> listT (PairT t1' t2'))) e1 e2
 
-nestJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-nestJoinPrim p e1 e2 = let xst@(ListT xt) = typeOf e1
-                           yst@(ListT yt) = typeOf e2
-                           tr = listT $ pairT xt (listT yt)
-                       in F.PApp2 tr (F.NestJoin p (xst .-> yst .-> tr)) e1 e2
+nestJoin :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+nestJoin p e1 e2 = 
+    let xst@(ListT xt) = typeOf e1
+        yst@(ListT yt) = typeOf e2
+        tr = listT $ pairT xt (listT yt)
+    in F.PApp2 tr (F.NestJoin p (xst .-> yst .-> tr)) e1 e2
                          
-nestJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-nestJoinLPrim p e1 e2 = let xst@(ListT (ListT xt)) = typeOf e1
-                            yst@(ListT yt) = typeOf e2
-                            tr = listT $ listT $ pairT xt yt
-                        in F.PApp2 tr (F.NestJoinL p (xst .-> yst .-> tr)) e1 e2
+nestJoinL :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+nestJoinL p e1 e2 = 
+    let xst@(ListT (ListT xt)) = typeOf e1
+        yst@(ListT yt) = typeOf e2
+        tr = listT $ listT $ pairT xt yt
+    in F.PApp2 tr (F.NestJoinL p (xst .-> yst .-> tr)) e1 e2
 
-semiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-semiJoinPrim p e1 e2 = let t1 = typeOf e1
-                           t2 = typeOf e2
-                       in F.PApp2 t2 (F.SemiJoin p (t1 .-> t2 .-> t1)) e1 e2
+semiJoin :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+semiJoin p e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.SemiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-semiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-semiJoinLPrim p e1 e2 = let t1 = typeOf e1
-                            t2 = typeOf e2
-                        in F.PApp2 t2 (F.SemiJoinL p (t1 .-> t2 .-> t1)) e1 e2
+semiJoinL :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+semiJoinL p e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.SemiJoinL p (t1 .-> t2 .-> t1)) e1 e2
 
-antiJoinPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-antiJoinPrim p e1 e2 = let t1 = typeOf e1
-                           t2 = typeOf e2
-                       in F.PApp2 t2 (F.AntiJoin p (t1 .-> t2 .-> t1)) e1 e2
+antiJoin :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+antiJoin p e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.AntiJoin p (t1 .-> t2 .-> t1)) e1 e2
                          
-antiJoinLPrim :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
-antiJoinLPrim p e1 e2 = let t1 = typeOf e1
-                            t2 = typeOf e2
-                        in F.PApp2 t2 (F.AntiJoinL p (t1 .-> t2 .-> t1)) e1 e2
+antiJoinL :: JoinPredicate JoinExpr  -> Expr -> Expr -> Expr
+antiJoinL p e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t2 (F.AntiJoinL p (t1 .-> t2 .-> t1)) e1 e2
 
-appendPrim :: Expr -> Expr -> Expr
-appendPrim e1 e2 = let t1 = typeOf e1
-                       t2 = typeOf e2
-                 in F.PApp2 t1 (F.Append (t1 .-> t2 .-> t1)) e1 e2
+append :: Expr -> Expr -> Expr
+append e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t1 (F.Append (t1 .-> t2 .-> t1)) e1 e2
 
-appendLPrim :: Expr -> Expr -> Expr
-appendLPrim e1 e2 = let t1@(ListT _) = typeOf e1
-                        t2@(ListT _) = typeOf e2
-                  in F.PApp2 t1 (F.AppendL (t1 .-> t2 .-> t1)) e1 e2 
+appendL :: Expr -> Expr -> Expr
+appendL e1 e2 = 
+    let t1@(ListT _) = typeOf e1
+        t2@(ListT _) = typeOf e2
+    in F.PApp2 t1 (F.AppendL (t1 .-> t2 .-> t1)) e1 e2 
 
 
-indexPrim :: Expr -> Expr -> Expr
-indexPrim e1 e2 = let t1@(ListT t) = typeOf e1
-                      t2 = typeOf e2
-                   in F.PApp2 t (F.Index (t1 .-> t2 .-> t)) e1 e2
+index :: Expr -> Expr -> Expr
+index e1 e2 = 
+    let t1@(ListT t) = typeOf e1
+        t2 = typeOf e2
+    in F.PApp2 t (F.Index (t1 .-> t2 .-> t)) e1 e2
 
-indexLPrim :: Expr -> Expr -> Expr
-indexLPrim e1 e2 = let t1@(ListT t) = typeOf e1
-                       t2@(ListT _) = typeOf e2
-                    in F.PApp2 t (F.IndexL (t1 .-> t2 .-> t)) e1 e2
+indexL :: Expr -> Expr -> Expr
+indexL e1 e2 = 
+    let t1@(ListT t) = typeOf e1
+        t2@(ListT _) = typeOf e2
+    in F.PApp2 t (F.IndexL (t1 .-> t2 .-> t)) e1 e2
 
 {-
-filterPrim :: Expr -> Expr -> Expr
-filterPrim f e = let arg1 = mapPrim f e
-                  in restrictPrim e arg1
+filter :: Expr -> Expr -> Expr
+filter f e = let arg1 = map f e
+                  in restrict e arg1
 -}
                   
 {-
-filterLPrim :: Expr -> Expr -> Expr
-filterLPrim f e = let arg1 = qConcatPrim (mapLPrim f e)
-                   in unconcatPrim e (restrictPrim (qConcatPrim e) arg1)
+filterL :: Expr -> Expr -> Expr
+filterL f e = let arg1 = qConcat (mapL f e)
+                   in unconcat e (restrict (qConcat e) arg1)
 -}
 
 --The sortWith combinator
 
 {-
-sortWithPrim :: Expr -> Expr -> Expr
-sortWithPrim f e = let arg1 = mapPrim f e
+sortWith :: Expr -> Expr -> Expr
+sortWith f e = let arg1 = map f e
                        t1@(ListT _) = typeOf arg1
                        t2@(ListT _) = typeOf e
                     in F.PApp2 t2 (F.SortWithS (t1 .-> t2 .-> t2)) arg1 e
 
-sortWithLPrim :: Expr -> Expr -> Expr
-sortWithLPrim f e = let arg1 = mapLPrim f e
+sortWithL :: Expr -> Expr -> Expr
+sortWithL f e = let arg1 = mapL f e
                         t1@(ListT (ListT _)) = typeOf arg1 
                         t2@(ListT (ListT _)) = typeOf e
                      in F.PApp2 t2 (F.SortWithL (t1 .-> t2 .-> t2)) arg1 e
 -}
 
-lengthPrim :: Expr -> Expr
-lengthPrim e1 = let t1@(ListT _) = typeOf e1
-                 in F.PApp1 intT (F.Length $ t1 .-> intT) e1
+length :: Expr -> Expr
+length e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 intT (F.Length $ t1 .-> intT) e1
 
-lengthLPrim :: Expr -> Expr
-lengthLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                  in F.PApp1 (listT intT) (F.LengthL $ t1 .-> listT intT) e1
+lengthL :: Expr -> Expr
+lengthL e1 = 
+    let t1@(ListT (ListT _)) = typeOf e1
+    in F.PApp1 (listT intT) (F.LengthL $ t1 .-> listT intT) e1
     
-thePrim :: Expr -> Expr
-thePrim e1 = let t1@(ListT t1') = typeOf e1
-              in F.PApp1 t1' (F.The $ t1 .-> t1') e1
+the :: Expr -> Expr
+the e1 = 
+    let t1@(ListT t1') = typeOf e1
+    in F.PApp1 t1' (F.The $ t1 .-> t1') e1
 
-theLPrim :: Expr -> Expr
-theLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
-               in F.PApp1 t (F.TheL $ t1 .-> t) e1
+theL :: Expr -> Expr
+theL e1 = 
+    let t1@(ListT t@(ListT _)) = typeOf e1
+    in F.PApp1 t (F.TheL $ t1 .-> t) e1
 
-lastPrim :: Expr -> Expr
-lastPrim e1 = let t1@(ListT t1') = typeOf e1
-               in F.PApp1 t1' (F.Last $ t1 .-> t1') e1
+last :: Expr -> Expr
+last e1 = 
+    let t1@(ListT t1') = typeOf e1
+    in F.PApp1 t1' (F.Last $ t1 .-> t1') e1
 
-lastLPrim :: Expr -> Expr
-lastLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
-                in F.PApp1 t (F.LastL $ t1 .-> t) e1
-
-
-tailPrim :: Expr -> Expr
-tailPrim e1 = let t1@(ListT _) = typeOf e1
-               in F.PApp1 t1 (F.Tail $ t1 .-> t1) e1
-
-tailLPrim :: Expr -> Expr
-tailLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
-
-nubPrim :: Expr -> Expr
-nubPrim e1 = let t1@(ListT _) = typeOf e1
-               in F.PApp1 t1 (F.Nub $ t1 .-> t1) e1
-
-nubLPrim :: Expr -> Expr
-nubLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                in F.PApp1 t1 (F.NubL $ t1 .-> t1) e1
-
-numberPrim :: Expr -> Expr
-numberPrim e1 = let (ListT t) = typeOf e1
-                in F.PApp1 (ListT (PairT t IntT )) (F.Number $ (ListT t) .-> (ListT (PairT t IntT ))) e1
-
-numberLPrim :: Expr -> Expr
-numberLPrim e1 = let t1@(ListT (ListT t)) = typeOf e1
-                     rt = ListT (ListT (PairT t IntT))
-                 in F.PApp1 rt (F.NumberL $ t1 .-> rt) e1
-
-initPrim :: Expr -> Expr
-initPrim e1 = let t1@(ListT _) = typeOf e1
-               in F.PApp1 t1 (F.Init $ t1 .-> t1) e1
-
-initLPrim :: Expr -> Expr
-initLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                in F.PApp1 t1 (F.InitL $ t1 .-> t1) e1
-
-reversePrim :: Expr -> Expr
-reversePrim e1 = let t1@(ListT _) = typeOf e1
-               in F.PApp1 t1 (F.Reverse $ t1 .-> t1) e1
-
-reverseLPrim :: Expr -> Expr
-reverseLPrim e1 = let t1@(ListT (ListT _)) = typeOf e1
-                in F.PApp1 t1 (F.ReverseL $ t1 .-> t1) e1
-
-andPrim :: Expr -> Expr
-andPrim e1 = let t1@(ListT BoolT) = typeOf e1
-             in F.PApp1 BoolT (F.And $ t1 .-> BoolT) e1
-
-andLPrim :: Expr -> Expr 
-andLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
-              in F.PApp1 t (F.AndL $ t1 .-> t) e1
+lastL :: Expr -> Expr
+lastL e1 = 
+    let t1@(ListT t@(ListT _)) = typeOf e1
+    in F.PApp1 t (F.LastL $ t1 .-> t) e1
 
 
-orPrim :: Expr -> Expr
-orPrim e1 = let t1@(ListT BoolT) = typeOf e1
-           in F.PApp1 BoolT (F.Or $ t1 .-> BoolT) e1
+tail :: Expr -> Expr
+tail e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 t1 (F.Tail $ t1 .-> t1) e1
 
-orLPrim :: Expr -> Expr 
-orLPrim e1 = let t1@(ListT t@(ListT BoolT)) = typeOf e1
-            in F.PApp1 t (F.OrL $ t1 .-> t) e1
+tailL :: Expr -> Expr
+tailL e1 = 
+    let t1@(ListT (ListT _)) = typeOf e1
+    in F.PApp1 t1 (F.TailL $ t1 .-> t1) e1
 
-sumPrim :: Expr -> Expr
-sumPrim e1 = let t1@(ListT t) = typeOf e1
-              in F.PApp1 t (F.Sum $ t1 .-> t) e1
+nub :: Expr -> Expr
+nub e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 t1 (F.Nub $ t1 .-> t1) e1
+
+nubL :: Expr -> Expr
+nubL e1 = 
+    let t1@(ListT (ListT _)) = typeOf e1
+    in F.PApp1 t1 (F.NubL $ t1 .-> t1) e1
+
+number :: Expr -> Expr
+number e1 = 
+    let (ListT t) = typeOf e1
+        rt        = (ListT (PairT t IntT ))
+        ft        = (ListT t) .-> (ListT (PairT t IntT ))
+    in F.PApp1 rt (F.Number ft) e1
+
+numberL :: Expr -> Expr
+numberL e1 = 
+    let t1@(ListT (ListT t)) = typeOf e1
+        rt = ListT (ListT (PairT t IntT))
+    in F.PApp1 rt (F.NumberL $ t1 .-> rt) e1
+
+init :: Expr -> Expr
+init e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 t1 (F.Init $ t1 .-> t1) e1
+
+initL :: Expr -> Expr
+initL e1 = 
+    let t1@(ListT (ListT _)) = typeOf e1
+    in F.PApp1 t1 (F.InitL $ t1 .-> t1) e1
+
+reverse :: Expr -> Expr
+reverse e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 t1 (F.Reverse $ t1 .-> t1) e1
+
+reverseL :: Expr -> Expr
+reverseL e1 = 
+    let t1@(ListT (ListT _)) = typeOf e1
+    in F.PApp1 t1 (F.ReverseL $ t1 .-> t1) e1
+
+and :: Expr -> Expr
+and e1 = 
+    let t1@(ListT BoolT) = typeOf e1
+    in F.PApp1 BoolT (F.And $ t1 .-> BoolT) e1
+
+andL :: Expr -> Expr 
+andL e1 = 
+    let t1@(ListT t@(ListT BoolT)) = typeOf e1
+    in F.PApp1 t (F.AndL $ t1 .-> t) e1
+
+
+or :: Expr -> Expr
+or e1 = 
+    let t1@(ListT BoolT) = typeOf e1
+    in F.PApp1 BoolT (F.Or $ t1 .-> BoolT) e1
+
+orL :: Expr -> Expr 
+orL e1 = 
+    let t1@(ListT t@(ListT BoolT)) = typeOf e1
+    in F.PApp1 t (F.OrL $ t1 .-> t) e1
+
+sum :: Expr -> Expr
+sum e1 = 
+    let t1@(ListT t) = typeOf e1
+    in F.PApp1 t (F.Sum $ t1 .-> t) e1
               
-avgPrim :: Expr -> Expr
-avgPrim e1 = let t1 = typeOf e1
-             in F.PApp1 DoubleT (F.Avg $ t1 .-> DoubleT) e1
+avg :: Expr -> Expr
+avg e1 = 
+    let t1 = typeOf e1
+    in F.PApp1 DoubleT (F.Avg $ t1 .-> DoubleT) e1
 
-sumLPrim :: Expr -> Expr
-sumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
-               in F.PApp1 t (F.SumL $ t1 .-> t) e1
+sumL :: Expr -> Expr
+sumL e1 = 
+    let t1@(ListT t@(ListT _)) = typeOf e1
+    in F.PApp1 t (F.SumL $ t1 .-> t) e1
                
-avgLPrim :: Expr -> Expr
-avgLPrim e1 = let t1@(ListT _) = typeOf e1
-              in F.PApp1 (ListT DoubleT) (F.AvgL $ t1 .-> (ListT DoubleT)) e1
+avgL :: Expr -> Expr
+avgL e1 = 
+    let t1@(ListT _) = typeOf e1
+    in F.PApp1 (ListT DoubleT) (F.AvgL $ t1 .-> (ListT DoubleT)) e1
 
-minimumPrim :: Expr -> Expr
-minimumPrim e1 = let t1@(ListT t) = typeOf e1
-                  in F.PApp1 t (F.Minimum $ t1 .-> t) e1
+minimum :: Expr -> Expr
+minimum e1 = 
+    let t1@(ListT t) = typeOf e1
+    in F.PApp1 t (F.Minimum $ t1 .-> t) e1
 
-minimumLPrim :: Expr -> Expr
-minimumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
-                   in F.PApp1 t (F.MinimumL $ t1 .-> t) e1
+minimumL :: Expr -> Expr
+minimumL e1 = 
+    let t1@(ListT t@(ListT _)) = typeOf e1
+    in F.PApp1 t (F.MinimumL $ t1 .-> t) e1
 
-maximumPrim :: Expr -> Expr
-maximumPrim e1 = let t1@(ListT t) = typeOf e1
-                 in F.PApp1 t (F.Maximum $ t1 .-> t) e1
+maximum :: Expr -> Expr
+maximum e1 = 
+    let t1@(ListT t) = typeOf e1
+    in F.PApp1 t (F.Maximum $ t1 .-> t) e1
 
-maximumLPrim :: Expr -> Expr
-maximumLPrim e1 = let t1@(ListT t@(ListT _)) = typeOf e1
-                  in F.PApp1 t (F.MaximumL $ t1 .-> t) e1
+maximumL :: Expr -> Expr
+maximumL e1 = 
+    let t1@(ListT t@(ListT _)) = typeOf e1
+    in F.PApp1 t (F.MaximumL $ t1 .-> t) e1
 
+qConcat :: Expr -> Expr
+qConcat e = 
+    let t1@(ListT rt@(ListT _)) = typeOf e
+        ft = t1 .-> rt
+    in F.PApp1 rt (F.QuickConcat ft) e
 
-qConcatPrim :: Expr -> Expr
-qConcatPrim e = let t1@(ListT rt@(ListT _)) = typeOf e
-                    ft = t1 .-> rt
-                 in F.PApp1 rt (F.QuickConcat ft) e
-
-concatPrim :: Expr -> Expr
-concatPrim e = let t1@(ListT rt@(ListT _)) = typeOf e
-                   ft = t1 .-> rt
-                in F.PApp1 rt (F.Concat ft) e
+concat :: Expr -> Expr
+concat e = 
+    let t1@(ListT rt@(ListT _)) = typeOf e
+        ft = t1 .-> rt
+    in F.PApp1 rt (F.Concat ft) e
                 
-concatLPrim :: Expr -> Expr
-concatLPrim e = let t1@(ListT rt@(ListT (ListT _))) = typeOf e
-                    ft = t1 .-> rt
-                 in F.PApp1 rt (F.ConcatL $ ft) e
+concatL :: Expr -> Expr
+concatL e = 
+    let t1@(ListT rt@(ListT (ListT _))) = typeOf e
+        ft = t1 .-> rt
+    in F.PApp1 rt (F.ConcatL $ ft) e
 
-distPrim :: Expr -> Expr -> Expr
-distPrim e1 e2 = let t1 = typeOf e1
-                     t2 = typeOf e2
-                     ft = t1 .-> t2 .-> listT t1
-                  in F.PApp2 (listT t1) (F.Dist ft) e1 e2
+dist :: Expr -> Expr -> Expr
+dist e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+        ft = t1 .-> t2 .-> listT t1
+    in F.PApp2 (listT t1) (F.Dist ft) e1 e2
 
-distLPrim :: Expr -> Expr -> Expr
-distLPrim e1 e2 = let t1 = typeOf e1
-                      t2 = typeOf e2
-                      ft = t1 .-> t2 .-> listT t1
-                   in F.PApp2 (listT t1) (F.DistL ft) e1 e2
+distL :: Expr -> Expr -> Expr
+distL e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+        ft = t1 .-> t2 .-> listT t1
+    in F.PApp2 (listT t1) (F.DistL ft) e1 e2
 
-restrictPrim :: Expr -> Expr -> Expr
-restrictPrim e1 e2 = let t1 = typeOf e1
-                         rt = t1
-                         ft = t1 .-> listT boolT .-> rt
-                      in F.PApp2 rt (F.Restrict ft) e1 e2
+restrict :: Expr -> Expr -> Expr
+restrict e1 e2 = 
+    let t1 = typeOf e1
+        rt = t1
+        ft = t1 .-> listT boolT .-> rt
+    in F.PApp2 rt (F.Restrict ft) e1 e2
 
-combinePrim :: Expr -> Expr -> Expr -> Expr
-combinePrim e1 e2 e3 = let t1 = typeOf e1 
-                           t2 = typeOf e2
-                           rt = t2
-                           ft = t1 .-> t2 .-> t2 .-> rt
-                        in F.PApp3 rt (F.Combine ft) e1 e2 e3
+combine :: Expr -> Expr -> Expr -> Expr
+combine e1 e2 e3 = 
+    let t1 = typeOf e1 
+        t2 = typeOf e2
+        rt = t2
+        ft = t1 .-> t2 .-> t2 .-> rt
+    in F.PApp3 rt (F.Combine ft) e1 e2 e3
 
-
-unconcatPrim :: Expr -> Expr -> Expr
-unconcatPrim e1 e2 = let t1 = typeOf e1
-                         t2 = typeOf e2
-                         rt = listT t2
-                         ft = t1 .-> t2 .-> rt
-                      in F.PApp2 rt (F.Unconcat ft) e1 e2 
+unconcat :: Expr -> Expr -> Expr
+unconcat e1 e2 = 
+    let t1 = typeOf e1
+        t2 = typeOf e2
+        rt = listT t2
+        ft = t1 .-> t2 .-> rt
+    in F.PApp2 rt (F.Unconcat ft) e1 e2 
 
 intF :: Int -> Expr
 intF i = F.Const intT $ IntV i
@@ -370,66 +429,67 @@ intF i = F.Const intT $ IntV i
 varF :: Type -> String -> Expr
 varF t x = F.Var t x
 
-fstPrim :: Expr -> Expr
-fstPrim e = let t = typeOf e
-             in case t of
-                 (PairT t1 _) -> PApp1 t1 (F.Fst $ typeOf e .-> t1) e
-                 _              -> error $ "fstPrim: Provided type is not a tuple: " ++ show t
+fst :: Expr -> Expr
+fst e = 
+    let PairT t1 _ = typeOf e
+    in PApp1 t1 (F.Fst $ typeOf e .-> t1) e
 
-sndPrim :: Expr -> Expr
-sndPrim e = let t = typeOf e
-             in case t of
-                 (PairT _ t2) -> PApp1 t2 (F.Snd $ typeOf e .-> t2) e
-                 _             -> error $ "sndPrim: Provided type is not a tuple: " ++ show t
+snd :: Expr -> Expr
+snd e = 
+    let PairT _ t2 = typeOf e
+    in PApp1 t2 (F.Snd $ typeOf e .-> t2) e
 
-fstLPrim :: Expr -> Expr
-fstLPrim e = let t = typeOf e
-              in case t of
-                  (ListT (PairT t1 _)) -> PApp1 (ListT t1) (F.FstL $ t .-> ListT t1) e
-                  _              -> error $ "fstLPrim: Provided type is not a tuple: " ++ show t
+fstL :: Expr -> Expr
+fstL e = 
+    let t@(ListT (PairT t1 _)) = typeOf e
+    in PApp1 (ListT t1) (F.FstL $ t .-> ListT t1) e
 
-sndLPrim :: Expr -> Expr
-sndLPrim e = let t = typeOf e
-              in case t of
-                  (ListT (PairT _ t2)) -> PApp1 (ListT t2) (F.SndL $ t .-> ListT t2) e
-                  _             -> error $ "sndLPrim: Provided type is not a tuple: "++ show t
+sndL :: Expr -> Expr
+sndL e = 
+    let t@(ListT (PairT _ t2)) = typeOf e
+    in PApp1 (ListT t2) (F.SndL $ t .-> ListT t2) e
 
-ifPrim :: Expr -> Expr -> Expr -> Expr
-ifPrim eb et ee = let (tb, tt, te) = (typeOf eb, typeOf et, typeOf ee)
-                   in if tb == boolT && tt == te
-                       then If tt eb et ee
-                       else error $ "ifPrim: Provided types are not compatible: " ++ pp tb ++ " " ++ show tt ++ " " ++ show te
+if_ :: Expr -> Expr -> Expr -> Expr
+if_ eb et ee = 
+    let (BoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
+    in if tt == te
+       then If tt eb et ee
+       else error $ printf "FKL.if: incompatible types: %s %s" (pp tt) (pp te)
 
-ifPrimM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
-ifPrimM = liftM3 ifPrim
+ifM :: Monad m => m Expr -> m Expr -> m Expr -> m Expr
+ifM = liftM3 if_
+
+--------------------------------------------------------------------------------
+-- Smart constructors for binary and unary operators.
     
-binPrim :: Type -> ScalarBinOp -> Expr -> Expr -> Expr     
-binPrim t o e1 e2 = 
-    let t' = typeOf e1
-    in case (t', o) of
-           (PairT _ _, SBRelOp Eq) -> 
-               binPrim t (SBBoolOp Conj) (binPrim t (SBRelOp Eq) (fstPrim e1) (fstPrim e2)) 
-                                         (binPrim t (SBRelOp Eq) (sndPrim e1) (sndPrim e2))
-           _                       -> BinOp t (NotLifted o) e1 e2
+bin :: Type -> ScalarBinOp -> Expr -> Expr -> Expr     
+bin t o e1 e2 = 
+    case (typeOf e1, o) of
+        -- FIXME implementation of equality on tuples should be
+        -- performed in the frontend.
+        (PairT _ _, SBRelOp Eq) -> 
+            bin t (SBBoolOp Conj) (bin t (SBRelOp Eq) (fst e1) (fst e2)) 
+                                  (bin t (SBRelOp Eq) (snd e1) (snd e2))
+        _                            -> BinOp t (NotLifted o) e1 e2
 
-binPrimM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
-binPrimM t o = liftM2 (binPrim t o)
+binM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binM t o = liftM2 (bin t o)
 
-binPrimL :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
-binPrimL t o = BinOp t (Lifted o) 
+binL :: Type -> ScalarBinOp -> Expr -> Expr -> Expr
+binL t o = BinOp t (Lifted o) 
 
-binPrimLM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
-binPrimLM t o = liftM2 (binPrimL t o)
+binLM :: Monad m => Type -> ScalarBinOp -> m Expr -> m Expr -> m Expr
+binLM t o = liftM2 (binL t o)
 
-unPrim :: Type -> ScalarUnOp -> Expr -> Expr
-unPrim t o e = UnOp t (NotLifted o) e
+un :: Type -> ScalarUnOp -> Expr -> Expr
+un t o e = UnOp t (NotLifted o) e
 
-unPrimM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
-unPrimM t o = liftM (unPrim t o)
+unM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unM t o = liftM (un t o)
 
-unPrimL :: Type -> ScalarUnOp -> Expr -> Expr
-unPrimL t o e = UnOp t (Lifted o) e
+unL :: Type -> ScalarUnOp -> Expr -> Expr
+unL t o e = UnOp t (Lifted o) e
 
-unPrimLM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
-unPrimLM t o = liftM (unPrimL t o)
+unLM :: Monad m => Type -> ScalarUnOp -> m Expr -> m Expr
+unLM t o = liftM (unL t o)
 
