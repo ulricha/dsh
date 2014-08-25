@@ -59,7 +59,6 @@ commonPipeline =
     >>> desugarComprehensions
     >>> optimizeNKL
     >>> flatten
-    >>> optimizeFKL
     >>> specializeVectorOps
 
 nkl2X100Alg :: CL.Expr -> TopShape X100Code
