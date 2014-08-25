@@ -46,23 +46,23 @@ cons x xs = let xt  = typeOf x
 singleton :: Expr -> Expr
 singleton e = let t = typeOf e in cons e (Const (listT t) (ListV []))
 
-map :: Expr -> Expr -> Expr
-map f es = let ft@(FunT ta tr) = typeOf f
-               te@(ListT t)    = typeOf es
-            in if t P.== ta
-                 then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
-                 else tyErr "map"
-
-concatMap :: Expr -> Expr -> Expr
-concatMap f xs = {- trace (printf "concatMap %s %s" (pp $ typeOf f) (pp $ typeOf xs)) $ -} concat $ map f xs
-
 concat :: Expr -> Expr
 concat e = let t = typeOf e
             in if listDepth t P.> 1
                then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
                else tyErrShow "concat" [t]
 
-filter :: Expr -> Expr -> Expr
-filter f es = let ft@(FunT _ BoolT) = typeOf f
-                  te@(ListT _) = typeOf es
-               in AppE2 te (Prim2 Filter P.$ ft .-> te .-> te) f es
+restrict :: Expr -> Expr -> Expr
+restrict bs vs = let bst@(ListT BoolT) = typeOf bs
+                     vst@(ListT _)     = typeOf vs
+                 in AppE2 vst (Prim2 Restrict (bst .-> vst .-> vst)) bs vs
+
+sort :: Expr -> Expr -> Expr
+sort ss vs = let sst@(ListT _) = typeOf ss
+                 vst@(ListT _) = typeOf vs
+             in AppE2 vst (Prim2 Sort (sst .-> vst .-> vst)) ss vs
+
+group :: Expr -> Expr -> Expr
+group gs vs = let gst@(ListT _) = typeOf gs
+                  vst@(ListT _) = typeOf vs
+              in AppE2 vst (Prim2 Group (gst .-> vst .-> vst)) gs vs

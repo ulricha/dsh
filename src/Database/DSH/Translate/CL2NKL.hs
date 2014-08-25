@@ -73,25 +73,59 @@ prim1 t (CL.Prim1 o ot) e = mkApp t ot <$> expr e
     mkPrim1 nop nt nopt ne = NKL.AppE1 nt (NKL.Prim1 nop nopt) ne
                                    
 
-prim2 :: CL.Prim2 Type -> NKL.Prim2 Type
-prim2 (CL.Prim2 o t) = NKL.Prim2 o' t
-  where o' = case o of
-              CL.Map          -> NKL.Map 
-              CL.GroupWithKey -> NKL.GroupWithKey
-              CL.SortWith     -> NKL.SortWith 
-              CL.Pair         -> NKL.Pair
-              CL.Filter       -> NKL.Filter 
-              CL.Append       -> NKL.Append
-              CL.Index        -> NKL.Index 
-              CL.Zip          -> NKL.Zip
-              CL.Cons         -> NKL.Cons
-              CL.CartProduct  -> NKL.CartProduct
-              CL.NestProduct  -> NKL.NestProduct
-              CL.ThetaJoin p  -> NKL.ThetaJoin p
-              CL.NestJoin p   -> NKL.NestJoin p
-              CL.SemiJoin p   -> NKL.SemiJoin p
-              CL.AntiJoin p   -> NKL.AntiJoin p
-              CL.ConcatMap    -> $impossible
+-- | Transform applications of binary primitives. Regular primitives
+-- are mapped to their direct NKL equivalent. Higher-order primitives
+-- (concatMap, map, filter, sortWith, groupWith) are mapped to their
+-- first-order NKL equivalent combined with a single-generator
+-- comprehension.
+prim2 :: Type -> CL.Prim2 Type -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
+prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
+  where
+    mkApp2 =
+        case o of
+            CL.Pair         -> mkPrim2 NKL.Pair
+            CL.Append       -> mkPrim2 NKL.Append
+            CL.Index        -> mkPrim2 NKL.Index 
+            CL.Zip          -> mkPrim2 NKL.Zip
+            CL.Cons         -> mkPrim2 NKL.Cons
+            CL.CartProduct  -> mkPrim2 NKL.CartProduct
+            CL.NestProduct  -> mkPrim2 NKL.NestProduct
+            CL.ThetaJoin p  -> mkPrim2 $ NKL.ThetaJoin p
+            CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
+            CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
+            CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
+
+            CL.ConcatMap    ->
+                case e1 of
+                    CL.Lam _ x h -> P.concat <$> mkComp h x e2
+                    _            -> $impossible
+
+            CL.Map          ->
+                case e1 of
+                    CL.Lam _ x h -> mkComp h x e2
+                    _            -> $impossible
+
+            CL.Filter       ->
+                case e1 of
+                    CL.Lam _ x h -> P.restrict <$> mkComp h x e2 <*> expr e2
+                    _            -> $impossible
+
+            CL.SortWith     ->
+                case e1 of
+                    CL.Lam _ x h -> P.sort <$> mkComp h x e2 <*> expr e2
+                    _            -> $impossible
+
+            CL.GroupWithKey ->
+                case e1 of
+                    CL.Lam _ x h -> P.group <$> mkComp h x e2 <*> expr e2
+                    _            -> $impossible
+
+    mkPrim2 :: NKL.Prim2Op -> NameEnv NKL.Expr
+    mkPrim2 nop = NKL.AppE2 t (NKL.Prim2 nop ot) <$> expr e1 <*> expr e2
+
+    mkComp :: CL.Expr -> Ident -> CL.Expr -> NameEnv NKL.Expr
+    mkComp h x xs = NKL.Comp t <$> local (x :) (expr h) <*> pure x <*> expr xs
+            
 
 --------------------------------------------------------------------------------
 -- Generator environments
@@ -135,17 +169,18 @@ type NameEnv a = Reader [Ident] a
 -- comprehensions.
 expr :: CL.Expr -> NameEnv NKL.Expr
 expr (CL.Table t s cs ks)        = return $ NKL.Table t s cs ks
-expr (CL.App t e1 e2)            = NKL.App t <$> expr e1 <*> expr e2
 expr (CL.AppE1 t p e)            = prim1 t p e
-expr (CL.AppE2 _ (CL.Prim2 CL.ConcatMap _) f xs) = P.concatMap <$> expr f <*> expr xs
-expr (CL.AppE2 t p e1 e2)        = NKL.AppE2 t (prim2 p) <$> expr e1 <*> expr e2
+expr (CL.AppE2 t p e1 e2)        = prim2 t p e1 e2
 expr (CL.BinOp t o e1 e2)        = NKL.BinOp t o <$> expr e1 <*> expr e2
 expr (CL.UnOp t o e)             = NKL.UnOp t o <$> expr e
-expr (CL.Lam t v e)              = NKL.Lam t v <$> local (v :) (expr e)
 expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
 expr (CL.Lit t v)                = return $ NKL.Const t v
 expr (CL.Var t v)                = return $ NKL.Var t v
 expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
+-- We assume that lambdas only occur as argument in the application of
+-- a higher-order primitive.
+expr CL.Lam{}                    = $impossible
+expr CL.App{}                    = $impossible
 
 --------------------------------------------------------------------------------
 -- Desugaring of comprehensions
@@ -204,12 +239,10 @@ mkTuple xs = F.foldl1 P.pair xs
 -- concatMap (\x -> concatMap (\y -> concatMap (\z -> (((t, x), y), z)) zs) ys) xs
 -- where t is the binding variable for the base expression.
 nestQualifiers :: NKL.Expr -> [(Ident, NKL.Expr)] -> NKL.Expr
-nestQualifiers tupConst ((x, xs) : qs) = P.concatMap lam xs
+nestQualifiers tupConst ((x, xs) : qs) = P.concat $ NKL.Comp (listT bodyType) compHead x xs
   where
-    lam      = NKL.Lam (genType .-> bodyType) x lamBody
-    lamBody  = nestQualifiers tupConst qs
-    bodyType = typeOf lamBody
-    genType  = elemT $ typeOf xs
+    compHead  = nestQualifiers tupConst qs
+    bodyType = typeOf compHead
 nestQualifiers tupConst []             = tupConst
 
 -- | Desugar a sequence of generators. 
@@ -230,11 +263,10 @@ desugarGens env baseExpr qs = do
     let qs'            = fmap substGenExpr qs
 
         tupConst       = P.singleton $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
-        outerLamType   = baseElemType .-> typeOf tupConst
         mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x 
-        outerLam       = NKL.Lam outerLamType outerName gensExpr
         gensExpr       = nestQualifiers tupConst (N.toList qs')
-    return $ P.concatMap outerLam baseExpr
+        compTy         = (listT $ typeOf tupConst)
+    return $ P.concat $ NKL.Comp compTy gensExpr outerName baseExpr
 
 -- | Replace every occurence of a generator variable with the
 -- corresponding tuple access expression.
@@ -280,10 +312,9 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
 
     filterName   <- freshIdent $ visibleNames
     let elemType   = elemT $ typeOf baseSrc
-        lamType    = elemType .-> boolT
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
-        filterLam  = NKL.Lam lamType filterName filterExpr
-        filterSrc  = P.filter filterLam baseSrc
+        predComp   = NKL.Comp (listT boolT) filterExpr filterName baseSrc
+        filterSrc  = P.restrict predComp baseSrc
 
     desugarQualsRec env filterSrc qs
 
@@ -305,7 +336,7 @@ desugarQuals (CL.BindQ x xs : qs) = do
 -- filtered) cartesian product of all qualifiers. The head expression
 -- ist then simply mapped over the resulting list.
 desugarComprehension:: Type -> CL.Expr -> [CL.Qual] -> NameEnv NKL.Expr
-desugarComprehension t e qs = do
+desugarComprehension _ e qs = do
     -- Desugar the qualifiers
     (env, genExpr) <- desugarQuals qs
 
@@ -329,9 +360,8 @@ desugarComprehension t e qs = do
         -- though, as the information is only used for alpha-conversion
         -- on lambdas during substitution.
         e''      = substTupleAccesses visibleNames (n, t) env e'
-        headLam  = NKL.Lam (t .-> typeOf e') n e''
  
-    return $ P.map headLam genExpr
+    return $ NKL.Comp (listT $ typeOf e') e'' n genExpr
         
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.

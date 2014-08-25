@@ -4,7 +4,6 @@ module Database.DSH.NKL.Rewrite
     ( substR
     , subst
     , freeVars
-    , boundVars
     , optimizeNKL
     ) where
 
@@ -34,25 +33,18 @@ freeVarsT = fmap nub $ crushbuT $ do (ctx, Var _ v) <- exposeT
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr [] freeVarsT
 
-boundVarsT :: TransformN Expr [Ident]
-boundVarsT = fmap nub $ crushbuT $ do Lam _ v _ <- idR
-                                      return [v]
-
-boundVars :: Expr -> [Ident]
-boundVars = either error id . applyExpr [] boundVarsT
-
 --------------------------------------------------------------------------------
 -- Substitution
 
 subst :: [Ident] -> Ident -> Expr -> Expr -> Expr
 subst nameCtx x s e = either (const e) id $ applyExpr nameCtx (substR x s) e
 
-alphaLamR :: RewriteN Expr
-alphaLamR = do 
-    Lam lamTy v e <- idR
-    v'            <- freshNameT (v : freeVars e)
-    let varTy = domainT lamTy
-    lamT (tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
+alphaCompR :: [Ident] -> RewriteN Expr
+alphaCompR avoidNames = do 
+    Comp compTy h x _  <- idR
+    x'                 <- freshNameT (x : freeVars h ++ avoidNames)
+    let varTy = elemT compTy
+    compT (tryR $ substR x (Var varTy x')) idR (\_ h' _ xs' -> Comp compTy h' x' xs')
 
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
@@ -62,39 +54,36 @@ substR v s = readerT $ \expr -> case expr of
     -- Some other variable
     Var _ _                                   -> idR
 
-    -- A lambda which does not shadow v and in which v occurs free. If the
-    -- lambda variable occurs free in the substitute, we rename the lambda
-    -- variable to avoid name capturing.
-    Lam _ n e | n /= v && v `elem` freeVars e ->
-        if n `elem` freeVars s
-        then alphaLamR >>> substR v s
-        else lamR (substR v s)
+    -- A comprehension which does not shadow v and in which v occurs
+    -- free in the head. If the lambda variable occurs free in the
+    -- substitute, we rename the lambda variable to avoid name
+    -- capturing.
+    Comp _ h x _ | x /= v && v `elem` freeVars h ->
+        if x `elem` freeVars s
+        then alphaCompR (freeVars s) >>> substR v s
+        else compR (substR v s) (substR v s)
 
-    -- A lambda which shadows v -> don't descend
-    Lam _ _ _                                 -> idR
+    -- A comprehension whose generator shadows v -> don't descend into the head
+    Comp _ _ x _ | v == x                     -> compR idR (substR v s)
     _                                         -> anyR $ substR v s
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
 
-pattern ConcatMap t lam xs <- AppE1 t (Prim1 Concat _) (AppE2 _ (Prim2 Map _) lam xs)
-pattern Singleton e <- AppE2 _ (Prim2 Cons _) e (Const _ (ListV []))
+pattern ConcatP t xs <- AppE1 t (Prim1 Concat _) xs
+pattern SingletonP e <- AppE2 _ (Prim2 Cons _) e (Const _ (ListV []))
        
 -- concatMap (\x -> [e x]) xs
+-- concat [ [ e x ] | x <- xs ]
 -- =>
--- map (\x -> e x) xs
-singletonConcatMap :: RewriteN Expr
-singletonConcatMap = do
-    ConcatMap t (Lam _ x (Singleton e)) xs <- idR
-    let xst    = elemT $ typeOf xs
-        bodyTy = typeOf e
-        lamTy  = elemT xst .-> bodyTy
-        mapTy  = xst .-> lamTy .-> t
-
-    return $ AppE2 t (Prim2 Map mapTy) (Lam lamTy x e) xs
+-- [ e x | x <- xs ]
+singletonHead :: RewriteN Expr
+singletonHead = do
+    ConcatP t (Comp _ (SingletonP e) x xs) <- idR
+    return $ Comp t e x xs
 
 nklOptimizations :: RewriteN Expr
-nklOptimizations = anybuR singletonConcatMap
+nklOptimizations = anybuR singletonHead
 
 optimizeNKL :: Expr -> Expr
 optimizeNKL expr = debugOpt expr optimizedExpr

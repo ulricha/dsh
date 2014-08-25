@@ -246,6 +246,8 @@ substR v s = readerT $ \expr -> case expr of
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
+    -- FIXME in this case, rename the shadowing generator to avoid
+    -- name-capturing (see lambda case)
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
     ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
 

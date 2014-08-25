@@ -31,10 +31,10 @@ import           Control.Monad
 import           Control.Monad.State hiding (lift)
 import           Data.List
        
+import           Database.DSH.Impossible
 import qualified Database.DSH.FKL.Data.FKL as F
 import qualified Database.DSH.NKL.Lang as N
 import qualified Database.DSH.NKL.Rewrite as NR
-
 import           Database.DSH.FKL.FKLPrimitives
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
@@ -208,8 +208,9 @@ cloLAppM (AClo ((n, x1, ..., xn)) f f') x == f' n x1 ... xn x
 \begin{code}
         
 flatten :: N.Expr -> F.Expr
-flatten e = let e' = runTransform (flatTransform e) in {- trace (show e') -} e'
+flatten e = $unimplemented -- let e' = runTransform (flatTransform e) in {- trace (show e') -} e'
 
+{-
 flatTransform :: N.Expr -> TransM F.Expr
 flatTransform = transform 
 
@@ -251,6 +252,7 @@ prim2Transform (N.Prim2 (N.ThetaJoin p) t) = thetaJoinVal p t
 prim2Transform (N.Prim2 (N.NestJoin p) t)  = nestJoinVal p t
 prim2Transform (N.Prim2 (N.SemiJoin p) t)  = semiJoinVal p t
 prim2Transform (N.Prim2 (N.AntiJoin p) t)  = antiJoinVal p t
+-}
 \end{code}
 %endif
 
@@ -275,6 +277,7 @@ lifts such a tree into a vector form (which is included in every
 function).
 
 \begin{code} 
+{-
 transform :: N.Expr ->  TransM F.Expr
 transform (N.Table t n c h)    = pure $ F.Table t n c h
 transform (N.App _t e1 e2)     = cloAppM (transform e1) (transform e2)
@@ -292,6 +295,7 @@ transform (N.BinOp t o e1 e2)  = binPrimM t o (transform e1) (transform e2)
 transform (N.UnOp t o e)       = unPrimM t o (transform e)
 transform (N.Const t v)        = pure $ F.Const t v
 transform (N.Var t x)          = pure $ F.Var t x
+-}
 
 \end{code}
 
@@ -308,6 +312,7 @@ distribute values. This is the extra variable in the environment of a lifted
 closure. We shall refer to this variable as the iteration context hereinafter.
 
 \begin{code}
+{-
 lift :: F.Expr -> N.Expr -> TransM F.Expr
 lift en   (N.Table t n c k)        = pure $ distPrim ((F.Table t n c k)) en
 
@@ -356,6 +361,7 @@ lift en   (N.Lam t arg e)          = do
     let (F.Var _ n') = en
     let fvs = filter (\v -> v /= arg) $ NR.freeVars e
     cloLM (liftType t) n' fvs arg (transform e) (lift en e)
+-}
 \end{code}
         
 Literal data and database tables are simply distributed over the iteration
@@ -388,3 +394,5 @@ lifted similarly as in the transformation function but result in a lifted
 closure.
 
 %}
+
+-}

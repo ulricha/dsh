@@ -23,8 +23,8 @@ module Database.DSH.NKL.Kure
     , inScopeNames, bindVar
 
       -- * Congruence combinators
-    , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, constExprT, varT
-    , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR
+    , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, compT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR
     
     ) where
     
@@ -49,8 +49,8 @@ type LensN a b      = Lens NestedCtx (RewriteM Int) a b
 
 --------------------------------------------------------------------------------
 
-data CrumbN = AppFun
-            | AppArg
+data CrumbN = CompHead
+            | CompSource
             | AppE1Arg
             | AppE2Arg1
             | AppE2Arg2
@@ -125,20 +125,22 @@ tableT f = contextfreeT $ \expr -> case expr of
 tableR :: Monad m => Rewrite NestedCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
-                                       
-appT :: Monad m => Transform NestedCtx m Expr a1
-                -> Transform NestedCtx m Expr a2
-                -> (Type -> a1 -> a2 -> b)
-                -> Transform NestedCtx m Expr b
-appT t1 t2 f = transform $ \c expr -> case expr of
-                      App ty e1 e2 -> f ty <$> apply t1 (c@@AppFun) e1 <*> apply t2 (c@@AppArg) e2
-                      _            -> fail "not an application node"
-{-# INLINE appT #-}                      
 
-appR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
-appR t1 t2 = appT t1 t2 App
-{-# INLINE appR #-}                      
-                      
+compT :: Monad m => Transform NestedCtx m Expr a1
+                 -> Transform NestedCtx m Expr a2
+                 -> (Type -> a1 -> Ident -> a2 -> b)
+                 -> Transform NestedCtx m Expr b
+compT t1 t2 f = transform $ \c expr -> case expr of
+                     Comp ty h x xs -> f ty <$> apply t1 (c@@CompHead) h 
+                                            <*> return x 
+                                            <*> apply t2 (c@@CompSource) xs
+                     _              -> fail "not a comprehension node"
+{-# INLINE compT #-}
+
+compR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
+compR t1 t2 = compT t1 t2 Comp
+{-# INLINE compR #-}
+                                       
 appe1T :: Monad m => Transform NestedCtx m Expr a
                   -> (Type -> Prim1 Type -> a -> b)
                   -> Transform NestedCtx m Expr b
@@ -189,18 +191,6 @@ unopR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
                      
-lamT :: Monad m => Transform NestedCtx m Expr a
-                -> (Type -> Ident -> a -> b)
-                -> Transform NestedCtx m Expr b
-lamT t f = transform $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> apply t (bindVar n c@@LamBody) e
-                     _          -> fail "not a lambda"
-{-# INLINE lamT #-}                      
-                     
-lamR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
-lamR t = lamT t Lam
-{-# INLINE lamR #-}                      
-                     
 ifT :: Monad m => Transform NestedCtx m Expr a1
                -> Transform NestedCtx m Expr a2
                -> Transform NestedCtx m Expr a3
@@ -247,12 +237,11 @@ instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
     allR r = readerT $ \e -> case e of
             Table{} -> idR
-            App{}   -> appR (extractR r) (extractR r)
             AppE1{} -> appe1R (extractR r)
             AppE2{} -> appe2R (extractR r) (extractR r)
             BinOp{} -> binopR (extractR r) (extractR r)
             UnOp{}  -> unopR (extractR r)
-            Lam{}   -> lamR (extractR r)
+            Comp{}  -> compR (extractR r) (extractR r)
             If{}    -> ifR (extractR r) (extractR r) (extractR r)
             Const{} -> idR
             Var{}   -> idR
