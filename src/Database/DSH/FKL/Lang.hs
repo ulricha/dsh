@@ -29,24 +29,24 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | Var     Type L.Ident
     deriving (Eq, Generic, Show)
 
-data Prim1 = Length Type
-           | LengthL Type
-           | Concat Type
-           | ConcatL Type
-           | Fst Type
-           | FstL Type
-           | Snd Type
-           | SndL Type
-           | Sum Type
-           | SumL Type
-           | Avg Type
-           | AvgL Type
-           | Minimum Type
-           | MinimumL Type
-           | Maximum Type
-           | MaximumL Type
-           | The Type
-           | TheL Type
+data Prim1 = Length
+           | LengthL
+           | Concat
+           | ConcatL
+           | Fst
+           | FstL
+           | Snd
+           | SndL
+           | Sum
+           | SumL
+           | Avg
+           | AvgL
+           | Minimum
+           | MinimumL
+           | Maximum
+           | MaximumL
+           | The
+           | TheL
            -- | QuickConcat does not unsegment the vector. That is:
            -- the descriptor might not be normalized and segment
            -- descriptors other than 1 might occur. This is propably
@@ -54,141 +54,141 @@ data Prim1 = Length Type
            -- unconcated again. We know this statically when
            -- introducing concat/unconcat for higher-lifted
            -- primitives.
-           | QuickConcat Type
-           | Tail Type
-           | TailL Type
-           | Reverse Type
-           | ReverseL Type
-           | And Type
-           | AndL Type
-           | Or Type
-           | OrL Type
-           | Init Type
-           | InitL Type
-           | Last Type
-           | LastL Type
-           | Nub Type
-           | NubL Type
-           | Number Type
-           | NumberL Type
-           | Transpose Type
-           | TransposeL Type
-           | Reshape Integer Type
-           | ReshapeL Integer Type
+           | QuickConcat
+           | Tail
+           | TailL
+           | Reverse
+           | ReverseL
+           | And
+           | AndL
+           | Or
+           | OrL
+           | Init
+           | InitL
+           | Last
+           | LastL
+           | Nub
+           | NubL
+           | Number
+           | NumberL
+           | Transpose
+           | TransposeL
+           | Reshape Integer
+           | ReshapeL Integer
     deriving (Eq, Generic)
 
 instance Show Prim1 where
-    show (Length _)      = "length"
-    show (LengthL _)     = "lengthᴸ"
-    show (ConcatL _)     = "concatᴸ"
-    show (Fst _)         = "fst"
-    show (Snd _)         = "snd"
-    show (FstL _)        = "fstᴸ"
-    show (SndL _)        = "sndᴸ"
-    show (Concat _)      = "concat"
-    show (QuickConcat _) = "quickConcat"
-    show (Sum _)         = "sum"
-    show (Avg _)         = "avg"
-    show (SumL _)        = "sumᴸ"
-    show (AvgL _)        = "avgᴸ"
-    show (The _)         = "the"
-    show (TheL _)        = "theᴸ"
-    show (Minimum _)     = "minimum"
-    show (MinimumL _)    = "minimumᴸ"
-    show (Maximum _)     = "maximum"
-    show (MaximumL _)    = "maximumᴸ"
-    show (Tail _)        = "tail"
-    show (TailL _)       = "tailᴸ"
-    show (Reverse _)     = "reverse"
-    show (ReverseL _)    = "reverseᴸ"
-    show (And _)         = "and"
-    show (AndL _)        = "andᴸ"
-    show (Or _)          = "or"
-    show (OrL _)         = "orᴸ"
-    show (Init _)        = "init"
-    show (InitL _)       = "initᴸ"
-    show (Last _)        = "last"
-    show (LastL _)       = "lastᴸ"
-    show (Nub _)         = "nub"
-    show (NubL _)        = "nubᴸ"
-    show (Number _)      = "number"
-    show (NumberL _)     = "numberᴸ"
-    show (Transpose _)   = "transpose"
-    show (TransposeL _)  = "transposeᴸ"
-    show (Reshape n _)   = printf "reshape(%d)" n
-    show (ReshapeL n _)  = printf "reshapeᴸ(%d)" n
+    show Length       = "length"
+    show LengthL      = "lengthᴸ"
+    show ConcatL      = "concatᴸ"
+    show Fst          = "fst"
+    show Snd          = "snd"
+    show FstL         = "fstᴸ"
+    show SndL         = "sndᴸ"
+    show Concat       = "concat"
+    show QuickConcat  = "quickConcat"
+    show Sum          = "sum"
+    show Avg          = "avg"
+    show SumL         = "sumᴸ"
+    show AvgL         = "avgᴸ"
+    show The          = "the"
+    show TheL         = "theᴸ"
+    show Minimum      = "minimum"
+    show MinimumL     = "minimumᴸ"
+    show Maximum      = "maximum"
+    show MaximumL     = "maximumᴸ"
+    show Tail         = "tail"
+    show TailL        = "tailᴸ"
+    show Reverse      = "reverse"
+    show ReverseL     = "reverseᴸ"
+    show And          = "and"
+    show AndL         = "andᴸ"
+    show Or           = "or"
+    show OrL          = "orᴸ"
+    show Init         = "init"
+    show InitL        = "initᴸ"
+    show Last         = "last"
+    show LastL        = "lastᴸ"
+    show Nub          = "nub"
+    show NubL         = "nubᴸ"
+    show Number       = "number"
+    show NumberL      = "numberᴸ"
+    show Transpose    = "transpose"
+    show TransposeL   = "transposeᴸ"
+    show (Reshape n)  = printf "reshape(%d)" n
+    show (ReshapeL n) = printf "reshapeᴸ(%d)" n
 
-data Prim2 = Group Type
-           | GroupL Type
-           | Sort Type
-           | SortL Type
-           | Restrict Type
-           | RestrictL Type
-           | Pair Type
-           | PairL Type
-           | Append Type
-           | AppendL Type
-           | Index Type
-           | IndexL Type
-           | Zip Type
-           | ZipL Type
-           | Cons Type
-           | ConsL Type
-           | CartProduct Type
-           | CartProductL Type
-           | NestProduct Type
-           | NestProductL Type
-           | ThetaJoin (L.JoinPredicate L.JoinExpr) Type
-           | ThetaJoinL (L.JoinPredicate L.JoinExpr) Type
-           | NestJoin (L.JoinPredicate L.JoinExpr) Type
-           | NestJoinL (L.JoinPredicate L.JoinExpr) Type
-           | SemiJoin (L.JoinPredicate L.JoinExpr) Type
-           | SemiJoinL (L.JoinPredicate L.JoinExpr) Type
-           | AntiJoin (L.JoinPredicate L.JoinExpr) Type
-           | AntiJoinL (L.JoinPredicate L.JoinExpr) Type
-           | Unconcat Type
-           | Dist Type
-           | DistL Type
-    deriving (Eq, Generic)
+data Prim2 = Group
+           | GroupL
+           | Sort
+           | SortL
+           | Restrict
+           | RestrictL
+           | Pair
+           | PairL
+           | Append
+           | AppendL
+           | Index
+           | IndexL
+           | Zip
+           | ZipL
+           | Cons
+           | ConsL
+           | CartProduct
+           | CartProductL
+           | NestProduct
+           | NestProductL
+           | ThetaJoin (L.JoinPredicate L.JoinExpr)
+           | ThetaJoinL (L.JoinPredicate L.JoinExpr)
+           | NestJoin (L.JoinPredicate L.JoinExpr)
+           | NestJoinL (L.JoinPredicate L.JoinExpr)
+           | SemiJoin (L.JoinPredicate L.JoinExpr)
+           | SemiJoinL (L.JoinPredicate L.JoinExpr)
+           | AntiJoin (L.JoinPredicate L.JoinExpr)
+           | AntiJoinL (L.JoinPredicate L.JoinExpr)
+           | Unconcat
+           | Dist
+           | DistL
+           deriving (Eq, Generic)
 
 instance Show Prim2 where
-    show (Group _)           = "group"
-    show (GroupL _)          = "groupᴸ"
-    show (Sort _)            = "sort"
-    show (SortL _)           = "sortᴸ"
-    show (Dist _)            = "dist"
-    show (DistL _)           = "distᴸ"
-    show (Restrict _)        = "restrict"
-    show (RestrictL _)       = "restrictᴸ"
-    show (Unconcat _)        = "unconcat"
-    show (Pair _)            = "pair"
-    show (PairL _)           = "pairᴸ"
-    show (Append _)          = "append"
-    show (AppendL _)         = "appendᴸ"
-    show (Index _)           = "index"
-    show (IndexL _)          = "indexᴸ"
-    show (Zip _)             = "zip"
-    show (ZipL _)            = "zipᴸ"
-    show (Cons _)            = "cons"
-    show (ConsL _)           = "consᴸ"
-    show (CartProduct _)     = "⨯"
-    show (CartProductL _)    = "⨯ᴸL"
-    show (NestProduct _)     = "▽"
-    show (NestProductL _)    = "▽ᴸ"
-    show (ThetaJoin p _)     = printf "⨝_%s" (pp p)
-    show (ThetaJoinL p _)    = printf "⨝ᴸ_%s" (pp p)
-    show (NestJoin p _)      = printf "△_%s" (pp p)
-    show (NestJoinL p _)     = printf "△ᴸ_%s" (pp p)
-    show (SemiJoin p _)      = printf "⋉_%s" (pp p)
-    show (SemiJoinL p _)     = printf "⋉ᴸ_%s" (pp p)
-    show (AntiJoin p _)      = printf "▷_%s" (pp p)
-    show (AntiJoinL p _)     = printf "▷ᴸ_%s" (pp p)
+    show Group           = "group"
+    show GroupL          = "groupᴸ"
+    show Sort            = "sort"
+    show SortL           = "sortᴸ"
+    show Dist            = "dist"
+    show DistL           = "distᴸ"
+    show Restrict        = "restrict"
+    show RestrictL       = "restrictᴸ"
+    show Unconcat        = "unconcat"
+    show Pair            = "pair"
+    show PairL           = "pairᴸ"
+    show Append          = "append"
+    show AppendL         = "appendᴸ"
+    show Index           = "index"
+    show IndexL          = "indexᴸ"
+    show Zip             = "zip"
+    show ZipL            = "zipᴸ"
+    show Cons            = "cons"
+    show ConsL           = "consᴸ"
+    show CartProduct     = "⨯"
+    show CartProductL    = "⨯ᴸL"
+    show NestProduct     = "▽"
+    show NestProductL    = "▽ᴸ"
+    show (ThetaJoin p)   = printf "⨝_%s" (pp p)
+    show (ThetaJoinL p)  = printf "⨝ᴸ_%s" (pp p)
+    show (NestJoin p)    = printf "△_%s" (pp p)
+    show (NestJoinL p)   = printf "△ᴸ_%s" (pp p)
+    show (SemiJoin p)    = printf "⋉_%s" (pp p)
+    show (SemiJoinL p)   = printf "⋉ᴸ_%s" (pp p)
+    show (AntiJoin p)    = printf "▷_%s" (pp p)
+    show (AntiJoinL p)   = printf "▷ᴸ_%s" (pp p)
 
-data Prim3 = Combine Type
+data Prim3 = Combine
     deriving (Eq, Generic)
 
 instance Show Prim3 where
-    show (Combine _) = "combine"
+    show Combine = "combine"
 
 instance Typed Expr where
     typeOf (Table t _ _ _)    = t

@@ -88,7 +88,7 @@ fkl2VL expr =
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             lift $ papp2 f arg1' arg2'
-        PApp3 _ (Combine _) arg1 arg2 arg3 -> do
+        PApp3 _ Combine arg1 arg2 arg3 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
@@ -98,82 +98,82 @@ fkl2VL expr =
 papp1 :: Type -> Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f =
     case f of
-        Length _           -> lengthV
+        Length           -> lengthV
 -- FIXME what is wrong here?
---        FLengthL _          -> lengthLift
-        LengthL _          -> $impossible
-        ConcatL _          -> concatLift
-        Sum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
-        SumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
-        Avg _              -> aggrPrim VL.AggrAvg
-        AvgL _             -> aggrLift VL.AggrAvg
-        The _              -> the
-        TheL _             -> theL
-        Fst _              -> fstA
-        Snd _              -> sndA
-        FstL _             -> fstL
-        SndL _             -> sndL
-        Concat _           -> concatV
-        QuickConcat _      -> quickConcatV
-        Minimum _          -> aggrPrim VL.AggrMin
-        MinimumL _         -> aggrLift VL.AggrMin
-        Maximum _          -> aggrPrim VL.AggrMax
-        MaximumL _         -> aggrLift VL.AggrMax
-        Tail _             -> tailS
-        TailL _            -> tailL
-        Reverse _          -> reversePrim
-        ReverseL _         -> reverseLift
-        And _              -> aggrPrim VL.AggrAll
-        AndL _             -> aggrLift VL.AggrAll
-        Or _               -> aggrPrim VL.AggrAny
-        OrL _              -> aggrLift VL.AggrAny
-        Init _             -> initPrim
-        InitL _            -> initLift
-        Last _             -> lastPrim
-        LastL _            -> lastLift
-        Nub _              -> nubPrim
-        NubL _             -> nubLift
-        Number _           -> numberPrim
-        NumberL _          -> numberLift
-        Transpose _        -> transposePrim
-        TransposeL _       -> transposeLift
-        Reshape n _        -> reshapePrim n
-        ReshapeL n _       -> reshapeLift n
+--        FLengthL          -> lengthLift
+        LengthL          -> $impossible
+        ConcatL          -> concatLift
+        Sum              -> aggrPrim $ VL.AggrSum $ typeToRowType t
+        SumL             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
+        Avg              -> aggrPrim VL.AggrAvg
+        AvgL             -> aggrLift VL.AggrAvg
+        The              -> the
+        TheL             -> theL
+        Fst              -> fstA
+        Snd              -> sndA
+        FstL             -> fstL
+        SndL             -> sndL
+        Concat           -> concatV
+        QuickConcat      -> quickConcatV
+        Minimum          -> aggrPrim VL.AggrMin
+        MinimumL         -> aggrLift VL.AggrMin
+        Maximum          -> aggrPrim VL.AggrMax
+        MaximumL         -> aggrLift VL.AggrMax
+        Tail             -> tailS
+        TailL            -> tailL
+        Reverse          -> reversePrim
+        ReverseL         -> reverseLift
+        And              -> aggrPrim VL.AggrAll
+        AndL             -> aggrLift VL.AggrAll
+        Or               -> aggrPrim VL.AggrAny
+        OrL              -> aggrLift VL.AggrAny
+        Init             -> initPrim
+        InitL            -> initLift
+        Last             -> lastPrim
+        LastL            -> lastLift
+        Nub              -> nubPrim
+        NubL             -> nubLift
+        Number           -> numberPrim
+        NumberL          -> numberLift
+        Transpose        -> transposePrim
+        TransposeL       -> transposeLift
+        Reshape n        -> reshapePrim n
+        ReshapeL n       -> reshapeLift n
 
 papp2 :: Prim2 -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp2 f =
     case f of
-        Dist _            -> dist
-        DistL _           -> distL
-        Group _           -> groupByKeyS
-        GroupL _          -> groupByKeyL
-        Sort _            -> sortWithS
-        SortL _           -> sortWithL
-        Restrict _        -> restrict
-        RestrictL _       -> $unimplemented
-        Unconcat _        -> unconcatV
-        Pair _            -> pairOp
-        PairL _           -> pairOpL
-        Append _          -> appendPrim
-        AppendL _         -> appendLift
-        Index _           -> indexPrim
-        IndexL _          -> indexLift
-        Zip _             -> zipPrim
-        ZipL _            -> zipLift
-        Cons _            -> cons
-        ConsL _           -> consLift
-        CartProduct _     -> cartProductPrim
-        CartProductL _    -> cartProductLift
-        NestProduct _     -> nestProductPrim
-        NestProductL _    -> nestProductLift
-        ThetaJoin p _     -> thetaJoinPrim p
-        ThetaJoinL p _    -> thetaJoinLift p
-        NestJoin p _      -> nestJoinPrim p
-        NestJoinL p _     -> nestJoinLift p
-        SemiJoin p _      -> semiJoinPrim p
-        SemiJoinL p _     -> semiJoinLift p
-        AntiJoin p _      -> antiJoinPrim p
-        AntiJoinL p _     -> antiJoinLift p
+        Dist            -> dist
+        DistL           -> distL
+        Group           -> groupByKeyS
+        GroupL          -> groupByKeyL
+        Sort            -> sortWithS
+        SortL           -> sortWithL
+        Restrict        -> restrict
+        RestrictL       -> $unimplemented
+        Unconcat        -> unconcatV
+        Pair            -> pairOp
+        PairL           -> pairOpL
+        Append          -> appendPrim
+        AppendL         -> appendLift
+        Index           -> indexPrim
+        IndexL          -> indexLift
+        Zip             -> zipPrim
+        ZipL            -> zipLift
+        Cons            -> cons
+        ConsL           -> consLift
+        CartProduct     -> cartProductPrim
+        CartProductL    -> cartProductLift
+        NestProduct     -> nestProductPrim
+        NestProductL    -> nestProductLift
+        ThetaJoin p     -> thetaJoinPrim p
+        ThetaJoinL p    -> thetaJoinLift p
+        NestJoin p      -> nestJoinPrim p
+        NestJoinL p     -> nestJoinLift p
+        SemiJoin p      -> semiJoinPrim p
+        SemiJoinL p     -> semiJoinLift p
+        AntiJoin p      -> antiJoinPrim p
+        AntiJoinL p     -> antiJoinLift p
 
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
