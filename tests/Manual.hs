@@ -123,7 +123,9 @@ deriveTA ''Packet
 generateTableSelectors ''Packet
 
 packets :: Q [Packet]
-packets = table "packets" $ TableHints [ Key ["p_pid"]] NonEmpty
+packets = table "packets" $ TableHints [ Key ["p_pid"]
+                                       , Key ["p_src", "p_dest", "p_ts"]
+                                       ] NonEmpty
 
 --------------------------------------------------------------------------------
 -- Flow statistics
@@ -149,7 +151,7 @@ sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
 
 -- | For each packet, compute the ID of the flow that it belongs to
 flowids :: Q [Packet] -> Q [Integer]
-flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas' $ map p_tsQ ps ]
+flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas $ map p_tsQ ps ]
 
 -- | For each flow, compute the number of packets and average length
 -- of packets in the flow. A flow is defined as a number of packets
@@ -234,6 +236,6 @@ bestProfit stock date =
 
 
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ bestProfit "ACME" 42
+main = getConn P.>>= \c -> debugQ "q" c $ flowStats
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

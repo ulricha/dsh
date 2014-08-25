@@ -337,7 +337,7 @@ lengthLift ::  Shape -> Build VL Shape
 lengthLift (ValueVector q (Nest qi _)) = do
     ls <- vlAggrS AggrCount q qi
     return $ ValueVector ls (InColumn 1)
-lengthLift s = error $ show s
+lengthLift s = trace (show s) $ $impossible
 
 lengthV ::  Shape -> Build VL Shape
 lengthV q = do

@@ -3,15 +3,19 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
+import Debug.Trace
+
 import           Control.Monad
 import           Control.Monad.Reader
 
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 
+import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
-import           Database.DSH.FKL.Data.FKL
+import           Database.DSH.FKL.Lang
+import           Database.DSH.FKL.Pretty()
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
@@ -74,6 +78,10 @@ fkl2VL expr =
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
             lift $ ifList eb' e1' e2'
+        PApp1 t f@(FLengthL _) arg@(Var _ n) -> trace ("FLengthL " ++ show arg) $!
+            (ask >>= \env -> trace ("env " ++ show env) $! do
+              arg' <- fkl2VL arg
+              lift $ papp1 t f arg')
         PApp1 t f arg -> do
             arg' <- fkl2VL arg
             lift $ papp1 t f arg'
@@ -107,7 +115,8 @@ papp1 :: Type -> Prim1 -> Shape -> Build VL.VL Shape
 papp1 t f =
     case f of
         FLength _           -> lengthV
-        FLengthL _          -> lengthLift
+--        FLengthL _          -> lengthLift
+        FLengthL _          -> $impossible
         FConcatL _          -> concatLift
         FSum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
         FSumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
@@ -226,6 +235,6 @@ insertTopProjections g = do
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
-specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
+specializeVectorOps e = trace (pp e) $ QP.mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

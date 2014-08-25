@@ -33,6 +33,7 @@ import           Database.DSH.Execute.X100
 import qualified Database.DSH.VL.Lang                     as VL
 import           Database.DSH.VL.Vector
 import           Database.DSH.NKL.Rewrite
+import           Database.DSH.FKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.DBCode
