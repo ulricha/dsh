@@ -8,12 +8,12 @@ import           Database.Algebra.Dag.Build
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
-import           Database.DSH.VL.Shape
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Lang             (VL ())
 import           Database.DSH.VL.VLPrimitives
 
 
-fromLayout :: Layout -> [DBCol]
+fromLayout :: Layout VLDVec -> [DBCol]
 fromLayout (InColumn i) = [i]
 fromLayout (Nest _ _) = []
 fromLayout (Pair l1 l2) = fromLayout l1 ++ fromLayout l2
@@ -21,7 +21,7 @@ fromLayout (Pair l1 l2) = fromLayout l1 ++ fromLayout l2
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
-chainRenameFilter :: RVec -> Layout -> Build VL Layout
+chainRenameFilter :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 chainRenameFilter _ l@(InColumn _) = return l
 chainRenameFilter r (Nest q lyt) = do
     (q', r') <- vlPropFilter r q
@@ -33,7 +33,7 @@ chainRenameFilter r (Pair l1 l2) =
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
 -- may change the order of tuples.
-chainReorder :: PVec -> Layout -> Build VL Layout
+chainReorder :: PVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 chainReorder _ l@(InColumn _) = return l
 chainReorder p (Nest q lyt) = do
     (q', p') <- vlPropReorder p q
@@ -44,17 +44,17 @@ chainReorder p (Pair l1 l2) =
 
 -- | renameOuter renames and filters a vector according to a rename
 -- vector. Changes are not propagated to inner vectors.
-renameOuter :: RVec -> Shape -> Build VL Shape
+renameOuter :: RVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 renameOuter p (ValueVector q lyt) = flip ValueVector lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
 
-renameOuter' :: RVec -> Layout -> Build VL Layout
+renameOuter' :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 renameOuter' _ l@(InColumn _) = return l
 renameOuter' r (Nest q lyt)   = flip Nest lyt <$> vlPropRename r q
 renameOuter' r (Pair l1 l2)   = Pair <$> renameOuter' r l1 <*> renameOuter' r l2
 
 -- | Append two inner vectors (segment-wise).
-appendInnerVec :: Shape -> Shape -> Build VL Shape
+appendInnerVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppendS q1 q2
@@ -67,7 +67,7 @@ appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
 appendInnerVec _ _ = $impossible
 
 -- | Append two (outer) vectors regularly.
-appendVec :: Shape -> Shape -> Build VL Shape
+appendVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 appendVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppend q1 q2
@@ -81,7 +81,7 @@ appendVec _ _ = $impossible
 
 -- | Traverse a layout and append all nested vectors that are
 -- encountered.
-appendLayout :: Layout -> Layout -> Build VL Layout
+appendLayout :: Layout VLDVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 appendLayout (InColumn i1) (InColumn i2)
     | i1 == i2  = return $ InColumn i1
     | otherwise = error "appendR': Incompatible vectors"

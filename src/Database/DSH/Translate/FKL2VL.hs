@@ -20,7 +20,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
 import           Database.DSH.VL.Render.JSON      ()
-import           Database.DSH.VL.Shape            hiding (Pair)
+import           Database.DSH.Common.QueryPlan    hiding (Pair)
 import           Database.DSH.VL.VectorOperations
 import           Database.DSH.VL.VLPrimitives
 
@@ -28,12 +28,12 @@ import           Database.DSH.VL.VLPrimitives
 -- Extend the DAG builder monad with an environment for compiled VL
 -- DAGs.
 
-type Env = [(String, Shape)]
+type Env = [(String, Shape VLDVec)]
 
 type EnvBuild = ReaderT Env (Build VL.VL)
 
 -- FIXME might need those when let-expressions have been introduced.
-lookupEnv :: String -> EnvBuild Shape
+lookupEnv :: String -> EnvBuild (Shape VLDVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
     Nothing -> $impossible
@@ -53,7 +53,7 @@ withEnv gam loop = local (\_ -> (gam, loop))
 --------------------------------------------------------------------------------
 -- Compilation from FKL expressions to a VL DAG.
 
-fkl2VL :: Expr -> EnvBuild Shape
+fkl2VL :: Expr -> EnvBuild (Shape VLDVec)
 fkl2VL expr =
     case expr of
         Table _ n cs hs -> lift $ dbTable n cs hs
@@ -95,7 +95,7 @@ fkl2VL expr =
             lift $ combine arg1' arg2' arg3'
         Var _ s -> lookupEnv s
 
-papp1 :: Type -> Prim1 -> Shape -> Build VL.VL Shape
+papp1 :: Type -> Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f =
     case f of
         Length _           -> lengthV
@@ -140,7 +140,7 @@ papp1 t f =
         Reshape n _        -> reshapePrim n
         ReshapeL n _       -> reshapeLift n
 
-papp2 :: Prim2 -> Shape -> Shape -> Build VL.VL Shape
+papp2 :: Prim2 -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp2 f =
     case f of
         Dist _            -> dist
@@ -178,20 +178,17 @@ papp2 f =
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Build VL.VL Shape -> Build VL.VL (QP.TopShape VLDVec)
-insertTopProjections g = do
-    shape <- g
-    let shape' = QP.exportShape shape
-    traverseShape shape'
+insertTopProjections :: Build VL.VL (QP.Shape VLDVec) -> Build VL.VL (QP.Shape VLDVec)
+insertTopProjections g = g >>= traverseShape
 
   where
-    traverseShape :: (QP.TopShape VLDVec) -> Build VL.VL (QP.TopShape VLDVec)
+    traverseShape :: QP.Shape VLDVec -> Build VL.VL (QP.Shape VLDVec)
     traverseShape (QP.ValueVector (VLDVec q) lyt) =
         insertProj lyt q VL.Project VLDVec QP.ValueVector
     traverseShape (QP.PrimVal (VLDVec q) lyt)     =
         insertProj lyt q VL.Project VLDVec QP.PrimVal
   
-    traverseLayout :: (QP.TopLayout VLDVec) -> Build VL.VL (QP.TopLayout VLDVec)
+    traverseLayout :: (QP.Layout VLDVec) -> Build VL.VL (QP.Layout VLDVec)
     traverseLayout (QP.InColumn c) =
         return $ QP.InColumn c
     traverseLayout (QP.Pair lyt1 lyt2) = do
@@ -202,11 +199,11 @@ insertTopProjections g = do
       insertProj lyt q VL.Project VLDVec QP.Nest
 
     insertProj
-      :: QP.TopLayout VLDVec               -- ^ The node's layout
-      -> Alg.AlgNode                       -- ^ The top node to consider
-      -> ([VL.Expr] -> VL.UnOp)            -- ^ Constructor for the projection op
-      -> (Alg.AlgNode -> v)                -- ^ Vector constructor
-      -> (v -> (QP.TopLayout VLDVec) -> t) -- ^ Layout/Shape constructor
+      :: QP.Layout VLDVec               -- ^ The node's layout
+      -> Alg.AlgNode                    -- ^ The top node to consider
+      -> ([VL.Expr] -> VL.UnOp)         -- ^ Constructor for the projection op
+      -> (Alg.AlgNode -> v)             -- ^ Vector constructor
+      -> (v -> (QP.Layout VLDVec) -> t) -- ^ Layout/Shape constructor
       -> Build VL.VL t
     insertProj lyt q project vector describe = do
         let width = QP.columnsInLayout lyt

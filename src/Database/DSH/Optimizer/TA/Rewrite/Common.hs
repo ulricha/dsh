@@ -17,10 +17,10 @@ import           Database.DSH.Optimizer.TA.Properties.TopDown
 import           Database.DSH.Optimizer.TA.Properties.Types
 
   -- Type abbreviations for convenience
-type TARewrite p = Rewrite TableAlgebra (TopShape NDVec) p
-type TARule p = Rule TableAlgebra p (TopShape NDVec)
-type TARuleSet p = RuleSet TableAlgebra  p (TopShape NDVec)
-type TAMatch p = Match TableAlgebra p (TopShape NDVec)
+type TARewrite p = Rewrite TableAlgebra (Shape NDVec) p
+type TARule p = Rule TableAlgebra p (Shape NDVec)
+type TARuleSet p = RuleSet TableAlgebra  p (Shape NDVec)
+type TAMatch p = Match TableAlgebra p (Shape NDVec)
 
 inferBottomUp :: TARewrite (NodeMap BottomUpProps)
 inferBottomUp = do

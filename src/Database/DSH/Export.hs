@@ -23,7 +23,7 @@ exportVLPlan prefix vlPlan = do
       shapePath = prefix ++ "_vl.shape"
 
   VLJSON.planToFile planPath ( queryTags vlPlan
-                             , rootsFromTopShape $ queryShape vlPlan
+                             , rootsFromShape $ queryShape vlPlan
                              , nodeMap $ queryDag vlPlan
                              )
   writeFile shapePath $ show $ queryShape vlPlan
@@ -34,7 +34,7 @@ exportX100Plan prefix x100Plan = do
       shapePath = prefix ++ "_x100.shape"
 
   X100JSON.planToFile planPath ( queryTags x100Plan
-                               , rootsFromTopShape $ queryShape x100Plan
+                               , rootsFromShape $ queryShape x100Plan
                                , nodeMap $ queryDag x100Plan
                                )
   writeFile shapePath $ show $ queryShape x100Plan
@@ -45,7 +45,7 @@ exportTAPlan prefix pfPlan = do
       shapePath = prefix ++ "_ta.shape"
 
   PFJSON.planToFile planPath ( queryTags pfPlan
-                               , rootsFromTopShape $ queryShape pfPlan
+                               , rootsFromShape $ queryShape pfPlan
                                , nodeMap $ queryDag pfPlan
                                )
   writeFile shapePath $ show $ queryShape pfPlan

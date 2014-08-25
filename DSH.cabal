@@ -152,7 +152,6 @@ Library
                      Database.DSH.VL.Render.Dot
                      Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Vector
-                     Database.DSH.VL.Shape
                      Database.DSH.VL.MetaPrimitives
                      Database.DSH.VL.TAVectorPrimitives
                      Database.DSH.VL.VectorOperations

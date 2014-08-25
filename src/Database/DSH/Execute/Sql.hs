@@ -67,7 +67,7 @@ data TabLayout a where
     TPair :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabLayout (a, b)
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execNested :: IConnection conn => conn -> TopLayout SqlCode -> Type a -> IO (TabLayout a)
+execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
         (InColumn i, t)               -> return $ TCol t (itemCol i)
@@ -103,7 +103,7 @@ fromPrim tab tlyt =
            [row] -> mkVal slyt row
            _     -> $impossible
 
-executeSql :: IConnection conn => conn -> TopShape SqlCode -> Type a -> IO (Exp a)
+executeSql :: IConnection conn => conn -> Shape SqlCode -> Type a -> IO (Exp a)
 executeSql conn shape ty = 
     case (shape, ty) of
         (ValueVector (SqlCode sqlQuery) lyt, ListT ety) -> do

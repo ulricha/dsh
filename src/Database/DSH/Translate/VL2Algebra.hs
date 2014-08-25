@@ -71,7 +71,7 @@ toDVec :: Res v -> v
 toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
-refreshLyt :: VectorAlgebra v a => TopLayout VLDVec -> VecBuild a v (TopLayout v)
+refreshLyt :: VectorAlgebra v a => Layout VLDVec -> VecBuild a v (Layout v)
 refreshLyt (InColumn c) = return $ InColumn c
 refreshLyt (Nest (VLDVec n) lyt) = do
     Just n' <- fromDict n
@@ -82,7 +82,7 @@ refreshLyt (Pair l1 l2) = do
     l2' <- refreshLyt l2
     return $ Pair l1' l2'
 
-refreshShape :: VectorAlgebra v a => TopShape VLDVec -> VecBuild a v (TopShape v)
+refreshShape :: VectorAlgebra v a => Shape VLDVec -> VecBuild a v (Shape v)
 refreshShape (ValueVector (VLDVec n) lyt) = do
     mv <- fromDict n
     case mv of
@@ -135,14 +135,14 @@ getVL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap V.VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra v a => (NodeMap V.VL, TopShape VLDVec) -> VecBuild a v (TopShape v)
+vl2Algebra :: VectorAlgebra v a => (NodeMap V.VL, Shape VLDVec) -> VecBuild a v (Shape v)
 vl2Algebra (vlNodes, plan) = do
     mapM_ (translate vlNodes) roots
 
     refreshShape plan
   where
     roots :: [AlgNode]
-    roots = rootsFromTopShape plan
+    roots = rootsFromShape plan
 
 translateTerOp :: VectorAlgebra v a => V.TerOp -> Res v -> Res v -> Res v -> Build a (Res v)
 translateTerOp t c1 c2 c3 =
@@ -326,12 +326,12 @@ translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
 -- descr and order columns as well as the required payload columns.
 -- FIXME: once we are a bit more flexible wrt surrogates, determine the
 -- surrogate (i.e. descr) columns from information in NDVec.
-insertSerialize :: VecBuild TA.TableAlgebra NDVec (TopShape NDVec) 
-                -> VecBuild TA.TableAlgebra NDVec (TopShape NDVec)
+insertSerialize :: VecBuild TA.TableAlgebra NDVec (Shape NDVec) 
+                -> VecBuild TA.TableAlgebra NDVec (Shape NDVec)
 insertSerialize g = g >>= traverseShape
 
   where
-    traverseShape :: TopShape NDVec -> VecBuild TA.TableAlgebra NDVec (TopShape NDVec)
+    traverseShape :: Shape NDVec -> VecBuild TA.TableAlgebra NDVec (Shape NDVec)
     traverseShape (ValueVector dvec lyt) = do
         mLyt' <- traverseLayout lyt
         case mLyt' of
@@ -352,7 +352,7 @@ insertSerialize g = g >>= traverseShape
                 dvec' <- insertOp dvec noDescr noPos
                 return $ PrimVal dvec' lyt
 
-    traverseLayout :: (TopLayout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (TopLayout NDVec))
+    traverseLayout :: (Layout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (Layout NDVec))
     traverseLayout (InColumn _) = return Nothing
     traverseLayout (Pair lyt1 lyt2) = do
         mLyt1' <- traverseLayout lyt1
