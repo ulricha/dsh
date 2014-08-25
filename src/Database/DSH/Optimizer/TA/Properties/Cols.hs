@@ -79,6 +79,14 @@ exprTy childCols expr =
 ----------------------------------------------------------------------------
 -- Type inference for aggregate functions
 
+numAggr :: ATy -> ATy
+numAggr AInt    = AInt
+numAggr ADec    = ADec
+numAggr ANat    = ANat
+numAggr ADouble = ADouble
+numAggr _       = $impossible
+
+
 aggrTy :: S.Set TypedAttr -> (AggrType, Attr) -> TypedAttr
 aggrTy childCols (aggr, resCol) = (resCol, resType)
   where
@@ -91,12 +99,19 @@ aggrTy childCols (aggr, resCol) = (resCol, resType)
         Min e  -> numAggr $ exprTy childCols e
         Sum e  -> numAggr $ exprTy childCols e
 
-    numAggr :: ATy -> ATy
-    numAggr AInt    = AInt
-    numAggr ADec    = ADec
-    numAggr ANat    = ANat
-    numAggr ADouble = ADouble
-    numAggr _       = $impossible
+winFunTy :: S.Set TypedAttr -> (WinFun, Attr) -> TypedAttr
+winFunTy childCols (aggr, resCol) = (resCol, resType)
+  where
+    resType = case aggr of
+        WinAll _        -> ABool
+        WinAny _        -> ABool
+        WinCount        -> AInt
+        WinAvg e        -> numAggr $ exprTy childCols e
+        WinMax e        -> numAggr $ exprTy childCols e
+        WinMin e        -> numAggr $ exprTy childCols e
+        WinSum e        -> numAggr $ exprTy childCols e
+        WinFirstValue e -> exprTy childCols e
+        WinLastValue e  -> exprTy childCols e
 
 ----------------------------------------------------------------------------
 -- Schema inference for tablealgebra operators
@@ -110,6 +125,7 @@ inferColsNullOp op =
 inferColsUnOp :: S.Set TypedAttr -> UnOp -> S.Set TypedAttr
 inferColsUnOp childCols op =
     case op of
+        WinFun ((resCol, fun), _, _, _) -> S.insert (winFunTy childCols (fun, resCol)) childCols
         RowNum (resCol, _, _) -> S.insert (resCol, AInt) childCols
         RowRank (resCol, _)   -> S.insert (resCol, AInt) childCols
         Rank (resCol, _)      -> S.insert (resCol, AInt) childCols

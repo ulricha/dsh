@@ -16,12 +16,12 @@ flatten = S.foldl' (∪) S.empty
 
 
 inferUseBinOp :: S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> S.Set Attr
-                -> BinOp
-                -> (S.Set Attr, S.Set Attr)
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> BinOp
+              -> (S.Set Attr, S.Set Attr)
 inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
     case op of
          Cross _      -> ( leftUse ∪ [ c | c <- leftCols, c ∈ ownUse ]
@@ -69,6 +69,12 @@ absPos NoPos      = S.empty
 inferUseUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferUseUnOp ownUse childUse op =
     case op of
+        WinFun ((resCol, winFun), partExprs, sortCols, _) ->
+            childUse
+            ∪ (S.delete resCol ownUse)
+            ∪ (S.unions $ map exprCols partExprs)
+            ∪ (S.unions $ map (exprCols . fst) sortCols)
+            ∪ (winFunInput winFun)
         RowNum (resCol, _, _)     -> childUse ∪ (S.delete resCol ownUse)
         RowRank (resCol, _)       -> childUse ∪ (S.delete resCol ownUse)
         Rank (resCol, _)          -> childUse ∪ (S.delete resCol ownUse)

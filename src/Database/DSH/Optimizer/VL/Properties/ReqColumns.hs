@@ -57,6 +57,16 @@ aggrReqCols (AggrAll e)   = reqExprCols e
 aggrReqCols (AggrAny e)   = reqExprCols e
 aggrReqCols AggrCount     = []
 
+winReqCols :: WinFun -> [DBCol]
+winReqCols (WinSum e)        = reqExprCols e
+winReqCols (WinMin e)        = reqExprCols e
+winReqCols (WinMax e)        = reqExprCols e
+winReqCols (WinAvg e)        = reqExprCols e
+winReqCols (WinAll e)        = reqExprCols e
+winReqCols (WinAny e)        = reqExprCols e
+winReqCols (WinFirstValue e) = reqExprCols e
+winReqCols WinCount          = []
+
 fromProp :: Show a => VectorProp a -> Either String a
 fromProp (VProp p) = return p
 fromProp x         = fail $ "ReqColumns.fromProp " ++ (show x)
@@ -90,7 +100,7 @@ partitionCols childBUProps1 childBUProps2 ownReqCols = do
     -- If both inputs are ValueVectors, map the required columns to
     -- the respective inputs
     let leftReqCols  = cols `L.intersect` [1 .. w1]
-        rightReqCols = cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
+        rightReqCols = map (\c -> c - w1) $ cols `L.intersect` [(w1 + 1) .. (w1 + w2)]
     return (VProp $ Just leftReqCols, VProp $ Just rightReqCols)
 
 -- | Infer required columns for unary operators
@@ -101,6 +111,11 @@ inferReqColumnsUnOp :: BottomUpProps          -- ^ Input properties
                     -> Either String (VectorProp ReqCols)
 inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
     case op of
+        WinFun (wfun, _) -> do
+            cs <- (VProp $ Just $ winReqCols wfun)
+                  ∪
+                  childReqColumns
+            cs ∪ ownReqColumns
         Transpose  -> do
             cols <- snd <$> fromPropPair ownReqColumns
             childReqColumns ∪ VProp cols
@@ -123,7 +138,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                  ∪
                                  childReqColumns
 
-        DescToRename -> none ∪ childReqColumns
+        UnboxRename -> none ∪ childReqColumns
 
         Segment    -> ownReqColumns ∪ childReqColumns
         Unsegment  -> ownReqColumns ∪ childReqColumns
@@ -156,11 +171,11 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
             ownReqColumns' <- (VProp cols) ∪ (VProp $ Just $ reqExprCols e)
             ownReqColumns' ∪ childReqColumns
 
-        SelectPos1 _ _   -> do
+        SelectPos1{}   -> do
             (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 
-        SelectPos1S _ _   -> do
+        SelectPos1S{}   -> do
             (cols, _, _) <- fromPropTriple ownReqColumns
             childReqColumns ∪ (VProp cols)
 

@@ -59,20 +59,26 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
 inferIColsUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferIColsUnOp ownICols childICols op =
     case op of
-        -- Require the sorting columns, if the rownum output is required.
-        RowNum (resCol, sortInf, groupCol) ->
+        WinFun ((resCol, fun), partExprs, sortInf, _) ->
             (S.delete resCol ownICols)
-            ∪ (S.fromList $ map fst sortInf)
-            ∪ maybe S.empty S.singleton groupCol
+            ∪ (winFunInput fun)
+            ∪ (S.unions $ map (exprCols . fst) sortInf)
+            ∪ (S.unions $ map exprCols partExprs)
+            ∪ childICols
+        -- Require the sorting columns, if the rownum output is required.
+        RowNum (resCol, sortInf, groupExprs) ->
+            (S.delete resCol ownICols)
+            ∪ (S.unions $ map (exprCols . fst) sortInf)
+            ∪ (S.unions $ map exprCols groupExprs)
             ∪ childICols
 
         RowRank (resCol, sortInf)   ->
             (S.delete resCol ownICols)
-            ∪ (S.fromList $ map fst sortInf)
+            ∪ (S.unions $ map (exprCols . fst) sortInf)
             ∪ childICols
         Rank (resCol, sortInf)      ->
             (S.delete resCol ownICols)
-            ∪ (S.fromList $ map fst sortInf)
+            ∪ (S.unions $ map (exprCols . fst) sortInf)
             ∪ childICols
 
         -- For projections we require input columns of expressions, but only for

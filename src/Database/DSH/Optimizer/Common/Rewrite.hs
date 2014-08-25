@@ -19,6 +19,7 @@ module Database.DSH.Optimizer.Common.Rewrite
   , R.rootNodes
   , R.exposeDag
   , R.getExtras
+  , R.condRewrite
   , R.updateExtras
   , R.insert
   , R.insertNoShare

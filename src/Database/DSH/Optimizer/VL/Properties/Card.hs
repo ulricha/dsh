@@ -17,8 +17,8 @@ inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
     SingletonDescr   -> Right $ VProp True
-    Lit _ _ rows     -> Right $ VProp $ length rows == 1
-    TableRef _ _ _   -> Right $ VProp False
+    Lit (_, _, rows) -> Right $ VProp $ length rows == 1
+    TableRef _       -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op = 
@@ -26,14 +26,15 @@ inferCardOneUnOp c op =
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
     AggrNonEmpty _ -> Right $ VProp True
-    DescToRename -> Right c
+    WinFun _ -> Right c
+    UnboxRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    SelectPos1 _ _ -> Right $ VPropTriple False False False
-    SelectPos1S _ _ -> Right $ VPropTriple False False False
+    SelectPos1{}  -> Right $ VPropTriple False False False
+    SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
     SortScalarS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)

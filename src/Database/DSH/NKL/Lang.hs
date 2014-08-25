@@ -82,9 +82,9 @@ data Prim1Op = Length
              | Snd
              | TupField Int
              | Head 
+             | Tail
              | Minimum 
              | Maximum
-             | Tail
              | Reverse 
              | And 
              | Or
