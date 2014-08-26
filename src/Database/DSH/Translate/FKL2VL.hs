@@ -28,6 +28,8 @@ import           Database.DSH.VL.VLPrimitives
 -- Extend the DAG builder monad with an environment for compiled VL
 -- DAGs.
 
+{-
+
 type Env = [(String, Shape VLDVec)]
 
 type EnvBuild = ReaderT Env (Build VL.VL)
@@ -217,3 +219,7 @@ specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
 specializeVectorOps e = trace (pp e) $ QP.mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])
+
+-}
+
+specializeVectorOps = $unimplemented

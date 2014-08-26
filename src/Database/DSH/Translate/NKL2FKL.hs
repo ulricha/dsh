@@ -14,16 +14,16 @@ import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
 import qualified Database.DSH.NKL.Rewrite    as NR
 
-flatten :: N.Expr -> F.Expr LiftedN
+flatten :: N.Expr -> F.Expr
 flatten (N.Table t n cs hs)  = F.Table t n cs hs
-flatten (N.UnOp t op e1)     = F.UnOp t (F.LiftedN Zero op) (flatten e1)
-flatten (N.BinOp t op e1 e2) = F.BinOp t (F.LiftedN Zero op) (flatten e1) (flatten e2)
+flatten (N.UnOp t op e1)     = P.un t op (flatten e1)
+flatten (N.BinOp t op e1 e2) = P.bin t op (flatten e1) (flatten e2)
 flatten (N.Const t v)        = F.Const t v
 flatten (N.Var t v)          = F.Var t v
 flatten (N.If t ce te ee)    = F.If t (flatten ce) (flatten te) (flatten ee)
-flatten (N.AppE1 t p e)      = prim1 p $ flatten e
-flatten (N.AppE2 t p e1 e2)  = prim2 p (flatten e1) (flatten e2)
-flatten (N.Comp t h x xs)    = pushComp x (flatten xs) (flatten h)
+flatten (N.AppE1 _ p e)      = prim1 p $ flatten e
+flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2)
+flatten (N.Comp _ h x xs)    = pushComp x (flatten xs) (flatten h)
 
 prim1 :: N.Prim1 Type -> F.Expr -> F.Expr
 prim1 (N.Prim1 p _) =
@@ -66,57 +66,59 @@ prim2 (N.Prim2 p _) =
         N.NestJoin jp  -> P.nestJoin jp
         N.SemiJoin jp  -> P.semiJoin jp
         N.AntiJoin jp  -> P.antiJoin jp
-        
-liftPrim1 :: F.Prim1 -> F.Expr -> F.Expr
-liftPrim1 p =
-    case p of
-        F.Length    -> P.lengthL
-        F.Concat    -> P.concatL
-        F.Sum       -> P.sumL
-        F.Avg       -> P.avgL
-        F.The       -> P.theL
-        F.Fst       -> P.fstL
-        F.Snd       -> P.sndL
-        F.Tail      -> P.tailL
-        F.Minimum   -> P.minimumL
-        F.Maximum   -> P.maximumL
-        F.Reverse   -> P.reverseL
-        F.And       -> P.andL
-        F.Or        -> P.orL
-        F.Init      -> P.initL
-        F.Last      -> P.lastL
-        F.Nub       -> P.nubL
-        F.Number    -> P.numberL
-        F.Reshape n -> P.reshapeL n
-        F.Transpose -> P.transposeL
 
-liftPrim2 :: F.Prim2 -> F.Expr -> F.Expr -> F.Expr
-liftPrim2 p =
-    case p of
-        F.Group        -> P.groupL
-        F.Sort         -> P.sortL
-        F.Restrict     -> P.restrictL
-        F.Pair         -> P.pairL
-        F.Append       -> P.appendL
-        F.Index        -> P.indexL
-        F.Zip          -> P.zipL
-        F.Cons         -> P.consL
-        F.CartProduct  -> P.cartProductL
-        F.NestProduct  -> P.nestProductL
-        F.ThetaJoin jp -> P.thetaJoinL jp
-        F.NestJoin jp  -> P.nestJoinL jp
-        F.SemiJoin jp  -> P.semiJoinL jp
-        F.AntiJoin jp  -> P.antiJoinL jp
-        
+liftPrim1 :: Type -> F.LiftedN F.Prim1 -> F.Expr -> F.Expr
+liftPrim1 t (F.LiftedN n p) = F.PApp1 (liftType t) (F.LiftedN (F.Succ n) p)
 
+liftPrim2 :: Type -> F.LiftedN F.Prim2 -> F.Expr -> F.Expr -> F.Expr
+liftPrim2 t (F.LiftedN n p) = F.PApp2 (liftType t) (F.LiftedN (F.Succ n) p)
+
+liftPrim3 :: Type -> F.LiftedN F.Prim3 -> F.Expr -> F.Expr -> F.Expr -> F.Expr
+liftPrim3 t (F.LiftedN n p) = F.PApp3 (liftType t) (F.LiftedN (F.Succ n) p)
+
+liftBinOp :: Type -> F.LiftedN ScalarBinOp -> F.Expr -> F.Expr -> F.Expr
+liftBinOp t (F.LiftedN n op) = F.BinOp (liftType t) (F.LiftedN (F.Succ n) op)
+
+liftUnOp :: Type -> F.LiftedN ScalarUnOp -> F.Expr -> F.Expr
+liftUnOp t (F.LiftedN n op) = F.UnOp (liftType t) (F.LiftedN (F.Succ n) op)
+
+
+-- | Push a comprehension through all FKL constructs by lifting
+-- primitive functions and distributing over the generator source.
 pushComp :: Ident -> F.Expr -> F.Expr -> F.Expr
-pushComp x xs v@(F.Const _ _)       = P.concat $ P.dist v xs
+pushComp _ xs tab@(F.Table _ _ _ _) = P.dist tab xs
+
+pushComp _ xs v@(F.Const _ _)       = P.dist v xs
+
 pushComp x xs y@(F.Var _ n)
     | x == n                    = xs
-    | otherwise                 = P.concat $ P.dist y xs
-pushComp x xs (F.PApp1 _ p e1)    = liftPrim1 p (pushComp x xs e1)
-pushComp x xs (F.PApp2 _ p e1 e2) = liftPrim2 p (pushComp x xs e1) (pushComp x xs e2)
-pushComp x xs (F.UnOp t (F.NotLifted op) e1) = P.unL t op (pushComp x xs e1)
-pushComp x xs (F.BinOp t (F.NotLifted op) e1 e2) = P.binL t op (pushComp x xs e1) (pushComp x xs e2)
+    | otherwise                 = P.dist y xs
+
+pushComp x xs (F.PApp1 t p e1)    = liftPrim1 t p (pushComp x xs e1)
+
+pushComp x xs (F.PApp2 t p e1 e2) = liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
+
+pushComp x xs (F.PApp3 t p e1 e2 e3) = liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
+
+pushComp x xs (F.BinOp t op e1 e2) = liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
+
+pushComp x xs (F.UnOp t op e)      = liftUnOp t op (pushComp x xs e)
+
+pushComp x xs (F.If _ ce te ee)    = P.combine condVec thenVec elseVec
+  where
+    condVec = pushComp x xs ce
+    thenVec = pushComp x (P.restrict condVec xs) te
+    elseVec = pushComp x (P.restrict (F.UnOp (listT boolT) 
+                                             (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
+                                             condVec) 
+                                     xs) ee
+
+-- | Reduce all higher-lifted occurences of primitive combinators and
+-- operators to singly lifted variants.
+normLifting :: F.Expr -> F.FExpr
+normLifting (F.Table t n cs hs) = F.FTable t n cs hs
+normLifting (F.If t ce te ee)   = F.FIf t (normLifting ce) (normLifting te) (normLifting ee)
+normLifting (F.Const t v)       = F.FConst t v
+normLifting (F.Var _ _)         = $impossible
 
 

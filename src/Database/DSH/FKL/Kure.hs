@@ -162,7 +162,7 @@ varR = varT Var
 
 binopT :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
-                  -> (Type -> Lifted ScalarBinOp -> a1 -> a2 -> b)
+                  -> (Type -> LiftedN ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform FlatCtx m Expr b
 binopT t1 t2 f = transform $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
@@ -174,7 +174,7 @@ binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
 
 unopT :: Monad m => Transform FlatCtx m Expr a
-                 -> (Type -> Lifted ScalarUnOp -> a -> b)
+                 -> (Type -> LiftedN ScalarUnOp -> a -> b)
                  -> Transform FlatCtx m Expr b
 unopT t f = transform $ \ctx expr -> case expr of
                      UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
@@ -186,7 +186,7 @@ unopR t = unopT t UnOp
 {-# INLINE unopR #-}
                      
 papp1T :: Monad m => Transform FlatCtx m Expr a
-                  -> (Type -> Prim1 -> a -> b)
+                  -> (Type -> LiftedN Prim1 -> a -> b)
                   -> Transform FlatCtx m Expr b
 papp1T t f = transform $ \c expr -> case expr of
                       PApp1 ty p e -> f ty p <$> apply t (c@@PApp1Arg) e                  
@@ -200,7 +200,7 @@ papp1R t = papp1T t PApp1
                       
 papp2T :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
-                  -> (Type -> Prim2 -> a1 -> a2 -> b)
+                  -> (Type -> LiftedN Prim2 -> a1 -> a2 -> b)
                   -> Transform FlatCtx m Expr b
 papp2T t1 t2 f = transform $ \c expr -> case expr of
                      PApp2 ty p e1 e2 -> f ty p <$> apply t1 (c@@PApp2Arg1) e1 <*> apply t2 (c@@PApp2Arg2) e2
@@ -214,7 +214,7 @@ papp2R t1 t2 = papp2T t1 t2 PApp2
 papp3T :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
                   -> Transform FlatCtx m Expr a3
-                  -> (Type -> Prim3 -> a1 -> a2 -> a3 -> b)
+                  -> (Type -> LiftedN Prim3 -> a1 -> a2 -> a3 -> b)
                   -> Transform FlatCtx m Expr b
 papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
                      PApp3 ty p e1 e2 e3 -> f ty p 
