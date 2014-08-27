@@ -67,17 +67,63 @@ instance Pretty Prim2 where
 instance Pretty Prim3 where
     pretty Combine = text "combine"
 
+instance Pretty LExpr where
+    pretty (LTable _ n _c _k) = text "table" <> parens (text n)
+
+    pretty (LPApp1 _ f e1) =
+        pretty f <+> (parenthizeL e1)
+
+    pretty (LPApp2 _ f e1 e2) =
+        pretty f <+> (align $ (parenthizeL e1) <$> (parenthizeL e2))
+
+    pretty (LPApp3 _ f e1 e2 e3) =
+        pretty f 
+        <+> (align $ (parenthizeL e1) 
+                     <$> (parenthizeL e2) 
+                     <$> (parenthizeL e3))
+
+    pretty (LIf _ e1 e2 e3) =
+        let e1' = pretty e1
+            e2' = pretty e2
+            e3' = pretty e3
+        in text "if" <+> e1'
+           </> (nest 2 $ text "then" <+> e2')
+           </> (nest 2 $ text "else" <+> e3')
+
+    pretty (LBinOp _ o e1 e2) =
+        parenthizeL e1 <+> pretty o <+> parenthizeL e2
+
+    pretty (LUnOp _ o e) =
+        pretty o <> parenthizeL e
+
+    pretty (LConst _ v) =
+        pretty v
+
+    pretty (LVar _ x) =
+        text x
+
+parenthizeL :: LExpr -> Doc
+parenthizeL e = 
+    case e of
+        LTable {} -> pretty e
+        LConst {} -> pretty e
+        LVar {}   -> pretty e
+        _        -> parens $ pretty e
+
 instance Pretty Expr where
-    pretty (Table _ n _c _k) = parens $ text "Table" <+> text n
+    pretty (Table _ n _c _k) = text "table" <> parens (text n)
 
     pretty (PApp1 _ f e1) =
-        pretty f <+> (parens $ pretty e1)
+        pretty f <+> (parenthizeE e1)
 
     pretty (PApp2 _ f e1 e2) =
-        pretty f <+> (align $ (parens $ pretty e1) <$> (parens $ pretty e2))
+        pretty f <+> (align $ (parenthizeE e1) <$> (parenthizeE e2))
 
     pretty (PApp3 _ f e1 e2 e3) =
-        pretty f <+> (align $ (parens $ pretty e1) <$> (parens $ pretty e2) <$> (parens $ pretty e3))
+        pretty f 
+        <+> (align $ (parenthizeE e1) 
+                     <$> (parenthizeE e2) 
+                     <$> (parenthizeE e3))
 
     pretty (If _ e1 e2 e3) =
         let e1' = pretty e1
@@ -98,14 +144,18 @@ instance Pretty Expr where
     pretty (Const _ v) =
         pretty v
 
-    pretty (Var _ x) =
-        text x
+    pretty (QuickConcat _ e) = text "quickConcat" <+> (parenthizeE e)
 
-renderC :: Val -> Doc
-renderC (IntV i)      = int i
-renderC (StringV s)   = text $ show s
-renderC (DoubleV d)   = double d
-renderC (BoolV b)     = text $ show b
-renderC (UnitV)       = text $ "()"
-renderC (ListV es)    = text "[" <> hsep (intersperse comma $ map renderC es) <> text "]"
-renderC (PairV e1 e2) = text "(" <> renderC e1 <> comma <+> renderC e2 <> text ")"
+    pretty (UnConcat n _ e1 e2) = 
+        text "unconcat" 
+        <> (angles $ int n) 
+        <+> (align $ (parenthizeE e1) 
+                     <$> (parenthizeE e2))
+
+parenthizeE :: Expr -> Doc
+parenthizeE e =
+    case e of
+        Const{} -> pretty e
+        Table{} -> pretty e
+        _       -> parens $ pretty e
+

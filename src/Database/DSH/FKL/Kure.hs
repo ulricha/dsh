@@ -10,24 +10,23 @@ module Database.DSH.FKL.Kure
     , module Language.KURE.Lens
 
       -- * The KURE monad
-    , RewriteM, RewriteStateM, TransformF, RewriteF, LensF, freshNameT
+    , RewriteM, RewriteStateM, TransformF, RewriteF, LensF
     
       -- * Setters and getters for the translation state
-    , get, put, modify
+    , get, put, modify, initialCtx
     
       -- * Changing between stateful and non-stateful transforms
     , statefulT, liftstateT
 
       -- * The KURE context
-    , FlatCtx(..), CrumbF(..), PathF, initialCtx, freeIn, boundIn
-    , inScopeNames, bindVar
+    , FlatCtx(..), CrumbF(..), PathF
 
       -- * Congruence combinators
     , tableT, papp1T, papp2T, papp3T, binopT, unopT
-    , ifT, constExprT, varT
+    , ifT, constExprT
 
     , tableR, papp1R, papp2R, papp3R, binopR, unopR
-    , ifR, constExprR, varR
+    , ifR, constExprR
     
     ) where
     
@@ -65,6 +64,9 @@ data CrumbF = AppFun
             | IfCond
             | IfThen
             | IfElse
+            | UnConcatArg1
+            | UnConcatArg2
+            | QuickConcatArg
             deriving (Eq, Show)
 
 type AbsPathF = AbsolutePath CrumbF
@@ -72,9 +74,7 @@ type AbsPathF = AbsolutePath CrumbF
 type PathF = Path CrumbF
 
 -- | The context for KURE-based FKL rewrites
-data FlatCtx = FlatCtx { fkl_bindings :: [Ident]
-                       , fkl_path     :: AbsPathF
-                       }
+data FlatCtx = FlatCtx { fkl_path :: AbsPathF }
                        
 instance ExtendPath FlatCtx CrumbF where
     c@@n = c { fkl_path = fkl_path c @@ n }
@@ -83,8 +83,9 @@ instance ReadPath FlatCtx CrumbF where
     absPath c = fkl_path c
 
 initialCtx :: FlatCtx
-initialCtx = FlatCtx { fkl_bindings = [], fkl_path = mempty }
+initialCtx = FlatCtx { fkl_path = mempty }
 
+{- FIXME will be needed again when let-bindings are added
 -- | Record a variable binding in the context
 bindVar :: Ident -> FlatCtx -> FlatCtx
 bindVar n ctx = ctx { fkl_bindings = n : fkl_bindings ctx }
@@ -103,6 +104,7 @@ freshNameT :: [Ident] -> TransformF a Ident
 freshNameT avoidNames = do
     ctx <- contextT
     constT $ freshName (avoidNames ++ inScopeNames ctx)
+-}
 
 --------------------------------------------------------------------------------
 -- Support for stateful transforms
@@ -150,6 +152,7 @@ ifR :: Monad m => Rewrite FlatCtx m Expr
 ifR t1 t2 t3 = ifT t1 t2 t3 If               
 {-# INLINE ifR #-}                      
 
+{- FIXME will be needed again when let-bindings are added.
 varT :: Monad m => (Type -> Ident -> b) -> Transform FlatCtx m Expr b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
@@ -159,10 +162,11 @@ varT f = contextfreeT $ \expr -> case expr of
 varR :: Monad m => Rewrite FlatCtx m Expr
 varR = varT Var
 {-# INLINE varR #-}                      
+-}
 
 binopT :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
-                  -> (Type -> LiftedN ScalarBinOp -> a1 -> a2 -> b)
+                  -> (Type -> Lifted ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform FlatCtx m Expr b
 binopT t1 t2 f = transform $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
@@ -174,7 +178,7 @@ binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
 
 unopT :: Monad m => Transform FlatCtx m Expr a
-                 -> (Type -> LiftedN ScalarUnOp -> a -> b)
+                 -> (Type -> Lifted ScalarUnOp -> a -> b)
                  -> Transform FlatCtx m Expr b
 unopT t f = transform $ \ctx expr -> case expr of
                      UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
@@ -186,7 +190,7 @@ unopR t = unopT t UnOp
 {-# INLINE unopR #-}
                      
 papp1T :: Monad m => Transform FlatCtx m Expr a
-                  -> (Type -> LiftedN Prim1 -> a -> b)
+                  -> (Type -> Lifted Prim1 -> a -> b)
                   -> Transform FlatCtx m Expr b
 papp1T t f = transform $ \c expr -> case expr of
                       PApp1 ty p e -> f ty p <$> apply t (c@@PApp1Arg) e                  
@@ -197,10 +201,22 @@ papp1R :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
 papp1R t = papp1T t PApp1
 {-# INLINE papp1R #-}                      
 
+quickconcatT :: Monad m => Transform FlatCtx m Expr a
+                        -> (Type -> a -> b)
+                        -> Transform FlatCtx m Expr b
+quickconcatT t f = transform $ \c expr -> case expr of
+                        QuickConcat ty e -> f ty <$> apply t (c@@QuickConcatArg) e                  
+                        _                -> fail "not a quickconcat application"
+{-# INLINE quickconcatT #-}                      
+                      
+quickconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+quickconcatR t = quickconcatT t QuickConcat
+{-# INLINE quickconcatR #-}                      
+
                       
 papp2T :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
-                  -> (Type -> LiftedN Prim2 -> a1 -> a2 -> b)
+                  -> (Type -> Lifted Prim2 -> a1 -> a2 -> b)
                   -> Transform FlatCtx m Expr b
 papp2T t1 t2 f = transform $ \c expr -> case expr of
                      PApp2 ty p e1 e2 -> f ty p <$> apply t1 (c@@PApp2Arg1) e1 <*> apply t2 (c@@PApp2Arg2) e2
@@ -211,10 +227,23 @@ papp2R :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr -> Rewrite
 papp2R t1 t2 = papp2T t1 t2 PApp2
 {-# INLINE papp2R #-}                      
 
+unconcatT :: Monad m => Transform FlatCtx m Expr a1
+                  -> Transform FlatCtx m Expr a2
+                  -> (Int -> Type -> a1 -> a2 -> b)
+                  -> Transform FlatCtx m Expr b
+unconcatT t1 t2 f = transform $ \c expr -> case expr of
+                     UnConcat n ty e1 e2 -> f n ty <$> apply t1 (c@@UnConcatArg1) e1 <*> apply t2 (c@@UnConcatArg2) e2
+                     _                -> fail "not a unconcat call"
+{-# INLINE unconcatT #-}                      
+
+unconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+unconcatR t1 t2 = unconcatT t1 t2 UnConcat
+{-# INLINE unconcatR #-}                      
+
 papp3T :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
                   -> Transform FlatCtx m Expr a3
-                  -> (Type -> LiftedN Prim3 -> a1 -> a2 -> a3 -> b)
+                  -> (Type -> Lifted Prim3 -> a1 -> a2 -> a3 -> b)
                   -> Transform FlatCtx m Expr b
 papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
                      PApp3 ty p e1 e2 e3 -> f ty p 
@@ -247,15 +276,16 @@ constExprR = constExprT Const
 instance Walker FlatCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
     allR r = readerT $ \e -> case e of
-            Table{}   -> idR
-            PApp1{}   -> papp1R (extractR r)
-            PApp2{}   -> papp2R (extractR r) (extractR r)
-            PApp3{}   -> papp3R (extractR r) (extractR r) (extractR r)
-            BinOp{}   -> binopR (extractR r) (extractR r)
-            UnOp{}    -> unopR (extractR r)
-            If{}      -> ifR (extractR r) (extractR r) (extractR r)
-            Const{}   -> idR
-            Var{}     -> idR
+            Table{}       -> idR
+            PApp1{}       -> papp1R (extractR r)
+            PApp2{}       -> papp2R (extractR r) (extractR r)
+            PApp3{}       -> papp3R (extractR r) (extractR r) (extractR r)
+            BinOp{}       -> binopR (extractR r) (extractR r)
+            UnOp{}        -> unopR (extractR r)
+            If{}          -> ifR (extractR r) (extractR r) (extractR r)
+            Const{}       -> idR
+            UnConcat{}    -> unconcatR (extractR r) (extractR r)
+            QuickConcat{} -> quickconcatR (extractR r)
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

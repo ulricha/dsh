@@ -1,5 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Database.DSH.Translate.NKL2FKL (flatten) where
+module Database.DSH.Translate.NKL2FKL (flatTransform) where
+
+#ifdef DEBUGCOMP
+import           Debug.Trace
+import           Database.DSH.Common.Pretty
+import           Database.DSH.FKL.Pretty
+#endif
 
 import           Control.Applicative
 import           Control.Monad
@@ -14,18 +20,18 @@ import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
 import qualified Database.DSH.NKL.Rewrite    as NR
 
-flatten :: N.Expr -> F.Expr
-flatten (N.Table t n cs hs)  = F.Table t n cs hs
+flatten :: N.Expr -> F.LExpr
+flatten (N.Table t n cs hs)  = F.LTable t n cs hs
 flatten (N.UnOp t op e1)     = P.un t op (flatten e1)
 flatten (N.BinOp t op e1 e2) = P.bin t op (flatten e1) (flatten e2)
-flatten (N.Const t v)        = F.Const t v
-flatten (N.Var t v)          = F.Var t v
-flatten (N.If t ce te ee)    = F.If t (flatten ce) (flatten te) (flatten ee)
+flatten (N.Const t v)        = F.LConst t v
+flatten (N.Var t v)          = F.LVar t v
+flatten (N.If t ce te ee)    = F.LIf t (flatten ce) (flatten te) (flatten ee)
 flatten (N.AppE1 _ p e)      = prim1 p $ flatten e
 flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2)
 flatten (N.Comp _ h x xs)    = pushComp x (flatten xs) (flatten h)
 
-prim1 :: N.Prim1 Type -> F.Expr -> F.Expr
+prim1 :: N.Prim1 Type -> F.LExpr -> F.LExpr
 prim1 (N.Prim1 p _) =
     case p of
         N.Length    -> P.length
@@ -49,7 +55,7 @@ prim1 (N.Prim1 p _) =
         N.Reshape n -> P.reshape n
         N.Transpose -> P.transpose
 
-prim2 :: N.Prim2 Type -> F.Expr -> F.Expr -> F.Expr
+prim2 :: N.Prim2 Type -> F.LExpr -> F.LExpr -> F.LExpr
 prim2 (N.Prim2 p _) =
     case p of
         N.Group        -> P.group
@@ -67,58 +73,103 @@ prim2 (N.Prim2 p _) =
         N.SemiJoin jp  -> P.semiJoin jp
         N.AntiJoin jp  -> P.antiJoin jp
 
-liftPrim1 :: Type -> F.LiftedN F.Prim1 -> F.Expr -> F.Expr
-liftPrim1 t (F.LiftedN n p) = F.PApp1 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim1 :: Type -> F.LiftedN F.Prim1 -> F.LExpr -> F.LExpr
+liftPrim1 t (F.LiftedN n p) = F.LPApp1 (liftType t) (F.LiftedN (F.Succ n) p)
 
-liftPrim2 :: Type -> F.LiftedN F.Prim2 -> F.Expr -> F.Expr -> F.Expr
-liftPrim2 t (F.LiftedN n p) = F.PApp2 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim2 :: Type -> F.LiftedN F.Prim2 -> F.LExpr -> F.LExpr -> F.LExpr
+liftPrim2 t (F.LiftedN n p) = F.LPApp2 (liftType t) (F.LiftedN (F.Succ n) p)
 
-liftPrim3 :: Type -> F.LiftedN F.Prim3 -> F.Expr -> F.Expr -> F.Expr -> F.Expr
-liftPrim3 t (F.LiftedN n p) = F.PApp3 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim3 :: Type -> F.LiftedN F.Prim3 -> F.LExpr -> F.LExpr -> F.LExpr -> F.LExpr
+liftPrim3 t (F.LiftedN n p) = F.LPApp3 (liftType t) (F.LiftedN (F.Succ n) p)
 
-liftBinOp :: Type -> F.LiftedN ScalarBinOp -> F.Expr -> F.Expr -> F.Expr
-liftBinOp t (F.LiftedN n op) = F.BinOp (liftType t) (F.LiftedN (F.Succ n) op)
+liftBinOp :: Type -> F.LiftedN ScalarBinOp -> F.LExpr -> F.LExpr -> F.LExpr
+liftBinOp t (F.LiftedN n op) = F.LBinOp (liftType t) (F.LiftedN (F.Succ n) op)
 
-liftUnOp :: Type -> F.LiftedN ScalarUnOp -> F.Expr -> F.Expr
-liftUnOp t (F.LiftedN n op) = F.UnOp (liftType t) (F.LiftedN (F.Succ n) op)
+liftUnOp :: Type -> F.LiftedN ScalarUnOp -> F.LExpr -> F.LExpr
+liftUnOp t (F.LiftedN n op) = F.LUnOp (liftType t) (F.LiftedN (F.Succ n) op)
 
 
 -- | Push a comprehension through all FKL constructs by lifting
 -- primitive functions and distributing over the generator source.
-pushComp :: Ident -> F.Expr -> F.Expr -> F.Expr
-pushComp _ xs tab@(F.Table _ _ _ _) = P.dist tab xs
+pushComp :: Ident -> F.LExpr -> F.LExpr -> F.LExpr
+pushComp _ xs tab@(F.LTable _ _ _ _) = P.dist tab xs
 
-pushComp _ xs v@(F.Const _ _)       = P.dist v xs
+pushComp _ xs v@(F.LConst _ _)       = P.dist v xs
 
-pushComp x xs y@(F.Var _ n)
+pushComp x xs y@(F.LVar _ n)
     | x == n                    = xs
     | otherwise                 = P.dist y xs
 
-pushComp x xs (F.PApp1 t p e1)    = liftPrim1 t p (pushComp x xs e1)
+pushComp x xs (F.LPApp1 t p e1)    = liftPrim1 t p (pushComp x xs e1)
 
-pushComp x xs (F.PApp2 t p e1 e2) = liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
+pushComp x xs (F.LPApp2 t p e1 e2) = liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
 
-pushComp x xs (F.PApp3 t p e1 e2 e3) = liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
+pushComp x xs (F.LPApp3 t p e1 e2 e3) = liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
 
-pushComp x xs (F.BinOp t op e1 e2) = liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
+pushComp x xs (F.LBinOp t op e1 e2) = liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
 
-pushComp x xs (F.UnOp t op e)      = liftUnOp t op (pushComp x xs e)
+pushComp x xs (F.LUnOp t op e)      = liftUnOp t op (pushComp x xs e)
 
-pushComp x xs (F.If _ ce te ee)    = P.combine condVec thenVec elseVec
+pushComp x xs (F.LIf _ ce te ee)    = P.combine condVec thenVec elseVec
   where
     condVec = pushComp x xs ce
     thenVec = pushComp x (P.restrict condVec xs) te
-    elseVec = pushComp x (P.restrict (F.UnOp (listT boolT) 
+    elseVec = pushComp x (P.restrict (F.LUnOp (listT boolT) 
                                              (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
                                              condVec) 
                                      xs) ee
 
+
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants.
-normLifting :: F.Expr -> F.FExpr
-normLifting (F.Table t n cs hs) = F.FTable t n cs hs
-normLifting (F.If t ce te ee)   = F.FIf t (normLifting ce) (normLifting te) (normLifting ee)
-normLifting (F.Const t v)       = F.FConst t v
-normLifting (F.Var _ _)         = $impossible
+normLifting :: F.LExpr -> F.Expr
+normLifting (F.LTable t n cs hs) = F.Table t n cs hs
+normLifting (F.LIf t ce te ee)   = F.If t (normLifting ce) (normLifting te) (normLifting ee)
+normLifting (F.LConst t v)       = F.Const t v
+normLifting (F.LVar _ _)         = $impossible
+normLifting (F.LUnOp t lop e)    = 
+    case lop of
+        F.LiftedN F.Zero op          -> F.UnOp t (F.NotLifted op) (normLifting e)
+        F.LiftedN (F.Succ F.Zero) op -> F.UnOp t (F.Lifted op) (normLifting e)
+        F.LiftedN (F.Succ n) op      -> 
+            let e'  = normLifting e
+                app = F.UnOp t (F.Lifted op) (P.concatN n e')
+            in P.unconcat n e' app
 
+normLifting (F.LBinOp t lop e1 e2)    = 
+    case lop of
+        F.LiftedN F.Zero op          -> F.BinOp t (F.NotLifted op) 
+                                                  (normLifting e1) 
+                                                  (normLifting e2)
+        F.LiftedN (F.Succ F.Zero) op -> F.BinOp t (F.Lifted op) 
+                                                  (normLifting e1)
+                                                  (normLifting e2)
+        F.LiftedN (F.Succ n) op      -> 
+            let e1'  = normLifting e1
+                e2'  = normLifting e2
+                app = F.BinOp t (F.Lifted op) (P.concatN n e1') (P.concatN n e2')
+            in P.unconcat n e1' app
+            
 
+-- | Transform an expression in the Nested Kernel Language into its
+-- equivalent Flat Kernel Language expression by means of the
+-- flattening transformation.
+flatTransform :: N.Expr -> F.Expr
+flatTransform expr = 
+#ifdef DEBUGCOMP
+    let lexpr = flatten expr
+        fexpr = normLifting lexpr
+    in trace (decorate "Flattened" lexpr) $
+       trace (decorate "Normalized Flat" fexpr) $
+       fexpr
+
+  where
+    padSep :: String -> String
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
+
+    decorate :: Pretty e => String -> e -> String
+    decorate msg e = padSep msg ++ pp e ++ padSep ""
+    
+#else
+    normLifting $ flatten expr
+#endif

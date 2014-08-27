@@ -53,12 +53,13 @@ import           Database.DSH.Translate.VL2Algebra
 --------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline
 
+-- | Backend-agnostic part of the pipeline.
 commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
 commonPipeline =
     optimizeComprehensions
     >>> desugarComprehensions
     >>> optimizeNKL
-    >>> flatten
+    >>> flatTransform
     >>> specializeVectorOps
 
 nkl2X100Alg :: CL.Expr -> Shape X100Code
