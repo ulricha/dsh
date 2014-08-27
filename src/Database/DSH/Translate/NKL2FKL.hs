@@ -155,7 +155,8 @@ pushComp x xs (F.LIf _ ce te ee)    = P.combine condVec thenVec elseVec
 -- Normalization of intermediate flat expressions into the final form
 
 -- | Reduce all higher-lifted occurences of primitive combinators and
--- operators to singly lifted variants.
+-- operators to singly lifted variants by flattening the arguments and
+-- restoring the original list shape on the result.
 normLifting :: F.LExpr -> F.Expr
 normLifting (F.LTable t n cs hs) = F.Table t n cs hs
 normLifting (F.LIf t ce te ee)   = F.If t (normLifting ce) (normLifting te) (normLifting ee)
@@ -182,4 +183,47 @@ normLifting (F.LBinOp t lop e1 e2)    =
             let e1'  = normLifting e1
                 e2'  = normLifting e2
                 app = F.BinOp t (F.Lifted op) (P.concatN n e1') (P.concatN n e2')
+            in P.unconcat n e1' app
+
+normLifting (F.LPApp1 t lp e1)    = 
+    case lp of
+        F.LiftedN F.Zero p          -> F.PApp1 t (F.NotLifted p) (normLifting e1) 
+        F.LiftedN (F.Succ F.Zero) p -> F.PApp1 t (F.Lifted p) (normLifting e1)
+        F.LiftedN (F.Succ n) p      -> 
+            let e1'  = normLifting e1
+                app = F.PApp1 t (F.Lifted p) (P.concatN n e1')
+            in P.unconcat n e1' app
+
+normLifting (F.LPApp2 t lp e1 e2)    = 
+    case lp of
+        F.LiftedN F.Zero p          -> F.PApp2 t (F.NotLifted p) 
+                                                 (normLifting e1) 
+                                                 (normLifting e2)
+        F.LiftedN (F.Succ F.Zero) p -> F.PApp2 t (F.Lifted p) 
+                                                 (normLifting e1)
+                                                 (normLifting e2)
+        F.LiftedN (F.Succ n) p      -> 
+            let e1'  = normLifting e1
+                e2'  = normLifting e2
+                app = F.PApp2 t (F.Lifted p) (P.concatN n e1') (P.concatN n e2')
+            in P.unconcat n e1' app
+
+normLifting (F.LPApp3 t lp e1 e2 e3)    = 
+    case lp of
+        F.LiftedN F.Zero p          -> F.PApp3 t (F.NotLifted p) 
+                                                 (normLifting e1) 
+                                                 (normLifting e2)
+                                                 (normLifting e3)
+        F.LiftedN (F.Succ F.Zero) p -> F.PApp3 t (F.Lifted p) 
+                                                 (normLifting e1)
+                                                 (normLifting e2)
+                                                 (normLifting e3)
+        F.LiftedN (F.Succ n) p      -> 
+            let e1'  = normLifting e1
+                e2'  = normLifting e2
+                e3'  = normLifting e3
+                app = F.PApp3 t (F.Lifted p) 
+                                (P.concatN n e1') 
+                                (P.concatN n e2') 
+                                (P.concatN n e2')
             in P.unconcat n e1' app
