@@ -4,7 +4,6 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 #ifdef DEBUGCOMP
 import           Debug.Trace
 import           Database.DSH.Common.Pretty
-import           Database.DSH.FKL.Pretty
 #endif
 
 import           Control.Applicative
@@ -20,16 +19,31 @@ import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
 import qualified Database.DSH.NKL.Rewrite    as NR
 
-flatten :: N.Expr -> F.LExpr
-flatten (N.Table t n cs hs)  = F.LTable t n cs hs
-flatten (N.UnOp t op e1)     = P.un t op (flatten e1)
-flatten (N.BinOp t op e1 e2) = P.bin t op (flatten e1) (flatten e2)
-flatten (N.Const t v)        = F.LConst t v
-flatten (N.Var t v)          = F.LVar t v
-flatten (N.If t ce te ee)    = F.LIf t (flatten ce) (flatten te) (flatten ee)
-flatten (N.AppE1 _ p e)      = prim1 p $ flatten e
-flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2)
-flatten (N.Comp _ h x xs)    = pushComp x (flatten xs) (flatten h)
+-- | Transform an expression in the Nested Kernel Language into its
+-- equivalent Flat Kernel Language expression by means of the
+-- flattening transformation.
+flatTransform :: N.Expr -> F.Expr
+flatTransform expr = 
+#ifdef DEBUGCOMP
+    let lexpr = flatten expr
+        fexpr = normLifting lexpr
+    in trace (decorate "Flattened" lexpr) $
+       trace (decorate "Normalized Flat" fexpr) $
+       fexpr
+
+  where
+    padSep :: String -> String
+    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
+
+    decorate :: Pretty e => String -> e -> String
+    decorate msg e = padSep msg ++ pp e ++ padSep ""
+    
+#else
+    normLifting $ flatten expr
+#endif
+
+--------------------------------------------------------------------------------
+-- The flattening transformation
 
 prim1 :: N.Prim1 Type -> F.LExpr -> F.LExpr
 prim1 (N.Prim1 p _) =
@@ -72,6 +86,24 @@ prim2 (N.Prim2 p _) =
         N.NestJoin jp  -> P.nestJoin jp
         N.SemiJoin jp  -> P.semiJoin jp
         N.AntiJoin jp  -> P.antiJoin jp
+
+-- | Transform a nested expression. This is mostly an identity
+-- transformation with one crucial exception: comprehension iterators
+-- are eliminated by distributing them over their head expression,
+-- i.e. pushing them down.
+flatten :: N.Expr -> F.LExpr
+flatten (N.Table t n cs hs)  = F.LTable t n cs hs
+flatten (N.UnOp t op e1)     = P.un t op (flatten e1)
+flatten (N.BinOp t op e1 e2) = P.bin t op (flatten e1) (flatten e2)
+flatten (N.Const t v)        = F.LConst t v
+flatten (N.Var t v)          = F.LVar t v
+flatten (N.If t ce te ee)    = F.LIf t (flatten ce) (flatten te) (flatten ee)
+flatten (N.AppE1 _ p e)      = prim1 p $ flatten e
+flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2)
+flatten (N.Comp _ h x xs)    = pushComp x (flatten xs) (flatten h)
+
+--------------------------------------------------------------------------------
+-- Elimination of comprehensions
 
 liftPrim1 :: Type -> F.LiftedN F.Prim1 -> F.LExpr -> F.LExpr
 liftPrim1 t (F.LiftedN n p) = F.LPApp1 (liftType t) (F.LiftedN (F.Succ n) p)
@@ -119,6 +151,8 @@ pushComp x xs (F.LIf _ ce te ee)    = P.combine condVec thenVec elseVec
                                              condVec) 
                                      xs) ee
 
+--------------------------------------------------------------------------------
+-- Normalization of intermediate flat expressions into the final form
 
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants.
@@ -149,27 +183,3 @@ normLifting (F.LBinOp t lop e1 e2)    =
                 e2'  = normLifting e2
                 app = F.BinOp t (F.Lifted op) (P.concatN n e1') (P.concatN n e2')
             in P.unconcat n e1' app
-            
-
--- | Transform an expression in the Nested Kernel Language into its
--- equivalent Flat Kernel Language expression by means of the
--- flattening transformation.
-flatTransform :: N.Expr -> F.Expr
-flatTransform expr = 
-#ifdef DEBUGCOMP
-    let lexpr = flatten expr
-        fexpr = normLifting lexpr
-    in trace (decorate "Flattened" lexpr) $
-       trace (decorate "Normalized Flat" fexpr) $
-       fexpr
-
-  where
-    padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
-
-    decorate :: Pretty e => String -> e -> String
-    decorate msg e = padSep msg ++ pp e ++ padSep ""
-    
-#else
-    normLifting $ flatten expr
-#endif
