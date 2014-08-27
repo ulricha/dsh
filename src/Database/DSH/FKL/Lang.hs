@@ -203,13 +203,13 @@ instance Pretty LExpr where
         pretty f <+> (parenthizeL e1)
 
     pretty (LPApp2 _ f e1 e2) =
-        pretty f <+> (align $ (parenthizeL e1) <$> (parenthizeL e2))
+        pretty f <+> (align $ (parenthizeL e1) </> (parenthizeL e2))
 
     pretty (LPApp3 _ f e1 e2 e3) =
         pretty f 
         <+> (align $ (parenthizeL e1) 
-                     <$> (parenthizeL e2) 
-                     <$> (parenthizeL e3))
+                     </> (parenthizeL e2) 
+                     </> (parenthizeL e3))
 
     pretty (LIf _ e1 e2 e3) =
         let e1' = pretty e1
@@ -220,7 +220,7 @@ instance Pretty LExpr where
            </> (nest 2 $ text "else" <+> e3')
 
     pretty (LBinOp _ o e1 e2) =
-        parenthizeL e1 <+> pretty o <+> parenthizeL e2
+        align $ parenthizeL e1 </> pretty o </> parenthizeL e2
 
     pretty (LUnOp _ o e) =
         pretty o <> parenthizeL e
@@ -246,13 +246,13 @@ instance Pretty Expr where
         pretty f <+> (parenthizeE e1)
 
     pretty (PApp2 _ f e1 e2) =
-        pretty f <+> (align $ (parenthizeE e1) <$> (parenthizeE e2))
+        pretty f <+> (align $ (parenthizeE e1) </> (parenthizeE e2))
 
     pretty (PApp3 _ f e1 e2 e3) =
         pretty f 
         <+> (align $ (parenthizeE e1) 
-                     <$> (parenthizeE e2) 
-                     <$> (parenthizeE e3))
+                     </> (parenthizeE e2) 
+                     </> (parenthizeE e3))
 
     pretty (If _ e1 e2 e3) =
         let e1' = pretty e1
@@ -263,9 +263,7 @@ instance Pretty Expr where
            </> (nest 2 $ text "else" <+> e3')
 
     pretty (BinOp _ o e1 e2) =
-        let e1' = pretty e1
-            e2' = pretty e2
-        in parens $ e1' <+> pretty o <+> e2'
+        align $ parenthizeE e1 </> pretty o </> parenthizeE e2
 
     pretty (UnOp _ o e) =
         pretty o <> parens (pretty e)
@@ -273,13 +271,13 @@ instance Pretty Expr where
     pretty (Const _ v) =
         pretty v
 
-    pretty (QuickConcat _ e) = text "quickConcat" <+> (parenthizeE e)
+    pretty (QuickConcat _ e) = text "qconcat" <+> (parenthizeE e)
 
     pretty (UnConcat n _ e1 e2) = 
         text "unconcat" 
         <> (angles $ int n) 
         <+> (align $ (parenthizeE e1) 
-                     <$> (parenthizeE e2))
+                     </> (parenthizeE e2))
 
 parenthizeE :: Expr -> Doc
 parenthizeE e =
