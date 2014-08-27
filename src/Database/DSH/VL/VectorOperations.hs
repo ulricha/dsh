@@ -305,12 +305,10 @@ sortWithL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
 sortWithL _ _ = error "vlSortL: Should not be possible"
 
 -- move a descriptor from e1 to e2
-unconcatV ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-unconcatV (ValueVector d1 _) (ValueVector d2 lyt2) =
+unconcatV ::  Int -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+unconcatV 1 (ValueVector d1 _) (ValueVector d2 lyt2) = 
     return $ ValueVector d1 (Nest d2 lyt2)
-
-unconcatV _ _                                      =
-    $impossible
+unconcatV _ _ _ = $unimplemented
 
 groupByKeyS ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 groupByKeyS (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
