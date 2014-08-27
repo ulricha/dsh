@@ -4,12 +4,14 @@ module Database.DSH.NKL.Rewrite
     ( substR
     , subst
     , freeVars
+    , boundVars
     , optimizeNKL
     ) where
 
 import Control.Arrow
 import Data.List
 
+import Database.DSH.Common.Pretty
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure
@@ -33,6 +35,15 @@ freeVarsT = fmap nub $ crushbuT $ do (ctx, Var _ v) <- exposeT
 freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr [] freeVarsT
 
+boundVarsT :: TransformN Expr [Ident]
+boundVarsT = fmap nub $ crushbuT $ do Comp _ _ v _ <- idR
+                                      return [v]
+
+-- | Compute all names that are bound in the given expression. Note
+-- that the only binding form in NKL is a lambda.
+boundVars :: Expr -> [Ident]
+boundVars = either error id . applyExpr [] boundVarsT
+
 --------------------------------------------------------------------------------
 -- Substitution
 
@@ -49,7 +60,7 @@ alphaCompR avoidNames = do
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
-    Var _ n | n == v                          -> return $ inject s
+    Var _ n | n == v                          -> return s
 
     -- Some other variable
     Var _ _                                   -> idR
@@ -61,7 +72,7 @@ substR v s = readerT $ \expr -> case expr of
     Comp _ h x _ | x /= v && v `elem` freeVars h ->
         if x `elem` freeVars s
         then alphaCompR (freeVars s) >>> substR v s
-        else compR (substR v s) (substR v s)
+        else anyR $ substR v s
 
     -- A comprehension whose generator shadows v -> don't descend into the head
     Comp _ _ x _ | v == x                     -> compR idR (substR v s)

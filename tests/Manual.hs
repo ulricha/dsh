@@ -234,8 +234,14 @@ bestProfit stock date =
     trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) 
               $ sortWith t_timestampQ trades
 
+c1 :: Q [[Integer]]
+c1 = [ [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
+
+c2 :: Q [[[Integer]]]
+c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
+
 
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ flowStats
+main = getConn P.>>= \c -> debugQ "q" c c1
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
