@@ -248,8 +248,16 @@ nestQualifiers tupConst []             = tupConst
 -- | Desugar a sequence of generators. 
 desugarGens :: GenEnv -> NKL.Expr -> NonEmpty (Ident, NKL.Expr) -> NameEnv NKL.Expr
 desugarGens env baseExpr qs = do
-    usedNames <- (++) (map fst $ N.toList qs) <$> ask
-    outerName <- freshIdent usedNames 
+    -- Avoid all names that are bound by enclosing binders and the
+    -- ones bound in the current generator list.
+    visibleNames <- (++) (map fst $ N.toList qs) <$> ask
+    
+    -- Avoid all names that are bound in the generator expressions in
+    -- which we will substitute.
+    let boundNames = concatMap (boundVars . snd) $ N.toList qs
+        avoidNames = boundNames ++ visibleNames
+
+    outerName    <- freshIdent $ visibleNames ++ boundNames 
 
     let baseElemType   = elemT $ typeOf baseExpr
         
@@ -258,7 +266,7 @@ desugarGens env baseExpr qs = do
         -- desugaring. To eliminate them, we have to replace references to
         -- generator variables in generator expressions by the appropriate
         -- tuple accessors for the outer concatMap variable.
-        substGenExpr (n, e) = (n, substTupleAccesses usedNames (outerName, baseElemType) env e)
+        substGenExpr (n, e) = (n, substTupleAccesses avoidNames (outerName, baseElemType) env e)
 
     let qs'            = fmap substGenExpr qs
 
@@ -310,7 +318,7 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     p'           <- expr p
     visibleNames <- ask
 
-    filterName   <- freshIdent $ visibleNames
+    filterName   <- freshIdent $ visibleNames ++ boundVars p'
     let elemType   = elemT $ typeOf baseSrc
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
         predComp   = NKL.Comp (listT boolT) filterExpr filterName baseSrc
@@ -348,7 +356,7 @@ desugarComprehension _ e qs = do
     visibleNames   <- (++) genNames <$> ask
 
     -- Avoid all visible names
-    n              <- freshIdent visibleNames
+    n              <- freshIdent $ visibleNames ++ boundVars e'
 
     let t       = elemT $ typeOf genExpr
 
