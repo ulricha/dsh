@@ -6,7 +6,6 @@ import Database.DSH.Common.Lang
 import Database.DSH.Common.RewriteM
 import Database.DSH.Common.Kure
 import Database.DSH.FKL.Lang
-import Database.DSH.FKL.Pretty()
 import Database.DSH.FKL.Kure
 
 -- | Run a translate on an expression without context

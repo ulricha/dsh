@@ -15,7 +15,6 @@ import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
-import           Database.DSH.FKL.Pretty()
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL

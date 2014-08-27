@@ -135,7 +135,6 @@ Library
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
-                     Database.DSH.FKL.Pretty
                      Database.DSH.FKL.Rewrite
                      Database.DSH.FKL.Kure
                      Database.DSH.NKL.Lang
