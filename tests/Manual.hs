@@ -250,11 +250,13 @@ q1 =
   where xs = toQ ([0], [0])
 
 
+{-
 q1 :: Q [Integer]
 q1 =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6] :: Q [Integer])
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
+-}
 
 main :: IO ()
 main = getConn P.>>= \c -> debugQ "q" c q1

@@ -105,9 +105,7 @@ papp3 (NotLifted Combine) = P.combine
 papp1 :: Type -> Lifted Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t (Lifted f) =
     case f of
--- FIXME what is wrong here?
---        FLengthL          -> lengthLift
-        Length          -> $impossible
+        Length          -> P.lengthL
         Concat          -> P.concatL
         The             -> P.theL
         Fst             -> P.fstL
@@ -155,8 +153,8 @@ papp2 (Lifted f) =
         Dist           -> P.distL
         Group          -> P.groupL
         Sort           -> P.sortL
-        Restrict       -> $unimplemented
-        Pair           -> P.pairOpL
+        Restrict       -> P.restrictL
+        Pair           -> P.pairL
         Append         -> P.appendL
         Index          -> P.indexL
         Zip            -> P.zipL
@@ -174,7 +172,7 @@ papp2 (NotLifted f) =
         Group           -> P.group
         Sort            -> P.sort
         Restrict        -> P.restrict
-        Pair            -> P.pairOp
+        Pair            -> P.pair
         Append          -> P.append
         Index           -> P.index
         Zip             -> P.zip

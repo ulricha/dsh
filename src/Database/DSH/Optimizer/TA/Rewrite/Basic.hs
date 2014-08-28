@@ -326,7 +326,7 @@ keyPrefixOrdering q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
         (resCol, sortCols, []) <- return $(v "args")
-        keys                   <- trace (show sortCols) $! pKeys <$> bu <$> properties $(v "q1")
+        keys                   <- pKeys <$> bu <$> properties $(v "q1")
 
         predicate $ not $ null sortCols
        

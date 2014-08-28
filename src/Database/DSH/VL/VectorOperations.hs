@@ -238,22 +238,22 @@ ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     return $ PrimVal q lyt
 ifList _ _ _ = $impossible
 
-pairOp ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
+pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+pair (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     q <- vlZip q1 q2
     let lyt = zipLayout lyt1 lyt2
     return $ PrimVal q lyt
-pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+pair (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     d   <- vlLit L.PossiblyEmpty [] [[VLNat 1, VLNat 1]]
     q1' <- vlUnsegment q1
     q2' <- vlUnsegment q2
     let lyt = zipLayout (Nest q1' lyt1) (Nest q2' lyt2)
     return $ PrimVal d lyt
-pairOp (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
+pair (ValueVector q1 lyt1) (PrimVal q2 lyt2) = do
     q1' <- vlUnsegment q1
     let lyt = zipLayout (Nest q1' lyt1) lyt2
     return $ PrimVal q2 lyt
-pairOp (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
+pair (PrimVal q1 lyt1) (ValueVector q2 lyt2) = do
     q2' <- vlUnsegment q2
     let lyt = zipLayout lyt1 (Nest q2' lyt2)
     return $ PrimVal q1 lyt
@@ -295,6 +295,12 @@ concat e                            = error $ "Not supported by concatV: " ++ sh
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
 
+restrictL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+restrictL (ValueVector qo (Nest qi lyt)) (ValueVector _ (Nest qb (InColumn 1))) = do
+    ValueVector qi' lyt' <- restrict (ValueVector qi lyt) (ValueVector qb (InColumn 1))
+    return $ ValueVector qo (Nest qi' lyt')
+restrictL _                              _                                      = 
+    $impossible
 
 zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zipL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
@@ -509,12 +515,12 @@ distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
 distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
 
-pairOpL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-pairOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+pairL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q <- vlZip q1 q2
     let lyt = zipLayout lyt1 lyt2
     return $ ValueVector q lyt
-pairOpL _ _ = $impossible
+pairL _ _ = $impossible
 
 fstL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 fstL (ValueVector q (Pair p1 _p2)) = do
