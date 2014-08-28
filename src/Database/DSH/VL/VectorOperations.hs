@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Vectorising constructor functions that implement FKL primitives
+-- using VL operators.
 module Database.DSH.VL.VectorOperations where
 
 import           Debug.Trace
@@ -21,19 +23,14 @@ import           Database.DSH.VL.MetaPrimitives
 import           Database.DSH.VL.Vector
 import           Database.DSH.VL.VLPrimitives
 
+--------------------------------------------------------------------------------
+-- Construction of not-lifted primitives
+
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zip (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q' <- vlZip q1 q2
     return $ ValueVector q' $ zipLayout lyt1 lyt2
-zip _ _ = error "ziprim: Should not be possible"
-
-zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-zipL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-    (q', r1, r2) <- vlZipS q1 q2
-    lyt1'        <- chainRenameFilter r1 lyt1
-    lyt2'        <- chainRenameFilter r2 lyt2
-    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
-zipL _ _ = error "zipL: Should not be possible"
+zip _ _ = $impossible
 
 cartProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 cartProduct (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -43,28 +40,12 @@ cartProduct (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
 cartProduct _ _ = $impossible
 
-cartProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-cartProductL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-    (q', p1, p2) <- vlCartProductS q1 q2
-    lyt1'        <- chainReorder p1 lyt1
-    lyt2'        <- chainReorder p2 lyt2
-    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
-cartProductL _ _ = $impossible
-
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProduct (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
   q1' <- vlSegment q1
   ValueVector qj lytJ <- cartProduct (ValueVector q1' lyt1) (ValueVector q2 lyt2)
   return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestProduct _ _ = $impossible
-
-nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-nestProductL (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestProductS qv1 qv2
-    lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = zipLayout lyt1 lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
-nestProductL _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 thetaJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -74,35 +55,12 @@ thetaJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     return $ ValueVector q' $ zipLayout lyt1' lyt2'
 thetaJoin _ _ _ = $impossible
 
-thetaJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-thetaJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
-    (q', p1, p2) <- vlThetaJoinS joinPred q1 q2
-    lyt1'        <- chainReorder p1 lyt1
-    lyt2'        <- chainReorder p2 lyt2
-    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
-thetaJoinL _ _ _ = $impossible
-
 nestJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     q1' <- vlSegment q1
     ValueVector qj lytJ <- thetaJoin joinPred (ValueVector q1' lyt1) (ValueVector q2 lyt2)
     return $ ValueVector q1 (Pair lyt1 (Nest qj lytJ))
 nestJoin _ _ _ = $impossible
-
--- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
-
--- For the unlifted nestjoin, we could segment the left (outer) input
--- and then use the regular thetajoin implementation. This trick does
--- not work here, as the lifted thetajoin joins on the
--- descriptors. Therefore, we have to 'segment' **after** the join,
--- i.e. use the left input positions as descriptors
-nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-nestJoinL joinPred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
-    (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
-    lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = zipLayout lyt1 lyt2'
-    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
-nestJoinL _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 semiJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
@@ -111,13 +69,6 @@ semiJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
     return $ ValueVector qj lyt1'
 semiJoin _ _ _ = $impossible
 
-semiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-semiJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlSemiJoinS joinPred q1 q2
-    lyt1'   <- chainRenameFilter r lyt1
-    return $ ValueVector d1 (Nest qj lyt1')
-semiJoinL _ _ _ = $impossible
-
 antiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 antiJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
     (qj, r) <- vlAntiJoin joinPred q1 q2
@@ -125,32 +76,15 @@ antiJoin joinPred (ValueVector q1 lyt1) (ValueVector q2 _) = do
     return $ ValueVector qj lyt1'
 antiJoin _ _ _ = $impossible
 
-antiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-antiJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
-    (qj, r) <- vlAntiJoinS joinPred q1 q2
-    lyt1'   <- chainRenameFilter r lyt1
-    return $ ValueVector d1 (Nest qj lyt1')
-antiJoinL _ _ _ = $impossible
-
 nub ::  Shape VLDVec -> Build VL (Shape VLDVec)
 nub (ValueVector q lyt) = ValueVector <$> vlUniqueS q <*> pure lyt
-nub _ = error "nub: Should not be possible"
-
-nubL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-nubL (ValueVector d (Nest q lyt)) =  ValueVector d <$> (Nest <$> vlUniqueS q <*> pure lyt)
-nubL _ = error "nubL: Should not be possible"
+nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
 number (ValueVector q lyt) =
     ValueVector <$> vlNumber q
                 <*> (pure $ zipLayout lyt (InColumn 1))
-number _ = error "number: Should not be possible"
-
-numberL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-numberL (ValueVector d (Nest q lyt)) =
-    ValueVector d <$> (Nest <$> vlNumberS q
-                            <*> (pure $ zipLayout lyt (InColumn 1)))
-numberL _ = error "numberL: Should not be possible"
+number _ = $impossible
 
 init ::  Shape VLDVec -> Build VL (Shape VLDVec)
 init (ValueVector q lyt) = do
@@ -158,15 +92,7 @@ init (ValueVector q lyt) = do
     (q', r, _) <- vlSelectPos q (L.SBRelOp L.Lt) i
     lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
-init _ = error "init: Should not be possible"
-
-initL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-initL (ValueVector qs (Nest q lyt)) = do
-    is         <- vlAggrS AggrCount qs q
-    (q', r, _) <- vlSelectPosS q (L.SBRelOp L.Lt) is
-    lyt'       <- chainRenameFilter r lyt
-    return $ ValueVector qs (Nest q' lyt')
-initL _ = error "initL: Should not be possible"
+init _ = $impossible
 
 last ::  Shape VLDVec -> Build VL (Shape VLDVec)
 last (ValueVector qs lyt@(Nest _ _)) = do
@@ -180,22 +106,7 @@ last (ValueVector qs lyt) = do
     (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i
     lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
-last _ = error "last: Should not be possible"
-
-lastL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-lastL (ValueVector d (Nest qs lyt@(Nest _ _))) = do
-    is          <- vlAggrS AggrCount d qs
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'        <- chainRenameFilter r lyt
-    re          <- vlUnboxRename qs'
-    ValueVector d <$> renameOuter' re lyt'
-lastL (ValueVector d (Nest qs lyt)) = do
-    is          <- vlAggrS AggrCount d qs
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
-    lyt'        <- chainRenameFilter r lyt
-    re          <- vlUnboxRename d
-    renameOuter re (ValueVector qs' lyt')
-lastL _ = error "lastL: Should not be possible"
+last _ = $impossible
 
 index ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 index (ValueVector qs (Nest qi lyti)) (PrimVal i _) = do
@@ -212,48 +123,10 @@ index (ValueVector qs lyt) (PrimVal i _) = do
     (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
     lyt'      <- chainRenameFilter r lyt
     return $ PrimVal q lyt'
-index _ _ = error "index: Should not be possible"
-
-indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-indexL (ValueVector d (Nest qs (Nest qi lyti))) (ValueVector is (InColumn 1)) = do
-    one       <- literal intT (VLInt 1)
-    (ones, _) <- vlDistPrim one is
-    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (_, _, u) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    (qu, ri)  <- vlUnbox u qi
-    lyti'     <- chainRenameFilter ri lyti
-    return $ ValueVector d (Nest qu lyti')
-indexL (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
-    one         <- literal intT (VLInt 1)
-    (ones, _)   <- vlDistPrim one is
-    is'         <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    lyt'        <- chainRenameFilter r lyt
-    re          <- vlUnboxRename d
-    renameOuter re (ValueVector qs' lyt')
-indexL _ _ = error "indexL: Should not be possible"
+index _ _ = $impossible
 
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 append = appendVec
-
-appendL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-appendL (ValueVector d lyt1) (ValueVector _ lyt2) = do
-    ValueVector d <$> appendLayout lyt1 lyt2
-appendL _ _ = $impossible
-
-reverse ::  Shape VLDVec -> Build VL (Shape VLDVec)
-reverse (ValueVector d lyt) = do
-    (d', p) <- vlReverse d
-    lyt'    <- chainReorder p lyt
-    return (ValueVector d' lyt')
-reverse _ = error "reverse: Should not be possible"
-
-reverseL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-reverseL (ValueVector d (Nest d1 lyt)) = do
-    (d1', p) <- vlReverseS d1
-    lyt'     <- chainReorder p lyt
-    return (ValueVector d (Nest d1' lyt'))
-reverseL _ = error "vlReverseL: Should not be possible"
 
 -- FIXME looks fishy, there should be an unboxing join.
 the ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -265,7 +138,14 @@ the (ValueVector d lyt) = do
     (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
     lyt'          <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
-the _ = error "the: Should not be possible"
+the _ = $impossible
+
+reverse ::  Shape VLDVec -> Build VL (Shape VLDVec)
+reverse (ValueVector d lyt) = do
+    (d', p) <- vlReverse d
+    lyt'    <- chainReorder p lyt
+    return (ValueVector d' lyt')
+reverse _ = $impossible
 
 tail ::  Shape VLDVec -> Build VL (Shape VLDVec)
 tail (ValueVector d lyt) = do
@@ -273,39 +153,14 @@ tail (ValueVector d lyt) = do
     (q', r, _) <- vlSelectPos d (L.SBRelOp L.Gt) p
     lyt'       <- chainRenameFilter r lyt
     return $ ValueVector q' lyt'
-tail _ = error "tail: Should not be possible"
-
-theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-theL (ValueVector d (Nest q lyt)) = do
-    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
-    prop       <- vlUnboxRename d
-    lyt'       <- chainRenameFilter p2 lyt
-    v'         <- vlPropRename prop v
-    return $ ValueVector v' lyt'
-theL _ = error "theL: Should not be possible"
-
-tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-tailL (ValueVector d (Nest q lyt)) = do
-    one        <- literal intT (VLInt 1)
-    (p, _)     <- vlDistPrim one d
-    (v, p2, _) <- vlSelectPosS q (L.SBRelOp L.Gt) p
-    lyt'       <- chainRenameFilter p2 lyt
-    return $ ValueVector d (Nest v lyt')
-tailL _ = error "tailL: Should not be possible"
+tail _ = $impossible
 
 sort :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 sort (ValueVector q1 _) (ValueVector q2 lyt2) = do
     (v, p) <- vlSort q1 q2
     lyt2'  <- chainReorder p lyt2
     return $ ValueVector v lyt2'
-sort _e1 _e2 = error "vlSortS: Should not be possible"
-
-sortL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-sortL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
-    (v, p) <- vlSort v1 v2
-    lyt2'  <- chainReorder p lyt2
-    return $ ValueVector d2 (Nest v lyt2')
-sortL _ _ = error "vlSortL: Should not be possible"
+sort _e1 _e2 = $impossible
 
 group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 group (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -313,26 +168,6 @@ group (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     lyt2'     <- chainReorder p lyt2
     return $ ValueVector d (Pair lyt1 (Nest v lyt2') )
 group _e1 _e2 = error $ "group: Should not be possible "
-
-groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-groupL (ValueVector _ (Nest v1 lyt1)) (ValueVector d2 (Nest v2 lyt2)) = do
-    (d, v, p) <- vlGroupBy v1 v2
-    lyt2'     <- chainReorder p lyt2
-    return $ ValueVector d2 (Nest d (Pair lyt1 (Nest v lyt2')))
-groupL _ _ = error "vlGroupByL: Should not be possible"
-
-concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-concatL (ValueVector d (Nest d' vs)) = do
-    p   <- vlUnboxRename d'
-    vs' <- renameOuter' p vs
-    return $ ValueVector d vs'
-concatL _ = error "concatL: Should not be possible"
-
-lengthL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-lengthL (ValueVector q (Nest qi _)) = do
-    ls <- vlAggrS AggrCount q qi
-    return $ ValueVector ls (InColumn 1)
-lengthL s = trace (show s) $ $impossible
 
 length ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length q = do
@@ -347,17 +182,6 @@ cons q1@(PrimVal _ _) q2@(ValueVector _ _) = do
 cons q1 q2 = do
     n <- singletonVec q1
     appendVec n q2
-
-consL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-consL (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
-    s           <- vlSegment q1
-    (v, p1, p2) <- vlAppendS s qi
-    lyt1'       <- renameOuter' p1 lyt1
-    lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendLayout lyt1' lyt2'
-    return $ ValueVector q2 (Nest v lyt')
-consL _ _ = $impossible
-
 
 restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1)) = do
@@ -375,11 +199,6 @@ combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2
     return $ ValueVector v lyt'
 combine _ _ _ = $impossible
 
-
-outer ::  Shape VLDVec -> Build VL VLDVec
-outer (PrimVal _ _)            = $impossible
-outer (ValueVector q _)        = return q
-
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 dist (PrimVal q lyt) q2 = do
     o      <- outer q2
@@ -396,34 +215,11 @@ dist (ValueVector q lyt) q2 = do
     lyt'   <- chainReorder p lyt
     return $ ValueVector o' (Nest d lyt')
 
-mapEnv :: (Shape VLDVec -> Build VL (Shape VLDVec))
-       -> [(String, Shape VLDVec)]
-       -> Build VL [(String, Shape VLDVec)]
-mapEnv f  ((x, p):xs) = do
-    p'  <- f p
-    xs' <- mapEnv f xs
-    return $ (x, p') : xs'
-mapEnv _f []          = return []
-
 aggr :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggr afun (ValueVector q (InColumn 1)) =
     PrimVal <$> vlAggr (afun (Column 1)) q <*> (pure $ InColumn 1)
 aggr _ _ = $impossible
 
-aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
-aggrL afun (ValueVector d (Nest q (InColumn 1))) = do
-    qr <- vlAggrS (afun (Column 1)) d q
-    return $ ValueVector qr (InColumn 1)
-aggrL _ _ = $impossible
-
-distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
-    (qa, p)             <- vlAlign q1 q2
-    lyt1'               <- chainReorder p lyt1
-    let lyt             = zipLayout lyt1' lyt2
-    ValueVector qf lytf <- fstL $ ValueVector qa lyt
-    return $ ValueVector d (Nest qf lytf)
-distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
 
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 ifList (PrimVal qb _) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -441,13 +237,6 @@ ifList qb (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     (ValueVector q lyt) <- ifList qb (ValueVector q1 lyt1) (ValueVector q2 lyt2)
     return $ PrimVal q lyt
 ifList _ _ _ = $impossible
-
-pairOpL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-pairOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    q <- vlZip q1 q2
-    let lyt = zipLayout lyt1 lyt2
-    return $ ValueVector q lyt
-pairOpL _ _ = $impossible
 
 pairOp ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
@@ -477,13 +266,6 @@ fst (PrimVal q (Pair p1 _p2)) = do
     return $ PrimVal proj p1'
 fst e1 = error $ "fstA: " ++ show e1
 
-fstL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-fstL (ValueVector q (Pair p1 _p2)) = do
-    let(p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column cols)
-    return $ ValueVector proj p1'
-fstL s = error $ "fstL: " ++ show s
-
 snd ::  Shape VLDVec -> Build VL (Shape VLDVec)
 snd (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
 snd (PrimVal q (Pair _p1 p2)) = do
@@ -492,6 +274,255 @@ snd (PrimVal q (Pair _p1 p2)) = do
     return $ PrimVal proj p2'
 snd _ = $impossible
 
+transpose :: Shape VLDVec -> Build VL (Shape VLDVec)
+transpose (ValueVector _ (Nest qi lyt)) = do
+    (qo', qi') <- vlTranspose qi
+    return $ ValueVector qo' (Nest qi' lyt)
+transpose _ = $impossible
+
+
+reshape :: Integer -> Shape VLDVec -> Build VL (Shape VLDVec)
+reshape n (ValueVector q lyt) = do
+    (qo, qi) <- vlReshape n q
+    return $ ValueVector qo (Nest qi lyt)
+reshape _ _ = $impossible
+
+concat :: Shape VLDVec -> Build VL (Shape VLDVec)
+concat (ValueVector _ (Nest q lyt)) = ValueVector <$> vlUnsegment q <*> pure lyt
+concat e                            = error $ "Not supported by concatV: " ++ show e
+
+
+--------------------------------------------------------------------------------
+-- Construction of lifted primitives
+
+
+zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+zipL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', r1, r2) <- vlZipS q1 q2
+    lyt1'        <- chainRenameFilter r1 lyt1
+    lyt2'        <- chainRenameFilter r2 lyt2
+    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
+zipL _ _ = $impossible
+
+cartProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+cartProductL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', p1, p2) <- vlCartProductS q1 q2
+    lyt1'        <- chainReorder p1 lyt1
+    lyt2'        <- chainReorder p2 lyt2
+    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
+cartProductL _ _ = $impossible
+
+nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+nestProductL (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
+    (qj, qp2) <- vlNestProductS qv1 qv2
+    lyt2'     <- chainReorder qp2 lyt2
+    let lytJ  = zipLayout lyt1 lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
+nestProductL _ _ = $impossible
+
+thetaJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+thetaJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
+    (q', p1, p2) <- vlThetaJoinS joinPred q1 q2
+    lyt1'        <- chainReorder p1 lyt1
+    lyt2'        <- chainReorder p2 lyt2
+    return $ ValueVector d1 (Nest q' $ zipLayout lyt1' lyt2')
+thetaJoinL _ _ _ = $impossible
+
+-- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
+
+-- For the unlifted nestjoin, we could segment the left (outer) input
+-- and then use the regular thetajoin implementation. This trick does
+-- not work here, as the lifted thetajoin joins on the
+-- descriptors. Therefore, we have to 'segment' **after** the join,
+-- i.e. use the left input positions as descriptors
+nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+nestJoinL joinPred (ValueVector qd1 (Nest qv1 lyt1)) (ValueVector _qd2 (Nest qv2 lyt2)) = do
+    (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
+    lyt2'     <- chainReorder qp2 lyt2
+    let lytJ  = zipLayout lyt1 lyt2'
+    return $ ValueVector qd1 (Nest qv1 (Pair lyt1 (Nest qj lytJ)))
+nestJoinL _ _ _ = $impossible
+
+semiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+semiJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlSemiJoinS joinPred q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector d1 (Nest qj lyt1')
+semiJoinL _ _ _ = $impossible
+
+antiJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+antiJoinL joinPred (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 _)) = do
+    (qj, r) <- vlAntiJoinS joinPred q1 q2
+    lyt1'   <- chainRenameFilter r lyt1
+    return $ ValueVector d1 (Nest qj lyt1')
+antiJoinL _ _ _ = $impossible
+
+
+
+nubL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+nubL (ValueVector d (Nest q lyt)) =  ValueVector d <$> (Nest <$> vlUniqueS q <*> pure lyt)
+nubL _ = $impossible
+
+numberL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+numberL (ValueVector d (Nest q lyt)) =
+    ValueVector d <$> (Nest <$> vlNumberS q
+                            <*> (pure $ zipLayout lyt (InColumn 1)))
+numberL _ = $impossible
+
+initL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+initL (ValueVector qs (Nest q lyt)) = do
+    is         <- vlAggrS AggrCount qs q
+    (q', r, _) <- vlSelectPosS q (L.SBRelOp L.Lt) is
+    lyt'       <- chainRenameFilter r lyt
+    return $ ValueVector qs (Nest q' lyt')
+initL _ = $impossible
+
+lastL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+lastL (ValueVector d (Nest qs lyt@(Nest _ _))) = do
+    is          <- vlAggrS AggrCount d qs
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlUnboxRename qs'
+    ValueVector d <$> renameOuter' re lyt'
+lastL (ValueVector d (Nest qs lyt)) = do
+    is          <- vlAggrS AggrCount d qs
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlUnboxRename d
+    renameOuter re (ValueVector qs' lyt')
+lastL _ = $impossible
+
+indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+indexL (ValueVector d (Nest qs (Nest qi lyti))) (ValueVector is (InColumn 1)) = do
+    one       <- literal intT (VLInt 1)
+    (ones, _) <- vlDistPrim one is
+    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
+    (_, _, u) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
+    (qu, ri)  <- vlUnbox u qi
+    lyti'     <- chainRenameFilter ri lyti
+    return $ ValueVector d (Nest qu lyti')
+indexL (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
+    one         <- literal intT (VLInt 1)
+    (ones, _)   <- vlDistPrim one is
+    is'         <- vlBinExpr (L.SBNumOp L.Add) is ones
+    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
+    lyt'        <- chainRenameFilter r lyt
+    re          <- vlUnboxRename d
+    renameOuter re (ValueVector qs' lyt')
+indexL _ _ = $impossible
+
+appendL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+appendL (ValueVector d lyt1) (ValueVector _ lyt2) = do
+    ValueVector d <$> appendLayout lyt1 lyt2
+appendL _ _ = $impossible
+
+reverseL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+reverseL (ValueVector d (Nest d1 lyt)) = do
+    (d1', p) <- vlReverseS d1
+    lyt'     <- chainReorder p lyt
+    return (ValueVector d (Nest d1' lyt'))
+reverseL _ = $impossible
+
+theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+theL (ValueVector d (Nest q lyt)) = do
+    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
+    prop       <- vlUnboxRename d
+    lyt'       <- chainRenameFilter p2 lyt
+    v'         <- vlPropRename prop v
+    return $ ValueVector v' lyt'
+theL _ = $impossible
+
+tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+tailL (ValueVector d (Nest q lyt)) = do
+    one        <- literal intT (VLInt 1)
+    (p, _)     <- vlDistPrim one d
+    (v, p2, _) <- vlSelectPosS q (L.SBRelOp L.Gt) p
+    lyt'       <- chainRenameFilter p2 lyt
+    return $ ValueVector d (Nest v lyt')
+tailL _ = $impossible
+
+sortL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+sortL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
+    (v, p) <- vlSort v1 v2
+    lyt2'  <- chainReorder p lyt2
+    return $ ValueVector d2 (Nest v lyt2')
+sortL _ _ = $impossible
+
+groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+groupL (ValueVector _ (Nest v1 lyt1)) (ValueVector d2 (Nest v2 lyt2)) = do
+    (d, v, p) <- vlGroupBy v1 v2
+    lyt2'     <- chainReorder p lyt2
+    return $ ValueVector d2 (Nest d (Pair lyt1 (Nest v lyt2')))
+groupL _ _ = $impossible
+
+concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+concatL (ValueVector d (Nest d' vs)) = do
+    p   <- vlUnboxRename d'
+    vs' <- renameOuter' p vs
+    return $ ValueVector d vs'
+concatL _ = $impossible
+
+lengthL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+lengthL (ValueVector q (Nest qi _)) = do
+    ls <- vlAggrS AggrCount q qi
+    return $ ValueVector ls (InColumn 1)
+lengthL s = trace (show s) $ $impossible
+
+consL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+consL (ValueVector q1 lyt1) (ValueVector q2 (Nest qi lyt2)) = do
+    s           <- vlSegment q1
+    (v, p1, p2) <- vlAppendS s qi
+    lyt1'       <- renameOuter' p1 lyt1
+    lyt2'       <- renameOuter' p2 lyt2
+    lyt'        <- appendLayout lyt1' lyt2'
+    return $ ValueVector q2 (Nest v lyt')
+consL _ _ = $impossible
+
+
+outer ::  Shape VLDVec -> Build VL VLDVec
+outer (PrimVal _ _)            = $impossible
+outer (ValueVector q _)        = return q
+
+aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
+aggrL afun (ValueVector d (Nest q (InColumn 1))) = do
+    qr <- vlAggrS (afun (Column 1)) d q
+    return $ ValueVector qr (InColumn 1)
+aggrL _ _ = $impossible
+
+
+mapEnv :: (Shape VLDVec -> Build VL (Shape VLDVec))
+       -> [(String, Shape VLDVec)]
+       -> Build VL [(String, Shape VLDVec)]
+mapEnv f  ((x, p):xs) = do
+    p'  <- f p
+    xs' <- mapEnv f xs
+    return $ (x, p') : xs'
+mapEnv _f []          = return []
+
+distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
+    (qa, p)             <- vlAlign q1 q2
+    lyt1'               <- chainReorder p lyt1
+    let lyt             = zipLayout lyt1' lyt2
+    ValueVector qf lytf <- fstL $ ValueVector qa lyt
+    return $ ValueVector d (Nest qf lytf)
+distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
+
+
+pairOpL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+pairOpL (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+    q <- vlZip q1 q2
+    let lyt = zipLayout lyt1 lyt2
+    return $ ValueVector q lyt
+pairOpL _ _ = $impossible
+
+fstL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+fstL (ValueVector q (Pair p1 _p2)) = do
+    let(p1', cols) = projectFromPos p1
+    proj <- vlProject q (map Column cols)
+    return $ ValueVector proj p1'
+fstL s = error $ "fstL: " ++ show s
+
 sndL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 sndL (ValueVector q (Pair _p1 p2)) = do
     let (p2', cols) = projectFromPos p2
@@ -499,23 +530,11 @@ sndL (ValueVector q (Pair _p1 p2)) = do
     return $ ValueVector proj p2'
 sndL s = trace (show s) $ $impossible
 
-transpose :: Shape VLDVec -> Build VL (Shape VLDVec)
-transpose (ValueVector _ (Nest qi lyt)) = do
-    (qo', qi') <- vlTranspose qi
-    return $ ValueVector qo' (Nest qi' lyt)
-transpose _ = $impossible
-
 transposeL :: Shape VLDVec -> Build VL (Shape VLDVec)
 transposeL (ValueVector qo (Nest qm (Nest qi lyt))) = do
     (qm', qi') <- vlTransposeS qm qi
     return $ ValueVector qo (Nest qm' (Nest qi' lyt))
 transposeL _ = $impossible
-
-reshape :: Integer -> Shape VLDVec -> Build VL (Shape VLDVec)
-reshape n (ValueVector q lyt) = do
-    (qo, qi) <- vlReshape n q
-    return $ ValueVector qo (Nest qi lyt)
-reshape _ _ = $impossible
 
 reshapeL :: Integer -> Shape VLDVec -> Build VL (Shape VLDVec)
 reshapeL n (ValueVector qo (Nest qi lyt)) = do
@@ -533,19 +552,18 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
                                             (p2', cols2, c'') = projectFromPosWork c' p2
                                         in (Pair p1' p2', cols1 ++ cols2, c'')
 
-concat :: Shape VLDVec -> Build VL (Shape VLDVec)
-concat (ValueVector _ (Nest q lyt)) = ValueVector <$> vlUnsegment q <*> pure lyt
-concat e                            = error $ "Not supported by concatV: " ++ show e
-
 singletonVec ::  Shape VLDVec -> Build VL (Shape VLDVec)
 singletonVec (ValueVector q lyt) = do
     VLDVec d <- vlSingletonDescr
     return $ ValueVector (VLDVec d) (Nest q lyt)
-singletonVec _ = error "singletonVec: Should not be possible"
+singletonVec _ = $impossible
 
 singletonAtom ::  Shape VLDVec -> Build VL (Shape VLDVec)
 singletonAtom (PrimVal q1 lyt) = return $ ValueVector q1 lyt
-singletonAtom _ = error "singleton: Should not be possible"
+singletonAtom _ = $impossible
+
+--------------------------------------------------------------------------------
+-- Construction of base tables and literal tables
 
 dbTable ::  String -> [L.Column] -> L.TableHints -> Build VL (Shape VLDVec)
 dbTable n cs ks = do
@@ -560,7 +578,7 @@ mkLiteral t@(ListT _) (L.ListV es) = do
           _ : _ -> L.NonEmpty
     litNode <- vlLit emptinessFlag (P.reverse descHd) $ map P.reverse descV
     return $ ValueVector litNode lyt
-mkLiteral (FunT _ _) _  = error "Not supported"
+mkLiteral (FunT _ _) _  = $impossible
 mkLiteral t e           = do
     ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
     litNode <- vlLit L.NonEmpty (P.reverse descHd) [(P.reverse descV)]
@@ -586,7 +604,7 @@ toPlan (descHd, descV) (ListT t) c es =
             n <- vlLit L.PossiblyEmpty (P.reverse hd) (map P.reverse vs')
             return ((descHd, descV), Nest n l, c)
 
-        FunT _ _ -> error "Functions are not db values"
+        FunT _ _ -> $impossible
 
         _ -> let (hd, vs) = mkColumn t es
              in return ((hd:descHd, zipWith (:) vs descV), (InColumn c), c + 1)
@@ -601,7 +619,7 @@ literal t v = vlLit L.NonEmpty [t] [[VLNat 1, VLNat 1, v]]
 
 fromListVal :: L.Val -> [L.Val]
 fromListVal (L.ListV es) = es
-fromListVal _            = error "fromListVal: Not a list"
+fromListVal _            = $impossible
 
 splitVal :: L.Val -> (L.Val, L.Val)
 splitVal (L.PairV e1 e2) = (e1, e2)
@@ -616,6 +634,9 @@ mkDescriptor lengths =
         body = map (\(d, p) -> [VLNat $ fromInteger p, VLNat $ fromInteger d])
                $ P.zip (P.concat [ replicate l p | (p, l) <- P.zip [1..] lengths] ) [1..]
     in (header, body)
+
+--------------------------------------------------------------------------------
+-- Helper functions for layouts
 
 zipLayout :: Layout VLDVec -> Layout VLDVec -> Layout VLDVec
 zipLayout l1 l2 = let offSet = columnsInLayout l1
