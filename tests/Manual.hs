@@ -241,7 +241,13 @@ c2 :: Q [[[Integer]]]
 c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 
 
+q1 :: Q [Integer]
+q1 =
+    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
+        ys = (toQ [2, 4, 6] :: Q [Integer])
+    in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c c2
+main = getConn P.>>= \c -> debugQ "q" c q1
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

@@ -53,9 +53,9 @@ concat e = let t = typeOf e
                else tyErrShow "concat" [t]
 
 restrict :: Expr -> Expr -> Expr
-restrict bs vs = let bst@(ListT BoolT) = typeOf bs
+restrict vs bs = let bst@(ListT BoolT) = typeOf bs
                      vst@(ListT _)     = typeOf vs
-                 in AppE2 vst (Prim2 Restrict (bst .-> vst .-> vst)) bs vs
+                 in AppE2 vst (Prim2 Restrict (vst .-> bst .-> vst)) vs bs
 
 sort :: Expr -> Expr -> Expr
 sort ss vs = let sst@(ListT _) = typeOf ss

@@ -150,11 +150,11 @@ pushComp x xs (F.LIf _ ce te ee)      =
     P.combine condVec thenVec elseVec
   where
     condVec    = pushComp x xs ce
-    thenVec    = pushComp x (P.restrict condVec xs) te
+    thenVec    = pushComp x (P.restrict xs condVec ) te
     negCondVec = F.LUnOp (listT boolT) 
                          (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
                          condVec
-    elseVec    = pushComp x (P.restrict negCondVec xs) ee
+    elseVec    = pushComp x (P.restrict xs negCondVec ) ee
 
 --------------------------------------------------------------------------------
 -- Normalization of intermediate flat expressions into the final form

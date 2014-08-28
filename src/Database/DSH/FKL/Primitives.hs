@@ -187,9 +187,9 @@ dist e1 e2 =
     in F.LPApp2 (listT t1) (LiftedN Zero F.Dist) e1 e2
 
 restrict :: LExpr -> LExpr -> LExpr
-restrict bs xs = 
+restrict xs bs = 
     let xst = typeOf xs
-    in F.LPApp2 xst (LiftedN Zero F.Restrict) bs xs
+    in F.LPApp2 xst (LiftedN Zero F.Restrict) xs bs
 
 -- combine :: [Bool] -> [a] -> [a] -> [a]
 combine :: LExpr -> LExpr -> LExpr -> LExpr

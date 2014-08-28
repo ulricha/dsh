@@ -107,7 +107,7 @@ prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
 
             CL.Filter       ->
                 case e1 of
-                    CL.Lam _ x h -> P.restrict <$> mkComp h x e2 <*> expr e2
+                    CL.Lam _ x h -> P.restrict <$> expr e2 <*> mkComp h x e2
                     _            -> $impossible
 
             CL.SortWith     ->
@@ -322,7 +322,7 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     let elemType   = elemT $ typeOf baseSrc
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
         predComp   = NKL.Comp (listT boolT) filterExpr filterName baseSrc
-        filterSrc  = P.restrict predComp baseSrc
+        filterSrc  = P.restrict baseSrc predComp
 
     desugarQualsRec env filterSrc qs
 
