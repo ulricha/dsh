@@ -124,32 +124,37 @@ liftUnOp t (F.LiftedN n op) = F.LUnOp (liftType t) (F.LiftedN (F.Succ n) op)
 -- | Push a comprehension through all FKL constructs by lifting
 -- primitive functions and distributing over the generator source.
 pushComp :: Ident -> F.LExpr -> F.LExpr -> F.LExpr
-pushComp _ xs tab@(F.LTable _ _ _ _) = P.dist tab xs
+pushComp _ xs tab@(F.LTable _ _ _ _)  = P.dist tab xs
 
-pushComp _ xs v@(F.LConst _ _)       = P.dist v xs
+pushComp _ xs v@(F.LConst _ _)        = P.dist v xs
 
 pushComp x xs y@(F.LVar _ n)
-    | x == n                    = xs
-    | otherwise                 = P.dist y xs
+    | x == n                          = xs
+    | otherwise                       = P.dist y xs
 
-pushComp x xs (F.LPApp1 t p e1)    = liftPrim1 t p (pushComp x xs e1)
+pushComp x xs (F.LPApp1 t p e1)       = liftPrim1 t p (pushComp x xs e1)
 
-pushComp x xs (F.LPApp2 t p e1 e2) = liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
+pushComp x xs (F.LPApp2 t p e1 e2)    = 
+    liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
 
-pushComp x xs (F.LPApp3 t p e1 e2 e3) = liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
+pushComp x xs (F.LPApp3 t p e1 e2 e3) = 
+    liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
 
-pushComp x xs (F.LBinOp t op e1 e2) = liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
+pushComp x xs (F.LBinOp t op e1 e2)   = 
+    liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
 
-pushComp x xs (F.LUnOp t op e)      = liftUnOp t op (pushComp x xs e)
+pushComp x xs (F.LUnOp t op e)        = 
+    liftUnOp t op (pushComp x xs e)
 
-pushComp x xs (F.LIf _ ce te ee)    = P.combine condVec thenVec elseVec
+pushComp x xs (F.LIf _ ce te ee)      = 
+    P.combine condVec thenVec elseVec
   where
-    condVec = pushComp x xs ce
-    thenVec = pushComp x (P.restrict condVec xs) te
-    elseVec = pushComp x (P.restrict (F.LUnOp (listT boolT) 
-                                             (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
-                                             condVec) 
-                                     xs) ee
+    condVec    = pushComp x xs ce
+    thenVec    = pushComp x (P.restrict condVec xs) te
+    negCondVec = F.LUnOp (listT boolT) 
+                         (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
+                         condVec
+    elseVec    = pushComp x (P.restrict negCondVec xs) ee
 
 --------------------------------------------------------------------------------
 -- Normalization of intermediate flat expressions into the final form
