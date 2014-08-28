@@ -240,8 +240,17 @@ c1 = [ [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 c2 :: Q [[[Integer]]]
 c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 
+q1 :: Q [(Integer, Integer)]
+q1 = 
+  [ tuple2 x y
+  | x <- fst xs
+  , y <- snd xs
+  ]
+
+  where xs = toQ ([0], [0])
+
 
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c c2
+main = getConn P.>>= \c -> debugQ "q" c q1
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
