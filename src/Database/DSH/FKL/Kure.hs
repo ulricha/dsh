@@ -229,7 +229,7 @@ papp2R t1 t2 = papp2T t1 t2 PApp2
 
 unconcatT :: Monad m => Transform FlatCtx m Expr a1
                   -> Transform FlatCtx m Expr a2
-                  -> (Int -> Type -> a1 -> a2 -> b)
+                  -> (Nat -> Type -> a1 -> a2 -> b)
                   -> Transform FlatCtx m Expr b
 unconcatT t1 t2 f = transform $ \c expr -> case expr of
                      UnConcat n ty e1 e2 -> f n ty <$> apply t1 (c@@UnConcatArg1) e1 <*> apply t2 (c@@UnConcatArg2) e2

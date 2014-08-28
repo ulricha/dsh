@@ -3,9 +3,6 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
-import Debug.Trace
-
-import           Control.Monad
 import           Control.Monad.Reader
 
 import           Database.Algebra.Dag.Build
@@ -96,7 +93,7 @@ fkl2VL expr =
         UnConcat n _ arg1 arg2 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
-            unconcatV n arg1' arg2'
+            return $ unconcatN n arg1' arg2'
              
 
 papp3 :: Lifted Prim3 -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
@@ -228,6 +225,6 @@ insertTopProjections g = g >>= traverseShape
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
-specializeVectorOps e = trace (pp e) $ QP.mkQueryPlan opMap shape tagMap
+specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ fkl2VL e)

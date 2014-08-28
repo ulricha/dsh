@@ -61,7 +61,7 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | UnOp    Type (Lifted L.ScalarUnOp) Expr
           | Const   Type L.Val
           | QuickConcat Type Expr
-          | UnConcat Int Type Expr Expr
+          | UnConcat Nat Type Expr Expr
 
 -- | QuickConcat does not unsegment the vector. That is:
 -- the descriptor might not be normalized and segment
@@ -275,7 +275,7 @@ instance Pretty Expr where
 
     pretty (UnConcat n _ e1 e2) = 
         text "unconcat" 
-        <> (angles $ int n) 
+        <> (angles $ int $ intFromNat n) 
         <+> (align $ (parenthizeE e1) 
                      </> (parenthizeE e2))
 

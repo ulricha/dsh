@@ -245,7 +245,7 @@ concatN (Succ Zero) xss = quickConcat xss
 concatN (Succ n)    xss = quickConcat (concatN n xss)
 
 unconcat :: Nat -> Expr -> Expr -> Expr
-unconcat n shape bottom = UnConcat (intFromNat n) (wrapListType n bt) shape bottom
+unconcat n shape bottom = UnConcat n (wrapListType n bt) shape bottom
   where
     bt = typeOf bottom
 

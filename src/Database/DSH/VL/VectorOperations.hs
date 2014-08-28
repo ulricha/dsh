@@ -8,14 +8,15 @@ import           Control.Applicative
 
 import           Database.Algebra.Dag.Build
 
-import qualified Database.DSH.Common.Lang         as L
-import           Database.DSH.Common.Type
-import           Database.DSH.Impossible
-import           Database.DSH.VL.Vector
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Lang             (AggrFun (..), Expr (..),
-                                                   Nat (..), VL (), VLVal (..))
+import           Database.DSH.Common.Type
+import qualified Database.DSH.FKL.Lang          as F
+import           Database.DSH.Impossible
+import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..),
+                                                 Nat (..), VL (), VLVal (..))
 import           Database.DSH.VL.MetaPrimitives
+import           Database.DSH.VL.Vector
 import           Database.DSH.VL.VLPrimitives
 
 zipPrim ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -304,11 +305,21 @@ sortWithL (ValueVector _ (Nest v1 _)) (ValueVector d2 (Nest v2 lyt2)) = do
     return $ ValueVector d2 (Nest v lyt2')
 sortWithL _ _ = error "vlSortL: Should not be possible"
 
--- move a descriptor from e1 to e2
-unconcatV ::  Int -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-unconcatV 1 (ValueVector d1 _) (ValueVector d2 lyt2) = 
-    return $ ValueVector d1 (Nest d2 lyt2)
-unconcatV _ _ _ = $unimplemented
+unconcatN :: F.Nat -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec
+unconcatN (F.Succ F.Zero) (ValueVector d _) (ValueVector vi lyti) =
+    ValueVector d (Nest vi lyti)
+unconcatN (F.Succ n) (ValueVector d lyt) (ValueVector vi lyti)    = 
+    ValueVector d (implantInnerVec n lyt vi lyti)
+unconcatN _          _                   _                        = 
+    $impossible
+
+implantInnerVec :: F.Nat -> Layout VLDVec -> VLDVec -> Layout VLDVec -> Layout VLDVec
+implantInnerVec (F.Succ F.Zero) (Nest d _)   vi lyti = 
+    Nest d $ Nest vi lyti
+implantInnerVec (F.Succ n)      (Nest d lyt) vi lyti = 
+    Nest d $ implantInnerVec n lyt vi lyti
+implantInnerVec _          _            _  _         = 
+    $impossible
 
 groupByKeyS ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 groupByKeyS (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
