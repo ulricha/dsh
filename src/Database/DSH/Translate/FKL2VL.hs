@@ -89,7 +89,9 @@ fkl2VL expr =
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
             papp3 p arg1' arg2' arg3'
-        QuickConcat _ arg -> fkl2VL arg >>= quickConcatV
+        QConcat n _ arg -> do
+            arg <- fkl2VL arg
+            return $ qConcatV n arg
         UnConcat n _ arg1 arg2 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2

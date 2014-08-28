@@ -234,15 +234,16 @@ un t o e = LUnOp t (LiftedN Zero o) e
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the final FKL dialect
 
-quickConcat :: Expr -> Expr
-quickConcat xss = 
-    let ListT xst = typeOf xss
-    in QuickConcat xst xss
+qConcat :: Nat -> Expr -> Expr
+qConcat n xs = 
+    let xst = typeOf xs
+    in QConcat n (unwrapListType n xst) xs
 
-concatN :: Nat -> Expr -> Expr
-concatN Zero        _   = $impossible
-concatN (Succ Zero) xss = quickConcat xss
-concatN (Succ n)    xss = quickConcat (concatN n xss)
+  where
+    unwrapListType :: Nat -> Type -> Type
+    unwrapListType Zero t               = t
+    unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
+    unwrapListType _         _          = $impossible
 
 unconcat :: Nat -> Expr -> Expr -> Expr
 unconcat n shape bottom = UnConcat n (wrapListType n bt) shape bottom

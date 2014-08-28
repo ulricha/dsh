@@ -173,7 +173,7 @@ normLifting (F.LUnOp t lop e)    =
         F.LiftedN (F.Succ F.Zero) op -> F.UnOp t (F.Lifted op) (normLifting e)
         F.LiftedN (F.Succ n) op      -> 
             let e'  = normLifting e
-                app = F.UnOp t (F.Lifted op) (P.concatN n e')
+                app = F.UnOp t (F.Lifted op) (P.qConcat n e')
             in P.unconcat n e' app
 
 normLifting (F.LBinOp t lop e1 e2)    = 
@@ -187,7 +187,7 @@ normLifting (F.LBinOp t lop e1 e2)    =
         F.LiftedN (F.Succ n) op      -> 
             let e1'  = normLifting e1
                 e2'  = normLifting e2
-                app = F.BinOp t (F.Lifted op) (P.concatN n e1') (P.concatN n e2')
+                app = F.BinOp t (F.Lifted op) (P.qConcat n e1') (P.qConcat n e2')
             in P.unconcat n e1' app
 
 normLifting (F.LPApp1 t lp e1)    = 
@@ -196,7 +196,7 @@ normLifting (F.LPApp1 t lp e1)    =
         F.LiftedN (F.Succ F.Zero) p -> F.PApp1 t (F.Lifted p) (normLifting e1)
         F.LiftedN (F.Succ n) p      -> 
             let e1'  = normLifting e1
-                app = F.PApp1 t (F.Lifted p) (P.concatN n e1')
+                app = F.PApp1 t (F.Lifted p) (P.qConcat n e1')
             in P.unconcat n e1' app
 
 normLifting (F.LPApp2 t lp e1 e2)    = 
@@ -210,7 +210,7 @@ normLifting (F.LPApp2 t lp e1 e2)    =
         F.LiftedN (F.Succ n) p      -> 
             let e1'  = normLifting e1
                 e2'  = normLifting e2
-                app = F.PApp2 t (F.Lifted p) (P.concatN n e1') (P.concatN n e2')
+                app = F.PApp2 t (F.Lifted p) (P.qConcat n e1') (P.qConcat n e2')
             in P.unconcat n e1' app
 
 normLifting (F.LPApp3 t lp e1 e2 e3)    = 
@@ -228,7 +228,7 @@ normLifting (F.LPApp3 t lp e1 e2 e3)    =
                 e2'  = normLifting e2
                 e3'  = normLifting e3
                 app = F.PApp3 t (F.Lifted p) 
-                                (P.concatN n e1') 
-                                (P.concatN n e2') 
-                                (P.concatN n e2')
+                                (P.qConcat n e1') 
+                                (P.qConcat n e2') 
+                                (P.qConcat n e2')
             in P.unconcat n e1' app

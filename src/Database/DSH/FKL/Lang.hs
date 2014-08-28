@@ -60,7 +60,7 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | BinOp   Type (Lifted L.ScalarBinOp) Expr Expr
           | UnOp    Type (Lifted L.ScalarUnOp) Expr
           | Const   Type L.Val
-          | QuickConcat Type Expr
+          | QConcat Nat Type Expr
           | UnConcat Nat Type Expr Expr
 
 -- | QuickConcat does not unsegment the vector. That is:
@@ -132,7 +132,7 @@ instance Typed Expr where
     typeOf (BinOp t _ _ _)    = t
     typeOf (UnOp t _ _)       = t
     typeOf (Const t _)        = t
-    typeOf (QuickConcat t _)  = t
+    typeOf (QConcat _ t _)    = t
     typeOf (UnConcat _ t _ _) = t
 
 --------------------------------------------------------------------------------
@@ -271,7 +271,10 @@ instance Pretty Expr where
     pretty (Const _ v) =
         pretty v
 
-    pretty (QuickConcat _ e) = text "qconcat" <+> (parenthizeE e)
+    pretty (QConcat n _ e) = 
+        text "qconcat" 
+        <> (angles $ int $ intFromNat n)
+        <+> (parenthizeE e)
 
     pretty (UnConcat n _ e1 e2) = 
         text "unconcat" 

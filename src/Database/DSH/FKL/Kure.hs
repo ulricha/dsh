@@ -66,7 +66,7 @@ data CrumbF = AppFun
             | IfElse
             | UnConcatArg1
             | UnConcatArg2
-            | QuickConcatArg
+            | QConcatArg
             deriving (Eq, Show)
 
 type AbsPathF = AbsolutePath CrumbF
@@ -201,17 +201,17 @@ papp1R :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
 papp1R t = papp1T t PApp1
 {-# INLINE papp1R #-}                      
 
-quickconcatT :: Monad m => Transform FlatCtx m Expr a
-                        -> (Type -> a -> b)
+qconcatT :: Monad m => Transform FlatCtx m Expr a
+                        -> (Nat -> Type -> a -> b)
                         -> Transform FlatCtx m Expr b
-quickconcatT t f = transform $ \c expr -> case expr of
-                        QuickConcat ty e -> f ty <$> apply t (c@@QuickConcatArg) e                  
-                        _                -> fail "not a quickconcat application"
-{-# INLINE quickconcatT #-}                      
+qconcatT t f = transform $ \c expr -> case expr of
+                        QConcat n ty e -> f n ty <$> apply t (c@@QConcatArg) e                  
+                        _              -> fail "not a qconcat application"
+{-# INLINE qconcatT #-}                      
                       
-quickconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
-quickconcatR t = quickconcatT t QuickConcat
-{-# INLINE quickconcatR #-}                      
+qconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+qconcatR t = qconcatT t QConcat
+{-# INLINE qconcatR #-}                      
 
                       
 papp2T :: Monad m => Transform FlatCtx m Expr a1
@@ -285,7 +285,7 @@ instance Walker FlatCtx Expr where
             If{}          -> ifR (extractR r) (extractR r) (extractR r)
             Const{}       -> idR
             UnConcat{}    -> unconcatR (extractR r) (extractR r)
-            QuickConcat{} -> quickconcatR (extractR r)
+            QConcat{}     -> qconcatR (extractR r)
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

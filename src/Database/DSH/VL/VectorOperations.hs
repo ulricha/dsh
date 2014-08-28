@@ -547,9 +547,15 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
                                             (p2', cols2, c'') = projectFromPosWork c' p2
                                         in (Pair p1' p2', cols1 ++ cols2, c'')
 
-quickConcatV :: Shape VLDVec -> Build VL (Shape VLDVec)
-quickConcatV (ValueVector _ (Nest q lyt)) = return $ ValueVector q lyt
-quickConcatV e                  = error $ "Not supported by quickConcatV: " ++ show e
+qConcatV :: F.Nat -> Shape VLDVec -> Shape VLDVec
+qConcatV F.Zero _ = $impossible
+qConcatV (F.Succ F.Zero) (ValueVector _ (Nest q lyt)) = ValueVector q lyt
+qConcatV (F.Succ n)      (ValueVector _ lyt)          = extractInnerVec n lyt
+
+extractInnerVec :: F.Nat -> Layout VLDVec -> Shape VLDVec
+extractInnerVec (F.Succ F.Zero) (Nest _ (Nest q lyt)) = ValueVector q lyt
+extractInnerVec (F.Succ n)      (Nest _ lyt)          = extractInnerVec n lyt
+extractInnerVec _               _                     = $impossible
 
 concatV :: Shape VLDVec -> Build VL (Shape VLDVec)
 concatV (ValueVector _ (Nest q lyt)) = ValueVector <$> vlUnsegment q <*> pure lyt
