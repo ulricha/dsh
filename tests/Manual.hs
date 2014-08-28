@@ -258,7 +258,14 @@ q1 =
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
 -}
 
+q2 :: Q [Bool]
+q2 = map or $ toQ [[False]]
+
+
+q3 :: Q [Integer]
+q3 = concatMap (\x -> cond ((>) x 0) (x <| (toQ [])) (toQ [])) $ toQ [0]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q1
+main = getConn P.>>= \c -> debugQ "q" c q3
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

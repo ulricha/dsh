@@ -14,10 +14,10 @@ import           Database.DSH.NKL.Lang
 -- Error reporting
 
 tyErr :: P.String -> a
-tyErr comb = P.error $ printf "CL.Primitives type error in %s" comb
+tyErr comb = P.error $ printf "NKL.Primitives type error in %s" comb
 
 tyErrShow :: P.String -> [Type] -> a
-tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
+tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
 --------------------------------------------------------------------------------
 -- Smart constructors

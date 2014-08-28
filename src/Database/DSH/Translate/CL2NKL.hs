@@ -124,7 +124,10 @@ prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
     mkPrim2 nop = NKL.AppE2 t (NKL.Prim2 nop ot) <$> expr e1 <*> expr e2
 
     mkComp :: CL.Expr -> Ident -> CL.Expr -> NameEnv NKL.Expr
-    mkComp h x xs = NKL.Comp t <$> local (x :) (expr h) <*> pure x <*> expr xs
+    mkComp h x xs = NKL.Comp (listT $ typeOf h) 
+                             <$> local (x :) (expr h) 
+                             <*> pure x 
+                             <*> expr xs
             
 
 --------------------------------------------------------------------------------
