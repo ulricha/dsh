@@ -240,6 +240,15 @@ c1 = [ [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 c2 :: Q [[[Integer]]]
 c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 
+q1 :: Q [(Integer, Integer)]
+q1 = 
+  [ tuple2 x y
+  | x <- fst xs
+  , y <- snd xs
+  ]
+
+  where xs = toQ ([0], [0])
+
 
 q1 :: Q [Integer]
 q1 =
