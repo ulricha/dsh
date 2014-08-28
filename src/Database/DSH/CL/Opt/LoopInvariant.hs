@@ -8,9 +8,6 @@ module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantGuardR
   ) where
 
-import Debug.Trace
-import Text.Printf
-  
 import           Control.Applicative
 import           Control.Arrow
 import           Data.Maybe
@@ -25,7 +22,7 @@ import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.CL.Opt.Aux
 
 traverseT :: [Ident] -> TransformC CL (Expr, PathC)
-traverseT localVars = readerT $ \expr -> trace (printf "traverseT at %s" (pp expr)) $! case expr of
+traverseT localVars = readerT $ \expr -> case expr of
     -- We do not traverse into lambdas and comprehensions which are
     -- nested in our current comprehension.  
     -- 
