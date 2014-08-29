@@ -70,6 +70,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , inlineWinAggrProject
                          , restrictWinFun
                          , pullProjectNumber
+                         , constAlign
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -203,6 +204,29 @@ distDescConstant q =
         return $ do
           logRewrite "Redundant.DistDesc.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qd") |])
+
+unwrapConstVal :: ConstPayload -> VLMatch p VLVal
+unwrapConstVal (ConstPL val) = return val
+unwrapConstVal  NonConstPL   = fail "not a constant"
+
+-- | If the left input of an align is constant, a normal projection
+-- can be used because the Align operator keeps the shape of the right
+-- input.
+constAlign :: VLRule BottomUpProps
+constAlign q =
+  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
+    [| do 
+         VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
+         VProp (ValueVector w)        <- vectorTypeProp <$> properties $(v "q2")
+         constVals                    <- mapM unwrapConstVal constCols
+         
+         return $ do 
+              logRewrite "Redundant.Const.Align" q
+              let proj = map Constant constVals
+                         ++
+                         [ Column $ c + length constVals | c <- [1..w]]
+              void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
+       
 
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
