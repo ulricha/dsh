@@ -3,8 +3,6 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
-import           Control.Monad.Reader
-
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 

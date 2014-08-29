@@ -672,7 +672,7 @@ selectConstPos q =
 
          return $ do
            logRewrite "Redundant.SelectPos.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1 ($(v "op"), N pos)) $(v "q1") |])
+           void $ replaceWithNew q $ UnOp (SelectPos1 ($(v "op"), pos)) $(v "q1") |])
 
 selectConstPosS :: VLRule BottomUpProps
 selectConstPosS q =
@@ -686,7 +686,7 @@ selectConstPosS q =
 
          return $ do
            logRewrite "Redundant.SelectPosS.Constant" q
-           void $ replaceWithNew q $ UnOp (SelectPos1S ($(v "op"), N pos)) $(v "q1") |])
+           void $ replaceWithNew q $ UnOp (SelectPos1S ($(v "op"), pos)) $(v "q1") |])
 
 --------------------------------------------------------------------------------
 -- Rewrites that deal with nested structures and propagation vectors.

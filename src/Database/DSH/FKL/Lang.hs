@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
 module Database.DSH.FKL.Lang where
 
 import           Text.PrettyPrint.ANSI.Leijen
@@ -9,8 +6,6 @@ import           Text.Printf
 import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
-
-import           GHC.Generics               (Generic)
 
 ---------------------------------------------------------------------------------
 -- Natural numbers that encode lifting levels
@@ -29,7 +24,6 @@ data LiftedN p = LiftedN Nat p
 -- occur either unlifted or lifted once.
 data Lifted p = Lifted p
               | NotLifted p
-              deriving (Show)
 
 -- | 'LExpr' serves as an intermediate language during flattening. It
 -- features no comprehensions but the dist combinator and primitive
@@ -90,7 +84,7 @@ data Prim1 = Length
            | Number
            | Transpose
            | Reshape Integer
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq)
 
 data Prim2 = Group
            | Sort
@@ -107,10 +101,10 @@ data Prim2 = Group
            | SemiJoin (L.JoinPredicate L.JoinExpr)
            | AntiJoin (L.JoinPredicate L.JoinExpr)
            | Dist
-           deriving (Show, Eq, Generic)
+           deriving (Show, Eq)
 
 data Prim3 = Combine
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq)
 
 instance Typed LExpr where
     typeOf (LTable t _ _ _)    = t

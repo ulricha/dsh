@@ -66,7 +66,6 @@ renderRow = hcat . punctuate comma . map renderTblVal
 
 renderTblVal :: VLVal -> Doc
 renderTblVal (VLInt i) = integer $ fromIntegral i
-renderTblVal (VLNat i) = text "#" <> (integer $ fromIntegral i)
 renderTblVal (VLBool b) = text $ show b
 renderTblVal (VLString s) = doubleQuotes $ text $ escape s
 renderTblVal (VLDouble d) = double d
@@ -165,8 +164,8 @@ opDotLabel tm i (UnOp (Project pCols) _) =
         valCols = bracketList (\(j, p) -> renderProj (itemLabel j) p) $ zip ([1..] :: [Int]) pCols
         itemLabel j = (text "i") <> (int j)
 opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1 (o, (N p))) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1S (o, (N p))) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1 (o, p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1S (o, p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 

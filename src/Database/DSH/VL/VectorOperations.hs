@@ -18,7 +18,7 @@ import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang          as F
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..),
-                                                 Nat (..), VL (), VLVal (..))
+                                                 VL (), VLVal (..))
 import           Database.DSH.VL.MetaPrimitives
 import           Database.DSH.VL.Vector
 import           Database.DSH.VL.VLPrimitives
@@ -131,11 +131,11 @@ append = appendVec
 -- FIXME looks fishy, there should be an unboxing join.
 the ::  Shape VLDVec -> Build VL (Shape VLDVec)
 the (ValueVector d lyt@(Nest _ _)) = do
-    (_, prop, _)   <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (_, prop, _)   <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
     (Nest q' lyt') <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
     lyt'          <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
 the _ = $impossible
@@ -244,7 +244,7 @@ pair (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     let lyt = zipLayout lyt1 lyt2
     return $ PrimVal q lyt
 pair (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    d   <- vlLit L.PossiblyEmpty [] [[VLNat 1, VLNat 1]]
+    d   <- vlLit L.PossiblyEmpty [] [[VLInt 1, VLInt 1]]
     q1' <- vlUnsegment q1
     q2' <- vlUnsegment q2
     let lyt = zipLayout (Nest q1' lyt1) (Nest q2' lyt2)
@@ -431,7 +431,7 @@ reverseL _ = $impossible
 
 theL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 theL (ValueVector d (Nest q lyt)) = do
-    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
+    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) 1
     prop       <- vlUnboxRename d
     lyt'       <- chainRenameFilter p2 lyt
     v'         <- vlPropRename prop v
@@ -621,7 +621,7 @@ toPlan (descHd, descV) t c v =
     in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
 literal :: Type -> VLVal -> Build VL VLDVec
-literal t v = vlLit L.NonEmpty [t] [[VLNat 1, VLNat 1, v]]
+literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]
 
 fromListVal :: L.Val -> [L.Val]
 fromListVal (L.ListV es) = es
@@ -637,7 +637,7 @@ mkColumn t vs = (t, [pVal v | v <- vs])
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths =
     let header = []
-        body = map (\(d, p) -> [VLNat $ fromInteger p, VLNat $ fromInteger d])
+        body = map (\(d, p) -> [VLInt $ fromInteger p, VLInt $ fromInteger d])
                $ P.zip (P.concat [ replicate l p | (p, l) <- P.zip [1..] lengths] ) [1..]
     in (header, body)
 
