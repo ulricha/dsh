@@ -521,7 +521,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qp <- proj [mP posold pos'', mP posnew pos'] q
     return $ (ADVec qv colse, PVec qp)
 
-  vecGroupBy (ADVec v1 colsg) (ADVec v2 colse) = do
+  vecGroup (ADVec v1 colsg) (ADVec v2 colse) = do
     q' <- rownumM pos' [resCol, pos] []
           $ rowrank resCol ((ColE descr, Asc):[(ColE $ itemi i, Asc) | i <- colsg]) v1
     d1 <- distinctM

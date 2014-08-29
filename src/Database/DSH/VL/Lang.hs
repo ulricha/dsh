@@ -135,7 +135,7 @@ data UnOp = UniqueS
           | Transpose
     deriving (Eq, Ord, Generic, Show)
 
-data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
+data BinOp = Group    -- (DescrVector, DBV, PropVector)
            | SortS        -- (DBV, PropVector)
            | AggrS AggrFun
            | AggrNonEmptyS (N.NonEmpty AggrFun)

@@ -64,7 +64,7 @@ inferCardOneUnOp c op =
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    GroupBy -> return $ VPropTriple False False False
+    Group -> return $ VPropTriple False False False
     SortS -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
     AggrNonEmptyS _ -> return $ VProp False

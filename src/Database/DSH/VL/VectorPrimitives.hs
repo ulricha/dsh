@@ -100,12 +100,8 @@ class VectorAlgebra v a where
     -- by a scalar expression.
     vecSortScalarS :: [Expr] -> v -> Build a (v, PVec)
 
-    vecGroupBy :: v -> v -> Build a (v, v, PVec)
+    vecGroup :: v -> v -> Build a (v, v, PVec)
     vecGroupScalarS :: [Expr] -> v -> Build a (v, v, PVec)
-
-    -- | Construct a new vector as the result of a list of scalar
-    -- expressions per result column.
-    vecProject :: [Expr] -> v -> Build a v
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations
@@ -115,6 +111,11 @@ class VectorAlgebra v a where
     -- operator must be used with care: It does not determine the
     -- complete set of descr value to check for empty inner lists.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> v -> Build a v
+
+
+    -- | Construct a new vector as the result of a list of scalar
+    -- expressions per result column.
+    vecProject :: [Expr] -> v -> Build a v
 
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
     vecDistPrim :: v -> v -> Build a (v, PVec)

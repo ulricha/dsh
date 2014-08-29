@@ -250,7 +250,7 @@ inferConstVecUnOp c op =
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
-    GroupBy -> do
+    Group -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
       (dq, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV

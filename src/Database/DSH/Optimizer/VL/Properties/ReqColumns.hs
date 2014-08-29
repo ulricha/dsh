@@ -240,7 +240,7 @@ inferReqColumnsBinOp :: BottomUpProps
                      -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-      GroupBy         -> do
+      Group         -> do
           (_, cols, _)  <- fromPropTriple ownReqColumns
           colsFromLeft  <- allCols childBUProps1
           colsFromRight <- childReqColumns2 ∪ (VProp cols)

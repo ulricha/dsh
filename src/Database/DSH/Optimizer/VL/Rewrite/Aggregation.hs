@@ -137,7 +137,7 @@ inlineAggrSNonEmptyProject q =
 -- employ a simpler operator.
 simpleGrouping :: VLRule ()
 simpleGrouping q =
-  $(dagPatMatch 'q "(Project projs (q1)) GroupBy (q2)"
+  $(dagPatMatch 'q "(Project projs (q1)) Group (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -151,7 +151,7 @@ simpleGrouping q =
 -- and right groupby input.
 simpleGroupingProject :: VLRule ()
 simpleGroupingProject q =
-  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) GroupBy (Project projs2 (q2)))"
+  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) Group (Project projs2 (q2)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 

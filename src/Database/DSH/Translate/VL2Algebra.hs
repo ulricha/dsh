@@ -153,8 +153,8 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> Build a (Res v)
 translateBinOp b c1 c2 = case b of
-    V.GroupBy -> do
-        (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
+    V.Group -> do
+        (d, v, p) <- vecGroup (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
 
     V.SortS -> do

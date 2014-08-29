@@ -164,10 +164,10 @@ sort _e1 _e2 = $impossible
 
 group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 group (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    (d, v, p) <- vlGroupBy q1 q2
+    (d, v, p) <- vlGroup q1 q2
     lyt2'     <- chainReorder p lyt2
     return $ ValueVector d (Pair lyt1 (Nest v lyt2') )
-group _e1 _e2 = error $ "group: Should not be possible "
+group _e1 _e2 = $impossible
 
 length ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length q = do
@@ -456,7 +456,7 @@ sortL _ _ = $impossible
 
 groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 groupL (ValueVector _ (Nest v1 lyt1)) (ValueVector d2 (Nest v2 lyt2)) = do
-    (d, v, p) <- vlGroupBy v1 v2
+    (d, v, p) <- vlGroup v1 v2
     lyt2'     <- chainReorder p lyt2
     return $ ValueVector d2 (Nest d (Pair lyt1 (Nest v lyt2')))
 groupL _ _ = $impossible
