@@ -76,12 +76,12 @@ class VectorAlgebra v a where
     vecSelectPosS :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally on a /constant/ position.
-    vecSelectPos1 :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1 :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1S :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Reverse a vector.
     vecReverse :: v -> Build a (v, PVec)

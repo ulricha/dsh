@@ -237,7 +237,7 @@ vlBinExpr o (VLDVec c1) (VLDVec c2) = do
 vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
-vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1 (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec rvec rvec
 
@@ -245,7 +245,7 @@ vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVe
 vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
-vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 

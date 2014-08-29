@@ -21,7 +21,6 @@ instance ToJSON TerOp where
 instance ToJSON BinOp where
 instance ToJSON UnOp where
 instance ToJSON NullOp where
-instance ToJSON Nat where
 instance ToJSON VLVal where
 instance ToJSON RowType where
 instance ToJSON Expr where
@@ -51,7 +50,6 @@ instance FromJSON TerOp where
 instance FromJSON BinOp where
 instance FromJSON UnOp where
 instance FromJSON NullOp where
-instance FromJSON Nat where
 instance FromJSON VLVal where
 instance FromJSON RowType where
 instance FromJSON Expr where
