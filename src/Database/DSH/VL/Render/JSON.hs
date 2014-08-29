@@ -1,12 +1,15 @@
-{-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.VL.Render.JSON(serializePlan, deserializePlan, planToFile, planFromFile) where
+module Database.DSH.VL.Render.JSON
+    ( serializePlan
+    , deserializePlan
+    , planToFile
+    , planFromFile
+    ) where
 
 import           Control.Monad
 import qualified Data.IntMap                 as M
 import           Data.List.NonEmpty          (NonEmpty (..))
-import           GHC.Generics                (Generic)
 
 import           Data.Aeson                  (FromJSON, ToJSON, decode, encode,
                                               parseJSON, toJSON)
@@ -22,7 +25,6 @@ data Plan = Plan { tags :: [(AlgNode, [Tag])]
                  , roots :: [AlgNode]
                  , graph :: [(AlgNode, VL)]
                  }
-    deriving Generic
 
 $(deriveJSON defaultOptions ''Plan)
 

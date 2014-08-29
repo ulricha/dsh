@@ -1,13 +1,11 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | A QueryPlan describes the computation of the top-level query
 -- result from algebraic plans over some algebra and describes how the
 -- result's structure is encoded by the individual queries.
 module Database.DSH.Common.QueryPlan where
 
-import           GHC.Generics                  (Generic)
-
-import           Data.Aeson                    (ToJSON)
+import           Data.Aeson.TH
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Build
@@ -21,17 +19,17 @@ import qualified Database.DSH.VL.Shape         as S
 data TopLayout q = InColumn Int
                  | Nest q (TopLayout q)
                  | Pair (TopLayout q) (TopLayout q)
-                 deriving (Show, Read, Generic)
+                 deriving (Show, Read)
 
 -- | A TopShape describes the structure of the result produced by a
 -- bundle of nested queries. 'q' is the type of individual queries,
 -- e.g. plan entry nodes or rendered database code.
 data TopShape q = ValueVector q (TopLayout q)
                 | PrimVal q (TopLayout q)
-                deriving (Show, Read, Generic)
+                deriving (Show, Read)
 
-instance ToJSON a => ToJSON (TopLayout a) where
-instance ToJSON a => ToJSON (TopShape a) where
+$(deriveJSON defaultOptions ''TopLayout)
+$(deriveJSON defaultOptions ''TopShape)
 
 -- | Extract all plan root nodes stored in the layout
 rootsFromTopLayout :: DagVector v => TopLayout v -> [AlgNode]

@@ -1,45 +1,41 @@
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
 
 module Database.DSH.Common.Type 
- ( isNum
- , extractPairT
- , isList
- , elemT
- , fstT
- , sndT
- , domainT
- , splitType
- , varsInType
- , listDepth
- , pairT
- , pairComponents
- , splitTypeArgsRes
- , extractFunTRes
- , extractFunTArgs
- , extractShape
- , unliftTypeN
- , unliftType
- , liftType
- , liftTypeN
- , Type(..)
- , intT
- , boolT
- , unitT
- , stringT
- , doubleT
- , listT
- , (.->)
- , Typed (..)
- , isFuns)
-where
+    ( isNum
+    , extractPairT
+    , isList
+    , elemT
+    , fstT
+    , sndT
+    , domainT
+    , splitType
+    , varsInType
+    , listDepth
+    , pairT
+    , pairComponents
+    , splitTypeArgsRes
+    , extractFunTRes
+    , extractFunTArgs
+    , extractShape
+    , unliftTypeN
+    , unliftType
+    , liftType
+    , liftTypeN
+    , Type(..)
+    , intT
+    , boolT
+    , unitT
+    , stringT
+    , doubleT
+    , listT
+    , (.->)
+    , Typed (..)
+    , isFuns
+    ) where
 
-import Data.Data
-import Data.Typeable()
-import GHC.Generics (Generic)
+import Data.Aeson.TH
 
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -68,7 +64,7 @@ data Type  = FunT Type Type
            | VarT String
            | PairT Type Type 
            | ListT Type
-           deriving (Show, Eq, Ord, Generic, Data, Typeable)
+           deriving (Show, Eq, Ord)
 
 infixr 6 .->
 

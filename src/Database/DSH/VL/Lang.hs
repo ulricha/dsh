@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell      #-}
-{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE RankNTypes           #-}
@@ -7,11 +6,8 @@
 
 module Database.DSH.VL.Lang where
 
-import           GHC.Generics                (Generic)
-
 import qualified Data.List.NonEmpty as N
 import           Data.Aeson.TH
-import           Data.Aeson
 
 import           Database.Algebra.Aux
 import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
@@ -25,7 +21,7 @@ data RowType = Int
              | String 
              | Unit
              | Pair RowType RowType
-             deriving (Eq, Ord, Generic, Show)
+             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''RowType)
 
@@ -37,7 +33,7 @@ data VLVal = VLInt Int
            | VLString String
            | VLDouble Double
            | VLUnit
-           deriving (Eq, Ord, Generic, Show, Read)
+           deriving (Eq, Ord, Show, Read)
 
 $(deriveJSON defaultOptions ''VLVal)
 
@@ -46,7 +42,7 @@ data Expr = BinApp L.ScalarBinOp Expr Expr
           | Column DBCol
           | Constant VLVal
           | If Expr Expr Expr
-          deriving (Eq, Ord, Show, Generic)
+          deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''Expr)
 
@@ -57,7 +53,7 @@ data AggrFun = AggrSum RowType Expr
              | AggrAll Expr
              | AggrAny Expr
              | AggrCount
-             deriving (Eq, Ord, Show, Generic)
+             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''AggrFun)
 
@@ -69,7 +65,7 @@ data WinFun = WinSum Expr
             | WinAny Expr
             | WinFirstValue Expr
             | WinCount
-            deriving (Eq, Ord, Show, Generic)
+            deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''WinFun)
 
@@ -81,7 +77,7 @@ data FrameSpec = -- | All elements up to and including the current
                  -- | All n preceding elements up to and including the
                  -- current one.
                | FNPreceding Int
-                deriving (Eq, Ord, Generic, Show)
+                deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''FrameSpec)
 
@@ -92,7 +88,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 data NullOp = SingletonDescr
             | Lit (L.Emptiness, [RowType], [[VLVal]])
             | TableRef (String, [VLColumn], L.TableHints)
-            deriving (Eq, Ord, Generic, Show)
+            deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''NullOp)
 
@@ -120,7 +116,7 @@ data UnOp = UniqueS
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
-    deriving (Eq, Ord, Generic, Show)
+    deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''UnOp)
 
@@ -163,12 +159,12 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | NestJoinS (L.JoinPredicate Expr)
            | NestProductS
            | TransposeS
-    deriving (Eq, Ord, Generic, Show)
+    deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''BinOp)
 
 data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
-    deriving (Eq, Ord, Generic, Show)
+    deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''TerOp)
 

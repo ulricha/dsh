@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Database.DSH.FKL.Lang where
 
 import           Text.Printf
@@ -8,13 +6,11 @@ import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 
-import           GHC.Generics               (Generic)
-
 -- Signal wether a scalar operator is applied in its lifted or
 -- unlifted form.
 data Lifted a = Lifted a
               | NotLifted a
-              deriving (Show, Eq, Generic)
+              deriving (Show, Eq)
 
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [L.Column] L.TableHints
@@ -32,7 +28,7 @@ data Expr = Table   Type String [L.Column] L.TableHints
           -- first value of the freeVars!!!
           | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr 
           | AClo    Type L.Ident [L.Ident] L.Ident Expr Expr
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Show)
 
 data Prim1 = FLength Type
            | FLengthL Type
@@ -73,7 +69,7 @@ data Prim1 = FLength Type
            | FTransposeL Type
            | FReshape Integer Type
            | FReshapeL Integer Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim1 where
     show (FLength _)     = "length"
@@ -146,7 +142,7 @@ data Prim2 = FGroupWithKey Type
            | FSemiJoinL (L.JoinPredicate L.JoinExpr) Type
            | FAntiJoin (L.JoinPredicate L.JoinExpr) Type
            | FAntiJoinL (L.JoinPredicate L.JoinExpr) Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim2 where
     show (FGroupWithKey _)    = "groupWithKey"
@@ -181,7 +177,7 @@ instance Show Prim2 where
     show (FAntiJoinL p _)     = printf "antiJoinL_%s" (pp p)
 
 data Prim3 = FCombine Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim3 where
     show (FCombine _) = "combine"

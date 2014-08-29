@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Database.DSH.VL.Shape where
 
 import           Database.Algebra.Dag.Common
@@ -7,13 +5,11 @@ import           Database.Algebra.Dag.Common
 import           Database.DSH.FKL.Lang
 import           Database.DSH.VL.Vector
 
-import           GHC.Generics                   (Generic)
-
 -- | Layouts used during compilation to VL DAGs.
 data Layout = InColumn Int
             | Nest VLDVec Layout
             | Pair Layout Layout
-            deriving (Show, Generic)
+            deriving (Show)
 
 -- | 'Shape' is used during the compilation to VL DAGs and might
 -- contain closures.
@@ -21,7 +17,7 @@ data Shape = ValueVector VLDVec Layout
            | PrimVal VLDVec Layout
            | Closure String [(String, Shape)] String Expr Expr
            | AClosure String Shape Int [(String, Shape)] String Expr Expr
-           deriving (Show, Generic)
+           deriving (Show)
 
 rootNodes :: Shape -> [AlgNode]
 rootNodes (ValueVector (VLDVec n) lyt) = n : rootNodes' lyt
