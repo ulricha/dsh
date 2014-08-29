@@ -304,7 +304,7 @@ unnestGuardT localGenVars (x, xs) guardExpr = do
 -- guard in a qualifier list.
 unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
 unnestQualsR localGenVars = do
-    readerT $ \qs -> case qs of
+    readerT $ \quals -> case quals of
         -- In the middle of a qualifier list
         BindQ x xs :* GuardQ p :* qs -> do
             (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p 

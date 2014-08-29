@@ -284,7 +284,7 @@ desugarGens env baseExpr qs = do
 substTupleAccesses :: [Ident] -> (Ident, Type) -> GenEnv -> NKL.Expr -> NKL.Expr
 substTupleAccesses visibleNames (n, t) env e = F.foldr substTupleAccess e env
   where
-    substTupleAccess (x, xt, xta) e' = subst (n : visibleNames) x (xta t n) e'
+    substTupleAccess (x, _, xta) e' = subst (n : visibleNames) x (xta t n) e'
 
 qualVar :: CL.Qual -> [Ident]
 qualVar (CL.BindQ x _) = [x]
@@ -334,7 +334,7 @@ desugarQualsRec env baseSrc []                    = return (env, baseSrc)
 desugarQuals :: [CL.Qual] -> NameEnv (GenEnv, NKL.Expr)
 desugarQuals []                   = $impossible
 -- FIXME if the first qualifier is a guard, employ an if with a []
--- then branch.
+-- else branch.
 desugarQuals (CL.GuardQ p : qs)   = $unimplemented
 desugarQuals (CL.BindQ x xs : qs) = do
     let xt  = elemT $ typeOf xs

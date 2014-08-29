@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Optimizer.VL.Properties.Const where
+module Database.DSH.Optimizer.VL.Properties.Const
+    ( inferConstVecNullOp
+    , inferConstVecUnOp
+    , inferConstVecBinOp
+    , inferConstVecTerOp
+    ) where
 
 import           Control.Monad
 import           Data.List
@@ -15,12 +20,6 @@ import           Database.DSH.Common.Lang
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
-
-mapUnp :: Show a => VectorProp a
-          -> VectorProp a
-          -> (a -> a -> VectorProp a)
-          -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.Empty"
 
 fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)

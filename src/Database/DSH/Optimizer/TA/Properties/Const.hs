@@ -1,25 +1,26 @@
 {-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
-module Database.DSH.Optimizer.TA.Properties.Const where
+module Database.DSH.Optimizer.TA.Properties.Const
+    ( inferConstNullOp
+    , inferConstUnOp
+    , inferConstBinOp
+    , constExpr
+    ) where
 
 import           Data.Maybe
-import           Data.Tuple
 import           Data.List
 
 import           Database.Algebra.Table.Lang
 
-import           Database.DSH.Impossible
-
-import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
 
 constExpr :: [ConstCol] -> Expr -> Maybe AVal
-constExpr constCols (BinAppE f e1 e2) = Nothing
-constExpr constCols (UnAppE f e)      = Nothing
-constExpr constCols (ColE c)          = lookup c constCols
-constExpr constCols (ConstE v)        = Just v
-constExpr constCols (IfE c t e)       = Nothing
+constExpr _         (BinAppE _ _ _) = Nothing
+constExpr _         (UnAppE _ _)    = Nothing
+constExpr constCols (ColE c)        = lookup c constCols
+constExpr _         (ConstE v)      = Just v
+constExpr _         (IfE _ _ _)     = Nothing
 
 constProj :: [ConstCol] -> (Attr, Expr) -> Maybe ConstCol
 constProj constCols (c, e) = constExpr constCols e >>= \v -> return (c, v)

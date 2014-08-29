@@ -8,7 +8,6 @@ import           Control.Monad.Reader
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 
-import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
@@ -19,6 +18,8 @@ import           Database.DSH.VL.Render.JSON      ()
 import           Database.DSH.Common.QueryPlan    hiding (Pair)
 import qualified Database.DSH.VL.VectorOperations as P
 import           Database.DSH.VL.VLPrimitives
+
+{-
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled VL
@@ -34,12 +35,9 @@ lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
     Nothing -> $impossible
 
-{-
 withEnv :: Env -> EnvBuild a -> EnvBuild a
 withEnv env = local (const env)
--}
 
-{-
 -- | Evaluate the graph construction computation with a different
 -- environment. Return within the current computational context.
 withEnv :: Gam a -> AlgNode -> Build a alg r -> Build a alg r
@@ -90,8 +88,8 @@ fkl2VL expr =
             arg3' <- fkl2VL arg3
             papp3 p arg1' arg2' arg3'
         QConcat n _ arg -> do
-            arg <- fkl2VL arg
-            return $ P.qConcat n arg
+            arg' <- fkl2VL arg
+            return $ P.qConcat n arg'
         UnConcat n _ arg1 arg2 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2

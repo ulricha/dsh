@@ -11,7 +11,6 @@ module Database.DSH.NKL.Rewrite
 import Control.Arrow
 import Data.List
 
-import Database.DSH.Common.Pretty
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure

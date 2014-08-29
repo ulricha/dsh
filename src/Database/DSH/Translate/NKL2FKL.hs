@@ -6,18 +6,12 @@ import           Debug.Trace
 import           Database.DSH.Common.Pretty
 #endif
 
-import           Control.Applicative
-import           Control.Monad
-import           Control.Monad.State         hiding (lift)
-import           Data.List
-
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang       as F
 import qualified Database.DSH.FKL.Primitives as P
 import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
-import qualified Database.DSH.NKL.Rewrite    as NR
 
 -- | Transform an expression in the Nested Kernel Language into its
 -- equivalent Flat Kernel Language expression by means of the
@@ -230,5 +224,5 @@ normLifting (F.LPApp3 t lp e1 e2 e3)    =
                 app = F.PApp3 t (F.Lifted p) 
                                 (P.qConcat n e1') 
                                 (P.qConcat n e2') 
-                                (P.qConcat n e2')
+                                (P.qConcat n e3')
             in P.unconcat n e1' app

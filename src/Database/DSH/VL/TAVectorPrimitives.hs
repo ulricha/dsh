@@ -28,7 +28,7 @@ import           Database.DSH.VL.VectorPrimitives
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: Attr
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, absPos, descri, descro, posi, poso:: Attr
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
@@ -42,8 +42,6 @@ posold    = "posold"
 posnew    = "posnew"
 ordCol    = "ord"
 resCol    = "res"
-tmpCol    = "tmp1"
-tmpCol'   = "tmp2"
 absPos    = "abspos"
 descro    = "descro"
 descri    = "descri"
@@ -84,14 +82,6 @@ mP n o = (n, ColE o)
 
 projAddCols :: [DBCol] -> [Proj] -> AlgNode -> Build TableAlgebra AlgNode
 projAddCols cols projs q = proj ([cP descr, cP pos] ++ map (cP . itemi) cols ++ projs) q
-
-projAddColsM :: [DBCol] -> [Proj] -> Build TableAlgebra AlgNode -> Build TableAlgebra AlgNode
-projAddColsM cols projs mq = do
-  q <- mq
-  projAddCols cols projs q
-
-projIdentity :: [DBCol] -> AlgNode -> Build TableAlgebra AlgNode
-projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
@@ -135,10 +125,6 @@ taExprOffset o (VL.If c t e)        = IfE (taExprOffset o c) (taExprOffset o t) 
 
 taExpr :: VL.Expr -> Expr
 taExpr = taExprOffset 0
-
-colProjection :: VL.Expr -> Maybe DBCol
-colProjection (VL.Column c) = Just c
-colProjection _             = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
 aggrFun (VL.AggrSum _ e) = Sum $ taExpr e
