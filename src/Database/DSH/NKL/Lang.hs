@@ -44,7 +44,6 @@ instance Typed Expr where
 
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
-    pretty (AppE1 _ (Prim1 (TupField i) _) e) = pretty e <> dot <> text (show i)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
@@ -78,7 +77,6 @@ data Prim1Op = Length
              | The 
              | Fst 
              | Snd
-             | TupField Int
              | Head 
              | Tail
              | Minimum 
@@ -103,7 +101,6 @@ instance Show Prim1Op where
   show Avg             = "avg"
   show The             = "the"
   show Fst             = "fst"
-  show (TupField i)    = printf "field(%d)" i
   show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
