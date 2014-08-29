@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
@@ -9,14 +10,14 @@ module Database.DSH.VL.Lang where
 import           GHC.Generics                (Generic)
 
 import qualified Data.List.NonEmpty as N
+import           Data.Aeson.TH
+import           Data.Aeson
 
 import           Database.Algebra.Aux
 import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang as L
-
-type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
 data RowType = Int 
              | Bool 
@@ -26,8 +27,28 @@ data RowType = Int
              | Pair RowType RowType
              deriving (Eq, Ord, Generic, Show)
 
+$(deriveJSON defaultOptions ''RowType)
+
 type VLColumn = (L.ColName, RowType)
 type DBCol = Int
+
+data VLVal = VLInt Int
+           | VLBool Bool
+           | VLString String
+           | VLDouble Double
+           | VLUnit
+           deriving (Eq, Ord, Generic, Show, Read)
+
+$(deriveJSON defaultOptions ''VLVal)
+
+data Expr = BinApp L.ScalarBinOp Expr Expr
+          | UnApp L.ScalarUnOp Expr
+          | Column DBCol
+          | Constant VLVal
+          | If Expr Expr Expr
+          deriving (Eq, Ord, Show, Generic)
+
+$(deriveJSON defaultOptions ''Expr)
 
 data AggrFun = AggrSum RowType Expr
              | AggrMin Expr
@@ -37,6 +58,8 @@ data AggrFun = AggrSum RowType Expr
              | AggrAny Expr
              | AggrCount
              deriving (Eq, Ord, Show, Generic)
+
+$(deriveJSON defaultOptions ''AggrFun)
 
 data WinFun = WinSum Expr
             | WinMin Expr
@@ -48,19 +71,8 @@ data WinFun = WinSum Expr
             | WinCount
             deriving (Eq, Ord, Show, Generic)
 
-data Expr = BinApp L.ScalarBinOp Expr Expr
-          | UnApp L.ScalarUnOp Expr
-          | Column DBCol
-          | Constant VLVal
-          | If Expr Expr Expr
-          deriving (Eq, Ord, Show, Generic)
+$(deriveJSON defaultOptions ''WinFun)
 
-data VLVal = VLInt Int
-           | VLBool Bool
-           | VLString String
-           | VLDouble Double
-           | VLUnit
-           deriving (Eq, Ord, Generic, Show, Read)
 
 -- | Specification of a window for the window aggregate operator.
 data FrameSpec = -- | All elements up to and including the current
@@ -71,6 +83,8 @@ data FrameSpec = -- | All elements up to and including the current
                | FNPreceding Int
                 deriving (Eq, Ord, Generic, Show)
 
+$(deriveJSON defaultOptions ''FrameSpec)
+
 --------------------------------------------------------------------------------
 -- Vector Language operators. Documentation can be found in module
 -- VectorPrimitives.
@@ -79,6 +93,8 @@ data NullOp = SingletonDescr
             | Lit (L.Emptiness, [RowType], [[VLVal]])
             | TableRef (String, [VLColumn], L.TableHints)
             deriving (Eq, Ord, Generic, Show)
+
+$(deriveJSON defaultOptions ''NullOp)
 
 data UnOp = UniqueS
           | Number
@@ -105,6 +121,8 @@ data UnOp = UniqueS
           | ReshapeS Integer
           | Transpose
     deriving (Eq, Ord, Generic, Show)
+
+$(deriveJSON defaultOptions ''UnOp)
 
 data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | SortS        -- (DBV, PropVector)
@@ -147,8 +165,14 @@ data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
            | TransposeS
     deriving (Eq, Ord, Generic, Show)
 
+$(deriveJSON defaultOptions ''BinOp)
+
 data TerOp = Combine  -- (DBV, RenameVector, RenameVector)
     deriving (Eq, Ord, Generic, Show)
+
+$(deriveJSON defaultOptions ''TerOp)
+
+type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
 instance Operator VL where
     opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]

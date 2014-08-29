@@ -9,12 +9,21 @@ import           Data.Data
 import           Data.Typeable                ()
 import           GHC.Generics
 
+import           Data.Aeson
+import           Data.Aeson.TH
 import           Data.List
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
+
+instance ToJSON a => ToJSON (N.NonEmpty a) where
+    toJSON (n N.:| nl) = toJSON (n, nl)
+
+instance FromJSON a => FromJSON (N.NonEmpty a) where
+    parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n N.:| nl
+
 
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
@@ -41,22 +50,30 @@ instance Show Val where
 
 newtype ColName = ColName String deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+$(deriveJSON defaultOptions ''ColName)
+
 -- | Typed table columns
 type Column = (ColName, Type)
 
 -- | Table keys
 newtype Key = Key [ColName] deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+$(deriveJSON defaultOptions ''Key)
+
 -- | Is the table guaranteed to be not empty?
 data Emptiness = NonEmpty
                | PossiblyEmpty
                deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+$(deriveJSON defaultOptions ''Emptiness)
 
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
     { keysHint     :: [Key]
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+$(deriveJSON defaultOptions ''TableHints)
 
 -- | Identifiers
 type Ident = String
@@ -67,8 +84,12 @@ type Ident = String
 data UnCastOp = CastDouble
                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+$(deriveJSON defaultOptions ''UnCastOp)
+
 data UnBoolOp = Not
                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+$(deriveJSON defaultOptions ''UnBoolOp)
 
 data UnNumOp = Sin
              | Cos
@@ -81,11 +102,15 @@ data UnNumOp = Sin
              | Log
              deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+$(deriveJSON defaultOptions ''UnNumOp)
+
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
                 | SUDateOp
                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+$(deriveJSON defaultOptions ''ScalarUnOp)
 
 data BinNumOp = Add
               | Sub
@@ -93,6 +118,8 @@ data BinNumOp = Add
               | Mul
               | Mod
               deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+$(deriveJSON defaultOptions ''BinNumOp)
 
 data BinRelOp = Eq
               | Gt
@@ -102,12 +129,18 @@ data BinRelOp = Eq
               | NEq
               deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+$(deriveJSON defaultOptions ''BinRelOp)
+
 data BinBoolOp = Conj
                | Disj
                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+$(deriveJSON defaultOptions ''BinBoolOp)
+
 data BinStringOp = Like 
                    deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+$(deriveJSON defaultOptions ''BinStringOp)
 
 -- FIXME this would be a good fit for PatternSynonyms
 data ScalarBinOp = SBNumOp BinNumOp
@@ -116,6 +149,8 @@ data ScalarBinOp = SBNumOp BinNumOp
                  | SBStringOp BinStringOp
                  deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+$(deriveJSON defaultOptions ''ScalarBinOp)
+
 
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
@@ -123,8 +158,20 @@ data ScalarBinOp = SBNumOp BinNumOp
 data JoinConjunct e = JoinConjunct e BinRelOp e
                     deriving (Show, Eq, Ord, Generic, Data, Typeable)
 
+instance ToJSON e => ToJSON (JoinConjunct e) where
+    toJSON (JoinConjunct e1 op e2) = toJSON (e1, op, e2)
+
+instance FromJSON e => FromJSON (JoinConjunct e) where
+    parseJSON d = parseJSON d >>= \(e1, op, e2) -> return $ JoinConjunct e1 op e2
+
 newtype JoinPredicate e = JoinPred (N.NonEmpty (JoinConjunct e))
                         deriving (Show, Eq, Ord, Generic, Data, Typeable)
+
+instance ToJSON e => ToJSON (JoinPredicate e) where
+    toJSON (JoinPred conjs) = toJSON conjs
+
+instance FromJSON e => FromJSON (JoinPredicate e) where
+    parseJSON d = parseJSON d >>= \conjs -> return $ JoinPred conjs
 
 singlePred :: JoinConjunct e -> JoinPredicate e
 singlePred c = JoinPred $ c N.:| []
