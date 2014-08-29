@@ -254,4 +254,5 @@ unconcat n shape bottom = UnConcat n (wrapListType n bt) shape bottom
     wrapListType Zero t     = t
     wrapListType (Succ n') t = wrapListType n' (listT t)
 
-
+let_ :: Ident -> Expr -> Expr -> Expr
+let_ x e1 e = Let (typeOf e) x e1 e

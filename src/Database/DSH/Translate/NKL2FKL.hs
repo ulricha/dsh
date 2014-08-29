@@ -6,6 +6,9 @@ import           Debug.Trace
 import           Database.DSH.Common.Pretty
 #endif
 
+import           Control.Monad.State
+import           Control.Applicative
+
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang       as F
@@ -20,7 +23,7 @@ flatTransform :: N.Expr -> F.Expr
 flatTransform expr = 
 #ifdef DEBUGCOMP
     let lexpr = flatten expr
-        fexpr = normLifting lexpr
+        fexpr = normalize lexpr
     in trace (decorate "Flattened" lexpr) $
        trace (decorate "Normalized Flat" fexpr) $
        fexpr
@@ -33,7 +36,7 @@ flatTransform expr =
     decorate msg e = padSep msg ++ pp e ++ padSep ""
     
 #else
-    normLifting $ flatten expr
+    normalize $ flatten expr
 #endif
 
 --------------------------------------------------------------------------------
@@ -153,76 +156,99 @@ pushComp x xs (F.LIf _ ce te ee)      =
 --------------------------------------------------------------------------------
 -- Normalization of intermediate flat expressions into the final form
 
+type Supply = Int
+
+type NormFlat a = State Supply a
+
+freshName :: NormFlat Ident
+freshName = do
+    i <- get
+    put $ i + 1
+    return $ "nf" ++ show i
+
+normalize :: F.LExpr -> F.Expr
+normalize e = evalState (normLifting e) 0
+
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants by flattening the arguments and
 -- restoring the original list shape on the result.
-normLifting :: F.LExpr -> F.Expr
-normLifting (F.LTable t n cs hs) = F.Table t n cs hs
-normLifting (F.LIf t ce te ee)   = F.If t (normLifting ce) (normLifting te) (normLifting ee)
-normLifting (F.LConst t v)       = F.Const t v
+normLifting :: F.LExpr -> NormFlat F.Expr
+normLifting (F.LTable t n cs hs) = return $ F.Table t n cs hs
+normLifting (F.LIf t ce te ee)   = F.If t <$> normLifting ce <*> normLifting te <*> normLifting ee
+normLifting (F.LConst t v)       = return $ F.Const t v
 normLifting (F.LVar _ _)         = $impossible
 normLifting (F.LUnOp t lop e)    = 
     case lop of
-        F.LiftedN F.Zero op          -> F.UnOp t (F.NotLifted op) (normLifting e)
-        F.LiftedN (F.Succ F.Zero) op -> F.UnOp t (F.Lifted op) (normLifting e)
-        F.LiftedN (F.Succ n) op      -> 
-            let e'  = normLifting e
-                app = F.UnOp t (F.Lifted op) (P.qConcat n e')
-            in P.unconcat n e' app
+        F.LiftedN F.Zero op          -> F.UnOp t (F.NotLifted op) <$> normLifting e
+        F.LiftedN (F.Succ F.Zero) op -> F.UnOp t (F.Lifted op) <$> normLifting e
+        F.LiftedN (F.Succ d) op      -> do
+            e' <- normLifting e
+            n  <- freshName
+            let v   = F.Var (typeOf e') n
+                app = F.UnOp t (F.Lifted op) (P.qConcat d v)
+            return $ P.let_ n e' $ P.unconcat d v app
 
 normLifting (F.LBinOp t lop e1 e2)    = 
     case lop of
         F.LiftedN F.Zero op          -> F.BinOp t (F.NotLifted op) 
-                                                  (normLifting e1) 
-                                                  (normLifting e2)
+                                                  <$> normLifting e1
+                                                  <*> normLifting e2
         F.LiftedN (F.Succ F.Zero) op -> F.BinOp t (F.Lifted op) 
-                                                  (normLifting e1)
-                                                  (normLifting e2)
-        F.LiftedN (F.Succ n) op      -> 
-            let e1'  = normLifting e1
-                e2'  = normLifting e2
-                app = F.BinOp t (F.Lifted op) (P.qConcat n e1') (P.qConcat n e2')
-            in P.unconcat n e1' app
+                                                  <$> normLifting e1
+                                                  <*> normLifting e2
+        F.LiftedN (F.Succ d) op      -> do
+            e1' <- normLifting e1
+            e2' <- normLifting e2
+            n   <- freshName
+            let v   = F.Var (typeOf e1') n
+                app = F.BinOp t (F.Lifted op) (P.qConcat d v) (P.qConcat d e2')
+            return $ P.let_ n e1' $ P.unconcat d v app
 
-normLifting (F.LPApp1 t lp e1)    = 
+normLifting (F.LPApp1 t lp e)    = 
     case lp of
-        F.LiftedN F.Zero p          -> F.PApp1 t (F.NotLifted p) (normLifting e1) 
-        F.LiftedN (F.Succ F.Zero) p -> F.PApp1 t (F.Lifted p) (normLifting e1)
-        F.LiftedN (F.Succ n) p      -> 
-            let e1'  = normLifting e1
-                app = F.PApp1 t (F.Lifted p) (P.qConcat n e1')
-            in P.unconcat n e1' app
+        F.LiftedN F.Zero p          -> F.PApp1 t (F.NotLifted p) <$> normLifting e
+        F.LiftedN (F.Succ F.Zero) p -> F.PApp1 t (F.Lifted p) <$> normLifting e
+        F.LiftedN (F.Succ d) p      -> do
+            e' <- normLifting e
+            n  <- freshName
+            let v   = F.Var (typeOf e') n
+                app = F.PApp1 t (F.Lifted p) (P.qConcat d v)
+            return $ P.let_ n e' (P.unconcat d v app)
 
 normLifting (F.LPApp2 t lp e1 e2)    = 
     case lp of
         F.LiftedN F.Zero p          -> F.PApp2 t (F.NotLifted p) 
-                                                 (normLifting e1) 
-                                                 (normLifting e2)
+                                                 <$> normLifting e1
+                                                 <*> normLifting e2
         F.LiftedN (F.Succ F.Zero) p -> F.PApp2 t (F.Lifted p) 
-                                                 (normLifting e1)
-                                                 (normLifting e2)
-        F.LiftedN (F.Succ n) p      -> 
-            let e1'  = normLifting e1
-                e2'  = normLifting e2
-                app = F.PApp2 t (F.Lifted p) (P.qConcat n e1') (P.qConcat n e2')
-            in P.unconcat n e1' app
+                                                 <$> normLifting e1
+                                                 <*> normLifting e2
+        F.LiftedN (F.Succ d) p      -> do
+            e1' <- normLifting e1
+            e2' <- normLifting e2
+            n   <- freshName
+            let v   = F.Var (typeOf e1') n
+                app = F.PApp2 t (F.Lifted p) (P.qConcat d v) (P.qConcat d e2')
+            return $ P.let_ n e1' $ P.unconcat d v app
 
 normLifting (F.LPApp3 t lp e1 e2 e3)    = 
     case lp of
         F.LiftedN F.Zero p          -> F.PApp3 t (F.NotLifted p) 
-                                                 (normLifting e1) 
-                                                 (normLifting e2)
-                                                 (normLifting e3)
+                                                 <$> normLifting e1
+                                                 <*> normLifting e2
+                                                 <*> normLifting e3
         F.LiftedN (F.Succ F.Zero) p -> F.PApp3 t (F.Lifted p) 
-                                                 (normLifting e1)
-                                                 (normLifting e2)
-                                                 (normLifting e3)
-        F.LiftedN (F.Succ n) p      -> 
-            let e1'  = normLifting e1
-                e2'  = normLifting e2
-                e3'  = normLifting e3
-                app = F.PApp3 t (F.Lifted p) 
-                                (P.qConcat n e1') 
-                                (P.qConcat n e2') 
-                                (P.qConcat n e3')
-            in P.unconcat n e1' app
+                                                 <$> normLifting e1
+                                                 <*> normLifting e2
+                                                 <*> normLifting e3
+        F.LiftedN (F.Succ d) p      -> do
+            e1' <- normLifting e1
+            e2' <- normLifting e2
+            e3' <- normLifting e3
+            n   <- freshName
+            let v   = F.Var (typeOf e1') n
+                app = F.PApp3 t (F.Lifted p) (P.qConcat d v) 
+                                             (P.qConcat d e2') 
+                                             (P.qConcat d e3')
+            return $ P.let_ n e1' $ P.unconcat d v app
+

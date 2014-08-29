@@ -3,11 +3,15 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
+import           Control.Monad.Reader
+
+
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 
 import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Lang
 import           Database.DSH.FKL.Lang
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
@@ -16,8 +20,6 @@ import           Database.DSH.VL.Render.JSON      ()
 import           Database.DSH.Common.QueryPlan    hiding (Pair)
 import qualified Database.DSH.VL.VectorOperations as P
 import           Database.DSH.VL.VLPrimitives
-
-{-
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled VL
@@ -33,58 +35,56 @@ lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
     Nothing -> $impossible
 
-withEnv :: Env -> EnvBuild a -> EnvBuild a
-withEnv env = local (const env)
-
--- | Evaluate the graph construction computation with a different
--- environment. Return within the current computational context.
-withEnv :: Gam a -> AlgNode -> Build a alg r -> Build a alg r
-withEnv gam loop = local (\_ -> (gam, loop))
--}
+bind :: Ident -> Shape VLDVec -> Env -> Env
+bind n e env = (n, e) : env
 
 --------------------------------------------------------------------------------
 -- Compilation from FKL expressions to a VL DAG.
 
-fkl2VL :: Expr -> Build VL.VL (Shape VLDVec)
+fkl2VL :: Expr -> EnvBuild (Shape VLDVec)
 fkl2VL expr =
     case expr of
-        Table _ n cs hs -> P.dbTable n cs hs
-        Const t v -> P.mkLiteral t v
+        Var _ n -> lookupEnv n
+        Let _ n e1 e -> do
+            e1' <- fkl2VL e1
+            local (bind n e1') $ fkl2VL e
+        Table _ n cs hs -> lift $ P.dbTable n cs hs
+        Const t v -> lift $ P.mkLiteral t v
         BinOp _ (NotLifted o) e1 e2    -> do
             PrimVal p1 lyt <- fkl2VL e1
             PrimVal p2 _   <- fkl2VL e2
-            p              <-  vlBinExpr o p1 p2
+            p              <- lift $ vlBinExpr o p1 p2
             return $ PrimVal p lyt
         BinOp _ (Lifted o) e1 e2     -> do
             ValueVector p1 lyt <- fkl2VL e1
             ValueVector p2 _   <- fkl2VL e2
-            p                  <-  vlBinExpr o p1 p2
+            p                  <- lift $ vlBinExpr o p1 p2
             return $ ValueVector p lyt
         UnOp _ (NotLifted o) e1 -> do
             PrimVal p1 lyt <- fkl2VL e1
-            p              <-  vlUnExpr o p1
+            p              <- lift $ vlUnExpr o p1
             return $ PrimVal p lyt
         UnOp _ (Lifted o) e1 -> do
             ValueVector p1 lyt <- fkl2VL e1
-            p                  <- vlUnExpr o p1
+            p                  <- lift $ vlUnExpr o p1
             return $ ValueVector p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2VL eb
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
-            P.ifList eb' e1' e2'
+            lift $ P.ifList eb' e1' e2'
         PApp1 t f arg -> do
             arg' <- fkl2VL arg
-            papp1 t f arg'
+            lift $ papp1 t f arg'
         PApp2 _ f arg1 arg2 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
-            papp2 f arg1' arg2'
+            lift $ papp2 f arg1' arg2'
         PApp3 _ p arg1 arg2 arg3 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
-            papp3 p arg1' arg2' arg3'
+            lift $ papp3 p arg1' arg2' arg3'
         QConcat n _ arg -> do
             arg' <- fkl2VL arg
             return $ P.qConcat n arg'
@@ -221,4 +221,4 @@ insertTopProjections g = g >>= traverseShape
 specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
 specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
   where
-    (opMap, shape, tagMap) = runBuild (insertTopProjections $ fkl2VL e)
+    (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

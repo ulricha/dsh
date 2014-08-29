@@ -46,16 +46,18 @@ data LExpr = LTable   Type String [L.Column] L.TableHints
 -- structures. Note that variables can no longer occur, as
 -- Prins/Palmer-style flattening implicitly inlines all generator
 -- expressions.
-data Expr = Table   Type String [L.Column] L.TableHints
-          | PApp1   Type (Lifted Prim1) Expr
-          | PApp2   Type (Lifted Prim2) Expr Expr
-          | PApp3   Type (Lifted Prim3) Expr Expr Expr
-          | If      Type Expr Expr Expr
-          | BinOp   Type (Lifted L.ScalarBinOp) Expr Expr
-          | UnOp    Type (Lifted L.ScalarUnOp) Expr
-          | Const   Type L.Val
-          | QConcat Nat Type Expr
+data Expr = Table Type String [L.Column] L.TableHints
+          | PApp1 Type (Lifted Prim1) Expr
+          | PApp2 Type (Lifted Prim2) Expr Expr
+          | PApp3 Type (Lifted Prim3) Expr Expr Expr
+          | If Type Expr Expr Expr
+          | BinOp Type (Lifted L.ScalarBinOp) Expr Expr
+          | UnOp Type (Lifted L.ScalarUnOp) Expr
+          | Const Type L.Val
+          | QConcat Nat  Type Expr
           | UnConcat Nat Type Expr Expr
+          | Let Type L.Ident Expr Expr
+          | Var Type L.Ident
 
 -- | QuickConcat does not unsegment the vector. That is:
 -- the descriptor might not be normalized and segment
@@ -118,6 +120,8 @@ instance Typed LExpr where
     typeOf (LVar t _)          = t
 
 instance Typed Expr where
+    typeOf (Var t _)          = t
+    typeOf (Let t _ _ _)      = t
     typeOf (Table t _ _ _)    = t
     typeOf (PApp1 t _ _)      = t
     typeOf (PApp2 t _ _ _)    = t
@@ -234,6 +238,12 @@ parenthizeL e =
         _        -> parens $ pretty e
 
 instance Pretty Expr where
+    pretty (Var _ n) = text n
+    pretty (Let _ x e1 e) = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                <$>
+                text "in" <+> pretty e
+
     pretty (Table _ n _c _k) = text "table" <> parens (text n)
 
     pretty (PApp1 _ f e1) =
