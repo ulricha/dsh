@@ -7,6 +7,7 @@ import           Database.DSH.Common.Pretty
 #endif
 
 import           Control.Monad.State
+import           Control.Monad.Reader
 import           Control.Applicative
 
 import           Database.DSH.Common.Lang
@@ -88,6 +89,7 @@ prim2 (N.Prim2 p _) =
 -- transformation with one crucial exception: comprehension iterators
 -- are eliminated by distributing them over their head expression,
 -- i.e. pushing them down.
+{-
 flatten :: N.Expr -> F.LExpr
 flatten (N.Table t n cs hs)  = F.LTable t n cs hs
 flatten (N.UnOp t op e1)     = P.un t op (flatten e1)
@@ -98,24 +100,53 @@ flatten (N.If t ce te ee)    = F.LIf t (flatten ce) (flatten te) (flatten ee)
 flatten (N.AppE1 _ p e)      = prim1 p $ flatten e
 flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2)
 flatten (N.Comp _ h x xs)    = pushComp x (flatten xs) (flatten h)
+-}
+
+-- | Only the iteration context, i.e. the topmost source expression
+type FlatEnv = F.LExpr
+
+data NestedEnv = NestedEnv
+    { context    :: Ident
+    , inScope    :: [Ident]
+    , frameDepth :: Nat
+    }
+
+-- | Update the environment to express the descent into a
+-- comprehension that binds the name 'x'. This involves updating the
+-- context, binding 'x' in the current environment frame and
+-- increasing the frame depth.
+descendEnv :: Ident -> Nat -> NestedEnv -> NestedEnv
+descendEnv x d env = env { context    = x
+                         , inScope    = x : inScope env 
+                         , frameDepth = Succ $ frameDepth env
+                         }
+
+flatten :: N.Expr -> F.LExpr
+flatten = $unimplemented
+
+topFlatten :: N.Expr -> Reader FlatEnv F.LExpr
+topFlatten = $unimplemented
+
+deepFlatten :: N.Expr -> Reader NestedEnv F.LExpr
+deepFlatten = $unimplemented
 
 --------------------------------------------------------------------------------
 -- Elimination of comprehensions
 
 liftPrim1 :: Type -> F.LiftedN F.Prim1 -> F.LExpr -> F.LExpr
-liftPrim1 t (F.LiftedN n p) = F.LPApp1 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim1 t (F.LiftedN n p) = F.LPApp1 (liftType t) (F.LiftedN (Succ n) p)
 
 liftPrim2 :: Type -> F.LiftedN F.Prim2 -> F.LExpr -> F.LExpr -> F.LExpr
-liftPrim2 t (F.LiftedN n p) = F.LPApp2 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim2 t (F.LiftedN n p) = F.LPApp2 (liftType t) (F.LiftedN (Succ n) p)
 
 liftPrim3 :: Type -> F.LiftedN F.Prim3 -> F.LExpr -> F.LExpr -> F.LExpr -> F.LExpr
-liftPrim3 t (F.LiftedN n p) = F.LPApp3 (liftType t) (F.LiftedN (F.Succ n) p)
+liftPrim3 t (F.LiftedN n p) = F.LPApp3 (liftType t) (F.LiftedN (Succ n) p)
 
 liftBinOp :: Type -> F.LiftedN ScalarBinOp -> F.LExpr -> F.LExpr -> F.LExpr
-liftBinOp t (F.LiftedN n op) = F.LBinOp (liftType t) (F.LiftedN (F.Succ n) op)
+liftBinOp t (F.LiftedN n op) = F.LBinOp (liftType t) (F.LiftedN (Succ n) op)
 
 liftUnOp :: Type -> F.LiftedN ScalarUnOp -> F.LExpr -> F.LExpr
-liftUnOp t (F.LiftedN n op) = F.LUnOp (liftType t) (F.LiftedN (F.Succ n) op)
+liftUnOp t (F.LiftedN n op) = F.LUnOp (liftType t) (F.LiftedN (Succ n) op)
 
 
 -- | Push a comprehension through all FKL constructs by lifting
@@ -149,7 +180,7 @@ pushComp x xs (F.LIf _ ce te ee)      =
     condVec    = pushComp x xs ce
     thenVec    = pushComp x (P.restrict xs condVec ) te
     negCondVec = F.LUnOp (listT boolT) 
-                         (F.LiftedN (F.Succ F.Zero) (SUBoolOp Not)) 
+                         (F.LiftedN (Succ Zero) (SUBoolOp Not)) 
                          condVec
     elseVec    = pushComp x (P.restrict xs negCondVec ) ee
 
@@ -179,9 +210,9 @@ normLifting (F.LConst t v)       = return $ F.Const t v
 normLifting (F.LVar _ _)         = $impossible
 normLifting (F.LUnOp t lop e)    = 
     case lop of
-        F.LiftedN F.Zero op          -> F.UnOp t (F.NotLifted op) <$> normLifting e
-        F.LiftedN (F.Succ F.Zero) op -> F.UnOp t (F.Lifted op) <$> normLifting e
-        F.LiftedN (F.Succ d) op      -> do
+        F.LiftedN Zero op          -> F.UnOp t (F.NotLifted op) <$> normLifting e
+        F.LiftedN (Succ Zero) op -> F.UnOp t (F.Lifted op) <$> normLifting e
+        F.LiftedN (Succ d) op      -> do
             e' <- normLifting e
             n  <- freshName
             let v   = F.Var (typeOf e') n
@@ -190,13 +221,13 @@ normLifting (F.LUnOp t lop e)    =
 
 normLifting (F.LBinOp t lop e1 e2)    = 
     case lop of
-        F.LiftedN F.Zero op          -> F.BinOp t (F.NotLifted op) 
+        F.LiftedN Zero op          -> F.BinOp t (F.NotLifted op) 
                                                   <$> normLifting e1
                                                   <*> normLifting e2
-        F.LiftedN (F.Succ F.Zero) op -> F.BinOp t (F.Lifted op) 
+        F.LiftedN (Succ Zero) op -> F.BinOp t (F.Lifted op) 
                                                   <$> normLifting e1
                                                   <*> normLifting e2
-        F.LiftedN (F.Succ d) op      -> do
+        F.LiftedN (Succ d) op      -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshName
@@ -206,9 +237,9 @@ normLifting (F.LBinOp t lop e1 e2)    =
 
 normLifting (F.LPApp1 t lp e)    = 
     case lp of
-        F.LiftedN F.Zero p          -> F.PApp1 t (F.NotLifted p) <$> normLifting e
-        F.LiftedN (F.Succ F.Zero) p -> F.PApp1 t (F.Lifted p) <$> normLifting e
-        F.LiftedN (F.Succ d) p      -> do
+        F.LiftedN Zero p          -> F.PApp1 t (F.NotLifted p) <$> normLifting e
+        F.LiftedN (Succ Zero) p -> F.PApp1 t (F.Lifted p) <$> normLifting e
+        F.LiftedN (Succ d) p      -> do
             e' <- normLifting e
             n  <- freshName
             let v   = F.Var (typeOf e') n
@@ -217,13 +248,13 @@ normLifting (F.LPApp1 t lp e)    =
 
 normLifting (F.LPApp2 t lp e1 e2)    = 
     case lp of
-        F.LiftedN F.Zero p          -> F.PApp2 t (F.NotLifted p) 
+        F.LiftedN Zero p          -> F.PApp2 t (F.NotLifted p) 
                                                  <$> normLifting e1
                                                  <*> normLifting e2
-        F.LiftedN (F.Succ F.Zero) p -> F.PApp2 t (F.Lifted p) 
+        F.LiftedN (Succ Zero) p -> F.PApp2 t (F.Lifted p) 
                                                  <$> normLifting e1
                                                  <*> normLifting e2
-        F.LiftedN (F.Succ d) p      -> do
+        F.LiftedN (Succ d) p      -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshName
@@ -233,15 +264,15 @@ normLifting (F.LPApp2 t lp e1 e2)    =
 
 normLifting (F.LPApp3 t lp e1 e2 e3)    = 
     case lp of
-        F.LiftedN F.Zero p          -> F.PApp3 t (F.NotLifted p) 
+        F.LiftedN Zero p          -> F.PApp3 t (F.NotLifted p) 
                                                  <$> normLifting e1
                                                  <*> normLifting e2
                                                  <*> normLifting e3
-        F.LiftedN (F.Succ F.Zero) p -> F.PApp3 t (F.Lifted p) 
+        F.LiftedN (Succ Zero) p -> F.PApp3 t (F.Lifted p) 
                                                  <$> normLifting e1
                                                  <*> normLifting e2
                                                  <*> normLifting e3
-        F.LiftedN (F.Succ d) p      -> do
+        F.LiftedN (Succ d) p      -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             e3' <- normLifting e3

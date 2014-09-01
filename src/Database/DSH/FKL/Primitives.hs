@@ -217,6 +217,7 @@ if_ eb et ee =
 --------------------------------------------------------------------------------
 -- Smart constructors for binary and unary operators.
     
+-- FIXME typing of binary operators is not correct
 bin :: Type -> ScalarBinOp -> LExpr -> LExpr -> LExpr     
 bin t o e1 e2 = 
     case (typeOf e1, o) of

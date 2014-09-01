@@ -7,18 +7,10 @@ import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 
----------------------------------------------------------------------------------
--- Natural numbers that encode lifting levels
-
-data Nat = Zero | Succ Nat
-
-intFromNat :: Nat -> Int
-intFromNat Zero     = 0
-intFromNat (Succ n) = 1 + intFromNat n
 
 -- | 'LiftedN' defines an FKL dialect in which primitives and
 -- operators might be lifted to arbitrary levels.
-data LiftedN p = LiftedN Nat p
+data LiftedN p = LiftedN L.Nat p
 
 -- | 'Lifted' defines an FKL dialect in which primitives and operators
 -- occur either unlifted or lifted once.
@@ -38,6 +30,7 @@ data LExpr = LTable   Type String [L.Column] L.TableHints
            | LUnOp    Type (LiftedN L.ScalarUnOp) LExpr
            | LConst   Type L.Val
            | LVar     Type L.Ident
+           | LLet     Type L.Ident LExpr LExpr
 
 -- | 'Expr' is the final target language of the flattening
 -- transformation. Primitive combinators and operators are only lifted
@@ -54,8 +47,8 @@ data Expr = Table Type String [L.Column] L.TableHints
           | BinOp Type (Lifted L.ScalarBinOp) Expr Expr
           | UnOp Type (Lifted L.ScalarUnOp) Expr
           | Const Type L.Val
-          | QConcat Nat  Type Expr
-          | UnConcat Nat Type Expr Expr
+          | QConcat L.Nat  Type Expr
+          | UnConcat L.Nat Type Expr Expr
           | Let Type L.Ident Expr Expr
           | Var Type L.Ident
 
@@ -150,8 +143,8 @@ instance Pretty p => Pretty (Lifted p) where
     pretty (NotLifted p) = pretty p
 
 instance Pretty p => Pretty (LiftedN p) where
-    pretty (LiftedN Zero p) = pretty p
-    pretty (LiftedN n p)    = pretty p <> superscript (intFromNat n)
+    pretty (LiftedN L.Zero p) = pretty p
+    pretty (LiftedN n p)      = pretty p <> superscript (L.intFromNat n)
 
 instance Pretty Prim1 where
     pretty Length       = text "length"
@@ -277,12 +270,12 @@ instance Pretty Expr where
 
     pretty (QConcat n _ e) = 
         text "qconcat" 
-        <> (angles $ int $ intFromNat n)
+        <> (angles $ int $ L.intFromNat n)
         <+> (parenthizeE e)
 
     pretty (UnConcat n _ e1 e2) = 
         text "unconcat" 
-        <> (angles $ int $ intFromNat n) 
+        <> (angles $ int $ L.intFromNat n) 
         <+> (align $ (parenthizeE e1) 
                      </> (parenthizeE e2))
 
