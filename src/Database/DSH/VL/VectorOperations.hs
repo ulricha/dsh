@@ -188,7 +188,7 @@ restrict(ValueVector q1 lyt) (ValueVector q2 (InColumn 1)) = do
     (v, p) <- vlRestrict (Column 1) q1 q2
     lyt'   <- chainRenameFilter p lyt
     return $ ValueVector v lyt'
-restrict e1 e2 = error $ "restrict: Can't construct restrict node " ++ show e1 ++ " " ++ show e2
+restrict _e1 _e2 = $impossible
 
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (ValueVector qb (InColumn 1)) (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
@@ -264,7 +264,7 @@ fst (PrimVal q (Pair p1 _p2)) = do
     let (p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column cols)
     return $ PrimVal proj p1'
-fst e1 = error $ "fstA: " ++ show e1
+fst _e1 = $impossible
 
 snd ::  Shape VLDVec -> Build VL (Shape VLDVec)
 snd (PrimVal _q (Pair _p1 (Nest q lyt))) = return $ ValueVector q lyt
@@ -289,7 +289,7 @@ reshape _ _ = $impossible
 
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
 concat (ValueVector _ (Nest q lyt)) = ValueVector <$> vlUnsegment q <*> pure lyt
-concat e                            = error $ "Not supported by concatV: " ++ show e
+concat _e                           = $impossible
 
 
 --------------------------------------------------------------------------------
@@ -520,7 +520,7 @@ distL (ValueVector q1 lyt1) (ValueVector d (Nest q2 lyt2)) = do
     let lyt             = zipLayout lyt1' lyt2
     ValueVector qf lytf <- fstL $ ValueVector qa lyt
     return $ ValueVector d (Nest qf lytf)
-distL _e1 _e2 = error $ "distL: Should not be possible" ++ show _e1 ++ "\n" ++ show _e2
+distL _e1 _e2 = $impossible
 
 
 pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -535,7 +535,7 @@ fstL (ValueVector q (Pair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column cols)
     return $ ValueVector proj p1'
-fstL s = error $ "fstL: " ++ show s
+fstL _s = $impossible
 
 sndL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 sndL (ValueVector q (Pair _p1 p2)) = do
@@ -637,7 +637,7 @@ fromListVal _            = $impossible
 
 splitVal :: L.Val -> (L.Val, L.Val)
 splitVal (L.PairV e1 e2) = (e1, e2)
-splitVal _               = error $ "splitVal: Not a tuple"
+splitVal _               = $impossible
 
 mkColumn :: Type -> [L.Val] -> (Type, [VLVal])
 mkColumn t vs = (t, [pVal v | v <- vs])
