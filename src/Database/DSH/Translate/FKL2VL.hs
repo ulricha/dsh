@@ -9,7 +9,6 @@ import           Control.Monad.Reader
 import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 
-import qualified Database.DSH.Common.QueryPlan    as QP
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
 import           Database.DSH.FKL.Lang
@@ -17,7 +16,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
 import           Database.DSH.VL.Render.JSON      ()
-import           Database.DSH.Common.QueryPlan    hiding (Pair)
+import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.VL.VectorOperations as P
 import           Database.DSH.VL.VLPrimitives
 
@@ -51,23 +50,23 @@ fkl2VL expr =
         Table _ n cs hs -> lift $ P.dbTable n cs hs
         Const t v -> lift $ P.mkLiteral t v
         BinOp _ (NotLifted o) e1 e2    -> do
-            PrimVal p1 lyt <- fkl2VL e1
-            PrimVal p2 _   <- fkl2VL e2
+            SShape p1 lyt <- fkl2VL e1
+            SShape p2 _   <- fkl2VL e2
             p              <- lift $ vlBinExpr o p1 p2
-            return $ PrimVal p lyt
+            return $ SShape p lyt
         BinOp _ (Lifted o) e1 e2     -> do
-            ValueVector p1 lyt <- fkl2VL e1
-            ValueVector p2 _   <- fkl2VL e2
+            VShape p1 lyt <- fkl2VL e1
+            VShape p2 _   <- fkl2VL e2
             p                  <- lift $ vlBinExpr o p1 p2
-            return $ ValueVector p lyt
+            return $ VShape p lyt
         UnOp _ (NotLifted o) e1 -> do
-            PrimVal p1 lyt <- fkl2VL e1
+            SShape p1 lyt <- fkl2VL e1
             p              <- lift $ vlUnExpr o p1
-            return $ PrimVal p lyt
+            return $ SShape p lyt
         UnOp _ (Lifted o) e1 -> do
-            ValueVector p1 lyt <- fkl2VL e1
+            VShape p1 lyt <- fkl2VL e1
             p                  <- lift $ vlUnExpr o p1
-            return $ ValueVector p lyt
+            return $ VShape p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2VL eb
             e1' <- fkl2VL e1
@@ -183,42 +182,42 @@ papp2 (NotLifted f) =
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Build VL.VL (QP.Shape VLDVec) -> Build VL.VL (QP.Shape VLDVec)
+insertTopProjections :: Build VL.VL (Shape VLDVec) -> Build VL.VL (Shape VLDVec)
 insertTopProjections g = g >>= traverseShape
 
   where
-    traverseShape :: QP.Shape VLDVec -> Build VL.VL (QP.Shape VLDVec)
-    traverseShape (QP.ValueVector (VLDVec q) lyt) =
-        insertProj lyt q VL.Project VLDVec QP.ValueVector
-    traverseShape (QP.PrimVal (VLDVec q) lyt)     =
-        insertProj lyt q VL.Project VLDVec QP.PrimVal
+    traverseShape :: Shape VLDVec -> Build VL.VL (Shape VLDVec)
+    traverseShape (VShape (VLDVec q) lyt) =
+        insertProj lyt q VL.Project VLDVec VShape
+    traverseShape (SShape (VLDVec q) lyt)     =
+        insertProj lyt q VL.Project VLDVec SShape
   
-    traverseLayout :: (QP.Layout VLDVec) -> Build VL.VL (QP.Layout VLDVec)
-    traverseLayout (QP.InColumn c) =
-        return $ QP.InColumn c
-    traverseLayout (QP.Pair lyt1 lyt2) = do
+    traverseLayout :: (Layout VLDVec) -> Build VL.VL (Layout VLDVec)
+    traverseLayout (LCol c) =
+        return $ LCol c
+    traverseLayout (LPair lyt1 lyt2) = do
         lyt1' <- traverseLayout lyt1
         lyt2' <- traverseLayout lyt2
-        return $ QP.Pair lyt1' lyt2'
-    traverseLayout (QP.Nest (VLDVec q) lyt) =
-      insertProj lyt q VL.Project VLDVec QP.Nest
+        return $ LPair lyt1' lyt2'
+    traverseLayout (LNest (VLDVec q) lyt) =
+      insertProj lyt q VL.Project VLDVec LNest
 
     insertProj
-      :: QP.Layout VLDVec               -- ^ The node's layout
+      :: Layout VLDVec               -- ^ The node's layout
       -> Alg.AlgNode                    -- ^ The top node to consider
       -> ([VL.Expr] -> VL.UnOp)         -- ^ Constructor for the projection op
       -> (Alg.AlgNode -> v)             -- ^ Vector constructor
-      -> (v -> (QP.Layout VLDVec) -> t) -- ^ Layout/Shape constructor
+      -> (v -> (Layout VLDVec) -> t) -- ^ Layout/Shape constructor
       -> Build VL.VL t
     insertProj lyt q project vector describe = do
-        let width = QP.columnsInLayout lyt
+        let width = columnsInLayout lyt
             cols  = [1 .. width]
         qp   <- insertNode $ Alg.UnOp (project $ map VL.Column cols) q
         lyt' <- traverseLayout lyt
         return $ describe (vector qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
-specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
+specializeVectorOps :: Expr -> QueryPlan VL.VL VLDVec
+specializeVectorOps e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

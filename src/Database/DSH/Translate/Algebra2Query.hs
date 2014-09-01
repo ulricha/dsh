@@ -27,13 +27,13 @@ generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
     m' = nodeMap $ queryDag x100Plan
 
     convertQuery :: Shape NDVec -> Shape X100Code
-    convertQuery (PrimVal (ADVec r' _) l)     = PrimVal (X100Code $ generateQuery m' r') $ convertLayout l
-    convertQuery (ValueVector (ADVec r' _) l) = ValueVector (X100Code $ generateQuery m' r') $ convertLayout l
+    convertQuery (SShape (ADVec r' _) l) = SShape (X100Code $ generateQuery m' r') $ convertLayout l
+    convertQuery (VShape (ADVec r' _) l) = VShape (X100Code $ generateQuery m' r') $ convertLayout l
 
     convertLayout :: Layout NDVec -> Layout X100Code
-    convertLayout (InColumn i)          = InColumn i
-    convertLayout (Nest (ADVec r' _) l) = Nest (X100Code $ generateQuery m' r') $ convertLayout l
-    convertLayout (Pair p1 p2)          = Pair (convertLayout p1) (convertLayout p2)
+    convertLayout (LCol i)               = LCol i
+    convertLayout (LNest (ADVec r' _) l) = LNest (X100Code $ generateQuery m' r') $ convertLayout l
+    convertLayout (LPair p1 p2)          = LPair (convertLayout p1) (convertLayout p2)
 
 -- | In a query shape, render each root node for the algebraic plan
 -- into a separate SQL query.
@@ -50,12 +50,12 @@ generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
     renderQueryCode :: Shape NDVec -> Shape SqlCode
     renderQueryCode shape =
         case shape of
-            PrimVal (ADVec r _) lyt -> PrimVal (lookupNode r) (convertLayout lyt)
-            ValueVector (ADVec r _) lyt -> ValueVector (lookupNode r) (convertLayout lyt)
+            SShape (ADVec r _) lyt -> SShape (lookupNode r) (convertLayout lyt)
+            VShape (ADVec r _) lyt -> VShape (lookupNode r) (convertLayout lyt)
 
     convertLayout :: Layout NDVec -> Layout SqlCode
     convertLayout lyt =
         case lyt of
-            InColumn i            -> InColumn i
-            Nest (ADVec r _) clyt -> Nest (lookupNode r) (convertLayout clyt)
-            Pair lyt1 lyt2        -> Pair (convertLayout lyt1) (convertLayout lyt2)
+            LCol i                 -> LCol i
+            LNest (ADVec r _) clyt -> LNest (lookupNode r) (convertLayout clyt)
+            LPair lyt1 lyt2        -> LPair (convertLayout lyt1) (convertLayout lyt2)

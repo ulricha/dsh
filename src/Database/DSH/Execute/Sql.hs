@@ -70,12 +70,12 @@ data TabLayout a where
 execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
-        (InColumn i, t)               -> return $ TCol t (itemCol i)
-        (Pair lyt1 lyt2, PairT t1 t2) -> do
+        (LCol i, t)               -> return $ TCol t (itemCol i)
+        (LPair lyt1 lyt2, PairT t1 t2) -> do
             lyt1' <- execNested conn lyt1 t1
             lyt2' <- execNested conn lyt2 t2
             return $ TPair ty lyt1' lyt2'
-        (Nest (SqlCode sqlQuery) clyt, ListT t) -> do
+        (LNest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
             _     <- execute stmt []
             tab   <- fetchAllRowsMap' stmt
@@ -106,13 +106,13 @@ fromPrim tab tlyt =
 executeSql :: IConnection conn => conn -> Shape SqlCode -> Type a -> IO (Exp a)
 executeSql conn shape ty = 
     case (shape, ty) of
-        (ValueVector (SqlCode sqlQuery) lyt, ListT ety) -> do
+        (VShape (SqlCode sqlQuery) lyt, ListT ety) -> do
             stmt <- prepare conn sqlQuery
             _    <- execute stmt []
             tab  <- fetchAllRowsMap' stmt
             tlyt <- execNested conn lyt ety
             return $ fromVector tab tlyt
-        (PrimVal (SqlCode sqlQuery) lyt, _) -> do
+        (SShape (SqlCode sqlQuery) lyt, _) -> do
             stmt <- prepare conn sqlQuery
             _    <- execute stmt []
             tab  <- fetchAllRowsMap' stmt

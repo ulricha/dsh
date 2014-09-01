@@ -15,16 +15,18 @@ import           Database.DSH.VL.Vector
 
 -- | A Layout describes the tuple structure of values encoded by
 -- one particular query from a bundle.
-data Layout q = InColumn Int
-              | Nest q (Layout q)
-              | Pair (Layout q) (Layout q)
+data Layout q = LCol Int
+              | LNest q (Layout q)
+              | LPair (Layout q) (Layout q)
               deriving (Show, Read)
 
 -- | A Shape describes the structure of the result produced by a
--- bundle of nested queries. 'q' is the type of individual queries,
--- e.g. plan entry nodes or rendered database code.
-data Shape q = ValueVector q (Layout q)
-             | PrimVal q (Layout q)
+-- bundle of nested queries. 'q' is the type of individual vectors,
+-- e.g. plan entry nodes or rendered database code. On the top level
+-- we distinguish between a single value and a proper vector with more
+-- than one element.
+data Shape q = VShape q (Layout q)  -- | A regular vector shape
+             | SShape q (Layout q)  -- | A shape for a singleton vector
              deriving (Show, Read)
 
 $(deriveJSON defaultOptions ''Layout)
@@ -32,35 +34,35 @@ $(deriveJSON defaultOptions ''Shape)
 
 -- | Extract all plan root nodes stored in the layout
 rootsFromLayout :: DagVector v => Layout v -> [AlgNode]
-rootsFromLayout (InColumn _)     = []
-rootsFromLayout (Nest v lyt)     = vectorNodes v ++ rootsFromLayout lyt
-rootsFromLayout (Pair lyt1 lyt2) = (rootsFromLayout lyt1) ++ (rootsFromLayout lyt2)
+rootsFromLayout (LCol _)          = []
+rootsFromLayout (LNest v lyt)     = vectorNodes v ++ rootsFromLayout lyt
+rootsFromLayout (LPair lyt1 lyt2) = (rootsFromLayout lyt1) ++ (rootsFromLayout lyt2)
 
 -- | Extract all plan root nodes stored in the shape
 rootsFromShape :: DagVector v => Shape v -> [AlgNode]
-rootsFromShape (ValueVector v lyt) = vectorNodes v ++ rootsFromLayout lyt
-rootsFromShape (PrimVal v lyt)     = vectorNodes v ++ rootsFromLayout lyt
+rootsFromShape (VShape v lyt) = vectorNodes v ++ rootsFromLayout lyt
+rootsFromShape (SShape v lyt) = vectorNodes v ++ rootsFromLayout lyt
 
 -- | Replace a node in a top shape with another node.
 updateShape :: DagVector v => AlgNode -> AlgNode -> Shape v -> Shape v
 updateShape old new shape =
     case shape of
-        ValueVector dbv lyt -> ValueVector (updateVector old new dbv) (updateLayout lyt)
-        PrimVal dbv lyt -> PrimVal (updateVector old new dbv) (updateLayout lyt)
+        VShape dbv lyt -> VShape (updateVector old new dbv) (updateLayout lyt)
+        SShape dbv lyt -> SShape (updateVector old new dbv) (updateLayout lyt)
 
   where
-    updateLayout (Nest dbv lyt)   = Nest (updateVector old new dbv) (updateLayout lyt)
-    updateLayout (Pair lyt1 lyt2) = Pair (updateLayout lyt1) (updateLayout lyt2)
-    updateLayout l                = l
+    updateLayout (LNest dbv lyt)   = LNest (updateVector old new dbv) (updateLayout lyt)
+    updateLayout (LPair lyt1 lyt2) = LPair (updateLayout lyt1) (updateLayout lyt2)
+    updateLayout l                 = l
 
 columnsInLayout :: Layout q -> Int
-columnsInLayout (InColumn _) = 1
-columnsInLayout (Nest _ _)   = 0
-columnsInLayout (Pair p1 p2) = columnsInLayout p1 + columnsInLayout p2
+columnsInLayout (LCol _)      = 1
+columnsInLayout (LNest _ _)   = 0
+columnsInLayout (LPair p1 p2) = columnsInLayout p1 + columnsInLayout p2
 
 isOuterMost :: AlgNode -> Shape NDVec -> Bool
-isOuterMost n (ValueVector (ADVec n' _) _) = n == n'
-isOuterMost n (PrimVal (ADVec n' _) _)     = n == n'
+isOuterMost n (VShape (ADVec n' _) _) = n == n'
+isOuterMost n (SShape (ADVec n' _) _) = n == n'
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.
