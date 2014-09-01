@@ -302,6 +302,14 @@ restrictL (ValueVector qo (Nest qi lyt)) (ValueVector _ (Nest qb (InColumn 1))) 
 restrictL _                              _                                      = 
     $impossible
 
+combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+combineL (ValueVector qo (Nest qb (InColumn 1)))
+         (ValueVector _ (Nest qi1 lyt1)) 
+         (ValueVector _ (Nest qi2 lyt2)) = do
+    ValueVector qi' lyt' <- combine (ValueVector qb (InColumn 1)) (ValueVector qi1 lyt1) (ValueVector qi2 lyt2)
+    return $ ValueVector qo (Nest qi' lyt')
+combineL _ _ _ = $impossible
+
 zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zipL (ValueVector d1 (Nest q1 lyt1)) (ValueVector _ (Nest q2 lyt2)) = do
     (q', r1, r2) <- vlZipS q1 q2

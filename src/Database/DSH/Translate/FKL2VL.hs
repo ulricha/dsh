@@ -95,7 +95,7 @@ fkl2VL expr =
              
 
 papp3 :: Lifted Prim3 -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
-papp3 (Lifted Combine)    = $unimplemented
+papp3 (Lifted Combine)    = P.combineL
 papp3 (NotLifted Combine) = P.combine 
 
 papp1 :: Type -> Lifted Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
