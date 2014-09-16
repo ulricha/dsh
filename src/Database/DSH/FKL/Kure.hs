@@ -38,6 +38,7 @@ import           Language.KURE
 import           Language.KURE.Lens
        
 import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
@@ -122,22 +123,22 @@ liftstateT t = resultT liftstate t
 -- Congruence combinators for FKL expressions
 
 tableT :: Monad m => (Type -> String -> [Column] -> TableHints -> b)
-                  -> Transform FlatCtx m Expr b
+                  -> Transform FlatCtx m (Expr l) b
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs ks -> return $ f ty n cs ks
                       _                -> fail "not a table node"
 {-# INLINE tableT #-}                      
 
                       
-tableR :: Monad m => Rewrite FlatCtx m Expr
+tableR :: Monad m => Rewrite FlatCtx m (Expr l)
 tableR = tableT Table
 {-# INLINE tableR #-}
 
-ifT :: Monad m => Transform FlatCtx m Expr a1
-               -> Transform FlatCtx m Expr a2
-               -> Transform FlatCtx m Expr a3
+ifT :: Monad m => Transform FlatCtx m (Expr l) a1
+               -> Transform FlatCtx m (Expr l) a2
+               -> Transform FlatCtx m (Expr l) a3
                -> (Type -> a1 -> a2 -> a3 -> b)
-               -> Transform FlatCtx m Expr b
+               -> Transform FlatCtx m (Expr l) b
 ifT t1 t2 t3 f = transform $ \c expr -> case expr of
                     If ty e1 e2 e3 -> f ty <$> apply t1 (c@@IfCond) e1               
                                            <*> apply t2 (c@@IfThen) e2
@@ -145,106 +146,106 @@ ifT t1 t2 t3 f = transform $ \c expr -> case expr of
                     _              -> fail "not an if expression"
 {-# INLINE ifT #-}                      
                     
-ifR :: Monad m => Rewrite FlatCtx m Expr
-               -> Rewrite FlatCtx m Expr
-               -> Rewrite FlatCtx m Expr
-               -> Rewrite FlatCtx m Expr
+ifR :: Monad m => Rewrite FlatCtx m (Expr l)
+               -> Rewrite FlatCtx m (Expr l)
+               -> Rewrite FlatCtx m (Expr l)
+               -> Rewrite FlatCtx m (Expr l)
 ifR t1 t2 t3 = ifT t1 t2 t3 If               
 {-# INLINE ifR #-}                      
 
 {- FIXME will be needed again when let-bindings are added.
-varT :: Monad m => (Type -> Ident -> b) -> Transform FlatCtx m Expr b
+varT :: Monad m => (Type -> Ident -> b) -> Transform FlatCtx m (Expr l) b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
                     _        -> fail "not a variable"
 {-# INLINE varT #-}                      
                     
-varR :: Monad m => Rewrite FlatCtx m Expr
+varR :: Monad m => Rewrite FlatCtx m (Expr l)
 varR = varT Var
 {-# INLINE varR #-}                      
 -}
 
-binopT :: Monad m => Transform FlatCtx m Expr a1
-                  -> Transform FlatCtx m Expr a2
-                  -> (Type -> Lifted ScalarBinOp -> a1 -> a2 -> b)
-                  -> Transform FlatCtx m Expr b
+binopT :: Monad m => Transform FlatCtx m (Expr l) a1
+                  -> Transform FlatCtx m (Expr l) a2
+                  -> (Type -> l ScalarBinOp -> a1 -> a2 -> b)
+                  -> Transform FlatCtx m (Expr l) b
 binopT t1 t2 f = transform $ \c expr -> case expr of
                      BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
 {-# INLINE binopT #-}                      
 
-binopR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+binopR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
 
-unopT :: Monad m => Transform FlatCtx m Expr a
-                 -> (Type -> Lifted ScalarUnOp -> a -> b)
-                 -> Transform FlatCtx m Expr b
+unopT :: Monad m => Transform FlatCtx m (Expr l) a
+                 -> (Type -> l ScalarUnOp -> a -> b)
+                 -> Transform FlatCtx m (Expr l) b
 unopT t f = transform $ \ctx expr -> case expr of
                      UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
                      _            -> fail "not an unary operator application"
 {-# INLINE unopT #-}
 
-unopR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+unopR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
                      
-papp1T :: Monad m => Transform FlatCtx m Expr a
-                  -> (Type -> Lifted Prim1 -> a -> b)
-                  -> Transform FlatCtx m Expr b
+papp1T :: Monad m => Transform FlatCtx m (Expr l) a
+                  -> (Type -> l Prim1 -> a -> b)
+                  -> Transform FlatCtx m (Expr l) b
 papp1T t f = transform $ \c expr -> case expr of
                       PApp1 ty p e -> f ty p <$> apply t (c@@PApp1Arg) e                  
                       _            -> fail "not a unary primitive application"
 {-# INLINE papp1T #-}                      
                       
-papp1R :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+papp1R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 papp1R t = papp1T t PApp1
 {-# INLINE papp1R #-}                      
 
-qconcatT :: Monad m => Transform FlatCtx m Expr a
+qconcatT :: Monad m => Transform FlatCtx m (Expr l) a
                         -> (Nat -> Type -> a -> b)
-                        -> Transform FlatCtx m Expr b
+                        -> Transform FlatCtx m (Expr l) b
 qconcatT t f = transform $ \c expr -> case expr of
                         QConcat n ty e -> f n ty <$> apply t (c@@QConcatArg) e                  
                         _              -> fail "not a qconcat application"
 {-# INLINE qconcatT #-}                      
                       
-qconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+qconcatR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 qconcatR t = qconcatT t QConcat
 {-# INLINE qconcatR #-}                      
 
                       
-papp2T :: Monad m => Transform FlatCtx m Expr a1
-                  -> Transform FlatCtx m Expr a2
-                  -> (Type -> Lifted Prim2 -> a1 -> a2 -> b)
-                  -> Transform FlatCtx m Expr b
+papp2T :: Monad m => Transform FlatCtx m (Expr l) a1
+                  -> Transform FlatCtx m (Expr l) a2
+                  -> (Type -> l Prim2 -> a1 -> a2 -> b)
+                  -> Transform FlatCtx m (Expr l) b
 papp2T t1 t2 f = transform $ \c expr -> case expr of
                      PApp2 ty p e1 e2 -> f ty p <$> apply t1 (c@@PApp2Arg1) e1 <*> apply t2 (c@@PApp2Arg2) e2
                      _                -> fail "not a binary primitive application"
 {-# INLINE papp2T #-}                      
 
-papp2R :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+papp2R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 papp2R t1 t2 = papp2T t1 t2 PApp2
 {-# INLINE papp2R #-}                      
 
-unconcatT :: Monad m => Transform FlatCtx m Expr a1
-                  -> Transform FlatCtx m Expr a2
+unconcatT :: Monad m => Transform FlatCtx m (Expr l) a1
+                  -> Transform FlatCtx m (Expr l) a2
                   -> (Nat -> Type -> a1 -> a2 -> b)
-                  -> Transform FlatCtx m Expr b
+                  -> Transform FlatCtx m (Expr l) b
 unconcatT t1 t2 f = transform $ \c expr -> case expr of
                      UnConcat n ty e1 e2 -> f n ty <$> apply t1 (c@@UnConcatArg1) e1 <*> apply t2 (c@@UnConcatArg2) e2
                      _                -> fail "not a unconcat call"
 {-# INLINE unconcatT #-}                      
 
-unconcatR :: Monad m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+unconcatR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 unconcatR t1 t2 = unconcatT t1 t2 UnConcat
 {-# INLINE unconcatR #-}                      
 
-papp3T :: Monad m => Transform FlatCtx m Expr a1
-                  -> Transform FlatCtx m Expr a2
-                  -> Transform FlatCtx m Expr a3
-                  -> (Type -> Lifted Prim3 -> a1 -> a2 -> a3 -> b)
-                  -> Transform FlatCtx m Expr b
+papp3T :: Monad m => Transform FlatCtx m (Expr l) a1
+                  -> Transform FlatCtx m (Expr l) a2
+                  -> Transform FlatCtx m (Expr l) a3
+                  -> (Type -> l Prim3 -> a1 -> a2 -> a3 -> b)
+                  -> Transform FlatCtx m (Expr l) b
 papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
                      PApp3 ty p e1 e2 e3 -> f ty p 
                                             <$> apply t1 (c@@PApp3Arg1) e1 
@@ -254,27 +255,27 @@ papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
 {-# INLINE papp3T #-}                      
 
 papp3R :: Monad m 
-       => Rewrite FlatCtx m Expr 
-       -> Rewrite FlatCtx m Expr 
-       -> Rewrite FlatCtx m Expr 
-       -> Rewrite FlatCtx m Expr
+       => Rewrite FlatCtx m (Expr l) 
+       -> Rewrite FlatCtx m (Expr l) 
+       -> Rewrite FlatCtx m (Expr l) 
+       -> Rewrite FlatCtx m (Expr l)
 papp3R t1 t2 t3 = papp3T t1 t2 t3 PApp3
 {-# INLINE papp3R #-}                      
 
-constExprT :: Monad m => (Type -> Val -> b) -> Transform FlatCtx m Expr b
+constExprT :: Monad m => (Type -> Val -> b) -> Transform FlatCtx m (Expr l) b
 constExprT f = contextfreeT $ \expr -> case expr of
                     Const ty v -> return $ f ty v
                     _          -> fail "not a constant"
 {-# INLINE constExprT #-}                      
                     
-constExprR :: Monad m => Rewrite FlatCtx m Expr
+constExprR :: Monad m => Rewrite FlatCtx m (Expr l)
 constExprR = constExprT Const
 {-# INLINE constExprR #-}                      
                     
 --------------------------------------------------------------------------------
        
-instance Walker FlatCtx Expr where
-    allR :: forall m. MonadCatch m => Rewrite FlatCtx m Expr -> Rewrite FlatCtx m Expr
+instance Walker FlatCtx (Expr l) where
+    allR :: forall m. MonadCatch m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
     allR r = readerT $ \e -> case e of
             Table{}       -> idR
             PApp1{}       -> papp1R (extractR r)

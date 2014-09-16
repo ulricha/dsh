@@ -14,6 +14,7 @@ import           Database.Algebra.Dag.Build
 
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang          as F
 import           Database.DSH.Impossible
@@ -657,31 +658,31 @@ incrementPositions i (LPair l1 l2)  = LPair (incrementPositions i l1) (increment
 
 -- | Remove the 'n' outer layers of nesting from a nested list
 -- (Prins/Palmer: 'extract').
-qConcat :: L.Nat -> Shape VLDVec -> Shape VLDVec
-qConcat L.Zero _ = $impossible
-qConcat (L.Succ L.Zero) (VShape _ (LNest q lyt)) = VShape q lyt
-qConcat (L.Succ n)      (VShape _ lyt)           = extractInnerVec n lyt
+qConcat :: Nat -> Shape VLDVec -> Shape VLDVec
+qConcat Zero _ = $impossible
+qConcat (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
+qConcat (Succ n)      (VShape _ lyt)           = extractInnerVec n lyt
 qConcat _               _                        = $impossible
 
-extractInnerVec :: L.Nat -> Layout VLDVec -> Shape VLDVec
-extractInnerVec (L.Succ L.Zero) (LNest _ (LNest q lyt)) = VShape q lyt
-extractInnerVec (L.Succ n)      (LNest _ lyt)           = extractInnerVec n lyt
+extractInnerVec :: Nat -> Layout VLDVec -> Shape VLDVec
+extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt
+extractInnerVec (Succ n)      (LNest _ lyt)           = extractInnerVec n lyt
 extractInnerVec _               _                       = $impossible
 
 -- | Prepend the 'n' outer layers of nesting from the first input to
 -- the second input (Prins/Palmer: 'insert').
-unconcat :: L.Nat -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec
-unconcat (L.Succ L.Zero) (VShape d _) (VShape vi lyti) =
+unconcat :: Nat -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec
+unconcat (Succ Zero) (VShape d _) (VShape vi lyti) =
     VShape d (LNest vi lyti)
-unconcat (L.Succ n) (VShape d lyt) (VShape vi lyti)    = 
+unconcat (Succ n) (VShape d lyt) (VShape vi lyti)    = 
     VShape d (implantInnerVec n lyt vi lyti)
 unconcat _          _                   _              = 
     $impossible
 
-implantInnerVec :: L.Nat -> Layout VLDVec -> VLDVec -> Layout VLDVec -> Layout VLDVec
-implantInnerVec (L.Succ L.Zero) (LNest d _)   vi lyti = 
+implantInnerVec :: Nat -> Layout VLDVec -> VLDVec -> Layout VLDVec -> Layout VLDVec
+implantInnerVec (Succ Zero) (LNest d _)   vi lyti = 
     LNest d $ LNest vi lyti
-implantInnerVec (L.Succ n)      (LNest d lyt) vi lyti = 
+implantInnerVec (Succ n)      (LNest d lyt) vi lyti = 
     LNest d $ implantInnerVec n lyt vi lyti
 implantInnerVec _          _            _  _          = 
     $impossible

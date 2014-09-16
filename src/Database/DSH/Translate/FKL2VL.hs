@@ -40,7 +40,7 @@ bind n e env = (n, e) : env
 --------------------------------------------------------------------------------
 -- Compilation from FKL expressions to a VL DAG.
 
-fkl2VL :: Expr -> EnvBuild (Shape VLDVec)
+fkl2VL :: FExpr -> EnvBuild (Shape VLDVec)
 fkl2VL expr =
     case expr of
         Var _ n -> lookupEnv n
@@ -217,7 +217,7 @@ insertTopProjections g = g >>= traverseShape
         return $ describe (vector qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QueryPlan VL.VL VLDVec
+specializeVectorOps :: FExpr -> QueryPlan VL.VL VLDVec
 specializeVectorOps e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

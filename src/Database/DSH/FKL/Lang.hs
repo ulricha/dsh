@@ -1,36 +1,23 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Database.DSH.FKL.Lang where
 
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 
 
 -- | 'LiftedN' defines an FKL dialect in which primitives and
 -- operators might be lifted to arbitrary levels.
-data LiftedN p = LiftedN L.Nat p
+data LiftedN p = LiftedN Nat p
 
 -- | 'Lifted' defines an FKL dialect in which primitives and operators
 -- occur either unlifted or lifted once.
 data Lifted p = Lifted p
               | NotLifted p
-
--- | 'LExpr' serves as an intermediate language during flattening. It
--- features no comprehensions but the dist combinator and primitive
--- combinators and operators that can occur arbitrarily
--- lifted. Variables might still be present.
-data LExpr = LTable   Type String [L.Column] L.TableHints
-           | LPApp1   Type (LiftedN Prim1) LExpr
-           | LPApp2   Type (LiftedN Prim2) LExpr LExpr
-           | LPApp3   Type (LiftedN Prim3) LExpr LExpr LExpr
-           | LIf      Type LExpr LExpr LExpr
-           | LBinOp   Type (LiftedN L.ScalarBinOp) LExpr LExpr
-           | LUnOp    Type (LiftedN L.ScalarUnOp) LExpr
-           | LConst   Type L.Val
-           | LVar     Type L.Ident
-           | LLet     Type L.Ident LExpr LExpr
 
 -- | 'Expr' is the final target language of the flattening
 -- transformation. Primitive combinators and operators are only lifted
@@ -39,18 +26,21 @@ data LExpr = LTable   Type String [L.Column] L.TableHints
 -- structures. Note that variables can no longer occur, as
 -- Prins/Palmer-style flattening implicitly inlines all generator
 -- expressions.
-data Expr = Table Type String [L.Column] L.TableHints
-          | PApp1 Type (Lifted Prim1) Expr
-          | PApp2 Type (Lifted Prim2) Expr Expr
-          | PApp3 Type (Lifted Prim3) Expr Expr Expr
-          | If Type Expr Expr Expr
-          | BinOp Type (Lifted L.ScalarBinOp) Expr Expr
-          | UnOp Type (Lifted L.ScalarUnOp) Expr
-          | Const Type L.Val
-          | QConcat L.Nat  Type Expr
-          | UnConcat L.Nat Type Expr Expr
-          | Let Type L.Ident Expr Expr
-          | Var Type L.Ident
+data Expr l = Table Type String [L.Column] L.TableHints
+            | PApp1 Type (l Prim1) (Expr l)
+            | PApp2 Type (l Prim2) (Expr l) (Expr l)
+            | PApp3 Type (l Prim3) (Expr l) (Expr l) (Expr l)
+            | If Type (Expr l) (Expr l) (Expr l)
+            | BinOp Type (l L.ScalarBinOp) (Expr l) (Expr l)
+            | UnOp Type (l L.ScalarUnOp) (Expr l)
+            | Const Type L.Val
+            | QConcat Nat  Type (Expr l)
+            | UnConcat Nat Type (Expr l) (Expr l)
+            | Let Type L.Ident (Expr l) (Expr l)
+            | Var Type L.Ident
+
+type LExpr = Expr LiftedN
+type FExpr = Expr Lifted
 
 -- | QuickConcat does not unsegment the vector. That is:
 -- the descriptor might not be normalized and segment
@@ -101,18 +91,7 @@ data Prim2 = Group
 data Prim3 = Combine
     deriving (Show, Eq)
 
-instance Typed LExpr where
-    typeOf (LTable t _ _ _)    = t
-    typeOf (LPApp1 t _ _)      = t
-    typeOf (LPApp2 t _ _ _)    = t
-    typeOf (LPApp3 t _ _ _ _)  = t
-    typeOf (LIf t _ _ _)       = t
-    typeOf (LBinOp t _ _ _)    = t
-    typeOf (LUnOp t _ _)       = t
-    typeOf (LConst t _)        = t
-    typeOf (LVar t _)          = t
-
-instance Typed Expr where
+instance Typed (Expr l) where
     typeOf (Var t _)          = t
     typeOf (Let t _ _ _)      = t
     typeOf (Table t _ _ _)    = t
@@ -143,8 +122,8 @@ instance Pretty p => Pretty (Lifted p) where
     pretty (NotLifted p) = pretty p
 
 instance Pretty p => Pretty (LiftedN p) where
-    pretty (LiftedN L.Zero p) = pretty p
-    pretty (LiftedN n p)      = pretty p <> superscript (L.intFromNat n)
+    pretty (LiftedN Zero p) = pretty p
+    pretty (LiftedN n p)    = pretty p <> superscript (intFromNat n)
 
 instance Pretty Prim1 where
     pretty Length       = text "length"
@@ -187,50 +166,7 @@ instance Pretty Prim2 where
 instance Pretty Prim3 where
     pretty Combine = text "combine"
 
-instance Pretty LExpr where
-    pretty (LTable _ n _c _k) = text "table" <> parens (text n)
-
-    pretty (LPApp1 _ f e1) =
-        pretty f <+> (parenthizeL e1)
-
-    pretty (LPApp2 _ f e1 e2) =
-        pretty f <+> (align $ (parenthizeL e1) </> (parenthizeL e2))
-
-    pretty (LPApp3 _ f e1 e2 e3) =
-        pretty f 
-        <+> (align $ (parenthizeL e1) 
-                     </> (parenthizeL e2) 
-                     </> (parenthizeL e3))
-
-    pretty (LIf _ e1 e2 e3) =
-        let e1' = pretty e1
-            e2' = pretty e2
-            e3' = pretty e3
-        in text "if" <+> e1'
-           </> (nest 2 $ text "then" <+> e2')
-           </> (nest 2 $ text "else" <+> e3')
-
-    pretty (LBinOp _ o e1 e2) =
-        align $ parenthizeL e1 </> pretty o </> parenthizeL e2
-
-    pretty (LUnOp _ o e) =
-        pretty o <> parenthizeL e
-
-    pretty (LConst _ v) =
-        pretty v
-
-    pretty (LVar _ x) =
-        text x
-
-parenthizeL :: LExpr -> Doc
-parenthizeL e = 
-    case e of
-        LTable {} -> pretty e
-        LConst {} -> pretty e
-        LVar {}   -> pretty e
-        _        -> parens $ pretty e
-
-instance Pretty Expr where
+instance Pretty (Expr Lifted) where
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) = 
         align $ text "let" <+> text x <+> char '=' <+> pretty e1
@@ -270,18 +206,76 @@ instance Pretty Expr where
 
     pretty (QConcat n _ e) = 
         text "qconcat" 
-        <> (angles $ int $ L.intFromNat n)
+        <> (angles $ int $ intFromNat n)
         <+> (parenthizeE e)
 
     pretty (UnConcat n _ e1 e2) = 
         text "unconcat" 
-        <> (angles $ int $ L.intFromNat n) 
+        <> (angles $ int $ intFromNat n) 
         <+> (align $ (parenthizeE e1) 
                      </> (parenthizeE e2))
 
-parenthizeE :: Expr -> Doc
+instance Pretty (Expr LiftedN) where
+    pretty (Var _ n) = text n
+    pretty (Let _ x e1 e) = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                <$>
+                text "in" <+> pretty e
+
+    pretty (Table _ n _c _k) = text "table" <> parens (text n)
+
+    pretty (PApp1 _ f e1) =
+        pretty f <+> (parenthizeL e1)
+
+    pretty (PApp2 _ f e1 e2) =
+        pretty f <+> (align $ (parenthizeL e1) </> (parenthizeL e2))
+
+    pretty (PApp3 _ f e1 e2 e3) =
+        pretty f 
+        <+> (align $ (parenthizeL e1) 
+                     </> (parenthizeL e2) 
+                     </> (parenthizeL e3))
+
+    pretty (If _ e1 e2 e3) =
+        let e1' = pretty e1
+            e2' = pretty e2
+            e3' = pretty e3
+        in text "if" <+> e1'
+           </> (nest 2 $ text "then" <+> e2')
+           </> (nest 2 $ text "else" <+> e3')
+
+    pretty (BinOp _ o e1 e2) =
+        align $ parenthizeL e1 </> pretty o </> parenthizeL e2
+
+    pretty (UnOp _ o e) =
+        pretty o <> parens (pretty e)
+
+    pretty (Const _ v) =
+        pretty v
+
+    pretty (QConcat n _ e) = 
+        text "qconcat" 
+        <> (angles $ int $ intFromNat n)
+        <+> (parenthizeL e)
+
+    pretty (UnConcat n _ e1 e2) = 
+        text "unconcat" 
+        <> (angles $ int $ intFromNat n) 
+        <+> (align $ (parenthizeL e1) 
+                     </> (parenthizeL e2))
+
+parenthizeE :: Expr Lifted -> Doc
 parenthizeE e =
     case e of
         Const{} -> pretty e
         Table{} -> pretty e
+        Var{}   -> pretty e
+        _       -> parens $ pretty e
+
+parenthizeL :: Expr LiftedN -> Doc
+parenthizeL e =
+    case e of
+        Const{} -> pretty e
+        Table{} -> pretty e
+        Var{}   -> pretty e
         _       -> parens $ pretty e

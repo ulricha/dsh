@@ -20,8 +20,10 @@ import Database.X100Client
 
 import Database.HDBC.PostgreSQL
 
+import TPCH
+
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'au'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
 
 x100Conn :: X100Info
 x100Conn = undefined
@@ -240,15 +242,6 @@ c1 = [ [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 c2 :: Q [[[Integer]]]
 c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
 
-q1 :: Q [(Integer, Integer)]
-q1 = 
-  [ tuple2 x y
-  | x <- fst xs
-  , y <- snd xs
-  ]
-
-  where xs = toQ ([0], [0])
-
 
 {-
 q1 :: Q [Integer]
@@ -265,7 +258,39 @@ q2 = map or $ toQ [[False]]
 q3 :: Q [Integer]
 q3 = concatMap (\x -> cond ((>) x 0) (x <| (toQ [])) (toQ [])) $ toQ [0]
 
+
+
+withFlagStatus :: Q LineItem -> Q (Text, Text)
+withFlagStatus li = tuple2 (l_returnflagQ li) (l_linestatusQ li)
+
+filteredItems :: Q [LineItem]
+filteredItems = [ li | li <- lineitems , l_shipdateQ li <= 42 ]
+
+fst9 :: (QA a, QA b, QA c, QA d, QA e, QA f, QA g, QA h, QA i) => Q (a, b, c, d, e, f, g, h, i) -> Q a
+fst9 (view -> (a, _, _, _, _, _, _, _, _)) = a
+
+q1 :: Q [((Text, Text), Double, Double, Double, Double, Double, Double, Double, Integer)]
+q1 = sortWith fst9 $ 
+     [ tuple9
+	  k
+	  (sum $ map l_quantityQ lis)
+	  (sum $ map l_extendedpriceQ lis)
+	  (sum $ map (\li -> l_extendedpriceQ li * (1 - l_discountQ li)) lis)
+	  (sum $ map (\li -> l_extendedpriceQ li * (1 - l_discountQ li) * (1 + l_taxQ li)) lis)
+	  (avg $ map l_quantityQ lis)
+	  (avg $ map l_extendedpriceQ lis)
+	  (avg $ map l_discountQ lis)
+	  (length lis)
+      | (view -> (k, lis)) <- groupWithKey withFlagStatus filteredItems
+      ]
+
+qs :: Q Integer
+qs = 42 + sum [ 23 + x + sum [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
+
+qr :: Q [[Integer]]
+qr = [ [ x * 42 | x <- take 23 xs ] | xs <- toQ [ [1,2,3,4], [10,20,30], [100,200,300,400] ] ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q3
+main = getConn P.>>= \c -> debugQ "q" c qr
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

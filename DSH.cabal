@@ -109,6 +109,7 @@ Library
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.Sql
                      Database.DSH.Execute.X100
+                     Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
                      Database.DSH.Common.Lang

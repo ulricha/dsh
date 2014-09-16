@@ -5,5 +5,5 @@ import Database.DSH.FKL.Lang
 import Database.DSH.FKL.Kure
 
 -- | Run a translate on an expression without context
-applyExpr :: TransformF Expr b -> Expr -> Either String b
+applyExpr :: TransformF (Expr l) b -> Expr l -> Either String b
 applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
