@@ -33,13 +33,13 @@ rvec = fmap RVec
 -- Insert VL operators and appropriate R1/R2/R3 nodes
 
 vec :: VL -> VecConst r a -> Build VL a
-vec op mkVec = mkVec $ insertNode op
+vec op mkVec = mkVec $ insert op
 
 pairVec :: VL -> VecConst r a -> VecConst r b -> Build VL (a, b)
 pairVec op mkVec1 mkVec2 = do
-    r <- insertNode op
-    r1 <- mkVec1 $ insertNode $ UnOp R1 r
-    r2 <- mkVec2 $ insertNode $ UnOp R2 r
+    r <- insert op
+    r1 <- mkVec1 $ insert $ UnOp R1 r
+    r2 <- mkVec2 $ insert $ UnOp R2 r
     return (r1, r2)
 
 tripleVec :: VL 
@@ -48,10 +48,10 @@ tripleVec :: VL
           -> VecConst r c 
           -> Build VL (a, b ,c)
 tripleVec op mkVec1 mkVec2 mkVec3 = do
-    r <- insertNode op
-    r1 <- mkVec1 $ insertNode $ UnOp R1 r
-    r2 <- mkVec2 $ insertNode $ UnOp R2 r
-    r3 <- mkVec3 $ insertNode $ UnOp R3 r
+    r <- insert op
+    r1 <- mkVec1 $ insert $ UnOp R1 r
+    r2 <- mkVec2 $ insert $ UnOp R2 r
+    r3 <- mkVec3 $ insert $ UnOp R3 r
     return (r1, r2, r3)
 
 --------------------------------------------------------------------------------
@@ -230,14 +230,14 @@ vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
 vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
 vlBinExpr o (VLDVec c1) (VLDVec c2) = do
-    z <- insertNode $ BinOp Zip c1 c2
-    r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
+    z <- insert $ BinOp Zip c1 c2
+    r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
 vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
-vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1 (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec rvec rvec
 
@@ -245,12 +245,12 @@ vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVe
 vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
-vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
 vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
-vlProject (VLDVec c) projs = dvec $ insertNode $ UnOp (Project projs) c
+vlProject (VLDVec c) projs = dvec $ insert $ UnOp (Project projs) c
 
 vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
 vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec

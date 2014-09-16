@@ -183,7 +183,7 @@ prop_backdep = makeProp C.backdep backdep_native
 prop_backdep_filter :: [[Integer]] -> Property
 prop_backdep_filter = makeProp C.backdep_filter backdep_filter_native
   where
-    backdep_filter_native xss = [x | xs <- xss, x <- xs, fromIntegral (length xss) > x]
+    backdep_filter_native xss = [x | xs <- xss, x <- xs, fromIntegral (length xs) > x]
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions

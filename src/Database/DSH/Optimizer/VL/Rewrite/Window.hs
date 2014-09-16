@@ -90,7 +90,7 @@ firstValueWin q =
         predicate $ w == 1
 
         -- We expect the VL representation of 'head'
-        (SBRelOp Eq, N 1) <- return $(v "selectArgs")
+        (SBRelOp Eq, 1) <- return $(v "selectArgs")
   
         -- We expect a window specification that for each element
         -- includes its predecessor (if there is one) and the element

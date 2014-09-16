@@ -1,46 +1,41 @@
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
 
 module Database.DSH.Common.Type 
- ( isNum
- , extractPairT
- , isList
- , elemT
- , fstT
- , sndT
- , domainT
- , splitType
- , varsInType
- , listDepth
- , pairT
- , containsTuple
- , pairComponents
- , splitTypeArgsRes
- , extractFunTRes
- , extractFunTArgs
- , extractShape
- , unliftTypeN
- , unliftType
- , liftType
- , liftTypeN
- , Type(..)
- , intT
- , boolT
- , unitT
- , stringT
- , doubleT
- , listT
- , (.->)
- , Typed (..)
- , isFuns)
-where
+    ( isNum
+    , extractPairT
+    , isList
+    , elemT
+    , fstT
+    , sndT
+    , domainT
+    , splitType
+    , varsInType
+    , listDepth
+    , pairT
+    , pairComponents
+    , splitTypeArgsRes
+    , extractFunTRes
+    , extractFunTArgs
+    , extractShape
+    , unliftTypeN
+    , unliftType
+    , liftType
+    , liftTypeN
+    , Type(..)
+    , intT
+    , boolT
+    , unitT
+    , stringT
+    , doubleT
+    , listT
+    , (.->)
+    , Typed (..)
+    , isFuns
+    ) where
 
-import Data.Data
-import Data.Typeable()
-import GHC.Generics (Generic)
+import Data.Aeson.TH
 
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -56,7 +51,6 @@ instance Pretty Type where
     pretty UnitT         = text "()"
     pretty (ListT t)     = brackets $ pretty t
     pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
-    pretty (TupleT ts)   = tupled $ map pretty ts
 
 -- | We use the following type language to type the various
 -- intermediate languages.
@@ -69,9 +63,8 @@ data Type  = FunT Type Type
            -- FIXME What the fuck is a VarT?
            | VarT String
            | PairT Type Type 
-           | TupleT [Type]
            | ListT Type
-           deriving (Show, Eq, Ord, Generic, Data, Typeable)
+           deriving (Show, Eq, Ord)
 
 infixr 6 .->
 
@@ -85,7 +78,6 @@ isNum StringT     = False
 isNum UnitT       = False
 isNum (ListT _)   = False
 isNum (PairT _ _) = False
-isNum (TupleT _)  = False
       
 domainT :: Type -> Type
 domainT (FunT t _) = t
@@ -133,12 +125,6 @@ elemT _        = error "elemT: argument is not a list type"
 listDepth :: Type -> Int
 listDepth (ListT t1) = 1 + listDepth t1
 listDepth _          = 0
-
-containsTuple :: Type -> Bool
-containsTuple (FunT t1 t2) = containsTuple t1 || containsTuple t2
-containsTuple (PairT _ _)  = True
-containsTuple (ListT t)    = containsTuple t
-containsTuple _            = False
 
 extractPairT :: Type -> Type
 extractPairT (ListT t1) = extractPairT t1

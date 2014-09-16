@@ -62,7 +62,6 @@ algVal (VL.VLBool t) = bool t
 algVal VL.VLUnit = int (-1)
 algVal (VL.VLString s) = string s
 algVal (VL.VLDouble d) = double d
-algVal (VL.VLNat n) = nat $ fromIntegral n
 
 algTy :: VL.RowType -> ATy
 algTy (VL.Int) = intT
@@ -70,7 +69,6 @@ algTy (VL.Double) = doubleT
 algTy (VL.Bool) = boolT
 algTy (VL.String) = stringT
 algTy (VL.Unit) = intT
-algTy (VL.Nat) = natT
 algTy (VL.Pair _ _) = $impossible
 
 cP :: Attr -> Proj
@@ -192,7 +190,6 @@ aggrDefault q qa dv = do
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
 sumDefault :: VL.RowType -> (ATy, AVal)
-sumDefault VL.Nat    = (ANat, nat 0)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
 sumDefault _         = $impossible
@@ -539,7 +536,7 @@ instance VectorAlgebra NDVec TableAlgebra where
       let groupProjs = [ eP (itemi' i) (taExpr e) | e <- groupExprs | i <- [1..] ]
           groupCols = map fst groupProjs
       qg <- rowrankM resCol [ (ColE c, Asc) | c <- (descr : groupCols) ]
-            $ proj (itemProj cols1 (cP descr : groupProjs)) q1
+            $ proj (itemProj cols1 ([cP descr, cP pos] ++ groupProjs)) q1
 
       -- Create the outer vector, containing surrogate values and the
       -- grouping values
@@ -704,7 +701,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qu <- proj [ mP posnew descr, mP posold pos] qs
     return $ (ADVec qr cols, RVec qp, RVec qu)
 
-  vecSelectPos1 (ADVec qe cols) op (VL.N posConst) = do
+  vecSelectPos1 (ADVec qe cols) op posConst = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- select (BinAppE (binOp op) (ColE pos) (ConstE posConst')) qe
 
@@ -724,7 +721,7 @@ instance VectorAlgebra NDVec TableAlgebra where
 
   -- If we select positions in a lifted way, we need to recompute
   -- positions in any case.
-  vecSelectPos1S (ADVec qe cols) op (VL.N posConst) = do
+  vecSelectPos1S (ADVec qe cols) op posConst = do
     let posConst' = VNat $ fromIntegral posConst
     qs <- rownumM posnew [pos] []
           $ selectM (BinAppE (binOp op) (ColE absPos) (ConstE posConst'))

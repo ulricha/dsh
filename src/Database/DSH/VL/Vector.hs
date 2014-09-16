@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
@@ -16,8 +16,7 @@ module Database.DSH.VL.Vector
     , RVec(..)
     ) where
 
-import           Data.Aeson                   (ToJSON)
-import           GHC.Generics                 (Generic)
+import           Data.Aeson.TH
 
 import           Database.Algebra.Dag.Common
 
@@ -35,7 +34,7 @@ class DagVector v where
 -- and stores the number of payload columns that it has. 'ADVec'
 -- abstracts over the type of references into the graph.
 data ADVec r = ADVec r [DBCol]
-    deriving (Show, Generic, Read)
+    deriving (Show, Read)
 
 -- | Data vectors that reference single nodes in an algebra graph
 -- (used for table algebra and X100 with an n-ary storage model).
@@ -50,7 +49,7 @@ instance DagVector NDVec where
 
 -- | A VL data vector references an operator in a VL DAG.
 newtype VLDVec = VLDVec AlgNode
-    deriving (Show, Generic, Read)
+    deriving (Show, Read)
 
 instance DagVector VLDVec where
     vectorNodes (VLDVec q) = [q]
@@ -63,13 +62,11 @@ instance DagVector VLDVec where
 -- | Propagation vectors. A @PVec@ simply references a node in an
 -- algebra Dag.
 data PVec = PVec AlgNode
-    deriving (Generic)
 
 -- | Rename vectors. A @RVec@ simply references a node in an algebra
 -- Dag.
 data RVec = RVec AlgNode
-    deriving (Generic)
-    
-instance ToJSON r => ToJSON (ADVec r) where
-instance ToJSON PVec where
-instance ToJSON RVec where
+
+$(deriveJSON defaultOptions ''ADVec)
+$(deriveJSON defaultOptions ''PVec)
+$(deriveJSON defaultOptions ''RVec)
