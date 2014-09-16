@@ -522,7 +522,7 @@ instance VectorAlgebra NDVec TableAlgebra where
       let groupProjs = [ eP (itemi' i) (taExpr e) | e <- groupExprs | i <- [1..] ]
           groupCols = map fst groupProjs
       qg <- rowrankM resCol [ (ColE c, Asc) | c <- (descr : groupCols) ]
-            $ proj (itemProj cols1 (cP descr : groupProjs)) q1
+            $ proj (itemProj cols1 ([cP descr, cP pos] ++ groupProjs)) q1
 
       -- Create the outer vector, containing surrogate values and the
       -- grouping values
