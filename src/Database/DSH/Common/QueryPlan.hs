@@ -8,7 +8,6 @@ module Database.DSH.Common.QueryPlan where
 import           Data.Aeson.TH
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.VL.Vector
@@ -86,11 +85,13 @@ data QueryPlan a v =
 
 -- | Construct a query plan from the operator map and the description
 -- of the result shape.
-mkQueryPlan :: (Operator a, DagVector v) => AlgMap a -> TopShape v -> NodeMap [Tag] -> QueryPlan a v
-mkQueryPlan opMap shape tagMap =
-  let rs                     = rootsFromTopShape shape
-      d                      = mkDag (reverseAlgMap opMap) rs
-  in QueryPlan { queryDag   = d
-               , queryShape = shape
-               , queryTags  = tagMap 
-               }
+mkQueryPlan :: (Operator a, DagVector v) 
+            => AlgebraDag a 
+            -> TopShape v 
+            -> NodeMap [Tag] 
+            -> QueryPlan a v
+mkQueryPlan dag shape tagMap =
+  QueryPlan { queryDag   = addRootNodes dag (rootsFromTopShape shape)
+            , queryShape = shape
+            , queryTags  = tagMap 
+            }

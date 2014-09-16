@@ -229,7 +229,7 @@ insertTopProjections g = do
     insertProj lyt q project vector describe = do
         let width = QP.columnsInLayout lyt
             cols  = [1 .. width]
-        qp   <- insertNode $ Alg.UnOp (project $ map VL.Column cols) q
+        qp   <- insert $ Alg.UnOp (project $ map VL.Column cols) q
         lyt' <- traverseLayout lyt
         return $ describe (vector qp) lyt'
 
