@@ -8,7 +8,6 @@ module Database.DSH.Common.QueryPlan where
 import           Data.Aeson.TH
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.VL.Vector
@@ -33,15 +32,15 @@ $(deriveJSON defaultOptions ''Layout)
 $(deriveJSON defaultOptions ''Shape)
 
 -- | Extract all plan root nodes stored in the layout
-rootsFromLayout :: DagVector v => Layout v -> [AlgNode]
-rootsFromLayout (LCol _)          = []
-rootsFromLayout (LNest v lyt)     = vectorNodes v ++ rootsFromLayout lyt
-rootsFromLayout (LPair lyt1 lyt2) = (rootsFromLayout lyt1) ++ (rootsFromLayout lyt2)
+layoutNodes :: DagVector v => Layout v -> [AlgNode]
+layoutNodes (LCol _)          = []
+layoutNodes (LNest v lyt)     = vectorNodes v ++ layoutNodes lyt
+layoutNodes (LPair lyt1 lyt2) = (layoutNodes lyt1) ++ (layoutNodes lyt2)
 
 -- | Extract all plan root nodes stored in the shape
-rootsFromShape :: DagVector v => Shape v -> [AlgNode]
-rootsFromShape (VShape v lyt) = vectorNodes v ++ rootsFromLayout lyt
-rootsFromShape (SShape v lyt) = vectorNodes v ++ rootsFromLayout lyt
+shapeNodes :: DagVector v => Shape v -> [AlgNode]
+shapeNodes (VShape v lyt) = vectorNodes v ++ layoutNodes lyt
+shapeNodes (SShape v lyt) = vectorNodes v ++ layoutNodes lyt
 
 -- | Replace a node in a top shape with another node.
 updateShape :: DagVector v => AlgNode -> AlgNode -> Shape v -> Shape v
@@ -74,11 +73,13 @@ data QueryPlan a v =
 
 -- | Construct a query plan from the operator map and the description
 -- of the result shape.
-mkQueryPlan :: (Operator a, DagVector v) => AlgMap a -> Shape v -> NodeMap [Tag] -> QueryPlan a v
-mkQueryPlan opMap shape tagMap =
-  let rs                     = rootsFromShape shape
-      d                      = mkDag (reverseAlgMap opMap) rs
-  in QueryPlan { queryDag    = d
-               , queryShape  = shape
-               , queryTags   = tagMap 
-               }
+mkQueryPlan :: (Operator a, DagVector v) 
+            => AlgebraDag a 
+            -> Shape v 
+            -> NodeMap [Tag] 
+            -> QueryPlan a v
+mkQueryPlan dag shape tagMap =
+  QueryPlan { queryDag   = addRootNodes dag (shapeNodes shape)
+            , queryShape = shape
+            , queryTags  = tagMap 
+            }
