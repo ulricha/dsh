@@ -154,10 +154,9 @@ topFlatten ctx (N.If t ce te ee)    = $unimplemented
 topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
 topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
 topFlatten ctx (N.Comp t h x xs)    = 
-    P.let_ "s0" (topFlatten ctx xs)
-                (P.let_ x (P.dist (F.Var (liftType $ typeOf xs) "s0") $ envVar ctx)
-                          (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
-                                            (runFlat env (deepFlatten h))))
+    (P.let_ x (topFlatten ctx xs)
+              (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
+                                (runFlat env (deepFlatten h))))
 
   where
     env :: NestedEnv
@@ -191,8 +190,7 @@ deepFlatten (N.Comp _ h x xs)    = do
 
     xs'         <- deepFlatten xs
 
-    return $ P.let_ x (P.unconcat d1 cv (P.dist xs' (P.qconcat d1 cv)))
-                      (liftEnv cv' d1 headExpr env)
+    return $ P.let_ x xs' (liftEnv cv' d1 headExpr env)
 
 liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
 liftEnv ctx d1 headExpr env = mkLiftingLet env
