@@ -26,8 +26,12 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "antijoin class12" prop_aj_class12
     , testProperty "antijoin class15" prop_aj_class15
     , testProperty "antijoin class16" prop_aj_class16
-    , testProperty "backdep" prop_backdep
+    , testProperty "backdep1" prop_backdep
     , testProperty "backdep_filter" prop_backdep_filter
+    , testProperty "backdep2" prop_backdep2
+    , testProperty "backdep3" prop_backdep3
+    , testProperty "backdep4" prop_backdep4
+    , testProperty "backdep5" prop_backdep5
     ]
 
 tests_join_hunit :: Test
@@ -184,6 +188,34 @@ prop_backdep_filter :: [[Integer]] -> Property
 prop_backdep_filter = makeProp C.backdep_filter backdep_filter_native
   where
     backdep_filter_native xss = [x | xs <- xss, x <- xs, fromIntegral (length xs) > x]
+
+prop_backdep2 :: [[Integer]] -> Property
+prop_backdep2 = makeProp C.backdep2 backdep2
+  where
+    backdep2 xss = [ [ x * 42 | x <- xs ] | xs <- xss ]
+
+prop_backdep3 :: [[Integer]] -> Property
+prop_backdep3 = makeProp C.backdep3 backdep3
+  where
+    backdep3 xss = [ [ x + fromIntegral (length xs) | x <- xs ] | xs <- xss ]
+
+prop_backdep4 :: [[[Integer]]] -> Property
+prop_backdep4 = makeProp C.backdep4 backdep4
+  where
+    backdep4 xsss = [ [ [ x + fromIntegral (length xs) + fromIntegral (length xss)
+                        | x <- xs
+                        ]
+                      | xs <- xss
+                      ]
+                    | xss <- xsss
+                    ]
+
+prop_backdep5 :: [[Integer]] -> Property
+prop_backdep5 = makeProp C.backdep5 backdep5
+  where
+    backdep5 xss = [ [ x + fromIntegral (length xs) | x <- take (length xs - 3) xs ] | xs <- xss ]
+
+
 
 -----------------------------------------------------------------------
 -- HUnit tests for comprehensions

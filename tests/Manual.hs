@@ -250,7 +250,14 @@ q1 =
   where xs = toQ ([0], [0])
 
 
+qb :: Q [[Integer]]
+-- qb = [ [ x * 42 | x <- xs ] | xs <- toQ [[1,2,3], [4,5] ]]
+-- qb = [ [ x + length xs | x <- xs ] | xs <- toQ [[1,2,3], [4,5] ] ]
+-- qb = [ [ x + y | y <- toQ [4, 5] ] | x <- toQ [1,2,3] ]
+-- qb = [ [ [ x + length xs + length xss | x <- xs ] | xs <- xss ] | xss <- toQ [[[1,2], [3,4]], [[5], [6,7,8]]] ]
+qb = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ [[1,2,3], [4,5]] ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q1
+main = getConn P.>>= \c -> debugQ "q" c qb
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
