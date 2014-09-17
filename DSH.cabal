@@ -133,9 +133,11 @@ Library
                      Database.DSH.CL.Opt.SemiJoin
                      Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
-                     Database.DSH.FKL.Data.FKL
-                     Database.DSH.FKL.FKLPrimitives
-                     Database.DSH.FKL.Render.Render
+                     Database.DSH.FKL.Lang
+                     Database.DSH.FKL.Primitives
+                     Database.DSH.FKL.Pretty
+                     Database.DSH.FKL.Rewrite
+                     Database.DSH.FKL.Kure
                      Database.DSH.NKL.Lang
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
@@ -189,6 +191,7 @@ Library
                      Database.DSH.Optimizer.TA.Properties.Card1
                      Database.DSH.Optimizer.TA.Properties.Keys
                      Database.DSH.Optimizer.TA.Properties.Order
+                     Database.DSH.Optimizer.TA.Properties.Const
                      Database.DSH.Optimizer.TA.Rewrite.Basic
                      Database.DSH.Optimizer.TA.Rewrite.Common
                      Database.DSH.Optimizer.TA.OptimizeTA
@@ -200,6 +203,7 @@ Library
                      Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
                      Database.DSH.Optimizer.VL.Rewrite.Redundant
                      Database.DSH.Optimizer.VL.Rewrite.Aggregation
+                     Database.DSH.Optimizer.VL.Rewrite.Window
                      Database.DSH.Optimizer.VL.Rewrite.Unused
 -- 
 -- executable vltox100
@@ -272,12 +276,6 @@ executable vldot
                       ansi-wl-pprint,
                       semigroups
     GHC-Options: -Wall -fno-warn-orphans
-
-executable dft
-    hs-source-dirs: examples/dft
-    Main-Is:        Dft.hs
-    Build-depends:  base, X100Client, DSH
-    GHC-Options:    -Wall -fno-warn-orphans
 
 executable manual
     hs-source-dirs: tests

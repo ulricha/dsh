@@ -56,6 +56,8 @@ class VectorAlgebra v a where
     vecAggrNonEmpty :: N.NonEmpty AggrFun -> v -> Build a v
     vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> v -> Build a v
 
+    vecWinFun :: WinFun -> FrameSpec -> v -> Build a v
+
     -- | SelectPos filters a vector positionally as specified by the
     -- comparison operator and the position value from the right
     -- input. Next to the filtered value vector it produces two rename
@@ -64,6 +66,7 @@ class VectorAlgebra v a where
     -- * Mapping old to new positions (for re-aligning inner vectors)
     -- * Mapping old positions to segment descriptors (for unboxing one
     -- inner segment)
+    -- FIXME should be restricted to RelOp!
     vecSelectPos :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally /by segment/. The right input
@@ -73,12 +76,12 @@ class VectorAlgebra v a where
     vecSelectPosS :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally on a /constant/ position.
-    vecSelectPos1 :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1 :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1S :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Reverse a vector.
     vecReverse :: v -> Build a (v, PVec)

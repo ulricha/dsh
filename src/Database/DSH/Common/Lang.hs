@@ -1,20 +1,23 @@
 {-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE GADTs              #-}
 
 module Database.DSH.Common.Lang where
 
-import           Data.Data
-import           Data.Typeable                ()
-import           GHC.Generics
-
+import           Data.Aeson
+import           Data.Aeson.TH
 import           Data.List
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
+
+instance ToJSON a => ToJSON (N.NonEmpty a) where
+    toJSON (n N.:| nl) = toJSON (n, nl)
+
+instance FromJSON a => FromJSON (N.NonEmpty a) where
+    parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n N.:| nl
+
 
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
@@ -28,7 +31,7 @@ data Val where
     DoubleV :: Double -> Val
     PairV   :: Val -> Val -> Val
     UnitV   :: Val
-    deriving (Eq, Ord, Generic, Data, Typeable)
+    deriving (Eq, Ord)
 
 instance Show Val where
   show (ListV vs)    = "[" ++ (intercalate ", " $ map show vs) ++ "]"
@@ -39,24 +42,32 @@ instance Show Val where
   show (PairV v1 v2) = "(" ++ show v1 ++ ", " ++ show v2 ++ ")"
   show UnitV         = "()"
 
-newtype ColName = ColName String deriving (Eq, Ord, Show, Data, Typeable, Generic)
+newtype ColName = ColName String deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''ColName)
 
 -- | Typed table columns
 type Column = (ColName, Type)
 
 -- | Table keys
-newtype Key = Key [ColName] deriving (Eq, Ord, Show, Data, Typeable, Generic)
+newtype Key = Key [ColName] deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''Key)
 
 -- | Is the table guaranteed to be not empty?
 data Emptiness = NonEmpty
                | PossiblyEmpty
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+               deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''Emptiness)
 
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
     { keysHint     :: [Key]
     , nonEmptyHint :: Emptiness
-    } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+    } deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''TableHints)
 
 -- | Identifiers
 type Ident = String
@@ -65,10 +76,14 @@ type Ident = String
 -- Scalar operators
 
 data UnCastOp = CastDouble
-                deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnCastOp)
 
 data UnBoolOp = Not
-                deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnBoolOp)
 
 data UnNumOp = Sin
              | Cos
@@ -79,20 +94,26 @@ data UnNumOp = Sin
              | Sqrt
              | Exp
              | Log
-             deriving (Show, Eq, Ord, Generic, Data, Typeable)
+             deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnNumOp)
 
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
                 | SUDateOp
-                deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''ScalarUnOp)
 
 data BinNumOp = Add
               | Sub
               | Div
               | Mul
               | Mod
-              deriving (Show, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinNumOp)
 
 data BinRelOp = Eq
               | Gt
@@ -100,42 +121,62 @@ data BinRelOp = Eq
               | Lt
               | LtE
               | NEq
-              deriving (Show, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinRelOp)
 
 data BinBoolOp = Conj
                | Disj
-                deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinBoolOp)
 
 data BinStringOp = Like 
-                   deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                   deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinStringOp)
 
 -- FIXME this would be a good fit for PatternSynonyms
 data ScalarBinOp = SBNumOp BinNumOp
                  | SBRelOp BinRelOp
                  | SBBoolOp BinBoolOp
                  | SBStringOp BinStringOp
-                 deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                 deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''ScalarBinOp)
 
 
 -----------------------------------------------------------------------------
 -- Join operator arguments: limited expressions that can be used on joins
 
 data JoinConjunct e = JoinConjunct e BinRelOp e
-                    deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                    deriving (Show, Eq, Ord)
+
+instance ToJSON e => ToJSON (JoinConjunct e) where
+    toJSON (JoinConjunct e1 op e2) = toJSON (e1, op, e2)
+
+instance FromJSON e => FromJSON (JoinConjunct e) where
+    parseJSON d = parseJSON d >>= \(e1, op, e2) -> return $ JoinConjunct e1 op e2
 
 newtype JoinPredicate e = JoinPred (N.NonEmpty (JoinConjunct e))
-                        deriving (Show, Eq, Ord, Generic, Data, Typeable)
+                        deriving (Show, Eq, Ord)
+
+instance ToJSON e => ToJSON (JoinPredicate e) where
+    toJSON (JoinPred conjs) = toJSON conjs
+
+instance FromJSON e => FromJSON (JoinPredicate e) where
+    parseJSON d = parseJSON d >>= \conjs -> return $ JoinPred conjs
 
 singlePred :: JoinConjunct e -> JoinPredicate e
 singlePred c = JoinPred $ c N.:| []
 
 data JoinBinOp = JBNumOp BinNumOp
                | JBStringOp BinStringOp
-               deriving (Show, Eq, Ord, Generic, Data, Typeable)
+               deriving (Show, Eq, Ord)
 
 data JoinUnOp = JUNumOp UnNumOp
               | JUCastOp UnCastOp
-              deriving (Show, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord)
 
 data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
               | JUnOp Type JoinUnOp JoinExpr
@@ -143,7 +184,7 @@ data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
               | JSnd Type JoinExpr
               | JLit Type Val
               | JInput Type
-              deriving (Show, Eq, Ord, Generic, Data, Typeable)
+              deriving (Show, Eq, Ord)
 
 instance Typed JoinExpr where
     typeOf (JBinOp t _ _ _) = t

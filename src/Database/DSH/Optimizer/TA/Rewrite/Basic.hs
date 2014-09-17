@@ -9,6 +9,7 @@ import           Text.Printf
 import           Control.Applicative
 import           Control.Monad
 import           Data.Either.Combinators
+import           Data.List                                  hiding (insert)
 import           Data.Maybe
 import qualified Data.Set.Monad                             as S
 
@@ -17,7 +18,9 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Rewrite
+import           Database.DSH.Optimizer.TA.Properties.Aux
 import           Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Properties.Const
 import           Database.DSH.Optimizer.TA.Rewrite.Common
 
 cleanup :: TARewrite Bool
@@ -28,7 +31,8 @@ cleanup = iteratively $ sequenceRewrites [ applyToAll noProps cleanupRules
 cleanupRules :: TARuleSet ()
 cleanupRules = [ stackedProject
                , serializeProject
-               -- , serializeRowNum
+               , pullProjectWinFun
+               , pullProjectSelect
                ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
@@ -39,36 +43,16 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , postFilterRownum
                       , inlineSortColsRownum
                       , inlineSortColsSerialize
+                      , inlineSortColsWinFun
+                      , keyPrefixOrdering
+                      , constAggrKey
+                      , constRownumCol
+                      , constRowRankCol
+                      , constSerializeCol
                       ]
 
 ----------------------------------------------------------------------------------
 -- Rewrite rules
-
-mergeProjections :: [Proj] -> [Proj] -> [Proj]
-mergeProjections proj1 proj2 = map (\(c, e) -> (c, inline e)) proj1
-
-  where
-    inline :: Expr -> Expr
-    inline (BinAppE op e1 e2) = BinAppE op (inline e1) (inline e2)
-    inline (UnAppE op e)      = UnAppE op (inline e)
-    inline (ColE c)           = fromMaybe (failedLookup c) (lookup c proj2)
-    inline (ConstE val)       = ConstE val
-    inline (IfE c t e)        = IfE (inline c) (inline t) (inline e)
-
-    failedLookup :: Attr -> a
-    failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
-                                   c (show proj1) (show proj2))
-                           $impossible
-
-stackedProject :: TARule ()
-stackedProject q =
-  $(dagPatMatch 'q "Project ps1 (Project ps2 (qi))"
-    [| do
-         return $ do
-           let ps = mergeProjections $(v "ps1") $(v "ps2")
-           logRewrite "Basic.Project.Merge" q
-           void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
-
 
 -- | Eliminate rownums which re-generate positions based on one
 -- sorting column. These rownums typically occur after filtering
@@ -80,7 +64,7 @@ postFilterRownum :: TARule AllProps
 postFilterRownum q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
-        (res, [(sortCol, _)], _) <- return $(v "args")
+        (res, [(ColE sortCol, _)], []) <- return $(v "args")
         useCols <- pUse <$> td <$> properties q
         keys    <- pKeys <$> bu <$> properties $(v "q1")
         cols    <- pCols <$> bu <$> properties $(v "q1")
@@ -178,44 +162,105 @@ unreferencedAggrCols q =
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
 
-{-
-isConstExpr :: Expr -> TAMatch AllProps
-isConstExpr (BinAppE _ e1 e2) = (&&) <$> isConstExpr e1 <*> isConstExpr e2
-isConstExpr (UnAppE _ e1)     = isConstExpr e1
-isConstExpr (ConstE _)        = return True
-isConstExpr (IfE e1 e2 e3)    = and <$> mapM isConstExpr [e1, e2, e3]
-isConstExpr (ColE c)          = do
-    properties $(v "
+isConstExpr :: [ConstCol] -> Expr -> Bool
+isConstExpr constCols e = isJust $ constExpr constCols e
 
 -- | Prune const columns from aggregation keys
 constAggrKey :: TARule AllProps
 constAggrKey q =
   $(dagPatMatch 'q "Aggr args (q1)"
     [| do
+         constCols   <- pConst <$> bu <$> properties $(v "q1")
+         neededCols  <- S.toList <$> pICols <$> td <$> properties q
          (aggrFuns, keyCols@(_:_)) <- return $(v "args")
-         keyCols' <- filterM (\(_, e) -> not <$> isConstExpr e) keyCols
-         predicate $ length keyCols' < length keyCols
+
+         let keyCols'   = filter (\(_, e) -> not $ isConstExpr constCols e) keyCols
+             prunedKeys = (map fst keyCols) \\ (map fst keyCols')
+
+         predicate $ not $ null prunedKeys
 
          return $ do
              logRewrite "Basic.Const.Aggr" q
-             void $ replaceWithNew q $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1") |])
--}
+             let necessaryKeys = prunedKeys `intersect` neededCols
+
+                 constProj c   = lookup c constCols >>= \v -> return (c, ConstE v)
+
+                 constProjs    = mapMaybe constProj necessaryKeys
+
+                 proj          = map (\(_, c) -> (c, ColE c)) aggrFuns
+                                 ++
+                                 map (\(c, _) -> (c, ColE c)) keyCols'
+                                 ++
+                                 constProjs
+                                 
+
+             aggrNode <- insert $ UnOp (Aggr ($(v "aggrFuns"), keyCols')) $(v "q1")
+             void $ replaceWithNew q $ UnOp (Project proj) aggrNode |])
+
+constRownumCol :: TARule AllProps
+constRownumCol q =
+  $(dagPatMatch 'q "RowNum args (q1)"
+    [| do
+         props                         <- properties $(v "q1")
+         let constCols = pConst $ bu props
+             cols      = pCols $ bu props
+
+         (resCol, sortCols, partExprs) <- return $(v "args")
+         let sortCols' = filter (\(e, _) -> not $ isConstExpr constCols e) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.RowNum" q
+             void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', partExprs)) $(v "q1") |])
+
+constRowRankCol :: TARule AllProps
+constRowRankCol q =
+  $(dagPatMatch 'q "RowRank args (q1)"
+    [| do
+         constCols          <- pConst <$> bu <$> properties $(v "q1")
+         (resCol, sortCols) <- return $(v "args")
+         let sortCols' = filter (\(e, _) -> not $ isConstExpr constCols e) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.RowRank" q
+             void $ replaceWithNew q $ UnOp (RowRank (resCol, sortCols')) $(v "q1") |])
+
+constSerializeCol :: TARule AllProps
+constSerializeCol q =
+  $(dagPatMatch 'q "Serialize args (q1)"
+    [| do
+         (mDescr, RelPos sortCols, payload) <- return $(v "args")
+         constCols                          <- map fst <$> pConst <$> bu <$> properties $(v "q1")
+
+         let sortCols' = filter (\c -> c `notElem` constCols) sortCols
+         predicate $ length sortCols' < length sortCols
+         
+         return $ do
+             logRewrite "Basic.Const.Serialize" q
+             void $ replaceWithNew q $ UnOp (Serialize (mDescr, RelPos sortCols', payload)) $(v "q1") |])
+
 
 ----------------------------------------------------------------------------------
 -- Basic Order rewrites
 
+-- | @lookupSortCol@ returns @Left@ if there is no mapping from the
+-- original sort column and @Right@ if there is a mapping from the
+-- original sort column to a list of columns that define the same
+-- order.
 lookupSortCol :: SortSpec -> Orders -> TAMatch AllProps (Either [SortSpec] [SortSpec])
-lookupSortCol (oldSortCol, Asc) os =
+lookupSortCol (ColE oldSortCol, Asc) os =
     case lookup oldSortCol os of
-        Nothing          -> return $ Left [(oldSortCol, Asc)]
-        Just newSortCols -> return $ Right $ map (, Asc) newSortCols
-lookupSortCol (_, Desc)         _  = fail "We only consider ascending orders"
+        Nothing          -> return $ Left [(ColE oldSortCol, Asc)]
+        Just newSortCols -> return $ Right $ map (\c -> (ColE c, Asc)) newSortCols
+lookupSortCol (_, Asc)               _  = fail "only consider column expressions for now"
+lookupSortCol (_, Desc)              _  = fail "only consider ascending orders"
 
 inlineSortColsRownum :: TARule AllProps
 inlineSortColsRownum q =
   $(dagPatMatch 'q "RowNum o (q1)"
     [| do
-        (resCol, sortCols@(_:_), Nothing) <- return $(v "o")
+        (resCol, sortCols@(_:_), []) <- return $(v "o")
 
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
 
@@ -229,8 +274,8 @@ inlineSortColsRownum q =
         let sortCols' = concatMap (either id id) mSortCols
 
         return $ do
-          logRewrite "Basic.Rownum.Inline" q
-          void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', Nothing)) $(v "q1") |])
+          logRewrite "Basic.InlineOrder.RowNum" q
+          void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', [])) $(v "q1") |])
 
 inlineSortColsSerialize :: TARule AllProps
 inlineSortColsSerialize q =
@@ -243,9 +288,57 @@ inlineSortColsSerialize q =
         predicate $ cs /= cs'
 
         return $ do
-            logRewrite "Basic.Serialize.InlineOrder" q
+            logRewrite "Basic.InlineOrder.Serialize" q
             void $ replaceWithNew q $ UnOp (Serialize (d, RelPos cs', reqCols)) $(v "q1") |])
 
+inlineSortColsWinFun :: TARule AllProps
+inlineSortColsWinFun q =
+  $(dagPatMatch 'q "WinFun args (q1)"
+    [| do
+        let (f, part, sortCols, frameSpec) = $(v "args")
+
+        orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
+
+        -- For each sorting column, try to find the original
+        -- order-defining sorting columns.
+        mSortCols <- mapM (flip lookupSortCol orders) sortCols
+
+        -- The rewrite should only fire if something actually changes
+        predicate $ any isRight mSortCols
+
+        let sortCols' = concatMap (either id id) mSortCols
+            args'     = (f, part, sortCols', frameSpec)
+
+        return $ do
+            logRewrite "Basic.InlineOrder.WinFun" q
+            void $ replaceWithNew q $ UnOp (WinFun args') $(v "q1") |])
+
+isKeyPrefix :: S.Set PKey -> [SortSpec] -> Bool
+isKeyPrefix keys orderCols =
+    case mapM mColE $ map fst orderCols of
+        Just cols -> S.fromList cols `S.member` keys
+        Nothing   -> False
+
+-- | If a prefix of the ordering columns in a rownum operator forms a
+-- key, the suffix can be removed.
+keyPrefixOrdering :: TARule AllProps
+keyPrefixOrdering q =
+  $(dagPatMatch 'q "RowNum args (q1)"
+    [| do
+        (resCol, sortCols, []) <- return $(v "args")
+        keys                   <- trace (show sortCols) $! pKeys <$> bu <$> properties $(v "q1")
+
+        predicate $ not $ null sortCols
+       
+        -- All non-empty and incomplete prefixes of the ordering
+        -- columns
+        let ordPrefixes = init $ drop 1 (inits sortCols)
+        Just prefix <- return $ find (isKeyPrefix keys) ordPrefixes
+
+        return $ do
+            logRewrite "Basic.SimplifyOrder.KeyPrefix" q
+            let sortCols' = take (length prefix) sortCols
+            void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', [])) $(v "q1") |])
 
 ----------------------------------------------------------------------------------
 -- Serialize rewrites
@@ -284,29 +377,92 @@ serializeProject q =
               logRewrite "Basic.Serialize.Project" q
               void $ replaceWithNew q $ UnOp (Serialize (d', p', reqCols')) $(v "q1") |])
 
-{-
--- | If positions are computed directly under a Serialize operator,
--- try to get rid of it.  FIXME this rewrite should be based on the
--- order property, so that it considers rownums that are not located
--- directly under the serialize op.
-serializeRowNum :: TARule ()
-serializeRowNum q =
-    $(dagPatMatch 'q "Serialize scols (RowNum args (q1))"
+--------------------------------------------------------------------------------
+-- Pulling projections through other operators and merging them into
+-- other operators
+
+inlineExpr :: [Proj] -> Expr -> Expr
+inlineExpr proj expr =
+    case expr of
+        BinAppE op e1 e2 -> BinAppE op (inlineExpr proj e1) (inlineExpr proj e2)
+        UnAppE op e      -> UnAppE op (inlineExpr proj e)
+        ColE c           -> fromMaybe (failedLookup c) (lookup c proj)
+        ConstE val       -> ConstE val
+        IfE c t e        -> IfE (inlineExpr proj c) (inlineExpr proj t) (inlineExpr proj e)
+
+  where
+    failedLookup :: Attr -> a
+    failedLookup c = trace (printf "mergeProjections: column lookup %s failed\n%s\n%s"
+                                   c (show expr) (show proj))
+                           $impossible
+
+mergeProjections :: [Proj] -> [Proj] -> [Proj]
+mergeProjections proj1 proj2 = map (\(c, e) -> (c, inlineExpr proj2 e)) proj1
+
+stackedProject :: TARule ()
+stackedProject q =
+  $(dagPatMatch 'q "Project ps1 (Project ps2 (qi))"
+    [| do
+         return $ do
+           let ps = mergeProjections $(v "ps1") $(v "ps2")
+           logRewrite "Basic.Project.Merge" q
+           void $ replaceWithNew q $ UnOp (Project ps) $(v "qi") |])
+
+
+
+mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
+mapWinFun f (WinMax e)        = WinMax $ f e
+mapWinFun f (WinMin e)        = WinMin $ f e
+mapWinFun f (WinSum e)        = WinSum $ f e
+mapWinFun f (WinAvg e)        = WinAvg $ f e
+mapWinFun f (WinAll e)        = WinAll $ f e
+mapWinFun f (WinAny e)        = WinAny $ f e
+mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
+mapWinFun f (WinLastValue e)  = WinLastValue $ f e
+mapWinFun _ WinCount          = WinCount
+
+mapAggrFun :: (Expr -> Expr) -> AggrType -> AggrType
+mapAggrFun f (Max e) = Max $ f e
+mapAggrFun f (Min e) = Min $ f e
+mapAggrFun f (Sum e) = Sum $ f e
+mapAggrFun f (Avg e) = Avg $ f e
+mapAggrFun f (All e) = All $ f e
+mapAggrFun f (Any e) = Any $ f e
+mapAggrFun _ Count   = Count
+
+pullProjectWinFun :: TARule ()
+pullProjectWinFun q =
+    $(dagPatMatch 'q "WinFun args (Project proj (q1))"
       [| do
-          -- Absolute positions must not be required
-          (d, RelPos cs, reqCols) <- return $(v "scols")
+          -- Only consider window functions without partitioning for
+          -- now. Partitioning requires proper values and inlining
+          -- would be problematic.
+          ((resCol, f), [], sortSpec, frameSpec) <- return $(v "args")
 
-          -- The rownum must sort based on only one column which
-          -- defines the order.
-          (r, sortCols, Nothing) <- return $(v "args")
-          predicate $ all ((== Asc) . snd) sortCols
-
-          predicate $ r `elem` cs
-
-          let cs' = concatMap (\c -> if c == r then map fst sortCols else [c]) cs
+          -- If the window function result overwrites one of the
+          -- projection columns, we can't pull.
+          predicate $ resCol `notElem` (map fst $(v "proj"))
 
           return $ do
-              logRewrite "Basic.Serialize.Rownum" q
-              void $ replaceWithNew q $ UnOp (Serialize (d, RelPos cs', reqCols)) $(v "q1") |])
--}
+              logRewrite "Basic.PullProject.WinFun" q
 
+              -- Merge the projection expressions into window function
+              -- arguments and ordering expressions.
+              let f'        = mapWinFun (inlineExpr $(v "proj")) f
+
+                  sortSpec' = map (\(e, d) -> (inlineExpr $(v "proj") e, d)) sortSpec
+
+                  proj'     = $(v "proj") ++ [(resCol, ColE resCol)]
+
+              winNode <- insert $ UnOp (WinFun ((resCol, f'), [], sortSpec', frameSpec)) $(v "q1")
+              void $ replaceWithNew q $ UnOp (Project proj') winNode |])
+
+pullProjectSelect :: TARule ()
+pullProjectSelect q =
+    $(dagPatMatch 'q "Select p (Project proj (q1))"
+      [| do
+          return $ do
+              logRewrite "Basic.PullProject.Select" q
+              let p' = inlineExpr $(v "proj") $(v "p")
+              selectNode <- insert $ UnOp (Select p') $(v "q1")
+              void $ replaceWithNew q $ UnOp (Project $(v "proj")) selectNode |])

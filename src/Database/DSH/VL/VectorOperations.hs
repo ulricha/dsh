@@ -14,7 +14,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import           Database.DSH.VL.Shape
 import           Database.DSH.VL.Lang             (AggrFun (..), Expr (..),
-                                                   Nat (..), VL (), VLVal (..))
+                                                   VL (), VLVal (..))
 import           Database.DSH.VL.MetaPrimitives
 import           Database.DSH.VL.VLPrimitives
 
@@ -170,7 +170,7 @@ lastPrim (ValueVector qs lyt@(Nest _ _)) = do
     i              <- vlAggr AggrCount qs
     (q, r, _)      <- vlSelectPos qs (L.SBRelOp L.Eq) i
     (Nest qr lyt') <- chainRenameFilter r lyt
-    re             <- vlDescToRename q
+    re             <- vlUnboxRename q
     renameOuter re $ ValueVector qr lyt'
 lastPrim (ValueVector qs lyt) = do
     i         <- vlAggr AggrCount qs
@@ -184,13 +184,13 @@ lastLift (ValueVector d (Nest qs lyt@(Nest _ _))) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- chainRenameFilter r lyt
-    re          <- vlDescToRename qs'
+    re          <- vlUnboxRename qs'
     ValueVector d <$> renameOuter' re lyt'
 lastLift (ValueVector d (Nest qs lyt)) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- chainRenameFilter r lyt
-    re          <- vlDescToRename d
+    re          <- vlUnboxRename d
     renameOuter re (ValueVector qs' lyt')
 lastLift _ = error "lastLift: Should not be possible"
 
@@ -226,7 +226,7 @@ indexLift (ValueVector d (Nest qs lyt)) (ValueVector is (InColumn 1)) = do
     is'         <- vlBinExpr (L.SBNumOp L.Add) is ones
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
     lyt'        <- chainRenameFilter r lyt
-    re          <- vlDescToRename d
+    re          <- vlUnboxRename d
     renameOuter re (ValueVector qs' lyt')
 indexLift _ _ = error "indexLift: Should not be possible"
 
@@ -252,14 +252,15 @@ reverseLift (ValueVector d (Nest d1 lyt)) = do
     return (ValueVector d (Nest d1' lyt'))
 reverseLift _ = error "vlReverseLift: Should not be possible"
 
+-- FIXME looks fishy, there should be an unboxing join.
 the ::  Shape -> Build VL Shape
 the (ValueVector d lyt@(Nest _ _)) = do
-    (_, prop, _)      <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
+    (_, prop, _)   <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
     (Nest q' lyt') <- chainRenameFilter prop lyt
     return $ ValueVector q' lyt'
 the (ValueVector d lyt) = do
-    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) (N 1)
-    lyt'       <- chainRenameFilter prop lyt
+    (q', prop, _) <- vlSelectPos1 d (L.SBRelOp L.Eq) 1
+    lyt'          <- chainRenameFilter prop lyt
     return $ PrimVal q' lyt'
 the _ = error "the: Should not be possible"
 
@@ -273,10 +274,10 @@ tailS _ = error "tailS: Should not be possible"
 
 theL ::  Shape -> Build VL Shape
 theL (ValueVector d (Nest q lyt)) = do
-    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) (N 1)
-    prop       <- vlDescToRename d
+    (v, p2, _) <- vlSelectPos1S q (L.SBRelOp L.Eq) 1
+    prop       <- vlUnboxRename d
     lyt'       <- chainRenameFilter p2 lyt
-    (v', _)    <- vlPropFilter prop v
+    v'         <- vlPropRename prop v
     return $ ValueVector v' lyt'
 theL _ = error "theL: Should not be possible"
 
@@ -327,7 +328,7 @@ groupByKeyL _ _ = error "vlGroupByL: Should not be possible"
 
 concatLift ::  Shape -> Build VL Shape
 concatLift (ValueVector d (Nest d' vs)) = do
-    p   <- vlDescToRename d'
+    p   <- vlUnboxRename d'
     vs' <- renameOuter' p vs
     return $ ValueVector d vs'
 concatLift _ = error "concatLift: Should not be possible"
@@ -336,7 +337,7 @@ lengthLift ::  Shape -> Build VL Shape
 lengthLift (ValueVector q (Nest qi _)) = do
     ls <- vlAggrS AggrCount q qi
     return $ ValueVector ls (InColumn 1)
-lengthLift s = error $ show s
+lengthLift s = trace (show s) $ $impossible
 
 lengthV ::  Shape -> Build VL Shape
 lengthV q = do
@@ -473,7 +474,7 @@ pairOp (PrimVal q1 lyt1) (PrimVal q2 lyt2) = do
     let lyt = zipLayout lyt1 lyt2
     return $ PrimVal q lyt
 pairOp (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
-    d   <- vlLit L.PossiblyEmpty [] [[VLNat 1, VLNat 1]]
+    d   <- vlLit L.PossiblyEmpty [] [[VLInt 1, VLInt 1]]
     q1' <- vlUnsegment q1
     q2' <- vlUnsegment q2
     let lyt = zipLayout (Nest q1' lyt1) (Nest q2' lyt2)
@@ -630,7 +631,7 @@ toPlan (descHd, descV) t c v =
     in return $ ((hd:descHd, zipWith (:) v' descV), (InColumn c), c + 1)
 
 literal :: Type -> VLVal -> Build VL VLDVec
-literal t v = vlLit L.NonEmpty [t] [[VLNat 1, VLNat 1, v]]
+literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]
 
 fromListVal :: L.Val -> [L.Val]
 fromListVal (L.ListV es) = es
@@ -646,6 +647,6 @@ mkColumn t vs = (t, [pVal v | v <- vs])
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths =
     let header = []
-        body = map (\(d, p) -> [VLNat $ fromInteger p, VLNat $ fromInteger d])
+        body = map (\(d, p) -> [VLInt $ fromInteger p, VLInt $ fromInteger d])
                $ zip (concat [ replicate l p | (p, l) <- zip [1..] lengths] ) [1..]
     in (header, body)

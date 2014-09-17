@@ -15,6 +15,7 @@ inferEmptyNullOp op =
 inferEmptyUnOp :: Empty -> UnOp -> Empty
 inferEmptyUnOp childEmpty op =
     case op of
+        WinFun _         -> childEmpty
         RowNum (_, _, _) -> childEmpty
         RowRank (_, _)   -> childEmpty
         Rank (_, _)      -> childEmpty

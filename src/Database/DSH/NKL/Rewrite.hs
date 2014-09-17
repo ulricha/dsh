@@ -11,6 +11,7 @@ module Database.DSH.NKL.Rewrite
 import Control.Arrow
 import Data.List
 
+import Database.DSH.Common.Pretty
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure
@@ -38,6 +39,8 @@ boundVarsT :: TransformN Expr [Ident]
 boundVarsT = fmap nub $ crushbuT $ do Lam _ v _ <- idR
                                       return [v]
 
+-- | Compute all names that are bound in the given expression. Note
+-- that the only binding form in NKL is a lambda.
 boundVars :: Expr -> [Ident]
 boundVars = either error id . applyExpr [] boundVarsT
 
@@ -57,7 +60,7 @@ alphaLamR = do
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
-    Var _ n | n == v                          -> return $ inject s
+    Var _ n | n == v                          -> return s
 
     -- Some other variable
     Var _ _                                   -> idR

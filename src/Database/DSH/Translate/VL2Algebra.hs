@@ -13,8 +13,8 @@ import qualified Data.Map                             as M
 import           Control.Applicative
 import           Control.Monad.State
 
-import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Build
+import qualified Database.Algebra.Dag                 as D
+import qualified Database.Algebra.Dag.Build           as B
 import           Database.Algebra.Dag.Common
 import qualified Database.Algebra.Table.Lang          as TA
 import           Database.Algebra.X100.Data           (X100Algebra)
@@ -30,10 +30,10 @@ import           Database.DSH.VL.X100VectorPrimitives ()
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
-type VecBuild a v = StateT (M.Map AlgNode (Res v)) (Build a)
+type VecBuild a v = StateT (M.Map AlgNode (Res v)) (B.Build a)
 
-runVecBuild :: VectorAlgebra v a => VecBuild a v r -> AlgPlan a r
-runVecBuild c = runBuild $ fst <$> runStateT c M.empty
+runVecBuild :: VectorAlgebra v a => VecBuild a v r -> (D.AlgebraDag a, r, NodeMap [Tag])
+runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
 
 data Res v = Prop    AlgNode
            | Rename  AlgNode
@@ -135,8 +135,8 @@ getVL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap V.VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra v a => (NodeMap V.VL, TopShape VLDVec) -> VecBuild a v (TopShape v)
-vl2Algebra (vlNodes, plan) = do
+vl2Algebra :: VectorAlgebra v a => NodeMap V.VL -> TopShape VLDVec -> VecBuild a v (TopShape v)
+vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
     refreshShape plan
@@ -144,14 +144,14 @@ vl2Algebra (vlNodes, plan) = do
     roots :: [AlgNode]
     roots = rootsFromTopShape plan
 
-translateTerOp :: VectorAlgebra v a => V.TerOp -> Res v -> Res v -> Res v -> Build a (Res v)
+translateTerOp :: VectorAlgebra v a => V.TerOp -> Res v -> Res v -> Res v -> B.Build a (Res v)
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
             return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
-translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> Build a (Res v)
+translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
 translateBinOp b c1 c2 = case b of
     V.GroupBy -> do
         (d, v, p) <- vecGroupBy (toDVec c1) (toDVec c2)
@@ -261,15 +261,16 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RPair (fromDVec qo) (fromDVec qi)
 
-translateUnOp :: VectorAlgebra v a => V.UnOp -> Res v -> Build a (Res v)
+translateUnOp :: VectorAlgebra v a => V.UnOp -> Res v -> B.Build a (Res v)
 translateUnOp unop c = case unop of
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
-    V.DescToRename     -> fromRVec <$> descToRename (toDVec c)
+    V.UnboxRename      -> fromRVec <$> descToRename (toDVec c)
     V.Segment          -> fromDVec <$> vecSegment (toDVec c)
     V.Unsegment        -> fromDVec <$> vecUnsegment (toDVec c)
     V.Aggr a           -> fromDVec <$> vecAggr a (toDVec c)
+    V.WinFun  (a, w)   -> fromDVec <$> vecWinFun a w (toDVec c)
     V.AggrNonEmpty as  -> fromDVec <$> vecAggrNonEmpty as (toDVec c)
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
@@ -287,10 +288,10 @@ translateUnOp unop c = case unop of
     V.ReverseS      -> do
         (d, p) <- vecReverseS (toDVec c)
         return $ RPair (fromDVec d) (fromPVec p)
-    V.SelectPos1 op pos -> do
+    V.SelectPos1 (op, pos) -> do
         (d, p, u) <- vecSelectPos1 (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
-    V.SelectPos1S op pos -> do
+    V.SelectPos1S (op, pos) -> do
         (d, p, u) <- vecSelectPos1S (toDVec c) op pos
         return $ RTriple (fromDVec d) (fromRVec p) (fromRVec u)
     V.GroupAggr (g, as) -> fromDVec <$> vecGroupAggr g as (toDVec c)
@@ -316,10 +317,10 @@ translateUnOp unop c = case unop of
         (RTriple _ _ c3) -> return c3
         _                -> error "R3: Not a tuple"
 
-translateNullary :: VectorAlgebra v a => V.NullOp -> Build a (Res v)
-translateNullary V.SingletonDescr      = fromDVec <$> singletonDescr
-translateNullary (V.Lit _ tys vals)    = fromDVec <$> vecLit tys vals
-translateNullary (V.TableRef n tys hs) = fromDVec <$> vecTableRef n tys hs
+translateNullary :: VectorAlgebra v a => V.NullOp -> B.Build a (Res v)
+translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
+translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
+translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
 
 -- | Insert SerializeRel operators in TA.TableAlgebra plans to define
 -- descr and order columns as well as the required payload columns.
@@ -378,7 +379,7 @@ insertSerialize g = g >>= traverseShape
         let cs = map (TA.PayloadCol . ("item" ++) . show) cols
             op = TA.Serialize (descr, pos, cs)
 
-        qp   <- lift $ insertNode $ UnOp op q
+        qp   <- lift $ B.insert $ UnOp op q
         return $ ADVec qp cols
 
     needDescr = Just (TA.DescrCol "descr")
@@ -389,14 +390,14 @@ insertSerialize g = g >>= traverseShape
     noPos      = TA.NoPos
 
 implementVectorOpsX100 :: QueryPlan V.VL VLDVec -> QueryPlan X100Algebra NDVec
-implementVectorOpsX100 vlPlan = mkQueryPlan opMap shape tagMap
+implementVectorOpsX100 vlPlan = mkQueryPlan dag shape tagMap
   where
-    x100Plan               = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    (opMap, shape, tagMap) = runVecBuild x100Plan
+    x100Plan             = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
+    (dag, shape, tagMap) = runVecBuild x100Plan
 
 implementVectorOpsPF :: QueryPlan V.VL VLDVec -> QueryPlan TA.TableAlgebra NDVec
-implementVectorOpsPF vlPlan = mkQueryPlan opMap shape tagMap
+implementVectorOpsPF vlPlan = mkQueryPlan dag shape tagMap
   where
-    taPlan                 = vl2Algebra (nodeMap $ queryDag vlPlan, queryShape vlPlan)
-    serializedPlan         = insertSerialize taPlan
-    (opMap, shape, tagMap) = runVecBuild serializedPlan
+    taPlan               = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
+    serializedPlan       = insertSerialize taPlan
+    (dag, shape, tagMap) = runVecBuild serializedPlan

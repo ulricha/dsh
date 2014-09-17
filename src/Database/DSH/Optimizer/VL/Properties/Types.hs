@@ -23,7 +23,7 @@ data Const = Const VLVal
            | NoConst
             deriving Show
 
-data ConstDescr = ConstDescr Nat
+data ConstDescr = ConstDescr Int
                 | NonConstDescr
 
 data ConstPayload = ConstPL VLVal
@@ -91,7 +91,7 @@ instance Renderable a => Renderable [a] where
   renderProp = bracketList renderProp
 
 instance Show ConstDescr where
-  show (ConstDescr v) = render $ renderTblVal (VLNat v)
+  show (ConstDescr v) = render $ int v
   show NonConstDescr  = "NC"
 
 instance Renderable ConstVec where

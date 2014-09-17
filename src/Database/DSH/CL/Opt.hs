@@ -84,5 +84,4 @@ optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt expr optimizedExpr
   where
     optimizedExpr = applyExpr (optimizeR >>> projectT) expr
-
-
+    -- optimizedExpr = applyExpr projectT expr

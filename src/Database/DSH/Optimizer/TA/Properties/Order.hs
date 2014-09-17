@@ -1,17 +1,18 @@
-{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Database.DSH.Optimizer.TA.Properties.Order where
 
-import Data.Tuple
-import qualified Data.Set.Monad as S
+import           Data.Maybe
+import qualified Data.Set.Monad                             as S
+import           Data.Tuple
 
-import Database.Algebra.Table.Lang
+import           Database.Algebra.Table.Lang
 
-import Database.DSH.Impossible
+import           Database.DSH.Impossible
 
-import Database.DSH.Optimizer.TA.Properties.Aux
-import Database.DSH.Optimizer.TA.Properties.Types
+import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- | Column 'c' has been overwritten by the current operator. Remove
 -- all associated sorting information.
@@ -20,11 +21,21 @@ invalidate c order = [ o | o@(c', _) <- order, c /= c' ]
 
 -- | Overwrite (if present) order information for column 'o' with new
 -- information.
-overwrite :: (Attr, [Attr]) -> Orders -> Orders
-overwrite o@(ordCol, _) os = 
-    if any ((== ordCol) . fst) os
-    then [ o | (oc, _) <- os, oc == ordCol ]
-    else o : os
+-- FIXME Handle case of arbitrary expressions defining order.
+overwrite :: (Attr, [Expr]) -> Orders -> Orders
+overwrite (resCol, ordExprs) os =
+    if all isJust mOrdCols
+    -- Check if the result column overwrites some older order column
+    then if any ((== resCol) . fst) os
+         then [ (resCol, ordCols) | (oc, _) <- os, oc == resCol ]
+         else (resCol, ordCols) : os
+    -- The order is defined by non-column expressions. We don't handle
+    -- that case currently.
+    else os
+
+  where
+    mOrdCols = map mColE ordExprs
+    ordCols  = catMaybes mOrdCols
 
 -- | Produce all new sorting columns from the list of new names per
 -- old sorting column:
@@ -38,7 +49,7 @@ ordCombinations (s : scs) = dist s (ordCombinations scs)
   where
     dist :: [Attr] -> [[Attr]] -> [[Attr]]
     dist as bs = [ a : b | a <- as, b <- bs ]
-    
+
 -- | Find all new names for column 'c'.
 newCols :: [(Attr, Attr)] -> Attr -> [Attr]
 newCols colMap c = [ cn | (co, cn) <- colMap, co == c ]
@@ -57,10 +68,11 @@ update colMap (ordCol, sortCols) =
 inferOrderUnOp :: Orders -> UnOp -> Orders
 inferOrderUnOp childOrder op =
     case op of
-        RowNum (oc, scs, Nothing) 
-             | not (null scs) && all ((== Asc) . snd) scs 
+        WinFun _                          -> childOrder
+        RowNum (oc, scs, [])
+             | not (null scs) && all ((== Asc) . snd) scs
                                           -> overwrite (oc, map fst scs) childOrder
-             | otherwise                                  
+             | otherwise
                                           -> invalidate oc childOrder
         RowNum (resCol, _, _)             -> invalidate resCol childOrder
         RowRank (resCol, _)               -> invalidate resCol childOrder
@@ -68,8 +80,8 @@ inferOrderUnOp childOrder op =
         Select _                          -> childOrder
         Distinct _                        -> childOrder
         Aggr _                            -> []
-        Project projs                     -> 
-            let colMap = S.toList $ S.map swap $ S.unions $ map mapCol projs
+        Project projs                     ->
+            let colMap = S.toList $ S.map swap $ S.fromList $ mapMaybe mapCol projs
             in concatMap (update colMap) childOrder
         Serialize _                       -> []
 
@@ -83,4 +95,4 @@ inferOrderBinOp leftChildOrder rightChildOrder op =
         AntiJoin _   -> leftChildOrder
         DisjUnion _  -> []
         Difference _ -> leftChildOrder
-        
+

@@ -1,24 +1,16 @@
-{-# LANGUAGE DeriveGeneric #-}
-
-module Database.DSH.FKL.Data.FKL where
+module Database.DSH.FKL.Lang where
 
 import           Text.Printf
 
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type   (Type, Typed, typeOf)
-
-import           GHC.Generics               (Generic)
 
 -- Signal wether a scalar operator is applied in its lifted or
 -- unlifted form.
 data Lifted a = Lifted a
               | NotLifted a
-              deriving (Eq, Generic)
-
-instance Show a => Show (Lifted a) where
-    show (Lifted x)    = (show x) ++ "^L"
-    show (NotLifted x) = show x
+              deriving (Show, Eq)
 
 -- | Data type expr represents flat kernel language.
 data Expr = Table   Type String [L.Column] L.TableHints
@@ -32,9 +24,11 @@ data Expr = Table   Type String [L.Column] L.TableHints
           | UnOp    Type (Lifted L.ScalarUnOp) Expr
           | Const   Type L.Val
           | Var     Type L.Ident
-          | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr -- When performing normal function application ignore the first value of the freeVars!!!
+          -- When performing normal function application ignore the
+          -- first value of the freeVars!!!
+          | Clo     Type L.Ident [L.Ident] L.Ident Expr Expr 
           | AClo    Type L.Ident [L.Ident] L.Ident Expr Expr
-    deriving (Eq, Generic)
+    deriving (Eq, Show)
 
 data Prim1 = FLength Type
            | FLengthL Type
@@ -75,7 +69,7 @@ data Prim1 = FLength Type
            | FTransposeL Type
            | FReshape Integer Type
            | FReshapeL Integer Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim1 where
     show (FLength _)     = "length"
@@ -148,7 +142,7 @@ data Prim2 = FGroupWithKey Type
            | FSemiJoinL (L.JoinPredicate L.JoinExpr) Type
            | FAntiJoin (L.JoinPredicate L.JoinExpr) Type
            | FAntiJoinL (L.JoinPredicate L.JoinExpr) Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim2 where
     show (FGroupWithKey _)    = "groupWithKey"
@@ -173,17 +167,17 @@ instance Show Prim2 where
     show (FCartProductL _)    = "cartProductL"
     show (FNestProduct _)     = "nestProduct"
     show (FNestProductL _)    = "nestProductL"
-    show (FThetaJoin p _)  = printf "equiJoinS_%s" (pp p)
-    show (FThetaJoinL p _) = printf "equiJoinL_%s" (pp p)
-    show (FNestJoin p _)  = printf "nestJoinS_%s" (pp p)
-    show (FNestJoinL p _) = printf "nestJoinL_%s" (pp p)
-    show (FSemiJoin p _)  = printf "semiJoinS_%s" (pp p)
-    show (FSemiJoinL p _) = printf "semiJoinL_%s" (pp p)
-    show (FAntiJoin p _)  = printf "antiJoinS_%s" (pp p)
-    show (FAntiJoinL p _) = printf "antiJoinL_%s" (pp p)
+    show (FThetaJoin p _)     = printf "equiJoinS_%s" (pp p)
+    show (FThetaJoinL p _)    = printf "equiJoinL_%s" (pp p)
+    show (FNestJoin p _)      = printf "nestJoinS_%s" (pp p)
+    show (FNestJoinL p _)     = printf "nestJoinL_%s" (pp p)
+    show (FSemiJoin p _)      = printf "semiJoinS_%s" (pp p)
+    show (FSemiJoinL p _)     = printf "semiJoinL_%s" (pp p)
+    show (FAntiJoin p _)      = printf "antiJoinS_%s" (pp p)
+    show (FAntiJoinL p _)     = printf "antiJoinL_%s" (pp p)
 
 data Prim3 = FCombine Type
-    deriving (Eq, Generic)
+    deriving (Eq)
 
 instance Show Prim3 where
     show (FCombine _) = "combine"
