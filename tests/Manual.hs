@@ -318,7 +318,9 @@ hnjg1 =
   , sum [ snd z | z <- toQ njgzs1, fst z == x ] > 100
   ]
 
+hcp (view -> (xs, ys)) = [ pair x y | x <- xs, y <- ys]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ hnjg1 
+main = getConn P.>>= \c -> debugQ "q" c $ hcp $ toQ (([0], []) :: ([Integer], [Integer]))
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
