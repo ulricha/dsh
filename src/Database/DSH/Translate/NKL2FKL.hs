@@ -2,6 +2,9 @@
 -- | The Flattening Transformation
 module Database.DSH.Translate.NKL2FKL (flatTransform) where
 
+-- FIXME use more let bindings to avoid term replication, e.g. in if conditionals
+-- FIXME make sure that no wrong shadowing occurs while lifting or restricting the environment.
+
 #ifdef DEBUGCOMP
 import           Debug.Trace
 import           Database.DSH.Common.Pretty
@@ -16,7 +19,6 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang       as F
 import qualified Database.DSH.FKL.Primitives as P
-import           Database.DSH.Impossible
 import qualified Database.DSH.NKL.Lang       as N
 
 -- | Transform an expression in the Nested Kernel Language into its
@@ -116,7 +118,7 @@ topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
 topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
 topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
 topFlatten _   (N.Var t v)          = F.Var (liftType t) v
-topFlatten ctx (N.If t ce te ee)    =
+topFlatten ctx (N.If _ ce te ee)    =
     -- Combine the results for the then and else branches. Combined,
     -- we get values for all iterations.
     P.combine bs ts fs Zero
@@ -139,7 +141,7 @@ topFlatten ctx (N.If t ce te ee)    =
 
 topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
 topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
-topFlatten ctx (N.Comp t h x xs)    = 
+topFlatten ctx (N.Comp _ h x xs)    = 
     (P.let_ x currentGen
               (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
                                 (runFlat env (deepFlatten h))))
@@ -238,11 +240,34 @@ deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten
 deepFlatten (N.AppE1 _ p e)      = prim1 p <$> deepFlatten e <*> frameDepthM
 deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
 
-deepFlatten (N.If t ce te ee)    = $unimplemented
+deepFlatten (N.If _ ce te ee)    = do
+    Succ d1      <- frameDepthM
+    
+    -- Lift the condition
+    bs           <- deepFlatten ce
+    
+    -- Lift the THEN branch. Note that although the environment record
+    -- does not change, all environment variables are re-bound to a
+    -- restricted environment by 'restrictEnv'.
+    thenExpr     <- deepFlatten te
+
+    -- Lift the ELSE branch. See comment above.
+    elseExpr     <- deepFlatten ee
+
+    env          <- asks inScope
+
+    -- Construct the restricted environments in which the THEN and
+    -- ELSE branches are evaluated.
+    let notL xs = P.un boolT (SUBoolOp Not) xs (Succ d1) 
+    
+        thenRes = restrictEnv env d1 bs thenExpr
+
+        elseRes = restrictEnv env d1 (notL bs) elseExpr
+
+    return $ P.combine bs thenRes elseRes d1
 
 deepFlatten (N.Comp _ h x xs)    = do
     d@(Succ d1) <- frameDepthM
-    cv          <- ctxVarM
     env         <- asks inScope
     let cv' = (x, liftTypeN (Succ d) (typeOf xs))
     headExpr    <- local (descendEnv cv') $ deepFlatten h
@@ -250,6 +275,19 @@ deepFlatten (N.Comp _ h x xs)    = do
     xs'         <- deepFlatten xs
 
     return $ P.let_ x xs' (liftEnv cv' d1 headExpr env)
+
+restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
+restrictEnv env d1 bs branchExpr = mkRestrictLet env
+  where
+    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
+    mkRestrictLet (e : []) =
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               branchExpr
+    mkRestrictLet (e : es) = 
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               (mkRestrictLet es)
 
 liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
 liftEnv ctx d1 headExpr env = mkLiftingLet env
