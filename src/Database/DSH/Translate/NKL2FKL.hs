@@ -170,7 +170,7 @@ topFlatten ctx (N.Comp t h x xs)    =
 
 -- depth >= 2
 deepFlatten :: N.Expr -> Flatten F.LExpr
-deepFlatten (N.Var t v)          = return $ F.Var (liftType t) v
+deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
 deepFlatten (N.Table t n cs hs)  = do -- P.dist (F.Table t n cs hs) <$> ctxVarM
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM

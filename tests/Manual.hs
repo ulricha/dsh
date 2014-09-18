@@ -302,7 +302,23 @@ qj =
         ys = (toQ [2, 4, 6] :: Q [Integer])
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
 
+njgxs1 :: [Integer]
+njgxs1 = [1,2,3,4,5,6,7,8,12]
+
+njgys1 :: [Integer]
+njgys1 = [2,3,2,4,5,5,9,12,2,2,13]
+
+njgzs1 :: [(Integer, Integer)]
+njgzs1 = [(2, 20), (5, 60), (3, 30), (3, 80), (4, 40), (5, 10), (5, 30), (12, 120)]
+
+hnjg1 =
+  [ x
+  | x <- toQ njgxs1
+  , x < 8
+  , sum [ snd z | z <- toQ njgzs1, fst z == x ] > 100
+  ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c qj
+main = getConn P.>>= \c -> debugQ "q" c $ hnjg1 
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
