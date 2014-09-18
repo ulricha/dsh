@@ -171,8 +171,15 @@ topFlatten ctx (N.Comp t h x xs)    =
 -- depth >= 2
 deepFlatten :: N.Expr -> Flatten F.LExpr
 deepFlatten (N.Var t v)          = return $ F.Var (liftType t) v
-deepFlatten (N.Table t n cs hs)  = P.dist (F.Table t n cs hs) <$> ctxVarM
-deepFlatten (N.Const t v)        = P.dist (F.Const t v) <$> ctxVarM
+deepFlatten (N.Table t n cs hs)  = do -- P.dist (F.Table t n cs hs) <$> ctxVarM
+    Succ d1 <- frameDepthM
+    ctx     <- ctxVarM
+    return $ P.unconcat d1 ctx $ P.dist (F.Table t n cs hs) (P.qconcat d1 ctx)
+
+deepFlatten (N.Const t v)        = do
+    Succ d1 <- frameDepthM
+    ctx     <- ctxVarM
+    return $ P.unconcat d1 ctx $ P.dist (F.Const t v) (P.qconcat d1 ctx)
 
 deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
 deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM

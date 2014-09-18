@@ -1,7 +1,7 @@
 module Database.DSH.Common.Nat where
 
 -- | Natural numbers that encode lifting levels
-data Nat = Zero | Succ Nat
+data Nat = Zero | Succ Nat deriving Show
 
 intFromNat :: Nat -> Int
 intFromNat Zero     = 0

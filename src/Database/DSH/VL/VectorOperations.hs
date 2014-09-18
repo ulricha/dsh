@@ -661,28 +661,28 @@ incrementPositions i (LPair l1 l2)  = LPair (incrementPositions i l1) (increment
 qConcat :: Nat -> Shape VLDVec -> Shape VLDVec
 qConcat Zero _ = $impossible
 qConcat (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
-qConcat (Succ n)      (VShape _ lyt)           = extractInnerVec n lyt
-qConcat _               _                        = $impossible
+qConcat (Succ n)    (VShape _ lyt)           = extractInnerVec n lyt
+qConcat _           _                        = $impossible
 
 extractInnerVec :: Nat -> Layout VLDVec -> Shape VLDVec
 extractInnerVec (Succ Zero) (LNest _ (LNest q lyt)) = VShape q lyt
-extractInnerVec (Succ n)      (LNest _ lyt)           = extractInnerVec n lyt
-extractInnerVec _               _                       = $impossible
+extractInnerVec (Succ n)    (LNest _ lyt)           = extractInnerVec n lyt
+extractInnerVec n           l                       = trace (show n ++ " " ++ show l) $impossible
 
 -- | Prepend the 'n' outer layers of nesting from the first input to
 -- the second input (Prins/Palmer: 'insert').
 unconcat :: Nat -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec
 unconcat (Succ Zero) (VShape d _) (VShape vi lyti) =
     VShape d (LNest vi lyti)
-unconcat (Succ n) (VShape d lyt) (VShape vi lyti)    = 
+unconcat (Succ n) (VShape d lyt) (VShape vi lyti)  = 
     VShape d (implantInnerVec n lyt vi lyti)
-unconcat _          _                   _              = 
+unconcat _          _                   _          = 
     $impossible
 
 implantInnerVec :: Nat -> Layout VLDVec -> VLDVec -> Layout VLDVec -> Layout VLDVec
-implantInnerVec (Succ Zero) (LNest d _)   vi lyti = 
+implantInnerVec (Succ Zero) (LNest d _)   vi lyti   = 
     LNest d $ LNest vi lyti
 implantInnerVec (Succ n)      (LNest d lyt) vi lyti = 
     LNest d $ implantInnerVec n lyt vi lyti
-implantInnerVec _          _            _  _          = 
+implantInnerVec _          _            _  _        = 
     $impossible
