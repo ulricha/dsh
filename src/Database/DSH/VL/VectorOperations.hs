@@ -198,7 +198,7 @@ combine (VShape qb (LCol 1)) (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt2'       <- renameOuter' p2 lyt2
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
-combine _ _ _ = $impossible
+combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
 
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 dist (SShape q lyt) q2 = do
@@ -300,8 +300,8 @@ restrictL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrictL (VShape qo (LNest qi lyt)) (VShape _ (LNest qb (LCol 1))) = do
     VShape qi' lyt' <- restrict (VShape qi lyt) (VShape qb (LCol 1))
     return $ VShape qo (LNest qi' lyt')
-restrictL _                              _                                      = 
-    $impossible
+restrictL l1                              l2                          = 
+    trace (show l1 ++ " " ++ show l2) $ $impossible
 
 combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combineL (VShape qo (LNest qb (LCol 1)))
@@ -309,7 +309,7 @@ combineL (VShape qo (LNest qb (LCol 1)))
          (VShape _ (LNest qi2 lyt2)) = do
     VShape qi' lyt' <- combine (VShape qb (LCol 1)) (VShape qi1 lyt1) (VShape qi2 lyt2)
     return $ VShape qo (LNest qi' lyt')
-combineL _ _ _ = $impossible
+combineL _ _ _ = trace "foobar" $impossible
 
 zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do

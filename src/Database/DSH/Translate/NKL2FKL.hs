@@ -116,7 +116,27 @@ topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
 topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
 topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
 topFlatten _   (N.Var t v)          = F.Var (liftType t) v
-topFlatten ctx (N.If t ce te ee)    = $unimplemented
+topFlatten ctx (N.If t ce te ee)    =
+    -- Combine the results for the then and else branches. Combined,
+    -- we get values for all iterations.
+    P.combine bs ts fs Zero
+
+  where
+    -- Compile the boolean vector of conditions for all iterations.
+    bs = topFlatten ctx ce
+  
+    -- For the THEN branch, consider only those iterations in which
+    -- the condition is TRUE.
+    ts = P.let_ (fst ctx) (P.restrict (envVar ctx) bs Zero)
+                          (topFlatten ctx te)
+
+    -- For the ELSE branch, consider only those iterations in which
+    -- the condition is FALSE.
+    fs = P.let_ (fst ctx) (P.restrict (envVar ctx) (notL bs) Zero)
+                          (topFlatten ctx ee)
+
+    notL xs = P.un boolT (SUBoolOp Not) xs (Succ Zero) 
+
 topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
 topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
 topFlatten ctx (N.Comp t h x xs)    = 

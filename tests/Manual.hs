@@ -341,8 +341,10 @@ aj_class12 (view -> (xs, ys)) =
   , and [ x == y | y <- ys, y > 10 ]
   ]
 
+qif = [ if x > 5 then x + 42 else x * 2 | x <- toQ ([1..10] :: [Integer])]
+
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
-main = getConn P.>>= \c -> debugQ "q" c $ aj_class12 $ toQ ([0], [])
+main = getConn P.>>= \c -> debugQ "q" c qif
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
