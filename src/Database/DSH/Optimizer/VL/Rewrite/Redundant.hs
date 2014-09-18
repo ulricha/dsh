@@ -222,9 +222,7 @@ constAlign q =
          
          return $ do 
               logRewrite "Redundant.Const.Align" q
-              let proj = map Constant constVals
-                         ++
-                         [ Column c  | c <- [1..w]]
+              let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
        
 
