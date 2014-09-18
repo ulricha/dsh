@@ -320,7 +320,29 @@ hnjg1 =
 
 hcp (view -> (xs, ys)) = [ pair x y | x <- xs, y <- ys]
 
+qj3 (view -> (xs, ys, zs)) = 
+  [ tuple3 x y z
+  | x <- xs
+  , y <- ys
+  , z <- zs
+  , x == y
+  , y == z
+  ]
+
+aj12 = 
+    let xs = toQ ([6,7,8,9,10,12] :: [Integer])
+        ys = toQ ([8,9,12,13,15,16] :: [Integer])
+    in [ x | x <- xs, and [ x < y | y <- ys, y > 10 ]]
+
+aj_class12 :: Q ([Integer], [Integer]) -> Q [Integer]
+aj_class12 (view -> (xs, ys)) = 
+  [ x 
+  | x <- xs
+  , and [ x == y | y <- ys, y > 10 ]
+  ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ hcp $ toQ (([0], []) :: ([Integer], [Integer]))
+-- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
+main = getConn P.>>= \c -> debugQ "q" c $ aj_class12 $ toQ ([0], [])
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

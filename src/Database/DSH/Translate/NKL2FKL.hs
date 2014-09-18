@@ -43,7 +43,11 @@ flatTransform expr =
 #endif
 
 --------------------------------------------------------------------------------
--- The flattening transformation
+-- The Flattening Transformation
+
+--------------------------------------------------------------------------------
+-- Translation of built-in combinators. Combinators are lifted
+-- according to the iteration depth at which they are encountered.
 
 prim1 :: N.Prim1 Type -> F.LExpr -> Nat -> F.LExpr
 prim1 (N.Prim1 p _) =
@@ -87,11 +91,10 @@ prim2 (N.Prim2 p _) =
         N.SemiJoin jp  -> P.semiJoin jp
         N.AntiJoin jp  -> P.antiJoin jp
 
--- | Transform a nested expression. This is mostly an identity
--- transformation with one crucial exception: comprehension iterators
--- are eliminated by distributing them over their head expression,
--- i.e. pushing them down.
--- depth = 0
+--------------------------------------------------------------------------------
+
+-- | Transform top-level expressions which are not nested in a
+-- comprehension.  
 flatten :: N.Expr -> F.LExpr
 flatten (N.Table t n cs hs)  = F.Table t n cs hs
 flatten (N.UnOp t op e1)     = P.un t op (flatten e1) Zero
@@ -103,26 +106,79 @@ flatten (N.AppE1 _ p e)      = prim1 p (flatten e) Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2) Zero
 flatten (N.Comp _ h x xs)    = P.let_ x (flatten xs) (topFlatten (x, typeOf xs) h)
 
--- | Only the iteration context, i.e. the topmost source expression
+--------------------------------------------------------------------------------
+
+-- | Compile expressions nested in the top-most comprehension (with
+-- iteration depth 1).
+topFlatten :: (Ident, Type) -> N.Expr -> F.LExpr
+topFlatten ctx (N.Table t n cs hs)  = P.dist (F.Table t n cs hs) (envVar ctx)
+topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
+topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
+topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
+topFlatten _   (N.Var t v)          = F.Var (liftType t) v
+topFlatten ctx (N.If t ce te ee)    = $unimplemented
+topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
+topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
+topFlatten ctx (N.Comp t h x xs)    = 
+    (P.let_ x currentGen
+              (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
+                                (runFlat env (deepFlatten h))))
+
+  where
+    -- | Initialize the environment for descending into the comprehension head
+    env = initEnv x (typeOf currentGen) ctx
+
+    -- | The variable bound by the comprehension, which now refers to
+    -- all elements of the source at once.
+    xv :: F.LExpr
+    xv = F.Var (typeOf currentGen) x
+
+    -- | The compiled generator expression of the current
+    -- comprehension, compiled in the context of the topmost
+    -- comprehension.
+    currentGen :: F.LExpr
+    currentGen = topFlatten ctx xs
+
+--------------------------------------------------------------------------------
+-- Compile expressions which are nested deeper, i.e. at least at
+-- iteration depth 2.
+
+-- | The environment stores all information for dealing with deeper
+-- nested expressions.
 -- FIXME env should be NonEmpty
 data NestedEnv = NestedEnv
-    { context    :: (Ident, Type)
-    , inScope    :: [(Ident, Type)]
+
+    { -- | A reference to the generator expression in the current
+      -- iteration context.
+      context    :: (Ident, Type)   
+
+      -- | All bindings which are currently in scope and need to be
+      -- lifted to the current iteration context.
+    , inScope    :: [(Ident, Type)] 
+
+      -- | The current iteration depth
     , frameDepth :: Nat
     }
 
-type Flatten a = ReaderT NestedEnv (State Int) a
+-- | 'initEnv x xst ctx' constructs the initial environment when a
+-- comprehension is encountered at depth 1. 'x' is the variable bound
+-- by the inner comprehension, 'xst' is the type of the /translated/
+-- generator source expression and 'ctx' is the outer (so far)
+-- context.
+initEnv :: Ident -> Type -> (Ident, Type) -> NestedEnv
+initEnv x xst ctx = 
+    NestedEnv { context    = (x, xst)
+              , inScope    = map (\(n, t) -> (n, liftType t)) [ctx, (x, xst)]
+              , frameDepth = Succ $ Succ Zero
+              }
+
+
+-- | A reader monad that provides access to the flattening
+-- environment.
+type Flatten a = Reader NestedEnv a
 
 runFlat :: NestedEnv -> Flatten a -> a
-runFlat env ma = evalState (runReaderT ma env) 1
-
--- FIXME this should work for now, but is a bit hackish. Implement a
--- clean solution to avoid name collisions.
-freshName :: Flatten Ident
-freshName = do
-    i <- get
-    put $ i + 1
-    return $ "s" ++ show i
+runFlat env ma = runReader ma env
 
 -- | Update the environment to express the descent into a
 -- comprehension that binds the name 'x'. This involves updating the
@@ -143,35 +199,11 @@ ctxVarM = envVar <$> asks context
 frameDepthM :: Flatten Nat
 frameDepthM = asks frameDepth
 
--- depth = 1
-topFlatten :: (Ident, Type) -> N.Expr -> F.LExpr
-topFlatten ctx (N.Table t n cs hs)  = P.dist (F.Table t n cs hs) (envVar ctx)
-topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
-topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
-topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
-topFlatten _   (N.Var t v)          = F.Var (liftType t) v
-topFlatten ctx (N.If t ce te ee)    = $unimplemented
-topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
-topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
-topFlatten ctx (N.Comp t h x xs)    = 
-    (P.let_ x (topFlatten ctx xs)
-              (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
-                                (runFlat env (deepFlatten h))))
-
-  where
-    env :: NestedEnv
-    env = NestedEnv { context    = (x, listT $ typeOf xs)
-                    , inScope    = map (\(n, t) -> (n, liftType t)) [ctx, (x, typeOf xs)]
-                    , frameDepth = Succ $ Succ Zero
-                    }
-
-    xv :: F.LExpr
-    xv = F.Var (liftType $ typeOf xs) x
-
--- depth >= 2
+-- Compile nested expressions that occur with an iteration depth of at
+-- least two.
 deepFlatten :: N.Expr -> Flatten F.LExpr
 deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
-deepFlatten (N.Table t n cs hs)  = do -- P.dist (F.Table t n cs hs) <$> ctxVarM
+deepFlatten (N.Table t n cs hs)  = do
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM
     return $ P.unconcat d1 ctx $ P.dist (F.Table t n cs hs) (P.qconcat d1 ctx)
@@ -217,48 +249,9 @@ liftEnv ctx d1 headExpr env = mkLiftingLet env
     cv = envVar ctx
 
 --------------------------------------------------------------------------------
--- Elimination of comprehensions
-
--- | Push a comprehension through all FKL constructs by lifting
--- primitive functions and distributing over the generator source.
-{-
-pushComp :: Ident -> F.LExpr -> F.LExpr -> F.LExpr
-pushComp _ xs tab@(F.LTable _ _ _ _)  = P.dist tab xs
-
-pushComp _ xs v@(F.LConst _ _)        = P.dist v xs
-
-pushComp x xs y@(F.LVar _ n)
-    | x == n                          = xs
-    | otherwise                       = P.dist y xs
-
-pushComp x xs (F.LPApp1 t p e1)       = liftPrim1 t p (pushComp x xs e1)
-
-pushComp x xs (F.LPApp2 t p e1 e2)    = 
-    liftPrim2 t p (pushComp x xs e1) (pushComp x xs e2)
-
-pushComp x xs (F.LPApp3 t p e1 e2 e3) = 
-    liftPrim3 t p (pushComp x xs e1) (pushComp x xs e2) (pushComp x xs e3)
-
-pushComp x xs (F.LBinOp t op e1 e2)   = 
-    liftBinOp t op (pushComp x xs e1) (pushComp x xs e2)
-
-pushComp x xs (F.LUnOp t op e)        = 
-    liftUnOp t op (pushComp x xs e)
-
-pushComp x xs (F.LIf _ ce te ee)      = 
-    P.combine condVec thenVec elseVec
-  where
-    condVec    = pushComp x xs ce
-    thenVec    = pushComp x (P.restrict xs condVec ) te
-    negCondVec = F.LUnOp (listT boolT) 
-                         (F.LiftedN (Succ Zero) (SUBoolOp Not)) 
-                         condVec
-    elseVec    = pushComp x (P.restrict xs negCondVec ) ee
-
--}
-
---------------------------------------------------------------------------------
--- Normalization of intermediate flat expressions into the final form
+-- Normalization of intermediate flat expressions into the final
+-- form. This step eliminates higher-lifted occurences of built-in
+-- combinators.
 
 type Supply = Int
 

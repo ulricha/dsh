@@ -526,7 +526,7 @@ fstL (VShape q (LPair p1 _p2)) = do
     let(p1', cols) = projectFromPos p1
     proj <- vlProject q (map Column cols)
     return $ VShape proj p1'
-fstL _s = $impossible
+fstL s = trace (show s) $ $impossible
 
 sndL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 sndL (VShape q (LPair _p1 p2)) = do
