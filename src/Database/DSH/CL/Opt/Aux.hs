@@ -63,11 +63,11 @@ type TuplifyM = RewriteStateM (RewriteC CL)
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
+applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runRewriteM $ apply t initialCtx (inject e)
+applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 
 
 --------------------------------------------------------------------------------

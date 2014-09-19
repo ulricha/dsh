@@ -20,7 +20,7 @@ import Database.DSH.NKL.Lang
 
 -- | Run a translate on an expression without context
 applyExpr :: [Ident] -> TransformN Expr b -> Expr -> Either String b
-applyExpr nameCtx f e = runRewriteM $ apply f (initialCtx nameCtx) (inject e)
+applyExpr nameCtx f e = runRewriteM $ applyT f (initialCtx nameCtx) (inject e)
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables

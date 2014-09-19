@@ -131,9 +131,9 @@ compT :: Monad m => Transform NestedCtx m Expr a1
                  -> (Type -> a1 -> Ident -> a2 -> b)
                  -> Transform NestedCtx m Expr b
 compT t1 t2 f = transform $ \c expr -> case expr of
-                     Comp ty h x xs -> f ty <$> apply t1 (c@@CompHead) h 
+                     Comp ty h x xs -> f ty <$> applyT t1 (c@@CompHead) h 
                                             <*> return x 
-                                            <*> apply t2 (c@@CompSource) xs
+                                            <*> applyT t2 (c@@CompSource) xs
                      _              -> fail "not a comprehension node"
 {-# INLINE compT #-}
 
@@ -145,7 +145,7 @@ appe1T :: Monad m => Transform NestedCtx m Expr a
                   -> (Type -> Prim1 Type -> a -> b)
                   -> Transform NestedCtx m Expr b
 appe1T t f = transform $ \c expr -> case expr of
-                      AppE1 ty p e -> f ty p <$> apply t (c@@AppE1Arg) e                  
+                      AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e                  
                       _            -> fail "not a unary primitive application"
 {-# INLINE appe1T #-}                      
                       
@@ -158,7 +158,8 @@ appe2T :: Monad m => Transform NestedCtx m Expr a1
                   -> (Type -> Prim2 Type -> a1 -> a2 -> b)
                   -> Transform NestedCtx m Expr b
 appe2T t1 t2 f = transform $ \c expr -> case expr of
-                     AppE2 ty p e1 e2 -> f ty p <$> apply t1 (c@@AppE2Arg1) e1 <*> apply t2 (c@@AppE2Arg2) e2
+                     AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1 
+                                                <*> applyT t2 (c@@AppE2Arg2) e2
                      _                -> fail "not a binary primitive application"
 {-# INLINE appe2T #-}                      
 
@@ -171,7 +172,8 @@ binopT :: Monad m => Transform NestedCtx m Expr a1
                   -> (Type -> ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform NestedCtx m Expr b
 binopT t1 t2 f = transform $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
+                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1 
+                                                  <*> applyT t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
 {-# INLINE binopT #-}                      
 
@@ -183,7 +185,7 @@ unopT :: Monad m => Transform NestedCtx m Expr a
                  -> (Type -> ScalarUnOp -> a -> b)
                  -> Transform NestedCtx m Expr b
 unopT t f = transform $ \ctx expr -> case expr of
-                     UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
+                     UnOp ty op e -> f ty op <$> applyT t (ctx@@UnOpArg) e
                      _            -> fail "not an unary operator application"
 {-# INLINE unopT #-}
 
@@ -197,9 +199,9 @@ ifT :: Monad m => Transform NestedCtx m Expr a1
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Transform NestedCtx m Expr b
 ifT t1 t2 t3 f = transform $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> apply t1 (c@@IfCond) e1               
-                                           <*> apply t2 (c@@IfThen) e2
-                                           <*> apply t3 (c@@IfElse) e3
+                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1               
+                                           <*> applyT t2 (c@@IfThen) e2
+                                           <*> applyT t3 (c@@IfElse) e3
                     _              -> fail "not an if expression"
 {-# INLINE ifT #-}                      
                     

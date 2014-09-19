@@ -23,10 +23,12 @@ module Database.DSH.FKL.Kure
 
       -- * Congruence combinators
     , tableT, papp1T, papp2T, papp3T, binopT, unopT
-    , ifT, constExprT
+    , ifT, constExprT, varT, letT
 
     , tableR, papp1R, papp2R, papp3R, binopR, unopR
-    , ifR, constExprR
+    , ifR, constExprR, varR, letR
+
+    , inScopeNames, freeIn, boundIn, freshNameT
     
     ) where
     
@@ -68,6 +70,8 @@ data CrumbF = AppFun
             | UnConcatArg1
             | UnConcatArg2
             | QConcatArg
+            | LetBind
+            | LetBody
             deriving (Eq, Show)
 
 type AbsPathF = AbsolutePath CrumbF
@@ -75,7 +79,9 @@ type AbsPathF = AbsolutePath CrumbF
 type PathF = Path CrumbF
 
 -- | The context for KURE-based FKL rewrites
-data FlatCtx = FlatCtx { fkl_path :: AbsPathF }
+data FlatCtx = FlatCtx { fkl_path     :: AbsPathF
+                       , fkl_bindings :: [Ident]
+                       }
                        
 instance ExtendPath FlatCtx CrumbF where
     c@@n = c { fkl_path = fkl_path c @@ n }
@@ -84,9 +90,8 @@ instance ReadPath FlatCtx CrumbF where
     absPath c = fkl_path c
 
 initialCtx :: FlatCtx
-initialCtx = FlatCtx { fkl_path = mempty }
+initialCtx = FlatCtx { fkl_path = mempty, fkl_bindings = [] }
 
-{- FIXME will be needed again when let-bindings are added
 -- | Record a variable binding in the context
 bindVar :: Ident -> FlatCtx -> FlatCtx
 bindVar n ctx = ctx { fkl_bindings = n : fkl_bindings ctx }
@@ -105,7 +110,6 @@ freshNameT :: [Ident] -> TransformF a Ident
 freshNameT avoidNames = do
     ctx <- contextT
     constT $ freshName (avoidNames ++ inScopeNames ctx)
--}
 
 --------------------------------------------------------------------------------
 -- Support for stateful transforms
@@ -140,9 +144,9 @@ ifT :: Monad m => Transform FlatCtx m (Expr l) a1
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Transform FlatCtx m (Expr l) b
 ifT t1 t2 t3 f = transform $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> apply t1 (c@@IfCond) e1               
-                                           <*> apply t2 (c@@IfThen) e2
-                                           <*> apply t3 (c@@IfElse) e3
+                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1               
+                                           <*> applyT t2 (c@@IfThen) e2
+                                           <*> applyT t3 (c@@IfElse) e3
                     _              -> fail "not an if expression"
 {-# INLINE ifT #-}                      
                     
@@ -170,7 +174,7 @@ binopT :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> (Type -> l ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
 binopT t1 t2 f = transform $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> apply t1 (c@@BinOpArg1) e1 <*> apply t2 (c@@BinOpArg2) e2
+                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1 <*> applyT t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
 {-# INLINE binopT #-}                      
 
@@ -182,7 +186,7 @@ unopT :: Monad m => Transform FlatCtx m (Expr l) a
                  -> (Type -> l ScalarUnOp -> a -> b)
                  -> Transform FlatCtx m (Expr l) b
 unopT t f = transform $ \ctx expr -> case expr of
-                     UnOp ty op e -> f ty op <$> apply t (ctx@@UnOpArg) e
+                     UnOp ty op e -> f ty op <$> applyT t (ctx@@UnOpArg) e
                      _            -> fail "not an unary operator application"
 {-# INLINE unopT #-}
 
@@ -194,7 +198,7 @@ papp1T :: Monad m => Transform FlatCtx m (Expr l) a
                   -> (Type -> l Prim1 -> a -> b)
                   -> Transform FlatCtx m (Expr l) b
 papp1T t f = transform $ \c expr -> case expr of
-                      PApp1 ty p e -> f ty p <$> apply t (c@@PApp1Arg) e                  
+                      PApp1 ty p e -> f ty p <$> applyT t (c@@PApp1Arg) e                  
                       _            -> fail "not a unary primitive application"
 {-# INLINE papp1T #-}                      
                       
@@ -206,7 +210,7 @@ qconcatT :: Monad m => Transform FlatCtx m (Expr l) a
                         -> (Nat -> Type -> a -> b)
                         -> Transform FlatCtx m (Expr l) b
 qconcatT t f = transform $ \c expr -> case expr of
-                        QConcat n ty e -> f n ty <$> apply t (c@@QConcatArg) e                  
+                        QConcat n ty e -> f n ty <$> applyT t (c@@QConcatArg) e                  
                         _              -> fail "not a qconcat application"
 {-# INLINE qconcatT #-}                      
                       
@@ -220,7 +224,7 @@ papp2T :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> (Type -> l Prim2 -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
 papp2T t1 t2 f = transform $ \c expr -> case expr of
-                     PApp2 ty p e1 e2 -> f ty p <$> apply t1 (c@@PApp2Arg1) e1 <*> apply t2 (c@@PApp2Arg2) e2
+                     PApp2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@PApp2Arg1) e1 <*> applyT t2 (c@@PApp2Arg2) e2
                      _                -> fail "not a binary primitive application"
 {-# INLINE papp2T #-}                      
 
@@ -233,7 +237,7 @@ unconcatT :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> (Nat -> Type -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
 unconcatT t1 t2 f = transform $ \c expr -> case expr of
-                     UnConcat n ty e1 e2 -> f n ty <$> apply t1 (c@@UnConcatArg1) e1 <*> apply t2 (c@@UnConcatArg2) e2
+                     UnConcat n ty e1 e2 -> f n ty <$> applyT t1 (c@@UnConcatArg1) e1 <*> applyT t2 (c@@UnConcatArg2) e2
                      _                -> fail "not a unconcat call"
 {-# INLINE unconcatT #-}                      
 
@@ -248,9 +252,9 @@ papp3T :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) b
 papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
                      PApp3 ty p e1 e2 e3 -> f ty p 
-                                            <$> apply t1 (c@@PApp3Arg1) e1 
-                                            <*> apply t2 (c@@PApp3Arg2) e2
-                                            <*> apply t3 (c@@PApp3Arg3) e3
+                                            <$> applyT t1 (c@@PApp3Arg1) e1 
+                                            <*> applyT t2 (c@@PApp3Arg2) e2
+                                            <*> applyT t3 (c@@PApp3Arg3) e3
                      _                -> fail "not a ternary primitive application"
 {-# INLINE papp3T #-}                      
 
@@ -271,6 +275,32 @@ constExprT f = contextfreeT $ \expr -> case expr of
 constExprR :: Monad m => Rewrite FlatCtx m (Expr l)
 constExprR = constExprT Const
 {-# INLINE constExprR #-}                      
+
+letT :: Monad m => Transform FlatCtx m (Expr l) a1
+                -> Transform FlatCtx m (Expr l) a2
+                -> (Type -> Ident -> a1 -> a2 -> b) 
+                -> Transform FlatCtx m (Expr l) b
+letT t1 t2 f = transform $ \c expr -> case expr of
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                                         <*> applyT t2 (bindVar x $ c@@LetBody) e
+                 _             -> fail "not a let expression"
+{-# INLINE letT #-}
+
+letR :: Monad m => Rewrite FlatCtx m (Expr l) 
+                -> Rewrite FlatCtx m (Expr l) 
+                -> Rewrite FlatCtx m (Expr l)
+letR r1 r2 = letT r1 r2 Let
+{-# INLINE letR #-}
+
+varT :: Monad m => (Type -> Ident -> b) -> Transform FlatCtx m (Expr l) b
+varT f = contextfreeT $ \expr -> case expr of
+             Var ty n -> return $ f ty n
+             _        -> fail "not a variable"
+{-# INLINE varT #-}
+
+varR :: Monad m => Rewrite FlatCtx m (Expr l)
+varR = varT Var
+{-# INLINE varR #-}
                     
 --------------------------------------------------------------------------------
        
@@ -287,6 +317,8 @@ instance Walker FlatCtx (Expr l) where
             Const{}       -> idR
             UnConcat{}    -> unconcatR (extractR r) (extractR r)
             QConcat{}     -> qconcatR (extractR r)
+            Let{}         -> letR (extractR r) (extractR r)
+            Var{}         -> idR
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

@@ -9,16 +9,13 @@ module Database.DSH.VL.Render.JSON
 
 import           Control.Monad
 import qualified Data.IntMap                 as M
-import           Data.List.NonEmpty          (NonEmpty (..))
 
-import           Data.Aeson                  (FromJSON, ToJSON, decode, encode,
-                                              parseJSON, toJSON)
+import           Data.Aeson                  (decode, encode)
 import           Data.Aeson.TH
 import qualified Data.ByteString.Lazy.Char8  as BL
 
 import           Database.Algebra.Dag.Common
 
-import qualified Database.DSH.Common.Lang    as L
 import           Database.DSH.VL.Lang
 
 data Plan = Plan { tags :: [(AlgNode, [Tag])]
