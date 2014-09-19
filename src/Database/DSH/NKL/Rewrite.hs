@@ -56,6 +56,13 @@ alphaCompR avoidNames = do
     let varTy = elemT compTy
     compT (tryR $ substR x (Var varTy x')) idR (\_ h' _ xs' -> Comp compTy h' x' xs')
 
+alphaLetR :: [Ident] -> RewriteN Expr
+alphaLetR avoidNames = do
+    Let letTy x e1 e2 <- idR
+    x'                <- freshNameT (x : freeVars e2 ++ avoidNames)
+    let varTy = typeOf e1
+    letT idR (tryR $ substR x (Var varTy x')) (\_ _ e1' e2' -> Let letTy x' e1' e2')
+
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
@@ -65,8 +72,8 @@ substR v s = readerT $ \expr -> case expr of
     Var _ _                                   -> idR
 
     -- A comprehension which does not shadow v and in which v occurs
-    -- free in the head. If the lambda variable occurs free in the
-    -- substitute, we rename the lambda variable to avoid name
+    -- free in the head. If the comprehension variable occurs free in
+    -- the substitute, we rename the comprehension to avoid name
     -- capturing.
     Comp _ h x _ | x /= v && v `elem` freeVars h ->
         if x `elem` freeVars s
@@ -75,6 +82,14 @@ substR v s = readerT $ \expr -> case expr of
 
     -- A comprehension whose generator shadows v -> don't descend into the head
     Comp _ _ x _ | v == x                     -> compR idR (substR v s)
+
+    Let _ x _ e2 | x /= v && v `elem` freeVars e2 ->
+        if x `elem` freeVars s
+        then alphaLetR (freeVars s) >>> substR v s
+        else anyR $ substR v s
+
+    -- A let binding which shadows v -> don't descend into the body
+    Let _ x _ _ | v == x                      -> letR (substR v s) idR
     _                                         -> anyR $ substR v s
 
 --------------------------------------------------------------------------------
@@ -87,13 +102,50 @@ pattern SingletonP e <- AppE2 _ (Prim2 Cons _) e (Const _ (ListV []))
 -- concat [ [ e x ] | x <- xs ]
 -- =>
 -- [ e x | x <- xs ]
-singletonHead :: RewriteN Expr
-singletonHead = do
+singletonHeadR :: RewriteN Expr
+singletonHeadR = do
     ConcatP t (Comp _ (SingletonP e) x xs) <- idR
     return $ Comp t e x xs
 
+-- | Count occurences of a given identifier.
+countVarRefT :: Ident -> TransformN Expr Int
+countVarRefT n = do
+    refs <- collectT $ do Var _ n' <- idR
+                          guardM $ n == n'
+                          return n'
+    return $ length refs
+
+-- | Remove a let-binding that is not referenced.
+unusedBindingR :: RewriteN Expr
+unusedBindingR = do
+    Let _ x _ e2 <- idR
+    0            <- childT LetBody $ countVarRefT x
+    return $ e2
+
+-- | Inline a let-binding that is only referenced once.
+referencedOnceR :: RewriteN Expr
+referencedOnceR = do
+    Let _ x e1 _ <- idR
+    1             <- childT LetBody $ countVarRefT x
+    childT LetBody $ substR x e1
+
+simpleExpr :: Expr -> Bool
+simpleExpr Table{} = True
+simpleExpr Var{}   = True
+simpleExpr _       = False
+
+-- | Inline a let-binding that binds a simple expression.
+simpleBindingR :: RewriteN Expr
+simpleBindingR = do
+    Let _ x e1 _ <- idR
+    guardM $ simpleExpr e1
+    childT LetBody $ substR x e1
+    
 nklOptimizations :: RewriteN Expr
-nklOptimizations = anybuR singletonHead
+nklOptimizations = anybuR $ singletonHeadR 
+                            <+ unusedBindingR 
+                            <+ referencedOnceR
+                            <+ simpleBindingR
 
 optimizeNKL :: Expr -> Expr
 optimizeNKL expr = debugOpt expr optimizedExpr

@@ -23,8 +23,8 @@ module Database.DSH.NKL.Kure
     , inScopeNames, bindVar
 
       -- * Congruence combinators
-    , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, compT
-    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR
+    , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, compT, letT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR, letR
     
     ) where
     

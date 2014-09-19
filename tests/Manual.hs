@@ -345,8 +345,37 @@ qif = [ if x > 5 then x + 42 else x * 2 | x <- toQ ([1..10] :: [Integer])]
 
 qx = map (map sum) $ toQ ([[]] :: [[[Integer]]])
 
+qf = [ x | x <- toQ ([1..10] :: [Integer]), x < 5 ]
+
+project 
+  :: Q ((Integer, Integer, Integer), [((Integer, Integer, Integer), (Double, Double))])
+  -> Q ((Integer, Integer, Integer), Double)
+project gk = pair (fst gk) revenue
+  where
+    revenue = sum [ ep * (1 - d) | (view -> (ep, d)) <- [ snd x | x <- snd gk ] ]
+    
+byRevDate :: Q ((Integer, Integer, Integer), Double) -> Q (Double, Integer)
+byRevDate (view -> (((view -> (_, _, sp)), r))) = pair (r * (-1)) sp
+
+q3t :: Q [((Integer, Integer, Integer), Double)]
+q3t =
+  sortWith byRevDate $
+  map project $
+  groupWithKey fst $
+  [ let sep = tuple3 (l_orderkeyQ l) (o_orderdateQ o) (o_shippriorityQ o)
+    in pair sep (pair (l_extendedpriceQ l) (l_discountQ l))
+  | c <- customers
+  , o <- orders
+  , l <- lineitems
+  , c_mktsegmentQ c == (toQ "foo")
+  , c_custkeyQ c == o_custkeyQ o
+  , l_orderkeyQ l == o_orderkeyQ o
+  , o_orderdateQ o < (toQ 42)
+  , l_shipdateQ l > (toQ 23)
+  ]
+
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
-main = getConn P.>>= \c -> debugQ "q" c qx
+main = getConn P.>>= \c -> debugQ "q" c q3t
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
