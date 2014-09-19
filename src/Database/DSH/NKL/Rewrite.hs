@@ -35,11 +35,14 @@ freeVars :: Expr -> [Ident]
 freeVars = either error id . applyExpr [] freeVarsT
 
 boundVarsT :: TransformN Expr [Ident]
-boundVarsT = fmap nub $ crushbuT $ do Comp _ _ v _ <- idR
-                                      return [v]
+boundVarsT = fmap nub $ crushbuT $ readerT $ \expr -> case expr of
+     Comp _ _ v _ -> return [v]
+     Let _ v _ _  -> return [v]
+     _            -> return []
 
 -- | Compute all names that are bound in the given expression. Note
--- that the only binding form in NKL is a lambda.
+-- that the only binding forms in NKL are comprehensions or 'let'
+-- bindings.
 boundVars :: Expr -> [Ident]
 boundVars = either error id . applyExpr [] boundVarsT
 

@@ -19,6 +19,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
 import qualified Database.DSH.FKL.Lang       as F
 import qualified Database.DSH.FKL.Primitives as P
+import           Database.DSH.FKL.Rewrite
 import qualified Database.DSH.NKL.Lang       as N
 
 -- | Transform an expression in the Nested Kernel Language into its
@@ -27,11 +28,11 @@ import qualified Database.DSH.NKL.Lang       as N
 flatTransform :: N.Expr -> F.FExpr
 flatTransform expr = 
 #ifdef DEBUGCOMP
-    let lexpr = flatten expr
+    let lexpr = optimizeFKL $ flatten expr
         fexpr = normalize lexpr
     in trace (decorate "Flattened" lexpr) $
        trace (decorate "Normalized Flat" fexpr) $
-       fexpr
+       optimizeFKL fexpr
 
   where
     padSep :: String -> String
