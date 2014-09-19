@@ -61,6 +61,8 @@ data CrumbN = CompHead
             | IfCond
             | IfThen
             | IfElse
+            | LetBind
+            | LetBody
             deriving (Eq, Show)
 
 type AbsPathN = AbsolutePath CrumbN
@@ -232,6 +234,20 @@ varR :: Monad m => Rewrite NestedCtx m Expr
 varR = varT Var
 {-# INLINE varR #-}                      
 
+letT :: Monad m => Transform NestedCtx m Expr a1
+                -> Transform NestedCtx m Expr a2
+                -> (Type -> Ident -> a1 -> a2 -> b) 
+                -> Transform NestedCtx m Expr b
+letT t1 t2 f = transform $ \c expr -> case expr of
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                                         <*> applyT t2 (bindVar x $ c@@LetBody) e
+                 _             -> fail "not a let expression"
+
+letR :: Monad m => Rewrite NestedCtx m Expr 
+                -> Rewrite NestedCtx m Expr 
+                -> Rewrite NestedCtx m Expr
+letR r1 r2 = letT r1 r2 Let
+
 
 --------------------------------------------------------------------------------
        
@@ -247,7 +263,7 @@ instance Walker NestedCtx Expr where
             If{}    -> ifR (extractR r) (extractR r) (extractR r)
             Const{} -> idR
             Var{}   -> idR
-    {-# INLINE allR #-}
+            Let{}   -> letR (extractR r) (extractR r)
             
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

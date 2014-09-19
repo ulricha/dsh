@@ -4,6 +4,9 @@
 
 module Database.DSH.VL.VLPrimitives where
 
+import Debug.Trace
+import Database.DSH.Common.Pretty
+
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.VL.Vector
@@ -75,7 +78,7 @@ typeToRowType t = case t of
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT _     -> $impossible
+  Ty.ListT t     -> trace (pp $ Ty.ListT t) $impossible
   Ty.FunT _ _    -> $impossible
 
 ----------------------------------------------------------------------------------

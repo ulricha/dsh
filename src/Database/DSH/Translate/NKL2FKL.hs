@@ -107,6 +107,7 @@ flatten (N.If t ce te ee)    = F.If t (flatten ce) (flatten te) (flatten ee)
 flatten (N.AppE1 _ p e)      = prim1 p (flatten e) Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2) Zero
 flatten (N.Comp _ h x xs)    = P.let_ x (flatten xs) (topFlatten (x, typeOf xs) h)
+flatten (N.Let _ x xs e)     = P.let_ x (flatten xs) (flatten e)
 
 --------------------------------------------------------------------------------
 
@@ -118,6 +119,7 @@ topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
 topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
 topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
 topFlatten _   (N.Var t v)          = F.Var (liftType t) v
+topFlatten ctx (N.Let _ x xs e)     = P.let_ x (topFlatten ctx xs) (topFlatten ctx e)
 topFlatten ctx (N.If _ ce te ee)    =
     -- Combine the results for the then and else branches. Combined,
     -- we get values for all iterations.
@@ -239,6 +241,8 @@ deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
 deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
 deepFlatten (N.AppE1 _ p e)      = prim1 p <$> deepFlatten e <*> frameDepthM
 deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
+
+deepFlatten (N.Let _ x xs e)     = P.let_ x <$> (deepFlatten xs) <*> (deepFlatten e)
 
 deepFlatten (N.If _ ce te ee)    = do
     Succ d1      <- frameDepthM

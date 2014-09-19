@@ -1,4 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Database.DSH.FKL.Lang where
 
 import           Text.PrettyPrint.ANSI.Leijen
@@ -14,10 +16,14 @@ import           Database.DSH.Common.Type   (Type, Typed, typeOf)
 -- operators might be lifted to arbitrary levels.
 data LiftedN p = LiftedN Nat p
 
+deriving instance Show p => Show (LiftedN p)
+
 -- | 'Lifted' defines an FKL dialect in which primitives and operators
 -- occur either unlifted or lifted once.
 data Lifted p = Lifted p
               | NotLifted p
+
+deriving instance Show p => Show (Lifted p)
 
 -- | 'Expr' is the final target language of the flattening
 -- transformation. Primitive combinators and operators are only lifted
@@ -41,6 +47,9 @@ data Expr l = Table Type String [L.Column] L.TableHints
 
 type LExpr = Expr LiftedN
 type FExpr = Expr Lifted
+
+deriving instance Show (Expr LiftedN)
+deriving instance Show (Expr Lifted)
 
 -- | QuickConcat does not unsegment the vector. That is:
 -- the descriptor might not be normalized and segment
@@ -169,7 +178,7 @@ instance Pretty Prim3 where
 instance Pretty (Expr Lifted) where
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) = 
-        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+        align $ text "let" <+> text x <> colon <> colon <> pretty (typeOf e1) <+> char '=' <+> pretty e1
                 <$>
                 text "in" <+> pretty e
 
@@ -201,8 +210,7 @@ instance Pretty (Expr Lifted) where
     pretty (UnOp _ o e) =
         pretty o <> parens (pretty e)
 
-    pretty (Const _ v) =
-        pretty v
+    pretty (Const t v) = pretty v <> colon <> colon <> pretty t
 
     pretty (QConcat n _ e) = 
         text "qconcat" 

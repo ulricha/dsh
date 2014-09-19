@@ -29,18 +29,20 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Const Type L.Val
            | Var Type L.Ident
            | Comp Type Expr L.Ident Expr
+           | Let Type L.Ident Expr Expr
            deriving (Show)
 
 instance Typed Expr where
-  typeOf (Table t _ _ _) = t
-  typeOf (AppE1 t _ _)   = t
-  typeOf (AppE2 t _ _ _) = t
-  typeOf (If t _ _ _)    = t
-  typeOf (BinOp t _ _ _) = t
-  typeOf (UnOp t _ _)    = t
-  typeOf (Const t _)     = t
-  typeOf (Var t _)       = t
-  typeOf (Comp t _ _ _)  = t
+    typeOf (Table t _ _ _) = t
+    typeOf (AppE1 t _ _)   = t
+    typeOf (AppE2 t _ _ _) = t
+    typeOf (If t _ _ _)    = t
+    typeOf (BinOp t _ _ _) = t
+    typeOf (UnOp t _ _)    = t
+    typeOf (Const t _)     = t
+    typeOf (Var t _)       = t
+    typeOf (Comp t _ _ _)  = t
+    typeOf (Let t _ _ _)   = t
 
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
@@ -54,9 +56,13 @@ instance Pretty Expr where
                              <+> (parenthize t)
                              <+> text "else"
                              <+> (parenthize e)
-    pretty (Const _ v)        = text $ show v
+    pretty (Const t v)        = text (show v) <> colon <> colon <> pretty t
     pretty (Var _ s)          = text s
     pretty (Comp _ e x xs)    = brackets $ pretty e <+> char '|' <+> text x <+> text "<-" <+> pretty xs
+    pretty (Let _ x e1 e)     = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                <$>
+                text "in" <+> pretty e
 
 parenthize :: Expr -> Doc
 parenthize e =

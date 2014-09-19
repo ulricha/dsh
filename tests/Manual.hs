@@ -343,8 +343,10 @@ aj_class12 (view -> (xs, ys)) =
 
 qif = [ if x > 5 then x + 42 else x * 2 | x <- toQ ([1..10] :: [Integer])]
 
+qx = map (map sum) $ toQ ([[]] :: [[[Integer]]])
+
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
-main = getConn P.>>= \c -> debugQ "q" c qif
+main = getConn P.>>= \c -> debugQ "q" c qx
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
