@@ -26,24 +26,7 @@ import qualified Database.DSH.NKL.Lang       as N
 -- equivalent Flat Kernel Language expression by means of the
 -- flattening transformation.
 flatTransform :: N.Expr -> F.FExpr
-flatTransform expr = 
-#ifdef DEBUGCOMP
-    let lexpr = optimizeFKL $ flatten expr
-        fexpr = normalize lexpr
-    in trace (decorate "Flattened" lexpr) $
-       trace (decorate "Normalized Flat" fexpr) $
-       optimizeFKL fexpr
-
-  where
-    padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
-
-    decorate :: Pretty e => String -> e -> String
-    decorate msg e = padSep msg ++ pp e ++ padSep ""
-    
-#else
-    normalize $ flatten expr
-#endif
+flatTransform expr = optimizeFKL "FKL" $ normalize $ optimizeFKL "FKL Intermediate" $ flatten expr
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation

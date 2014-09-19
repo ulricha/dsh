@@ -102,8 +102,8 @@ fklOptimizations = anybuR $ unusedBindingR
                             <+ referencedOnceR
                             <+ simpleBindingR
 
-optimizeFKL :: Pretty (Expr l) => Expr l -> (Expr l)
-optimizeFKL expr = debugOpt expr optimizedExpr
+optimizeFKL :: Pretty (Expr l) => String -> Expr l -> (Expr l)
+optimizeFKL stage expr = debugOpt stage expr optimizedExpr
   where
     optimizedExpr = applyExpr fklOptimizations expr
         

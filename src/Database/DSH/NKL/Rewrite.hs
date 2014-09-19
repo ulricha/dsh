@@ -151,7 +151,7 @@ nklOptimizations = anybuR $ singletonHeadR
                             <+ simpleBindingR
 
 optimizeNKL :: Expr -> Expr
-optimizeNKL expr = debugOpt expr optimizedExpr
+optimizeNKL expr = debugOpt "NKL" expr optimizedExpr
   where
     optimizedExpr = applyExpr [] nklOptimizations expr
         
