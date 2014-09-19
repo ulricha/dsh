@@ -178,7 +178,7 @@ instance Pretty Prim3 where
 instance Pretty (Expr Lifted) where
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) = 
-        align $ text "let" <+> text x <> colon <> colon <> pretty (typeOf e1) <+> char '=' <+> pretty e1
+        align $ text "let" <+> text x {- <> colon <> colon <> pretty (typeOf e1) -} <+> char '=' <+> pretty e1
                 <$>
                 text "in" <+> pretty e
 
@@ -210,7 +210,7 @@ instance Pretty (Expr Lifted) where
     pretty (UnOp _ o e) =
         pretty o <> parens (pretty e)
 
-    pretty (Const t v) = pretty v <> colon <> colon <> pretty t
+    pretty (Const t v) = pretty v {- <> colon <> colon <> pretty t -}
 
     pretty (QConcat n _ e) = 
         text "qconcat" 

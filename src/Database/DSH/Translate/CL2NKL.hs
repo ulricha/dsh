@@ -107,17 +107,30 @@ prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
 
             CL.Filter       ->
                 case e1 of
-                    CL.Lam _ x h -> P.restrict <$> expr e2 <*> mkComp h x e2
+                    CL.Lam _ x h -> do
+                        n <- freshName
+                        let nv = CL.Var (typeOf e2) n
+                        P.let_ n <$> expr e2 
+                                 <*> (P.restrict <$> expr nv <*> mkComp h x nv)
+                    
                     _            -> $impossible
 
             CL.SortWith     ->
                 case e1 of
-                    CL.Lam _ x h -> P.sort <$> mkComp h x e2 <*> expr e2
+                    CL.Lam _ x h -> do
+                        n <- freshName
+                        let nv = CL.Var (typeOf e2) n
+                        P.let_ n <$> expr e2 
+                                 <*> (P.sort <$> mkComp h x nv <*> expr nv)
                     _            -> $impossible
 
             CL.GroupWithKey ->
                 case e1 of
-                    CL.Lam _ x h -> P.group <$> mkComp h x e2 <*> expr e2
+                    CL.Lam _ x h -> do
+                        n <- freshName
+                        let nv = CL.Var (typeOf e2) n
+                        P.let_ n <$> expr e2 
+                                 <*> (P.group <$> mkComp h x nv <*> expr nv)
                     _            -> $impossible
 
     mkPrim2 :: NKL.Prim2Op -> NameEnv NKL.Expr
@@ -167,6 +180,19 @@ addGensToEnv gens env = F.foldl' extendEnv env gens
 -- Conversion of CL expressions to NKL expressions
 
 type NameEnv a = Reader [Ident] a
+
+freshName :: NameEnv Ident
+freshName = do
+    boundNames <- ask
+    return $ tryName 0 boundNames
+
+  where
+    tryName :: Int -> [Ident] -> Ident
+    tryName i ns = if mkName i `elem` ns
+                   then tryName (i + 1) ns
+                   else mkName i
+
+    mkName i = "f" ++ show i
 
 -- | Map a CL expression to its NKL equivalent by desugaring all
 -- comprehensions.

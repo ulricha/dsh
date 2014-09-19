@@ -66,3 +66,6 @@ group :: Expr -> Expr -> Expr
 group gs vs = let gst@(ListT _) = typeOf gs
                   vst@(ListT _) = typeOf vs
               in AppE2 vst (Prim2 Group (gst .-> vst .-> vst)) gs vs
+
+let_ :: Ident -> Expr -> Expr -> Expr
+let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
