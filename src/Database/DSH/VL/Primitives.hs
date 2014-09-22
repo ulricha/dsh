@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Database.DSH.VL.VLPrimitives where
+module Database.DSH.VL.Primitives where
 
 import Debug.Trace
 import Database.DSH.Common.Pretty
