@@ -21,13 +21,13 @@ import           Database.DSH.Impossible
 transpose :: LExpr -> Nat -> LExpr
 transpose e d =
     let t = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d t) (LiftedN d Transpose) e
+    in PApp1 (liftTypeN d t) Transpose (LiftedN d) e
 
 -- transpose :: [a] -> [[a]]
 reshape :: Integer -> LExpr -> Nat -> LExpr
 reshape n e d =
     let t = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d $ ListT t) (LiftedN d $ Reshape n) e
+    in PApp1 (liftTypeN d $ ListT t) (Reshape n) (LiftedN d) e
 
 -- group :: [a] -> [b] -> [(a, [b])]
 group :: LExpr -> LExpr -> Nat -> LExpr
@@ -35,38 +35,37 @@ group gs xs d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT gt = unliftTypeN d $ typeOf gs
         rt             = listT (pairT gt (listT xt))
-    in PApp2 (liftTypeN d rt) (LiftedN d Group) gs xs
+    in PApp2 (liftTypeN d rt) Group (LiftedN d) gs xs
 
 -- sort :: [a] -> [b] -> [b]
 sort :: LExpr -> LExpr -> Nat -> LExpr
 sort ss xs d =
     let xst = unliftTypeN d $ typeOf xs
-    in PApp2 (liftTypeN d xst) (LiftedN d Sort) ss xs
+    in PApp2 (liftTypeN d xst) Sort (LiftedN d) ss xs
 
 cons :: LExpr -> LExpr -> Nat -> LExpr
 cons e1 e2 d =
     let t2 = unliftTypeN d $ typeOf e2
-    in PApp2 (liftTypeN d t2) (LiftedN d Cons) e1 e2
+    in PApp2 (liftTypeN d t2) Cons (LiftedN d) e1 e2
 
-pair :: LExpr -> LExpr -> Nat -> LExpr
-pair e1 e2 d =
-    let t1 = unliftTypeN d $ typeOf e1
-        t2 = unliftTypeN d $ typeOf e2
-        rt = pairT t1 t2
-    in PApp2 (liftTypeN d rt) (LiftedN d Pair) e1 e2
+tuple :: [LExpr] -> Nat -> LExpr
+tuple es d =
+    let ts = map (unliftTypeN d . typeOf) es
+        rt = TupleT ts
+    in MkTuple (liftTypeN d rt) (LiftedN d) es
 
 -- zip :: [a] -> [b] -> [(a, b)]
 zip :: LExpr -> LExpr -> Nat -> LExpr
 zip xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) (LiftedN d Zip) xs ys
+    in PApp2 (liftTypeN d $ listT (pairT xt yt)) Zip (LiftedN d) xs ys
 
 cartProduct :: LExpr -> LExpr -> Nat -> LExpr
 cartProduct xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) (LiftedN d CartProduct) xs ys
+    in PApp2 (liftTypeN d $ listT (pairT xt yt)) CartProduct (LiftedN d) xs ys
 
 -- nestProduct :: [a] -> [b] -> [(a, [(a, b)])]
 nestProduct :: LExpr -> LExpr -> Nat -> LExpr
@@ -74,43 +73,43 @@ nestProduct xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
         rt       = listT (pairT xt (listT (pairT xt yt)))
-    in PApp2 (liftTypeN d rt) (LiftedN d NestProduct) xs ys
+    in PApp2 (liftTypeN d rt) NestProduct (LiftedN d) xs ys
 
 thetaJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 thetaJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) (LiftedN d $ ThetaJoin p) xs ys
+    in PApp2 (liftTypeN d $ listT (pairT xt yt)) (ThetaJoin p) (LiftedN d) xs ys
 
 nestJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 nestJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
         rt       = listT (pairT xt (listT (pairT xt yt)))
-    in PApp2 (liftTypeN d rt) (LiftedN d $ NestJoin p) xs ys
+    in PApp2 (liftTypeN d rt) (NestJoin p) (LiftedN d) xs ys
 
 semiJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 semiJoin p e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
-    in PApp2 (liftTypeN d t1) (LiftedN d $ SemiJoin p) e1 e2
+    in PApp2 (liftTypeN d t1) (SemiJoin p) (LiftedN d) e1 e2
 
 antiJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 antiJoin p e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
-    in PApp2 (liftTypeN d t1) (LiftedN d $ AntiJoin p) e1 e2
+    in PApp2 (liftTypeN d t1) (AntiJoin p) (LiftedN d) e1 e2
 
 append :: LExpr -> LExpr -> Nat -> LExpr
 append e1 e2 d =
     let t1 = unliftTypeN d $ typeOf e1
-    in PApp2 (liftTypeN d t1) (LiftedN d Append) e1 e2
+    in PApp2 (liftTypeN d t1) Append (LiftedN d) e1 e2
 
 index :: LExpr -> LExpr -> Nat -> LExpr
 index e1 e2 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp2 (liftTypeN d t) (LiftedN d Index) e1 e2
+    in PApp2 (liftTypeN d t) Index (LiftedN d) e1 e2
 
 length :: LExpr -> Nat -> LExpr
-length e1 d = PApp1 (liftTypeN d intT) (LiftedN d Length) e1
+length e1 d = PApp1 (liftTypeN d intT) Length (LiftedN d) e1
 
 -- FIXME this is not the right place to perform this step. If at all,
 -- do it during compilation to VL.
@@ -120,108 +119,103 @@ head = the
 the :: LExpr -> Nat -> LExpr
 the e1 d =
     let ListT t1 = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d The) e1
+    in PApp1 (liftTypeN d t1) The (LiftedN d) e1
 
 last :: LExpr -> Nat -> LExpr
 last e1 d =
     let ListT t1 = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d Last) e1
+    in PApp1 (liftTypeN d t1) Last (LiftedN d) e1
 
 tail :: LExpr -> Nat -> LExpr
 tail e1 d =
     let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d Tail) e1
+    in PApp1 (liftTypeN d t1) Tail (LiftedN d) e1
 
 nub :: LExpr -> Nat -> LExpr
 nub e1 d =
     let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d Nub) e1
+    in PApp1 (liftTypeN d t1) Nub (LiftedN d) e1
 
 number :: LExpr -> Nat -> LExpr
 number e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
         rt      = (ListT (PairT t IntT ))
-    in PApp1 (liftTypeN d rt) (LiftedN d Number) e1
+    in PApp1 (liftTypeN d rt) Number (LiftedN d) e1
 
 init :: LExpr -> Nat -> LExpr
 init e1 d =
     let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d Init) e1
+    in PApp1 (liftTypeN d t1) Init (LiftedN d) e1
 
 reverse :: LExpr -> Nat -> LExpr
 reverse e1 d =
     let t1@(ListT _) = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t1) (LiftedN d Reverse) e1
+    in PApp1 (liftTypeN d t1) Reverse (LiftedN d) e1
 
 and :: LExpr -> Nat -> LExpr
-and e1 d = PApp1 (liftTypeN d BoolT) (LiftedN d And) e1
+and e1 d = PApp1 (liftTypeN d BoolT) And (LiftedN d) e1
 
 or :: LExpr -> Nat -> LExpr
-or e1 d = PApp1 (liftTypeN d BoolT) (LiftedN d Or) e1
+or e1 d = PApp1 (liftTypeN d BoolT) Or (LiftedN d) e1
 
 sum :: LExpr -> Nat -> LExpr
 sum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) (LiftedN d Sum) e1
+    in PApp1 (liftTypeN d t) Sum (LiftedN d) e1
 
 avg :: LExpr -> Nat -> LExpr
-avg e1 d = PApp1 (liftTypeN d DoubleT) (LiftedN d Avg) e1
+avg e1 d = PApp1 (liftTypeN d DoubleT) Avg (LiftedN d) e1
 
 minimum :: LExpr -> Nat -> LExpr
 minimum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) (LiftedN d Minimum) e1
+    in PApp1 (liftTypeN d t) Minimum (LiftedN d) e1
 
 maximum :: LExpr -> Nat -> LExpr
 maximum e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-    in PApp1 (liftTypeN d t) (LiftedN d Maximum) e1
+    in PApp1 (liftTypeN d t) Maximum (LiftedN d) e1
 
 concat :: LExpr -> Nat -> LExpr
 concat e d =
     let ListT rt@(ListT _) = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d rt) (LiftedN d Concat) e
+    in PApp1 (liftTypeN d rt) Concat (LiftedN d) e
 
 dist :: LExpr -> LExpr -> LExpr
 dist e1 e2 =
     let t1 = typeOf e1
-    in PApp2 (listT t1) (LiftedN Zero Dist) e1 e2
+    in PApp2 (listT t1) Dist (LiftedN Zero) e1 e2
 
 distL :: LExpr -> LExpr -> LExpr
 distL e1 e2 =
     let t1 = typeOf e1
-    in PApp2 (listT t1) (LiftedN (Succ Zero) Dist) e1 e2
+    in PApp2 (listT t1) Dist (LiftedN (Succ Zero)) e1 e2
 
 restrict :: LExpr -> LExpr -> Nat -> LExpr
 restrict xs bs d =
     let xst = unliftTypeN d $ typeOf xs
-    in PApp2 (liftTypeN d xst) (LiftedN d Restrict) xs bs
+    in PApp2 (liftTypeN d xst) Restrict (LiftedN d) xs bs
 
 -- combine :: [Bool] -> [a] -> [a] -> [a]
 combine :: LExpr -> LExpr -> LExpr -> Nat -> LExpr
 combine e1 e2 e3 d =
     let xst = unliftTypeN d $ typeOf e2
-    in PApp3 (liftTypeN d xst) (LiftedN d Combine) e1 e2 e3
+    in PApp3 (liftTypeN d xst) Combine (LiftedN d) e1 e2 e3
 
-fst :: LExpr -> Nat -> LExpr
-fst e d =
-    let PairT t1 _ = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d t1) (LiftedN d Fst) e
-
-snd :: LExpr -> Nat -> LExpr
-snd e d =
-    let PairT _ t2 = unliftTypeN d $ typeOf e
-    in PApp1 (liftTypeN d t2) (LiftedN d Snd) e
+tupElem :: TupleIndex -> LExpr -> Nat -> LExpr
+tupElem f e d =
+    let t = tupleElemT (typeOf e) f
+    in PApp1 (liftTypeN d t) (TupElem f) (LiftedN d) e
 
 --------------------------------------------------------------------------------
 -- Smart constructors for binary and unary operators.
 
 -- FIXME typing of binary operators is not correct
 bin :: Type -> ScalarBinOp -> LExpr -> LExpr -> Nat -> LExpr
-bin t o e1 e2 d = BinOp (liftTypeN d t) (LiftedN d o) e1 e2
+bin t o e1 e2 d = BinOp (liftTypeN d t) o (LiftedN d) e1 e2
 
 un :: Type -> ScalarUnOp -> LExpr -> Nat -> LExpr
-un t o e d = UnOp (liftTypeN d t) (LiftedN d o) e
+un t o e d = UnOp (liftTypeN d t) o (LiftedN d) e
 
 
 --------------------------------------------------------------------------------

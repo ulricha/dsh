@@ -43,8 +43,8 @@ prim1 (N.Prim1 p _) =
         N.Sum       -> P.sum
         N.Avg       -> P.avg
         N.The       -> P.the
-        N.Fst       -> P.fst
-        N.Snd       -> P.snd
+        N.Fst       -> P.tupElem First
+        N.Snd       -> P.tupElem (Next First)
         N.Head      -> P.head
         N.Tail      -> P.tail
         N.Minimum   -> P.minimum
@@ -65,7 +65,7 @@ prim2 (N.Prim2 p _) =
         N.Group        -> P.group
         N.Sort         -> P.sort
         N.Restrict     -> P.restrict
-        N.Pair         -> P.pair
+        N.Pair         -> \e1 e2 -> P.tuple [e1, e2]
         N.Append       -> P.append
         N.Index        -> P.index
         N.Zip          -> P.zip
@@ -323,78 +323,78 @@ normLifting (F.Var t n)            = return $ F.Var t n
 normLifting (F.QConcat n t e)      = F.QConcat n t <$> normLifting e
 normLifting (F.UnConcat n t e1 e2) = F.UnConcat n t <$> normLifting e1 <*> normLifting e2
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2
-normLifting (F.UnOp t lop e)       = 
-    case lop of
-        F.LiftedN Zero op          -> F.UnOp t (F.NotLifted op) <$> normLifting e
-        F.LiftedN (Succ Zero) op -> F.UnOp t (F.Lifted op) <$> normLifting e
-        F.LiftedN (Succ d) op      -> do
+normLifting (F.UnOp t op l e)      = 
+    case l of
+        F.LiftedN Zero         -> F.UnOp t op F.NotLifted <$> normLifting e
+        F.LiftedN (Succ Zero)  -> F.UnOp t op F.Lifted <$> normLifting e
+        F.LiftedN (Succ d)     -> do
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.UnOp t (F.Lifted op) (P.qconcat d v)
+                app = F.UnOp t op F.Lifted (P.qconcat d v)
             return $ P.let_ n e' $ P.unconcat d v app
 
-normLifting (F.BinOp t lop e1 e2)  = 
-    case lop of
-        F.LiftedN Zero op          -> F.BinOp t (F.NotLifted op) 
-                                                  <$> normLifting e1
-                                                  <*> normLifting e2
-        F.LiftedN (Succ Zero) op -> F.BinOp t (F.Lifted op) 
-                                                  <$> normLifting e1
-                                                  <*> normLifting e2
-        F.LiftedN (Succ d) op      -> do
+normLifting (F.BinOp t op l e1 e2)  = 
+    case l of
+        F.LiftedN Zero         -> F.BinOp t op F.NotLifted
+                                            <$> normLifting e1
+                                            <*> normLifting e2
+        F.LiftedN (Succ Zero)  -> F.BinOp t op F.Lifted
+                                            <$> normLifting e1
+                                            <*> normLifting e2
+        F.LiftedN (Succ d)     -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.BinOp t (F.Lifted op) (P.qconcat d v) (P.qconcat d e2')
+                app = F.BinOp t op F.Lifted (P.qconcat d v) (P.qconcat d e2')
             return $ P.let_ n e1' $ P.unconcat d v app
 
-normLifting (F.PApp1 t lp e)    = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp1 t (F.NotLifted p) <$> normLifting e
-        F.LiftedN (Succ Zero) p -> F.PApp1 t (F.Lifted p) <$> normLifting e
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp1 t p l e)    = 
+    case l of
+        F.LiftedN Zero         -> F.PApp1 t p F.NotLifted <$> normLifting e
+        F.LiftedN (Succ Zero)  -> F.PApp1 t p F.Lifted <$> normLifting e
+        F.LiftedN (Succ d)     -> do
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.PApp1 t (F.Lifted p) (P.qconcat d v)
+                app = F.PApp1 t p F.Lifted (P.qconcat d v)
             return $ P.let_ n e' (P.unconcat d v app)
 
-normLifting (F.PApp2 t lp e1 e2)   = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp2 t (F.NotLifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-        F.LiftedN (Succ Zero) p -> F.PApp2 t (F.Lifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp2 t p l e1 e2)   = 
+    case l of
+        F.LiftedN Zero         -> F.PApp2 t p F.NotLifted
+                                              <$> normLifting e1
+                                              <*> normLifting e2
+        F.LiftedN (Succ Zero)  -> F.PApp2 t p F.Lifted
+                                              <$> normLifting e1
+                                              <*> normLifting e2
+        F.LiftedN (Succ d)     -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp2 t (F.Lifted p) (P.qconcat d v) (P.qconcat d e2')
+                app = F.PApp2 t p F.Lifted (P.qconcat d v) (P.qconcat d e2')
             return $ P.let_ n e1' $ P.unconcat d v app
 
-normLifting (F.PApp3 t lp e1 e2 e3)    = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp3 t (F.NotLifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-                                                 <*> normLifting e3
-        F.LiftedN (Succ Zero) p -> F.PApp3 t (F.Lifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-                                                 <*> normLifting e3
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp3 t p l e1 e2 e3)    = 
+    case l of
+        F.LiftedN Zero        -> F.PApp3 t p F.NotLifted
+                                             <$> normLifting e1
+                                             <*> normLifting e2
+                                             <*> normLifting e3
+        F.LiftedN (Succ Zero) -> F.PApp3 t p F.Lifted
+                                             <$> normLifting e1
+                                             <*> normLifting e2
+                                             <*> normLifting e3
+        F.LiftedN (Succ d)    -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             e3' <- normLifting e3
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp3 t (F.Lifted p) (P.qconcat d v) 
-                                             (P.qconcat d e2') 
-                                             (P.qconcat d e3')
+                app = F.PApp3 t p F.Lifted (P.qconcat d v) 
+                                           (P.qconcat d e2') 
+                                           (P.qconcat d e3')
             return $ P.let_ n e1' $ P.unconcat d v app
 

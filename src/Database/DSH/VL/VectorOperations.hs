@@ -259,21 +259,18 @@ pair (SShape q1 lyt1) (VShape q2 lyt2) = do
     let lyt = zipLayout lyt1 (LNest q2' lyt2)
     return $ SShape q1 lyt
 
-fst ::  Shape VLDVec -> Build VL (Shape VLDVec)
-fst (SShape _q (LTuple [LNest q lyt, _p2])) = return $ VShape q lyt
-fst (SShape q (LTuple [p1, _p2])) = do
-    let (p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column cols)
-    return $ SShape proj p1'
-fst _e1 = $impossible
+tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
+tuple = $unimplemented
 
-snd ::  Shape VLDVec -> Build VL (Shape VLDVec)
-snd (SShape _q (LTuple [_p1, LNest q lyt])) = return $ VShape q lyt
-snd (SShape q (LTuple [_p1, p2])) = do
-    let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column cols)
-    return $ SShape proj p2'
-snd _ = $impossible
+tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
+tupElem i (SShape q (LTuple lyts)) =
+    case lyts !! tupleIndex i of
+        LNest qi lyt -> return $ VShape qi lyt
+        lyt          -> do
+            let (lyt', cols) = projectFromPos lyt
+            proj <- vlProject q (map Column cols)
+            return $ SShape proj lyt'
+tupElem _ _ = $impossible
 
 transpose :: Shape VLDVec -> Build VL (Shape VLDVec)
 transpose (VShape _ (LNest qi lyt)) = do
@@ -535,6 +532,16 @@ sndL (VShape q (LTuple [_p1, p2])) = do
     return $ VShape proj p2'
 sndL s = trace (show s) $ $impossible
 
+tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
+tupElemL i (VShape q (LTuple lyts)) =
+    case lyts !! tupleIndex i of
+        LNest qi lyt -> return $ VShape qi lyt
+        lyt          -> do
+            let (lyt', cols) = projectFromPos lyt
+            proj <- vlProject q (map Column cols)
+            return $ VShape proj lyt'
+tupElemL _ _ = $impossible
+
 transposeL :: Shape VLDVec -> Build VL (Shape VLDVec)
 transposeL (VShape qo (LNest qm (LNest qi lyt))) = do
     (qm', qi') <- vlTransposeS qm qi
@@ -547,6 +554,9 @@ reshapeL n (VShape qo (LNest qi lyt)) = do
     return $ VShape qo (LNest qm (LNest qi' lyt))
 reshapeL _ _ = $impossible
 
+-- | Create a projection list that extracts only those columns
+-- referenced in the sub-layout passed as argument, and shift column
+-- names in the sub-layout to the beginning.
 projectFromPos :: Layout VLDVec -> (Layout VLDVec , [DBCol])
 projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
   where

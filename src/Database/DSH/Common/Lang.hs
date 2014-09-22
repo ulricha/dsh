@@ -18,7 +18,6 @@ instance ToJSON a => ToJSON (N.NonEmpty a) where
 instance FromJSON a => FromJSON (N.NonEmpty a) where
     parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n N.:| nl
 
-
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
 
@@ -71,6 +70,7 @@ $(deriveJSON defaultOptions ''TableHints)
 
 -- | Identifiers
 type Ident = String
+
 
 -----------------------------------------------------------------------------
 -- Scalar operators

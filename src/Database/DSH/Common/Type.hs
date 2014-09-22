@@ -1,12 +1,14 @@
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 module Database.DSH.Common.Type 
     ( isNum
     , extractPairT
     , isList
     , elemT
+    , tupleElemT
     , fstT
     , sndT
     , domainT
@@ -36,6 +38,7 @@ module Database.DSH.Common.Type
 
 import Text.PrettyPrint.ANSI.Leijen
 
+import Database.DSH.Impossible
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Nat
   
@@ -48,6 +51,7 @@ instance Pretty Type where
     pretty UnitT         = text "()"
     pretty (ListT t)     = brackets $ pretty t
     pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
+    pretty (TupleT ts)   = tupled $ map pretty ts
 
 -- | We use the following type language to type the various
 -- intermediate languages.
@@ -73,6 +77,7 @@ isNum StringT     = False
 isNum UnitT       = False
 isNum (ListT _)   = False
 isNum (PairT _ _) = False
+isNum (TupleT _)  = False
       
 domainT :: Type -> Type
 domainT (FunT t _) = t
@@ -109,6 +114,10 @@ isList _        = False
 elemT :: Type -> Type
 elemT (ListT t) = t
 elemT _        = error "elemT: argument is not a list type"
+
+tupleElemT :: Type -> TupleIndex -> Type
+tupleElemT (TupleT ts) f = ts !! (tupleIndex f - 1)
+tupleElemT _           _ = $impossible
 
 listDepth :: Type -> Int
 listDepth (ListT t1) = 1 + listDepth t1

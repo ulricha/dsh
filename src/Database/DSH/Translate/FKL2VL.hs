@@ -10,7 +10,6 @@ import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common      as Alg
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
@@ -50,21 +49,21 @@ fkl2VL expr =
             local (bind n e1') $ fkl2VL e
         Table _ n cs hs -> lift $ P.dbTable n cs hs
         Const t v -> lift $ P.mkLiteral t v
-        BinOp _ (NotLifted o) e1 e2    -> do
+        BinOp _ o NotLifted e1 e2    -> do
             SShape p1 lyt <- fkl2VL e1
             SShape p2 _   <- fkl2VL e2
             p              <- lift $ vlBinExpr o p1 p2
             return $ SShape p lyt
-        BinOp _ (Lifted o) e1 e2     -> do
+        BinOp _ o Lifted e1 e2     -> do
             VShape p1 lyt <- fkl2VL e1
             VShape p2 _   <- fkl2VL e2
             p                  <- lift $ vlBinExpr o p1 p2
             return $ VShape p lyt
-        UnOp _ (NotLifted o) e1 -> do
+        UnOp _ o NotLifted e1 -> do
             SShape p1 lyt <- fkl2VL e1
             p              <- lift $ vlUnExpr o p1
             return $ SShape p lyt
-        UnOp _ (Lifted o) e1 -> do
+        UnOp _ o Lifted e1 -> do
             VShape p1 lyt <- fkl2VL e1
             p                  <- lift $ vlUnExpr o p1
             return $ VShape p lyt
@@ -73,18 +72,18 @@ fkl2VL expr =
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
             lift $ P.ifList eb' e1' e2'
-        PApp1 t f arg -> do
+        PApp1 t f l arg -> do
             arg' <- fkl2VL arg
-            lift $ papp1 t f arg'
-        PApp2 _ f arg1 arg2 -> do
+            lift $ papp1 t f l arg'
+        PApp2 _ f l arg1 arg2 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
-            lift $ papp2 f arg1' arg2'
-        PApp3 _ p arg1 arg2 arg3 -> do
+            lift $ papp2 f l arg1' arg2'
+        PApp3 _ p l arg1 arg2 arg3 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
-            lift $ papp3 p arg1' arg2' arg3'
+            lift $ papp3 p l arg1' arg2' arg3'
         QConcat n _ arg -> do
             arg' <- fkl2VL arg
             return $ P.qConcat n arg'
@@ -94,18 +93,16 @@ fkl2VL expr =
             return $ P.unconcat n arg1' arg2'
 
 
-papp3 :: Lifted Prim3 -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
-papp3 (Lifted Combine)    = P.combineL
-papp3 (NotLifted Combine) = P.combine
+papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp3 Combine Lifted    = P.combineL
+papp3 Combine NotLifted = P.combine
 
-papp1 :: Type -> Lifted Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
-papp1 t (Lifted f) =
+papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp1 t f Lifted =
     case f of
         Length          -> P.lengthL
         Concat          -> P.concatL
         The             -> P.theL
-        Fst             -> P.fstL
-        Snd             -> P.sndL
         Tail            -> P.tailL
         Reverse         -> P.reverseL
         Init            -> P.initL
@@ -120,8 +117,9 @@ papp1 t (Lifted f) =
         Maximum         -> P.aggrL VL.AggrMax
         Sum             -> P.aggrL $ VL.AggrSum $ typeToScalarType $ elemT t
         Avg             -> P.aggrL VL.AggrAvg
+        TupElem i       -> P.tupElemL i
 
-papp1 t (NotLifted f) =
+papp1 t f NotLifted =
     case f of
         Length           -> P.length_
         Reshape n        -> P.reshape n
@@ -133,8 +131,6 @@ papp1 t (NotLifted f) =
         Reverse          -> P.reverse
         Tail             -> P.tail
         Concat           -> P.concat
-        Fst              -> P.fst
-        Snd              -> P.snd
         The              -> P.the
         Sum              -> P.aggr $ VL.AggrSum $ typeToScalarType t
         Avg              -> P.aggr VL.AggrAvg
@@ -142,15 +138,15 @@ papp1 t (NotLifted f) =
         And              -> P.aggr VL.AggrAll
         Maximum          -> P.aggr VL.AggrMax
         Minimum          -> P.aggr VL.AggrMin
+        TupElem i        -> P.tupElem i
 
-papp2 :: Lifted Prim2 -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
-papp2 (Lifted f) =
+papp2 :: Prim2 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp2 f Lifted =
     case f of
         Dist           -> P.distL
         Group          -> P.groupL
         Sort           -> P.sortL
         Restrict       -> P.restrictL
-        Pair           -> P.pairL
         Append         -> P.appendL
         Index          -> P.indexL
         Zip            -> P.zipL
@@ -162,13 +158,12 @@ papp2 (Lifted f) =
         SemiJoin p     -> P.semiJoinL p
         AntiJoin p     -> P.antiJoinL p
 
-papp2 (NotLifted f) =
+papp2 f NotLifted =
     case f of
         Dist            -> P.dist
         Group           -> P.group
         Sort            -> P.sort
         Restrict        -> P.restrict
-        Pair            -> P.pair
         Append          -> P.append
         Index           -> P.index
         Zip             -> P.zip

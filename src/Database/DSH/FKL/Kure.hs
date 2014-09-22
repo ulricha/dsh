@@ -171,11 +171,11 @@ varR = varT Var
 
 binopT :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) a2
-                  -> (Type -> l ScalarBinOp -> a1 -> a2 -> b)
+                  -> (Type -> ScalarBinOp -> l -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
 binopT t1 t2 f = transform $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1 <*> applyT t2 (c@@BinOpArg2) e2
-                     _                 -> fail "not a binary operator application"
+                     BinOp ty op l e1 e2 -> f ty op l <$> applyT t1 (c@@BinOpArg1) e1 <*> applyT t2 (c@@BinOpArg2) e2
+                     _                   -> fail "not a binary operator application"
 {-# INLINE binopT #-}                      
 
 binopR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
@@ -183,11 +183,11 @@ binopR t1 t2 = binopT t1 t2 BinOp
 {-# INLINE binopR #-}                      
 
 unopT :: Monad m => Transform FlatCtx m (Expr l) a
-                 -> (Type -> l ScalarUnOp -> a -> b)
+                 -> (Type -> ScalarUnOp -> l -> a -> b)
                  -> Transform FlatCtx m (Expr l) b
 unopT t f = transform $ \ctx expr -> case expr of
-                     UnOp ty op e -> f ty op <$> applyT t (ctx@@UnOpArg) e
-                     _            -> fail "not an unary operator application"
+                     UnOp ty op l e -> f ty op l <$> applyT t (ctx@@UnOpArg) e
+                     _              -> fail "not an unary operator application"
 {-# INLINE unopT #-}
 
 unopR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
@@ -195,11 +195,11 @@ unopR t = unopT t UnOp
 {-# INLINE unopR #-}
                      
 papp1T :: Monad m => Transform FlatCtx m (Expr l) a
-                  -> (Type -> l Prim1 -> a -> b)
+                  -> (Type -> Prim1 -> l -> a -> b)
                   -> Transform FlatCtx m (Expr l) b
 papp1T t f = transform $ \c expr -> case expr of
-                      PApp1 ty p e -> f ty p <$> applyT t (c@@PApp1Arg) e                  
-                      _            -> fail "not a unary primitive application"
+                      PApp1 ty p l e -> f ty p l <$> applyT t (c@@PApp1Arg) e                  
+                      _              -> fail "not a unary primitive application"
 {-# INLINE papp1T #-}                      
                       
 papp1R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
@@ -221,11 +221,11 @@ qconcatR t = qconcatT t QConcat
                       
 papp2T :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) a2
-                  -> (Type -> l Prim2 -> a1 -> a2 -> b)
+                  -> (Type -> Prim2 -> l -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
 papp2T t1 t2 f = transform $ \c expr -> case expr of
-                     PApp2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@PApp2Arg1) e1 <*> applyT t2 (c@@PApp2Arg2) e2
-                     _                -> fail "not a binary primitive application"
+                     PApp2 ty p l e1 e2 -> f ty p l <$> applyT t1 (c@@PApp2Arg1) e1 <*> applyT t2 (c@@PApp2Arg2) e2
+                     _                  -> fail "not a binary primitive application"
 {-# INLINE papp2T #-}                      
 
 papp2R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
@@ -248,14 +248,14 @@ unconcatR t1 t2 = unconcatT t1 t2 UnConcat
 papp3T :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) a2
                   -> Transform FlatCtx m (Expr l) a3
-                  -> (Type -> l Prim3 -> a1 -> a2 -> a3 -> b)
+                  -> (Type -> Prim3 -> l -> a1 -> a2 -> a3 -> b)
                   -> Transform FlatCtx m (Expr l) b
 papp3T t1 t2 t3 f = transform $ \c expr -> case expr of
-                     PApp3 ty p e1 e2 e3 -> f ty p 
-                                            <$> applyT t1 (c@@PApp3Arg1) e1 
-                                            <*> applyT t2 (c@@PApp3Arg2) e2
-                                            <*> applyT t3 (c@@PApp3Arg3) e3
-                     _                -> fail "not a ternary primitive application"
+                     PApp3 ty p l e1 e2 e3 -> f ty p l
+                                              <$> applyT t1 (c@@PApp3Arg1) e1 
+                                              <*> applyT t2 (c@@PApp3Arg2) e2
+                                              <*> applyT t3 (c@@PApp3Arg3) e3
+                     _                     -> fail "not a ternary primitive application"
 {-# INLINE papp3T #-}                      
 
 papp3R :: Monad m 
