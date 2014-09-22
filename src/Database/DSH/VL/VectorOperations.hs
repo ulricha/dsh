@@ -506,7 +506,7 @@ distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
     (qa, p)             <- vlAlign q1 q2
     lyt1'               <- chainReorder p lyt1
     let lyt             = zipLayout lyt1' lyt2
-    VShape qf lytf <- fstL $ VShape qa lyt
+    VShape qf lytf <- tupElemL First $ VShape qa lyt
     return $ VShape d (LNest qf lytf)
 distL _e1 _e2 = $impossible
 
@@ -517,20 +517,6 @@ pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
     let lyt = zipLayout lyt1 lyt2
     return $ VShape q lyt
 pairL _ _ = $impossible
-
-fstL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-fstL (VShape q (LTuple [p1, _p2])) = do
-    let(p1', cols) = projectFromPos p1
-    proj <- vlProject q (map Column cols)
-    return $ VShape proj p1'
-fstL s = trace (show s) $ $impossible
-
-sndL ::  Shape VLDVec -> Build VL (Shape VLDVec)
-sndL (VShape q (LTuple [_p1, p2])) = do
-    let (p2', cols) = projectFromPos p2
-    proj <- vlProject q (map Column cols)
-    return $ VShape proj p2'
-sndL s = trace (show s) $ $impossible
 
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElemL i (VShape q (LTuple lyts)) =
@@ -565,7 +551,11 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
     projectFromPosWork c (LNest q l)   = (LNest q l, [], c)
     projectFromPosWork c (LTuple lyts) = (LTuple psRes, colsRes, cRes)
       where
-        (psRes, colsRes, cRes) = foldl' $unimplemented ([], [], c) lyts
+        (psRes, colsRes, cRes) = foldl' tupleWorker ([], [], c) lyts
+
+    tupleWorker (psAcc, colsAcc, cAcc) lyt = (psAcc ++ [lyt'], colsAcc ++ cols, c')
+      where 
+        (lyt', cols, c') = projectFromPosWork cAcc lyt
 
 singletonVec ::  Shape VLDVec -> Build VL (Shape VLDVec)
 singletonVec (VShape q lyt) = do
