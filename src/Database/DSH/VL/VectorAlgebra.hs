@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Database.DSH.VL.VectorPrimitives where
+
+module Database.DSH.VL.VectorAlgebra where
 
 import qualified Data.List.NonEmpty              as N
 import           Database.DSH.Common.Lang
@@ -7,18 +8,6 @@ import           Database.DSH.VL.Vector
 import           Database.DSH.VL.Lang
 import           Database.Algebra.Dag.Build
 
-{-
-
-FIXME
-consistent naming scheme:
-
-- atom = A
-- lifted is the standard case
-- difference between lifted and segmented -> segmented S
-- common prefix: vec. vl is reserved for the actual VL operators
--}
-
--- FIXME might need an FD a -> r
 class VectorAlgebra v a where
     -- | A vector with one segment
     singletonDescr :: Build a v

@@ -6,7 +6,7 @@
 
 -- | Implementation of vector primitives in terms of table algebra
 -- operators.
-module Database.DSH.VL.TAVectorPrimitives() where
+module Database.DSH.VL.VectorAlgebra.TA () where
 
 import           Control.Applicative              hiding (Const)
 import qualified Data.List.NonEmpty               as N
@@ -21,7 +21,7 @@ import qualified Database.DSH.Common.Lang         as L
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
-import           Database.DSH.VL.VectorPrimitives
+import           Database.DSH.VL.VectorAlgebra
 
 
 --------------------------------------------------------------------------------
