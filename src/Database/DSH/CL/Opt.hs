@@ -1,23 +1,24 @@
-{-# LANGUAGE LambdaCase #-}
-    
--- | This module performs optimizations on the Comprehension Language (CL).
-module Database.DSH.CL.Opt 
+-- | This module performs optimizations on the Comprehension Language
+-- (CL).
+module Database.DSH.CL.Opt
   ( optimizeComprehensions ) where
-  
-import Control.Arrow
-       
-import Database.DSH.CL.Lang
-import Database.DSH.CL.Kure
 
-import Database.DSH.CL.Opt.Aux
-import Database.DSH.CL.Opt.LoopInvariant
-import Database.DSH.CL.Opt.PredPushdown
-import Database.DSH.CL.Opt.Normalize
-import Database.DSH.CL.Opt.PartialEval
-import Database.DSH.CL.Opt.CompNormalization
-import Database.DSH.CL.Opt.FlatJoin
-import Database.DSH.CL.Opt.NestJoin
-import Database.DSH.CL.Opt.PostProcess
+import           Control.Arrow
+
+import           Database.DSH.Common.Kure
+
+import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
+
+import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.CompNormalization
+import           Database.DSH.CL.Opt.FlatJoin
+import           Database.DSH.CL.Opt.LoopInvariant
+import           Database.DSH.CL.Opt.NestJoin
+import           Database.DSH.CL.Opt.Normalize
+import           Database.DSH.CL.Opt.PartialEval
+import           Database.DSH.CL.Opt.PostProcess
+import           Database.DSH.CL.Opt.PredPushdown
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -33,20 +34,20 @@ compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
 
 buUnnestR :: RewriteC CL
-buUnnestR = 
-    zipCorrelatedR 
-    <+ repeatR nestjoinR 
+buUnnestR =
+    zipCorrelatedR
+    <+ repeatR nestjoinR
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
-   
+
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
 
 -- | Perform a top-down traversal of a query expression, looking for
 -- rewrite opportunities on comprehensions and other expressions.
 descendR :: RewriteC CL
-descendR = readerT $ \case
+descendR = readerT $ \cl -> case cl of
 
     ExprCL (Comp _ _ _) -> optCompR
 
@@ -73,13 +74,14 @@ optCompR = do
 
 applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR
-            
+
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+> 
+optimizeR = normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
             anybuR postProcessCompR
-        
+
 optimizeComprehensions :: Expr -> Expr
-optimizeComprehensions expr = debugOpt expr optimizedExpr
+optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr
   where
     optimizedExpr = applyExpr (optimizeR >>> projectT) expr
+    -- optimizedExpr = applyExpr projectT expr

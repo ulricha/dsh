@@ -33,13 +33,13 @@ rvec = fmap RVec
 -- Insert VL operators and appropriate R1/R2/R3 nodes
 
 vec :: VL -> VecConst r a -> Build VL a
-vec op mkVec = mkVec $ insertNode op
+vec op mkVec = mkVec $ insert op
 
 pairVec :: VL -> VecConst r a -> VecConst r b -> Build VL (a, b)
 pairVec op mkVec1 mkVec2 = do
-    r <- insertNode op
-    r1 <- mkVec1 $ insertNode $ UnOp R1 r
-    r2 <- mkVec2 $ insertNode $ UnOp R2 r
+    r <- insert op
+    r1 <- mkVec1 $ insert $ UnOp R1 r
+    r2 <- mkVec2 $ insert $ UnOp R2 r
     return (r1, r2)
 
 tripleVec :: VL 
@@ -48,10 +48,10 @@ tripleVec :: VL
           -> VecConst r c 
           -> Build VL (a, b ,c)
 tripleVec op mkVec1 mkVec2 mkVec3 = do
-    r <- insertNode op
-    r1 <- mkVec1 $ insertNode $ UnOp R1 r
-    r2 <- mkVec2 $ insertNode $ UnOp R2 r
-    r3 <- mkVec3 $ insertNode $ UnOp R3 r
+    r <- insert op
+    r1 <- mkVec1 $ insert $ UnOp R1 r
+    r2 <- mkVec2 $ insert $ UnOp R2 r
+    r3 <- mkVec3 $ insert $ UnOp R3 r
     return (r1, r2, r3)
 
 --------------------------------------------------------------------------------
@@ -74,11 +74,9 @@ typeToScalarType t = case t of
   Ty.StringT   -> D.String
   Ty.UnitT     -> D.Unit
   Ty.DoubleT   -> D.Double
-  Ty.PairT _ _ -> $impossible
-  Ty.TupleT _  -> $impossible
   Ty.ListT _   -> $impossible
   Ty.FunT _ _  -> $impossible
-  Ty.VarT _    -> $impossible
+  Ty.PairT _ _  -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -92,11 +90,8 @@ recordWidth t =
         Ty.DoubleT     -> 1
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
-        -- WTF is a VarT
-        Ty.VarT _      -> $impossible
         Ty.FunT _ _    -> $impossible
         Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
-        Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
 data ColExpr = Offset Int | Expr Expr
@@ -163,8 +158,8 @@ vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
-vlGroupBy :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
-vlGroupBy (VLDVec c1) (VLDVec c2) = tripleVec (BinOp GroupBy c1 c2) dvec dvec pvec
+vlGroup :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroup (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Group c1 c2) dvec dvec pvec
 
 vlSort :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlSort (VLDVec c1) (VLDVec c2) = pairVec (BinOp SortS c1 c2) dvec pvec
@@ -175,8 +170,8 @@ vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
 vlAggrS :: AggrFun -> VLDVec -> VLDVec -> Build VL VLDVec
 vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 
-vlDescToRename :: VLDVec -> Build VL RVec
-vlDescToRename (VLDVec c) = vec (UnOp DescToRename c) rvec
+vlUnboxRename :: VLDVec -> Build VL RVec
+vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) rvec
 
 vlDistPrim :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec
@@ -214,45 +209,45 @@ vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 vlUnsegment :: VLDVec -> Build VL VLDVec
 vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlRestrict (VLDVec c1) (VLDVec c2) = pairVec (BinOp Restrict c1 c2) dvec rvec
+vlRestrict :: Expr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlRestrict e (VLDVec c1) (VLDVec c2) = pairVec (BinOp (Restrict e) c1 c2) dvec rvec
 
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
 vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
-vlLit em tys vals = vec (NullaryOp $ Lit em (map typeToScalarType tys) vals) dvec
+vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL VLDVec
-vlTableRef n tys hs = vec (NullaryOp $ TableRef n tys hs) dvec
+vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
 
 vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec
 vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
 vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
 vlBinExpr o (VLDVec c1) (VLDVec c2) = do
-    z <- insertNode $ BinOp Zip c1 c2
-    r <- dvec $ insertNode $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
+    z <- insert $ BinOp Zip c1 c2
+    r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
 vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
-vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1 (VLDVec c1) op posConst = 
-    tripleVec (UnOp (SelectPos1 op posConst) c1) dvec rvec rvec
+    tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec rvec rvec
 
 vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
-vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Nat -> Build VL (VLDVec, RVec, RVec)
+vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
-    tripleVec (UnOp (SelectPos1S op posConst) c1) dvec rvec rvec
+    tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
 vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
-vlProject (VLDVec c) projs = dvec $ insertNode $ UnOp (Project projs) c
+vlProject (VLDVec c) projs = dvec $ insert $ UnOp (Project projs) c
 
 vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
 vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec

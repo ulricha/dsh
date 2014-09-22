@@ -17,6 +17,7 @@ import Control.Arrow
                  
 import Database.DSH.Impossible
 import Database.DSH.Common.Lang
+import Database.DSH.Common.Kure
 import Database.DSH.CL.Lang
 import Database.DSH.CL.Kure
 import Database.DSH.CL.Opt.Aux

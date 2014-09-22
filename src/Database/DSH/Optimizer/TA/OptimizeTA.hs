@@ -29,16 +29,16 @@ remove rownums if concrete values not required: use prop, key prop, ?
 
 -}
 
-type RewriteClass = Rewrite TableAlgebra (TopShape NDVec) Bool
+type RewriteClass = Rewrite TableAlgebra (Shape NDVec) Bool
 
 defaultPipeline :: [RewriteClass]
 defaultPipeline = [cleanup]
 
 runPipeline :: Dag.AlgebraDag TableAlgebra 
-            -> (TopShape NDVec)
+            -> (Shape NDVec)
             -> [RewriteClass] 
             -> Bool 
-            -> (Dag.AlgebraDag TableAlgebra, Log, TopShape NDVec)
+            -> (Dag.AlgebraDag TableAlgebra, Log, Shape NDVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug
 

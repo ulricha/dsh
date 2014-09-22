@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE TemplateHaskell       #-}
@@ -35,18 +34,10 @@ module Database.DSH.CL.Opt.Aux
     , complexPrim1
     , complexPrim2
     , fromGuard
+    , fromQual
     , fromGen
       -- * NL spine traversal
     , onetdSpineT
-      -- * Debugging
-    , prettyR
-    , debug
-    , debugPretty
-    , debugMsg
-    , debugOpt
-    , debugPipeR
-    , debugTrace
-    , debugShow
     ) where
 
 import           Control.Arrow
@@ -56,33 +47,27 @@ import           Data.List
 import qualified Data.Set                   as S
 import           Data.List.NonEmpty         (NonEmpty ((:|)))
 import           Data.Semigroup
-import           Control.Applicative
-
-#ifdef DEBUGCOMP
-import           Debug.Trace
-#endif
 
 import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Monad
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the
 -- qualifier list so that it can be applied to the head expression.
-type TuplifyM = CompSM (RewriteC CL)
+type TuplifyM = RewriteStateM (RewriteC CL)
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runCompM $ apply f initialCtx (inject e)
+applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runCompM $ apply t initialCtx (inject e)
+applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 
 
 --------------------------------------------------------------------------------
@@ -143,8 +128,6 @@ splitJoinPredT x y = do
     [x'] <- return $ freeVars e1
     [y'] <- return $ freeVars e2
 
-    let mkPred el er = JoinConjunct el op er
-
     if | x == x' && y == y' -> binopT (toJoinExpr x)
                                       (toJoinExpr y)
                                       (\_ _ e1' e2' -> JoinConjunct e1' op e2')
@@ -169,7 +152,7 @@ conjunctsT = readerT $ \e -> case e of
 
     -- For a non-AND expression, try to transform it into a join
     -- predicate.
-    ExprCL e -> return $ e :| []
+    ExprCL expr -> return $ expr :| []
 
     _ -> $impossible
 
@@ -242,7 +225,7 @@ alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
                lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
 
 substR :: Ident -> Expr -> RewriteC CL
-substR v s = readerT $ \case
+substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprCL (Var _ n) | n == v                          -> return $ inject s
 
@@ -263,6 +246,8 @@ substR v s = readerT $ \case
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
+    -- FIXME in this case, rename the shadowing generator to avoid
+    -- name-capturing (see lambda case)
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
     ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
 
@@ -322,8 +307,8 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
 -- | A container for the components of a comprehension expression
 data Comp = C Type Expr (NL Qual)
 
-fromQual :: Qual -> Either Qual Expr
-fromQual (BindQ x e) = Left $ BindQ x e
+fromQual :: Qual -> Either (Ident, Expr) Expr
+fromQual (BindQ x e) = Left (x, e)
 fromQual (GuardQ p)  = Right p
 
 
@@ -371,7 +356,7 @@ mergeGuardsIterR mergeGuardR = do
     -- Separate generators from guards
     ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
 
-    let initialComp = C ty e (fromListSafe g gs)
+    let initialComp = C ty e (fmap (uncurry BindQ) $ fromListSafe g gs)
 
     -- Try to merge one guard with some generators
     (C _ e' qs', remGuards) <- constT (return ())
@@ -426,70 +411,3 @@ fromGuard (BindQ _ _) = fail "not a guard"
 fromGen :: Monad m => Qual -> m (Ident, Expr)
 fromGen (BindQ x xs) = return (x, xs)
 fromGen (GuardQ _)   = fail "not a generator"
-
---------------------------------------------------------------------------------
--- Simple debugging combinators
-
--- | Trace output of the value being rewritten; use for debugging only.
-prettyR :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-prettyR msg = acceptR (\a -> trace (msg ++ pp a) True)
-#else
-prettyR _ = idR
-#endif
-
-debug :: Pretty a => String -> a -> b -> b
-#ifdef DEBUGCOMP
-debug msg a b = trace ("\n" ++ msg ++ " =>\n" ++ pp a) b
-#else
-debug _ _ b = b
-#endif
-
-debugPretty :: (Pretty a, Monad m) => String -> a -> m ()
-debugPretty msg a = debug msg a (return ())
-
-debugMsg :: Monad m => String -> m ()
-#ifdef DEBUGCOMP
-debugMsg msg = trace msg $ return ()
-#else
-debugMsg _ = return ()
-#endif
-
-debugOpt :: Expr -> Either String Expr -> Expr
-debugOpt origExpr mExpr = 
-#ifdef DEBUGCOMP
-    trace (showOrig origExpr)
-    $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
-
-  where
-    padSep :: String -> String
-    padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
-
-    showOrig :: Expr -> String
-    showOrig e = padSep "Original Query" ++ pp e ++ padSep ""
-
-    showOpt :: Expr -> String
-    showOpt e = padSep "Optimized Query" ++ pp e ++ padSep ""
-#else
-    either (const origExpr) id mExpr
-#endif
-
-debugPipeR :: (Monad m, Pretty a) => Rewrite c m a -> Rewrite c m a
-debugPipeR r = prettyR "Before >>>>>>"
-               >>> r
-               >>> prettyR ">>>>>>> After"
-
-debugTrace :: Monad m => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-debugTrace msg = trace msg idR
-#else
-debugTrace _ = idR
-#endif
-
-debugShow :: (Monad m, Pretty a) => String -> Rewrite c m a
-#ifdef DEBUGCOMP
-debugShow msg = prettyR (msg ++ "\n")
-#else
-debugShow _ = idR
-#endif
-

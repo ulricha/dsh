@@ -56,6 +56,8 @@ class VectorAlgebra v a where
     vecAggrNonEmpty :: N.NonEmpty AggrFun -> v -> Build a v
     vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> v -> Build a v
 
+    vecWinFun :: WinFun -> FrameSpec -> v -> Build a v
+
     -- | SelectPos filters a vector positionally as specified by the
     -- comparison operator and the position value from the right
     -- input. Next to the filtered value vector it produces two rename
@@ -64,6 +66,7 @@ class VectorAlgebra v a where
     -- * Mapping old to new positions (for re-aligning inner vectors)
     -- * Mapping old positions to segment descriptors (for unboxing one
     -- inner segment)
+    -- FIXME should be restricted to RelOp!
     vecSelectPos :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally /by segment/. The right input
@@ -73,12 +76,12 @@ class VectorAlgebra v a where
     vecSelectPosS :: v -> ScalarBinOp -> v -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally on a /constant/ position.
-    vecSelectPos1 :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1 :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Filter a vector positionally based on a /constant
     -- position/. The operator filters by segment, but the constant
     -- position argument is the same for all segments.
-    vecSelectPos1S :: v -> ScalarBinOp -> Nat -> Build a (v, RVec, RVec)
+    vecSelectPos1S :: v -> ScalarBinOp -> Int -> Build a (v, RVec, RVec)
 
     -- | Reverse a vector.
     vecReverse :: v -> Build a (v, PVec)
@@ -97,12 +100,8 @@ class VectorAlgebra v a where
     -- by a scalar expression.
     vecSortScalarS :: [Expr] -> v -> Build a (v, PVec)
 
-    vecGroupBy :: v -> v -> Build a (v, v, PVec)
+    vecGroup :: v -> v -> Build a (v, v, PVec)
     vecGroupScalarS :: [Expr] -> v -> Build a (v, v, PVec)
-
-    -- | Construct a new vector as the result of a list of scalar
-    -- expressions per result column.
-    vecProject :: [Expr] -> v -> Build a v
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations
@@ -112,6 +111,11 @@ class VectorAlgebra v a where
     -- operator must be used with care: It does not determine the
     -- complete set of descr value to check for empty inner lists.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> v -> Build a v
+
+
+    -- | Construct a new vector as the result of a list of scalar
+    -- expressions per result column.
+    vecProject :: [Expr] -> v -> Build a v
 
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
     vecDistPrim :: v -> v -> Build a (v, PVec)
@@ -144,7 +148,7 @@ class VectorAlgebra v a where
     vecAppend :: v -> v -> Build a (v, RVec, RVec)
     vecAppendS :: v -> v -> Build a (v, RVec, RVec)
 
-    vecRestrict :: v -> v -> Build a (v, RVec)
+    vecRestrict :: Expr -> v -> v -> Build a (v, RVec)
 
     -- | Positionally align two vectors. Basically: @zip xs ys@
     vecZip :: v -> v -> Build a v

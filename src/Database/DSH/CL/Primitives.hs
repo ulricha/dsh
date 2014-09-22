@@ -14,7 +14,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
 
 tyErr :: P.String -> a
-tyErr comb = P.error ("CL.Primitives type error in %s" P.++ comb)
+tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
 
 tyErrShow :: P.String -> [Type] -> a
 tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))

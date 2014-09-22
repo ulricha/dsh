@@ -1,29 +1,28 @@
 {-# LANGUAGE TemplateHaskell #-}
-
 module Database.DSH.Optimizer.VL.Rewrite.Common where
 
-import qualified Data.IntMap                                              as M
-       
+import qualified Data.IntMap                                   as M
+
 import           Control.Monad
 
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Impossible
 
+import           Database.DSH.Optimizer.Common.Rewrite
 import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Vector
-import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.VL.Properties.BottomUp
 import           Database.DSH.Optimizer.VL.Properties.TopDown
 import           Database.DSH.Optimizer.VL.Properties.Types
 
   -- Type abbreviations for convenience
-type VLRewrite p = Rewrite VL (TopShape VLDVec) p
-type VLRule p = Rule VL p (TopShape VLDVec)
-type VLRuleSet p = RuleSet VL p (TopShape VLDVec)
-type VLMatch p = Match VL p (TopShape VLDVec)
+type VLRewrite p = Rewrite VL (Shape VLDVec) p
+type VLRule p = Rule VL p (Shape VLDVec)
+type VLRuleSet p = RuleSet VL p (Shape VLDVec)
+type VLMatch p = Match VL p (Shape VLDVec)
 
 inferBottomUp :: VLRewrite (NodeMap BottomUpProps)
 inferBottomUp = do
@@ -86,3 +85,31 @@ mergeExpr env expr =
 constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a
 constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
+
+mapAggrFun :: (Expr -> Expr) -> AggrFun -> AggrFun
+mapAggrFun f (AggrMax e) = AggrMax $ f e
+mapAggrFun f (AggrSum t e) = AggrSum t $ f e
+mapAggrFun f (AggrMin e) = AggrMin $ f e
+mapAggrFun f (AggrAvg e) = AggrAvg $ f e
+mapAggrFun f (AggrAny e) = AggrAny $ f e
+mapAggrFun f (AggrAll e) = AggrAll $ f e
+mapAggrFun _ AggrCount   = AggrCount
+
+mapWinFun :: (Expr -> Expr) -> WinFun -> WinFun
+mapWinFun f (WinMax e)        = WinMax $ f e
+mapWinFun f (WinSum e)        = WinSum $ f e
+mapWinFun f (WinMin e)        = WinMin $ f e
+mapWinFun f (WinAvg e)        = WinAvg $ f e
+mapWinFun f (WinAny e)        = WinAny $ f e
+mapWinFun f (WinAll e)        = WinAll $ f e
+mapWinFun f (WinFirstValue e) = WinFirstValue $ f e
+mapWinFun _ WinCount          = WinCount
+
+mapExprCols :: (DBCol -> DBCol) -> Expr -> Expr
+mapExprCols f (BinApp op e1 e2) = BinApp op (mapExprCols f e1) (mapExprCols f e2)
+mapExprCols f (UnApp op e)      = UnApp op (mapExprCols f e)
+mapExprCols f (Column c)        = Column $ f c
+mapExprCols _ (Constant val)    = Constant val
+mapExprCols f (If c t e)        = If (mapExprCols f c) 
+                                     (mapExprCols f t) 
+                                     (mapExprCols f e)

@@ -17,8 +17,8 @@ inferCardOneNullOp :: NullOp -> Either String (VectorProp Bool)
 inferCardOneNullOp op =
   case op of
     SingletonDescr   -> Right $ VProp True
-    Lit _ _ rows     -> Right $ VProp $ length rows == 1
-    TableRef _ _ _   -> Right $ VProp False
+    Lit (_, _, rows) -> Right $ VProp $ length rows == 1
+    TableRef _       -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferCardOneUnOp c op = 
@@ -26,14 +26,15 @@ inferCardOneUnOp c op =
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
     AggrNonEmpty _ -> Right $ VProp True
-    DescToRename -> Right c
+    WinFun _ -> Right c
+    UnboxRename -> Right c
     Segment -> Right c
     Unsegment -> Right c
     Project _  -> Right c
     Reverse -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReverseS -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    SelectPos1 _ _ -> Right $ VPropTriple False False False
-    SelectPos1S _ _ -> Right $ VPropTriple False False False
+    SelectPos1{}  -> Right $ VPropTriple False False False
+    SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
     SortScalarS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
@@ -51,8 +52,8 @@ inferCardOneUnOp c op =
       case c of
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.Card: not a triple"
-    GroupAggr [] _ -> Right $ VProp True
-    GroupAggr _ _  -> Right c
+    GroupAggr ([], _) -> Right $ VProp True
+    GroupAggr (_, _)  -> Right c
     Number -> Right c
     NumberS -> Right c
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
@@ -63,7 +64,7 @@ inferCardOneUnOp c op =
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    GroupBy -> return $ VPropTriple False False False
+    Group -> return $ VPropTriple False False False
     SortS -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
     AggrNonEmptyS _ -> return $ VProp False
@@ -77,7 +78,7 @@ inferCardOneBinOp c1 c2 op =
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    Restrict -> Right $ VPropPair False False
+    Restrict _ -> Right $ VPropPair False False
     SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)

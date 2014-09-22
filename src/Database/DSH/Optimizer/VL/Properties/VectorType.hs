@@ -20,9 +20,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr  -> Right $ VProp $ ValueVector 0
-    Lit _ t _       -> Right $ VProp $ ValueVector $ length t
-    TableRef _ cs _ -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr      -> Right $ VProp $ ValueVector 0
+    Lit (_, t, _)       -> Right $ VProp $ ValueVector $ length t
+    TableRef (_, cs, _) -> Right $ VProp $ ValueVector $ length cs
   
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
@@ -31,16 +31,19 @@ unpack _         = Left "Input is not a single vector property"
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
 inferVectorTypeUnOp s op = 
   case op of
+    WinFun _ -> do
+        ValueVector w <- unpack s
+        return $ VProp $ ValueVector $ w + 1
     UniqueS -> VProp <$> unpack s
     Aggr _ -> Right $ VProp $ ValueVector 1
     AggrNonEmpty as -> Right $ VProp $ ValueVector $ N.length as
-    DescToRename -> Right $ VProp $ RenameVector
+    UnboxRename -> Right $ VProp $ RenameVector
     Segment -> VProp <$> unpack s
     Unsegment -> VProp <$> unpack s
     Reverse -> liftM2 VPropPair (unpack s) (Right PropVector)
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
-    SelectPos1 _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
-    SelectPos1S _ _ -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
+    SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
     R1 -> 
       case s of
         VPropPair s1 _ -> Right $ VProp s1
@@ -67,7 +70,7 @@ inferVectorTypeUnOp s op =
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    -> 
           Left "Input of GroupSimple is not a value vector"
-    GroupAggr g as -> Right $ VProp $ ValueVector (length g + N.length as)
+    GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s
         return $ VProp $ ValueVector (w + 1)
@@ -92,7 +95,7 @@ reqValVectors _ _ _ e =
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op = 
   case op of
-    GroupBy -> 
+    Group -> 
       case (s1, s2) of
         (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
           Right $ VPropTriple t1 t2 PropVector
@@ -135,7 +138,7 @@ inferVectorTypeBinOp s1 s2 op =
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
-    Restrict -> liftM2 VPropPair (unpack s1) (Right RenameVector)
+    Restrict _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     Zip ->

@@ -316,46 +316,46 @@ not (Q e) = Q (AppE Not e)
 
 -- * Equality and Ordering
 
-eq :: (QA a,Eq a) => Q a -> Q a -> Q Bool
+eq :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 eq (Q a) (Q b) = Q (AppE Equ (PairE a b))
 
-(==) :: (QA a,Eq a) => Q a -> Q a -> Q Bool
+(==) :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 (==) = eq
 
-neq :: (QA a,Eq a) => Q a -> Q a -> Q Bool
+neq :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 neq (Q a) (Q b) = Q (AppE NEq (PairE a b))
 
-(/=) :: (QA a,Eq a) => Q a -> Q a -> Q Bool
+(/=) :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 (/=) = neq
 
-lt :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+lt :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 lt (Q a) (Q b) = Q (AppE Lt (PairE a b))
 
-(<) :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+(<) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (<) = lt
 
-lte :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+lte :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 lte (Q a) (Q b) = Q (AppE Lte (PairE a b))
 
-(<=) :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+(<=) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (<=) = lte
 
-gte :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+gte :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 gte (Q a) (Q b) = Q (AppE Gte (PairE a b))
 
-(>=) :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+(>=) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (>=) = gte
 
-gt :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+gt :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 gt (Q a) (Q b) = Q (AppE Gt (PairE a b))
 
-(>) :: (QA a,Ord a) => Q a -> Q a -> Q Bool
+(>) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (>) = gt
 
-min :: (QA a,Ord a) => Q a -> Q a -> Q a
+min :: (QA a,Ord a,TA a) => Q a -> Q a -> Q a
 min a b = cond (a < b) a b
 
-max :: (QA a,Ord a) => Q a -> Q a -> Q a
+max :: (QA a,Ord a,TA a) => Q a -> Q a -> Q a
 max a b = cond (a > b) a b
     
 mod :: Q Integer -> Q Integer -> Q Integer
@@ -557,10 +557,10 @@ concat (Q ass) = Q (AppE Concat ass)
 concatMap :: (QA a,QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
 concatMap f (Q as) = Q (AppE ConcatMap (PairE (LamE (toLam f)) as))
 
-maximum :: (QA a,Ord a) => Q [a] -> Q a
+maximum :: (QA a,Ord a,TA a) => Q [a] -> Q a
 maximum (Q as) = Q (AppE Maximum as)
 
-minimum :: (QA a,Ord a) => Q [a] -> Q a
+minimum :: (QA a,Ord a,TA a) => Q [a] -> Q a
 minimum (Q as) = Q (AppE Minimum as)
 
 -- * Sublists
@@ -594,13 +594,13 @@ break f = span (not . f)
 
 -- * Searching Lists
 
-elem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
+elem :: (QA a,Eq a,TA a) => Q a -> Q [a] -> Q Bool
 elem a as = any (a ==) as
 
-notElem :: (QA a,Eq a) => Q a -> Q [a] -> Q Bool
+notElem :: (QA a,Eq a,TA a) => Q a -> Q [a] -> Q Bool
 notElem a as = not (a `elem` as)
 
-lookup :: (QA a,QA b,Eq a) => Q a -> Q [(a, b)] -> Q (Maybe b)
+lookup :: (QA a,QA b,Eq a,TA a) => Q a -> Q [(a, b)] -> Q (Maybe b)
 lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
 
 -- * Zipping and Unzipping Lists
@@ -628,7 +628,7 @@ unzip3 abcs = triple (map (\e -> (case view e of (a,_,_) -> a)) abcs)
 
 -- * Set-oriented operations
 
-nub :: (QA a,Eq a) => Q [a] -> Q [a]
+nub :: (QA a,Eq a,TA a) => Q [a] -> Q [a]
 nub (Q as) = Q (AppE Nub as)
 
 -- * Tuple Projection Functions

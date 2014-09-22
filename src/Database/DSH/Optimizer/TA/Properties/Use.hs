@@ -11,17 +11,17 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Optimizer.TA.Properties.Aux
 
-flatten :: S.Set (S.Set AttrName) -> S.Set AttrName
+flatten :: S.Set (S.Set Attr) -> S.Set Attr
 flatten = S.foldl' (∪) S.empty
 
 
-inferUseBinOp :: S.Set AttrName
-                -> S.Set AttrName
-                -> S.Set AttrName
-                -> S.Set AttrName
-                -> S.Set AttrName
-                -> BinOp
-                -> (S.Set AttrName, S.Set AttrName)
+inferUseBinOp :: S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> S.Set Attr
+              -> BinOp
+              -> (S.Set Attr, S.Set Attr)
 inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
     case op of
          Cross _      -> ( leftUse ∪ [ c | c <- leftCols, c ∈ ownUse ]
@@ -61,14 +61,20 @@ inferUseBinOp ownUse leftUse rightUse leftCols rightCols op =
          DisjUnion _  -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
          Difference _ -> ( leftUse ∪ leftCols, rightUse ∪ rightCols )
 
-absPos :: SerializeOrder -> S.Set AttrName
+absPos :: SerializeOrder -> S.Set Attr
 absPos (AbsPos c) = S.singleton c
 absPos (RelPos _) = S.empty
 absPos NoPos      = S.empty
 
-inferUseUnOp :: S.Set AttrName -> S.Set AttrName -> UnOp -> S.Set AttrName
+inferUseUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
 inferUseUnOp ownUse childUse op =
     case op of
+        WinFun ((resCol, winFun), partExprs, sortCols, _) ->
+            childUse
+            ∪ (S.delete resCol ownUse)
+            ∪ (S.unions $ map exprCols partExprs)
+            ∪ (S.unions $ map (exprCols . fst) sortCols)
+            ∪ (winFunInput winFun)
         RowNum (resCol, _, _)     -> childUse ∪ (S.delete resCol ownUse)
         RowRank (resCol, _)       -> childUse ∪ (S.delete resCol ownUse)
         Rank (resCol, _)          -> childUse ∪ (S.delete resCol ownUse)

@@ -8,52 +8,52 @@ import           Database.Algebra.Dag.Build
 
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
-import           Database.DSH.VL.Shape
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.VL.Lang             (VL ())
 import           Database.DSH.VL.VLPrimitives
 
 
-fromLayout :: Layout -> [DBCol]
-fromLayout (InColumn i) = [i]
-fromLayout (Nest _ _)   = []
-fromLayout (Tuple ls)   = concatMap fromLayout ls
+fromLayout :: Layout VLDVec -> [DBCol]
+fromLayout (LCol i)    = [i]
+fromLayout (LNest _ _) = []
+fromLayout (LTuple ls) = concatMap fromLayout ls
 
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
 -- that is the propagation vector must not change the order of tuples.
-chainRenameFilter :: RVec -> Layout -> Build VL Layout
-chainRenameFilter _ l@(InColumn _) = return l
-chainRenameFilter r (Nest q lyt) = do
+chainRenameFilter :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+chainRenameFilter _ l@(LCol _) = return l
+chainRenameFilter r (LNest q lyt) = do
     (q', r') <- vlPropFilter r q
     lyt'     <- chainRenameFilter r' lyt
-    return $ Nest q' lyt'
-chainRenameFilter r (Tuple lyts) = Tuple <$> mapM (chainRenameFilter r) lyts
-
+    return $ LNest q' lyt'
+chainRenameFilter r (LTuple lyts) = LTuple <$> mapM (chainRenameFilter r) lyts
+    
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
 -- may change the order of tuples.
-chainReorder :: PVec -> Layout -> Build VL Layout
-chainReorder _ l@(InColumn _) = return l
-chainReorder p (Nest q lyt) = do
+chainReorder :: PVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+chainReorder _ l@(LCol _) = return l
+chainReorder p (LNest q lyt) = do
     (q', p') <- vlPropReorder p q
-    lyt' <- chainReorder p' lyt
-    return $ Nest q' lyt'
-chainReorder p (Tuple lyts) = Tuple <$> mapM (chainReorder p) lyts
+    lyt'     <- chainReorder p' lyt
+    return $ LNest q' lyt'
+chainReorder p (LTuple lyts) = LTuple <$> mapM (chainReorder p) lyts
 
 -- | renameOuter renames and filters a vector according to a rename
 -- vector. Changes are not propagated to inner vectors.
-renameOuter :: RVec -> Shape -> Build VL Shape
-renameOuter p (ValueVector q lyt) = flip ValueVector lyt <$> vlPropRename p q
+renameOuter :: RVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+renameOuter p (VShape q lyt) = flip VShape lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
 
-renameOuter' :: RVec -> Layout -> Build VL Layout
-renameOuter' _ l@(InColumn _) = return l
-renameOuter' r (Nest q lyt)   = flip Nest lyt <$> vlPropRename r q
-renameOuter' r (Tuple lyts)   = Tuple <$> mapM (renameOuter' r) lyts
+renameOuter' :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+renameOuter' _ l@(LCol _)    = return l
+renameOuter' r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
+renameOuter' r (LTuple lyts)   = LTuple <$> mapM (renameOuter' r) lyts
 
 -- | Append two inner vectors (segment-wise).
-appendInnerVec :: Shape -> Shape -> Build VL Shape
-appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+appendInnerVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppendS q1 q2
     -- Propagate position changes to descriptors of any inner vectors
@@ -61,12 +61,12 @@ appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     lyt2'       <- renameOuter' p2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
-    return $ ValueVector v lyt'
+    return $ VShape v lyt'
 appendInnerVec _ _ = $impossible
 
 -- | Append two (outer) vectors regularly.
-appendVec :: Shape -> Shape -> Build VL Shape
-appendVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
+appendVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+appendVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppend q1 q2
     -- Propagate position changes to descriptors of any inner vectors
@@ -74,21 +74,21 @@ appendVec (ValueVector q1 lyt1) (ValueVector q2 lyt2) = do
     lyt2'       <- renameOuter' p2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
-    return $ ValueVector v lyt'
+    return $ VShape v lyt'
 appendVec _ _ = $impossible
 
 -- | Traverse a layout and append all nested vectors that are
 -- encountered.
-appendLayout :: Layout -> Layout -> Build VL Layout
-appendLayout (InColumn i1) (InColumn i2)
-    | i1 == i2  = return $ InColumn i1
+appendLayout :: Layout VLDVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+appendLayout (LCol i1) (LCol i2)
+    | i1 == i2  = return $ LCol i1
     | otherwise = error "appendR': Incompatible vectors"
 -- Append two nested vectors
-appendLayout (Nest q1 lyt1) (Nest q2 lyt2) = do
-    a <- appendInnerVec (ValueVector q1 lyt1) (ValueVector q2 lyt2)
+appendLayout (LNest q1 lyt1) (LNest q2 lyt2) = do
+    a <- appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2)
     case a of
-        ValueVector q lyt -> return $ Nest q lyt
-        _                 -> $impossible
-appendLayout (Tuple lyts1) (Tuple lyts2) =
-    Tuple <$> (mapM (uncurry appendLayout) $ zip lyts1 lyts2)
+        VShape q lyt -> return $ LNest q lyt
+        _            -> $impossible
+appendLayout (LTuple lyts1) (LTuple lyts2) =
+    LTuple <$> (mapM (uncurry appendLayout) $ zip lyts1 lyts2)
 appendLayout _ _ = $impossible

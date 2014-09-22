@@ -29,21 +29,22 @@ seed :: VL -> TopDownProps
 seed (NullaryOp _) = vPropSeed
 seed (UnOp op _)   =
   case op of
-    SelectPos1 _ _     -> vPropTripleSeed
-    SelectPos1S _ _    -> vPropTripleSeed 
+    WinFun _           -> vPropSeed
+    SelectPos1{}       -> vPropTripleSeed
+    SelectPos1S{}      -> vPropTripleSeed 
     Reverse            -> vPropPairSeed
     ReverseS           -> vPropPairSeed
     UniqueS            -> vPropSeed
-    DescToRename       -> vPropSeed
+    UnboxRename        -> vPropSeed
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
-    Select     _       -> vPropSeed
+    Select     _       -> vPropPairSeed
     SortScalarS _      -> vPropPairSeed
     GroupScalarS _     -> vPropTripleSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     AggrNonEmpty _     -> vPropSeed
-    GroupAggr _ _      -> vPropSeed
+    GroupAggr (_, _)   -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
     R3                 -> vPropSeed
@@ -55,7 +56,7 @@ seed (UnOp op _)   =
 
 seed (BinOp op _ _) = 
   case op of
-    GroupBy            -> vPropTripleSeed
+    Group              -> vPropTripleSeed
     Append             -> vPropTripleSeed
     AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed
@@ -66,7 +67,7 @@ seed (BinOp op _ _) =
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
     Unbox              -> vPropPairSeed
-    Restrict           -> vPropPairSeed
+    Restrict _         -> vPropPairSeed
     SelectPos _        -> vPropTripleSeed
     SelectPosS _       -> vPropTripleSeed
     PropRename         -> vPropSeed
@@ -152,30 +153,30 @@ inferChildProperties buPropMap d n = do
         UnOp op c -> do
             cp <- lookupProps c
             let buProps = lookupUnsafe buPropMap "TopDown.infer" c
-            let cp' = checkError n $ inferUnOp buProps ownProps cp op
+            let cp' = checkError n [cp] d $ inferUnOp buProps ownProps cp op
             replaceProps c cp'
         BinOp op c1 c2 -> do
             cp1 <- lookupProps c1
             cp2 <- lookupProps c2
             let buProps1 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c1
                 buProps2 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c2
-            let (cp1', cp2') = checkError n $ inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
+            let (cp1', cp2') = checkError n [cp1, cp2] d $ inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
             replaceProps c1 cp1'
             replaceProps c2 cp2'
         TerOp op c1 c2 c3 -> do
           cp1 <- lookupProps c1
           cp2 <- lookupProps c2
           cp3 <- lookupProps c3
-          let (cp1', cp2', cp3') = checkError n $ inferTerOp ownProps cp1 cp2 cp3 op
+          let (cp1', cp2', cp3') = checkError n [cp1, cp2, cp3] d $ inferTerOp ownProps cp1 cp2 cp3 op
           replaceProps c1 cp1'
           replaceProps c2 cp2'
           replaceProps c3 cp3'
 
-checkError :: AlgNode -> Either String p -> p
-checkError n (Left msg) = 
-    let completeMsg   = printf "Inference failed at node %d\n%s" n msg
+checkError :: AlgNode -> [TopDownProps] -> AlgebraDag VL -> Either String p -> p
+checkError n childProps d (Left msg) = 
+    let completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s" n msg (show childProps) (show $ nodeMap d)
     in error completeMsg
-checkError _ (Right props) = props
+checkError _ _ _ (Right props) = props
     
 -- | Infer properties during a top-down traversal.
 inferTopDownProperties :: NodeMap BottomUpProps -> [AlgNode] -> AlgebraDag VL -> NodeMap TopDownProps

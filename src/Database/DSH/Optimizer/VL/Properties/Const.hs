@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Optimizer.VL.Properties.Const where
+module Database.DSH.Optimizer.VL.Properties.Const
+    ( inferConstVecNullOp
+    , inferConstVecUnOp
+    , inferConstVecBinOp
+    , inferConstVecTerOp
+    ) where
 
 import           Control.Monad
 import           Data.List
@@ -15,12 +20,6 @@ import           Database.DSH.Common.Lang
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
-
-mapUnp :: Show a => VectorProp a
-          -> VectorProp a
-          -> (a -> a -> VectorProp a)
-          -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.Empty"
 
 fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)
@@ -129,12 +128,12 @@ nonConstRVec = RenameVecConst (SC NonConstDescr) (TC NonConstDescr)
 inferConstVecNullOp :: NullOp -> Either String (VectorProp ConstVec)
 inferConstVecNullOp op =
   case op of
-    SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr $ N 1) []
+    SingletonDescr                    -> return $ VProp $ DBVConst (ConstDescr 1) []
     -- do not include the first two columns in the payload columns because they represent descr and pos.
-    Lit _ colTypes rows      ->
+    Lit (_, colTypes, rows)      ->
       if null rows
       then return $ VProp $ DBVConst NonConstDescr $ map (const NonConstPL) colTypes
-      else return $ VProp $ DBVConst (ConstDescr $ N 1) constCols
+      else return $ VProp $ DBVConst (ConstDescr 1) constCols
         where constCols       = map toConstPayload $ drop 2 $ transpose rows
 
               toConstPayload col@(c : _) = if all (c ==) col
@@ -142,20 +141,24 @@ inferConstVecNullOp op =
                                            else NonConstPL
               toConstPayload []          = NonConstPL
 
-    TableRef              _ cols _    -> return $ VProp $ DBVConst (ConstDescr $ N 1) $ map (const NonConstPL) cols
+    TableRef              (_, cols, _)    -> return $ VProp $ DBVConst (ConstDescr 1) $ map (const NonConstPL) cols
 
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =
   case op of
+    WinFun _ -> do
+      (d, cols) <- unp c >>= fromDBV
+      return $ VProp $ DBVConst d (cols ++ [NonConstPL])
+
     UniqueS -> return c
 
     Aggr _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     AggrNonEmpty _ -> do
-      return $ VProp $ DBVConst (ConstDescr (N 1)) [NonConstPL]
+      return $ VProp $ DBVConst (ConstDescr 1) [NonConstPL]
 
-    DescToRename -> do
+    UnboxRename -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ RenameVecConst (SC NonConstDescr) (TC d)
 
@@ -167,13 +170,13 @@ inferConstVecUnOp c op =
       (_, constCols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst NonConstDescr constCols
 
-    SelectPos1 _ _ -> do
+    SelectPos1{}  -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d cols) 
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    SelectPos1S _ _ -> do
+    SelectPos1S{} -> do
       (d, cols) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d cols) 
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
@@ -196,7 +199,7 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    GroupAggr g as -> do
+    GroupAggr (g, as) -> do
       (d, _) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (map (const NonConstPL) [ 1 .. (length g) + (N.length as) ])
 
@@ -246,7 +249,7 @@ inferConstVecUnOp c op =
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
-    GroupBy -> do
+    Group -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
       (dq, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
@@ -334,7 +337,7 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
 
-    Restrict -> do
+    Restrict _ -> do
       (d, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -377,7 +380,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     CartProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -387,7 +390,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     NestProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -397,7 +400,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -407,7 +410,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     ThetaJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -417,7 +420,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     NestJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -427,7 +430,7 @@ inferConstVecBinOp c1 c2 op =
 
       -- FIXME check propVec components for correctness/preciseness
       -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr $ N 1) constCols) nonConstPVec nonConstPVec
+      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     SemiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV

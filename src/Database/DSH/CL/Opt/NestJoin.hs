@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
     
 -- | Deal with nested comprehensions by introducing explicit nesting
@@ -266,18 +265,25 @@ unnestFromHeadR = do
 -- | Store not only the tuplifying rewrite in the state, but also the
 -- rewritten guard expression.
 -- FIXME this is a rather ugly hack
-type GuardM = CompSM (RewriteC CL, Maybe Expr)
-
+type GuardM = RewriteStateM (RewriteC CL, Maybe Expr)
 
 -- | Search for an eligible nested comprehension in the current guard
 -- and unnest it. Returns the tuplifying rewrite for the outer
 -- generator variable 'x', the new generator with the nesting
 -- operator, and the modified predicate.
-unnestGuardT :: (Ident, Expr) -> Expr -> TransformC CL (RewriteC CL, Expr, Expr)
-unnestGuardT (x, xs) guardExpr = do
+unnestGuardT :: [Ident] -> (Ident, Expr) -> Expr -> TransformC CL (RewriteC CL, Expr, Expr)
+unnestGuardT localGenVars (x, xs) guardExpr = do
     -- search for an unnestable comrehension
     (headCompPath, headComp) <- withLocalPathT 
                                 $ constNodeT guardExpr >>> searchNestedCompT x
+
+    -- Forbid the generator of a comprehension we want to unnest to
+    -- depend on *any* generator in the current outer
+    -- comprehension. This is to prevent that the right input of a
+    -- NestProduct that could be constructed depends on *any*
+    -- preceding generator. See lablog (31.07.14) for a more elaborate
+    -- explanation.
+    guardM $ null $ localGenVars `intersect` freeVars (snd $ hGen headComp)
 
     -- combine inner and outer comprehension
     (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
@@ -296,19 +302,23 @@ unnestGuardT (x, xs) guardExpr = do
     
 -- | Search for unnestable combinations of a generator and a nested
 -- guard in a qualifier list.
-unnestQualsR :: Rewrite CompCtx GuardM (NL Qual)
-unnestQualsR = do
-    readerT $ \case
+unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
+unnestQualsR localGenVars = do
+    readerT $ \quals -> case quals of
         -- In the middle of a qualifier list
         BindQ x xs :* GuardQ p :* qs -> do
-            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p >>> unnestGuardT (x, xs) p
+            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p 
+                                                    >>> 
+                                                    unnestGuardT localGenVars (x, xs) p
             constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
             qs' <- liftstateT $ constNodeT qs >>> tuplifyHeadR >>> projectT
             return $ BindQ x xs' :* qs'
 
         -- At the end of a qualifier list
         BindQ x xs :* (S (GuardQ p)) -> do
-            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p >>> unnestGuardT (x, xs) p
+            (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p 
+                                                    >>> 
+                                                    unnestGuardT localGenVars (x, xs) p
             constT $ modify (\(r, _) -> (r >>> tuplifyHeadR, Just p'))
             return $ S $ BindQ x xs'
         _ -> fail "no match"
@@ -324,14 +334,15 @@ unnestQualsR = do
 -- success.
 unnestGuardR :: [Expr] -> [Expr] -> TransformC CL (CL, [Expr], [Expr])
 unnestGuardR candGuards failedGuards = do
-    Comp t _ _      <- promoteT idR 
-    let unnestR = anytdR (promoteR unnestQualsR) >>> projectT
+    Comp t _ qs      <- promoteT idR 
+    let localGenVars = concatMap (either ((: []) . fst) (const [])) $ map fromQual $ toList qs
+    let unnestR = anytdR (promoteR $ unnestQualsR localGenVars) >>> projectT
     ((tuplifyVarR, Just guardExpr), qs') <- statefulT (idR, Nothing) $ childT CompQuals unnestR
                                        
-    h'              <- childT CompHead tuplifyVarR >>> projectT
+    h'               <- childT CompHead tuplifyVarR >>> projectT
     let tuplifyM e = constNodeT e >>> tuplifyVarR >>> projectT
-    candGuards'     <- mapM tuplifyM candGuards
-    failedGuards'   <- mapM tuplifyM failedGuards
+    candGuards'      <- mapM tuplifyM candGuards
+    failedGuards'    <- mapM tuplifyM failedGuards
     return (inject $ Comp t h' qs', candGuards', guardExpr : failedGuards')
 
 -- | Worker for the MergeGuard iterator: Insert the current guard into

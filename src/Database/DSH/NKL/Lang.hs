@@ -6,7 +6,6 @@
 module Database.DSH.NKL.Lang
   ( Expr(..)
   , Typed(..)
-  , freeVars
   , Prim1Op(..)
   , Prim2Op(..)
   , Prim1(..)
@@ -20,49 +19,50 @@ import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type     (Type, Typed, typeOf)
 
-import qualified Data.Set                     as S
-
 -- | Nested Kernel Language (NKL) expressions
 data Expr  = Table Type String [L.Column] L.TableHints
-           | App Type Expr Expr
            | AppE1 Type (Prim1 Type) Expr
            | AppE2 Type (Prim2 Type) Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
-           | Lam Type L.Ident Expr
            | If Type Expr Expr Expr
            | Const Type L.Val
            | Var Type L.Ident
+           | Comp Type Expr L.Ident Expr
+           | Let Type L.Ident Expr Expr
+           deriving (Show)
 
 instance Typed Expr where
-  typeOf (Table t _ _ _) = t
-  typeOf (App t _ _)     = t
-  typeOf (AppE1 t _ _)   = t
-  typeOf (AppE2 t _ _ _) = t
-  typeOf (Lam t _ _)     = t
-  typeOf (If t _ _ _)    = t
-  typeOf (BinOp t _ _ _) = t
-  typeOf (UnOp t _ _)    = t
-  typeOf (Const t _)     = t
-  typeOf (Var t _)       = t
+    typeOf (Table t _ _ _) = t
+    typeOf (AppE1 t _ _)   = t
+    typeOf (AppE2 t _ _ _) = t
+    typeOf (If t _ _ _)    = t
+    typeOf (BinOp t _ _ _) = t
+    typeOf (UnOp t _ _)    = t
+    typeOf (Const t _)     = t
+    typeOf (Var t _)       = t
+    typeOf (Comp t _ _ _)  = t
+    typeOf (Let t _ _ _)   = t
 
 instance Pretty Expr where
     pretty (Table _ n _ _)    = text "table" <+> text n
-    pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
-    pretty (AppE1 _ (Prim1 (TupField i) _) e) = pretty e <> dot <> text (show i)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
-    pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if"
                              <+> pretty c
                              <+> text "then"
                              <+> (parenthize t)
                              <+> text "else"
                              <+> (parenthize e)
-    pretty (Const _ v)        = text $ show v
+    pretty (Const t v)        = text (show v) <> colon <> colon <> pretty t
     pretty (Var _ s)          = text s
+    pretty (Comp _ e x xs)    = brackets $ pretty e <+> char '|' <+> text x <+> text "<-" <+> pretty xs
+    pretty (Let _ x e1 e)     = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                <$>
+                text "in" <+> pretty e
 
 parenthize :: Expr -> Doc
 parenthize e =
@@ -70,22 +70,11 @@ parenthize e =
         Var _ _        -> pretty e
         Const _ _      -> pretty e
         Table _ _ _ _  -> pretty e
+        Comp _ _ _ _   -> pretty e
         _              -> parens $ pretty e
 
 deriving instance Eq Expr
 deriving instance Ord Expr
-
-freeVars :: Expr -> S.Set String
-freeVars (Table _ _ _ _)   = S.empty
-freeVars (App _ e1 e2)     = freeVars e1 `S.union` freeVars e2
-freeVars (AppE1 _ _ e1)    = freeVars e1
-freeVars (AppE2 _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (Lam _ x e)       = (freeVars e) S.\\ S.singleton x
-freeVars (If _ e1 e2 e3)   = freeVars e1 `S.union` freeVars e2 `S.union` freeVars e3
-freeVars (BinOp _ _ e1 e2) = freeVars e1 `S.union` freeVars e2
-freeVars (UnOp _ _ e)      = freeVars e
-freeVars (Const _ _)       = S.empty
-freeVars (Var _ x)         = S.singleton x
 
 data Prim1Op = Length 
              | Concat
@@ -94,11 +83,10 @@ data Prim1Op = Length
              | The 
              | Fst 
              | Snd
-             | TupField Int
              | Head 
+             | Tail
              | Minimum 
              | Maximum
-             | Tail
              | Reverse 
              | And 
              | Or
@@ -119,7 +107,6 @@ instance Show Prim1Op where
   show Avg             = "avg"
   show The             = "the"
   show Fst             = "fst"
-  show (TupField i)    = printf "field(%d)" i
   show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
@@ -138,11 +125,10 @@ instance Show Prim1Op where
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o
 
-data Prim2Op = Map
-             | GroupWithKey
-             | SortWith
+data Prim2Op = Group
+             | Sort
+             | Restrict
              | Pair
-             | Filter
              | Append
              | Index
              | Zip
@@ -158,11 +144,10 @@ data Prim2Op = Map
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
-  show Map          = "map"
-  show GroupWithKey = "groupWithKey"
-  show SortWith     = "sortWith"
+  show Group        = "group"
+  show Sort         = "sort"
+  show Restrict     = "restrict"
   show Pair         = "pair"
-  show Filter       = "filter"
   show Append       = "append"
   show Index        = "index"
   show Zip          = "zip"

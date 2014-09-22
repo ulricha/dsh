@@ -21,26 +21,27 @@ mapUnp = mapUnpack "Properties.Empty"
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
   case op of
-    SingletonDescr -> Right $ VProp False
-    Lit _ _ []     -> Right $ VProp True
-    Lit _ _ _      -> Right $ VProp False
-    TableRef _ _ _ -> Right $ VProp False
+    SingletonDescr     -> Right $ VProp False
+    Lit (_, _, [])     -> Right $ VProp True
+    Lit (_, _, _)      -> Right $ VProp False
+    TableRef (_, _, _) -> Right $ VProp False
     
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
+    WinFun _       -> Right e
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp False
     AggrNonEmpty _  -> Right $ VProp False
-    DescToRename    -> Right e
+    UnboxRename     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
-    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    SortScalarS _   -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupScalarS _  -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -48,10 +49,10 @@ inferEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
-    SelectPos1S _ _ -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
+    SelectPos1S{} -> let ue = unp e in liftM3 VPropTriple ue ue ue
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    GroupAggr _ _ -> Right $ VProp False
+    GroupAggr (_, _) -> Right $ VProp False
     Number -> Right e
     NumberS -> Right e
   
@@ -74,7 +75,7 @@ inferEmptyUnOp e op =
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
-    GroupBy -> 
+    Group -> 
       let ue1 = unp e1 
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
@@ -93,7 +94,7 @@ inferEmptyBinOp e1 e2 op =
     Unbox -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     Append -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
     AppendS -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 && ue2) ue1 ue2)
-    Restrict -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
+    Restrict _ -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     AggrS _ -> return $ VProp False
     AggrNonEmptyS _ -> return $ VProp False
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)

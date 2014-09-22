@@ -40,18 +40,19 @@ mapUnp = mapUnpack "Properties.NonEmpty"
 inferNonEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferNonEmptyNullOp op =
   case op of
-    SingletonDescr        -> Right $ VProp False
-    Lit NonEmpty _ _      -> Right $ VProp True
-    Lit PossiblyEmpty _ _ -> Right $ VProp False
-    TableRef _ _ hs       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
+    SingletonDescr            -> Right $ VProp False
+    Lit (NonEmpty, _, _)      -> Right $ VProp True
+    Lit (PossiblyEmpty, _, _) -> Right $ VProp False
+    TableRef (_, _, hs)       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
     
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
   case op of
+    WinFun _       -> Right e
     UniqueS         -> Right e
     Aggr _          -> Right $ VProp True
     AggrNonEmpty _  -> Right $ VProp True
-    DescToRename    -> Right e
+    UnboxRename     -> Right e
     Segment         -> Right e
     Unsegment       -> Right e
     Reverse         -> let ue = unp e in liftM2 VPropPair ue ue
@@ -70,10 +71,10 @@ inferNonEmptyUnOp e op =
     Reshape _ -> let ue = unp e in liftM2 VPropPair ue ue
     Transpose -> let ue = unp e in liftM2 VPropPair ue ue
 
-    SelectPos1 _ _ -> return $ VPropTriple False False False
-    SelectPos1S _ _ -> return $ VPropTriple False False False
+    SelectPos1{} -> return $ VPropTriple False False False
+    SelectPos1S{} -> return $ VPropTriple False False False
     -- FIXME think about it: what happens if we feed an empty vector into the aggr operator?
-    GroupAggr _ _ -> Right e
+    GroupAggr (_, _) -> Right e
     Number -> Right e
     NumberS -> Right e
   
@@ -99,7 +100,7 @@ inferNonEmptyBinOp e1 e2 op =
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.
-    GroupBy -> do
+    Group -> do
       ue1 <- unp e1 
       return $ VPropTriple ue1 True ue1
     SortS -> do
@@ -117,7 +118,7 @@ inferNonEmptyBinOp e1 e2 op =
     Unbox           -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     AppendS         -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
-    Restrict        -> return $ VPropPair False False
+    Restrict _      -> return $ VPropPair False False
     AggrS _         -> return $ VProp True
     AggrNonEmptyS _ -> return $ VProp True
     SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)

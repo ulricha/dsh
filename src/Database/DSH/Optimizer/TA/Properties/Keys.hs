@@ -5,6 +5,7 @@
 
 module Database.DSH.Optimizer.TA.Properties.Keys where
 
+import           Data.Maybe
 import           Data.List
 import qualified Data.Set.Monad as S
 
@@ -31,7 +32,7 @@ subsetsOfSize n s
 -- | Enumerate all subsets of size n
 
 -- | Compute keys for rank and rowrank operators
-rowRankKeys :: AttrName -> S.Set AttrName -> Card1 -> S.Set PKey -> S.Set PKey
+rowRankKeys :: Attr -> S.Set Attr -> Card1 -> S.Set PKey -> S.Set PKey
 rowRankKeys resCol sortCols childCard1 childKeys =
     -- All old keys stay intact
     childKeys
@@ -61,17 +62,21 @@ inferKeysNullOp op =
 
         TableRef (_, _, keys) -> S.fromList $ map (\(Key k) -> ls k) keys
 
-inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set AttrName -> UnOp -> S.Set PKey
+inferKeysUnOp :: S.Set PKey -> Card1 -> S.Set Attr -> UnOp -> S.Set PKey
 inferKeysUnOp childKeys childCard1 childCols op =
     case op of
-        RowNum (resCol, _, Nothing)    -> S.insert (ss resCol) childKeys
-        RowNum (resCol, _, Just pattr) -> (S.singleton $ ls [resCol, pattr])
-                                          ∪
+        WinFun _                       -> childKeys
+        RowNum (resCol, _, [])         -> S.insert (ss resCol) childKeys
+        -- FIXME can we infer a key here if partitioning includes
+        -- general expressions?
+        RowNum (resCol, _, pexprs)     -> {- (S.singleton $ ls [resCol, pattr])
+                                          ∪ -}
                                           [ ss resCol | childCard1 ]
                                           ∪
                                           childKeys
-        RowRank (resCol, sortInfo)     -> rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
-        Rank (resCol, sortInfo)        -> rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
+        -- FIXME infer complete rank keys
+        RowRank (resCol, sortInfo)     -> childKeys -- rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
+        Rank (resCol, sortInfo)        -> childKeys -- rowRankKeys resCol (ls $ map fst sortInfo) childCard1 childKeys
 
         -- This is just the standard Pathfinder way: we take all keys
         -- whose columns survive the projection and update to the new
@@ -87,7 +92,7 @@ inferKeysUnOp childKeys childCard1 childCols op =
                                      ]
                                    | k <- childKeys
                                    -- check that the key survives at all
-                                   , let attrPairs = S.unions $ map mapCol projs
+                                   , let attrPairs = S.fromList $ mapMaybe mapCol projs
                                    , k ⊆ [ snd x | x <- attrPairs ]
                                    -- generate the set pa of a's s.t. (a, b) ∈ attrPairs and b ∈ k
                                    -- i.e. consider only those a's for which the original b is
@@ -158,7 +163,7 @@ inferKeysBinOp leftKeys rightKeys leftCard1 rightCard1 op =
         DisjUnion _   -> S.empty -- FIXME need domain property.
         Difference _  -> leftKeys
 
-singleCol :: Expr -> S.Set AttrName
+singleCol :: Expr -> S.Set Attr
 singleCol (ColE c) = S.singleton c
 singleCol _        = S.empty
 

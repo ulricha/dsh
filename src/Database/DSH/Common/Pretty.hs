@@ -6,4 +6,4 @@ module Database.DSH.Common.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
 pp :: Pretty a => a -> String
-pp a = (displayS $ renderPretty 0.9 100 $ pretty a) ""
+pp a = (displayS $ renderPretty 0.9 120 $ pretty a) ""

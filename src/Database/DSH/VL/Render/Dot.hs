@@ -30,6 +30,10 @@ lookupTags n m = Map.findWithDefault [] n m
 renderFun :: Doc -> [Doc] -> Doc
 renderFun name args = name <> parens (hsep $ punctuate comma args)
 
+renderFrameSpec :: FrameSpec -> Doc
+renderFrameSpec FAllPreceding   = text "allprec"
+renderFrameSpec (FNPreceding n) = int n <+> text "prec"
+
 renderAggrFun :: AggrFun -> Doc
 renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
                                         [renderExpr c]
@@ -39,6 +43,16 @@ renderAggrFun (AggrAvg c)   = renderFun (text "avg") [renderExpr c]
 renderAggrFun (AggrAny c)   = renderFun (text "any") [renderExpr c]
 renderAggrFun (AggrAll c)   = renderFun (text "all") [renderExpr c]
 renderAggrFun AggrCount     = renderFun (text "count") []
+
+renderWinFun :: WinFun -> Doc
+renderWinFun (WinSum c)        = renderFun (text "sum") [renderExpr c]
+renderWinFun (WinMin c)        = renderFun (text "min") [renderExpr c]
+renderWinFun (WinMax c)        = renderFun (text "max") [renderExpr c]
+renderWinFun (WinAvg c)        = renderFun (text "avg") [renderExpr c]
+renderWinFun (WinAny c)        = renderFun (text "any") [renderExpr c]
+renderWinFun (WinAll c)        = renderFun (text "all") [renderExpr c]
+renderWinFun (WinFirstValue c) = renderFun (text "first_value") [renderExpr c]
+renderWinFun WinCount          = renderFun (text "count") []
 
 renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
@@ -52,7 +66,6 @@ renderRow = hcat . punctuate comma . map renderTblVal
 
 renderTblVal :: VLVal -> Doc
 renderTblVal (VLInt i) = integer $ fromIntegral i
-renderTblVal (VLNat i) = text "#" <> (integer $ fromIntegral i)
 renderTblVal (VLBool b) = text $ show b
 renderTblVal (VLString s) = doubleQuotes $ text $ escape s
 renderTblVal (VLDouble d) = double d
@@ -122,19 +135,22 @@ parenthize1 e@(BinApp _ _ _) = parens $ renderExpr e
 parenthize1 e@(UnApp _ _)    = parens $ renderExpr e
 parenthize1 e@(If _ _ _)     = renderExpr e
 
--- create the node label from an operator description
+-- | Create the node label from an operator description
 opDotLabel :: NodeMap [Tag] -> AlgNode -> VL -> Doc
+opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
+    (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
+    (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit em tys vals)) = labelToDoc i "LIT"
+opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
         (renderEmptiness em <+> bracketList renderColumnType tys <> comma
         $$ renderData vals) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef n tys hs)) = labelToDoc i "TableRef"
+opDotLabel tm i (NullaryOp (TableRef (n, tys, hs))) = labelToDoc i "TableRef"
         (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableHints hs)
         (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
 opDotLabel tm i (UnOp NumberS _) = labelToDoc i "NumberS" empty (lookupTags i tm)
-opDotLabel tm i (UnOp DescToRename _) = labelToDoc i "DescToRename" empty (lookupTags i tm)
+opDotLabel tm i (UnOp UnboxRename _) = labelToDoc i "UnboxRename" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Segment _) = labelToDoc i "Segment" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Unsegment _) = labelToDoc i "Unsegment" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Reverse _) = labelToDoc i "Reverse" empty (lookupTags i tm)
@@ -148,9 +164,9 @@ opDotLabel tm i (UnOp (Project pCols) _) =
         valCols = bracketList (\(j, p) -> renderProj (itemLabel j) p) $ zip ([1..] :: [Int]) pCols
         itemLabel j = (text "i") <> (int j)
 opDotLabel tm i (UnOp (Select e) _) = labelToDoc i "Select" (renderExpr e) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1 o (N p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (SelectPos1S o (N p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupAggr g as) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1 (o, p)) _)  = labelToDoc i "SelectPos1" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (SelectPos1S (o, p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (Reshape n) _) = 
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
@@ -159,7 +175,7 @@ opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracke
 opDotLabel tm i (BinOp (AggrNonEmptyS as) _ _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortScalarS cols) _) = labelToDoc i "SortScalarS" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupScalarS cols) _) = labelToDoc i "GroupScalarS" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (BinOp GroupBy _ _) = labelToDoc i "GroupBy" empty (lookupTags i tm)
+opDotLabel tm i (BinOp Group _ _) = labelToDoc i "Group" empty (lookupTags i tm)
 opDotLabel tm i (BinOp SortS _ _) = labelToDoc i "SortS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistPrim _ _) = labelToDoc i "DistPrim" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistDesc _ _) = labelToDoc i "DistDesc" empty (lookupTags i tm)
@@ -170,7 +186,7 @@ opDotLabel tm i (BinOp PropFilter _ _) = labelToDoc i "PropFilter" empty (lookup
 opDotLabel tm i (BinOp PropReorder _ _) = labelToDoc i "PropReorder" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Restrict _ _) = labelToDoc i "Restrict" empty (lookupTags i tm)
+opDotLabel tm i (BinOp (Restrict e) _ _) = labelToDoc i "Restrict" (renderExpr e) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPosS o) _ _) = labelToDoc i "SelectPosS" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "Zip" empty (lookupTags i tm)
@@ -213,20 +229,21 @@ opDotColor (BinOp (AntiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
 opDotColor (BinOp SortS _ _)             = DCTomato
 opDotColor (UnOp (SortScalarS _) _)      = DCTomato
-opDotColor (BinOp GroupBy _ _)           = DCTomato
+opDotColor (BinOp Group _ _)           = DCTomato
 opDotColor (UnOp (GroupScalarS _) _)     = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan
 opDotColor (BinOp Unbox _ _)             = DCTan
 opDotColor (BinOp PropReorder _ _)       = DCTan
 opDotColor (BinOp Align _ _)             = DCTan
-opDotColor (BinOp Restrict _ _)          = DCDodgerBlue
+opDotColor (BinOp (Restrict _)_ _)       = DCDodgerBlue
 opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
 opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)             = DCCrimson
 opDotColor (BinOp (AggrS _) _ _)         = DCCrimson
+opDotColor (UnOp (WinFun _) _)           = DCTomato
 opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
 opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
-opDotColor (UnOp (GroupAggr _ _) _)      = DCTomato
+opDotColor (UnOp (GroupAggr (_, _)) _)   = DCTomato
 opDotColor (UnOp (Project _) _)          = DCLightSkyBlue
 opDotColor (UnOp Transpose _)            = DCHotPink
 opDotColor (BinOp TransposeS _ _)        = DCHotPink
