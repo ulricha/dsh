@@ -86,9 +86,10 @@ referencedOnceR = do
     childT LetBody $ substR x e1
 
 simpleExpr :: (Expr l) -> Bool
-simpleExpr Table{} = True
-simpleExpr Var{}   = True
-simpleExpr _       = False
+simpleExpr Table{}                   = True
+simpleExpr Var{}                     = True
+simpleExpr (PApp1 _ (TupElem _) _ e) = simpleExpr e
+simpleExpr _                         = False
 
 -- | Inline a let-binding that binds a simple expression.
 simpleBindingR :: RewriteF (Expr l)
