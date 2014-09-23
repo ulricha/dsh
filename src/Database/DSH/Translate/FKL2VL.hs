@@ -96,6 +96,12 @@ fkl2VL expr =
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             return $ V.unconcat n arg1' arg2'
+        MkTuple _ Lifted args -> do
+            args' <- mapM fkl2VL args
+            lift $ V.tuple args'
+        MkTuple _ NotLifted args -> do
+            args' <- mapM fkl2VL args
+            lift $ V.tupleL args'
 
 papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp3 Combine Lifted    = V.combineL

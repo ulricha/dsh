@@ -6,22 +6,23 @@ module Database.DSH.VL.Vectorize where
 
 import           Debug.Trace
 
-import Prelude hiding (reverse, zip)
-import qualified Prelude as P
 import           Control.Applicative
 import           Data.List
+import qualified Data.List.NonEmpty            as N
+import           Prelude                       hiding (reverse, zip)
+import qualified Prelude                       as P
 
 import           Database.Algebra.Dag.Build
 
-import qualified Database.DSH.Common.Lang       as L
-import           Database.DSH.Common.QueryPlan
+import qualified Database.DSH.Common.Lang      as L
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Impossible
-import           Database.DSH.VL.Lang           (AggrFun (..), Expr (..),
-                                                 VL (), VLVal (..))
-import           Database.DSH.VL.Vector
+import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL (),
+                                                VLVal (..))
 import           Database.DSH.VL.Primitives
+import           Database.DSH.VL.Vector
 
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives
@@ -259,7 +260,36 @@ pair (SShape q1 lyt1) (VShape q2 lyt2) = do
     return $ SShape q1 lyt
 
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
-tuple = $unimplemented
+tuple (SShape q1 lyt1 : SShape q2 lyt2 : []) = do
+    q <- vlZip q1 q2
+    let lyt = zipLayout lyt1 lyt2
+    return $ SShape q lyt
+tuple (VShape q1 lyt1 : VShape q2 lyt2 : []) = do
+    d   <- vlLit L.PossiblyEmpty [] [[VLInt 1, VLInt 1]]
+    q1' <- vlUnsegment q1
+    q2' <- vlUnsegment q2
+    let lyt = zipLayout (LNest q1' lyt1) (LNest q2' lyt2)
+    return $ SShape d lyt
+tuple (VShape q1 lyt1 : SShape q2 lyt2 : []) = do
+    q1' <- vlUnsegment q1
+    let lyt = zipLayout (LNest q1' lyt1) lyt2
+    return $ SShape q2 lyt
+tuple (SShape q1 lyt1 : VShape q2 lyt2 : []) = do
+    q2' <- vlUnsegment q2
+    let lyt = zipLayout lyt1 (LNest q2' lyt2)
+    return $ SShape q1 lyt
+tuple (SShape q1 lyt1 : shapes) = do
+    SShape qt (LTuple lyts) <- tuple shapes
+    q <- vlZip q1 qt
+    let lyt = LTuple $ zipLayouts (lyt1 : lyts)
+    return $ SShape q lyt
+
+tuple (VShape q1 lyt1 : shapes) = do
+    SShape qt (LTuple lyts) <- tuple shapes
+    q1' <- vlUnsegment q1
+    return $ SShape qt (LTuple $ LNest q1' lyt1 : lyts)
+tuple _ = $impossible
+    
 
 tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElem i (SShape q (LTuple lyts)) =
@@ -296,12 +326,12 @@ restrictL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrictL (VShape qo (LNest qi lyt)) (VShape _ (LNest qb (LCol 1))) = do
     VShape qi' lyt' <- restrict (VShape qi lyt) (VShape qb (LCol 1))
     return $ VShape qo (LNest qi' lyt')
-restrictL l1                              l2                          = 
+restrictL l1                              l2                          =
     trace (show l1 ++ " " ++ show l2) $ $impossible
 
 combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combineL (VShape qo (LNest qb (LCol 1)))
-         (VShape _ (LNest qi1 lyt1)) 
+         (VShape _ (LNest qi1 lyt1))
          (VShape _ (LNest qi2 lyt2)) = do
     VShape qi' lyt' <- combine (VShape qb (LCol 1)) (VShape qi1 lyt1) (VShape qi2 lyt2)
     return $ VShape qo (LNest qi' lyt')
@@ -517,6 +547,20 @@ pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
     return $ VShape q lyt
 pairL _ _ = $impossible
 
+tupleL :: [Shape VLDVec] -> Build VL (Shape VLDVec)
+tupleL (VShape q1 lyt1 : VShape q2 lyt2 : []) = do
+    q <- vlZip q1 q2
+    let lyt = zipLayout lyt1 lyt2
+    return $ VShape q lyt
+    
+tupleL (VShape q1 lyt1 : shapes) = do
+    VShape qt (LTuple lyts) <- tupleL shapes
+    q                       <- vlZip q1 qt
+    let lyt = LTuple $ zipLayouts (lyt1 : lyts)
+    return $ VShape q lyt
+
+tupleL _ = $impossible
+
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElemL i (VShape q (LTuple lyts)) =
     case lyts !! tupleIndex i of
@@ -553,7 +597,7 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
         (psRes, colsRes, cRes) = foldl' tupleWorker ([], [], c) lyts
 
     tupleWorker (psAcc, colsAcc, cAcc) lyt = (psAcc ++ [lyt'], colsAcc ++ cols, c')
-      where 
+      where
         (lyt', cols, c') = projectFromPosWork cAcc lyt
 
 singletonVec ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -569,11 +613,13 @@ singletonAtom _ = $impossible
 --------------------------------------------------------------------------------
 -- Construction of base tables and literal tables
 
+-- | Create a VL reference to a base table.
 dbTable ::  String -> [L.Column] -> L.TableHints -> Build VL (Shape VLDVec)
 dbTable n cs ks = do
     t <- vlTableRef n (map (mapSnd typeToScalarType) cs) ks
     return $ VShape t (LTuple [LCol i | i <- [1..length cs]])
 
+-- | Create a VL representation of a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
 mkLiteral t@(ListT _) (L.ListV es) = do
     ((descHd, descV), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
@@ -589,6 +635,7 @@ mkLiteral t e           = do
     return $ SShape litNode layout
 
 type Table = ([Type], [[VLVal]])
+
 
 -- FIXME Check if inner list literals are nonempty and flag VL
 -- literals appropriately.
@@ -654,13 +701,22 @@ incrementPositions i (LCol n)       = LCol $ n + i
 incrementPositions _i v@(LNest _ _) = v
 incrementPositions i (LTuple lyts)  = LTuple $ map (incrementPositions i) lyts
 
+zipLayouts :: [Layout VLDVec] -> [Layout VLDVec]
+zipLayouts layouts = go 0 layouts
+
+  where
+    go :: Int -> [Layout VLDVec] -> [Layout VLDVec]
+    go 0 (lyt : lyts) = lyt : go (columnsInLayout lyt) lyts
+    go o (lyt : lyts) = incrementPositions o lyt : go (o + columnsInLayout lyt) lyts
+    go _ []           = []
+
 --------------------------------------------------------------------------------
 -- Compile-time operations that implement higher-lifted primitives.
 
 -- | Remove the 'n' outer layers of nesting from a nested list
 -- (Prins/Palmer: 'extract').
 qConcat :: Nat -> Shape VLDVec -> Shape VLDVec
-qConcat Zero _ = $impossible
+qConcat Zero _                               = $impossible
 qConcat (Succ Zero) (VShape _ (LNest q lyt)) = VShape q lyt
 qConcat (Succ n)    (VShape _ lyt)           = extractInnerVec n lyt
 qConcat _           _                        = $impossible
@@ -675,17 +731,17 @@ extractInnerVec n           l                       = trace (show n ++ " " ++ sh
 unconcat :: Nat -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec
 unconcat (Succ Zero) (VShape d _) (VShape vi lyti) =
     VShape d (LNest vi lyti)
-unconcat (Succ n) (VShape d lyt) (VShape vi lyti)  = 
+unconcat (Succ n) (VShape d lyt) (VShape vi lyti)  =
     VShape d (implantInnerVec n lyt vi lyti)
-unconcat _          _                   _          = 
+unconcat _          _                   _          =
     $impossible
 
 implantInnerVec :: Nat -> Layout VLDVec -> VLDVec -> Layout VLDVec -> Layout VLDVec
-implantInnerVec (Succ Zero) (LNest d _)   vi lyti   = 
+implantInnerVec (Succ Zero) (LNest d _)   vi lyti   =
     LNest d $ LNest vi lyti
-implantInnerVec (Succ n)      (LNest d lyt) vi lyti = 
+implantInnerVec (Succ n)      (LNest d lyt) vi lyti =
     LNest d $ implantInnerVec n lyt vi lyti
-implantInnerVec _          _            _  _        = 
+implantInnerVec _          _            _  _        =
     $impossible
 
 --------------------------------------------------------------------------------
