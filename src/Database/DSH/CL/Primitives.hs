@@ -179,7 +179,7 @@ sortWith f es = let ft@(FunT ta _) = typeOf f
                         else tyErr "sortWith"
 
 pair :: Expr -> Expr -> Expr
-pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.PairV v1 v2)
+pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.TupleV [v1, v2])
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
               in AppE2 (pairT t1 t2) (Prim2 Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2

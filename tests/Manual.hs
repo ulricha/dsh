@@ -374,15 +374,17 @@ q3t =
   , l_shipdateQ l > (toQ 23)
   ]
 
-foo :: Q [(Integer, [Integer])]
+foo :: Q [Integer]
 foo = 
-    [ pair x [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
-    | x <- toQ [1,2,3,4,5,6]
-    ]
+  [ x
+  | x <- toQ [1,2,3,4,5,6,7,8,12]
+  , x < 8
+  , sum [ snd z | z <- toQ ([(2, 20), (5, 60), (3, 30), (3, 80), (4, 40), (5, 10), (5, 30), (12, 120)] :: [(Integer, Integer)]), fst z == x ] > 100
+  ]
 
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> runQ c foo P.>>= \r -> putStrLn $ show r
+main = getConn P.>>= \c -> debugQ "q" c foo P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

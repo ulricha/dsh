@@ -29,7 +29,6 @@ data Val where
     BoolV   :: Bool -> Val
     StringV :: String -> Val
     DoubleV :: Double -> Val
-    PairV   :: Val -> Val -> Val
     TupleV  :: [Val] -> Val
     UnitV   :: Val
     deriving (Eq, Ord)
@@ -209,7 +208,6 @@ instance Pretty Val where
     pretty (BoolV b)     = bool b
     pretty (StringV s)   = string s
     pretty (DoubleV d)   = double d
-    pretty (PairV v1 v2) = tupled $ [ pretty v1, pretty v2 ]
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs
 

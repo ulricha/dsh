@@ -682,10 +682,6 @@ listElems :: L.Val -> [L.Val]
 listElems (L.ListV es) = es
 listElems _            = $impossible
 
-pairElems :: L.Val -> (L.Val, L.Val)
-pairElems (L.PairV e1 e2) = (e1, e2)
-pairElems _               = $impossible
-
 tupleElems :: L.Val -> [L.Val]
 tupleElems (L.TupleV es) = es
 tupleElems _             = $impossible
