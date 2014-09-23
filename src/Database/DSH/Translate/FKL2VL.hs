@@ -98,10 +98,10 @@ fkl2VL expr =
             return $ V.unconcat n arg1' arg2'
         MkTuple _ Lifted args -> do
             args' <- mapM fkl2VL args
-            lift $ V.tuple args'
+            lift $ V.tupleL args'
         MkTuple _ NotLifted args -> do
             args' <- mapM fkl2VL args
-            lift $ V.tupleL args'
+            lift $ V.tuple args'
 
 papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp3 Combine Lifted    = V.combineL
@@ -220,6 +220,6 @@ insertTopProjections g = g >>= traverseShape
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: FExpr -> QueryPlan VL.VL VLDVec
-specializeVectorOps e = mkQueryPlan opMap shape tagMap
+specializeVectorOps e = trace ("spec " ++ show shape) $ mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])
