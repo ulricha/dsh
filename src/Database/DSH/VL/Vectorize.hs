@@ -694,7 +694,7 @@ implantInnerVec _          _            _  _        =
 fromLayout :: Layout VLDVec -> [DBCol]
 fromLayout (LCol i)      = [i]
 fromLayout (LNest _ _)   = []
-fromLayout (LPair l1 l2) = fromLayout l1 ++ fromLayout l2
+fromLayout (LTuple lyts) = concatMap fromLayout lyts
 
 -- | chainRenameFilter renames and filters a vector according to a rename vector
 -- and propagates these changes to all inner vectors. No reordering is applied,
@@ -705,8 +705,8 @@ chainRenameFilter r (LNest q lyt) = do
     (q', r') <- vlPropFilter r q
     lyt'     <- chainRenameFilter r' lyt
     return $ LNest q' lyt'
-chainRenameFilter r (LPair l1 l2) =
-    LPair <$> chainRenameFilter r l1 <*> chainRenameFilter r l2
+chainRenameFilter r (LTuple lyts) =
+    LTuple <$> mapM (chainRenameFilter r) lyts
 
 -- | chainReorder renames and filters a vector according to a propagation vector
 -- and propagates these changes to all inner vectors. The propagation vector
@@ -717,8 +717,8 @@ chainReorder p (LNest q lyt) = do
     (q', p') <- vlPropReorder p q
     lyt'     <- chainReorder p' lyt
     return $ LNest q' lyt'
-chainReorder p (LPair l1 l2) =
-    LPair <$> chainReorder p l1 <*> chainReorder p l2
+chainReorder p (LTuple lyts) =
+    LTuple <$> mapM (chainReorder p) lyts
 
 -- | renameOuter renames and filters a vector according to a rename
 -- vector. Changes are not propagated to inner vectors.
@@ -729,7 +729,7 @@ renameOuter _ _ = error "renameOuter: Not possible"
 renameOuter' :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
 renameOuter' _ l@(LCol _)    = return l
 renameOuter' r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
-renameOuter' r (LPair l1 l2) = LPair <$> renameOuter' r l1 <*> renameOuter' r l2
+renameOuter' r (LTuple lyts) = LTuple <$> mapM (renameOuter' r) lyts
 
 -- | Append two inner vectors (segment-wise).
 appendInnerVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -769,6 +769,6 @@ appendLayout (LNest q1 lyt1) (LNest q2 lyt2) = do
     case a of
         VShape q lyt -> return $ LNest q lyt
         _            -> $impossible
-appendLayout (LPair ll1 lr1) (LPair ll2 lr2) =
-    LPair <$> appendLayout ll1 ll2 <*> appendLayout lr1 lr2
+appendLayout (LTuple lyts1) (LTuple lyts2) =
+    LTuple <$> (sequence $ zipWith appendLayout lyts1 lyts2)
 appendLayout _ _ = $impossible

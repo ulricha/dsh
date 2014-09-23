@@ -53,7 +53,7 @@ fkl2VL expr =
             e1' <- fkl2VL e1
             local (bind n e1') $ fkl2VL e
         Table _ n cs hs -> lift $ V.dbTable n cs hs
-        Const t v -> lift $ P.mkLiteral t v
+        Const t v -> lift $ V.mkLiteral t v
         BinOp _ o NotLifted e1 e2    -> do
             SShape p1 lyt <- fkl2VL e1
             SShape p2 _   <- fkl2VL e2
@@ -98,8 +98,8 @@ fkl2VL expr =
             return $ V.unconcat n arg1' arg2'
 
 papp3 :: Prim3 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
-papp3 Combine Lifted    = P.combineL
-papp3 Combine NotLifted = P.combine
+papp3 Combine Lifted    = V.combineL
+papp3 Combine NotLifted = V.combine
 
 papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f Lifted =
