@@ -562,13 +562,10 @@ tupleL (VShape q1 lyt1 : shapes) = do
 tupleL _ = $impossible
 
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
-tupElemL i (VShape q (LTuple lyts)) =
-    case lyts !! tupleIndex i of
-        LNest qi lyt -> return $ VShape qi lyt
-        lyt          -> do
-            let (lyt', cols) = projectFromPos lyt
-            proj <- vlProject q (map Column cols)
-            return $ VShape proj lyt'
+tupElemL i (VShape q (LTuple lyts)) = do
+    let (lyt', cols) = projectFromPos $ lyts !! (tupleIndex i - 1)
+    proj <- vlProject q (map Column cols)
+    return $ VShape proj lyt'
 tupElemL _ _ = $impossible
 
 transposeL :: Shape VLDVec -> Build VL (Shape VLDVec)
