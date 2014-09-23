@@ -177,7 +177,7 @@ instance Pretty l => Pretty (Expr l) where
     pretty (Table _ n _c _k) = text "table" <> parens (text n)
 
     pretty (PApp1 _ (TupElem n) l e1) = 
-        pretty e1 <> dot <> int (tupleIndex n) <> pretty l
+        parenthize e1 <> dot <> int (tupleIndex n) <> pretty l
 
     pretty (PApp1 _ f l e1) =
         pretty f <> pretty l <+> (parenthize e1)

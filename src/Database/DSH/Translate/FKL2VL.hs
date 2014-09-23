@@ -220,6 +220,6 @@ insertTopProjections g = g >>= traverseShape
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: FExpr -> QueryPlan VL.VL VLDVec
-specializeVectorOps e = trace ("spec " ++ show shape) $ mkQueryPlan opMap shape tagMap
+specializeVectorOps e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])
