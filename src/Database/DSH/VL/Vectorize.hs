@@ -293,7 +293,7 @@ tuple _ = $impossible
 
 tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElem i (SShape q (LTuple lyts)) =
-    case lyts !! tupleIndex i of
+    case lyts !! (tupleIndex i - 1) of
         LNest qi lyt -> return $ VShape qi lyt
         lyt          -> do
             let (lyt', cols) = projectFromPos lyt

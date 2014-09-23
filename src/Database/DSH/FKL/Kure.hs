@@ -72,6 +72,7 @@ data CrumbF = AppFun
             | QConcatArg
             | LetBind
             | LetBody
+            | TupleElem Int
             deriving (Eq, Show)
 
 type AbsPathF = AbsolutePath CrumbF
@@ -301,6 +302,17 @@ varT f = contextfreeT $ \expr -> case expr of
 varR :: Monad m => Rewrite FlatCtx m (Expr l)
 varR = varT Var
 {-# INLINE varR #-}
+
+mkTupleT :: Monad m => Transform FlatCtx m (Expr l) a
+                    -> (Type -> l -> [a] -> b)
+                    -> Transform FlatCtx m (Expr l) b
+mkTupleT t f = transform $ \c expr -> case expr of
+                   MkTuple ty l es -> f ty l <$> zipWithM (\e i -> applyT t (c@@TupleElem i) e) es [1..]
+                   _               -> fail "not a tuple constructor"
+{-# INLINE mkTupleT #-}
+
+mkTupleR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
+mkTupleR r = mkTupleT r MkTuple
                     
 --------------------------------------------------------------------------------
        
@@ -319,6 +331,7 @@ instance Walker FlatCtx (Expr l) where
             QConcat{}     -> qconcatR (extractR r)
             Let{}         -> letR (extractR r) (extractR r)
             Var{}         -> idR
+            MkTuple{}     -> mkTupleR (extractR r)
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

@@ -323,6 +323,17 @@ normLifting (F.Var t n)            = return $ F.Var t n
 normLifting (F.QConcat n t e)      = F.QConcat n t <$> normLifting e
 normLifting (F.UnConcat n t e1 e2) = F.UnConcat n t <$> normLifting e1 <*> normLifting e2
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2
+normLifting (F.MkTuple t l es)     =
+    case l of
+        F.LiftedN Zero         -> F.MkTuple t F.NotLifted <$> mapM normLifting es
+        F.LiftedN (Succ Zero)  -> F.MkTuple t F.Lifted <$> mapM normLifting es
+        F.LiftedN (Succ d)     -> do
+            e1' : es' <- mapM normLifting es
+            n         <- freshNameN
+            let v   = F.Var (typeOf e1') n
+                app = F.MkTuple t F.Lifted (P.qconcat d v : map (P.qconcat d) es')
+            return $ P.let_ n e1' $ P.unconcat d v app
+
 normLifting (F.UnOp t op l e)      = 
     case l of
         F.LiftedN Zero         -> F.UnOp t op F.NotLifted <$> normLifting e

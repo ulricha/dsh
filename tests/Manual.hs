@@ -374,8 +374,14 @@ q3t =
   , l_shipdateQ l > (toQ 23)
   ]
 
+foo :: Q [[Integer]]
+foo = 
+    [ [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
+    | x <- toQ [1,2,3,4,5,6]
+    ]
+
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
-main = getConn P.>>= \c -> debugQ "q" c q3t
+main = getConn P.>>= \c -> debugQ "q" c foo
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
