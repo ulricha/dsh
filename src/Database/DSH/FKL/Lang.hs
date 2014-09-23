@@ -221,7 +221,8 @@ instance Pretty l => Pretty (Expr l) where
 parenthize :: Pretty l => Expr l -> Doc
 parenthize e =
     case e of
-        Const{} -> pretty e
-        Table{} -> pretty e
-        Var{}   -> pretty e
-        _       -> parens $ pretty e
+        Const{}                 -> pretty e
+        Table{}                 -> pretty e
+        Var{}                   -> pretty e
+        PApp1 _ (TupElem _) _ _ -> pretty e
+        _                       -> parens $ pretty e
