@@ -348,10 +348,13 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     visibleNames <- ask
 
     filterName   <- freshIdent $ visibleNames ++ boundVars p'
+    srcName      <- freshName
+    let srcVar = NKL.Var (typeOf baseSrc) srcName
+
     let elemType   = elemT $ typeOf baseSrc
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
-        predComp   = NKL.Comp (listT boolT) filterExpr filterName baseSrc
-        filterSrc  = P.restrict baseSrc predComp
+        predComp   = NKL.Comp (listT boolT) filterExpr filterName srcVar
+        filterSrc  = P.let_ srcName baseSrc (P.restrict baseSrc predComp)
 
     desugarQualsRec env filterSrc qs
 
