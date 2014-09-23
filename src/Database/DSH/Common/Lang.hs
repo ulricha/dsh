@@ -11,6 +11,7 @@ import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Pretty
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON (n N.:| nl) = toJSON (n, nl)
@@ -29,17 +30,12 @@ data Val where
     StringV :: String -> Val
     DoubleV :: Double -> Val
     PairV   :: Val -> Val -> Val
+    TupleV  :: [Val] -> Val
     UnitV   :: Val
     deriving (Eq, Ord)
 
 instance Show Val where
-  show (ListV vs)    = "[" ++ (intercalate ", " $ map show vs) ++ "]"
-  show (IntV i)      = show i
-  show (BoolV b)     = show b
-  show (StringV s)   = "\"" ++ show s ++ "\""
-  show (DoubleV d)   = show d
-  show (PairV v1 v2) = "(" ++ show v1 ++ ", " ++ show v2 ++ ")"
-  show UnitV         = "()"
+  show v = pp v
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
@@ -215,6 +211,7 @@ instance Pretty Val where
     pretty (DoubleV d)   = double d
     pretty (PairV v1 v2) = tupled $ [ pretty v1, pretty v2 ]
     pretty UnitV         = text "()"
+    pretty (TupleV vs)   = tupled $ map pretty vs
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="

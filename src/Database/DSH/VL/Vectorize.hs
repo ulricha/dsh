@@ -622,16 +622,16 @@ dbTable n cs ks = do
 -- | Create a VL representation of a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
 mkLiteral t@(ListT _) (L.ListV es) = do
-    ((descHd, descV), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
+    ((tabTys, tabCols), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
     let emptinessFlag = case es of
           []    -> L.PossiblyEmpty
           _ : _ -> L.NonEmpty
-    litNode <- vlLit emptinessFlag (P.reverse descHd) $ map P.reverse descV
+    litNode <- vlLit emptinessFlag (P.reverse tabTys) $ map P.reverse tabCols
     return $ VShape litNode lyt
 mkLiteral (FunT _ _) _  = $impossible
 mkLiteral t e           = do
-    ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
-    litNode <- vlLit L.NonEmpty (P.reverse descHd) [(P.reverse descV)]
+    ((tabTys, [tabCols]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
+    litNode <- vlLit L.NonEmpty (P.reverse tabTys) [(P.reverse tabCols)]
     return $ SShape litNode layout
 
 type Table = ([Type], [[VLVal]])
@@ -640,43 +640,63 @@ type Table = ([Type], [[VLVal]])
 -- FIXME Check if inner list literals are nonempty and flag VL
 -- literals appropriately.
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
-toPlan (descHd, descV) (ListT t) c es =
+toPlan (tabTys, tabCols) (ListT t) nextCol es =
     case t of
         PairT t1 t2 -> do
-            let (e1s, e2s) = unzip $ map splitVal es
-            (desc', l1, c')   <- toPlan (descHd, descV) (ListT t1) c e1s
-            (desc'', l2, c'') <- toPlan desc' (ListT t2) c' e2s
-            return (desc'', LTuple [l1, l2], c'')
+            let (e1s, e2s) = unzip $ map pairElems es
+            (tab', l1, nextCol')   <- toPlan (tabTys, tabCols) (ListT t1) nextCol e1s
+            (tab'', l2, nextCol'') <- toPlan tab' (ListT t2) nextCol' e2s
+            return (tab'', LTuple [l1, l2], nextCol'')
 
         ListT _ -> do
-            let vs = map fromListVal es
+            let vs = map listElems es
                 d  = mkDescriptor $ map P.length vs
             ((hd, vs'), l, _) <- toPlan d t 1 (P.concat vs)
             n <- vlLit L.PossiblyEmpty (P.reverse hd) (map P.reverse vs')
-            return ((descHd, descV), LNest n l, c)
+            return ((tabTys, tabCols), LNest n l, nextCol)
 
-        TupleT ts -> $unimplemented
+        TupleT elemTys -> do
+            let colsVals = Data.List.transpose $ map tupleElems es
+            mkTupleTable (tabTys, tabCols) nextCol [] colsVals elemTys
 
         FunT _ _  -> $impossible
 
         _ -> let (hd, vs) = mkColumn t es
-             in return ((hd:descHd, zipWith (:) vs descV), (LCol c), c + 1)
+             in return ((hd:tabTys, zipWith (:) vs tabCols), (LCol nextCol), nextCol + 1)
 
 toPlan _ (FunT _ _) _ _ = $impossible
-toPlan (descHd, descV) t c v =
+toPlan (tabTys, tabCols) t c v =
     let (hd, v') = mkColumn t v
-    in return $ ((hd:descHd, zipWith (:) v' descV), (LCol c), c + 1)
+    in return $ ((hd:tabTys, zipWith (:) v' tabCols), (LCol c), c + 1)
+
+-- | Construct the literal table for a list of tuples.
+mkTupleTable :: Table                         -- ^ The literal table so far.
+   -> Int                                     -- ^ The next available column offset
+   -> [Layout VLDVec]                         -- ^ The layouts of the tuple elements constructed so far
+   -> [[L.Val]]                               -- ^ Values for the tuple elements
+   -> [Type]                                  -- ^ Types for the tuple elements
+   -> Build VL (Table, Layout VLDVec, Int)
+mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
+    (tab', lyt, nextCol') <- toPlan tab (ListT t) nextCol colVals
+    mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
+mkTupleTable tab nextCol lyts []                   []       = do
+    return $ (tab, LTuple $ P.reverse lyts, nextCol)
+mkTupleTable _    _       _    _                    _       = $impossible
 
 literal :: Type -> VLVal -> Build VL VLDVec
 literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]
 
-fromListVal :: L.Val -> [L.Val]
-fromListVal (L.ListV es) = es
-fromListVal _            = $impossible
+listElems :: L.Val -> [L.Val]
+listElems (L.ListV es) = es
+listElems _            = $impossible
 
-splitVal :: L.Val -> (L.Val, L.Val)
-splitVal (L.PairV e1 e2) = (e1, e2)
-splitVal _                = $impossible
+pairElems :: L.Val -> (L.Val, L.Val)
+pairElems (L.PairV e1 e2) = (e1, e2)
+pairElems _               = $impossible
+
+tupleElems :: L.Val -> [L.Val]
+tupleElems (L.TupleV es) = es
+tupleElems _             = $impossible
 
 mkColumn :: Type -> [L.Val] -> (Type, [VLVal])
 mkColumn t vs = (t, [pVal v | v <- vs])
