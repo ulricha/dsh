@@ -76,7 +76,7 @@ typeToScalarType t = case t of
   Ty.DoubleT   -> D.Double
   Ty.ListT _   -> $impossible
   Ty.FunT _ _  -> $impossible
-  Ty.PairT _ _  -> $impossible
+  Ty.TupleT _  -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -91,7 +91,7 @@ recordWidth t =
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
         Ty.FunT _ _    -> $impossible
-        Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
+        Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
 data ColExpr = Offset Int | Expr Expr
@@ -121,8 +121,8 @@ toVLjoinConjunct (L.JoinConjunct e1 o e2) =
 toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr
 toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
 
--- Convert join expressions into VL expressions. The main challenge
--- here is convert sequences of tuple accessors (fst/snd) into VL
+-- | Convert join expressions into VL expressions. The main challenge
+-- here is to convert sequences of tuple accessors (fst/snd) into VL
 -- column indices.
 joinExpr :: L.JoinExpr -> Expr
 joinExpr expr = offsetExpr $ aux expr
@@ -140,8 +140,8 @@ joinExpr expr = offsetExpr $ aux expr
     aux (L.JFst _ e)           = aux e
     aux (L.JSnd _ e)           =
         case Ty.typeOf e of
-            Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
-            _             -> $impossible
+            Ty.TupleT [t1, _] -> addOffset (recordWidth t1) (aux e)
+            _                 -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 

@@ -23,11 +23,11 @@ tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (
 -- Smart constructors
 
 fst :: Expr -> Expr
-fst e = let t@(PairT t1 _) = typeOf e
+fst e = let t@(TupleT [t1, _]) = typeOf e
          in AppE1 t1 (Prim1 Fst P.$ t .-> t1) e
 
 snd :: Expr -> Expr
-snd e = let t@(PairT _ t2) = typeOf e
+snd e = let t@(TupleT [_, t2]) = typeOf e
          in AppE1 t2 (Prim1 Snd P.$ t .-> t2) e
 
 pair :: Expr -> Expr -> Expr

@@ -127,7 +127,7 @@ nub e = let (ListT t) = typeOf e
 
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
-           in AppE1 (ListT (PairT t IntT )) (Prim1 Number P.$ ListT t .-> ListT (PairT t IntT )) e
+           in AppE1 (ListT (pairT t IntT )) (Prim1 Number P.$ ListT t .-> ListT (pairT t IntT )) e
 
 guard :: Expr -> Expr
 guard e = AppE1 (listT UnitT) (Prim1 Guard P.$ boolT .-> listT UnitT) e
@@ -137,11 +137,11 @@ init e = let (ListT t) = typeOf e
         in AppE1 (ListT t) (Prim1 Init P.$ ListT t .-> ListT t) e
 
 fst :: Expr -> Expr
-fst e = let t@(PairT t1 _) = typeOf e
+fst e = let t@(TupleT [t1, _]) = typeOf e
          in AppE1 t1 (Prim1 Fst P.$ t .-> t1) e
 
 snd :: Expr -> Expr
-snd e = let t@(PairT _ t2) = typeOf e
+snd e = let t@(TupleT [_, t2]) = typeOf e
          in AppE1 t2 (Prim1 Snd P.$ t .-> t2) e
 
 map :: Expr -> Expr -> Expr

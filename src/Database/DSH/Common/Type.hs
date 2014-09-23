@@ -5,7 +5,6 @@
 
 module Database.DSH.Common.Type 
     ( isNum
-    , extractPairT
     , isList
     , elemT
     , tupleElemT
@@ -14,8 +13,6 @@ module Database.DSH.Common.Type
     , domainT
     , splitType
     , listDepth
-    , pairT
-    , pairComponents
     , splitTypeArgsRes
     , extractFunTRes
     , extractFunTArgs
@@ -31,6 +28,7 @@ module Database.DSH.Common.Type
     , stringT
     , doubleT
     , listT
+    , pairT
     , (.->)
     , Typed (..)
     , isFuns
@@ -50,7 +48,6 @@ instance Pretty Type where
     pretty StringT       = text "String"
     pretty UnitT         = text "()"
     pretty (ListT t)     = brackets $ pretty t
-    pretty (PairT t1 t2) = parens $ pretty t1 <> comma <+> pretty t2
     pretty (TupleT ts)   = tupled $ map pretty ts
 
 -- | We use the following type language to type the various
@@ -61,7 +58,6 @@ data Type  = FunT Type Type
            | DoubleT
            | StringT 
            | UnitT 
-           | PairT Type Type 
            | ListT Type
            | TupleT [Type]
            deriving (Show, Eq, Ord)
@@ -76,7 +72,6 @@ isNum BoolT       = False
 isNum StringT     = False
 isNum UnitT       = False
 isNum (ListT _)   = False
-isNum (PairT _ _) = False
 isNum (TupleT _)  = False
       
 domainT :: Type -> Type
@@ -101,11 +96,11 @@ boolT = BoolT
 unitT :: Type
 unitT = UnitT
 
-pairT :: Type -> Type -> Type
-pairT t1 t2 = PairT t1 t2
-
 listT :: Type -> Type
 listT = ListT
+
+pairT :: Type -> Type -> Type
+pairT t1 t2 = TupleT [t1, t2]
 
 isList :: Type -> Bool
 isList (ListT _) = True
@@ -123,22 +118,13 @@ listDepth :: Type -> Int
 listDepth (ListT t1) = 1 + listDepth t1
 listDepth _          = 0
 
-extractPairT :: Type -> Type
-extractPairT (ListT t1) = extractPairT t1
-extractPairT t@(PairT _ _) = t
-extractPairT _ = error "Type doesn't contain a pair, cannot extract pair"
-
 fstT :: Type -> Type
-fstT (PairT t1 _) = t1
-fstT _            = error "Type is not a pair type"
+fstT (TupleT [t1, _]) = t1
+fstT _                = error "Type is not a pair type"
 
 sndT :: Type -> Type
-sndT (PairT _ t2) = t2
-sndT _            = error "Type is not a pair type"
-
-pairComponents :: Type -> (Type, Type)
-pairComponents (PairT t1 t2) = (t1, t2)
-pairComponents t = error $ "Type is not a pair: " ++ pp t
+sndT (TupleT [_, t2]) = t2
+sndT _                = error "Type is not a pair type"
 
 extractFunTRes :: Type -> Type
 extractFunTRes = snd . splitTypeArgsRes
@@ -176,7 +162,6 @@ unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
 isFuns :: Type -> Bool
 isFuns (ListT t1) = isFuns t1
 isFuns (FunT _ _) = True
-isFuns (PairT _ _) = False
 isFuns _         = False 
 
 class Typed a where

@@ -639,11 +639,6 @@ type Table = ([Type], [[VLVal]])
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
 toPlan (tabTys, tabCols) (ListT t) nextCol es =
     case t of
-        PairT t1 t2 -> do
-            let (e1s, e2s) = unzip $ map pairElems es
-            (tab', l1, nextCol')   <- toPlan (tabTys, tabCols) (ListT t1) nextCol e1s
-            (tab'', l2, nextCol'') <- toPlan tab' (ListT t2) nextCol' e2s
-            return (tab'', LTuple [l1, l2], nextCol'')
 
         ListT _ -> do
             let vs = map listElems es

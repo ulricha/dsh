@@ -3,6 +3,8 @@
 -- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
 
+import Debug.Trace
+
 import           Prelude                    hiding (concat, fst, snd)
 
 import           Text.Printf
@@ -139,7 +141,7 @@ nub e1 d =
 number :: LExpr -> Nat -> LExpr
 number e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-        rt      = (ListT (PairT t IntT ))
+        rt      = (ListT (pairT t IntT ))
     in PApp1 (liftTypeN d rt) Number (LiftedN d) e1
 
 init :: LExpr -> Nat -> LExpr
@@ -203,7 +205,7 @@ combine e1 e2 e3 d =
     in PApp3 (liftTypeN d xst) Combine (LiftedN d) e1 e2 e3
 
 tupElem :: TupleIndex -> LExpr -> Nat -> LExpr
-tupElem f e d =
+tupElem f e d = trace ("tupElem " ++ show (typeOf e) ++ " -> " ++ (show f) ++ " ^ " ++ (show d)) $!
     let t = tupleElemT (typeOf e) f
     in PApp1 (liftTypeN d t) (TupElem f) (LiftedN d) e
 
