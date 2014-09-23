@@ -354,7 +354,7 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     let elemType   = elemT $ typeOf baseSrc
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
         predComp   = NKL.Comp (listT boolT) filterExpr filterName srcVar
-        filterSrc  = P.let_ srcName baseSrc (P.restrict baseSrc predComp)
+        filterSrc  = P.let_ srcName baseSrc (P.restrict srcVar predComp)
 
     desugarQualsRec env filterSrc qs
 
