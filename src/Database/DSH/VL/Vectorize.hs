@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell  #-}
+{-# LANGUAGE ParallelListComp #-}
 
 -- | Vectorising constructor functions that implement FKL primitives
 -- using VL operators.
@@ -573,7 +574,9 @@ dbTable n cs ks = do
     t <- vlTableRef n (map (mapSnd typeToRowType) cs) ks
     return $ VShape t (foldr1 LPair [LCol i | i <- [1..P.length cs]])
 
+-- | Create a bunch of literal vectors that encode a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)
+-- Translate an outer list
 mkLiteral t@(ListT _) (L.ListV es) = do
     ((descHd, descV), lyt, _) <- toPlan (mkDescriptor [P.length es]) t 1 es
     let emptinessFlag = case es of
@@ -582,15 +585,22 @@ mkLiteral t@(ListT _) (L.ListV es) = do
     litNode <- vlLit emptinessFlag (P.reverse descHd) $ map P.reverse descV
     return $ VShape litNode lyt
 mkLiteral (FunT _ _) _  = $impossible
+-- Translate a non-list value, i.e. scalar or tuple
 mkLiteral t e           = do
+    -- There is only one element in the outermost vector
     ((descHd, [descV]), layout, _) <- toPlan (mkDescriptor [1]) (ListT t) 1 [e]
     litNode <- vlLit L.NonEmpty (P.reverse descHd) [(P.reverse descV)]
     return $ SShape litNode layout
 
 type Table = ([Type], [[VLVal]])
 
+-- | Add values to a vector. If necessary (i.e. inner lists are
+-- encountered), create new inner vectors. 'toPlan' receives a
+-- descriptor that has enough space for all elements of the list that
+-- are currently encoded.
+
 -- FIXME Check if inner list literals are nonempty and flag VL
--- literals appropriately.
+-- literals appropriately.  
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
 toPlan (descHd, descV) (ListT t) c es =
     case t of
@@ -634,8 +644,10 @@ mkColumn t vs = (t, [pVal v | v <- vs])
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths =
     let header = []
-        body   = map (\(d, p) -> [VLInt $ fromInteger p, VLInt $ fromInteger d])
-                 $ P.zip (P.concat [ replicate l p | (p, l) <- P.zip [1..] lengths] ) [1..]
+        body   = [ [VLInt $ fromInteger p, VLInt $ fromInteger d]
+                 | d <- P.concat [ replicate l p | p <- [1..] | l <- lengths ]  
+                 | p <- [1..]
+                 ]
     in (header, body)
 
 --------------------------------------------------------------------------------
