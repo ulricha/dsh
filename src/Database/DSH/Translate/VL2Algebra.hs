@@ -26,8 +26,8 @@ import           Database.DSH.Translate.FKL2VL        ()
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.VectorAlgebra
-import           Database.DSH.VL.VectorAlgebra.TA
-import           Database.DSH.VL.VectorAlgebra.X100
+import           Database.DSH.VL.VectorAlgebra.TA     ()
+import           Database.DSH.VL.VectorAlgebra.X100   ()
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.

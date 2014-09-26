@@ -6,6 +6,7 @@ import qualified Prelude as P
 import           Text.Printf
 
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
 import           Database.DSH.NKL.Lang
@@ -22,19 +23,25 @@ tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (
 --------------------------------------------------------------------------------
 -- Smart constructors
 
+tupElem :: TupleIndex -> Expr -> Expr
+tupElem f e = 
+    let t = tupleElemT (typeOf e) f
+    in AppE1 t (Prim1 (TupElem f) (typeOf e .-> t)) e
+
 fst :: Expr -> Expr
-fst e = let t@(TupleT [t1, _]) = typeOf e
-         in AppE1 t1 (Prim1 Fst P.$ t .-> t1) e
+fst e = tupElem First e
 
 snd :: Expr -> Expr
-snd e = let t@(TupleT [_, t2]) = typeOf e
-         in AppE1 t2 (Prim1 Snd P.$ t .-> t2) e
+snd e = tupElem (Next First) e
 
 pair :: Expr -> Expr -> Expr
-pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (TupleV [v1, v2])
-pair e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in AppE2 (pairT t1 t2) (Prim2 Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
+pair a b = tuple [a, b]
+
+tuple :: [Expr] -> Expr
+tuple es =
+    let ts = P.map typeOf es
+        rt = TupleT ts
+    in MkTuple rt es
 
 cons :: Expr -> Expr -> Expr
 cons x xs = let xt  = typeOf x

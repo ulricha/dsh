@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module Database.DSH.NKL.Lang
   ( Expr(..)
@@ -15,8 +16,10 @@ module Database.DSH.NKL.Lang
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
+import           Database.DSH.Impossible
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type     (Type, Typed, typeOf)
 
 -- | Nested Kernel Language (NKL) expressions
@@ -30,6 +33,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Var Type L.Ident
            | Comp Type Expr L.Ident Expr
            | Let Type L.Ident Expr Expr
+           | MkTuple Type [Expr]
            deriving (Show)
 
 instance Typed Expr where
@@ -43,8 +47,12 @@ instance Typed Expr where
     typeOf (Var t _)       = t
     typeOf (Comp t _ _ _)  = t
     typeOf (Let t _ _ _)   = t
+    typeOf (MkTuple t _)   = t
 
 instance Pretty Expr where
+    pretty (MkTuple _ es)     = text "tuple" <+> (sep $ map parenthize es)
+    pretty (AppE1 _ (Prim1 (TupElem n) _) e1) = 
+        parenthize e1 <> dot <> int (tupleIndex n)
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
@@ -67,22 +75,18 @@ instance Pretty Expr where
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _        -> pretty e
-        Const _ _      -> pretty e
-        Table _ _ _ _  -> pretty e
-        Comp _ _ _ _   -> pretty e
-        _              -> parens $ pretty e
-
-deriving instance Eq Expr
-deriving instance Ord Expr
+        Var _ _                         -> pretty e
+        Const _ _                       -> pretty e
+        Table _ _ _ _                   -> pretty e
+        Comp _ _ _ _                    -> pretty e
+        AppE1 _ (Prim1 (TupElem _) _) _ -> pretty e
+        _                               -> parens $ pretty e
 
 data Prim1Op = Length 
              | Concat
              | Sum 
              | Avg 
              | The 
-             | Fst 
-             | Snd
              | Head 
              | Tail
              | Minimum 
@@ -96,9 +100,10 @@ data Prim1Op = Length
              | Number
              | Reshape Integer
              | Transpose
-             deriving (Eq, Ord)
+             | TupElem TupleIndex
+             deriving (Eq)
 
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
+data Prim1 t = Prim1 Prim1Op t deriving (Eq)
 
 instance Show Prim1Op where
   show Length          = "length"
@@ -106,8 +111,6 @@ instance Show Prim1Op where
   show Sum             = "sum"
   show Avg             = "avg"
   show The             = "the"
-  show Fst             = "fst"
-  show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
   show Maximum         = "maximum"
@@ -121,6 +124,8 @@ instance Show Prim1Op where
   show Number          = "number"
   show Transpose       = "transpose"
   show (Reshape n)     = printf "reshape(%d)" n
+  -- tuple access is pretty-printed in a special way
+  show TupElem{}       = $impossible
 
 instance Show (Prim1 t) where
   show (Prim1 o _) = show o
@@ -128,7 +133,6 @@ instance Show (Prim1 t) where
 data Prim2Op = Group
              | Sort
              | Restrict
-             | Pair
              | Append
              | Index
              | Zip
@@ -144,16 +148,15 @@ data Prim2Op = Group
 data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
 
 instance Show Prim2Op where
-  show Group        = "group"
-  show Sort         = "sort"
-  show Restrict     = "restrict"
-  show Pair         = "pair"
-  show Append       = "append"
-  show Index        = "index"
-  show Zip          = "zip"
-  show Cons         = "cons"
-  show CartProduct  = "⨯"
-  show NestProduct  = "▽"
+  show Group         = "group"
+  show Sort          = "sort"
+  show Restrict      = "restrict"
+  show Append        = "append"
+  show Index         = "index"
+  show Zip           = "zip"
+  show Cons          = "cons"
+  show CartProduct   = "⨯"
+  show NestProduct   = "▽"
   show (ThetaJoin p) = printf "⨝_%s" (pp p)
   show (NestJoin p)  = printf "△_%s" (pp p)
   show (SemiJoin p)  = printf "⋉_%s" (pp p)

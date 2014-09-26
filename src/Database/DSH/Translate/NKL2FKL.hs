@@ -5,11 +5,6 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 -- FIXME use more let bindings to avoid term replication, e.g. in if conditionals
 -- FIXME make sure that no wrong shadowing occurs while lifting or restricting the environment.
 
-#ifdef DEBUGCOMP
-import           Debug.Trace
-import           Database.DSH.Common.Pretty
-#endif
-
 import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
@@ -43,8 +38,7 @@ prim1 (N.Prim1 p _) =
         N.Sum       -> P.sum
         N.Avg       -> P.avg
         N.The       -> P.the
-        N.Fst       -> P.tupElem First
-        N.Snd       -> P.tupElem (Next First)
+        N.TupElem n -> P.tupElem n
         N.Head      -> P.head
         N.Tail      -> P.tail
         N.Minimum   -> P.minimum
@@ -65,7 +59,6 @@ prim2 (N.Prim2 p _) =
         N.Group        -> P.group
         N.Sort         -> P.sort
         N.Restrict     -> P.restrict
-        N.Pair         -> \e1 e2 -> P.tuple [e1, e2]
         N.Append       -> P.append
         N.Index        -> P.index
         N.Zip          -> P.zip
@@ -92,6 +85,7 @@ flatten (N.AppE1 _ p e)      = prim1 p (flatten e) Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2) Zero
 flatten (N.Comp _ h x xs)    = P.let_ x (flatten xs) (topFlatten (x, typeOf xs) h)
 flatten (N.Let _ x xs e)     = P.let_ x (flatten xs) (flatten e)
+flatten (N.MkTuple _ es)     = P.tuple (map flatten es) Zero
 
 --------------------------------------------------------------------------------
 
@@ -104,6 +98,7 @@ topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten
 topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
 topFlatten _   (N.Var t v)          = F.Var (liftType t) v
 topFlatten ctx (N.Let _ x xs e)     = P.let_ x (topFlatten ctx xs) (topFlatten ctx e)
+topFlatten ctx (N.MkTuple   es)     = P.tuple (map (topFlatten ctx) es) (Succ Zero)
 topFlatten ctx (N.If _ ce te ee)    =
     -- Combine the results for the then and else branches. Combined,
     -- we get values for all iterations.
@@ -223,6 +218,7 @@ deepFlatten (N.Const t v)        = do
 
 deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
 deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
+deepFlatten (N.MkTuple _ es)     = frameDepthM >>= \d -> P.tuple <$> mapM deepFlatten es <*> pure d
 deepFlatten (N.AppE1 _ p e)      = prim1 p <$> deepFlatten e <*> frameDepthM
 deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
 

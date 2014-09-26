@@ -9,7 +9,6 @@ import           Debug.Trace
 
 import           Control.Applicative
 import           Data.List
-import qualified Data.List.NonEmpty            as N
 import           Prelude                       hiding (reverse, zip)
 import qualified Prelude                       as P
 
@@ -648,7 +647,7 @@ toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, In
 toPlan (tabTys, tabCols) (ListT t) nextCol es =
     -- Inspect the element type of the list to be encoded
     case t of
-        ListT et -> do
+        ListT _ -> do
             let vs = map listElems es
                 -- Create a vector with one entry for each element of an inner list
                 d  = mkDescriptor $ map P.length vs
@@ -687,7 +686,7 @@ mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
     mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
 mkTupleTable tab nextCol lyts []                   []       = do
     return $ (tab, LTuple $ P.reverse lyts, nextCol)
-mkTupleTable _   _       _    cs                   ts       = $impossible
+mkTupleTable _   _       _    _                    _        = $impossible
 
 literal :: Type -> VLVal -> Build VL VLDVec
 literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]

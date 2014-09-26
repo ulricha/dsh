@@ -5,13 +5,11 @@ module Database.DSH.Common.Lang where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import           Data.List
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
-import           Database.DSH.Common.Pretty
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON (n N.:| nl) = toJSON (n, nl)

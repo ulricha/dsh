@@ -3,8 +3,6 @@
 -- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
 
-import Debug.Trace
-
 import           Prelude                    hiding (concat, fst, snd)
 
 import           Text.Printf

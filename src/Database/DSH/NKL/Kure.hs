@@ -63,6 +63,7 @@ data CrumbN = CompHead
             | IfElse
             | LetBind
             | LetBody
+            | TupleElem Int
             deriving (Eq, Show)
 
 type AbsPathN = AbsolutePath CrumbN
@@ -248,22 +249,34 @@ letR :: Monad m => Rewrite NestedCtx m Expr
                 -> Rewrite NestedCtx m Expr
 letR r1 r2 = letT r1 r2 Let
 
+mkTupleT :: Monad m => Transform NestedCtx m Expr a
+                    -> (Type -> [a] -> b)
+                    -> Transform NestedCtx m Expr b
+mkTupleT t f = transform $ \c expr -> case expr of
+                   MkTuple ty es -> f ty <$> zipWithM (\e i -> applyT t (c@@TupleElem i) e) es [1..]
+                   _             -> fail "not a tuple constructor"
+{-# INLINE mkTupleT #-}
+
+mkTupleR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
+mkTupleR r = mkTupleT r MkTuple
+
 
 --------------------------------------------------------------------------------
        
 instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
     allR r = readerT $ \e -> case e of
-            Table{} -> idR
-            AppE1{} -> appe1R (extractR r)
-            AppE2{} -> appe2R (extractR r) (extractR r)
-            BinOp{} -> binopR (extractR r) (extractR r)
-            UnOp{}  -> unopR (extractR r)
-            Comp{}  -> compR (extractR r) (extractR r)
-            If{}    -> ifR (extractR r) (extractR r) (extractR r)
-            Const{} -> idR
-            Var{}   -> idR
-            Let{}   -> letR (extractR r) (extractR r)
+            Table{}   -> idR
+            AppE1{}   -> appe1R (extractR r)
+            AppE2{}   -> appe2R (extractR r) (extractR r)
+            BinOp{}   -> binopR (extractR r) (extractR r)
+            UnOp{}    -> unopR (extractR r)
+            Comp{}    -> compR (extractR r) (extractR r)
+            If{}      -> ifR (extractR r) (extractR r) (extractR r)
+            Const{}   -> idR
+            Var{}     -> idR
+            Let{}     -> letR (extractR r) (extractR r)
+            MkTuple{} -> mkTupleR (extractR r)
             
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
