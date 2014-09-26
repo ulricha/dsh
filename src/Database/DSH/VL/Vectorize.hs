@@ -336,7 +336,7 @@ combineL (VShape qo (LNest qb (LCol 1)))
          (VShape _ (LNest qi2 lyt2)) = do
     VShape qi' lyt' <- combine (VShape qb (LCol 1)) (VShape qi1 lyt1) (VShape qi2 lyt2)
     return $ VShape qo (LNest qi' lyt')
-combineL _ _ _ = trace "foobar" $impossible
+combineL _ _ _ = $impossible
 
 zipL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
@@ -567,7 +567,7 @@ tupElemL i (VShape q (LTuple lyts)) = do
     let (lyt', cols) = projectFromPos $ lyts !! (tupleIndex i - 1)
     proj <- vlProject q (map Column cols)
     return $ VShape proj lyt'
-tupElemL _ _ = $impossible
+tupElemL i s = trace (show i ++ " " ++ show s) $impossible
 
 transposeL :: Shape VLDVec -> Build VL (Shape VLDVec)
 transposeL (VShape qo (LNest qm (LNest qi lyt))) = do
@@ -646,17 +646,23 @@ type Table = ([Type], [[VLVal]])
 -- literals appropriately.  
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
 toPlan (tabTys, tabCols) (ListT t) nextCol es =
+    -- Inspect the element type of the list to be encoded
     case t of
-
-        ListT _ -> do
+        ListT et -> do
             let vs = map listElems es
+                -- Create a vector with one entry for each element of an inner list
                 d  = mkDescriptor $ map P.length vs
-            ((hd, vs'), l, _) <- toPlan d t 1 (P.concat vs)
-            n <- vlLit L.PossiblyEmpty (P.reverse hd) (map P.reverse vs')
-            return ((tabTys, tabCols), LNest n l, nextCol)
+            -- Add the inner list elements to the vector
+            ((innerTabTys, innerTabCols), lyt, _) <- toPlan d t 1 (P.concat vs)
+            n <- vlLit L.PossiblyEmpty (P.reverse innerTabTys) (map P.reverse innerTabCols)
+            return ((tabTys, tabCols), LNest n lyt, nextCol)
 
         TupleT elemTys -> do
-            let colsVals = Data.List.transpose $ map tupleElems es
+            -- We add tuple elements column-wise. If the list to be
+            -- encoded is empty, create an empty list for each column.
+            let colsVals = case es of
+                               [] -> map (const []) elemTys
+                               _  -> Data.List.transpose $ map tupleElems es
             mkTupleTable (tabTys, tabCols) nextCol [] colsVals elemTys
 
         FunT _ _  -> $impossible
@@ -676,12 +682,12 @@ mkTupleTable :: Table                         -- ^ The literal table so far.
    -> [[L.Val]]                               -- ^ Values for the tuple elements
    -> [Type]                                  -- ^ Types for the tuple elements
    -> Build VL (Table, Layout VLDVec, Int)
-mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
+mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = trace ("mkt " ++ show colVals ++ " -> " ++ show t) $! do
     (tab', lyt, nextCol') <- toPlan tab (ListT t) nextCol colVals
     mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
 mkTupleTable tab nextCol lyts []                   []       = do
     return $ (tab, LTuple $ P.reverse lyts, nextCol)
-mkTupleTable _    _       _    _                    _       = $impossible
+mkTupleTable _   _       _    cs                    ts       = trace (show cs ++ " " ++ show ts) $impossible
 
 literal :: Type -> VLVal -> Build VL VLDVec
 literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]

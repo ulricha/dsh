@@ -374,13 +374,11 @@ q3t =
   , l_shipdateQ l > (toQ 23)
   ]
 
-foo :: Q [Integer]
-foo = 
-  [ x
-  | x <- toQ [1,2,3,4,5,6,7,8,12]
-  , x < 8
-  , sum [ snd z | z <- toQ ([(2, 20), (5, 60), (3, 30), (3, 80), (4, 40), (5, 10), (5, 30), (12, 120)] :: [(Integer, Integer)]), fst z == x ] > 100
-  ]
+foo :: Q [(Integer, Integer, Integer)]
+foo = [ tuple3 (x1 * x2) y1 y2
+      | (view -> (x1, x2)) <- fst $ toQ ([]::[(Integer, Integer)], ([]::[(Integer, Integer)]))
+      , (view -> (y1, y2)) <- snd $ toQ ([]::[(Integer, Integer)], ([]::[(Integer, Integer)]))
+      , x1 == y2]
 
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))

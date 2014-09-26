@@ -31,10 +31,7 @@ data Val where
     DoubleV :: Double -> Val
     TupleV  :: [Val] -> Val
     UnitV   :: Val
-    deriving (Eq, Ord)
-
-instance Show Val where
-  show v = pp v
+    deriving (Eq, Ord, Show)
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
