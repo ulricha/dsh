@@ -682,12 +682,12 @@ mkTupleTable :: Table                         -- ^ The literal table so far.
    -> [[L.Val]]                               -- ^ Values for the tuple elements
    -> [Type]                                  -- ^ Types for the tuple elements
    -> Build VL (Table, Layout VLDVec, Int)
-mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = trace ("mkt " ++ show colVals ++ " -> " ++ show t) $! do
+mkTupleTable tab nextCol lyts (colVals : colsVals) (t : ts) = do
     (tab', lyt, nextCol') <- toPlan tab (ListT t) nextCol colVals
     mkTupleTable tab' nextCol' (lyt : lyts) colsVals ts
 mkTupleTable tab nextCol lyts []                   []       = do
     return $ (tab, LTuple $ P.reverse lyts, nextCol)
-mkTupleTable _   _       _    cs                    ts       = trace (show cs ++ " " ++ show ts) $impossible
+mkTupleTable _   _       _    cs                   ts       = $impossible
 
 literal :: Type -> VLVal -> Build VL VLDVec
 literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]
