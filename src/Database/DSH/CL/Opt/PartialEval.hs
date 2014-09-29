@@ -16,18 +16,20 @@ import           Database.DSH.CL.Kure
 -- Partial evaluation rules
 
 -- | Eliminate tuple construction if the elements are first and second of the
--- same tuple:
+-- same pair:
 -- pair (fst x) (snd x) => x
-{-
-FIXME add equivalent rewrite for proper tuples
-pairR :: RewriteC CL
-pairR = do
-    ExprCL (AppE2 _ Pair
-                    (AppE1 _ Fst v@(Var _ x)) 
-                    (AppE1 _ Snd (Var _ x'))) <- idR
+identityPairR :: RewriteC CL
+identityPairR = do
+    ExprCL (MkTuple _ [ AppE1 _ (TupElem First)  v@(Var tupleTy x) 
+                      , AppE1 _ (TupElem (Next First)) (Var _ x')
+                      ]) <- idR
+
+    -- Check that the original value actually was a /pair/ and that no
+    -- elements are discarded.
+    TupleT [_, _] <- return tupleTy
+
     guardM $ x == x'
     return $ inject v
--}
 
 tupleElemR :: RewriteC CL
 tupleElemR = do
@@ -37,6 +39,6 @@ tupleElemR = do
 partialEvalR :: RewriteC CL
 partialEvalR = 
     readerT $ \cl -> case cl of
-        ExprCL AppE1{} -> tupleElemR
-        -- ExprCL AppE2{} -> pairR
-        _                    -> fail "can't apply partial evaluation rules"
+        ExprCL AppE1{}   -> tupleElemR
+        ExprCL MkTuple{} -> identityPairR
+        _                -> fail "can't apply partial evaluation rules"
