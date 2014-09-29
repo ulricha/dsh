@@ -15,7 +15,7 @@ inferIColsBinOp :: S.Set Attr  -- ^ columns that are required from us
                 -> S.Set Attr  -- ^ Output of the left child
                 -> S.Set Attr  -- ^ Columns required from the right child
                 -> S.Set Attr  -- ^ Output of the left child
-                -> BinOp           -- ^ The operator
+                -> BinOp       -- ^ The operator
                 -> (S.Set Attr, S.Set Attr)
 inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
     case op of
@@ -53,7 +53,12 @@ inferIColsBinOp ownICols leftICols leftCols rightICols rightCols op =
                  rightICols' = rightExprCols
              in (leftICols', rightICols')
 
-         DisjUnion _  -> (leftICols ∪ ownICols, rightICols ∪ ownICols)
+         -- The schemata of both union inputs must be kept in sync. No
+         -- ICols-based (i.e. colummn-pruning) rewrites can be
+         -- performed unless there is a guarantee that they happen in
+         -- both branches.
+         DisjUnion _  -> (leftCols, rightCols)
+
          Difference _ -> (leftICols ∪ leftCols, rightICols ∪ leftCols)
 
 inferIColsUnOp :: S.Set Attr -> S.Set Attr -> UnOp -> S.Set Attr
