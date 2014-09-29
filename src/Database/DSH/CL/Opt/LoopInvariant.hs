@@ -33,14 +33,14 @@ traverseT localVars = readerT $ \expr -> case expr of
 
     -- We do not traverse into the mapping argument of higher-order
     -- list combinators
-    ExprCL (AppE2 _ (Prim2 Map _) _ _)          -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ (Prim2 ConcatMap _) _ _)    -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ (Prim2 Filter _) _ _)       -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ (Prim2 GroupWithKey _) _ _) -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ (Prim2 SortWith _) _ _)     -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ Map _ _)          -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ ConcatMap _ _)    -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ Filter _ _)       -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ GroupWithKey _ _) -> childT AppE2Arg2 $ searchInvariantExprT localVars
+    ExprCL (AppE2 _ SortWith _ _)     -> childT AppE2Arg2 $ searchInvariantExprT localVars
 
-    ExprCL _                                     -> oneT $ searchInvariantExprT localVars
-    _                                            -> fail "we only consider expressions"
+    ExprCL _                          -> oneT $ searchInvariantExprT localVars
+    _                                 -> fail "we only consider expressions"
 
 -- | Collect a path to a complex expression
 complexPathT :: [Ident] -> TransformC CL (Expr, PathC)
@@ -60,10 +60,10 @@ complexPathT localVars = do
     -- comprehension is only "complex" if it has more than one
     -- generator OR a filter OR something complex in the head.
     case e of
-        Comp _ _ _                                 -> return (e, path)
-        If _ _ _ _                                 -> return (e, path)
-        AppE2 _ (Prim2 op _) _ _ | complexPrim2 op -> return (e, path)
-        AppE1 _ (Prim1 op _) _   | complexPrim1 op -> return (e, path)
+        Comp _ _ _                       -> return (e, path)
+        If _ _ _ _                       -> return (e, path)
+        AppE2 _ op _ _ | complexPrim2 op -> return (e, path)
+        AppE1 _ op _   | complexPrim1 op -> return (e, path)
         _ -> fail "not a complex expression"
 
 -- | Traverse expressions top-down, searching for loop-invariant

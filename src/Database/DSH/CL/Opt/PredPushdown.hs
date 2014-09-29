@@ -40,9 +40,9 @@ allVarPathsT x = do
 
 -- | All occurences of variable x must occur in the form of a tuple
 -- accessor, either fst or snd. Remove this tuple accessor.
-unTuplifyR :: (Prim1Op -> Bool) -> PathC -> RewriteC CL
+unTuplifyR :: (Prim1 -> Bool) -> PathC -> RewriteC CL
 unTuplifyR isTupleOp path = pathR path $ do
-    AppE1 ty (Prim1 op _) (Var _ x)  <- promoteT idR
+    AppE1 ty op (Var _ x)  <- promoteT idR
     guardM $ isTupleOp op
     return $ inject $ Var ty x
 
@@ -146,12 +146,12 @@ splitMergeablePredT x p = do
 -- the current theta join.
 mergePredIntoJoinR :: Ident -> Expr -> RewriteC CL
 mergePredIntoJoinR x p = do
-    AppE2 t (Prim2 (ThetaJoin (JoinPred ps)) tj) xs ys <- promoteT idR
+    AppE2 t (ThetaJoin (JoinPred ps)) xs ys <- promoteT idR
     joinConjunct <- splitMergeablePredT x p
 
     let extendedJoin = ThetaJoin (JoinPred $ joinConjunct N.<| ps)
 
-    return $ inject $ AppE2 t (Prim2 extendedJoin tj) xs ys
+    return $ inject $ AppE2 t extendedJoin xs ys
 
 -- | Push into the second argument (input) of some operator that
 -- commutes with selection.
@@ -178,26 +178,26 @@ pushPredicateR x p = do
         -- First, try to merge the predicate into the join. For
         -- regular joins and products, non-join predicates might apply
         -- to the left or right input.
-        ExprCL (AppE2 _ (Prim2 (ThetaJoin _) _) _ _) -> mergePredIntoJoinR x p
-                                                        <+ pushLeftOrRightTupleR x p
-        ExprCL (AppE2 _ (Prim2 CartProduct _) _ _)   -> pushLeftOrRightTupleR x p
+        ExprCL (AppE2 _ (ThetaJoin _) _ _) -> mergePredIntoJoinR x p
+                                              <+ pushLeftOrRightTupleR x p
+        ExprCL (AppE2 _ CartProduct _ _)   -> pushLeftOrRightTupleR x p
 
         -- For nesting operators, a guard can only refer to the left
         -- input, i.e. the original outer generator.
 
         -- FIXME why commented out?
         -- ExprCL (AppE2 _ (Prim2 (NestProduct _ _) _) _ _) -> pushLeftTupleR p
-        ExprCL (AppE2 _ (Prim2 (NestJoin _) _) _ _)  -> pushLeftTupleR x p
+        ExprCL (AppE2 _ (NestJoin _) _ _)  -> pushLeftTupleR x p
 
         -- Semi- and Antijoin operators produce a subset of their left
         -- input. A filter can only apply to the left input,
         -- consequently.
-        ExprCL (AppE2 _ (Prim2 (SemiJoin _) _) _ _)  -> pushLeftR x p
-        ExprCL (AppE2 _ (Prim2 (AntiJoin _) _) _ _)  -> pushLeftR x p
+        ExprCL (AppE2 _ (SemiJoin _) _ _)  -> pushLeftR x p
+        ExprCL (AppE2 _ (AntiJoin _) _ _)  -> pushLeftR x p
 
         -- Sorting commutes with selection
-        ExprCL (AppE2 _ (Prim2 SortWith _) _ _)      -> pushInputR x p
-        _                                            -> fail "expression does not allow predicate pushing"
+        ExprCL (AppE2 _ SortWith _ _)      -> pushInputR x p
+        _                                  -> fail "expression does not allow predicate pushing"
 
 pushQualsR :: RewriteC CL
 pushQualsR = do

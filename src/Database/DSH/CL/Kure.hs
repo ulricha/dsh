@@ -171,7 +171,7 @@ appR t1 t2 = appT t1 t2 App
 {-# INLINE appR #-}                      
                       
 appe1T :: Monad m => Transform CompCtx m Expr a
-                  -> (Type -> Prim1 Type -> a -> b)
+                  -> (Type -> Prim1 -> a -> b)
                   -> Transform CompCtx m Expr b
 appe1T t f = transform $ \c expr -> case expr of
                       AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e                  
@@ -184,7 +184,7 @@ appe1R t = appe1T t AppE1
                       
 appe2T :: Monad m => Transform CompCtx m Expr a1
                   -> Transform CompCtx m Expr a2
-                  -> (Type -> Prim2 Type -> a1 -> a2 -> b)
+                  -> (Type -> Prim2 -> a1 -> a2 -> b)
                   -> Transform CompCtx m Expr b
 appe2T t1 t2 f = transform $ \c expr -> case expr of
                      AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1 

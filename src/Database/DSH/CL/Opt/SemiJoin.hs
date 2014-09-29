@@ -19,7 +19,7 @@ import qualified Database.DSH.CL.Primitives as P
 --------------------------------------------------------------------------------
 -- Introduce semi joins (existential quantification)
 
-pattern POr xs <- AppE1 _ (Prim1 Or _) xs
+pattern POr xs <- AppE1 _ Or xs
 pattern PTrue = Lit BoolT (BoolV True)
 
 existentialQualR :: RewriteC (NL Qual)

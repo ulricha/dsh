@@ -47,7 +47,7 @@ cons :: Expr -> Expr -> Expr
 cons x xs = let xt  = typeOf x
                 xst = typeOf xs
             in if elemT xst == xt
-               then AppE2 xst (Prim2 Cons (xt .-> xst .-> xst)) x xs
+               then AppE2 xst Cons x xs
                else tyErr "cons"
 
 singleton :: Expr -> Expr
@@ -56,23 +56,20 @@ singleton e = let t = typeOf e in cons e (Const (listT t) (ListV []))
 concat :: Expr -> Expr
 concat e = let t = typeOf e
             in if listDepth t P.> 1
-               then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
+               then AppE1 (unliftType t) Concat e
                else tyErrShow "concat" [t]
 
 restrict :: Expr -> Expr -> Expr
-restrict vs bs = let bst@(ListT BoolT) = typeOf bs
-                     vst@(ListT _)     = typeOf vs
-                 in AppE2 vst (Prim2 Restrict (vst .-> bst .-> vst)) vs bs
+restrict vs bs = let vst@(ListT _)     = typeOf vs
+                 in AppE2 vst Restrict vs bs
 
 sort :: Expr -> Expr -> Expr
-sort ss vs = let sst@(ListT _) = typeOf ss
-                 vst@(ListT _) = typeOf vs
-             in AppE2 vst (Prim2 Sort (sst .-> vst .-> vst)) ss vs
+sort ss vs = let vst@(ListT _) = typeOf vs
+             in AppE2 vst Sort ss vs
 
 group :: Expr -> Expr -> Expr
-group gs vs = let gst@(ListT _) = typeOf gs
-                  vst@(ListT _) = typeOf vs
-              in AppE2 vst (Prim2 Group (gst .-> vst .-> vst)) gs vs
+group gs vs = let vst@(ListT _) = typeOf vs
+              in AppE2 vst Group gs vs
 
 let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2

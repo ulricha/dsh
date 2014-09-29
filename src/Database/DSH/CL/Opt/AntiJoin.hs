@@ -27,7 +27,7 @@ import qualified Database.DSH.CL.Primitives as P
 -- Queries with Universal Quantification in Object-Oriented and
 -- Object-Relational Databases (VLDB 1995).
 
-pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
+pattern PAnd xs <- AppE1 _ And xs
 pattern PNot e <- UnOp _ (SUBoolOp Not) e
 
 negateRelOp :: BinRelOp -> BinRelOp

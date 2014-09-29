@@ -30,8 +30,8 @@ flatTransform expr = optimizeFKL "FKL" $ normalize $ optimizeFKL "FKL Intermedia
 -- Translation of built-in combinators. Combinators are lifted
 -- according to the iteration depth at which they are encountered.
 
-prim1 :: N.Prim1 Type -> F.LExpr -> Nat -> F.LExpr
-prim1 (N.Prim1 p _) =
+prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
+prim1 p =
     case p of
         N.Length    -> P.length
         N.Concat    -> P.concat
@@ -53,8 +53,8 @@ prim1 (N.Prim1 p _) =
         N.Reshape n -> P.reshape n
         N.Transpose -> P.transpose
 
-prim2 :: N.Prim2 Type -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
-prim2 (N.Prim2 p _) =
+prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
+prim2 p =
     case p of
         N.Group        -> P.group
         N.Sort         -> P.sort

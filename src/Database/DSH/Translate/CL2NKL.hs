@@ -31,11 +31,11 @@ import           Database.DSH.NKL.Rewrite
 --------------------------------------------------------------------------------
 -- Conversion of primitive operators
        
-prim1 :: Type -> CL.Prim1 Type -> CL.Expr -> NameEnv NKL.Expr
-prim1 t (CL.Prim1 o ot) e = mkApp t ot <$> expr e
+prim1 :: Type -> CL.Prim1 -> CL.Expr -> NameEnv NKL.Expr
+prim1 t p e = mkApp t <$> expr e
   where 
     mkApp = 
-        case o of
+        case p of
             CL.Length           -> mkPrim1 NKL.Length 
             CL.Concat           -> mkPrim1 NKL.Concat 
             -- Null in explicit form is useful during CL optimization
@@ -64,14 +64,12 @@ prim1 t (CL.Prim1 o ot) e = mkApp t ot <$> expr e
             CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.Guard            -> $impossible
     
-    nklNull _ _ ne = NKL.BinOp boolT 
-                               (SBRelOp Eq)
-                               (NKL.Const intT $ IntV 0)
-                               (NKL.AppE1 intT 
-                                          (NKL.Prim1 NKL.Length (typeOf ne .-> intT)) 
-                                          ne)
+    nklNull _ ne = NKL.BinOp boolT 
+                             (SBRelOp Eq)
+                             (NKL.Const intT $ IntV 0)
+                             (NKL.AppE1 intT NKL.Length ne)
                                        
-    mkPrim1 nop nt nopt ne = NKL.AppE1 nt (NKL.Prim1 nop nopt) ne
+    mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
                                    
 
 -- | Transform applications of binary primitives. Regular primitives
@@ -79,8 +77,8 @@ prim1 t (CL.Prim1 o ot) e = mkApp t ot <$> expr e
 -- (concatMap, map, filter, sortWith, groupWith) are mapped to their
 -- first-order NKL equivalent combined with a single-generator
 -- comprehension.
-prim2 :: Type -> CL.Prim2 Type -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
-prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
+prim2 :: Type -> CL.Prim2 -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
+prim2 t o e1 e2 = mkApp2
   where
     mkApp2 =
         case o of
@@ -134,8 +132,8 @@ prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
                                  <*> (P.group <$> mkComp h x nv <*> expr nv)
                     _            -> $impossible
 
-    mkPrim2 :: NKL.Prim2Op -> NameEnv NKL.Expr
-    mkPrim2 nop = NKL.AppE2 t (NKL.Prim2 nop ot) <$> expr e1 <*> expr e2
+    mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
+    mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2
 
     mkComp :: CL.Expr -> Ident -> CL.Expr -> NameEnv NKL.Expr
     mkComp h x xs = NKL.Comp (listT $ typeOf h) 

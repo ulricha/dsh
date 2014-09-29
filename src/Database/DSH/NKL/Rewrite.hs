@@ -98,8 +98,8 @@ substR v s = readerT $ \expr -> case expr of
 --------------------------------------------------------------------------------
 -- Simple optimizations
 
-pattern ConcatP t xs <- AppE1 t (Prim1 Concat _) xs
-pattern SingletonP e <- AppE2 _ (Prim2 Cons _) e (Const _ (ListV []))
+pattern ConcatP t xs <- AppE1 t Concat xs
+pattern SingletonP e <- AppE2 _ Cons e (Const _ (ListV []))
        
 -- concatMap (\x -> [e x]) xs
 -- concat [ [ e x ] | x <- xs ]
