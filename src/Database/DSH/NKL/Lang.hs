@@ -6,8 +6,6 @@
 module Database.DSH.NKL.Lang
   ( Expr(..)
   , Typed(..)
-  , Prim1Op(..)
-  , Prim2Op(..)
   , Prim1(..)
   , Prim2(..)
   ) where
@@ -21,8 +19,8 @@ import           Database.DSH.Common.Type     (Type, Typed, typeOf)
 
 -- | Nested Kernel Language (NKL) expressions
 data Expr  = Table Type String [L.Column] L.TableHints
-           | AppE1 Type (Prim1 Type) Expr
-           | AppE2 Type (Prim2 Type) Expr Expr
+           | AppE1 Type Prim1 Expr
+           | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
            | If Type Expr Expr Expr
@@ -76,88 +74,78 @@ parenthize e =
 deriving instance Eq Expr
 deriving instance Ord Expr
 
-data Prim1Op = Length 
-             | Concat
-             | Sum 
-             | Avg 
-             | The 
-             | Fst 
-             | Snd
-             | Head 
-             | Tail
-             | Minimum 
-             | Maximum
-             | Reverse 
-             | And 
-             | Or
-             | Init 
-             | Last 
-             | Nub
-             | Number
-             | Reshape Integer
-             | Transpose
-             deriving (Eq, Ord)
+data Prim1 = Length 
+           | Concat
+           | Sum 
+           | Avg 
+           | The 
+           | Fst 
+           | Snd
+           | Head 
+           | Tail
+           | Minimum 
+           | Maximum
+           | Reverse 
+           | And 
+           | Or
+           | Init 
+           | Last 
+           | Nub
+           | Number
+           | Reshape Integer
+           | Transpose
+           deriving (Eq, Ord)
 
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
+instance Show Prim1 where
+    show Length          = "length"
+    show Concat          = "concat"
+    show Sum             = "sum"
+    show Avg             = "avg"
+    show The             = "the"
+    show Fst             = "fst"
+    show Snd             = "snd"
+    show Head            = "head"
+    show Minimum         = "minimum"
+    show Maximum         = "maximum"
+    show Tail            = "tail"
+    show Reverse         = "reverse"
+    show And             = "and"
+    show Or              = "or"
+    show Init            = "init"
+    show Last            = "last"
+    show Nub             = "nub"
+    show Number          = "number"
+    show Transpose       = "transpose"
+    show (Reshape n)     = printf "reshape(%d)" n
+  
+data Prim2 = Group
+           | Sort
+           | Restrict
+           | Pair
+           | Append
+           | Index
+           | Zip
+           | Cons
+           | CartProduct
+           | NestProduct
+           | ThetaJoin (L.JoinPredicate L.JoinExpr)
+           | NestJoin (L.JoinPredicate L.JoinExpr)
+           | SemiJoin (L.JoinPredicate L.JoinExpr)
+           | AntiJoin (L.JoinPredicate L.JoinExpr)
+           deriving (Eq, Ord)
 
-instance Show Prim1Op where
-  show Length          = "length"
-  show Concat          = "concat"
-  show Sum             = "sum"
-  show Avg             = "avg"
-  show The             = "the"
-  show Fst             = "fst"
-  show Snd             = "snd"
-  show Head            = "head"
-  show Minimum         = "minimum"
-  show Maximum         = "maximum"
-  show Tail            = "tail"
-  show Reverse         = "reverse"
-  show And             = "and"
-  show Or              = "or"
-  show Init            = "init"
-  show Last            = "last"
-  show Nub             = "nub"
-  show Number          = "number"
-  show Transpose       = "transpose"
-  show (Reshape n)     = printf "reshape(%d)" n
-
-instance Show (Prim1 t) where
-  show (Prim1 o _) = show o
-
-data Prim2Op = Group
-             | Sort
-             | Restrict
-             | Pair
-             | Append
-             | Index
-             | Zip
-             | Cons
-             | CartProduct
-             | NestProduct
-             | ThetaJoin (L.JoinPredicate L.JoinExpr)
-             | NestJoin (L.JoinPredicate L.JoinExpr)
-             | SemiJoin (L.JoinPredicate L.JoinExpr)
-             | AntiJoin (L.JoinPredicate L.JoinExpr)
-             deriving (Eq, Ord)
-
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
-
-instance Show Prim2Op where
-  show Group        = "group"
-  show Sort         = "sort"
-  show Restrict     = "restrict"
-  show Pair         = "pair"
-  show Append       = "append"
-  show Index        = "index"
-  show Zip          = "zip"
-  show Cons         = "cons"
-  show CartProduct  = "⨯"
-  show NestProduct  = "▽"
-  show (ThetaJoin p) = printf "⨝_%s" (pp p)
-  show (NestJoin p)  = printf "△_%s" (pp p)
-  show (SemiJoin p)  = printf "⋉_%s" (pp p)
-  show (AntiJoin p)  = printf "▷_%s" (pp p)
-
-instance Show (Prim2 t) where
-  show (Prim2 o _) = show o
+instance Show Prim2 where
+    show Group        = "group"
+    show Sort         = "sort"
+    show Restrict     = "restrict"
+    show Pair         = "pair"
+    show Append       = "append"
+    show Index        = "index"
+    show Zip          = "zip"
+    show Cons         = "cons"
+    show CartProduct  = "⨯"
+    show NestProduct  = "▽"
+    show (ThetaJoin p) = printf "⨝_%s" (pp p)
+    show (NestJoin p)  = printf "△_%s" (pp p)
+    show (SemiJoin p)  = printf "⋉_%s" (pp p)
+    show (AntiJoin p)  = printf "▷_%s" (pp p)

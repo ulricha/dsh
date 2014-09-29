@@ -3,8 +3,6 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
-import           Debug.Trace
-
 import           Control.Monad.Reader
 
 
@@ -12,7 +10,6 @@ import           Database.Algebra.Dag.Build
 import qualified Database.Algebra.Dag.Common   as Alg
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
