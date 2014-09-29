@@ -203,7 +203,8 @@ distDescConstant q =
 
         return $ do
           logRewrite "Redundant.DistDesc.Constant" q
-          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qd") |])
+          segNode <- insert $ UnOp Segment $(v "qd")
+          void $ replaceWithNew q $ UnOp (Project constProjs) segNode |])
 
 unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
