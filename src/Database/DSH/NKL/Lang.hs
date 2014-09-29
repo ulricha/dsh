@@ -62,7 +62,7 @@ instance Pretty Expr where
                              <+> (parenthize t)
                              <+> text "else"
                              <+> (parenthize e)
-    pretty (Const t v)        = text (show v) <> colon <> colon <> pretty t
+    pretty (Const t v)        = pretty v <> colon <> colon <> pretty t
     pretty (Var _ s)          = text s
     pretty (Comp _ e x xs)    = brackets $ pretty e <+> char '|' <+> text x <+> text "<-" <+> pretty xs
     pretty (Let _ x e1 e)     = 

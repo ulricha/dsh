@@ -225,7 +225,7 @@ instance Pretty Expr where
                              <+> (parenthize t)
                              <+> text "else"
                              <+> (parenthize e)
-    pretty (Lit _ v)          = text $ show v
+    pretty (Lit _ v)          = pretty v
     pretty (Var _ s)          = text s
 
     pretty (Comp _ e qs) = encloseSep lbracket rbracket empty docs

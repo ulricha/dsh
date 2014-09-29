@@ -9,6 +9,7 @@ module Database.DSH.CL.Opt.PartialEval
   ) where
   
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 
@@ -36,9 +37,27 @@ tupleElemR = do
     ExprCL (AppE1 _ (TupElem i) (MkTuple _ es)) <- idR
     return $ inject $ es !! (tupleIndex i - 1)
 
+fromLiteral :: Expr -> TransformC CL Val
+fromLiteral (Lit _ val) = return val
+fromLiteral _           = fail "not a literal"
+
+literalTupleR :: RewriteC CL
+literalTupleR = do
+    ExprCL (MkTuple tupTy elems) <- idR
+    vals <- mapM fromLiteral elems
+    return $ inject $ Lit tupTy $ TupleV vals
+
+literalListR :: RewriteC CL
+literalListR = do
+    ExprCL (AppE2 listTy Cons x xs) <- idR
+    xVal                       <- fromLiteral x
+    ListV xsVals               <- fromLiteral xs
+    return $ inject $ Lit listTy $ ListV $ xVal : xsVals
+
 partialEvalR :: RewriteC CL
 partialEvalR = 
     readerT $ \cl -> case cl of
         ExprCL AppE1{}   -> tupleElemR
-        ExprCL MkTuple{} -> identityPairR
+        ExprCL MkTuple{} -> identityPairR <+ literalTupleR
+        ExprCL AppE2{}   -> literalListR
         _                -> fail "can't apply partial evaluation rules"

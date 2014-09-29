@@ -78,6 +78,7 @@ data CrumbC = AppFun
             | QualsTail
             | QualsSingleton
             | NLConsTail
+            -- One-based index into the list of element expressions
             | TupleElem Int
             deriving (Eq, Show)
 
@@ -142,7 +143,6 @@ statefulT s t = resultT (stateful s) t
 -- | Turn a regular rewrite into a stateful rewrite
 liftstateT :: Transform CompCtx (RewriteM Int) a b -> Transform CompCtx (RewriteStateM s) a b
 liftstateT t = resultT liftstate t
-
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
