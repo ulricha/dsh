@@ -246,7 +246,7 @@ resugar expr =
     -- This does not originate from a source comprehension, but is a
     -- normalization step to get as much as possible into comprehension form
     -- map (\x -> body) xs => [ body | x <- xs ]
-    CL.AppE2 t (CL.Prim2 CL.Map _) (CL.Lam _ x body) xs ->
+    CL.AppE2 t CL.Map (CL.Lam _ x body) xs ->
         let body' = resugar body
             xs'   = resugar xs
         in resugar $ CL.Comp t body' (S (CL.BindQ x xs'))
@@ -254,7 +254,7 @@ resugar expr =
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
     -- filter (\x -> p) xs => [ x | x <- xs, p ]
-    CL.AppE2 t (CL.Prim2 CL.Filter _) (CL.Lam (T.FunT xt _) x p) xs ->
+    CL.AppE2 t CL.Filter (CL.Lam (T.FunT xt _) x p) xs ->
         let xs' = resugar xs
             p'  = resugar p
         in resugar $ CL.Comp t (CL.Var xt x) (CL.BindQ x xs' :* (S $ CL.GuardQ p'))
@@ -262,7 +262,7 @@ resugar expr =
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
     
     -- (Try to) transform concatMaps into comprehensions
-    cm@(CL.AppE2 t (CL.Prim2 CL.ConcatMap _) body xs) ->
+    cm@(CL.AppE2 t CL.ConcatMap body xs) ->
       let xs' = resugar xs
           body' = resugar body
       in 
@@ -270,7 +270,7 @@ resugar expr =
       case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
-        CL.Lam _ v (CL.AppE2 _ (CL.Prim2 CL.Cons _) e (CL.Lit _ (L.ListV []))) ->
+        CL.Lam _ v (CL.AppE2 _ CL.Cons e (CL.Lit _ (L.ListV []))) ->
           resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- Same case as above, just with a literal list in the lambda body.
@@ -304,7 +304,7 @@ resugar expr =
             case q of
                 -- Eliminate unused bindings from guards
                 -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
-                CL.BindQ v (CL.AppE1 _ (CL.Prim1 CL.Guard _) p) | not $ v `elem` fvs -> Right (CL.GuardQ p)
+                CL.BindQ v (CL.AppE1 _ CL.Guard p) | not $ v `elem` fvs -> Right (CL.GuardQ p)
                 -- This really sucks. employ proper change detection.
                 CL.GuardQ p                                                          ->
                    let p' = resugar p in

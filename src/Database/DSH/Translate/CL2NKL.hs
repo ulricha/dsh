@@ -30,11 +30,11 @@ import           Database.DSH.NKL.Rewrite
 --------------------------------------------------------------------------------
 -- Conversion of primitive operators
        
-prim1 :: Type -> CL.Prim1 Type -> CL.Expr -> NameEnv NKL.Expr
-prim1 t (CL.Prim1 o ot) e = mkApp t <$> expr e
+prim1 :: Type -> CL.Prim1 -> CL.Expr -> NameEnv NKL.Expr
+prim1 t p e = mkApp t <$> expr e
   where 
     mkApp = 
-        case o of
+        case p of
             CL.Length           -> mkPrim1 NKL.Length 
             CL.Concat           -> mkPrim1 NKL.Concat 
             -- Null in explicit form is useful during CL optimization
@@ -76,8 +76,8 @@ prim1 t (CL.Prim1 o ot) e = mkApp t <$> expr e
 -- (concatMap, map, filter, sortWith, groupWith) are mapped to their
 -- first-order NKL equivalent combined with a single-generator
 -- comprehension.
-prim2 :: Type -> CL.Prim2 Type -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
-prim2 t (CL.Prim2 o ot) e1 e2 = mkApp2
+prim2 :: Type -> CL.Prim2 -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
+prim2 t o e1 e2 = mkApp2
   where
     mkApp2 =
         case o of
