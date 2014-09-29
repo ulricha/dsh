@@ -20,7 +20,6 @@ import           Database.DSH.Impossible
        
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Nat
 
 import           Database.DSH.CL.Lang        (toList)
 import qualified Database.DSH.CL.Lang        as CL
@@ -60,6 +59,7 @@ prim1 t p e = mkApp t <$> expr e
             CL.Number           -> mkPrim1 NKL.Number 
             (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
             CL.Transpose        -> mkPrim1 NKL.Transpose
+            CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Guard            -> $impossible
     
     nklNull _ ne = NKL.BinOp boolT 
@@ -193,6 +193,7 @@ freshName = do
 -- | Map a CL expression to its NKL equivalent by desugaring all
 -- comprehensions.
 expr :: CL.Expr -> NameEnv NKL.Expr
+expr (CL.MkTuple t es)           = NKL.MkTuple t <$> mapM expr es
 expr (CL.Table t s cs ks)        = return $ NKL.Table t s cs ks
 expr (CL.AppE1 t p e)            = prim1 t p e
 expr (CL.AppE2 t p e1 e2)        = prim2 t p e1 e2

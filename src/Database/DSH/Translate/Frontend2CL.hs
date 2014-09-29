@@ -240,6 +240,7 @@ compileApp f args =
 resugar :: CL.Expr -> CL.Expr
 resugar expr = 
   case expr of 
+    CL.MkTuple t es -> CL.MkTuple t $ map resugar es
     tab@(CL.Table _ _ _ _) -> tab
     CL.App t e1 e2 -> CL.App t (resugar e1) (resugar e2)
 
