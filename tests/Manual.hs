@@ -383,9 +383,27 @@ foo = [ tuple3 (x1 * x2) y1 y2
 bar :: Q [(Integer, Integer)]
 bar = [ pair x y | x <- fst $ toQ (([23,42] :: [Integer]), ([15] :: [Integer])), y <- snd  $ toQ (([23,42] :: [Integer]), ([15] :: [Integer]))]
 
+
+baz :: Q [(Integer, Integer, Integer)]
+baz = 
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- fst $ toQ (([(1,2),(-1,2)],[(1,1),(1,1)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
+  , (view -> (y1, y2)) <- snd $ toQ (([(1,2),(-1,2)],[(1,1),(1,1)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
+  , x1 == y2
+  ]
+
+
+morebaz = 
+  [ tuple3 (x1 * x2) y1 y2
+  | (view -> (x1, x2)) <- fst $ toQ (([(-4,3),(0,0),(0,0)],[(-4,3),(0,0)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
+  , (view -> (y1, y2)) <- snd $ toQ (([(-4,3),(0,0),(0,0)],[(-4,3),(0,0)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
+  , x1 == y2
+  , y1 == x2
+  ]
+
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> runQ c bar P.>>= \r -> putStrLn $ show r
+main = getConn P.>>= \c -> debugQ "q" c morebaz P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
