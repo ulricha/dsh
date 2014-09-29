@@ -397,6 +397,7 @@ isComplexExpr e =
         Lit{}          -> False
         Var{}          -> False
         Table{}        -> False
+        MkTuple{}      -> False
 
 containsComplexExprT :: TransformC CL ()
 containsComplexExprT = onetdT isComplexExprT

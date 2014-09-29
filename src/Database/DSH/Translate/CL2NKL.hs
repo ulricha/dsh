@@ -47,8 +47,6 @@ prim1 t p e = mkApp t <$> expr e
             CL.Sum              -> mkPrim1 NKL.Sum 
             CL.Avg              -> mkPrim1 NKL.Avg 
             CL.The              -> mkPrim1 NKL.The 
-            CL.Fst              -> mkPrim1 (NKL.TupElem First)
-            CL.Snd              -> mkPrim1 (NKL.TupElem (Next First))
             CL.Head             -> mkPrim1 NKL.Head 
             CL.Minimum          -> mkPrim1 NKL.Minimum 
             CL.Maximum          -> mkPrim1 NKL.Maximum 
@@ -82,7 +80,6 @@ prim2 t o e1 e2 = mkApp2
   where
     mkApp2 =
         case o of
-            CL.Pair         -> P.pair <$> expr e2 <*> expr e2
             CL.Append       -> mkPrim2 NKL.Append
             CL.Index        -> mkPrim2 NKL.Index 
             CL.Zip          -> mkPrim2 NKL.Zip

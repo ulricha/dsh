@@ -4,6 +4,7 @@
 
 module Database.DSH.VL.Primitives where
 
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.VL.Vector
@@ -137,11 +138,11 @@ joinExpr expr = offsetExpr $ aux expr
                                                (offsetExpr $ aux e1)
                                                (offsetExpr $ aux e2)
     aux (L.JUnOp _ op e)       = Expr $ UnApp (toGeneralUnOp op) (offsetExpr $ aux e)
-    aux (L.JFst _ e)           = aux e
-    aux (L.JSnd _ e)           =
+    aux (L.JTupElem _ i e)           =
         case Ty.typeOf e of
-            Ty.TupleT [t1, _] -> addOffset (recordWidth t1) (aux e)
-            _                 -> $impossible
+            -- Compute the record width of all preceding tuple elements in the type
+            Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
+            _            -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 

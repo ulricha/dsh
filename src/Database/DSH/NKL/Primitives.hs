@@ -26,7 +26,7 @@ tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (
 tupElem :: TupleIndex -> Expr -> Expr
 tupElem f e = 
     let t = tupleElemT (typeOf e) f
-    in AppE1 t (Prim1 (TupElem f) (typeOf e .-> t)) e
+    in AppE1 t (TupElem f) e
 
 fst :: Expr -> Expr
 fst e = tupElem First e

@@ -17,6 +17,7 @@ import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions
@@ -59,7 +60,7 @@ pushLeftTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== Fst)) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem First))) localPaths)
 
     let xst = typeOf xs
 
@@ -76,7 +77,7 @@ pushRightTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== Snd)) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem (Next (First))))) localPaths)
 
     let yst = typeOf ys
 
@@ -114,12 +115,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     rightVarPaths <- constRightExpr >>> allVarPathsT x
 
     leftExpr'     <- constLeftExpr
-                         >>> andR (map (unTuplifyR (== Fst)) leftVarPaths)
+                         >>> andR (map (unTuplifyR (== (TupElem First))) leftVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 
     rightExpr'    <- constRightExpr
-                         >>> andR (map (unTuplifyR (== Snd)) rightVarPaths)
+                         >>> andR (map (unTuplifyR (== (TupElem (Next First)))) rightVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 

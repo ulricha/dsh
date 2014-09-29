@@ -78,6 +78,7 @@ data CrumbC = AppFun
             | QualsTail
             | QualsSingleton
             | NLConsTail
+            | TupleElem Int
             deriving (Eq, Show)
 
 instance Pretty CrumbC where
@@ -289,6 +290,17 @@ compR :: Monad m => Rewrite CompCtx m Expr
 compR t1 t2 = compT t1 t2 Comp                 
 {-# INLINE compR #-}                      
 
+mkTupleT :: Monad m => Transform CompCtx m Expr a
+                    -> (Type -> [a] -> b)
+                    -> Transform CompCtx m Expr b
+mkTupleT t f = transform $ \c expr -> case expr of
+                   MkTuple ty es -> f ty <$> zipWithM (\e i -> applyT t (c@@TupleElem i) e) es [1..]
+                   _             -> fail "not a tuple constructor"
+{-# INLINE mkTupleT #-}
+
+mkTupleR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
+mkTupleR r = mkTupleT r MkTuple
+
 --------------------------------------------------------------------------------
 -- Congruence combinators for qualifiers
 
@@ -402,17 +414,18 @@ instance Walker CompCtx CL where
         {-# INLINE allRqual #-}
 
         allRexpr = readerT $ \e -> case e of
-            Table{} -> idR
-            App{}   -> appR (extractR r) (extractR r)
-            AppE1{} -> appe1R (extractR r)
-            AppE2{} -> appe2R (extractR r) (extractR r)
-            BinOp{} -> binopR (extractR r) (extractR r)
-            UnOp{}  -> unopR (extractR r)
-            Lam{}   -> lamR (extractR r)
-            If{}    -> ifR (extractR r) (extractR r) (extractR r)
-            Lit{}   -> idR
-            Var{}   -> idR
-            Comp{}  -> compR (extractR r) (extractR r)
+            Table{}   -> idR
+            App{}     -> appR (extractR r) (extractR r)
+            AppE1{}   -> appe1R (extractR r)
+            AppE2{}   -> appe2R (extractR r) (extractR r)
+            BinOp{}   -> binopR (extractR r) (extractR r)
+            UnOp{}    -> unopR (extractR r)
+            Lam{}     -> lamR (extractR r)
+            If{}      -> ifR (extractR r) (extractR r) (extractR r)
+            Lit{}     -> idR
+            Var{}     -> idR
+            Comp{}    -> compR (extractR r) (extractR r)
+            MkTuple{} -> mkTupleR (extractR r)
         {-# INLINE allRexpr #-}
             
 --------------------------------------------------------------------------------

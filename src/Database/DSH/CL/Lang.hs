@@ -25,6 +25,7 @@ import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Pretty
@@ -99,8 +100,6 @@ data Prim1 = Length
            | Sum 
            | Avg 
            | The 
-           | Fst 
-           | Snd
            | Head 
            | Tail
            | Minimum 
@@ -115,7 +114,8 @@ data Prim1 = Length
            | Guard
            | Reshape Integer
            | Transpose
-           deriving (Eq, Ord)
+           | TupElem TupleIndex
+           deriving (Eq)
 
 instance Show Prim1 where
   show Length          = "length"
@@ -124,8 +124,6 @@ instance Show Prim1 where
   show Sum             = "sum"
   show Avg             = "avg"
   show The             = "the"
-  show Fst             = "fst"
-  show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
   show Maximum         = "maximum"
@@ -140,12 +138,13 @@ instance Show Prim1 where
   show Guard           = "guard"
   show Transpose       = "transpose"
   show (Reshape n)     = printf "reshape(%d)" n
+  -- tuple access is pretty-printed in a special way
+  show TupElem{}       = $impossible
 
 data Prim2 = Map 
            | ConcatMap 
            | GroupWithKey
            | SortWith 
-           | Pair
            | Filter 
            | Append
            | Index
@@ -157,14 +156,13 @@ data Prim2 = Map
            | NestJoin (L.JoinPredicate L.JoinExpr)
            | SemiJoin (L.JoinPredicate L.JoinExpr)
            | AntiJoin (L.JoinPredicate L.JoinExpr)
-           deriving (Eq, Ord)
+           deriving (Eq)
 
 instance Show Prim2 where
   show Map          = "map"
   show ConcatMap    = "concatMap"
   show GroupWithKey = "groupWithKey"
   show SortWith     = "sortWith"
-  show Pair         = "pair"
   show Filter       = "filter"
   show Append       = "append"
   show Index        = "index"
@@ -182,7 +180,7 @@ instance Show Prim2 where
 
 data Qual = BindQ L.Ident Expr
           | GuardQ Expr
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Show)
 
 isGuard :: Qual -> Bool
 isGuard (GuardQ _)   = True
@@ -203,10 +201,14 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Lit Type L.Val
            | Var Type L.Ident
            | Comp Type Expr (NL Qual)
+           | MkTuple Type [Expr]
            deriving (Show)
 
 
 instance Pretty Expr where
+    pretty (AppE1 _ (TupElem n) e1) = 
+        parenthize e1 <> dot <> int (tupleIndex n)
+    pretty (MkTuple _ es)     = text "tuple" <+> (sep $ map parenthize es)
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
@@ -238,11 +240,12 @@ instance Pretty Expr where
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _        -> pretty e
-        Lit _ _        -> pretty e
-        Table _ _ _ _  -> pretty e
-        Comp _ _ _     -> pretty e
-        _              -> parens $ pretty e
+        Var _ _               -> pretty e
+        Lit _ _               -> pretty e
+        Table _ _ _ _         -> pretty e
+        Comp _ _ _            -> pretty e
+        AppE1 _ (TupElem _) _ -> pretty e
+        _                     -> parens $ pretty e
 
 instance Pretty Qual where
     pretty (BindQ i e) = text i <+> text "<-" <+> pretty e
@@ -262,19 +265,19 @@ isRelOp o =
 
 
 deriving instance Eq Expr
-deriving instance Ord Expr
 
 instance Typed Expr where
-  typeOf (Table t _ _ _) = t
-  typeOf (App t _ _)     = t
-  typeOf (AppE1 t _ _)   = t
-  typeOf (AppE2 t _ _ _) = t
-  typeOf (Lam t _ _)     = t
-  typeOf (If t _ _ _)    = t
-  typeOf (BinOp t _ _ _) = t
-  typeOf (UnOp t _ _)    = t
-  typeOf (Lit t _)       = t
-  typeOf (Var t _)       = t
-  typeOf (Comp t _ _)    = t
+    typeOf (Table t _ _ _) = t
+    typeOf (App t _ _)     = t
+    typeOf (AppE1 t _ _)   = t
+    typeOf (AppE2 t _ _ _) = t
+    typeOf (Lam t _ _)     = t
+    typeOf (If t _ _ _)    = t
+    typeOf (BinOp t _ _ _) = t
+    typeOf (UnOp t _ _)    = t
+    typeOf (Lit t _)       = t
+    typeOf (Var t _)       = t
+    typeOf (Comp t _ _)    = t
+    typeOf (MkTuple t _)   = t
 
 

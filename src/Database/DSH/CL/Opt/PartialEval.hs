@@ -8,6 +8,7 @@ module Database.DSH.CL.Opt.PartialEval
   ( partialEvalR
   ) where
   
+import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 
@@ -17,6 +18,8 @@ import           Database.DSH.CL.Kure
 -- | Eliminate tuple construction if the elements are first and second of the
 -- same tuple:
 -- pair (fst x) (snd x) => x
+{-
+FIXME add equivalent rewrite for proper tuples
 pairR :: RewriteC CL
 pairR = do
     ExprCL (AppE2 _ Pair
@@ -24,20 +27,16 @@ pairR = do
                     (AppE1 _ Snd (Var _ x'))) <- idR
     guardM $ x == x'
     return $ inject v
+-}
 
-fstR :: RewriteC CL
-fstR = do
-    ExprCL (AppE1 _ Fst (AppE2 _ Pair e1 _)) <- idR
-    return $ inject e1
+tupleElemR :: RewriteC CL
+tupleElemR = do
+    ExprCL (AppE1 _ (TupElem i) (MkTuple _ es)) <- idR
+    return $ inject $ es !! (tupleIndex i - 1)
 
-sndR :: RewriteC CL
-sndR = do
-    ExprCL (AppE1 _ Snd (AppE2 _ Pair _ e2)) <- idR
-    return $ inject e2
-    
 partialEvalR :: RewriteC CL
 partialEvalR = 
     readerT $ \cl -> case cl of
-        ExprCL AppE1{} -> fstR <+ sndR
-        ExprCL AppE2{} -> pairR
+        ExprCL AppE1{} -> tupleElemR
+        -- ExprCL AppE2{} -> pairR
         _                    -> fail "can't apply partial evaluation rules"

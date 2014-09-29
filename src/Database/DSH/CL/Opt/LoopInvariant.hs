@@ -60,10 +60,10 @@ complexPathT localVars = do
     -- comprehension is only "complex" if it has more than one
     -- generator OR a filter OR something complex in the head.
     case e of
-        Comp _ _ _                       -> return (e, path)
-        If _ _ _ _                       -> return (e, path)
-        AppE2 _ op _ _ | complexPrim2 op -> return (e, path)
-        AppE1 _ op _   | complexPrim1 op -> return (e, path)
+        Comp _ _ _                          -> return (e, path)
+        If _ _ _ _                          -> return (e, path)
+        AppE2 _ op _ _ | complexPrim2 op    -> return (e, path)
+        AppE1 _ op _   | complexPrim1 op    -> return (e, path)
         _ -> fail "not a complex expression"
 
 -- | Traverse expressions top-down, searching for loop-invariant

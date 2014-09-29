@@ -9,6 +9,7 @@ import           Text.Printf
 import           Debug.Trace
 
 import           Database.DSH.CL.Lang
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
@@ -136,13 +137,16 @@ init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
         in AppE1 (ListT t) Init e
 
+tupElem :: TupleIndex -> Expr -> Expr
+tupElem f e = 
+    let t = tupleElemT (typeOf e) f
+    in AppE1 t (TupElem f) e
+
 fst :: Expr -> Expr
-fst e = let t@(TupleT [t1, _]) = typeOf e
-         in AppE1 t1 Fst e
+fst e = tupElem First e
 
 snd :: Expr -> Expr
-snd e = let t@(TupleT [_, t2]) = typeOf e
-         in AppE1 t2 Snd e
+snd e = tupElem (Next First) e
 
 map :: Expr -> Expr -> Expr
 map f es = let FunT ta tr = typeOf f
@@ -178,10 +182,13 @@ sortWith f es = let FunT ta _ = typeOf f
                         else tyErr "sortWith"
 
 pair :: Expr -> Expr -> Expr
-pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.TupleV [v1, v2])
-pair e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in AppE2 (pairT t1 t2) Pair e1 e2
+pair a b = tuple [a, b]
+
+tuple :: [Expr] -> Expr
+tuple es =
+    let ts = P.map typeOf es
+        rt = TupleT ts
+    in MkTuple rt es
 
 append :: Expr -> Expr -> Expr
 append e1 e2 = let t1@(ListT _) = typeOf e1

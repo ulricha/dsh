@@ -49,7 +49,7 @@ instance Typed Expr where
 
 instance Pretty Expr where
     pretty (MkTuple _ es)     = text "tuple" <+> (sep $ map parenthize es)
-    pretty (AppE1 _ (Prim1 (TupElem n) _) e1) = 
+    pretty (AppE1 _ (TupElem n) e1) = 
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (Table _ n _ _)    = text "table" <+> text n
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
@@ -73,19 +73,19 @@ instance Pretty Expr where
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _                         -> pretty e
-        Const _ _                       -> pretty e
-        Table _ _ _ _                   -> pretty e
-        Comp _ _ _ _                    -> pretty e
-        AppE1 _ (Prim1 (TupElem _) _) _ -> pretty e
-        _                               -> parens $ pretty e
+        Var _ _               -> pretty e
+        Const _ _             -> pretty e
+        Table _ _ _ _         -> pretty e
+        Comp _ _ _ _          -> pretty e
+        AppE1 _ (TupElem _) _ -> pretty e
+        _                     -> parens $ pretty e
 
 data Prim1 = Length 
            | Concat
            | Sum 
            | Avg 
            | The 
-           | Fst 
+           | Head
            | Tail
            | Minimum 
            | Maximum
@@ -99,7 +99,7 @@ data Prim1 = Length
            | Reshape Integer
            | Transpose
            | TupElem TupleIndex
-           deriving (Eq, Ord)
+           deriving (Eq)
 
 instance Show Prim1 where
     show Length          = "length"
@@ -126,7 +126,6 @@ instance Show Prim1 where
 data Prim2 = Group
            | Sort
            | Restrict
-           | Pair
            | Append
            | Index
            | Zip
@@ -137,13 +136,12 @@ data Prim2 = Group
            | NestJoin (L.JoinPredicate L.JoinExpr)
            | SemiJoin (L.JoinPredicate L.JoinExpr)
            | AntiJoin (L.JoinPredicate L.JoinExpr)
-           deriving (Eq, Ord)
+           deriving (Eq)
 
 instance Show Prim2 where
     show Group        = "group"
     show Sort         = "sort"
     show Restrict     = "restrict"
-    show Pair         = "pair"
     show Append       = "append"
     show Index        = "index"
     show Zip          = "zip"

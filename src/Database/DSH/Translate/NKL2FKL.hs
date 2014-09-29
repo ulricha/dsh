@@ -98,7 +98,7 @@ topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten
 topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
 topFlatten _   (N.Var t v)          = F.Var (liftType t) v
 topFlatten ctx (N.Let _ x xs e)     = P.let_ x (topFlatten ctx xs) (topFlatten ctx e)
-topFlatten ctx (N.MkTuple   es)     = P.tuple (map (topFlatten ctx) es) (Succ Zero)
+topFlatten ctx (N.MkTuple _ es)     = P.tuple (map (topFlatten ctx) es) (Succ Zero)
 topFlatten ctx (N.If _ ce te ee)    =
     -- Combine the results for the then and else branches. Combined,
     -- we get values for all iterations.

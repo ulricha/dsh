@@ -11,6 +11,8 @@ import           Text.PrettyPrint.ANSI.Leijen
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
 
+import           Database.DSH.Common.Nat
+
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON (n N.:| nl) = toJSON (n, nl)
 
@@ -170,17 +172,15 @@ data JoinUnOp = JUNumOp UnNumOp
 
 data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
               | JUnOp Type JoinUnOp JoinExpr
-              | JFst Type JoinExpr
-              | JSnd Type JoinExpr
+              | JTupElem Type TupleIndex JoinExpr
               | JLit Type Val
               | JInput Type
-              deriving (Show, Eq, Ord)
+              deriving (Show, Eq)
 
 instance Typed JoinExpr where
     typeOf (JBinOp t _ _ _) = t
     typeOf (JUnOp t _ _)    = t
-    typeOf (JFst t _)       = t
-    typeOf (JSnd t _)       = t
+    typeOf (JTupElem t _ _) = t
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
 
@@ -192,8 +192,7 @@ parenthize e =
     case e of
         JBinOp _ _ _ _ -> parens $ pretty e
         JUnOp _ _ _    -> parens $ pretty e
-        JFst _ _       -> parens $ pretty e
-        JSnd _ _       -> parens $ pretty e
+        JTupElem _ _ _ -> pretty e
         JLit  _ _      -> pretty e
         JInput _       -> pretty e
 
@@ -253,10 +252,10 @@ instance Pretty JoinBinOp where
 instance Pretty JoinExpr where
     pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp _ op e)      = pretty op <+> parenthize e
-    pretty (JFst _ e)          = text "fst" <+> parenthize e
-    pretty (JSnd _ e)          = text "snd" <+> parenthize e
     pretty (JLit _ v)          = pretty v
     pretty (JInput _)          = text "I"
+    pretty (JTupElem _ i e1)   = 
+        parenthize e1 <> dot <> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
     pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2

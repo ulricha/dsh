@@ -46,13 +46,14 @@ import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
 import           Data.List.NonEmpty         (NonEmpty ((:|)))
-import           Data.Semigroup
+import           Data.Semigroup             hiding (First)
 
 import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
 
@@ -90,10 +91,8 @@ toJoinExpr n = do
     e <- idR
 
     case e of
-        AppE1 _ Fst _   -> do
-            appe1T (toJoinExpr n) (\t _ e1 -> JFst t e1)
-        AppE1 _ Snd _   -> do
-            appe1T (toJoinExpr n) (\t _ e1 -> JSnd t e1)
+        AppE1 _ (TupElem i) _ -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JTupElem t i e1)
         BinOp _ o _ _ -> do
             o' <- constT $ toJoinBinOp o
             binopT (toJoinExpr n) (toJoinExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
@@ -185,13 +184,12 @@ isAntiJoinPred _  _                                     = False
 isFlatExpr :: Expr -> Bool
 isFlatExpr expr =
     case expr of
-        AppE1 _ Fst e    -> isFlatExpr e
-        AppE1 _ Snd e    -> isFlatExpr e
-        UnOp _ _ e       -> isFlatExpr e
-        BinOp _ _ e1 e2  -> isFlatExpr e1 && isFlatExpr e2
-        Var _ _          -> True
-        Lit _ _          -> True
-        _                -> False
+        AppE1 _ (TupElem _) e -> isFlatExpr e
+        UnOp _ _ e            -> isFlatExpr e
+        BinOp _ _ e1 e2       -> isFlatExpr e1 && isFlatExpr e2
+        Var _ _               -> True
+        Lit _ _               -> True
+        _                     -> False
 
 --------------------------------------------------------------------------------
 -- Computation of free variables
@@ -274,8 +272,8 @@ tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
 tupleVars n t1 t2 = (v1Rep, v2Rep)
   where v     = Var pt n
         pt    = pairT t1 t2
-        v1Rep = AppE1 t1 Fst v
-        v2Rep = AppE1 t2 Snd v
+        v1Rep = AppE1 t1 (TupElem First) v
+        v2Rep = AppE1 t2 (TupElem (Next First)) v
 
 --------------------------------------------------------------------------------
 -- Helpers for combining generators with guards in a comprehensions'
@@ -391,16 +389,14 @@ complexPrim2 op =
     case op of
         Map       -> False
         ConcatMap -> False
-        Pair      -> False
         _         -> True
 
 complexPrim1 :: Prim1 -> Bool
 complexPrim1 op =
     case op of
-        Concat -> False
-        Fst    -> False
-        Snd    -> False
-        _      -> True
+        Concat    -> False
+        TupElem _ -> False
+        _         -> True
 
 fromGuard :: Monad m => Qual -> m Expr
 fromGuard (GuardQ e)  = return e
