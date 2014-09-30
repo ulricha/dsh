@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module CombinatorTests 
     ( tests_types
@@ -103,6 +104,8 @@ tests_types = testGroup "Supported Types"
   , testProperty "([], [])" $ prop_tuple_list_integer
   , testProperty "Maybe Integer" $ prop_maybe_integer
   , testProperty "Either Integer Integer" $ prop_either_integer
+  , testProperty "(Int, Int, Int, Int)" $ prop_tuple4
+  , testProperty "(Int, Int, Int, Int, Int)" $ prop_tuple5
 {-
   , testProperty "D0" $ prop_d0
   , testProperty "D1" $ prop_d1
@@ -393,6 +396,14 @@ prop_tuple_list_integer = makeProp id id
 
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
+
+prop_tuple4 :: [(Integer, Integer, Integer, Integer)] -> Property
+prop_tuple4 = makeProp (Q.map (\(Q.view -> (a, b, c, d)) -> Q.tuple4 (a + c) (b - d) b d))
+                       (map (\(a, b, c, d) -> (a + c, b - d, b, d)))
+
+prop_tuple5 :: [(Integer, Integer, Integer, Integer, Integer)] -> Property
+prop_tuple5 = makeProp (Q.map (\(Q.view -> (a, _, c, _, e)) -> Q.tuple3 a c e))
+                       (map (\(a, _, c, _, e) -> (a, c, e)))
 
 {-
 

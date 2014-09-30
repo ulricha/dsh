@@ -393,13 +393,8 @@ baz =
   ]
 
 
-morebaz = 
-  [ tuple3 (x1 * x2) y1 y2
-  | (view -> (x1, x2)) <- fst $ toQ (([(-4,3),(0,0),(0,0)],[(-4,3),(0,0)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
-  , (view -> (y1, y2)) <- snd $ toQ (([(-4,3),(0,0),(0,0)],[(-4,3),(0,0)]) :: ([(Integer, Integer)], [(Integer, Integer)]))
-  , x1 == y2
-  , y1 == x2
-  ]
+morebaz :: Q [(Integer, Integer, Integer, Integer)]
+morebaz = [ tuple4 a b c 42 | (view -> (a, b, c)) <- toQ [(1,2,3), (4,5,6), (7,8,9)] ]
 
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
