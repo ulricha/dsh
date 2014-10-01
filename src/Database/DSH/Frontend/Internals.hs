@@ -53,11 +53,11 @@ data Type a where
   PairT     :: (Reify a,Reify b)  => Type a -> Type b -> Type (a,b)
   ListT     :: (Reify a)          => Type a -> Type [a]
   ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
-  TupleT    :: TupleT a -> Type a
+  TupleT    :: TupleType a -> Type a
 
-data TupleT a where
-    Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleT (a, b)
-    Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleT (a, b, c)
+data TupleType a where
+    Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleType (a, b)
+    Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleType (a, b, c)
 
 data Fun a b where
     Not             :: Fun Bool Bool
@@ -116,7 +116,7 @@ data Fun a b where
     ASin            :: Fun Double Double
     ACos            :: Fun Double Double
     ATan            :: Fun Double Double
-    Tup             :: TupElem a b -> Fun a b
+    TupElem         :: TupElem a b -> Fun a b
 
 data TupElem a b where
     Tup2_1 :: TupElem (a, b) a

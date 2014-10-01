@@ -243,7 +243,7 @@ compileApp f args =
        Guard           -> compileApp1 CP.guard args
        Transpose       -> compileApp1 CP.transpose args
        Reshape n       -> compileApp1 (CP.reshape n) args
-       Tup te          -> compileTupElem te args
+       TupElem te      -> compileTupElem te args
 
 compileTupElem :: TupElem a b -> Exp a -> Compile CL.Expr
 compileTupElem Tup3_1 e = CP.tupElem First <$> translate e

@@ -272,7 +272,7 @@ instance (QA a, QA b) => View (Q (a,b)) where
 
 instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
     type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
-    view (Q e) = (Q (AppE (Tup Tup3_1) e), Q (AppE (Tup Tup3_2) e), Q (AppE (Tup Tup3_3) e))
+    view (Q e) = (Q (AppE (TupElem Tup3_1) e), Q (AppE (TupElem Tup3_2) e), Q (AppE (TupElem Tup3_3) e))
 
 -- IsString instances
 
