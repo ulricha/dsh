@@ -78,7 +78,7 @@ typeToRowType t = case t of
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT t     -> trace (pp $ Ty.ListT t) $impossible
+  Ty.ListT _     -> trace (pp t) $impossible
   Ty.FunT _ _    -> $impossible
 
 ----------------------------------------------------------------------------------

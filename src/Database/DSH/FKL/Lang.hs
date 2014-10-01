@@ -210,7 +210,7 @@ instance Pretty (Expr Lifted) where
     pretty (UnOp _ o e) =
         pretty o <> parens (pretty e)
 
-    pretty (Const t v) = pretty v {- <> colon <> colon <> pretty t -}
+    pretty (Const _ v) = pretty v {- <> colon <> colon <> pretty t -}
 
     pretty (QConcat n _ e) = 
         text "qconcat" 

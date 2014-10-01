@@ -9,9 +9,7 @@ module Database.DSH.Translate.Frontend2CL (toComprehensions) where
        
 import           Database.DSH.Impossible
 
-import           Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
-import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as CP
 import qualified Database.DSH.Common.Type as T
 import qualified Database.DSH.Common.Lang as L
