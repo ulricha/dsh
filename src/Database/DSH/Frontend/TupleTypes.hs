@@ -8,6 +8,9 @@ import           Text.Printf
 
 import           Language.Haskell.TH
 
+import           Database.DSH.Common.Nat
+import qualified Database.DSH.CL.Primitives as CP
+
 --------------------------------------------------------------------------------
 -- Tuple Accessors
 
@@ -23,14 +26,17 @@ mkTupType elemIdx width boundTyVars bTyVar =
                              ++ [bTyVar] 
                              ++ drop (elemIdx - 1) boundTyVars
     in foldl' AppT (TupleT width) elemTys
+
+conName :: Int -> Int -> Name
+conName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
     
 mkTupElemCon :: Name -> Name -> [Name] -> Int -> Int -> Q Con
 mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
     let binders   = map PlainTV boundTyVars
     let tupleType = mkTupType elemIdx width boundTyVars bTyVar
-    let conName       = mkName $ printf "Tup%d_%d" width elemIdx
+    let con       = conName width elemIdx
     let ctx       = [EqualP (VarT aTyVar) tupleType]
-    return $ ForallC binders ctx (NormalC conName [])
+    return $ ForallC binders ctx (NormalC con [])
 
 -- | Generate the complete type of tuple acccessors for all tuple
 -- widths.
@@ -70,3 +76,26 @@ mkTupElemType maxWidth = do
 
     return $ [DataD [] tyName tyVars cons []]
  
+--------------------------------------------------------------------------------
+-- Translation of tuple accessors to CL
+
+mkCompileClause :: Name -> (Name, Int) -> Q Clause
+mkCompileClause exprName (con, elemIdx) = do
+    let translateVar = return $ VarE $ mkName "translate"
+        exprVar      = return $ VarE exprName
+        idxLit       = return $ LitE $ IntegerL $ fromIntegral elemIdx
+    bodyExp  <- [| CP.tupElem (intIndex $idxLit) <$> $translateVar $exprVar |]
+    let body = NormalB $ bodyExp
+    return $ Clause [ConP con [], VarP exprName] body []
+
+mkTupElemCompile :: Int -> Q [Dec]
+mkTupElemCompile maxWidth = do
+    let cons = concat [ [ (conName width idx, idx)
+                        | idx <- [1..width] 
+                        ] 
+                      | width <- [2..maxWidth] 
+                      ]
+
+    exprName <- newName "e"
+    clauses  <- mapM (mkCompileClause exprName) cons
+    return [FunD (mkName "compileTupElem") clauses]

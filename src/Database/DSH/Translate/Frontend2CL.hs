@@ -19,6 +19,7 @@ import qualified Database.DSH.Common.Type        as T
 
 import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
 
 import qualified Data.Map                        as M
@@ -180,6 +181,34 @@ compileApp2 _ _ = $impossible
 compileApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
 compileApp1 f e = f <$> translate e
 
+
+
+-- | Translate DSH frontend types into backend types.
+translateType :: Type a -> T.Type
+translateType UnitT          = T.unitT
+translateType BoolT          = T.boolT
+translateType CharT          = T.stringT
+translateType IntegerT       = T.intT
+translateType DoubleT        = T.doubleT
+translateType TextT          = T.stringT
+translateType (PairT t1 t2)  = T.pairT (translateType t1) (translateType t2)
+translateType (ListT t)      = T.listT (translateType t)
+translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
+translateType (TupleT (Tuple3T t1 t2 t3)) = T.TupleT [(translateType t1), translateType t2, translateType t3]
+
+-- | From the type of a table (a list of base records represented as
+-- right-deep nested tuples) extract the types of the individual
+-- fields.
+
+-- FIXME check more thoroughly that the type is actually of the shape
+-- we expect.
+tableTypes :: Type [a] -> [T.Type]
+tableTypes (ListT t) = fromTuples t
+  where
+    fromTuples :: Type a -> [T.Type]
+    fromTuples (PairT t1 t2) = translateType t1 : fromTuples t2
+    fromTuples t'            = [translateType t']
+
 compileApp :: Fun a b -> Exp a -> Compile CL.Expr
 compileApp f args =
     case f of
@@ -246,33 +275,12 @@ compileApp f args =
        Reshape n       -> compileApp1 (CP.reshape n) args
        TupElem te      -> compileTupElem te args
 
+$(mkTupElemCompile 5)
+
+{-
 compileTupElem :: TupElem a b -> Exp a -> Compile CL.Expr
-compileTupElem Tup3_1 e = CP.tupElem First <$> translate e
-compileTupElem Tup3_2 e = CP.tupElem (Next First) <$> translate e
-compileTupElem Tup3_3 e = CP.tupElem (Next $ Next First) <$> translate e
+compileTupElem Tup3_1 e = CP.tupElem (intIndex 1) <$> translate e
+compileTupElem Tup3_2 e = CP.tupElem (intIndex 2) <$> translate e
+compileTupElem Tup3_3 e = CP.tupElem (intIndex 3) <$> translate e
+-}
 
--- | Translate DSH frontend types into backend types.
-translateType :: Type a -> T.Type
-translateType UnitT          = T.unitT
-translateType BoolT          = T.boolT
-translateType CharT          = T.stringT
-translateType IntegerT       = T.intT
-translateType DoubleT        = T.doubleT
-translateType TextT          = T.stringT
-translateType (PairT t1 t2)  = T.pairT (translateType t1) (translateType t2)
-translateType (ListT t)      = T.listT (translateType t)
-translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
-translateType (TupleT (Tuple3T t1 t2 t3)) = T.TupleT [(translateType t1), translateType t2, translateType t3]
-
--- | From the type of a table (a list of base records represented as
--- right-deep nested tuples) extract the types of the individual
--- fields.
-
--- FIXME check more thoroughly that the type is actually of the shape
--- we expect.
-tableTypes :: Type [a] -> [T.Type]
-tableTypes (ListT t) = fromTuples t
-  where
-    fromTuples :: Type a -> [T.Type]
-    fromTuples (PairT t1 t2) = translateType t1 : fromTuples t2
-    fromTuples t'            = [translateType t']

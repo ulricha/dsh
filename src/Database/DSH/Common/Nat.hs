@@ -1,5 +1,7 @@
 module Database.DSH.Common.Nat where
 
+import Control.Exception
+
 -- | Natural numbers that encode lifting levels
 data Nat = Zero | Succ Nat deriving (Show, Eq)
 
@@ -13,3 +15,9 @@ data TupleIndex = First | Next TupleIndex deriving (Show, Eq)
 tupleIndex :: TupleIndex -> Int
 tupleIndex First    = 1
 tupleIndex (Next f) = 1 + tupleIndex f
+
+intIndex :: Int -> TupleIndex 
+intIndex i = assert (i >= 1) $
+    if i > 1
+    then Next $ (intIndex $ i - 1)
+    else First
