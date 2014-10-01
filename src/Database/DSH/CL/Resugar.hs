@@ -2,27 +2,11 @@ module Database.DSH.CL.Resugar
     ( resugarComprehensions
     ) where
        
-import           Database.DSH.Impossible
-
 import           Database.DSH.CL.Lang(NL(..))
 import qualified Database.DSH.CL.Lang as CL
 import           Database.DSH.CL.Opt.Aux
-import qualified Database.DSH.CL.Primitives as CP
 import qualified Database.DSH.Common.Type as T
 import qualified Database.DSH.Common.Lang as L
-
-import           Database.DSH.Frontend.Internals
-import           Data.Text (unpack)
-
-import qualified Data.Map as M
-
-import           Control.Monad
-import           Control.Monad.State
-import           Control.Applicative
-       
-import           Text.Printf
-  
-import           GHC.Exts(sortWith)
 
 -- | Restore the original comprehension form from the desugared concatMap form.
 resugarComprehensions :: CL.Expr -> CL.Expr

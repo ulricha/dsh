@@ -190,7 +190,6 @@ instance Pretty l => Pretty (Expr l) where
         <+> (align $ (parenthize e1) 
                      </> (parenthize e2) 
                      </> (parenthize e3))
-
     pretty (If _ e1 e2 e3) =
         let e1' = pretty e1
             e2' = pretty e2
