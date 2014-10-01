@@ -9,18 +9,23 @@ import Data.Text (Text)
 import Text.Printf
 
 data Exp a where
-  UnitE     :: Exp ()
-  BoolE     :: Bool    -> Exp Bool
-  CharE     :: Char    -> Exp Char
-  IntegerE  :: Integer -> Exp Integer
-  DoubleE   :: Double  -> Exp Double
-  TextE     :: Text    -> Exp Text
-  PairE     :: (Reify a, Reify b)  => Exp a -> Exp b -> Exp (a,b)
-  ListE     :: (Reify a)           => [Exp a] -> Exp [a]
-  AppE      :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
-  LamE      :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
-  VarE      :: (Reify a)           => Integer -> Exp a
-  TableE    :: (Reify a)           => Table -> Exp [a]
+  UnitE       :: Exp ()
+  BoolE       :: Bool    -> Exp Bool
+  CharE       :: Char    -> Exp Char
+  IntegerE    :: Integer -> Exp Integer
+  DoubleE     :: Double  -> Exp Double
+  TextE       :: Text    -> Exp Text
+  PairE       :: (Reify a, Reify b)  => Exp a -> Exp b -> Exp (a,b)
+  ListE       :: (Reify a)           => [Exp a] -> Exp [a]
+  AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
+  LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
+  VarE        :: (Reify a)           => Integer -> Exp a
+  TableE      :: (Reify a)           => Table -> Exp [a]
+  TupleConstE :: TupleConst a -> Exp a
+
+data TupleConst a where
+    Tuple2E :: (Reify a, Reify b) => Exp a -> Exp b -> TupleConst (a, b)
+    Tuple3E :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> TupleConst (a, b, c)
 
 -- | A combination of column names that form a candidate key
 newtype Key = Key [String] deriving (Eq, Ord, Show)
@@ -48,6 +53,11 @@ data Type a where
   PairT     :: (Reify a,Reify b)  => Type a -> Type b -> Type (a,b)
   ListT     :: (Reify a)          => Type a -> Type [a]
   ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
+  TupleT    :: TupleT a -> Type a
+
+data TupleT a where
+    Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleT (a, b)
+    Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleT (a, b, c)
 
 data Fun a b where
     Not             :: Fun Bool Bool
@@ -106,6 +116,15 @@ data Fun a b where
     ASin            :: Fun Double Double
     ACos            :: Fun Double Double
     ATan            :: Fun Double Double
+    Tup             :: TupElem a b -> Fun a b
+
+data TupElem a b where
+    Tup2_1 :: TupElem (a, b) a
+    Tup2_2 :: TupElem (a, b) b
+
+    Tup3_1 :: TupElem (a, b, c) a
+    Tup3_2 :: TupElem (a, b, c) b
+    Tup3_3 :: TupElem (a, b, c) c
 
 newtype Q a = Q (Exp (Rep a))
 
@@ -224,6 +243,9 @@ instance Reify Text where
 
 instance (Reify a, Reify b) => Reify (a,b) where
   reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
+
+instance (Reify a, Reify b, Reify c) => Reify (a, b, c) where
+    reify _ = TupleT $ Tuple3T (reify (undefined :: a)) (reify (undefined :: b)) (reify (undefined :: c))
 
 instance (Reify a) => Reify [a] where
   reify _ = ListT (reify (undefined :: a))

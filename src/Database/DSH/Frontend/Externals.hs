@@ -65,9 +65,9 @@ instance (QA a,QA b) => QA (a,b) where
   frExp _ = $impossible
 
 instance (QA a,QA b,QA c) => QA (a,b,c) where
-  type Rep (a,b,c) = (Rep a,(Rep b,Rep c))
-  toExp (a,b,c) = PairE (toExp a) (PairE (toExp b) (toExp c))
-  frExp (PairE a (PairE b c)) = (frExp a,frExp b,frExp c)
+  type Rep (a,b,c) = (Rep a, Rep b, Rep c)
+  toExp (a,b,c) = TupleConstE (Tuple3E (toExp a) (toExp b) (toExp c))
+  frExp (TupleConstE (Tuple3E a b c)) = (frExp a, frExp b, frExp c)
   frExp _ = $impossible
 
 instance (QA a) => QA [a] where
@@ -271,8 +271,8 @@ instance (QA a, QA b) => View (Q (a,b)) where
   view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
 
 instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
-  type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
-  view (Q e) = (Q (AppE Fst e),Q (AppE Fst (AppE Snd e)),Q (AppE Snd (AppE Snd e)))
+    type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
+    view (Q e) = (Q (AppE (Tup Tup3_1) e), Q (AppE (Tup Tup3_2) e), Q (AppE (Tup Tup3_3) e))
 
 -- IsString instances
 
@@ -686,7 +686,7 @@ pair :: (QA a,QA b) => Q a -> Q b -> Q (a,b)
 pair (Q a) (Q b) = Q (PairE a b)
 
 triple :: (QA a,QA b,QA c) => Q a -> Q b -> Q c -> Q (a,b,c)
-triple (Q a) (Q b) (Q c)= Q (PairE a (PairE b c))
+triple (Q a) (Q b) (Q c)= Q (TupleConstE (Tuple3E a b c))
 
 infixl 9  !!
 infixr 5  ++, <|, |>
@@ -698,7 +698,7 @@ infix  0  ?
 deriveTupleRangeQA                4 16
 deriveTupleRangeTA                4 16
 deriveTupleRangeView              4 16
-deriveTupleRangeSmartConstructors 2 16
+deriveTupleRangeSmartConstructors 4 16
 
 -- * Missing functions
 

@@ -1,33 +1,34 @@
-{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Translate DSH frontend expressions (implicitly typed through
 -- GADT) into explicitly typed DSH backend expressions.
 module Database.DSH.Translate.Frontend2CL (toComprehensions) where
-       
+
 import           Database.DSH.Impossible
 
-import           Database.DSH.CL.Lang(NL(..))
-import qualified Database.DSH.CL.Lang as CL
+import           Database.DSH.CL.Lang            (NL (..))
+import qualified Database.DSH.CL.Lang            as CL
 import           Database.DSH.CL.Opt.Aux
-import qualified Database.DSH.CL.Primitives as CP
-import qualified Database.DSH.Common.Type as T
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.CL.Primitives      as CP
+import qualified Database.DSH.Common.Lang        as L
+import           Database.DSH.Common.Nat
+import qualified Database.DSH.Common.Type        as T
 
+import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Internals
-import           Data.Text (unpack)
 
-import qualified Data.Map as M
+import qualified Data.Map                        as M
 
+import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.State
-import           Control.Applicative
-       
+
 import           Text.Printf
-  
-import           GHC.Exts(sortWith)
+
+import           GHC.Exts                        (sortWith)
 
 -- | For each column, we need the name of the column, a string
 -- description of the type for error messsages and a function to check
@@ -91,6 +92,13 @@ runCompile f = liftM fst . flip runStateT (1, M.empty, f)
 
 
 translate ::  forall a. Exp a -> Compile CL.Expr
+translate (TupleConstE (Tuple3E a b c)) = do
+    a' <- translate a 
+    b' <- translate b
+    c' <- translate c
+    let elems = [a', b', c']
+    let elemTys = map T.typeOf elems
+    return $ CL.MkTuple (T.TupleT elemTys) [a', b', c']
 translate UnitE = return $ CP.unit
 translate (BoolE b) = return $ CP.bool b
 translate (CharE c) = return $ CP.string [c]
@@ -104,7 +112,7 @@ translate (VarE i) = do
 translate (ListE es) = do
     let ty = reify (undefined :: a)
     CP.list (translateType ty) <$> mapM translate es
-translate (e@(LamE _)) = 
+translate (e@(LamE _)) =
     case e of
         (LamE f :: Exp (b -> c)) -> do
             v <- freshVar
@@ -114,10 +122,10 @@ translate (e@(LamE _)) =
 translate (TableE (TableDB tableName hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
-    
+
     -- Extract the column types from the frontend type
     let ts = tableTypes ty
-    
+
     -- Fetch the actual type of the table from the database
     -- backend. Since we can't refer to columns by name from the
     -- Haskell side, we sort the columns by name to get a canonical
@@ -158,7 +166,7 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
     ne :: Emptiness -> L.Emptiness
     ne NonEmpty      = L.NonEmpty
     ne PossiblyEmpty = L.PossiblyEmpty
-                                   
+
 
 compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, (b, c)) -> Compile CL.Expr
 compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
@@ -172,11 +180,11 @@ compileApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
 compileApp1 f e = f <$> translate e
 
 compileApp :: Fun a b -> Exp a -> Compile CL.Expr
-compileApp f args = 
+compileApp f args =
     case f of
        -- Builtin functions with arity three
        Cond -> compileApp3 CP.cond args
-    
+
        -- Builtin functions with arity two
        Add          -> compileApp2 CP.add args
        Mul          -> compileApp2 CP.mul args
@@ -235,11 +243,18 @@ compileApp f args =
        Guard           -> compileApp1 CP.guard args
        Transpose       -> compileApp1 CP.transpose args
        Reshape n       -> compileApp1 (CP.reshape n) args
+       Tup te          -> compileTupElem te args
 
--- | Restore the original comprehension form from the desugared concatMap form.
+compileTupElem :: TupElem a b -> Exp a -> Compile CL.Expr
+compileTupElem Tup3_1 e = CP.tupElem First <$> translate e
+compileTupElem Tup3_2 e = CP.tupElem (Next First) <$> translate e
+compileTupElem Tup3_3 e = CP.tupElem (Next $ Next First) <$> translate e
+
+-- | Restore the original comprehension form from the desugared
+-- concatMap form.
 resugar :: CL.Expr -> CL.Expr
-resugar expr = 
-  case expr of 
+resugar expr =
+  case expr of
     CL.MkTuple t es -> CL.MkTuple t $ map resugar es
     tab@(CL.Table _ _ _ _) -> tab
     CL.App t e1 e2 -> CL.App t (resugar e1) (resugar e2)
@@ -251,7 +266,7 @@ resugar expr =
         let body' = resugar body
             xs'   = resugar xs
         in resugar $ CL.Comp t body' (S (CL.BindQ x xs'))
-  
+
     -- Another normalization step: Transform filter combinators to
     -- comprehensions
     -- filter (\x -> p) xs => [ x | x <- xs, p ]
@@ -259,15 +274,15 @@ resugar expr =
         let xs' = resugar xs
             p'  = resugar p
         in resugar $ CL.Comp t (CL.Var xt x) (CL.BindQ x xs' :* (S $ CL.GuardQ p'))
-        
+
     CL.AppE1 t p1 e1 -> CL.AppE1 t p1 (resugar e1)
-    
+
     -- (Try to) transform concatMaps into comprehensions
     cm@(CL.AppE2 t CL.ConcatMap body xs) ->
       let xs' = resugar xs
           body' = resugar body
-      in 
-    
+      in
+
       case body' of
         -- concatMap (\x -> [e]) xs
         -- => [ e | x < xs ]
@@ -275,33 +290,33 @@ resugar expr =
           resugar $ CL.Comp t e (S (CL.BindQ v xs'))
 
         -- Same case as above, just with a literal list in the lambda body.
-        CL.Lam _ v (CL.Lit lt (L.ListV [s])) -> 
+        CL.Lam _ v (CL.Lit lt (L.ListV [s])) ->
           resugar $ CL.Comp t (CL.Lit (CL.elemT lt) s) (S (CL.BindQ v xs'))
 
         -- concatMap (\x -> [ e | qs ]) xs
         -- => [ e | x <- xs, qs ]
         CL.Lam _ v (CL.Comp _ e qs) ->
           resugar $ CL.Comp t e (CL.BindQ v xs' :* qs)
-          
+
         _ -> cm
 
     CL.AppE2 t p1 e1 e2 -> CL.AppE2 t p1 (resugar e1) (resugar e2)
     CL.BinOp t op e1 e2 -> CL.BinOp t op (resugar e1) (resugar e2)
     CL.UnOp t op e -> CL.UnOp t op (resugar e)
     CL.Lam t v e1 -> CL.Lam t v (resugar e1)
-    
+
     CL.If t ce te ee -> CL.If t (resugar ce) (resugar te) (resugar ee)
     constant@(CL.Lit _ _)    -> constant
     var@(CL.Var _ _) -> var
-    comp@(CL.Comp t body qs) -> 
-      if changed 
+    comp@(CL.Comp t body qs) ->
+      if changed
       then resugar $ CL.Comp t body' qs'
       else CL.Comp t body' qs
 
-      where 
+      where
         -- We fold over the qualifiers and look for local rewrite possibilities
         resugarQual :: CL.Qual -> Either CL.Qual CL.Qual
-        resugarQual q = 
+        resugarQual q =
             case q of
                 -- Eliminate unused bindings from guards
                 -- qs, v <- guard p, qs'  => qs, p, qs' (when v \nelem fvs)
@@ -317,18 +332,18 @@ resugar expr =
                    if xs' == xs
                    then Left q
                    else Right (CL.BindQ x xs')
-      
+
         qse     = fmap resugarQual qs
         changed = any isRight $ CL.toList qse
         qs'     = fmap (either id id) qse
-      
+
         body'   = resugar body
         fvs     = freeVars comp
-        
+
         isRight :: Either a b -> Bool
         isRight (Right _) = True
         isRight (Left _)  = False
-            
+
 
 -- | Translate DSH frontend types into backend types.
 translateType :: Type a -> T.Type
@@ -341,6 +356,7 @@ translateType TextT          = T.stringT
 translateType (PairT t1 t2)  = T.pairT (translateType t1) (translateType t2)
 translateType (ListT t)      = T.listT (translateType t)
 translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
+translateType (TupleT (Tuple3T t1 t2 t3)) = T.TupleT [(translateType t1), translateType t2, translateType t3]
 
 -- | From the type of a table (a list of base records represented as
 -- right-deep nested tuples) extract the types of the individual
