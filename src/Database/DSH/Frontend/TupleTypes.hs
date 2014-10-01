@@ -103,3 +103,28 @@ mkTupElemCompile maxWidth = do
 
     let lamBody = CaseE (VarE opName) matches
     return $ LamE [VarP opName, VarP exprName] lamBody
+
+--------------------------------------------------------------------------------
+-- Reify instances for tuple types
+
+reifyType :: Name -> Exp
+reifyType tyName = AppE (VarE $ mkName "reify") (SigE (VarE 'undefined) (VarT tyName))
+
+mkReifyFun :: [Name] -> Dec
+mkReifyFun tyNames =
+    let argTys         = map reifyType tyNames
+        tupTyConstName = mkName $ printf "Tuple%dT" (length tyNames)
+        body           = AppE (ConE $ mkName "TupleT") (foldl' AppE (ConE tupTyConstName) argTys)
+    in FunD (mkName "reify") [Clause [WildP] (NormalB body) []]
+
+mkReifyInstance :: Int -> Dec
+mkReifyInstance width =
+    let tyNames  = map (\i -> mkName $ "t" ++ show i) [1..width]
+        tupTy    = foldl' AppT (TupleT width) $ map VarT tyNames
+        instTy   = AppT (ConT $ mkName "Reify") tupTy
+        reifyCxt = map (\tyName -> ClassP (mkName "Reify") [VarT tyName]) tyNames
+        
+    in InstanceD reifyCxt instTy [mkReifyFun tyNames]
+
+mkReifyInstances :: Int -> Q [Dec]
+mkReifyInstances maxWidth = return $ map mkReifyInstance [2..maxWidth]

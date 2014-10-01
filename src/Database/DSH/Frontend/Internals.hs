@@ -11,6 +11,7 @@ import Data.Text (Text)
 import Text.Printf
 
 import Database.DSH.Frontend.Funs
+import Database.DSH.Frontend.TupleTypes
 
 -- Classes
 
@@ -89,7 +90,7 @@ data Type a where
 data TupleType a where
     Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleType (a, b)
     Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleType (a, b, c)
-
+    Tuple4T :: (Reify a, Reify b, Reify c, Reify d) => Type a -> Type b -> Type c -> Type d -> TupleType (a, b, c, d)
 
 -- Show instances
 
@@ -201,3 +202,5 @@ unQ (Q e) = e
 
 toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
 toLam f = unQ . f . Q
+
+$(mkReifyInstances 4)
