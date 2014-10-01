@@ -2,8 +2,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.Optimizer.VL.Rewrite.Window where
 
-import Debug.Trace
-
 import           Control.Applicative
 import           Control.Monad
 import           Data.List.NonEmpty                              (NonEmpty (..))

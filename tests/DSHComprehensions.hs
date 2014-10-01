@@ -327,3 +327,21 @@ backdep xss = [ x | xs <- xss, x <- xs ]
 
 backdep_filter :: Q [[Integer]] -> Q [Integer]
 backdep_filter xss = [ x | xs <- xss, x <- xs, length xs > x ]
+
+backdep2 :: Q [[Integer]] -> Q [[Integer]]
+backdep2 xss = [ [ x * 42 | x <- xs ] | xs <- xss ]
+
+backdep3 :: Q [[Integer]] -> Q [[Integer]]
+backdep3 xss = [ [ x + length xs | x <- xs ] | xs <- xss ]
+
+backdep4 :: Q [[[Integer]]] -> Q [[[Integer]]]
+backdep4 xsss = [ [ [ x + length xs + length xss
+                    | x <- xs
+                    ]
+                  | xs <- xss
+                  ]
+                | xss <- xsss
+                ]
+
+backdep5 :: Q [[Integer]] -> Q [[Integer]]
+backdep5 xss = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- xss ]

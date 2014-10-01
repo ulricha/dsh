@@ -106,6 +106,7 @@ Library
                      Database.DSH.Frontend.TH
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.Sql
+                     Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
                      Database.DSH.Common.Lang
@@ -115,6 +116,7 @@ Library
                      Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
+                     Database.DSH.CL.Resugar
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
@@ -132,7 +134,6 @@ Library
                      Database.DSH.CL.Opt.NestJoin
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
-                     Database.DSH.FKL.Pretty
                      Database.DSH.FKL.Rewrite
                      Database.DSH.FKL.Kure
                      Database.DSH.NKL.Lang
@@ -149,14 +150,12 @@ Library
                      Database.DSH.VL.Render.Dot
                      Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Vector
-                     Database.DSH.VL.Shape
-                     Database.DSH.VL.MetaPrimitives
-                     Database.DSH.VL.TAVectorPrimitives
-                     Database.DSH.VL.VectorOperations
-                     Database.DSH.VL.VectorPrimitives
-                     Database.DSH.VL.VectorPrimitives
-                     Database.DSH.VL.VLPrimitives
-                     Database.DSH.VL.X100VectorPrimitives
+                     Database.DSH.VL.VectorAlgebra
+                     Database.DSH.VL.VectorAlgebra.TA
+                     Database.DSH.VL.VectorAlgebra.X100
+                     Database.DSH.VL.Vectorize
+                     Database.DSH.VL.Primitives
+
                      Database.DSH.Impossible
 
                      Database.DSH.Optimizer.Common.Aux

@@ -11,8 +11,6 @@ module Database.DSH.CL.Lang
     , NL(..), reverseNL, toList, fromList, fromListSafe, appendNL, toNonEmpty
     , Qual(..), isGuard, isBind
     , Typed(..)
-    , Prim1Op(..)
-    , Prim2Op(..)
     , Prim1(..)
     , Prim2(..)
     ) where
@@ -95,33 +93,31 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1Op = Length 
-             | Concat
-             | Null
-             | Sum 
-             | Avg 
-             | The 
-             | Fst 
-             | Snd
-             | Head 
-             | Tail
-             | Minimum 
-             | Maximum
-             | Reverse 
-             | And 
-             | Or
-             | Init 
-             | Last 
-             | Nub
-             | Number 
-             | Guard
-             | Reshape Integer
-             | Transpose
-             deriving (Eq, Ord)
+data Prim1 = Length 
+           | Concat
+           | Null
+           | Sum 
+           | Avg 
+           | The 
+           | Fst 
+           | Snd
+           | Head 
+           | Tail
+           | Minimum 
+           | Maximum
+           | Reverse 
+           | And 
+           | Or
+           | Init 
+           | Last 
+           | Nub
+           | Number 
+           | Guard
+           | Reshape Integer
+           | Transpose
+           deriving (Eq, Ord)
 
-data Prim1 t = Prim1 Prim1Op t deriving (Eq, Ord)
-
-instance Show Prim1Op where
+instance Show Prim1 where
   show Length          = "length"
   show Concat          = "concat"
   show Null            = "null"
@@ -145,30 +141,25 @@ instance Show Prim1Op where
   show Transpose       = "transpose"
   show (Reshape n)     = printf "reshape(%d)" n
 
-instance Show (Prim1 t) where
-  show (Prim1 o _) = show o
+data Prim2 = Map 
+           | ConcatMap 
+           | GroupWithKey
+           | SortWith 
+           | Pair
+           | Filter 
+           | Append
+           | Index
+           | Zip 
+           | Cons
+           | CartProduct
+           | NestProduct
+           | ThetaJoin (L.JoinPredicate L.JoinExpr)
+           | NestJoin (L.JoinPredicate L.JoinExpr)
+           | SemiJoin (L.JoinPredicate L.JoinExpr)
+           | AntiJoin (L.JoinPredicate L.JoinExpr)
+           deriving (Eq, Ord)
 
-data Prim2Op = Map 
-             | ConcatMap 
-             | GroupWithKey
-             | SortWith 
-             | Pair
-             | Filter 
-             | Append
-             | Index
-             | Zip 
-             | Cons
-             | CartProduct
-             | NestProduct
-             | ThetaJoin (L.JoinPredicate L.JoinExpr)
-             | NestJoin (L.JoinPredicate L.JoinExpr)
-             | SemiJoin (L.JoinPredicate L.JoinExpr)
-             | AntiJoin (L.JoinPredicate L.JoinExpr)
-             deriving (Eq, Ord)
-
-data Prim2 t = Prim2 Prim2Op t deriving (Eq, Ord)
-
-instance Show Prim2Op where
+instance Show Prim2 where
   show Map          = "map"
   show ConcatMap    = "concatMap"
   show GroupWithKey = "groupWithKey"
@@ -185,9 +176,6 @@ instance Show Prim2Op where
   show (NestJoin p)  = printf "△_%s" (pp p)
   show (SemiJoin p)  = printf "⋉_%s" (pp p)
   show (AntiJoin p)  = printf "▷_%s" (pp p)
-
-instance Show (Prim2 t) where
-  show (Prim2 o _) = show o
 
 --------------------------------------------------------------------------------
 -- CL expressions
@@ -206,8 +194,8 @@ isBind (BindQ _ _)  = True
 
 data Expr  = Table Type String [L.Column] L.TableHints
            | App Type Expr Expr
-           | AppE1 Type (Prim1 Type) Expr
-           | AppE2 Type (Prim2 Type) Expr Expr
+           | AppE1 Type Prim1 Expr
+           | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
            | Lam Type L.Ident Expr
@@ -262,14 +250,14 @@ instance Pretty Qual where
 
 -- Binary relational operators are pretty-printed different from other
 -- combinators
-isRelOp :: Prim2 t -> Bool
+isRelOp :: Prim2 -> Bool
 isRelOp o =
     case o of
-        Prim2 (ThetaJoin _) _  -> True
-        Prim2 (NestJoin _) _   -> True
-        Prim2 (SemiJoin _) _   -> True
-        Prim2 (AntiJoin _) _   -> True
-        _                      -> False
+        ThetaJoin _  -> True
+        NestJoin _   -> True
+        SemiJoin _   -> True
+        AntiJoin _   -> True
+        _            -> False
 
 
 

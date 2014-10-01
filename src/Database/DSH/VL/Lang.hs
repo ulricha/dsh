@@ -120,7 +120,7 @@ data UnOp = UniqueS
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = GroupBy    -- (DescrVector, DBV, PropVector)
+data BinOp = Group    -- (DescrVector, DBV, PropVector)
            | SortS        -- (DBV, PropVector)
            | AggrS AggrFun
            | AggrNonEmptyS (N.NonEmpty AggrFun)

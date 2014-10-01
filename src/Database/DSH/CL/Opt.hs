@@ -81,7 +81,7 @@ optimizeR = normalizeOnceR >+>
             anybuR postProcessCompR
 
 optimizeComprehensions :: Expr -> Expr
-optimizeComprehensions expr = debugOpt expr optimizedExpr
+optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr
   where
     optimizedExpr = applyExpr (optimizeR >>> projectT) expr
     -- optimizedExpr = applyExpr projectT expr

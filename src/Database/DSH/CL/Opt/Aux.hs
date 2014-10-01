@@ -63,11 +63,11 @@ type TuplifyM = RewriteStateM (RewriteC CL)
 
 -- | Run a translate on an expression without context
 applyExpr :: TransformC CL b -> Expr -> Either String b
-applyExpr f e = runRewriteM $ apply f initialCtx (inject e)
+applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 
 -- | Run a translate on any value which can be injected into CL
 applyInjectable :: Injection a CL => TransformC CL b -> a -> Either String b
-applyInjectable t e = runRewriteM $ apply t initialCtx (inject e)
+applyInjectable t e = runRewriteM $ applyT t initialCtx (inject e)
 
 
 --------------------------------------------------------------------------------
@@ -90,9 +90,9 @@ toJoinExpr n = do
     e <- idR
 
     case e of
-        AppE1 _ (Prim1 Fst _) _   -> do
+        AppE1 _ Fst _   -> do
             appe1T (toJoinExpr n) (\t _ e1 -> JFst t e1)
-        AppE1 _ (Prim1 Snd _) _   -> do
+        AppE1 _ Snd _   -> do
             appe1T (toJoinExpr n) (\t _ e1 -> JSnd t e1)
         BinOp _ o _ _ -> do
             o' <- constT $ toJoinBinOp o
@@ -172,28 +172,26 @@ isThetaJoinPred _ _ _ = False
 
 -- | Does the predicate look like an existential quantifier?
 isSemiJoinPred :: Ident -> Expr -> Bool
-isSemiJoinPred x (AppE1 _ (Prim1 Or _)
-                           (Comp _ p
-                                   (S (BindQ y _)))) = isThetaJoinPred x y p
-isSemiJoinPred _  _                                  = False
+isSemiJoinPred x (AppE1 _ Or (Comp _ p
+                                     (S (BindQ y _)))) = isThetaJoinPred x y p
+isSemiJoinPred _  _                                    = False
 
 -- | Does the predicate look like an universal quantifier?
 isAntiJoinPred :: Ident -> Expr -> Bool
-isAntiJoinPred x (AppE1 _ (Prim1 And _)
-                           (Comp _ p
-                                   (S (BindQ y _)))) = isThetaJoinPred x y p
-isAntiJoinPred _  _                                  = False
+isAntiJoinPred x (AppE1 _ And (Comp _ p
+                                      (S (BindQ y _)))) = isThetaJoinPred x y p
+isAntiJoinPred _  _                                     = False
 
 isFlatExpr :: Expr -> Bool
 isFlatExpr expr =
     case expr of
-        AppE1 _ (Prim1 Fst _) e -> isFlatExpr e
-        AppE1 _ (Prim1 Snd _) e -> isFlatExpr e
-        UnOp _ _ e              -> isFlatExpr e
-        BinOp _ _ e1 e2         -> isFlatExpr e1 && isFlatExpr e2
-        Var _ _                 -> True
-        Lit _ _                 -> True
-        _                       -> False
+        AppE1 _ Fst e    -> isFlatExpr e
+        AppE1 _ Snd e    -> isFlatExpr e
+        UnOp _ _ e       -> isFlatExpr e
+        BinOp _ _ e1 e2  -> isFlatExpr e1 && isFlatExpr e2
+        Var _ _          -> True
+        Lit _ _          -> True
+        _                -> False
 
 --------------------------------------------------------------------------------
 -- Computation of free variables
@@ -246,6 +244,8 @@ substR v s = readerT $ \expr -> case expr of
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
+    -- FIXME in this case, rename the shadowing generator to avoid
+    -- name-capturing (see lambda case)
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
     ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
 
@@ -274,8 +274,8 @@ tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
 tupleVars n t1 t2 = (v1Rep, v2Rep)
   where v     = Var pt n
         pt    = pairT t1 t2
-        v1Rep = AppE1 t1 (Prim1 Fst (pt .-> t1)) v
-        v2Rep = AppE1 t2 (Prim1 Snd (pt .-> t2)) v
+        v1Rep = AppE1 t1 Fst v
+        v2Rep = AppE1 t2 Snd v
 
 --------------------------------------------------------------------------------
 -- Helpers for combining generators with guards in a comprehensions'
@@ -386,7 +386,7 @@ onetdSpineT t = do
 --------------------------------------------------------------------------------
 -- Classification of expressions
 
-complexPrim2 :: Prim2Op -> Bool
+complexPrim2 :: Prim2 -> Bool
 complexPrim2 op =
     case op of
         Map       -> False
@@ -394,7 +394,7 @@ complexPrim2 op =
         Pair      -> False
         _         -> True
 
-complexPrim1 :: Prim1Op -> Bool
+complexPrim1 :: Prim1 -> Bool
 complexPrim1 op =
     case op of
         Concat -> False

@@ -23,9 +23,9 @@ import           Database.DSH.Execute.Sql
 import qualified Database.DSH.VL.Lang                     as VL
 import           Database.DSH.VL.Vector
 import           Database.DSH.NKL.Rewrite
-import           Database.DSH.FKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
+import           Database.DSH.CL.Resugar
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
@@ -42,15 +42,17 @@ import           Database.DSH.Translate.VL2Algebra
 --------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline
 
+-- | Backend-agnostic part of the pipeline.
 commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
 commonPipeline =
-    optimizeComprehensions
+    resugarComprehensions
+    >>> optimizeComprehensions
     >>> desugarComprehensions
     >>> optimizeNKL
-    >>> flatten
+    >>> flatTransform
     >>> specializeVectorOps
 
-nkl2Sql :: CL.Expr -> TopShape SqlCode
+nkl2Sql :: CL.Expr -> Shape SqlCode
 nkl2Sql =
     commonPipeline
     >>> optimizeVLDefault

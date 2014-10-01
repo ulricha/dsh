@@ -12,6 +12,7 @@ module Database.DSH.Common.Kure
 
 #ifdef DEBUGCOMP
 import Debug.Trace
+import Text.Printf
 #endif
 
 import Language.KURE
@@ -46,8 +47,8 @@ debugMsg msg = trace msg $ return ()
 debugMsg _ = return ()
 #endif
 
-debugOpt :: Pretty e => e -> Either String e -> e
-debugOpt origExpr mExpr = 
+debugOpt :: Pretty e => String -> e -> Either String e -> e
+debugOpt stage origExpr mExpr = 
 #ifdef DEBUGCOMP
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
@@ -57,10 +58,10 @@ debugOpt origExpr mExpr =
     padSep s = "\n" ++ s ++ " " ++ replicate (100 - length s) '=' ++ "\n"
 
     showOrig :: Pretty e => e -> String
-    showOrig e = padSep "Original Query" ++ pp e ++ padSep ""
+    showOrig e = padSep (printf "Original Query (%s)" stage) ++ pp e ++ padSep ""
 
     showOpt :: Pretty e => e -> String
-    showOpt e = padSep "Optimized Query" ++ pp e ++ padSep ""
+    showOpt e = padSep (printf "Optimized Query (%s)" stage) ++ pp e ++ padSep ""
 #else
     either (const origExpr) id mExpr
 #endif

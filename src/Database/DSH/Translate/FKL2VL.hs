@@ -3,85 +3,75 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
-import Debug.Trace
-
-import           Control.Monad
 import           Control.Monad.Reader
 
-import           Database.Algebra.Dag.Build
-import qualified Database.Algebra.Dag.Common      as Alg
 
-import           Database.DSH.Common.Pretty
-import qualified Database.DSH.Common.QueryPlan    as QP
+import           Database.Algebra.Dag.Build
+import qualified Database.Algebra.Dag.Common   as Alg
+
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
-import           Database.DSH.FKL.Pretty()
 import           Database.DSH.Impossible
+import qualified Database.DSH.VL.Lang          as VL
+import           Database.DSH.VL.Render.JSON   ()
 import           Database.DSH.VL.Vector
-import qualified Database.DSH.VL.Lang             as VL
-import           Database.DSH.VL.Render.JSON      ()
-import           Database.DSH.VL.Shape            hiding (Pair)
-import           Database.DSH.VL.VectorOperations
-import           Database.DSH.VL.VLPrimitives
+import qualified Database.DSH.VL.Vectorize     as V
+import           Database.DSH.VL.Primitives
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled VL
 -- DAGs.
 
-type Env = [(String, Shape)]
+type Env = [(String, Shape VLDVec)]
 
 type EnvBuild = ReaderT Env (Build VL.VL)
 
-lookupEnv :: String -> EnvBuild Shape
+-- FIXME might need those when let-expressions have been introduced.
+lookupEnv :: String -> EnvBuild (Shape VLDVec)
 lookupEnv n = ask >>= \env -> case lookup n env of
     Just r -> return r
     Nothing -> $impossible
 
-withEnv :: Env -> EnvBuild a -> EnvBuild a
-withEnv env = local (const env)
-
-{-
--- | Evaluate the graph construction computation with a different
--- environment. Return within the current computational context.
-withEnv :: Gam a -> AlgNode -> Build a alg r -> Build a alg r
-withEnv gam loop = local (\_ -> (gam, loop))
--}
+bind :: Ident -> Shape VLDVec -> Env -> Env
+bind n e env = (n, e) : env
 
 --------------------------------------------------------------------------------
 -- Compilation from FKL expressions to a VL DAG.
 
-fkl2VL :: Expr -> EnvBuild Shape
+fkl2VL :: FExpr -> EnvBuild (Shape VLDVec)
 fkl2VL expr =
     case expr of
-        Table _ n cs hs -> lift $ dbTable n cs hs
-        Const t v -> lift $ mkLiteral t v
+        Var _ n -> lookupEnv n
+        Let _ n e1 e -> do
+            e1' <- fkl2VL e1
+            local (bind n e1') $ fkl2VL e
+        Table _ n cs hs -> lift $ V.dbTable n cs hs
+        Const t v -> lift $ V.mkLiteral t v
         BinOp _ (NotLifted o) e1 e2    -> do
-            PrimVal p1 lyt <- fkl2VL e1
-            PrimVal p2 _   <- fkl2VL e2
+            SShape p1 lyt <- fkl2VL e1
+            SShape p2 _   <- fkl2VL e2
             p              <- lift $ vlBinExpr o p1 p2
-            return $ PrimVal p lyt
+            return $ SShape p lyt
         BinOp _ (Lifted o) e1 e2     -> do
-            ValueVector p1 lyt <- fkl2VL e1
-            ValueVector p2 _   <- fkl2VL e2
+            VShape p1 lyt <- fkl2VL e1
+            VShape p2 _   <- fkl2VL e2
             p                  <- lift $ vlBinExpr o p1 p2
-            return $ ValueVector p lyt
+            return $ VShape p lyt
         UnOp _ (NotLifted o) e1 -> do
-            PrimVal p1 lyt <- fkl2VL e1
+            SShape p1 lyt <- fkl2VL e1
             p              <- lift $ vlUnExpr o p1
-            return $ PrimVal p lyt
+            return $ SShape p lyt
         UnOp _ (Lifted o) e1 -> do
-            ValueVector p1 lyt <- fkl2VL e1
+            VShape p1 lyt <- fkl2VL e1
             p                  <- lift $ vlUnExpr o p1
-            return $ ValueVector p lyt
+            return $ VShape p lyt
         If _ eb e1 e2 -> do
             eb' <- fkl2VL eb
             e1' <- fkl2VL e1
             e2' <- fkl2VL e2
-            lift $ ifList eb' e1' e2'
-        PApp1 t f@(FLengthL _) arg@(Var _ n) -> trace ("FLengthL " ++ show arg) $!
-            (ask >>= \env -> trace ("env " ++ show env) $! do
-              arg' <- fkl2VL arg
-              lift $ papp1 t f arg')
+            lift $ V.ifList eb' e1' e2'
         PApp1 t f arg -> do
             arg' <- fkl2VL arg
             lift $ papp1 t f arg'
@@ -89,152 +79,145 @@ fkl2VL expr =
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             lift $ papp2 f arg1' arg2'
-        PApp3 _ (FCombine _) arg1 arg2 arg3 -> do
+        PApp3 _ p arg1 arg2 arg3 -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
-            lift $ combine arg1' arg2' arg3'
-        Var _ s -> lookupEnv s
-        Clo _ n fvs x f1 f2 -> do
-            fv <- constructClosureEnv fvs
-            return $ Closure n fv x f1 f2
-        AClo _ n fvs x f1 f2 -> do
-            v  <- lookupEnv n
-            fv <- constructClosureEnv fvs
-            return $ AClosure n v 1 fv x f1 f2
-        CloApp _ c arg -> do
-            Closure _ fvs x f1 _ <- fkl2VL c
-            arg'                 <- fkl2VL arg
-            withEnv ((x, arg'):fvs) $ fkl2VL f1
-        CloLApp _ c arg -> do
-            AClosure n v 1 fvs x _ f2 <- fkl2VL c
-            arg'                      <- fkl2VL arg
-            withEnv ((n, v):(x, arg'):fvs) $ fkl2VL f2
+            lift $ papp3 p arg1' arg2' arg3'
+        QConcat n _ arg -> do
+            arg' <- fkl2VL arg
+            return $ V.qConcat n arg'
+        UnConcat n _ arg1 arg2 -> do
+            arg1' <- fkl2VL arg1
+            arg2' <- fkl2VL arg2
+            return $ V.unconcat n arg1' arg2'
 
-papp1 :: Type -> Prim1 -> Shape -> Build VL.VL Shape
-papp1 t f =
+
+papp3 :: Lifted Prim3 -> Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp3 (Lifted Combine)    = V.combineL
+papp3 (NotLifted Combine) = V.combine
+
+papp1 :: Type -> Lifted Prim1 -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp1 t (Lifted f) =
     case f of
-        FLength _           -> lengthV
---        FLengthL _          -> lengthLift
-        FLengthL _          -> $impossible
-        FConcatL _          -> concatLift
-        FSum _              -> aggrPrim $ VL.AggrSum $ typeToRowType t
-        FSumL _             -> aggrLift $ VL.AggrSum $ typeToRowType $ elemT t
-        FAvg _              -> aggrPrim VL.AggrAvg
-        FAvgL _             -> aggrLift VL.AggrAvg
-        FThe _              -> the
-        FTheL _             -> theL
-        FFst _              -> fstA
-        FSnd _              -> sndA
-        FFstL _             -> fstL
-        FSndL _             -> sndL
-        FConcat _           -> concatV
-        FQuickConcat _      -> quickConcatV
-        FMinimum _          -> aggrPrim VL.AggrMin
-        FMinimumL _         -> aggrLift VL.AggrMin
-        FMaximum _          -> aggrPrim VL.AggrMax
-        FMaximumL _         -> aggrLift VL.AggrMax
-        FTail _             -> tailS
-        FTailL _            -> tailL
-        FReverse _          -> reversePrim
-        FReverseL _         -> reverseLift
-        FAnd _              -> aggrPrim VL.AggrAll
-        FAndL _             -> aggrLift VL.AggrAll
-        FOr _               -> aggrPrim VL.AggrAny
-        FOrL _              -> aggrLift VL.AggrAny
-        FInit _             -> initPrim
-        FInitL _            -> initLift
-        FLast _             -> lastPrim
-        FLastL _            -> lastLift
-        FNub _              -> nubPrim
-        FNubL _             -> nubLift
-        FNumber _           -> numberPrim
-        FNumberL _          -> numberLift
-        FTranspose _        -> transposePrim
-        FTransposeL _       -> transposeLift
-        FReshape n _        -> reshapePrim n
-        FReshapeL n _       -> reshapeLift n
+        Length          -> V.lengthL
+        Concat          -> V.concatL
+        The             -> V.theL
+        Fst             -> V.fstL
+        Snd             -> V.sndL
+        Tail            -> V.tailL
+        Reverse         -> V.reverseL
+        Init            -> V.initL
+        Last            -> V.lastL
+        Nub             -> V.nubL
+        Number          -> V.numberL
+        Transpose       -> V.transposeL
+        Reshape n       -> V.reshapeL n
+        And             -> V.aggrL VL.AggrAll
+        Or              -> V.aggrL VL.AggrAny
+        Minimum         -> V.aggrL VL.AggrMin
+        Maximum         -> V.aggrL VL.AggrMax
+        Sum             -> V.aggrL $ VL.AggrSum $ typeToRowType $ elemT t
+        Avg             -> V.aggrL VL.AggrAvg
 
-papp2 :: Prim2 -> Shape -> Shape -> Build VL.VL Shape
-papp2 f =
+papp1 t (NotLifted f) =
     case f of
-        FDist _            -> dist
-        FDistL _           -> distL
-        FGroupWithKey _    -> groupByKeyS
-        FGroupWithKeyL _   -> groupByKeyL
-        FSortWithS _       -> sortWithS
-        FSortWithL _       -> sortWithL
-        FRestrict _        -> restrict
-        FUnconcat _        -> unconcatV
-        FPair _            -> pairOp
-        FPairL _           -> pairOpL
-        FAppend _          -> appendPrim
-        FAppendL _         -> appendLift
-        FIndex _           -> indexPrim
-        FIndexL _          -> indexLift
-        FZip _             -> zipPrim
-        FZipL _            -> zipLift
-        FCons _            -> cons
-        FConsL _           -> consLift
-        FCartProduct _     -> cartProductPrim
-        FCartProductL _    -> cartProductLift
-        FNestProduct _     -> nestProductPrim
-        FNestProductL _    -> nestProductLift
-        FThetaJoin p _     -> thetaJoinPrim p
-        FThetaJoinL p _    -> thetaJoinLift p
-        FNestJoin p _      -> nestJoinPrim p
-        FNestJoinL p _     -> nestJoinLift p
-        FSemiJoin p _      -> semiJoinPrim p
-        FSemiJoinL p _     -> semiJoinLift p
-        FAntiJoin p _      -> antiJoinPrim p
-        FAntiJoinL p _     -> antiJoinLift p
+        Length           -> V.length
+        Reshape n        -> V.reshape n
+        Transpose        -> V.transpose
+        Number           -> V.number
+        Nub              -> V.nub
+        Last             -> V.last
+        Init             -> V.init
+        Reverse          -> V.reverse
+        Tail             -> V.tail
+        Concat           -> V.concat
+        Fst              -> V.fst
+        Snd              -> V.snd
+        The              -> V.the
+        Sum              -> V.aggr $ VL.AggrSum $ typeToRowType t
+        Avg              -> V.aggr VL.AggrAvg
+        Or               -> V.aggr VL.AggrAny
+        And              -> V.aggr VL.AggrAll
+        Maximum          -> V.aggr VL.AggrMax
+        Minimum          -> V.aggr VL.AggrMin
 
-constructClosureEnv :: [String] -> EnvBuild Env
-constructClosureEnv []     = return []
-constructClosureEnv (x:xs) = liftM2 (:) (liftM (x,) $ lookupEnv x) (constructClosureEnv xs)
+papp2 :: Lifted Prim2 -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
+papp2 (Lifted f) =
+    case f of
+        Dist           -> V.distL
+        Group          -> V.groupL
+        Sort           -> V.sortL
+        Restrict       -> V.restrictL
+        Pair           -> V.pairL
+        Append         -> V.appendL
+        Index          -> V.indexL
+        Zip            -> V.zipL
+        Cons           -> V.consL
+        CartProduct    -> V.cartProductL
+        NestProduct    -> V.nestProductL
+        ThetaJoin p    -> V.thetaJoinL p
+        NestJoin p     -> V.nestJoinL p
+        SemiJoin p     -> V.semiJoinL p
+        AntiJoin p     -> V.antiJoinL p
+
+papp2 (NotLifted f) =
+    case f of
+        Dist            -> V.dist
+        Group           -> V.group
+        Sort            -> V.sort
+        Restrict        -> V.restrict
+        Pair            -> V.pair
+        Append          -> V.append
+        Index           -> V.index
+        Zip             -> V.zip
+        Cons            -> V.cons
+        CartProduct     -> V.cartProduct
+        NestProduct     -> V.nestProduct
+        ThetaJoin p     -> V.thetaJoin p
+        NestJoin p      -> V.nestJoin p
+        SemiJoin p      -> V.semiJoin p
+        AntiJoin p      -> V.antiJoin p
 
 -- For each top node, determine the number of columns the vector has and insert
 -- a dummy projection which just copies those columns. This is to ensure that
 -- columns which are required from the top are not pruned by optimizations.
-insertTopProjections :: Build VL.VL Shape -> Build VL.VL (QP.TopShape VLDVec)
-insertTopProjections g = do
-    shape <- g
-    let shape' = QP.exportShape shape
-    traverseShape shape'
+insertTopProjections :: Build VL.VL (Shape VLDVec) -> Build VL.VL (Shape VLDVec)
+insertTopProjections g = g >>= traverseShape
 
   where
-    traverseShape :: (QP.TopShape VLDVec) -> Build VL.VL (QP.TopShape VLDVec)
-    traverseShape (QP.ValueVector (VLDVec q) lyt) =
-        insertProj lyt q VL.Project VLDVec QP.ValueVector
-    traverseShape (QP.PrimVal (VLDVec q) lyt)     =
-        insertProj lyt q VL.Project VLDVec QP.PrimVal
-  
-    traverseLayout :: (QP.TopLayout VLDVec) -> Build VL.VL (QP.TopLayout VLDVec)
-    traverseLayout (QP.InColumn c) =
-        return $ QP.InColumn c
-    traverseLayout (QP.Pair lyt1 lyt2) = do
+    traverseShape :: Shape VLDVec -> Build VL.VL (Shape VLDVec)
+    traverseShape (VShape (VLDVec q) lyt) =
+        insertProj lyt q VL.Project VLDVec VShape
+    traverseShape (SShape (VLDVec q) lyt)     =
+        insertProj lyt q VL.Project VLDVec SShape
+
+    traverseLayout :: (Layout VLDVec) -> Build VL.VL (Layout VLDVec)
+    traverseLayout (LCol c) =
+        return $ LCol c
+    traverseLayout (LPair lyt1 lyt2) = do
         lyt1' <- traverseLayout lyt1
         lyt2' <- traverseLayout lyt2
-        return $ QP.Pair lyt1' lyt2'
-    traverseLayout (QP.Nest (VLDVec q) lyt) =
-      insertProj lyt q VL.Project VLDVec QP.Nest
+        return $ LPair lyt1' lyt2'
+    traverseLayout (LNest (VLDVec q) lyt) =
+      insertProj lyt q VL.Project VLDVec LNest
 
     insertProj
-      :: QP.TopLayout VLDVec               -- ^ The node's layout
-      -> Alg.AlgNode                       -- ^ The top node to consider
-      -> ([VL.Expr] -> VL.UnOp)            -- ^ Constructor for the projection op
-      -> (Alg.AlgNode -> v)                -- ^ Vector constructor
-      -> (v -> (QP.TopLayout VLDVec) -> t) -- ^ Layout/Shape constructor
+      :: Layout VLDVec               -- ^ The node's layout
+      -> Alg.AlgNode                    -- ^ The top node to consider
+      -> ([VL.Expr] -> VL.UnOp)         -- ^ Constructor for the projection op
+      -> (Alg.AlgNode -> v)             -- ^ Vector constructor
+      -> (v -> (Layout VLDVec) -> t) -- ^ Layout/Shape constructor
       -> Build VL.VL t
     insertProj lyt q project vector describe = do
-        let width = QP.columnsInLayout lyt
+        let width = columnsInLayout lyt
             cols  = [1 .. width]
         qp   <- insert $ Alg.UnOp (project $ map VL.Column cols) q
         lyt' <- traverseLayout lyt
         return $ describe (vector qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
-specializeVectorOps :: Expr -> QP.QueryPlan VL.VL VLDVec
-specializeVectorOps e = QP.mkQueryPlan opMap shape tagMap
+specializeVectorOps :: FExpr -> QueryPlan VL.VL VLDVec
+specializeVectorOps e = mkQueryPlan opMap shape tagMap
   where
     (opMap, shape, tagMap) = runBuild (insertTopProjections $ runReaderT (fkl2VL e) [])

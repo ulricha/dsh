@@ -130,7 +130,6 @@ unnestWorkerT headComp (x, xs) = do
     let xt       = elemT $ typeOf xs
         yt       = elemT $ typeOf ys
         tupType  = pairT xt (listT (pairT xt yt))
-        joinType = listT xt .-> (listT yt .-> listT tupType)
         joinVar  = Var tupType x
         
     -- If there are inner predicates which only refer to y,
@@ -141,7 +140,7 @@ unnestWorkerT headComp (x, xs) = do
 
     -- the nesting operator combining xs and ys: 
     -- xs nj(p) ys
-    let xs'        = AppE2 (listT tupType) (Prim2 nestOp joinType) xs ys'
+    let xs'        = AppE2 (listT tupType) nestOp xs ys'
 
     innerVar <- freshNameT []
 
@@ -304,7 +303,7 @@ unnestGuardT localGenVars (x, xs) guardExpr = do
 -- guard in a qualifier list.
 unnestQualsR :: [Ident] -> Rewrite CompCtx GuardM (NL Qual)
 unnestQualsR localGenVars = do
-    readerT $ \qs -> case qs of
+    readerT $ \quals -> case quals of
         -- In the middle of a qualifier list
         BindQ x xs :* GuardQ p :* qs -> do
             (tuplifyHeadR, xs', p') <- liftstateT $ constNodeT p 
@@ -387,17 +386,17 @@ unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
 isComplexExpr :: Expr -> Bool
 isComplexExpr e = 
     case e of
-        Comp{}                   -> True
-        If{}                     -> True
-        App{}                    -> True
-        BinOp{}                  -> True
-        UnOp{}                   -> True
-        Lam{}                    -> True
-        AppE2 _ (Prim2 op _) _ _ -> complexPrim2 op
-        AppE1 _ (Prim1 op _) _   -> complexPrim1 op
-        Lit{}                    -> False
-        Var{}                    -> False
-        Table{}                  -> False
+        Comp{}         -> True
+        If{}           -> True
+        App{}          -> True
+        BinOp{}        -> True
+        UnOp{}         -> True
+        Lam{}          -> True
+        AppE2 _ op _ _ -> complexPrim2 op
+        AppE1 _ op _   -> complexPrim1 op
+        Lit{}          -> False
+        Var{}          -> False
+        Table{}        -> False
 
 containsComplexExprT :: TransformC CL ()
 containsComplexExprT = onetdT isComplexExprT

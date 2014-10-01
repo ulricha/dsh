@@ -75,7 +75,7 @@ inferEmptyUnOp e op =
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
-    GroupBy -> 
+    Group -> 
       let ue1 = unp e1 
           ue2 = unp e2 
       in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1

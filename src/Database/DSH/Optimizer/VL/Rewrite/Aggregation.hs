@@ -137,7 +137,7 @@ inlineAggrSNonEmptyProject q =
 -- employ a simpler operator.
 simpleGrouping :: VLRule ()
 simpleGrouping q =
-  $(dagPatMatch 'q "(Project projs (q1)) GroupBy (q2)"
+  $(dagPatMatch 'q "(Project projs (q1)) Group (q2)"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 
@@ -146,12 +146,12 @@ simpleGrouping q =
           void $ replaceWithNew q $ UnOp (GroupScalarS $(v "projs")) $(v "q1") |])
 
 -- If grouping is performed by simple scalar expressions, we can
--- employ a simpler operator. This pattern arises when the grouping
+-- employ a simpler operator. This dagPatMatch arises when the grouping
 -- input projection (left) is merged with the common origin of left
 -- and right groupby input.
 simpleGroupingProject :: VLRule ()
 simpleGroupingProject q =
-  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) GroupBy (Project projs2 (q2)))"
+  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) Group (Project projs2 (q2)))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
 

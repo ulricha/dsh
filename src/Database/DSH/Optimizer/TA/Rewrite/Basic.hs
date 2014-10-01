@@ -183,7 +183,7 @@ constAggrKey q =
              logRewrite "Basic.Const.Aggr" q
              let necessaryKeys = prunedKeys `intersect` neededCols
 
-                 constProj c   = lookup c constCols >>= \v -> return (c, ConstE v)
+                 constProj c   = lookup c constCols >>= \val -> return (c, ConstE val)
 
                  constProjs    = mapMaybe constProj necessaryKeys
 
@@ -201,9 +201,7 @@ constRownumCol :: TARule AllProps
 constRownumCol q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
-         props                         <- properties $(v "q1")
-         let constCols = pConst $ bu props
-             cols      = pCols $ bu props
+         constCols <- pConst <$> bu <$> properties $(v "q1")
 
          (resCol, sortCols, partExprs) <- return $(v "args")
          let sortCols' = filter (\(e, _) -> not $ isConstExpr constCols e) sortCols
@@ -326,7 +324,7 @@ keyPrefixOrdering q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
         (resCol, sortCols, []) <- return $(v "args")
-        keys                   <- trace (show sortCols) $! pKeys <$> bu <$> properties $(v "q1")
+        keys                   <- pKeys <$> bu <$> properties $(v "q1")
 
         predicate $ not $ null sortCols
        

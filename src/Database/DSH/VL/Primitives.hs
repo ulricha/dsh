@@ -2,7 +2,10 @@
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Database.DSH.VL.VLPrimitives where
+module Database.DSH.VL.Primitives where
+
+import Debug.Trace
+import Database.DSH.Common.Pretty
 
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
@@ -75,9 +78,8 @@ typeToRowType t = case t of
   Ty.UnitT       -> D.Unit
   Ty.DoubleT     -> D.Double
   Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT _     -> $impossible
+  Ty.ListT _     -> trace (pp t) $impossible
   Ty.FunT _ _    -> $impossible
-  Ty.VarT _      -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -91,8 +93,6 @@ recordWidth t =
         Ty.DoubleT     -> 1
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
-        -- WTF is a VarT
-        Ty.VarT _      -> $impossible
         Ty.FunT _ _    -> $impossible
         Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
         Ty.ListT _     -> 0
@@ -161,8 +161,8 @@ vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
-vlGroupBy :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
-vlGroupBy (VLDVec c1) (VLDVec c2) = tripleVec (BinOp GroupBy c1 c2) dvec dvec pvec
+vlGroup :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroup (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Group c1 c2) dvec dvec pvec
 
 vlSort :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlSort (VLDVec c1) (VLDVec c2) = pairVec (BinOp SortS c1 c2) dvec pvec

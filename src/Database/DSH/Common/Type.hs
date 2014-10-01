@@ -11,7 +11,6 @@ module Database.DSH.Common.Type
     , sndT
     , domainT
     , splitType
-    , varsInType
     , listDepth
     , pairT
     , pairComponents
@@ -35,14 +34,12 @@ module Database.DSH.Common.Type
     , isFuns
     ) where
 
-import Data.Aeson.TH
-
 import Text.PrettyPrint.ANSI.Leijen
 
 import Database.DSH.Common.Pretty
+import Database.DSH.Common.Nat
   
 instance Pretty Type where 
-    pretty (VarT v)      = text v
     pretty (FunT t1 t2)  = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty IntT          = text "Int"
     pretty BoolT         = text "Bool"
@@ -60,8 +57,6 @@ data Type  = FunT Type Type
            | DoubleT
            | StringT 
            | UnitT 
-           -- FIXME What the fuck is a VarT?
-           | VarT String
            | PairT Type Type 
            | ListT Type
            deriving (Show, Eq, Ord)
@@ -71,7 +66,6 @@ infixr 6 .->
 isNum :: Type -> Bool
 isNum IntT        = True
 isNum DoubleT     = True
-isNum (VarT _)    = False
 isNum (FunT _ _)  = False
 isNum BoolT       = False
 isNum StringT     = False
@@ -82,13 +76,6 @@ isNum (PairT _ _) = False
 domainT :: Type -> Type
 domainT (FunT t _) = t
 domainT _          = error "domainT: argument is not a function type"
-
-varsInType :: Type -> [String]
-varsInType (FunT t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (PairT t1 t2) = varsInType t1 ++ varsInType t2
-varsInType (ListT t) = varsInType t
-varsInType (VarT v) = [v]
-varsInType _ = []
 
 (.->) :: Type -> Type -> Type
 t1 .-> t2 = FunT t1 t2
@@ -159,24 +146,22 @@ splitType _          = error "Can only split function types"
 
 extractShape :: Type -> Type -> Type
 extractShape (ListT t1) = \x -> listT $ extractShape t1 x
-extractShape _         = \x -> x
+extractShape _          = \x -> x
 
-liftTypeN :: Int -> Type -> Type
-liftTypeN 0 t = t
-liftTypeN i t = liftTypeN (i - 1) $ liftType t
+liftTypeN :: Nat -> Type -> Type
+liftTypeN Zero t     = t
+liftTypeN (Succ n) t = liftTypeN n $ liftType t
 
 liftType :: Type -> Type
--- liftType (FunT t1 t2) = FunT (liftType t1) (liftType t2)
 liftType t = listT t 
 
-unliftTypeN :: Int -> Type -> Type
-unliftTypeN 0 t = t
-unliftTypeN i t = unliftTypeN (i - 1) $ unliftType t
+unliftTypeN :: Nat -> Type -> Type
+unliftTypeN Zero t     = t
+unliftTypeN (Succ n) t = unliftTypeN n $ unliftType t
 
 unliftType :: Type -> Type
 unliftType (ListT t1) = t1
--- unliftType (FunT t1 t2) = FunT (unliftType t1) (unliftType t2)
-unliftType t         = error $ "Type: " ++ pp t ++ " cannot be unlifted."
+unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
 
 isFuns :: Type -> Bool
 isFuns (ListT t1) = isFuns t1

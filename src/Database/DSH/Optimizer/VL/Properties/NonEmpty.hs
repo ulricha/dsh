@@ -100,7 +100,7 @@ inferNonEmptyBinOp e1 e2 op =
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.
-    GroupBy -> do
+    Group -> do
       ue1 <- unp e1 
       return $ VPropTriple ue1 True ue1
     SortS -> do

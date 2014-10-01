@@ -6,7 +6,7 @@
 
 -- | Implementation of vector primitives in terms of table algebra
 -- operators.
-module Database.DSH.VL.TAVectorPrimitives() where
+module Database.DSH.VL.VectorAlgebra.TA () where
 
 import           Control.Applicative              hiding (Const)
 import qualified Data.List.NonEmpty               as N
@@ -21,14 +21,14 @@ import qualified Database.DSH.Common.Lang         as L
 import           Database.DSH.Impossible
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang             as VL
-import           Database.DSH.VL.VectorPrimitives
+import           Database.DSH.VL.VectorAlgebra
 
 
 --------------------------------------------------------------------------------
 -- Some general helpers
 
 -- | Results are stored in column:
-pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, tmpCol, tmpCol' , absPos, descri, descro, posi, poso:: Attr
+pos, item', item, descr, descr', descr'', pos', pos'', pos''', posold, posnew, ordCol, resCol, absPos, descri, descro, posi, poso:: Attr
 pos       = "pos"
 item      = "item1"
 item'     = "itemtmp"
@@ -42,8 +42,6 @@ posold    = "posold"
 posnew    = "posnew"
 ordCol    = "ord"
 resCol    = "res"
-tmpCol    = "tmp1"
-tmpCol'   = "tmp2"
 absPos    = "abspos"
 descro    = "descro"
 descri    = "descri"
@@ -82,14 +80,6 @@ mP n o = (n, ColE o)
 
 projAddCols :: [DBCol] -> [Proj] -> AlgNode -> Build TableAlgebra AlgNode
 projAddCols cols projs q = proj ([cP descr, cP pos] ++ map (cP . itemi) cols ++ projs) q
-
-projAddColsM :: [DBCol] -> [Proj] -> Build TableAlgebra AlgNode -> Build TableAlgebra AlgNode
-projAddColsM cols projs mq = do
-  q <- mq
-  projAddCols cols projs q
-
-projIdentity :: [DBCol] -> AlgNode -> Build TableAlgebra AlgNode
-projIdentity cols q = projAddCols cols [cP descr, cP pos] q
 
 itemProj :: [DBCol] -> [Proj] -> [Proj]
 itemProj cols projs = projs ++ [ cP $ itemi i | i <- cols ]
@@ -133,10 +123,6 @@ taExprOffset o (VL.If c t e)        = IfE (taExprOffset o c) (taExprOffset o t) 
 
 taExpr :: VL.Expr -> Expr
 taExpr = taExprOffset 0
-
-colProjection :: VL.Expr -> Maybe DBCol
-colProjection (VL.Column c) = Just c
-colProjection _             = Nothing
 
 aggrFun :: VL.AggrFun -> AggrType
 aggrFun (VL.AggrSum _ e) = Sum $ taExpr e
@@ -518,7 +504,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qp <- proj [mP posold pos'', mP posnew pos'] q
     return $ (ADVec qv colse, PVec qp)
 
-  vecGroupBy (ADVec v1 colsg) (ADVec v2 colse) = do
+  vecGroup (ADVec v1 colsg) (ADVec v2 colse) = do
     q' <- rownumM pos' [resCol, pos] []
           $ rowrank resCol ((ColE descr, Asc):[(ColE $ itemi i, Asc) | i <- colsg]) v1
     d1 <- distinctM

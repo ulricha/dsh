@@ -52,11 +52,11 @@ normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
 -- Normalization rewrites for universal/existential quantification.
 
 pattern PEq e1 e2 <- BinOp _ (SBRelOp Eq) e1 e2
-pattern PLength e <- AppE1 _ (Prim1 Length _) e
-pattern PAnd xs <- AppE1 _ (Prim1 And _) xs
-pattern POr xs <- AppE1 _ (Prim1 Or _) xs
+pattern PLength e <- AppE1 _ Length e
+pattern PAnd xs <- AppE1 _ And xs
+pattern POr xs <- AppE1 _ Or xs
 pattern PNot e <- UnOp _ (SUBoolOp Not) e
-pattern PNull e <- AppE1 _ (Prim1 Null _) e
+pattern PNull e <- AppE1 _ Null e
 
 -- Bring a NOT EXISTS pattern into universal quantification form:
 -- not (or [ q | y <- ys, ps ])

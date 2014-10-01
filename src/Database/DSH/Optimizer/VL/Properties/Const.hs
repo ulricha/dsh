@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Optimizer.VL.Properties.Const where
+module Database.DSH.Optimizer.VL.Properties.Const
+    ( inferConstVecNullOp
+    , inferConstVecUnOp
+    , inferConstVecBinOp
+    , inferConstVecTerOp
+    ) where
 
 import           Control.Monad
 import           Data.List
@@ -15,12 +20,6 @@ import           Database.DSH.Common.Lang
 
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Const"
-
-mapUnp :: Show a => VectorProp a
-          -> VectorProp a
-          -> (a -> a -> VectorProp a)
-          -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.Empty"
 
 fromDBV :: ConstVec -> Either String (ConstDescr, [ConstPayload])
 fromDBV (DBVConst d ps)   = Right (d, ps)
@@ -250,7 +249,7 @@ inferConstVecUnOp c op =
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
-    GroupBy -> do
+    Group -> do
       -- FIXME handle the special case of constant payload columns in the right input (qe)
       (dq, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV

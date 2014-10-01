@@ -14,55 +14,55 @@ import           Database.DSH.NKL.Lang
 -- Error reporting
 
 tyErr :: P.String -> a
-tyErr comb = P.error $ printf "CL.Primitives type error in %s" comb
+tyErr comb = P.error $ printf "NKL.Primitives type error in %s" comb
 
 tyErrShow :: P.String -> [Type] -> a
-tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
+tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
 --------------------------------------------------------------------------------
 -- Smart constructors
 
 fst :: Expr -> Expr
-fst e = let t@(PairT t1 _) = typeOf e
-         in AppE1 t1 (Prim1 Fst P.$ t .-> t1) e
+fst e = let PairT t1 _ = typeOf e
+         in AppE1 t1 Fst e
 
 snd :: Expr -> Expr
-snd e = let t@(PairT _ t2) = typeOf e
-         in AppE1 t2 (Prim1 Snd P.$ t .-> t2) e
+snd e = let PairT _ t2 = typeOf e
+         in AppE1 t2 Snd e
 
 pair :: Expr -> Expr -> Expr
 pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (PairV v1 v2)
 pair e1 e2 = let t1 = typeOf e1
                  t2 = typeOf e2
-              in AppE2 (pairT t1 t2) (Prim2 Pair P.$ t1 .-> t2 .-> pairT t1 t2) e1 e2
+              in AppE2 (pairT t1 t2) Pair e1 e2
 
 cons :: Expr -> Expr -> Expr
 cons x xs = let xt  = typeOf x
                 xst = typeOf xs
             in if elemT xst == xt
-               then AppE2 xst (Prim2 Cons (xt .-> xst .-> xst)) x xs
+               then AppE2 xst Cons x xs
                else tyErr "cons"
 
 singleton :: Expr -> Expr
 singleton e = let t = typeOf e in cons e (Const (listT t) (ListV []))
 
-map :: Expr -> Expr -> Expr
-map f es = let ft@(FunT ta tr) = typeOf f
-               te@(ListT t)    = typeOf es
-            in if t P.== ta
-                 then AppE2 (listT tr) (Prim2 Map P.$ ft .-> te .-> listT tr) f es
-                 else tyErr "map"
-
-concatMap :: Expr -> Expr -> Expr
-concatMap f xs = {- trace (printf "concatMap %s %s" (pp $ typeOf f) (pp $ typeOf xs)) $ -} concat $ map f xs
-
 concat :: Expr -> Expr
 concat e = let t = typeOf e
             in if listDepth t P.> 1
-               then AppE1 (unliftType t) (Prim1 Concat P.$ t .-> unliftType t) e
+               then AppE1 (unliftType t) Concat e
                else tyErrShow "concat" [t]
 
-filter :: Expr -> Expr -> Expr
-filter f es = let ft@(FunT _ BoolT) = typeOf f
-                  te@(ListT _) = typeOf es
-               in AppE2 te (Prim2 Filter P.$ ft .-> te .-> te) f es
+restrict :: Expr -> Expr -> Expr
+restrict vs bs = let vst@(ListT _)     = typeOf vs
+                 in AppE2 vst Restrict vs bs
+
+sort :: Expr -> Expr -> Expr
+sort ss vs = let vst@(ListT _) = typeOf vs
+             in AppE2 vst Sort ss vs
+
+group :: Expr -> Expr -> Expr
+group gs vs = let vst@(ListT _) = typeOf vs
+              in AppE2 vst Group gs vs
+
+let_ :: Ident -> Expr -> Expr -> Expr
+let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
