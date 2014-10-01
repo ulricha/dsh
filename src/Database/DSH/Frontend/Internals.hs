@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE GADTs                     #-}
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Database.DSH.Frontend.Internals where
 
@@ -182,12 +182,6 @@ instance Reify Double where
 
 instance Reify Text where
   reify _ = TextT
-
-instance (Reify a, Reify b) => Reify (a,b) where
-  reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
-
-instance (Reify a, Reify b, Reify c) => Reify (a, b, c) where
-    reify _ = TupleT $ Tuple3T (reify (undefined :: a)) (reify (undefined :: b)) (reify (undefined :: c))
 
 instance (Reify a) => Reify [a] where
   reify _ = ListT (reify (undefined :: a))
