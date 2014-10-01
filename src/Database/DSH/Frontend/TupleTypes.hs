@@ -79,16 +79,16 @@ mkTupElemType maxWidth = do
 --------------------------------------------------------------------------------
 -- Translation of tuple accessors to CL
 
-mkCompileClause :: Name -> (Name, Int) -> Q Clause
-mkCompileClause exprName (con, elemIdx) = do
+mkCompileMatch :: Name -> (Name, Int) -> Q Match
+mkCompileMatch exprName (con, elemIdx) = do
     let translateVar = return $ VarE $ mkName "translate"
         exprVar      = return $ VarE exprName
         idxLit       = return $ LitE $ IntegerL $ fromIntegral elemIdx
     bodyExp  <- [| CP.tupElem (intIndex $idxLit) <$> $translateVar $exprVar |]
     let body = NormalB $ bodyExp
-    return $ Clause [ConP con [], VarP exprName] body []
+    return $ Match (ConP con []) body []
 
-mkTupElemCompile :: Int -> Q [Dec]
+mkTupElemCompile :: Int -> Q Exp
 mkTupElemCompile maxWidth = do
     let cons = concat [ [ (conName width idx, idx)
                         | idx <- [1..width] 
@@ -97,5 +97,9 @@ mkTupElemCompile maxWidth = do
                       ]
 
     exprName <- newName "e"
-    clauses  <- mapM (mkCompileClause exprName) cons
-    return [FunD (mkName "compileTupElem") clauses]
+    opName   <- newName "te"
+
+    matches  <- mapM (mkCompileMatch exprName) cons
+
+    let lamBody = CaseE (VarE opName) matches
+    return $ LamE [VarP opName, VarP exprName] lamBody
