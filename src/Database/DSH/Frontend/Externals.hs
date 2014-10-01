@@ -9,6 +9,7 @@ module Database.DSH.Frontend.Externals where
        
 import Database.DSH.Frontend.Internals
 import Database.DSH.Frontend.TH
+import Database.DSH.Frontend.Funs
 import Database.DSH.Impossible
 
 import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)

@@ -18,6 +18,7 @@ import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Type        as T
 
 import           Data.Text                       (unpack)
+import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.Internals
 
 import qualified Data.Map                        as M

@@ -106,6 +106,8 @@ Library
                      Database.DSH.Frontend.Schema
                      Database.DSH.Frontend.Externals
                      Database.DSH.Frontend.TH
+                     Database.DSH.Frontend.TupleTypes
+                     Database.DSH.Frontend.Funs
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.Sql
                      Database.DSH.Execute.X100

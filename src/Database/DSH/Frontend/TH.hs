@@ -22,6 +22,7 @@ import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 
 import qualified Database.DSH.Frontend.Internals  as DSH
+import qualified Database.DSH.Frontend.Funs       as F
 import           Database.DSH.Impossible
 
 
@@ -233,8 +234,8 @@ deriveToView n = do
 
   let fAux 0  e1 = [AppE (ConE 'DSH.Q) e1]
       fAux 1  e1 = [AppE (ConE 'DSH.Q) e1]
-      fAux n1 e1 = let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e1
-                       snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e1
+      fAux n1 e1 = let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) e1
+                       snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) e1
                    in  AppE (ConE 'DSH.Q) fste : fAux (n1 - 1) snde
 
   let body1 = TupE (fAux n (VarE en))
@@ -309,8 +310,8 @@ deriveElimFunClause cons = do
 
   let e       = VarE en
   let liste   = AppE (ConE 'DSH.ListE) (ListE (deriveElimFunClauseExp e fes2))
-  let concate = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Concat)) liste
-  let heade   = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Head)) concate
+  let concate = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Concat)) liste
+  let heade   = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Head)) concate
   let qe      = AppE (ConE 'DSH.Q) heade
   return (Clause pats1 (NormalB qe) [])
 
@@ -329,8 +330,8 @@ deriveElimToLamExp f n = do
   xn <- newName "x"
   let xe = VarE xn
   let xp = VarP xn
-  let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) xe
-  let snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) xe
+  let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) xe
+  let snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) xe
   let qe = AppE (ConE 'DSH.Q) fste
   let fappe = AppE f qe
   f' <- deriveElimToLamExp fappe (n - 1)
@@ -345,12 +346,12 @@ deriveElimFunClauseExp e fs = go e fs
   go _ []  = error errMsgExoticType
   go e1 [f1] =
     let paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) e1
-    in  [AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Map)) paire]
+    in  [AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Map)) paire]
   go e1 (f1 : fs1) =
-    let fste  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Fst)) e1
-        snde  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Snd)) e1
+    let fste  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) e1
+        snde  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) e1
         paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) fste
-        mape  = AppE (AppE (ConE 'DSH.AppE) (ConE 'DSH.Map)) paire
+        mape  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Map)) paire
     in  mape : go snde fs1
 
 ---------------------------------

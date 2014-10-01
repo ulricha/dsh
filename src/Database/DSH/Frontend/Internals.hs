@@ -1,12 +1,43 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE TemplateHaskell           #-}
 
 module Database.DSH.Frontend.Internals where
 
 import Data.Text (Text)
 import Text.Printf
+
+import Database.DSH.Frontend.Funs
+
+-- Classes
+
+class Reify a where
+  reify :: a -> Type a
+
+class (Reify (Rep a)) => QA a where
+  type Rep a
+  toExp :: a -> Exp (Rep a)
+  frExp :: Exp (Rep a) -> a
+
+class (QA a,QA r) => Elim a r where
+  type Eliminator a r
+  elim :: Q a -> Eliminator a r
+
+class BasicType a where
+
+class TA a where
+
+class View a where
+  type ToView a
+  view :: a -> ToView a
+
+newtype Q a = Q (Exp (Rep a))
+
+--------------------------------------------------------------------------------
+-- Typed frontend ASTs
 
 data Exp a where
   UnitE       :: Exp ()
@@ -59,96 +90,6 @@ data TupleType a where
     Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleType (a, b)
     Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleType (a, b, c)
 
-data Fun a b where
-    Not             :: Fun Bool Bool
-    IntegerToDouble :: Fun Integer Double
-    And             :: Fun [Bool] Bool
-    Or              :: Fun [Bool] Bool
-    Concat          :: Fun [[a]] [a]
-    Head            :: Fun [a] a
-    Tail            :: Fun [a] [a]
-    Init            :: Fun [a] [a]
-    Last            :: Fun [a] a
-    Null            :: Fun [a] Bool
-    Length          :: Fun [a] Integer
-    Guard           :: Fun Bool [()]
-    Reverse         :: Fun [a] [a]
-    Number          :: Fun [a] [(a, Integer)]
-    Fst             :: Fun (a,b) a
-    Snd             :: Fun (a,b) b
-    Sum             :: Fun [a] a
-    Avg             :: Fun [a] Double
-    Maximum         :: Fun [a] a
-    Minimum         :: Fun [a] a
-    Nub             :: Fun [a] [a]
-    Append          :: Fun ([a], [a]) [a]
-    Add             :: Fun (a,a) a
-    Mul             :: Fun (a,a) a
-    Sub             :: Fun (a,a) a
-    Div             :: Fun (a,a) a
-    Mod             :: Fun (Integer,Integer) Integer
-    Lt              :: Fun (a,a) Bool
-    Lte             :: Fun (a,a) Bool
-    Equ             :: Fun (a,a) Bool
-    NEq             :: Fun (a,a) Bool
-    Gte             :: Fun (a,a) Bool
-    Gt              :: Fun (a,a) Bool
-    Conj            :: Fun (Bool,Bool) Bool
-    Disj            :: Fun (Bool,Bool) Bool
-    Cons            :: Fun (a,[a]) [a]
-    Index           :: Fun ([a],Integer) a
-    Zip             :: Fun ([a],[b]) [(a,b)]
-    Map             :: Fun (a -> b,[a]) [b]
-    ConcatMap       :: Fun (a -> [b],[a]) [b]
-    Filter          :: Fun (a -> Bool,[a]) [a]
-    GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
-    SortWith        :: Fun (a -> b,[a]) [a]
-    Cond            :: Fun (Bool,(a,a)) a
-    Like            :: Fun (Text,Text) Bool
-    Transpose       :: Fun [[a]] [[a]]
-    Reshape         :: Integer -> Fun [a] [[a]]
-    Sin             :: Fun Double Double
-    Cos             :: Fun Double Double
-    Tan             :: Fun Double Double
-    Sqrt            :: Fun Double Double
-    Exp             :: Fun Double Double
-    Log             :: Fun Double Double
-    ASin            :: Fun Double Double
-    ACos            :: Fun Double Double
-    ATan            :: Fun Double Double
-    TupElem         :: TupElem a b -> Fun a b
-
-data TupElem a b where
-    Tup2_1 :: TupElem (a, b) a
-    Tup2_2 :: TupElem (a, b) b
-
-    Tup3_1 :: TupElem (a, b, c) a
-    Tup3_2 :: TupElem (a, b, c) b
-    Tup3_3 :: TupElem (a, b, c) c
-
-newtype Q a = Q (Exp (Rep a))
-
--- Classes
-
-class Reify a where
-  reify :: a -> Type a
-
-class (Reify (Rep a)) => QA a where
-  type Rep a
-  toExp :: a -> Exp (Rep a)
-  frExp :: Exp (Rep a) -> a
-
-class (QA a,QA r) => Elim a r where
-  type Eliminator a r
-  elim :: Q a -> Eliminator a r
-
-class BasicType a where
-
-class TA a where
-
-class View a where
-  type ToView a
-  view :: a -> ToView a
 
 -- Show instances
 
