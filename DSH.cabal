@@ -121,6 +121,7 @@ Library
                      Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
+                     Database.DSH.CL.Resugar
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
