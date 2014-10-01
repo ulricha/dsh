@@ -5,11 +5,6 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 -- FIXME use more let bindings to avoid term replication, e.g. in if conditionals
 -- FIXME make sure that no wrong shadowing occurs while lifting or restricting the environment.
 
-#ifdef DEBUGCOMP
-import           Debug.Trace
-import           Database.DSH.Common.Pretty
-#endif
-
 import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
