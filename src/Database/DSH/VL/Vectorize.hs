@@ -259,6 +259,7 @@ pair (SShape q1 lyt1) (VShape q2 lyt2) = do
     let lyt = zipLayout lyt1 (LNest q2' lyt2)
     return $ SShape q1 lyt
 
+-- FIXME column offsets are not correct (see tupleL)
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tuple (SShape q1 lyt1 : SShape q2 lyt2 : []) = do
     q <- vlZip q1 q2
@@ -548,17 +549,10 @@ pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
 pairL _ _ = $impossible
 
 tupleL :: [Shape VLDVec] -> Build VL (Shape VLDVec)
-tupleL (VShape q1 lyt1 : VShape q2 lyt2 : []) = do
-    q <- vlZip q1 q2
-    let lyt = zipLayout lyt1 lyt2
-    return $ VShape q lyt
-    
-tupleL (VShape q1 lyt1 : shapes) = do
-    VShape qt (LTuple lyts) <- tupleL shapes
-    q                       <- vlZip q1 qt
-    let lyt = LTuple $ zipLayouts (lyt1 : lyts)
-    return $ VShape q lyt
-
+tupleL shapes@(_ : _) = do
+    (q, lyts) <- zipVectors shapes
+    let lyts' = zipLayouts lyts
+    return $ VShape q (LTuple lyts')
 tupleL _ = $impossible
 
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -712,7 +706,7 @@ mkDescriptor lengths =
     in (header, body)
 
 --------------------------------------------------------------------------------
--- Helper functions for layouts
+-- Helper functions for zipping/tuple construction
 
 zipLayout :: Layout VLDVec -> Layout VLDVec -> Layout VLDVec
 zipLayout l1 l2 = let offSet = columnsInLayout l1
@@ -732,6 +726,14 @@ zipLayouts layouts = go 0 layouts
     go 0 (lyt : lyts) = lyt : go (columnsInLayout lyt) lyts
     go o (lyt : lyts) = incrementPositions o lyt : go (o + columnsInLayout lyt) lyts
     go _ []           = []
+
+zipVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
+zipVectors (VShape q1 lyt1 : [])     = return (q1, [lyt1])
+zipVectors (VShape q1 lyt1 : shapes) = do
+    (q, lyts) <- zipVectors shapes
+    qz' <- vlZip q1 q
+    return (qz', lyt1 : lyts)
+zipVectors _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Compile-time operations that implement higher-lifted primitives.
