@@ -54,7 +54,7 @@ data Fun a b where
     IntegerToDouble :: Fun Integer Double
     And             :: Fun [Bool] Bool
     Or              :: Fun [Bool] Bool
-    Concat          :: (Reify a) => Fun [[a]] [a]
+    Concat          :: Fun [[a]] [a]
     Head            :: Fun [a] a
     Tail            :: Fun [a] [a]
     Init            :: Fun [a] [a]
