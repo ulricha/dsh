@@ -128,3 +128,51 @@ mkReifyInstance width =
 
 mkReifyInstances :: Int -> Q [Dec]
 mkReifyInstances maxWidth = return $ map mkReifyInstance [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- QA instances for tuple types
+
+outerConst :: Name
+outerConst = mkName "TupleConstE"
+
+innerConst :: Int -> Name
+innerConst width = mkName $ printf "Tuple%dE" width
+
+mkToExp :: Int -> [Name] -> Dec
+mkToExp width elemNames =
+    let toExpVar   = VarE $ mkName "toExp"
+        elemArgs   = map (\n -> AppE toExpVar (VarE n)) elemNames
+        body       = NormalB $ AppE (VarE outerConst) 
+                             $ foldl' AppE (VarE $ innerConst width) elemArgs
+        tupClause  = Clause [TupP $ map VarP elemNames] body []
+    in FunD (mkName "toExp") [tupClause]
+
+mkFrExp :: Int -> [Name] -> Q Dec
+mkFrExp width elemNames = do
+    impossibleExpr <- [| error $(litE $ StringL $ printf "frExp %d" width) |]
+    let tupPattern       = ConP outerConst [ConP (innerConst width) (map VarP elemNames) ]
+        tupleExpr        = TupE $ map (\n -> AppE (VarE $ mkName "frExp") (VarE n)) elemNames
+        tupleClause      = Clause [tupPattern] (NormalB tupleExpr) []
+        impossibleClause = Clause [WildP] (NormalB impossibleExpr) []
+    return $ FunD (mkName "frExp") [tupleClause, impossibleClause]
+
+mkRep :: Int -> [Name] -> Type -> Dec
+mkRep width tyNames tupTyPat =
+    let resTy    = foldl' AppT (TupleT width)
+                   $ map (AppT $ ConT $ mkName "Rep") 
+                   $ map VarT tyNames
+    in TySynInstD (mkName "Rep") (TySynEqn [tupTyPat] resTy)
+
+mkQAInstance :: Int -> Q Dec
+mkQAInstance width = do
+    let tyNames = map (\i -> mkName $ "t" ++ show i) [1..width]
+        tupTy   = foldl' AppT (TupleT width) $ map VarT tyNames
+        instTy  = AppT (ConT $ mkName "QA") tupTy
+        qaCxt   = map (\tyName -> ClassP (mkName "QA") [VarT tyName]) tyNames
+        rep     = mkRep width tyNames tupTy
+        toExp   = mkToExp width tyNames
+    frExp <- mkFrExp width tyNames
+    return $ InstanceD qaCxt instTy [rep, toExp, frExp]
+
+mkQAInstances :: Int -> Q [Dec]
+mkQAInstances maxWidth = mapM mkQAInstance [2..maxWidth]
