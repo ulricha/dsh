@@ -142,8 +142,8 @@ mkToExp :: Int -> [Name] -> Dec
 mkToExp width elemNames =
     let toExpVar   = VarE $ mkName "toExp"
         elemArgs   = map (\n -> AppE toExpVar (VarE n)) elemNames
-        body       = NormalB $ AppE (VarE outerConst) 
-                             $ foldl' AppE (VarE $ innerConst width) elemArgs
+        body       = NormalB $ AppE (ConE outerConst) 
+                             $ foldl' AppE (ConE $ innerConst width) elemArgs
         tupClause  = Clause [TupP $ map VarP elemNames] body []
     in FunD (mkName "toExp") [tupClause]
 

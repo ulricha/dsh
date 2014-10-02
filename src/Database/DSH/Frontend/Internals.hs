@@ -58,6 +58,7 @@ data Exp a where
 data TupleConst a where
     Tuple2E :: (Reify a, Reify b) => Exp a -> Exp b -> TupleConst (a, b)
     Tuple3E :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> TupleConst (a, b, c)
+    Tuple4E :: (Reify a, Reify b, Reify c, Reify d) => Exp a -> Exp b -> Exp c -> Exp d -> TupleConst (a, b, c, d)
 
 -- | A combination of column names that form a candidate key
 newtype Key = Key [String] deriving (Eq, Ord, Show)

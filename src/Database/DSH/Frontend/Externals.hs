@@ -11,6 +11,7 @@ import Database.DSH.Frontend.Internals
 import Database.DSH.Frontend.TH
 import Database.DSH.Frontend.Funs
 import Database.DSH.Impossible
+import Database.DSH.Frontend.TupleTypes
 
 import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)
                , Bool(..), Char, Integer, Double, Maybe(..), Either(..)
@@ -696,7 +697,8 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
-deriveTupleRangeQA                4 16
+-- deriveTupleRangeQA                4 16
+mkQAInstances 4
 deriveTupleRangeTA                4 16
 deriveTupleRangeView              4 16
 deriveTupleRangeSmartConstructors 4 16
