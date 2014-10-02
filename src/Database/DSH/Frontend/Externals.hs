@@ -8,7 +8,6 @@
 module Database.DSH.Frontend.Externals where
        
 import Database.DSH.Frontend.Internals
-import Database.DSH.Frontend.TH
 import Database.DSH.Frontend.Funs
 import Database.DSH.Impossible
 import Database.DSH.Frontend.TupleTypes
@@ -58,18 +57,6 @@ instance QA Text where
   type Rep Text = Text
   toExp = TextE
   frExp (TextE t) = t
-  frExp _ = $impossible
-
-instance (QA a,QA b) => QA (a,b) where
-  type Rep (a,b) = (Rep a,Rep b)
-  toExp (a,b) = PairE (toExp a) (toExp b)
-  frExp (PairE a b) = (frExp a,frExp b)
-  frExp _ = $impossible
-
-instance (QA a,QA b,QA c) => QA (a,b,c) where
-  type Rep (a,b,c) = (Rep a, Rep b, Rep c)
-  toExp (a,b,c) = TupleConstE (Tuple3E (toExp a) (toExp b) (toExp c))
-  frExp (TupleConstE (Tuple3E a b c)) = (frExp a, frExp b, frExp c)
   frExp _ = $impossible
 
 instance (QA a) => QA [a] where
@@ -149,8 +136,6 @@ instance TA Char where
 instance TA Integer where
 instance TA Double where
 instance TA Text where
-instance (BasicType a, BasicType b) => TA (a,b) where
-instance (BasicType a, BasicType b, BasicType c) => TA (a,b,c) where
 
 -- Num and Fractional instances
 
@@ -699,9 +684,10 @@ infix  0  ?
 
 -- deriveTupleRangeQA                4 16
 mkQAInstances 4
-deriveTupleRangeTA                4 16
-deriveTupleRangeView              4 16
-deriveTupleRangeSmartConstructors 4 16
+mkTAInstances 4
+-- deriveTupleRangeTA                4 16
+-- deriveTupleRangeView              4 16
+-- deriveTupleRangeSmartConstructors 4 16
 
 -- * Missing functions
 

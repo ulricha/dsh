@@ -176,3 +176,17 @@ mkQAInstance width = do
 
 mkQAInstances :: Int -> Q [Dec]
 mkQAInstances maxWidth = mapM mkQAInstance [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- TA instances for tuple types
+
+mkTAInstance :: Int -> Dec
+mkTAInstance width =
+    let tyNames = map (\i -> mkName $ "t" ++ show i) [1..width]
+        tupTy   = foldl' AppT (TupleT width) $ map VarT tyNames
+        instTy  = AppT (ConT $ mkName "TA") tupTy
+        taCxt   = map (\tyName -> ClassP (mkName "BasicType") [VarT tyName]) tyNames
+    in InstanceD taCxt instTy []
+
+mkTAInstances :: Int -> Q [Dec]
+mkTAInstances maxWidth = return $ map mkTAInstance [2..maxWidth]
