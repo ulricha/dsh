@@ -174,6 +174,15 @@ mkQAInstance width = do
     frExp <- mkFrExp width tyNames
     return $ InstanceD qaCxt instTy [rep, toExp, frExp]
 
+-- | Generate QA instances for tuple types according to the following template:
+-- 
+-- @
+-- instance (QA t1, ..., QA tn) => QA (t1, ..., tn) where
+--   type Rep (t1, ..., tn) = (Rep t1, ..., Rep tn)
+--   toExp (v1, ..., vn) = TupleConstE (Tuple<n>E (toExp v1) ... (toExp vn))
+--   frExp (TupleConstE (Tuple<n>E v1 ... vn)) = (frExp v1, ... b, frExp vn)
+--   frExp _ = $impossible
+-- @
 mkQAInstances :: Int -> Q [Dec]
 mkQAInstances maxWidth = mapM mkQAInstance [2..maxWidth]
 
@@ -188,5 +197,10 @@ mkTAInstance width =
         taCxt   = map (\tyName -> ClassP (mkName "BasicType") [VarT tyName]) tyNames
     in InstanceD taCxt instTy []
 
+-- | Generate TA instances for tuple types according to the following template:
+-- 
+-- @
+-- instance (BasicType t1, ..., BasicType tn) => TA (t1, ..., tn) where
+-- @
 mkTAInstances :: Int -> Q [Dec]
 mkTAInstances maxWidth = return $ map mkTAInstance [2..maxWidth]
