@@ -9,7 +9,6 @@ module Database.DSH.Frontend.Externals where
        
 import Database.DSH.Frontend.Internals
 import Database.DSH.Frontend.Funs
-import Database.DSH.Frontend.TH
 import Database.DSH.Impossible
 import Database.DSH.Frontend.TupleTypes
 

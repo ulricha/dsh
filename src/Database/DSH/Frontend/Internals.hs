@@ -8,7 +8,6 @@
 module Database.DSH.Frontend.Internals where
 
 import Data.Text (Text)
-import Text.Printf
 
 import Database.DSH.Frontend.Funs
 import Database.DSH.Frontend.TupleTypes
@@ -93,78 +92,6 @@ data TupleType a where
     Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleType (a, b, c)
     Tuple4T :: (Reify a, Reify b, Reify c, Reify d) => Type a -> Type b -> Type c -> Type d -> TupleType (a, b, c, d)
 
--- Show instances
-
-instance Show (Type a) where
-    show UnitT = "()"
-    show BoolT = "Bool"
-    show CharT = "Char"
-    show IntegerT = "Integer"
-    show DoubleT = "Double"
-    show TextT = "Text"
-    show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
-    show (ListT t) = "[" ++ show t ++ "]"
-    show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
-
-instance Show (Fun a b) where
-    show Fst = "fst"
-    show Snd = "snd"
-    show Not = "not"
-    show Concat = "concat"
-    show Head = "head"
-    show Tail = "tail"
-    show Init = "init"
-    show Last = "last"
-    show Null = "null"
-    show Length = "length"
-    show Reverse = "reverse"
-    show And = "and"
-    show Or = "or"
-    show Sum = "sum"
-    show Avg = "avg"
-    show Maximum = "maximum"
-    show Minimum = "minimum"
-    show Nub = "nub"
-    show IntegerToDouble = "integerToDouble"
-    show Add = "+"
-    show Mul = "*"
-    show Sub = "-"
-    show Div = "/"
-    show Lt  = "<"
-    show Lte = "<="
-    show Equ = "=="
-    show NEq = "/="
-    show Gte = ">="
-    show Gt  = ">"
-    show Conj = "&&"
-    show Disj = "||"
-    show Cons = "cons"
-    show Index = "index"
-    show Zip = "zip"
-    show Map = "map"
-    show ConcatMap = "concatMap"
-    show Filter = "filter"
-    show GroupWithKey = "groupWithKey"
-    show SortWith = "sortWith"
-    show Cond = "cond"
-    show Append = "append"
-    show Like = "like"
-    show Mod = "%"
-    show Number = "number"
-    show Guard = "guard"
-    show (Reshape n) = printf "reshape(%d)" n
-    show Transpose = "transpose"
-    show Sin = "sin"
-    show Cos = "cos"
-    show Tan = "tan"
-    show Sqrt = "sqrt"
-    show Exp = "exp"
-    show Log = "log"
-    show ASin = "asin"
-    show ACos = "acos"
-    show ATan = "atan"
-    show (TupElem te) = show te
-
 -- Reify instances
 
 instance Reify () where
@@ -200,4 +127,3 @@ toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
 toLam f = unQ . f . Q
 
 mkReifyInstances 4
-mkTupElemShowInst 4
