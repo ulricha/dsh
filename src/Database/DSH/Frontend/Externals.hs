@@ -9,6 +9,7 @@ module Database.DSH.Frontend.Externals where
        
 import Database.DSH.Frontend.Internals
 import Database.DSH.Frontend.Funs
+import Database.DSH.Frontend.TH
 import Database.DSH.Impossible
 import Database.DSH.Frontend.TupleTypes
 
@@ -685,9 +686,10 @@ infix  0  ?
 -- deriveTupleRangeQA                4 16
 mkQAInstances 4
 mkTAInstances 4
+mkTupleConstructors 4
 -- deriveTupleRangeTA                4 16
 -- deriveTupleRangeView              4 16
--- deriveTupleRangeSmartConstructors 4 16
+-- deriveTupleRangeSmartConstructors 2 4
 
 -- * Missing functions
 

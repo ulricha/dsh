@@ -1,6 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Frontend.TupleTypes where
+module Database.DSH.Frontend.TupleTypes
+    ( mkQAInstances
+    , mkTAInstances
+    , mkTupleConstructors
+    , mkTupElemType
+    , mkTupElemCompile
+    , mkTupElemShowInst
+    , mkReifyInstances
+    ) where
 
 import           Control.Applicative
 import           Data.List
@@ -27,14 +35,14 @@ mkTupType elemIdx width boundTyVars bTyVar =
                              ++ drop (elemIdx - 1) boundTyVars
     in foldl' AppT (TupleT width) elemTys
 
-conName :: Int -> Int -> Name
-conName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
+tupAccName :: Int -> Int -> Name
+tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
     
 mkTupElemCon :: Name -> Name -> [Name] -> Int -> Int -> Q Con
 mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
     let binders   = map PlainTV boundTyVars
     let tupleType = mkTupType elemIdx width boundTyVars bTyVar
-    let con       = conName width elemIdx
+    let con       = tupAccName width elemIdx
     let ctx       = [EqualP (VarT aTyVar) tupleType]
     return $ ForallC binders ctx (NormalC con [])
 
@@ -90,7 +98,7 @@ mkCompileMatch exprName (con, elemIdx) = do
 
 mkTupElemCompile :: Int -> Q Exp
 mkTupElemCompile maxWidth = do
-    let cons = concat [ [ (conName width idx, idx)
+    let cons = concat [ [ (tupAccName width idx, idx)
                         | idx <- [1..width] 
                         ] 
                       | width <- [2..maxWidth] 
@@ -204,3 +212,77 @@ mkTAInstance width =
 -- @
 mkTAInstances :: Int -> Q [Dec]
 mkTAInstances maxWidth = return $ map mkTAInstance [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- Smart constructors for tuple values
+
+tupConName :: Int -> Name
+tupConName width = mkName $ printf "tup%d" width
+
+qName :: Name
+qName = mkName "Q"
+
+mkArrowTy :: Type -> Type -> Type
+mkArrowTy domTy coDomTy = AppT (AppT ArrowT domTy) coDomTy
+
+mkTupleConstructor :: Int -> [Dec]
+mkTupleConstructor width =
+    let tyNames   = map (\i -> mkName $ "t" ++ show i) [1..width]
+
+        -- Type stuff
+        tupTy     = AppT (ConT qName) $ foldl' AppT (TupleT width) $ map VarT tyNames
+        elemTys   = map (AppT (ConT qName)) $ map VarT tyNames
+        arrowTy   = foldr mkArrowTy tupTy elemTys
+        qaConstr  = map (\n -> ClassP (mkName "QA") [VarT n]) tyNames
+        funTy     = ForallT (map PlainTV tyNames) qaConstr arrowTy
+
+        -- Term stuff
+        qPats     = map (\n -> ConP qName [VarP n]) tyNames 
+        tupConApp = foldl' AppE (ConE $ innerConst width) $ map VarE tyNames
+        bodyExp   = AppE (ConE qName) (AppE (ConE outerConst) tupConApp)
+
+        sig       = SigD (tupConName width) funTy
+        body      = FunD (tupConName width) [Clause qPats (NormalB bodyExp) []]
+    in [sig, body]
+
+-- | Construct smart constructors for tuple types according to the
+-- following template.
+-- 
+-- @
+-- tup<n> :: (QA t1, ...,QA tn) => Q t1 -> ... -> Q tn -> Q (t1, ..., tn)
+-- tup<n> (Q v1) ... (Q vn)= Q (TupleConstE (Tuple<n>E v1 ... vn))
+-- @
+mkTupleConstructors :: Int -> Q [Dec]
+mkTupleConstructors maxWidth = return $ concatMap mkTupleConstructor [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- Generate Show instances for tuple accessors
+
+{-
+instance Show TupElem where
+    show Tup1_1 = "tup1_1"
+-}
+
+mkShowClause :: Int -> Int -> Clause
+mkShowClause width elemIdx = 
+    Clause [ConP (tupAccName width elemIdx) []]
+           (NormalB $ LitE $ StringL showName)
+           []
+  where
+    showName = printf "tup%d_%d" width elemIdx
+
+mkTupElemShowInst :: Int -> Q [Dec]
+mkTupElemShowInst maxWidth = do
+    aVar <- VarT <$> newName "a"
+    bVar <- VarT <$> newName "b"
+
+    let ty          = AppT (ConT ''Show) 
+                      $ AppT (AppT (ConT $ mkName "TupElem") aVar) bVar
+        showClauses = concat [ [ mkShowClause width elemIdx
+                               | elemIdx <- [1..width]
+                               ]
+                             | width <- [2..maxWidth]
+                             ]
+        showFun     = FunD (mkName "show") showClauses
+
+    return $ [InstanceD [] ty [showFun]]                             

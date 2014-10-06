@@ -96,15 +96,15 @@ data TupleType a where
 -- Show instances
 
 instance Show (Type a) where
-  show UnitT = "()"
-  show BoolT = "Bool"
-  show CharT = "Char"
-  show IntegerT = "Integer"
-  show DoubleT = "Double"
-  show TextT = "Text"
-  show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
-  show (ListT t) = "[" ++ show t ++ "]"
-  show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+    show UnitT = "()"
+    show BoolT = "Bool"
+    show CharT = "Char"
+    show IntegerT = "Integer"
+    show DoubleT = "Double"
+    show TextT = "Text"
+    show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
+    show (ListT t) = "[" ++ show t ++ "]"
+    show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
 
 instance Show (Fun a b) where
     show Fst = "fst"
@@ -163,6 +163,7 @@ instance Show (Fun a b) where
     show ASin = "asin"
     show ACos = "acos"
     show ATan = "atan"
+    show (TupElem te) = show te
 
 -- Reify instances
 
@@ -198,4 +199,5 @@ unQ (Q e) = e
 toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
 toLam f = unQ . f . Q
 
-$(mkReifyInstances 4)
+mkReifyInstances 4
+mkTupElemShowInst 4
