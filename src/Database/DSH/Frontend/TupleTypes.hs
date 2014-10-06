@@ -9,6 +9,9 @@ module Database.DSH.Frontend.TupleTypes
     , mkReifyInstances
     , mkTranslateTupleTerm
     , mkTranslateType
+    , innerConst
+    , outerConst
+    , tupAccName
     ) where
 
 import           Control.Applicative
@@ -146,9 +149,12 @@ mkReifyInstances maxWidth = return $ map mkReifyInstance [2..maxWidth]
 --------------------------------------------------------------------------------
 -- QA instances for tuple types
 
+-- | The name of the constructor that constructs a tuple construction
+-- term.
 outerConst :: Name
 outerConst = mkName "TupleConstE"
 
+-- | The name of the constructor for a given tuple width.
 innerConst :: Int -> Name
 innerConst width = mkName $ printf "Tuple%dE" width
 

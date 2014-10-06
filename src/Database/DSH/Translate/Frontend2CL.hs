@@ -265,5 +265,5 @@ compileApp f args =
        Guard           -> compileApp1 CP.guard args
        Transpose       -> compileApp1 CP.transpose args
        Reshape n       -> compileApp1 (CP.reshape n) args
-       TupElem te      -> let compileTupElem = $(mkTupElemCompile 5)
+       TupElem te      -> let compileTupElem = $(mkTupElemCompile 16)
                           in compileTupElem te args

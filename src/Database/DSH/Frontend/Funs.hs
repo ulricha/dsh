@@ -11,7 +11,7 @@ import Data.Text (Text)
 import Database.DSH.Frontend.TupleTypes
 
 -- Splice in the type for tuple element accessors
-$(mkTupElemType 5)
+$(mkTupElemType 16)
 
 data Fun a b where
     Not             :: Fun Bool Bool

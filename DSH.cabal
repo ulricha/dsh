@@ -282,7 +282,7 @@ executable manual
     hs-source-dirs: tests
     main-is:        Manual.hs
     build-depends:  base, X100Client, DSH, HDBC-postgresql
-    ghc-options:    -Wall -fno-warn-orphans
+    ghc-options:    -Wall -fno-warn-orphans -ddump-splices
 
 Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0

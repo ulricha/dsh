@@ -3,25 +3,26 @@
 module Database.DSH.Frontend.TH 
     ( deriveDSH
     , deriveQA
-    , deriveTupleRangeQA
     , deriveTA
-    , deriveTupleRangeTA
     , deriveView
-    , deriveTupleRangeView
     , deriveElim
     , deriveSmartConstructors
-    , deriveTupleRangeSmartConstructors
     , generateTableSelectors
+    -- FIXME don't expose tuple constructors but use qualified names
+    , DSH.TupleConst(..)
+    , F.TupElem(..)
     ) where
 
 import           Control.Monad
 import           Control.Applicative
 import           Data.Char
+import           Data.List
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 
 import qualified Database.DSH.Frontend.Internals  as DSH
+import           Database.DSH.Frontend.TupleTypes
 import qualified Database.DSH.Frontend.Funs       as F
 import           Database.DSH.Impossible
 
@@ -33,18 +34,19 @@ import           Database.DSH.Impossible
 deriveDSH :: Name -> Q [Dec]
 deriveDSH n = do
   qaDecs    <- deriveQA n
-  elimDecs  <- deriveElim n
+  -- elimDecs  <- deriveElim n
   cc        <- countConstructors n
   viewDecs  <- if cc == 1
                   then deriveView n
                   else return []
   scDecs    <- deriveSmartConstructors n
-  return (qaDecs ++ elimDecs ++ viewDecs ++ scDecs)
+  return (qaDecs {- ++ elimDecs -} ++ viewDecs ++ scDecs)
 
 -----------------
 -- Deriving QA --
 -----------------
 
+-- | Derive QA instances for data types and newtypes.
 deriveQA :: Name -> Q [Dec]
 deriveQA name = do
   info <- reify name
@@ -54,9 +56,6 @@ deriveQA name = do
     TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
       deriveTyConQA name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
-
-deriveTupleRangeQA :: Int -> Int -> Q [Dec]
-deriveTupleRangeQA x y = fmap concat (mapM (deriveQA . tupleTypeName) [x .. y])
 
 deriveTyConQA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConQA name tyVarBndrs cons = do
@@ -71,6 +70,7 @@ deriveTyConQA name tyVarBndrs cons = do
 
 -- Deriving the Rep type function
 
+-- | Derive the representation type 'Rep' for a data type
 deriveRep :: Type -> [Con] -> Dec
 -- GHC-7.8.2 (template-haskell-2.9.0.0) has a trivial but incompatible
 -- modification: two arguments of TySynInstD are now encapsulated in a
@@ -81,17 +81,32 @@ deriveRep typ cons = TySynInstD ''DSH.Rep $ TySynEqn [typ] (deriveRepCons cons)
 deriveRep typ cons = TySynInstD ''DSH.Rep [typ] (deriveRepCons cons)
 #endif
 
+-- | Derive the representation type 'Rep' for the complete type (all
+-- constructors).
 deriveRepCons :: [Con] -> Type
-deriveRepCons []  = error errMsgExoticType
-deriveRepCons [c] = deriveRepCon c
-deriveRepCons cs  = foldr1 (AppT . AppT (ConT ''(,)))
-                           (map (AppT (ConT ''[]) . deriveRepCon) cs)
+deriveRepCons []                   = error errMsgExoticType
+-- The representation of a type with only one constructor is the
+-- representation of that constructor.
+deriveRepCons [c]                  = deriveRepCon c
+-- The representation of a type with multiple constructors is a tuple
+-- of the representation types for all individual constructors (each
+-- wrapped in a list).
+deriveRepCons cs | length cs <= 16 = mkTupleType $ map (AppT (ConT ''[]) . deriveRepCon) cs
+deriveRepCons _                    = error errMsgTypeTooBroad
 
+
+-- | Derive the representation type 'Rep' for a single constructor
 deriveRepCon :: Con -> Type
 deriveRepCon con = case conToTypes con of
-  [] -> ConT ''()
-  ts -> foldr1 (AppT . AppT (ConT ''(,)))
-               (map (AppT (ConT ''DSH.Rep)) ts)
+  -- A constructor without fields is represented by the empty type
+  []                   -> ConT ''()
+  -- The representation of a constructor with only one field is the
+  -- field type itself.
+  [t]                  -> t
+  -- Constructors with more fields (up to 16) are represented by a
+  -- tuple that contains values for all fields.
+  ts | length ts <= 16 -> mkTupleType $ map (AppT (ConT ''DSH.Rep)) ts
+  _  | otherwise       -> error errMsgTypeTooBroad
 
 -- Deriving the toExp function of the QA class
 
@@ -108,10 +123,13 @@ deriveToExpClause :: Int -- Total number of constructors
 deriveToExpClause 0 _ _ = fail errMsgExoticType
 deriveToExpClause 1 _ con = do
   (pat1,names1) <- conToPattern con
-  let exp1 = deriveToExpMainExp names1
+  exp1 <- deriveToExpMainExp names1
   let body1 = NormalB exp1
   return (Clause [pat1] body1 [])
-deriveToExpClause n i con = do
+-- FIXME adapt code for types with multiple constructors to new tuple
+-- regime.
+deriveToExpClause n i con = $unimplemented
+{-
   (pat1,names1) <- conToPattern con
   let exp1 = deriveToExpMainExp names1
   expList1 <- [| DSH.ListE [ $(return exp1) ] |]
@@ -122,18 +140,19 @@ deriveToExpClause n i con = do
   let exp2 = foldr1 (AppE . AppE (ConE 'DSH.PairE)) lists
   let body1 = NormalB exp2
   return (Clause [pat1] body1 [])
+-}
 
-deriveToExpMainExp :: [Name] -> Exp
-deriveToExpMainExp []     = ConE 'DSH.UnitE
-deriveToExpMainExp [name] = AppE (VarE 'DSH.toExp) (VarE name)
-deriveToExpMainExp names  = foldr1 (AppE . AppE (ConE 'DSH.PairE))
-                                   (map (AppE (VarE 'DSH.toExp) . VarE) names)
+deriveToExpMainExp :: [Name] -> Q Exp
+deriveToExpMainExp []     = return $ ConE 'DSH.UnitE
+deriveToExpMainExp [name] = return $ AppE (VarE 'DSH.toExp) (VarE name)
+deriveToExpMainExp names  = mkTupleTerm $ map (AppE (VarE 'DSH.toExp) . VarE) names
+
 -- Deriving to frExp function of the QA class
 
 deriveFrExp :: [Con] -> Q Dec
 deriveFrExp cons = do
   clauses <- sequence (zipWith3 deriveFrExpClause (repeat (length cons)) [0 .. ] cons)
-  imp <- impossible
+  imp     <- impossible
   let lastClause = Clause [WildP] (NormalB imp) []
   return (FunD 'DSH.frExp (clauses ++ [lastClause]))
 
@@ -149,7 +168,10 @@ deriveFrExpClause 1 _ con = do
                    (map (AppE (VarE 'DSH.frExp) . VarE) names1)
   let body1 = NormalB exp1
   return (Clause [pat1] body1 [])
-deriveFrExpClause n i con = do
+-- FIXME adapt code for types with multiple constructors to new tuple
+-- regime.
+deriveFrExpClause n i con = $unimplemented
+{-
   (_,names1) <- conToPattern con
   let pat1 = deriveFrExpMainPat names1
   let patList1 = ConP 'DSH.ListE [ConP '(:) [pat1,WildP]]
@@ -160,11 +182,12 @@ deriveFrExpClause n i con = do
                    (map (AppE (VarE 'DSH.frExp) . VarE) names1)
   let body1 = NormalB exp1
   return (Clause [pat2] body1 [])
+-}
 
 deriveFrExpMainPat :: [Name] -> Pat
 deriveFrExpMainPat [] = ConP 'DSH.UnitE []
 deriveFrExpMainPat [name] = VarP name
-deriveFrExpMainPat names  = foldr1 (\p1 p2 -> ConP 'DSH.PairE [p1,p2]) (map VarP names)
+deriveFrExpMainPat names  = mkTuplePat names
 
 -----------------
 -- Deriving TA --
@@ -179,9 +202,6 @@ deriveTA name = do
     TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
       deriveTyConTA name1 tyVarBndrs [con]
     _ -> fail errMsgExoticType
-
-deriveTupleRangeTA :: Int -> Int -> Q [Dec]
-deriveTupleRangeTA x y = fmap concat (mapM (deriveTA . tupleTypeName) [x .. y])
 
 deriveTyConTA :: Name -> [TyVarBndr] -> [Con] -> Q [Dec]
 deriveTyConTA name tyVarBndrs _cons = do
@@ -204,9 +224,6 @@ deriveView name = do
     TyConI (NewtypeD _cxt name1 tyVarBndrs con  _names) ->
       deriveTyConView name1 tyVarBndrs con
     _ -> fail errMsgExoticType
-
-deriveTupleRangeView :: Int -> Int -> Q [Dec]
-deriveTupleRangeView x y = fmap concat (mapM (deriveView . tupleTypeName) [x .. y])
 
 deriveTyConView :: Name -> [TyVarBndr] -> Con -> Q [Dec]
 deriveTyConView name tyVarBndrs con = do
@@ -232,13 +249,9 @@ deriveToView n = do
   let ep = VarP en
   let pat1 = ConP 'DSH.Q [ep]
 
-  let fAux 0  e1 = [AppE (ConE 'DSH.Q) e1]
-      fAux 1  e1 = [AppE (ConE 'DSH.Q) e1]
-      fAux n1 e1 = let fste = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) e1
-                       snde = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) e1
-                   in  AppE (ConE 'DSH.Q) fste : fAux (n1 - 1) snde
+  tupElems <- mapM (\i -> [| DSH.Q $ $(mkTupElemTerm n i (VarE en)) |]) [1..n]
 
-  let body1 = TupE (fAux n (VarE en))
+  let body1 = TupE $ tupElems
   let clause1 = Clause [pat1] (NormalB body1) []
   return (FunD 'DSH.view [clause1])
 
@@ -344,6 +357,7 @@ deriveElimFunClauseExp e fs = go e fs
   where
   go :: Exp -> [Exp] -> [Exp]
   go _ []  = error errMsgExoticType
+  -- FIXME PairE
   go e1 [f1] =
     let paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) e1
     in  [AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Map)) paire]
@@ -371,10 +385,6 @@ deriveSmartConstructors name = do
       deriveSmartConstructor typConName tyVarBndrs 1 0 con
     _ -> fail errMsgExoticType
 
-deriveTupleRangeSmartConstructors :: Int -> Int -> Q [Dec]
-deriveTupleRangeSmartConstructors x y =
-  fmap concat (mapM (deriveSmartConstructors . tupleTypeName) [x .. y])
-
 deriveSmartConstructor :: Name -> [TyVarBndr] -> Int -> Int -> Con -> Q [Dec]
 deriveSmartConstructor typConName tyVarBndrs n i con = do
   let smartConName = toSmartConName (conToName con)
@@ -396,9 +406,10 @@ deriveSmartConstructor typConName tyVarBndrs n i con = do
 
   let smartConPat = map (ConP 'DSH.Q . return . VarP) ns
 
-  let smartConExp = if null es
-                       then (ConE 'DSH.UnitE)
-                       else foldr1 (AppE . AppE (ConE 'DSH.PairE)) es
+  -- FIXME PairE -> TupleE
+  smartConExp <- if null es
+                 then return $ ConE 'DSH.UnitE
+                 else mkTupleTerm es 
   smartConBody <- deriveSmartConBody n i smartConExp
   let smartConClause = Clause smartConPat (NormalB smartConBody) []
 
@@ -419,8 +430,8 @@ deriveSmartConBody n i e = do
                      , [listExp]
                      , replicate (n - i - 1) emptyListExp
                      ]
-  let pairExp = foldr1 (AppE . AppE (ConE 'DSH.PairE)) lists
-  return (AppE (ConE 'DSH.Q) pairExp)
+  tupleExp <- mkTupleTerm lists
+  return $ AppE (ConE 'DSH.Q) tupleExp
 
 toSmartConName :: Name -> Name
 toSmartConName name1 = case nameBase name1 of
@@ -484,6 +495,30 @@ generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
 
 -- Helper Functions
 
+mkTupElemTerm :: Int -> Int -> Exp -> Q Exp
+mkTupElemTerm width idx arg = do
+    let ta = ConE $ tupAccName width idx
+    return $ AppE (AppE (ConE 'DSH.AppE) (AppE (ConE 'F.TupElem) ta)) arg
+
+-- | From a list of operand terms, construct a DSH tuple term.
+mkTupleTerm :: [Exp] -> Q Exp
+mkTupleTerm ts 
+    | length ts <= 16 = return $ AppE (ConE 'DSH.TupleConstE) $ foldl' AppE (ConE $ innerConst $ length ts) ts
+    | otherwise       = impossible
+
+-- | From a list of operand patterns, construct a DSH tuple term
+-- pattern.
+-- @
+-- TupleE (Tuple3E a b) -> ...
+-- @
+mkTuplePat :: [Name] -> Pat
+mkTuplePat names = ConP 'DSH.TupleConstE [ConP (innerConst $ length names) (map VarP names)]
+
+-- | Generate a (flat) tuple type from the list of element types.
+mkTupleType :: [Type] -> Type
+mkTupleType ts = foldl' AppT (TupleT $ length ts) ts
+
+-- | Return the types of all fields of a constructor.
 conToTypes :: Con -> [Type]
 conToTypes (NormalC _name strictTypes) = map snd strictTypes
 conToTypes (RecC _name varStrictTypes) = map (\(_,_,t) -> t) varStrictTypes
@@ -494,6 +529,8 @@ tyVarBndrToName :: TyVarBndr -> Name
 tyVarBndrToName (PlainTV name) = name
 tyVarBndrToName (KindedTV name _kind) = name
 
+-- | For a given constructor, create a pattern that matches the
+-- constructor and binds all fields to the names returned.
 conToPattern :: Con -> Q (Pat,[Name])
 conToPattern (NormalC name strictTypes) = do
   ns <- mapM (\ _ -> newName "x") strictTypes
@@ -530,4 +567,9 @@ errMsgExoticType =
 
 errMsgBaseRecCons :: String
 errMsgBaseRecCons =
-  "Generation of lifted record selectors is only supported for records of base types"
+  "Generation of lifted record selectors is only supported for records of base types."
+
+errMsgTypeTooBroad :: String
+errMsgTypeTooBroad =
+  "DSH currently supports data types with up to 16 constructors and in which \n"
+  ++ "all constructors have up to 16 fields."
