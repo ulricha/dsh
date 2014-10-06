@@ -151,4 +151,5 @@ unQ (Q e) = e
 toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
 toLam f = unQ . f . Q
 
-mkReifyInstances 4
+-- * Generate Reify instances for tuple types
+mkReifyInstances 16

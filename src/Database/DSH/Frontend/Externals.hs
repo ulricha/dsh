@@ -682,13 +682,11 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
--- deriveTupleRangeQA                4 16
-mkQAInstances 4
-mkTAInstances 4
-mkTupleConstructors 4
--- deriveTupleRangeTA                4 16
--- deriveTupleRangeView              4 16
--- deriveTupleRangeSmartConstructors 2 4
+-- * Generate instances and constructor functions for tuple types
+
+mkQAInstances       16
+mkTAInstances       16
+mkTupleConstructors 16
 
 -- * Missing functions
 
