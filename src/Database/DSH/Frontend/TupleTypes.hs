@@ -6,8 +6,8 @@ module Database.DSH.Frontend.TupleTypes
     , mkTupleConstructors
     , mkTupElemType
     , mkTupElemCompile
-    , mkTupElemShowInst
     , mkReifyInstances
+    , mkTranslateTupleTerm
     ) where
 
 import           Control.Applicative
@@ -17,7 +17,9 @@ import           Text.Printf
 import           Language.Haskell.TH
 
 import           Database.DSH.Common.Nat
+import qualified Database.DSH.Common.Type   as T
 import qualified Database.DSH.CL.Primitives as CP
+import qualified Database.DSH.CL.Lang       as CL
 
 --------------------------------------------------------------------------------
 -- Tuple Accessors
@@ -254,3 +256,46 @@ mkTupleConstructor width =
 -- @
 mkTupleConstructors :: Int -> Q [Dec]
 mkTupleConstructors maxWidth = return $ concatMap mkTupleConstructor [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- Translation function for tuple constructors in terms
+
+{-
+\t -> case t of
+    Tuple2E a b -> do
+        a' <- translate a
+        b' <- translate b
+        return $ CL.MkTuple (T.TupleT $ map T.typeOf [a', b']) [a', b']
+    Tuple3E a b c -> ...
+-}
+
+mkTransBind :: Name -> Name -> Stmt
+mkTransBind argName resName =
+    BindS (VarP resName) (AppE (VarE $ mkName "translate") (VarE argName))
+
+-- | Generate the translation case for a particular tuple value
+-- constructor.
+mkTranslateTermMatch :: Int -> Q Match
+mkTranslateTermMatch width = do
+    let names          = map (\c -> [c]) $ take width ['a' .. 'z']
+        subTermNames   = map mkName names
+        transTermNames = map (mkName . (++ "'")) names
+        transBinds     = zipWith mkTransBind subTermNames transTermNames
+        
+        transTerms     = listE $ map varE transTermNames
+    conStmt <- NoBindS <$> 
+               [| return $ CL.MkTuple (T.TupleT $ map T.typeOf $transTerms) $transTerms |]
+    let matchBody = DoE $ transBinds ++ [conStmt]
+        matchPat  = ConP (innerConst width) (map VarP subTermNames)
+    return $ Match matchPat (NormalB matchBody) []
+
+-- | Generate the lambda expression that translates frontend tuple
+-- value constructors into CL tuple constructors.
+mkTranslateTupleTerm :: Int -> Q Exp
+mkTranslateTupleTerm maxWidth = do
+    lamArgName <- newName "tupleConst"
+
+    matches  <- mapM mkTranslateTermMatch [2..maxWidth]
+
+    let lamBody = CaseE (VarE lamArgName) matches
+    return $ LamE [VarP lamArgName] lamBody

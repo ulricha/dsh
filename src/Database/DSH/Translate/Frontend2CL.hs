@@ -90,14 +90,16 @@ runCompile :: QueryTableInfo -> Compile a -> IO a
 runCompile f = liftM fst . flip runStateT (1, M.empty, f)
 
 
-translate ::  forall a. Exp a -> Compile CL.Expr
-translate (TupleConstE (Tuple3E a b c)) = do
+translate :: forall a. Exp a -> Compile CL.Expr
+translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
+                             in translateTupleConst tc
+{-
     a' <- translate a 
     b' <- translate b
     c' <- translate c
-    let elems = [a', b', c']
-    let elemTys = map T.typeOf elems
-    return $ CL.MkTuple (T.TupleT elemTys) [a', b', c']
+    let elemTys = map T.typeOf [a', b', c']
+    return $ CL.MkTuple (T.TupleT $ map T.typeOf [a', b', c']) [a', b', c']
+-}
 translate UnitE = return $ CP.unit
 translate (BoolE b) = return $ CP.bool b
 translate (CharE c) = return $ CP.string [c]

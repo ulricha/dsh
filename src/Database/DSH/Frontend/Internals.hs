@@ -58,6 +58,19 @@ data TupleConst a where
     Tuple2E :: (Reify a, Reify b) => Exp a -> Exp b -> TupleConst (a, b)
     Tuple3E :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> TupleConst (a, b, c)
     Tuple4E :: (Reify a, Reify b, Reify c, Reify d) => Exp a -> Exp b -> Exp c -> Exp d -> TupleConst (a, b, c, d)
+    Tuple5E :: (Reify a, Reify b, Reify c, Reify d, Reify e) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> TupleConst (a, b, c, d, e)
+    Tuple6E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> TupleConst (a, b, c, d, e, f)
+    Tuple7E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> TupleConst (a, b, c, d, e, f, g)
+    Tuple8E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> TupleConst (a, b, c, d, e, f, g, h)
+    Tuple9E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> TupleConst (a, b, c, d, e, f, g, h, i)
+    Tuple10E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> TupleConst (a, b, c, d, e, f, g, h, i, j)
+    Tuple11E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> TupleConst (a, b, c, d, e, f, g, h, i, j, k)
+    Tuple12E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l)
+    Tuple13E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m)
+    Tuple14E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> Exp n -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+    Tuple15E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> Exp n -> Exp o -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+    Tuple16E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o, Reify  p) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> Exp n -> Exp o -> Exp p -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
+
 
 -- | A combination of column names that form a candidate key
 newtype Key = Key [String] deriving (Eq, Ord, Show)
@@ -91,6 +104,18 @@ data TupleType a where
     Tuple2T :: (Reify a, Reify b) => Type a -> Type b -> TupleType (a, b)
     Tuple3T :: (Reify a, Reify b, Reify c) => Type a -> Type b -> Type c -> TupleType (a, b, c)
     Tuple4T :: (Reify a, Reify b, Reify c, Reify d) => Type a -> Type b -> Type c -> Type d -> TupleType (a, b, c, d)
+    Tuple5T :: (Reify a, Reify b, Reify c, Reify d, Reify e) => Type a -> Type b -> Type c -> Type d -> Type e -> TupleType (a, b, c, d, e)
+    Tuple6T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> TupleType (a, b, c, d, e, f)
+    Tuple7T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> TupleType (a, b, c, d, e, f, g)
+    Tuple8T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> TupleType (a, b, c, d, e, f, g, h)
+    Tuple9T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> TupleType (a, b, c, d, e, f, g, h, i)
+    Tuple10T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> TupleType (a, b, c, d, e, f, g, h, i, j)
+    Tuple11T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> TupleType (a, b, c, d, e, f, g, h, i, j, k)
+    Tuple12T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> Type l -> TupleType (a, b, c, d, e, f, g, h, i, j, k, l)
+    Tuple13T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> Type l -> Type m -> TupleType (a, b, c, d, e, f, g, h, i, j, k, l, m)
+    Tuple14T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> Type l -> Type m -> Type n -> TupleType (a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+    Tuple15T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> Type l -> Type m -> Type n -> Type o -> TupleType (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+    Tuple16T :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o, Reify  p) => Type a -> Type b -> Type c -> Type d -> Type e -> Type f -> Type g -> Type h -> Type i -> Type j -> Type k -> Type l -> Type m -> Type n -> Type o -> Type p -> TupleType (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
 
 -- Reify instances
 
