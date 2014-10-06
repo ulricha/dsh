@@ -125,7 +125,7 @@ translate (TableE (TableDB tableName hints)) = do
     let ty = reify (undefined :: a)
 
     -- Extract the column types from the frontend type
-    let ts = T.tupleElemTypes $ translateType ty
+    let ts = T.tupleElemTypes $ T.elemT $ translateType ty
 
     -- Fetch the actual type of the table from the database
     -- backend. Since we can't refer to columns by name from the
