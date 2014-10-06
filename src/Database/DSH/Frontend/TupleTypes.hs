@@ -8,6 +8,7 @@ module Database.DSH.Frontend.TupleTypes
     , mkTupElemCompile
     , mkReifyInstances
     , mkTranslateTupleTerm
+    , mkTranslateType
     ) where
 
 import           Control.Applicative
@@ -117,14 +118,17 @@ mkTupElemCompile maxWidth = do
 --------------------------------------------------------------------------------
 -- Reify instances for tuple types
 
+tupTyConstName :: Int -> Name
+tupTyConstName width = mkName $ printf "Tuple%dT" width
+
 reifyType :: Name -> Exp
 reifyType tyName = AppE (VarE $ mkName "reify") (SigE (VarE 'undefined) (VarT tyName))
 
 mkReifyFun :: [Name] -> Dec
 mkReifyFun tyNames =
     let argTys         = map reifyType tyNames
-        tupTyConstName = mkName $ printf "Tuple%dT" (length tyNames)
-        body           = AppE (ConE $ mkName "TupleT") (foldl' AppE (ConE tupTyConstName) argTys)
+        body           = AppE (ConE $ mkName "TupleT") 
+                         $ foldl' AppE (ConE $ tupTyConstName $ length tyNames) argTys
     in FunD (mkName "reify") [Clause [WildP] (NormalB body) []]
 
 mkReifyInstance :: Int -> Dec
@@ -295,7 +299,33 @@ mkTranslateTupleTerm :: Int -> Q Exp
 mkTranslateTupleTerm maxWidth = do
     lamArgName <- newName "tupleConst"
 
-    matches  <- mapM mkTranslateTermMatch [2..maxWidth]
+    matches    <- mapM mkTranslateTermMatch [2..maxWidth]
+
+    let lamBody = CaseE (VarE lamArgName) matches
+    return $ LamE [VarP lamArgName] lamBody
+
+--------------------------------------------------------------------------------
+-- Translation function for tuple types
+
+{-
+\t -> case t of
+    Tuple3T t1 t2 t3 -> T.TupleT [translateType t1, translateType t2, translateType t3]
+-}
+
+mkTranslateTypeMatch :: Int -> Q Match
+mkTranslateTypeMatch width = do
+    let subTyNames   = map mkName $ map (\c -> [c]) $ take width ['a' .. 'z']
+        matchPat     = ConP (tupTyConstName width) (map VarP subTyNames)
+        transElemTys = ListE $ map (\n -> AppE (VarE $ mkName "translateType") (VarE n)) subTyNames
+
+    let matchBody  = AppE (ConE 'T.TupleT) transElemTys
+        
+    return $ Match matchPat (NormalB matchBody) []
+
+mkTranslateType :: Int -> Q Exp
+mkTranslateType maxWidth = do
+    lamArgName <- newName "typeConst"
+    matches    <- mapM mkTranslateTypeMatch [2..maxWidth]
 
     let lamBody = CaseE (VarE lamArgName) matches
     return $ LamE [VarP lamArgName] lamBody

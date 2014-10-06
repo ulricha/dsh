@@ -125,7 +125,7 @@ translate (TableE (TableDB tableName hints)) = do
     let ty = reify (undefined :: a)
 
     -- Extract the column types from the frontend type
-    let ts = tableTypes ty
+    let ts = T.tupleElemTypes $ translateType ty
 
     -- Fetch the actual type of the table from the database
     -- backend. Since we can't refer to columns by name from the
@@ -194,19 +194,12 @@ translateType (PairT t1 t2)  = T.pairT (translateType t1) (translateType t2)
 translateType (ListT t)      = T.listT (translateType t)
 translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
 translateType (TupleT (Tuple3T t1 t2 t3)) = T.TupleT [(translateType t1), translateType t2, translateType t3]
+translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
+                               in translateTupleType tupTy
 
 -- | From the type of a table (a list of base records represented as
 -- right-deep nested tuples) extract the types of the individual
 -- fields.
-
--- FIXME check more thoroughly that the type is actually of the shape
--- we expect.
-tableTypes :: Type [a] -> [T.Type]
-tableTypes (ListT t) = fromTuples t
-  where
-    fromTuples :: Type a -> [T.Type]
-    fromTuples (PairT t1 t2) = translateType t1 : fromTuples t2
-    fromTuples t'            = [translateType t']
 
 compileApp :: Fun a b -> Exp a -> Compile CL.Expr
 compileApp f args =

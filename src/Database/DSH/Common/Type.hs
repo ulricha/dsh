@@ -8,6 +8,7 @@ module Database.DSH.Common.Type
     , isList
     , elemT
     , tupleElemT
+    , tupleElemTypes
     , fstT
     , sndT
     , domainT
@@ -113,6 +114,10 @@ elemT _        = error "elemT: argument is not a list type"
 tupleElemT :: Type -> TupleIndex -> Type
 tupleElemT (TupleT ts) f = ts !! (tupleIndex f - 1)
 tupleElemT _           _ = $impossible
+
+tupleElemTypes :: Type -> [Type]
+tupleElemTypes (TupleT ts) = ts
+tupleElemTypes _           = $impossible
 
 listDepth :: Type -> Int
 listDepth (ListT t1) = 1 + listDepth t1
