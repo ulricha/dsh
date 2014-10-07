@@ -41,9 +41,6 @@ mkTupType elemIdx width boundTyVars bTyVar =
                              ++ drop (elemIdx - 1) boundTyVars
     in foldl' AppT (TupleT width) elemTys
 
-tupAccName :: Int -> Int -> Name
-tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
-    
 mkTupElemCon :: Name -> Name -> [Name] -> Int -> Int -> Q Con
 mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
     let binders   = map PlainTV boundTyVars
@@ -121,9 +118,6 @@ mkTupElemCompile maxWidth = do
 --------------------------------------------------------------------------------
 -- Reify instances for tuple types
 
-tupTyConstName :: Int -> Name
-tupTyConstName width = mkName $ printf "Tuple%dT" width
-
 reifyType :: Name -> Exp
 reifyType tyName = AppE (VarE $ mkName "reify") (SigE (VarE 'undefined) (VarT tyName))
 
@@ -148,15 +142,6 @@ mkReifyInstances maxWidth = return $ map mkReifyInstance [2..maxWidth]
 
 --------------------------------------------------------------------------------
 -- QA instances for tuple types
-
--- | The name of the constructor that constructs a tuple construction
--- term.
-outerConst :: Name
-outerConst = mkName "TupleConstE"
-
--- | The name of the constructor for a given tuple width.
-innerConst :: Int -> Name
-innerConst width = mkName $ printf "Tuple%dE" width
 
 mkToExp :: Int -> [Name] -> Dec
 mkToExp width elemNames =
@@ -335,3 +320,25 @@ mkTranslateType maxWidth = do
 
     let lamBody = CaseE (VarE lamArgName) matches
     return $ LamE [VarP lamArgName] lamBody
+
+
+--------------------------------------------------------------------------------
+-- Helper functions
+
+-- | The name of the constructor that constructs a tuple construction
+-- term.
+outerConst :: Name
+outerConst = mkName "TupleConstE"
+
+-- | The name of the constructor for a given tuple width.
+innerConst :: Int -> Name
+innerConst width = mkName $ printf "Tuple%dE" width
+
+-- | The name of a tuple access constructor for a given tuple width
+-- and element index.
+tupAccName :: Int -> Int -> Name
+tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
+    
+-- | The name of the tuple type constructor for a given tuple width.
+tupTyConstName :: Int -> Name
+tupTyConstName width = mkName $ printf "Tuple%dT" width
