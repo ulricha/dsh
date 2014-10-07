@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Frontend.TupleTypes
-    ( mkQAInstances
+    ( -- * Generate tuple types, functions and instances
+      mkQAInstances
     , mkTAInstances
     , mkTupleConstructors
     , mkTupElemType
@@ -10,6 +11,7 @@ module Database.DSH.Frontend.TupleTypes
     , mkTranslateTupleTerm
     , mkTranslateType
     , mkViewInstances
+    -- * Helper functions
     , innerConst
     , outerConst
     , tupAccName
