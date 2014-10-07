@@ -9,9 +9,12 @@ module Database.DSH.Frontend.TupleTypes
     , mkReifyInstances
     , mkTranslateTupleTerm
     , mkTranslateType
+    , mkViewInstances
     , innerConst
     , outerConst
     , tupAccName
+    , mkTupElemTerm
+    , mkTupConstTerm
     ) where
 
 import           Control.Applicative
@@ -20,6 +23,7 @@ import           Text.Printf
 
 import           Language.Haskell.TH
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Type   as T
 import qualified Database.DSH.CL.Primitives as CP
@@ -43,10 +47,10 @@ mkTupType elemIdx width boundTyVars bTyVar =
 
 mkTupElemCon :: Name -> Name -> [Name] -> Int -> Int -> Q Con
 mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
-    let binders   = map PlainTV boundTyVars
-    let tupleType = mkTupType elemIdx width boundTyVars bTyVar
-    let con       = tupAccName width elemIdx
-    let ctx       = [EqualP (VarT aTyVar) tupleType]
+    let binders = map PlainTV boundTyVars
+    let tupTy   = mkTupType elemIdx width boundTyVars bTyVar
+    let con     = tupAccName width elemIdx
+    let ctx     = [EqualP (VarT aTyVar) tupTy]
     return $ ForallC binders ctx (NormalC con [])
 
 -- | Generate the complete type of tuple acccessors for all tuple
@@ -131,8 +135,7 @@ mkReifyFun tyNames =
 mkReifyInstance :: Int -> Dec
 mkReifyInstance width =
     let tyNames  = map (\i -> mkName $ "t" ++ show i) [1..width]
-        tupTy    = foldl' AppT (TupleT width) $ map VarT tyNames
-        instTy   = AppT (ConT $ mkName "Reify") tupTy
+        instTy   = AppT (ConT $ mkName "Reify") $ tupleType $ map VarT tyNames
         reifyCxt = map (\tyName -> ClassP (mkName "Reify") [VarT tyName]) tyNames
         
     in InstanceD reifyCxt instTy [mkReifyFun tyNames]
@@ -171,7 +174,7 @@ mkRep width tyNames tupTyPat =
 mkQAInstance :: Int -> Q Dec
 mkQAInstance width = do
     let tyNames = map (\i -> mkName $ "t" ++ show i) [1..width]
-        tupTy   = foldl' AppT (TupleT width) $ map VarT tyNames
+        tupTy   = tupleType $ map VarT tyNames
         instTy  = AppT (ConT $ mkName "QA") tupTy
         qaCxt   = map (\tyName -> ClassP (mkName "QA") [VarT tyName]) tyNames
         rep     = mkRep width tyNames tupTy
@@ -215,9 +218,6 @@ mkTAInstances maxWidth = return $ map mkTAInstance [2..maxWidth]
 
 tupConName :: Int -> Name
 tupConName width = mkName $ printf "tup%d" width
-
-qName :: Name
-qName = mkName "Q"
 
 mkArrowTy :: Type -> Type -> Type
 mkArrowTy domTy coDomTy = AppT (AppT ArrowT domTy) coDomTy
@@ -321,6 +321,51 @@ mkTranslateType maxWidth = do
     let lamBody = CaseE (VarE lamArgName) matches
     return $ LamE [VarP lamArgName] lamBody
 
+--------------------------------------------------------------------------------
+-- View instances
+
+{-
+instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
+    type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
+    view (Q e) = ( Q (AppE (TupElem Tup3_1) e)
+                 , Q (AppE (TupElem Tup3_2) e)
+                 , Q (AppE (TupElem Tup3_3) e)
+                 )
+-}
+
+mkToView :: [Name] -> Type -> Dec
+mkToView names tupTyPat =
+    let qTupPat  = AppT (ConT qName) tupTyPat
+        resTupTy = tupleType $ map (\n -> AppT (ConT qName) (VarT n)) names
+    in TySynInstD (mkName "ToView") (TySynEqn [qTupPat] resTupTy)
+
+mkViewFun :: Int -> Q Dec
+mkViewFun width = do
+    expName <- newName "e"
+    let expVar      = VarE expName
+        qPat        = ConP qName [VarP expName]
+
+    viewBodyExp <- TupE <$> mapM (\idx -> appE (conE qName) $ mkTupElemTerm width idx expVar)
+                                 [1..width] 
+
+    let viewClause  = Clause [qPat] (NormalB viewBodyExp) []
+        
+    return $ FunD (mkName "view") [viewClause]
+
+mkViewInstance :: Int -> Q Dec
+mkViewInstance width = do
+    let names     = map (\i -> mkName $ "t" ++ show i) [1..width]
+        tupTy     = tupleType $ map VarT names
+        instTy    = AppT (ConT $ mkName "View") (AppT (ConT qName) tupTy)
+
+        viewCxt   = map (\n -> ClassP (mkName "QA") [VarT n]) names
+        toViewDec = mkToView names tupTy
+    viewDec <- mkViewFun width
+    return $ InstanceD viewCxt instTy [toViewDec, viewDec]
+
+mkViewInstances :: Int -> Q [Dec]
+mkViewInstances maxWidth = mapM mkViewInstance [2..maxWidth]
+
 
 --------------------------------------------------------------------------------
 -- Helper functions
@@ -342,3 +387,25 @@ tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
 -- | The name of the tuple type constructor for a given tuple width.
 tupTyConstName :: Int -> Name
 tupTyConstName width = mkName $ printf "Tuple%dT" width
+
+-- |
+tupleType :: [Type] -> Type
+tupleType elemTypes = foldl' AppT (TupleT width) elemTypes
+  where
+    width = length elemTypes
+
+qName :: Name
+qName = mkName "Q"
+
+-- | Construct a DSH term that accesses a specificed tuple element.
+mkTupElemTerm :: Int -> Int -> Exp -> Q Exp
+mkTupElemTerm width idx arg = do
+    let ta = ConE $ tupAccName width idx
+    return $ AppE (AppE (ConE $ mkName "AppE") (AppE (ConE $ mkName "TupElem") ta)) arg
+
+-- | From a list of operand terms, construct a DSH tuple term.
+mkTupConstTerm :: [Exp] -> Q Exp
+mkTupConstTerm ts 
+    | length ts <= 16 = return $ AppE (ConE $ mkName "TupleConstE") 
+                               $ foldl' AppE (ConE $ innerConst $ length ts) ts
+    | otherwise       = impossible

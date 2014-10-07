@@ -253,14 +253,6 @@ instance View (Q Text) where
   type ToView (Q Text) = Q Text
   view = id
 
-instance (QA a, QA b) => View (Q (a,b)) where
-  type ToView (Q (a,b)) = (Q a,Q b)
-  view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
-
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
-    type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
-    view (Q e) = (Q (AppE (TupElem Tup3_1) e), Q (AppE (TupElem Tup3_2) e), Q (AppE (TupElem Tup3_3) e))
-
 -- IsString instances
 
 instance IsString (Q Text) where
@@ -686,6 +678,7 @@ infix  0  ?
 
 mkQAInstances       16
 mkTAInstances       16
+mkViewInstances     16
 mkTupleConstructors 16
 
 -- * Missing functions

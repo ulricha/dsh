@@ -11,6 +11,8 @@ module Database.DSH.Frontend.TH
     -- FIXME don't expose tuple constructors but use qualified names
     , DSH.TupleConst(..)
     , F.TupElem(..)
+    , DSH.Exp(..)
+    , F.Fun(..)
     ) where
 
 import           Control.Monad
@@ -145,7 +147,7 @@ deriveToExpClause n i con = $unimplemented
 deriveToExpMainExp :: [Name] -> Q Exp
 deriveToExpMainExp []     = return $ ConE 'DSH.UnitE
 deriveToExpMainExp [name] = return $ AppE (VarE 'DSH.toExp) (VarE name)
-deriveToExpMainExp names  = mkTupleTerm $ map (AppE (VarE 'DSH.toExp) . VarE) names
+deriveToExpMainExp names  = mkTupConstTerm $ map (AppE (VarE 'DSH.toExp) . VarE) names
 
 -- Deriving to frExp function of the QA class
 
@@ -409,7 +411,7 @@ deriveSmartConstructor typConName tyVarBndrs n i con = do
   -- FIXME PairE -> TupleE
   smartConExp <- if null es
                  then return $ ConE 'DSH.UnitE
-                 else mkTupleTerm es 
+                 else mkTupConstTerm es 
   smartConBody <- deriveSmartConBody n i smartConExp
   let smartConClause = Clause smartConPat (NormalB smartConBody) []
 
@@ -430,7 +432,7 @@ deriveSmartConBody n i e = do
                      , [listExp]
                      , replicate (n - i - 1) emptyListExp
                      ]
-  tupleExp <- mkTupleTerm lists
+  tupleExp <- mkTupConstTerm lists
   return $ AppE (ConE 'DSH.Q) tupleExp
 
 toSmartConName :: Name -> Name
@@ -495,16 +497,6 @@ generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
 
 -- Helper Functions
 
-mkTupElemTerm :: Int -> Int -> Exp -> Q Exp
-mkTupElemTerm width idx arg = do
-    let ta = ConE $ tupAccName width idx
-    return $ AppE (AppE (ConE 'DSH.AppE) (AppE (ConE 'F.TupElem) ta)) arg
-
--- | From a list of operand terms, construct a DSH tuple term.
-mkTupleTerm :: [Exp] -> Q Exp
-mkTupleTerm ts 
-    | length ts <= 16 = return $ AppE (ConE 'DSH.TupleConstE) $ foldl' AppE (ConE $ innerConst $ length ts) ts
-    | otherwise       = impossible
 
 -- | From a list of operand patterns, construct a DSH tuple term
 -- pattern.
