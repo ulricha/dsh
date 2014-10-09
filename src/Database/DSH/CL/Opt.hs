@@ -78,7 +78,7 @@ applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnes
 optimizeR :: RewriteC CL
 optimizeR = normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            anybuR postProcessCompR
+            repeatR (anybuR postProcessCompR)
 
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr

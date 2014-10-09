@@ -11,9 +11,10 @@ import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.Common.Lang
 
 postProcessCompR :: RewriteC CL
-postProcessCompR = do
-    Comp _ _ _ <- promoteT idR
-    repeatR (introduceCartProductsR <+ introduceFiltersR) >>> identityCompR
+postProcessCompR = introduceCartProductsR 
+                   <+ mergeGuardsR 
+                   <+ introduceFiltersR
+                   <+ identityCompR
 
 --------------------------------------------------------------------------------
 -- Cleaning up
@@ -122,6 +123,14 @@ filterWorkerT comp guard guardsToTry leftOverGuards = do
     let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
     ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> filterR
     return (C ty h qs', guardsToTry, leftOverGuards)
+
+mergeGuardsR :: RewriteC CL
+mergeGuardsR = readerT $ \quals -> case quals of
+    QualsCL (GuardQ p1 :* S (GuardQ p2))   -> 
+        return $ QualsCL $ S $ GuardQ $ p1 `P.conj` p2
+    QualsCL (GuardQ p1 :* GuardQ p2 :* qs) -> 
+        return $ QualsCL $ GuardQ (p1 `P.conj` p2) :* qs
+    _ -> fail "no match"
 
 -- |
 introduceFiltersR :: RewriteC CL
