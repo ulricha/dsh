@@ -208,8 +208,8 @@ data Expr  = Table Type String [L.Column] L.TableHints
 instance Pretty Expr where
     pretty (AppE1 _ (TupElem n) e1) = 
         parenthize e1 <> dot <> int (tupleIndex n)
-    pretty (MkTuple _ es)     = text "tuple" <+> (sep $ map parenthize es)
-    pretty (Table _ n _ _)    = text "table" <+> text n
+    pretty (MkTuple _ es)     = tupled $ map pretty es
+    pretty (Table _ n _ _)    = text "table" <> parens (text n)
     pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))

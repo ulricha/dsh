@@ -200,7 +200,7 @@ instance Pretty Val where
     pretty (ListV xs)    = list $ map pretty xs
     pretty (IntV i)      = int i
     pretty (BoolV b)     = bool b
-    pretty (StringV s)   = string s
+    pretty (StringV s)   = dquotes $ string s
     pretty (DoubleV d)   = double d
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs

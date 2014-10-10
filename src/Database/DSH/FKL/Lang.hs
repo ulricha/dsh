@@ -165,8 +165,7 @@ instance Pretty Prim3 where
     pretty Combine = text "combine"
 
 instance Pretty l => Pretty (Expr l) where
-    pretty (MkTuple _ l es) = 
-        text "tuple" <> pretty l <+> (sep $ map parenthize es)
+    pretty (MkTuple _ l es) = (tupled $ map pretty es) <> pretty l
 
     pretty (Var _ n) = text n
     pretty (Let _ x e1 e) = 
@@ -204,7 +203,7 @@ instance Pretty l => Pretty (Expr l) where
     pretty (UnOp _ o l e) =
         pretty o <> pretty l <> parens (pretty e)
 
-    pretty (Const _ v) = pretty v {- <> colon <> colon <> pretty t -}
+    pretty (Const _ v) = pretty v
 
     pretty (QConcat n _ e) = 
         text "qconcat" 

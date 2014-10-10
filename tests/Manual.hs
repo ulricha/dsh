@@ -29,7 +29,7 @@ deriveTA ''Foo
 generateTableSelectors ''Foo
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'trades'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
 
 x100Conn :: X100Info
 x100Conn = undefined
@@ -165,9 +165,32 @@ bestProfit stock date =
     trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date)
               $ sortWith t_timestampQ trades
 
+hasNationality :: Q Customer -> Text -> Q Bool
+hasNationality c nationName = any (\n -> n_nameQ n == toQ nationName
+                                         && 
+                                         c_nationkeyQ c == n_nationkeyQ n) 
+                                  nations
+
+revenue :: Q Order -> Q Double
+revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
+                | l <- lineitems
+                , l_orderkeyQ l == o_orderkeyQ o
+                ]
+
+nestedStuff :: Q [(Text, [(Integer, Double)])]
+nestedStuff =
+    [ tup2 (c_nameQ c) [ tup2 (o_orderdateQ o) (revenue o)
+                       | o <- orders
+                       , o_custkeyQ o == c_custkeyQ c
+                       , o_orderstatusQ o == toQ "PENDING"
+                       ]
+    | c <- customers
+    , c `hasNationality` "GERMANY"
+    ]
+    
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c $ bestProfit 23 42
+main = getConn P.>>= \c -> debugQ "q" c nestedStuff
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
