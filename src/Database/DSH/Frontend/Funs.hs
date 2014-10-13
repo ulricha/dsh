@@ -59,6 +59,7 @@ data Fun a b where
     SortWith        :: Fun (a -> b,[a]) [a]
     Cond            :: Fun (Bool,(a,a)) a
     Like            :: Fun (Text,Text) Bool
+    SubString       :: Integer -> Integer -> Fun Text Text 
     Transpose       :: Fun [[a]] [[a]]
     Reshape         :: Integer -> Fun [a] [[a]]
     Sin             :: Fun Double Double

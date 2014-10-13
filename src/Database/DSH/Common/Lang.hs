@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Common.Lang where
 
@@ -7,9 +7,10 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
+import           Text.Printf
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
+import           Database.DSH.Impossible
 
 import           Database.DSH.Common.Nat
 
@@ -90,9 +91,15 @@ data UnNumOp = Sin
 
 $(deriveJSON defaultOptions ''UnNumOp)
 
+data UnTextOp = SubString Integer Integer
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnTextOp)
+
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
+                | SUTextOp UnTextOp
                 | SUDateOp
                 deriving (Show, Eq, Ord)
 
@@ -123,7 +130,7 @@ data BinBoolOp = Conj
 
 $(deriveJSON defaultOptions ''BinBoolOp)
 
-data BinStringOp = Like 
+data BinStringOp = Like
                    deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''BinStringOp)
@@ -168,6 +175,7 @@ data JoinBinOp = JBNumOp BinNumOp
 
 data JoinUnOp = JUNumOp UnNumOp
               | JUCastOp UnCastOp
+              | JUTextOp UnTextOp
               deriving (Show, Eq, Ord)
 
 data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
@@ -244,6 +252,7 @@ instance Pretty UnCastOp where
 instance Pretty JoinUnOp where
     pretty (JUNumOp o)  = pretty o
     pretty (JUCastOp o) = pretty o
+    pretty (JUTextOp o) = pretty o
 
 instance Pretty JoinBinOp where
     pretty (JBNumOp o)    = pretty o
@@ -254,7 +263,7 @@ instance Pretty JoinExpr where
     pretty (JUnOp _ op e)      = pretty op <+> parenthize e
     pretty (JLit _ v)          = pretty v
     pretty (JInput _)          = text "I"
-    pretty (JTupElem _ i e1)   = 
+    pretty (JTupElem _ i e1)   =
         parenthize e1 <> dot <> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
@@ -278,3 +287,7 @@ instance Pretty ScalarUnOp where
     pretty (SUBoolOp op) = pretty op
     pretty (SUCastOp op) = pretty op
     pretty SUDateOp      = $unimplemented
+    pretty (SUTextOp op) = pretty op
+
+instance Pretty UnTextOp where
+    pretty (SubString f t) = text $ printf "subString_%d,%d" f t

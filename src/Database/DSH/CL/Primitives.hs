@@ -354,6 +354,9 @@ sqrt = scalarUnOp (L.SUNumOp L.Sqrt)
 exp :: Expr -> Expr
 exp = scalarUnOp (L.SUNumOp L.Exp)
 
+substring :: P.Integer -> P.Integer -> Expr -> Expr
+substring f t = scalarUnOp (L.SUTextOp P.$ L.SubString f t)
+
 ---------------------------------------------------------------------------------------
 -- Smart constructors for scalar binary operators
 

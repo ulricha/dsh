@@ -83,6 +83,7 @@ toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain 
 toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
 toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
 toJoinUnOp (SUCastOp o) = return $ JUCastOp o
+toJoinUnOp (SUTextOp o) = return $ JUTextOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
 toJoinUnOp SUDateOp     = $unimplemented
 

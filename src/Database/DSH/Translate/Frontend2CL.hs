@@ -233,6 +233,7 @@ compileApp f args =
        Like         -> compileApp2 CP.like args
 
        -- Builtin functions with arity one
+       SubString f t   -> compileApp1 (CP.substring f t) args
        IntegerToDouble -> compileApp1 CP.castDouble args
        Not             -> compileApp1 CP.not args
        Sin             -> compileApp1 CP.sin args

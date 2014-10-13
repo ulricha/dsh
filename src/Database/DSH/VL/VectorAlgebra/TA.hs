@@ -100,18 +100,19 @@ binOp (L.SBBoolOp L.Disj)   = Or
 binOp (L.SBStringOp L.Like) = Like
 
 unOp :: L.ScalarUnOp -> UnFun
-unOp (L.SUBoolOp L.Not)          = Not
-unOp (L.SUCastOp (L.CastDouble)) = Cast doubleT
-unOp (L.SUNumOp L.Sin)           = Sin
-unOp (L.SUNumOp L.Cos)           = Cos
-unOp (L.SUNumOp L.Tan)           = Tan
-unOp (L.SUNumOp L.ASin)          = ASin
-unOp (L.SUNumOp L.ACos)          = ACos
-unOp (L.SUNumOp L.ATan)          = ATan
-unOp (L.SUNumOp L.Sqrt)          = Sqrt
-unOp (L.SUNumOp L.Exp)           = Exp
-unOp (L.SUNumOp L.Log)           = Log
-unOp L.SUDateOp                  = $unimplemented
+unOp (L.SUBoolOp L.Not)             = Not
+unOp (L.SUCastOp (L.CastDouble))    = Cast doubleT
+unOp (L.SUNumOp L.Sin)              = Sin
+unOp (L.SUNumOp L.Cos)              = Cos
+unOp (L.SUNumOp L.Tan)              = Tan
+unOp (L.SUNumOp L.ASin)             = ASin
+unOp (L.SUNumOp L.ACos)             = ACos
+unOp (L.SUNumOp L.ATan)             = ATan
+unOp (L.SUNumOp L.Sqrt)             = Sqrt
+unOp (L.SUNumOp L.Exp)              = Exp
+unOp (L.SUNumOp L.Log)              = Log
+unOp (L.SUTextOp (L.SubString f t)) = SubString f t
+unOp L.SUDateOp                     = $unimplemented
 
 taExprOffset :: Int -> VL.Expr -> Expr
 taExprOffset o (VL.BinApp op e1 e2) = BinAppE (binOp op) (taExprOffset o e1) (taExprOffset o e2)

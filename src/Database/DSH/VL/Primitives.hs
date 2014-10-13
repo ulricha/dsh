@@ -114,6 +114,7 @@ toGeneralBinOp (L.JBStringOp o) = L.SBStringOp o
 toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
 toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
 toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
+toGeneralUnOp (L.JUTextOp o) = L.SUTextOp o
 
 toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) = 

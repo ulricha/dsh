@@ -631,6 +631,9 @@ integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 like :: Q Text -> Q Text -> Q Bool
 like (Q t) (Q p) = Q (AppE Like (PairE t p))
 
+subString :: Integer -> Integer -> Q Text -> Q Text
+subString from to (Q t) = Q (AppE (SubString from to) t)
+
 -- * Matrix/Vector-like operators
 
 -- | Transpose a matrix in nested-list representation
