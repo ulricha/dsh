@@ -70,7 +70,7 @@ instance Pretty Expr where
                                 $ pretty e </> char '|' <+> text x <+> text "<-" <+> pretty xs
     pretty (Let _ x e1 e)     = 
         align $ text "let" <+> text x <+> char '=' <+> pretty e1
-                <$>
+                </>
                 text "in" <+> pretty e
 
 parenthize :: Expr -> Doc

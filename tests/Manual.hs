@@ -173,9 +173,9 @@ hasNationality c nationName = any (\n -> n_nameQ n == toQ nationName
 
 revenue :: Q Order -> Q Double
 revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
-                | l <- lineitems
-                , l_orderkeyQ l == o_orderkeyQ o
-                ]
+                    | l <- lineitems
+                    , l_orderkeyQ l == o_orderkeyQ o
+                    ]
 
 nestedStuff :: Q [(Text, [(Integer, Double)])]
 nestedStuff =
