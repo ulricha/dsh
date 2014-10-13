@@ -64,7 +64,7 @@ postFilterRownum :: TARule AllProps
 postFilterRownum q =
   $(dagPatMatch 'q "RowNum args (q1)"
     [| do
-        (res, [(ColE sortCol, _)], []) <- return $(v "args")
+        (res, [(ColE sortCol, Asc)], []) <- return $(v "args")
         useCols <- pUse <$> td <$> properties q
         keys    <- pKeys <$> bu <$> properties $(v "q1")
         cols    <- pCols <$> bu <$> properties $(v "q1")
@@ -259,6 +259,8 @@ inlineSortColsRownum q =
   $(dagPatMatch 'q "RowNum o (q1)"
     [| do
         (resCol, sortCols@(_:_), []) <- return $(v "o")
+
+        predicate $ all ((== Asc) . snd) sortCols
 
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
 
