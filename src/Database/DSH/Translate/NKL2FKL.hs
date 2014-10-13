@@ -327,7 +327,7 @@ normLifting (F.MkTuple t l es)     =
             e1' : es' <- mapM normLifting es
             n         <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.MkTuple t F.Lifted (P.qconcat d v : map (P.qconcat d) es')
+                app = F.MkTuple (unliftTypeN d t) F.Lifted (P.qconcat d v : map (P.qconcat d) es')
             return $ P.let_ n e1' $ P.unconcat d v app
 
 normLifting (F.UnOp t op l e)      = 
@@ -338,7 +338,7 @@ normLifting (F.UnOp t op l e)      =
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.UnOp t op F.Lifted (P.qconcat d v)
+                app = F.UnOp (unliftTypeN d t) op F.Lifted (P.qconcat d v)
             return $ P.let_ n e' $ P.unconcat d v app
 
 normLifting (F.BinOp t op l e1 e2)  = 
@@ -354,7 +354,7 @@ normLifting (F.BinOp t op l e1 e2)  =
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.BinOp t op F.Lifted (P.qconcat d v) (P.qconcat d e2')
+                app = F.BinOp (unliftTypeN d t) op F.Lifted (P.qconcat d v) (P.qconcat d e2')
             return $ P.let_ n e1' $ P.unconcat d v app
 
 normLifting (F.PApp1 t p l e)    = 
@@ -365,7 +365,7 @@ normLifting (F.PApp1 t p l e)    =
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.PApp1 t p F.Lifted (P.qconcat d v)
+                app = F.PApp1 (unliftTypeN d t) p F.Lifted (P.qconcat d v)
             return $ P.let_ n e' (P.unconcat d v app)
 
 normLifting (F.PApp2 t p l e1 e2)   = 
@@ -381,7 +381,7 @@ normLifting (F.PApp2 t p l e1 e2)   =
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp2 t p F.Lifted (P.qconcat d v) (P.qconcat d e2')
+                app = F.PApp2 (unliftTypeN d t) p F.Lifted (P.qconcat d v) (P.qconcat d e2')
             return $ P.let_ n e1' $ P.unconcat d v app
 
 normLifting (F.PApp3 t p l e1 e2 e3)    = 
@@ -400,8 +400,8 @@ normLifting (F.PApp3 t p l e1 e2 e3)    =
             e3' <- normLifting e3
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp3 t p F.Lifted (P.qconcat d v) 
-                                           (P.qconcat d e2') 
-                                           (P.qconcat d e3')
+                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.qconcat d v) 
+                                                           (P.qconcat d e2') 
+                                                           (P.qconcat d e3')
             return $ P.let_ n e1' $ P.unconcat d v app
 
