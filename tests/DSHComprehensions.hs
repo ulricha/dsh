@@ -15,14 +15,14 @@ import Database.DSH
 
 cartprod :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 cartprod (view -> (xs, ys)) =
-  [ tuple2 x y
+  [ tup2 x y
   | x <- xs
   , y <- ys
   ]
 
 eqjoin :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 eqjoin (view -> (xs, ys)) = 
-  [ tuple2 x y
+  [ tup2 x y
   | x <- xs
   , y <- ys
   , x == y
@@ -31,7 +31,7 @@ eqjoin (view -> (xs, ys)) =
   
 eqjoinproj :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
 eqjoinproj (view -> (xs, ys)) = 
-  [ tuple2 x y
+  [ tup2 x y
   | x <- xs
   , y <- ys
   , (2 * x) == y
@@ -39,7 +39,7 @@ eqjoinproj (view -> (xs, ys)) =
 
 eqjoinpred :: Q (Integer, [Integer], [Integer]) -> Q [(Integer, Integer)]
 eqjoinpred (view -> (x', xs, ys)) = 
-  [ tuple2 x y
+  [ tup2 x y
   | x <- xs
   , y <- ys
   , x == y
@@ -48,7 +48,7 @@ eqjoinpred (view -> (x', xs, ys)) =
 
 eqjointuples :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
 eqjointuples (view -> (xs, ys)) =
-  [ tuple3 (x1 * x2) y1 y2
+  [ tup3 (x1 * x2) y1 y2
   | (view -> (x1, x2)) <- xs
   , (view -> (y1, y2)) <- ys
   , x1 == y2
@@ -56,7 +56,7 @@ eqjointuples (view -> (xs, ys)) =
 
 thetajoin_eq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
 thetajoin_eq (view -> (xs, ys)) =
-  [ tuple3 (x1 * x2) y1 y2
+  [ tup3 (x1 * x2) y1 y2
   | (view -> (x1, x2)) <- xs
   , (view -> (y1, y2)) <- ys
   , x1 == y2
@@ -65,7 +65,7 @@ thetajoin_eq (view -> (xs, ys)) =
 
 thetajoin_neq :: Q ([(Integer, Integer)], [(Integer, Integer)]) -> Q [(Integer, Integer, Integer)]
 thetajoin_neq (view -> (xs, ys)) =
-  [ tuple3 (x1 * x2) y1 y2
+  [ tup3 (x1 * x2) y1 y2
   | (view -> (x1, x2)) <- xs
   , (view -> (y1, y2)) <- ys
   , x1 == y2
@@ -74,7 +74,7 @@ thetajoin_neq (view -> (xs, ys)) =
 
 eqjoin3 :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
 eqjoin3 (view -> (xs, ys, zs)) = 
-  [ tuple3 x y z
+  [ tup3 x y z
   | x <- xs
   , y <- ys
   , z <- zs
@@ -109,7 +109,7 @@ eqjoin_nested_both args =
 
 nestjoin :: Q ([Integer], [Integer]) -> Q [(Integer, [Integer])]
 nestjoin (view -> (xs, ys)) =
-  [ tuple2 x [ y | y <- ys, x == y]
+  [ tup2 x [ y | y <- ys, x == y]
   | x <- xs
   ]
   

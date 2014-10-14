@@ -398,11 +398,11 @@ prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id
 
 prop_tuple4 :: [(Integer, Integer, Integer, Integer)] -> Property
-prop_tuple4 = makeProp (Q.map (\(Q.view -> (a, b, c, d)) -> Q.tuple4 (a + c) (b - d) b d))
+prop_tuple4 = makeProp (Q.map (\(Q.view -> (a, b, c, d)) -> Q.tup4 (a + c) (b - d) b d))
                        (map (\(a, b, c, d) -> (a + c, b - d, b, d)))
 
 prop_tuple5 :: [(Integer, Integer, Integer, Integer, Integer)] -> Property
-prop_tuple5 = makeProp (Q.map (\(Q.view -> (a, _, c, _, e)) -> Q.tuple3 a c e))
+prop_tuple5 = makeProp (Q.map (\(Q.view -> (a, _, c, _, e)) -> Q.tup3 a c e))
                        (map (\(a, _, c, _, e) -> (a, c, e)))
 
 {-
