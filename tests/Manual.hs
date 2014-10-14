@@ -187,6 +187,12 @@ nestedStuff =
     | c <- customers
     , c `hasNationality` "GERMANY"
     ]
+
+nj2 :: Q [(Integer, [Integer])]
+nj2 = 
+    [ pair x [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
+    | x <- toQ [1,2,3,4,5,6]
+    ]
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
