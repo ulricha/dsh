@@ -71,6 +71,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , restrictWinFun
                          , pullProjectNumber
                          , constAlign
+                         , nestJoinChain
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -726,6 +727,54 @@ propProductCard1Right q =
         return $ do
           logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
           void $ replace q $(v "qi") |])
+
+-- | Turn a right-deep nestjoin tree into a left-deep one.
+-- 
+-- A comprehension of the form
+-- @
+-- [ [ [ e x y z | z <- zs, p2 y z ]
+--   | y <- ys
+--   , p1 x y
+--   ]
+-- | x <- xs
+-- ]
+-- @
+-- 
+-- is first rewritten into a right-deep chain of nestjoins: 'xs △ (ys △ zs)'. 
+-- Bottom-up compilation of this expression to VL (vectorization) results in 
+-- a rather awkward plan, though: The inner nestjoin is computed independent
+-- of values of 'x'. The join result is then re-shaped using the propagation
+-- vector from the nestjoin of the outer relations 'xs' and 'ys'. This pattern
+-- is problematic for multiple reasons: PropReorder is an expensive operation as 
+-- it involves re-ordering semantically, leading to a hard-to-eliminate rownum.
+-- On the plan level, we do not get a left- or right-deep join tree of thetajoins,
+-- but two independent joins between the two pairs of input relations whose results
+-- are connected using an additional join (PropReorder). This means that the two
+-- base joins will be executed on the full base tables, without being able to profit
+-- from a reduced cardinality in one of the join results.
+-- 
+-- NestJoin does not exhibit useful algebraic properties, most notably it is neither
+-- associate nor commutative. It turns out however that we can turn the pattern
+-- described above into a proper left-deep sequence of nestjoins if we consider
+-- the flat (vectorized) representation. The output of 'xs △ ys' is nestjoined
+-- with the innermost input 'zs'. This gives us exactly the representation of
+-- the nested output that we need. Semantically, 'zs' is not joined with all
+-- tuples in 'ys', but only with those that survive the (outer) join with 'xs'. 
+-- As usual, a proper join tree should give the engine the freedom to re-arrange 
+-- the joins and drive them in a pipelined manner.
+nestJoinChain :: VLRule BottomUpProps
+nestJoinChain q =
+  $(dagPatMatch 'q "R1 ((R3 (lj=(_) NestJoin _ (ys))) PropReorder (R1 ((ys1) NestJoin p (zs))))"
+   [| do
+       predicate $ $(v "ys") == $(v "ys1")
+       return $ do
+         logRewrite "Redundant.Prop.NestJoinChain" q
+
+         -- The R1 node on the left nest join might already exist, but
+         -- we simply rely on hash consing.
+         leftJoinR1 <- insert $ UnOp R1 $(v "lj")
+         rightJoin  <- insert $ BinOp (NestJoin $(v "p")) leftJoinR1 $(v "zs")
+         void $ replaceWithNew q $ UnOp R1 rightJoin |])
 
 --------------------------------------------------------------------------------
 -- Eliminating operators whose output is not required
