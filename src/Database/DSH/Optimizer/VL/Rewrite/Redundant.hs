@@ -775,17 +775,39 @@ propProductCard1Right q =
 -- the joins and drive them in a pipelined manner.
 nestJoinChain :: VLRule BottomUpProps
 nestJoinChain q =
-  $(dagPatMatch 'q "R1 ((R3 (lj=(_) NestJoin _ (ys))) PropReorder (R1 ((ys1) NestJoin p (zs))))"
+  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) PropReorder (R1 ((ys1) NestJoin p (zs))))"
    [| do
+       xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
+       ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")
+       zsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "zs")
+
        predicate $ $(v "ys") == $(v "ys1")
        return $ do
          logRewrite "Redundant.Prop.NestJoinChain" q
 
+
+         let innermostCols = map Column [ xsWidth + 1 .. xsWidth + ysWidth + zsWidth ]
+  
+             -- As the left input of the top nestjoin now includes the
+             -- columns from xs, we have to shift column references in
+             -- the left predicate side.
+             JoinPred conjs = $(v "p")
+             p' = JoinPred $ fmap (shiftJoinPredCols xsWidth 0) conjs
+
          -- The R1 node on the left nest join might already exist, but
          -- we simply rely on hash consing.
-         leftJoinR1 <- insert $ UnOp R1 $(v "lj")
-         rightJoin  <- insert $ BinOp (NestJoin $(v "p")) leftJoinR1 $(v "zs")
-         void $ replaceWithNew q $ UnOp R1 rightJoin |])
+         leftJoinR1  <- insert $ UnOp R1 $(v "lj")
+         rightJoin   <- insert $ BinOp (NestJoin p') leftJoinR1 $(v "zs")
+         rightJoinR1 <- insert $ UnOp R1 rightJoin
+  
+         -- Because the original produced only the columns of ys and
+         -- zs in the PropReorder output, we have to remove the xs
+         -- columns from the top NestJoin.
+         void $ replaceWithNew q $ UnOp (Project innermostCols) rightJoinR1 |])
+
+shiftJoinPredCols :: Int -> Int -> JoinConjunct Expr -> JoinConjunct Expr
+shiftJoinPredCols leftOffset rightOffset (JoinConjunct leftExpr op rightExpr) =
+    JoinConjunct (shiftExprCols leftOffset leftExpr) op (shiftExprCols rightOffset rightExpr)
 
 --------------------------------------------------------------------------------
 -- Eliminating operators whose output is not required
