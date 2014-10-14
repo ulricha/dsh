@@ -75,6 +75,7 @@ execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLay
 execNested conn lyt ty =
     case (lyt, ty) of
         (LCol i, t)                        -> return $ TCol t (itemCol i)
+        -- FIXME implement the cases for the remaining tuple types (via TH)
         (LTuple [lyt1, lyt2, lyt3], TupleT (Tuple3T t1 t2 t3)) -> do
             lyt1' <- execNested conn lyt1 t1
             lyt2' <- execNested conn lyt2 t2
@@ -90,7 +91,7 @@ execNested conn lyt ty =
             tab   <- fetchAllRowsMap' stmt
             clyt' <- execNested conn clyt t
             return $ TNest ty tab clyt'
-        (_, _) -> error "Type does not match query structure"
+        (shape, _) -> error $ printf "Type does not match query structure: %s" (show shape)
 
 ------------------------------------------------------------------------------
 -- Construct result values from vectors
