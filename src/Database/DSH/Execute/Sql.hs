@@ -8,7 +8,6 @@ module Database.DSH.Execute.Sql
   ) where
 
 import           Text.Printf
-import           Debug.Trace
 
 import           Database.DSH.Impossible
 import           Database.DSH.Frontend.Internals
@@ -114,7 +113,7 @@ fromPrim tab tlyt =
            _     -> $impossible
 
 executeSql :: IConnection conn => conn -> Shape SqlCode -> Type a -> IO (Exp a)
-executeSql conn shape ty = trace (show shape) $!
+executeSql conn shape ty = 
     case (shape, ty) of
         (VShape (SqlCode sqlQuery) lyt, ListT ety) -> do
             stmt <- prepare conn sqlQuery
