@@ -196,6 +196,8 @@ opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lo
 opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoin p) _ _) =
   labelToDoc i "ThetaJoin" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (NestJoin p) _ _) =
+  labelToDoc i "NestJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
   labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoinS p) _ _) =

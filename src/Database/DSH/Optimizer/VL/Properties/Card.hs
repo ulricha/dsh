@@ -86,6 +86,7 @@ inferCardOneBinOp c1 c2 op =
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False
     ThetaJoin _ -> return $ VPropTriple False False False
+    NestJoin _ -> return $ VPropTriple False False False
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     SemiJoin _ -> return $ VPropPair False False

@@ -608,6 +608,25 @@ instance VectorAlgebra NDVec TableAlgebra where
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
 
+  vecNestJoin joinPred (ADVec q1 cols1) (ADVec q2 cols2) = do
+    let itemProj1  = map (cP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (cP . itemi) cols2'
+
+    q <- projM ([cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] []
+           $ thetaJoinM (joinPredicate (length cols1) joinPred)
+             (proj ([ mP pos' pos
+                    ] ++ itemProj1) q1)
+             (proj ([ mP pos'' pos
+                    ] ++ shiftProj2) q2)
+
+    qv <- tagM "eqjoin/1" $ proj ([mP descr pos', cP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [mP posold pos', mP posnew pos] q
+    qp2 <- proj [mP posold pos'', mP posnew pos] q
+    return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+
   vecThetaJoinS joinPred (ADVec q1 cols1) (ADVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
         cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]

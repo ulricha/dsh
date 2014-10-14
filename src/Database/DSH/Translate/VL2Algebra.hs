@@ -231,6 +231,10 @@ translateBinOp b c1 c2 = case b of
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
+    V.NestJoin p -> do
+        (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+
     V.ThetaJoinS p -> do
         (v, p1, p2) <- vecThetaJoinS p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)

@@ -272,6 +272,12 @@ vlThetaJoin joinPred (VLDVec c1) (VLDVec c2) =
   where
     joinPred' = toVLJoinPred joinPred
 
+vlNestJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlNestJoin joinPred (VLDVec c1) (VLDVec c2) =
+    tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec pvec pvec
+  where
+    joinPred' = toVLJoinPred joinPred
+
 vlThetaJoinS :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
 vlThetaJoinS joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (ThetaJoinS joinPred') c1 c2) dvec pvec pvec

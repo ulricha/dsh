@@ -129,6 +129,7 @@ inferNonEmptyBinOp e1 e2 op =
     CartProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     ThetaJoin _      -> return $ VPropTriple False False False
+    NestJoin _      -> return $ VPropTriple False False False
     ThetaJoinS _     -> return $ VPropTriple False False False
     NestJoinS _     -> return $ VPropTriple False False False
     SemiJoin _      -> return $ VPropPair False False

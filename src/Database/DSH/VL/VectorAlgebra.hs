@@ -151,6 +151,7 @@ class VectorAlgebra v a where
     vecNestProductS :: v -> v -> Build a (v, PVec)
 
     vecThetaJoin :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
+    vecNestJoin :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
     vecThetaJoinS :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
     vecNestJoinS :: JoinPredicate Expr -> v -> v -> Build a (v, PVec)
 

@@ -58,9 +58,10 @@ thetaJoin _ _ _ = $impossible
 
 nestJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestJoin joinPred (VShape q1 lyt1) (VShape q2 lyt2) = do
-    q1' <- vlSegment q1
-    VShape qj lytJ <- thetaJoin joinPred (VShape q1' lyt1) (VShape q2 lyt2)
-    return $ VShape q1 (LTuple [lyt1, LNest qj lytJ])
+    (q', p1, p2) <- vlNestJoin joinPred q1 q2
+    lyt1'        <- chainReorder p1 lyt1
+    lyt2'        <- chainReorder p2 lyt2
+    return $ VShape q1 (LTuple [lyt1, LNest q' (zipLayout lyt1' lyt2')])
 nestJoin _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)

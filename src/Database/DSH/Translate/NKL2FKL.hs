@@ -404,4 +404,3 @@ normLifting (F.PApp3 t p l e1 e2 e3)    =
                                                            (P.qconcat d e2') 
                                                            (P.qconcat d e3')
             return $ P.let_ n e1' $ P.unconcat d v app
-

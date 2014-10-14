@@ -356,6 +356,13 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
+      NestJoin p -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
+          rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
+          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+
       ThetaJoinS p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns
           (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1

@@ -378,7 +378,7 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
+      -- FIXME check propVec components for correctness/precision
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
@@ -388,9 +388,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     NestProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -398,9 +397,17 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+
+    NestJoin _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -408,8 +415,7 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
+      -- FIXME check propVec components for correctness/precision
       return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     ThetaJoinS _ -> do
@@ -418,9 +424,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     NestJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -428,9 +433,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     SemiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV

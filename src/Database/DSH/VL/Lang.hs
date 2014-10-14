@@ -155,6 +155,7 @@ data BinOp = Group    -- (DescrVector, DBV, PropVector)
            | SemiJoinS (L.JoinPredicate Expr)
            | AntiJoin (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)
+           | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
            | NestProductS
            | TransposeS
