@@ -112,6 +112,15 @@ nestjoin (view -> (xs, ys)) =
   [ tup2 x [ y | y <- ys, x == y]
   | x <- xs
   ]
+
+nestjoin3 :: Q ([Integer], [Integer], [Integer]) -> Q [[[(Integer, Integer, Integer)]]]
+nestjoin3 (view -> (xs, ys, zs)) =
+    [ [ [ tup3 x y z | z <- zs, y == z ]
+      | y <- ys
+      , x == y
+      ]
+    | x <- xs
+    ]
   
 --------------------------------------------------------------
 -- Comprehensions for HUnit tests
@@ -240,6 +249,15 @@ nj10 njxs njys = [ x + sum [ x * y | y <- toQ njys, x == y ] | x <- toQ njxs ]
 
 nj11 :: [Integer] -> [Integer] -> Q [[Integer]]
 nj11 njxs njys = [ [ x + y | y <- toQ njys, x > y, x < y * 2 ] | x <- toQ njxs ]
+
+nj12 :: [Integer] -> [Integer] -> [Integer] -> Q [[[(Integer, Integer, Integer)]]]
+nj12 njxs njys njzs =
+    [ [ [ tup3 x y z | z <- toQ njzs, y == z ]
+      | y <- toQ njys
+      , x == y
+      ]
+    | x <- toQ njxs
+    ]
 
 np1 :: [Integer] -> [Integer] -> Q [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- toQ njys ] | x <- toQ njxs ]
