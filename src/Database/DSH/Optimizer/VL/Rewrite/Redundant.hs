@@ -41,6 +41,7 @@ redundantRules = [ mergeProjectRestrict
                  , pullProjectSelectPos1S
                  , pullProjectPropFilter
                  , pullProjectUnboxRename
+                 , pullProjectAggrS
                  , scalarConditional
                  ]
 
@@ -680,6 +681,16 @@ pullProjectUnboxRename q =
          return $ do
            logRewrite "Redundant.Project.UnboxRename" q
            void $ replaceWithNew q $ UnOp UnboxRename $(v "q1") |])
+
+-- | Any projections on the left input of AggrS are irrelevant, as
+-- only the segment information are required from the vector.
+pullProjectAggrS :: VLRule ()
+pullProjectAggrS q =
+  $(dagPatMatch 'q "(Project _ (q1)) AggrS args (q2)"
+    [| do
+        return $ do
+            logRewrite "Redundant.Project.AggrS" q
+            void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Positional selection on constants
