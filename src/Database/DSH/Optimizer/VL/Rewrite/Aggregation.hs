@@ -36,17 +36,18 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
+-- FIXME this rewrite will no longer work: take the UnboxScalarS
+-- operator into account.
 mergeNonEmptyAggrs :: VLRule ()
 mergeNonEmptyAggrs q =
-  $(dagPatMatch 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
+  $(dagPatMatch 'q "(AggrNonEmptyS afuns1 (qi1)) Zip (AggrNonEmptyS afuns2 (qi2))"
     [| do
-        predicate $ $(v "qo1") == $(v "qo2")
         predicate $ $(v "qi1") == $(v "qi2")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.Merge" q
             let afuns  = $(v "afuns1") <> $(v "afuns2")
-            let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
+            let aggrOp = UnOp (AggrNonEmptyS afuns) $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
 -- | If we can infer that the vector is not empty, we can employ a
@@ -68,13 +69,13 @@ nonEmptyAggr q =
 -- that does not add default values for empty segments.
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
-  $(dagPatMatch 'q "(q1) AggrS aggrFun (q2)"
+  $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
     [| do
         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.AggrS" q
-            let aggrOp = BinOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q1") $(v "q2")
+            let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
@@ -122,14 +123,14 @@ inlineAggrNonEmptyProject q =
 -- merging of aggregate operators
 inlineAggrSNonEmptyProject :: VLRule ()
 inlineAggrSNonEmptyProject q =
-  $(dagPatMatch 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
+  $(dagPatMatch 'q "AggrNonEmptyS afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrNonEmptyS.Project" q
-            let aggrOp = BinOp (AggrNonEmptyS afuns') $(v "qo") $(v "qi")
+            let aggrOp = UnOp (AggrNonEmptyS afuns') $(v "qi")
             void $ replaceWithNew q aggrOp |])
 
 
@@ -187,7 +188,7 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "(_) AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
+  $(dagPatMatch 'q "AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
     [| do
 
         return $ do

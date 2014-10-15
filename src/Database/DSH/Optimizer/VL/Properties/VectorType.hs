@@ -63,6 +63,7 @@ inferVectorTypeUnOp s op =
 
     Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
     SortScalarS _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
     GroupScalarS es -> 
       case s of
@@ -108,7 +109,6 @@ inferVectorTypeBinOp s1 s2 op =
         _                                                    -> 
           Left "Input of SortWith is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
-    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
 

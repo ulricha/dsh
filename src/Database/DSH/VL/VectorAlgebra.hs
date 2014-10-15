@@ -43,7 +43,7 @@ class VectorAlgebra v a where
     vecAggr :: AggrFun -> v -> Build a v
     vecAggrS :: AggrFun -> v -> v -> Build a v
     vecAggrNonEmpty :: N.NonEmpty AggrFun -> v -> Build a v
-    vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> v -> Build a v
+    vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> Build a v
 
     vecWinFun :: WinFun -> FrameSpec -> v -> Build a v
 

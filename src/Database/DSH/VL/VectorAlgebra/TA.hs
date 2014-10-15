@@ -384,7 +384,7 @@ instance VectorAlgebra NDVec TableAlgebra where
              (return qd))
     return $ ADVec qr [1]
 
-  vecAggrNonEmptyS as (ADVec qo _) (ADVec qi _) = do
+  vecAggrNonEmptyS as (ADVec q _) = do
     let resCols = [1 .. N.length as]
 
     let aggrFuns = [ (aggrFun a, itemi i)
@@ -395,15 +395,9 @@ instance VectorAlgebra NDVec TableAlgebra where
     -- Compute aggregate output per segment and new positions
     qa <- projM (itemProj resCols [cP descr, cP pos])
           $ rownumM pos [descr] []
-          $ aggr aggrFuns [(descr, ColE descr)] qi
+          $ aggr aggrFuns [(descr, ColE descr)] q
 
-    -- Remove one level of nesting.
-    qr <- projM (itemProj resCols [mP descr descr', cP pos])
-          $ eqJoinM pos' descr
-             (proj [mP descr' descr, mP pos' pos] qo)
-             (return qa)
-
-    return $ ADVec qr resCols
+    return $ ADVec qa resCols
 
   vecReverse (ADVec q cols) = do
     q' <- rownum' pos' [(ColE pos, Desc)] [] q

@@ -231,6 +231,9 @@ inferConstVecUnOp c op =
       (_, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
 
+    AggrNonEmptyS _ -> do
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
+
     R1 ->
       case c of
         VProp _           -> Left "Properties.Const: not a pair/triple"
@@ -266,8 +269,6 @@ inferConstVecBinOp c1 c2 op =
     AggrS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
-    AggrNonEmptyS _ -> do
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     DistPrim -> do
       (d, _)    <- unp c2 >>= fromDBV

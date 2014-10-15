@@ -121,6 +121,7 @@ data UnOp = UniqueS
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
+          | AggrNonEmptyS (N.NonEmpty AggrFun)
           | SortScalarS [Expr]
           | GroupScalarS [Expr]
           | WinFun (WinFun, FrameSpec)
@@ -134,7 +135,6 @@ $(deriveJSON defaultOptions ''UnOp)
 data BinOp = Group    -- (DescrVector, DBV, PropVector)
            | SortS        -- (DBV, PropVector)
            | AggrS AggrFun
-           | AggrNonEmptyS (N.NonEmpty AggrFun)
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)
            | Align     -- (DBV, PropVector)

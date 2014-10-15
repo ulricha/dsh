@@ -59,6 +59,7 @@ inferCardOneUnOp c op =
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    AggrNonEmptyS _ -> return $ VProp False
     
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
@@ -67,7 +68,6 @@ inferCardOneBinOp c1 c2 op =
     Group -> return $ VPropTriple False False False
     SortS -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
-    AggrNonEmptyS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     Align -> return $ VPropPair False False

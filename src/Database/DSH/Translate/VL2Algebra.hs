@@ -201,7 +201,6 @@ translateBinOp b c1 c2 = case b of
 
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
-    V.AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
 
     V.SelectPos o -> do
         (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
@@ -267,6 +266,7 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: VectorAlgebra v a => V.UnOp -> Res v -> B.Build a (Res v)
 translateUnOp unop c = case unop of
+    V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
