@@ -249,7 +249,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     (p, (RVec r)) <- vecPropFilter (RVec q1) e2
     return (p, PVec r)
 
-  vecUnbox (RVec qu) (ADVec qi cols) = do
+  vecUnboxNested (RVec qu) (ADVec qi cols) = do
     -- Perform a segment join between inner vector and outer unboxing
     -- rename vector. This implicitly discards any unreferenced
     -- segments in qi.
@@ -671,6 +671,17 @@ instance VectorAlgebra NDVec TableAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (ADVec qv (cols1 ++ cols2'), PVec qp2)
+
+  vecUnboxScalar (ADVec qo colso) (ADVec qi colsi) = do
+    let colsi'     = [((length colso) + 1) .. ((length colso) + (length colsi))]
+        shiftProji = zipWith mP (map itemi colsi') (map itemi colsi)
+        itemProji  = map (cP . itemi) colsi'
+
+    qu <- projM ([cP descr, cP pos] ++ (map (cP . itemi) colso) ++ itemProji)
+              $ eqJoinM pos descr'
+                  (return qo)
+                  (proj ([mP descr' descr] ++ shiftProji) qi)
+    return $ ADVec qu (colso ++ colsi')
 
   vecSelectPos (ADVec qe cols) op (ADVec qi _) = do
     qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))

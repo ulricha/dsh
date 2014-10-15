@@ -132,7 +132,9 @@ class VectorAlgebra v a where
     -- silently discarded.
     --
     -- Output: @(DVec r, RVec)@
-    vecUnbox :: RVec -> v -> Build a (v, RVec)
+    vecUnboxNested :: RVec -> v -> Build a (v, RVec)
+
+    vecUnboxScalar :: v -> v -> Build a v
 
     vecAppend :: v -> v -> Build a (v, RVec, RVec)
     vecAppendS :: v -> v -> Build a (v, RVec, RVec)

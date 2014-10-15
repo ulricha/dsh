@@ -301,11 +301,16 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    Unbox -> do
+    UnboxNested -> do
       (_, TC descr) <- unp c1 >>= fromRVec
       (_, cols)     <- unp c2 >>= fromDBV
 
       return $ VPropPair (DBVConst descr cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+
+    UnboxScalar -> do
+      (d1, cols1) <- unp c1 >>= fromDBV
+      (_, cols2)  <- unp c2 >>= fromDBV
+      return $ VProp $ DBVConst d1 (cols1 ++ cols2)
 
     Append -> do
       (d1, cols1) <- unp c1 >>= fromDBV

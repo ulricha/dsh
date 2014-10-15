@@ -120,7 +120,7 @@ inferVectorTypeBinOp s1 s2 op =
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
-    Unbox -> liftM2 VPropPair (unpack s2) (Right RenameVector)
+    UnboxNested -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     Append -> 
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
@@ -150,6 +150,7 @@ inferVectorTypeBinOp s1 s2 op =
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProductS"
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
+    UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
     NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoin"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"

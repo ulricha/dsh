@@ -151,7 +151,8 @@ data BinOp = Group    -- (DescrVector, DBV, PropVector)
            -- silently discarded.
            -- 
            -- Output: @(DVec, RVec)@
-           | Unbox
+           | UnboxNested
+           | UnboxScalar
            | Append
            | AppendS
            | Restrict Expr

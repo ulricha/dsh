@@ -296,7 +296,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
 
-      Unbox -> do
+      UnboxNested -> do
           cols      <- fst <$> fromPropPair ownReqColumns
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
@@ -355,6 +355,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+
+      UnboxScalar -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
 
       NestJoin p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns

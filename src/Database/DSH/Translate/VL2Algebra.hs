@@ -181,9 +181,11 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecPropReorder (toPVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
 
-    V.Unbox -> do
-        (v, r) <- vecUnbox (toRVec c1) (toDVec c2)
+    V.UnboxNested -> do
+        (v, r) <- vecUnboxNested (toRVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec r)
+
+    V.UnboxScalar -> RDVec <$> vecUnboxScalar (toDVec c1) (toDVec c2)
 
     V.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
