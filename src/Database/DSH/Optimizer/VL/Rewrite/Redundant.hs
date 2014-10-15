@@ -74,7 +74,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , pullProjectNumber
                          , constAlign
                          , nestJoinChain
-                         , pullProjectUnboxScalar
+                         , pullProjectUnboxScalarLeft
+                         , pullProjectUnboxScalarRight
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -678,8 +679,8 @@ pullProjectPropRename q =
            renameNode <- insert $ BinOp PropRename $(v "qp") $(v "qv")
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) renameNode |])
 
-pullProjectUnboxScalar :: VLRule BottomUpProps
-pullProjectUnboxScalar q =
+pullProjectUnboxScalarLeft :: VLRule BottomUpProps
+pullProjectUnboxScalarLeft q =
   $(dagPatMatch 'q "(Project proj (q1)) UnboxScalar (q2)"
     [| do 
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
@@ -694,8 +695,26 @@ pullProjectUnboxScalar q =
            unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
 
            void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
-    
 
+pullProjectUnboxScalarRight :: VLRule BottomUpProps
+pullProjectUnboxScalarRight q =
+  $(dagPatMatch 'q "(q1) UnboxScalar (Project proj (q2))"
+    [| do 
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+           logRewrite "Redundant.Project.UnboxScalar" q
+
+           -- Preserve left input columns on top of the unboxing
+           -- operator and add right input expressions with shifted
+           -- columns.
+           let proj' = map Column [1..leftWidth]
+                       ++
+                       [ mapExprCols (+ leftWidth) e | e <- $(v "proj") ]
+           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+
+           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+    
 pullProjectPropReorder :: VLRule ()
 pullProjectPropReorder q =
   $(dagPatMatch 'q "R1 ((qp) PropReorder (Project proj (qv)))"

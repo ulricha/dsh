@@ -251,7 +251,7 @@ mergeGroupAggr q =
 -- the effect is that only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) UnboxScalar (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
     

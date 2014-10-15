@@ -197,6 +197,6 @@ nj2 =
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c nestedStuff
+main = getConn P.>>= \c -> debugQ "q" c q13
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
