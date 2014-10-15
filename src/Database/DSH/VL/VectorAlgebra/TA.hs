@@ -375,13 +375,8 @@ instance VectorAlgebra NDVec TableAlgebra where
               VL.AggrCount   -> segAggrDefault qo qa (int 0)
               _              -> return qa
 
-    -- We have to unnest the inner vector (i.e. surrogate join) to get
-    -- the outer descriptor values (segmented aggregates remove one
-    -- list type constructor)
-    qr <- projM [mP descr descr', mP pos pos', cP item]
-          $ (eqJoinM pos' descr
-             (proj [mP descr' descr, mP pos' pos] qo)
-             (return qd))
+    qr <- rownum' pos [(ColE descr, Asc)] [] qd
+
     return $ ADVec qr [1]
 
   vecAggrNonEmptyS as (ADVec q _) = do

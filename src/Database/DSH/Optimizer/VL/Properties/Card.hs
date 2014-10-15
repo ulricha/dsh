@@ -75,7 +75,7 @@ inferCardOneBinOp c1 c2 op =
     PropFilter -> return $ VPropPair False False
     PropReorder -> return $ VPropPair False False
     UnboxNested -> return $ VPropPair False False
-    UnboxScalar -> return $ VPropPair False False
+    UnboxScalar -> return $ VProp False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False

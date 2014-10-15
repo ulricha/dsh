@@ -65,6 +65,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipWinLeft
                          , zipWinRight
                          , zipWinRightPush
+                         , zipUnboxScalar
                          -- , stackedAlign
                          , propProductCard1Right
                          , runningAggWin
@@ -73,6 +74,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , pullProjectNumber
                          , constAlign
                          , nestJoinChain
+                         , pullProjectUnboxScalar
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -83,7 +85,7 @@ redundantRulesAllProps = [ unreferencedAlign
                          ]
 
 --------------------------------------------------------------------------------
--- Restrict rewrites
+-- Restrict rewrites: Specialization of selections
 
 -- | Support rewrite: If a WinFun operator /adds/ columns to the
 -- restrict input that are used in the condition, push it down into
@@ -104,8 +106,6 @@ restrictWinFun q =
            let proj = map Column [1..w]
            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
            
-
-
 mergeProjectRestrict :: VLRule ()
 mergeProjectRestrict q =
   $(dagPatMatch 'q "(q1) Restrict p (Project es (q2))"
@@ -525,6 +525,40 @@ zipWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
+-- | If singleton scalar elements in an inner vector (with singleton
+-- segments) are unboxed using an outer vector and then zipped with
+-- the same outer vector, we can eliminate the zip, because the
+-- positional alignment is implicitly performed by the UnboxScalar
+-- operator. We exploit the fact that UnboxScalar is only a
+-- specialized join which nevertheless produces payload columns from
+-- both inputs.
+zipUnboxScalar :: VLRule BottomUpProps
+zipUnboxScalar q = 
+  $(dagPatMatch 'q "(q11) Zip (qu=(q12) UnboxScalar (q2))"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Zip.UnboxScalar.Right" q
+             
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxScalar produces columns from
+             -- its left and right inputs).
+             let outputCols = -- Two times the left input columns
+                              [1..leftWidth] ++ [1..leftWidth] 
+                              -- Followed by the right input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
 --------------------------------------------------------------------------------
 -- Specialization of sorting
 
@@ -643,6 +677,24 @@ pullProjectPropRename q =
            logRewrite "Redundant.Project.PropRename" q
            renameNode <- insert $ BinOp PropRename $(v "qp") $(v "qv")
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) renameNode |])
+
+pullProjectUnboxScalar :: VLRule BottomUpProps
+pullProjectUnboxScalar q =
+  $(dagPatMatch 'q "(Project proj (q1)) UnboxScalar (q2)"
+    [| do 
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+           logRewrite "Redundant.Project.UnboxScalar" q
+
+           -- Employ projection expressions on top of the unboxing
+           -- operator, add right input columns.
+           let proj' = $(v "proj") ++ map Column [ leftWidth + 1 .. leftWidth + rightWidth ]
+           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+
+           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+    
 
 pullProjectPropReorder :: VLRule ()
 pullProjectPropReorder q =

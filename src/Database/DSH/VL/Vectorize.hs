@@ -116,7 +116,7 @@ index (VShape qs (LNest qi lyti)) (SShape i _) = do
     i'        <- vlBinExpr (L.SBNumOp L.Add) i one
     -- Use the unboxing rename vector
     (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
-    (qu, ri)  <- vlUnbox r qi
+    (qu, ri)  <- vlUnboxNested r qi
     lyti'     <- chainRenameFilter ri lyti
     return $ VShape qu lyti'
 index (VShape qs lyt) (SShape i _) = do
@@ -441,7 +441,7 @@ indexL (VShape d (LNest qs (LNest qi lyti))) (VShape is (LCol 1)) = do
     (ones, _) <- vlDistPrim one is
     is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
     (_, _, u) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    (qu, ri)  <- vlUnbox u qi
+    (qu, ri)  <- vlUnboxNested u qi
     lyti'     <- chainRenameFilter ri lyti
     return $ VShape d (LNest qu lyti')
 indexL (VShape d (LNest qs lyt)) (VShape is (LCol 1)) = do
@@ -507,8 +507,9 @@ concatL _ = $impossible
 
 lengthL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 lengthL (VShape q (LNest qi _)) = do
-    ls <- vlAggrS AggrCount q qi
-    return $ VShape ls (LCol 1)
+    ls  <- vlAggrS AggrCount q qi
+    lsu <- vlUnboxScalar q ls
+    return $ VShape lsu (LCol 1)
 lengthL s = trace (show s) $ $impossible
 
 consL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -529,7 +530,8 @@ outer (VShape q _)        = return q
 aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggrL afun (VShape d (LNest q (LCol 1))) = do
     qr <- vlAggrS (afun (Column 1)) d q
-    return $ VShape qr (LCol 1)
+    qu <- vlUnboxScalar d qr
+    return $ VShape qu (LCol 1)
 aggrL _ _ = $impossible
 
 distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)

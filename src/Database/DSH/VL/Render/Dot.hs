@@ -237,6 +237,7 @@ opDotColor (BinOp Group _ _)             = DCTomato
 opDotColor (UnOp (GroupScalarS _) _)     = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan
 opDotColor (BinOp UnboxNested _ _)       = DCTan
+opDotColor (BinOp UnboxScalar _ _)       = DCTan
 opDotColor (BinOp PropReorder _ _)       = DCTan
 opDotColor (BinOp Align _ _)             = DCTan
 opDotColor (BinOp (Restrict _)_ _)       = DCDodgerBlue

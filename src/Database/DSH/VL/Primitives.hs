@@ -187,8 +187,11 @@ vlAlign (VLDVec c1) (VLDVec c2) = pairVec (BinOp Align c1 c2) dvec pvec
 vlPropRename :: RVec -> VLDVec -> Build VL VLDVec
 vlPropRename (RVec c1) (VLDVec c2) = vec (BinOp PropRename c1 c2) dvec
 
-vlUnbox :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlUnbox (RVec c1) (VLDVec c2) = pairVec (BinOp UnboxNested c1 c2) dvec rvec
+vlUnboxNested :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlUnboxNested (RVec c1) (VLDVec c2) = pairVec (BinOp UnboxNested c1 c2) dvec rvec
+
+vlUnboxScalar :: VLDVec -> VLDVec -> Build VL VLDVec
+vlUnboxScalar (VLDVec c1) (VLDVec c2) = vec (BinOp UnboxScalar c1 c2) dvec
 
 vlPropFilter :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
 vlPropFilter (RVec c1) (VLDVec c2) = pairVec (BinOp PropFilter c1 c2) dvec rvec
