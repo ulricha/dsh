@@ -31,7 +31,7 @@ deriveTA ''Foo
 generateTableSelectors ''Foo
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'trades'"
 
 x100Conn :: X100Info
 x100Conn = undefined
@@ -118,6 +118,36 @@ q13 =
     | (view -> (c_count, g)) <- groupWithKey snd ordersPerCustomer
     ]
 
+
+hasNationality :: Q Customer -> Text -> Q Bool
+hasNationality c nationName = any (\n -> n_nameQ n == toQ nationName
+                                         && 
+                                         c_nationkeyQ c == n_nationkeyQ n) 
+                                  nations
+
+revenue :: Q Order -> Q Double
+revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
+                    | l <- lineitems
+                    , l_orderkeyQ l == o_orderkeyQ o
+                    ]
+
+nestedStuff :: Q [(Text, [(Integer, Double)])]
+nestedStuff =
+    [ tup2 (c_nameQ c) [ tup2 (o_orderdateQ o) (revenue o)
+                       | o <- orders
+                       , o_custkeyQ o == c_custkeyQ c
+                       , o_orderstatusQ o == toQ "PENDING"
+                       ]
+    | c <- customers
+    , c `hasNationality` "GERMANY"
+    ]
+
+nj2 :: Q [(Integer, [Integer])]
+nj2 = 
+    [ pair x [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
+    | x <- toQ [1,2,3,4,5,6]
+    ]
+
 data Trade = Trade
     { t_price     :: Double
     , t_tid       :: Integer
@@ -131,7 +161,7 @@ generateTableSelectors ''Trade
 
 data Portfolio = Portfolio
     { po_pid         :: Integer
-    , po_tid         :: Text
+    , po_tid         :: Integer
     , po_tradedSince :: Integer
     }
 
@@ -164,76 +194,30 @@ bestProfit stock date =
             ]
                                   
   where
-    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date)
+    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) 
               $ sortWith t_timestampQ trades
+    
+--------------------------------------------------------------------------------
+-- Compute the ten last stocks for each quote in a portfolio.
 
-hasNationality :: Q Customer -> Text -> Q Bool
-hasNationality c nationName = any (\n -> n_nameQ n == toQ nationName
-                                         && 
-                                         c_nationkeyQ c == n_nationkeyQ n) 
-                                  nations
+lastn :: QA a => Integer -> Q [a] -> Q [a]
+lastn n xs = drop (length xs - toQ n) xs
 
-revenue :: Q Order -> Q Double
-revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
-                    | l <- lineitems
-                    , l_orderkeyQ l == o_orderkeyQ o
-                    ]
-
-nestedStuff :: Q [(Text, [(Integer, Double)])]
-nestedStuff =
-    [ tup2 (c_nameQ c) [ tup2 (o_orderdateQ o) (revenue o)
-                       | o <- orders
-                       , o_custkeyQ o == c_custkeyQ c
-                       , o_orderstatusQ o == toQ "PENDING"
-                       ]
-    | c <- customers
-    , c `hasNationality` "GERMANY"
+last10 :: Integer -> Q [(Integer, [Double])]
+last10 portfolio = 
+    map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
+    $ groupWithKey fst
+    [ pair (t_tidQ t) (t_priceQ t)
+    | t <- trades
+    , p <- portfolios
+    , t_tidQ t == po_tidQ p
+    , po_pidQ p == toQ portfolio
     ]
 
-nj2 :: Q [(Integer, [Integer])]
-nj2 = 
-    [ pair x [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
-    | x <- toQ [1,2,3,4,5,6]
-    ]
-
-customersAvgBalance :: [Text] -> Q Double
-customersAvgBalance areaPrefixes =
-  avg [ c_acctbalQ c 
-      | c <- customers
-      , c_acctbalQ c > 0
-      , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes 
-      ]
-
-potentialCustomers :: [Text] -> Q [(Text, Double)]
-potentialCustomers areaPrefixes =
-  [ pair (subString 1 2 (c_phoneQ c)) (c_acctbalQ c)
-  | c <- customers
-  , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes
-  , c_acctbalQ c > customersAvgBalance areaPrefixes
-  , null [ 1 :: Q Integer | o <- orders, o_custkeyQ o == c_custkeyQ c ]
-  ]
-
-potentialCustomers' :: [Text] -> Q [(Text, Double)]
-potentialCustomers' areaPrefixes =
-  [ pair (subString 1 2 (c_phoneQ c)) (c_acctbalQ c)
-  | c <- customers
-  , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes
-  , c_acctbalQ c > customersAvgBalance areaPrefixes
-  , c_custkeyQ c `notElem` (map o_custkeyQ orders)
-  ]
-
-q22 :: [Text] -> Q [(Text, Integer, Double)]
-q22 areaPrefixes = 
-  sortWith (\(view -> (c, _, _)) -> c) $
-  [ tup3 cntrycode
-           (length pas)
-	   (sum $ map snd pas)
-  | (view -> (cntrycode, pas)) <- groupWithKey fst (potentialCustomers areaPrefixes)
-  ]
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c $ q22 $ P.map T.pack ["13", "31", "23", "29", "30", "18", "17"]
+main = getConn P.>>= \c -> debugQ "q" c $ bestProfit 23 42
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
