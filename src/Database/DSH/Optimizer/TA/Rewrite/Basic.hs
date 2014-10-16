@@ -159,6 +159,12 @@ unreferencedAggrCols q =
                   logRewrite "Basic.ICols.Aggr.Narrow" q
                   void $ replaceWithNew q $ UnOp (Aggr (neededAggrs, partCols)) $(v "q1") |])
 
+{-
+unreferencedLiteralCols :: TARule AllProps
+unreferencedLiteralCols q =
+  $(dagPatMatch 'q "LitTable 
+-}
+
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
 

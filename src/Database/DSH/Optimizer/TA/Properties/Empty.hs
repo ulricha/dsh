@@ -9,7 +9,7 @@ import           Database.DSH.Optimizer.TA.Properties.Types
 inferEmptyNullOp :: NullOp -> Empty
 inferEmptyNullOp op =
     case op of
-        LitTable vs    _   -> null vs
+        LitTable (vs, _)   -> null vs
         TableRef (_, _, _) -> False
 
 inferEmptyUnOp :: Empty -> UnOp -> Empty

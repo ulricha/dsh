@@ -120,7 +120,7 @@ winFunTy childCols (aggr, resCol) = (resCol, resType)
 inferColsNullOp :: NullOp -> S.Set TypedAttr
 inferColsNullOp op =
     case op of
-        LitTable _ schema      -> S.fromList schema
+        LitTable (_, schema)   -> S.fromList schema
         TableRef (_, attrs, _) -> S.fromList attrs
 
 inferColsUnOp :: S.Set TypedAttr -> UnOp -> S.Set TypedAttr

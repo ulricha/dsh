@@ -28,7 +28,7 @@ constProj constCols (c, e) = constExpr constCols e >>= \v -> return (c, v)
 inferConstNullOp :: NullOp -> [ConstCol]
 inferConstNullOp op =
     case op of
-        LitTable tuples schema -> concat $ zipWith constCol (transpose tuples) (map fst schema)
+        LitTable (tuples, schema) -> concat $ zipWith constCol (transpose tuples) (map fst schema)
           where
             constCol (v:vs) c | all (== v) vs = [(c, v)]
             constCol _      _                 = []

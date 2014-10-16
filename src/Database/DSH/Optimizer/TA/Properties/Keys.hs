@@ -52,10 +52,10 @@ inferKeysNullOp :: NullOp -> S.Set PKey
 inferKeysNullOp op =
     case op of
         -- FIXME check all combinations of columns for uniqueness
-        LitTable vals schema  -> S.fromList
-                                 $ map (ss . snd) 
-                                 $ filter (isUnique . fst)
-                                 $ zip (transpose vals) (map fst schema)
+        LitTable (vals, schema)  -> S.fromList
+                                    $ map (ss . snd) 
+                                    $ filter (isUnique . fst)
+                                    $ zip (transpose vals) (map fst schema)
           where
             isUnique :: [AVal] -> Bool
             isUnique vs = (length $ nub vs) == (length vs)
