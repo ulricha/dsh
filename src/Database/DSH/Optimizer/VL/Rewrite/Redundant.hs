@@ -711,6 +711,7 @@ pullProjectUnboxScalarRight q =
            let proj' = map Column [1..leftWidth]
                        ++
                        [ mapExprCols (+ leftWidth) e | e <- $(v "proj") ]
+
            unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
 
            void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])

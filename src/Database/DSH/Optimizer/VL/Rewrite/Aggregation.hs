@@ -188,28 +188,16 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
+  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar (AggrNonEmptyS afuns (R2 (qg1=GroupScalarS groupExprs (q1))))"
     [| do
+
+        -- Ensure that the aggregate results are unboxed using the
+        -- outer vector of the grouping operator.
+        predicate $ $(v "qg") == $(v "qg1")
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          -- The output format of the new VecAggr operator is
-          -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the
-          -- grouping columns and a1, ..., am are the aggregates
-          -- themselves.
-          -- For the moment, we keep only the aggregate output and discard the
-          -- grouping columns. They have to be added later on.
-
-          let gw = length $(v "groupExprs")
-              aw = N.length $(v "afuns")
-              proj = map Column [gw + 1.. aw + gw]
-
-          -- We obviously assume that the grouping columns are still present in
-          -- the right input of GroupBy at the same position. In combination
-          -- with rewrite pushExprThroughGroupBy, this is true since we only
-          -- add columns at the end.
-          groupNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1")
-          void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1") |])
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =
@@ -251,7 +239,7 @@ mergeGroupAggr q =
 -- the effect is that only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) UnboxScalar (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
     

@@ -99,6 +99,8 @@ class VectorAlgebra v a where
     -- operates segmented, i.e. always groups by descr first. This
     -- operator must be used with care: It does not determine the
     -- complete set of descr value to check for empty inner lists.
+    -- The output payload columns are the grouping columns followed by
+    -- the aggregation results.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> v -> Build a v
 
 
