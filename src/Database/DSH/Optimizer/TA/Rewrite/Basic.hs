@@ -33,6 +33,7 @@ cleanupRules = [ stackedProject
                , serializeProject
                , pullProjectWinFun
                , pullProjectSelect
+               , pullProjectSemiAntiRight
                ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
@@ -40,6 +41,7 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , unreferencedRank
                       , unreferencedProjectCols
                       , unreferencedAggrCols
+                      , unreferencedLiteralCols
                       , postFilterRownum
                       , inlineSortColsRownum
                       , inlineSortColsSerialize
@@ -159,11 +161,27 @@ unreferencedAggrCols q =
                   logRewrite "Basic.ICols.Aggr.Narrow" q
                   void $ replaceWithNew q $ UnOp (Aggr (neededAggrs, partCols)) $(v "q1") |])
 
-{-
+
 unreferencedLiteralCols :: TARule AllProps
 unreferencedLiteralCols q =
-  $(dagPatMatch 'q "LitTable 
--}
+  $(dagPatMatch 'q "LitTable tab "
+    [| do
+         neededCols <- pICols <$> td <$> properties q
+
+         let (tuples, schema)  = $(v "tab")
+
+         predicate $ S.size neededCols < length schema
+    
+         return $ do
+
+             let columns = transpose tuples
+             let (reqCols, reqSchema) = 
+                  unzip 
+                  $ filter (\(_, (colName, _)) -> colName `S.member` neededCols) 
+                  $ zip columns schema
+             let reqTuples = transpose reqCols
+
+             void $ replaceWithNew q $ NullaryOp $ LitTable (reqTuples, reqSchema) |])
 
 ----------------------------------------------------------------------------------
 -- Basic Const rewrites
@@ -472,3 +490,18 @@ pullProjectSelect q =
               let p' = inlineExpr $(v "proj") $(v "p")
               selectNode <- insert $ UnOp (Select p') $(v "q1")
               void $ replaceWithNew q $ UnOp (Project $(v "proj")) selectNode |])
+
+inlineJoinPredRight :: [Proj] -> [(Expr, Expr, JoinRel)] -> [(Expr, Expr, JoinRel)]
+inlineJoinPredRight proj p = map inlineConjunct p
+  where
+    inlineConjunct (le, re, rel) = (le, inlineExpr proj re, rel)
+
+pullProjectSemiAntiRight :: TARule ()
+pullProjectSemiAntiRight q =
+    $(dagPatMatch 'q "(q1) [SemiJoin | AntiJoin]@jop p (Project proj (q2))"
+      [| do
+          return $ do
+              logRewrite "Basic.PullProject.SemiAnti.Right" q
+              let p' = inlineJoinPredRight $(v "proj") $(v "p")
+              void $ replaceWithNew q $ BinOp ($(v "jop") p') $(v "q1") $(v "q2") |])
+

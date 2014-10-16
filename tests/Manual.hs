@@ -20,6 +20,8 @@ import Database.X100Client
 
 import Database.HDBC.PostgreSQL
 
+import qualified Data.Text as T
+
 import TPCH
 
 data Foo = Foo { foo1 :: Integer, foo2 :: Text, foo3 :: Integer }
@@ -193,10 +195,45 @@ nj2 =
     [ pair x [ y | y <- toQ [3,4,5,6,3,6,4,1,1,1], x == y ]
     | x <- toQ [1,2,3,4,5,6]
     ]
+
+customersAvgBalance :: [Text] -> Q Double
+customersAvgBalance areaPrefixes =
+  avg [ c_acctbalQ c 
+      | c <- customers
+      , c_acctbalQ c > 0
+      , c_phoneQ c `elem` toQ areaPrefixes 
+      ]
+
+potentialCustomers :: [Text] -> Q [(Text, Double)]
+potentialCustomers areaPrefixes =
+  [ pair (c_phoneQ c) (c_acctbalQ c)
+  | c <- customers
+  , c_phoneQ c `elem` toQ areaPrefixes
+  , c_acctbalQ c > customersAvgBalance areaPrefixes
+  , null [ 1 :: Q Integer | o <- orders, o_custkeyQ o == c_custkeyQ c ]
+  ]
+
+potentialCustomers' :: [Text] -> Q [(Text, Double)]
+potentialCustomers' areaPrefixes =
+  [ pair (c_phoneQ c) (c_acctbalQ c)
+  | c <- customers
+  , c_phoneQ c `elem` toQ areaPrefixes
+  , c_acctbalQ c > customersAvgBalance areaPrefixes
+  , c_custkeyQ c `notElem` (map o_custkeyQ orders)
+  ]
+
+q22 :: [Text] -> Q [(Text, Integer, Double)]
+q22 areaPrefixes = 
+  sortWith (\(view -> (c, _, _)) -> c) $
+  [ tup3 cntrycode
+           (length pas)
+	   (sum $ map snd pas)
+  | (view -> (cntrycode, pas)) <- groupWithKey fst (potentialCustomers areaPrefixes)
+  ]
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c q13
+main = getConn P.>>= \c -> debugQ "q" c $ q22 $ P.map T.pack ["13", "31", "23", "29", "30", "18", "17"]
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1
