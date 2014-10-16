@@ -317,6 +317,7 @@ scalarUnOp op e =
            (L.SUNumOp _, DoubleT)                 -> UnOp t op e
            (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
            (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
+           (L.SUTextOp L.SubString{}, StringT)    -> UnOp StringT op e
            (L.SUDateOp, _)                        -> $unimplemented
            (_, _)                                 -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))

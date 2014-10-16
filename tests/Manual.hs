@@ -201,23 +201,23 @@ customersAvgBalance areaPrefixes =
   avg [ c_acctbalQ c 
       | c <- customers
       , c_acctbalQ c > 0
-      , c_phoneQ c `elem` toQ areaPrefixes 
+      , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes 
       ]
 
 potentialCustomers :: [Text] -> Q [(Text, Double)]
 potentialCustomers areaPrefixes =
-  [ pair (c_phoneQ c) (c_acctbalQ c)
+  [ pair (subString 1 2 (c_phoneQ c)) (c_acctbalQ c)
   | c <- customers
-  , c_phoneQ c `elem` toQ areaPrefixes
+  , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes
   , c_acctbalQ c > customersAvgBalance areaPrefixes
   , null [ 1 :: Q Integer | o <- orders, o_custkeyQ o == c_custkeyQ c ]
   ]
 
 potentialCustomers' :: [Text] -> Q [(Text, Double)]
 potentialCustomers' areaPrefixes =
-  [ pair (c_phoneQ c) (c_acctbalQ c)
+  [ pair (subString 1 2 (c_phoneQ c)) (c_acctbalQ c)
   | c <- customers
-  , c_phoneQ c `elem` toQ areaPrefixes
+  , subString 1 2 (c_phoneQ c) `elem` toQ areaPrefixes
   , c_acctbalQ c > customersAvgBalance areaPrefixes
   , c_custkeyQ c `notElem` (map o_custkeyQ orders)
   ]
