@@ -34,6 +34,9 @@ cleanupRules = [ stackedProject
                , pullProjectWinFun
                , pullProjectSelect
                , pullProjectSemiAntiRight
+               , duplicateSortingCriteriaWin
+               , duplicateSortingCriteriaRownum
+               , duplicateSortingCriteriaSerialize
                ]
 
 cleanupRulesTopDown :: TARuleSet AllProps
@@ -295,7 +298,7 @@ inlineSortColsRownum q =
         -- The rewrite should only fire if something actually changes
         predicate $ any isRight mSortCols
 
-        let sortCols' = concatMap (either id id) mSortCols
+        let sortCols' = nub $ concatMap (either id id) mSortCols
 
         return $ do
           logRewrite "Basic.InlineOrder.RowNum" q
@@ -308,7 +311,7 @@ inlineSortColsSerialize q =
         (d, RelPos cs, reqCols) <- return $(v "scols")
         orders@(_:_) <- pOrder <$> bu <$> properties $(v "q1")
 
-        let cs' = concatMap (\c -> maybe [c] id $ lookup c orders) cs
+        let cs' = nub $ concatMap (\c -> maybe [c] id $ lookup c orders) cs
         predicate $ cs /= cs'
 
         return $ do
@@ -330,7 +333,7 @@ inlineSortColsWinFun q =
         -- The rewrite should only fire if something actually changes
         predicate $ any isRight mSortCols
 
-        let sortCols' = concatMap (either id id) mSortCols
+        let sortCols' = nub $ concatMap (either id id) mSortCols
             args'     = (f, part, sortCols', frameSpec)
 
         return $ do
@@ -363,6 +366,51 @@ keyPrefixOrdering q =
             logRewrite "Basic.SimplifyOrder.KeyPrefix" q
             let sortCols' = take (length prefix) sortCols
             void $ replaceWithNew q $ UnOp (RowNum (resCol, sortCols', [])) $(v "q1") |])
+
+duplicateSortingCriteriaRownum :: TARule ()
+duplicateSortingCriteriaRownum q =
+  $(dagPatMatch 'q "RowNum args (q1)"
+    [| do
+        (resCol, sortCols, []) <- return $(v "args")
+
+        let sortCols' = nub sortCols
+
+        predicate $ length sortCols' < length sortCols
+
+        return $ do
+            logRewrite "Basic.SimplifyOrder.Duplicates.Rownum" q
+            let args' = (resCol, sortCols', [])
+            void $ replaceWithNew q $ UnOp (RowNum args') $(v "q1") |])
+
+duplicateSortingCriteriaWin :: TARule ()
+duplicateSortingCriteriaWin q =
+  $(dagPatMatch 'q "WinFun args (q1)"
+    [| do
+        let (winFuns, part, sortCols, mFrameBounds) = $(v "args")
+        
+        let sortCols' = nub sortCols
+
+        predicate $ length sortCols' < length sortCols
+
+        return $ do
+            logRewrite "Basic.SimplifyOrder.Duplicates.WinFun" q
+            let args' = (winFuns, part, sortCols', mFrameBounds)
+            void $ replaceWithNew q $ UnOp (WinFun args') $(v "q1") |])
+
+duplicateSortingCriteriaSerialize :: TARule ()
+duplicateSortingCriteriaSerialize q =
+  $(dagPatMatch 'q "Serialize args (q1)"
+    [| do
+        (mDescr, RelPos sortCols, payload) <- return $(v "args")
+        let sortCols' = nub sortCols
+
+        predicate $ length sortCols' < length sortCols
+
+        return $ do
+            logRewrite "Basic.SimplifyOrder.Duplicates.Serialize" q
+            let args' = (mDescr, RelPos sortCols', payload)
+            void $ replaceWithNew q $ UnOp (Serialize args') $(v "q1") |])
+        
 
 ----------------------------------------------------------------------------------
 -- Serialize rewrites
