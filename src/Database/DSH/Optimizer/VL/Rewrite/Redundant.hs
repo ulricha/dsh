@@ -76,6 +76,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , nestJoinChain
                          , pullProjectUnboxScalarLeft
                          , pullProjectUnboxScalarRight
+                         , pullProjectNestJoinLeft
+                         , pullProjectNestJoinRight
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -635,6 +637,56 @@ scalarConditional q =
 
 ------------------------------------------------------------------------------
 -- Projection pullup
+
+inlineJoinPredLeft :: [(DBCol, Expr)] -> JoinPredicate Expr -> JoinPredicate Expr
+inlineJoinPredLeft env (JoinPred conjs) = JoinPred $ fmap inlineLeft conjs
+  where
+    inlineLeft :: JoinConjunct Expr -> JoinConjunct Expr
+    inlineLeft (JoinConjunct le op re) = JoinConjunct (mergeExpr env le) op re
+
+inlineJoinPredRight :: [(DBCol, Expr)] -> JoinPredicate Expr -> JoinPredicate Expr
+inlineJoinPredRight env (JoinPred conjs) = JoinPred $ fmap inlineRight conjs
+  where
+    inlineRight :: JoinConjunct Expr -> JoinConjunct Expr
+    inlineRight (JoinConjunct le op re) = JoinConjunct le op (mergeExpr env re)
+
+pullProjectNestJoinLeft :: VLRule BottomUpProps
+pullProjectNestJoinLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoin p (q2))"
+    [| do
+        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Redundant.Project.NestJoin.Left" q
+            let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
+                p'    = inlineJoinPredLeft (zip [1..] $(v "proj")) $(v "p")
+
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents 
+            |])
+
+pullProjectNestJoinRight :: VLRule BottomUpProps
+pullProjectNestJoinRight q =
+  $(dagPatMatch 'q "R1 ((q1) NestJoin p (Project proj (q2)))"
+    [| do
+        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Redundant.Project.NestJoin.Right" q
+            let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
+                p'    = inlineJoinPredRight (zip [1..] $(v "proj")) $(v "p")
+
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents 
+            |])
+        
 
 pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
