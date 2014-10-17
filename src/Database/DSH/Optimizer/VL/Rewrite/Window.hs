@@ -35,9 +35,10 @@ aggrToWinFun AggrCount     = WinCount
 -- Turn a running aggregate based on a self-join into a window operator.
 runningAggWin :: VLRule BottomUpProps
 runningAggWin q =
-  $(dagPatMatch 'q "(_) AggrS afun (R1 ((Segment (Number (q1))) ThetaJoin p (Number (q2))))"
+  $(dagPatMatch 'q "(qo) UnboxScalar ((_) AggrS afun (R1 ((qn=Number (q1)) NestJoin p (Number (q2)))))"
     [| do
         predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "qo") == $(v "qn")
 
         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
@@ -58,15 +59,8 @@ runningAggWin q =
             -- Shift column references in aggregate functions so that
             -- they are applied to partition columns.
             let afun' = aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
-
-            -- The WinAggr operator /adds/ the window function output
-            -- as a new column but keeps the old columns. Because we
-            -- introduce WinAggr starting with Aggrs which only
-            -- produces the aggregate output, we have to insert a
-            -- projection to remove the original input columns and
-            -- only keep the window function output.
-            winNode <- insert $ UnOp (WinFun (afun', FAllPreceding)) $(v "q1")
-            void $ replaceWithNew q $ UnOp (Project [Column $ w + 1]) winNode |])
+                
+            void $ replaceWithNew q $ UnOp (WinFun (afun', FAllPreceding)) $(v "qn") |])
 
 firstValueWin :: VLRule Properties
 firstValueWin q =
