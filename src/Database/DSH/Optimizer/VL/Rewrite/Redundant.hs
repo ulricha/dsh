@@ -31,13 +31,10 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ mergeProjectRestrict
-                 , scalarRestrict
-                 , simpleSort
+redundantRules = [ simpleSort
                  , sortProject
                  , pullProjectPropRename
                  , pullProjectPropReorder
-                 , pullProjectRestrict
                  , pullProjectSelectPos1S
                  , pullProjectPropFilter
                  , pullProjectUnboxRename
@@ -58,7 +55,6 @@ redundantRulesBottomUp = [ distPrimConstant
                          , selectConstPos
                          , selectConstPosS
                          , completeSort
-                         , restrictZip
                          , zipConstLeft
                          , zipConstRight
                          , alignConstLeft
@@ -72,7 +68,6 @@ redundantRulesBottomUp = [ distPrimConstant
                          , propProductCard1Right
                          , runningAggWin
                          , inlineWinAggrProject
-                         , restrictWinFun
                          , pullProjectNumber
                          , constDistLift
                          , nestJoinChain
@@ -90,95 +85,7 @@ redundantRulesAllProps = [ unreferencedDistLift
                          ]
 
 --------------------------------------------------------------------------------
--- Restrict rewrites: Specialization of selections
-
--- | Support rewrite: If a WinFun operator /adds/ columns to the
--- restrict input that are used in the condition, push it down into
--- the left Restrict input. This helps to turn Restricts into Selects.
-restrictWinFun :: VLRule BottomUpProps
-restrictWinFun q =
-  $(dagPatMatch 'q "R1 ((q1) Restrict p (qw=WinFun _ (q2)))"
-    [| do
-         predicate $ $(v "q1") == $(v "q2")
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         return $ do
-           logRewrite "Redundant.Restrict.WinFun" q
-
-           restrictNode <- insert $ BinOp (Restrict $(v "p")) $(v "qw") $(v "qw")
-           r1Node       <- insert $ UnOp R1 restrictNode
-
-           -- Remove the window function output.
-           let proj = map Column [1..w]
-           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
-           
-mergeProjectRestrict :: VLRule ()
-mergeProjectRestrict q =
-  $(dagPatMatch 'q "(q1) Restrict p (Project es (q2))"
-    [| do
-        return $ do
-          logRewrite "Redundant.Restrict.Project" q
-          let env = zip [1..] $(v "es")
-              p'  = mergeExpr env $(v "p")
-          void $ replaceWithNew q $ BinOp (Restrict p') $(v "q1") $(v "q2") |])
-
--- | If the left input of a Restrict operator that builds the
--- filtering vector is just a simple scalar expression, a scalar
--- Select can be used instead.
-scalarRestrict :: VLRule ()
-scalarRestrict q =
-  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Restrict.Scalar" q
-          selectNode <- insert $ UnOp (Select $(v "p")) $(v "q1")
-          void $ replaceWithNew q $ UnOp R1 selectNode
-
-          r2Parents <- lookupR2Parents $(v "qr")
-
-          -- If there are any R2 nodes linking to the original
-          -- Restrict operator (i.e. there are inner vectors to which
-          -- changes must be propagated), they have to be rewired to
-          -- the new Select operator.
-          when (not $ null r2Parents) $ do
-            qr2' <- insert $ UnOp R2 selectNode
-            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
-
--- | If the vector that is to be filtered by Restrict (left input) is
--- combined with the filter criteria to go into the Restrict
--- predicate, we might just turn the Restrict into a Select. Columns
--- from the left are already present after the zip and re-joining them
--- after selection is not necessary.
-restrictZip :: VLRule BottomUpProps
-restrictZip q =
-  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (qz=(q2) Zip (_)))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        
-        return $ do
-          logRewrite "Redundant.Restrict.Zip" q
-          let proj = [ Column c | c <- [1..w]]
-
-          selNode <- insert $ UnOp (Select $(v "p")) $(v "qz")
-          r1Node <- insert $ UnOp R1 selNode
-          void $ replaceWithNew q $ UnOp (Project proj) r1Node
-
-          r2Parents <- lookupR2Parents $(v "qr")
-
-          -- If there are any R2 nodes linking to the original
-          -- Restrict operator (i.e. there are inner vectors to which
-          -- changes must be propagated), they have to be rewired to
-          -- the new Select operator.
-          when (not $ null r2Parents) $ do
-            qr2' <- insert $ UnOp R2 selNode
-            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
-
---------------------------------------------------------------------------------
 -- 
-
-
 
 -- | Replace a DistPrim operator with a projection if its value input
 -- is constant.
@@ -734,19 +641,6 @@ pullProjectNumber q =
              let proj' = $(v "proj") ++ [Column $ w + 1]
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
-
--- | Pull a projection atop a Restrict operator. This rewrite mainly
--- serves to clear the way for merging of Combine/Restrict
--- combinations into scalar conditional expressions.
-pullProjectRestrict :: VLRule ()
-pullProjectRestrict q =
-  $(dagPatMatch 'q "R1 ((Project projs (q1)) Restrict p (qb))"
-     [| do
-          return $ do
-            logRewrite "Redundant.Project.Restrict" q
-            restrictNode <- insert $ BinOp (Restrict $(v "p")) $(v "q1") $(v "qb")
-            r1Node       <- insert $ UnOp R1 restrictNode
-            void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might

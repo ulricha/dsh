@@ -69,7 +69,6 @@ seed (BinOp op _ _) =
     PropReorder        -> vPropPairSeed
     UnboxNested        -> vPropPairSeed
     UnboxScalar        -> vPropSeed
-    Restrict _         -> vPropPairSeed
     SelectPos _        -> vPropTripleSeed
     SelectPosS _       -> vPropTripleSeed
     PropRename         -> vPropSeed

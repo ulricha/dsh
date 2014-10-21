@@ -156,8 +156,6 @@ data BinOp = Group    -- (DescrVector, DBV, PropVector)
 
            | UnboxScalar
 
-           | Restrict Expr
-
            | Align
 
            | Zip

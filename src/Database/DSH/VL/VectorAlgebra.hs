@@ -141,8 +141,6 @@ class VectorAlgebra v a where
     vecAppend :: v -> v -> Build a (v, RVec, RVec)
     vecAppendS :: v -> v -> Build a (v, RVec, RVec)
 
-    vecRestrict :: Expr -> v -> v -> Build a (v, RVec)
-
     -- | Align two vectors positionally. However, in contrast to
     -- 'vecZip', these are not arbitrary vectors, but vectors which
     -- are guaranteed to have the same length because they are

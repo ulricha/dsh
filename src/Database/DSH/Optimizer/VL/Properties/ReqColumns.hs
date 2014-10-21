@@ -311,12 +311,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight    <- (VProp cols) ∪ childReqColumns2
           return (fromLeft, fromRight)
 
-      Restrict e -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- VProp cols ∪ childReqColumns1
-          let fromRight = VProp $ Just $ reqExprCols e
-          return (fromLeft, fromRight)
-
       SelectPos _ -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- VProp cols ∪ childReqColumns1

@@ -214,9 +214,6 @@ vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 vlUnsegment :: VLDVec -> Build VL VLDVec
 vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: Expr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlRestrict e (VLDVec c1) (VLDVec c2) = pairVec (BinOp (Restrict e) c1 c2) dvec rvec
-
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
