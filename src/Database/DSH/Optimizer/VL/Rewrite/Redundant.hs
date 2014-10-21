@@ -31,9 +31,7 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ simpleSort
-                 , sortProject
-                 , pullProjectPropRename
+redundantRules = [ pullProjectPropRename
                  , pullProjectPropReorder
                  , pullProjectSelectPos1S
                  , pullProjectPropFilter
@@ -54,7 +52,6 @@ redundantRulesBottomUp = [ distPrimConstant
                          , distLiftParents
                          , selectConstPos
                          , selectConstPosS
-                         , completeSort
                          , zipConstLeft
                          , zipConstRight
                          , alignConstLeft
@@ -500,48 +497,6 @@ zipUnboxScalar q =
              -- projection that keeps the original output schema
              -- intact.
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
-
---------------------------------------------------------------------------------
--- Specialization of sorting
-
--- | Employ a specialized operator if the sorting criteria are simply
--- a selection of columns from the input vector.
-simpleSort :: VLRule ()
-simpleSort q =
-  $(dagPatMatch 'q "(Project ps (q1)) SortS (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Sort.Scalar" q
-          void $ replaceWithNew q $ UnOp (SortScalarS $(v "ps")) $(v "q1") |])
-
--- | Special case: a vector is sorted by all its item columns.
-completeSort :: VLRule BottomUpProps
-completeSort q =
-  $(dagPatMatch 'q "(q1) SortS (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Sort.Complete" q
-          let sortProj = map Column [1..w]
-          void $ replaceWithNew q $ UnOp (SortScalarS sortProj) $(v "q1") |])
-
--- | Pull a projection on a Sort operator's input over the Sort
--- operator. This rewrite should enable the SortScalarS rewrite when
--- the common source of Sort's left and right inputs is obstructed by
--- a projection.
-sortProject :: VLRule ()
-sortProject q =
-  $(dagPatMatch 'q "R1 ((q1) SortS (Project proj (q2)))"
-   [| do
-       return $ do
-         logRewrite "Redundant.Sort.PullProject" q
-         sortNode <- insert $ BinOp SortS $(v "q1") $(v "q2")
-         r1Node   <- insert $ UnOp R1 sortNode
-         void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
 
 --------------------------------------------------------------------------------
 -- Scalar conditionals

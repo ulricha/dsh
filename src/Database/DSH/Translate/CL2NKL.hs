@@ -117,7 +117,7 @@ prim2 t o e1 e2 = mkApp2
                         n <- freshName
                         let nv = CL.Var (typeOf e2) n
                         P.let_ n <$> expr e2 
-                                 <*> (P.sort <$> mkComp h x nv <*> expr nv)
+                                 <*> (P.sort <$> expr nv <*> mkComp h x nv)
                     _            -> $impossible
 
             CL.GroupWithKey ->
@@ -126,7 +126,7 @@ prim2 t o e1 e2 = mkApp2
                         n <- freshName
                         let nv = CL.Var (typeOf e2) n
                         P.let_ n <$> expr e2 
-                                 <*> (P.group <$> mkComp h x nv <*> expr nv)
+                                 <*> (P.group <$> expr nv <*> mkComp h x nv)
                     _            -> $impossible
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr

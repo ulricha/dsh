@@ -158,18 +158,31 @@ tail (VShape d lyt) = do
 tail _ = $impossible
 
 sort :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-sort (VShape q1 _) (VShape q2 lyt2) = do
-    (v, p) <- vlSort q1 q2
-    lyt2'  <- chainReorder p lyt2
-    return $ VShape v lyt2'
+sort (VShape q1 lyt1) (VShape q2 lyt2) = do
+    let leftWidth  = columnsInLayout lyt1
+        rightWidth = columnsInLayout lyt2
+
+        sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    -- Sort by all columns from the right vector
+    (sortedVec, propVec) <- vlSortS sortExprs =<< vlAlign q1 q2
+
+    -- After sorting, discard the sorting criteria columns from the
+    -- right vector
+    resVec               <- vlProject sortedVec (map Column [1..leftWidth])
+    lyt1'  <- chainReorder propVec lyt1
+    return $ VShape resVec lyt1'
 sort _e1 _e2 = $impossible
 
 group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+group = $unimplemented
+{-
 group (VShape q1 lyt1) (VShape q2 lyt2) = do
     (d, v, p) <- vlGroup q1 q2
     lyt2'     <- chainReorder p lyt2
     return $ VShape d (LTuple [lyt1, LNest v lyt2'])
 group _e1 _e2 = $impossible
+-}
 
 length_ ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length_ q = do
@@ -502,18 +515,24 @@ tailL (VShape d (LNest q lyt)) = do
 tailL _ = $impossible
 
 sortL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+sortL = $unimplemented
+{-
 sortL (VShape _ (LNest v1 _)) (VShape d2 (LNest v2 lyt2)) = do
-    (v, p) <- vlSort v1 v2
+    (v, p) <- vlSortS v1 v2
     lyt2'  <- chainReorder p lyt2
     return $ VShape d2 (LNest v lyt2')
 sortL _ _ = $impossible
+-}
 
 groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+groupL = $unimplemented
+{-
 groupL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do
     (d, v, p) <- vlGroup v1 v2
     lyt2'     <- chainReorder p lyt2
     return $ VShape d2 (LNest d (LTuple [lyt1, LNest v lyt2']))
 groupL _ _ = $impossible
+-}
 
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do

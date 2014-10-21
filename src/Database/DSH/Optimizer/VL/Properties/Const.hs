@@ -211,7 +211,7 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
-    SortScalarS _ -> do
+    SortS _ -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -259,10 +259,6 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropTriple (DBVConst dq cols1)
                            (DBVConst NonConstDescr cols2)
                            (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
-    SortS -> do
-      (d, cols) <- unp c2 >>= fromDBV
-      return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...

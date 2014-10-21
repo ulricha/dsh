@@ -122,7 +122,7 @@ data UnOp = UniqueS
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | AggrNonEmptyS (N.NonEmpty AggrFun)
-          | SortScalarS [Expr]
+          | SortS [Expr]
           | GroupScalarS [Expr]
           | WinFun (WinFun, FrameSpec)
           | Reshape Integer
@@ -133,7 +133,6 @@ data UnOp = UniqueS
 $(deriveJSON defaultOptions ''UnOp)
 
 data BinOp = Group    -- (DescrVector, DBV, PropVector)
-           | SortS        -- (DBV, PropVector)
            | AggrS AggrFun
            | DistPrim   -- (DBV, PropVector)
            | DistDesc   -- (DBV, PropVector)

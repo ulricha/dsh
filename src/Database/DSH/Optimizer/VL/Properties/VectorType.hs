@@ -62,7 +62,7 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
-    SortScalarS _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
     GroupScalarS es -> 
@@ -102,12 +102,6 @@ inferVectorTypeBinOp s1 s2 op =
           Right $ VPropTriple t1 t2 PropVector
         _                                                    -> 
           Left "Input of GroupBy is not a value vector"
-    SortS ->
-      case (s1, s2) of
-        (VProp (ValueVector _), VProp t2@(ValueVector _)) -> 
-          Right $ VPropPair t2 PropVector
-        _                                                    -> 
-          Left "Input of SortWith is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)

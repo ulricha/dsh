@@ -147,7 +147,7 @@ simpleGrouping q =
           void $ replaceWithNew q $ UnOp (GroupScalarS $(v "projs")) $(v "q1") |])
 
 -- If grouping is performed by simple scalar expressions, we can
--- employ a simpler operator. This dagPatMatch arises when the grouping
+-- employ a simpler operator. This pattern arises when the grouping
 -- input projection (left) is merged with the common origin of left
 -- and right groupby input.
 simpleGroupingProject :: VLRule ()

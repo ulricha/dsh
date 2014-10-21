@@ -29,19 +29,19 @@ reshape n e d =
     let t = unliftTypeN d $ typeOf e
     in PApp1 (liftTypeN d $ ListT t) (Reshape n) (LiftedN d) e
 
--- group :: [a] -> [b] -> [(a, [b])]
+-- group :: [a] -> [b] -> [(b, [a])]
 group :: LExpr -> LExpr -> Nat -> LExpr
-group gs xs d =
+group xs gs d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT gt = unliftTypeN d $ typeOf gs
         rt             = listT (pairT gt (listT xt))
-    in PApp2 (liftTypeN d rt) Group (LiftedN d) gs xs
+    in PApp2 (liftTypeN d rt) Group (LiftedN d) xs gs
 
--- sort :: [a] -> [b] -> [b]
+-- sort :: [a] -> [b] -> [a]
 sort :: LExpr -> LExpr -> Nat -> LExpr
-sort ss xs d =
+sort xs ss d =
     let xst = unliftTypeN d $ typeOf xs
-    in PApp2 (liftTypeN d xst) Sort (LiftedN d) ss xs
+    in PApp2 (liftTypeN d xst) Sort (LiftedN d) xs ss
 
 cons :: LExpr -> LExpr -> Nat -> LExpr
 cons e1 e2 d =

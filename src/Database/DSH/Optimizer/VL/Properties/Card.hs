@@ -36,7 +36,7 @@ inferCardOneUnOp c op =
     SelectPos1{}  -> Right $ VPropTriple False False False
     SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
-    SortScalarS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 -> 
       case c of
@@ -66,7 +66,6 @@ inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either Strin
 inferCardOneBinOp c1 c2 op =
   case op of
     Group -> return $ VPropTriple False False False
-    SortS -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False

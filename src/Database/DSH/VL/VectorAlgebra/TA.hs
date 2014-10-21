@@ -477,16 +477,6 @@ instance VectorAlgebra NDVec TableAlgebra where
                       k : _ -> k
                       []    -> [itemi 1]
 
-  vecSortS (ADVec qs colss) (ADVec qe colse) = do
-    q <- tagM "sortWith"
-         $ eqJoinM pos pos''
-           (projM [cP pos, cP pos']
-              $ rownum pos' (descr : [itemi i | i <- colss] ++ [pos]) [] qs)
-           (proj (itemProj colse [cP descr, mP pos'' pos]) qe)
-    qv <- proj (itemProj colse [cP descr, mP pos pos']) q
-    qp <- proj [mP posold pos'', mP posnew pos'] q
-    return $ (ADVec qv colse, PVec qp)
-
   vecGroup (ADVec v1 colsg) (ADVec v2 colse) = do
     q' <- rownumM pos' [resCol, pos] []
           $ rowrank resCol ((ColE descr, Asc):[(ColE $ itemi i, Asc) | i <- colsg]) v1
@@ -843,7 +833,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     r  <- proj [cP posold, mP posold posnew] q
     return $ (ADVec qj cols1, RVec r)
 
-  vecSortScalarS sortExprs (ADVec q1 cols1) = do
+  vecSortS sortExprs (ADVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
     qs <- rownumM pos' ([descr] ++ map fst sortProjs ++ [pos]) []
           $ projAddCols cols1 sortProjs q1

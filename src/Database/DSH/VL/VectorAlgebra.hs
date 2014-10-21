@@ -81,13 +81,8 @@ class VectorAlgebra v a where
     -- | Filter a vector by applying a scalar boolean predicate.
     vecSelect:: Expr -> v -> Build a (v, RVec)
 
-    -- | General vector sorting (segmented). The sorting key is
-    -- provided by the first input vector.
-    vecSortS :: v -> v -> Build a (v, PVec)
-
-    -- | Specialized variant of sorting: The sorting key is provided
-    -- by a scalar expression.
-    vecSortScalarS :: [Expr] -> v -> Build a (v, PVec)
+    -- | Segmented sorting of a vector. 
+    vecSortS :: [Expr] -> v -> Build a (v, PVec)
 
     vecGroup :: v -> v -> Build a (v, v, PVec)
     vecGroupScalarS :: [Expr] -> v -> Build a (v, v, PVec)

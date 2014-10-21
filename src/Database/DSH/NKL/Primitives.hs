@@ -64,12 +64,13 @@ restrict vs bs = let vst@(ListT _)     = typeOf vs
                  in AppE2 vst Restrict vs bs
 
 sort :: Expr -> Expr -> Expr
-sort ss vs = let vst@(ListT _) = typeOf vs
-             in AppE2 vst Sort ss vs
+sort vs ss = let vst@(ListT _) = typeOf vs
+             in AppE2 vst Sort vs ss
 
+-- FIXME type is not correct
 group :: Expr -> Expr -> Expr
-group gs vs = let vst@(ListT _) = typeOf vs
-              in AppE2 vst Group gs vs
+group vs gs = let vst@(ListT _) = typeOf vs
+              in AppE2 vst Group vs gs
 
 let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2

@@ -155,10 +155,6 @@ translateBinOp b c1 c2 = case b of
         (d, v, p) <- vecGroup (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
 
-    V.SortS -> do
-        (d, p) <- vecSortS (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec d) (fromPVec p)
-
     V.DistPrim -> do
         (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
@@ -276,8 +272,8 @@ translateUnOp unop c = case unop of
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromRVec r)
-    V.SortScalarS es -> do
-        (d, p) <- vecSortScalarS es (toDVec c)
+    V.SortS es         -> do
+        (d, p) <- vecSortS es (toDVec c)
         return $ RLPair (fromDVec d) (fromPVec p)
     V.GroupScalarS es -> do
         (qo, qi, p) <- vecGroupScalarS es (toDVec c)

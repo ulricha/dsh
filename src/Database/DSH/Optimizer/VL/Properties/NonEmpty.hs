@@ -59,7 +59,7 @@ inferNonEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right $ VPropPair False False
-    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
+    SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.
@@ -104,12 +104,6 @@ inferNonEmptyBinOp e1 e2 op =
     Group -> do
       ue1 <- unp e1 
       return $ VPropTriple ue1 True ue1
-    SortS -> do
-      ue1 <- unp e1
-      ue2 <- unp e2
-      let e   = ue1 && ue2
-      return $ VPropPair e e
-
     DistPrim        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) ue2)
     DistDesc        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     DistLift        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
