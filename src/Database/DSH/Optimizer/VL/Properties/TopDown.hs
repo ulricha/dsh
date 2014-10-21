@@ -75,6 +75,7 @@ seed (BinOp op _ _) =
     PropRename         -> vPropSeed
     AggrS _            -> vPropSeed
     Zip                -> vPropSeed
+    Align              -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed
     ThetaJoin _        -> vPropTripleSeed

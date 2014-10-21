@@ -361,6 +361,14 @@ inferConstVecBinOp c1 c2 op =
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
+    Align -> do
+      (d1, cols1) <- unp c1 >>= fromDBV
+      (_, cols2)  <- unp c2 >>= fromDBV
+
+      let cols = cols1 ++ cols2
+
+      return $ VProp $ DBVConst d1 cols
+
     Zip -> do
       (d1, cols1) <- unp c1 >>= fromDBV
       (_, cols2)  <- unp c2 >>= fromDBV

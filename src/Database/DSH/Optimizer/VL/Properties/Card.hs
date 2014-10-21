@@ -83,6 +83,7 @@ inferCardOneBinOp c1 c2 op =
     SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
+    Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False

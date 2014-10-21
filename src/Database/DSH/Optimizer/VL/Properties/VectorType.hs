@@ -141,6 +141,10 @@ inferVectorTypeBinOp s1 s2 op =
     Restrict _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
+    Align ->
+      case (s1, s2) of
+        (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
+        _                                                -> Left "Inputs of Align are not ValueVectors"
     Zip ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2

@@ -257,6 +257,9 @@ vlProject (VLDVec c) projs = dvec $ insert $ UnOp (Project projs) c
 vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
 vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec
 
+vlAlign :: VLDVec -> VLDVec -> Build VL VLDVec
+vlAlign (VLDVec c1) (VLDVec c2) = vec (BinOp Align c1 c2) dvec
+
 vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlZipS (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp ZipS c1 c2) dvec rvec rvec

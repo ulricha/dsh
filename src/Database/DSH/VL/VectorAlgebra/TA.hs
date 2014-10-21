@@ -221,6 +221,9 @@ frameSpecification (VL.FNPreceding n) = ClosedFrame (FSValPrec n) FECurrRow
 -- The VectorAlgebra instance for TA algebra
 
 instance VectorAlgebra NDVec TableAlgebra where
+  vecAlign (ADVec q1 cols1) (ADVec q2 cols2) = do
+    (r, cols') <- doZip (q1, cols1) (q2, cols2)
+    return $ ADVec r cols'
 
   vecZip (ADVec q1 cols1) (ADVec q2 cols2) = do
     (r, cols') <- doZip (q1, cols1) (q2, cols2)

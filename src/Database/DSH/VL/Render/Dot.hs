@@ -191,6 +191,7 @@ opDotLabel tm i (BinOp (Restrict e) _ _) = labelToDoc i "Restrict" (renderExpr e
 opDotLabel tm i (BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPosS o) _ _) = labelToDoc i "SelectPosS" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "Zip" empty (lookupTags i tm)
+opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "CartProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)

@@ -143,6 +143,12 @@ class VectorAlgebra v a where
 
     vecRestrict :: Expr -> v -> v -> Build a (v, RVec)
 
+    -- | Align two vectors positionally. However, in contrast to
+    -- 'vecZip', these are not arbitrary vectors, but vectors which
+    -- are guaranteed to have the same length because they are
+    -- operands to lifted operators.
+    vecAlign :: v -> v -> Build a v
+
     -- | Positionally align two vectors. Basically: @zip xs ys@
     vecZip :: v -> v -> Build a v
 

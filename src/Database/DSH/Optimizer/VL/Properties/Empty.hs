@@ -101,6 +101,7 @@ inferEmptyBinOp e1 e2 op =
     SelectPos _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)
     SelectPosS _ -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 || ue2 in VPropTriple b b b)
     Zip -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
+    Align -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 || ue2))
     ZipS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProduct -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
     CartProductS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 || ue2))
