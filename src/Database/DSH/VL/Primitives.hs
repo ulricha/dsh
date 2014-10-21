@@ -236,6 +236,9 @@ vlBinExpr o (VLDVec c1) (VLDVec c2) = do
     r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 
+vlSelect :: Expr -> VLDVec -> Build VL (VLDVec, RVec)
+vlSelect p (VLDVec c) = pairVec (UnOp (Select p) c) dvec rvec
+
 vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 

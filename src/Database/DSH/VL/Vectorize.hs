@@ -187,9 +187,21 @@ cons q1 q2 = do
 
 restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrict(VShape q1 lyt) (VShape q2 (LCol 1)) = do
-    (v, p) <- vlRestrict (Column 1) q1 q2
-    lyt'   <- chainRenameFilter p lyt
-    return $ VShape v lyt'
+    -- The right input vector has only one boolean column which
+    -- defines wether the tuple at the same position in the left input
+    -- is preserved.
+    let leftWidth = columnsInLayout lyt
+        predicate = Column $ leftWidth + 1
+
+    -- Filter the vector according to the boolean column
+    (filteredVec, renameVec) <- vlSelect predicate =<< vlAlign q1 q2
+
+    -- After the selection, discard the boolean column from the right
+    resVec                   <- vlProject filteredVec (map Column [1..leftWidth])
+    
+    -- Filter any inner vectors
+    lyt'                     <- chainRenameFilter renameVec lyt
+    return $ VShape resVec lyt'
 restrict _e1 _e2 = $impossible
 
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -224,7 +236,9 @@ aggr _ _ = $impossible
 
 
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = do
+-- FIXME re-implement without Restrict
+ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = $unimplemented
+{-
     (d1', _)  <- vlDistPrim qb q1
     (d1, p1)  <- vlRestrict (Column 1) q1 d1'
     qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
@@ -235,9 +249,12 @@ ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt'      <- appendLayout lyt1' lyt2'
     (d, _, _) <- vlAppend d1 d2
     return $ VShape d lyt'
-ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
+-}
+ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = $unimplemented
+{-
     (VShape q lyt) <- ifList qb (VShape q1 lyt1) (VShape q2 lyt2)
     return $ SShape q lyt
+-}
 ifList _ _ _ = $impossible
 
 pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
