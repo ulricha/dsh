@@ -181,8 +181,8 @@ vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec
 vlDistDesc :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlDistDesc (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistDesc c1 c2) dvec pvec
 
-vlAlign :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlAlign (VLDVec c1) (VLDVec c2) = pairVec (BinOp Align c1 c2) dvec pvec
+vlDistLift :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec pvec
 
 vlPropRename :: RVec -> VLDVec -> Build VL VLDVec
 vlPropRename (RVec c1) (VLDVec c2) = vec (BinOp PropRename c1 c2) dvec

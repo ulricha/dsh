@@ -54,7 +54,7 @@ redundantRulesBottomUp = [ distPrimConstant
                          , sameInputZipProjectRight
                          , zipProjectLeft
                          , zipProjectRight
-                         , alignParents
+                         , distLiftParents
                          , selectConstPos
                          , selectConstPosS
                          , completeSort
@@ -66,13 +66,13 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipWinRight
                          , zipWinRightPush
                          , zipUnboxScalar
-                         -- , stackedAlign
+                         -- , stackedDistLift
                          , propProductCard1Right
                          , runningAggWin
                          , inlineWinAggrProject
                          , restrictWinFun
                          , pullProjectNumber
-                         , constAlign
+                         , constDistLift
                          , nestJoinChain
                          , pullProjectUnboxScalarLeft
                          , pullProjectUnboxScalarRight
@@ -81,8 +81,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
-redundantRulesAllProps = [ unreferencedAlign
-                         , alignedOnlyLeft
+redundantRulesAllProps = [ unreferencedDistLift
+                         , distLiftedOnlyLeft
                          , firstValueWin
                          , notReqNumber
                          ]
@@ -215,19 +215,19 @@ unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
 
--- | If the left input of an align is constant, a normal projection
--- can be used because the Align operator keeps the shape of the right
+-- | If the left input of an distLift is constant, a normal projection
+-- can be used because the DistLift operator keeps the shape of the right
 -- input.
-constAlign :: VLRule BottomUpProps
-constAlign q =
-  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
+constDistLift :: VLRule BottomUpProps
+constDistLift q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
     [| do 
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
          VProp (ValueVector w)        <- vectorTypeProp <$> properties $(v "q2")
          constVals                    <- mapM unwrapConstVal constCols
          
          return $ do 
-              logRewrite "Redundant.Const.Align" q
+              logRewrite "Redundant.Const.DistLift" q
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
        
@@ -236,9 +236,9 @@ constAlign q =
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the DistSeg altogether, as the
 -- shape of the inner vector is not changed by DistSeg.
-unreferencedAlign :: VLRule Properties
-unreferencedAlign q =
-  $(dagPatMatch 'q  "R1 ((q1) Align (q2))"
+unreferencedDistLift :: VLRule Properties
+unreferencedDistLift q =
+  $(dagPatMatch 'q  "R1 ((q1) DistLift (q2))"
     [| do
         VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
         VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
@@ -248,7 +248,7 @@ unreferencedAlign q =
         predicate $ all (> w1) reqCols
 
         return $ do
-          logRewrite "Redundant.Unreferenced.Align" q
+          logRewrite "Redundant.Unreferenced.DistLift" q
 
           -- FIXME HACKHACKHACK
           let padProj = [ Constant $ VLInt 0xdeadbeef | _ <- [1..w1] ]
@@ -257,72 +257,72 @@ unreferencedAlign q =
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
-nonAlignOp :: AlgNode -> VLMatch p Bool
-nonAlignOp n = do
+nonDistLiftOp :: AlgNode -> VLMatch p Bool
+nonDistLiftOp n = do
     op <- getOperator n
     case op of
-        BinOp Align _ _ -> return False
-        _               -> return True
+        BinOp DistLift _ _ -> return False
+        _                  -> return True
 
--- | The Align operator keeps shape and columns of its right
+-- | The DistLift operator keeps shape and columns of its right
 -- input. When this right input is referenced by other operators than
--- Align, we can move this operators to the Align output.
+-- DistLift, we can move this operators to the DistLift output.
 --
--- This is beneficial if a composed expression depends on the Align
+-- This is beneficial if a composed expression depends on the DistLift
 -- output (some lifted environment value) as well as the original
 -- (inner) vector. In that case, we can rewrite things such that only
--- the Align operator is referenced (not its right input). In
+-- the DistLift operator is referenced (not its right input). In
 -- consequence, The expression has only one source and can be merged
 -- into a projection.
-alignParents :: VLRule BottomUpProps
-alignParents q =
-  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
+distLiftParents :: VLRule BottomUpProps
+distLiftParents q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
      [| do
          parentNodes     <- getParents $(v "q2")
-         nonAlignParents <- filterM nonAlignOp parentNodes
-         predicate $ not $ null nonAlignParents
+         nonDistLiftParents <- filterM nonDistLiftOp parentNodes
+         predicate $ not $ null nonDistLiftParents
 
          VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q1")
          VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
 
          return $ do
-             logRewrite "Redundant.Align.Parents" q
+             logRewrite "Redundant.DistLift.Parents" q
 
-             -- First, insert a projection on top of Align that leaves
-             -- only the columns from Align's right input.
+             -- First, insert a projection on top of DistLift that leaves
+             -- only the columns from DistLift's right input.
              let origColsProj = [ Column $ w1 + i | i <- [1 .. w2] ]
              projNode <- insert $ UnOp (Project origColsProj) q
 
-             -- Then, re-link all parents of the right Align input to
+             -- Then, re-link all parents of the right DistLift input to
              -- the projection.
-             forM_ nonAlignParents $ \p -> replaceChild p $(v "q2") projNode |])
+             forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
 
--- | If an outer vector is aligned multiple times with some inner
--- vector (i.e. stacked Align operators with the same left input), one
--- Align is sufficient.
-stackedAlign :: VLRule BottomUpProps
-stackedAlign q =
-  $(dagPatMatch 'q "R1 ((q11) Align (qr1=R1 ((q12) Align (q2))))"
+-- | If an outer vector is distLifted multiple times with some inner
+-- vector (i.e. stacked DistLift operators with the same left input), one
+-- DistLift is sufficient.
+stackedDistLift :: VLRule BottomUpProps
+stackedDistLift q =
+  $(dagPatMatch 'q "R1 ((q11) DistLift (qr1=R1 ((q12) DistLift (q2))))"
     [| do
         predicate $ $(v "q11") == $(v "q12")
         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
         VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
 
         return $ do
-            logRewrite "Redundant.Align.Stacked" q
+            logRewrite "Redundant.DistLift.Stacked" q
 
-            -- Aligning multiple times duplicates the left input's
+            -- DistLifting multiple times duplicates the left input's
             -- columns.
             let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
             projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
 
             replace q projNode |])
 
--- Housekeeping rule: If only columns from the left Align input are
+-- Housekeeping rule: If only columns from the left DistLift input are
 -- referenced, remove projections on the right input.
-alignedOnlyLeft :: VLRule Properties
-alignedOnlyLeft q =
-  $(dagPatMatch 'q "(q1) Align (Project _ (q2))"
+distLiftedOnlyLeft :: VLRule Properties
+distLiftedOnlyLeft q =
+  $(dagPatMatch 'q "(q1) DistLift (Project _ (q2))"
     [| do
         -- check that only columns from the left input (outer vector)
         -- are required
@@ -331,8 +331,8 @@ alignedOnlyLeft q =
         predicate $ all (<= w) reqCols
 
         return $ do
-          logRewrite "Redundant.Align.Project" q
-          void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
+          logRewrite "Redundant.DistLift.Project" q
+          void $ replaceWithNew q $ BinOp DistLift $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Zip rewrites
@@ -531,7 +531,7 @@ zipWinRightPush q =
 -- | If singleton scalar elements in an inner vector (with singleton
 -- segments) are unboxed using an outer vector and then zipped with
 -- the same outer vector, we can eliminate the zip, because the
--- positional alignment is implicitly performed by the UnboxScalar
+-- positional distLiftment is implicitly performed by the UnboxScalar
 -- operator. We exploit the fact that UnboxScalar is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.

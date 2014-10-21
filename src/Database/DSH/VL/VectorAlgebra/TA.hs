@@ -319,7 +319,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr2 <- PVec <$> proj [cP posold, mP posnew pos] q
     return $ (qr1, qr2)
 
-  vecAlign (ADVec q1 cols1) (ADVec q2 cols2) = do
+  vecDistLift (ADVec q1 cols1) (ADVec q2 cols2) = do
     let cols2'    = [ i + length cols1 | i <- cols2 ]
         shiftProj = [ mP (itemi i') (itemi i) | i <- cols2 | i' <- cols2' ]
         resCols   = cols1 ++ cols2'

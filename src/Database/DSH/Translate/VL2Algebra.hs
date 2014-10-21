@@ -167,8 +167,8 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
 
-    V.Align -> do
-        (v, p) <- vecAlign (toDVec c1) (toDVec c2)
+    V.DistLift -> do
+        (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
 
     V.PropRename -> fromDVec <$> vecPropRename (toRVec c1) (toDVec c2)

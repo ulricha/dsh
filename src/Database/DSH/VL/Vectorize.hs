@@ -536,7 +536,7 @@ aggrL _ _ = $impossible
 
 distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
-    (qa, p)             <- vlAlign q1 q2
+    (qa, p)             <- vlDistLift q1 q2
     lyt1'               <- chainReorder p lyt1
     let lyt             = zipLayout lyt1' lyt2
     VShape qf lytf <- tupElemL First $ VShape qa lyt

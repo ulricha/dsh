@@ -279,7 +279,7 @@ inferConstVecBinOp c1 c2 op =
       (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    Align -> do
+    DistLift -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (d, cols2) <- unp c2 >>= fromDBV
       return $ VPropPair (DBVConst d (cols1 ++ cols2)) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))

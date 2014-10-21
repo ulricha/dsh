@@ -64,7 +64,7 @@ seed (BinOp op _ _) =
     SortS              -> vPropPairSeed
     DistPrim           -> vPropPairSeed
     DistDesc           -> vPropPairSeed
-    Align              -> vPropPairSeed
+    DistLift           -> vPropPairSeed
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
     UnboxNested        -> vPropPairSeed
