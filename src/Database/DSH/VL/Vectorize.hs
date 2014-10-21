@@ -242,7 +242,7 @@ ifList _ _ _ = $impossible
 
 pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pair (SShape q1 lyt1) (SShape q2 lyt2) = do
-    q <- vlZip q1 q2
+    q <- vlAlign q1 q2
     let lyt = zipLayout lyt1 lyt2
     return $ SShape q lyt
 pair (VShape q1 lyt1) (VShape q2 lyt2) = do
@@ -263,7 +263,7 @@ pair (SShape q1 lyt1) (VShape q2 lyt2) = do
 -- FIXME column offsets are not correct (see tupleL)
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tuple (SShape q1 lyt1 : SShape q2 lyt2 : []) = do
-    q <- vlZip q1 q2
+    q <- vlAlign q1 q2
     let lyt = zipLayout lyt1 lyt2
     return $ SShape q lyt
 tuple (VShape q1 lyt1 : VShape q2 lyt2 : []) = do
@@ -282,7 +282,7 @@ tuple (SShape q1 lyt1 : VShape q2 lyt2 : []) = do
     return $ SShape q1 lyt
 tuple (SShape q1 lyt1 : shapes) = do
     SShape qt (LTuple lyts) <- tuple shapes
-    q <- vlZip q1 qt
+    q <- vlAlign q1 qt
     let lyt = LTuple $ zipLayouts (lyt1 : lyts)
     return $ SShape q lyt
 
@@ -546,7 +546,7 @@ distL _e1 _e2 = $impossible
 
 pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
-    q <- vlZip q1 q2
+    q <- vlAlign q1 q2
     let lyt = zipLayout lyt1 lyt2
     return $ VShape q lyt
 pairL _ _ = $impossible
@@ -734,7 +734,7 @@ zipVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
 zipVectors (VShape q1 lyt1 : [])     = return (q1, [lyt1])
 zipVectors (VShape q1 lyt1 : shapes) = do
     (q, lyts) <- zipVectors shapes
-    qz' <- vlZip q1 q
+    qz' <- vlAlign q1 q
     return (qz', lyt1 : lyts)
 zipVectors _ = $impossible
 

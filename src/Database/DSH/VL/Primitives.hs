@@ -232,7 +232,7 @@ vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
 vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
 vlBinExpr o (VLDVec c1) (VLDVec c2) = do
-    z <- insert $ BinOp Zip c1 c2
+    z <- insert $ BinOp Align c1 c2
     r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
 

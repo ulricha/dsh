@@ -201,7 +201,7 @@ flatGrouping q =
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =
-  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Zip (GroupAggr args2 (q2))"
+  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Align (GroupAggr args2 (q2))"
     [| do
         let (ges1, afuns1) = $(v "args1")
         let (ges2, afuns2) = $(v "args2")
@@ -239,7 +239,7 @@ mergeGroupAggr q =
 -- the effect is that only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
     
