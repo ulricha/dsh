@@ -41,7 +41,7 @@ inferEmptyUnOp e op =
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupS _        -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupS _        -> let ue = unp e in liftM3 VPropTriple ue ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
