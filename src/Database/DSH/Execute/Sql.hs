@@ -81,7 +81,7 @@ execNested conn lyt ty =
             lyt2' <- execNested conn lyt2 t2
             lyt3' <- execNested conn lyt3 t3
             return $ TTuple $ TTuple3 ty lyt1' lyt2' lyt3'
-        (LTuple [lyt1, lyt2], PairT t1 t2) -> do
+        (LTuple [lyt1, lyt2], TupleT (Tuple2T t1 t2)) -> do
             lyt1' <- execNested conn lyt1 t1
             lyt2' <- execNested conn lyt2 t2
             return $ TPair ty lyt1' lyt2'
