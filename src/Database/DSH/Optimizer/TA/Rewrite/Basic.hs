@@ -175,7 +175,7 @@ unreferencedLiteralCols q =
 
          let (tuples, schema)  = $(v "tab")
 
-         predicate $ (not $ null tuples)
+         predicate (not $ null tuples)
 
          predicate $ S.size neededCols < length schema
     

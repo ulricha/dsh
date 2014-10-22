@@ -106,7 +106,6 @@ translate (CharE c) = return $ CP.string [c]
 translate (IntegerE i) = return $ CP.int (fromInteger i)
 translate (DoubleE d) = return $ CP.double d
 translate (TextE t) = return $ CP.string (unpack t)
-translate (PairE e1 e2) = CP.pair <$> translate e1 <*> translate e2
 translate (VarE i) = do
     let ty = reify (undefined :: a)
     return $ CP.var (translateType ty) (prefixVar i)
@@ -169,12 +168,12 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
     ne PossiblyEmpty = L.PossiblyEmpty
 
 
-compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, (b, c)) -> Compile CL.Expr
-compileApp3 f (PairE e1 (PairE e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
+compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b, c) -> Compile CL.Expr
+compileApp3 f (TupleConstE (Tuple3E e1 e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
 compileApp3 _ _ = $impossible
 
 compileApp2 :: (CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b) -> Compile CL.Expr
-compileApp2 f (PairE e1 e2) = f <$> translate e1 <*> translate e2
+compileApp2 f (TupleConstE (Tuple2E e1 e2)) = f <$> translate e1 <*> translate e2
 compileApp2 _ _ = $impossible
 
 compileApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
@@ -190,10 +189,8 @@ translateType CharT          = T.stringT
 translateType IntegerT       = T.intT
 translateType DoubleT        = T.doubleT
 translateType TextT          = T.stringT
-translateType (PairT t1 t2)  = T.pairT (translateType t1) (translateType t2)
 translateType (ListT t)      = T.listT (translateType t)
 translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
-translateType (TupleT (Tuple3T t1 t2 t3)) = T.TupleT [(translateType t1), translateType t2, translateType t3]
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
 

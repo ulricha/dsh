@@ -64,10 +64,10 @@ descrCol row = int32 $ col "descr" row
 data TabLayout a where
     TCol  :: Type a -> String -> TabLayout a
     TNest :: Reify a => Type [a] -> SqlTable -> TabLayout a -> TabLayout [a]
-    TPair :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabLayout (a, b)
     TTuple :: TabTuple a -> TabLayout a
 
 data TabTuple a where
+    TTuple2 :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabTuple (a, b)
     TTuple3 :: (Reify a, Reify b, Reify c) => Type (a, b, c) -> TabLayout a -> TabLayout b -> TabLayout c -> TabTuple (a, b, c)
 
 -- | Traverse the layout and execute all subqueries for nested vectors
@@ -81,10 +81,10 @@ execNested conn lyt ty =
             lyt2' <- execNested conn lyt2 t2
             lyt3' <- execNested conn lyt3 t3
             return $ TTuple $ TTuple3 ty lyt1' lyt2' lyt3'
-        (LTuple [lyt1, lyt2], PairT t1 t2) -> do
+        (LTuple [lyt1, lyt2], TupleT (Tuple2T t1 t2)) -> do
             lyt1' <- execNested conn lyt1 t1
             lyt2' <- execNested conn lyt2 t2
-            return $ TPair ty lyt1' lyt2'
+            return $ TTuple $ TTuple2 ty lyt1' lyt2'
         (LNest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
             _     <- execute stmt []
@@ -140,10 +140,10 @@ type SegMap a = IM.IntMap (Exp a)
 data SegLayout a where
     SCol   :: Type a -> String -> SegLayout a
     SNest  :: Reify a => Type [a] -> SegMap [a] -> SegLayout [a]
-    SPair  :: (Reify a, Reify b) => Type (a, b) -> SegLayout a -> SegLayout b -> SegLayout (a, b)
     STuple :: SegTuple a -> SegLayout a
 
 data SegTuple a where
+    STuple2 :: (Reify a, Reify b) => Type (a, b) -> SegLayout a -> SegLayout b -> SegTuple (a, b)
     STuple3 :: (Reify a, Reify b, Reify c) => Type (a, b, c) -> SegLayout a -> SegLayout b -> SegLayout c -> SegTuple (a, b, c)
 
 -- | Construct values for nested vectors in the layout.
@@ -152,11 +152,11 @@ segmentLayout tlyt =
     case tlyt of
         TCol ty s            -> SCol ty s
         TNest ty tab clyt    -> SNest ty (fromSegVector tab clyt)
-        TPair ty clyt1 clyt2 -> SPair ty (segmentLayout clyt1) (segmentLayout clyt2)
         TTuple tup           -> STuple $ segmentTuple tup
 
 
 segmentTuple :: TabTuple a -> SegTuple a
+segmentTuple (TTuple2 ty clyt1 clyt2) = STuple2 ty (segmentLayout clyt1) (segmentLayout clyt2)
 segmentTuple (TTuple3 ty clyt1 clyt2 clyt3) = STuple3 ty (segmentLayout clyt1) (segmentLayout clyt2) (segmentLayout clyt3)
 
 data SegAcc a = SegAcc { currSeg :: Int
@@ -193,7 +193,6 @@ segIter lyt acc row =
 mkVal :: SegLayout a -> SqlRow -> Exp a
 mkVal lyt row =
     case lyt of
-        SPair _ lyt1 lyt2 -> PairE (mkVal lyt1 row) (mkVal lyt2 row)
         STuple stup       -> mkTuple stup row
         SNest _ segmap    -> let pos = posCol row
                               in case IM.lookup pos segmap of
@@ -204,6 +203,8 @@ mkVal lyt row =
 mkTuple :: SegTuple a -> SqlRow -> Exp a
 mkTuple stup row = 
     case stup of 
+        STuple2 _ lyt1 lyt2      -> TupleConstE (Tuple2E (mkVal lyt1 row)
+                                                         (mkVal lyt2 row))
         STuple3 _ lyt1 lyt2 lyt3 -> TupleConstE (Tuple3E (mkVal lyt1 row) 
                                                          (mkVal lyt2 row) 
                                                          (mkVal lyt3 row))
