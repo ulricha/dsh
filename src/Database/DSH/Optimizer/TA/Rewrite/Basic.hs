@@ -171,6 +171,8 @@ unreferencedLiteralCols q =
     [| do
          neededCols <- pICols <$> td <$> properties q
 
+         predicate (not $ S.null neededCols)
+
          let (tuples, schema)  = $(v "tab")
 
          predicate $ S.size neededCols < length schema
