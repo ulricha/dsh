@@ -46,7 +46,6 @@ data Exp a where
   IntegerE    :: Integer -> Exp Integer
   DoubleE     :: Double  -> Exp Double
   TextE       :: Text    -> Exp Text
-  PairE       :: (Reify a, Reify b)  => Exp a -> Exp b -> Exp (a,b)
   ListE       :: (Reify a)           => [Exp a] -> Exp [a]
   AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
   LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
@@ -71,6 +70,11 @@ data TupleConst a where
     Tuple15E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> Exp n -> Exp o -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
     Tuple16E :: (Reify a, Reify b, Reify c, Reify d, Reify e, Reify f, Reify g, Reify h, Reify i, Reify j, Reify k, Reify l, Reify m, Reify n, Reify o, Reify  p) => Exp a -> Exp b -> Exp c -> Exp d -> Exp e -> Exp f -> Exp g -> Exp h -> Exp i -> Exp j -> Exp k -> Exp l -> Exp m -> Exp n -> Exp o -> Exp p -> TupleConst (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
 
+pairE :: (Reify a, Reify b) => Exp a -> Exp b -> Exp (a, b)
+pairE a b = TupleConstE (Tuple2E a b)
+
+tripleE :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> Exp (a, b, c)
+tripleE a b c = TupleConstE (Tuple3E a b c)
 
 -- | A combination of column names that form a candidate key
 newtype Key = Key [String] deriving (Eq, Ord, Show)
@@ -95,7 +99,6 @@ data Type a where
   IntegerT  :: Type Integer
   DoubleT   :: Type Double
   TextT     :: Type Text
-  PairT     :: (Reify a,Reify b)  => Type a -> Type b -> Type (a,b)
   ListT     :: (Reify a)          => Type a -> Type [a]
   ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
   TupleT    :: TupleType a -> Type a

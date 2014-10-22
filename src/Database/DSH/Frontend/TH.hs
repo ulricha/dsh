@@ -324,7 +324,7 @@ deriveElimFunClause cons = do
   fes2 <- zipWithM deriveElimToLamExp fes (map (length . conToTypes) cons)
 
   let e       = VarE en
-  let liste   = AppE (ConE 'DSH.ListE) (ListE (deriveElimFunClauseExp e fes2))
+  liste <- [| DSH.ListE $(listE $ deriveElimFunClauseExp (return e) (map return fes2)) |]
   let concate = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Concat)) liste
   let heade   = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Head)) concate
   let qe      = AppE (ConE 'DSH.Q) heade
@@ -352,23 +352,20 @@ deriveElimToLamExp f n = do
   f' <- deriveElimToLamExp fappe (n - 1)
   return (LamE [xp] (AppE f' snde))
 
-deriveElimFunClauseExp :: Exp -> [Exp] -> [Exp]
+deriveElimFunClauseExp :: Q Exp -> [Q Exp] -> [Q Exp]
 deriveElimFunClauseExp _ [] = error errMsgExoticType
-deriveElimFunClauseExp e [f] = [AppE (ConE 'DSH.ListE) (ListE [AppE f e])]
+deriveElimFunClauseExp e [f] = [ [| DSH.ListE [$f $e] |] ]
 deriveElimFunClauseExp e fs = go e fs
   where
-  go :: Exp -> [Exp] -> [Exp]
+  go :: Q Exp -> [Q Exp] -> [Q Exp]
   go _ []  = error errMsgExoticType
   -- FIXME PairE
-  go e1 [f1] =
-    let paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) e1
-    in  [AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Map)) paire]
-  go e1 (f1 : fs1) =
-    let fste  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Fst)) e1
-        snde  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Snd)) e1
-        paire = AppE (AppE (ConE 'DSH.PairE) (AppE (ConE 'DSH.LamE) f1)) fste
-        mape  = AppE (AppE (ConE 'DSH.AppE) (ConE 'F.Map)) paire
-    in  mape : go snde fs1
+  go e1 [f1] = do
+    [ [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) $e1)) |] ]
+  go e1 (f1 : fs1) = do
+    let mape = [| DSH.AppE F.Map (DSH.TupleConstE (DSH.Tuple2E (DSH.LamE $f1) (DSH.AppE F.Fst $e1))) |]
+    let snde = [| DSH.AppE F.Snd $e1 |]
+    mape : go snde fs1
 
 ---------------------------------
 -- Deriving Smart Constructors --

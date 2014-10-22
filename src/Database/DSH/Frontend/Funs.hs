@@ -57,7 +57,7 @@ data Fun a b where
     Filter          :: Fun (a -> Bool,[a]) [a]
     GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
     SortWith        :: Fun (a -> b,[a]) [a]
-    Cond            :: Fun (Bool,(a,a)) a
+    Cond            :: Fun (Bool,a,a) a
     Like            :: Fun (Text,Text) Bool
     SubString       :: Integer -> Integer -> Fun Text Text 
     Transpose       :: Fun [[a]] [[a]]
