@@ -194,7 +194,7 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
-        GroupScalarS exprs -> do
+        GroupS exprs -> do
             (_, colsi, _) <- fromPropTriple ownReqColumns
             ownReqColumns' <- VProp colsi
                               ∪
@@ -246,12 +246,6 @@ inferReqColumnsBinOp :: BottomUpProps
                      -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-      Group         -> do
-          (_, cols, _)  <- fromPropTriple ownReqColumns
-          colsFromLeft  <- allCols childBUProps1
-          colsFromRight <- childReqColumns2 ∪ (VProp cols)
-          return (colsFromLeft, colsFromRight)
-
       AggrS aggrFun   -> do
           fromLeft  <- childReqColumns1 ∪ none
           fromRight <- (VProp $ Just $ aggrReqCols aggrFun)

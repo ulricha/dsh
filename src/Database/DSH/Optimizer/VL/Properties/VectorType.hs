@@ -65,7 +65,7 @@ inferVectorTypeUnOp s op =
     SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
-    GroupScalarS es -> 
+    GroupS es -> 
       case s of
         VProp t@(ValueVector _) -> 
           Right $ VPropTriple (ValueVector $ length es) t PropVector
@@ -96,12 +96,6 @@ reqValVectors _ _ _ e =
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op = 
   case op of
-    Group -> 
-      case (s1, s2) of
-        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
-          Right $ VPropTriple t1 t2 PropVector
-        _                                                    -> 
-          Left "Input of GroupBy is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)

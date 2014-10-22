@@ -151,10 +151,6 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
 translateBinOp b c1 c2 = case b of
-    V.Group -> do
-        (d, v, p) <- vecGroup (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
-
     V.DistPrim -> do
         (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
@@ -275,8 +271,8 @@ translateUnOp unop c = case unop of
     V.SortS es         -> do
         (d, p) <- vecSortS es (toDVec c)
         return $ RLPair (fromDVec d) (fromPVec p)
-    V.GroupScalarS es -> do
-        (qo, qi, p) <- vecGroupScalarS es (toDVec c)
+    V.GroupS es -> do
+        (qo, qi, p) <- vecGroupS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do

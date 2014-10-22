@@ -160,8 +160,8 @@ vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
-vlGroup :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
-vlGroup (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Group c1 c2) dvec dvec pvec
+vlGroupS :: [Expr] -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroupS groupExprs (VLDVec c) = tripleVec (UnOp (GroupS groupExprs) c) dvec dvec pvec
 
 vlSortS :: [Expr] -> VLDVec -> Build VL (VLDVec, PVec)
 vlSortS sortExprs (VLDVec c1) = pairVec (UnOp (SortS sortExprs) c1) dvec pvec

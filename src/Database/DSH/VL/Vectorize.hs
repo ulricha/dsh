@@ -174,15 +174,22 @@ sort (VShape q1 lyt1) (VShape q2 lyt2) = do
     return $ VShape resVec lyt1'
 sort _e1 _e2 = $impossible
 
+-- | The right input contains the grouping columns.
 group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-group = $unimplemented
-{-
 group (VShape q1 lyt1) (VShape q2 lyt2) = do
-    (d, v, p) <- vlGroup q1 q2
-    lyt2'     <- chainReorder p lyt2
-    return $ VShape d (LTuple [lyt1, LNest v lyt2'])
+    let leftWidth  = columnsInLayout lyt1
+        rightWidth = columnsInLayout lyt2
+
+        groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    (outerVec, innerVec, propVec) <- vlGroupS groupExprs =<< vlAlign q1 q2
+
+    -- Discard the grouping columns in the inner vector
+    innerVec' <- vlProject innerVec (map Column [1..leftWidth])
+
+    lyt1'     <- chainReorder propVec lyt1
+    return $ VShape outerVec (LTuple [lyt2, LNest innerVec' lyt1'])
 group _e1 _e2 = $impossible
--}
 
 length_ ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length_ q = do
@@ -249,9 +256,10 @@ aggr _ _ = $impossible
 
 
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
+ifList = $unimplemented
 -- FIXME re-implement without Restrict
-ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = $unimplemented
 {-
+ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = do
     (d1', _)  <- vlDistPrim qb q1
     (d1, p1)  <- vlRestrict (Column 1) q1 d1'
     qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
@@ -262,13 +270,11 @@ ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = $unimplemented
     lyt'      <- appendLayout lyt1' lyt2'
     (d, _, _) <- vlAppend d1 d2
     return $ VShape d lyt'
--}
 ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = $unimplemented
-{-
     (VShape q lyt) <- ifList qb (VShape q1 lyt1) (VShape q2 lyt2)
     return $ SShape q lyt
--}
 ifList _ _ _ = $impossible
+-}
 
 pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pair (SShape q1 lyt1) (SShape q2 lyt2) = do

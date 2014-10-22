@@ -84,8 +84,7 @@ class VectorAlgebra v a where
     -- | Segmented sorting of a vector. 
     vecSortS :: [Expr] -> v -> Build a (v, PVec)
 
-    vecGroup :: v -> v -> Build a (v, v, PVec)
-    vecGroupScalarS :: [Expr] -> v -> Build a (v, v, PVec)
+    vecGroupS :: [Expr] -> v -> Build a (v, v, PVec)
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations

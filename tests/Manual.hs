@@ -129,6 +129,6 @@ q2 =
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c q2
+main = getConn P.>>= \c -> debugQ "q" c $ q22 (P.map T.pack ["foo", "bar"])
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

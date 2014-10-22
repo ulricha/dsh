@@ -37,7 +37,7 @@ inferCardOneUnOp c op =
     SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
     SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
+    GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -65,7 +65,6 @@ inferCardOneUnOp c op =
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    Group -> return $ VPropTriple False False False
     AggrS _ -> return $ VProp False
     DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False

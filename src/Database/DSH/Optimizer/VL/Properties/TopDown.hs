@@ -40,7 +40,7 @@ seed (UnOp op _)   =
     Unsegment          -> vPropSeed
     Select     _       -> vPropPairSeed
     SortS _            -> vPropPairSeed
-    GroupScalarS _     -> vPropTripleSeed
+    GroupS _           -> vPropTripleSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     AggrNonEmpty _     -> vPropSeed
@@ -57,7 +57,6 @@ seed (UnOp op _)   =
 
 seed (BinOp op _ _) = 
   case op of
-    Group              -> vPropTripleSeed
     Append             -> vPropTripleSeed
     AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed

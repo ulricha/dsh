@@ -109,8 +109,8 @@ data UnOp = UniqueS
           | UnboxRename
           | Segment
           | Unsegment
-          | Reverse -- (DBV, PropVector)
-          | ReverseS -- (DBV, PropVector)
+          | Reverse
+          | ReverseS
           | R1
           | R2
           | R3
@@ -123,7 +123,7 @@ data UnOp = UniqueS
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | AggrNonEmptyS (N.NonEmpty AggrFun)
           | SortS [Expr]
-          | GroupScalarS [Expr]
+          | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
           | Reshape Integer
           | ReshapeS Integer
@@ -132,15 +132,14 @@ data UnOp = UniqueS
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = Group    -- (DescrVector, DBV, PropVector)
-           | AggrS AggrFun
-           | DistPrim   -- (DBV, PropVector)
-           | DistDesc   -- (DBV, PropVector)
+data BinOp = AggrS AggrFun
+           | DistPrim
+           | DistDesc
 
-           | DistLift     -- (DBV, PropVector)
+           | DistLift
            | PropRename
-           | PropFilter -- (DBV, PropVector)
-           | PropReorder -- (DBV, PropVector)
+           | PropFilter
+           | PropReorder
            
            -- | Specialized unbox operator that merges DescrToRename
            -- and PropRename. It takes an inner and outer vector, and

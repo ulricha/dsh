@@ -215,7 +215,7 @@ inferConstVecUnOp c op =
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    GroupScalarS es -> do
+    GroupS es -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
                            (DBVConst NonConstDescr (map (const NonConstPL) cs))
@@ -252,14 +252,6 @@ inferConstVecUnOp c op =
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
-    Group -> do
-      -- FIXME handle the special case of constant payload columns in the right input (qe)
-      (dq, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropTriple (DBVConst dq cols1)
-                           (DBVConst NonConstDescr cols2)
-                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     AggrS _ -> do

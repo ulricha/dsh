@@ -63,7 +63,7 @@ inferNonEmptyUnOp e op =
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.
-    GroupScalarS _  -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
+    GroupS _        -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -98,12 +98,6 @@ inferNonEmptyUnOp e op =
 inferNonEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferNonEmptyBinOp e1 e2 op =
   case op of
-    -- If the input is not completely empty (that is, segments exist),
-    -- grouping leads to a nested vector in which every inner segment
-    -- is not empty.
-    Group -> do
-      ue1 <- unp e1 
-      return $ VPropTriple ue1 True ue1
     DistPrim        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) ue2)
     DistDesc        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     DistLift        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))

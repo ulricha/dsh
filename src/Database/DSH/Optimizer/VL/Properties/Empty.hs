@@ -41,7 +41,7 @@ inferEmptyUnOp e op =
     Project _       -> Right e
     Select _        -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
-    GroupScalarS _  -> let ue = unp e in liftM2 VPropPair ue ue
+    GroupS _        -> let ue = unp e in liftM2 VPropPair ue ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -76,10 +76,6 @@ inferEmptyUnOp e op =
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
-    Group -> 
-      let ue1 = unp e1 
-          ue2 = unp e2 
-      in liftM3 VPropTriple ue1 (liftM2 (||) ue1 ue2) ue1
     DistPrim -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) ue2)
     DistDesc -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
     DistLift -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 || ue2) (ue1 || ue2))
