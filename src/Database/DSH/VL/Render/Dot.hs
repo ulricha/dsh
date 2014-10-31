@@ -236,6 +236,7 @@ opDotColor (BinOp UnboxNested _ _)       = DCTan
 opDotColor (BinOp UnboxScalar _ _)       = DCTan
 opDotColor (BinOp PropReorder _ _)       = DCTan
 opDotColor (BinOp DistLift _ _)          = DCTan
+opDotColor (BinOp Align _ _)             = DCTan
 opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
 opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)             = DCCrimson

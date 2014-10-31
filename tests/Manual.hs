@@ -125,10 +125,33 @@ q2 =
   , r_nameQ r == (toQ "EUROPE")
   , ps_supplycostQ ps == minSupplyCost (p_partkeyQ p)
   ]
+
+orderQuantity :: Q [LineItem] -> Q Double
+orderQuantity lis = sum $ map l_quantityQ lis
+
+jan_q7a :: Q [LineItem]
+jan_q7a = snd $ head $ sortWith (orderQuantity . snd) $ groupWithKey l_orderkeyQ lineitems
+
+--------------------------------------------------------------------------------
+-- Query written from a database viewpoint
+
+-- List the lineitems of the order with the most parts.
+sumPerOrder :: Q [(Integer, Double)]
+sumPerOrder = map (\(view -> (ok, lis)) -> pair ok (sum $ map l_quantityQ lis)) 
+	      $ groupWithKey l_orderkeyQ lineitems
+
+jan_q7b :: Q [LineItem]
+jan_q7b = 
+    [ l
+    | l <- lineitems
+    , (view -> (ok, nrItems)) <- sumPerOrder
+    , l_orderkeyQ l == ok
+    , nrItems == maximum(map snd sumPerOrder)
+    ]
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> runQ c (filter (\x -> (fst x) > 42) (toQ ([] :: [(Integer, [Integer])]))) P.>>= \r -> putStrLn $ show r
+main = getConn P.>>= \c -> debugQ "q" c jan_q7b
 --main = debugQX100 "q" x100Conn $ q (toQ [1..50])
 --main = debugQX100 "q1" x100Conn q1

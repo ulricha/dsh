@@ -60,7 +60,8 @@ redundantRulesBottomUp = [ distPrimConstant
                          , zipWinLeft
                          , zipWinRight
                          , zipWinRightPush
-                         , zipUnboxScalar
+                         , zipUnboxScalarRight
+                         , zipUnboxScalarLeft
                          -- , stackedDistLift
                          , propProductCard1Right
                          , runningAggWin
@@ -471,8 +472,8 @@ zipWinRightPush q =
 -- operator. We exploit the fact that UnboxScalar is only a
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
-zipUnboxScalar :: VLRule BottomUpProps
-zipUnboxScalar q = 
+zipUnboxScalarRight :: VLRule BottomUpProps
+zipUnboxScalarRight q = 
   $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxScalar (q2))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
@@ -491,6 +492,37 @@ zipUnboxScalar q =
                               [1..leftWidth] ++ [1..leftWidth] 
                               -- Followed by the right input columns
                               ++ [ leftWidth+1..rightWidth+leftWidth ]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
+-- | See Align.UnboxScalar.Right
+zipUnboxScalarLeft :: VLRule BottomUpProps
+zipUnboxScalarLeft q = 
+  $(dagPatMatch 'q "(qu=(q11) UnboxScalar (q2)) Align (q12)"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.UnboxScalar.Left" q
+             
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxScalar produces columns from
+             -- its left and right inputs).
+             let outputCols = -- The left (outer) columns
+                              [1..leftWidth]
+                              -- Followed by the right (inner) input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                              -- Followed by the left (outer columns) again
+                              -- (originally produced by Align)
+                              ++ [1..leftWidth]
                  proj       = map Column outputCols
 
              -- Keep only the unboxing operator, together with a
