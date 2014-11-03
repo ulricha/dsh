@@ -17,6 +17,7 @@ module Database.DSH.Frontend.TupleTypes
     , tupAccName
     , mkTupElemTerm
     , mkTupConstTerm
+    , tupTyConstName
     ) where
 
 import           Control.Applicative

@@ -9,21 +9,22 @@ module Database.DSH.Execute.Sql
 
 import           Text.Printf
 
-import           Database.DSH.Impossible
-import           Database.DSH.Frontend.Internals
-
 import           Database.HDBC
 
 import           Data.List
 import qualified Data.Text                             as Txt
 import qualified Data.Text.Encoding                    as Txt
+import qualified Data.Map as M
+import qualified Data.IntMap.Strict as IM
+import qualified Data.DList as D
+
+import           Database.DSH.Impossible
+import           Database.DSH.Frontend.Internals
+import           Database.DSH.Execute.TH
 
 import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 
-import qualified Data.Map as M
-import qualified Data.IntMap.Strict as IM
-import qualified Data.DList as D
 
 
 itemCol :: Int -> String
@@ -60,15 +61,19 @@ posCol row = int32 $ col "pos" row
 descrCol :: SqlRow -> Int
 descrCol row = int32 $ col "descr" row
 
+$(mkTabTupleType 16)
+
 -- | Row layout with nesting data in the form of raw SQL results
 data TabLayout a where
     TCol  :: Type a -> String -> TabLayout a
     TNest :: Reify a => Type [a] -> SqlTable -> TabLayout a -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
 
+{-
 data TabTuple a where
     TTuple2 :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabTuple (a, b)
     TTuple3 :: (Reify a, Reify b, Reify c) => Type (a, b, c) -> TabLayout a -> TabLayout b -> TabLayout c -> TabTuple (a, b, c)
+-}
 
 -- | Traverse the layout and execute all subqueries for nested vectors
 execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLayout a)
@@ -91,7 +96,10 @@ execNested conn lyt ty =
             tab   <- fetchAllRowsMap' stmt
             clyt' <- execNested conn clyt t
             return $ TNest ty tab clyt'
+        (LTuple lyts, TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
+                                       in execTuple lyts tupTy
         (shape, _) -> error $ printf "Type does not match query structure: %s" (show shape)
+
 
 ------------------------------------------------------------------------------
 -- Construct result values from vectors
@@ -163,7 +171,6 @@ data SegAcc a = SegAcc { currSeg :: Int
                        , segMap  :: SegMap [a]
                        , currVec :: D.DList (Exp a)
                        }
-
 
 -- | Construct a segment map from a segmented vector
 fromSegVector :: Reify a => SqlTable -> TabLayout a -> SegMap [a]
