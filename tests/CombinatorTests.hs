@@ -143,6 +143,13 @@ tests_tuples = testGroup "Tuples"
   , testProperty "snd" $ prop_snd
   , testProperty "fst ([], [])" prop_fst_nested
   , testProperty "snd ([], [])" prop_snd_nested
+  , testProperty "tup3_1" prop_tup3_1
+  , testProperty "tup3_2" prop_tup3_2
+  , testProperty "tup3_3" prop_tup3_3
+  , testProperty "tup4_2" prop_tup4_2
+  , testProperty "tup4_4" prop_tup4_4
+  , testProperty "tup3_nested" prop_tup3_nested
+  , testProperty "tup4_tup3" prop_tup4_tup3
   ]
 
 tests_numerics :: Test
@@ -1027,6 +1034,28 @@ prop_map_snd = makeProp (Q.map Q.snd) (map snd)
 
 prop_snd_nested :: ([Integer], [Integer]) -> Property
 prop_snd_nested = makeProp Q.snd snd
+
+prop_tup3_1 :: (Integer, Integer, Integer) -> Property
+prop_tup3_1 = makeProp (\q -> case Q.view q of (a, _, _) -> a) (\(a, _, _) -> a)
+
+prop_tup3_2 :: (Integer, Integer, Integer) -> Property
+prop_tup3_2 = makeProp (\q -> case Q.view q of (_, b, _) -> b) (\(_, b, _) -> b)
+
+prop_tup3_3 :: (Integer, Integer, Integer) -> Property
+prop_tup3_3 = makeProp (\q -> case Q.view q of (_, _, c) -> c) (\(_, _, c) -> c)
+
+prop_tup4_2 :: (Integer, Integer, Integer, Integer) -> Property
+prop_tup4_2 = makeProp (\q -> case Q.view q of (_, b, _, _) -> b) (\(_, b, _, _) -> b)
+
+prop_tup4_4 :: (Integer, Integer, Integer, Integer) -> Property
+prop_tup4_4 = makeProp (\q -> case Q.view q of (_, _, _, d) -> d) (\(_, _, _, d) -> d)
+
+prop_tup3_nested :: (Integer, [Integer], Integer) -> Property
+prop_tup3_nested = makeProp (\q -> case Q.view q of (_, b, _) -> b) (\(_, b, _) -> b)
+
+prop_tup4_tup3 :: (Integer, Integer, Integer, Integer) -> Property
+prop_tup4_tup3 = makeProp (\q -> case Q.view q of (a, b, _, d) -> Q.tup3 a b d) 
+                          (\(a, b, _, d) -> (a, b, d))
 
 -- * Numerics
 
