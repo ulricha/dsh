@@ -61,6 +61,10 @@ posCol row = int32 $ col "pos" row
 descrCol :: SqlRow -> Int
 descrCol row = int32 $ col "descr" row
 
+------------------------------------------------------------------------------
+-- Different kinds of layouts that contain results in various forms
+
+-- Generate the definition for the 'TabTuple' type
 $(mkTabTupleType 16)
 
 -- | Row layout with nesting data in the form of raw SQL results
@@ -69,11 +73,37 @@ data TabLayout a where
     TNest :: Reify a => Type [a] -> SqlTable -> TabLayout a -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
 
-{-
-data TabTuple a where
-    TTuple2 :: (Reify a, Reify b) => Type (a, b) -> TabLayout a -> TabLayout b -> TabTuple (a, b)
-    TTuple3 :: (Reify a, Reify b, Reify c) => Type (a, b, c) -> TabLayout a -> TabLayout b -> TabLayout c -> TabTuple (a, b, c)
--}
+-- Generate the definition for the 'SegTuple' type
+$(mkSegTupleType 16)
+
+-- | A map from segment descriptor to list value expressions
+type SegMap a = IM.IntMap (Exp a)
+
+-- | Row layout with nesting data in the form of segment maps
+data SegLayout a where
+    SCol   :: Type a -> String -> SegLayout a
+    SNest  :: Reify a => Type [a] -> SegMap [a] -> SegLayout [a]
+    STuple :: SegTuple a -> SegLayout a
+
+------------------------------------------------------------------------------
+-- Construct result values from vectors
+
+fromVector :: Reify a => SqlTable -> TabLayout a -> Exp [a]
+fromVector tab tlyt =
+    let slyt = segmentLayout tlyt
+    in ListE $ D.toList $ foldl' (vecIter slyt) D.empty tab
+
+vecIter :: SegLayout a -> D.DList (Exp a) -> SqlRow -> D.DList (Exp a)
+vecIter slyt vals row = 
+    let val = constructVal slyt row
+    in D.snoc vals val
+
+fromPrim :: SqlTable -> TabLayout a -> Exp a
+fromPrim tab tlyt =
+    let slyt = segmentLayout tlyt
+    in case tab of
+           [row] -> constructVal slyt row
+           _     -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
 execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLayout a)
@@ -101,26 +131,6 @@ execNested conn lyt ty =
         (shape, _) -> error $ printf "Type does not match query structure: %s" (show shape)
 
 
-------------------------------------------------------------------------------
--- Construct result values from vectors
-
-fromVector :: Reify a => SqlTable -> TabLayout a -> Exp [a]
-fromVector tab tlyt =
-    let slyt = segmentLayout tlyt
-    in ListE $ D.toList $ foldl' (vecIter slyt) D.empty tab
-
-vecIter :: SegLayout a -> D.DList (Exp a) -> SqlRow -> D.DList (Exp a)
-vecIter slyt vals row = 
-    let val = mkVal slyt row
-    in D.snoc vals val
-
-fromPrim :: SqlTable -> TabLayout a -> Exp a
-fromPrim tab tlyt =
-    let slyt = segmentLayout tlyt
-    in case tab of
-           [row] -> mkVal slyt row
-           _     -> $impossible
-
 executeSql :: IConnection conn => conn -> Shape SqlCode -> Type a -> IO (Exp a)
 executeSql conn shape ty = 
     case (shape, ty) of
@@ -141,31 +151,20 @@ executeSql conn shape ty =
 ------------------------------------------------------------------------------
 -- Construct nested result values from segmented vectors
 
--- | A map from segment descriptor to list expressions
-type SegMap a = IM.IntMap (Exp a)
-
--- | Row layout with nesting data in the form of segment maps
-data SegLayout a where
-    SCol   :: Type a -> String -> SegLayout a
-    SNest  :: Reify a => Type [a] -> SegMap [a] -> SegLayout [a]
-    STuple :: SegTuple a -> SegLayout a
-
-data SegTuple a where
-    STuple2 :: (Reify a, Reify b) => Type (a, b) -> SegLayout a -> SegLayout b -> SegTuple (a, b)
-    STuple3 :: (Reify a, Reify b, Reify c) => Type (a, b, c) -> SegLayout a -> SegLayout b -> SegLayout c -> SegTuple (a, b, c)
-
 -- | Construct values for nested vectors in the layout.
 segmentLayout :: TabLayout a -> SegLayout a
 segmentLayout tlyt =
     case tlyt of
         TCol ty s            -> SCol ty s
         TNest ty tab clyt    -> SNest ty (fromSegVector tab clyt)
-        TTuple tup           -> STuple $ segmentTuple tup
+        TTuple tup           -> let segmentTuple = $(mkSegmentTupleFun 16)
+                                in STuple $ segmentTuple tup
 
-
+{-
 segmentTuple :: TabTuple a -> SegTuple a
 segmentTuple (TTuple2 ty clyt1 clyt2) = STuple2 ty (segmentLayout clyt1) (segmentLayout clyt2)
 segmentTuple (TTuple3 ty clyt1 clyt2 clyt3) = STuple3 ty (segmentLayout clyt1) (segmentLayout clyt2) (segmentLayout clyt3)
+-}
 
 data SegAcc a = SegAcc { currSeg :: Int
                        , segMap  :: SegMap [a]
@@ -184,7 +183,7 @@ fromSegVector tab tlyt =
 -- the list value that is represented by that segment
 segIter :: Reify a => SegLayout a -> SegAcc a -> SqlRow -> SegAcc a
 segIter lyt acc row = 
-    let val   = mkVal lyt row
+    let val   = constructVal lyt row
         descr = descrCol row
     in if descr == currSeg acc
        then acc { currVec = D.snoc (currVec acc) val }
@@ -197,24 +196,27 @@ segIter lyt acc row =
 -- Construct values from table rows    
 
 -- | Construct a value from a vector row according to the given layout
-mkVal :: SegLayout a -> SqlRow -> Exp a
-mkVal lyt row =
+constructVal :: SegLayout a -> SqlRow -> Exp a
+constructVal lyt row =
     case lyt of
-        STuple stup       -> mkTuple stup row
+        STuple stup       -> let constructTuple = $(mkConstructTuple 16) 
+                             in constructTuple stup row
         SNest _ segmap    -> let pos = posCol row
                               in case IM.lookup pos segmap of
                                   Just v  -> v
                                   Nothing -> ListE []
         SCol ty c         -> scalarFromSql (col c row) ty
 
-mkTuple :: SegTuple a -> SqlRow -> Exp a
-mkTuple stup row = 
+{-
+constructTuple :: SegTuple a -> SqlRow -> Exp a
+constructTuple stup row = 
     case stup of 
-        STuple2 _ lyt1 lyt2      -> TupleConstE (Tuple2E (mkVal lyt1 row)
-                                                         (mkVal lyt2 row))
-        STuple3 _ lyt1 lyt2 lyt3 -> TupleConstE (Tuple3E (mkVal lyt1 row) 
-                                                         (mkVal lyt2 row) 
-                                                         (mkVal lyt3 row))
+        STuple2 _ lyt1 lyt2      -> TupleConstE (Tuple2E (constructVal lyt1 row)
+                                                         (constructVal lyt2 row))
+        STuple3 _ lyt1 lyt2 lyt3 -> TupleConstE (Tuple3E (constructVal lyt1 row) 
+                                                         (constructVal lyt2 row) 
+                                                         (constructVal lyt3 row))
+-}
 
 -- | Construct a scalar value from a SQL value
 scalarFromSql :: SqlValue -> Type a -> Exp a

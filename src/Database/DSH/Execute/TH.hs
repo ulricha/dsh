@@ -3,17 +3,18 @@
 module Database.DSH.Execute.TH
     ( mkExecTuple
     , mkTabTupleType
+    , mkSegTupleType
+    , mkSegmentTupleFun
+    , mkConstructTuple
     ) where
 
 import           Control.Applicative
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax
 import           Data.List
 
 import           Text.Printf
 
 import           Database.DSH.Impossible
-import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Frontend.TupleTypes
 import qualified Database.DSH.Frontend.Internals as DSH
 
@@ -22,6 +23,9 @@ import qualified Database.DSH.Frontend.Internals as DSH
 
 tabTupleConsName :: Int -> Name
 tabTupleConsName width = mkName $ printf "TTuple%d" width
+
+segTupleConsName :: Int -> Name
+segTupleConsName width = mkName $ printf "STuple%d" width
 
 --------------------------------------------------------------------------------
 -- Generate the function that executes queries in a tuple layout
@@ -43,7 +47,6 @@ mkExecNestedStmt tyName lytName resLytName =
         callE      = AppE (AppE (AppE execNested conn) (VarE lytName)) (VarE tyName)
 
     in BindS (VarP resLytName) callE
-
 
 -- | Generate the case for one particular tuple type
 mkExecTupleMatch :: Int -> Q Match
@@ -95,17 +98,16 @@ mkExecTuple maxWidth = do
     return $ LamE [VarP lytName, VarP tyName] lamBody
 
 --------------------------------------------------------------------------------
--- Generate the layout type containing individual query results 
-
-tabTupleTyName :: Name
-tabTupleTyName = mkName "TabTuple"
+-- Generate tuple layout type containing individual query results or
+-- segmaps. The code generated for both is mostly identical except for
+-- the layout type constructor and the constructor names.
 
 tupElemTyName :: Int -> Q Name
 tupElemTyName i = newName $ printf "t%d" i
 
 -- | Generate a single constructor for the 'TabTuple' type.
-mkTableTupleCons :: Name -> Int -> Q Con
-mkTableTupleCons tupTyName width = do
+mkTupleLytCons :: Name -> (Type -> Type) -> (Int -> Name) -> Int -> Q Con
+mkTupleLytCons tupTyName lytTyCons conName width = do
 
     tupElemTyNames <- mapM tupElemTyName [1..width]
 
@@ -126,15 +128,15 @@ mkTableTupleCons tupTyName width = do
     let -- 'Type a'
         dshTypeTy  = (NotStrict, AppT (ConT ''DSH.Type) (VarT tupTyName))
         -- 'TabLayout t1, TabLayout t<n>
-        elemLytTys = [ (NotStrict, AppT (ConT $ mkName "TabLayout") (VarT t))
+        elemLytTys = [ (NotStrict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
                      | t <- tupElemTyNames
                      ]
         argTys     = dshTypeTy : elemLytTys 
     
     return $ ForallC tyVarBinders constraints
-           $ NormalC (tabTupleConsName width) argTys
+           $ NormalC (conName width) {- (tabTupleConsName width) -} argTys
 
--- | Generate the data type for 'TabTuple' layouts that contain
+-- | Generate the data type for 'TabTuple'/'SegTuple' layouts that contain
 -- tabular query results.
 -- @
 -- data TabTuple a where
@@ -156,9 +158,97 @@ mkTableTupleCons tupTyName width = do
 --                           Reify t<n> =>
 --                           Type a -> TabLayout t1 -> ... -> TabLayout t<n>
 -- @
-mkTabTupleType :: Int -> Q [Dec]
-mkTabTupleType maxWidth = do
+mkTupleLyt :: Name -> (Type -> Type) -> (Int -> Name) -> Int -> Q [Dec]
+mkTupleLyt tyName lytTyCons conName maxWidth = do
     tupTyName <- newName "a"
-    cons      <- mapM (mkTableTupleCons tupTyName) [2..maxWidth]
+    cons      <- mapM (mkTupleLytCons tupTyName lytTyCons conName) [2..maxWidth]
     
-    return $ [DataD [] tabTupleTyName [PlainTV tupTyName] cons []]
+    return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
+
+--------------------------------------------------------------------------------
+-- Generate the tuple layout type containing tabular results
+
+mkTabTupleType :: Int -> Q [Dec]
+mkTabTupleType maxWidth = mkTupleLyt tabTupleTyName tabLayoutTyCons tabTupleConsName maxWidth
+  where
+    tabLayoutTyCons :: Type -> Type
+    tabLayoutTyCons argTy = AppT (ConT $ mkName "TabLayout") argTy
+
+    tabTupleTyName :: Name
+    tabTupleTyName = mkName "TabTuple"
+
+--------------------------------------------------------------------------------
+-- Generate the tuple layout type containing segment maps
+
+mkSegTupleType :: Int -> Q [Dec]
+mkSegTupleType maxWidth = mkTupleLyt segTupleTyName segLayoutTyCons segTupleConsName maxWidth
+  where
+    segLayoutTyCons :: Type -> Type
+    segLayoutTyCons argTy = AppT (ConT $ mkName "SegLayout") argTy
+
+    segTupleTyName :: Name
+    segTupleTyName = mkName "SegTuple"
+
+--------------------------------------------------------------------------------
+-- Generate the mapping function between tabular and segment map layouts.
+
+mkSegmentTupleMatch :: Int -> Q Match
+mkSegmentTupleMatch width = do
+    tyName   <- newName "ty"
+    lytNames <- mapM (\i -> newName $ printf "tlyt%d" i) [1..width]
+    let tuplePat = ConP (tabTupleConsName width) (VarP tyName : map VarP lytNames)
+
+    let segFun  = VarE $ mkName "segmentLayout"
+        segLyts = map ((AppE segFun) . VarE) lytNames
+
+    let bodyExp = foldl' AppE (ConE $ segTupleConsName width) 
+                              (VarE tyName : segLyts)
+    return $ Match tuplePat (NormalB bodyExp) []
+
+-- | Generate the definition for the 'segmentTuple' function that maps
+-- layouts with tabular SQL results to layouts with segment maps.
+-- @
+-- 
+-- \lyt -> 
+--   case lyt of
+--   ...
+--   (TTuple<n> ty tlyt1 ... tlyt<n>) = STuple<n> ty (segmentLayout tlyt1) 
+--                                                   ...
+--                                                   (segmentLayout tlyt<n>)
+-- @
+mkSegmentTupleFun :: Int -> Q Exp
+mkSegmentTupleFun maxWidth = do
+    lytName       <- newName "lyt"
+    tupMatches    <- mapM mkSegmentTupleMatch [2..maxWidth]
+    let lamBody = CaseE (TupE [VarE lytName]) tupMatches
+
+    return $ LamE [VarP lytName] lamBody
+
+--------------------------------------------------------------------------------
+-- Generate the constructor function from a segmap tuple layout to a
+-- tuple value
+
+mkConstructTupleMatch :: Name -> Int -> Q Match
+mkConstructTupleMatch rowName width = do
+    lytNames <- mapM (\i -> newName $ printf "slyt%d" i) [1..width]
+
+    let tuplePat = ConP (segTupleConsName width) (WildP : map VarP lytNames)
+
+    let constructFun   = VarE $ mkName "constructVal"
+        resultElemExps = [ AppE (AppE constructFun (VarE l)) (VarE rowName)
+                         | l <- lytNames
+                         ]
+        resultValExp   = AppE (ConE outerConst) 
+                              (foldl' AppE (ConE $ innerConst width) resultElemExps)
+
+    return $ Match tuplePat (NormalB resultValExp) []
+
+mkConstructTuple :: Int -> Q Exp
+mkConstructTuple maxWidth = do
+    lytName       <- newName "lyt"
+    rowName       <- newName "row"
+
+    tupMatches    <- mapM (mkConstructTupleMatch rowName) [2..maxWidth]
+    let lamBody = CaseE (TupE [VarE lytName]) tupMatches
+
+    return $ LamE [VarP lytName, VarP rowName] lamBody
