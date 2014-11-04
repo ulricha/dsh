@@ -169,7 +169,7 @@ sort (VShape q1 lyt1) (VShape q2 lyt2) = do
 
     -- After sorting, discard the sorting criteria columns from the
     -- right vector
-    resVec               <- vlProject sortedVec (map Column [1..leftWidth])
+    resVec               <- vlProject (map Column [1..leftWidth]) sortedVec
     lyt1'  <- chainReorder propVec lyt1
     return $ VShape resVec lyt1'
 sort _e1 _e2 = $impossible
@@ -185,7 +185,7 @@ group (VShape q1 lyt1) (VShape q2 lyt2) = do
     (outerVec, innerVec, propVec) <- vlGroupS groupExprs =<< vlAlign q1 q2
 
     -- Discard the grouping columns in the inner vector
-    innerVec' <- vlProject innerVec (map Column [1..leftWidth])
+    innerVec' <- vlProject (map Column [1..leftWidth]) innerVec
 
     lyt1'     <- chainReorder propVec lyt1
     return $ VShape outerVec (LTuple [lyt2, LNest innerVec' lyt1'])
@@ -217,7 +217,7 @@ restrict(VShape q1 lyt) (VShape q2 (LCol 1)) = do
     (filteredVec, renameVec) <- vlSelect predicate =<< vlAlign q1 q2
 
     -- After the selection, discard the boolean column from the right
-    resVec                   <- vlProject filteredVec (map Column [1..leftWidth])
+    resVec                   <- vlProject (map Column [1..leftWidth]) filteredVec
     
     -- Filter any inner vectors
     lyt'                     <- chainRenameFilter renameVec lyt
@@ -245,7 +245,7 @@ dist (VShape q lyt) q2 = do
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
-    o'     <- vlProject o []
+    o'     <- vlProject [] o
     lyt'   <- chainReorder p lyt
     return $ VShape o' (LNest d lyt')
 
@@ -256,25 +256,36 @@ aggr _ _ = $impossible
 
 
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-ifList = $unimplemented
--- FIXME re-implement without Restrict
-{-
 ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = do
-    (d1', _)  <- vlDistPrim qb q1
-    (d1, p1)  <- vlRestrict (Column 1) q1 d1'
-    qb'       <- vlUnExpr (L.SUBoolOp L.Not) qb
-    (d2', _)  <- vlDistPrim qb' q2
-    (d2, p2)  <- vlRestrict (Column 1) q2 d2'
-    lyt1'     <- renameOuter' p1 lyt1
-    lyt2'     <- renameOuter' p2 lyt2
-    lyt'      <- appendLayout lyt1' lyt2'
-    (d, _, _) <- vlAppend d1 d2
-    return $ VShape d lyt'
-ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = $unimplemented
+    -- The right input vector has only one boolean column which
+    -- defines wether the tuple at the same position in the left input
+    -- is preserved.
+    let leftWidth = columnsInLayout lyt1
+        predicate = Column $ leftWidth + 1
+
+    (trueSelVec, _)            <- vlDistPrim qb q1
+    (trueVec, trueRenameVec)   <- vlSelect predicate 
+                                  =<< vlAlign q1 trueSelVec
+    trueVec'                   <- vlProject (map Column [1..leftWidth]) trueVec
+
+    let predicate' = UnApp (L.SUBoolOp L.Not) predicate
+
+    (falseSelVec, _)           <- vlDistPrim qb q2
+    (falseVec, falseRenameVec) <- vlSelect predicate' 
+                                  =<< vlAlign q2 falseSelVec
+    falseVec'                  <- vlProject (map Column [1..leftWidth]) falseVec
+
+    lyt1'                      <- renameOuter' trueRenameVec lyt1
+    lyt2'                      <- renameOuter' falseRenameVec lyt2
+    lyt'                       <- appendLayout lyt1' lyt2'
+
+    (bothBranches, _, _)       <- vlAppend trueVec' falseVec'
+
+    return $ VShape bothBranches lyt'
+ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
     (VShape q lyt) <- ifList qb (VShape q1 lyt1) (VShape q2 lyt2)
     return $ SShape q lyt
 ifList _ _ _ = $impossible
--}
 
 pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pair (SShape q1 lyt1) (SShape q2 lyt2) = do
@@ -335,7 +346,7 @@ tupElem i (SShape q (LTuple lyts)) =
         LNest qi lyt -> return $ VShape qi lyt
         lyt          -> do
             let (lyt', cols) = projectFromPos lyt
-            proj <- vlProject q (map Column cols)
+            proj <- vlProject (map Column cols) q
             return $ SShape proj lyt'
 tupElem _ _ = $impossible
 
@@ -603,7 +614,7 @@ tupleL _ = $impossible
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElemL i (VShape q (LTuple lyts)) = do
     let (lyt', cols) = projectFromPos $ lyts !! (tupleIndex i - 1)
-    proj <- vlProject q (map Column cols)
+    proj <- vlProject (map Column cols) q
     return $ VShape proj lyt'
 tupElemL i s = trace (show i ++ " " ++ show s) $impossible
 

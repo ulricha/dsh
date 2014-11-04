@@ -251,8 +251,8 @@ vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
-vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
-vlProject (VLDVec c) projs = dvec $ insert $ UnOp (Project projs) c
+vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
+vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 
 vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
 vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec
