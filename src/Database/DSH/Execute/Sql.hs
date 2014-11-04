@@ -221,6 +221,7 @@ constructTuple stup row =
 -- | Construct a scalar value from a SQL value
 scalarFromSql :: SqlValue -> Type a -> Exp a
 scalarFromSql SqlNull           UnitT    = UnitE
+scalarFromSql (SqlInteger _)    UnitT    = UnitE
 scalarFromSql (SqlInteger i)    IntegerT = IntegerE i
 scalarFromSql (SqlInt32 i)      IntegerT = IntegerE $ fromIntegral i
 scalarFromSql (SqlInt64 i)      IntegerT = IntegerE $ fromIntegral i
