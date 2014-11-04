@@ -110,16 +110,6 @@ execNested :: IConnection conn => conn -> Layout SqlCode -> Type a -> IO (TabLay
 execNested conn lyt ty =
     case (lyt, ty) of
         (LCol i, t)                        -> return $ TCol t (itemCol i)
-        -- FIXME implement the cases for the remaining tuple types (via TH)
-        (LTuple [lyt1, lyt2, lyt3], TupleT (Tuple3T t1 t2 t3)) -> do
-            lyt1' <- execNested conn lyt1 t1
-            lyt2' <- execNested conn lyt2 t2
-            lyt3' <- execNested conn lyt3 t3
-            return $ TTuple $ TTuple3 ty lyt1' lyt2' lyt3'
-        (LTuple [lyt1, lyt2], TupleT (Tuple2T t1 t2)) -> do
-            lyt1' <- execNested conn lyt1 t1
-            lyt2' <- execNested conn lyt2 t2
-            return $ TTuple $ TTuple2 ty lyt1' lyt2'
         (LNest (SqlCode sqlQuery) clyt, ListT t) -> do
             stmt  <- prepare conn sqlQuery
             _     <- execute stmt []
@@ -159,12 +149,6 @@ segmentLayout tlyt =
         TNest ty tab clyt    -> SNest ty (fromSegVector tab clyt)
         TTuple tup           -> let segmentTuple = $(mkSegmentTupleFun 16)
                                 in STuple $ segmentTuple tup
-
-{-
-segmentTuple :: TabTuple a -> SegTuple a
-segmentTuple (TTuple2 ty clyt1 clyt2) = STuple2 ty (segmentLayout clyt1) (segmentLayout clyt2)
-segmentTuple (TTuple3 ty clyt1 clyt2 clyt3) = STuple3 ty (segmentLayout clyt1) (segmentLayout clyt2) (segmentLayout clyt3)
--}
 
 data SegAcc a = SegAcc { currSeg :: Int
                        , segMap  :: SegMap [a]
