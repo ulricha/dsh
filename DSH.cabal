@@ -76,6 +76,7 @@ Library
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
+                     HDBC-postgresql,
                      template-haskell   >= 2.8.0.0,
                      X100Client         >= 0.0.2,
                      pretty             >= 1.0.1.1,
@@ -112,12 +113,12 @@ Library
                      Database.DSH.Execute.TH
                      Database.DSH.Execute.Sql
                      Database.DSH.Execute.X100
+                     Database.DSH.Execute.Backend
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
                      Database.DSH.Common.Lang
                      Database.DSH.Common.QueryPlan
-                     Database.DSH.Common.DBCode
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
                      Database.DSH.Export

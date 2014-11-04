@@ -16,21 +16,22 @@ import           Database.Algebra.Table.Lang
 import           Database.Algebra.X100.Data
 import           Database.Algebra.X100.Render
 
-import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Execute.Sql
+import           Database.DSH.Execute.X100
 import           Database.DSH.VL.Vector
 
-generateX100Queries :: QueryPlan X100Algebra NDVec -> Shape X100Code
+generateX100Queries :: QueryPlan X100Algebra NDVec -> Shape (BackendCode X100Backend)
 generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
  where
     m' :: NodeMap X100Algebra
     m' = nodeMap $ queryDag x100Plan
 
-    convertQuery :: Shape NDVec -> Shape X100Code
+    convertQuery :: Shape NDVec -> Shape (BackendCode X100Backend)
     convertQuery (SShape (ADVec r' _) l) = SShape (X100Code $ generateQuery m' r') $ convertLayout l
     convertQuery (VShape (ADVec r' _) l) = VShape (X100Code $ generateQuery m' r') $ convertLayout l
 
-    convertLayout :: Layout NDVec -> Layout X100Code
+    convertLayout :: Layout NDVec -> Layout (BackendCode X100Backend)
     convertLayout (LCol i)               = LCol i
     convertLayout (LNest (ADVec r' _) l) = LNest (X100Code $ generateQuery m' r') $ convertLayout l
     convertLayout (LTuple ps)            = LTuple $ map convertLayout ps
@@ -39,7 +40,7 @@ generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
 -- into a separate SQL query.
 
 -- FIXME use materialization "prelude"
-generateSqlQueries :: QueryPlan TableAlgebra NDVec -> Shape SqlCode
+generateSqlQueries :: QueryPlan TableAlgebra NDVec -> Shape (BackendCode SqlBackend)
 generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
   where
     roots = rootNodes $ queryDag taPlan
@@ -47,13 +48,13 @@ generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
     nodeToQuery  = zip roots sqlQueries
     lookupNode n = maybe $impossible SqlCode $ lookup n nodeToQuery
 
-    renderQueryCode :: Shape NDVec -> Shape SqlCode
+    renderQueryCode :: Shape NDVec -> Shape (BackendCode SqlBackend)
     renderQueryCode shape =
         case shape of
             SShape (ADVec r _) lyt -> SShape (lookupNode r) (convertLayout lyt)
             VShape (ADVec r _) lyt -> VShape (lookupNode r) (convertLayout lyt)
 
-    convertLayout :: Layout NDVec -> Layout SqlCode
+    convertLayout :: Layout NDVec -> Layout (BackendCode SqlBackend)
     convertLayout lyt =
         case lyt of
             LCol i                 -> LCol i

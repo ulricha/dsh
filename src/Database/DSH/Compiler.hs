@@ -22,7 +22,7 @@ module Database.DSH.Compiler
 import           Control.Applicative
 import           Control.Arrow
 
-import qualified Database.HDBC                            as H
+import qualified Database.HDBC.PostgreSQL                 as H
 
 import           Database.X100Client                      hiding (X100, tableName)
 
@@ -36,7 +36,6 @@ import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.CL.Resugar
-import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
@@ -63,7 +62,7 @@ commonPipeline =
     >>> flatTransform
     >>> specializeVectorOps
 
-nkl2X100Alg :: CL.Expr -> Shape X100Code
+nkl2X100Alg :: CL.Expr -> Shape (BackendCode X100Backend)
 nkl2X100Alg =
     commonPipeline
     >>> optimizeVLDefault
@@ -71,7 +70,7 @@ nkl2X100Alg =
     >>> optimizeX100Default
     >>> generateX100Queries
 
-nkl2Sql :: CL.Expr -> Shape SqlCode
+nkl2Sql :: CL.Expr -> Shape (BackendCode SqlBackend)
 nkl2Sql =
     commonPipeline
     >>> optimizeVLDefault
@@ -127,15 +126,15 @@ runQX100 conn (Q q) = do
     let ty = reify (undefined :: a)
     q' <- toComprehensions (getX100TableInfo conn) q
     let x100QueryBundle = nkl2X100Alg q'
-    frExp <$> executeX100 conn x100QueryBundle ty
+    frExp <$> executeX100 (X100Backend conn) x100QueryBundle ty
 
 -- | Run a query on a SQL backend
-runQ :: (QA a, H.IConnection conn) => conn -> Q a -> IO a
+runQ :: QA a => H.Connection -> Q a -> IO a
 runQ conn (Q q) = do
     let ty = reify (undefined :: a)
     q' <- toComprehensions (getTableInfo conn) q
     let sqlQueryBundle = nkl2Sql q'
-    frExp <$> executeSql conn sqlQueryBundle ty
+    frExp <$> executeSql (SqlBackend conn) sqlQueryBundle ty
 
 -- | Debugging function: dump the X100 plan (DAG) to a file.
 debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
@@ -150,27 +149,27 @@ debugX100Opt prefix c (Q e) = do
     nkl2X100FileOpt (prefix ++ "_opt") e'
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
-debugTA :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugTA :: QA a => String -> H.Connection -> Q a -> IO ()
 debugTA prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFile prefix e'
 
 -- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
-debugTAOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugTAOpt :: QA a => String -> H.Connection -> Q a -> IO ()
 debugTAOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (SQL version).
-debugVL :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugVL :: QA a => String -> H.Connection -> Q a -> IO ()
 debugVL prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFile prefix e'
 
 -- | Debugging function: dump the optimized VL query plan (DAG) for a
 -- query to a file (SQL version).
-debugVLOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugVLOpt :: QA a => String -> H.Connection -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
@@ -190,7 +189,7 @@ debugX100VL prefix c (Q e) = do
     nkl2VLFile prefix e'
 
 -- | Dump all intermediate algebra representations (VL, TA) to files.
-debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugQ :: QA a => String -> H.Connection -> Q a -> IO ()
 debugQ prefix conn q = do
     debugVL prefix conn q
     debugVLOpt prefix conn q
@@ -207,6 +206,6 @@ debugQX100 prefix conn q = do
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
-runPrint :: (Show a, QA a, H.IConnection conn) => conn -> Q a -> IO ()
+runPrint :: (Show a, QA a) => H.Connection -> Q a -> IO ()
 runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
