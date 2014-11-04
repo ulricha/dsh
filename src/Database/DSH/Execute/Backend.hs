@@ -1,9 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs           #-}
-{-# LANGUAGE TypeFamilies    #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TemplateHaskell  #-}
 
 -- | This module provides an abstraction over flat relational backends
 -- w.r.t. to query execution and result value construction.
