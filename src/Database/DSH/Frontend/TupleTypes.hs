@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Generate AST types, functions and instances for tuples.
 module Database.DSH.Frontend.TupleTypes
     ( -- * Generate tuple types, functions and instances
       mkQAInstances
@@ -11,6 +12,7 @@ module Database.DSH.Frontend.TupleTypes
     , mkTranslateTupleTerm
     , mkTranslateType
     , mkViewInstances
+    , mkTupleAstComponents
     -- * Helper functions
     , innerConst
     , outerConst
@@ -368,6 +370,89 @@ mkViewInstance width = do
 
 mkViewInstances :: Int -> Q [Dec]
 mkViewInstances maxWidth = mapM mkViewInstance [2..maxWidth]
+
+--------------------------------------------------------------------------------
+-- Generate the 'TupleConst' type
+
+tupElemTyName :: Int -> Q Name
+tupElemTyName i = newName $ printf "t%d" i
+
+-- | Generate a single constructor for the 'TabTuple' type.
+mkTupleCons :: Name -> (Int -> Name) -> (Type -> Type) -> Int -> Q Con
+mkTupleCons tupTyName conName elemTyCons width = do
+
+    tupElemTyNames <- mapM tupElemTyName [1..width]
+
+    let tyVarBinders     = map PlainTV tupElemTyNames
+
+        -- (t1, ..., t<n>)
+        tupTy            = foldl' AppT (TupleT width)
+                           $ map VarT tupElemTyNames
+    
+        -- a ~ (t1, ..., t<n>)
+        tupConstraint    = EqualP (VarT tupTyName) tupTy
+
+        -- Reify t1, ..., Reify t<n>
+        reifyConstraints = map (\n -> ClassP (mkName "Reify") [VarT n]) tupElemTyNames
+
+        constraints      = tupConstraint : reifyConstraints 
+
+    let -- '(Exp/Type t1) ... (Exp/Type t<n>)'
+        elemTys = [ (NotStrict, elemTyCons (VarT t))
+                  | t <- tupElemTyNames
+                  ]
+    
+    return $ ForallC tyVarBinders constraints
+           $ NormalC (conName width) elemTys
+
+-- | Generate the types for AST type and term tuple constructors: 'TupleConst' and 
+-- 'TupleType'. The first parameter is the name of the type. The second parameter
+-- is the type constructor for element fields and the third parameter generates
+-- the constructor name for a given tuple width.
+-- 
+-- @
+-- data TupleConst a where
+--     Tuple<n>E :: (Reify t1, ..., Reify t<n>) => Exp t1 
+--                                              -> ... 
+--                                              -> Exp t<n> 
+--                                              -> TupleConst (t1, ..., t<n>)
+-- @
+-- 
+-- Because TH does not directly support GADT syntax, we have to
+-- emulate it using explicit universal quantification:
+-- 
+-- @
+-- data TupleConst a =
+--     forall t1, ..., t<n>. a ~ (t1, ..., t<n>),
+--                           Reify t1,
+--                           ...
+--                           Reify t<n> =>
+--                           Exp t1 -> ... -> Exp t<n>
+-- @
+mkTupleASTTy :: Name -> (Type -> Type) -> (Int -> Name) -> Int -> Q [Dec]
+mkTupleASTTy tyName elemTyCons conName maxWidth = do
+    tupTyName <- newName "a"
+    cons      <- mapM (mkTupleCons tupTyName conName elemTyCons) [2..maxWidth]
+    
+    return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
+
+-- | Generate the 'TupleConst' AST type for tuple term construction
+mkAstTupleConst :: Int -> Q [Dec]
+mkAstTupleConst maxWidth =
+    mkTupleASTTy (mkName "TupleConst") expCon innerConst maxWidth
+  where
+    expCon = AppT $ ConT $ mkName "Exp"
+
+-- | Generate the 'TupleConst' AST type for tuple term construction
+mkAstTupleType :: Int -> Q [Dec]
+mkAstTupleType maxWidth =
+    mkTupleASTTy (mkName "TupleType") expCon tupTyConstName maxWidth
+  where
+    expCon = AppT $ ConT $ mkName "Type"
+
+mkTupleAstComponents :: Int -> Q [Dec]
+mkTupleAstComponents maxWidth = (++) <$> mkAstTupleConst maxWidth <*> mkAstTupleType maxWidth
+
 
 
 --------------------------------------------------------------------------------

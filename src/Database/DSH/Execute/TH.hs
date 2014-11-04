@@ -151,7 +151,7 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
 -- emulate it using explicit universal quantification:
 -- 
 -- @
--- data TabTule a =
+-- data TabTuple a =
 --     forall t1, ..., t<n>. a ~ (t1, ..., t<n>),
 --                           Reify t1,
 --                           ...
