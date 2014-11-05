@@ -34,7 +34,7 @@ getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
 
 x100Conn :: X100Info
-x100Conn = undefined
+x100Conn = x100Info "localhost" "48130" Nothing
 
 bar :: Q [(Integer, Integer, Integer)]
 bar = [ triple a c 42 | (view -> (a, b, c)) <- toQ ([(1,2,3), (4,5,6), (7,8,9)] :: [(Integer, Integer, Integer)]) ]
@@ -152,6 +152,6 @@ jan_q7b =
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> debugQ "q" c jan_q7b
---main = debugQX100 "q" x100Conn $ q (toQ [1..50])
+-- main = getConn P.>>= \c -> debugQ "q" c jan_q7b
+main = debugQX100 "q" x100Conn $ groupWith id (toQ ([] :: [Integer]))
 --main = debugQX100 "q1" x100Conn q1
