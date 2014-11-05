@@ -148,10 +148,13 @@ jan_q7b =
     , l_orderkeyQ l == ok
     , nrItems == maximum(map snd sumPerOrder)
     ]
+
+q :: Q [(Integer, Integer)]
+q = case (view (toQ (([0], [1]) :: ([Integer], [Integer])))) of (xs, ys) -> zip xs ys
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
 -- main = getConn P.>>= \c -> debugQ "q" c jan_q7b
-main = debugQX100 "q" x100Conn $ groupWith id (toQ ([] :: [Integer]))
+main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q1" x100Conn q1
