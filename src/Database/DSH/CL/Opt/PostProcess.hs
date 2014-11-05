@@ -88,11 +88,11 @@ introduceCartProductsR = do
     return $ inject $ Comp t h' qs'
 
 --------------------------------------------------------------------------------
--- Turn comprehension guards into filter combinators
+-- Turn comprehension guards into restrict combinators
 --
 -- [ e | ..., x <- xs, p x, ... ]
 -- =>
--- [ e | ..., x <- filter (\x -> p x) xs, ... ]
+-- [ e | ..., x <- restrict xs [ p x | x <- xs ], ... ]
 
 filterQualR :: RewriteC (NL Qual)
 filterQualR = do
@@ -100,14 +100,12 @@ filterQualR = do
         BindQ x xs :* GuardQ p :* qs -> do
             [x'] <- return $ freeVars p
             guardM $ x == x'
-            let xt = elemT $ typeOf xs
-            let xs' = P.filter (P.lambda (xt .-> boolT) x p) xs
+            let xs' = P.restrict xs (P.singleGenComp p x xs)
             return $ inject $ BindQ x xs' :* qs
         BindQ x xs :* (S (GuardQ p)) -> do
             [x'] <- return $ freeVars p
             guardM $ x == x'
-            let xt = elemT $ typeOf xs
-            let xs' = P.filter (P.lambda (xt .-> boolT) x p) xs
+            let xs' = P.restrict xs (P.singleGenComp p x xs)
             return $ inject $ S $ BindQ x xs'
         _ -> fail "no match"
 

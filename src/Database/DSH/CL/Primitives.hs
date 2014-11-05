@@ -170,39 +170,6 @@ sort = $unimplemented
 sort xs ss = AppE2 (typeOf xs) Sort xs ss
 -}
 
-map :: Expr -> Expr -> Expr
-map f es = let FunT ta tr = typeOf f
-               ListT t    = typeOf es
-            in if t P.== ta
-                 then AppE2 (listT tr) Map f es
-                 else tyErr "map"
-
-concatMap :: Expr -> Expr -> Expr
-concatMap f es = let FunT ta tr = typeOf f
-                     ListT t    = typeOf es
-                  in if t P.== ta
-                     then AppE2 tr ConcatMap f es
-                     else tyErr "concatMap"
-
-filter :: Expr -> Expr -> Expr
-filter f es = let te@(ListT _) = typeOf es
-               in AppE2 te Filter f es
-
-groupWithKey :: Expr -> Expr -> Expr
-groupWithKey f es = let FunT ta tk = typeOf f
-                        te@(ListT t)   = typeOf es
-                        tr            = listT P.$ pairT tk te
-                    in if t P.== ta
-                       then AppE2 tr GroupWithKey f es
-                       else tyErr "groupWithKey"
-
-sortWith :: Expr -> Expr -> Expr
-sortWith f es = let FunT ta _ = typeOf f
-                    te@(ListT t) = typeOf es
-                 in if t P.== ta
-                        then AppE2 te SortWith f es
-                        else tyErr "sortWith"
-
 pair :: Expr -> Expr -> Expr
 pair a b = tuple [a, b]
 
