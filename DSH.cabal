@@ -123,7 +123,6 @@ Library
                      Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
-                     Database.DSH.CL.Resugar
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
@@ -139,6 +138,7 @@ Library
                      Database.DSH.CL.Opt.SemiJoin
                      Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
+                     Database.DSH.CL.Opt.Resugar
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
                      Database.DSH.FKL.Rewrite

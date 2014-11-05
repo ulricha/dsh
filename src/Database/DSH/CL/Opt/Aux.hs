@@ -386,11 +386,7 @@ onetdSpineT t = do
 -- Classification of expressions
 
 complexPrim2 :: Prim2 -> Bool
-complexPrim2 op =
-    case op of
-        Map       -> False
-        ConcatMap -> False
-        _         -> True
+complexPrim2 _ = True
 
 complexPrim1 :: Prim1 -> Bool
 complexPrim1 op =

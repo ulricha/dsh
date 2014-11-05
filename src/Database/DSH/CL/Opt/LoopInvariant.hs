@@ -31,14 +31,6 @@ traverseT localVars = readerT $ \expr -> case expr of
     ExprCL (Comp _ _ _) -> fail "we don't traverse into comprehensions"
     ExprCL (Lam _ _ _)  -> fail "we don't traverse into lambdas"
 
-    -- We do not traverse into the mapping argument of higher-order
-    -- list combinators
-    ExprCL (AppE2 _ Map _ _)          -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ ConcatMap _ _)    -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ Filter _ _)       -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ GroupWithKey _ _) -> childT AppE2Arg2 $ searchInvariantExprT localVars
-    ExprCL (AppE2 _ SortWith _ _)     -> childT AppE2Arg2 $ searchInvariantExprT localVars
-
     ExprCL _                          -> oneT $ searchInvariantExprT localVars
     _                                 -> fail "we only consider expressions"
 

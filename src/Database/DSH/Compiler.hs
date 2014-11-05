@@ -35,7 +35,6 @@ import           Database.DSH.VL.Vector
 import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
-import           Database.DSH.CL.Resugar
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
@@ -55,8 +54,7 @@ import           Database.DSH.Translate.VL2Algebra
 -- | Backend-agnostic part of the pipeline.
 commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
 commonPipeline =
-    resugarComprehensions
-    >>> optimizeComprehensions
+    optimizeComprehensions
     >>> desugarComprehensions
     >>> optimizeNKL
     >>> flatTransform

@@ -141,12 +141,7 @@ instance Show Prim1 where
   -- tuple access is pretty-printed in a special way
   show TupElem{}       = $impossible
 
-data Prim2 = Map 
-           | ConcatMap 
-           | GroupWithKey
-           | SortWith 
-           | Filter 
-           | Sort
+data Prim2 = Sort
            | Restrict
            | Group
            | Append
@@ -162,11 +157,6 @@ data Prim2 = Map
            deriving (Eq)
 
 instance Show Prim2 where
-  show Map          = "map"
-  show ConcatMap    = "concatMap"
-  show GroupWithKey = "groupWithKey"
-  show SortWith     = "sortWith"
-  show Filter       = "filter"
   show Restrict     = "restrict"
   show Group        = "group"
   show Sort         = "sort"

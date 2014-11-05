@@ -209,48 +209,55 @@ translateApp f args =
        Index        -> translateApp2 CP.index args
        Cons         -> translateApp2 CP.consOpt args
 
+       -- Map to a comprehension
        Map          -> 
            case args of
-               TupleConstE (Tuple2E (LamE f) xs) -> do
+               TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody f
+                   (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
                    return $ CP.singleGenComp bodyExp' boundVar xs'
                _ -> $impossible
 
+       -- Map to a comprehension and concat
        ConcatMap    -> 
            case args of
-               TupleConstE (Tuple2E (LamE f) xs) -> do
+               TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody f
+                   (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
                    return $ CP.concat $ CP.singleGenComp bodyExp' boundVar xs'
                _ -> $impossible
                
+       -- Map to a first-order combinator 'sort'
        SortWith     -> 
            case args of
-               TupleConstE (Tuple2E (LamE f) xs) -> do
+               TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody f
+                   (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
                    let ss = CP.singleGenComp bodyExp' boundVar xs'
                    return $ CP.sort xs' ss
                _ -> $impossible
 
+       -- Map to a comprehension with a guard
        Filter       -> 
            case args of
-               TupleConstE (Tuple2E (LamE f) xs) -> do
+               TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody f
+                   (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
-                   let ss = CP.singleGenComp bodyExp' boundVar xs'
-                   return $ CP.restrict xs' ss
+                   let xt    = T.typeOf xs'
+                       quals = CL.BindQ boundVar xs' CL.:* (CL.S $ CL.GuardQ bodyExp')
+                   return $ CL.Comp (T.listT xt) (CL.Var xt boundVar) quals
                _ -> $impossible
+
+       -- Map to a first-order combinator 'group'
        GroupWithKey ->
            case args of
-               TupleConstE (Tuple2E (LamE f) xs) -> do
+               TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody f
+                   (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
                    let ss = CP.singleGenComp bodyExp' boundVar xs'
                    return $ CP.group xs' ss
