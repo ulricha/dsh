@@ -19,6 +19,7 @@ import           Database.DSH.CL.Opt.Normalize
 import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
+import           Database.DSH.CL.Opt.Resugar
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
@@ -76,7 +77,8 @@ applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR
 
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+>
+optimizeR = resugarR >+>
+            normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
             repeatR (anybuR postProcessCompR)
 

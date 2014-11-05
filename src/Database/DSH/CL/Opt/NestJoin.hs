@@ -46,7 +46,6 @@ data NestedComp = NestedComp
     , hGuards :: [Expr]
     }
 
-
 -- | Check if a comprehension is eligible for unnesting. This is the
 -- case if the outer generator variable 'x' does not occur in the
 -- inner generator and if there is only one inner generator.

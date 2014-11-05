@@ -31,7 +31,7 @@ deriveTA ''Foo
 generateTableSelectors ''Foo
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'trades'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
 
 x100Conn :: X100Info
 x100Conn = x100Info "localhost" "48130" Nothing
@@ -216,6 +216,6 @@ bestProfit stock date =
               $ sortWith t_timestampQ trades
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ bestProfit 23 42
+main = getConn P.>>= \c -> debugQ "q" c q2
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
