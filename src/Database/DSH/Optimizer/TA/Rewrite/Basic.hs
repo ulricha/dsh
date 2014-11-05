@@ -54,6 +54,7 @@ cleanupRulesTopDown = [ unreferencedRownum
                       , constRownumCol
                       , constRowRankCol
                       , constSerializeCol
+                      , constWinOrderCol
                       ]
 
 ----------------------------------------------------------------------------------
@@ -268,6 +269,19 @@ constSerializeCol q =
          return $ do
              logRewrite "Basic.Const.Serialize" q
              void $ replaceWithNew q $ UnOp (Serialize (mDescr, RelPos sortCols', payload)) $(v "q1") |])
+
+constWinOrderCol :: TARule AllProps
+constWinOrderCol q =
+  $(dagPatMatch 'q "WinFun args (q1)"
+    [| do
+         constCols <- pConst <$> bu <$> properties $(v "q1")
+         let (f, part, sortCols, frameSpec) = $(v "args")
+         let sortCols' = filter (\(e, _) -> not $ isConstExpr constCols e) sortCols
+         predicate $ length sortCols' < length sortCols
+
+         return $ do
+             logRewrite "Basic.Const.WinFun" q
+             void $ replaceWithNew q $ UnOp (WinFun (f, part, sortCols', frameSpec)) $(v "q1") |])
 
 
 ----------------------------------------------------------------------------------

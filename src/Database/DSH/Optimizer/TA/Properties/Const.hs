@@ -34,6 +34,11 @@ inferConstNullOp op =
             constCol _      _                 = []
         TableRef _             -> []
 
+inferConstSelect :: Expr -> [ConstCol]
+inferConstSelect (BinAppE Eq (ColE c) (ConstE v)) = [(c, v)]
+inferConstSelect (BinAppE Eq (ConstE v) (ColE c)) = [(c, v)]
+inferConstSelect (BinAppE And e1 e2)              = inferConstSelect e1 ++ inferConstSelect e2
+inferConstSelect _                                = []
 
 inferConstUnOp :: [ConstCol] -> UnOp -> [ConstCol]
 inferConstUnOp childConst op = 
@@ -42,7 +47,7 @@ inferConstUnOp childConst op =
         RowNum (_, _, _)  -> childConst
         RowRank (_, _)    -> childConst
         Rank (_, _)       -> childConst
-        Select _          -> childConst
+        Select p          -> inferConstSelect p ++ childConst
         Distinct _        -> childConst
         Aggr _            -> []
         Project projs     -> mapMaybe (constProj childConst) projs
