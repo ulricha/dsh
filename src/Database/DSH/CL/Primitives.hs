@@ -143,12 +143,10 @@ snd :: Expr -> Expr
 snd e = tupElem (Next First) e
 
 restrict :: Expr -> Expr -> Expr
-restrict xs bs = $unimplemented
-{-
+restrict xs bs =
     if elemT (typeOf bs) P.== BoolT
     then AppE2 (typeOf xs) Restrict xs bs
     else tyErr "restrict"
--}
 
 singleGenComp :: Expr -> L.Ident -> Expr -> Expr
 singleGenComp bodyExp v gen =
@@ -156,19 +154,13 @@ singleGenComp bodyExp v gen =
     in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
 
 group :: Expr -> Expr -> Expr
-group = $unimplemented
-{-
 group xs gs = let ListT xt = typeOf xs
                   ListT gt = typeOf gs
                   rt       = ListT (TupleT [xt, ListT gt])
               in AppE2 rt Group xs gs
--}
 
 sort :: Expr -> Expr -> Expr
-sort = $unimplemented
-{-
 sort xs ss = AppE2 (typeOf xs) Sort xs ss
--}
 
 pair :: Expr -> Expr -> Expr
 pair a b = tuple [a, b]

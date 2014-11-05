@@ -146,6 +146,9 @@ data Prim2 = Map
            | GroupWithKey
            | SortWith 
            | Filter 
+           | Sort
+           | Restrict
+           | Group
            | Append
            | Index
            | Zip 
@@ -164,6 +167,9 @@ instance Show Prim2 where
   show GroupWithKey = "groupWithKey"
   show SortWith     = "sortWith"
   show Filter       = "filter"
+  show Restrict     = "restrict"
+  show Group        = "group"
+  show Sort         = "sort"
   show Append       = "append"
   show Index        = "index"
   show Zip          = "zip"

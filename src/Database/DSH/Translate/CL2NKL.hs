@@ -90,56 +90,12 @@ prim2 t o e1 e2 = mkApp2
             CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
-
-{- FIXME higher-order CL translation. Remove once CL is first-order.
-            CL.ConcatMap    ->
-                case e1 of
-                    CL.Lam _ x h -> P.concat <$> mkComp h x e2
-                    _            -> $impossible
-
-            CL.Map          ->
-                case e1 of
-                    CL.Lam _ x h -> mkComp h x e2
-                    _            -> $impossible
-
-            CL.Filter       ->
-                case e1 of
-                    CL.Lam _ x h -> do
-                        n <- freshName
-                        let nv = CL.Var (typeOf e2) n
-                        P.let_ n <$> expr e2 
-                                 <*> (P.restrict <$> expr nv <*> mkComp h x nv)
-                    
-                    _            -> $impossible
-
-            CL.SortWith     ->
-                case e1 of
-                    CL.Lam _ x h -> do
-                        n <- freshName
-                        let nv = CL.Var (typeOf e2) n
-                        P.let_ n <$> expr e2 
-                                 <*> (P.sort <$> expr nv <*> mkComp h x nv)
-                    _            -> $impossible
-
-            CL.GroupWithKey ->
-                case e1 of
-                    CL.Lam _ x h -> do
-                        n <- freshName
-                        let nv = CL.Var (typeOf e2) n
-                        P.let_ n <$> expr e2 
-                                 <*> (P.group <$> expr nv <*> mkComp h x nv)
-                    _            -> $impossible
--}
+            CL.Restrict     -> mkPrim2 $ NKL.Restrict
+            CL.Sort         -> mkPrim2 $ NKL.Sort
+            CL.Group        -> mkPrim2 $ NKL.Group
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2
-
-    mkComp :: CL.Expr -> Ident -> CL.Expr -> NameEnv NKL.Expr
-    mkComp h x xs = NKL.Comp (listT $ typeOf h) 
-                             <$> local (x :) (expr h) 
-                             <*> pure x 
-                             <*> expr xs
-            
 
 --------------------------------------------------------------------------------
 -- Generator environments
