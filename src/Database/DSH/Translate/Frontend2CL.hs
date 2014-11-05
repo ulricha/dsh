@@ -116,7 +116,7 @@ translate (ListE es) = do
 -- concatMap, sortWith, ...). If lambdas occur in other places that
 -- have not been eliminated by inlining in the frontend, additional
 -- normalization rules or defunctionalization should be employed.
-translate (e@(LamE _)) = $impossible
+translate (LamE _) = $impossible
 translate (TableE (TableDB tableName hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)

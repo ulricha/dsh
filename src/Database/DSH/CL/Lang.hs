@@ -187,12 +187,10 @@ isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
 
 data Expr  = Table Type String [L.Column] L.TableHints
-           | App Type Expr Expr
            | AppE1 Type Prim1 Expr
            | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
-           | Lam Type L.Ident Expr
            | If Type Expr Expr Expr
            | Lit Type L.Val
            | Var Type L.Ident
@@ -200,20 +198,17 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | MkTuple Type [Expr]
            deriving (Show)
 
-
 instance Pretty Expr where
     pretty (AppE1 _ (TupElem n) e1) = 
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (MkTuple _ es)     = tupled $ map pretty es
     pretty (Table _ n _ _)    = text "table" <> parens (text n)
-    pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
     pretty (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = pretty o <> parens (pretty e)
-    pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if"
                              <+> pretty c
                              <+> text "then"
@@ -263,10 +258,8 @@ deriving instance Eq Expr
 
 instance Typed Expr where
     typeOf (Table t _ _ _) = t
-    typeOf (App t _ _)     = t
     typeOf (AppE1 t _ _)   = t
     typeOf (AppE2 t _ _ _) = t
-    typeOf (Lam t _ _)     = t
     typeOf (If t _ _ _)    = t
     typeOf (BinOp t _ _ _) = t
     typeOf (UnOp t _ _)    = t

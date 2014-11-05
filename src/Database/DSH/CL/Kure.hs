@@ -24,8 +24,8 @@ module Database.DSH.CL.Kure
     , inScopeNames, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
-    , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
-    , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
+    , tableT, appe1T, appe2T, binopT, ifT, litT, varT, compT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR
     , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
@@ -158,19 +158,6 @@ tableR :: Monad m => Rewrite CompCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
                                        
-appT :: Monad m => Transform CompCtx m Expr a1
-                -> Transform CompCtx m Expr a2
-                -> (Type -> a1 -> a2 -> b)
-                -> Transform CompCtx m Expr b
-appT t1 t2 f = transform $ \c expr -> case expr of
-                      App ty e1 e2 -> f ty <$> applyT t1 (c@@AppFun) e1 <*> applyT t2 (c@@AppArg) e2
-                      _            -> fail "not an application node"
-{-# INLINE appT #-}                      
-
-appR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
-appR t1 t2 = appT t1 t2 App
-{-# INLINE appR #-}                      
-                      
 appe1T :: Monad m => Transform CompCtx m Expr a
                   -> (Type -> Prim1 -> a -> b)
                   -> Transform CompCtx m Expr b
@@ -222,18 +209,6 @@ unopT t f = transform $ \ctx expr -> case expr of
 unopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
-                     
-lamT :: Monad m => Transform CompCtx m Expr a
-                -> (Type -> L.Ident -> a -> b)
-                -> Transform CompCtx m Expr b
-lamT t f = transform $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> applyT t (bindVar n (domainT ty) c@@LamBody) e
-                     _          -> fail "not a lambda"
-{-# INLINE lamT #-}                      
-                     
-lamR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
-lamR t = lamT t Lam
-{-# INLINE lamR #-}                      
                      
 ifT :: Monad m => Transform CompCtx m Expr a1
                -> Transform CompCtx m Expr a2
@@ -415,12 +390,10 @@ instance Walker CompCtx CL where
 
         allRexpr = readerT $ \e -> case e of
             Table{}   -> idR
-            App{}     -> appR (extractR r) (extractR r)
             AppE1{}   -> appe1R (extractR r)
             AppE2{}   -> appe2R (extractR r) (extractR r)
             BinOp{}   -> binopR (extractR r) (extractR r)
             UnOp{}    -> unopR (extractR r)
-            Lam{}     -> lamR (extractR r)
             If{}      -> ifR (extractR r) (extractR r) (extractR r)
             Lit{}     -> idR
             Var{}     -> idR

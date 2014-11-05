@@ -209,9 +209,6 @@ var = Var
 table :: Type -> P.String -> [L.Column] -> L.TableHints -> Expr
 table = Table
 
-lambda :: Type -> P.String -> Expr -> Expr
-lambda = Lam
-
 cond :: Expr -> Expr -> Expr -> Expr
 cond eb et ee = let tb = typeOf eb
                     tt = typeOf et

@@ -29,7 +29,6 @@ traverseT localVars = readerT $ \expr -> case expr of
     -- FIXME technically, we could consider the generators of the
     -- nested comprehension.
     ExprCL (Comp _ _ _) -> fail "we don't traverse into comprehensions"
-    ExprCL (Lam _ _ _)  -> fail "we don't traverse into lambdas"
 
     ExprCL _                          -> oneT $ searchInvariantExprT localVars
     _                                 -> fail "we only consider expressions"

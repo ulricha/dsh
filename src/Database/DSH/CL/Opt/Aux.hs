@@ -215,12 +215,6 @@ compBoundVars qs = F.foldr aux [] qs
 --------------------------------------------------------------------------------
 -- Substitution
 
-alphaLamR :: RewriteC Expr
-alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
-               v' <- constT $ freshName (inScopeNames ctx)
-               let varTy = domainT lamTy
-               lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
-
 substR :: Ident -> Expr -> RewriteC CL
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
@@ -228,17 +222,6 @@ substR v s = readerT $ \expr -> case expr of
 
     -- Some other variable
     ExprCL (Var _ _)                                   -> idR
-
-    -- A lambda which does not shadow v and in which v occurs free. If the
-    -- lambda variable occurs free in the substitute, we rename the lambda
-    -- variable to avoid name capturing.
-    ExprCL (Lam _ n e) | n /= v && v `elem` freeVars e ->
-        if n `elem` freeVars s
-        then promoteR alphaLamR >>> substR v s
-        else promoteR $ lamR (extractR $ substR v s)
-
-    -- A lambda which shadows v -> don't descend
-    ExprCL (Lam _ _ _)                                 -> idR
 
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on

@@ -70,7 +70,6 @@ searchNestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
 searchNestedCompT x =
     readerT $ \e -> case e of
         ExprCL Comp{} -> nestedCompT x
-        ExprCL Lam{}  -> fail "don't descent into lambdas"
         ExprCL _      -> oneT $ searchNestedCompT x
         _             -> fail "only traverse through expressions"
         
@@ -388,10 +387,8 @@ isComplexExpr e =
     case e of
         Comp{}         -> True
         If{}           -> True
-        App{}          -> True
         BinOp{}        -> True
         UnOp{}         -> True
-        Lam{}          -> True
         AppE2 _ op _ _ -> complexPrim2 op
         AppE1 _ op _   -> complexPrim1 op
         Lit{}          -> False
