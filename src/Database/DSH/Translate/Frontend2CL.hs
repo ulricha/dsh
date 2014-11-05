@@ -89,17 +89,16 @@ toComprehensions queryTableInfo e = runCompile queryTableInfo $ translate e
 runCompile :: QueryTableInfo -> Compile a -> IO a
 runCompile f = liftM fst . flip runStateT (1, M.empty, f)
 
+lamBody :: forall a b.(Reify a, Reify b) => (Exp a -> Exp b) -> Compile (L.Ident, Exp b)
+lamBody f = do
+    v <- freshVar
+    return (prefixVar v, f (VarE v :: Exp a))
 
+-- | Translate a frontend HOAS AST to a FOAS AST in Comprehension
+-- Language (CL).
 translate :: forall a. Exp a -> Compile CL.Expr
 translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
                              in translateTupleConst tc
-{-
-    a' <- translate a 
-    b' <- translate b
-    c' <- translate c
-    let elemTys = map T.typeOf [a', b', c']
-    return $ CL.MkTuple (T.TupleT $ map T.typeOf [a', b', c']) [a', b', c']
--}
 translate UnitE = return $ CP.unit
 translate (BoolE b) = return $ CP.bool b
 translate (CharE c) = return $ CP.string [c]
@@ -112,13 +111,12 @@ translate (VarE i) = do
 translate (ListE es) = do
     let ty = reify (undefined :: a)
     CP.list (translateType ty) <$> mapM translate es
-translate (e@(LamE _)) =
-    case e of
-        (LamE f :: Exp (b -> c)) -> do
-            v <- freshVar
-            let ty = ArrowT (reify (undefined :: b)) (reify (undefined :: c))
-            CP.lambda (translateType ty) (prefixVar v) <$> (translate $ f (VarE v :: Exp b))
-        _ -> $impossible
+-- We expect the query language to be first order. Lambdas must only
+-- occur as an argument to higher-order built-in combinators (map,
+-- concatMap, sortWith, ...). If lambdas occur in other places that
+-- have not been eliminated by inlining in the frontend, additional
+-- normalization rules or defunctionalization should be employed.
+translate (e@(LamE _)) = $impossible
 translate (TableE (TableDB tableName hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
@@ -153,7 +151,7 @@ translate (TableE (TableDB tableName hints)) = do
 
     return $ CP.table (translateType ty) tableName cols (compileHints hints)
 
-translate (AppE f args) = compileApp f args
+translate (AppE f args) = translateApp f args
 
 compileHints :: TableHints -> L.TableHints
 compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
@@ -168,18 +166,16 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
     ne PossiblyEmpty = L.PossiblyEmpty
 
 
-compileApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b, c) -> Compile CL.Expr
-compileApp3 f (TupleConstE (Tuple3E e1 e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
-compileApp3 _ _ = $impossible
+translateApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b, c) -> Compile CL.Expr
+translateApp3 f (TupleConstE (Tuple3E e1 e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
+translateApp3 _ _ = $impossible
 
-compileApp2 :: (CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b) -> Compile CL.Expr
-compileApp2 f (TupleConstE (Tuple2E e1 e2)) = f <$> translate e1 <*> translate e2
-compileApp2 _ _ = $impossible
+translateApp2 :: (CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b) -> Compile CL.Expr
+translateApp2 f (TupleConstE (Tuple2E e1 e2)) = f <$> translate e1 <*> translate e2
+translateApp2 _ _ = $impossible
 
-compileApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
-compileApp1 f e = f <$> translate e
-
-
+translateApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
+translateApp1 f e = f <$> translate e
 
 -- | Translate DSH frontend types into backend types.
 translateType :: Type a -> T.Type
@@ -198,70 +194,113 @@ translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
 -- right-deep nested tuples) extract the types of the individual
 -- fields.
 
-compileApp :: Fun a b -> Exp a -> Compile CL.Expr
-compileApp f args =
+translateApp :: Fun a b -> Exp a -> Compile CL.Expr
+translateApp f args =
     case f of
        -- Builtin functions with arity three
-       Cond -> compileApp3 CP.cond args
+       Cond -> translateApp3 CP.cond args
 
        -- Builtin functions with arity two
-       Add          -> compileApp2 CP.add args
-       Mul          -> compileApp2 CP.mul args
-       Sub          -> compileApp2 CP.sub args
-       Div          -> compileApp2 CP.div args
-       Mod          -> compileApp2 CP.mod args
-       Index        -> compileApp2 CP.index args
-       SortWith     -> compileApp2 CP.sortWith args
-       Cons         -> compileApp2 CP.consOpt args
-       Map          -> compileApp2 CP.map args
-       ConcatMap    -> compileApp2 CP.concatMap args
-       Append       -> compileApp2 CP.append args
-       Filter       -> compileApp2 CP.filter args
-       GroupWithKey -> compileApp2 CP.groupWithKey args
-       Zip          -> compileApp2 CP.zip args
-       Equ          -> compileApp2 CP.eq args
-       NEq          -> compileApp2 CP.neq args
-       Conj         -> compileApp2 CP.conj args
-       Disj         -> compileApp2 CP.disj args
-       Lt           -> compileApp2 CP.lt args
-       Lte          -> compileApp2 CP.lte args
-       Gte          -> compileApp2 CP.gte args
-       Gt           -> compileApp2 CP.gt args
-       Like         -> compileApp2 CP.like args
+       Add          -> translateApp2 CP.add args
+       Mul          -> translateApp2 CP.mul args
+       Sub          -> translateApp2 CP.sub args
+       Div          -> translateApp2 CP.div args
+       Mod          -> translateApp2 CP.mod args
+       Index        -> translateApp2 CP.index args
+       Cons         -> translateApp2 CP.consOpt args
+
+       Map          -> 
+           case args of
+               TupleConstE (Tuple2E (LamE f) xs) -> do
+                   xs'                 <- translate xs
+                   (boundVar, bodyExp) <- lamBody f
+                   bodyExp'            <- translate bodyExp
+                   return $ CP.singleGenComp bodyExp' boundVar xs'
+               _ -> $impossible
+
+       ConcatMap    -> 
+           case args of
+               TupleConstE (Tuple2E (LamE f) xs) -> do
+                   xs'                 <- translate xs
+                   (boundVar, bodyExp) <- lamBody f
+                   bodyExp'            <- translate bodyExp
+                   return $ CP.concat $ CP.singleGenComp bodyExp' boundVar xs'
+               _ -> $impossible
+               
+       SortWith     -> 
+           case args of
+               TupleConstE (Tuple2E (LamE f) xs) -> do
+                   xs'                 <- translate xs
+                   (boundVar, bodyExp) <- lamBody f
+                   bodyExp'            <- translate bodyExp
+                   let ss = CP.singleGenComp bodyExp' boundVar xs'
+                   return $ CP.sort xs' ss
+               _ -> $impossible
+
+       Filter       -> 
+           case args of
+               TupleConstE (Tuple2E (LamE f) xs) -> do
+                   xs'                 <- translate xs
+                   (boundVar, bodyExp) <- lamBody f
+                   bodyExp'            <- translate bodyExp
+                   let ss = CP.singleGenComp bodyExp' boundVar xs'
+                   return $ CP.restrict xs' ss
+               _ -> $impossible
+       GroupWithKey ->
+           case args of
+               TupleConstE (Tuple2E (LamE f) xs) -> do
+                   xs'                 <- translate xs
+                   (boundVar, bodyExp) <- lamBody f
+                   bodyExp'            <- translate bodyExp
+                   let ss = CP.singleGenComp bodyExp' boundVar xs'
+                   return $ CP.group xs' ss
+               _ -> $impossible
+
+       Append       -> translateApp2 CP.append args
+       Zip          -> translateApp2 CP.zip args
+       Equ          -> translateApp2 CP.eq args
+       NEq          -> translateApp2 CP.neq args
+       Conj         -> translateApp2 CP.conj args
+       Disj         -> translateApp2 CP.disj args
+       Lt           -> translateApp2 CP.lt args
+       Lte          -> translateApp2 CP.lte args
+       Gte          -> translateApp2 CP.gte args
+       Gt           -> translateApp2 CP.gt args
+       Like         -> translateApp2 CP.like args
 
        -- Builtin functions with arity one
-       SubString f t   -> compileApp1 (CP.substring f t) args
-       IntegerToDouble -> compileApp1 CP.castDouble args
-       Not             -> compileApp1 CP.not args
-       Sin             -> compileApp1 CP.sin args
-       Cos             -> compileApp1 CP.cos args
-       Tan             -> compileApp1 CP.tan args
-       ASin            -> compileApp1 CP.asin args
-       ACos            -> compileApp1 CP.acos args
-       ATan            -> compileApp1 CP.atan args
-       Sqrt            -> compileApp1 CP.sqrt args
-       Log             -> compileApp1 CP.log args
-       Exp             -> compileApp1 CP.exp args
-       Fst             -> compileApp1 CP.fst args
-       Snd             -> compileApp1 CP.snd args
-       Head            -> compileApp1 CP.head args
-       Tail            -> compileApp1 CP.tail args
-       Minimum         -> compileApp1 CP.minimum args
-       Maximum         -> compileApp1 CP.maximum args
-       Concat          -> compileApp1 CP.concat args
-       Sum             -> compileApp1 CP.sum args
-       Avg             -> compileApp1 CP.avg args
-       And             -> compileApp1 CP.and args
-       Or              -> compileApp1 CP.or args
-       Reverse         -> compileApp1 CP.reverse args
-       Number          -> compileApp1 CP.number args
-       Length          -> compileApp1 CP.length args
-       Null            -> compileApp1 CP.null args
-       Init            -> compileApp1 CP.init args
-       Last            -> compileApp1 CP.last args
-       Nub             -> compileApp1 CP.nub args
-       Guard           -> compileApp1 CP.guard args
-       Transpose       -> compileApp1 CP.transpose args
-       Reshape n       -> compileApp1 (CP.reshape n) args
+       SubString f t   -> translateApp1 (CP.substring f t) args
+       IntegerToDouble -> translateApp1 CP.castDouble args
+       Not             -> translateApp1 CP.not args
+       Sin             -> translateApp1 CP.sin args
+       Cos             -> translateApp1 CP.cos args
+       Tan             -> translateApp1 CP.tan args
+       ASin            -> translateApp1 CP.asin args
+       ACos            -> translateApp1 CP.acos args
+       ATan            -> translateApp1 CP.atan args
+       Sqrt            -> translateApp1 CP.sqrt args
+       Log             -> translateApp1 CP.log args
+       Exp             -> translateApp1 CP.exp args
+       Fst             -> translateApp1 CP.fst args
+       Snd             -> translateApp1 CP.snd args
+       Head            -> translateApp1 CP.head args
+       Tail            -> translateApp1 CP.tail args
+       Minimum         -> translateApp1 CP.minimum args
+       Maximum         -> translateApp1 CP.maximum args
+       Concat          -> translateApp1 CP.concat args
+       Sum             -> translateApp1 CP.sum args
+       Avg             -> translateApp1 CP.avg args
+       And             -> translateApp1 CP.and args
+       Or              -> translateApp1 CP.or args
+       Reverse         -> translateApp1 CP.reverse args
+       Number          -> translateApp1 CP.number args
+       Length          -> translateApp1 CP.length args
+       Null            -> translateApp1 CP.null args
+       Init            -> translateApp1 CP.init args
+       Last            -> translateApp1 CP.last args
+       Nub             -> translateApp1 CP.nub args
+       Guard           -> translateApp1 CP.guard args
+       Transpose       -> translateApp1 CP.transpose args
+       Reshape n       -> translateApp1 (CP.reshape n) args
        TupElem te      -> let compileTupElem = $(mkTupElemCompile 16)
                           in compileTupElem te args

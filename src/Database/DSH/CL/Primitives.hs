@@ -20,14 +20,6 @@ tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
 tyErrShow :: P.String -> [Type] -> a
 tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
-($) :: Expr -> Expr -> Expr
-f $ e = let tf = typeOf f
-            te = typeOf e
-            (ta, tr) = splitType tf
-         in if ta P.== te
-              then App tr f e
-              else tyErr "$"
-
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
              in AppE1 t Reverse e
@@ -39,10 +31,12 @@ length e = let t = typeOf e
               else tyErr "length"
 
 all :: Expr -> Expr -> Expr
-all f e = and (map f e)
+-- all f e = and (map f e)
+all = $unimplemented
 
 any :: Expr -> Expr -> Expr
-any f e = or (map f e)
+-- any f e = or (map f e)
+any = $unimplemented
 
 null :: Expr -> Expr
 null e =
@@ -147,6 +141,34 @@ fst e = tupElem First e
 
 snd :: Expr -> Expr
 snd e = tupElem (Next First) e
+
+restrict :: Expr -> Expr -> Expr
+restrict xs bs = $unimplemented
+{-
+    if elemT (typeOf bs) P.== BoolT
+    then AppE2 (typeOf xs) Restrict xs bs
+    else tyErr "restrict"
+-}
+
+singleGenComp :: Expr -> L.Ident -> Expr -> Expr
+singleGenComp bodyExp v gen =
+    let bodyTy = typeOf bodyExp
+    in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
+
+group :: Expr -> Expr -> Expr
+group = $unimplemented
+{-
+group xs gs = let ListT xt = typeOf xs
+                  ListT gt = typeOf gs
+                  rt       = ListT (TupleT [xt, ListT gt])
+              in AppE2 rt Group xs gs
+-}
+
+sort :: Expr -> Expr -> Expr
+sort = $unimplemented
+{-
+sort xs ss = AppE2 (typeOf xs) Sort xs ss
+-}
 
 map :: Expr -> Expr -> Expr
 map f es = let FunT ta tr = typeOf f

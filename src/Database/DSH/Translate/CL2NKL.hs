@@ -91,6 +91,7 @@ prim2 t o e1 e2 = mkApp2
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
 
+{- FIXME higher-order CL translation. Remove once CL is first-order.
             CL.ConcatMap    ->
                 case e1 of
                     CL.Lam _ x h -> P.concat <$> mkComp h x e2
@@ -128,6 +129,7 @@ prim2 t o e1 e2 = mkApp2
                         P.let_ n <$> expr e2 
                                  <*> (P.group <$> expr nv <*> mkComp h x nv)
                     _            -> $impossible
+-}
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2
@@ -203,10 +205,6 @@ expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
 expr (CL.Lit t v)                = return $ NKL.Const t v
 expr (CL.Var t v)                = return $ NKL.Var t v
 expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
--- We assume that lambdas only occur as argument in the application of
--- a higher-order primitive.
-expr CL.Lam{}                    = $impossible
-expr CL.App{}                    = $impossible
 
 --------------------------------------------------------------------------------
 -- Desugaring of comprehensions
