@@ -149,8 +149,8 @@ jan_q7b =
     , nrItems == maximum(map snd sumPerOrder)
     ]
 
-q :: Q [(Integer, Integer, Integer)]
-q = case view (toQ (([0], [0], [1]) :: ([Integer], [Integer], [Integer]))) of (as,bs,cs) -> zip3 as bs cs
+q :: Q [(Integer, [Integer])] 
+q = sortWith fst (toQ ([(1, []), (0, [0])] :: [(Integer, [Integer])]))
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
