@@ -8,7 +8,7 @@ module Database.DSH.VL.Vectorize where
 import           Debug.Trace
 
 import           Control.Applicative
-import           Data.List
+import qualified Data.List                     as List
 import           Prelude                       hiding (reverse, zip)
 import qualified Prelude                       as P
 
@@ -532,24 +532,17 @@ tailL (VShape d (LNest q lyt)) = do
 tailL _ = $impossible
 
 sortL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-sortL = $unimplemented
-{-
-sortL (VShape _ (LNest v1 _)) (VShape d2 (LNest v2 lyt2)) = do
-    (v, p) <- vlSortS v1 v2
-    lyt2'  <- chainReorder p lyt2
-    return $ VShape d2 (LNest v lyt2')
+sortL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do
+    VShape innerVec lyt <- sort (VShape v1 lyt1) (VShape v2 lyt2)
+    return $ VShape d2 (LNest innerVec lyt)
 sortL _ _ = $impossible
--}
 
 groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-groupL = $unimplemented
-{-
 groupL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do
-    (d, v, p) <- vlGroup v1 v2
-    lyt2'     <- chainReorder p lyt2
-    return $ VShape d2 (LNest d (LTuple [lyt1, LNest v lyt2']))
+    let flatRes = group (VShape v1 lyt1) (VShape v2 lyt2)
+    (VShape middleVec (LTuple [groupLyt, LNest innerVec innerLyt])) <- flatRes
+    return $ VShape d2 (LNest middleVec (LTuple [groupLyt, LNest innerVec innerLyt]))
 groupL _ _ = $impossible
--}
 
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do
@@ -641,7 +634,7 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
     projectFromPosWork c (LNest q l)   = (LNest q l, [], c)
     projectFromPosWork c (LTuple lyts) = (LTuple psRes, colsRes, cRes)
       where
-        (psRes, colsRes, cRes) = foldl' tupleWorker ([], [], c) lyts
+        (psRes, colsRes, cRes) = List.foldl' tupleWorker ([], [], c) lyts
 
     tupleWorker (psAcc, colsAcc, cAcc) lyt = (psAcc ++ [lyt'], colsAcc ++ cols, c')
       where
@@ -711,7 +704,7 @@ toPlan (tabTys, tabCols) (ListT t) nextCol es =
             -- encoded is empty, create an empty list for each column.
             let colsVals = case es of
                                [] -> map (const []) elemTys
-                               _  -> Data.List.transpose $ map tupleElems es
+                               _  -> List.transpose $ map tupleElems es
             mkTupleTable (tabTys, tabCols) nextCol [] colsVals elemTys
 
         FunT _ _  -> $impossible
