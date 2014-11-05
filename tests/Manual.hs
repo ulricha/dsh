@@ -149,12 +149,12 @@ jan_q7b =
     , nrItems == maximum(map snd sumPerOrder)
     ]
 
-q :: Q [(Integer, Integer)]
-q = case (view (toQ (([0], [1]) :: ([Integer], [Integer])))) of (xs, ys) -> zip xs ys
+q :: Q [(Integer, Integer, Integer)]
+q = case view (toQ (([0], [0], [1]) :: ([Integer], [Integer], [Integer]))) of (as,bs,cs) -> zip3 as bs cs
     
 main :: IO ()
 -- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
 -- main = getConn P.>>= \c -> debugQ "q" c foo
 -- main = getConn P.>>= \c -> debugQ "q" c jan_q7b
 main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
---main = debugQX100 "q1" x100Conn q1
+--main = debugQX100 "q" x100Conn q
