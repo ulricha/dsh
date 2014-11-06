@@ -110,8 +110,48 @@ notNullR = do
     PNot (PAnd (Comp _ (PNot p) (S (BindQ x xs)))) <- promoteT idR
     return $ inject $ P.or (Comp (listT boolT) p (S (BindQ x xs)))
 
+--------------------------------------------------------------------------------
+-- Inline let bindings
+
+-- | Count occurences of a given identifier.
+countVarRefT :: Ident -> TransformC CL Int
+countVarRefT n = do
+    refs <- collectT $ do Var _ n' <- promoteT idR
+                          guardM $ n == n'
+                          return n'
+    return $ length refs
+
+-- | Remove a let-binding that is not referenced.
+unusedBindingR :: RewriteC CL
+unusedBindingR = do
+    Let _ x _ e2 <- promoteT idR
+    0            <- childT LetBody $ countVarRefT x
+    return $ inject e2
+
+-- | Inline a let-binding that is only referenced once.
+-- FIXME ensure that the binding is not inlined into a comprehension
+referencedOnceR :: RewriteC CL
+referencedOnceR = do
+    Let _ x e1 _ <- promoteT idR
+    1            <- childT LetBody $ countVarRefT x
+    childT LetBody $ substR x e1
+
+simpleExpr :: Expr -> Bool
+simpleExpr Table{} = True
+simpleExpr Var{}   = True
+simpleExpr _       = False
+
+-- | Inline a let-binding that binds a simple expression.
+simpleBindingR :: RewriteC CL
+simpleBindingR = do
+    Let _ x e1 _ <- promoteT idR
+    guardM $ simpleExpr e1
+    childT LetBody $ substR x e1
+
 normalizeExprR :: RewriteC CL
-normalizeExprR = zeroLengthR 
-                 <+ comprehensionNullR
-                 <+ notNullR
-                 <+ notExistsR
+normalizeExprR = readerT $ \expr -> case expr of
+    ExprCL AppE1{} -> comprehensionNullR
+    ExprCL UnOp{}  -> notNullR <+ notExistsR
+    ExprCL BinOp{} -> zeroLengthR
+    ExprCL Let{}   -> unusedBindingR <+ simpleBindingR
+    _              -> fail "not a normalizable expression"

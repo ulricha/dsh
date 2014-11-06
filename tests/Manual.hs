@@ -216,6 +216,6 @@ bestProfit stock date =
               $ sortWith t_timestampQ trades
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q2
+main = getConn P.>>= \c -> debugQ "q" c jan_q7b
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

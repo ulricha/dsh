@@ -62,7 +62,6 @@ complexPathT localVars = do
 searchInvariantExprT :: [Ident] -> TransformC CL (Expr, PathC)
 searchInvariantExprT localVars = complexPathT localVars <+ (promoteT $ traverseT localVars)
 
-
 -- | In a given guard expression, search for a complex loop-invariant
 -- sub-expression and move it to a generator.
 invariantExprT :: [Ident] -> TransformC CL (Ident, Expr, Expr)
