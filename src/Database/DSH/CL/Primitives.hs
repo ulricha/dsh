@@ -30,14 +30,6 @@ length e = let t = typeOf e
               then AppE1 intT Length e
               else tyErr "length"
 
-all :: Expr -> Expr -> Expr
--- all f e = and (map f e)
-all = $unimplemented
-
-any :: Expr -> Expr -> Expr
--- any f e = or (map f e)
-any = $unimplemented
-
 null :: Expr -> Expr
 null e =
     if isList t
