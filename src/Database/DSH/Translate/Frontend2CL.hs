@@ -236,8 +236,11 @@ translateApp f args =
                    xs'                 <- translate xs
                    (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
-                   let ss = CP.singleGenComp bodyExp' boundVar xs'
-                   return $ CP.sort xs' ss
+                   genName             <- prefixVar <$> freshVar
+
+                   let genVar = CL.Var (T.typeOf xs') genName
+                       ss     = CP.singleGenComp bodyExp' boundVar genVar 
+                   return $ CP.let_ genName xs' (CP.sort genVar ss)
                _ -> $impossible
 
        -- Map to a comprehension with a guard
@@ -259,8 +262,11 @@ translateApp f args =
                    xs'                 <- translate xs
                    (boundVar, bodyExp) <- lamBody lam
                    bodyExp'            <- translate bodyExp
-                   let ss = CP.singleGenComp bodyExp' boundVar xs'
-                   return $ CP.group xs' ss
+                   genName             <- prefixVar <$> freshVar
+
+                   let genVar = CL.Var (T.typeOf xs') genName
+                       ss     = CP.singleGenComp bodyExp' boundVar genVar 
+                   return $ CP.let_ genName xs' (CP.group genVar ss)
                _ -> $impossible
 
        Append       -> translateApp2 CP.append args

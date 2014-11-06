@@ -196,6 +196,7 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | Var Type L.Ident
            | Comp Type Expr (NL Qual)
            | MkTuple Type [Expr]
+           | Let Type L.Ident Expr Expr
            deriving (Show)
 
 instance Pretty Expr where
@@ -226,6 +227,10 @@ instance Pretty Expr where
                                                : [ char ',' <+> pretty q' | q' <- toList qs' ]
 
                                    S q      -> [char '|' <+> pretty q]
+    pretty (Let _ x e1 e)     = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                </>
+                text "in" <+> pretty e
 
 parenthize :: Expr -> Doc
 parenthize e =
@@ -267,5 +272,6 @@ instance Typed Expr where
     typeOf (Var t _)       = t
     typeOf (Comp t _ _)    = t
     typeOf (MkTuple t _)   = t
+    typeOf (Let t _ _ _)   = t
 
 

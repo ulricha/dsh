@@ -379,8 +379,6 @@ unnestFromGuardR = mergeGuardsIterR unnestGuardWorkerR
 --------------------------------------------------------------------------------
 -- Other forms of unnesting
 
--- 
-
 isComplexExpr :: Expr -> Bool
 isComplexExpr e = 
     case e of
@@ -394,6 +392,7 @@ isComplexExpr e =
         Var{}          -> False
         Table{}        -> False
         MkTuple{}      -> False
+        Let{}          -> False
 
 containsComplexExprT :: TransformC CL ()
 containsComplexExprT = onetdT isComplexExprT

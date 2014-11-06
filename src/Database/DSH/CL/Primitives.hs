@@ -147,8 +147,8 @@ singleGenComp bodyExp v gen =
 
 group :: Expr -> Expr -> Expr
 group xs gs = let ListT xt = typeOf xs
-                  ListT gt = typeOf gs
-                  rt       = ListT (TupleT [xt, ListT gt])
+                  ListT gst = typeOf gs
+                  rt       = ListT (TupleT [xt, ListT gst])
               in AppE2 rt Group xs gs
 
 sort :: Expr -> Expr -> Expr
@@ -209,6 +209,9 @@ cond eb et ee = let tb = typeOf eb
                       then If te eb et ee
                       else tyErr "cond"
 
+let_ :: L.Ident -> Expr -> Expr -> Expr
+let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
+
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators
 
@@ -268,14 +271,14 @@ consOpt e1 e2 = toListT e2 [e1]
 
 toListT :: Expr -> [Expr] -> Expr
 toListT n es = primList (P.reverse es) n
-    where
-        primList :: [Expr] -> Expr -> Expr
-        primList ((Lit _ v):vs) (Lit ty (L.ListV xs)) = primList vs (Lit ty (L.ListV (v:xs)))
-        primList [] e = e
-        primList vs c@(Lit _ (L.ListV [])) = consList vs c
-        primList vs e = consList vs e
-        consList :: [Expr] -> Expr -> Expr
-        consList xs e = P.foldl (P.flip cons) e xs
+  where
+    primList :: [Expr] -> Expr -> Expr
+    primList ((Lit _ v):vs) (Lit ty (L.ListV xs)) = primList vs (Lit ty (L.ListV (v:xs)))
+    primList [] e = e
+    primList vs c@(Lit _ (L.ListV [])) = consList vs c
+    primList vs e = consList vs e
+    consList :: [Expr] -> Expr -> Expr
+    consList xs e = P.foldl (P.flip cons) e xs
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for scalar unary operators

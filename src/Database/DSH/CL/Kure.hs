@@ -80,6 +80,8 @@ data CrumbC = AppFun
             | NLConsTail
             -- One-based index into the list of element expressions
             | TupleElem Int
+            | LetBind
+            | LetBody
             deriving (Eq, Show)
 
 instance Pretty CrumbC where
@@ -276,6 +278,20 @@ mkTupleT t f = transform $ \c expr -> case expr of
 mkTupleR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 mkTupleR r = mkTupleT r MkTuple
 
+letT :: Monad m => Transform CompCtx m Expr a1
+                -> Transform CompCtx m Expr a2
+                -> (Type -> L.Ident -> a1 -> a2 -> b) 
+                -> Transform CompCtx m Expr b
+letT t1 t2 f = transform $ \c expr -> case expr of
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                                         <*> applyT t2 (bindVar x (typeOf xs) $ c@@LetBody) e
+                 _             -> fail "not a let expression"
+
+letR :: Monad m => Rewrite CompCtx m Expr 
+                -> Rewrite CompCtx m Expr 
+                -> Rewrite CompCtx m Expr
+letR r1 r2 = letT r1 r2 Let
+
 --------------------------------------------------------------------------------
 -- Congruence combinators for qualifiers
 
@@ -399,6 +415,7 @@ instance Walker CompCtx CL where
             Var{}     -> idR
             Comp{}    -> compR (extractR r) (extractR r)
             MkTuple{} -> mkTupleR (extractR r)
+            Let{}     -> letR (extractR r) (extractR r)
         {-# INLINE allRexpr #-}
             
 --------------------------------------------------------------------------------
