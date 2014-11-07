@@ -8,6 +8,7 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
+import           Data.List.NonEmpty          (NonEmpty(..), (<|))
 
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
@@ -108,7 +109,7 @@ flatten (N.Comp _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
     let initCtx    = (x, typeOf xs)
-        initTopEnv = TopEnv { topInScope = [initCtx], topCtx = initCtx }
+        initTopEnv = TopEnv { topInScope = initCtx :| [], topCtx = initCtx }
     
     -- In this environment, transform the iterator head
     let flatHead = runFlat initTopEnv (topFlatten h)
@@ -126,8 +127,6 @@ liftLetEnv ctx headExpr env = mkLiftingLet env
         P.let_ (fst e) (P.dist (envVar e) cv) headExpr
     mkLiftingLet (e : es) =
         P.let_ (fst e) (P.dist (envVar e) cv) (mkLiftingLet es)
-    -- On the top-level (outside of any iterator) an empty environment
-    -- can actually occur when no let-bindings are present.
     mkLiftingLet []       = headExpr
 
     cv :: F.LExpr
@@ -136,12 +135,12 @@ liftLetEnv ctx headExpr env = mkLiftingLet env
 --------------------------------------------------------------------------------
 
 data TopEnv = TopEnv
-    { topInScope :: [(Ident, Type)]
+    { topInScope :: NonEmpty (Ident, Type)
     , topCtx     :: (Ident, Type)
     }
 
 bindTopEnv :: Ident -> Type -> TopEnv -> TopEnv
-bindTopEnv n t e = e { topInScope = (n, t) : topInScope e }
+bindTopEnv n t e = e { topInScope = (n, t) <| topInScope e }
 
 -- | Compile expressions nested in the top-most comprehension (with
 -- iteration depth 1).
@@ -202,14 +201,14 @@ topFlatten (N.Comp _ h x xs)    = do
 -- for each element of the current context. The chain of 'let's is
 -- terminated by the flattened head expression of the current
 -- iterator.
-liftTopEnv :: (Ident, Type) -> F.LExpr -> [(Ident, Type)] -> F.LExpr
+liftTopEnv :: (Ident, Type) -> F.LExpr -> NonEmpty (Ident, Type) -> F.LExpr
 liftTopEnv ctx headExpr env = mkLiftingLet env
   where
-    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet (e : [])  =
+    mkLiftingLet :: NonEmpty (Ident, Type) -> F.LExpr
+    mkLiftingLet (e :| [])  =
         P.let_ (fst e) (P.distL (envVar e) cv) headExpr
-    mkLiftingLet (e : es) =
-        P.let_ (fst e) (P.distL (envVar e) cv) (mkLiftingLet es)
+    mkLiftingLet (e :| (e2 : es)) =
+        P.let_ (fst e) (P.distL (envVar e) cv) (mkLiftingLet (e2 :| es))
 
     cv :: F.LExpr
     cv = envVar ctx
@@ -229,7 +228,7 @@ data NestedEnv = NestedEnv
 
       -- | All bindings which are currently in scope and need to be
       -- lifted to the current iteration context.
-    , inScope    :: [(Ident, Type)] 
+    , inScope    :: NonEmpty (Ident, Type) 
 
       -- | The current iteration depth
     , frameDepth :: Nat
@@ -243,7 +242,8 @@ data NestedEnv = NestedEnv
 initEnv :: Ident -> Type -> (Ident, Type) -> NestedEnv
 initEnv x xst ctx = 
     NestedEnv { context    = (x, xst)
-              , inScope    = map (\(n, t) -> (n, liftType t)) [ctx, (x, xst)]
+              , inScope    = fmap (\(n, t) -> (n, liftType t)) 
+                                  (ctx :| [(x, xst)])
               , frameDepth = Succ $ Succ Zero
               }
 
@@ -259,7 +259,7 @@ type DeepFlatten a = Reader NestedEnv a
 -- increasing the frame depth.
 descendEnv :: (Ident, Type) -> NestedEnv -> NestedEnv
 descendEnv x env = env { context    = x
-                       , inScope    = x : inScope env 
+                       , inScope    = x <| inScope env 
                        , frameDepth = Succ $ frameDepth env
                        }
 
@@ -325,35 +325,35 @@ deepFlatten (N.Comp _ h x xs)    = do
 
     return $ P.let_ x xs' (liftNestedEnv cv' d1 headExpr env)
 
-restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
+restrictEnv :: NonEmpty (Ident, Type) -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
 restrictEnv env d1 bs branchExpr = mkRestrictLet env
   where
-    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
-    mkRestrictLet (e : []) =
+    mkRestrictLet :: NonEmpty (Ident, Type) -> F.LExpr
+    mkRestrictLet (e :| []) =
         P.let_ (fst e)
                (P.restrict (envVar e) bs d1)
                branchExpr
-    mkRestrictLet (e : es) = 
+    mkRestrictLet (e :| (e2 : es)) = 
         P.let_ (fst e)
                (P.restrict (envVar e) bs d1)
-               (mkRestrictLet es)
+               (mkRestrictLet (e2 :| es))
 
 -- | Lift all names bound in the environment: the value is replicated
 -- for each element of the current context. The chain of 'let's is
 -- terminated by the flattened head expression of the current
 -- iterator.
-liftNestedEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
+liftNestedEnv :: (Ident, Type) -> Nat -> F.LExpr -> NonEmpty (Ident, Type) -> F.LExpr
 liftNestedEnv ctx d1 headExpr env = mkLiftingLet env
   where
-    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet (e : [])  =
+    mkLiftingLet :: NonEmpty (Ident, Type) -> F.LExpr
+    mkLiftingLet (e :| [])  =
         P.let_ (fst e) 
                (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
                headExpr
-    mkLiftingLet (e : es) =
+    mkLiftingLet (e :| (e2 : es)) =
         P.let_ (fst e) 
                (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
-               (mkLiftingLet es)
+               (mkLiftingLet (e2 :| es))
 
     cv :: F.LExpr
     cv = envVar ctx
