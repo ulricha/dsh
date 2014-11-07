@@ -220,8 +220,15 @@ substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprCL (Var _ n) | n == v                          -> return $ inject s
 
-    -- Some other variable
-    ExprCL (Var _ _)                                   -> idR
+    -- If a let-binding shadows the name we substitute, only descend
+    -- into the bound expression.
+    ExprCL (Let _ n _ _) | n == v    -> promoteR $ letR idR (extractR $ substR v s)
+    ExprCL (Let _ n _ _) | otherwise ->
+        if n `elem` freeVars s
+        -- If the let-bound name occurs free in the substitute,
+        -- alpha-convert the binding to avoid capturing the name.
+        then $unimplemented >>> anyR (substR v s)
+        else anyR (substR v s)
 
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
@@ -230,12 +237,9 @@ substR v s = readerT $ \expr -> case expr of
     -- name-capturing (see lambda case)
     ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
     ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
-
-    ExprCL (Lit _ _)                                   -> idR
-    ExprCL (Table _ _ _ _)                             -> idR
     ExprCL _                                           -> anyR $ substR v s
 
-    -- Don't substitute past shadowingt generators
+    -- Don't substitute past shadowing generators
     QualsCL ((BindQ n _) :* _) | n == v                -> promoteR $ qualsR (extractR $ substR v s) idR
     QualsCL (_ :* _)                                   -> promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
     QualsCL (S _)                                      -> promoteR $ qualsemptyR (extractR $ substR v s)

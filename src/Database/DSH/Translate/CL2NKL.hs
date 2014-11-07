@@ -161,7 +161,7 @@ expr (CL.If t c th el)           = NKL.If t <$> expr c <*> expr th <*> expr el
 expr (CL.Lit t v)                = return $ NKL.Const t v
 expr (CL.Var t v)                = return $ NKL.Var t v
 expr (CL.Comp t e qs)            = desugarComprehension t e (toList qs)
-expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> expr e2
+expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> local (x :) (expr e2)
 
 --------------------------------------------------------------------------------
 -- Desugaring of comprehensions

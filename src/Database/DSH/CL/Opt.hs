@@ -64,14 +64,14 @@ descendR = readerT $ \cl -> case cl of
 optCompR :: RewriteC CL
 optCompR = do
     c@(Comp _ _ _) <- promoteT idR
-    debugPretty "optCompR at" c
+    -- debugPretty "optCompR at" c
 
     repeatR $ do
           (compNormEarlyR
              <+ predpushdownR
              <+ flatjoinsR
              <+ anyR descendR
-             ) >>> debugShow "after comp"
+             ) -- >>> debugShow "after comp"
 
 applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR

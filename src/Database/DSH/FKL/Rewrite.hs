@@ -4,6 +4,7 @@ module Database.DSH.FKL.Rewrite
     ( optimizeFKL
     ) where
 
+import Data.Monoid
 import Data.List
 import Control.Arrow
 
@@ -63,13 +64,23 @@ substR v s = readerT $ \expr -> case expr of
 --------------------------------------------------------------------------------
 -- Simple optimizations
 
--- | Count occurences of a given identifier.
-countVarRefT :: Ident -> TransformF (Expr l) Int
-countVarRefT n = do
-    refs <- collectT $ do Var _ n' <- idR
-                          guardM $ n == n'
-                          return n'
-    return $ length refs
+-- | Count all occurences of an identifier for let-inlining.
+countVarRefT :: Ident -> TransformF (Expr l) (Sum Int)
+countVarRefT v = readerT $ \expr -> case expr of
+    -- Occurence of the variable to be replaced
+    Var _ n | n == v         -> return 1
+    Var _ _ | otherwise      -> return 0
+
+    Let _ n _ _ | n == v     -> letT (constT $ return 0) 
+                                     (countVarRefT v)
+                                     (\_ _ c1 c2 -> c1 + c2)
+    Let _ _ _ _ | otherwise  -> letT (countVarRefT v)
+                                     (countVarRefT v)
+                                     (\_ _ c1 c2 -> c1 + c2)
+
+    Table{}                  -> return 0
+    Const{}                  -> return 0
+    _                        -> allT (countVarRefT v)
 
 -- | Remove a let-binding that is not referenced.
 unusedBindingR :: RewriteF (Expr l)

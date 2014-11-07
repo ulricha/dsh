@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.NKL.Rewrite
     ( substR
@@ -10,7 +11,9 @@ module Database.DSH.NKL.Rewrite
 
 import Control.Arrow
 import Data.List
+import Data.Monoid
 
+import Database.DSH.Impossible
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure
@@ -66,6 +69,7 @@ alphaLetR avoidNames = do
     let varTy = typeOf e1
     letT idR (tryR $ substR x (Var varTy x')) (\_ _ e1' e2' -> Let letTy x' e1' e2')
 
+-- | Replace /all/ references to variable 'v' by expression 's'.
 substR :: Ident -> Expr -> RewriteN Expr
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
@@ -98,6 +102,30 @@ substR v s = readerT $ \expr -> case expr of
 --------------------------------------------------------------------------------
 -- Simple optimizations
 
+-- | This function inlines let-bound expressions. In contrast to
+-- general substitution, we do not inline into comprehensions, even if
+-- we could. The reason is that expressions should not be evaluated
+-- iteratively if they are loop-invariant.
+inlineBindingR :: Ident -> Expr -> RewriteN Expr
+inlineBindingR v s = readerT $ \expr -> case expr of
+    -- Occurence of the variable to be replaced
+    Var _ n | n == v          -> return $ inject s
+
+    -- If a let-binding shadows the name we substitute, only descend
+    -- into the bound expression.
+    Let _ n _ _ | n == v      -> promoteR $ letR idR (extractR $ substR v s)
+    Let _ n _ _ | otherwise   ->
+        if n `elem` freeVars s
+        -- If the let-bound name occurs free in the substitute,
+        -- alpha-convert the binding to avoid capturing the name.
+        then $unimplemented >>> anyR (substR v s)
+        else anyR $ substR v s
+
+    -- We don't inline into comprehensions to avoid conflicts with
+    -- loop-invariant extraction.
+    Comp _ _ _ _              -> fail "don't inline into comprehensions"
+    _                         -> anyR $ substR v s
+
 pattern ConcatP t xs <- AppE1 t Concat xs
 pattern SingletonP e <- AppE2 _ Cons e (Const _ (ListV []))
        
@@ -110,13 +138,30 @@ singletonHeadR = do
     ConcatP t (Comp _ (SingletonP e) x xs) <- idR
     return $ Comp t e x xs
 
--- | Count occurences of a given identifier.
-countVarRefT :: Ident -> TransformN Expr Int
-countVarRefT n = do
-    refs <- collectT $ do Var _ n' <- idR
-                          guardM $ n == n'
-                          return n'
-    return $ length refs
+-- | Count all occurences of an identifier for let-inlining.
+countVarRefT :: Ident -> TransformN Expr (Sum Int)
+countVarRefT v = readerT $ \expr -> case expr of
+    -- Occurence of the variable to be replaced
+    Var _ n | n == v         -> return 1
+    Var _ _ | otherwise      -> return 0
+
+    Let _ n _ _ | n == v     -> letT (constT $ return 0) 
+                                     (countVarRefT v)
+                                     (\_ _ c1 c2 -> c1 + c2)
+    Let _ _ _ _ | otherwise  -> letT (countVarRefT v)
+                                     (countVarRefT v)
+                                     (\_ _ c1 c2 -> c1 + c2)
+
+    Comp _ _ x _ | v == x    -> compT (constT $ return 0)
+                                      (countVarRefT v)
+                                      (\_ c1 _ c2 -> c1 + c2)
+    Comp _ _ _ _ | otherwise -> compT (countVarRefT v)
+                                      (countVarRefT v)
+                                      (\_ c1 _ c2 -> c1 + c2)
+
+    Table{}                  -> return 0
+    Const{}                  -> return 0
+    _                        -> allT (countVarRefT v)
 
 -- | Remove a let-binding that is not referenced.
 unusedBindingR :: RewriteN Expr
@@ -129,8 +174,15 @@ unusedBindingR = do
 referencedOnceR :: RewriteN Expr
 referencedOnceR = do
     Let _ x e1 _ <- idR
-    1             <- childT LetBody $ countVarRefT x
-    childT LetBody $ substR x e1
+    1            <- childT LetBody $ countVarRefT x
+
+    -- We do not inline into comprehensions, but 'countVarRef' counts
+    -- all occurences including those in comprehensions. For this
+    -- reason, we check if the occurence was actually eliminated by
+    -- inlining and fail otherwise.
+    body' <- childT LetBody (inlineBindingR x e1)
+    0     <- (constT $ return body') >>> countVarRefT x
+    return body'
 
 simpleExpr :: Expr -> Bool
 simpleExpr Table{} = True

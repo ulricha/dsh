@@ -73,7 +73,7 @@ prim2 p =
 --------------------------------------------------------------------------------
 
 -- | Transform top-level expressions which are not nested in a
--- comprehension.  
+-- comprehension.
 flatten :: N.Expr -> F.LExpr
 flatten (N.Table t n cs hs)  = F.Table t n cs hs
 flatten (N.UnOp t op e1)     = P.un t op (flatten e1) Zero

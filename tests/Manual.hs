@@ -214,8 +214,8 @@ bestProfit stock date =
   where
     trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date)
               $ sortWith t_timestampQ trades
-    
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c jan_q7b
+main = getConn P.>>= \c -> debugQ "q" c $ q22 $ P.map T.pack ["foo", "bar"]
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

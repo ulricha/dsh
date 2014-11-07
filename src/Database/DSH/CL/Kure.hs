@@ -24,8 +24,8 @@ module Database.DSH.CL.Kure
     , inScopeNames, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
-    , tableT, appe1T, appe2T, binopT, ifT, litT, varT, compT
-    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR
+    , tableT, appe1T, appe2T, binopT, ifT, litT, varT, compT, letT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR, letR
     , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
