@@ -9,10 +9,10 @@ module Database.DSH.CL.Opt.LoopInvariant
   ) where
 
 import           Control.Applicative
-import           Control.Arrow
 import           Data.Maybe
 import           Data.List
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Kure
@@ -62,6 +62,7 @@ complexPathT localVars = do
 searchInvariantExprT :: [Ident] -> TransformC CL (Expr, PathC)
 searchInvariantExprT localVars = complexPathT localVars <+ (promoteT $ traverseT localVars)
 
+{-
 -- | In a given guard expression, search for a complex loop-invariant
 -- sub-expression and move it to a generator.
 invariantExprT :: [Ident] -> TransformC CL (Ident, Expr, Expr)
@@ -87,17 +88,33 @@ invariantExprT localVars = do
     ExprCL simplifiedPred <- pathR localPath replacementExpr
 
     return (x, singletonExpr, simplifiedPred)
+-}
 
-invariantQualR :: [Ident] -> RewriteC (NL Qual)
+{-
+invariantQualR :: [Ident] -> TransformC (NL Qual) (Expr, PathC)
 invariantQualR localVars = do
     readerT $ \q -> case q of
         GuardQ p :* qs -> do
-            (x, xs, p') <- constT (return $ inject $ p) >>> (invariantExprT localVars)
+            -- (x, xs, p') <- constT (return $ inject $ p) >>> (invariantExprT localVars)
+            childT searchInvariantExprT 
             return $ BindQ x xs :* GuardQ p' :* qs
         S (GuardQ p) -> do
             (x, xs, p') <- constT (return $ inject $ p) >>> (invariantExprT localVars)
             return $ BindQ x xs :* (S $ GuardQ p')
         _ -> fail "no match"
+-}
+
+invariantQualR :: [Ident] -> TransformC CL (Expr, PathC)
+invariantQualR localVars = readerT $ \expr -> case expr of
+    QualsCL (BindQ{} :* _)  -> debugMsg "binds" >> childT QualsTail (invariantQualR localVars)
+    QualsCL (GuardQ _ :* _) -> debugMsg "guards" >>
+                               (childT QualsHead (searchInvariantExprT localVars)
+                                <+
+                               childT QualsTail (invariantQualR localVars))
+    QualsCL (S (GuardQ _))  -> debugMsg "guard" >> 
+                               pathT [QualsSingleton, GuardQualExpr] (searchInvariantExprT localVars)
+    QualsCL (S BindQ{})     -> fail "no match"
+    _                       -> $impossible
 
 loopInvariantGuardR :: RewriteC CL
 loopInvariantGuardR = do
@@ -108,5 +125,17 @@ loopInvariantGuardR = do
     let genVars = fmap fst $ catMaybes $ fmap fromGen $ toList qs
     debugMsg $ "loopInvariantGuardR " ++ show genVars
     debugMsg $ "CC\n" ++ pp (Comp t h qs)
+    {-
     qs' <- constT (return qs) >>> onetdR (invariantQualR genVars)
     return $ inject $ Comp t h qs'
+    -}
+    (invExpr, invPath) <- childT CompQuals (invariantQualR genVars)
+    debugMsg "got an invariant"
+    letName            <- freshNameT genVars
+
+    pathLen <- length <$> snocPathToPath <$> absPathT
+    let localPath = drop pathLen invPath
+        invVar    = Var (typeOf invExpr) letName
+
+    ExprCL comp' <- pathR localPath (constT $ return $ inject invVar)
+    return $ inject $ P.let_ letName invExpr comp'
