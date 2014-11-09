@@ -97,7 +97,6 @@ inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp 
 inferVectorTypeBinOp s1 s2 op = 
   case op of
     AggrS _ -> return $ VProp $ ValueVector 1
-    DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
     DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
 
     DistLift -> do

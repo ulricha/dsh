@@ -66,7 +66,6 @@ inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either Strin
 inferCardOneBinOp c1 c2 op =
   case op of
     AggrS _ -> return $ VProp False
-    DistPrim -> return $ VPropPair False False
     DistDesc -> return $ VPropPair False False
     DistLift -> return $ VPropPair False False
     PropRename -> return $ VProp False

@@ -175,9 +175,6 @@ vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 vlUnboxRename :: VLDVec -> Build VL RVec
 vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) rvec
 
-vlDistPrim :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec
-
 vlDistDesc :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlDistDesc (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistDesc c1 c2) dvec pvec
 

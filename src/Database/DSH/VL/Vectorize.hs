@@ -233,12 +233,28 @@ combine (VShape qb (LCol 1)) (VShape q1 lyt1) (VShape q2 lyt2) = do
     return $ VShape v lyt'
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
 
+-- | Distribute a single value in vector 'q2' over an arbitrary shape.
+distSingleton :: Shape VLDVec -> VLDVec -> Layout VLDVec -> Build VL (Shape VLDVec)
+distSingleton shape1 q2 lyt2 = do
+    let (shapeCon, q1, lyt1) = unwrapShape shape1
+
+        leftWidth  = columnsInLayout lyt1
+        rightWidth = columnsInLayout lyt2
+        proj       = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    (prodVec, _, propVec) <- q1 `vlCartProduct` q2
+    resVec                <- vlProject proj prodVec
+
+    lyt'                  <- chainReorder propVec lyt2
+    return $ shapeCon resVec lyt'
+
 dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-dist (SShape q lyt) q2 = do
-    o      <- outer q2
-    (v, p) <- vlDistPrim q o
-    lyt'   <- chainReorder p lyt
-    return $ VShape v lyt'
+-- Distributing a single value is implemented using a cartesian
+-- product. After the product, we discard columns from the vector that
+-- we distributed over. Vectors are swapped because CartProduct uses
+-- the descriptor of its left input and that is what we want.
+dist (SShape q lyt) v = distSingleton v q lyt
+-- FIXME could propably be implemented with NestProduct.
 dist (VShape q lyt) q2 = do
     o      <- outer q2
     (d, p) <- vlDistDesc q o
@@ -254,23 +270,22 @@ aggr afun (VShape q (LCol 1)) =
     SShape <$> vlAggr (afun (Column 1)) q <*> (pure $ LCol 1)
 aggr _ _ = $impossible
 
-
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-ifList (SShape qb _) (VShape q1 lyt1) (VShape q2 lyt2) = do
+ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- The right input vector has only one boolean column which
     -- defines wether the tuple at the same position in the left input
     -- is preserved.
     let leftWidth = columnsInLayout lyt1
         predicate = Column $ leftWidth + 1
 
-    (trueSelVec, _)            <- vlDistPrim qb q1
+    VShape trueSelVec _        <- distSingleton (VShape q1 lyt1) qb lytb
     (trueVec, trueRenameVec)   <- vlSelect predicate 
                                   =<< vlAlign q1 trueSelVec
     trueVec'                   <- vlProject (map Column [1..leftWidth]) trueVec
 
     let predicate' = UnApp (L.SUBoolOp L.Not) predicate
 
-    (falseSelVec, _)           <- vlDistPrim qb q2
+    VShape falseSelVec _       <- distSingleton (VShape q2 lyt2) qb lytb
     (falseVec, falseRenameVec) <- vlSelect predicate' 
                                   =<< vlAlign q2 falseSelVec
     falseVec'                  <- vlProject (map Column [1..leftWidth]) falseVec
@@ -483,21 +498,17 @@ lastL (VShape d (LNest qs lyt)) = do
 lastL _ = $impossible
 
 indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-indexL (VShape d (LNest qs (LNest qi lyti))) (VShape is (LCol 1)) = do
-    one       <- literal intT (VLInt 1)
-    (ones, _) <- vlDistPrim one is
-    is'       <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (_, _, u) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    (qu, ri)  <- vlUnboxNested u qi
-    lyti'     <- chainRenameFilter ri lyti
+indexL (VShape d (LNest qs (LNest qi lyti))) (VShape idxs (LCol 1)) = do
+    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ VLInt 1)] idxs
+    (_, _, u)      <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
+    (qu, ri)       <- vlUnboxNested u qi
+    lyti'          <- chainRenameFilter ri lyti
     return $ VShape d (LNest qu lyti')
-indexL (VShape d (LNest qs lyt)) (VShape is (LCol 1)) = do
-    one         <- literal intT (VLInt 1)
-    (ones, _)   <- vlDistPrim one is
-    is'         <- vlBinExpr (L.SBNumOp L.Add) is ones
-    (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is'
-    lyt'        <- chainRenameFilter r lyt
-    re          <- vlUnboxRename d
+indexL (VShape d (LNest qs lyt)) (VShape idxs (LCol 1)) = do
+    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ VLInt 1)] idxs
+    (qs', r, _)    <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
+    lyt'           <- chainRenameFilter r lyt
+    re             <- vlUnboxRename d
     renameOuter re (VShape qs' lyt')
 indexL _ _ = $impossible
 
@@ -524,10 +535,9 @@ theL _ = $impossible
 
 tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 tailL (VShape d (LNest q lyt)) = do
-    one        <- literal intT (VLInt 1)
-    (p, _)     <- vlDistPrim one d
-    (v, p2, _) <- vlSelectPosS q (L.SBRelOp L.Gt) p
-    lyt'       <- chainRenameFilter p2 lyt
+    p              <- vlProject [Constant $ VLInt 1] d
+    (v, p2, _)     <- vlSelectPosS q (L.SBRelOp L.Gt) p
+    lyt'           <- chainRenameFilter p2 lyt
     return $ VShape d (LNest v lyt')
 tailL _ = $impossible
 
@@ -820,6 +830,12 @@ implantInnerVec _          _            _  _        =
 
 --------------------------------------------------------------------------------
 -- Vectorization Helper Functions
+
+-- | Take a shape apart by extracting the vector, the layout and the
+-- shape constructor itself.
+unwrapShape :: Shape VLDVec -> (VLDVec -> Layout VLDVec -> Shape VLDVec, VLDVec, Layout VLDVec)
+unwrapShape (VShape q lyt) = (VShape, q, lyt)
+unwrapShape (SShape q lyt) = (SShape, q, lyt)
 
 fromLayout :: Layout VLDVec -> [DBCol]
 fromLayout (LCol i)      = [i]

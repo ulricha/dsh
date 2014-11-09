@@ -151,10 +151,6 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
 translateBinOp b c1 c2 = case b of
-    V.DistPrim -> do
-        (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
-
     V.DistDesc -> do
         (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)

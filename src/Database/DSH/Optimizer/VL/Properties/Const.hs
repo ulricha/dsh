@@ -258,11 +258,6 @@ inferConstVecBinOp c1 c2 op =
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
 
-    DistPrim -> do
-      (d, _)    <- unp c2 >>= fromDBV
-      (_, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
     DistDesc -> do
       (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))

@@ -60,7 +60,6 @@ seed (BinOp op _ _) =
     Append             -> vPropTripleSeed
     AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed
-    DistPrim           -> vPropPairSeed
     DistDesc           -> vPropPairSeed
     DistLift           -> vPropPairSeed
     PropFilter         -> vPropPairSeed

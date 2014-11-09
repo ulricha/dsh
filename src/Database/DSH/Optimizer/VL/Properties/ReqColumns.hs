@@ -253,10 +253,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
                        childReqColumns2
           return (fromLeft, fromRight)
 
-      DistPrim -> do
-          cols <- fst <$> fromPropPair ownReqColumns
-          (,) <$> (childReqColumns1 ∪ VProp cols) <*> (childReqColumns2 ∪ none)
-
       DistDesc -> do
           cols      <- fst <$> fromPropPair ownReqColumns
           fromLeft  <- VProp cols ∪ childReqColumns1

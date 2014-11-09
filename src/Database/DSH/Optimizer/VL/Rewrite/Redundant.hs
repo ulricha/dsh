@@ -41,7 +41,7 @@ redundantRules = [ pullProjectPropRename
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
-redundantRulesBottomUp = [ distPrimConstant
+redundantRulesBottomUp = [ cartProdConstant
                          , distDescConstant
                          , sameInputZip
                          , sameInputZipProject
@@ -85,21 +85,21 @@ redundantRulesAllProps = [ unreferencedDistLift
 --------------------------------------------------------------------------------
 -- 
 
--- | Replace a DistPrim operator with a projection if its value input
--- is constant.
-distPrimConstant :: VLRule BottomUpProps
-distPrimConstant q =
-  $(dagPatMatch 'q "R1 ((qp) DistPrim (qv))"
+-- | Replace a 'CartProduct' operator with a projection if its right
+-- input is constant and has cardinality one.
+cartProdConstant :: VLRule BottomUpProps
+cartProdConstant q =
+  $(dagPatMatch 'q "R1 ((q1) CartProduct (q2))"
     [| do
-        qvProps <- properties $(v "qp")
+        qvProps <- properties $(v "q2")
 
-        constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM (constVal Constant) cols
-          _                       -> fail "no match"
+        VProp True              <- return $ card1Prop qvProps
+        VProp (DBVConst _ cols) <- return $ constProp qvProps
+        constProjs              <- mapM (constVal Constant) cols
 
         return $ do
-          logRewrite "Redundant.DistPrim.Constant" q
-          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
+          logRewrite "Redundant.CartProduct.Constant" q
+          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "q1") |])
 
 -- | Replace a DistDesc operator with a projection if its value input
 -- is constant and consists of only one tuple.

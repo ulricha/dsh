@@ -133,9 +133,7 @@ data UnOp = UniqueS
 $(deriveJSON defaultOptions ''UnOp)
 
 data BinOp = AggrS AggrFun
-           | DistPrim
            | DistDesc
-
            | DistLift
            | PropRename
            | PropFilter
