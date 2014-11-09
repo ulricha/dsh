@@ -296,13 +296,6 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr <- proj (itemProj cols [cP pos, eP descr (ConstE $ nat 1)]) q
     return $ ADVec qr cols
 
-  vecDistPrim (ADVec q1 cols) (ADVec q2 _) = do
-    qr <- crossM
-            (proj (map (cP . itemi) cols) q1)
-            (proj [cP descr, cP pos] q2)
-    r <- proj [mP posnew pos, mP posold descr] q2
-    return (ADVec qr cols, PVec r)
-
   vecDistDesc (ADVec q1 cols) (ADVec q2 _) = do
     q <- projM (itemProj cols [mP descr pos, mP pos pos'', cP posold])
            $ rownumM pos'' [pos, pos'] []
