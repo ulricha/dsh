@@ -31,7 +31,7 @@ deriveTA ''Foo
 generateTableSelectors ''Foo
 
 getConn :: IO Connection
-getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'trades'"
+getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
 
 x100Conn :: X100Info
 x100Conn = x100Info "localhost" "48130" Nothing
@@ -214,8 +214,35 @@ bestProfit stock date =
   where
     trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date)
               $ sortWith t_timestampQ trades
+
+hasNationality :: Q Customer -> Text -> Q Bool
+hasNationality c nn = 
+    or [ n_nameQ n == toQ nn && n_nationkeyQ n == c_nationkeyQ c
+       | n <- nations
+       ]
+
+ordersWithStatus :: Text -> Q Customer -> Q [Order]
+ordersWithStatus status c =
+    [ o | o <- ordersOf c, o_orderstatusQ o == toQ status ]
+
+revenue :: Q Order -> Q Double
+revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
+                | l <- lineitems
+                , l_orderkeyQ l == o_orderkeyQ o
+                ]
+
+expectedRevenueFor :: Text -> Q [(Text, [(Integer, Double)])]
+expectedRevenueFor nation =
+    [ pair (c_nameQ c) [ pair (o_orderdateQ o) (revenue o)
+                       | o <- ordersWithStatus "P" c ]
+    | c <- customers
+    , c `hasNationality` nation
+    -- , or [ toQ True | _ <-  ordersWithStatus "P" c ]
+    ]
+
+foobar = take 10 $ sortWith id $ map revenue orders
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ bestProfit 23 42
+main = getConn P.>>= \c -> debugQ "q" c foobar
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
