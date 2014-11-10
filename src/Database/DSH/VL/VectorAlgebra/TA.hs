@@ -824,7 +824,7 @@ instance VectorAlgebra NDVec TableAlgebra where
   vecSortS sortExprs (ADVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
     -- Including positions de facto implements stable sorting
-    qs <- rownumM pos' ([descr] ++ map fst sortProjs ++ [pos]) []
+    qs <- rownumM pos' ([descr] ++ map fst sortProjs) []
           $ projAddCols cols1 sortProjs q1
 
     qr1 <- proj (itemProj cols1 [cP descr, mP pos pos']) qs
