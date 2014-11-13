@@ -209,12 +209,12 @@ deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTyp
 deepFlatten (N.Table t n cs hs)  = do
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM
-    return $ P.unconcat d1 ctx $ P.dist (F.Table t n cs hs) (P.qconcat d1 ctx)
+    return $ P.imprint d1 ctx $ P.dist (F.Table t n cs hs) (P.forget d1 ctx)
 
 deepFlatten (N.Const t v)        = do
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM
-    return $ P.unconcat d1 ctx $ P.dist (F.Const t v) (P.qconcat d1 ctx)
+    return $ P.imprint d1 ctx $ P.dist (F.Const t v) (P.forget d1 ctx)
 
 deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
 deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
@@ -280,11 +280,11 @@ liftEnv ctx d1 headExpr env = mkLiftingLet env
     mkLiftingLet :: [(Ident, Type)] -> F.LExpr
     mkLiftingLet (e : [])  =
         P.let_ (fst e) 
-               (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
+               (P.imprint d1 cv (P.distL (P.forget d1 $ envVar e) (P.forget d1 cv)))
                headExpr
     mkLiftingLet (e : es) =
         P.let_ (fst e) 
-               (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
+               (P.imprint d1 cv (P.distL (P.forget d1 $ envVar e) (P.forget d1 cv)))
                (mkLiftingLet es)
 
     cv :: F.LExpr
@@ -316,8 +316,8 @@ normLifting (F.Table t n cs hs)    = return $ F.Table t n cs hs
 normLifting (F.If t ce te ee)      = F.If t <$> normLifting ce <*> normLifting te <*> normLifting ee
 normLifting (F.Const t v)          = return $ F.Const t v
 normLifting (F.Var t n)            = return $ F.Var t n
-normLifting (F.QConcat n t e)      = F.QConcat n t <$> normLifting e
-normLifting (F.UnConcat n t e1 e2) = F.UnConcat n t <$> normLifting e1 <*> normLifting e2
+normLifting (F.Forget n t e)       = F.Forget n t <$> normLifting e
+normLifting (F.Imprint n t e1 e2)  = F.Imprint n t <$> normLifting e1 <*> normLifting e2
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2
 normLifting (F.MkTuple t l es)     =
     case l of
@@ -327,8 +327,8 @@ normLifting (F.MkTuple t l es)     =
             e1' : es' <- mapM normLifting es
             n         <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.MkTuple (unliftTypeN d t) F.Lifted (P.qconcat d v : map (P.qconcat d) es')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.MkTuple (unliftTypeN d t) F.Lifted (P.forget d v : map (P.forget d) es')
+            return $ P.let_ n e1' $ P.imprint d v app
 
 normLifting (F.UnOp t op l e)      = 
     case l of
@@ -338,8 +338,8 @@ normLifting (F.UnOp t op l e)      =
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.UnOp (unliftTypeN d t) op F.Lifted (P.qconcat d v)
-            return $ P.let_ n e' $ P.unconcat d v app
+                app = F.UnOp (unliftTypeN d t) op F.Lifted (P.forget d v)
+            return $ P.let_ n e' $ P.imprint d v app
 
 normLifting (F.BinOp t op l e1 e2)  = 
     case l of
@@ -354,8 +354,8 @@ normLifting (F.BinOp t op l e1 e2)  =
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.BinOp (unliftTypeN d t) op F.Lifted (P.qconcat d v) (P.qconcat d e2')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.BinOp (unliftTypeN d t) op F.Lifted (P.forget d v) (P.forget d e2')
+            return $ P.let_ n e1' $ P.imprint d v app
 
 normLifting (F.PApp1 t p l e)    = 
     case l of
@@ -365,8 +365,8 @@ normLifting (F.PApp1 t p l e)    =
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.PApp1 (unliftTypeN d t) p F.Lifted (P.qconcat d v)
-            return $ P.let_ n e' (P.unconcat d v app)
+                app = F.PApp1 (unliftTypeN d t) p F.Lifted (P.forget d v)
+            return $ P.let_ n e' (P.imprint d v app)
 
 normLifting (F.PApp2 t p l e1 e2)   = 
     case l of
@@ -381,8 +381,8 @@ normLifting (F.PApp2 t p l e1 e2)   =
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp2 (unliftTypeN d t) p F.Lifted (P.qconcat d v) (P.qconcat d e2')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.PApp2 (unliftTypeN d t) p F.Lifted (P.forget d v) (P.forget d e2')
+            return $ P.let_ n e1' $ P.imprint d v app
 
 normLifting (F.PApp3 t p l e1 e2 e3)    = 
     case l of
@@ -400,7 +400,7 @@ normLifting (F.PApp3 t p l e1 e2 e3)    =
             e3' <- normLifting e3
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.qconcat d v) 
-                                                           (P.qconcat d e2') 
-                                                           (P.qconcat d e3')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.forget d v) 
+                                                           (P.forget d e2') 
+                                                           (P.forget d e3')
+            return $ P.let_ n e1' $ P.imprint d v app

@@ -67,9 +67,9 @@ data CrumbF = AppFun
             | IfCond
             | IfThen
             | IfElse
-            | UnConcatArg1
-            | UnConcatArg2
-            | QConcatArg
+            | ImprintArg1
+            | ImprintArg2
+            | ForgetArg
             | LetBind
             | LetBody
             | TupleElem Int
@@ -207,17 +207,17 @@ papp1R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
 papp1R t = papp1T t PApp1
 {-# INLINE papp1R #-}                      
 
-qconcatT :: Monad m => Transform FlatCtx m (Expr l) a
-                        -> (Nat -> Type -> a -> b)
-                        -> Transform FlatCtx m (Expr l) b
-qconcatT t f = transform $ \c expr -> case expr of
-                        QConcat n ty e -> f n ty <$> applyT t (c@@QConcatArg) e                  
-                        _              -> fail "not a qconcat application"
-{-# INLINE qconcatT #-}                      
+forgetT :: Monad m => Transform FlatCtx m (Expr l) a
+                   -> (Nat -> Type -> a -> b)
+                   -> Transform FlatCtx m (Expr l) b
+forgetT t f = transform $ \c expr -> case expr of
+                        Forget n ty e -> f n ty <$> applyT t (c@@ForgetArg) e                  
+                        _             -> fail "not a forget application"
+{-# INLINE forgetT #-}                      
                       
-qconcatR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
-qconcatR t = qconcatT t QConcat
-{-# INLINE qconcatR #-}                      
+forgetR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
+forgetR t = forgetT t Forget
+{-# INLINE forgetR #-}                      
 
                       
 papp2T :: Monad m => Transform FlatCtx m (Expr l) a1
@@ -233,18 +233,18 @@ papp2R :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) ->
 papp2R t1 t2 = papp2T t1 t2 PApp2
 {-# INLINE papp2R #-}                      
 
-unconcatT :: Monad m => Transform FlatCtx m (Expr l) a1
+imprintT :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) a2
                   -> (Nat -> Type -> a1 -> a2 -> b)
                   -> Transform FlatCtx m (Expr l) b
-unconcatT t1 t2 f = transform $ \c expr -> case expr of
-                     UnConcat n ty e1 e2 -> f n ty <$> applyT t1 (c@@UnConcatArg1) e1 <*> applyT t2 (c@@UnConcatArg2) e2
-                     _                -> fail "not a unconcat call"
-{-# INLINE unconcatT #-}                      
+imprintT t1 t2 f = transform $ \c expr -> case expr of
+                     Imprint n ty e1 e2 -> f n ty <$> applyT t1 (c@@ImprintArg1) e1 <*> applyT t2 (c@@ImprintArg2) e2
+                     _                -> fail "not a imprint call"
+{-# INLINE imprintT #-}                      
 
-unconcatR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
-unconcatR t1 t2 = unconcatT t1 t2 UnConcat
-{-# INLINE unconcatR #-}                      
+imprintR :: Monad m => Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l) -> Rewrite FlatCtx m (Expr l)
+imprintR t1 t2 = imprintT t1 t2 Imprint
+{-# INLINE imprintR #-}                      
 
 papp3T :: Monad m => Transform FlatCtx m (Expr l) a1
                   -> Transform FlatCtx m (Expr l) a2
@@ -327,8 +327,8 @@ instance Walker FlatCtx (Expr l) where
             UnOp{}        -> unopR (extractR r)
             If{}          -> ifR (extractR r) (extractR r) (extractR r)
             Const{}       -> idR
-            UnConcat{}    -> unconcatR (extractR r) (extractR r)
-            QConcat{}     -> qconcatR (extractR r)
+            Imprint{}     -> imprintR (extractR r) (extractR r)
+            Forget{}      -> forgetR (extractR r)
             Let{}         -> letR (extractR r) (extractR r)
             Var{}         -> idR
             MkTuple{}     -> mkTupleR (extractR r)

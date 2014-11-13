@@ -101,8 +101,8 @@ instance Typed (Expr l) where
     typeOf (BinOp t _ _ _ _)   = t
     typeOf (UnOp t _ _ _)      = t
     typeOf (Const t _)         = t
-    typeOf (QConcat _ t _)     = t
-    typeOf (UnConcat _ t _ _)  = t
+    typeOf (Forget _ t _)      = t
+    typeOf (Imprint _ t _ _)   = t
     typeOf (MkTuple t _ _)     = t
 
 --------------------------------------------------------------------------------
