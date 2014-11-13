@@ -31,8 +31,8 @@ data Expr l = Table Type String [L.Column] L.TableHints
             | BinOp Type L.ScalarBinOp l (Expr l) (Expr l)
             | UnOp Type L.ScalarUnOp l (Expr l)
             | Const Type L.Val
-            | QConcat Nat  Type (Expr l)
-            | UnConcat Nat Type (Expr l) (Expr l)
+            | Forget Nat  Type (Expr l)
+            | Imprint Nat Type (Expr l) (Expr l)
             | Let Type L.Ident (Expr l) (Expr l)
             | Var Type L.Ident
             | MkTuple Type l [Expr l]
@@ -101,8 +101,8 @@ instance Typed (Expr l) where
     typeOf (BinOp t _ _ _ _)   = t
     typeOf (UnOp t _ _ _)      = t
     typeOf (Const t _)         = t
-    typeOf (QConcat _ t _)     = t
-    typeOf (UnConcat _ t _ _)  = t
+    typeOf (Forget _ t _)      = t
+    typeOf (Imprint _ t _ _)   = t
     typeOf (MkTuple t _ _)     = t
 
 --------------------------------------------------------------------------------
@@ -205,13 +205,13 @@ instance Pretty l => Pretty (Expr l) where
 
     pretty (Const _ v) = pretty v
 
-    pretty (QConcat n _ e) = 
-        text "qconcat" 
+    pretty (Forget n _ e) = 
+        text "forget" 
         <> (angles $ int $ intFromNat n)
         <+> (parenthize e)
 
-    pretty (UnConcat n _ e1 e2) = 
-        text "unconcat" 
+    pretty (Imprint n _ e1 e2) = 
+        text "imprint" 
         <> (angles $ int $ intFromNat n) 
         <+> (align $ (parenthize e1) 
                      </> (parenthize e2))

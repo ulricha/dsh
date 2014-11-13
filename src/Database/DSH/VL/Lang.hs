@@ -103,28 +103,33 @@ data NullOp = SingletonDescr
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = UniqueS
-          | Number
-          | NumberS
-          | UnboxRename
+data UnOp = UnboxRename
           | Segment
           | Unsegment
-          | Reverse
-          | ReverseS
+
           | R1
           | R2
           | R3
+
           | Project [Expr]
           | Select Expr
-          | SelectPos1 (L.ScalarBinOp, Int)
-          | SelectPos1S (L.ScalarBinOp, Int)
+
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
           | AggrNonEmptyS (N.NonEmpty AggrFun)
+
+          | Number
+          | NumberS
+          | UniqueS
+          | Reverse
+          | ReverseS
+          | SelectPos1 (L.ScalarBinOp, Int)
+          | SelectPos1S (L.ScalarBinOp, Int)
           | SortS [Expr]
           | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
+
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
@@ -132,34 +137,22 @@ data UnOp = UniqueS
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = AggrS AggrFun
-           | DistDesc
+data BinOp = DistDesc
            | DistLift
            | PropRename
            | PropFilter
            | PropReorder
            
-           -- | Specialized unbox operator that merges DescrToRename
-           -- and PropRename. It takes an inner and outer vector, and
-           -- pulls the inner segment that is referenced by the outer
-           -- vector into the outer segment. Notice that there must be
-           -- /exactly one/ segment referenced by the outer
-           -- vector. Inner segments that are not referenced are
-           -- silently discarded.
-           -- 
-           -- Output: @(DVec, RVec)@
            | UnboxNested
-
            | UnboxScalar
-
            | Align
 
-           | Zip
-
+           | AggrS AggrFun
            | Append
            | AppendS
            | SelectPos L.ScalarBinOp
            | SelectPosS L.ScalarBinOp
+           | Zip
            | ZipS
            | CartProduct
            | CartProductS

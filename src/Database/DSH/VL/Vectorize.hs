@@ -380,8 +380,7 @@ reshape _ _ = $impossible
 
 concat :: Shape VLDVec -> Build VL (Shape VLDVec)
 concat (VShape _ (LNest q lyt)) = VShape <$> vlUnsegment q <*> pure lyt
-concat _e                           = $impossible
-
+concat _e                       = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
