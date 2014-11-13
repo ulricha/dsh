@@ -221,10 +221,10 @@ un t o e d = UnOp (liftTypeN d t) o (LiftedN d) e
 --------------------------------------------------------------------------------
 -- Smart constructors for special forms in both FKL dialects
 
-qconcat :: Nat -> Expr l -> Expr l
-qconcat n xs =
+forget :: Nat -> Expr l -> Expr l
+forget n xs =
     let xst = typeOf xs
-    in QConcat n (unwrapListType n xst) xs
+    in Forget n (unwrapListType n xst) xs
 
   where
     unwrapListType :: Nat -> Type -> Type
@@ -232,8 +232,8 @@ qconcat n xs =
     unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
     unwrapListType _         _          = $impossible
 
-unconcat :: Nat -> Expr l -> Expr l -> Expr l
-unconcat n shape bottom = UnConcat n (wrapListType n bt) shape bottom
+imprint :: Nat -> Expr l -> Expr l -> Expr l
+imprint n shape bottom = Imprint n (wrapListType n bt) shape bottom
   where
     bt = typeOf bottom
 

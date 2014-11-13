@@ -33,7 +33,6 @@ cleanupRules = [ stackedProject
                , serializeProject
                , pullProjectWinFun
                , pullProjectSelect
-               , pullProjectSemiAntiRight
                , duplicateSortingCriteriaWin
                , duplicateSortingCriteriaRownum
                , duplicateSortingCriteriaSerialize
@@ -561,13 +560,3 @@ inlineJoinPredRight :: [Proj] -> [(Expr, Expr, JoinRel)] -> [(Expr, Expr, JoinRe
 inlineJoinPredRight proj p = map inlineConjunct p
   where
     inlineConjunct (le, re, rel) = (le, inlineExpr proj re, rel)
-
-pullProjectSemiAntiRight :: TARule ()
-pullProjectSemiAntiRight q =
-    $(dagPatMatch 'q "(q1) [SemiJoin | AntiJoin]@jop p (Project proj (q2))"
-      [| do
-          return $ do
-              logRewrite "Basic.PullProject.SemiAnti.Right" q
-              let p' = inlineJoinPredRight $(v "proj") $(v "p")
-              void $ replaceWithNew q $ BinOp ($(v "jop") p') $(v "q1") $(v "q2") |])
-
