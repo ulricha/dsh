@@ -62,6 +62,7 @@ redundantRulesBottomUp = [ cartProdConstant
                          , zipWinRightPush
                          , zipUnboxScalarRight
                          , zipUnboxScalarLeft
+                         , alignCartProdRight
                          -- , stackedDistLift
                          , propProductCard1Right
                          , runningAggWin
@@ -73,6 +74,7 @@ redundantRulesBottomUp = [ cartProdConstant
                          , pullProjectUnboxScalarRight
                          , pullProjectNestJoinLeft
                          , pullProjectNestJoinRight
+                         , selectCartProd
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
@@ -242,7 +244,12 @@ distLiftedOnlyLeft q =
           void $ replaceWithNew q $ BinOp DistLift $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
--- Zip rewrites
+-- Zip and Align rewrites. 
+
+-- Note that the rewrites valid for Zip are a subset of the rewrites
+-- valid for Align. In the case of Align, we statically know that both
+-- inputs have the same length and can be positionally aligned without
+-- discarding elements.
 
 -- | Replace a Zip operator with a projection if both inputs are the
 -- same.
@@ -326,6 +333,8 @@ fromConst :: Monad m => ConstPayload -> m VLVal
 fromConst (ConstPL val) = return val
 fromConst NonConstPL    = fail "not a constant"
 
+-- | This rewrite is valid because we statically know that both
+-- vectors have the same length.
 alignConstLeft :: VLRule BottomUpProps
 alignConstLeft q =
   $(dagPatMatch 'q "(q1) Align (q2)"
@@ -356,6 +365,12 @@ alignConstRight q =
             let proj = map Column [1..w1] ++ map Constant vals
             void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
+-- | In contrast to the 'Align' version ('alignConstLeft') this
+-- rewrite is only valid if we can statically determine that both
+-- input vectors have the same length. If the constant vector was
+-- shorter, overhanging elements from the non-constant vector would
+-- need to be discarded. In general, we can only determine equal
+-- length for the special case of length one.
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
   $(dagPatMatch 'q "(q1) Zip (q2)"
@@ -529,6 +544,23 @@ zipUnboxScalarLeft q =
              -- projection that keeps the original output schema
              -- intact.
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
+-- | A CartProduct output is aligned with some other vector. If one of
+-- the CartProduct inputs has cardinality one, the other CartProduct
+-- input determines the length of the result vector. From the original
+-- structure we can derive that 'q11' and the CartProduct result are
+-- aligned. Consequentially, 'q11 and 'q12' (the left CartProduct
+-- input) must be aligned as well.
+alignCartProdRight :: VLRule BottomUpProps
+alignCartProdRight q =
+  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
+    [| do
+        VProp True <- card1Prop <$> properties $(v "q2")
+        return $ do
+            logRewrite "Redundant.Align.CartProduct.Card1.Right" q
+            alignNode <- insert $ BinOp Align $(v "q11") $(v "q12")
+            prodNode  <- insert $ BinOp CartProduct alignNode $(v "q2")
+            void $ replaceWithNew q $ UnOp R1 prodNode |])
 
 --------------------------------------------------------------------------------
 -- Scalar conditionals
@@ -865,4 +897,26 @@ notReqNumber q =
           -- column references intact.
           let proj = map Column [1..w] ++ [Constant $ VLInt 0xdeadbeef]
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-           
+
+--------------------------------------------------------------------------------
+-- Classical relational algebra rewrites
+
+-- | Merge a selection that refers to both sides of a cartesian
+-- product operators' inputs into a join.
+selectCartProd :: VLRule BottomUpProps
+selectCartProd q =
+  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
+    [| do
+        wl <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        BinApp (SBRelOp op) (Column lc) (Column rc)  <- return $(v "p")
+  
+        -- The left operand column has to be from the left input, the
+        -- right operand from the right input.
+        predicate $ lc <= wl
+        predicate $ rc > wl
+
+        return $ do
+            logRewrite "Redundant.Relational.Join" q
+            let joinPred = singlePred $ JoinConjunct (Column lc) op (Column $ rc - wl)
+            joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp R1 joinNode |])

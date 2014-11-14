@@ -243,6 +243,6 @@ expectedRevenueFor nation =
 foobar = take 10 $ sortWith id $ map revenue orders
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ jan_q7b
+main = getConn P.>>= \c -> debugQ "q" c q2
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
