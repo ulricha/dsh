@@ -53,7 +53,6 @@ import           Language.KURE
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
@@ -216,6 +215,7 @@ compBoundVars qs = F.foldr aux [] qs
 --------------------------------------------------------------------------------
 -- Substitution
 
+-- | /Exhaustively/ substitute term 's' for a variable 'v'.
 substR :: Ident -> Expr -> RewriteC CL
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
@@ -223,27 +223,26 @@ substR v s = readerT $ \expr -> case expr of
 
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
-    ExprCL (Let _ n _ _) | n == v    -> promoteR $ letR idR (extractR $ substR v s)
+    ExprCL (Let _ n _ _) | n == v    -> tryR $ childR LetBind (substR v s)
     ExprCL (Let _ n _ _) | otherwise ->
         if n `elem` freeVars s
         -- If the let-bound name occurs free in the substitute,
         -- alpha-convert the binding to avoid capturing the name.
-        then $unimplemented >>> anyR (substR v s)
-        else anyR (substR v s)
+        then $unimplemented >>> tryR (anyR (substR v s))
+        else tryR $ anyR (substR v s)
 
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
     -- FIXME in this case, rename the shadowing generator to avoid
     -- name-capturing (see lambda case)
-    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> childR CompQuals (substR v s)
-    ExprCL _                                           -> anyR $ substR v s
+    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> tryR $ childR CompQuals (substR v s)
+    ExprCL _                                           -> tryR $ anyR $ substR v s
 
     -- Don't substitute past shadowing generators
-    QualsCL ((BindQ n _) :* _) | n == v                -> promoteR $ qualsR (extractR $ substR v s) idR
-    QualsCL (_ :* _)                                   -> promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
-    QualsCL (S _)                                      -> promoteR $ qualsemptyR (extractR $ substR v s)
-    QualCL _                                           -> anyR $ substR v s
+    QualsCL ((BindQ n _) :* _) | n == v                -> tryR $ childR QualsHead (substR v s)
+    QualsCL _                                          -> tryR $ anyR $ substR v s
+    QualCL _                                           -> tryR $ anyR $ substR v s
 
 
 --------------------------------------------------------------------------------

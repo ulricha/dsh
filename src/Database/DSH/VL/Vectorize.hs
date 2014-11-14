@@ -588,7 +588,6 @@ distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
     return $ VShape d (LNest qf lytf)
 distL _e1 _e2 = $impossible
 
-
 pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
     q <- vlAlign q1 q2

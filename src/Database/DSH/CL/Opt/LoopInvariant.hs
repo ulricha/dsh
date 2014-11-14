@@ -43,7 +43,7 @@ complexPathT localVars = do
     -- We are only interested in constant expressions that do not
     -- depend on variables bound by generators in the enclosing
     -- comprehension.
-    debugMsg $ "free: " ++ pp (freeVars e)
+    -- debugMsg $ "free: " ++ pp (freeVars e)
     guardM $ null $ freeVars e `intersect` localVars
 
     -- FIXME more precise heuristics could be employed: A
