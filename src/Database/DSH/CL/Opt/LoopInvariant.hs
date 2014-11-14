@@ -39,7 +39,6 @@ complexPathT localVars = do
     ExprCL e <- idR
     -- debugPretty "complexPathT" e
     path <- snocPathToPath <$> absPathT
-    debugPretty "complexPathT" e
     
     -- We are only interested in constant expressions that do not
     -- depend on variables bound by generators in the enclosing
@@ -106,13 +105,11 @@ invariantQualR localVars = do
 
 invariantQualR :: [Ident] -> TransformC CL (Expr, PathC)
 invariantQualR localVars = readerT $ \expr -> case expr of
-    QualsCL (BindQ{} :* _)  -> debugMsg "binds" >> childT QualsTail (invariantQualR localVars)
-    QualsCL (GuardQ _ :* _) -> debugMsg "guards" >>
-                               (childT QualsHead (searchInvariantExprT localVars)
+    QualsCL (BindQ{} :* _)  -> childT QualsTail (invariantQualR localVars)
+    QualsCL (GuardQ _ :* _) -> (childT QualsHead (searchInvariantExprT localVars)
                                 <+
                                childT QualsTail (invariantQualR localVars))
-    QualsCL (S (GuardQ _))  -> debugMsg "guard" >> 
-                               pathT [QualsSingleton, GuardQualExpr] (searchInvariantExprT localVars)
+    QualsCL (S (GuardQ _))  -> pathT [QualsSingleton, GuardQualExpr] (searchInvariantExprT localVars)
     QualsCL (S BindQ{})     -> fail "no match"
     _                       -> $impossible
 
@@ -123,8 +120,8 @@ loopInvariantGuardR = do
     -- comprehension is too conservative. It would be sufficient to
     -- consider those preceding the guard that is under investigation.
     let genVars = fmap fst $ catMaybes $ fmap fromGen $ toList qs
-    debugMsg $ "loopInvariantGuardR " ++ show genVars
-    debugMsg $ "CC\n" ++ pp (Comp t h qs)
+    -- debugMsg $ "loopInvariantGuardR " ++ show genVars
+    -- debugMsg $ "CC\n" ++ pp (Comp t h qs)
     {-
     qs' <- constT (return qs) >>> onetdR (invariantQualR genVars)
     return $ inject $ Comp t h qs'

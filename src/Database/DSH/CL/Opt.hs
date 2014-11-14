@@ -73,7 +73,7 @@ optCompR = do
              <+ predpushdownR
              <+ flatjoinsR
              <+ anyR descendR
-             ) -- >>> debugShow "after comp"
+             ) >>> debugShow "after comp"
 
 applyOptimizationsR :: RewriteC CL
 applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR

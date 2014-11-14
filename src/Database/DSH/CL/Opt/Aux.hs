@@ -53,6 +53,7 @@ import           Language.KURE
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
@@ -235,8 +236,7 @@ substR v s = readerT $ \expr -> case expr of
     -- qualifiers takes care of shadowing generators.
     -- FIXME in this case, rename the shadowing generator to avoid
     -- name-capturing (see lambda case)
-    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
-    ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
+    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> childR CompQuals (substR v s)
     ExprCL _                                           -> anyR $ substR v s
 
     -- Don't substitute past shadowing generators

@@ -202,7 +202,7 @@ simpleBindingR :: RewriteC CL
 simpleBindingR = do
     Let _ x e1 _ <- promoteT idR
     guardM $ simpleExpr e1
-    childT LetBody $ substR x e1
+    childR LetBody $ substR x e1
 
 normalizeExprR :: RewriteC CL
 normalizeExprR = readerT $ \expr -> case expr of
