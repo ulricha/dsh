@@ -185,27 +185,6 @@ distLiftParents q =
              -- the projection.
              forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
 
--- | If an outer vector is distLifted multiple times with some inner
--- vector (i.e. stacked DistLift operators with the same left input), one
--- DistLift is sufficient.
-stackedDistLift :: VLRule BottomUpProps
-stackedDistLift q =
-  $(dagPatMatch 'q "R1 ((q11) DistLift (qr1=R1 ((q12) DistLift (q2))))"
-    [| do
-        predicate $ $(v "q11") == $(v "q12")
-        VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
-        VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
-
-        return $ do
-            logRewrite "Redundant.DistLift.Stacked" q
-
-            -- DistLifting multiple times duplicates the left input's
-            -- columns.
-            let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
-            projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
-
-            replace q projNode |])
-
 -- Housekeeping rule: If only columns from the left DistLift input are
 -- referenced, remove projections on the right input.
 distLiftedOnlyLeft :: VLRule Properties

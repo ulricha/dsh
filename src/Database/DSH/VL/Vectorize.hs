@@ -43,9 +43,10 @@ cartProduct _ _ = $impossible
 
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProduct (VShape q1 lyt1) (VShape q2 lyt2) = do
-  q1'            <- vlSegment q1
-  VShape qj lytJ <- cartProduct (VShape q1' lyt1) (VShape q2 lyt2)
-  return $ VShape q1 (LTuple [lyt1, LNest qj lytJ])
+  (q', p1, p2) <- vlNestProduct q1 q2
+  lyt1'        <- chainReorder p1 lyt1
+  lyt2'        <- chainReorder p2 lyt2
+  return $ VShape q1 (LTuple [lyt1, LNest q' (zipLayout lyt1' lyt2')])
 nestProduct _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
