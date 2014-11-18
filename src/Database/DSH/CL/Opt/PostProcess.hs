@@ -1,7 +1,6 @@
 module Database.DSH.CL.Opt.PostProcess
     ( introduceCartProductsR
     , mergeGuardsR
-    , introduceRestrictsR
     , identityCompR
     , guardpushbackR
     ) where
@@ -102,52 +101,3 @@ introduceCartProductsR = do
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR cartProductR) >>> projectT
     ExprCL h'           <- childT CompHead tuplifyHeadR
     return $ inject $ Comp t h' qs'
-
---------------------------------------------------------------------------------
--- Turn comprehension guards into restrict combinators
---
--- [ e | ..., x <- xs, p x, ... ]
--- =>
--- [ e | ..., x <- restrict xs [ p x | x <- xs ], ... ]
-
-restrictQualR :: RewriteC (NL Qual)
-restrictQualR = do
-    readerT $ \e -> case e of
-        BindQ x xs :* GuardQ p :* qs -> do
-            [x'] <- return $ freeVars p
-            guardM $ x == x'
-            -- FIXME use let-binding
-            let xs' = P.restrict xs (P.singleGenComp p x xs)
-            return $ inject $ BindQ x xs' :* qs
-        BindQ x xs :* (S (GuardQ p)) -> do
-            [x'] <- return $ freeVars p
-            guardM $ x == x'
-            -- FIXME use let-binding
-            let xs' = P.restrict xs (P.singleGenComp p x xs)
-            return $ inject $ S $ BindQ x xs'
-        _ -> fail "no match"
-
-restrictR :: RewriteC CL
-restrictR = do
-    Comp _ _ _ <- promoteT idR
-    childR CompQuals (promoteR $ restrictQualR)
-
-restrictWorkerT :: MergeGuard
-restrictWorkerT comp guard guardsToTry leftOverGuards = do
-    let C ty h qs = comp
-    env <- S.fromList <$> inScopeNames <$> contextT
-    let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
-    ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> restrictR
-    return (C ty h qs', guardsToTry, leftOverGuards)
-
-mergeGuardsR :: RewriteC CL
-mergeGuardsR = readerT $ \quals -> case quals of
-    QualsCL (GuardQ p1 :* S (GuardQ p2))   -> 
-        return $ QualsCL $ S $ GuardQ $ p1 `P.conj` p2
-    QualsCL (GuardQ p1 :* GuardQ p2 :* qs) -> 
-        return $ QualsCL $ GuardQ (p1 `P.conj` p2) :* qs
-    _ -> fail "no match"
-
--- |
-introduceRestrictsR :: RewriteC CL
-introduceRestrictsR = mergeGuardsIterR restrictWorkerT
