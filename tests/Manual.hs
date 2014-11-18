@@ -241,8 +241,25 @@ expectedRevenueFor nation =
     ]
 
 foobar = take 10 $ sortWith id $ map revenue orders
+
+njg3 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> Q [(Integer, Integer)]
+njg3 njgxs njgys njgzs =
+  [ pair x y
+  | x <- toQ njgxs
+  , y <- toQ njgys
+  , length [ toQ () | z <- toQ njgzs, fst z == x ] > 2
+  ]
+
+njgxs1 :: [Integer]
+njgxs1 = [1,2]
+
+njgys1 :: [Integer]
+njgys1 = [2,3]
+
+njgzs1 :: [(Integer, Integer)]
+njgzs1 = [(2, 20), (5, 60), (3, 30)]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q2
+main = getConn P.>>= \c -> debugQ "q" c $ njg3 njgxs1 njgys1 njgzs1
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

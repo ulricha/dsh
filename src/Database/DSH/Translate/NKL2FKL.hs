@@ -105,7 +105,7 @@ flatten (N.AppE1 _ p e)      = prim1 p <$> flatten e <*> pure Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p <$> flatten e1 <*> flatten e2 <*> pure Zero
 flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindLetEnv x (typeOf xs)) (flatten e)
 flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
-flatten (N.Comp _ h x xs)    = do
+flatten (N.Iterator _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
     let initCtx    = (x, typeOf xs)
@@ -177,7 +177,7 @@ topFlatten (N.If _ ce te ee)    = do
 
 topFlatten (N.AppE1 _ p e)      = prim1 p <$> topFlatten e <*> pure (Succ Zero)
 topFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> topFlatten e1 <*> topFlatten e2 <*> pure (Succ Zero)
-topFlatten (N.Comp _ h x xs)    = do
+topFlatten (N.Iterator _ h x xs) = do
     -- The compiled generator expression of the current iterator,
     -- compiled in the context of the topmost comprehension.
     currentGen <- topFlatten xs
@@ -186,16 +186,20 @@ topFlatten (N.Comp _ h x xs)    = do
     -- outermost iterator.
     (ctxName, ctxTy) <- asks topCtx
 
+    -- The new context spanned by the current generator
+    let innerCtx = (x, typeOf currentGen)
+
     -- Initialize the environment for descending into the
     -- comprehension head
-    let nestedEnv = initEnv x (typeOf currentGen) (ctxName, ctxTy)
+    let nestedEnv = initEnv innerCtx (ctxName, ctxTy)
 
     let flatHead = runFlat nestedEnv (deepFlatten h)
+
 
     -- Bind the generator of the current iterator, then lift the
     -- environment and terminate with the flattened head of the
     -- current iterator.
-    P.let_ x currentGen <$> (liftTopEnv (ctxName, ctxTy) flatHead <$> asks topInScope)
+    P.let_ x currentGen <$> (liftTopEnv innerCtx flatHead <$> asks topInScope)
 
 -- | Lift all names bound in the environment: the value is replicated
 -- for each element of the current context. The chain of 'let's is
@@ -239,8 +243,8 @@ data NestedEnv = NestedEnv
 -- by the inner comprehension, 'xst' is the type of the /translated/
 -- generator source expression and 'ctx' is the outer (so far)
 -- context.
-initEnv :: Ident -> Type -> (Ident, Type) -> NestedEnv
-initEnv x xst ctx = 
+initEnv :: (Ident, Type) -> (Ident, Type) -> NestedEnv
+initEnv (x, xst) ctx = 
     NestedEnv { context    = (x, xst)
               , inScope    = fmap (\(n, t) -> (n, liftType t)) 
                                   (ctx :| [(x, xst)])
@@ -315,7 +319,7 @@ deepFlatten (N.If _ ce te ee)    = do
     return $ P.combine bs thenRes elseRes d1
 
 -- FIXME lift types in the environment (add one list type constructor)
-deepFlatten (N.Comp _ h x xs)    = do
+deepFlatten (N.Iterator _ h x xs)    = do
     d@(Succ d1) <- frameDepthM
     env         <- asks inScope
     let cv' = (x, liftTypeN (Succ d) (typeOf xs))

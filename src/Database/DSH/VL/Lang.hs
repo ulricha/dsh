@@ -56,7 +56,6 @@ shiftExprCols o (If c t e)        = If (shiftExprCols o c)
                                        (shiftExprCols o t) 
                                        (shiftExprCols o e)
 
-
 data AggrFun = AggrSum ScalarType Expr
              | AggrMin Expr
              | AggrMax Expr
@@ -137,8 +136,8 @@ data UnOp = UnboxRename
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = DistDesc
-           | DistLift
+data BinOp = DistLift
+
            | PropRename
            | PropFilter
            | PropReorder
@@ -164,6 +163,7 @@ data BinOp = DistDesc
            | AntiJoinS (L.JoinPredicate Expr)
            | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
+           | NestProduct
            | NestProductS
            | TransposeS
     deriving (Eq, Ord, Show)

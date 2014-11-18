@@ -151,10 +151,6 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
 translateBinOp b c1 c2 = case b of
-    V.DistDesc -> do
-        (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
-
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
@@ -215,6 +211,10 @@ translateBinOp b c1 c2 = case b of
 
     V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+
+    V.NestProduct -> do
+        (v, p1, p2) <- vecNestProduct (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.NestJoin p -> do

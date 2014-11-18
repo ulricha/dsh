@@ -175,7 +175,7 @@ opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracke
 opDotLabel tm i (UnOp (AggrNonEmptyS as) _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupS cols) _) = labelToDoc i "GroupS" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (BinOp DistDesc _ _) = labelToDoc i "DistDesc" empty (lookupTags i tm)
+opDotLabel tm i (BinOp NestProduct _ _) = labelToDoc i "NestProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp DistLift _ _) = labelToDoc i "DistLift" empty (lookupTags i tm)
 opDotLabel tm i (BinOp PropRename _ _) = labelToDoc i "PropRename" empty (lookupTags i tm)
 opDotLabel tm i (BinOp UnboxNested _ _) = labelToDoc i "UnboxNested" empty (lookupTags i tm)
@@ -215,7 +215,7 @@ opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags
 opDotLabel tm i (BinOp TransposeS _ _) = labelToDoc i "TransposeS" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
-opDotColor (BinOp DistDesc _ _)          = DCRed
+opDotColor (BinOp NestProduct _ _)       = DCRed
 opDotColor (BinOp CartProduct _ _)       = DCRed
 opDotColor (BinOp CartProductS _ _)      = DCRed
 opDotColor (BinOp NestProductS _ _)      = DCRed

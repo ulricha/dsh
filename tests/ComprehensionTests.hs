@@ -48,6 +48,7 @@ tests_join_hunit = testGroup "HUnit joins"
     , testCase "hantijoin_class12" hantijoin_class12
     , testCase "hantijoin_class15" hantijoin_class15
     , testCase "hantijoin_class16" hantijoin_class16
+    , testCase "hfrontguard" hfrontguard
     ]
 
 tests_nest_head_hunit :: Test
@@ -226,7 +227,9 @@ prop_backdep4 = makeProp C.backdep4 backdep4
 prop_backdep5 :: [[Integer]] -> Property
 prop_backdep5 = makeProp C.backdep5 backdep5
   where
-    backdep5 xss = [ [ x + fromIntegral (length xs) | x <- take (length xs - 3) xs ] | xs <- xss ]
+    backdep5 xss = [ [ x + fromIntegral (length xs) 
+                     | x <- take (length xs - 3) xs ] 
+                   | xs <- xss ]
 
 
 
@@ -291,6 +294,11 @@ hantijoin_class16 :: Assertion
 hantijoin_class16 = makeEqAssertion "hantijoin_class16" C.antijoin_class16 res
   where
     res = [4,5,6]
+
+hfrontguard :: Assertion
+hfrontguard = makeEqAssertion "hfrontguard" C.frontguard res
+  where
+    res = [[1,2],[1,2]] 
 
 -----------------------------------------------------------------------
 -- HUnit tests for nestjoin/nestproduct

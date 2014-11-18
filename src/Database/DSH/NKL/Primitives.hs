@@ -74,3 +74,8 @@ group vs gs = let vst@(ListT _) = typeOf vs
 
 let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
+
+if_ :: Expr -> Expr -> Expr -> Expr
+if_ c t e = if BoolT == typeOf c
+            then If (typeOf t) c t e
+            else tyErr "if_"

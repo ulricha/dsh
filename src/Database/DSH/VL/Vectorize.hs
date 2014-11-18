@@ -43,9 +43,10 @@ cartProduct _ _ = $impossible
 
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProduct (VShape q1 lyt1) (VShape q2 lyt2) = do
-  q1' <- vlSegment q1
-  VShape qj lytJ <- cartProduct (VShape q1' lyt1) (VShape q2 lyt2)
-  return $ VShape q1 (LTuple [lyt1, LNest qj lytJ])
+  (q', p1, p2) <- vlNestProduct q1 q2
+  lyt1'        <- chainReorder p1 lyt1
+  lyt2'        <- chainReorder p2 lyt2
+  return $ VShape q1 (LTuple [lyt1, LNest q' (zipLayout lyt1' lyt2')])
 nestProduct _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -254,16 +255,23 @@ dist ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 -- we distributed over. Vectors are swapped because CartProduct uses
 -- the descriptor of its left input and that is what we want.
 dist (SShape q lyt) v = distSingleton v q lyt
--- FIXME could propably be implemented with NestProduct.
-dist (VShape q lyt) q2 = do
-    o      <- outer q2
-    (d, p) <- vlDistDesc q o
+dist (VShape q lyt) (VShape qo lyto) = do
+    let leftWidth  = columnsInLayout lyto
+        rightWidth = columnsInLayout lyt
+        innerProj  = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    (prodVec, _, propVec) <- vlNestProduct qo q
+    innerVec              <- vlProject innerProj prodVec
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
-    o'     <- vlProject [] o
-    lyt'   <- chainReorder p lyt
-    return $ VShape o' (LNest d lyt')
+    outerVec              <- vlProject [] qo
+    
+    -- Replicate any inner vectors
+    lyt'                  <- chainReorder propVec lyt
+
+    return $ VShape outerVec (LNest innerVec lyt')
+dist _ _ = $impossible
 
 aggr :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggr afun (VShape q (LCol 1)) =
@@ -577,9 +585,8 @@ consL (VShape q1 lyt1) (VShape q2 (LNest qi lyt2)) = do
     return $ VShape q2 (LNest v lyt')
 consL _ _ = $impossible
 
-
 outer ::  Shape VLDVec -> Build VL VLDVec
-outer (SShape _ _)            = $impossible
+outer (SShape _ _)        = $impossible
 outer (VShape q _)        = return q
 
 aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -597,7 +604,6 @@ distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
     VShape qf lytf <- tupElemL First $ VShape qa lyt
     return $ VShape d (LNest qf lytf)
 distL _e1 _e2 = $impossible
-
 
 pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 pairL (VShape q1 lyt1) (VShape q2 lyt2) = do

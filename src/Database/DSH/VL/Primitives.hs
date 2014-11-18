@@ -175,8 +175,8 @@ vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 vlUnboxRename :: VLDVec -> Build VL RVec
 vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) rvec
 
-vlDistDesc :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlDistDesc (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistDesc c1 c2) dvec pvec
+vlNestProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec pvec pvec
 
 vlDistLift :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
 vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec pvec

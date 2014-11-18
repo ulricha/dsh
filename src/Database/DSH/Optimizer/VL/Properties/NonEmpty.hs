@@ -98,7 +98,6 @@ inferNonEmptyUnOp e op =
 inferNonEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferNonEmptyBinOp e1 e2 op =
   case op of
-    DistDesc        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     DistLift        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     PropRename      -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     PropFilter      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
@@ -116,9 +115,10 @@ inferNonEmptyBinOp e1 e2 op =
     CartProduct     -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     CartProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    ThetaJoin _      -> return $ VPropTriple False False False
+    ThetaJoin _     -> return $ VPropTriple False False False
     NestJoin _      -> return $ VPropTriple False False False
-    ThetaJoinS _     -> return $ VPropTriple False False False
+    NestProduct     -> return $ VPropTriple False False False
+    ThetaJoinS _    -> return $ VPropTriple False False False
     NestJoinS _     -> return $ VPropTriple False False False
     SemiJoin _      -> return $ VPropPair False False
     SemiJoinS _     -> return $ VPropPair False False

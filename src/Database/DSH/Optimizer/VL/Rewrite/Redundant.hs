@@ -42,7 +42,6 @@ redundantRules = [ pullProjectPropRename
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ cartProdConstant
-                         , distDescConstant
                          , sameInputZip
                          , sameInputZipProject
                          , sameInputZipProjectLeft
@@ -103,23 +102,6 @@ cartProdConstant q =
           logRewrite "Redundant.CartProduct.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "q1") |])
 
--- | Replace a DistDesc operator with a projection if its value input
--- is constant and consists of only one tuple.
-distDescConstant :: VLRule BottomUpProps
-distDescConstant q =
-  $(dagPatMatch 'q "R1 ((qv) DistDesc (qd))"
-    [| do
-        pv <- properties $(v "qv")
-        VProp True <- return $ card1Prop pv
-
-        VProp (DBVConst _ cols) <- return $ constProp pv
-        constProjs              <- mapM (constVal Constant) cols
-
-        return $ do
-          logRewrite "Redundant.DistDesc.Constant" q
-          segNode <- insert $ UnOp Segment $(v "qd")
-          void $ replaceWithNew q $ UnOp (Project constProjs) segNode |])
-
 unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
@@ -140,7 +122,6 @@ constDistLift q =
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
        
-
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the DistSeg altogether, as the
@@ -205,27 +186,6 @@ distLiftParents q =
              -- Then, re-link all parents of the right DistLift input to
              -- the projection.
              forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
-
--- | If an outer vector is distLifted multiple times with some inner
--- vector (i.e. stacked DistLift operators with the same left input), one
--- DistLift is sufficient.
-stackedDistLift :: VLRule BottomUpProps
-stackedDistLift q =
-  $(dagPatMatch 'q "R1 ((q11) DistLift (qr1=R1 ((q12) DistLift (q2))))"
-    [| do
-        predicate $ $(v "q11") == $(v "q12")
-        VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
-        VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
-
-        return $ do
-            logRewrite "Redundant.DistLift.Stacked" q
-
-            -- DistLifting multiple times duplicates the left input's
-            -- columns.
-            let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
-            projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
-
-            replace q projNode |])
 
 -- Housekeeping rule: If only columns from the left DistLift input are
 -- referenced, remove projections on the right input.

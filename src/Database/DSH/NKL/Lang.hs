@@ -29,46 +29,46 @@ data Expr  = Table Type String [L.Column] L.TableHints
            | If Type Expr Expr Expr
            | Const Type L.Val
            | Var Type L.Ident
-           | Comp Type Expr L.Ident Expr
+           | Iterator Type Expr L.Ident Expr
            | Let Type L.Ident Expr Expr
            | MkTuple Type [Expr]
            deriving (Show)
 
 instance Typed Expr where
-    typeOf (Table t _ _ _) = t
-    typeOf (AppE1 t _ _)   = t
-    typeOf (AppE2 t _ _ _) = t
-    typeOf (If t _ _ _)    = t
-    typeOf (BinOp t _ _ _) = t
-    typeOf (UnOp t _ _)    = t
-    typeOf (Const t _)     = t
-    typeOf (Var t _)       = t
-    typeOf (Comp t _ _ _)  = t
-    typeOf (Let t _ _ _)   = t
-    typeOf (MkTuple t _)   = t
+    typeOf (Table t _ _ _)    = t
+    typeOf (AppE1 t _ _)      = t
+    typeOf (AppE2 t _ _ _)    = t
+    typeOf (If t _ _ _)       = t
+    typeOf (BinOp t _ _ _)    = t
+    typeOf (UnOp t _ _)       = t
+    typeOf (Const t _)        = t
+    typeOf (Var t _)          = t
+    typeOf (Iterator t _ _ _) = t
+    typeOf (Let t _ _ _)      = t
+    typeOf (MkTuple t _)      = t
 
 instance Pretty Expr where
-    pretty (MkTuple _ es)     = tupled $ map pretty es
+    pretty (MkTuple _ es)      = tupled $ map pretty es
     pretty (AppE1 _ (TupElem n) e1) = 
         parenthize e1 <> dot <> int (tupleIndex n)
-    pretty (Table _ n _ _)    = text "table" <> parens (text n)
-    pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-    pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
-    pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
-    pretty (UnOp _ o e)       = text (show o) <> parens (pretty e)
-    pretty (If _ c t e)       = text "if"
-                             <+> pretty c
-                             <+> text "then"
-                             <+> (parenthize t)
-                             <+> text "else"
-                             <+> (parenthize e)
-    pretty (Const _ v)        = pretty v
-    pretty (Var _ s)          = text s
-    pretty (Comp _ e x xs)    = align 
+    pretty (Table _ n _ _)     = text "table" <> parens (text n)
+    pretty (AppE1 _ p1 e)      = (text $ show p1) <+> (parenthize e)
+    pretty (AppE2 _ p1 e1 e2)  = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+    pretty (BinOp _ o e1 e2)   = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
+    pretty (UnOp _ o e)        = text (show o) <> parens (pretty e)
+    pretty (If _ c t e)        = text "if"
+                                 <+> pretty c
+                                 <+> text "then"
+                                 <+> (parenthize t)
+                                 <+> text "else"
+                                 <+> (parenthize e)
+    pretty (Const _ v)         = pretty v
+    pretty (Var _ s)           = text s
+    pretty (Iterator _ e x xs) = align 
                                 $ brackets 
                                 $ enclose (char ' ') (char ' ') 
                                 $ pretty e </> char '|' <+> text x <+> text "<-" <+> pretty xs
-    pretty (Let _ x e1 e)     = 
+    pretty (Let _ x e1 e)      = 
         align $ text "let" <+> text x <+> char '=' <+> pretty e1
                 </>
                 text "in" <+> pretty e
@@ -79,7 +79,7 @@ parenthize e =
         Var _ _               -> pretty e
         Const _ _             -> pretty e
         Table _ _ _ _         -> pretty e
-        Comp _ _ _ _          -> pretty e
+        Iterator _ _ _ _      -> pretty e
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e
 

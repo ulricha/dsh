@@ -149,6 +149,9 @@ class VectorAlgebra v a where
 
     vecCartProduct :: v -> v -> Build a (v, PVec, PVec)
     vecCartProductS :: v -> v -> Build a (v, PVec, PVec)
+    vecNestProduct :: v -> v -> Build a (v, PVec, PVec)
+    -- FIXME inner result vector contains the outer values. Produce a
+    -- propagation vector to align the layout.
     vecNestProductS :: v -> v -> Build a (v, PVec)
 
     vecThetaJoin :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
