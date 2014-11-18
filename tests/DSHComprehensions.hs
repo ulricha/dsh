@@ -194,6 +194,12 @@ antijoin_class16 =
         ys = toQ ([1,2,3,4,5,6,7,8] :: [Integer])
     in [ x | x <- xs, and [ y <= 2 * x | y <- ys, x < y ]]
 
+frontguard :: Q [[Integer]]
+frontguard =
+    [ [ y | x > 13, y <- toQ ([1,2,3,4] :: [Integer]), y < 3 ]
+    | x <- toQ ([10, 20, 30] :: [Integer])
+    ]
+
 ----------------------------------------------------------------------
 -- Comprehensions for HUnit NestJoin/NestProduct tests
 

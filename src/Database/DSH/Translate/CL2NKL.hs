@@ -312,16 +312,24 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
 
 desugarQualsRec env baseSrc []                    = return (env, baseSrc)
 
-desugarQuals :: [CL.Qual] -> NameEnv (GenEnv, NKL.Expr)
+-- | Kick off the recursive traversal of the qualifier list.
+desugarQuals :: [CL.Qual] -> NameEnv (GenEnv, NKL.Expr, NKL.Expr -> NKL.Expr)
 desugarQuals []                   = $impossible
--- FIXME if the first qualifier is a guard, employ an if with a []
--- else branch.
-desugarQuals (CL.GuardQ p : qs)   = $unimplemented
+-- If the first qualifier is a guard, employ an if with a [] else
+-- branch.
+desugarQuals (CL.GuardQ p : qs)   = do
+    (env, genExpr, _) <- desugarQuals qs
+    p'                <- expr p
+    let wrapIf headExpr = P.if_  p' headExpr (NKL.Const (listT $ typeOf headExpr) (ListV []))
+    return (env, genExpr, wrapIf)
+-- If the first qualifier is a generator, it becomes the base source
+-- expression.
 desugarQuals (CL.BindQ x xs : qs) = do
     let xt  = elemT $ typeOf xs
     let env = mkEnv (x, xt)
-    xs' <- expr xs
-    desugarQualsRec env xs' qs
+    xs'             <- expr xs
+    (env', genExpr) <- desugarQualsRec env xs' qs
+    return (env', genExpr, id)
 
 -- | Desugaring of comprehensions happens in two steps: Desugaring the
 -- qualifiers leads to an expression that produces the (properly
@@ -330,7 +338,7 @@ desugarQuals (CL.BindQ x xs : qs) = do
 desugarComprehension:: Type -> CL.Expr -> [CL.Qual] -> NameEnv NKL.Expr
 desugarComprehension _ e qs = do
     -- Desugar the qualifiers
-    (env, genExpr) <- desugarQuals qs
+    (env, genExpr, wrapHead) <- desugarQuals qs
 
     let genNames = concatMap qualVar qs
 
@@ -353,7 +361,7 @@ desugarComprehension _ e qs = do
         -- on lambdas during substitution.
         e''      = substTupleAccesses visibleNames (n, t) env e'
  
-    return $ NKL.Comp (listT $ typeOf e') e'' n genExpr
+    return $ wrapHead $ NKL.Comp (listT $ typeOf e') e'' n genExpr
         
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
