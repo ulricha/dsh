@@ -105,7 +105,7 @@ flatten (N.AppE1 _ p e)      = prim1 p <$> flatten e <*> pure Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p <$> flatten e1 <*> flatten e2 <*> pure Zero
 flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindLetEnv x (typeOf xs)) (flatten e)
 flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
-flatten (N.Comp _ h x xs)    = do
+flatten (N.Iterator _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
     let initCtx    = (x, typeOf xs)
@@ -177,7 +177,7 @@ topFlatten (N.If _ ce te ee)    = do
 
 topFlatten (N.AppE1 _ p e)      = prim1 p <$> topFlatten e <*> pure (Succ Zero)
 topFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> topFlatten e1 <*> topFlatten e2 <*> pure (Succ Zero)
-topFlatten (N.Comp _ h x xs)    = do
+topFlatten (N.Iterator _ h x xs) = do
     -- The compiled generator expression of the current iterator,
     -- compiled in the context of the topmost comprehension.
     currentGen <- topFlatten xs
@@ -319,7 +319,7 @@ deepFlatten (N.If _ ce te ee)    = do
     return $ P.combine bs thenRes elseRes d1
 
 -- FIXME lift types in the environment (add one list type constructor)
-deepFlatten (N.Comp _ h x xs)    = do
+deepFlatten (N.Iterator _ h x xs)    = do
     d@(Succ d1) <- frameDepthM
     env         <- asks inScope
     let cv' = (x, liftTypeN (Succ d) (typeOf xs))

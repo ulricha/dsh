@@ -39,9 +39,9 @@ freeVars = either error id . applyExpr [] freeVarsT
 
 boundVarsT :: TransformN Expr [Ident]
 boundVarsT = fmap nub $ crushbuT $ readerT $ \expr -> case expr of
-     Comp _ _ v _ -> return [v]
-     Let _ v _ _  -> return [v]
-     _            -> return []
+     Iterator _ _ v _ -> return [v]
+     Let _ v _ _      -> return [v]
+     _                -> return []
 
 -- | Compute all names that are bound in the given expression. Note
 -- that the only binding forms in NKL are comprehensions or 'let'
@@ -57,10 +57,12 @@ subst nameCtx x s e = either (const e) id $ applyExpr nameCtx (substR x s) e
 
 alphaCompR :: [Ident] -> RewriteN Expr
 alphaCompR avoidNames = do 
-    Comp compTy h x _  <- idR
-    x'                 <- freshNameT (x : freeVars h ++ avoidNames)
+    Iterator compTy h x _  <- idR
+    x'                     <- freshNameT (x : freeVars h ++ avoidNames)
     let varTy = elemT compTy
-    compT (tryR $ substR x (Var varTy x')) idR (\_ h' _ xs' -> Comp compTy h' x' xs')
+    iteratorT (tryR $ substR x (Var varTy x')) 
+              idR 
+              (\_ h' _ xs' -> Iterator compTy h' x' xs')
 
 alphaLetR :: [Ident] -> RewriteN Expr
 alphaLetR avoidNames = do
@@ -82,13 +84,13 @@ substR v s = readerT $ \expr -> case expr of
     -- free in the head. If the comprehension variable occurs free in
     -- the substitute, we rename the comprehension to avoid name
     -- capturing.
-    Comp _ h x _ | x /= v && v `elem` freeVars h ->
+    Iterator _ h x _ | x /= v && v `elem` freeVars h ->
         if x `elem` freeVars s
         then alphaCompR (freeVars s) >>> substR v s
         else anyR $ substR v s
 
     -- A comprehension whose generator shadows v -> don't descend into the head
-    Comp _ _ x _ | v == x                     -> compR idR (substR v s)
+    Iterator _ _ x _ | v == x                     -> iteratorR idR (substR v s)
 
     Let _ x _ e2 | x /= v && v `elem` freeVars e2 ->
         if x `elem` freeVars s
@@ -123,7 +125,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 
     -- We don't inline into comprehensions to avoid conflicts with
     -- loop-invariant extraction.
-    Comp _ _ _ _              -> fail "don't inline into comprehensions"
+    Iterator _ _ _ _          -> fail "don't inline into iterators"
     _                         -> anyR $ substR v s
 
 pattern ConcatP t xs <- AppE1 t Concat xs
@@ -135,8 +137,8 @@ pattern SingletonP e <- AppE2 _ Cons e (Const _ (ListV []))
 -- [ e x | x <- xs ]
 singletonHeadR :: RewriteN Expr
 singletonHeadR = do
-    ConcatP t (Comp _ (SingletonP e) x xs) <- idR
-    return $ Comp t e x xs
+    ConcatP t (Iterator _ (SingletonP e) x xs) <- idR
+    return $ Iterator t e x xs
 
 -- | Count all occurences of an identifier for let-inlining.
 countVarRefT :: Ident -> TransformN Expr (Sum Int)
@@ -152,12 +154,12 @@ countVarRefT v = readerT $ \expr -> case expr of
                                      (countVarRefT v)
                                      (\_ _ c1 c2 -> c1 + c2)
 
-    Comp _ _ x _ | v == x    -> compT (constT $ return 0)
-                                      (countVarRefT v)
-                                      (\_ c1 _ c2 -> c1 + c2)
-    Comp _ _ _ _ | otherwise -> compT (countVarRefT v)
-                                      (countVarRefT v)
-                                      (\_ c1 _ c2 -> c1 + c2)
+    Iterator _ _ x _ | v == x -> iteratorT (constT $ return 0)
+                                           (countVarRefT v)
+                                           (\_ c1 _ c2 -> c1 + c2)
+    Iterator _ _ _ _ | otherwise -> iteratorT (countVarRefT v)
+                                              (countVarRefT v)
+                                              (\_ c1 _ c2 -> c1 + c2)
 
     Table{}                  -> return 0
     Const{}                  -> return 0

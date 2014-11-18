@@ -220,7 +220,7 @@ mkTuple xs = F.foldl1 P.pair xs
 -- concatMap (\x -> concatMap (\y -> concatMap (\z -> (((t, x), y), z)) zs) ys) xs
 -- where t is the binding variable for the base expression.
 nestQualifiers :: NKL.Expr -> [(Ident, NKL.Expr)] -> NKL.Expr
-nestQualifiers tupConst ((x, xs) : qs) = P.concat $ NKL.Comp (listT bodyType) compHead x xs
+nestQualifiers tupConst ((x, xs) : qs) = P.concat $ NKL.Iterator (listT bodyType) compHead x xs
   where
     compHead  = nestQualifiers tupConst qs
     bodyType = typeOf compHead
@@ -255,7 +255,7 @@ desugarGens env baseExpr qs = do
         mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x 
         gensExpr       = nestQualifiers tupConst (N.toList qs')
         compTy         = (listT $ typeOf tupConst)
-    return $ P.concat $ NKL.Comp compTy gensExpr outerName baseExpr
+    return $ P.concat $ NKL.Iterator compTy gensExpr outerName baseExpr
 
 -- | Replace every occurence of a generator variable with the
 -- corresponding tuple access expression.
@@ -305,7 +305,7 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
 
     let elemType   = elemT $ typeOf baseSrc
         filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
-        predComp   = NKL.Comp (listT boolT) filterExpr filterName srcVar
+        predComp   = NKL.Iterator (listT boolT) filterExpr filterName srcVar
         filterSrc  = P.let_ srcName baseSrc (P.restrict srcVar predComp)
 
     desugarQualsRec env filterSrc qs
@@ -361,7 +361,7 @@ desugarComprehension _ e qs = do
         -- on lambdas during substitution.
         e''      = substTupleAccesses visibleNames (n, t) env e'
  
-    return $ wrapHead $ NKL.Comp (listT $ typeOf e') e'' n genExpr
+    return $ wrapHead $ NKL.Iterator (listT $ typeOf e') e'' n genExpr
         
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.
