@@ -1,13 +1,10 @@
 module Database.DSH.CL.Opt.PostProcess
     ( introduceCartProductsR
-    , mergeGuardsR
     , identityCompR
     , guardpushbackR
     ) where
 
-import           Control.Applicative
 import           Control.Arrow
-import qualified Data.Set                   as S
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
@@ -28,7 +25,6 @@ identityCompR = do
     return $ inject xs
 
 --------------------------------------------------------------------------------
--- 
 
 qualsguardpushbackR :: RewriteC (NL Qual)
 qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
@@ -37,6 +33,8 @@ qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
     _                            -> fail "no pushable guard"
                     
 
+-- | Push all guards to the end of the qualifier list to bring
+-- generators closer together.
 guardpushbackR :: RewriteC CL
 guardpushbackR = do
     Comp t h _ <- promoteT idR
@@ -93,7 +91,6 @@ cartProductR = do
 
             return (S q')
         _ -> fail "no match"
-
 
 introduceCartProductsR :: RewriteC CL
 introduceCartProductsR = do

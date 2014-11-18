@@ -55,7 +55,6 @@ postProcessCompR = do
     guardpushbackR
         >+> repeatR introduceCartProductsR
         >+> repeatR predpushdownR
-        >+> mergeGuardsR
 
 postProcessR :: RewriteC CL
 postProcessR = repeatR $ anybuR postProcessCompR
