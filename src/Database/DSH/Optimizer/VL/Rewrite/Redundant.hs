@@ -48,6 +48,8 @@ redundantRulesBottomUp = [ cartProdConstant
                          , sameInputZipProjectRight
                          , zipProjectLeft
                          , zipProjectRight
+                         , distLiftProjectLeft
+                         , distLiftProjectRight
                          , distLiftParents
                          , selectConstPos
                          , selectConstPosS
@@ -78,7 +80,6 @@ redundantRulesBottomUp = [ cartProdConstant
 
 redundantRulesAllProps :: VLRuleSet Properties
 redundantRulesAllProps = [ unreferencedDistLift
-                         , distLiftedOnlyLeft
                          , firstValueWin
                          , notReqNumber
                          ]
@@ -191,21 +192,37 @@ distLiftParents q =
              -- the projection.
              forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
 
--- Housekeeping rule: If only columns from the left DistLift input are
--- referenced, remove projections on the right input.
-distLiftedOnlyLeft :: VLRule Properties
-distLiftedOnlyLeft q =
-  $(dagPatMatch 'q "(q1) DistLift (Project _ (q2))"
+distLiftProjectLeft :: VLRule BottomUpProps
+distLiftProjectLeft q =
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) DistLift (q2))"
     [| do
-        -- check that only columns from the left input (outer vector)
-        -- are required
-        VPropPair (Just reqCols) _  <- reqColumnsProp <$> td <$> properties q
-        VProp (ValueVector w)       <- vectorTypeProp <$> bu <$> properties $(v "q1")
-        predicate $ all (<= w) reqCols
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
-          logRewrite "Redundant.DistLift.Project" q
-          void $ replaceWithNew q $ BinOp DistLift $(v "q1") $(v "q2") |])
+          logRewrite "Redundant.DistLift.Project.Left" q
+          -- Take the projection expressions from the left and the
+          -- shifted columns from the right.
+          let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
+          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          r1Node   <- insert $ UnOp R1 distNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+
+distLiftProjectRight :: VLRule BottomUpProps
+distLiftProjectRight q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (Project p2 (q2)))"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.DistLift.Project.Right" q
+          -- Take the columns from the left and the expressions from
+          -- the right projection. Since expressions are applied after
+          -- the zip, their column references have to be shifted.
+          let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
+          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          r1Node   <- insert $ UnOp R1 distNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 --------------------------------------------------------------------------------
 -- Zip and Align rewrites. 
