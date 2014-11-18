@@ -51,6 +51,8 @@ redundantRulesBottomUp = [ cartProdConstant
                          , distLiftProjectLeft
                          , distLiftProjectRight
                          , distLiftParents
+                         , distLiftNestProduct
+                         , distLiftNestJoin
                          , selectConstPos
                          , selectConstPosS
                          , zipConstLeft
@@ -64,7 +66,6 @@ redundantRulesBottomUp = [ cartProdConstant
                          , zipUnboxScalarRight
                          , zipUnboxScalarLeft
                          , alignCartProdRight
-                         -- , stackedDistLift
                          , propProductCard1Right
                          , runningAggWin
                          , inlineWinAggrProject
@@ -129,8 +130,8 @@ constDistLift q =
        
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
--- downstream. If not, we can remove the DistSeg altogether, as the
--- shape of the inner vector is not changed by DistSeg.
+-- downstream. If not, we can remove the DistLift altogether, as the
+-- shape of the inner vector is not changed by DistLift.
 unreferencedDistLift :: VLRule Properties
 unreferencedDistLift q =
   $(dagPatMatch 'q  "R1 ((q1) DistLift (q2))"
@@ -191,6 +192,44 @@ distLiftParents q =
              -- Then, re-link all parents of the right DistLift input to
              -- the projection.
              forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
+
+-- | Remove a DistLift if the outer vector is aligned with a
+-- NestProduct that uses the same outer vector.
+distLiftNestProduct :: VLRule BottomUpProps
+distLiftNestProduct q =
+  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestProduct (qi))))"
+    [| do
+        predicate $ $(v "qo") == $(v "qo1")
+
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
+
+        return $ do
+            logRewrite "Redundant.DistLift.NestProduct" q
+            -- Preserve the original schema
+            let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+            prodNode <- insert $ BinOp NestProduct $(v "qo") $(v "qi")
+            r1Node   <- insert $ UnOp R1 prodNode
+            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+
+-- | Remove a DistLift if the outer vector is aligned with a
+-- NestJoin that uses the same outer vector.
+distLiftNestJoin :: VLRule BottomUpProps
+distLiftNestJoin q =
+  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestJoin p (qi))))"
+    [| do
+        predicate $ $(v "qo") == $(v "qo1")
+
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
+
+        return $ do
+            logRewrite "Redundant.DistLift.NestJoin" q
+            -- Preserve the original schema
+            let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+            prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
+            r1Node   <- insert $ UnOp R1 prodNode
+            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
 distLiftProjectLeft :: VLRule BottomUpProps
 distLiftProjectLeft q =
