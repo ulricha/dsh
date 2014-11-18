@@ -227,7 +227,9 @@ prop_backdep4 = makeProp C.backdep4 backdep4
 prop_backdep5 :: [[Integer]] -> Property
 prop_backdep5 = makeProp C.backdep5 backdep5
   where
-    backdep5 xss = [ [ x + fromIntegral (length xs) | x <- take (length xs - 3) xs ] | xs <- xss ]
+    backdep5 xss = [ [ x + fromIntegral (length xs) 
+                     | x <- take (length xs - 3) xs ] 
+                   | xs <- xss ]
 
 
 

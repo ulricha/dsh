@@ -61,7 +61,6 @@ seed (BinOp op _ _) =
     AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed
     DistPrim           -> vPropPairSeed
-    DistDesc           -> vPropPairSeed
     DistLift           -> vPropPairSeed
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
@@ -77,6 +76,7 @@ seed (BinOp op _ _) =
     CartProductS       -> vPropTripleSeed
     ThetaJoin _        -> vPropTripleSeed
     NestJoin _         -> vPropTripleSeed
+    NestProduct        -> vPropTripleSeed
     ThetaJoinS _       -> vPropTripleSeed
     SemiJoin _         -> vPropPairSeed
     SemiJoinS _        -> vPropPairSeed

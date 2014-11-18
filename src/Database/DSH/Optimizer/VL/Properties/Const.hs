@@ -263,10 +263,6 @@ inferConstVecBinOp c1 c2 op =
       (_, cols) <- unp c1 >>= fromDBV
       return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    DistDesc -> do
-      (_, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
     DistLift -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (d, cols2) <- unp c2 >>= fromDBV
@@ -399,6 +395,15 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     NestJoin _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+
+    NestProduct -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
 

@@ -42,7 +42,6 @@ redundantRules = [ pullProjectPropRename
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
 redundantRulesBottomUp = [ distPrimConstant
-                         , distDescConstant
                          , sameInputZip
                          , sameInputZipProject
                          , sameInputZipProjectLeft
@@ -101,23 +100,6 @@ distPrimConstant q =
           logRewrite "Redundant.DistPrim.Constant" q
           void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
 
--- | Replace a DistDesc operator with a projection if its value input
--- is constant and consists of only one tuple.
-distDescConstant :: VLRule BottomUpProps
-distDescConstant q =
-  $(dagPatMatch 'q "R1 ((qv) DistDesc (qd))"
-    [| do
-        pv <- properties $(v "qv")
-        VProp True <- return $ card1Prop pv
-
-        VProp (DBVConst _ cols) <- return $ constProp pv
-        constProjs              <- mapM (constVal Constant) cols
-
-        return $ do
-          logRewrite "Redundant.DistDesc.Constant" q
-          segNode <- insert $ UnOp Segment $(v "qd")
-          void $ replaceWithNew q $ UnOp (Project constProjs) segNode |])
-
 unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
@@ -138,7 +120,6 @@ constDistLift q =
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
        
-
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the DistSeg altogether, as the

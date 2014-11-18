@@ -43,7 +43,7 @@ cartProduct _ _ = $impossible
 
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProduct (VShape q1 lyt1) (VShape q2 lyt2) = do
-  q1' <- vlSegment q1
+  q1'            <- vlSegment q1
   VShape qj lytJ <- cartProduct (VShape q1' lyt1) (VShape q2 lyt2)
   return $ VShape q1 (LTuple [lyt1, LNest qj lytJ])
 nestProduct _ _ = $impossible
@@ -239,15 +239,23 @@ dist (SShape q lyt) q2 = do
     (v, p) <- vlDistPrim q o
     lyt'   <- chainReorder p lyt
     return $ VShape v lyt'
-dist (VShape q lyt) q2 = do
-    o      <- outer q2
-    (d, p) <- vlDistDesc q o
+dist (VShape q lyt) (VShape qo lyto) = do
+    let leftWidth  = columnsInLayout lyto
+        rightWidth = columnsInLayout lyt
+        innerProj  = map Column [leftWidth+1..leftWidth+rightWidth]
+
+    (prodVec, _, propVec) <- vlNestProduct qo q
+    innerVec              <- vlProject innerProj prodVec
 
     -- The outer vector does not have columns, it only describes the
     -- shape.
-    o'     <- vlProject [] o
-    lyt'   <- chainReorder p lyt
-    return $ VShape o' (LNest d lyt')
+    outerVec              <- vlProject [] qo
+    
+    -- Replicate any inner vectors
+    lyt'                  <- chainReorder propVec lyt
+
+    return $ VShape outerVec (LNest innerVec lyt')
+dist _ _ = $impossible
 
 aggr :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)
 aggr afun (VShape q (LCol 1)) =
@@ -567,9 +575,8 @@ consL (VShape q1 lyt1) (VShape q2 (LNest qi lyt2)) = do
     return $ VShape q2 (LNest v lyt')
 consL _ _ = $impossible
 
-
 outer ::  Shape VLDVec -> Build VL VLDVec
-outer (SShape _ _)            = $impossible
+outer (SShape _ _)        = $impossible
 outer (VShape q _)        = return q
 
 aggrL :: (Expr -> AggrFun) -> Shape VLDVec -> Build VL (Shape VLDVec)

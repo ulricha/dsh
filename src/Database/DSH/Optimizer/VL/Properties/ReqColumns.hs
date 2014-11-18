@@ -256,13 +256,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
       DistPrim -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (,) <$> (childReqColumns1 ∪ VProp cols) <*> (childReqColumns2 ∪ none)
-
-      DistDesc -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- VProp cols ∪ childReqColumns1
-          fromRight <- childReqColumns2 ∪ none
-          return (fromLeft, fromRight)
-
       DistLift -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
@@ -352,6 +345,10 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+      NestProduct -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
 
       ThetaJoinS p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns

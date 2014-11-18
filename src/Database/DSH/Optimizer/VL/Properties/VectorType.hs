@@ -98,7 +98,6 @@ inferVectorTypeBinOp s1 s2 op =
   case op of
     AggrS _ -> return $ VProp $ ValueVector 1
     DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
-    DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
 
     DistLift -> do
         ValueVector w1 <- unpack s1
@@ -143,6 +142,7 @@ inferVectorTypeBinOp s1 s2 op =
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
     UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "UnboxScalar"
     NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoin"
+    NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoin"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
     SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
