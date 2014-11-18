@@ -34,6 +34,9 @@ compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
 
+-- | Nestjoin/Nestproduct rewrites are applied bottom-up. Innermost
+-- nesting opportunities must be dealt with first in order to produce
+-- trees of nesting operators.
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
@@ -41,6 +44,21 @@ buUnnestR =
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
+
+-- | Normalize unnested comprehensions. To avoid nested iterators
+-- after desugaring whenever possible, consecutive generators that do
+-- not depend on each other are mapped to cartesian products. After
+-- that, we try to push guards down into product inputs.
+postProcessCompR :: RewriteC CL
+postProcessCompR = do
+    ExprCL Comp{} <- idR
+    guardpushbackR
+        >+> repeatR introduceCartProductsR
+        >+> repeatR predpushdownR
+        >+> mergeGuardsR
+
+postProcessR :: RewriteC CL
+postProcessR = repeatR $ anybuR postProcessCompR
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
@@ -65,7 +83,7 @@ descendR = readerT $ \cl -> case cl of
 -- | Optimize single comprehensions during a top-down traversal
 optCompR :: RewriteC CL
 optCompR = do
-    c@(Comp _ _ _) <- promoteT idR
+    Comp _ _ _ <- promoteT idR
     -- debugPretty "optCompR at" c
 
     repeatR $ do
@@ -82,7 +100,7 @@ optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
             normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            repeatR (anybuR postProcessCompR)
+            postProcessR
 
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr

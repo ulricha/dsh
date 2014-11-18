@@ -1,4 +1,10 @@
-module Database.DSH.CL.Opt.PostProcess (postProcessCompR) where
+module Database.DSH.CL.Opt.PostProcess
+    ( introduceCartProductsR
+    , mergeGuardsR
+    , introduceRestrictsR
+    , identityCompR
+    , guardpushbackR
+    ) where
 
 import           Control.Applicative
 import           Control.Arrow
@@ -9,12 +15,6 @@ import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.Common.Lang
-
-postProcessCompR :: RewriteC CL
-postProcessCompR = introduceCartProductsR 
-                   <+ mergeGuardsR 
-                   <+ introduceFiltersR
-                   <+ identityCompR
 
 --------------------------------------------------------------------------------
 -- Cleaning up
@@ -27,6 +27,22 @@ identityCompR = do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
     guardM $ x == x'
     return $ inject xs
+
+--------------------------------------------------------------------------------
+-- 
+
+qualsguardpushbackR :: RewriteC (NL Qual)
+qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
+    GuardQ p :* BindQ x xs :* qs -> return $ BindQ x xs :* GuardQ p :* qs
+    GuardQ p :* (S (BindQ x xs)) -> return $ BindQ x xs :* (S (GuardQ p))
+    _                            -> fail "no pushable guard"
+                    
+
+guardpushbackR :: RewriteC CL
+guardpushbackR = do
+    Comp t h _ <- promoteT idR
+    qs' <- childT CompQuals (promoteR qualsguardpushbackR) >>> projectT
+    return $ inject $ Comp t h qs'
 
 --------------------------------------------------------------------------------
 -- Turn adjacent generators into cartesian products:
@@ -94,32 +110,34 @@ introduceCartProductsR = do
 -- =>
 -- [ e | ..., x <- restrict xs [ p x | x <- xs ], ... ]
 
-filterQualR :: RewriteC (NL Qual)
-filterQualR = do
+restrictQualR :: RewriteC (NL Qual)
+restrictQualR = do
     readerT $ \e -> case e of
         BindQ x xs :* GuardQ p :* qs -> do
             [x'] <- return $ freeVars p
             guardM $ x == x'
+            -- FIXME use let-binding
             let xs' = P.restrict xs (P.singleGenComp p x xs)
             return $ inject $ BindQ x xs' :* qs
         BindQ x xs :* (S (GuardQ p)) -> do
             [x'] <- return $ freeVars p
             guardM $ x == x'
+            -- FIXME use let-binding
             let xs' = P.restrict xs (P.singleGenComp p x xs)
             return $ inject $ S $ BindQ x xs'
         _ -> fail "no match"
 
-filterR :: RewriteC CL
-filterR = do
+restrictR :: RewriteC CL
+restrictR = do
     Comp _ _ _ <- promoteT idR
-    childR CompQuals (promoteR $ filterQualR)
+    childR CompQuals (promoteR $ restrictQualR)
 
-filterWorkerT :: MergeGuard
-filterWorkerT comp guard guardsToTry leftOverGuards = do
+restrictWorkerT :: MergeGuard
+restrictWorkerT comp guard guardsToTry leftOverGuards = do
     let C ty h qs = comp
     env <- S.fromList <$> inScopeNames <$> contextT
     let compExpr = ExprCL $ Comp ty h (insertGuard guard env qs)
-    ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> filterR
+    ExprCL (Comp _ _ qs') <- constT (return compExpr) >>> restrictR
     return (C ty h qs', guardsToTry, leftOverGuards)
 
 mergeGuardsR :: RewriteC CL
@@ -131,5 +149,5 @@ mergeGuardsR = readerT $ \quals -> case quals of
     _ -> fail "no match"
 
 -- |
-introduceFiltersR :: RewriteC CL
-introduceFiltersR = mergeGuardsIterR filterWorkerT
+introduceRestrictsR :: RewriteC CL
+introduceRestrictsR = mergeGuardsIterR restrictWorkerT
