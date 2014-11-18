@@ -258,8 +258,20 @@ njgys1 = [2,3]
 
 njgzs1 :: [(Integer, Integer)]
 njgzs1 = [(2, 20), (5, 60), (3, 30)]
+
+frontguard :: Q [[Integer]]
+frontguard =
+    [ [ y | x > 13, y <- toQ ([1,2,3,4] :: [Integer]) ]
+    | x <- toQ ([10, 20, 30] :: [Integer])
+    ]
+
+backdep5 :: Q [[Integer]]
+backdep5 = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ ([[1,2,3], [], [4,5,6]] :: [[Integer]]) ]
+
+foo42 :: Q [Integer]
+foo42 = filter (const $ toQ True) (toQ ([1,2,3,45] :: [Integer]))
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ njg3 njgxs1 njgys1 njgzs1
+main = getConn P.>>= \c -> debugQ "q" c frontguard
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

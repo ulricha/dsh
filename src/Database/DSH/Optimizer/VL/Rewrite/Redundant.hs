@@ -98,9 +98,13 @@ cartProdConstant q =
         VProp (DBVConst _ cols) <- return $ constProp qvProps
         constProjs              <- mapM (constVal Constant) cols
 
+        -- Preserve columns from the left input
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        let proj = map Column [1..w1] ++ constProjs
+
         return $ do
           logRewrite "Redundant.CartProduct.Constant" q
-          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "q1") |])
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
@@ -156,13 +160,13 @@ nonDistLiftOp n = do
 
 -- | The DistLift operator keeps shape and columns of its right
 -- input. When this right input is referenced by other operators than
--- DistLift, we can move this operators to the DistLift output.
+-- DistLift, we can move these operators to the DistLift output.
 --
 -- This is beneficial if a composed expression depends on the DistLift
 -- output (some lifted environment value) as well as the original
 -- (inner) vector. In that case, we can rewrite things such that only
 -- the DistLift operator is referenced (not its right input). In
--- consequence, The expression has only one source and can be merged
+-- consequence, the expression has only one source and can be merged
 -- into a projection.
 distLiftParents :: VLRule BottomUpProps
 distLiftParents q =
