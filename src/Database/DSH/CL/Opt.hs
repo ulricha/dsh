@@ -93,7 +93,7 @@ optCompR = do
              ) >>> debugShow "after comp"
 
 applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR
+applyOptimizationsR = descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
 
 optimizeR :: RewriteC CL
 optimizeR = resugarR >+>
