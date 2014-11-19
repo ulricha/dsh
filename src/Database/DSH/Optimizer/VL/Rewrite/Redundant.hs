@@ -53,6 +53,8 @@ redundantRulesBottomUp = [ cartProdConstant
                          , distLiftParents
                          , distLiftNestProduct
                          , distLiftNestJoin
+                         , distLiftStacked
+                         , distLiftSelect
                          , selectConstPos
                          , selectConstPosS
                          , zipConstLeft
@@ -262,6 +264,43 @@ distLiftProjectRight q =
           distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
           r1Node   <- insert $ UnOp R1 distNode
           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+
+-- If the same outer vector is propagated twice to an inner vector,
+-- one DistLift can be removed. Reasoning: DistLift does not change
+-- the shape of the inner vector.
+distLiftStacked :: VLRule BottomUpProps
+distLiftStacked q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (r1=R1 ((q11) DistLift (q2))))"
+     [| do
+         predicate $ $(v "q1") == $(v "q11")
+         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.DistLift.Stacked" q
+             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "r1") |])
+
+-- | Pull a selection through a DistLift. The reasoning for
+-- correctness is simple: It does not matter wether an element of an
+-- inner segment is removed before or after DistLift (on relational
+-- level, DistLift maps to join which commutes with selection). The
+-- "use case" for this rewrite is not well thought-through yet: We
+-- want to push down DistLift to eliminate it or merge it with other
+-- operators (e.g. DistLift.Stacked). The usual wisdom would suggest
+-- to push selections down, though.
+distLiftSelect :: VLRule BottomUpProps
+distLiftSelect q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (R1 (Select p (q2))))"
+     [| do
+         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+         return $ do
+             logRewrite "Redundant.DistLift.Select" q
+             let p' = shiftExprCols w1 $(v "p")
+             distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+             distR1   <- insert $ UnOp R1 distNode
+             selNode  <- insert $ UnOp (Select p') distR1
+             void $ replaceWithNew q $ UnOp R1 selNode |])
 
 --------------------------------------------------------------------------------
 -- Zip and Align rewrites. 
