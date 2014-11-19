@@ -127,18 +127,18 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
-    ExprCL (Let _ n _ _) | n == v      -> promoteR $ letR idR (extractR $ substR v s)
+    ExprCL (Let _ n _ _) | n == v      -> promoteR $ letR (extractR $ inlineBindingR v s) idR
     ExprCL (Let _ n _ _) | otherwise   ->
         if n `elem` freeVars s
         -- If the let-bound name occurs free in the substitute,
         -- alpha-convert the binding to avoid capturing the name.
         then $unimplemented >>> anyR (substR v s)
-        else anyR $ substR v s
+        else anyR $ inlineBindingR v s
 
     -- We don't inline into comprehensions to avoid conflicts with
     -- loop-invariant extraction.
-    ExprCL (Comp _ _ _)                -> fail "don't inline into comprehensions"
-    ExprCL _                           -> anyR $ substR v s
+    ExprCL (Comp _ _ _)                -> idR
+    ExprCL _                           -> anyR $ inlineBindingR v s
     _                                  -> $impossible
 
 -- | Count all occurences of an identifier for let-inlining.
@@ -188,7 +188,7 @@ referencedOnceR = do
     -- all occurences including those in comprehensions. For this
     -- reason, we check if the occurence was actually eliminated by
     -- inlining and fail otherwise.
-    body' <- childT LetBody (inlineBindingR x e1)
+    body'        <- childT LetBody (inlineBindingR x e1)
     0 <- (constT $ return body') >>> countVarRefT x
     return body'
 
