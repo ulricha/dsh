@@ -272,6 +272,6 @@ foo42 :: Q [Integer]
 foo42 = filter (const $ toQ True) (toQ ([1,2,3,45] :: [Integer]))
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c frontguard
+main = getConn P.>>= \c -> debugQ "q" c backdep5
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

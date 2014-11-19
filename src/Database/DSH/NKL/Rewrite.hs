@@ -115,18 +115,18 @@ inlineBindingR v s = readerT $ \expr -> case expr of
 
     -- If a let-binding shadows the name we substitute, only descend
     -- into the bound expression.
-    Let _ n _ _ | n == v      -> promoteR $ letR idR (extractR $ substR v s)
+    Let _ n _ _ | n == v      -> promoteR $ letR idR (extractR $ inlineBindingR v s)
     Let _ n _ _ | otherwise   ->
         if n `elem` freeVars s
         -- If the let-bound name occurs free in the substitute,
         -- alpha-convert the binding to avoid capturing the name.
-        then $unimplemented >>> anyR (substR v s)
-        else anyR $ substR v s
+        then $unimplemented >>> anyR (inlineBindingR v s)
+        else anyR $ inlineBindingR v s
 
     -- We don't inline into comprehensions to avoid conflicts with
     -- loop-invariant extraction.
-    Iterator _ _ _ _          -> fail "don't inline into iterators"
-    _                         -> anyR $ substR v s
+    Iterator _ _ _ _          -> idR
+    _                         -> anyR $ inlineBindingR v s
 
 pattern ConcatP t xs <- AppE1 t Concat xs
 pattern SingletonP e <- AppE2 _ Cons e (Const _ (ListV []))
