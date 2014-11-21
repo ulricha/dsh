@@ -27,7 +27,7 @@ import           Database.DSH.CL.Opt.Resugar
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
 compNormEarlyR = m_norm_1R 
-                 {- <+ m_norm_2R -} 
+                 <+ m_norm_2R
                  <+ m_norm_3R
                  <+ guardpushfrontR
                  <+ invariantguardR
