@@ -1,28 +1,15 @@
 module Database.DSH.CL.Opt.PostProcess
     ( introduceCartProductsR
-    , identityCompR
     , guardpushbackR
     ) where
 
 import           Control.Arrow
 
+import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
-import           Database.DSH.Common.Lang
-
---------------------------------------------------------------------------------
--- Cleaning up
-
--- FIXME partial evaluation could be useful as well to eliminate tuple
--- construction
-
-identityCompR :: RewriteC CL
-identityCompR = do
-    Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
-    guardM $ x == x'
-    return $ inject xs
 
 --------------------------------------------------------------------------------
 

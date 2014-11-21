@@ -20,6 +20,11 @@ tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
 tyErrShow :: P.String -> [Type] -> a
 tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
+if_ :: Expr -> Expr -> Expr -> Expr
+if_ c t e = if BoolT P.== typeOf c
+            then If (typeOf t) c t e
+            else tyErr "if_"
+
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
              in AppE1 t Reverse e
@@ -387,3 +392,4 @@ disj = scalarBinOp (L.SBBoolOp L.Disj)
 
 like :: Expr -> Expr -> Expr
 like = scalarBinOp (L.SBStringOp L.Like)
+

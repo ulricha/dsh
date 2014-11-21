@@ -6,15 +6,25 @@
 -- | Monad comprehension normalization rules (adapted from T. Grust
 -- "Comprehending Queries")
 module Database.DSH.CL.Opt.CompNormalization
-  ( m_norm_1R
-  , m_norm_2R
-  , m_norm_3R
-  , m_norm_4R
-  , m_norm_5R
-  ) where
+    ( m_norm_1R
+    , m_norm_2R
+    , m_norm_3R
+    , m_norm_4R
+    , m_norm_5R
+    , invariantguardR
+    , guardpushfrontR
+    , ifgeneratorR
+    , identityCompR
+    , ifheadR
+    ) where
        
 import Control.Arrow
+import           Control.Applicative
+import           Data.Either
+import qualified Data.Set                      as S
+import qualified Data.Map                      as M
                  
+import qualified Database.DSH.CL.Primitives as P
 import Database.DSH.Impossible
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure
@@ -23,7 +33,7 @@ import Database.DSH.CL.Kure
 import Database.DSH.CL.Opt.Aux
 
 ------------------------------------------------------------------
--- Monad Comprehension Normalization rules
+-- Classical Monad Comprehension Normalization rules (Grust)
    
 -- | M-Norm-1: Eliminate comprehensions with empty generators
 m_norm_1R :: RewriteC CL
@@ -146,3 +156,61 @@ m_norm_4R = $unimplemented
 m_norm_5R :: RewriteC CL
 m_norm_5R = $unimplemented
 
+
+--------------------------------------------------------------------------------
+-- Additional normalization rules for comprehensions
+
+qualsguardpushfrontR :: RewriteC (NL Qual)
+qualsguardpushfrontR = do
+    qs     <- idR
+    -- Separate generators from guards
+    ((g : gs), guards@(_:_)) <- return $ partitionEithers $ map fromQual $ toList qs
+
+    let gens = fmap (uncurry BindQ) $ fromListSafe g gs
+    env <- S.fromList <$> M.keys <$> cl_bindings <$> contextT
+    let qs' = foldl (\quals guard -> insertGuard guard env quals) gens guards
+    guardM $ qs /= qs'
+    return qs'
+
+-- | Push all guards as far as possible to the front of the qualifier
+-- list.
+guardpushfrontR :: RewriteC CL
+guardpushfrontR = do
+    Comp t h _ <- promoteT idR
+    qs' <- childT CompQuals (promoteR qualsguardpushfrontR) >>> projectT
+    return $ inject $ Comp t h qs'
+
+-- | If a guard does not depend on any generators of the current
+-- comprehension, it can be applied outside of the comprehension.
+invariantguardR :: RewriteC CL
+invariantguardR = do
+    Comp t h (GuardQ g :* qs) <- promoteT idR
+    return $ inject $ P.if_ g (Comp t h qs) (Lit t (ListV []))
+
+ifgeneratorqualsR :: RewriteC (NL Qual)
+ifgeneratorqualsR = anytdR $ readerT $ \quals -> case quals of
+    BindQ x (If _ ce te (Lit _ (ListV []))) :* qs -> return $ BindQ x te :* GuardQ ce :* qs
+    S (BindQ x (If _ ce te (Lit _ (ListV []))))   -> return $ BindQ x te :* S (GuardQ ce)
+    _                                         -> fail "no match"
+
+
+-- | Transform an 'if' conditional in a generator into a guard.
+ifgeneratorR :: RewriteC CL
+ifgeneratorR = do
+    Comp t h _ <- promoteT idR
+    qs' <- childT CompQuals (promoteR ifgeneratorqualsR) >>> projectT
+    return $ inject $ Comp t h qs'
+
+-- | Eliminate comprehensions that do not perform work.
+identityCompR :: RewriteC CL
+identityCompR = do
+    Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
+    guardM $ x == x'
+    return $ inject xs
+
+-- | Merge an 'if' expression in a comprehension head into the
+-- comprehension.
+ifheadR :: RewriteC CL
+ifheadR = do
+    Comp t (If _ ce te (Lit _ (ListV []))) qs <- promoteT idR
+    return $ inject $ Comp t te (appendNL qs (S $ GuardQ ce))

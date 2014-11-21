@@ -13,11 +13,11 @@ import           Control.Arrow
 import qualified Data.List.NonEmpty       as N
 import qualified Data.Set                 as S
 
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
-import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Nat
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions

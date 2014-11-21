@@ -270,8 +270,39 @@ backdep5 = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ ([[1,2
 
 foo42 :: Q [Integer]
 foo42 = filter (const $ toQ True) (toQ ([1,2,3,45] :: [Integer]))
+
+revenue2 :: Integer -> Q [(Integer, Double)]
+revenue2 intervalFrom =
+    [ pair supplier_no (sum [ ep * (1 - discount)
+                            | (view -> (_, ep, discount)) <- g
+			    ])
+    | (view -> (supplier_no, g)) <- groupWithKey (\(view -> (a, b, c)) -> a) intervalItems
+    ]
+
+  where
+    intervalItems = [ tup3 (l_suppkeyQ l)
+    			   (l_extendedpriceQ l)
+			   (l_discountQ l)
+		    | l <- lineitems
+		    , l_shipdateQ l >= toQ intervalFrom
+		    , l_shipdateQ l <= (toQ intervalFrom) + 23
+		    ]
+
+q15 :: Integer -> Q [(Integer, (Text, Text, Text, Double))]
+q15 intervalFrom = 
+    sortWith fst
+    [ pair (s_suppkeyQ s)
+           (tup4 (s_nameQ s)
+	         (s_addressQ s)
+	         (s_phoneQ s)
+	         total_rev)
+    | s <- suppliers
+    , (view -> (supplier_no, total_rev)) <- revenue2 intervalFrom
+    , s_suppkeyQ s == supplier_no
+    , total_rev == (maximum $ map snd $ revenue2 intervalFrom)
+    ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c backdep5
+main = getConn P.>>= \c -> debugQ "q" c frontguard
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

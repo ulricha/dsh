@@ -26,7 +26,14 @@ import           Database.DSH.CL.Opt.Resugar
 
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
+compNormEarlyR = m_norm_1R 
+                 {- <+ m_norm_2R -} 
+                 <+ m_norm_3R
+                 <+ guardpushfrontR
+                 <+ invariantguardR
+                 <+ ifgeneratorR
+                 <+ identityCompR
+                 <+ ifheadR
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites
 -- should propably occur late in the chain, as they might prohibit
@@ -52,9 +59,10 @@ buUnnestR =
 postProcessCompR :: RewriteC CL
 postProcessCompR = do
     ExprCL Comp{} <- idR
-    guardpushbackR
+    (guardpushbackR
         >+> repeatR introduceCartProductsR
-        >+> repeatR predpushdownR
+        >+> repeatR predpushdownR)
+        >>> guardpushfrontR
 
 postProcessR :: RewriteC CL
 postProcessR = repeatR $ anybuR postProcessCompR

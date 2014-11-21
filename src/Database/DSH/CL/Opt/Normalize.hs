@@ -51,6 +51,14 @@ normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
 --------------------------------------------------------------------------------
 -- Simple normalization rewrites that are interleaved with other rewrites.
 
+normalizeExprR :: RewriteC CL
+normalizeExprR = readerT $ \expr -> case expr of
+    ExprCL AppE1{} -> comprehensionNullR
+    ExprCL UnOp{}  -> notNullR <+ notExistsR
+    ExprCL BinOp{} -> zeroLengthR
+    ExprCL Let{}   -> unusedBindingR <+ simpleBindingR <+ referencedOnceR
+    _              -> fail "not a normalizable expression"
+
 --------------------------------------------------------------------------------
 -- Normalization rewrites for universal/existential quantification.
 
@@ -204,10 +212,3 @@ simpleBindingR = do
     guardM $ simpleExpr e1
     childR LetBody $ substR x e1
 
-normalizeExprR :: RewriteC CL
-normalizeExprR = readerT $ \expr -> case expr of
-    ExprCL AppE1{} -> comprehensionNullR
-    ExprCL UnOp{}  -> notNullR <+ notExistsR
-    ExprCL BinOp{} -> zeroLengthR
-    ExprCL Let{}   -> unusedBindingR <+ simpleBindingR <+ referencedOnceR
-    _              -> fail "not a normalizable expression"
