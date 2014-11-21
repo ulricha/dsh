@@ -1,8 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
-    
+
 -- | Monad comprehension normalization rules (adapted from T. Grust
 -- "Comprehending Queries")
 module Database.DSH.CL.Opt.CompNormalization
@@ -17,24 +17,24 @@ module Database.DSH.CL.Opt.CompNormalization
     , identityCompR
     , ifheadR
     ) where
-       
-import Control.Arrow
+
 import           Control.Applicative
+import           Control.Arrow
 import           Data.Either
-import qualified Data.Set                      as S
-import qualified Data.Map                      as M
-                 
+import qualified Data.Map                   as M
+import qualified Data.Set                   as S
+
+import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Lang
+import           Database.DSH.CL.Opt.Aux
 import qualified Database.DSH.CL.Primitives as P
-import Database.DSH.Impossible
-import Database.DSH.Common.Lang
-import Database.DSH.Common.Kure
-import Database.DSH.CL.Lang
-import Database.DSH.CL.Kure
-import Database.DSH.CL.Opt.Aux
+import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Lang
+import           Database.DSH.Impossible
 
 ------------------------------------------------------------------
 -- Classical Monad Comprehension Normalization rules (Grust)
-   
+
 -- | M-Norm-1: Eliminate comprehensions with empty generators
 m_norm_1R :: RewriteC CL
 m_norm_1R = do
@@ -42,13 +42,13 @@ m_norm_1R = do
     matches <- childT CompQuals $ onetdT (promoteT $ patternT <+ patternEndT)
     guardM matches
     return $ inject $ Lit t (ListV [])
-    
-  where 
+
+  where
     patternT :: TransformC (NL Qual) Bool
     patternT = do
         BindQ _ (Lit _ (ListV [])) :* _ <- idR
         return True
-        
+
     patternEndT :: TransformC (NL Qual) Bool
     patternEndT = do
         (S (BindQ _ (Lit _ (ListV [])))) <- idR
@@ -59,20 +59,20 @@ m_norm_1R = do
 -- => [ h[v/x] | qs, qs'[v/x] ]
 m_norm_2R :: RewriteC CL
 m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
-    
+
   where
     -- This rewrite is a bit annoying: If it triggers, we can remove a
     -- qualifier. However, the type NL forces us to take care that we do not
     -- produce a comprehension with an empty qualifier list.
-    
+
     -- Due to non-empty NL lists, we have to consider the case of
     -- removing a (the!) qualifier from a singleton list.
     normSingletonCompR :: RewriteC CL
     normSingletonCompR = do
         Comp _ h (S q) <- promoteT idR
         (x, e) <- constT (return q) >>> qualT
-        constT (return $ inject h) >>> substR x e
-    
+        constT (return $ inject $ P.sng h) >>> substR x e
+
     -- The main rewrite
     normCompR :: RewriteC CL
     normCompR = do
@@ -80,7 +80,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
         (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
         h'                  <- childT CompHead tuplifyHeadR >>> projectT
         return $ inject $ Comp t h' qs'
-        
+
     normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
 
@@ -94,7 +94,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
             -- x <- v : []
             BindQ x (AppE1 _ Singleton v) -> return (x, v)
             _                             -> fail "qualR: no match"
-            
+
     -- Try to match the pattern at the end of the qualifier list
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsEndR = do
@@ -102,7 +102,7 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
         (x, e)       <- liftstateT $ constT (return q2) >>> qualT
         constT $ modify (>>> substR x e)
         return (S q1)
-        
+
     -- Try to match the pattern in the middle of the qualifier list
     normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsR = do
@@ -110,8 +110,8 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
         (x, e)         <- liftstateT $ constT (return q2) >>> qualT
         qs' <- liftstateT $ constT (return $ inject qs) >>> substR x e >>> projectT
         constT $ modify (>>> substR x e)
-        return $ q1 :* qs' 
-        
+        return $ q1 :* qs'
+
 -- | M-Norm-3: unnest comprehensions from a generator
 -- [ h | qs, x <- [ h' | qs'' ], qs' ]
 -- => [ h[h'/x] | qs, qs'', qs'[h'/x] ]
@@ -121,24 +121,24 @@ m_norm_3R = do
     (tuplifyHeadR, qs') <- statefulT idR $ childT CompQuals (promoteR normQualifiersR) >>> projectT
     h'                  <- childT CompHead (tryR tuplifyHeadR) >>> projectT
     return $ inject $ Comp t h' qs'
-    
+
   where
-  
+
     qualT :: TransformC Qual (Ident, Expr, NL Qual)
     qualT = do
         BindQ x (Comp _ h' qs'') <- idR
         return (x, h', qs'')
-        
+
     normQualifiersR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualifiersR = anytdR (normQualsEndR <+ normQualsR)
-       
+
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsEndR = do
         (S q) <- idR
         (x, h', qs'') <- liftstateT $ (constT $ return q) >>> qualT
         constT $ modify (>>> substR x h')
         return qs''
-        
+
     normQualsR :: Rewrite CompCtx TuplifyM (NL Qual)
     normQualsR = do
         q :* qs <- idR
@@ -146,7 +146,7 @@ m_norm_3R = do
         qs' <- liftstateT $ constT (return $ inject qs) >>> substR x h' >>> projectT
         constT $ modify (>>> substR x h')
         return $ appendNL qs'' qs'
-        
+
 -- | M-Norm-4: unnest existential quantifiers if the outer comprehension is over
 -- an idempotent monad (i.e. duplicates are eliminated from the result).
 m_norm_4R :: RewriteC CL
