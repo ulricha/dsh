@@ -16,6 +16,7 @@ module Database.DSH.CL.Opt.CompNormalization
     , ifgeneratorR
     , identityCompR
     , ifheadR
+    , guardonlyR
     ) where
 
 import           Control.Applicative
@@ -214,3 +215,8 @@ ifheadR :: RewriteC CL
 ifheadR = do
     Comp t (If _ ce te (Lit _ (ListV []))) qs <- promoteT idR
     return $ inject $ Comp t te (appendNL qs (S $ GuardQ ce))
+
+guardonlyR :: RewriteC CL
+guardonlyR = do
+    Comp t h (S (GuardQ p)) <- promoteT idR
+    return $ inject $ P.if_ p (P.sng h) (Lit t (ListV []))

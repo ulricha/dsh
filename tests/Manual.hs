@@ -301,8 +301,16 @@ q15 intervalFrom =
     , s_suppkeyQ s == supplier_no
     , total_rev == (maximum $ map snd $ revenue2 intervalFrom)
     ]
+
+cartprod :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+cartprod (view -> (xs, ys)) =
+  [ tup2 x y
+  | x <- xs
+  , y <- ys
+  , x == y
+  ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ toQ ([0,0] :: [Integer])
+main = getConn P.>>= \c -> debugQ "q" c $ cartprod $ toQ (([0], [0]) :: ([Integer], [Integer]))
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

@@ -60,10 +60,20 @@ literalSingletonR = do
     xVal                     <- fromLiteral x
     return $ inject $ Lit listTy $ ListV [xVal]
 
+appendEmptyLeftR :: RewriteC CL
+appendEmptyLeftR = do
+    AppE2 _ Append (Lit _ (ListV [])) ys <- promoteT idR
+    return $ inject ys
+
+appendEmptyRightR :: RewriteC CL
+appendEmptyRightR = do
+    AppE2 _ Append xs (Lit _ (ListV [])) <- promoteT idR
+    return $ inject xs
+
 partialEvalR :: RewriteC CL
 partialEvalR = 
     readerT $ \cl -> case cl of
         ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR
-        ExprCL AppE2{}   -> literalAppendR
+        ExprCL AppE2{}   -> literalAppendR <+ appendEmptyLeftR <+ appendEmptyRightR
         _                -> fail "can't apply partial evaluation rules"

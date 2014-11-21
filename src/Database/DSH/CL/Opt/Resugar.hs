@@ -9,6 +9,7 @@ module Database.DSH.CL.Opt.Resugar
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
+import           Database.DSH.CL.Opt.PartialEval
 
 pattern ConcatP xs   <- AppE1 _ Concat xs
 pattern SingletonP x <- AppE1 _ Singleton x
@@ -57,6 +58,7 @@ resugarRulesR = readerT $ \expr -> case expr of
                                      <+ concatCompSingletonLitR
                                      <+ concatNestedCompR
     ExprCL (Comp _ _ _)           -> guardGeneratorsR
+    ExprCL _                      -> partialEvalR
     _                    -> fail "no resugaring rule applies"
 
 -- | Resugar a comprehension.
