@@ -320,7 +320,7 @@ desugarQuals []                   = $impossible
 desugarQuals (CL.GuardQ p : qs)   = do
     (env, genExpr, _) <- desugarQuals qs
     p'                <- expr p
-    let wrapIf headExpr = P.if_  p' headExpr (NKL.Const (listT $ typeOf headExpr) (ListV []))
+    let wrapIf iter = P.if_  p' iter (NKL.Const (typeOf iter) (ListV []))
     return (env, genExpr, wrapIf)
 -- If the first qualifier is a generator, it becomes the base source
 -- expression.
