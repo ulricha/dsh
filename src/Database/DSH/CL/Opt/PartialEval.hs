@@ -49,10 +49,10 @@ literalTupleR = do
 
 literalAppendR :: RewriteC CL
 literalAppendR = do
-    AppE2 listTy Append x xs <- promoteT idR
-    xVal                     <- fromLiteral x
-    ListV xsVals             <- fromLiteral xs
-    return $ inject $ Lit listTy $ ListV $ xVal : xsVals
+    AppE2 listTy Append x y <- promoteT idR
+    ListV xVals             <- fromLiteral x
+    ListV yVals             <- fromLiteral y
+    return $ inject $ Lit listTy $ ListV $ xVals ++ yVals
 
 literalSingletonR :: RewriteC CL
 literalSingletonR = do

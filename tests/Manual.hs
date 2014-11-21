@@ -303,6 +303,6 @@ q15 intervalFrom =
     ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c frontguard
+main = getConn P.>>= \c -> debugQ "q" c $ toQ ([0,0] :: [Integer])
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
