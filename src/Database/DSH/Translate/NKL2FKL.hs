@@ -37,6 +37,7 @@ flatTransform expr = optimizeFKL "FKL"
 prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
 prim1 p =
     case p of
+        N.Singleton -> P.sng
         N.Length    -> P.length
         N.Concat    -> P.concat
         N.Sum       -> P.sum
@@ -66,7 +67,6 @@ prim2 p =
         N.Append       -> P.append
         N.Index        -> P.index
         N.Zip          -> P.zip
-        N.Cons         -> P.cons
         N.CartProduct  -> P.cartProduct
         N.NestProduct  -> P.nestProduct
         N.ThetaJoin jp -> P.thetaJoin jp

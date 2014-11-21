@@ -90,10 +90,10 @@ m_norm_2R = (normSingletonCompR <+ normCompR) >>> debugTrace "m_norm_2"
         q <- idR
         case q of
             -- x <- [v]
-            BindQ x (Lit t (ListV [v]))                 -> return (x, Lit (elemT t) v)
+            BindQ x (Lit t (ListV [v]))   -> return (x, Lit (elemT t) v)
             -- x <- v : []
-            BindQ x (AppE2 _ Cons v (Lit _ (ListV []))) -> return (x, v)
-            _                                           -> fail "qualR: no match"
+            BindQ x (AppE1 _ Singleton v) -> return (x, v)
+            _                             -> fail "qualR: no match"
             
     -- Try to match the pattern at the end of the qualifier list
     normQualsEndR :: Rewrite CompCtx TuplifyM (NL Qual)

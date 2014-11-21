@@ -43,15 +43,8 @@ tuple es =
         rt = TupleT ts
     in MkTuple rt es
 
-cons :: Expr -> Expr -> Expr
-cons x xs = let xt  = typeOf x
-                xst = typeOf xs
-            in if elemT xst == xt
-               then AppE2 xst Cons x xs
-               else tyErr "cons"
-
-singleton :: Expr -> Expr
-singleton e = let t = typeOf e in cons e (Const (listT t) (ListV []))
+sng :: Expr -> Expr
+sng x = AppE1 (listT $ typeOf x) Singleton x
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e

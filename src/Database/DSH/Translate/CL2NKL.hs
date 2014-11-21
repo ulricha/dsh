@@ -35,6 +35,7 @@ prim1 t p e = mkApp t <$> expr e
   where 
     mkApp = 
         case p of
+            CL.Singleton        -> mkPrim1 NKL.Singleton
             CL.Length           -> mkPrim1 NKL.Length 
             CL.Concat           -> mkPrim1 NKL.Concat 
             -- Null in explicit form is useful during CL optimization
@@ -83,7 +84,6 @@ prim2 t o e1 e2 = mkApp2
             CL.Append       -> mkPrim2 NKL.Append
             CL.Index        -> mkPrim2 NKL.Index 
             CL.Zip          -> mkPrim2 NKL.Zip
-            CL.Cons         -> mkPrim2 NKL.Cons
             CL.CartProduct  -> mkPrim2 NKL.CartProduct
             CL.NestProduct  -> mkPrim2 NKL.NestProduct
             CL.ThetaJoin p  -> mkPrim2 $ NKL.ThetaJoin p
@@ -251,7 +251,7 @@ desugarGens env baseExpr qs = do
 
     let qs'            = fmap substGenExpr qs
 
-        tupConst       = P.singleton $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
+        tupConst       = P.sng $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
         mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x 
         gensExpr       = nestQualifiers tupConst (N.toList qs')
         compTy         = (listT $ typeOf tupConst)

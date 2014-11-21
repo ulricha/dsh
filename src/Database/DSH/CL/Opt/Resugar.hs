@@ -11,7 +11,7 @@ import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 
 pattern ConcatP xs   <- AppE1 _ Concat xs
-pattern SingletonP x <- AppE2 _ Cons x (Lit _ (ListV []))
+pattern SingletonP x <- AppE1 _ Singleton x
 pattern GuardP p     <- AppE1 _ Guard p
 
 -- | Eliminate a singleton list in a comprehension head.

@@ -3,16 +3,17 @@
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
 
-import qualified Prelude                  as P
+import qualified Prelude                    as P
 
-import           Text.Printf
+import qualified Data.List                  as List
 import           Debug.Trace
+import           Text.Printf
 
 import           Database.DSH.CL.Lang
+import qualified Database.DSH.Common.Lang   as L
 import           Database.DSH.Common.Nat
-import qualified Database.DSH.Common.Lang as L
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Impossible
 
 tyErr :: P.String -> a
 tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
@@ -129,7 +130,7 @@ init e = let (ListT t) = typeOf e
         in AppE1 (ListT t) Init e
 
 tupElem :: TupleIndex -> Expr -> Expr
-tupElem f e = 
+tupElem f e =
     let t = tupleElemT (typeOf e) f
     in AppE1 t (TupElem f) e
 
@@ -182,18 +183,8 @@ index e1 e2 = let ListT t = typeOf e1
                     then AppE2 t Index e1 e2
                     else tyErr "index"
 
-snoc :: Expr -> Expr -> Expr
-snoc e1 e2 = let t1@(ListT t) = typeOf e1
-              in if t P.== typeOf e2
-                    then append e1 (cons e2 P.$ nil t1)
-                    else tyErr "snoc"
-
-cons :: Expr -> Expr -> Expr
-cons e1 e2 = let t1 = typeOf e1
-                 t@(ListT t2) = typeOf e2
-              in if t1 P.== t2
-                   then AppE2 t Cons e1 e2
-                   else trace (pp e1) P.$ trace (pp e2) P.$ tyErrShow "cons" [t1, t2]
+sng :: Expr -> Expr
+sng e = AppE1 (listT P.$ typeOf e) Singleton e
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let ListT t1' = typeOf e1
@@ -269,21 +260,11 @@ nil :: Type -> Expr
 nil t = Lit t (L.ListV [])
 
 list :: Type -> [Expr] -> Expr
-list t es = toListT (nil t) es
+list _ (e : es) = List.foldl' append (sng e) (P.map sng es)
+list t []       = nil t
 
-consOpt :: Expr -> Expr -> Expr
-consOpt e1 e2 = toListT e2 [e1]
-
-toListT :: Expr -> [Expr] -> Expr
-toListT n es = primList (P.reverse es) n
-  where
-    primList :: [Expr] -> Expr -> Expr
-    primList ((Lit _ v):vs) (Lit ty (L.ListV xs)) = primList vs (Lit ty (L.ListV (v:xs)))
-    primList [] e = e
-    primList vs c@(Lit _ (L.ListV [])) = consList vs c
-    primList vs e = consList vs e
-    consList :: [Expr] -> Expr -> Expr
-    consList xs e = P.foldl (P.flip cons) e xs
+cons :: Expr -> Expr -> Expr
+cons e1 e2 = append (sng e1) e2
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for scalar unary operators

@@ -107,6 +107,7 @@ papp3 Combine NotLifted = V.combine
 papp1 :: Type -> Prim1 -> Lifted -> Shape VLDVec -> Build VL.VL (Shape VLDVec)
 papp1 t f Lifted =
     case f of
+        Singleton       -> V.singletonL
         Length          -> V.lengthL
         Concat          -> V.concatL
         The             -> V.theL
@@ -128,6 +129,7 @@ papp1 t f Lifted =
 
 papp1 t f NotLifted =
     case f of
+        Singleton        -> V.singleton
         Length           -> V.length_
         Reshape n        -> V.reshape n
         Transpose        -> V.transpose
@@ -157,7 +159,6 @@ papp2 f Lifted =
         Append         -> V.appendL
         Index          -> V.indexL
         Zip            -> V.zipL
-        Cons           -> V.consL
         CartProduct    -> V.cartProductL
         NestProduct    -> V.nestProductL
         ThetaJoin p    -> V.thetaJoinL p
@@ -174,7 +175,6 @@ papp2 f NotLifted =
         Append          -> V.append
         Index           -> V.index
         Zip             -> V.zip
-        Cons            -> V.cons
         CartProduct     -> V.cartProduct
         NestProduct     -> V.nestProduct
         ThetaJoin p     -> V.thetaJoin p

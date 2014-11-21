@@ -43,10 +43,10 @@ sort xs ss d =
     let xst = unliftTypeN d $ typeOf xs
     in PApp2 (liftTypeN d xst) Sort (LiftedN d) xs ss
 
-cons :: LExpr -> LExpr -> Nat -> LExpr
-cons e1 e2 d =
-    let t2 = unliftTypeN d $ typeOf e2
-    in PApp2 (liftTypeN d t2) Cons (LiftedN d) e1 e2
+sng :: LExpr -> Nat -> LExpr
+sng e d =
+    let t = unliftTypeN d $ typeOf e
+    in PApp1 (liftTypeN d t) Singleton (LiftedN d) e
 
 tuple :: [LExpr] -> Nat -> LExpr
 tuple es d =

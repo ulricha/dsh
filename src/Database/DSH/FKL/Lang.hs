@@ -67,6 +67,7 @@ data Prim1 = Length
            | Last
            | Nub
            | Number
+           | Singleton
            | Transpose
            | Reshape Integer
     deriving (Show, Eq)
@@ -77,7 +78,6 @@ data Prim2 = Group
            | Append
            | Index
            | Zip
-           | Cons
            | CartProduct
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.JoinExpr)
@@ -143,7 +143,8 @@ instance Pretty Prim1 where
     pretty Number       = text "number"
     pretty Transpose    = text "transpose"
     pretty (Reshape n)  = text $ printf "reshape(%d)" n
-    pretty TupElem{}   = $impossible
+    pretty Singleton    = text "sng"
+    pretty TupElem{}    = $impossible
 
 instance Pretty Prim2 where
     pretty Group           = text "group"
@@ -153,7 +154,6 @@ instance Pretty Prim2 where
     pretty Append          = text "append"
     pretty Index           = text "index"
     pretty Zip             = text "zip"
-    pretty Cons            = text "cons"
     pretty CartProduct     = text "⨯"
     pretty NestProduct     = text "▽"
     pretty (ThetaJoin p)   = text $ printf "⨝_%s" (pp p)

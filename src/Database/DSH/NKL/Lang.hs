@@ -83,7 +83,8 @@ parenthize e =
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e
 
-data Prim1 = Length 
+data Prim1 = Singleton
+           | Length 
            | Concat
            | Sum 
            | Avg 
@@ -105,6 +106,7 @@ data Prim1 = Length
            deriving (Eq)
 
 instance Show Prim1 where
+    show Singleton       = "sng"
     show Length          = "length"
     show Concat          = "concat"
     show Sum             = "sum"
@@ -132,7 +134,6 @@ data Prim2 = Group
            | Append
            | Index
            | Zip
-           | Cons
            | CartProduct
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.JoinExpr)
@@ -148,7 +149,6 @@ instance Show Prim2 where
     show Append       = "append"
     show Index        = "index"
     show Zip          = "zip"
-    show Cons         = "cons"
     show CartProduct  = "⨯"
     show NestProduct  = "▽"
     show (ThetaJoin p) = printf "⨝_%s" (pp p)

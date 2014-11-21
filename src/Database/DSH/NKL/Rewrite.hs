@@ -129,7 +129,7 @@ inlineBindingR v s = readerT $ \expr -> case expr of
     _                         -> anyR $ inlineBindingR v s
 
 pattern ConcatP t xs <- AppE1 t Concat xs
-pattern SingletonP e <- AppE2 _ Cons e (Const _ (ListV []))
+pattern SingletonP e <- AppE1 _ Singleton e 
        
 -- concatMap (\x -> [e x]) xs
 -- concat [ [ e x ] | x <- xs ]

@@ -198,14 +198,6 @@ length_ q = do
     v  <- vlAggr AggrCount v'
     return $ SShape v (LCol 1)
 
-cons ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-cons q1@(SShape _ _) q2@(VShape _ _) = do
-    n <- singletonAtom q1
-    appendVec n q2
-cons q1 q2 = do
-    n <- singletonVec q1
-    appendVec n q2
-
 restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrict(VShape q1 lyt) (VShape q2 (LCol 1)) = do
     -- The right input vector has only one boolean column which
@@ -575,16 +567,6 @@ lengthL (VShape q (LNest qi _)) = do
     return $ VShape lsu (LCol 1)
 lengthL s = trace (show s) $ $impossible
 
-consL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-consL (VShape q1 lyt1) (VShape q2 (LNest qi lyt2)) = do
-    s           <- vlSegment q1
-    (v, p1, p2) <- vlAppendS s qi
-    lyt1'       <- renameOuter' p1 lyt1
-    lyt2'       <- renameOuter' p2 lyt2
-    lyt'        <- appendLayout lyt1' lyt2'
-    return $ VShape q2 (LNest v lyt')
-consL _ _ = $impossible
-
 outer ::  Shape VLDVec -> Build VL VLDVec
 outer (SShape _ _)        = $impossible
 outer (VShape q _)        = return q
@@ -655,15 +637,18 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
       where
         (lyt', cols, c') = projectFromPosWork cAcc lyt
 
-singletonVec ::  Shape VLDVec -> Build VL (Shape VLDVec)
-singletonVec (VShape q lyt) = do
+singleton :: Shape VLDVec -> Build VL (Shape VLDVec)
+singleton (VShape q lyt) = do
     VLDVec d <- vlSingletonDescr
     return $ VShape (VLDVec d) (LNest q lyt)
-singletonVec _ = $impossible
+singleton (SShape q1 lyt) = return $ VShape q1 lyt
 
-singletonAtom ::  Shape VLDVec -> Build VL (Shape VLDVec)
-singletonAtom (SShape q1 lyt) = return $ VShape q1 lyt
-singletonAtom _ = $impossible
+singletonL :: Shape VLDVec -> Build VL (Shape VLDVec)
+singletonL (VShape q lyt) = do
+    innerVec <- vlSegment q
+    outerVec <- vlProject [] q
+    return $ VShape outerVec (LNest innerVec lyt)
+singletonL _ = $impossible
 
 --------------------------------------------------------------------------------
 -- Construction of base tables and literal tables

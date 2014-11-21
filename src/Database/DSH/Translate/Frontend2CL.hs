@@ -207,7 +207,7 @@ translateApp f args =
        Div          -> translateApp2 CP.div args
        Mod          -> translateApp2 CP.mod args
        Index        -> translateApp2 CP.index args
-       Cons         -> translateApp2 CP.consOpt args
+       Cons         -> translateApp2 CP.cons args
 
        -- Map to a comprehension
        Map          -> 
