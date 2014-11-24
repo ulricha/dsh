@@ -272,7 +272,7 @@ insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
 insertGuard guardExpr initialEnv quals = go initialEnv quals
   where
     go :: S.Set Ident -> NL Qual -> NL Qual
-    go env (S q)             =
+    go env (S q)                 =
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* S q
         else q :* (S $ GuardQ guardExpr)
@@ -280,7 +280,10 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* q :* qs
         else q :* go (S.insert x env) qs
-    go _ (GuardQ _ :* _)      = $impossible
+    go env (GuardQ p :* qs)      = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* GuardQ p :* qs
+        else GuardQ p :* go env qs
 
     fvs = freeVars guardExpr
 
