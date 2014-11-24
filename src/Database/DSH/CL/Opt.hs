@@ -29,12 +29,10 @@ compNormEarlyR :: RewriteC CL
 compNormEarlyR = m_norm_1R 
                  <+ m_norm_2R
                  <+ m_norm_3R
-                 <+ guardpushfrontR
                  <+ invariantguardR
                  <+ ifgeneratorR
                  <+ identityCompR
                  <+ ifheadR
-                 <+ guardonlyR
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites
 -- should propably occur late in the chain, as they might prohibit

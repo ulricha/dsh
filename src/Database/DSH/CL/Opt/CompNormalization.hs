@@ -16,7 +16,6 @@ module Database.DSH.CL.Opt.CompNormalization
     , ifgeneratorR
     , identityCompR
     , ifheadR
-    , guardonlyR
     ) where
 
 import           Control.Applicative
@@ -174,7 +173,8 @@ qualsguardpushfrontR = do
     return qs'
 
 -- | Push all guards as far as possible to the front of the qualifier
--- list.
+-- list. Note that 'guardpushfrontR' loops with join introduction
+-- rewrites and must not be isolated.
 guardpushfrontR :: RewriteC CL
 guardpushfrontR = do
     Comp t h _ <- promoteT idR
@@ -182,11 +182,17 @@ guardpushfrontR = do
     return $ inject $ Comp t h qs'
 
 -- | If a guard does not depend on any generators of the current
--- comprehension, it can be applied outside of the comprehension.
+-- comprehension, it can be applied outside of the comprehension. As
+-- preparation, we push guards towards the front of the qualifier
+-- list. 
 invariantguardR :: RewriteC CL
-invariantguardR = do
-    Comp t h (GuardQ g :* qs) <- promoteT idR
-    return $ inject $ P.if_ g (Comp t h qs) (Lit t (ListV []))
+invariantguardR = 
+    guardpushfrontR 
+    >>> 
+    (promoteR $ readerT $ \expr -> case expr of
+        Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (Lit t (ListV []))
+        Comp t h (S (GuardQ p))   -> return $ inject $ P.if_ p (P.sng h) (Lit t (ListV []))
+        _                         -> fail "no match")
 
 ifgeneratorqualsR :: RewriteC (NL Qual)
 ifgeneratorqualsR = anytdR $ readerT $ \quals -> case quals of
@@ -215,8 +221,3 @@ ifheadR :: RewriteC CL
 ifheadR = do
     Comp t (If _ ce te (Lit _ (ListV []))) qs <- promoteT idR
     return $ inject $ Comp t te (appendNL qs (S $ GuardQ ce))
-
-guardonlyR :: RewriteC CL
-guardonlyR = do
-    Comp t h (S (GuardQ p)) <- promoteT idR
-    return $ inject $ P.if_ p (P.sng h) (Lit t (ListV []))

@@ -259,12 +259,6 @@ njgys1 = [2,3]
 njgzs1 :: [(Integer, Integer)]
 njgzs1 = [(2, 20), (5, 60), (3, 30)]
 
-frontguard :: Q [[Integer]]
-frontguard =
-    [ [ y | x > 13, y <- toQ ([1,2,3,4] :: [Integer]) ]
-    | x <- toQ ([10, 20, 30] :: [Integer])
-    ]
-
 backdep5 :: Q [[Integer]]
 backdep5 = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ ([[1,2,3], [], [4,5,6]] :: [[Integer]]) ]
 
@@ -309,8 +303,29 @@ cartprod (view -> (xs, ys)) =
   , y <- ys
   , x == y
   ]
+
+tup :: Q [(Integer, Integer, Integer, Integer)]
+tup = map (\(view -> (a, b, c, d)) -> tup4 (a + c) (b - d) b d) (toQ ([(0,0,0,0)] :: [(Integer, Integer, Integer, Integer)]))
+
+frontguard :: Q [[Integer]]
+frontguard =
+    [ [ y | x > 13, y <- toQ ([1,2,3,4] :: [Integer]), y < 3 ]
+    | x <- toQ ([10, 20, 30] :: [Integer])
+    ]
+
+njxs1 :: [Integer]
+njxs1 = [1,2,3,4,5,6]
+
+njys1 :: [Integer]
+njys1 = [3,4,5,6,3,6,4,1,1,1]
+
+nj6 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj6 njxs njys = 
+      [ pair x [ y | y <- toQ njys, x + y > 10, y < 7 ]
+      | x <- toQ njxs
+      ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ cartprod $ toQ (([0], [0]) :: ([Integer], [Integer]))
+main = getConn P.>>= \c -> debugQ "q" c (nj6 njxs1 njys1)
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
