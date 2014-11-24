@@ -324,8 +324,11 @@ nj6 njxs njys =
       [ pair x [ y | y <- toQ njys, x + y > 10, y < 7 ]
       | x <- toQ njxs
       ]
+
+nj9 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ njxs ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c frontguard
+main = getConn P.>>= \c -> debugQ "q" c $ nj9 njxs1 njys1
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

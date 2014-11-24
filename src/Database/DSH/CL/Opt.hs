@@ -29,10 +29,10 @@ compNormEarlyR :: RewriteC CL
 compNormEarlyR = m_norm_1R 
                  <+ m_norm_2R
                  <+ m_norm_3R
-                 <+ invariantguardR
+                 -- Does not lead to good code. See lablog entry (24.11.2014)
+                 -- <+ invariantguardR
                  <+ ifgeneratorR
                  <+ identityCompR
-                 <+ ifheadR
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites
 -- should propably occur late in the chain, as they might prohibit

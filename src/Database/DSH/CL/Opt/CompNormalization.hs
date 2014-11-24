@@ -15,7 +15,6 @@ module Database.DSH.CL.Opt.CompNormalization
     , guardpushfrontR
     , ifgeneratorR
     , identityCompR
-    , ifheadR
     ) where
 
 import           Control.Applicative
@@ -181,10 +180,11 @@ guardpushfrontR = do
     qs' <- childT CompQuals (promoteR qualsguardpushfrontR) >>> projectT
     return $ inject $ Comp t h qs'
 
+
 -- | If a guard does not depend on any generators of the current
--- comprehension, it can be applied outside of the comprehension. As
+-- comprehension, it can be evaluated outside of the comprehension. As
 -- preparation, we push guards towards the front of the qualifier
--- list. 
+-- list.
 invariantguardR :: RewriteC CL
 invariantguardR = 
     tryR guardpushfrontR 
@@ -214,10 +214,3 @@ identityCompR = do
     Comp _ (Var _ x) (S (BindQ x' xs)) <- promoteT idR
     guardM $ x == x'
     return $ inject xs
-
--- | Merge an 'if' expression in a comprehension head into the
--- comprehension.
-ifheadR :: RewriteC CL
-ifheadR = do
-    Comp t (If _ ce te (Lit _ (ListV []))) qs <- promoteT idR
-    return $ inject $ Comp t te (appendNL qs (S $ GuardQ ce))
