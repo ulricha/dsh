@@ -41,7 +41,7 @@ m_norm_1R = do
     Comp t _ _ <- promoteT idR
     matches <- childT CompQuals $ onetdT (promoteT $ patternT <+ patternEndT)
     guardM matches
-    return $ inject $ Lit t (ListV [])
+    return $ inject $ P.nil t
 
   where
     patternT :: TransformC (NL Qual) Bool
@@ -190,8 +190,8 @@ invariantguardR =
     guardpushfrontR 
     >>> 
     (promoteR $ readerT $ \expr -> case expr of
-        Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (Lit t (ListV []))
-        Comp t h (S (GuardQ p))   -> return $ inject $ P.if_ p (P.sng h) (Lit t (ListV []))
+        Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (P.nil t)
+        Comp t h (S (GuardQ p))   -> return $ inject $ P.if_ p (P.sng h) (P.nil t)
         _                         -> fail "no match")
 
 ifgeneratorqualsR :: RewriteC (NL Qual)
