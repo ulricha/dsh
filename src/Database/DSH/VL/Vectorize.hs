@@ -302,26 +302,6 @@ ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
     return $ SShape q lyt
 ifList _ _ _ = $impossible
 
-pair ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-pair (SShape q1 lyt1) (SShape q2 lyt2) = do
-    q <- vlAlign q1 q2
-    let lyt = zipLayout lyt1 lyt2
-    return $ SShape q lyt
-pair (VShape q1 lyt1) (VShape q2 lyt2) = do
-    d   <- vlLit L.PossiblyEmpty [] [[VLInt 1, VLInt 1]]
-    q1' <- vlUnsegment q1
-    q2' <- vlUnsegment q2
-    let lyt = zipLayout (LNest q1' lyt1) (LNest q2' lyt2)
-    return $ SShape d lyt
-pair (VShape q1 lyt1) (SShape q2 lyt2) = do
-    q1' <- vlUnsegment q1
-    let lyt = zipLayout (LNest q1' lyt1) lyt2
-    return $ SShape q2 lyt
-pair (SShape q1 lyt1) (VShape q2 lyt2) = do
-    q2' <- vlUnsegment q2
-    let lyt = zipLayout lyt1 (LNest q2' lyt2)
-    return $ SShape q1 lyt
-
 -- FIXME column offsets are not correct (see tupleL)
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tuple (SShape q1 lyt1 : SShape q2 lyt2 : []) = do
@@ -587,13 +567,6 @@ distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
     return $ VShape d (LNest qf lytf)
 distL _e1 _e2 = $impossible
 
-pairL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-pairL (VShape q1 lyt1) (VShape q2 lyt2) = do
-    q <- vlAlign q1 q2
-    let lyt = zipLayout lyt1 lyt2
-    return $ VShape q lyt
-pairL _ _ = $impossible
-
 tupleL :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tupleL shapes@(_ : _) = do
     (q, lyts) <- zipVectors shapes
@@ -638,13 +611,13 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
         (lyt', cols, c') = projectFromPosWork cAcc lyt
 
 singleton :: Shape VLDVec -> Build VL (Shape VLDVec)
-singleton (VShape q lyt) = do
+singleton (VShape q lyt) = trace (show lyt) $ do
     VLDVec d <- vlSingletonDescr
     return $ VShape (VLDVec d) (LNest q lyt)
-singleton (SShape q1 lyt) = return $ VShape q1 lyt
+singleton (SShape q1 lyt) = trace (show lyt) $ return $ VShape q1 lyt
 
 singletonL :: Shape VLDVec -> Build VL (Shape VLDVec)
-singletonL (VShape q lyt) = do
+singletonL (VShape q lyt) = trace (show lyt) $ do
     innerVec <- vlSegment q
     outerVec <- vlProject [] q
     return $ VShape outerVec (LNest innerVec lyt)
