@@ -102,6 +102,8 @@ tests_types = testGroup "Supported Types"
   , testProperty "[[[Integer]]]" $ prop_list_integer_3
   , testProperty "[(Integer, Integer)]" $ prop_list_tuple_integer
   , testProperty "([], [])" $ prop_tuple_list_integer
+  , testProperty "(,[])" $ prop_tuple_integer_list
+  , testProperty "(,[],)" $ prop_tuple_integer_list_integer
   , testProperty "Maybe Integer" $ prop_maybe_integer
   , testProperty "Either Integer Integer" $ prop_either_integer
   , testProperty "(Int, Int, Int, Int)" $ prop_tuple4
@@ -400,6 +402,12 @@ prop_maybe_integer = makeProp id id
 
 prop_tuple_list_integer :: ([Integer], [Integer]) -> Property
 prop_tuple_list_integer = makeProp id id
+
+prop_tuple_integer_list :: (Integer, [Integer]) -> Property
+prop_tuple_integer_list = makeProp id id
+
+prop_tuple_integer_list_integer :: (Integer, [Integer], Integer) -> Property
+prop_tuple_integer_list_integer = makeProp id id
 
 prop_either_integer :: Either Integer Integer -> Property
 prop_either_integer = makeProp id id

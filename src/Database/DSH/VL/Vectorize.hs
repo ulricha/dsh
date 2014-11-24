@@ -302,38 +302,12 @@ ifList qb (SShape q1 lyt1) (SShape q2 lyt2) = do
     return $ SShape q lyt
 ifList _ _ _ = $impossible
 
--- FIXME column offsets are not correct (see tupleL)
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
-tuple (SShape q1 lyt1 : SShape q2 lyt2 : []) = do
-    q <- vlAlign q1 q2
-    let lyt = zipLayout lyt1 lyt2
-    return $ SShape q lyt
-tuple (VShape q1 lyt1 : VShape q2 lyt2 : []) = do
-    d   <- vlLit L.PossiblyEmpty [] [[VLInt 1, VLInt 1]]
-    q1' <- vlUnsegment q1
-    q2' <- vlUnsegment q2
-    let lyt = zipLayout (LNest q1' lyt1) (LNest q2' lyt2)
-    return $ SShape d lyt
-tuple (VShape q1 lyt1 : SShape q2 lyt2 : []) = do
-    q1' <- vlUnsegment q1
-    let lyt = zipLayout (LNest q1' lyt1) lyt2
-    return $ SShape q2 lyt
-tuple (SShape q1 lyt1 : VShape q2 lyt2 : []) = do
-    q2' <- vlUnsegment q2
-    let lyt = zipLayout lyt1 (LNest q2' lyt2)
-    return $ SShape q1 lyt
-tuple (SShape q1 lyt1 : shapes) = do
-    SShape qt (LTuple lyts) <- tuple shapes
-    q <- vlAlign q1 qt
-    let lyt = LTuple $ zipLayouts (lyt1 : lyts)
-    return $ SShape q lyt
-
-tuple (VShape q1 lyt1 : shapes) = do
-    SShape qt (LTuple lyts) <- tuple shapes
-    q1' <- vlUnsegment q1
-    return $ SShape qt (LTuple $ LNest q1' lyt1 : lyts)
+tuple shapes@(_ : _) = do
+    (q, lyts) <- tupleVectors shapes
+    let lyts' = zipLayouts lyts
+    return $ SShape q (LTuple lyts')
 tuple _ = $impossible
-    
 
 tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElem i (SShape q (LTuple lyts)) =
@@ -611,13 +585,13 @@ projectFromPos = (\(x,y,_) -> (x,y)) . (projectFromPosWork 1)
         (lyt', cols, c') = projectFromPosWork cAcc lyt
 
 singleton :: Shape VLDVec -> Build VL (Shape VLDVec)
-singleton (VShape q lyt) = trace (show lyt) $ do
+singleton (VShape q lyt) = do
     VLDVec d <- vlSingletonDescr
     return $ VShape (VLDVec d) (LNest q lyt)
-singleton (SShape q1 lyt) = trace (show lyt) $ return $ VShape q1 lyt
+singleton (SShape q1 lyt) = return $ VShape q1 lyt
 
 singletonL :: Shape VLDVec -> Build VL (Shape VLDVec)
-singletonL (VShape q lyt) = trace (show lyt) $ do
+singletonL (VShape q lyt) = do
     innerVec <- vlSegment q
     outerVec <- vlProject [] q
     return $ VShape outerVec (LNest innerVec lyt)
@@ -756,6 +730,22 @@ zipVectors (VShape q1 lyt1 : shapes) = do
     qz' <- vlAlign q1 q
     return (qz', lyt1 : lyts)
 zipVectors _ = $impossible
+
+tupleVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
+tupleVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
+tupleVectors (VShape q1 lyt1 : [])     = do
+    qo <- vlSingletonDescr
+    qi <- vlUnsegment q1
+    return (qo, [LNest qi lyt1])
+tupleVectors (SShape q1 lyt1 : shapes) = do
+    (q, lyts) <- tupleVectors shapes
+    qz'       <- vlAlign q1 q
+    return (qz', lyt1 : lyts)
+tupleVectors (VShape q1 lyt1 : shapes) = do
+    (q, lyts) <- tupleVectors shapes
+    q1'       <- vlUnsegment q1
+    return (q, LNest q1' lyt1 : lyts)
+tupleVectors s = error $ show s
 
 --------------------------------------------------------------------------------
 -- Compile-time operations that implement higher-lifted primitives.
