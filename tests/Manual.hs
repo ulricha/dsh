@@ -326,6 +326,6 @@ nj6 njxs njys =
       ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c (nj6 njxs1 njys1)
+main = getConn P.>>= \c -> debugQ "q" c frontguard
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

@@ -187,7 +187,7 @@ guardpushfrontR = do
 -- list. 
 invariantguardR :: RewriteC CL
 invariantguardR = 
-    guardpushfrontR 
+    tryR guardpushfrontR 
     >>> 
     (promoteR $ readerT $ \expr -> case expr of
         Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (P.nil t)
