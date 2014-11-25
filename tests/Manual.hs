@@ -329,8 +329,17 @@ nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ
 
 backdep3 :: Q [[Integer]] -> Q [[Integer]]
 backdep3 xss = [ [ x + length xs | x <- xs ] | xs <- xss ]
+
+backdep4 :: Q [[[Integer]]] -> Q [[[Integer]]]
+backdep4 xsss = [ [ [ x + length xs + length xss
+                    | x <- xs
+                    ]
+                  | xs <- xss
+                  ]
+                | xss <- xsss
+                ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ backdep3 $ toQ [[], [1,2,3], [1]]
+main = getConn P.>>= \c -> debugQ "q" c $ backdep4 $ toQ [[], []]
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
