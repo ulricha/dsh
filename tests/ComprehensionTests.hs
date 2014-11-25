@@ -298,7 +298,7 @@ hantijoin_class16 = makeEqAssertion "hantijoin_class16" C.antijoin_class16 res
 hfrontguard :: Assertion
 hfrontguard = makeEqAssertion "hfrontguard" C.frontguard res
   where
-    res = [[1,2],[1,2]] 
+    res = [[],[1,2],[1,2]] 
 
 -----------------------------------------------------------------------
 -- HUnit tests for nestjoin/nestproduct
