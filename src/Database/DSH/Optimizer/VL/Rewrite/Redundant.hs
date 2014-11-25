@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Debug.Trace
+
 import           Control.Applicative
 import           Control.Monad
 
@@ -50,7 +52,6 @@ redundantRulesBottomUp = [ cartProdConstant
                          , zipProjectRight
                          , distLiftProjectLeft
                          , distLiftProjectRight
-                         , distLiftParents
                          , distLiftNestProduct
                          , distLiftNestJoin
                          , distLiftStacked
@@ -154,46 +155,6 @@ unreferencedDistLift q =
                         [ Column i | i <- [1..w2] ]
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
-
-nonDistLiftOp :: AlgNode -> VLMatch p Bool
-nonDistLiftOp n = do
-    op <- getOperator n
-    case op of
-        BinOp DistLift _ _ -> return False
-        _                  -> return True
-
--- | The DistLift operator keeps shape and columns of its right
--- input. When this right input is referenced by other operators than
--- DistLift, we can move these operators to the DistLift output.
---
--- This is beneficial if a composed expression depends on the DistLift
--- output (some lifted environment value) as well as the original
--- (inner) vector. In that case, we can rewrite things such that only
--- the DistLift operator is referenced (not its right input). In
--- consequence, the expression has only one source and can be merged
--- into a projection.
-distLiftParents :: VLRule BottomUpProps
-distLiftParents q =
-  $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
-     [| do
-         parentNodes     <- getParents $(v "q2")
-         nonDistLiftParents <- filterM nonDistLiftOp parentNodes
-         predicate $ not $ null nonDistLiftParents
-
-         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q1")
-         VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
-
-         return $ do
-             logRewrite "Redundant.DistLift.Parents" q
-
-             -- First, insert a projection on top of DistLift that leaves
-             -- only the columns from DistLift's right input.
-             let origColsProj = [ Column $ w1 + i | i <- [1 .. w2] ]
-             projNode <- insert $ UnOp (Project origColsProj) q
-
-             -- Then, re-link all parents of the right DistLift input to
-             -- the projection.
-             forM_ nonDistLiftParents $ \p -> replaceChild p $(v "q2") projNode |])
 
 -- | Remove a DistLift if the outer vector is aligned with a
 -- NestProduct that uses the same outer vector.
