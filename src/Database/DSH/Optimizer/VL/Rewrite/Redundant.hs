@@ -56,6 +56,7 @@ redundantRulesBottomUp = [ cartProdConstant
                          , distLiftNestJoin
                          , distLiftStacked
                          , distLiftSelect
+                         , alignedDistLift
                          , selectConstPos
                          , selectConstPosS
                          , zipConstLeft
@@ -262,6 +263,28 @@ distLiftSelect q =
              distR1   <- insert $ UnOp R1 distNode
              selNode  <- insert $ UnOp (Select p') distR1
              void $ replaceWithNew q $ UnOp R1 selNode |])
+
+-- | When a DistLift result is aligned with the right (inner) DistLift
+-- input, we can eliminate the Align. Reasoning: DistLift does not
+-- change the shape of the vector, only adds columns from its right
+-- input.
+alignedDistLift :: VLRule BottomUpProps
+alignedDistLift q =
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) DistLift (q22)))"
+    [| do
+        predicate $ $(v "q21") == $(v "q22")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
+        
+        return $ do
+            logRewrite "Redundant.DistLift.Align" q
+            let proj = map Column $
+                       [w1+1..w1+w2]
+                       ++
+                       [1..w1]
+                       ++
+                       [w1+1..w1+w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
 
 --------------------------------------------------------------------------------
 -- Zip and Align rewrites. 

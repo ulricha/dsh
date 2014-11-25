@@ -326,8 +326,11 @@ nj6 njxs njys =
 
 nj9 :: [Integer] -> [Integer] -> Q [[Integer]]
 nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ njxs ]
+
+backdep3 :: Q [[Integer]] -> Q [[Integer]]
+backdep3 xss = [ [ x + length xs | x <- xs ] | xs <- xss ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c frontguard
+main = getConn P.>>= \c -> debugQ "q" c $ backdep3 $ toQ [[], [1,2,3], [1]]
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
