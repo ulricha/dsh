@@ -252,7 +252,7 @@ translateApp f args =
                    bodyExp'            <- translate bodyExp
                    let xt    = T.typeOf xs'
                        quals = CL.BindQ boundVar xs' CL.:* (CL.S $ CL.GuardQ bodyExp')
-                   return $ CL.Comp (T.listT xt) (CL.Var xt boundVar) quals
+                   return $ CL.Comp xt (CL.Var xt boundVar) quals
                _ -> $impossible
 
        -- Map to a first-order combinator 'group'

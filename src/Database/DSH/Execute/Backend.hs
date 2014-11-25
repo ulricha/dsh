@@ -64,7 +64,7 @@ data SegLayout a where
     STuple :: SegTuple a -> SegLayout a
 
 execQueryBundle :: (Backend c, Row (BackendRow c)) => c -> Shape (BackendCode c) -> Type a -> IO (Exp a)
-execQueryBundle conn shape ty = trace (pp ty) $
+execQueryBundle conn shape ty = 
     case (shape, ty) of
         (VShape q lyt, ListT ety) -> do
             tab  <- execFlatQuery conn q
