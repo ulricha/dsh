@@ -237,7 +237,6 @@ expectedRevenueFor nation =
                        | o <- ordersWithStatus "P" c ]
     | c <- customers
     , c `hasNationality` nation
-    -- , or [ toQ True | _ <-  ordersWithStatus "P" c ]
     ]
 
 foobar = take 10 $ sortWith id $ map revenue orders
@@ -329,6 +328,6 @@ nj9 :: [Integer] -> [Integer] -> Q [[Integer]]
 nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ njxs ]
     
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ nj9 njxs1 njys1
+main = getConn P.>>= \c -> debugQ "q" c frontguard
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
