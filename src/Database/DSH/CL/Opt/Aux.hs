@@ -20,6 +20,7 @@ module Database.DSH.CL.Opt.Aux
     , isAntiJoinPred
       -- * Free and bound variables
     , freeVars
+    , boundVars
     , compBoundVars
       -- * Substituion
     , substR
@@ -211,6 +212,18 @@ compBoundVars qs = F.foldr aux [] qs
     aux :: Qual -> [Ident] -> [Ident]
     aux (BindQ n _) ns = n : ns
     aux (GuardQ _) ns  = ns
+
+boundVarsT :: TransformC CL [Ident]
+boundVarsT = fmap nub $ crushbuT $ promoteT $ readerT $ \expr -> case expr of
+     Comp _ _ qs -> return $ compBoundVars qs
+     Let _ v _ _ -> return [v]
+     _           -> return []
+
+-- | Compute all names that are bound in the given expression. Note
+-- that the only binding forms in NKL are comprehensions or 'let'
+-- bindings.
+boundVars :: Expr -> [Ident]
+boundVars = either error id . applyExpr boundVarsT
 
 --------------------------------------------------------------------------------
 -- Substitution

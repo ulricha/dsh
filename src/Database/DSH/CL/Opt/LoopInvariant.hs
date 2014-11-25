@@ -84,20 +84,13 @@ invariantQualR localVars = readerT $ \expr -> case expr of
 
 loopInvariantGuardR :: RewriteC CL
 loopInvariantGuardR = do
-    Comp _ _ qs <- promoteT idR
+    c@(Comp _ _ qs) <- promoteT idR
     -- FIXME passing *all* generator variables in the current
     -- comprehension is too conservative. It would be sufficient to
     -- consider those preceding the guard that is under investigation.
     let genVars = fmap fst $ catMaybes $ fmap fromGen $ toList qs
-    -- debugMsg $ "loopInvariantGuardR " ++ show genVars
-    -- debugMsg $ "CC\n" ++ pp (Comp t h qs)
-    {-
-    qs' <- constT (return qs) >>> onetdR (invariantQualR genVars)
-    return $ inject $ Comp t h qs'
-    -}
     (invExpr, invPath) <- childT CompQuals (invariantQualR genVars)
-    debugMsg "got an invariant"
-    letName            <- freshNameT genVars
+    letName            <- freshNameT (genVars ++ boundVars c)
 
     pathLen <- length <$> snocPathToPath <$> absPathT
     let localPath = drop pathLen invPath
@@ -108,10 +101,10 @@ loopInvariantGuardR = do
 
 loopInvariantHeadR :: RewriteC CL
 loopInvariantHeadR = do
-    Comp _ _ qs <- promoteT idR
+    Comp _ h qs <- promoteT idR
     let genVars = fmap fst $ catMaybes $ fmap fromGen $ toList qs
     (invExpr, invPath) <- childT CompHead (searchInvariantExprT genVars)
-    letName            <- freshNameT genVars
+    letName            <- freshNameT (genVars ++ boundVars h)
 
     pathLen <- length <$> snocPathToPath <$> absPathT
     let localPath = drop pathLen invPath
