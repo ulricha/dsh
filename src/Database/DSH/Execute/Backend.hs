@@ -15,6 +15,7 @@ import           Data.List
 import           Database.DSH.Impossible
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Common.QueryPlan
+import           Database.DSH.Common.Pretty
 import           Database.DSH.Execute.TH
 
 -- | An abstract backend on which flat queries can be executed.
@@ -63,7 +64,7 @@ data SegLayout a where
     STuple :: SegTuple a -> SegLayout a
 
 execQueryBundle :: (Backend c, Row (BackendRow c)) => c -> Shape (BackendCode c) -> Type a -> IO (Exp a)
-execQueryBundle conn shape ty = 
+execQueryBundle conn shape ty = trace (pp ty) $
     case (shape, ty) of
         (VShape q lyt, ListT ety) -> do
             tab  <- execFlatQuery conn q
@@ -86,7 +87,7 @@ execNested conn lyt ty =
             return $ TNest ty tab clyt'
         (LTuple lyts, TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                        in execTuple lyts tupTy
-        (_, _) -> error $ printf "Type does not match query structure: %s"
+        (_, ty) -> error $ printf "Type does not match query structure: %s" (pp ty)
 
 ------------------------------------------------------------------------------
 -- Construct result value terms from raw tabular results

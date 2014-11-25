@@ -1,16 +1,19 @@
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE GADTs                     #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE TemplateHaskell           #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module Database.DSH.Frontend.Internals where
 
-import Data.Text (Text)
+import           Data.Text                        (Text)
+import           Text.PrettyPrint.ANSI.Leijen
 
-import Database.DSH.Frontend.Funs
-import Database.DSH.Frontend.TupleTypes
+import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.TupleTypes
+
+import           Database.DSH.Common.Pretty
 
 
 --------------------------------------------------------------------------------
@@ -44,6 +47,17 @@ data Type a where
   ListT     :: (Reify a)          => Type a -> Type [a]
   ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
   TupleT    :: TupleType a -> Type a
+
+instance Pretty (Type a) where
+    pretty UnitT          = text "()"
+    pretty BoolT          = text "Bool"
+    pretty CharT          = text "Char"
+    pretty IntegerT       = text "Integer"
+    pretty DoubleT        = text "Double"
+    pretty TextT          = text "Text"
+    pretty (ListT t)      = brackets $ pretty t
+    pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
+    pretty (TupleT ts)    = undefined
 
 --------------------------------------------------------------------------------
 -- Classes
@@ -85,7 +99,7 @@ data Emptiness = NonEmpty
                deriving (Eq, Ord, Show)
 
 -- | Catalog information hints that users may give to DSH
-data TableHints = TableHints 
+data TableHints = TableHints
     { keysHint     :: [Key]
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
