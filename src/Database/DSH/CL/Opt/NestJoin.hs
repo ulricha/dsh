@@ -22,6 +22,7 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Kure
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
@@ -29,6 +30,7 @@ import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
 
 import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.CompNormalization
 
 nestjoinR :: RewriteC CL
 nestjoinR = unnestFromGuardR <+ unnestFromHeadR
@@ -44,7 +46,7 @@ data NestedComp = NestedComp
     , hHead   :: Expr
     , hGen    :: (Ident, Expr)
     , hGuards :: [Expr]
-    }
+    } deriving (Show)
 
 -- | Check if a comprehension is eligible for unnesting. This is the
 -- case if the outer generator variable 'x' does not occur in the
@@ -68,10 +70,13 @@ nestedCompT x = do
 searchNestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
 searchNestedCompT x =
     readerT $ \e -> case e of
-        ExprCL Comp{} -> nestedCompT x
+        -- We expect the single generator at the front of the
+        -- qualifiers. This might not be the case if a loop-invariant
+        -- guard is present and preceeds the generator. Therefore, we
+        -- pre-process by pushing all guards to the back.
+        ExprCL Comp{} -> tryR guardpushbackR >>> nestedCompT x
         ExprCL _      -> oneT $ searchNestedCompT x
         _             -> fail "only traverse through expressions"
-        
 
 -- | Take an absolute path and drop the prefix of the path to a direct child of
 -- the current node. This makes it a relative path starting from **some** direct
@@ -215,6 +220,7 @@ unnestFromHeadR = do
     guardM $ all isGuard qsr
     
     (headCompPath, headComp) <- childT CompHead (searchNestedCompT x)
+    debugMsg $ "found nested " ++ show headComp
 
     (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
 

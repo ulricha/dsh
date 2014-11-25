@@ -1,6 +1,5 @@
 module Database.DSH.CL.Opt.PostProcess
     ( introduceCartProductsR
-    , guardpushbackR
     ) where
 
 import           Control.Arrow
@@ -13,20 +12,6 @@ import qualified Database.DSH.CL.Primitives as P
 
 --------------------------------------------------------------------------------
 
-qualsguardpushbackR :: RewriteC (NL Qual)
-qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
-    GuardQ p :* BindQ x xs :* qs -> return $ BindQ x xs :* GuardQ p :* qs
-    GuardQ p :* (S (BindQ x xs)) -> return $ BindQ x xs :* (S (GuardQ p))
-    _                            -> fail "no pushable guard"
-                    
-
--- | Push all guards to the end of the qualifier list to bring
--- generators closer together.
-guardpushbackR :: RewriteC CL
-guardpushbackR = do
-    Comp t h _ <- promoteT idR
-    qs' <- childT CompQuals (promoteR qualsguardpushbackR) >>> projectT
-    return $ inject $ Comp t h qs'
 
 --------------------------------------------------------------------------------
 -- Turn adjacent generators into cartesian products:
