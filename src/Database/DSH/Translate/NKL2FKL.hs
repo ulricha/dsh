@@ -108,8 +108,9 @@ flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
 flatten (N.Iterator _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
+    outerScope <- ask
     let initCtx    = (x, typeOf xs)
-        initTopEnv = TopEnv { topInScope = initCtx :| [], topCtx = initCtx }
+        initTopEnv = TopEnv { topInScope = initCtx :| outerScope, topCtx = initCtx }
     
     -- In this environment, transform the iterator head
     let flatHead = runFlat initTopEnv (topFlatten h)
