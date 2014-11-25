@@ -1,7 +1,8 @@
 -- | This module performs optimizations on the Comprehension Language
 -- (CL).
 module Database.DSH.CL.Opt
-  ( optimizeComprehensions ) where
+  ( optimizeComprehensions
+  ) where
 
 import           Control.Arrow
 
@@ -74,26 +75,25 @@ postProcessR = repeatR $ anybuR postProcessCompR
 descendR :: RewriteC CL
 descendR = readerT $ \cl -> case cl of
 
-    ExprCL (Comp _ _ _) -> optCompR
+    ExprCL Comp{} -> optCompR
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
-    ExprCL _            -> repeatR partialEvalR 
-                           >+> repeatR normalizeExprR 
-                           >+> anyR descendR
+    ExprCL _      -> repeatR partialEvalR 
+                     >+> repeatR normalizeExprR 
+                     >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
-    _                   -> anyR descendR
+    _             -> anyR descendR
 
 
 -- | Optimize single comprehensions during a top-down traversal
 optCompR :: RewriteC CL
 optCompR = do
-    Comp _ _ _ <- promoteT idR
+    Comp{} <- promoteT idR
     -- debugPretty "optCompR at" c
 
-    repeatR $ do
-          (compNormEarlyR
+    repeatR (compNormEarlyR
              <+ predpushdownR
              <+ flatjoinsR
              <+ anyR descendR
