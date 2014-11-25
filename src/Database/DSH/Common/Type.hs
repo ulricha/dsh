@@ -11,12 +11,7 @@ module Database.DSH.Common.Type
     , tupleElemTypes
     , fstT
     , sndT
-    , domainT
-    , splitType
     , listDepth
-    , splitTypeArgsRes
-    , extractFunTRes
-    , extractFunTArgs
     , extractShape
     , unliftTypeN
     , unliftType
@@ -30,9 +25,7 @@ module Database.DSH.Common.Type
     , doubleT
     , listT
     , pairT
-    , (.->)
     , Typed (..)
-    , isFuns
     ) where
 
 import Text.PrettyPrint.ANSI.Leijen
@@ -42,7 +35,6 @@ import Database.DSH.Common.Pretty
 import Database.DSH.Common.Nat
   
 instance Pretty Type where 
-    pretty (FunT t1 t2)  = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty IntT          = text "Int"
     pretty BoolT         = text "Bool"
     pretty DoubleT       = text "Double"
@@ -53,8 +45,7 @@ instance Pretty Type where
 
 -- | We use the following type language to type the various
 -- intermediate languages.
-data Type  = FunT Type Type
-           | IntT 
+data Type  = IntT 
            | BoolT 
            | DoubleT
            | StringT 
@@ -63,25 +54,15 @@ data Type  = FunT Type Type
            | TupleT [Type]
            deriving (Show, Eq, Ord)
 
-infixr 6 .->
-
 isNum :: Type -> Bool
 isNum IntT        = True
 isNum DoubleT     = True
-isNum (FunT _ _)  = False
 isNum BoolT       = False
 isNum StringT     = False
 isNum UnitT       = False
 isNum (ListT _)   = False
 isNum (TupleT _)  = False
       
-domainT :: Type -> Type
-domainT (FunT t _) = t
-domainT _          = error "domainT: argument is not a function type"
-
-(.->) :: Type -> Type -> Type
-t1 .-> t2 = FunT t1 t2
-
 intT :: Type
 intT = IntT
 
@@ -131,20 +112,6 @@ sndT :: Type -> Type
 sndT (TupleT [_, t2]) = t2
 sndT _                = error "Type is not a pair type"
 
-extractFunTRes :: Type -> Type
-extractFunTRes = snd . splitTypeArgsRes
-
-extractFunTArgs :: Type -> [Type]
-extractFunTArgs = fst . splitTypeArgsRes
-
-splitTypeArgsRes :: Type -> ([Type], Type)
-splitTypeArgsRes (FunT t1 t2) = let (args, r) = splitTypeArgsRes t2 in (t1:args, r)
-splitTypeArgsRes t          = ([], t)
-
-splitType :: Type -> (Type, Type)
-splitType (FunT t1 t2) = (t1, t2)
-splitType _          = error "Can only split function types"
-
 extractShape :: Type -> Type -> Type
 extractShape (ListT t1) = \x -> listT $ extractShape t1 x
 extractShape _          = \x -> x
@@ -163,11 +130,6 @@ unliftTypeN (Succ n) t = unliftTypeN n $ unliftType t
 unliftType :: Type -> Type
 unliftType (ListT t1) = t1
 unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
-
-isFuns :: Type -> Bool
-isFuns (ListT t1) = isFuns t1
-isFuns (FunT _ _) = True
-isFuns _         = False 
 
 class Typed a where
   typeOf :: a -> Type

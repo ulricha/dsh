@@ -616,7 +616,6 @@ mkLiteral t@(ListT _) (L.ListV es) = do
           _ : _ -> L.NonEmpty
     litNode <- vlLit emptinessFlag (P.reverse tabTys) $ map P.reverse tabCols
     return $ VShape litNode lyt
-mkLiteral (FunT _ _) _  = $impossible
 -- Translate a non-list value, i.e. scalar or tuple
 mkLiteral t e           = do
     -- There is only one element in the outermost vector
@@ -654,12 +653,9 @@ toPlan (tabTys, tabCols) (ListT t) nextCol es =
                                _  -> List.transpose $ map tupleElems es
             mkTupleTable (tabTys, tabCols) nextCol [] colsVals elemTys
 
-        FunT _ _  -> $impossible
-
         _ -> let (hd, vs) = mkColumn t es
              in return ((hd:tabTys, zipWith (:) vs tabCols), (LCol nextCol), nextCol + 1)
 
-toPlan _ (FunT _ _) _ _ = $impossible
 toPlan (tabTys, tabCols) t c v =
     let (hd, v') = mkColumn t v
     in return $ ((hd:tabTys, zipWith (:) v' tabCols), (LCol c), c + 1)

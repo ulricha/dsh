@@ -186,9 +186,9 @@ translateType IntegerT       = T.intT
 translateType DoubleT        = T.doubleT
 translateType TextT          = T.stringT
 translateType (ListT t)      = T.listT (translateType t)
-translateType (ArrowT t1 t2) = (translateType t1) T..-> (translateType t2)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
+translateType (ArrowT t1 t2) = $impossible
 
 -- | From the type of a table (a list of base records represented as
 -- right-deep nested tuples) extract the types of the individual
