@@ -6,7 +6,6 @@ module Database.DSH.CL.Primitives where
 import qualified Prelude                    as P
 
 import qualified Data.List                  as List
-import           Debug.Trace
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
@@ -152,9 +151,9 @@ singleGenComp bodyExp v gen =
     in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
 
 group :: Expr -> Expr -> Expr
-group xs gs = let ListT xt = typeOf xs
-                  ListT gst = typeOf gs
-                  rt       = ListT (TupleT [xt, ListT gst])
+group xs gs = let ListT xt  = typeOf xs
+                  ListT grt = typeOf gs
+                  rt        = ListT (TupleT [grt, ListT xt])
               in AppE2 rt Group xs gs
 
 sort :: Expr -> Expr -> Expr
@@ -206,7 +205,7 @@ cond eb et ee = let tb = typeOf eb
                       else tyErr "cond"
 
 let_ :: L.Ident -> Expr -> Expr -> Expr
-let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
+let_ x e1 e2 = let t = typeOf e2 in Let t x e1 e2
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators

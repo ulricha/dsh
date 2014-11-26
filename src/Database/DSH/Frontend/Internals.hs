@@ -10,11 +10,9 @@ module Database.DSH.Frontend.Internals where
 import           Data.Text                        (Text)
 import           Text.PrettyPrint.ANSI.Leijen
 
+import           Database.DSH.Impossible
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.TupleTypes
-
-import           Database.DSH.Common.Pretty
-
 
 --------------------------------------------------------------------------------
 -- Typed frontend ASTs
@@ -57,7 +55,12 @@ instance Pretty (Type a) where
     pretty TextT          = text "Text"
     pretty (ListT t)      = brackets $ pretty t
     pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
-    pretty (TupleT ts)    = undefined
+    pretty (TupleT t)     = pretty t
+
+-- FIXME generate with TH
+instance Pretty (TupleType a) where
+    pretty (Tuple2T t1 t2) = tupled $ [pretty t1, pretty t2]
+    pretty _               = $unimplemented
 
 --------------------------------------------------------------------------------
 -- Classes

@@ -338,8 +338,11 @@ backdep4 xsss = [ [ [ x + length xs + length xss
                   ]
                 | xss <- xsss
                 ]
-    
+
+q23 :: [[[Integer]]] -> Q [[(Integer, [[Integer]])]]
+q23 xsss = map (groupWithKey length) (toQ xsss)
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c $ backdep4 $ toQ [[[],[0]]]
+main = getConn P.>>= \c -> runQ c (q23 []) P.>>= \r -> putStrLn (show r)
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q
