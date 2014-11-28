@@ -181,15 +181,10 @@ concat e d =
     let ListT rt@(ListT _) = unliftTypeN d $ typeOf e
     in PApp1 (liftTypeN d rt) Concat (LiftedN d) e
 
-dist :: LExpr -> LExpr -> LExpr
-dist e1 e2 =
+dist :: LExpr -> LExpr -> Nat -> LExpr
+dist e1 e2 d =
     let t1 = typeOf e1
-    in PApp2 (listT t1) Dist (LiftedN Zero) e1 e2
-
-distL :: LExpr -> LExpr -> LExpr
-distL e1 e2 =
-    let t1 = typeOf e1
-    in PApp2 (listT t1) Dist (LiftedN (Succ Zero)) e1 e2
+    in PApp2 (listT t1) Dist (LiftedN d) e1 e2
 
 restrict :: LExpr -> LExpr -> Nat -> LExpr
 restrict xs bs d =
@@ -229,25 +224,31 @@ un t o e d = UnOp (liftTypeN d t) o (LiftedN d) e
 
 
 --------------------------------------------------------------------------------
--- Smart constructors for special forms in both FKL dialects
+-- Smart constructors for special forms in the flat FKL dialect
 
 forget :: Nat -> FExpr -> FExpr
 forget n xs =
     let xst = typeOf xs
     in Ext $ Forget n (unwrapListType n xst) xs
 
-  where
-    unwrapListType :: Nat -> Type -> Type
-    unwrapListType Zero t               = t
-    unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
-    unwrapListType _         _          = $impossible
+unwrapListType :: Nat -> Type -> Type
+unwrapListType Zero t               = t
+unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
+unwrapListType _         _          = $impossible
 
 imprint :: Nat -> FExpr -> FExpr -> FExpr
 imprint n shape bottom = Ext $ Imprint n (wrapListType n bt) shape bottom
   where
     bt = typeOf bottom
 
-    wrapListType :: Nat -> Type -> Type
-    wrapListType Zero t     = t
-    wrapListType (Succ n') t = wrapListType n' (listT t)
+wrapListType :: Nat -> Type -> Type
+wrapListType Zero t     = t
+wrapListType (Succ n') t = wrapListType n' (listT t)
 
+--------------------------------------------------------------------------------
+-- Smart constructors for special forms in the flat FKL dialect
+
+broadcast :: Nat -> LExpr -> LExpr -> LExpr
+broadcast d e1 e2 = Ext $ Broadcast d ty e1 e2
+  where
+    ty = wrapListType d (typeOf e1)

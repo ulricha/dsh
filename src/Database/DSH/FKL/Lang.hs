@@ -37,7 +37,6 @@ data ExprTempl l e = Table Type String [L.Column] L.TableHints
                    | MkTuple Type l [(ExprTempl l e)]
 
 data BroadcastExt = Broadcast Nat Type LExpr LExpr
-                  | BroadcastL Nat Type LExpr LExpr
 
 data ShapeExt = Forget Nat Type FExpr
               | Imprint Nat Type FExpr FExpr
@@ -106,7 +105,6 @@ instance Typed e => Typed (ExprTempl l e) where
 
 instance Typed BroadcastExt where
     typeOf (Broadcast _ t _ _) = t
-    typeOf (BroadcastL _ t _ _) = t
 
 instance Typed ShapeExt where
     typeOf (Forget _ t _)    = t
@@ -228,12 +226,6 @@ instance Pretty ShapeExt where
     
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) = 
-        text "forget" 
-        <> (angles $ int $ intFromNat n)
-        <+> (align $ (parenthize e1)
-                     </> (parenthize e2))
-
-    pretty (BroadcastL n _ e1 e2) = 
         text "forget" 
         <> (angles $ int $ intFromNat n)
         <+> (align $ (parenthize e1)

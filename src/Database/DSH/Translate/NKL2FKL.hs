@@ -10,6 +10,7 @@ import           Control.Monad.Reader
 import           Control.Applicative
 import           Data.List.NonEmpty          (NonEmpty(..), (<|))
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
@@ -26,6 +27,8 @@ flatTransform expr = optimizeFKL "FKL"
                      $ normalize 
                      $ optimizeFKL "FKL Intermediate" 
                      $ runFlat [] (flatten expr)
+
+flatten = undefined
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation
@@ -86,6 +89,8 @@ envVar (n, t) = F.Var t n
 
 ctxVarM :: (e -> (Ident, Type)) -> Flatten e F.LExpr
 ctxVarM p = envVar <$> asks p
+
+{-
 
 type LetEnv = [(Ident, Type)]
 
@@ -218,6 +223,7 @@ liftTopEnv ctx headExpr env = mkLiftingLet env
 
     cv :: F.LExpr
     cv = envVar ctx
+-}
 
 --------------------------------------------------------------------------------
 -- Compile expressions which are nested deeper, i.e. at least at
@@ -278,17 +284,15 @@ frameDepthM = asks frameDepth
 -- least two.
 deepFlatten :: N.Expr -> Flatten NestedEnv F.LExpr
 deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
--- FIXME abstract over dist
 deepFlatten (N.Table t n cs hs)  = do
-    Succ d1 <- frameDepthM
-    ctx     <- ctxVarM context
-    return $ P.imprint d1 ctx $ P.dist (F.Table t n cs hs) (P.forget d1 ctx)
+    d   <- frameDepthM
+    ctx <- ctxVarM context
+    return $ P.broadcast d (F.Table t n cs hs) ctx
 
--- FIXME abstract over dist
 deepFlatten (N.Const t v)        = do
-    Succ d1 <- frameDepthM
-    ctx     <- ctxVarM context
-    return $ P.imprint d1 ctx $ P.dist (F.Const t v) (P.forget d1 ctx)
+    d   <- frameDepthM
+    ctx <- ctxVarM context
+    return $ P.broadcast d (F.Const t v) ctx
 
 deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
 deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
@@ -335,7 +339,7 @@ deepFlatten (N.Iterator _ h x xs)    = do
 
     xs'         <- deepFlatten xs
 
-    return $ P.let_ x xs' (liftNestedEnv cv' d1 headExpr env)
+    return $ P.let_ x xs' (liftNestedEnv cv' d headExpr env)
 
 restrictEnv :: NonEmpty (Ident, Type) -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
 restrictEnv env d1 bs branchExpr = mkRestrictLet env
@@ -355,20 +359,17 @@ restrictEnv env d1 bs branchExpr = mkRestrictLet env
 -- terminated by the flattened head expression of the current
 -- iterator.
 liftNestedEnv :: (Ident, Type) -> Nat -> F.LExpr -> NonEmpty (Ident, Type) -> F.LExpr
-liftNestedEnv ctx d1 headExpr env = mkLiftingLet env
+liftNestedEnv ctx d headExpr env = mkLiftingLet env
   where
     mkLiftingLet :: NonEmpty (Ident, Type) -> F.LExpr
     mkLiftingLet (e :| [])  =
-        P.let_ (fst e) 
-               (P.imprint d1 cv (P.distL (P.forget d1 $ envVar e) (P.forget d1 cv)))
-               headExpr
+        P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
     mkLiftingLet (e :| (e2 : es)) =
-        P.let_ (fst e) 
-               (P.imprint d1 cv (P.distL (P.forget d1 $ envVar e) (P.forget d1 cv)))
-               (mkLiftingLet (e2 :| es))
+        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 :| es))
 
     cv :: F.LExpr
     cv = envVar ctx
+
 
 --------------------------------------------------------------------------------
 -- Normalization of intermediate flat expressions into the final
@@ -388,6 +389,16 @@ freshNameN = do
 normalize :: F.LExpr -> F.FExpr
 normalize e = evalState (normLifting e) 0
 
+implementBroadcast :: F.BroadcastExt -> NormFlat F.FExpr
+implementBroadcast (F.Broadcast n t e1 e2) = do
+    e1' <- normLifting e1
+    e2' <- normLifting e2
+    case n of
+        Zero          -> $impossible
+        Succ Zero     -> return $ P.dist e1' e2'
+        -- FIXME use let-binding
+        Succ (Succ n) -> return $ P.imprint (Succ n) e2' (P.dist e1' (P.forget (Succ n) e2'))
+
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants by flattening the arguments and
 -- restoring the original list shape on the result.
@@ -396,9 +407,8 @@ normLifting (F.Table t n cs hs)    = return $ F.Table t n cs hs
 normLifting (F.If t ce te ee)      = F.If t <$> normLifting ce <*> normLifting te <*> normLifting ee
 normLifting (F.Const t v)          = return $ F.Const t v
 normLifting (F.Var t n)            = return $ F.Var t n
-normLifting (F.Forget n t e)       = F.Forget n t <$> normLifting e
-normLifting (F.Imprint n t e1 e2)  = F.Imprint n t <$> normLifting e1 <*> normLifting e2
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2
+normLifting (F.Ext b)              = implementBroadcast b
 normLifting (F.MkTuple t l es)     =
     case l of
         F.LiftedN Zero         -> F.MkTuple t F.NotLifted <$> mapM normLifting es

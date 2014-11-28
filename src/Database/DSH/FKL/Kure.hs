@@ -348,7 +348,6 @@ broadcastT :: Monad m => Transform FlatCtx m LExpr a1
 broadcastT t1 t2 f = transform $ \c expr -> case expr of
     Broadcast n ty e1 e2 -> f n ty <$> applyT t1 (c@@BroadcastArg1) e1
                                    <*> applyT t2 (c@@BroadcastArg2) e2
-    _                    -> fail "not a broadcast call"
 {-# INLINE broadcastT #-}
 
 broadcastR :: Monad m => Rewrite FlatCtx m LExpr 
@@ -357,22 +356,6 @@ broadcastR :: Monad m => Rewrite FlatCtx m LExpr
 broadcastR r1 r2 = broadcastT r1 r2 Broadcast
 {-# INLINE broadcastR #-}
 
-broadcastLT :: Monad m => Transform FlatCtx m LExpr a1
-                       -> Transform FlatCtx m LExpr a2
-                       -> (Nat -> Type -> a1 -> a2 -> b)
-                       -> Transform FlatCtx m BroadcastExt b
-broadcastLT t1 t2 f = transform $ \c expr -> case expr of
-    BroadcastL n ty e1 e2 -> f n ty <$> applyT t1 (c@@BroadcastArg1) e1
-                                    <*> applyT t2 (c@@BroadcastArg2) e2
-    _                    -> fail "not a broadcast call"
-{-# INLINE broadcastLT #-}
-
-broadcastLR :: Monad m => Rewrite FlatCtx m LExpr 
-                       -> Rewrite FlatCtx m LExpr 
-                       -> Rewrite FlatCtx m BroadcastExt
-broadcastLR r1 r2 = broadcastLT r1 r2 BroadcastL
-{-# INLINE broadcastLR #-}
-                    
 --------------------------------------------------------------------------------
 
 data FKL l e = ExprFKL (ExprTempl l e)
@@ -431,7 +414,6 @@ instance Walker FlatCtx (FKL LiftedN BroadcastExt) where
       where
         allRBC = readerT $ \o -> case o of
                 Broadcast{}  -> broadcastR (extractR r) (extractR r)
-                BroadcastL{} -> broadcastLR (extractR r) (extractR r)
 
 allRExpr :: (Injection (ExprTempl t t1) g, Injection t1 g, Monad m)
          => Rewrite FlatCtx m g
