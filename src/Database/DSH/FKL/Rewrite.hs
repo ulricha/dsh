@@ -16,18 +16,24 @@ import Database.DSH.Common.Pretty
 import Database.DSH.FKL.Lang
 import Database.DSH.FKL.Kure
 
+optimizeFKL = undefined
+
 -- | Run a translate on an expression without context
-applyExpr :: TransformF (Expr l) b -> Expr l -> Either String b
-applyExpr f e = runRewriteM $ applyT f initialCtx e
+applyExpr :: TransformF (ExprTempl l e) b -> (ExprTempl l e) -> Either String b
+applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
 
-freeVarsT :: TransformF (Expr l) [Ident]
-freeVarsT = fmap nub $ crushbuT $ do (ctx, Var _ v) <- exposeT
-                                     guardM (v `freeIn` ctx)
-                                     return [v]
+freeVarsT :: TransformF FKL [Ident]
+freeVarsT = fmap nub 
+            $ crushbuT 
+            $ promoteT 
+            $ do (ctx, Var _ v) <- exposeT :: TransformF FExpr (FlatCtx, FExpr)
+                 guardM (v `freeIn` ctx)
+                 return [v]
 
+{-
 -- | Compute free variables of the given expression
 freeVars :: Expr l -> [Ident]
 freeVars = either error id . applyExpr freeVarsT
@@ -119,3 +125,4 @@ optimizeFKL stage expr = debugOpt stage expr optimizedExpr
   where
     optimizedExpr = applyExpr fklOptimizations expr
         
+-}

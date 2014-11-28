@@ -166,10 +166,12 @@ topFlatten (N.If _ ce te ee)    = do
   
     -- For the THEN branch, consider only those iterations in which
     -- the condition is TRUE.
+    -- FIXME restrict all environment entries!
     ts <- P.let_ ctxName (P.restrict ctxVar bs Zero) <$> topFlatten te
 
     -- For the ELSE branch, consider only those iterations in which
     -- the condition is FALSE.
+    -- FIXME restrict all environment entries!
     fs <- P.let_ ctxName (P.restrict ctxVar (notL bs) Zero) <$> topFlatten ee
 
     -- Combine the results for the then and else branches. Combined,
@@ -276,11 +278,13 @@ frameDepthM = asks frameDepth
 -- least two.
 deepFlatten :: N.Expr -> Flatten NestedEnv F.LExpr
 deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
+-- FIXME abstract over dist
 deepFlatten (N.Table t n cs hs)  = do
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM context
     return $ P.imprint d1 ctx $ P.dist (F.Table t n cs hs) (P.forget d1 ctx)
 
+-- FIXME abstract over dist
 deepFlatten (N.Const t v)        = do
     Succ d1 <- frameDepthM
     ctx     <- ctxVarM context
@@ -295,6 +299,7 @@ deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2
 deepFlatten (N.Let _ x xs e)     = P.let_ x <$> deepFlatten xs 
                                             <*> local (bindNestedEnv x (typeOf xs)) (deepFlatten e)
 
+-- FIXME abstract over environment restriction wrt. to depth
 deepFlatten (N.If _ ce te ee)    = do
     Succ d1      <- frameDepthM
     

@@ -22,36 +22,28 @@ data LiftedN = LiftedN Nat deriving (Show)
 -- occur either unlifted or lifted once.
 data Lifted = Lifted | NotLifted deriving (Show)
 
--- | 'LExpr' is the intermediate language that allows built-ins lifted
--- to arbitrary levels.
-data LExpr = LTable Type String [L.Column] L.TableHints
-           | LPApp1 Type Prim1 LiftedN LExpr
-           | LPApp2 Type Prim2 LiftedN LExpr LExpr
-           | LPApp3 Type Prim3 LiftedN LExpr LExpr LExpr
-           | LIf Type LExpr LExpr LExpr
-           | LBinOp Type L.ScalarBinOp LiftedN LExpr LExpr
-           | LUnOp Type L.ScalarUnOp LiftedN LExpr
-           | LConst Type L.Val
-           | LLet Type L.Ident LExpr LExpr
-           | LVar Type L.Ident
-           | LMkTuple Type LiftedN [LExpr]
-           | LBroadcast Nat Type LExpr LExpr
-           | LBroadcastL Nat Type LExpr LExpr
-
 -- | 'FExpr' is the target language of the flattening transformation.
-data FExpr = Table Type String [L.Column] L.TableHints
-           | PApp1 Type Prim1 Lifted FExpr
-           | PApp2 Type Prim2 Lifted FExpr FExpr
-           | PApp3 Type Prim3 Lifted FExpr FExpr FExpr
-           | If Type FExpr FExpr FExpr
-           | BinOp Type L.ScalarBinOp Lifted FExpr FExpr
-           | UnOp Type L.ScalarUnOp Lifted FExpr
-           | Const Type L.Val
-           | Forget Nat  Type FExpr
-           | Imprint Nat Type FExpr FExpr
-           | Let Type L.Ident FExpr FExpr
-           | Var Type L.Ident
-           | MkTuple Type Lifted [FExpr]
+data ExprTempl l e = Table Type String [L.Column] L.TableHints
+                   | PApp1 Type Prim1 l (ExprTempl l e)
+                   | PApp2 Type Prim2 l (ExprTempl l e) (ExprTempl l e)
+                   | PApp3 Type Prim3 l (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
+                   | If Type (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
+                   | BinOp Type L.ScalarBinOp l (ExprTempl l e) (ExprTempl l e)
+                   | UnOp Type L.ScalarUnOp l (ExprTempl l e)
+                   | Const Type L.Val
+                   | Ext e
+                   | Let Type L.Ident (ExprTempl l e) (ExprTempl l e)
+                   | Var Type L.Ident
+                   | MkTuple Type l [(ExprTempl l e)]
+
+data BroadcastExt = Broadcast Nat Type LExpr LExpr
+                  | BroadcastL Nat Type LExpr LExpr
+
+data ShapeExt = Forget Nat Type FExpr
+              | Imprint Nat Type FExpr FExpr
+
+type FExpr = ExprTempl Lifted ShapeExt
+type LExpr = ExprTempl LiftedN BroadcastExt
 
 -- | Forget does not unsegment the vector. That is: the descriptor
 -- might not be normalized and segment descriptors other than 1 might
@@ -98,7 +90,7 @@ data Prim2 = Group
 data Prim3 = Combine
     deriving (Show, Eq)
 
-instance Typed FExpr where
+instance Typed e => Typed (ExprTempl l e) where
     typeOf (Var t _)           = t
     typeOf (Let t _ _ _)       = t
     typeOf (Table t _ _ _)     = t
@@ -109,24 +101,16 @@ instance Typed FExpr where
     typeOf (BinOp t _ _ _ _)   = t
     typeOf (UnOp t _ _ _)      = t
     typeOf (Const t _)         = t
-    typeOf (Forget _ t _)      = t
-    typeOf (Imprint _ t _ _)   = t
     typeOf (MkTuple t _ _)     = t
+    typeOf (Ext o)             = typeOf o
 
-instance Typed LExpr where
-    typeOf (LVar t _)            = t
-    typeOf (LLet t _ _ _)        = t
-    typeOf (LTable t _ _ _)      = t
-    typeOf (LPApp1 t _ _ _)      = t
-    typeOf (LPApp2 t _ _ _ _)    = t
-    typeOf (LPApp3 t _ _ _ _ _)  = t
-    typeOf (LIf t _ _ _)         = t
-    typeOf (LBinOp t _ _ _ _)    = t
-    typeOf (LUnOp t _ _ _)       = t
-    typeOf (LConst t _)          = t
-    typeOf (LMkTuple t _ _)      = t
-    typeOf (LBroadcast _ t _ _ ) = t
-    typeOf (LBroadcastL _ t _ _) = t
+instance Typed BroadcastExt where
+    typeOf (Broadcast _ t _ _) = t
+    typeOf (BroadcastL _ t _ _) = t
+
+instance Typed ShapeExt where
+    typeOf (Forget _ t _)    = t
+    typeOf (Imprint _ t _ _) = t
 
 --------------------------------------------------------------------------------
 -- Pretty-printing of FKL dialects
@@ -187,7 +171,7 @@ instance Pretty Prim2 where
 instance Pretty Prim3 where
     pretty Combine = text "combine"
 
-instance Pretty FExpr where
+instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (MkTuple _ l es) = (tupled $ map pretty es) <> pretty l
 
     pretty (Var _ n) = text n
@@ -228,6 +212,9 @@ instance Pretty FExpr where
 
     pretty (Const _ v) = pretty v
 
+    pretty (Ext o) = pretty o
+
+instance Pretty ShapeExt where
     pretty (Forget n _ e) = 
         text "forget" 
         <> (angles $ int $ intFromNat n)
@@ -238,8 +225,21 @@ instance Pretty FExpr where
         <> (angles $ int $ intFromNat n) 
         <+> (align $ (parenthize e1) 
                      </> (parenthize e2))
+    
+instance Pretty BroadcastExt where
+    pretty (Broadcast n _ e1 e2) = 
+        text "forget" 
+        <> (angles $ int $ intFromNat n)
+        <+> (align $ (parenthize e1)
+                     </> (parenthize e2))
 
-parenthize :: FExpr -> Doc
+    pretty (BroadcastL n _ e1 e2) = 
+        text "forget" 
+        <> (angles $ int $ intFromNat n)
+        <+> (align $ (parenthize e1)
+                     </> (parenthize e2))
+
+parenthize :: (Pretty l, Pretty e) => ExprTempl l e -> Doc
 parenthize e =
     case e of
         Const{}                 -> pretty e
@@ -248,64 +248,3 @@ parenthize e =
         PApp1 _ (TupElem _) _ _ -> pretty e
         _                       -> parens $ pretty e
 
-instance Pretty LExpr where
-    pretty (LMkTuple _ l es) = (tupled $ map pretty es) <> pretty l
-
-    pretty (LVar _ n) = text n
-    pretty (LLet _ x e1 e) = 
-        align $ text "let" <+> text x {- <> colon <> colon <> pretty (typeOf e1) -} <+> char '=' <+> pretty e1
-                <$>
-                text "in" <+> pretty e
-
-    pretty (LTable _ n _c _k) = text "table" <> parens (text n)
-
-    pretty (LPApp1 _ (TupElem n) l e1) = 
-        parenthizeL e1 <> dot <> int (tupleIndex n) <> pretty l
-
-    pretty (LPApp1 _ f l e1) =
-        pretty f <> pretty l <+> (parenthizeL e1)
-
-    pretty (LPApp2 _ f l e1 e2) =
-        pretty f <> pretty l <+> (align $ (parenthizeL e1) </> (parenthizeL e2))
-
-    pretty (LPApp3 _ f l e1 e2 e3) =
-        pretty f <> pretty l
-        <+> (align $ (parenthizeL e1) 
-                     </> (parenthizeL e2) 
-                     </> (parenthizeL e3))
-    pretty (LIf _ e1 e2 e3) =
-        let e1' = pretty e1
-            e2' = pretty e2
-            e3' = pretty e3
-        in text "if" <+> e1'
-           </> (nest 2 $ text "then" <+> e2')
-           </> (nest 2 $ text "else" <+> e3')
-
-    pretty (LBinOp _ o l e1 e2) =
-        align $ parenthizeL e1 </> pretty o <> pretty l </> parenthizeL e2
-
-    pretty (LUnOp _ o l e) =
-        pretty o <> pretty l <> parens (pretty e)
-
-    pretty (LConst _ v) = pretty v
-
-    pretty (LBroadcast n _ e1 e2) = 
-        text "forget" 
-        <> (angles $ int $ intFromNat n)
-        <+> (align $ (parenthizeL e1)
-                     </> (parenthizeL e2))
-
-    pretty (LBroadcastL n _ e1 e2) = 
-        text "imprint" 
-        <> (angles $ int $ intFromNat n) 
-        <+> (align $ (parenthizeL e1) 
-                     </> (parenthizeL e2))
-
-parenthizeL :: LExpr -> Doc
-parenthizeL e =
-    case e of
-        LConst{}                 -> pretty e
-        LTable{}                 -> pretty e
-        LVar{}                   -> pretty e
-        LPApp1 _ (TupElem _) _ _ -> pretty e
-        _                        -> parens $ pretty e
