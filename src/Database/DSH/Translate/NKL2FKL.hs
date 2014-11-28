@@ -75,6 +75,7 @@ prim2 p =
         N.AntiJoin jp  -> P.antiJoin jp
 
 --------------------------------------------------------------------------------
+-- Flattening environment
 
 type Flatten a = Reader Env a
 
@@ -110,6 +111,40 @@ descendEnv x env = env { inScope    = x : inScope env
 
 frameDepthM :: Flatten Nat
 frameDepthM = asks frameDepth
+
+-- | Restrict all environment entries according to a boolean vector
+-- ('then' or 'else' branch).
+restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
+restrictEnv env d1 bs branchExpr = mkRestrictLet env
+  where
+    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
+    mkRestrictLet [] = $impossible
+    mkRestrictLet (e : []) =
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               branchExpr
+    mkRestrictLet (e : (e2 : es)) = 
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               (mkRestrictLet (e2 : es))
+
+-- | Lift all names bound in the environment: the value is replicated
+-- for each element of the current context. The chain of 'let's is
+-- terminated by the flattened head expression of the current
+-- iterator.
+liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
+liftEnv ctx d headExpr env = mkLiftingLet env
+  where
+    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
+    mkLiftingLet []        = headExpr
+    mkLiftingLet (e : [])  =
+        P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
+    mkLiftingLet (e : (e2 : es)) =
+        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 : es))
+
+    cv :: F.LExpr
+    cv = envVar ctx
+
 
 --------------------------------------------------------------------------------
 
@@ -188,37 +223,6 @@ deepFlatten ctx (N.Iterator _ h x xs)    = do
     xs'         <- deepFlatten ctx xs
 
     return $ P.let_ x xs' (liftEnv ctx' d headExpr env)
-
-restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
-restrictEnv env d1 bs branchExpr = mkRestrictLet env
-  where
-    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
-    mkRestrictLet [] = $impossible
-    mkRestrictLet (e : []) =
-        P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
-               branchExpr
-    mkRestrictLet (e : (e2 : es)) = 
-        P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
-               (mkRestrictLet (e2 : es))
-
--- | Lift all names bound in the environment: the value is replicated
--- for each element of the current context. The chain of 'let's is
--- terminated by the flattened head expression of the current
--- iterator.
-liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
-liftEnv ctx d headExpr env = mkLiftingLet env
-  where
-    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet []        = headExpr
-    mkLiftingLet (e : [])  =
-        P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
-    mkLiftingLet (e : (e2 : es)) =
-        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 : es))
-
-    cv :: F.LExpr
-    cv = envVar ctx
 
 
 --------------------------------------------------------------------------------

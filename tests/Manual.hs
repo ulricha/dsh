@@ -342,7 +342,22 @@ backdep4 xsss = [ [ [ x + length xs + length xss
 q23 :: [[[Integer]]] -> Q [[(Integer, [[Integer]])]]
 q23 xsss = map (groupWithKey length) (toQ xsss)
 
+-- Test data for testcase hnj12
+njxs2, njys2, njzs2 :: [Integer]
+njxs2 = [1,2,3,4,5,5,2]
+njys2 = [2,1,0,5,4,4,4]
+njzs2 = [6,1,1,3,2,5]
+
+nj12 :: [Integer] -> [Integer] -> [Integer] -> Q [[[(Integer, Integer, Integer)]]]
+nj12 njxs njys njzs =
+    [ [ [ tup3 x y z | z <- toQ njzs, y == z ]
+      | y <- toQ njys
+      , x == y
+      ]
+    | x <- toQ njxs
+    ]
+
 main :: IO ()
-main = getConn P.>>= \c -> runQ c (q23 []) P.>>= \r -> putStrLn (show r)
+main = getConn P.>>= \c -> debugQ "q" c (nj12 njxs2 njys2 njzs2)  P.>>= \r -> putStrLn (show r)
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

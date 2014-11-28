@@ -220,7 +220,6 @@ unnestFromHeadR = do
     guardM $ all isGuard qsr
     
     (headCompPath, headComp) <- childT CompHead (searchNestedCompT x)
-    debugMsg $ "found nested " ++ show headComp
 
     (headComp', nestOp, tuplifyOuterR) <- unnestWorkerT headComp (x, xs)
 
