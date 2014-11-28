@@ -18,7 +18,7 @@ import Database.DSH.FKL.Kure
 
 -- | Run a translate on an expression without context
 applyExpr :: (Injection (ExprTempl l e) (FKL l e))
-          => TransformF (FKL l e) b -> (ExprTempl l e) -> Either String b
+          => TransformF (FKL l e) b -> ExprTempl l e -> Either String b
 applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 
 --------------------------------------------------------------------------------
@@ -46,8 +46,8 @@ alphaLetR :: ( Injection (ExprTempl l e) (FKL l e)
              , Typed e)
           => [Ident] -> RewriteF (FKL l e)
 alphaLetR avoidNames = do
-    ExprFKL (Let letTy x e1 e2) <- idR
-    x'                <- freshNameT (x : freeVars e2 ++ avoidNames)
+    ExprFKL (Let _ x e1 e2) <- idR
+    x'                      <- freshNameT (x : freeVars e2 ++ avoidNames)
     let varTy = typeOf e1
     childR LetBody (tryR $ substR x (Var varTy x'))
 
@@ -105,7 +105,7 @@ referencedOnceR = do
     1            <- childT LetBody $ countVarRefT x
     childT LetBody $ substR x e1
 
-simpleExpr :: (ExprTempl l e) -> Bool
+simpleExpr :: ExprTempl l e -> Bool
 simpleExpr Table{}                   = True
 simpleExpr Var{}                     = True
 simpleExpr (PApp1 _ (TupElem _) _ e) = simpleExpr e
@@ -125,9 +125,11 @@ fklOptimizations = anybuR $ unusedBindingR
                             <+ referencedOnceR
                             <+ simpleBindingR
 
-optimizeFKL :: Pretty (ExprTempl l e) => String -> ExprTempl l e -> ExprTempl l e
-optimizeFKL stage expr =
-    case applyExpr fklOptimizations expr of
-        ExprFKL expr' -> debugOpt stage expr expr'
-        ExtFKL expr'  -> debugOpt stage expr (Ext expr')
-        
+optimizeFKL :: ( Injection (ExprTempl l e) (FKL l e)
+               , Walker FlatCtx (FKL l e)
+               , Typed e, Pretty (ExprTempl l e)
+               ) 
+            => String -> ExprTempl l e -> ExprTempl l e
+optimizeFKL stage expr = debugOpt stage expr expr'
+  where
+    expr' = applyExpr (fklOptimizations >>> projectT) expr

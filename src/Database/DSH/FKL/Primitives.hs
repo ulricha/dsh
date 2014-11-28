@@ -207,6 +207,16 @@ tupElem f e d =
     let t = tupleElemT (unliftTypeN d $ typeOf e) f
     in PApp1 (liftTypeN d t) (TupElem f) (LiftedN d) e
 
+if_ :: Typed e => ExprTempl l e -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
+if_ eb et ee =
+    let (BoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
+    in if tt == te
+       then If tt eb et ee
+       else error $ printf "FKL.if: incompatible types: %s %s" (pp tt) (pp te)
+
+let_ :: Typed e => Ident -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
+let_ x e1 e2 = Let (typeOf e2) x e1 e2
+
 --------------------------------------------------------------------------------
 -- Smart constructors for binary and unary operators.
 
@@ -221,10 +231,10 @@ un t o e d = UnOp (liftTypeN d t) o (LiftedN d) e
 --------------------------------------------------------------------------------
 -- Smart constructors for special forms in both FKL dialects
 
-forget :: Nat -> Expr l -> Expr l
+forget :: Nat -> FExpr -> FExpr
 forget n xs =
     let xst = typeOf xs
-    in Forget n (unwrapListType n xst) xs
+    in Ext $ Forget n (unwrapListType n xst) xs
 
   where
     unwrapListType :: Nat -> Type -> Type
@@ -232,8 +242,8 @@ forget n xs =
     unwrapListType (Succ n') (ListT xt) = unwrapListType n' xt
     unwrapListType _         _          = $impossible
 
-imprint :: Nat -> Expr l -> Expr l -> Expr l
-imprint n shape bottom = Imprint n (wrapListType n bt) shape bottom
+imprint :: Nat -> FExpr -> FExpr -> FExpr
+imprint n shape bottom = Ext $ Imprint n (wrapListType n bt) shape bottom
   where
     bt = typeOf bottom
 
@@ -241,12 +251,3 @@ imprint n shape bottom = Imprint n (wrapListType n bt) shape bottom
     wrapListType Zero t     = t
     wrapListType (Succ n') t = wrapListType n' (listT t)
 
-if_ :: LExpr -> LExpr -> LExpr -> LExpr
-if_ eb et ee =
-    let (BoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
-    in if tt == te
-       then If tt eb et ee
-       else error $ printf "FKL.if: incompatible types: %s %s" (pp tt) (pp te)
-
-let_ :: Ident -> Expr l -> Expr l -> Expr l
-let_ x e1 e2 = Let (typeOf e2) x e1 e2

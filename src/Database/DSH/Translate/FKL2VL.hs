@@ -86,10 +86,10 @@ fkl2VL expr =
             arg2' <- fkl2VL arg2
             arg3' <- fkl2VL arg3
             lift $ papp3 p l arg1' arg2' arg3'
-        Forget n _ arg -> do
+        Ext (Forget n _ arg) -> do
             arg' <- fkl2VL arg
             return $ V.qConcat n arg'
-        Imprint n _ arg1 arg2 -> do
+        Ext (Imprint n _ arg1 arg2) -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
             return $ V.unconcat n arg1' arg2'
