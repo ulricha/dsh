@@ -23,7 +23,7 @@ module Database.DSH.FKL.Kure
     , FlatCtx(..), CrumbF(..), PathF
 
       -- * Universes
-    , FKL(..), LFKL(..)
+    , FKL(..)
 
       -- * Congruence combinators
     , tableT, papp1T, papp2T, papp3T, binopT, unopT
@@ -375,70 +375,63 @@ broadcastLR r1 r2 = broadcastLT r1 r2 BroadcastL
                     
 --------------------------------------------------------------------------------
 
-data FKL = ExprFKL FExpr
-         | ShapeFKL ShapeExt
+data FKL l e = ExprFKL (ExprTempl l e)
+             | ExtFKL e
 
-instance Pretty FKL where
-    pretty (ExprFKL e)  = pretty e
-    pretty (ShapeFKL s) = pretty s
+instance (Pretty e, Pretty l) => Pretty (FKL l e) where
+    pretty (ExprFKL e) = pretty e
+    pretty (ExtFKL o)  = pretty o
 
-instance Injection FExpr FKL where
+instance Injection FExpr (FKL Lifted ShapeExt) where
     inject              = ExprFKL
 
     project (ExprFKL e) = Just e
     project _           = Nothing
 
-instance Injection ShapeExt FKL where
-    inject               = ShapeFKL
+instance Injection ShapeExt (FKL Lifted ShapeExt) where
+    inject             = ExtFKL
 
-    project (ShapeFKL s) = Just s
-    project _            = Nothing
+    project (ExtFKL s) = Just s
+    project _          = Nothing
 
 --------------------------------------------------------------------------------
 
-data LFKL = ExprLFKL LExpr
-          | BroadcastLFKL BroadcastExt
+instance Injection LExpr (FKL LiftedN BroadcastExt) where
+    inject              = ExprFKL
 
-instance Pretty LFKL where
-    pretty (ExprLFKL e)      = pretty e
-    pretty (BroadcastLFKL s) = pretty s
+    project (ExprFKL e) = Just e
+    project _           = Nothing
 
-instance Injection LExpr LFKL where
-    inject              = ExprLFKL
+instance Injection BroadcastExt (FKL LiftedN BroadcastExt) where
+    inject             = ExtFKL
 
-    project (ExprLFKL e) = Just e
-    project _            = Nothing
-
-instance Injection BroadcastExt LFKL where
-    inject                    = BroadcastLFKL
-
-    project (BroadcastLFKL s) = Just s
-    project _                 = Nothing
+    project (ExtFKL s) = Just s
+    project _          = Nothing
    
 
 --------------------------------------------------------------------------------
 
-instance Walker FlatCtx LFKL where
-    allR r = 
-        rewrite $ \c fkl -> case fkl of
-            ExprLFKL expr   -> inject <$> applyT (allRExpr r) c expr
-            BroadcastLFKL o -> inject <$> applyT allRBC c o
-
-      where
-        allRBC = readerT $ \o -> case o of
-                Broadcast{}  -> broadcastR (extractR r) (extractR r)
-                BroadcastL{} -> broadcastLR (extractR r) (extractR r)
-
-instance Walker FlatCtx FKL where
+instance Walker FlatCtx (FKL Lifted ShapeExt) where
     allR r = 
         rewrite $ \c fkl -> case fkl of
             ExprFKL expr -> inject <$> applyT (allRExpr r) c expr
-            ShapeFKL o   -> inject <$> applyT allRShape c o
+            ExtFKL o     -> inject <$> applyT allRShape c o
 
       where
         allRShape = readerT $ \o -> case o of
                 Imprint{} -> imprintR (extractR r) (extractR r)
                 Forget{}  -> forgetR (extractR r)
+
+instance Walker FlatCtx (FKL LiftedN BroadcastExt) where
+    allR r = 
+        rewrite $ \c fkl -> case fkl of
+            ExprFKL expr -> inject <$> applyT (allRExpr r) c expr
+            ExtFKL o     -> inject <$> applyT allRBC c o
+
+      where
+        allRBC = readerT $ \o -> case o of
+                Broadcast{}  -> broadcastR (extractR r) (extractR r)
+                BroadcastL{} -> broadcastLR (extractR r) (extractR r)
 
 allRExpr :: (Injection (ExprTempl t t1) g, Injection t1 g, Monad m)
          => Rewrite FlatCtx m g
