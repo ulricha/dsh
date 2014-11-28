@@ -187,7 +187,7 @@ deepFlatten ctx (N.Iterator _ h x xs)    = do
 
     xs'         <- deepFlatten ctx xs
 
-    return $ P.let_ x xs' (liftEnv ctx d headExpr env)
+    return $ P.let_ x xs' (liftEnv ctx' d headExpr env)
 
 restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
 restrictEnv env d1 bs branchExpr = mkRestrictLet env
@@ -211,7 +211,7 @@ liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
 liftEnv ctx d headExpr env = mkLiftingLet env
   where
     mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet []        = $impossible
+    mkLiftingLet []        = headExpr
     mkLiftingLet (e : [])  =
         P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
     mkLiftingLet (e : (e2 : es)) =
