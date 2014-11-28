@@ -245,6 +245,10 @@ wrapListType :: Nat -> Type -> Type
 wrapListType Zero t     = t
 wrapListType (Succ n') t = wrapListType n' (listT t)
 
+-- | A regular single 'dist' in the normalized FKL dialect
+fdist :: FExpr -> FExpr -> FExpr
+fdist e1 e2 = PApp2 (listT $ typeOf e1) Dist NotLifted e1 e2
+
 --------------------------------------------------------------------------------
 -- Smart constructors for special forms in the flat FKL dialect
 
