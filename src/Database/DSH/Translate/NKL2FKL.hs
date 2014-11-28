@@ -8,7 +8,6 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
-import           Data.List.NonEmpty          (NonEmpty(..), (<|))
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
@@ -26,7 +25,7 @@ flatTransform :: N.Expr -> F.FExpr
 flatTransform expr = optimizeFKL "FKL" 
                      $ normalize 
                      $ optimizeFKL "FKL Intermediate" 
-                     $ runFlat [] (flatten expr)
+                     $ runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation
@@ -77,26 +76,46 @@ prim2 p =
 
 --------------------------------------------------------------------------------
 
-type Flatten e a = Reader e a
+type Flatten a = Reader Env a
 
-runFlat :: e -> Flatten e a -> a
+runFlat :: Env -> Flatten a -> a
 runFlat env ma = runReader ma env
 
 envVar :: (Ident, Type) -> F.LExpr
 envVar (n, t) = F.Var t n
 
-ctxVarM :: (e -> (Ident, Type)) -> Flatten e F.LExpr
-ctxVarM p = envVar <$> asks p
+-- | The environment stores all variables which are currently in scope and the current iteration depth.
+data Env = Env
+    { -- | All bindings which are currently in scope and need to be
+      -- lifted to the current iteration context.
+      inScope    :: [(Ident, Type)]
 
+      -- | The current iteration depth
+    , frameDepth :: Nat
+    }
 
-type LetEnv = [(Ident, Type)]
+initEnv :: Env
+initEnv = Env { inScope = [], frameDepth = Zero }
 
-bindLetEnv :: Ident -> Type -> LetEnv -> LetEnv
-bindLetEnv n t e = (n, t) : e
+bindEnv :: Ident -> Type -> Env -> Env
+bindEnv n t e = e { inScope = (n, t) : inScope e }
 
--- | Transform top-level expressions which are not nested in a
--- comprehension.
-flatten :: N.Expr -> Flatten LetEnv F.LExpr
+-- | Update the environment to express the descent into a
+-- comprehension that binds the name 'x'. This involves binding 'x' in
+-- the current environment frame and increasing the frame depth.
+descendEnv :: (Ident, Type) -> Env -> Env
+descendEnv x env = env { inScope    = x : inScope env 
+                       , frameDepth = Succ $ frameDepth env
+                       }
+
+frameDepthM :: Flatten Nat
+frameDepthM = asks frameDepth
+
+--------------------------------------------------------------------------------
+
+-- | Transform top-level expressions which are not nested in an
+-- iterator.
+flatten :: N.Expr -> Flatten F.LExpr
 flatten (N.Table t n cs hs)  = return $ F.Table t n cs hs
 flatten (N.UnOp t op e1)     = P.un t op <$> flatten e1 <*> pure Zero
 flatten (N.BinOp t op e1 e2) = P.bin t op <$> flatten e1 <*> flatten e2 <*> pure Zero
@@ -105,123 +124,47 @@ flatten (N.Var t v)          = return $ F.Var t v
 flatten (N.If t ce te ee)    = F.If t <$> flatten ce <*> flatten te <*> flatten ee
 flatten (N.AppE1 _ p e)      = prim1 p <$> flatten e <*> pure Zero
 flatten (N.AppE2 _ p e1 e2)  = prim2 p <$> flatten e1 <*> flatten e2 <*> pure Zero
-flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindLetEnv x (typeOf xs)) (flatten e)
+flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindEnv x (typeOf xs)) (flatten e)
 flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
 flatten (N.Iterator _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
-    outerScope <- ask
     let initCtx    = (x, typeOf xs)
-        env = initEnv initCtx outerScope
     
     -- In this environment, transform the iterator head
-    let flatHead = runFlat env (deepFlatten h)
+    flatHead <- local (descendEnv initCtx) (deepFlatten initCtx h)
 
-    P.let_ x <$> flatten xs <*> (liftLetEnv initCtx flatHead <$> ask)
-
--- | Lift all names bound in the environment: the value is replicated
--- for each element of the current context. The chain of 'let's is
--- terminated by the flattened head expresion of the current iterator.
-liftLetEnv :: (Ident, Type) -> F.LExpr -> [(Ident, Type)] -> F.LExpr
-liftLetEnv ctx headExpr env = mkLiftingLet env
-  where
-    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet (e : []) =
-        P.let_ (fst e) (P.dist (envVar e) cv Zero) headExpr
-    mkLiftingLet (e : es) =
-        P.let_ (fst e) (P.dist (envVar e) cv Zero) (mkLiftingLet es)
-    mkLiftingLet []       = headExpr
-
-    cv :: F.LExpr
-    cv = envVar ctx
+    P.let_ x <$> flatten xs <*> (liftEnv initCtx Zero flatHead <$> asks inScope)
 
 --------------------------------------------------------------------------------
--- Compile expressions which are nested deeper, i.e. at least at
--- iteration depth 2.
 
--- | The environment stores all information for dealing with deeper
--- nested expressions.
--- FIXME env should be NonEmpty
-data NestedEnv = NestedEnv
+-- | Compile expressions nested in an iterator.
+deepFlatten :: (Ident, Type) -> N.Expr -> Flatten F.LExpr
+deepFlatten _   (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
+deepFlatten ctx (N.Table t n cs hs)  = P.broadcast (F.Table t n cs hs) (envVar ctx) <$> frameDepthM
+deepFlatten ctx (N.Const t v)        = P.broadcast (F.Const t v) (envVar ctx) <$> frameDepthM
+deepFlatten ctx (N.UnOp t op e1)     = P.un t op <$> deepFlatten ctx e1 <*> frameDepthM
+deepFlatten ctx (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten ctx e1 <*> deepFlatten ctx e2 <*> frameDepthM
+deepFlatten ctx (N.MkTuple _ es)     = frameDepthM >>= \d -> P.tuple <$> mapM (deepFlatten ctx) es <*> pure d
+deepFlatten ctx (N.AppE1 _ p e)      = prim1 p <$> deepFlatten ctx e <*> frameDepthM
+deepFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten ctx e1 <*> deepFlatten ctx e2 <*> frameDepthM
 
-    { -- | A reference to the generator expression in the current
-      -- iteration context.
-      context    :: (Ident, Type)   
+deepFlatten ctx (N.Let _ x xs e)     = P.let_ x <$> deepFlatten ctx xs 
+                                                <*> local (bindEnv x (typeOf xs)) (deepFlatten ctx e)
 
-      -- | All bindings which are currently in scope and need to be
-      -- lifted to the current iteration context.
-    , inScope    :: NonEmpty (Ident, Type) 
-
-      -- | The current iteration depth
-    , frameDepth :: Nat
-    }
-
--- | 'initEnv x xst ctx' constructs the initial environment when a
--- comprehension is encountered at depth 1. 'x' is the variable bound
--- by the inner comprehension, 'xst' is the type of the /translated/
--- generator source expression and 'ctx' is the outer (so far)
--- context.
-initEnv :: (Ident, Type) -> [(Ident, Type)] -> NestedEnv
-initEnv (x, xst) outerScope = 
-    NestedEnv { context    = (x, xst)
-              , inScope    = fmap (\(n, t) -> (n, liftType t)) 
-                                  ((x, xst) :| outerScope)
-              , frameDepth = Succ Zero
-              }
-
-bindNestedEnv :: Ident -> Type -> NestedEnv -> NestedEnv
-bindNestedEnv n t e = e { inScope = (n, t) <| inScope e }
-
--- | Update the environment to express the descent into a
--- comprehension that binds the name 'x'. This involves updating the
--- context, binding 'x' in the current environment frame and
--- increasing the frame depth.
-descendEnv :: (Ident, Type) -> NestedEnv -> NestedEnv
-descendEnv x env = env { context    = x
-                       , inScope    = x <| inScope env 
-                       , frameDepth = Succ $ frameDepth env
-                       }
-
-frameDepthM :: Flatten NestedEnv Nat
-frameDepthM = asks frameDepth
-
--- Compile nested expressions that occur with an iteration depth of at
--- least two.
-deepFlatten :: N.Expr -> Flatten NestedEnv F.LExpr
-deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
-deepFlatten (N.Table t n cs hs)  = do
-    d   <- frameDepthM
-    ctx <- ctxVarM context
-    return $ P.broadcast d (F.Table t n cs hs) ctx
-
-deepFlatten (N.Const t v)        = do
-    d   <- frameDepthM
-    ctx <- ctxVarM context
-    return $ P.broadcast d (F.Const t v) ctx
-
-deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
-deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
-deepFlatten (N.MkTuple _ es)     = frameDepthM >>= \d -> P.tuple <$> mapM deepFlatten es <*> pure d
-deepFlatten (N.AppE1 _ p e)      = prim1 p <$> deepFlatten e <*> frameDepthM
-deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
-
-deepFlatten (N.Let _ x xs e)     = P.let_ x <$> deepFlatten xs 
-                                            <*> local (bindNestedEnv x (typeOf xs)) (deepFlatten e)
-
--- FIXME abstract over environment restriction wrt. to depth
-deepFlatten (N.If _ ce te ee)    = do
+deepFlatten ctx (N.If _ ce te ee)    = do
     Succ d1      <- frameDepthM
     
     -- Lift the condition
-    bs           <- deepFlatten ce
+    bs           <- deepFlatten ctx ce
     
     -- Lift the THEN branch. Note that although the environment record
     -- does not change, all environment variables are re-bound to a
     -- restricted environment by 'restrictEnv'.
-    thenExpr     <- deepFlatten te
+    thenExpr     <- deepFlatten ctx te
 
     -- Lift the ELSE branch. See comment above.
-    elseExpr     <- deepFlatten ee
+    elseExpr     <- deepFlatten ctx ee
 
     env          <- asks inScope
 
@@ -236,41 +179,43 @@ deepFlatten (N.If _ ce te ee)    = do
     return $ P.combine bs thenRes elseRes d1
 
 -- FIXME lift types in the environment (add one list type constructor)
-deepFlatten (N.Iterator _ h x xs)    = do
+deepFlatten ctx (N.Iterator _ h x xs)    = do
     d           <- frameDepthM
     env         <- asks inScope
-    let cv' = (x, liftTypeN (Succ d) (typeOf xs))
-    headExpr    <- local (descendEnv cv') $ deepFlatten h
+    let ctx' = (x, liftTypeN (Succ d) (typeOf xs))
+    headExpr    <- local (descendEnv ctx') $ deepFlatten ctx' h 
 
-    xs'         <- deepFlatten xs
+    xs'         <- deepFlatten ctx xs
 
-    return $ P.let_ x xs' (liftNestedEnv cv' d headExpr env)
+    return $ P.let_ x xs' (liftEnv ctx d headExpr env)
 
-restrictEnv :: NonEmpty (Ident, Type) -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
+restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
 restrictEnv env d1 bs branchExpr = mkRestrictLet env
   where
-    mkRestrictLet :: NonEmpty (Ident, Type) -> F.LExpr
-    mkRestrictLet (e :| []) =
+    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
+    mkRestrictLet [] = $impossible
+    mkRestrictLet (e : []) =
         P.let_ (fst e)
                (P.restrict (envVar e) bs d1)
                branchExpr
-    mkRestrictLet (e :| (e2 : es)) = 
+    mkRestrictLet (e : (e2 : es)) = 
         P.let_ (fst e)
                (P.restrict (envVar e) bs d1)
-               (mkRestrictLet (e2 :| es))
+               (mkRestrictLet (e2 : es))
 
 -- | Lift all names bound in the environment: the value is replicated
 -- for each element of the current context. The chain of 'let's is
 -- terminated by the flattened head expression of the current
 -- iterator.
-liftNestedEnv :: (Ident, Type) -> Nat -> F.LExpr -> NonEmpty (Ident, Type) -> F.LExpr
-liftNestedEnv ctx d headExpr env = mkLiftingLet env
+liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
+liftEnv ctx d headExpr env = mkLiftingLet env
   where
-    mkLiftingLet :: NonEmpty (Ident, Type) -> F.LExpr
-    mkLiftingLet (e :| [])  =
+    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
+    mkLiftingLet []        = $impossible
+    mkLiftingLet (e : [])  =
         P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
-    mkLiftingLet (e :| (e2 : es)) =
-        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 :| es))
+    mkLiftingLet (e : (e2 : es)) =
+        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 : es))
 
     cv :: F.LExpr
     cv = envVar ctx
@@ -295,14 +240,14 @@ normalize :: F.LExpr -> F.FExpr
 normalize e = evalState (normLifting e) 0
 
 implementBroadcast :: F.BroadcastExt -> NormFlat F.FExpr
-implementBroadcast (F.Broadcast n t e1 e2) = do
+implementBroadcast (F.Broadcast d _ e1 e2) = do
     e1' <- normLifting e1
     e2' <- normLifting e2
-    case n of
-        Zero          -> $impossible
-        Succ Zero     -> return $ P.fdist e1' e2'
+    case d of
+        Zero             -> $impossible
+        Succ Zero        -> return $ P.fdist e1' e2'
         -- FIXME use let-binding
-        Succ (Succ n) -> return $ P.imprint (Succ n) e2' (P.fdist e1' (P.forget (Succ n) e2'))
+        Succ d1@(Succ _) -> return $ P.imprint d1 e2' (P.fdist e1' (P.forget d1 e2'))
 
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants by flattening the arguments and

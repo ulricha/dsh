@@ -252,7 +252,7 @@ fdist e1 e2 = PApp2 (listT $ typeOf e1) Dist NotLifted e1 e2
 --------------------------------------------------------------------------------
 -- Smart constructors for special forms in the flat FKL dialect
 
-broadcast :: Nat -> LExpr -> LExpr -> LExpr
-broadcast d e1 e2 = Ext $ Broadcast d ty e1 e2
+broadcast :: LExpr -> LExpr -> Nat -> LExpr
+broadcast e1 e2 d = Ext $ Broadcast d ty e1 e2
   where
     ty = wrapListType d (typeOf e1)
