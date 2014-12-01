@@ -369,3 +369,16 @@ backdep4 xsss = [ [ [ x + length xs + length xss
 
 backdep5 :: Q [[Integer]] -> Q [[Integer]]
 backdep5 xss = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- xss ]
+
+deep_iter :: Q ([Integer], [Integer], [Integer], [Integer], [Integer]) -> Q [[[[Integer]]]]
+deep_iter (view -> (ws1, ws2, xs, ys, zs)) = 
+  [ [ [ [ w1 * 23 - y | w1 <- ws1 ]
+        ++
+        [ w2 + 42 - y | w2 <- ws2 ]
+      | z <- zs
+      , z > x
+      ]
+    | y <- ys
+    ]
+  | x <- xs
+  ]

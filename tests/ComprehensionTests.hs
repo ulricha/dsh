@@ -33,6 +33,7 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "backdep3" prop_backdep3
     , testProperty "backdep4" prop_backdep4
     , testProperty "backdep5" prop_backdep5
+    , testProperty "deep" prop_deep_iter
     ]
 
 tests_join_hunit :: Test
@@ -508,3 +509,18 @@ njg5 njgxs njgys =
 
 --------------------------------------------------------------------------------
 --
+
+prop_deep_iter :: ([Integer], [Integer], [Integer], [Integer], [Integer]) -> Property
+prop_deep_iter = makeProp C.deep_iter deep_iter_native
+  where
+    deep_iter_native (ws1, ws2, xs, ys, zs) = 
+      [ [ [ [ w1 * 23 - y | w1 <- ws1 ]
+            ++
+            [ w2 + 42 - y | w2 <- ws2 ]
+          | z <- zs
+          , z > x
+          ]
+        | y <- ys
+        ]
+      | x <- xs
+      ]
