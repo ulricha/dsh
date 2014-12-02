@@ -220,8 +220,8 @@ restrict _e1 _e2 = $impossible
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (VShape qb (LCol 1)) (VShape q1 lyt1) (VShape q2 lyt2) = do
     (v, p1, p2) <- vlCombine qb q1 q2
-    lyt1'       <- renameOuter' p1 lyt1
-    lyt2'       <- renameOuter' p2 lyt2
+    lyt1'       <- renameOuterLyt p1 lyt1
+    lyt2'       <- renameOuterLyt p2 lyt2
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
@@ -290,8 +290,8 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
                                   =<< vlAlign q2 falseSelVec
     falseVec'                  <- vlProject (map Column [1..leftWidth]) falseVec
 
-    lyt1'                      <- renameOuter' trueRenameVec lyt1
-    lyt2'                      <- renameOuter' falseRenameVec lyt2
+    lyt1'                      <- renameOuterLyt trueRenameVec lyt1
+    lyt2'                      <- renameOuterLyt falseRenameVec lyt2
     lyt'                       <- appendLayout lyt1' lyt2'
 
     (bothBranches, _, _)       <- vlAppend trueVec' falseVec'
@@ -441,7 +441,7 @@ lastL (VShape d (LNest qs lyt@(LNest _ _))) = do
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
     lyt'        <- chainRenameFilter r lyt
     re          <- vlUnboxRename qs'
-    VShape d <$> renameOuter' re lyt'
+    VShape d <$> renameOuterLyt re lyt'
 lastL (VShape d (LNest qs lyt)) = do
     is          <- vlAggrS AggrCount d qs
     (qs', r, _) <- vlSelectPosS qs (L.SBRelOp L.Eq) is
@@ -510,7 +510,7 @@ groupL _ _ = $impossible
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do
     p   <- vlUnboxRename d'
-    vs' <- renameOuter' p vs
+    vs' <- renameOuterLyt p vs
     return $ VShape d vs'
 concatL _ = $impossible
 
@@ -821,10 +821,10 @@ renameOuter :: RVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 renameOuter p (VShape q lyt) = flip VShape lyt <$> vlPropRename p q
 renameOuter _ _ = error "renameOuter: Not possible"
 
-renameOuter' :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-renameOuter' _ l@(LCol _)    = return l
-renameOuter' r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
-renameOuter' r (LTuple lyts) = LTuple <$> mapM (renameOuter' r) lyts
+renameOuterLyt :: RVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+renameOuterLyt _ l@(LCol _)    = return l
+renameOuterLyt r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
+renameOuterLyt r (LTuple lyts) = LTuple <$> mapM (renameOuterLyt r) lyts
 
 -- | Append two inner vectors (segment-wise).
 appendInnerVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -832,8 +832,8 @@ appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppendS q1 q2
     -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- renameOuter' p1 lyt1
-    lyt2'       <- renameOuter' p2 lyt2
+    lyt1'       <- renameOuterLyt p1 lyt1
+    lyt2'       <- renameOuterLyt p2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
@@ -845,8 +845,8 @@ appendVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppend q1 q2
     -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- renameOuter' p1 lyt1
-    lyt2'       <- renameOuter' p2 lyt2
+    lyt1'       <- renameOuterLyt p1 lyt1
+    lyt2'       <- renameOuterLyt p2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
