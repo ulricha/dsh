@@ -128,7 +128,16 @@ index (VShape qs lyt) (SShape i _) = do
 index _ _ = $impossible
 
 append ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-append = appendVec
+append (VShape q1 lyt1) (VShape q2 lyt2) = do
+    -- Append the current vectors
+    (v, p1, p2) <- vlAppend q1 q2
+    -- Propagate position changes to descriptors of any inner vectors
+    lyt1'       <- renameOuterLyt p1 lyt1
+    lyt2'       <- renameOuterLyt p2 lyt2
+    -- Append the layouts, i.e. actually append all inner vectors
+    lyt'        <- appendLayout lyt1' lyt2'
+    return $ VShape v lyt'
+appendVec _ _ = $impossible
 
 -- FIXME looks fishy, there should be an unboxing join.
 the ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -836,19 +845,6 @@ appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
 appendInnerVec _ _ = $impossible
-
--- | Append two (outer) vectors regularly.
-appendVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-appendVec (VShape q1 lyt1) (VShape q2 lyt2) = do
-    -- Append the current vectors
-    (v, p1, p2) <- vlAppend q1 q2
-    -- Propagate position changes to descriptors of any inner vectors
-    lyt1'       <- renameOuterLyt p1 lyt1
-    lyt2'       <- renameOuterLyt p2 lyt2
-    -- Append the layouts, i.e. actually append all inner vectors
-    lyt'        <- appendLayout lyt1' lyt2'
-    return $ VShape v lyt'
-appendVec _ _ = $impossible
 
 -- | Traverse a layout and append all nested vectors that are
 -- encountered.
