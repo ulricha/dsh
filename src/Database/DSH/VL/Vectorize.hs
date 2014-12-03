@@ -85,8 +85,7 @@ nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
 number (VShape q lyt) =
-    VShape <$> vlNumber q
-                <*> (pure $ zipLayout lyt (LCol 1))
+    VShape <$> vlNumber q <*> (pure $ zipLayout lyt (LCol 1))
 number _ = $impossible
 
 init ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -193,9 +192,8 @@ group (VShape q1 lyt1) (VShape q2 lyt2) = do
 group _e1 _e2 = $impossible
 
 length_ ::  Shape VLDVec -> Build VL (Shape VLDVec)
-length_ q = do
-    v' <- outer q
-    v  <- vlAggr AggrCount v'
+length_ (VShape q _) = do
+    v  <- vlAggr AggrCount q
     return $ SShape v (LCol 1)
 
 restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
