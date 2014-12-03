@@ -88,11 +88,11 @@ fkl2VL expr =
             lift $ papp3 p l arg1' arg2' arg3'
         Ext (Forget n _ arg) -> do
             arg' <- fkl2VL arg
-            return $ V.qConcat n arg'
+            return $ V.forget n arg'
         Ext (Imprint n _ arg1 arg2) -> do
             arg1' <- fkl2VL arg1
             arg2' <- fkl2VL arg2
-            return $ V.unconcat n arg1' arg2'
+            return $ V.imprint n arg1' arg2'
         MkTuple _ Lifted args -> do
             args' <- mapM fkl2VL args
             lift $ V.tupleL args'
