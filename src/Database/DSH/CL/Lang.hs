@@ -144,7 +144,6 @@ instance Show Prim1 where
   show TupElem{}       = $impossible
 
 data Prim2 = Sort
-           | Restrict
            | Group
            | Append
            | Index
@@ -158,7 +157,6 @@ data Prim2 = Sort
            deriving (Eq)
 
 instance Show Prim2 where
-  show Restrict     = "restrict"
   show Group        = "group"
   show Sort         = "sort"
   show Append       = "append"

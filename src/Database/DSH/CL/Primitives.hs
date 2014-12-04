@@ -139,12 +139,6 @@ fst e = tupElem First e
 snd :: Expr -> Expr
 snd e = tupElem (Next First) e
 
-restrict :: Expr -> Expr -> Expr
-restrict xs bs =
-    if elemT (typeOf bs) P.== BoolT
-    then AppE2 (typeOf xs) Restrict xs bs
-    else tyErr "restrict"
-
 singleGenComp :: Expr -> L.Ident -> Expr -> Expr
 singleGenComp bodyExp v gen =
     let bodyTy = typeOf bodyExp

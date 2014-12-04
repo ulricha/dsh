@@ -90,7 +90,6 @@ prim2 t o e1 e2 = mkApp2
             CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
-            CL.Restrict     -> mkPrim2 $ NKL.Restrict
             CL.Sort         -> mkPrim2 $ NKL.Sort
             CL.Group        -> mkPrim2 $ NKL.Group
 
