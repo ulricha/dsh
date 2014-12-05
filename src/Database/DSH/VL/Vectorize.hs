@@ -234,6 +234,7 @@ combine (VShape qb (LCol 1)) (VShape q1 lyt1) (VShape q2 lyt2) = do
 combine l1 l2 l3 = trace (show l1 ++ " " ++ show l2 ++ " " ++ show l3) $ $impossible
 
 -- | Distribute a single value in vector 'q2' over an arbitrary shape.
+-- FIXME accepting a scalar shape makes no sense here. we can only distribute over a list.
 distSingleton :: Shape VLDVec -> VLDVec -> Layout VLDVec -> Build VL (Shape VLDVec)
 distSingleton shape1 q2 lyt2 = do
     let (shapeCon, q1, lyt1) = unwrapShape shape1
