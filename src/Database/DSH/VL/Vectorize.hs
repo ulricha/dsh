@@ -279,9 +279,6 @@ aggr _ _ = $impossible
 
 ifList ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
-    -- The right input vector has only one boolean column which
-    -- defines wether the tuple at the same position in the left input
-    -- is preserved.
     let leftWidth = columnsInLayout lyt1
         predicate = Column $ leftWidth + 1
 
