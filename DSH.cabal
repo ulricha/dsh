@@ -56,7 +56,6 @@ Extra-source-files:  examples/Example01.hs
 		     tests/ComprehensionTests.hs
 		     tests/DSHComprehensions.hs
 		     tests/CombinatorTests.hs
-                     tests/Makefile
 
 Cabal-version:       >= 1.8
 
@@ -208,60 +207,6 @@ Library
                      Database.DSH.Optimizer.VL.Rewrite.Aggregation
                      Database.DSH.Optimizer.VL.Rewrite.Window
                      Database.DSH.Optimizer.VL.Rewrite.Unused
--- 
--- executable vltox100
---   Main-is: Database/DSH/Tools/VLToX100.hs
---   GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
---   hs-source-dirs:   src
---   build-depends:    base >= 4.5,
---                     mtl >= 2.1,
---                     containers >= 0.4.0.0,
---                     template-haskell >= 2.7,
---                     TableAlgebra >= 2.0.0,
---                     aeson >= 0.6,
---                     bytestring >= 0.9.1.10,
---                     pretty >= 1.0.1.1
--- 
--- Executable x100opt
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/X100/Tools/Opt.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        pretty,
---                        mtl,
---                        bytestring,
---                        aeson
---   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
--- 
--- Executable vlopt
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        template-haskell,
---                        pretty,
---                        bytestring,
---                        mtl,
---                        aeson,
---                        ansi-wl-pprint
---   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
--- 
--- Executable vlprop
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        mtl,
---                        bytestring,
---                        pretty,
---                        aeson,
---                        ansi-wl-pprint,
---                        template-haskell
---   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
---                   
 
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
