@@ -97,7 +97,7 @@ Library
   if flag(debuggraph)
     CPP-Options:     -DDEBUGGRAPH
 
-  GHC-Options:       -Wall -auto-all -fno-warn-orphans
+  GHC-Options:       -Wall -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
