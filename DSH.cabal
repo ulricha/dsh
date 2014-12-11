@@ -319,6 +319,5 @@ Test-Suite Flattening_TA
                    test-framework-hunit       >= 0.3.0.1,
                    test-framework             >= 0.6,
                    HUnit                      >= 1.2.5.2
-    cpp-options: -DisDBPH
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP
