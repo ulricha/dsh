@@ -36,8 +36,8 @@ inferCardOneUnOp c op =
     SelectPos1{}  -> Right $ VPropTriple False False False
     SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
-    SortScalarS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
-    GroupScalarS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
+    SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 -> 
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
@@ -59,33 +59,32 @@ inferCardOneUnOp c op =
     Reshape _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    AggrNonEmptyS _ -> return $ VProp False
     
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
   case op of
-    Group -> return $ VPropTriple False False False
-    SortS -> return $ VPropPair False False
     AggrS _ -> return $ VProp False
-    AggrNonEmptyS _ -> return $ VProp False
-    DistPrim -> return $ VPropPair False False
-    DistDesc -> return $ VPropPair False False
-    Align -> return $ VPropPair False False
+    NestProduct -> return $ VPropTriple False False False
+    DistLift -> return $ VPropPair False False
     PropRename -> return $ VProp False
     PropFilter -> return $ VPropPair False False
     PropReorder -> return $ VPropPair False False
-    Unbox -> return $ VPropPair False False
+    UnboxNested -> return $ VPropPair False False
+    UnboxScalar -> return $ VProp False
     -- FIXME more precisely: empty(left) and card1(right) or card1(left) and empty(right)
     Append -> Right $ VPropTriple False False False
     AppendS -> Right $ VPropTriple False False False
-    Restrict _ -> Right $ VPropPair False False
     SelectPos _ -> return $ VPropTriple False False False
     SelectPosS _ -> return $ VPropTriple False False False
     Zip -> VProp <$> ((||) <$> unp c1 <*> unp c2)
+    Align -> VProp <$> ((||) <$> unp c1 <*> unp c2)
     CartProduct -> return $ VPropTriple False False False
     CartProductS -> return $ VPropTriple False False False
     NestProductS -> return $ VPropTriple False False False
     ThetaJoin _ -> return $ VPropTriple False False False
+    NestJoin _ -> return $ VPropTriple False False False
     ThetaJoinS _ -> return $ VPropTriple False False False
     NestJoinS _ -> return $ VPropTriple False False False
     SemiJoin _ -> return $ VPropPair False False

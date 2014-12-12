@@ -15,7 +15,7 @@ module Database.DSH.Compiler
 
 import           Control.Applicative
 import           Control.Arrow
-import qualified Database.HDBC                            as H
+import qualified Database.HDBC.PostgreSQL                 as H
 
 import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Execute.Sql
@@ -25,8 +25,6 @@ import           Database.DSH.VL.Vector
 import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
-import           Database.DSH.CL.Resugar
-import           Database.DSH.Common.DBCode
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
@@ -45,14 +43,13 @@ import           Database.DSH.Translate.VL2Algebra
 -- | Backend-agnostic part of the pipeline.
 commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
 commonPipeline =
-    resugarComprehensions
-    >>> optimizeComprehensions
+    optimizeComprehensions
     >>> desugarComprehensions
     >>> optimizeNKL
     >>> flatTransform
     >>> specializeVectorOps
 
-nkl2Sql :: CL.Expr -> Shape SqlCode
+nkl2Sql :: CL.Expr -> Shape (BackendCode SqlBackend)
 nkl2Sql =
     commonPipeline
     >>> optimizeVLDefault
@@ -88,41 +85,41 @@ nkl2VLFileOpt prefix =
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
 -- | Run a query on a SQL backend
-runQ :: (QA a, H.IConnection conn) => conn -> Q a -> IO a
+runQ :: QA a => H.Connection -> Q a -> IO a
 runQ conn (Q q) = do
     let ty = reify (undefined :: a)
     q' <- toComprehensions (getTableInfo conn) q
     let sqlQueryBundle = nkl2Sql q'
-    frExp <$> executeSql conn sqlQueryBundle ty
+    frExp <$> executeSql (SqlBackend conn) sqlQueryBundle ty
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
-debugTA :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugTA :: QA a => String -> H.Connection -> Q a -> IO ()
 debugTA prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFile prefix e'
 
 -- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
-debugTAOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugTAOpt :: QA a => String -> H.Connection -> Q a -> IO ()
 debugTAOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2TAFileOpt prefix e'
 
 -- | Debugging function: dump the VL query plan (DAG) for a query to a
 -- file (SQL version).
-debugVL :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugVL :: QA a => String -> H.Connection -> Q a -> IO ()
 debugVL prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFile prefix e'
 
 -- | Debugging function: dump the optimized VL query plan (DAG) for a
 -- query to a file (SQL version).
-debugVLOpt :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugVLOpt :: QA a => String -> H.Connection -> Q a -> IO ()
 debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
 
 -- | Dump all intermediate algebra representations (VL, TA) to files.
-debugQ :: (QA a, H.IConnection conn) => String -> conn -> Q a -> IO ()
+debugQ :: QA a => String -> H.Connection -> Q a -> IO ()
 debugQ prefix conn q = do
     debugVL prefix conn q
     debugVLOpt prefix conn q
@@ -131,5 +128,5 @@ debugQ prefix conn q = do
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
-runPrint :: (Show a, QA a, H.IConnection conn) => conn -> Q a -> IO ()
+runPrint :: (Show a, QA a) => H.Connection -> Q a -> IO ()
 runPrint conn q = (show <$> runQ conn q) >>= putStrLn

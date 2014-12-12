@@ -8,8 +8,9 @@
 module Database.DSH.Frontend.Externals where
        
 import Database.DSH.Frontend.Internals
-import Database.DSH.Frontend.TH
+import Database.DSH.Frontend.Funs
 import Database.DSH.Impossible
+import Database.DSH.Frontend.TupleTypes
 
 import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)
                , Bool(..), Char, Integer, Double, Maybe(..), Either(..)
@@ -58,18 +59,6 @@ instance QA Text where
   frExp (TextE t) = t
   frExp _ = $impossible
 
-instance (QA a,QA b) => QA (a,b) where
-  type Rep (a,b) = (Rep a,Rep b)
-  toExp (a,b) = PairE (toExp a) (toExp b)
-  frExp (PairE a b) = (frExp a,frExp b)
-  frExp _ = $impossible
-
-instance (QA a,QA b,QA c) => QA (a,b,c) where
-  type Rep (a,b,c) = (Rep a,(Rep b,Rep c))
-  toExp (a,b,c) = PairE (toExp a) (PairE (toExp b) (toExp c))
-  frExp (PairE a (PairE b c)) = (frExp a,frExp b,frExp c)
-  frExp _ = $impossible
-
 instance (QA a) => QA [a] where
   type Rep [a] = [Rep a]
   toExp as = ListE (P.map toExp as)
@@ -86,10 +75,10 @@ instance (QA a) => QA (Maybe a) where
 
 instance (QA a,QA b) => QA (Either a b) where
   type Rep (Either a b) = ([Rep a],[Rep b])
-  toExp (Left a) = PairE (ListE [toExp a]) (ListE [])
-  toExp (Right b) = PairE (ListE []) (ListE [toExp b])
-  frExp (PairE (ListE (a : _)) _) = Left (frExp a)
-  frExp (PairE _ (ListE (a : _))) = Right (frExp a)
+  toExp (Left a) = pairE (ListE [toExp a]) (ListE [])
+  toExp (Right b) = pairE (ListE []) (ListE [toExp b])
+  frExp (TupleConstE (Tuple2E (ListE (a : _)) _)) = Left (frExp a)
+  frExp (TupleConstE (Tuple2E _ (ListE (a : _)))) = Right (frExp a)
   frExp _ = $impossible
 
 -- Elim instances
@@ -100,7 +89,7 @@ instance (QA r) => Elim () r where
 
 instance (QA r) => Elim Bool r where
   type Eliminator Bool r = Q r -> Q r -> Q r
-  elim (Q e) (Q e1) (Q e2) = Q (AppE Cond (PairE e (PairE e1 e2)))
+  elim (Q e) (Q e1) (Q e2) = Q (AppE Cond (TupleConstE (Tuple3E e e1 e2)))
 
 instance (QA r) => Elim Char r where
   type Eliminator Char r = (Q Char -> Q r) -> Q r
@@ -147,43 +136,41 @@ instance TA Char where
 instance TA Integer where
 instance TA Double where
 instance TA Text where
-instance (BasicType a, BasicType b) => TA (a,b) where
-instance (BasicType a, BasicType b, BasicType c) => TA (a,b,c) where
 
 -- Num and Fractional instances
 
 instance Num (Exp Integer) where
-  (+) e1 e2 = AppE Add (PairE e1 e2)
-  (*) e1 e2 = AppE Mul (PairE e1 e2)
-  (-) e1 e2 = AppE Sub (PairE e1 e2)
+  (+) e1 e2 = AppE Add (pairE e1 e2)
+  (*) e1 e2 = AppE Mul (pairE e1 e2)
+  (-) e1 e2 = AppE Sub (pairE e1 e2)
 
   fromInteger = IntegerE
 
-  abs e = let c = AppE Lt (PairE e 0)
-          in  AppE Cond (PairE c (PairE (negate e) e))
+  abs e = let c = AppE Lt (pairE e 0)
+          in AppE Cond (tripleE c (negate e) e)
 
-  signum e = let c1 = AppE Lt  (PairE e 0)
-                 c2 = AppE Equ (PairE e 0)
-                 e' = AppE Cond (PairE c2 (PairE 0 1))
-             in  AppE Cond (PairE c1 (PairE (-1) e'))
+  signum e = let c1 = AppE Lt  (pairE e 0)
+                 c2 = AppE Equ (pairE e 0)
+                 e' = AppE Cond (tripleE c2 0 1)
+             in AppE Cond (tripleE c1 (-1) e')
 
 instance Num (Exp Double) where
-  (+) e1 e2 = AppE Add (PairE e1 e2)
-  (*) e1 e2 = AppE Mul (PairE e1 e2)
-  (-) e1 e2 = AppE Sub (PairE e1 e2)
+  (+) e1 e2 = AppE Add (pairE e1 e2)
+  (*) e1 e2 = AppE Mul (pairE e1 e2)
+  (-) e1 e2 = AppE Sub (pairE e1 e2)
 
   fromInteger = DoubleE . fromInteger
 
-  abs e = let c = AppE Lt (PairE e 0)
-          in  AppE Cond (PairE c (PairE (negate e) e))
+  abs e = let c = AppE Lt (pairE e 0)
+          in  AppE Cond (tripleE c (negate e) e)
 
-  signum e = let c1 = AppE Lt  (PairE e 0.0)
-                 c2 = AppE Equ (PairE e 0.0)
-                 e' = AppE Cond (PairE c2 (PairE 0 1))
-             in  AppE Cond (PairE c1 (PairE (-1) e'))
+  signum e = let c1 = AppE Lt  (pairE e 0.0)
+                 c2 = AppE Equ (pairE e 0.0)
+                 e' = AppE Cond (tripleE c2 0 1)
+             in  AppE Cond (tripleE c1 (-1) e')
 
 instance Fractional (Exp Double) where
-  (/) e1 e2    = AppE Div (PairE e1 e2)
+  (/) e1 e2    = AppE Div (pairE e1 e2)
   fromRational = DoubleE . fromRational
 
 instance Floating (Exp Double) where
@@ -266,14 +253,6 @@ instance View (Q Text) where
   type ToView (Q Text) = Q Text
   view = id
 
-instance (QA a, QA b) => View (Q (a,b)) where
-  type ToView (Q (a,b)) = (Q a,Q b)
-  view (Q e) = (Q (AppE Fst e),Q (AppE Snd e))
-
-instance (QA a,QA b,QA c) => View (Q (a,b,c)) where
-  type ToView (Q (a,b,c)) = (Q a,Q b,Q c)
-  view (Q e) = (Q (AppE Fst e),Q (AppE Fst (AppE Snd e)),Q (AppE Snd (AppE Snd e)))
-
 -- IsString instances
 
 instance IsString (Q Text) where
@@ -309,45 +288,45 @@ not :: Q Bool -> Q Bool
 not (Q e) = Q (AppE Not e)
 
 (&&) :: Q Bool -> Q Bool -> Q Bool
-(&&) (Q a) (Q b) = Q (AppE Conj (PairE a b))
+(&&) (Q a) (Q b) = Q (AppE Conj (pairE a b))
 
 (||) :: Q Bool -> Q Bool -> Q Bool
-(||) (Q a) (Q b) = Q (AppE Disj (PairE a b))
+(||) (Q a) (Q b) = Q (AppE Disj (TupleConstE (Tuple2E a b)))
 
 -- * Equality and Ordering
 
 eq :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
-eq (Q a) (Q b) = Q (AppE Equ (PairE a b))
+eq (Q a) (Q b) = Q (AppE Equ (TupleConstE (Tuple2E a b)))
 
 (==) :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 (==) = eq
 
 neq :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
-neq (Q a) (Q b) = Q (AppE NEq (PairE a b))
+neq (Q a) (Q b) = Q (AppE NEq (pairE a b))
 
 (/=) :: (QA a,Eq a,TA a) => Q a -> Q a -> Q Bool
 (/=) = neq
 
 lt :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
-lt (Q a) (Q b) = Q (AppE Lt (PairE a b))
+lt (Q a) (Q b) = Q (AppE Lt (pairE a b))
 
 (<) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (<) = lt
 
 lte :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
-lte (Q a) (Q b) = Q (AppE Lte (PairE a b))
+lte (Q a) (Q b) = Q (AppE Lte (pairE a b))
 
 (<=) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (<=) = lte
 
 gte :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
-gte (Q a) (Q b) = Q (AppE Gte (PairE a b))
+gte (Q a) (Q b) = Q (AppE Gte (pairE a b))
 
 (>=) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (>=) = gte
 
 gt :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
-gt (Q a) (Q b) = Q (AppE Gt (PairE a b))
+gt (Q a) (Q b) = Q (AppE Gt (pairE a b))
 
 (>) :: (QA a,Ord a,TA a) => Q a -> Q a -> Q Bool
 (>) = gt
@@ -359,10 +338,10 @@ max :: (QA a,Ord a,TA a) => Q a -> Q a -> Q a
 max a b = cond (a > b) a b
     
 mod :: Q Integer -> Q Integer -> Q Integer
-mod (Q a) (Q b) = Q (AppE Mod (PairE a b))
+mod (Q a) (Q b) = Q (AppE Mod (pairE a b))
 
 div :: Q Integer -> Q Integer -> Q Integer
-div (Q a) (Q b) = Q (AppE Div (PairE a b))
+div (Q a) (Q b) = Q (AppE Div (pairE a b))
 
 -- * Conditionals
 
@@ -370,7 +349,7 @@ bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
 bool f t b = cond b t f
 
 cond :: (QA a) => Q Bool -> Q a -> Q a -> Q a
-cond (Q c) (Q a) (Q b) = Q (AppE Cond (PairE c (PairE a b)))
+cond (Q c) (Q a) (Q b) = Q (AppE Cond (TupleConstE (Tuple3E c a b)))
 
 ifThenElse :: (QA a) => Q Bool -> Q a -> Q a -> Q a
 ifThenElse = cond
@@ -456,7 +435,7 @@ empty :: (QA a) => Q [a]
 empty = nil
 
 cons :: (QA a) => Q a -> Q [a] -> Q [a]
-cons (Q a) (Q as) = Q (AppE Cons (PairE a as))
+cons (Q a) (Q as) = Q (AppE Cons (pairE a as))
 
 (<|) :: (QA a) => Q a -> Q [a] -> Q [a]
 (<|) = cons
@@ -485,27 +464,27 @@ drop :: (QA a) => Q Integer -> Q [a] -> Q [a]
 drop i xs = map fst $ filter (\xp -> snd xp > i) $ number xs
 
 map :: (QA a,QA b) => (Q a -> Q b) ->  Q [a] -> Q [b]
-map f (Q as) = Q (AppE Map (PairE (LamE (toLam f)) as))
+map f (Q as) = Q (AppE Map (pairE (LamE (toLam f)) as))
 
 append :: (QA a) => Q [a] -> Q [a] -> Q [a]
-append (Q as) (Q bs) = Q (AppE Append (PairE as bs))
+append (Q as) (Q bs) = Q (AppE Append (pairE as bs))
 
 (++) :: (QA a) => Q [a] -> Q [a] -> Q [a]
 (++) = append
 
 filter :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-filter f (Q as) = Q (AppE Filter (PairE (LamE (toLam f)) as))
+filter f (Q as) = Q (AppE Filter (pairE (LamE (toLam f)) as))
 
 -- | Partition a list into groups according to the supplied projection
 -- function.
 groupWithKey :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [(b,[a])]
-groupWithKey f (Q as) = Q (AppE GroupWithKey (PairE (LamE (toLam f)) as))
+groupWithKey f (Q as) = Q (AppE GroupWithKey (pairE (LamE (toLam f)) as))
 
 groupWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [[a]]
 groupWith f as = map snd (groupWithKey f as)
 
 sortWith :: (QA a,QA b,Ord b, TA b) => (Q a -> Q b) -> Q [a] -> Q [a]
-sortWith f (Q as) = Q (AppE SortWith (PairE (LamE (toLam f)) as))
+sortWith f (Q as) = Q (AppE SortWith (pairE (LamE (toLam f)) as))
 
 last :: (QA a) => Q [a] -> Q a
 last (Q as) = Q (AppE Last as)
@@ -520,7 +499,7 @@ length :: (QA a) => Q [a] -> Q Integer
 length (Q as) = Q (AppE Length as)
 
 index :: (QA a) => Q [a] -> Q Integer -> Q a
-index (Q as) (Q i) = Q (AppE Index (PairE as i))
+index (Q as) (Q i) = Q (AppE Index (pairE as i))
 
 (!!) :: (QA a) => Q [a] -> Q Integer -> Q a
 (!!) = index
@@ -555,7 +534,7 @@ concat :: (QA a) => Q [[a]] -> Q [a]
 concat (Q ass) = Q (AppE Concat ass)
 
 concatMap :: (QA a,QA b) => (Q a -> Q [b]) -> Q [a] -> Q [b]
-concatMap f (Q as) = Q (AppE ConcatMap (PairE (LamE (toLam f)) as))
+concatMap f (Q as) = Q (AppE ConcatMap (pairE (LamE (toLam f)) as))
 
 maximum :: (QA a,Ord a,TA a) => Q [a] -> Q a
 maximum (Q as) = Q (AppE Maximum as)
@@ -606,7 +585,7 @@ lookup a  = listToMaybe . map snd . filter ((a ==) . fst)
 -- * Zipping and Unzipping Lists
 
 zip :: (QA a,QA b) => Q [a] -> Q [b] -> Q [(a,b)]
-zip (Q as) (Q bs) = Q (AppE Zip (PairE as bs))
+zip (Q as) (Q bs) = Q (AppE Zip (pairE as bs))
 
 zipWith :: (QA a,QA b,QA c) => (Q a -> Q b -> Q c) -> Q [a] -> Q [b] -> Q [c]
 zipWith f as bs = map (\e -> f (fst e) (snd e)) (zip as bs)
@@ -650,7 +629,10 @@ integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 -- argument). The pattern must be a SQL LIKE pattern, that is use '_' for single
 -- character wildcards and '_' for multi-character wildcards.
 like :: Q Text -> Q Text -> Q Bool
-like (Q t) (Q p) = Q (AppE Like (PairE t p))
+like (Q t) (Q p) = Q (AppE Like (pairE t p))
+
+subString :: Integer -> Integer -> Q Text -> Q Text
+subString from to (Q t) = Q (AppE (SubString from to) t)
 
 -- * Matrix/Vector-like operators
 
@@ -683,10 +665,10 @@ guard (Q c) = Q (AppE Guard c)
 -- * Construction of tuples
 
 pair :: (QA a,QA b) => Q a -> Q b -> Q (a,b)
-pair (Q a) (Q b) = Q (PairE a b)
+pair (Q a) (Q b) = Q (pairE a b)
 
 triple :: (QA a,QA b,QA c) => Q a -> Q b -> Q c -> Q (a,b,c)
-triple (Q a) (Q b) (Q c)= Q (PairE a (PairE b c))
+triple (Q a) (Q b) (Q c)= Q (TupleConstE (Tuple3E a b c))
 
 infixl 9  !!
 infixr 5  ++, <|, |>
@@ -695,10 +677,12 @@ infixr 3  &&
 infixr 2  ||
 infix  0  ?
 
-deriveTupleRangeQA                4 16
-deriveTupleRangeTA                4 16
-deriveTupleRangeView              4 16
-deriveTupleRangeSmartConstructors 2 16
+-- * Generate instances and constructor functions for tuple types
+
+mkQAInstances       16
+mkTAInstances       16
+mkViewInstances     16
+mkTupleConstructors 16
 
 -- * Missing functions
 

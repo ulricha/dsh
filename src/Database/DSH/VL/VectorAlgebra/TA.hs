@@ -61,13 +61,12 @@ algVal VL.VLUnit = int (-1)
 algVal (VL.VLString s) = string s
 algVal (VL.VLDouble d) = double d
 
-algTy :: VL.RowType -> ATy
-algTy (VL.Int) = intT
+algTy :: VL.ScalarType -> ATy
+algTy (VL.Int)    = intT
 algTy (VL.Double) = doubleT
-algTy (VL.Bool) = boolT
+algTy (VL.Bool)   = boolT
 algTy (VL.String) = stringT
-algTy (VL.Unit) = intT
-algTy (VL.Pair _ _) = $impossible
+algTy (VL.Unit)   = intT
 
 cP :: Attr -> Proj
 cP a = (a, ColE a)
@@ -101,18 +100,19 @@ binOp (L.SBBoolOp L.Disj)   = Or
 binOp (L.SBStringOp L.Like) = Like
 
 unOp :: L.ScalarUnOp -> UnFun
-unOp (L.SUBoolOp L.Not)          = Not
-unOp (L.SUCastOp (L.CastDouble)) = Cast doubleT
-unOp (L.SUNumOp L.Sin)           = Sin
-unOp (L.SUNumOp L.Cos)           = Cos
-unOp (L.SUNumOp L.Tan)           = Tan
-unOp (L.SUNumOp L.ASin)          = ASin
-unOp (L.SUNumOp L.ACos)          = ACos
-unOp (L.SUNumOp L.ATan)          = ATan
-unOp (L.SUNumOp L.Sqrt)          = Sqrt
-unOp (L.SUNumOp L.Exp)           = Exp
-unOp (L.SUNumOp L.Log)           = Log
-unOp L.SUDateOp                  = $unimplemented
+unOp (L.SUBoolOp L.Not)             = Not
+unOp (L.SUCastOp (L.CastDouble))    = Cast doubleT
+unOp (L.SUNumOp L.Sin)              = Sin
+unOp (L.SUNumOp L.Cos)              = Cos
+unOp (L.SUNumOp L.Tan)              = Tan
+unOp (L.SUNumOp L.ASin)             = ASin
+unOp (L.SUNumOp L.ACos)             = ACos
+unOp (L.SUNumOp L.ATan)             = ATan
+unOp (L.SUNumOp L.Sqrt)             = Sqrt
+unOp (L.SUNumOp L.Exp)              = Exp
+unOp (L.SUNumOp L.Log)              = Log
+unOp (L.SUTextOp (L.SubString f t)) = SubString f t
+unOp L.SUDateOp                     = $unimplemented
 
 taExprOffset :: Int -> VL.Expr -> Expr
 taExprOffset o (VL.BinApp op e1 e2) = BinAppE (binOp op) (taExprOffset o e1) (taExprOffset o e2)
@@ -175,7 +175,7 @@ aggrDefault q qa dv = do
 
 -- | The default value for sums over empty lists for all possible
 -- numeric input types.
-sumDefault :: VL.RowType -> (ATy, AVal)
+sumDefault :: VL.ScalarType -> (ATy, AVal)
 sumDefault VL.Int    = (AInt, int 0)
 sumDefault VL.Double = (ADouble, double 0)
 sumDefault _         = $impossible
@@ -221,6 +221,9 @@ frameSpecification (VL.FNPreceding n) = ClosedFrame (FSValPrec n) FECurrRow
 -- The VectorAlgebra instance for TA algebra
 
 instance VectorAlgebra NDVec TableAlgebra where
+  vecAlign (ADVec q1 cols1) (ADVec q2 cols2) = do
+    (r, cols') <- doZip (q1, cols1) (q2, cols2)
+    return $ ADVec r cols'
 
   vecZip (ADVec q1 cols1) (ADVec q2 cols2) = do
     (r, cols') <- doZip (q1, cols1) (q2, cols2)
@@ -249,7 +252,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     (p, (RVec r)) <- vecPropFilter (RVec q1) e2
     return (p, PVec r)
 
-  vecUnbox (RVec qu) (ADVec qi cols) = do
+  vecUnboxNested (RVec qu) (ADVec qi cols) = do
     -- Perform a segment join between inner vector and outer unboxing
     -- rename vector. This implicitly discards any unreferenced
     -- segments in qi.
@@ -266,15 +269,6 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr <- proj [mP posnew pos, cP posold] q
 
     return (ADVec qv cols, RVec qr)
-
-  vecRestrict e (ADVec q1 cols) (ADVec qm colsm) = do
-    q <- rownumM pos'' [pos] []
-           $ eqJoinM pos pos' 
-               (return q1)
-               (selectM (taExpr e) $ proj (itemProj colsm [mP pos' pos]) qm)
-    qr <- tagM "restrictVec/1" $ proj (itemProj cols [mP pos pos'', cP descr]) q
-    qp <- proj [mP posold pos, mP posnew pos''] q
-    return $ (ADVec qr cols, RVec qp)
 
   vecCombine (ADVec qb _) (ADVec q1 cols) (ADVec q2 _) = do
     d1 <- projM [cP pos', cP pos]
@@ -302,13 +296,6 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr <- proj (itemProj cols [cP pos, eP descr (ConstE $ nat 1)]) q
     return $ ADVec qr cols
 
-  vecDistPrim (ADVec q1 cols) (ADVec q2 _) = do
-    qr <- crossM
-            (proj (map (cP . itemi) cols) q1)
-            (proj [cP descr, cP pos] q2)
-    r <- proj [mP posnew pos, mP posold descr] q2
-    return (ADVec qr cols, PVec r)
-
   vecDistDesc (ADVec q1 cols) (ADVec q2 _) = do
     q <- projM (itemProj cols [mP descr pos, mP pos pos'', cP posold])
            $ rownumM pos'' [pos, pos'] []
@@ -319,7 +306,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qr2 <- PVec <$> proj [cP posold, mP posnew pos] q
     return $ (qr1, qr2)
 
-  vecAlign (ADVec q1 cols1) (ADVec q2 cols2) = do
+  vecDistLift (ADVec q1 cols1) (ADVec q2 cols2) = do
     let cols2'    = [ i + length cols1 | i <- cols2 ]
         shiftProj = [ mP (itemi i') (itemi i) | i <- cols2 | i' <- cols2' ]
         resCols   = cols1 ++ cols2'
@@ -375,16 +362,11 @@ instance VectorAlgebra NDVec TableAlgebra where
               VL.AggrCount   -> segAggrDefault qo qa (int 0)
               _              -> return qa
 
-    -- We have to unnest the inner vector (i.e. surrogate join) to get
-    -- the outer descriptor values (segmented aggregates remove one
-    -- list type constructor)
-    qr <- projM [mP descr descr', mP pos pos', cP item]
-          $ (eqJoinM pos' descr
-             (proj [mP descr' descr, mP pos' pos] qo)
-             (return qd))
+    qr <- rownum' pos [(ColE descr, Asc)] [] qd
+
     return $ ADVec qr [1]
 
-  vecAggrNonEmptyS as (ADVec qo _) (ADVec qi _) = do
+  vecAggrNonEmptyS as (ADVec q _) = do
     let resCols = [1 .. N.length as]
 
     let aggrFuns = [ (aggrFun a, itemi i)
@@ -395,15 +377,9 @@ instance VectorAlgebra NDVec TableAlgebra where
     -- Compute aggregate output per segment and new positions
     qa <- projM (itemProj resCols [cP descr, cP pos])
           $ rownumM pos [descr] []
-          $ aggr aggrFuns [(descr, ColE descr)] qi
+          $ aggr aggrFuns [(descr, ColE descr)] q
 
-    -- Remove one level of nesting.
-    qr <- projM (itemProj resCols [mP descr descr', cP pos])
-          $ eqJoinM pos' descr
-             (proj [mP descr' descr, mP pos' pos] qo)
-             (return qa)
-
-    return $ ADVec qr resCols
+    return $ ADVec qa resCols
 
   vecReverse (ADVec q cols) = do
     q' <- rownum' pos' [(ColE pos, Desc)] [] q
@@ -494,29 +470,7 @@ instance VectorAlgebra NDVec TableAlgebra where
                       k : _ -> k
                       []    -> [itemi 1]
 
-  vecSortS (ADVec qs colss) (ADVec qe colse) = do
-    q <- tagM "sortWith"
-         $ eqJoinM pos pos''
-           (projM [cP pos, cP pos']
-              $ rownum pos' (descr : [itemi i | i <- colss] ++ [pos]) [] qs)
-           (proj (itemProj colse [cP descr, mP pos'' pos]) qe)
-    qv <- proj (itemProj colse [cP descr, mP pos pos']) q
-    qp <- proj [mP posold pos'', mP posnew pos'] q
-    return $ (ADVec qv colse, PVec qp)
-
-  vecGroup (ADVec v1 colsg) (ADVec v2 colse) = do
-    q' <- rownumM pos' [resCol, pos] []
-          $ rowrank resCol ((ColE descr, Asc):[(ColE $ itemi i, Asc) | i <- colsg]) v1
-    d1 <- distinctM
-          $ proj (itemProj colsg [cP descr, mP pos resCol]) q'
-    p <- proj [mP posold pos, mP posnew pos'] q'
-    v <- tagM "groupBy ValueVector"
-           $ projM (itemProj colse [cP descr, cP pos])
-           $ eqJoinM pos'' pos' (proj [mP descr resCol, mP pos pos', mP pos'' pos] q')
-                                (proj (itemProj colse [mP pos' pos]) v2)
-    return $ (ADVec d1 colsg, ADVec v colse, PVec p)
-
-  vecGroupScalarS groupExprs (ADVec q1 cols1) = do
+  vecGroupS groupExprs (ADVec q1 cols1) = do
       -- apply the grouping expressions and compute surrogate values
       -- from the grouping values
       let groupProjs = [ eP (itemi' i) (taExpr e) | e <- groupExprs | i <- [1..] ]
@@ -572,6 +526,23 @@ instance VectorAlgebra NDVec TableAlgebra where
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
 
+  vecNestProduct (ADVec q1 cols1) (ADVec q2 cols2) = do
+    let itemProj1  = map (cP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (cP . itemi) cols2'
+
+    q <- projM ([mP descr pos', cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] []
+           $ crossM
+             (proj ([cP descr, mP pos' pos] ++ itemProj1) q1)
+             (proj ((mP pos'' pos) : shiftProj2) q2)
+
+    qv <- proj ([cP descr, cP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [mP posold pos', mP posnew pos] q
+    qp2 <- proj [mP posold pos'', mP posnew pos] q
+    return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+
   -- FIXME merge common parts of vecCartProductS and vecNestProductS
   vecNestProductS (ADVec q1 cols1) (ADVec q2 cols2) = do
     let itemProj1  = map (cP . itemi) cols1
@@ -604,6 +575,25 @@ instance VectorAlgebra NDVec TableAlgebra where
                     ] ++ shiftProj2) q2)
 
     qv <- tagM "eqjoin/1" $ proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
+    qp1 <- proj [mP posold pos', mP posnew pos] q
+    qp2 <- proj [mP posold pos'', mP posnew pos] q
+    return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
+
+  vecNestJoin joinPred (ADVec q1 cols1) (ADVec q2 cols2) = do
+    let itemProj1  = map (cP . itemi) cols1
+        cols2'     = [((length cols1) + 1) .. ((length cols1) + (length cols2))]
+        shiftProj2 = zipWith mP (map itemi cols2') (map itemi cols2)
+        itemProj2  = map (cP . itemi) cols2'
+
+    q <- projM ([cP pos, cP pos', cP pos''] ++ itemProj1 ++ itemProj2)
+           $ rownumM pos [pos', pos''] []
+           $ thetaJoinM (joinPredicate (length cols1) joinPred)
+             (proj ([ mP pos' pos
+                    ] ++ itemProj1) q1)
+             (proj ([ mP pos'' pos
+                    ] ++ shiftProj2) q2)
+
+    qv <- tagM "eqjoin/1" $ proj ([mP descr pos', cP pos] ++ itemProj1 ++ itemProj2) q
     qp1 <- proj [mP posold pos', mP posnew pos] q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (ADVec qv (cols1 ++ cols2'), PVec qp1, PVec qp2)
@@ -652,6 +642,17 @@ instance VectorAlgebra NDVec TableAlgebra where
     qv <- proj ([cP  descr, cP pos] ++ itemProj1 ++ itemProj2) q
     qp2 <- proj [mP posold pos'', mP posnew pos] q
     return (ADVec qv (cols1 ++ cols2'), PVec qp2)
+
+  vecUnboxScalar (ADVec qo colso) (ADVec qi colsi) = do
+    let colsi'     = [((length colso) + 1) .. ((length colso) + (length colsi))]
+        shiftProji = zipWith mP (map itemi colsi') (map itemi colsi)
+        itemProji  = map (cP . itemi) colsi'
+
+    qu <- projM ([cP descr, cP pos] ++ (map (cP . itemi) colso) ++ itemProji)
+              $ eqJoinM pos descr'
+                  (return qo)
+                  (proj ([mP descr' descr] ++ shiftProji) qi)
+    return $ ADVec qu (colso ++ colsi')
 
   vecSelectPos (ADVec qe cols) op (ADVec qi _) = do
     qs <- selectM (BinAppE (binOp op) (ColE pos) (UnAppE (Cast natT) (ColE item')))
@@ -751,7 +752,7 @@ instance VectorAlgebra NDVec TableAlgebra where
 
         pfAggrFuns = [ (aggrFun a, itemi $ pw + i) | a <- N.toList aggrFuns | i <- [1..] ]
 
-    -- GroupAggr(e, f) has to mimic the behaviour of GroupScalarS(e) +
+    -- GroupAggr(e, f) has to mimic the behaviour of GroupS(e) +
     -- AggrS(f) exactly. GroupScalarS determines the order of the
     -- groups by the sort order of the grouping keys (implicitly via
     -- RowRank). GroupAggr has to provide the aggregated groups in the
@@ -830,8 +831,9 @@ instance VectorAlgebra NDVec TableAlgebra where
     r  <- proj [cP posold, mP posold posnew] q
     return $ (ADVec qj cols1, RVec r)
 
-  vecSortScalarS sortExprs (ADVec q1 cols1) = do
+  vecSortS sortExprs (ADVec q1 cols1) = do
     let sortProjs = zipWith (\i e -> (itemi' i, taExpr e)) [1..] sortExprs
+    -- Including positions de facto implements stable sorting
     qs <- rownumM pos' ([descr] ++ map fst sortProjs ++ [pos]) []
           $ projAddCols cols1 sortProjs q1
 

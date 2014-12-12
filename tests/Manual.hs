@@ -18,7 +18,15 @@ import Database.DSH.Compiler
 
 import Database.HDBC.PostgreSQL
 
+import qualified Data.Text as T
+
 import TPCH
+
+data Foo = Foo { foo1 :: Integer, foo2 :: Text, foo3 :: Integer }
+
+deriveDSH ''Foo
+deriveTA ''Foo
+generateTableSelectors ''Foo
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
@@ -29,150 +37,125 @@ xs = toQ [(3,5),(4,6),(5,7),(6,9)]
 ys :: Q [Integer]
 ys = toQ [1,2,3,4]
 
-zs :: Q [Integer]
-zs = toQ [1..20]
-
-ns1 :: Q [(Integer, [Integer])]
-ns1 = toQ [(1, [10, 20])]
-
-ns2 :: Q [(Integer, [Integer])]
-ns2 = toQ [(2, [20, 30])]
-
+bar :: Q [(Integer, Integer, Integer)]
+bar = [ triple a c 42 | (view -> (a, b, c)) <- toQ ([(1,2,3), (4,5,6), (7,8,9)] :: [(Integer, Integer, Integer)]) ]
 
 {-
-q :: Q [Integer]
-q = [ x
-    | x <- xs
-    , and [ x >= y | y <- ys, x /= y ]
-    ]
+li :: Q [(Integer, Text, Double)]
+li = [ tup3 (l_linenumberQ l) (l_returnflagQ l) (l_discountQ l)
+     | l <- lineitems
+     , l_taxQ l > 5.0
+     ]
 -}
 
-{-
-q :: Q [Integer]
-q =
-    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
-        ys = (toQ [2, 4, 6, 7] :: Q [Integer])
-    in [ x | x <- xs , not $ x `elem` [ y | y <- ys, y < 5 ] ]
+data Range = Range { start :: Integer, end :: Integer }
 
-npv :: Q [(Integer, Integer)]
-npv = 
-    [ x
-    | x <- xs
-    , y <- ys
-    , z <- zs
-    , fst x == y
-    , y == z
-    , z == 5
-    ]
+deriveDSH ''Range
 
-tv :: Q Integer
-tv = 42 * sum 
-    [ fst x
-    | x <- xs
-    , y <- ys
-    , z <- zs
-    , fst x == y
-    , y == z
-    , z == 5
-    ]
+avgBalance :: Q [Customer] -> Q Double
+avgBalance cs =
+  avg [ c_acctbalQ c | c <- cs, c_acctbalQ c > 0.0 ]
 
-pv :: Q [(Integer, Integer)] -> Q Integer
-pv g = sum [ x1 * x2 | (view -> (x1, x2)) <- g]
+ordersOf :: Q Customer -> Q [Order]
+ordersOf c =
+  [ o | o <- orders, o_custkeyQ o == c_custkeyQ c ]
 
-q11 :: Q [(Integer, Integer)]
-q11 = [ pair k (pv g)
-      | (view -> (k, g)) <- groupWithKey fst npv
-      , pv g > tv
-      ]
--}
+potentialCustomers :: Q [Customer] -> Q [Customer]
+potentialCustomers cs =
+  [ c | c <- cs,
+        c_acctbalQ c > avgBalance cs, length (ordersOf c) == 0 ]
 
-q :: Q [Integer]
-q = [ x 
-    | xs <- toQ [[1,2,3],[4,5,6]]
-    , x <- xs
-    , x == length xs
-    ]
+countryCodeOf :: Q Customer -> Q Text
+countryCodeOf c = subString 1 2 (c_phoneQ c)
 
-{-
-q :: Q [(Integer, Integer)]
-q = [ pair y z | y <- ys, z <- zs ]
--}
+livesIn :: Q Customer -> [Text] -> Q Bool
+livesIn c countries = countryCodeOf c `elem` toQ countries
 
-{-
-q :: Q [(Integer, Integer)]
-q = [ pair (fst x) (fst y)
-    | x <- ns1
-    , y <- ns2
-    , length (snd x) == length (snd y)
-    ]
--}
+q22 :: [Text] -> Q [(Text, Integer, Double)]
+q22 countries =
+  sortWith (\(view -> (country, _, _)) -> country)
+    [ tup3 country (length custs) (sum (map c_acctbalQ custs)) |
+      (view -> (country, custs)) <- groupWithKey countryCodeOf pots ]
+  where
+    pots = potentialCustomers [ c | c <- customers,
+                                    c `livesIn` countries ]
 
-data Packet = Packet
-    { p_dest :: Integer
-    , p_len  :: Integer
-    , p_pid  :: Integer
-    , p_src  :: Integer
-    , p_ts   :: Integer
-    }
+minSupplyCost :: Q Integer -> Q Double
+minSupplyCost partkey = 
+  minimum $ 
+  [ ps_supplycostQ ps
+  | ps <- partsupps
+  , s  <- suppliers
+  , n  <- nations
+  , r  <- regions
+  , partkey == ps_partkeyQ ps
+  , s_suppkeyQ s == ps_suppkeyQ ps
+  , s_nationkeyQ s == n_nationkeyQ n
+  , n_regionkeyQ n == r_regionkeyQ r
+  , r_nameQ r == (toQ "EUROPE")
+  ]
 
-deriveDSH ''Packet
-deriveTA ''Packet
-generateTableSelectors ''Packet
+sortingCriteria
+  :: Q (Double, Text, Text, Integer, Text, Text, Text, Text)
+  -> Q (Double, Text, Text, Integer)
+sortingCriteria (view -> (b, sn, nn, pk, _, _, _, _)) =
+  tup4 (b * (toQ $ -1.0)) nn sn pk
 
-packets :: Q [Packet]
-packets = table "packets" $ TableHints [ Key ["p_pid"]
-                                       , Key ["p_src", "p_dest", "p_ts"]
-                                       ] NonEmpty
+q2 :: Q [(Double, Text, Text, Integer, Text, Text, Text, Text)]
+q2 = 
+  sortWith sortingCriteria $
+  [ tup8 (s_acctbalQ s)
+           (s_nameQ s)
+	   (n_nameQ n)
+	   (p_partkeyQ p)
+	   (p_mfgrQ p)
+	   (s_addressQ s)
+	   (s_phoneQ s)
+	   (s_commentQ s)
+  | p  <- parts
+  , ps <- partsupps
+  , s  <- suppliers
+  , n  <- nations
+  , r  <- regions
+  , p_partkeyQ p == ps_partkeyQ ps
+  , s_suppkeyQ s == ps_suppkeyQ ps
+  , p_sizeQ p == (toQ 15)
+  , p_typeQ p `like` (toQ "%BRASS")
+  , s_nationkeyQ s == n_nationkeyQ n
+  , n_regionkeyQ n == r_regionkeyQ r
+  , r_nameQ r == (toQ "EUROPE")
+  , ps_supplycostQ ps == minSupplyCost (p_partkeyQ p)
+  ]
+
+orderQuantity :: Q [LineItem] -> Q Double
+orderQuantity lis = sum $ map l_quantityQ lis
+
+jan_q7a :: Q [LineItem]
+jan_q7a = snd $ head $ sortWith (orderQuantity . snd) $ groupWithKey l_orderkeyQ lineitems
 
 --------------------------------------------------------------------------------
--- Flow statistics
+-- Query written from a database viewpoint
 
-deltas :: Q [Integer] -> Q [Integer]
-deltas xs = cons 0 (map (\(view -> (a, b)) -> a - b) (zip (drop 1 xs) xs))
+-- List the lineitems of the order with the most parts.
+sumPerOrder :: Q [(Integer, Double)]
+sumPerOrder = map (\(view -> (ok, lis)) -> pair ok (sum $ map l_quantityQ lis)) 
+	      $ groupWithKey l_orderkeyQ lineitems
 
--- TRY OUT: better or worse than drop?
-deltas' :: Q [Integer] -> Q [Integer]
-deltas' xs = cons 0
-             [ ts - ts'
-             | (view -> (ts, i))   <- number xs
-             , (view -> (ts', i')) <- number xs
-             , i' == i - 1
-             ]
+jan_q7b :: Q [LineItem]
+jan_q7b = 
+    [ l
+    | l <- lineitems
+    , (view -> (ok, nrItems)) <- sumPerOrder
+    , l_orderkeyQ l == ok
+    , nrItems == maximum(map snd sumPerOrder)
+    ]
 
-
-sums :: (QA a, Num a) => Q [a] -> Q [a]
-sums as = [ sum [ a' | (view -> (a', i')) <- nas, i' <= i ]
-          | let nas = number as
-	  , (view -> (a, i)) <- nas
-	  ]
-
--- | For each packet, compute the ID of the flow that it belongs to
-flowids :: Q [Packet] -> Q [Integer]
-flowids ps = sums [ if d > 120 then 1 else 0 | d <- deltas $ map p_tsQ ps ]
-
--- | For each flow, compute the number of packets and average length
--- of packets in the flow. A flow is defined as a number of packets
--- between the same source and destination in which the time gap
--- between consecutive packets is smaller than 120ms.
-flowStats :: Q [(Integer, Integer, Integer, Double)]
-flowStats = [ tuple4 src 
-                     dst 
-                     (length g)
-                     (avg $ map (p_lenQ . fst) g)
-            | (view -> (k, g)) <- flows
-            , let (view -> (src, dst, _)) = k
-            ]
-  where
-    flows = groupWithKey (\p -> tuple3 (p_srcQ $ fst p) (p_destQ $ fst p) (snd p)) 
-                         $ zip packetsOrdered (flowids packetsOrdered)
-
-    packetsOrdered = sortWith (\p -> tuple3 (p_srcQ p) (p_destQ p) (p_tsQ p)) packets
-
-    
+q :: Q [[Integer]]
+q = map init (toQ ([] :: [[Integer]]))
 
 data Trade = Trade
     { t_price     :: Double
-    , t_tid       :: Text
+    , t_tid       :: Integer
     , t_timestamp :: Integer
     , t_tradeDate :: Integer
     }
@@ -183,7 +166,7 @@ generateTableSelectors ''Trade
 
 data Portfolio = Portfolio
     { po_pid         :: Integer
-    , po_tid         :: Text
+    , po_tid         :: Integer
     , po_tradedSince :: Integer
     }
 
@@ -197,190 +180,185 @@ trades = table "trades" $ TableHints [ Key ["t_tid", "t_timestamp"] ] NonEmpty
 portfolios :: Q [Portfolio]
 portfolios = table "portfolio" $ TableHints [Key ["po_pid"] ] NonEmpty
 
-
-lastn :: QA a => Integer -> Q [a] -> Q [a]
-lastn n xs = drop (length xs - toQ n) xs
-
-last10 :: Integer -> Q [(Text, [Double])]
-last10 portfolio = 
-    map (\(view -> (tid, g)) -> pair tid (map snd $ lastn 10 g))
-    $ groupWithKey fst
-    [ pair (t_tidQ t) (t_priceQ t)
-    | t <- trades
-    , p <- portfolios
-    , t_tidQ t == po_tidQ p
-    , po_pidQ p == toQ portfolio
-    ]
-
+--------------------------------------------------------------------------------
+-- For a given date and stock, compute the best profit obtained by
+-- buying the stock and selling it later.
 
 -- | For each list element, compute the minimum of all elements up to
 -- the current one.
-mins :: (Ord a, QA a,TA a) => Q [a] -> Q [a]
+mins :: (Ord a, QA a, TA a) => Q [a] -> Q [a]
 mins as = [ minimum [ a' | (view -> (a', i')) <- nas, i' <= i ]
           | let nas = number as
 	  , (view -> (a, i)) <- nas
 	  ]   
 
-bestProfit :: Text -> Integer -> Q Double
+{-
+
+Being able to write the query using a parallel comprehension would be
+nice:
+
+maximum [ t_priceQ t - minPrice
+        | t        <- trades'
+        | minPrice <- mins $ map t_priceQ trades'
+        ]
+
+
+-}
+
+
+
+bestProfit :: Integer -> Integer -> Q Double
 bestProfit stock date = 
     maximum [ t_priceQ t - minPrice
             | (view -> (t, minPrice)) <- zip trades' (mins $ map t_priceQ trades')
             ]
-                                  
   where
-    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date) 
+    trades' = filter (\t -> t_tidQ t == toQ stock && t_tradeDateQ t == toQ date)
               $ sortWith t_timestampQ trades
 
-c1 :: Q [[Integer]]
-c1 = [ [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
+hasNationality :: Q Customer -> Text -> Q Bool
+hasNationality c nn = 
+    or [ n_nameQ n == toQ nn && n_nationkeyQ n == c_nationkeyQ c
+       | n <- nations
+       ]
 
-c2 :: Q [[[Integer]]]
-c2 = [ [ [ x + y + z | z <- toQ [100, 200] ] | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
+ordersWithStatus :: Text -> Q Customer -> Q [Order]
+ordersWithStatus status c =
+    [ o | o <- ordersOf c, o_orderstatusQ o == toQ status ]
 
+revenue :: Q Order -> Q Double
+revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
+                | l <- lineitems
+                , l_orderkeyQ l == o_orderkeyQ o
+                ]
 
-{-
-q1 :: Q [Integer]
-q1 =
-    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
-        ys = (toQ [2, 4, 6] :: Q [Integer])
-    in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
--}
+expectedRevenueFor :: Text -> Q [(Text, [(Integer, Double)])]
+expectedRevenueFor nation =
+    [ pair (c_nameQ c) [ pair (o_orderdateQ o) (revenue o)
+                       | o <- ordersWithStatus "P" c ]
+    | c <- customers
+    , c `hasNationality` nation
+    ]
 
-q2 :: Q [Bool]
-q2 = map or $ toQ [[False]]
+foobar = take 10 $ sortWith id $ map revenue orders
 
-
-q3 :: Q [Integer]
-q3 = concatMap (\x -> cond ((>) x 0) (x <| (toQ [])) (toQ [])) $ toQ [0]
-
-
-
-withFlagStatus :: Q LineItem -> Q (Text, Text)
-withFlagStatus li = tuple2 (l_returnflagQ li) (l_linestatusQ li)
-
-filteredItems :: Q [LineItem]
-filteredItems = [ li | li <- lineitems , l_shipdateQ li <= 42 ]
-
-fst9 :: (QA a, QA b, QA c, QA d, QA e, QA f, QA g, QA h, QA i) => Q (a, b, c, d, e, f, g, h, i) -> Q a
-fst9 (view -> (a, _, _, _, _, _, _, _, _)) = a
-
-q1 :: Q [((Text, Text), Double, Double, Double, Double, Double, Double, Double, Integer)]
-q1 = sortWith fst9 $ 
-     [ tuple9
-	  k
-	  (sum $ map l_quantityQ lis)
-	  (sum $ map l_extendedpriceQ lis)
-	  (sum $ map (\li -> l_extendedpriceQ li * (1 - l_discountQ li)) lis)
-	  (sum $ map (\li -> l_extendedpriceQ li * (1 - l_discountQ li) * (1 + l_taxQ li)) lis)
-	  (avg $ map l_quantityQ lis)
-	  (avg $ map l_extendedpriceQ lis)
-	  (avg $ map l_discountQ lis)
-	  (length lis)
-      | (view -> (k, lis)) <- groupWithKey withFlagStatus filteredItems
-      ]
-
-qs :: Q Integer
-qs = 42 + sum [ 23 + x + sum [ x + y | y <- toQ [10, 20] ] | x <- toQ [1, 2] ]
-
-qr :: Q [[Integer]]
-qr = [ [ x * 42 | x <- take 23 xs ] | xs <- toQ [ [1,2,3,4], [10,20,30], [100,200,300,400] ] ]
-
-qb :: Q [[Integer]]
--- qb = [ [ x * 42 | x <- xs ] | xs <- toQ [[1,2,3], [4,5] ]]
--- qb = [ [ x + length xs | x <- xs ] | xs <- toQ [[1,2,3], [4,5] ] ]
--- qb = [ [ x + y | y <- toQ [4, 5] ] | x <- toQ [1,2,3] ]
--- qb = [ [ [ x + length xs + length xss | x <- xs ] | xs <- xss ] | xss <- toQ [[[1,2], [3,4]], [[5], [6,7,8]]] ]
-qb = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ [[1,2,3], [4,5]] ]
-
-qj = 
-    let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
-        ys = (toQ [2, 4, 6] :: Q [Integer])
-    in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
+njg3 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> Q [(Integer, Integer)]
+njg3 njgxs njgys njgzs =
+  [ pair x y
+  | x <- toQ njgxs
+  , y <- toQ njgys
+  , length [ toQ () | z <- toQ njgzs, fst z == x ] > 2
+  ]
 
 njgxs1 :: [Integer]
-njgxs1 = [1,2,3,4,5,6,7,8,12]
+njgxs1 = [1,2]
 
 njgys1 :: [Integer]
-njgys1 = [2,3,2,4,5,5,9,12,2,2,13]
+njgys1 = [2,3]
 
 njgzs1 :: [(Integer, Integer)]
-njgzs1 = [(2, 20), (5, 60), (3, 30), (3, 80), (4, 40), (5, 10), (5, 30), (12, 120)]
+njgzs1 = [(2, 20), (5, 60), (3, 30)]
 
-hnjg1 =
-  [ x
-  | x <- toQ njgxs1
-  , x < 8
-  , sum [ snd z | z <- toQ njgzs1, fst z == x ] > 100
-  ]
+backdep5 :: Q [[Integer]]
+backdep5 = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- toQ ([[1,2,3], [], [4,5,6]] :: [[Integer]]) ]
 
-hcp (view -> (xs, ys)) = [ pair x y | x <- xs, y <- ys]
+foo42 :: Q [Integer]
+foo42 = filter (const $ toQ True) (toQ ([1,2,3,45] :: [Integer]))
 
-qj3 (view -> (xs, ys, zs)) = 
-  [ tuple3 x y z
+revenue2 :: Integer -> Q [(Integer, Double)]
+revenue2 intervalFrom =
+    [ pair supplier_no (sum [ ep * (1 - discount)
+                            | (view -> (_, ep, discount)) <- g
+			    ])
+    | (view -> (supplier_no, g)) <- groupWithKey (\(view -> (a, b, c)) -> a) intervalItems
+    ]
+
+  where
+    intervalItems = [ tup3 (l_suppkeyQ l)
+    			   (l_extendedpriceQ l)
+			   (l_discountQ l)
+		    | l <- lineitems
+		    , l_shipdateQ l >= toQ intervalFrom
+		    , l_shipdateQ l <= (toQ intervalFrom) + 23
+		    ]
+
+q15 :: Integer -> Q [(Integer, (Text, Text, Text, Double))]
+q15 intervalFrom = 
+    sortWith fst
+    [ pair (s_suppkeyQ s)
+           (tup4 (s_nameQ s)
+	         (s_addressQ s)
+	         (s_phoneQ s)
+	         total_rev)
+    | s <- suppliers
+    , (view -> (supplier_no, total_rev)) <- revenue2 intervalFrom
+    , s_suppkeyQ s == supplier_no
+    , total_rev == (maximum $ map snd $ revenue2 intervalFrom)
+    ]
+
+cartprod :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+cartprod (view -> (xs, ys)) =
+  [ tup2 x y
   | x <- xs
   , y <- ys
-  , z <- zs
   , x == y
-  , y == z
   ]
 
-aj12 = 
-    let xs = toQ ([6,7,8,9,10,12] :: [Integer])
-        ys = toQ ([8,9,12,13,15,16] :: [Integer])
-    in [ x | x <- xs, and [ x < y | y <- ys, y > 10 ]]
+tup :: Q [(Integer, Integer, Integer, Integer)]
+tup = map (\(view -> (a, b, c, d)) -> tup4 (a + c) (b - d) b d) (toQ ([(0,0,0,0)] :: [(Integer, Integer, Integer, Integer)]))
 
-aj_class12 :: Q ([Integer], [Integer]) -> Q [Integer]
-aj_class12 (view -> (xs, ys)) = 
-  [ x 
-  | x <- xs
-  , and [ x == y | y <- ys, y > 10 ]
-  ]
+frontguard :: Q [[Integer]]
+frontguard =
+    [ [ y | x > 13, y <- toQ ([1,2,3,4] :: [Integer]), y < 3 ]
+    | x <- toQ ([10, 20, 30] :: [Integer])
+    ]
 
-qif = [ if x > 5 then x + 42 else x * 2 | x <- toQ ([1..10] :: [Integer])]
+njxs1 :: [Integer]
+njxs1 = [1,2,3,4,5,6]
 
-qx = map (map sum) $ toQ ([[]] :: [[[Integer]]])
+njys1 :: [Integer]
+njys1 = [3,4,5,6,3,6,4,1,1,1]
 
-qf = [ x | x <- toQ ([1..10] :: [Integer]), x < 5 ]
+nj6 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
+nj6 njxs njys = 
+      [ pair x [ y | y <- toQ njys, x + y > 10, y < 7 ]
+      | x <- toQ njxs
+      ]
 
-project 
-  :: Q ((Integer, Integer, Integer), [((Integer, Integer, Integer), (Double, Double))])
-  -> Q ((Integer, Integer, Integer), Double)
-project gk = pair (fst gk) revenue
-  where
-    revenue = sum [ ep * (1 - d) | (view -> (ep, d)) <- [ snd x | x <- snd gk ] ]
-    
-byRevDate :: Q ((Integer, Integer, Integer), Double) -> Q (Double, Integer)
-byRevDate (view -> (((view -> (_, _, sp)), r))) = pair (r * (-1)) sp
+nj9 :: [Integer] -> [Integer] -> Q [[Integer]]
+nj9 njxs njys = [ [ x + y | y <- toQ njys, x + 1 == y, y > 2, x < 6 ] | x <- toQ njxs ]
 
-q3t :: Q [((Integer, Integer, Integer), Double)]
-q3t =
-  sortWith byRevDate $
-  map project $
-  groupWithKey fst $
-  [ let sep = tuple3 (l_orderkeyQ l) (o_orderdateQ o) (o_shippriorityQ o)
-    in pair sep (pair (l_extendedpriceQ l) (l_discountQ l))
-  | c <- customers
-  , o <- orders
-  , l <- lineitems
-  , c_mktsegmentQ c == (toQ "foo")
-  , c_custkeyQ c == o_custkeyQ o
-  , l_orderkeyQ l == o_orderkeyQ o
-  , o_orderdateQ o < (toQ 42)
-  , l_shipdateQ l > (toQ 23)
-  ]
+backdep3 :: Q [[Integer]] -> Q [[Integer]]
+backdep3 xss = [ [ x + length xs | x <- xs ] | xs <- xss ]
 
-foo :: Q [(Integer, Integer, Integer)]
-foo = [ tuple3 (x1 * x2) y1 y2
-      | (view -> (x1, x2)) <- fst $ toQ ([]::[(Integer, Integer)], ([]::[(Integer, Integer)]))
-      , (view -> (y1, y2)) <- snd $ toQ ([]::[(Integer, Integer)], ([]::[(Integer, Integer)]))
-      , x1 == y2]
+backdep4 :: Q [[[Integer]]] -> Q [[[Integer]]]
+backdep4 xsss = [ [ [ x + length xs + length xss
+                    | x <- xs
+                    ]
+                  | xs <- xss
+                  ]
+                | xss <- xsss
+                ]
 
-bar :: Q [(Integer, Integer)]
-bar = [ pair x y | x <- fst $ toQ (([23,42] :: [Integer]), ([15] :: [Integer])), y <- snd  $ toQ (([23,42] :: [Integer]), ([15] :: [Integer]))]
+q23 :: [[[Integer]]] -> Q [[(Integer, [[Integer]])]]
+q23 xsss = map (groupWithKey length) (toQ xsss)
+
+-- Test data for testcase hnj12
+njxs2, njys2, njzs2 :: [Integer]
+njxs2 = [1,2,3,4,5,5,2]
+njys2 = [2,1,0,5,4,4,4]
+njzs2 = [6,1,1,3,2,5]
+
+nj12 :: [Integer] -> [Integer] -> [Integer] -> Q [[[(Integer, Integer, Integer)]]]
+nj12 njxs njys njzs =
+    [ [ [ tup3 x y z | z <- toQ njzs, y == z ]
+      | y <- toQ njys
+      , x == y
+      ]
+    | x <- toQ njxs
+    ]
 
 main :: IO ()
--- main = getConn P.>>= \c -> debugQ "q" c $ qj3 $ toQ (([], [], []) :: ([Integer], [Integer], [Integer]))
--- main = getConn P.>>= \c -> debugQ "q" c foo
-main = getConn P.>>= \c -> runQ c bar P.>>= \r -> putStrLn $ show r
---main = debugQX100 "q" x100Conn $ q (toQ [1..50])
---main = debugQX100 "q1" x100Conn q1
+main = getConn P.>>= \c -> debugQ "q" c (nj12 njxs2 njys2 njzs2)  P.>>= \r -> putStrLn (show r)
+-- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
+--main = debugQX100 "q" x100Conn q

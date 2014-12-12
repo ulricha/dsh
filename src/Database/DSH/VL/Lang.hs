@@ -15,17 +15,16 @@ import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang as L
 
-data RowType = Int 
-             | Bool 
-             | Double
-             | String 
-             | Unit
-             | Pair RowType RowType
+data ScalarType = Int 
+                | Bool 
+                | Double
+                | String 
+                | Unit
              deriving (Eq, Ord, Show)
 
-$(deriveJSON defaultOptions ''RowType)
+$(deriveJSON defaultOptions ''ScalarType)
 
-type VLColumn = (L.ColName, RowType)
+type VLColumn = (L.ColName, ScalarType)
 type DBCol = Int
 
 data VLVal = VLInt Int
@@ -46,7 +45,18 @@ data Expr = BinApp L.ScalarBinOp Expr Expr
 
 $(deriveJSON defaultOptions ''Expr)
 
-data AggrFun = AggrSum RowType Expr
+-- | Helper function: Shift all column indexes in an expression by a certain offset.
+shiftExprCols :: Int -> Expr -> Expr
+shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1) 
+                                              (shiftExprCols o e2)
+shiftExprCols o (UnApp op e)      = UnApp op (shiftExprCols o e)
+shiftExprCols o (Column c)        = Column $ c + o
+shiftExprCols _ (Constant v)      = Constant v
+shiftExprCols o (If c t e)        = If (shiftExprCols o c) 
+                                       (shiftExprCols o t) 
+                                       (shiftExprCols o e)
+
+data AggrFun = AggrSum ScalarType Expr
              | AggrMin Expr
              | AggrMax Expr
              | AggrAvg Expr
@@ -86,33 +96,39 @@ $(deriveJSON defaultOptions ''FrameSpec)
 -- VectorPrimitives.
 
 data NullOp = SingletonDescr
-            | Lit (L.Emptiness, [RowType], [[VLVal]])
+            | Lit (L.Emptiness, [ScalarType], [[VLVal]])
             | TableRef (String, [VLColumn], L.TableHints)
             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''NullOp)
 
-data UnOp = UniqueS
-          | Number
-          | NumberS
-          | UnboxRename
+data UnOp = UnboxRename
           | Segment
           | Unsegment
-          | Reverse -- (DBV, PropVector)
-          | ReverseS -- (DBV, PropVector)
+
           | R1
           | R2
           | R3
+
           | Project [Expr]
           | Select Expr
-          | SelectPos1 (L.ScalarBinOp, Int)
-          | SelectPos1S (L.ScalarBinOp, Int)
+
           | GroupAggr ([Expr], N.NonEmpty AggrFun)
           | Aggr AggrFun
           | AggrNonEmpty (N.NonEmpty AggrFun)
-          | SortScalarS [Expr]
-          | GroupScalarS [Expr]
+          | AggrNonEmptyS (N.NonEmpty AggrFun)
+
+          | Number
+          | NumberS
+          | UniqueS
+          | Reverse
+          | ReverseS
+          | SelectPos1 (L.ScalarBinOp, Int)
+          | SelectPos1S (L.ScalarBinOp, Int)
+          | SortS [Expr]
+          | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
+
           | Reshape Integer
           | ReshapeS Integer
           | Transpose
@@ -120,30 +136,19 @@ data UnOp = UniqueS
 
 $(deriveJSON defaultOptions ''UnOp)
 
-data BinOp = Group    -- (DescrVector, DBV, PropVector)
-           | SortS        -- (DBV, PropVector)
-           | AggrS AggrFun
-           | AggrNonEmptyS (N.NonEmpty AggrFun)
-           | DistPrim   -- (DBV, PropVector)
-           | DistDesc   -- (DBV, PropVector)
-           | Align     -- (DBV, PropVector)
+data BinOp = DistLift
+
            | PropRename
-           | PropFilter -- (DBV, PropVector)
-           | PropReorder -- (DBV, PropVector)
+           | PropFilter
+           | PropReorder
            
-           -- | Specialized unbox operator that merges DescrToRename
-           -- and PropRename. It takes an inner and outer vector, and
-           -- pulls the segment that is referenced by the outer vector
-           -- into the outer segment. Notice that there must be
-           -- /exactly one/ segment referenced by the outer
-           -- vector. Inner segments that are not referenced are
-           -- silently discarded.
-           -- 
-           -- Output: @(DVec, RVec)@
-           | Unbox
+           | UnboxNested
+           | UnboxScalar
+           | Align
+
+           | AggrS AggrFun
            | Append
            | AppendS
-           | Restrict Expr
            | SelectPos L.ScalarBinOp
            | SelectPosS L.ScalarBinOp
            | Zip
@@ -156,7 +161,9 @@ data BinOp = Group    -- (DescrVector, DBV, PropVector)
            | SemiJoinS (L.JoinPredicate Expr)
            | AntiJoin (L.JoinPredicate Expr)
            | AntiJoinS (L.JoinPredicate Expr)
+           | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
+           | NestProduct
            | NestProductS
            | TransposeS
     deriving (Eq, Ord, Show)

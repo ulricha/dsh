@@ -1,7 +1,8 @@
 -- | This module performs optimizations on the Comprehension Language
 -- (CL).
 module Database.DSH.CL.Opt
-  ( optimizeComprehensions ) where
+  ( optimizeComprehensions
+  ) where
 
 import           Control.Arrow
 
@@ -19,13 +20,20 @@ import           Database.DSH.CL.Opt.Normalize
 import           Database.DSH.CL.Opt.PartialEval
 import           Database.DSH.CL.Opt.PostProcess
 import           Database.DSH.CL.Opt.PredPushdown
+import           Database.DSH.CL.Opt.Resugar
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy: Rule Groups
 
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
+compNormEarlyR = m_norm_1R 
+                 <+ m_norm_2R
+                 <+ m_norm_3R
+                 -- Does not lead to good code. See lablog entry (24.11.2014)
+                 -- <+ invariantguardR
+                 <+ ifgeneratorR
+                 <+ identityCompR
 
 -- | Comprehension normalization rules 4 and 5. Beware: these rewrites
 -- should propably occur late in the chain, as they might prohibit
@@ -33,6 +41,9 @@ compNormEarlyR = m_norm_1R {- <+ m_norm_2R -} <+ m_norm_3R
 compNormLateR :: RewriteC CL
 compNormLateR = m_norm_4R <+ m_norm_5R
 
+-- | Nestjoin/Nestproduct rewrites are applied bottom-up. Innermost
+-- nesting opportunities must be dealt with first in order to produce
+-- trees of nesting operators.
 buUnnestR :: RewriteC CL
 buUnnestR =
     zipCorrelatedR
@@ -40,6 +51,20 @@ buUnnestR =
     -- If the inverse M-Norm-3 succeeds, try to unnest the new
     -- generator
     <+ (nestingGenR >>> pathR [CompQuals, QualsSingleton, BindQualExpr] nestjoinR)
+
+-- | Normalize unnested comprehensions. To avoid nested iterators
+-- after desugaring whenever possible, consecutive generators that do
+-- not depend on each other are mapped to cartesian products. After
+-- that, we try to push guards down into product inputs.
+postProcessCompR :: RewriteC CL
+postProcessCompR = do
+    ExprCL Comp{} <- idR
+    (guardpushbackR
+        >+> repeatR introduceCartProductsR
+        >+> repeatR predpushdownR)
+
+postProcessR :: RewriteC CL
+postProcessR = repeatR $ anybuR postProcessCompR
 
 --------------------------------------------------------------------------------
 -- Rewrite Strategy
@@ -49,36 +74,38 @@ buUnnestR =
 descendR :: RewriteC CL
 descendR = readerT $ \cl -> case cl of
 
-    ExprCL (Comp _ _ _) -> optCompR
+    ExprCL Comp{} -> optCompR
 
     -- On non-comprehensions, try to apply partial evaluation rules
     -- before descending
-    ExprCL _            -> repeatR partialEvalR >+> repeatR normalizeExprR >+> anyR descendR
+    ExprCL _      -> repeatR partialEvalR
+                     >+> repeatR normalizeExprR
+                     >+> anyR descendR
 
     -- We are looking only for expressions. On non-expressions, simply descend.
-    _                   -> anyR descendR
+    _             -> anyR descendR
 
 
 -- | Optimize single comprehensions during a top-down traversal
 optCompR :: RewriteC CL
 optCompR = do
-    c@(Comp _ _ _) <- promoteT idR
-    debugPretty "optCompR at" c
+    Comp{} <- promoteT idR
+    -- debugPretty "optCompR at" c
 
-    repeatR $ do
-          (compNormEarlyR
+    repeatR (compNormEarlyR
              <+ predpushdownR
              <+ flatjoinsR
              <+ anyR descendR
              ) >>> debugShow "after comp"
 
 applyOptimizationsR :: RewriteC CL
-applyOptimizationsR = descendR >+> anytdR loopInvariantGuardR >+> anybuR buUnnestR
+applyOptimizationsR = descendR >+> anytdR loopInvariantR >+> anybuR buUnnestR
 
 optimizeR :: RewriteC CL
-optimizeR = normalizeOnceR >+>
+optimizeR = resugarR >+>
+            normalizeOnceR >+>
             repeatR applyOptimizationsR >+>
-            anybuR postProcessCompR
+            postProcessR
 
 optimizeComprehensions :: Expr -> Expr
 optimizeComprehensions expr = debugOpt "CL" expr optimizedExpr

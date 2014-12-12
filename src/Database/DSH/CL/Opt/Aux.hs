@@ -20,6 +20,7 @@ module Database.DSH.CL.Opt.Aux
     , isAntiJoinPred
       -- * Free and bound variables
     , freeVars
+    , boundVars
     , compBoundVars
       -- * Substituion
     , substR
@@ -46,13 +47,14 @@ import qualified Data.Foldable              as F
 import           Data.List
 import qualified Data.Set                   as S
 import           Data.List.NonEmpty         (NonEmpty ((:|)))
-import           Data.Semigroup
+import           Data.Semigroup             hiding (First)
 
 import           Language.KURE
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Impossible
 
@@ -82,6 +84,7 @@ toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain 
 toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
 toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
 toJoinUnOp (SUCastOp o) = return $ JUCastOp o
+toJoinUnOp (SUTextOp o) = return $ JUTextOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
 toJoinUnOp SUDateOp     = $unimplemented
 
@@ -90,10 +93,8 @@ toJoinExpr n = do
     e <- idR
 
     case e of
-        AppE1 _ Fst _   -> do
-            appe1T (toJoinExpr n) (\t _ e1 -> JFst t e1)
-        AppE1 _ Snd _   -> do
-            appe1T (toJoinExpr n) (\t _ e1 -> JSnd t e1)
+        AppE1 _ (TupElem i) _ -> do
+            appe1T (toJoinExpr n) (\t _ e1 -> JTupElem t i e1)
         BinOp _ o _ _ -> do
             o' <- constT $ toJoinBinOp o
             binopT (toJoinExpr n) (toJoinExpr n) (\t _ e1 e2 -> JBinOp t o' e1 e2)
@@ -185,13 +186,12 @@ isAntiJoinPred _  _                                     = False
 isFlatExpr :: Expr -> Bool
 isFlatExpr expr =
     case expr of
-        AppE1 _ Fst e    -> isFlatExpr e
-        AppE1 _ Snd e    -> isFlatExpr e
-        UnOp _ _ e       -> isFlatExpr e
-        BinOp _ _ e1 e2  -> isFlatExpr e1 && isFlatExpr e2
-        Var _ _          -> True
-        Lit _ _          -> True
-        _                -> False
+        AppE1 _ (TupElem _) e -> isFlatExpr e
+        UnOp _ _ e            -> isFlatExpr e
+        BinOp _ _ e1 e2       -> isFlatExpr e1 && isFlatExpr e2
+        Var _ _               -> True
+        Lit _ _               -> True
+        _                     -> False
 
 --------------------------------------------------------------------------------
 -- Computation of free variables
@@ -213,51 +213,49 @@ compBoundVars qs = F.foldr aux [] qs
     aux (BindQ n _) ns = n : ns
     aux (GuardQ _) ns  = ns
 
+boundVarsT :: TransformC CL [Ident]
+boundVarsT = fmap nub $ crushbuT $ promoteT $ readerT $ \expr -> case expr of
+     Comp _ _ qs -> return $ compBoundVars qs
+     Let _ v _ _ -> return [v]
+     _           -> return []
+
+-- | Compute all names that are bound in the given expression. Note
+-- that the only binding forms in NKL are comprehensions or 'let'
+-- bindings.
+boundVars :: Expr -> [Ident]
+boundVars = either error id . applyExpr boundVarsT
+
 --------------------------------------------------------------------------------
 -- Substitution
 
-alphaLamR :: RewriteC Expr
-alphaLamR = do (ctx, Lam lamTy v _) <- exposeT
-               v' <- constT $ freshName (inScopeNames ctx)
-               let varTy = domainT lamTy
-               lamT (extractR $ tryR $ substR v (Var varTy v')) (\_ _ -> Lam lamTy v')
-
+-- | /Exhaustively/ substitute term 's' for a variable 'v'.
 substR :: Ident -> Expr -> RewriteC CL
 substR v s = readerT $ \expr -> case expr of
     -- Occurence of the variable to be replaced
     ExprCL (Var _ n) | n == v                          -> return $ inject s
 
-    -- Some other variable
-    ExprCL (Var _ _)                                   -> idR
-
-    -- A lambda which does not shadow v and in which v occurs free. If the
-    -- lambda variable occurs free in the substitute, we rename the lambda
-    -- variable to avoid name capturing.
-    ExprCL (Lam _ n e) | n /= v && v `elem` freeVars e ->
+    -- If a let-binding shadows the name we substitute, only descend
+    -- into the bound expression.
+    ExprCL (Let _ n _ _) | n == v    -> tryR $ childR LetBind (substR v s)
+    ExprCL (Let _ n _ _) | otherwise ->
         if n `elem` freeVars s
-        then promoteR alphaLamR >>> substR v s
-        else promoteR $ lamR (extractR $ substR v s)
-
-    -- A lambda which shadows v -> don't descend
-    ExprCL (Lam _ _ _)                                 -> idR
+        -- If the let-bound name occurs free in the substitute,
+        -- alpha-convert the binding to avoid capturing the name.
+        then $unimplemented >>> tryR (anyR (substR v s))
+        else tryR $ anyR (substR v s)
 
     -- If some generator shadows v, we must not substitute in the comprehension
     -- head. However, substitute in the qualifier list. The traversal on
     -- qualifiers takes care of shadowing generators.
     -- FIXME in this case, rename the shadowing generator to avoid
     -- name-capturing (see lambda case)
-    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> promoteR $ compR idR (extractR $ substR v s)
-    ExprCL (Comp _ _ _)                                -> promoteR $ compR (extractR $ substR v s) (extractR $ substR v s)
+    ExprCL (Comp _ _ qs) | v `elem` compBoundVars qs   -> tryR $ childR CompQuals (substR v s)
+    ExprCL _                                           -> tryR $ anyR $ substR v s
 
-    ExprCL (Lit _ _)                                   -> idR
-    ExprCL (Table _ _ _ _)                             -> idR
-    ExprCL _                                           -> anyR $ substR v s
-
-    -- Don't substitute past shadowingt generators
-    QualsCL ((BindQ n _) :* _) | n == v                -> promoteR $ qualsR (extractR $ substR v s) idR
-    QualsCL (_ :* _)                                   -> promoteR $ qualsR (extractR $ substR v s) (extractR $ substR v s)
-    QualsCL (S _)                                      -> promoteR $ qualsemptyR (extractR $ substR v s)
-    QualCL _                                           -> anyR $ substR v s
+    -- Don't substitute past shadowing generators
+    QualsCL ((BindQ n _) :* _) | n == v                -> tryR $ childR QualsHead (substR v s)
+    QualsCL _                                          -> tryR $ anyR $ substR v s
+    QualCL _                                           -> tryR $ anyR $ substR v s
 
 
 --------------------------------------------------------------------------------
@@ -274,8 +272,8 @@ tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
 tupleVars n t1 t2 = (v1Rep, v2Rep)
   where v     = Var pt n
         pt    = pairT t1 t2
-        v1Rep = AppE1 t1 Fst v
-        v2Rep = AppE1 t2 Snd v
+        v1Rep = AppE1 t1 (TupElem First) v
+        v2Rep = AppE1 t2 (TupElem (Next First)) v
 
 --------------------------------------------------------------------------------
 -- Helpers for combining generators with guards in a comprehensions'
@@ -287,7 +285,7 @@ insertGuard :: Expr -> S.Set Ident -> NL Qual -> NL Qual
 insertGuard guardExpr initialEnv quals = go initialEnv quals
   where
     go :: S.Set Ident -> NL Qual -> NL Qual
-    go env (S q)             =
+    go env (S q)                 =
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* S q
         else q :* (S $ GuardQ guardExpr)
@@ -295,7 +293,10 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* q :* qs
         else q :* go (S.insert x env) qs
-    go _ (GuardQ _ :* _)      = $impossible
+    go env (GuardQ p :* qs)      = 
+        if all (\v -> S.member v env) fvs
+        then GuardQ guardExpr :* GuardQ p :* qs
+        else GuardQ p :* go env qs
 
     fvs = freeVars guardExpr
 
@@ -387,20 +388,14 @@ onetdSpineT t = do
 -- Classification of expressions
 
 complexPrim2 :: Prim2 -> Bool
-complexPrim2 op =
-    case op of
-        Map       -> False
-        ConcatMap -> False
-        Pair      -> False
-        _         -> True
+complexPrim2 _ = True
 
 complexPrim1 :: Prim1 -> Bool
 complexPrim1 op =
     case op of
-        Concat -> False
-        Fst    -> False
-        Snd    -> False
-        _      -> True
+        Concat    -> False
+        TupElem _ -> False
+        _         -> True
 
 fromGuard :: Monad m => Qual -> m Expr
 fromGuard (GuardQ e)  = return e

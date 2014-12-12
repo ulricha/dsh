@@ -62,9 +62,10 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
-    SortScalarS _ -> liftM2 VPropPair (unpack s) (Right PropVector)
+    SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
+    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
-    GroupScalarS es -> 
+    GroupS es -> 
       case s of
         VProp t@(ValueVector _) -> 
           Right $ VPropTriple (ValueVector $ length es) t PropVector
@@ -95,24 +96,9 @@ reqValVectors _ _ _ e =
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
 inferVectorTypeBinOp s1 s2 op = 
   case op of
-    Group -> 
-      case (s1, s2) of
-        (VProp t1@(ValueVector _), VProp t2@(ValueVector _)) -> 
-          Right $ VPropTriple t1 t2 PropVector
-        _                                                    -> 
-          Left "Input of GroupBy is not a value vector"
-    SortS ->
-      case (s1, s2) of
-        (VProp (ValueVector _), VProp t2@(ValueVector _)) -> 
-          Right $ VPropPair t2 PropVector
-        _                                                    -> 
-          Left "Input of SortWith is not a value vector"
     AggrS _ -> return $ VProp $ ValueVector 1
-    AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
-    DistPrim -> liftM2 VPropPair (unpack s1) (Right PropVector)
-    DistDesc -> liftM2 VPropPair (unpack s1) (Right PropVector)
 
-    Align -> do
+    DistLift -> do
         ValueVector w1 <- unpack s1
         ValueVector w2 <- unpack s2
         return $ VPropPair (ValueVector $ w1 + w2) PropVector
@@ -120,7 +106,7 @@ inferVectorTypeBinOp s1 s2 op =
     PropRename -> Right s2
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
-    Unbox -> liftM2 VPropPair (unpack s2) (Right RenameVector)
+    UnboxNested -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     Append -> 
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
@@ -138,9 +124,12 @@ inferVectorTypeBinOp s1 s2 op =
         v -> 
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
-    Restrict _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
     SelectPosS _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
+    Align ->
+      case (s1, s2) of
+        (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
+        _                                                -> Left "Inputs of Align are not ValueVectors"
     Zip ->
       case (s1, s2) of
         (VProp (ValueVector w1), VProp (ValueVector w2)) -> Right $ VProp $ ValueVector $ w1 + w2
@@ -150,6 +139,9 @@ inferVectorTypeBinOp s1 s2 op =
     CartProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "CartProductS"
     NestProductS -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProductS"
     ThetaJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoin"
+    UnboxScalar -> reqValVectors s1 s2 (\w1 w2 -> VProp $ ValueVector $ w1 + w2) "UnboxScalar"
+    NestJoin _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoin"
+    NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProduct"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
     SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)

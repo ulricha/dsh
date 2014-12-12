@@ -9,7 +9,7 @@ import           Database.DSH.Optimizer.TA.Properties.Types
 inferCard1NullOp :: NullOp -> Card1
 inferCard1NullOp op =
     case op of
-        LitTable vals _    -> length vals == 1
+        LitTable (vals, _) -> length vals == 1
         TableRef (_, _, _) -> False
 
 inferCard1UnOp :: Card1 -> Empty -> UnOp -> Card1

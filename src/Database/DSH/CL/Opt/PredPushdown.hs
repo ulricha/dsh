@@ -13,10 +13,11 @@ import           Control.Arrow
 import qualified Data.List.NonEmpty       as N
 import qualified Data.Set                 as S
 
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Aux
-import           Database.DSH.Common.Lang
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions
@@ -59,7 +60,7 @@ pushLeftTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== Fst)) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem First))) localPaths)
 
     let xst = typeOf xs
 
@@ -76,7 +77,7 @@ pushRightTupleR x p = do
 
     localPaths <- predTrans >>> allVarPathsT x
 
-    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== Snd)) localPaths)
+    ExprCL p' <- predTrans >>> andR (map (unTuplifyR (== (TupElem (Next (First))))) localPaths)
 
     let yst = typeOf ys
 
@@ -114,12 +115,12 @@ mkMergeableJoinPredT x leftExpr op rightExpr = do
     rightVarPaths <- constRightExpr >>> allVarPathsT x
 
     leftExpr'     <- constLeftExpr
-                         >>> andR (map (unTuplifyR (== Fst)) leftVarPaths)
+                         >>> andR (map (unTuplifyR (== (TupElem First))) leftVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 
     rightExpr'    <- constRightExpr
-                         >>> andR (map (unTuplifyR (== Snd)) rightVarPaths)
+                         >>> andR (map (unTuplifyR (== (TupElem (Next First)))) rightVarPaths)
                          >>> projectT
                          >>> toJoinExpr x
 
@@ -153,18 +154,29 @@ mergePredIntoJoinR x p = do
 
     return $ inject $ AppE2 t extendedJoin xs ys
 
--- | Push into the second argument (input) of some operator that
+-- | Push into the /first/ argument (input) of some operator that
 -- commutes with selection.
-pushInputR :: Ident -> Expr -> RewriteC CL
-pushInputR x p = do
-    AppE2 t prim e1 xs <- promoteT idR
+
+-- This was nicer with a higher-order 'sortWith'. With first-order
+-- 'sort', we have to push the predicate into both arguments, which
+-- works only if the comprehension for the sorting criteria is still
+-- in its original form.
+pushSortInputR :: Ident -> Expr -> RewriteC CL
+pushSortInputR x p = do
+    AppE2 t Sort xs (Comp st se (S (BindQ x' xs'))) <- promoteT idR
+
+    -- FIXME this compares whole terms in an uncontrolled way and
+    -- could be too expensive.
+    guardM $ xs == xs'
+    guardM $ x == x'
 
     let xst = typeOf xs
         xt  = elemT xt
         -- We reuse the generator variable for the filter comprehension
-        xs' = Comp xst (Var xt x) (BindQ x xs :* (S $ GuardQ p))
+        xsFiltered = Comp xst (Var xt x) (BindQ x xs :* S (GuardQ p))
+        ssFiltered = Comp st se (BindQ x' xs' :* S (GuardQ p))
 
-    return $ inject $ AppE2 t prim e1 xs'
+    return $ inject $ AppE2 t Sort xsFiltered ssFiltered
 
 --------------------------------------------------------------------------
 -- Take remaining comprehension guards and try to push them into the
@@ -196,7 +208,7 @@ pushPredicateR x p = do
         ExprCL (AppE2 _ (AntiJoin _) _ _)  -> pushLeftR x p
 
         -- Sorting commutes with selection
-        ExprCL (AppE2 _ SortWith _ _)      -> pushInputR x p
+        ExprCL (AppE2 _ Sort _ _)          -> pushSortInputR x p
         _                                  -> fail "expression does not allow predicate pushing"
 
 pushQualsR :: RewriteC CL

@@ -23,8 +23,8 @@ module Database.DSH.NKL.Kure
     , inScopeNames, bindVar
 
       -- * Congruence combinators
-    , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, compT, letT
-    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR, letR
+    , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, iteratorT, letT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, iteratorR, letR
     
     ) where
     
@@ -49,8 +49,8 @@ type LensN a b      = Lens NestedCtx (RewriteM Int) a b
 
 --------------------------------------------------------------------------------
 
-data CrumbN = CompHead
-            | CompSource
+data CrumbN = IteratorHead
+            | IteratorSource
             | AppE1Arg
             | AppE2Arg1
             | AppE2Arg2
@@ -63,6 +63,7 @@ data CrumbN = CompHead
             | IfElse
             | LetBind
             | LetBody
+            | TupleElem Int
             deriving (Eq, Show)
 
 type AbsPathN = AbsolutePath CrumbN
@@ -128,20 +129,20 @@ tableR :: Monad m => Rewrite NestedCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
 
-compT :: Monad m => Transform NestedCtx m Expr a1
-                 -> Transform NestedCtx m Expr a2
-                 -> (Type -> a1 -> Ident -> a2 -> b)
-                 -> Transform NestedCtx m Expr b
-compT t1 t2 f = transform $ \c expr -> case expr of
-                     Comp ty h x xs -> f ty <$> applyT t1 (c@@CompHead) h 
-                                            <*> return x 
-                                            <*> applyT t2 (c@@CompSource) xs
-                     _              -> fail "not a comprehension node"
-{-# INLINE compT #-}
+iteratorT :: Monad m => Transform NestedCtx m Expr a1
+                     -> Transform NestedCtx m Expr a2
+                     -> (Type -> a1 -> Ident -> a2 -> b)
+                     -> Transform NestedCtx m Expr b
+iteratorT t1 t2 f = transform $ \c expr -> case expr of
+                     Iterator ty h x xs -> f ty <$> applyT t1 (c@@IteratorHead) h 
+                                                <*> return x 
+                                                <*> applyT t2 (c@@IteratorSource) xs
+                     _              -> fail "not an iterator node"
+{-# INLINE iteratorT #-}
 
-compR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
-compR t1 t2 = compT t1 t2 Comp
-{-# INLINE compR #-}
+iteratorR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
+iteratorR t1 t2 = iteratorT t1 t2 Iterator
+{-# INLINE iteratorR #-}
                                        
 appe1T :: Monad m => Transform NestedCtx m Expr a
                   -> (Type -> Prim1 -> a -> b)
@@ -248,22 +249,34 @@ letR :: Monad m => Rewrite NestedCtx m Expr
                 -> Rewrite NestedCtx m Expr
 letR r1 r2 = letT r1 r2 Let
 
+mkTupleT :: Monad m => Transform NestedCtx m Expr a
+                    -> (Type -> [a] -> b)
+                    -> Transform NestedCtx m Expr b
+mkTupleT t f = transform $ \c expr -> case expr of
+                   MkTuple ty es -> f ty <$> zipWithM (\e i -> applyT t (c@@TupleElem i) e) es [1..]
+                   _             -> fail "not a tuple constructor"
+{-# INLINE mkTupleT #-}
+
+mkTupleR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
+mkTupleR r = mkTupleT r MkTuple
+
 
 --------------------------------------------------------------------------------
        
 instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
     allR r = readerT $ \e -> case e of
-            Table{} -> idR
-            AppE1{} -> appe1R (extractR r)
-            AppE2{} -> appe2R (extractR r) (extractR r)
-            BinOp{} -> binopR (extractR r) (extractR r)
-            UnOp{}  -> unopR (extractR r)
-            Comp{}  -> compR (extractR r) (extractR r)
-            If{}    -> ifR (extractR r) (extractR r) (extractR r)
-            Const{} -> idR
-            Var{}   -> idR
-            Let{}   -> letR (extractR r) (extractR r)
+            Table{}    -> idR
+            AppE1{}    -> appe1R (extractR r)
+            AppE2{}    -> appe2R (extractR r) (extractR r)
+            BinOp{}    -> binopR (extractR r) (extractR r)
+            UnOp{}     -> unopR (extractR r)
+            Iterator{} -> iteratorR (extractR r) (extractR r)
+            If{}       -> ifR (extractR r) (extractR r) (extractR r)
+            Const{}    -> idR
+            Var{}      -> idR
+            Let{}      -> letR (extractR r) (extractR r)
+            MkTuple{}  -> mkTupleR (extractR r)
             
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.

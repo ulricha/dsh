@@ -3,15 +3,16 @@
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
 
-import qualified Prelude                  as P
+import qualified Prelude                    as P
 
+import qualified Data.List                  as List
 import           Text.Printf
-import           Debug.Trace
 
 import           Database.DSH.CL.Lang
-import qualified Database.DSH.Common.Lang as L
-import           Database.DSH.Impossible
+import qualified Database.DSH.Common.Lang   as L
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
+import           Database.DSH.Impossible
 
 tyErr :: P.String -> a
 tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
@@ -19,13 +20,10 @@ tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
 tyErrShow :: P.String -> [Type] -> a
 tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
-($) :: Expr -> Expr -> Expr
-f $ e = let tf = typeOf f
-            te = typeOf e
-            (ta, tr) = splitType tf
-         in if ta P.== te
-              then App tr f e
-              else tyErr "$"
+if_ :: Expr -> Expr -> Expr -> Expr
+if_ c t e = if BoolT P.== typeOf c
+            then If (typeOf t) c t e
+            else tyErr "if_"
 
 reverse :: Expr -> Expr
 reverse e = let t@(ListT _) = typeOf e
@@ -36,12 +34,6 @@ length e = let t = typeOf e
            in if isList t
               then AppE1 intT Length e
               else tyErr "length"
-
-all :: Expr -> Expr -> Expr
-all f e = and (map f e)
-
-any :: Expr -> Expr -> Expr
-any f e = or (map f e)
 
 null :: Expr -> Expr
 null e =
@@ -127,7 +119,7 @@ nub e = let (ListT t) = typeOf e
 
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
-           in AppE1 (ListT (PairT t IntT )) Number e
+           in AppE1 (ListT (pairT t IntT )) Number e
 
 guard :: Expr -> Expr
 guard e = AppE1 (listT UnitT) Guard e
@@ -136,52 +128,39 @@ init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
         in AppE1 (ListT t) Init e
 
+tupElem :: TupleIndex -> Expr -> Expr
+tupElem f e =
+    let t = tupleElemT (typeOf e) f
+    in AppE1 t (TupElem f) e
+
 fst :: Expr -> Expr
-fst e = let PairT t1 _ = typeOf e
-         in AppE1 t1 Fst e
+fst e = tupElem First e
 
 snd :: Expr -> Expr
-snd e = let PairT _ t2 = typeOf e
-         in AppE1 t2 Snd e
+snd e = tupElem (Next First) e
 
-map :: Expr -> Expr -> Expr
-map f es = let FunT ta tr = typeOf f
-               ListT t    = typeOf es
-            in if t P.== ta
-                 then AppE2 (listT tr) Map f es
-                 else tyErr "map"
+singleGenComp :: Expr -> L.Ident -> Expr -> Expr
+singleGenComp bodyExp v gen =
+    let bodyTy = typeOf bodyExp
+    in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
 
-concatMap :: Expr -> Expr -> Expr
-concatMap f es = let FunT ta tr = typeOf f
-                     ListT t    = typeOf es
-                  in if t P.== ta
-                     then AppE2 tr ConcatMap f es
-                     else tyErr "concatMap"
+group :: Expr -> Expr -> Expr
+group xs gs = let ListT xt  = typeOf xs
+                  ListT grt = typeOf gs
+                  rt        = ListT (TupleT [grt, ListT xt])
+              in AppE2 rt Group xs gs
 
-filter :: Expr -> Expr -> Expr
-filter f es = let te@(ListT _) = typeOf es
-               in AppE2 te Filter f es
-
-groupWithKey :: Expr -> Expr -> Expr
-groupWithKey f es = let FunT ta tk = typeOf f
-                        te@(ListT t)   = typeOf es
-                        tr            = listT P.$ pairT tk te
-                    in if t P.== ta
-                       then AppE2 tr GroupWithKey f es
-                       else tyErr "groupWithKey"
-
-sortWith :: Expr -> Expr -> Expr
-sortWith f es = let FunT ta _ = typeOf f
-                    te@(ListT t) = typeOf es
-                 in if t P.== ta
-                        then AppE2 te SortWith f es
-                        else tyErr "sortWith"
+sort :: Expr -> Expr -> Expr
+sort xs ss = AppE2 (typeOf xs) Sort xs ss
 
 pair :: Expr -> Expr -> Expr
-pair (Lit t1 v1) (Lit t2 v2) = Lit (pairT t1 t2) (L.PairV v1 v2)
-pair e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in AppE2 (pairT t1 t2) Pair e1 e2
+pair a b = tuple [a, b]
+
+tuple :: [Expr] -> Expr
+tuple es =
+    let ts = P.map typeOf es
+        rt = TupleT ts
+    in MkTuple rt es
 
 append :: Expr -> Expr -> Expr
 append e1 e2 = let t1@(ListT _) = typeOf e1
@@ -197,18 +176,8 @@ index e1 e2 = let ListT t = typeOf e1
                     then AppE2 t Index e1 e2
                     else tyErr "index"
 
-snoc :: Expr -> Expr -> Expr
-snoc e1 e2 = let t1@(ListT t) = typeOf e1
-              in if t P.== typeOf e2
-                    then append e1 (cons e2 P.$ nil t1)
-                    else tyErr "snoc"
-
-cons :: Expr -> Expr -> Expr
-cons e1 e2 = let t1 = typeOf e1
-                 t@(ListT t2) = typeOf e2
-              in if t1 P.== t2
-                   then AppE2 t Cons e1 e2
-                   else trace (pp e1) P.$ trace (pp e2) P.$ tyErrShow "cons" [t1, t2]
+sng :: Expr -> Expr
+sng e = AppE1 (listT P.$ typeOf e) Singleton e
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let ListT t1' = typeOf e1
@@ -221,9 +190,6 @@ var = Var
 table :: Type -> P.String -> [L.Column] -> L.TableHints -> Expr
 table = Table
 
-lambda :: Type -> P.String -> Expr -> Expr
-lambda = Lam
-
 cond :: Expr -> Expr -> Expr -> Expr
 cond eb et ee = let tb = typeOf eb
                     tt = typeOf et
@@ -231,6 +197,9 @@ cond eb et ee = let tb = typeOf eb
                  in if tb P.== boolT P.&& tt P.== te
                       then If te eb et ee
                       else tyErr "cond"
+
+let_ :: L.Ident -> Expr -> Expr -> Expr
+let_ x e1 e2 = let t = typeOf e2 in Let t x e1 e2
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for join operators
@@ -284,21 +253,11 @@ nil :: Type -> Expr
 nil t = Lit t (L.ListV [])
 
 list :: Type -> [Expr] -> Expr
-list t es = toListT (nil t) es
+list _ (e : es) = List.foldl' append (sng e) (P.map sng es)
+list t []       = nil t
 
-consOpt :: Expr -> Expr -> Expr
-consOpt e1 e2 = toListT e2 [e1]
-
-toListT :: Expr -> [Expr] -> Expr
-toListT n es = primList (P.reverse es) n
-    where
-        primList :: [Expr] -> Expr -> Expr
-        primList ((Lit _ v):vs) (Lit ty (L.ListV xs)) = primList vs (Lit ty (L.ListV (v:xs)))
-        primList [] e = e
-        primList vs c@(Lit _ (L.ListV [])) = consList vs c
-        primList vs e = consList vs e
-        consList :: [Expr] -> Expr -> Expr
-        consList xs e = P.foldl (P.flip cons) e xs
+cons :: Expr -> Expr -> Expr
+cons e1 e2 = append (sng e1) e2
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for scalar unary operators
@@ -310,6 +269,7 @@ scalarUnOp op e =
            (L.SUNumOp _, DoubleT)                 -> UnOp t op e
            (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
            (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
+           (L.SUTextOp L.SubString{}, StringT)    -> UnOp StringT op e
            (L.SUDateOp, _)                        -> $unimplemented
            (_, _)                                 -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
@@ -346,6 +306,9 @@ sqrt = scalarUnOp (L.SUNumOp L.Sqrt)
 
 exp :: Expr -> Expr
 exp = scalarUnOp (L.SUNumOp L.Exp)
+
+substring :: P.Integer -> P.Integer -> Expr -> Expr
+substring f t = scalarUnOp (L.SUTextOp P.$ L.SubString f t)
 
 ---------------------------------------------------------------------------------------
 -- Smart constructors for scalar binary operators
@@ -403,3 +366,4 @@ disj = scalarBinOp (L.SBBoolOp L.Disj)
 
 like :: Expr -> Expr -> Expr
 like = scalarBinOp (L.SBStringOp L.Like)
+

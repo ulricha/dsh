@@ -47,17 +47,18 @@ binAppTy f t1 _t2 =
         Concat    -> AStr
 
 unAppTy :: UnFun -> ATy
-unAppTy Not      = ABool
-unAppTy (Cast t) = t
-unAppTy Sin      = ADouble
-unAppTy Cos      = ADouble
-unAppTy Tan      = ADouble
-unAppTy ASin     = ADouble
-unAppTy ACos     = ADouble
-unAppTy ATan     = ADouble
-unAppTy Log      = ADouble
-unAppTy Sqrt     = ADouble
-unAppTy Exp      = ADouble
+unAppTy Not         = ABool
+unAppTy (Cast t)    = t
+unAppTy Sin         = ADouble
+unAppTy Cos         = ADouble
+unAppTy Tan         = ADouble
+unAppTy ASin        = ADouble
+unAppTy ACos        = ADouble
+unAppTy ATan        = ADouble
+unAppTy Log         = ADouble
+unAppTy Sqrt        = ADouble
+unAppTy Exp         = ADouble
+unAppTy SubString{} = AStr
 
 valType :: AVal -> ATy
 valType (VInt _)    = AInt
@@ -119,7 +120,7 @@ winFunTy childCols (aggr, resCol) = (resCol, resType)
 inferColsNullOp :: NullOp -> S.Set TypedAttr
 inferColsNullOp op =
     case op of
-        LitTable _ schema      -> S.fromList schema
+        LitTable (_, schema)   -> S.fromList schema
         TableRef (_, attrs, _) -> S.fromList attrs
 
 inferColsUnOp :: S.Set TypedAttr -> UnOp -> S.Set TypedAttr

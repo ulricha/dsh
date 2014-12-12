@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Debug.Trace
+
 import           Control.Applicative
 import           Control.Monad
 
@@ -31,209 +33,112 @@ cleanup :: VLRewrite Bool
 cleanup = iteratively $ sequenceRewrites [ optExpressions ]
 
 redundantRules :: VLRuleSet ()
-redundantRules = [ mergeProjectRestrict
-                 , scalarRestrict
-                 , simpleSort
-                 , sortProject
-                 , pullProjectPropRename
+redundantRules = [ pullProjectPropRename
                  , pullProjectPropReorder
-                 , pullProjectRestrict
                  , pullProjectSelectPos1S
                  , pullProjectPropFilter
                  , pullProjectUnboxRename
+                 , pullProjectAggrS
                  , scalarConditional
                  ]
 
 redundantRulesBottomUp :: VLRuleSet BottomUpProps
-redundantRulesBottomUp = [ distPrimConstant
-                         , distDescConstant
+redundantRulesBottomUp = [ cartProdConstant
                          , sameInputZip
                          , sameInputZipProject
                          , sameInputZipProjectLeft
                          , sameInputZipProjectRight
                          , zipProjectLeft
                          , zipProjectRight
-                         , alignParents
+                         , distLiftProjectLeft
+                         , distLiftProjectRight
+                         , distLiftNestProduct
+                         , distLiftNestJoin
+                         , distLiftStacked
+                         , distLiftSelect
+                         , alignedDistLift
                          , selectConstPos
                          , selectConstPosS
-                         , completeSort
-                         , restrictZip
                          , zipConstLeft
                          , zipConstRight
+                         , alignConstLeft
+                         , alignConstRight
                          , zipZipLeft
                          , zipWinLeft
                          , zipWinRight
                          , zipWinRightPush
-                         -- , stackedAlign
+                         , zipUnboxScalarRight
+                         , zipUnboxScalarLeft
+                         , alignCartProdRight
                          , propProductCard1Right
                          , runningAggWin
                          , inlineWinAggrProject
-                         , restrictWinFun
                          , pullProjectNumber
-                         , constAlign
+                         , constDistLift
+                         , nestJoinChain
+                         , pullProjectUnboxScalarLeft
+                         , pullProjectUnboxScalarRight
+                         , pullProjectNestJoinLeft
+                         , pullProjectNestJoinRight
+                         , selectCartProd
                          ]
 
 redundantRulesAllProps :: VLRuleSet Properties
-redundantRulesAllProps = [ unreferencedAlign
-                         , alignedOnlyLeft
+redundantRulesAllProps = [ unreferencedDistLift
                          , firstValueWin
                          , notReqNumber
                          ]
 
 --------------------------------------------------------------------------------
--- Restrict rewrites
-
--- | Support rewrite: If a WinFun operator /adds/ columns to the
--- restrict input that are used in the condition, push it down into
--- the left Restrict input. This helps to turn Restricts into Selects.
-restrictWinFun :: VLRule BottomUpProps
-restrictWinFun q =
-  $(dagPatMatch 'q "R1 ((q1) Restrict p (qw=WinFun _ (q2)))"
-    [| do
-         predicate $ $(v "q1") == $(v "q2")
-         w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         return $ do
-           logRewrite "Redundant.Restrict.WinFun" q
-
-           restrictNode <- insert $ BinOp (Restrict $(v "p")) $(v "qw") $(v "qw")
-           r1Node       <- insert $ UnOp R1 restrictNode
-
-           -- Remove the window function output.
-           let proj = map Column [1..w]
-           void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
-           
-
-
-mergeProjectRestrict :: VLRule ()
-mergeProjectRestrict q =
-  $(dagPatMatch 'q "(q1) Restrict p (Project es (q2))"
-    [| do
-        return $ do
-          logRewrite "Redundant.Restrict.Project" q
-          let env = zip [1..] $(v "es")
-              p'  = mergeExpr env $(v "p")
-          void $ replaceWithNew q $ BinOp (Restrict p') $(v "q1") $(v "q2") |])
-
--- | If the left input of a Restrict operator that builds the
--- filtering vector is just a simple scalar expression, a scalar
--- Select can be used instead.
-scalarRestrict :: VLRule ()
-scalarRestrict q =
-  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Restrict.Scalar" q
-          selectNode <- insert $ UnOp (Select $(v "p")) $(v "q1")
-          void $ replaceWithNew q $ UnOp R1 selectNode
-
-          r2Parents <- lookupR2Parents $(v "qr")
-
-          -- If there are any R2 nodes linking to the original
-          -- Restrict operator (i.e. there are inner vectors to which
-          -- changes must be propagated), they have to be rewired to
-          -- the new Select operator.
-          when (not $ null r2Parents) $ do
-            qr2' <- insert $ UnOp R2 selectNode
-            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
-
--- | If the vector that is to be filtered by Restrict (left input) is
--- combined with the filter criteria to go into the Restrict
--- predicate, we might just turn the Restrict into a Select. Columns
--- from the left are already present after the zip and re-joining them
--- after selection is not necessary.
-restrictZip :: VLRule BottomUpProps
-restrictZip q =
-  $(dagPatMatch 'q "R1 (qr=(q1) Restrict p (qz=(q2) Zip (_)))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-        
-        return $ do
-          logRewrite "Redundant.Restrict.Zip" q
-          let proj = [ Column c | c <- [1..w]]
-
-          selNode <- insert $ UnOp (Select $(v "p")) $(v "qz")
-          r1Node <- insert $ UnOp R1 selNode
-          void $ replaceWithNew q $ UnOp (Project proj) r1Node
-
-          r2Parents <- lookupR2Parents $(v "qr")
-
-          -- If there are any R2 nodes linking to the original
-          -- Restrict operator (i.e. there are inner vectors to which
-          -- changes must be propagated), they have to be rewired to
-          -- the new Select operator.
-          when (not $ null r2Parents) $ do
-            qr2' <- insert $ UnOp R2 selNode
-            mapM_ (\qr2 -> replace qr2 qr2') r2Parents |])
-
---------------------------------------------------------------------------------
 -- 
 
-
-
--- | Replace a DistPrim operator with a projection if its value input
--- is constant.
-distPrimConstant :: VLRule BottomUpProps
-distPrimConstant q =
-  $(dagPatMatch 'q "R1 ((qp) DistPrim (qv))"
+-- | Replace a 'CartProduct' operator with a projection if its right
+-- input is constant and has cardinality one.
+cartProdConstant :: VLRule BottomUpProps
+cartProdConstant q =
+  $(dagPatMatch 'q "R1 ((q1) CartProduct (q2))"
     [| do
-        qvProps <- properties $(v "qp")
+        qvProps <- properties $(v "q2")
 
-        constProjs <- case constProp qvProps of
-          VProp (DBVConst _ cols) -> mapM (constVal Constant) cols
-          _                       -> fail "no match"
-
-        return $ do
-          logRewrite "Redundant.DistPrim.Constant" q
-          void $ replaceWithNew q $ UnOp (Project constProjs) $(v "qv") |])
-
--- | Replace a DistDesc operator with a projection if its value input
--- is constant and consists of only one tuple.
-distDescConstant :: VLRule BottomUpProps
-distDescConstant q =
-  $(dagPatMatch 'q "R1 ((qv) DistDesc (qd))"
-    [| do
-        pv <- properties $(v "qv")
-        VProp True <- return $ card1Prop pv
-
-        VProp (DBVConst _ cols) <- return $ constProp pv
+        VProp True              <- return $ card1Prop qvProps
+        VProp (DBVConst _ cols) <- return $ constProp qvProps
         constProjs              <- mapM (constVal Constant) cols
 
+        -- Preserve columns from the left input
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        let proj = map Column [1..w1] ++ constProjs
+
         return $ do
-          logRewrite "Redundant.DistDesc.Constant" q
-          segNode <- insert $ UnOp Segment $(v "qd")
-          void $ replaceWithNew q $ UnOp (Project constProjs) segNode |])
+          logRewrite "Redundant.CartProduct.Constant" q
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 unwrapConstVal :: ConstPayload -> VLMatch p VLVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
 
--- | If the left input of an align is constant, a normal projection
--- can be used because the Align operator keeps the shape of the right
+-- | If the left input of an distLift is constant, a normal projection
+-- can be used because the DistLift operator keeps the shape of the right
 -- input.
-constAlign :: VLRule BottomUpProps
-constAlign q =
-  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
+constDistLift :: VLRule BottomUpProps
+constDistLift q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
     [| do 
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
          VProp (ValueVector w)        <- vectorTypeProp <$> properties $(v "q2")
          constVals                    <- mapM unwrapConstVal constCols
          
          return $ do 
-              logRewrite "Redundant.Const.Align" q
+              logRewrite "Redundant.Const.DistLift" q
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
        
-
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
--- downstream. If not, we can remove the DistSeg altogether, as the
--- shape of the inner vector is not changed by DistSeg.
-unreferencedAlign :: VLRule Properties
-unreferencedAlign q =
-  $(dagPatMatch 'q  "R1 ((q1) Align (q2))"
+-- downstream. If not, we can remove the DistLift altogether, as the
+-- shape of the inner vector is not changed by DistLift.
+unreferencedDistLift :: VLRule Properties
+unreferencedDistLift q =
+  $(dagPatMatch 'q  "R1 ((q1) DistLift (q2))"
     [| do
         VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
         VProp (ValueVector w1) <- vectorTypeProp <$> bu <$> properties $(v "q1")
@@ -243,7 +148,7 @@ unreferencedAlign q =
         predicate $ all (> w1) reqCols
 
         return $ do
-          logRewrite "Redundant.Unreferenced.Align" q
+          logRewrite "Redundant.Unreferenced.DistLift" q
 
           -- FIXME HACKHACKHACK
           let padProj = [ Constant $ VLInt 0xdeadbeef | _ <- [1..w1] ]
@@ -252,168 +157,263 @@ unreferencedAlign q =
 
           void $ replaceWithNew q $ UnOp (Project padProj) $(v "q2") |])
 
-nonAlignOp :: AlgNode -> VLMatch p Bool
-nonAlignOp n = do
-    op <- getOperator n
-    case op of
-        BinOp Align _ _ -> return False
-        _               -> return True
-
--- | The Align operator keeps shape and columns of its right
--- input. When this right input is referenced by other operators than
--- Align, we can move this operators to the Align output.
---
--- This is beneficial if a composed expression depends on the Align
--- output (some lifted environment value) as well as the original
--- (inner) vector. In that case, we can rewrite things such that only
--- the Align operator is referenced (not its right input). In
--- consequence, The expression has only one source and can be merged
--- into a projection.
-alignParents :: VLRule BottomUpProps
-alignParents q =
-  $(dagPatMatch 'q "R1 ((q1) Align (q2))"
-     [| do
-         parentNodes     <- getParents $(v "q2")
-         nonAlignParents <- filterM nonAlignOp parentNodes
-         predicate $ not $ null nonAlignParents
-
-         VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q1")
-         VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
-
-         return $ do
-             logRewrite "Redundant.Align.Parents" q
-
-             -- First, insert a projection on top of Align that leaves
-             -- only the columns from Align's right input.
-             let origColsProj = [ Column $ w1 + i | i <- [1 .. w2] ]
-             projNode <- insert $ UnOp (Project origColsProj) q
-
-             -- Then, re-link all parents of the right Align input to
-             -- the projection.
-             forM_ nonAlignParents $ \p -> replaceChild p $(v "q2") projNode |])
-
--- | If an outer vector is aligned multiple times with some inner
--- vector (i.e. stacked Align operators with the same left input), one
--- Align is sufficient.
-stackedAlign :: VLRule BottomUpProps
-stackedAlign q =
-  $(dagPatMatch 'q "R1 ((q11) Align (qr1=R1 ((q12) Align (q2))))"
+-- | Remove a DistLift if the outer vector is aligned with a
+-- NestProduct that uses the same outer vector.
+distLiftNestProduct :: VLRule BottomUpProps
+distLiftNestProduct q =
+  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestProduct (qi))))"
     [| do
-        predicate $ $(v "q11") == $(v "q12")
-        VProp (ValueVector w1) <- vectorTypeProp <$> properties $(v "q11")
-        VProp (ValueVector w2) <- vectorTypeProp <$> properties $(v "q2")
+        predicate $ $(v "qo") == $(v "qo1")
+
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
 
         return $ do
-            logRewrite "Redundant.Align.Stacked" q
+            logRewrite "Redundant.DistLift.NestProduct" q
+            -- Preserve the original schema
+            let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+            prodNode <- insert $ BinOp NestProduct $(v "qo") $(v "qi")
+            r1Node   <- insert $ UnOp R1 prodNode
+            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
-            -- Aligning multiple times duplicates the left input's
-            -- columns.
-            let dupColsProj = map Column ([1..w1] ++ [1..w1] ++ (map (+ w1) [1..w2]))
-            projNode <- insert $ UnOp (Project dupColsProj) $(v "qr1")
-
-            replace q projNode |])
-
--- Housekeeping rule: If only columns from the left Align input are
--- referenced, remove projections on the right input.
-alignedOnlyLeft :: VLRule Properties
-alignedOnlyLeft q =
-  $(dagPatMatch 'q "(q1) Align (Project _ (q2))"
+-- | Remove a DistLift if the outer vector is aligned with a
+-- NestJoin that uses the same outer vector.
+distLiftNestJoin :: VLRule BottomUpProps
+distLiftNestJoin q =
+  $(dagPatMatch 'q "R1 ((qo) DistLift (R1 ((qo1) NestJoin p (qi))))"
     [| do
-        -- check that only columns from the left input (outer vector)
-        -- are required
-        VPropPair (Just reqCols) _  <- reqColumnsProp <$> td <$> properties q
-        VProp (ValueVector w)       <- vectorTypeProp <$> bu <$> properties $(v "q1")
-        predicate $ all (<= w) reqCols
+        predicate $ $(v "qo") == $(v "qo1")
+
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qo")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "qi")
 
         return $ do
-          logRewrite "Redundant.Align.Project" q
-          void $ replaceWithNew q $ BinOp Align $(v "q1") $(v "q2") |])
+            logRewrite "Redundant.DistLift.NestJoin" q
+            -- Preserve the original schema
+            let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+            prodNode <- insert $ BinOp (NestJoin $(v "p")) $(v "qo") $(v "qi")
+            r1Node   <- insert $ UnOp R1 prodNode
+            void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
---------------------------------------------------------------------------------
--- Zip rewrites
-
--- | Replace a Zip operator with a projection if both inputs are the
--- same.
-sameInputZip :: VLRule BottomUpProps
-sameInputZip q =
-  $(dagPatMatch 'q "(q1) Zip (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Zip.Self" q
-          let ps = map Column [1 .. w]
-          void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
-
-sameInputZipProject :: VLRule BottomUpProps
-sameInputZipProject q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (Project ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Redundant.Zip.Self.Project" q
-          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
-
-sameInputZipProjectLeft :: VLRule BottomUpProps
-sameInputZipProjectLeft q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Zip.Self.Project.Left" q
-          let proj = $(v "ps1") ++ (map Column [1..w1])
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-
-sameInputZipProjectRight :: VLRule BottomUpProps
-sameInputZipProjectRight q =
-  $(dagPatMatch 'q "(q1) Zip (Project ps2 (q2))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Zip.Self.Project.Right" q
-          let proj = (map Column [1 .. w]) ++ $(v "ps2")
-          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-
-zipProjectLeft :: VLRule BottomUpProps
-zipProjectLeft q =
-  $(dagPatMatch 'q "(Project ps1 (q1)) Zip (q2)"
+distLiftProjectLeft :: VLRule BottomUpProps
+distLiftProjectLeft q =
+  $(dagPatMatch 'q "R1 ((Project ps1 (q1)) DistLift (q2))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
 
         return $ do
-          logRewrite "Redundant.Zip.Project.Left" q
+          logRewrite "Redundant.DistLift.Project.Left" q
           -- Take the projection expressions from the left and the
           -- shifted columns from the right.
           let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
-          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          r1Node   <- insert $ UnOp R1 distNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
 
-zipProjectRight :: VLRule BottomUpProps
-zipProjectRight q =
-  $(dagPatMatch 'q "(q1) Zip (Project p2 (q2))"
+distLiftProjectRight :: VLRule BottomUpProps
+distLiftProjectRight q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (Project p2 (q2)))"
     [| do
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
 
         return $ do
-          logRewrite "Redundant.Zip.Project.Right" q
+          logRewrite "Redundant.DistLift.Project.Right" q
           -- Take the columns from the left and the expressions from
           -- the right projection. Since expressions are applied after
           -- the zip, their column references have to be shifted.
           let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
-          zipNode <- insert $ BinOp Zip $(v "q1") $(v "q2")
+          distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+          r1Node   <- insert $ UnOp R1 distNode
+          void $ replaceWithNew q $ UnOp (Project proj) r1Node |])
+
+-- If the same outer vector is propagated twice to an inner vector,
+-- one DistLift can be removed. Reasoning: DistLift does not change
+-- the shape of the inner vector.
+distLiftStacked :: VLRule BottomUpProps
+distLiftStacked q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (r1=R1 ((q11) DistLift (q2))))"
+     [| do
+         predicate $ $(v "q1") == $(v "q11")
+         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.DistLift.Stacked" q
+             let proj = map Column $ [1..w1] ++ [1..w1] ++ [w1+1..w1+w2]
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "r1") |])
+
+-- | Pull a selection through a DistLift. The reasoning for
+-- correctness is simple: It does not matter wether an element of an
+-- inner segment is removed before or after DistLift (on relational
+-- level, DistLift maps to join which commutes with selection). The
+-- "use case" for this rewrite is not well thought-through yet: We
+-- want to push down DistLift to eliminate it or merge it with other
+-- operators (e.g. DistLift.Stacked). The usual wisdom would suggest
+-- to push selections down, though.
+distLiftSelect :: VLRule BottomUpProps
+distLiftSelect q =
+  $(dagPatMatch 'q "R1 ((q1) DistLift (R1 (Select p (q2))))"
+     [| do
+         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+         return $ do
+             logRewrite "Redundant.DistLift.Select" q
+             let p' = shiftExprCols w1 $(v "p")
+             distNode <- insert $ BinOp DistLift $(v "q1") $(v "q2")
+             distR1   <- insert $ UnOp R1 distNode
+             selNode  <- insert $ UnOp (Select p') distR1
+             void $ replaceWithNew q $ UnOp R1 selNode |])
+
+-- | When a DistLift result is aligned with the right (inner) DistLift
+-- input, we can eliminate the Align. Reasoning: DistLift does not
+-- change the shape of the vector, only adds columns from its right
+-- input.
+alignedDistLift :: VLRule BottomUpProps
+alignedDistLift q =
+  $(dagPatMatch 'q "(q21) Align (qr1=R1 ((q1) DistLift (q22)))"
+    [| do
+        predicate $ $(v "q21") == $(v "q22")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
+        
+        return $ do
+            logRewrite "Redundant.DistLift.Align" q
+            let proj = map Column $
+                       [w1+1..w1+w2]
+                       ++
+                       [1..w1]
+                       ++
+                       [w1+1..w1+w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
+
+--------------------------------------------------------------------------------
+-- Zip and Align rewrites. 
+
+-- Note that the rewrites valid for Zip are a subset of the rewrites
+-- valid for Align. In the case of Align, we statically know that both
+-- inputs have the same length and can be positionally aligned without
+-- discarding elements.
+
+-- | Replace a Zip operator with a projection if both inputs are the
+-- same.
+sameInputZip :: VLRule BottomUpProps
+sameInputZip q =
+  $(dagPatMatch 'q "(q1) [Zip | Align] (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Self" q
+          let ps = map Column [1 .. w]
+          void $ replaceWithNew q $ UnOp (Project (ps ++ ps)) $(v "q1") |])
+
+sameInputZipProject :: VLRule BottomUpProps
+sameInputZipProject q =
+  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (Project ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Self.Project" q
+          void $ replaceWithNew q $ UnOp (Project ($(v "ps1") ++ $(v "ps2"))) $(v "q1") |])
+
+sameInputZipProjectLeft :: VLRule BottomUpProps
+sameInputZipProjectLeft q =
+  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align] (q2)"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Self.Project.Left" q
+          let proj = $(v "ps1") ++ (map Column [1..w1])
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+sameInputZipProjectRight :: VLRule BottomUpProps
+sameInputZipProjectRight q =
+  $(dagPatMatch 'q "(q1) [Zip | Align] (Project ps2 (q2))"
+    [| do
+        predicate $ $(v "q1") == $(v "q2")
+        w <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Self.Project.Right" q
+          let proj = (map Column [1 .. w]) ++ $(v "ps2")
+          void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+zipProjectLeft :: VLRule BottomUpProps
+zipProjectLeft q =
+  $(dagPatMatch 'q "(Project ps1 (q1)) [Zip | Align]@op (q2)"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+        w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q2")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Project.Left" q
+          -- Take the projection expressions from the left and the
+          -- shifted columns from the right.
+          let proj = $(v "ps1") ++ [ Column $ c + w1 | c <- [1 .. w2]]
+          zipNode <- insert $ BinOp $(v "op") $(v "q1") $(v "q2")
+          void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
+
+zipProjectRight :: VLRule BottomUpProps
+zipProjectRight q =
+  $(dagPatMatch 'q "(q1) [Zip | Align]@op (Project p2 (q2))"
+    [| do
+        w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
+
+        return $ do
+          logRewrite "Redundant.Zip/Align.Project.Right" q
+          -- Take the columns from the left and the expressions from
+          -- the right projection. Since expressions are applied after
+          -- the zip, their column references have to be shifted.
+          let proj = [Column c | c <- [1..w1]] ++ [ mapExprCols (+ w1) e | e <- $(v "p2") ]
+          zipNode <- insert $ BinOp $(v "op") $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
 fromConst :: Monad m => ConstPayload -> m VLVal
 fromConst (ConstPL val) = return val
 fromConst NonConstPL    = fail "not a constant"
 
+-- | This rewrite is valid because we statically know that both
+-- vectors have the same length.
+alignConstLeft :: VLRule BottomUpProps
+alignConstLeft q =
+  $(dagPatMatch 'q "(q1) Align (q2)"
+    [| do
+        VProp (DBVConst _ ps) <- constProp <$> properties $(v "q1")
+        w2                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+        vals                  <- mapM fromConst ps
+
+        return $ do
+            logRewrite "Redundant.Align.Constant.Left" q
+            let proj = map Constant vals ++ map Column [1..w2]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
+
+alignConstRight :: VLRule BottomUpProps
+alignConstRight q =
+  $(dagPatMatch 'q "(q1) Align (q2)"
+    [| do
+        w1                    <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        VProp (DBVConst _ ps) <- constProp <$> properties $(v "q2")
+
+
+        vals                  <- mapM fromConst ps
+
+        return $ do
+            logRewrite "Redundant.Align.Constant.Right" q
+            let proj = map Column [1..w1] ++ map Constant vals
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
+
+-- | In contrast to the 'Align' version ('alignConstLeft') this
+-- rewrite is only valid if we can statically determine that both
+-- input vectors have the same length. If the constant vector was
+-- shorter, overhanging elements from the non-constant vector would
+-- need to be discarded. In general, we can only determine equal
+-- length for the special case of length one.
 zipConstLeft :: VLRule BottomUpProps
 zipConstLeft q =
   $(dagPatMatch 'q "(q1) Zip (q2)"
@@ -457,7 +457,7 @@ zipConstRight q =
 
 zipZipLeft :: VLRule BottomUpProps
 zipZipLeft q =
-  $(dagPatMatch 'q "(q1) Zip (qz=(q11) Zip (_))"
+  $(dagPatMatch 'q "(q1) Zip (qz=(q11) [Zip | Align] (_))"
      [| do
          predicate $ $(v "q1") == $(v "q11")
 
@@ -465,13 +465,13 @@ zipZipLeft q =
          wz <- vectorWidth <$> vectorTypeProp <$> properties $(v "qz")
         
          return $ do
-             logRewrite "Redundant.Zip.Zip.Left" q
+             logRewrite "Redundant.Zip/Align.Zip.Left" q
              let proj = map Column $ [1..w1] ++ [1..wz]
              void $ replaceWithNew q $ UnOp (Project proj) $(v "qz") |])
 
 zipWinRight :: VLRule BottomUpProps
 zipWinRight q =
-  $(dagPatMatch 'q "(q1) Zip (qw=WinFun _ (q2))"
+  $(dagPatMatch 'q "(q1) [Zip | Align] (qw=WinFun _ (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
          
@@ -488,7 +488,7 @@ zipWinRight q =
 
 zipWinLeft :: VLRule BottomUpProps
 zipWinLeft q =
-  $(dagPatMatch 'q "(qw=WinFun _ (q1)) Zip (q2)"
+  $(dagPatMatch 'q "(qw=WinFun _ (q1)) [Zip | Align] (q2)"
      [| do
          predicate $ $(v "q1") == $(v "q2")
          
@@ -523,47 +523,87 @@ zipWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
---------------------------------------------------------------------------------
--- Specialization of sorting
+-- | If singleton scalar elements in an inner vector (with singleton
+-- segments) are unboxed using an outer vector and then zipped with
+-- the same outer vector, we can eliminate the zip, because the
+-- positional alignment is implicitly performed by the UnboxScalar
+-- operator. We exploit the fact that UnboxScalar is only a
+-- specialized join which nevertheless produces payload columns from
+-- both inputs.
+zipUnboxScalarRight :: VLRule BottomUpProps
+zipUnboxScalarRight q = 
+  $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxScalar (q2))"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
 
--- | Employ a specialized operator if the sorting criteria are simply
--- a selection of columns from the input vector.
-simpleSort :: VLRule ()
-simpleSort q =
-  $(dagPatMatch 'q "(Project ps (q1)) SortS (q2)"
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.UnboxScalar.Right" q
+             
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxScalar produces columns from
+             -- its left and right inputs).
+             let outputCols = -- Two times the left input columns
+                              [1..leftWidth] ++ [1..leftWidth] 
+                              -- Followed by the right input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
+-- | See Align.UnboxScalar.Right
+zipUnboxScalarLeft :: VLRule BottomUpProps
+zipUnboxScalarLeft q = 
+  $(dagPatMatch 'q "(qu=(q11) UnboxScalar (q2)) Align (q12)"
+     [| do
+         predicate $ $(v "q11") == $(v "q12")
+
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q11")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+             logRewrite "Redundant.Align.UnboxScalar.Left" q
+             
+
+             -- Keep the original schema intact by duplicating columns
+             -- from the left input (UnboxScalar produces columns from
+             -- its left and right inputs).
+             let outputCols = -- The left (outer) columns
+                              [1..leftWidth]
+                              -- Followed by the right (inner) input columns
+                              ++ [ leftWidth+1..rightWidth+leftWidth ]
+                              -- Followed by the left (outer columns) again
+                              -- (originally produced by Align)
+                              ++ [1..leftWidth]
+                 proj       = map Column outputCols
+
+             -- Keep only the unboxing operator, together with a
+             -- projection that keeps the original output schema
+             -- intact.
+             void $ replaceWithNew q $ UnOp (Project proj) $(v "qu") |])
+
+-- | A CartProduct output is aligned with some other vector. If one of
+-- the CartProduct inputs has cardinality one, the other CartProduct
+-- input determines the length of the result vector. From the original
+-- structure we can derive that 'q11' and the CartProduct result are
+-- aligned. Consequentially, 'q11 and 'q12' (the left CartProduct
+-- input) must be aligned as well.
+alignCartProdRight :: VLRule BottomUpProps
+alignCartProdRight q =
+  $(dagPatMatch 'q "(q11) Align (R1 ((q12) CartProduct (q2)))"
     [| do
-        predicate $ $(v "q1") == $(v "q2")
-
+        VProp True <- card1Prop <$> properties $(v "q2")
         return $ do
-          logRewrite "Redundant.Sort.Scalar" q
-          void $ replaceWithNew q $ UnOp (SortScalarS $(v "ps")) $(v "q1") |])
-
--- | Special case: a vector is sorted by all its item columns.
-completeSort :: VLRule BottomUpProps
-completeSort q =
-  $(dagPatMatch 'q "(q1) SortS (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-        VProp (ValueVector w) <- vectorTypeProp <$> properties $(v "q1")
-
-        return $ do
-          logRewrite "Redundant.Sort.Complete" q
-          let sortProj = map Column [1..w]
-          void $ replaceWithNew q $ UnOp (SortScalarS sortProj) $(v "q1") |])
-
--- | Pull a projection on a Sort operator's input over the Sort
--- operator. This rewrite should enable the SortScalarS rewrite when
--- the common source of Sort's left and right inputs is obstructed by
--- a projection.
-sortProject :: VLRule ()
-sortProject q =
-  $(dagPatMatch 'q "R1 ((q1) SortS (Project proj (q2)))"
-   [| do
-       return $ do
-         logRewrite "Redundant.Sort.PullProject" q
-         sortNode <- insert $ BinOp SortS $(v "q1") $(v "q2")
-         r1Node   <- insert $ UnOp R1 sortNode
-         void $ replaceWithNew q $ UnOp (Project $(v "proj")) r1Node |])
+            logRewrite "Redundant.Align.CartProduct.Card1.Right" q
+            alignNode <- insert $ BinOp Align $(v "q11") $(v "q12")
+            prodNode  <- insert $ BinOp CartProduct alignNode $(v "q2")
+            void $ replaceWithNew q $ UnOp R1 prodNode |])
 
 --------------------------------------------------------------------------------
 -- Scalar conditionals
@@ -599,6 +639,56 @@ scalarConditional q =
 ------------------------------------------------------------------------------
 -- Projection pullup
 
+inlineJoinPredLeft :: [(DBCol, Expr)] -> JoinPredicate Expr -> JoinPredicate Expr
+inlineJoinPredLeft env (JoinPred conjs) = JoinPred $ fmap inlineLeft conjs
+  where
+    inlineLeft :: JoinConjunct Expr -> JoinConjunct Expr
+    inlineLeft (JoinConjunct le op re) = JoinConjunct (mergeExpr env le) op re
+
+inlineJoinPredRight :: [(DBCol, Expr)] -> JoinPredicate Expr -> JoinPredicate Expr
+inlineJoinPredRight env (JoinPred conjs) = JoinPred $ fmap inlineRight conjs
+  where
+    inlineRight :: JoinConjunct Expr -> JoinConjunct Expr
+    inlineRight (JoinConjunct le op re) = JoinConjunct le op (mergeExpr env re)
+
+pullProjectNestJoinLeft :: VLRule BottomUpProps
+pullProjectNestJoinLeft q =
+  $(dagPatMatch 'q "R1 ((Project proj (q1)) NestJoin p (q2))"
+    [| do
+        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+        return $ do
+            logRewrite "Redundant.Project.NestJoin.Left" q
+            let proj' = $(v "proj") ++ map Column [leftWidth + 1 .. leftWidth + rightWidth]
+                p'    = inlineJoinPredLeft (zip [1..] $(v "proj")) $(v "p")
+
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents 
+            |])
+
+pullProjectNestJoinRight :: VLRule BottomUpProps
+pullProjectNestJoinRight q =
+  $(dagPatMatch 'q "R1 ((q1) NestJoin p (Project proj (q2)))"
+    [| do
+        leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+        return $ do
+            logRewrite "Redundant.Project.NestJoin.Right" q
+            let proj' = map Column [1..leftWidth] ++ map (shiftExprCols leftWidth) $(v "proj")
+                p'    = inlineJoinPredRight (zip [1..] $(v "proj")) $(v "p")
+
+            joinNode <- insert $ BinOp (NestJoin p') $(v "q1") $(v "q2")
+            r1Node   <- insert $ UnOp R1 joinNode
+            void $ replaceWithNew q $ UnOp (Project proj') r1Node
+
+            -- FIXME relink R2 and R3 parents 
+            |])
+        
+
 pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
   $(dagPatMatch 'q "Number (Project proj (q1))"
@@ -613,19 +703,6 @@ pullProjectNumber q =
              let proj' = $(v "proj") ++ [Column $ w + 1]
              numberNode <- insert $ UnOp Number $(v "q1")
              void $ replaceWithNew q $ UnOp (Project proj') numberNode |])
-
--- | Pull a projection atop a Restrict operator. This rewrite mainly
--- serves to clear the way for merging of Combine/Restrict
--- combinations into scalar conditional expressions.
-pullProjectRestrict :: VLRule ()
-pullProjectRestrict q =
-  $(dagPatMatch 'q "R1 ((Project projs (q1)) Restrict p (qb))"
-     [| do
-          return $ do
-            logRewrite "Redundant.Project.Restrict" q
-            restrictNode <- insert $ BinOp (Restrict $(v "p")) $(v "q1") $(v "qb")
-            r1Node       <- insert $ UnOp R1 restrictNode
-            void $ replaceWithNew q $ UnOp (Project $(v "projs")) r1Node |])
 
 -- Motivation: In order to eliminate or pull up sorting operations in
 -- VL rewrites or subsequent stages, payload columns which might
@@ -642,6 +719,43 @@ pullProjectPropRename q =
            renameNode <- insert $ BinOp PropRename $(v "qp") $(v "qv")
            void $ replaceWithNew q $ UnOp (Project $(v "proj")) renameNode |])
 
+pullProjectUnboxScalarLeft :: VLRule BottomUpProps
+pullProjectUnboxScalarLeft q =
+  $(dagPatMatch 'q "(Project proj (q1)) UnboxScalar (q2)"
+    [| do 
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+         rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
+
+         return $ do
+           logRewrite "Redundant.Project.UnboxScalar" q
+
+           -- Employ projection expressions on top of the unboxing
+           -- operator, add right input columns.
+           let proj' = $(v "proj") ++ map Column [ leftWidth + 1 .. leftWidth + rightWidth ]
+           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+
+           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+
+pullProjectUnboxScalarRight :: VLRule BottomUpProps
+pullProjectUnboxScalarRight q =
+  $(dagPatMatch 'q "(q1) UnboxScalar (Project proj (q2))"
+    [| do 
+         leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+
+         return $ do
+           logRewrite "Redundant.Project.UnboxScalar" q
+
+           -- Preserve left input columns on top of the unboxing
+           -- operator and add right input expressions with shifted
+           -- columns.
+           let proj' = map Column [1..leftWidth]
+                       ++
+                       [ mapExprCols (+ leftWidth) e | e <- $(v "proj") ]
+
+           unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
+
+           void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
+    
 pullProjectPropReorder :: VLRule ()
 pullProjectPropReorder q =
   $(dagPatMatch 'q "R1 ((qp) PropReorder (Project proj (qv)))"
@@ -679,6 +793,16 @@ pullProjectUnboxRename q =
          return $ do
            logRewrite "Redundant.Project.UnboxRename" q
            void $ replaceWithNew q $ UnOp UnboxRename $(v "q1") |])
+
+-- | Any projections on the left input of AggrS are irrelevant, as
+-- only the segment information are required from the vector.
+pullProjectAggrS :: VLRule ()
+pullProjectAggrS q =
+  $(dagPatMatch 'q "(Project _ (q1)) AggrS args (q2)"
+    [| do
+        return $ do
+            logRewrite "Redundant.Project.AggrS" q
+            void $ replaceWithNew q $ BinOp (AggrS $(v "args")) $(v "q1") $(v "q2") |])
 
 --------------------------------------------------------------------------------
 -- Positional selection on constants
@@ -727,6 +851,76 @@ propProductCard1Right q =
           logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
           void $ replace q $(v "qi") |])
 
+-- | Turn a right-deep nestjoin tree into a left-deep one.
+-- 
+-- A comprehension of the form
+-- @
+-- [ [ [ e x y z | z <- zs, p2 y z ]
+--   | y <- ys
+--   , p1 x y
+--   ]
+-- | x <- xs
+-- ]
+-- @
+-- 
+-- is first rewritten into a right-deep chain of nestjoins: 'xs △ (ys △ zs)'. 
+-- Bottom-up compilation of this expression to VL (vectorization) results in 
+-- a rather awkward plan, though: The inner nestjoin is computed independent
+-- of values of 'x'. The join result is then re-shaped using the propagation
+-- vector from the nestjoin of the outer relations 'xs' and 'ys'. This pattern
+-- is problematic for multiple reasons: PropReorder is an expensive operation as 
+-- it involves re-ordering semantically, leading to a hard-to-eliminate rownum.
+-- On the plan level, we do not get a left- or right-deep join tree of thetajoins,
+-- but two independent joins between the two pairs of input relations whose results
+-- are connected using an additional join (PropReorder). This means that the two
+-- base joins will be executed on the full base tables, without being able to profit
+-- from a reduced cardinality in one of the join results.
+-- 
+-- NestJoin does not exhibit useful algebraic properties, most notably it is neither
+-- associate nor commutative. It turns out however that we can turn the pattern
+-- described above into a proper left-deep sequence of nestjoins if we consider
+-- the flat (vectorized) representation. The output of 'xs △ ys' is nestjoined
+-- with the innermost input 'zs'. This gives us exactly the representation of
+-- the nested output that we need. Semantically, 'zs' is not joined with all
+-- tuples in 'ys', but only with those that survive the (outer) join with 'xs'. 
+-- As usual, a proper join tree should give the engine the freedom to re-arrange 
+-- the joins and drive them in a pipelined manner.
+nestJoinChain :: VLRule BottomUpProps
+nestJoinChain q =
+  $(dagPatMatch 'q "R1 ((R3 (lj=(xs) NestJoin _ (ys))) PropReorder (R1 ((ys1) NestJoin p (zs))))"
+   [| do
+       xsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "xs")
+       ysWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "ys")
+       zsWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "zs")
+
+       predicate $ $(v "ys") == $(v "ys1")
+       return $ do
+         logRewrite "Redundant.Prop.NestJoinChain" q
+
+
+         let innermostCols = map Column [ xsWidth + 1 .. xsWidth + ysWidth + zsWidth ]
+  
+             -- As the left input of the top nestjoin now includes the
+             -- columns from xs, we have to shift column references in
+             -- the left predicate side.
+             JoinPred conjs = $(v "p")
+             p' = JoinPred $ fmap (shiftJoinPredCols xsWidth 0) conjs
+
+         -- The R1 node on the left nest join might already exist, but
+         -- we simply rely on hash consing.
+         leftJoinR1  <- insert $ UnOp R1 $(v "lj")
+         rightJoin   <- insert $ BinOp (NestJoin p') leftJoinR1 $(v "zs")
+         rightJoinR1 <- insert $ UnOp R1 rightJoin
+  
+         -- Because the original produced only the columns of ys and
+         -- zs in the PropReorder output, we have to remove the xs
+         -- columns from the top NestJoin.
+         void $ replaceWithNew q $ UnOp (Project innermostCols) rightJoinR1 |])
+
+shiftJoinPredCols :: Int -> Int -> JoinConjunct Expr -> JoinConjunct Expr
+shiftJoinPredCols leftOffset rightOffset (JoinConjunct leftExpr op rightExpr) =
+    JoinConjunct (shiftExprCols leftOffset leftExpr) op (shiftExprCols rightOffset rightExpr)
+
 --------------------------------------------------------------------------------
 -- Eliminating operators whose output is not required
 
@@ -746,4 +940,26 @@ notReqNumber q =
           -- column references intact.
           let proj = map Column [1..w] ++ [Constant $ VLInt 0xdeadbeef]
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
-           
+
+--------------------------------------------------------------------------------
+-- Classical relational algebra rewrites
+
+-- | Merge a selection that refers to both sides of a cartesian
+-- product operators' inputs into a join.
+selectCartProd :: VLRule BottomUpProps
+selectCartProd q =
+  $(dagPatMatch 'q "R1 (Select p (R1 ((q1) CartProduct (q2))))"
+    [| do
+        wl <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
+        BinApp (SBRelOp op) (Column lc) (Column rc)  <- return $(v "p")
+  
+        -- The left operand column has to be from the left input, the
+        -- right operand from the right input.
+        predicate $ lc <= wl
+        predicate $ rc > wl
+
+        return $ do
+            logRewrite "Redundant.Relational.Join" q
+            let joinPred = singlePred $ JoinConjunct (Column lc) op (Column $ rc - wl)
+            joinNode <- insert $ BinOp (ThetaJoin joinPred) $(v "q1") $(v "q2")
+            void $ replaceWithNew q $ UnOp R1 joinNode |])

@@ -23,6 +23,7 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "eqjoin_nested_right" prop_eqjoin_nested_right
     , testProperty "eqjoin_nested_both" prop_eqjoin_nested_both
     , testProperty "nestjoin" prop_nestjoin
+    , testProperty "nestjoin3" prop_nestjoin3
     , testProperty "antijoin class12" prop_aj_class12
     , testProperty "antijoin class15" prop_aj_class15
     , testProperty "antijoin class16" prop_aj_class16
@@ -32,6 +33,7 @@ tests_comprehensions = testGroup "Comprehensions"
     , testProperty "backdep3" prop_backdep3
     , testProperty "backdep4" prop_backdep4
     , testProperty "backdep5" prop_backdep5
+    , testProperty "deep" prop_deep_iter
     ]
 
 tests_join_hunit :: Test
@@ -47,6 +49,7 @@ tests_join_hunit = testGroup "HUnit joins"
     , testCase "hantijoin_class12" hantijoin_class12
     , testCase "hantijoin_class15" hantijoin_class15
     , testCase "hantijoin_class16" hantijoin_class16
+    , testCase "hfrontguard" hfrontguard
     ]
 
 tests_nest_head_hunit :: Test
@@ -62,6 +65,7 @@ tests_nest_head_hunit = testGroup "HUnit head nesting"
     , testCase "hnj9" hnj9
     , testCase "hnj10" hnj10
     , testCase "hnj11" hnj11
+    , testCase "hnj12" hnj12
     , testCase "hnp1" hnp1
     , testCase "hnp2" hnp2
     , testCase "hnp3" hnp3
@@ -155,6 +159,17 @@ prop_nestjoin = makeProp C.nestjoin nestjoin_native
   where
     nestjoin_native (xs, ys) = [ (x, [ y | y <- ys, x == y ]) | x <- xs]
 
+prop_nestjoin3 :: ([Integer], [Integer], [Integer]) -> Property
+prop_nestjoin3 = makeProp C.nestjoin3 nestjoin3_native
+  where
+    nestjoin3_native (njxs, njys, njzs) = 
+        [ [ [ (x,y,z) | z <- njzs, y == z ]
+          | y <- njys
+          , x == y
+          ]
+        | x <- njxs
+        ]
+
 prop_aj_class12 :: ([Integer], [Integer]) -> Property
 prop_aj_class12 = makeProp C.aj_class12 aj_class12_native
   where
@@ -213,7 +228,9 @@ prop_backdep4 = makeProp C.backdep4 backdep4
 prop_backdep5 :: [[Integer]] -> Property
 prop_backdep5 = makeProp C.backdep5 backdep5
   where
-    backdep5 xss = [ [ x + fromIntegral (length xs) | x <- take (length xs - 3) xs ] | xs <- xss ]
+    backdep5 xss = [ [ x + fromIntegral (length xs) 
+                     | x <- take (length xs - 3) xs ] 
+                   | xs <- xss ]
 
 
 
@@ -279,6 +296,11 @@ hantijoin_class16 = makeEqAssertion "hantijoin_class16" C.antijoin_class16 res
   where
     res = [4,5,6]
 
+hfrontguard :: Assertion
+hfrontguard = makeEqAssertion "hfrontguard" C.frontguard res
+  where
+    res = [[],[1,2],[1,2]] 
+
 -----------------------------------------------------------------------
 -- HUnit tests for nestjoin/nestproduct
 
@@ -320,6 +342,15 @@ hnj10 = makeEqAssertion "hnj10" (C.nj10 njxs1 njys1) (nj10 njxs1 njys1)
 
 hnj11 :: Assertion
 hnj11 = makeEqAssertion "hnj11" (C.nj11 njxs1 njys1) (nj11 njxs1 njys1)
+
+-- Test data for testcase hnj12
+njxs2, njys2, njzs2 :: [Integer]
+njxs2 = [1,2,3,4,5,5,2]
+njys2 = [2,1,0,5,4,4,4]
+njzs2 = [6,1,1,3,2,5]
+
+hnj12 :: Assertion
+hnj12 = makeEqAssertion "hnj12" (C.nj12 njxs2 njys2 njzs2) (nj12 njxs2 njys2 njzs2)
 
 hnp1 :: Assertion
 hnp1 = makeEqAssertion "hnp1" (C.np1 njxs1 njys1) (np1 njxs1 njys1)
@@ -404,6 +435,15 @@ nj10 njxs njys = [ x + sum [ x * y | y <- njys, x == y ] | x <- njxs ]
 nj11 :: [Integer] -> [Integer] -> [[Integer]]
 nj11 njxs njys = [ [ x + y | y <- njys, x > y, x < y * 2 ] | x <- njxs ]
 
+nj12 :: [Integer] -> [Integer] -> [Integer] -> [[[(Integer, Integer, Integer)]]]
+nj12 njxs njys njzs =
+    [ [ [ (x,y,z) | z <- njzs, y == z ]
+      | y <- njys
+      , x == y
+      ]
+    | x <- njxs
+    ]
+
 -- Head/NestProduct
 np1 :: [Integer] -> [Integer] -> [[Integer]]
 np1 njxs njys = [ [ x * y * 2 | y <- njys ] | x <- njxs ]
@@ -469,3 +509,18 @@ njg5 njgxs njgys =
 
 --------------------------------------------------------------------------------
 --
+
+prop_deep_iter :: ([Integer], [Integer], [Integer], [Integer], [Integer]) -> Property
+prop_deep_iter = makeProp C.deep_iter deep_iter_native
+  where
+    deep_iter_native (ws1, ws2, xs, ys, zs) = 
+      [ [ [ [ w1 * 23 - y | w1 <- ws1 ]
+            ++
+            [ w2 + 42 - y | w2 <- ws2 ]
+          | z <- zs
+          , z > x
+          ]
+        | y <- ys
+        ]
+      | x <- xs
+      ]

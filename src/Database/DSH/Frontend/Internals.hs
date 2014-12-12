@@ -1,42 +1,39 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 
 module Database.DSH.Frontend.Internals where
 
-import Data.Text (Text)
-import Text.Printf
+import           Data.Text                        (Text)
+import           Text.PrettyPrint.ANSI.Leijen
+
+import           Database.DSH.Impossible
+import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.TupleTypes
+
+--------------------------------------------------------------------------------
+-- Typed frontend ASTs
+
+-- Generate the data types 'TupleConst' and 'TupleType' for tuple term
+-- and type construction.
+$(mkTupleAstComponents 16)
 
 data Exp a where
-  UnitE     :: Exp ()
-  BoolE     :: Bool    -> Exp Bool
-  CharE     :: Char    -> Exp Char
-  IntegerE  :: Integer -> Exp Integer
-  DoubleE   :: Double  -> Exp Double
-  TextE     :: Text    -> Exp Text
-  PairE     :: (Reify a, Reify b)  => Exp a -> Exp b -> Exp (a,b)
-  ListE     :: (Reify a)           => [Exp a] -> Exp [a]
-  AppE      :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
-  LamE      :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
-  VarE      :: (Reify a)           => Integer -> Exp a
-  TableE    :: (Reify a)           => Table -> Exp [a]
-
--- | A combination of column names that form a candidate key
-newtype Key = Key [String] deriving (Eq, Ord, Show)
-
--- | Is the table guaranteed to be not empty?
-data Emptiness = NonEmpty
-               | PossiblyEmpty
-               deriving (Eq, Ord, Show)
-
--- | Catalog information hints that users may give to DSH
-data TableHints = TableHints 
-    { keysHint     :: [Key]
-    , nonEmptyHint :: Emptiness
-    } deriving (Eq, Ord, Show)
-
-data Table = TableDB String TableHints
+  UnitE       :: Exp ()
+  BoolE       :: Bool    -> Exp Bool
+  CharE       :: Char    -> Exp Char
+  IntegerE    :: Integer -> Exp Integer
+  DoubleE     :: Double  -> Exp Double
+  TextE       :: Text    -> Exp Text
+  ListE       :: (Reify a)           => [Exp a] -> Exp [a]
+  AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
+  LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
+  VarE        :: (Reify a)           => Integer -> Exp a
+  TableE      :: (Reify a)           => Table -> Exp [a]
+  TupleConstE :: TupleConst a -> Exp a
 
 data Type a where
   UnitT     :: Type ()
@@ -45,70 +42,27 @@ data Type a where
   IntegerT  :: Type Integer
   DoubleT   :: Type Double
   TextT     :: Type Text
-  PairT     :: (Reify a,Reify b)  => Type a -> Type b -> Type (a,b)
   ListT     :: (Reify a)          => Type a -> Type [a]
   ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
+  TupleT    :: TupleType a -> Type a
 
-data Fun a b where
-    Not             :: Fun Bool Bool
-    IntegerToDouble :: Fun Integer Double
-    And             :: Fun [Bool] Bool
-    Or              :: Fun [Bool] Bool
-    Concat          :: Fun [[a]] [a]
-    Head            :: Fun [a] a
-    Tail            :: Fun [a] [a]
-    Init            :: Fun [a] [a]
-    Last            :: Fun [a] a
-    Null            :: Fun [a] Bool
-    Length          :: Fun [a] Integer
-    Guard           :: Fun Bool [()]
-    Reverse         :: Fun [a] [a]
-    Number          :: Fun [a] [(a, Integer)]
-    Fst             :: Fun (a,b) a
-    Snd             :: Fun (a,b) b
-    Sum             :: Fun [a] a
-    Avg             :: Fun [a] Double
-    Maximum         :: Fun [a] a
-    Minimum         :: Fun [a] a
-    Nub             :: Fun [a] [a]
-    Append          :: Fun ([a], [a]) [a]
-    Add             :: Fun (a,a) a
-    Mul             :: Fun (a,a) a
-    Sub             :: Fun (a,a) a
-    Div             :: Fun (a,a) a
-    Mod             :: Fun (Integer,Integer) Integer
-    Lt              :: Fun (a,a) Bool
-    Lte             :: Fun (a,a) Bool
-    Equ             :: Fun (a,a) Bool
-    NEq             :: Fun (a,a) Bool
-    Gte             :: Fun (a,a) Bool
-    Gt              :: Fun (a,a) Bool
-    Conj            :: Fun (Bool,Bool) Bool
-    Disj            :: Fun (Bool,Bool) Bool
-    Cons            :: Fun (a,[a]) [a]
-    Index           :: Fun ([a],Integer) a
-    Zip             :: Fun ([a],[b]) [(a,b)]
-    Map             :: Fun (a -> b,[a]) [b]
-    ConcatMap       :: Fun (a -> [b],[a]) [b]
-    Filter          :: Fun (a -> Bool,[a]) [a]
-    GroupWithKey    :: Fun (a -> b,[a]) [(b, [a])]
-    SortWith        :: Fun (a -> b,[a]) [a]
-    Cond            :: Fun (Bool,(a,a)) a
-    Like            :: Fun (Text,Text) Bool
-    Transpose       :: Fun [[a]] [[a]]
-    Reshape         :: Integer -> Fun [a] [[a]]
-    Sin             :: Fun Double Double
-    Cos             :: Fun Double Double
-    Tan             :: Fun Double Double
-    Sqrt            :: Fun Double Double
-    Exp             :: Fun Double Double
-    Log             :: Fun Double Double
-    ASin            :: Fun Double Double
-    ACos            :: Fun Double Double
-    ATan            :: Fun Double Double
+instance Pretty (Type a) where
+    pretty UnitT          = text "()"
+    pretty BoolT          = text "Bool"
+    pretty CharT          = text "Char"
+    pretty IntegerT       = text "Integer"
+    pretty DoubleT        = text "Double"
+    pretty TextT          = text "Text"
+    pretty (ListT t)      = brackets $ pretty t
+    pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
+    pretty (TupleT t)     = pretty t
 
-newtype Q a = Q (Exp (Rep a))
+-- FIXME generate with TH
+instance Pretty (TupleType a) where
+    pretty (Tuple2T t1 t2) = tupled $ [pretty t1, pretty t2]
+    pretty _               = $unimplemented
 
+--------------------------------------------------------------------------------
 -- Classes
 
 class Reify a where
@@ -131,76 +85,29 @@ class View a where
   type ToView a
   view :: a -> ToView a
 
--- Show instances
+newtype Q a = Q (Exp (Rep a))
 
-instance Show (Type a) where
-  show UnitT = "()"
-  show BoolT = "Bool"
-  show CharT = "Char"
-  show IntegerT = "Integer"
-  show DoubleT = "Double"
-  show TextT = "Text"
-  show (PairT l r) = "(" ++ show l ++ ", " ++ show r ++ ")"
-  show (ListT t) = "[" ++ show t ++ "]"
-  show (ArrowT t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+pairE :: (Reify a, Reify b) => Exp a -> Exp b -> Exp (a, b)
+pairE a b = TupleConstE (Tuple2E a b)
 
-instance Show (Fun a b) where
-    show Fst = "fst"
-    show Snd = "snd"
-    show Not = "not"
-    show Concat = "concat"
-    show Head = "head"
-    show Tail = "tail"
-    show Init = "init"
-    show Last = "last"
-    show Null = "null"
-    show Length = "length"
-    show Reverse = "reverse"
-    show And = "and"
-    show Or = "or"
-    show Sum = "sum"
-    show Avg = "avg"
-    show Maximum = "maximum"
-    show Minimum = "minimum"
-    show Nub = "nub"
-    show IntegerToDouble = "integerToDouble"
-    show Add = "+"
-    show Mul = "*"
-    show Sub = "-"
-    show Div = "/"
-    show Lt  = "<"
-    show Lte = "<="
-    show Equ = "=="
-    show NEq = "/="
-    show Gte = ">="
-    show Gt  = ">"
-    show Conj = "&&"
-    show Disj = "||"
-    show Cons = "cons"
-    show Index = "index"
-    show Zip = "zip"
-    show Map = "map"
-    show ConcatMap = "concatMap"
-    show Filter = "filter"
-    show GroupWithKey = "groupWithKey"
-    show SortWith = "sortWith"
-    show Cond = "cond"
-    show Append = "append"
-    show Like = "like"
-    show Mod = "%"
-    show Number = "number"
-    show Guard = "guard"
-    show (Reshape n) = printf "reshape(%d)" n
-    show Transpose = "transpose"
-    show Sin = "sin"
-    show Cos = "cos"
-    show Tan = "tan"
-    show Sqrt = "sqrt"
-    show Exp = "exp"
-    show Log = "log"
-    show ASin = "asin"
-    show ACos = "acos"
-    show ATan = "atan"
+tripleE :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> Exp (a, b, c)
+tripleE a b c = TupleConstE (Tuple3E a b c)
+
+-- | A combination of column names that form a candidate key
+newtype Key = Key [String] deriving (Eq, Ord, Show)
+
+-- | Is the table guaranteed to be not empty?
+data Emptiness = NonEmpty
+               | PossiblyEmpty
+               deriving (Eq, Ord, Show)
+
+-- | Catalog information hints that users may give to DSH
+data TableHints = TableHints
+    { keysHint     :: [Key]
+    , nonEmptyHint :: Emptiness
+    } deriving (Eq, Ord, Show)
+
+data Table = TableDB String TableHints
 
 -- Reify instances
 
@@ -222,9 +129,6 @@ instance Reify Double where
 instance Reify Text where
   reify _ = TextT
 
-instance (Reify a, Reify b) => Reify (a,b) where
-  reify _ = PairT (reify (undefined :: a)) (reify (undefined :: b))
-
 instance (Reify a) => Reify [a] where
   reify _ = ListT (reify (undefined :: a))
 
@@ -238,3 +142,6 @@ unQ (Q e) = e
 
 toLam :: (QA a,QA b) => (Q a -> Q b) -> Exp (Rep a) -> Exp (Rep b)
 toLam f = unQ . f . Q
+
+-- * Generate Reify instances for tuple types
+mkReifyInstances 16

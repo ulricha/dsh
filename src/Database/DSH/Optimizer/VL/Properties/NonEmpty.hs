@@ -59,11 +59,11 @@ inferNonEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right $ VPropPair False False
-    SortScalarS _    -> let ue = unp e in liftM2 VPropPair ue ue
+    SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.
-    GroupScalarS _  -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
+    GroupS _        -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
 
     -- FIXME this documents the current implementation behaviour, not
     -- what _should_ happen!
@@ -77,6 +77,7 @@ inferNonEmptyUnOp e op =
     GroupAggr (_, _) -> Right e
     Number -> Right e
     NumberS -> Right e
+    AggrNonEmptyS _ -> return $ VProp True
   
     R1 -> 
       case e of
@@ -97,39 +98,27 @@ inferNonEmptyUnOp e op =
 inferNonEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferNonEmptyBinOp e1 e2 op =
   case op of
-    -- If the input is not completely empty (that is, segments exist),
-    -- grouping leads to a nested vector in which every inner segment
-    -- is not empty.
-    Group -> do
-      ue1 <- unp e1 
-      return $ VPropTriple ue1 True ue1
-    SortS -> do
-      ue1 <- unp e1
-      ue2 <- unp e2
-      let e   = ue1 && ue2
-      return $ VPropPair e e
-
-    DistPrim        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) ue2)
-    DistDesc        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    Align           -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    DistLift        -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     PropRename      -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     PropFilter      -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
     PropReorder     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
-    Unbox           -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    UnboxNested     -> mapUnp e1 e2 (\ue1 ue2 -> VPropPair (ue1 && ue2) (ue1 && ue2))
+    UnboxScalar     -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     Append          -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
     AppendS         -> mapUnp e1 e2 (\ue1 ue2 -> VPropTriple (ue1 || ue2) ue1 ue2)
-    Restrict _      -> return $ VPropPair False False
     AggrS _         -> return $ VProp True
-    AggrNonEmptyS _ -> return $ VProp True
     SelectPos _     -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)
     SelectPosS _    -> mapUnp e1 e2 (\ue1 ue2 -> let b = ue1 && ue2 in VPropTriple b b b)
     Zip             -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
+    Align           -> mapUnp e1 e2 (\ue1 ue2 -> VProp (ue1 && ue2))
     ZipS            -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     CartProduct     -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     CartProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
-    ThetaJoin _      -> return $ VPropTriple False False False
-    ThetaJoinS _     -> return $ VPropTriple False False False
+    ThetaJoin _     -> return $ VPropTriple False False False
+    NestJoin _      -> return $ VPropTriple False False False
+    NestProduct     -> return $ VPropTriple False False False
+    ThetaJoinS _    -> return $ VPropTriple False False False
     NestJoinS _     -> return $ VPropTriple False False False
     SemiJoin _      -> return $ VPropPair False False
     SemiJoinS _     -> return $ VPropPair False False

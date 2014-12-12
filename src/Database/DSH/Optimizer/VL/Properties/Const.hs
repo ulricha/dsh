@@ -211,11 +211,11 @@ inferConstVecUnOp c op =
       (d, cols) <- unp c >>= fromDBV
       return $ VProp $ DBVConst d (cols ++ [NonConstPL])
 
-    SortScalarS _ -> do
+    SortS _ -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst d cs) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    GroupScalarS es -> do
+    GroupS es -> do
       (d, cs) <- unp c >>= fromDBV
       return $ VPropTriple (DBVConst d (map (const NonConstPL) es))
                            (DBVConst NonConstDescr (map (const NonConstPL) cs))
@@ -230,6 +230,9 @@ inferConstVecUnOp c op =
     ReshapeS _ -> do
       (_, cols) <- unp c >>= fromDBV
       return $ VPropPair (DBVConst NonConstDescr []) (DBVConst NonConstDescr cols)
+
+    AggrNonEmptyS _ -> do
+      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
     R1 ->
       case c of
@@ -249,36 +252,12 @@ inferConstVecUnOp c op =
 inferConstVecBinOp :: (VectorProp ConstVec) -> (VectorProp ConstVec) -> BinOp -> Either String (VectorProp ConstVec)
 inferConstVecBinOp c1 c2 op =
   case op of
-    Group -> do
-      -- FIXME handle the special case of constant payload columns in the right input (qe)
-      (dq, cols1) <- unp c1 >>= fromDBV
-      (_, cols2) <- unp c2 >>= fromDBV
-      return $ VPropTriple (DBVConst dq cols1)
-                           (DBVConst NonConstDescr cols2)
-                           (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
-    SortS -> do
-      (d, cols) <- unp c2 >>= fromDBV
-      return $ VPropPair  (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
     -- FIXME use cardinality property to infer the length if possible
     -- FIXME handle special cases: empty input, cardinality 1 and const input, ...
     AggrS _ -> do
       return $ VProp $ DBVConst NonConstDescr [NonConstPL]
 
-    AggrNonEmptyS _ -> do
-      return $ VProp $ DBVConst NonConstDescr [NonConstPL]
-
-    DistPrim -> do
-      (d, _)    <- unp c2 >>= fromDBV
-      (_, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
-    DistDesc -> do
-      (_, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst NonConstDescr cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
-
-    Align -> do
+    DistLift -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (d, cols2) <- unp c2 >>= fromDBV
       return $ VPropPair (DBVConst d (cols1 ++ cols2)) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
@@ -301,11 +280,16 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropPair (DBVConst target cols) (PropVecConst (SC NonConstDescr) (TC NonConstDescr))
 
-    Unbox -> do
+    UnboxNested -> do
       (_, TC descr) <- unp c1 >>= fromRVec
       (_, cols)     <- unp c2 >>= fromDBV
 
       return $ VPropPair (DBVConst descr cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+
+    UnboxScalar -> do
+      (d1, cols1) <- unp c1 >>= fromDBV
+      (_, cols2)  <- unp c2 >>= fromDBV
+      return $ VProp $ DBVConst d1 (cols1 ++ cols2)
 
     Append -> do
       (d1, cols1) <- unp c1 >>= fromDBV
@@ -337,10 +321,6 @@ inferConstVecBinOp c1 c2 op =
 
       return $ VPropTriple (DBVConst d constCols) nonConstRVec nonConstRVec
 
-    Restrict _ -> do
-      (d, cols) <- unp c1 >>= fromDBV
-      return $ VPropPair (DBVConst d cols) (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
-
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
 
@@ -354,6 +334,14 @@ inferConstVecBinOp c1 c2 op =
       return $ VPropTriple (DBVConst d1 cols1) 
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
+
+    Align -> do
+      (d1, cols1) <- unp c1 >>= fromDBV
+      (_, cols2)  <- unp c2 >>= fromDBV
+
+      let cols = cols1 ++ cols2
+
+      return $ VProp $ DBVConst d1 cols
 
     Zip -> do
       (d1, cols1) <- unp c1 >>= fromDBV
@@ -378,7 +366,7 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
+      -- FIXME check propVec components for correctness/precision
       -- FIXME descr = 1 is almost certainly not correct
       return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
@@ -388,9 +376,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     NestProductS -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -398,9 +385,26 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+
+    NestJoin _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
+
+    NestProduct -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      (_, cols2) <- unp c2 >>= fromDBV
+
+      let constCols = cols1 ++ cols2
+
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     ThetaJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -408,8 +412,7 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
+      -- FIXME check propVec components for correctness/precision
       return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
 
     ThetaJoinS _ -> do
@@ -418,9 +421,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     NestJoinS _ -> do
       (_, cols1) <- unp c1 >>= fromDBV
@@ -428,9 +430,8 @@ inferConstVecBinOp c1 c2 op =
 
       let constCols = cols1 ++ cols2
 
-      -- FIXME check propVec components for correctness/preciseness
-      -- FIXME descr = 1 is almost certainly not correct
-      return $ VPropTriple (DBVConst (ConstDescr 1) constCols) nonConstPVec nonConstPVec
+      -- FIXME check propVec components for correctness/precision
+      return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
     SemiJoin _ -> do
       (_, cols1) <- unp c1 >>= fromDBV

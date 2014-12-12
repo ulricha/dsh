@@ -24,8 +24,8 @@ module Database.DSH.CL.Kure
     , inScopeNames, bindQual, bindVar, withLocalPathT
 
       -- * Congruence combinators
-    , tableT, appT, appe1T, appe2T, binopT, lamT, ifT, litT, varT, compT
-    , tableR, appR, appe1R, appe2R, binopR, lamR, ifR, litR, varR, compR
+    , tableT, appe1T, appe2T, binopT, ifT, litT, varT, compT, letT
+    , tableR, appe1R, appe2R, binopR, ifR, litR, varR, compR, letR
     , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
@@ -78,6 +78,10 @@ data CrumbC = AppFun
             | QualsTail
             | QualsSingleton
             | NLConsTail
+            -- One-based index into the list of element expressions
+            | TupleElem Int
+            | LetBind
+            | LetBody
             deriving (Eq, Show)
 
 instance Pretty CrumbC where
@@ -142,7 +146,6 @@ statefulT s t = resultT (stateful s) t
 liftstateT :: Transform CompCtx (RewriteM Int) a b -> Transform CompCtx (RewriteStateM s) a b
 liftstateT t = resultT liftstate t
 
-
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
 
@@ -157,19 +160,6 @@ tableR :: Monad m => Rewrite CompCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
                                        
-appT :: Monad m => Transform CompCtx m Expr a1
-                -> Transform CompCtx m Expr a2
-                -> (Type -> a1 -> a2 -> b)
-                -> Transform CompCtx m Expr b
-appT t1 t2 f = transform $ \c expr -> case expr of
-                      App ty e1 e2 -> f ty <$> applyT t1 (c@@AppFun) e1 <*> applyT t2 (c@@AppArg) e2
-                      _            -> fail "not an application node"
-{-# INLINE appT #-}                      
-
-appR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
-appR t1 t2 = appT t1 t2 App
-{-# INLINE appR #-}                      
-                      
 appe1T :: Monad m => Transform CompCtx m Expr a
                   -> (Type -> Prim1 -> a -> b)
                   -> Transform CompCtx m Expr b
@@ -221,18 +211,6 @@ unopT t f = transform $ \ctx expr -> case expr of
 unopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
-                     
-lamT :: Monad m => Transform CompCtx m Expr a
-                -> (Type -> L.Ident -> a -> b)
-                -> Transform CompCtx m Expr b
-lamT t f = transform $ \c expr -> case expr of
-                     Lam ty n e -> f ty n <$> applyT t (bindVar n (domainT ty) c@@LamBody) e
-                     _          -> fail "not a lambda"
-{-# INLINE lamT #-}                      
-                     
-lamR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
-lamR t = lamT t Lam
-{-# INLINE lamR #-}                      
                      
 ifT :: Monad m => Transform CompCtx m Expr a1
                -> Transform CompCtx m Expr a2
@@ -288,6 +266,31 @@ compR :: Monad m => Rewrite CompCtx m Expr
                  -> Rewrite CompCtx m Expr
 compR t1 t2 = compT t1 t2 Comp                 
 {-# INLINE compR #-}                      
+
+mkTupleT :: Monad m => Transform CompCtx m Expr a
+                    -> (Type -> [a] -> b)
+                    -> Transform CompCtx m Expr b
+mkTupleT t f = transform $ \c expr -> case expr of
+                   MkTuple ty es -> f ty <$> zipWithM (\e i -> applyT t (c@@TupleElem i) e) es [1..]
+                   _             -> fail "not a tuple constructor"
+{-# INLINE mkTupleT #-}
+
+mkTupleR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
+mkTupleR r = mkTupleT r MkTuple
+
+letT :: Monad m => Transform CompCtx m Expr a1
+                -> Transform CompCtx m Expr a2
+                -> (Type -> L.Ident -> a1 -> a2 -> b) 
+                -> Transform CompCtx m Expr b
+letT t1 t2 f = transform $ \c expr -> case expr of
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                                         <*> applyT t2 (bindVar x (typeOf xs) $ c@@LetBody) e
+                 _             -> fail "not a let expression"
+
+letR :: Monad m => Rewrite CompCtx m Expr 
+                -> Rewrite CompCtx m Expr 
+                -> Rewrite CompCtx m Expr
+letR r1 r2 = letT r1 r2 Let
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for qualifiers
@@ -402,17 +405,17 @@ instance Walker CompCtx CL where
         {-# INLINE allRqual #-}
 
         allRexpr = readerT $ \e -> case e of
-            Table{} -> idR
-            App{}   -> appR (extractR r) (extractR r)
-            AppE1{} -> appe1R (extractR r)
-            AppE2{} -> appe2R (extractR r) (extractR r)
-            BinOp{} -> binopR (extractR r) (extractR r)
-            UnOp{}  -> unopR (extractR r)
-            Lam{}   -> lamR (extractR r)
-            If{}    -> ifR (extractR r) (extractR r) (extractR r)
-            Lit{}   -> idR
-            Var{}   -> idR
-            Comp{}  -> compR (extractR r) (extractR r)
+            Table{}   -> idR
+            AppE1{}   -> appe1R (extractR r)
+            AppE2{}   -> appe2R (extractR r) (extractR r)
+            BinOp{}   -> binopR (extractR r) (extractR r)
+            UnOp{}    -> unopR (extractR r)
+            If{}      -> ifR (extractR r) (extractR r) (extractR r)
+            Lit{}     -> idR
+            Var{}     -> idR
+            Comp{}    -> compR (extractR r) (extractR r)
+            MkTuple{} -> mkTupleR (extractR r)
+            Let{}     -> letR (extractR r) (extractR r)
         {-# INLINE allRexpr #-}
             
 --------------------------------------------------------------------------------

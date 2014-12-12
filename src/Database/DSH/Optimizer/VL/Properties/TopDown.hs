@@ -39,11 +39,12 @@ seed (UnOp op _)   =
     Segment            -> vPropSeed
     Unsegment          -> vPropSeed
     Select     _       -> vPropPairSeed
-    SortScalarS _      -> vPropPairSeed
-    GroupScalarS _     -> vPropTripleSeed
+    SortS _            -> vPropPairSeed
+    GroupS _           -> vPropTripleSeed
     Project      _     -> vPropSeed
     Aggr _             -> vPropSeed
     AggrNonEmpty _     -> vPropSeed
+    AggrNonEmptyS _    -> vPropSeed
     GroupAggr (_, _)   -> vPropSeed
     R1                 -> vPropSeed
     R2                 -> vPropSeed
@@ -56,28 +57,26 @@ seed (UnOp op _)   =
 
 seed (BinOp op _ _) = 
   case op of
-    Group              -> vPropTripleSeed
     Append             -> vPropTripleSeed
     AppendS            -> vPropTripleSeed
     ZipS               -> vPropTripleSeed
-    SortS              -> vPropPairSeed
-    DistPrim           -> vPropPairSeed
-    DistDesc           -> vPropPairSeed
-    Align              -> vPropPairSeed
+    DistLift           -> vPropPairSeed
     PropFilter         -> vPropPairSeed
     PropReorder        -> vPropPairSeed
-    Unbox              -> vPropPairSeed
-    Restrict _         -> vPropPairSeed
+    UnboxNested        -> vPropPairSeed
+    UnboxScalar        -> vPropSeed
     SelectPos _        -> vPropTripleSeed
     SelectPosS _       -> vPropTripleSeed
     PropRename         -> vPropSeed
     AggrS _            -> vPropSeed
-    AggrNonEmptyS _    -> vPropSeed
     Zip                -> vPropSeed
+    Align              -> vPropSeed
     CartProduct        -> vPropTripleSeed
     CartProductS       -> vPropTripleSeed
-    ThetaJoin _         -> vPropTripleSeed
-    ThetaJoinS _        -> vPropTripleSeed
+    ThetaJoin _        -> vPropTripleSeed
+    NestJoin _         -> vPropTripleSeed
+    NestProduct        -> vPropTripleSeed
+    ThetaJoinS _       -> vPropTripleSeed
     SemiJoin _         -> vPropPairSeed
     SemiJoinS _        -> vPropPairSeed
     AntiJoin _         -> vPropPairSeed

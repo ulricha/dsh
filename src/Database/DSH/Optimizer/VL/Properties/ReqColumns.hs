@@ -187,19 +187,25 @@ inferReqColumnsUnOp childBUProps ownReqColumns childReqColumns op =
                                                    ++
                                                    concatMap aggrReqCols (N.toList as))
 
-        SortScalarS exprs -> do
+        SortS exprs -> do
             cols <- fst <$> fromPropPair ownReqColumns
             ownReqColumns' <- VProp cols
                               ∪
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
 
-        GroupScalarS exprs -> do
+        GroupS exprs -> do
             (_, colsi, _) <- fromPropTriple ownReqColumns
             ownReqColumns' <- VProp colsi
                               ∪
                               (VProp $ Just $ L.nub $ concatMap reqExprCols exprs)
             childReqColumns ∪ ownReqColumns'
+
+        AggrNonEmptyS aggrFuns -> do
+          reqCols <- (VProp $ Just $ concatMap aggrReqCols (N.toList aggrFuns))
+                      ∪
+                      childReqColumns
+          return reqCols
 
         R1               ->
             case childReqColumns of
@@ -240,18 +246,6 @@ inferReqColumnsBinOp :: BottomUpProps
                      -> Either String (VectorProp ReqCols, VectorProp ReqCols)
 inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 childReqColumns2 op =
   case op of
-      Group         -> do
-          (_, cols, _)  <- fromPropTriple ownReqColumns
-          colsFromLeft  <- allCols childBUProps1
-          colsFromRight <- childReqColumns2 ∪ (VProp cols)
-          return (colsFromLeft, colsFromRight)
-
-      SortS            -> do
-          cols          <- fst <$> fromPropPair ownReqColumns
-          colsFromLeft  <- allCols childBUProps1
-          colsFromRight <- childReqColumns2 ∪ (VProp cols)
-          return (colsFromLeft, colsFromRight)
-
       AggrS aggrFun   -> do
           fromLeft  <- childReqColumns1 ∪ none
           fromRight <- (VProp $ Just $ aggrReqCols aggrFun)
@@ -259,25 +253,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
                        childReqColumns2
           return (fromLeft, fromRight)
 
-      AggrNonEmptyS aggrFuns -> do
-          fromLeft  <- childReqColumns1 ∪ none
-          fromRight <- (VProp $ Just
-                              $ concatMap aggrReqCols (N.toList aggrFuns))
-                       ∪
-                       childReqColumns2
-          return (fromLeft, fromRight)
-
-      DistPrim -> do
-          cols <- fst <$> fromPropPair ownReqColumns
-          (,) <$> (childReqColumns1 ∪ VProp cols) <*> (childReqColumns2 ∪ none)
-
-      DistDesc -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- VProp cols ∪ childReqColumns1
-          fromRight <- childReqColumns2 ∪ none
-          return (fromLeft, fromRight)
-
-      Align -> do
+      DistLift -> do
           cols <- fst <$> fromPropPair ownReqColumns
           (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
           (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
@@ -296,7 +272,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
 
-      Unbox -> do
+      UnboxNested -> do
           cols      <- fst <$> fromPropPair ownReqColumns
           fromRight <- childReqColumns2 ∪ VProp cols
           return (na, fromRight)
@@ -313,12 +289,6 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           fromRight    <- (VProp cols) ∪ childReqColumns2
           return (fromLeft, fromRight)
 
-      Restrict e -> do
-          cols      <- fst <$> fromPropPair ownReqColumns
-          fromLeft  <- VProp cols ∪ childReqColumns1
-          let fromRight = VProp $ Just $ reqExprCols e
-          return (fromLeft, fromRight)
-
       SelectPos _ -> do
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- VProp cols ∪ childReqColumns1
@@ -328,6 +298,11 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           (cols, _, _) <- fromPropTriple ownReqColumns
           fromLeft     <- VProp cols ∪ childReqColumns1
           return (fromLeft, one)
+
+      Align -> do
+          cols <- fromProp ownReqColumns
+          (ownLeft, ownRight) <- partitionCols childBUProps1 childBUProps2 cols
+          (,) <$> (childReqColumns1 ∪ ownLeft) <*> (childReqColumns2 ∪ ownRight)
 
       Zip -> do
           cols <- fromProp ownReqColumns
@@ -355,6 +330,22 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+
+      UnboxScalar -> do
+          cols1                       <- fromProp ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
+
+      NestJoin p -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
+          rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
+          (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+      NestProduct -> do
+          (cols1, _, _)               <- fromPropTriple ownReqColumns
+          (leftReqCols, rightReqCols) <- partitionCols childBUProps1 childBUProps2 cols1
+          (,) <$> (childReqColumns1 ∪ leftReqCols) <*> (childReqColumns2 ∪ rightReqCols)
 
       ThetaJoinS p -> do
           (cols1, _, _)               <- fromPropTriple ownReqColumns

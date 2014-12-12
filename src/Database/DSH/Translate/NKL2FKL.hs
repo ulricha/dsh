@@ -9,6 +9,7 @@ import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
 
+import           Database.DSH.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
@@ -21,7 +22,10 @@ import qualified Database.DSH.NKL.Lang       as N
 -- equivalent Flat Kernel Language expression by means of the
 -- flattening transformation.
 flatTransform :: N.Expr -> F.FExpr
-flatTransform expr = optimizeFKL "FKL" $ normalize $ optimizeFKL "FKL Intermediate" $ flatten expr
+flatTransform expr = optimizeFKL "FKL" 
+                     $ normalize 
+                     $ optimizeFKL "FKL Intermediate" 
+                     $ runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
 -- The Flattening Transformation
@@ -33,13 +37,13 @@ flatTransform expr = optimizeFKL "FKL" $ normalize $ optimizeFKL "FKL Intermedia
 prim1 :: N.Prim1 -> F.LExpr -> Nat -> F.LExpr
 prim1 p =
     case p of
+        N.Singleton -> P.sng
         N.Length    -> P.length
         N.Concat    -> P.concat
         N.Sum       -> P.sum
         N.Avg       -> P.avg
         N.The       -> P.the
-        N.Fst       -> P.fst
-        N.Snd       -> P.snd
+        N.TupElem n -> P.tupElem n
         N.Head      -> P.head
         N.Tail      -> P.tail
         N.Minimum   -> P.minimum
@@ -60,11 +64,9 @@ prim2 p =
         N.Group        -> P.group
         N.Sort         -> P.sort
         N.Restrict     -> P.restrict
-        N.Pair         -> P.pair
         N.Append       -> P.append
         N.Index        -> P.index
         N.Zip          -> P.zip
-        N.Cons         -> P.cons
         N.CartProduct  -> P.cartProduct
         N.NestProduct  -> P.nestProduct
         N.ThetaJoin jp -> P.thetaJoin jp
@@ -73,169 +75,131 @@ prim2 p =
         N.AntiJoin jp  -> P.antiJoin jp
 
 --------------------------------------------------------------------------------
+-- Flattening environment
 
--- | Transform top-level expressions which are not nested in a
--- comprehension.  
-flatten :: N.Expr -> F.LExpr
-flatten (N.Table t n cs hs)  = F.Table t n cs hs
-flatten (N.UnOp t op e1)     = P.un t op (flatten e1) Zero
-flatten (N.BinOp t op e1 e2) = P.bin t op (flatten e1) (flatten e2) Zero
-flatten (N.Const t v)        = F.Const t v
-flatten (N.Var t v)          = F.Var t v
-flatten (N.If t ce te ee)    = F.If t (flatten ce) (flatten te) (flatten ee)
-flatten (N.AppE1 _ p e)      = prim1 p (flatten e) Zero
-flatten (N.AppE2 _ p e1 e2)  = prim2 p (flatten e1) (flatten e2) Zero
-flatten (N.Comp _ h x xs)    = P.let_ x (flatten xs) (topFlatten (x, typeOf xs) h)
-flatten (N.Let _ x xs e)     = P.let_ x (flatten xs) (flatten e)
+type Flatten a = Reader Env a
 
---------------------------------------------------------------------------------
+runFlat :: Env -> Flatten a -> a
+runFlat env ma = runReader ma env
 
--- | Compile expressions nested in the top-most comprehension (with
--- iteration depth 1).
-topFlatten :: (Ident, Type) -> N.Expr -> F.LExpr
-topFlatten ctx (N.Table t n cs hs)  = P.dist (F.Table t n cs hs) (envVar ctx)
-topFlatten ctx (N.UnOp t op e1)     = P.un t op (topFlatten ctx e1) (Succ Zero)
-topFlatten ctx (N.BinOp t op e1 e2) = P.bin t op (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
-topFlatten ctx (N.Const t v)        = P.dist (F.Const t v) (envVar ctx)
-topFlatten _   (N.Var t v)          = F.Var (liftType t) v
-topFlatten ctx (N.Let _ x xs e)     = P.let_ x (topFlatten ctx xs) (topFlatten ctx e)
-topFlatten ctx (N.If _ ce te ee)    =
-    -- Combine the results for the then and else branches. Combined,
-    -- we get values for all iterations.
-    P.combine bs ts fs Zero
+envVar :: (Ident, Type) -> F.LExpr
+envVar (n, t) = F.Var t n
 
-  where
-    -- Compile the boolean vector of conditions for all iterations.
-    bs = topFlatten ctx ce
-  
-    -- For the THEN branch, consider only those iterations in which
-    -- the condition is TRUE.
-    ts = P.let_ (fst ctx) (P.restrict (envVar ctx) bs Zero)
-                          (topFlatten ctx te)
-
-    -- For the ELSE branch, consider only those iterations in which
-    -- the condition is FALSE.
-    fs = P.let_ (fst ctx) (P.restrict (envVar ctx) (notL bs) Zero)
-                          (topFlatten ctx ee)
-
-    notL xs = P.un boolT (SUBoolOp Not) xs (Succ Zero) 
-
-topFlatten ctx (N.AppE1 _ p e)      = prim1 p (topFlatten ctx e) (Succ Zero)
-topFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p (topFlatten ctx e1) (topFlatten ctx e2) (Succ Zero)
-topFlatten ctx (N.Comp _ h x xs)    = 
-    (P.let_ x currentGen
-              (P.let_ (fst ctx) (P.distL (envVar ctx) xv)
-                                (runFlat env (deepFlatten h))))
-
-  where
-    -- | Initialize the environment for descending into the comprehension head
-    env = initEnv x (typeOf currentGen) ctx
-
-    -- | The variable bound by the comprehension, which now refers to
-    -- all elements of the source at once.
-    xv :: F.LExpr
-    xv = F.Var (typeOf currentGen) x
-
-    -- | The compiled generator expression of the current
-    -- comprehension, compiled in the context of the topmost
-    -- comprehension.
-    currentGen :: F.LExpr
-    currentGen = topFlatten ctx xs
-
---------------------------------------------------------------------------------
--- Compile expressions which are nested deeper, i.e. at least at
--- iteration depth 2.
-
--- | The environment stores all information for dealing with deeper
--- nested expressions.
--- FIXME env should be NonEmpty
-data NestedEnv = NestedEnv
-
-    { -- | A reference to the generator expression in the current
-      -- iteration context.
-      context    :: (Ident, Type)   
-
-      -- | All bindings which are currently in scope and need to be
+-- | The environment stores all variables which are currently in scope and the current iteration depth.
+data Env = Env
+    { -- | All bindings which are currently in scope and need to be
       -- lifted to the current iteration context.
-    , inScope    :: [(Ident, Type)] 
+      inScope    :: [(Ident, Type)]
 
       -- | The current iteration depth
     , frameDepth :: Nat
     }
 
--- | 'initEnv x xst ctx' constructs the initial environment when a
--- comprehension is encountered at depth 1. 'x' is the variable bound
--- by the inner comprehension, 'xst' is the type of the /translated/
--- generator source expression and 'ctx' is the outer (so far)
--- context.
-initEnv :: Ident -> Type -> (Ident, Type) -> NestedEnv
-initEnv x xst ctx = 
-    NestedEnv { context    = (x, xst)
-              , inScope    = map (\(n, t) -> (n, liftType t)) [ctx, (x, xst)]
-              , frameDepth = Succ $ Succ Zero
-              }
+initEnv :: Env
+initEnv = Env { inScope = [], frameDepth = Zero }
 
-
--- | A reader monad that provides access to the flattening
--- environment.
-type Flatten a = Reader NestedEnv a
-
-runFlat :: NestedEnv -> Flatten a -> a
-runFlat env ma = runReader ma env
+bindEnv :: Ident -> Type -> Env -> Env
+bindEnv n t e = e { inScope = (n, t) : inScope e }
 
 -- | Update the environment to express the descent into a
--- comprehension that binds the name 'x'. This involves updating the
--- context, binding 'x' in the current environment frame and
--- increasing the frame depth.
-descendEnv :: (Ident, Type) -> NestedEnv -> NestedEnv
-descendEnv x env = env { context    = x
-                       , inScope    = x : inScope env 
+-- comprehension that binds the name 'x'. This involves binding 'x' in
+-- the current environment frame and increasing the frame depth.
+descendEnv :: (Ident, Type) -> Env -> Env
+descendEnv x env = env { inScope    = x : inScope env 
                        , frameDepth = Succ $ frameDepth env
                        }
-
-envVar :: (Ident, Type) -> F.LExpr
-envVar (n, t) = F.Var t n
-
-ctxVarM :: Flatten F.LExpr
-ctxVarM = envVar <$> asks context
 
 frameDepthM :: Flatten Nat
 frameDepthM = asks frameDepth
 
--- Compile nested expressions that occur with an iteration depth of at
--- least two.
-deepFlatten :: N.Expr -> Flatten F.LExpr
-deepFlatten (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
-deepFlatten (N.Table t n cs hs)  = do
-    Succ d1 <- frameDepthM
-    ctx     <- ctxVarM
-    return $ P.unconcat d1 ctx $ P.dist (F.Table t n cs hs) (P.qconcat d1 ctx)
+-- | Restrict all environment entries according to a boolean vector
+-- ('then' or 'else' branch).
+restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
+restrictEnv env d1 bs branchExpr = mkRestrictLet env
+  where
+    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
+    mkRestrictLet [] = $impossible
+    mkRestrictLet (e : []) =
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               branchExpr
+    mkRestrictLet (e : (e2 : es)) = 
+        P.let_ (fst e)
+               (P.restrict (envVar e) bs d1)
+               (mkRestrictLet (e2 : es))
 
-deepFlatten (N.Const t v)        = do
-    Succ d1 <- frameDepthM
-    ctx     <- ctxVarM
-    return $ P.unconcat d1 ctx $ P.dist (F.Const t v) (P.qconcat d1 ctx)
+-- | Lift all names bound in the environment: the value is replicated
+-- for each element of the current context. The chain of 'let's is
+-- terminated by the flattened head expression of the current
+-- iterator.
+liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
+liftEnv ctx d headExpr env = mkLiftingLet env
+  where
+    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
+    mkLiftingLet []        = headExpr
+    mkLiftingLet (e : [])  =
+        P.let_ (fst e) (P.dist (envVar e) cv d) headExpr
+    mkLiftingLet (e : (e2 : es)) =
+        P.let_ (fst e) (P.dist (envVar e) cv d) (mkLiftingLet (e2 : es))
 
-deepFlatten (N.UnOp t op e1)     = P.un t op <$> deepFlatten e1 <*> frameDepthM
-deepFlatten (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
-deepFlatten (N.AppE1 _ p e)      = prim1 p <$> deepFlatten e <*> frameDepthM
-deepFlatten (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten e1 <*> deepFlatten e2 <*> frameDepthM
+    cv :: F.LExpr
+    cv = envVar ctx
 
-deepFlatten (N.Let _ x xs e)     = P.let_ x <$> (deepFlatten xs) <*> (deepFlatten e)
 
-deepFlatten (N.If _ ce te ee)    = do
+--------------------------------------------------------------------------------
+
+-- | Transform top-level expressions which are not nested in an
+-- iterator.
+flatten :: N.Expr -> Flatten F.LExpr
+flatten (N.Table t n cs hs)  = return $ F.Table t n cs hs
+flatten (N.UnOp t op e1)     = P.un t op <$> flatten e1 <*> pure Zero
+flatten (N.BinOp t op e1 e2) = P.bin t op <$> flatten e1 <*> flatten e2 <*> pure Zero
+flatten (N.Const t v)        = return $ F.Const t v
+flatten (N.Var t v)          = return $ F.Var t v
+flatten (N.If t ce te ee)    = F.If t <$> flatten ce <*> flatten te <*> flatten ee
+flatten (N.AppE1 _ p e)      = prim1 p <$> flatten e <*> pure Zero
+flatten (N.AppE2 _ p e1 e2)  = prim2 p <$> flatten e1 <*> flatten e2 <*> pure Zero
+flatten (N.Let _ x xs e)     = P.let_ x <$> flatten xs <*> local (bindEnv x (typeOf xs)) (flatten e)
+flatten (N.MkTuple _ es)     = P.tuple <$> mapM flatten es <*> pure Zero
+flatten (N.Iterator _ h x xs)    = do
+    -- Prepare an environment in which the current generator is the
+    -- context
+    let initCtx    = (x, typeOf xs)
+    
+    -- In this environment, transform the iterator head
+    flatHead <- local (descendEnv initCtx) (deepFlatten initCtx h)
+
+    P.let_ x <$> flatten xs <*> (liftEnv initCtx Zero flatHead <$> asks inScope)
+
+--------------------------------------------------------------------------------
+
+-- | Compile expressions nested in an iterator.
+deepFlatten :: (Ident, Type) -> N.Expr -> Flatten F.LExpr
+deepFlatten _   (N.Var t v)          = frameDepthM >>= \d -> return $ F.Var (liftTypeN d t) v
+deepFlatten ctx (N.Table t n cs hs)  = P.broadcast (F.Table t n cs hs) (envVar ctx) <$> frameDepthM
+deepFlatten ctx (N.Const t v)        = P.broadcast (F.Const t v) (envVar ctx) <$> frameDepthM
+deepFlatten ctx (N.UnOp t op e1)     = P.un t op <$> deepFlatten ctx e1 <*> frameDepthM
+deepFlatten ctx (N.BinOp t op e1 e2) = P.bin t op <$> deepFlatten ctx e1 <*> deepFlatten ctx e2 <*> frameDepthM
+deepFlatten ctx (N.MkTuple _ es)     = frameDepthM >>= \d -> P.tuple <$> mapM (deepFlatten ctx) es <*> pure d
+deepFlatten ctx (N.AppE1 _ p e)      = prim1 p <$> deepFlatten ctx e <*> frameDepthM
+deepFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten ctx e1 <*> deepFlatten ctx e2 <*> frameDepthM
+
+deepFlatten ctx (N.Let _ x xs e)     = P.let_ x <$> deepFlatten ctx xs 
+                                                <*> local (bindEnv x (typeOf xs)) (deepFlatten ctx e)
+
+deepFlatten ctx (N.If _ ce te ee)    = do
     Succ d1      <- frameDepthM
     
     -- Lift the condition
-    bs           <- deepFlatten ce
+    bs           <- deepFlatten ctx ce
     
     -- Lift the THEN branch. Note that although the environment record
     -- does not change, all environment variables are re-bound to a
     -- restricted environment by 'restrictEnv'.
-    thenExpr     <- deepFlatten te
+    thenExpr     <- deepFlatten ctx te
 
     -- Lift the ELSE branch. See comment above.
-    elseExpr     <- deepFlatten ee
+    elseExpr     <- deepFlatten ctx ee
 
     env          <- asks inScope
 
@@ -249,45 +213,17 @@ deepFlatten (N.If _ ce te ee)    = do
 
     return $ P.combine bs thenRes elseRes d1
 
-deepFlatten (N.Comp _ h x xs)    = do
-    d@(Succ d1) <- frameDepthM
+-- FIXME lift types in the environment (add one list type constructor)
+deepFlatten ctx (N.Iterator _ h x xs)    = do
+    d           <- frameDepthM
     env         <- asks inScope
-    let cv' = (x, liftTypeN (Succ d) (typeOf xs))
-    headExpr    <- local (descendEnv cv') $ deepFlatten h
+    let ctx' = (x, liftTypeN (Succ d) (typeOf xs))
+    headExpr    <- local (descendEnv ctx') $ deepFlatten ctx' h 
 
-    xs'         <- deepFlatten xs
+    xs'         <- deepFlatten ctx xs
 
-    return $ P.let_ x xs' (liftEnv cv' d1 headExpr env)
+    return $ P.let_ x xs' (liftEnv ctx' d headExpr env)
 
-restrictEnv :: [(Ident, Type)] -> Nat -> F.LExpr -> F.LExpr -> F.LExpr
-restrictEnv env d1 bs branchExpr = mkRestrictLet env
-  where
-    mkRestrictLet :: [(Ident, Type)] -> F.LExpr
-    mkRestrictLet (e : []) =
-        P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
-               branchExpr
-    mkRestrictLet (e : es) = 
-        P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
-               (mkRestrictLet es)
-
-liftEnv :: (Ident, Type) -> Nat -> F.LExpr -> [(Ident, Type)] -> F.LExpr
-liftEnv ctx d1 headExpr env = mkLiftingLet env
-
-  where
-    mkLiftingLet :: [(Ident, Type)] -> F.LExpr
-    mkLiftingLet (e : [])  =
-        P.let_ (fst e) 
-               (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
-               headExpr
-    mkLiftingLet (e : es) =
-        P.let_ (fst e) 
-               (P.unconcat d1 cv (P.distL (P.qconcat d1 $ envVar e) (P.qconcat d1 cv)))
-               (mkLiftingLet es)
-
-    cv :: F.LExpr
-    cv = envVar ctx
 
 --------------------------------------------------------------------------------
 -- Normalization of intermediate flat expressions into the final
@@ -307,6 +243,16 @@ freshNameN = do
 normalize :: F.LExpr -> F.FExpr
 normalize e = evalState (normLifting e) 0
 
+implementBroadcast :: F.BroadcastExt -> NormFlat F.FExpr
+implementBroadcast (F.Broadcast d _ e1 e2) = do
+    e1' <- normLifting e1
+    e2' <- normLifting e2
+    case d of
+        Zero             -> $impossible
+        Succ Zero        -> return $ P.fdist e1' e2'
+        -- FIXME use let-binding
+        Succ d1@(Succ _) -> return $ P.imprint d1 e2' (P.fdist e1' (P.forget d1 e2'))
+
 -- | Reduce all higher-lifted occurences of primitive combinators and
 -- operators to singly lifted variants by flattening the arguments and
 -- restoring the original list shape on the result.
@@ -315,81 +261,90 @@ normLifting (F.Table t n cs hs)    = return $ F.Table t n cs hs
 normLifting (F.If t ce te ee)      = F.If t <$> normLifting ce <*> normLifting te <*> normLifting ee
 normLifting (F.Const t v)          = return $ F.Const t v
 normLifting (F.Var t n)            = return $ F.Var t n
-normLifting (F.QConcat n t e)      = F.QConcat n t <$> normLifting e
-normLifting (F.UnConcat n t e1 e2) = F.UnConcat n t <$> normLifting e1 <*> normLifting e2
 normLifting (F.Let t x e1 e2)      = F.Let t x <$> normLifting e1 <*> normLifting e2
-normLifting (F.UnOp t lop e)       = 
-    case lop of
-        F.LiftedN Zero op          -> F.UnOp t (F.NotLifted op) <$> normLifting e
-        F.LiftedN (Succ Zero) op -> F.UnOp t (F.Lifted op) <$> normLifting e
-        F.LiftedN (Succ d) op      -> do
+normLifting (F.Ext b)              = implementBroadcast b
+normLifting (F.MkTuple t l es)     =
+    case l of
+        F.LiftedN Zero         -> F.MkTuple t F.NotLifted <$> mapM normLifting es
+        F.LiftedN (Succ Zero)  -> F.MkTuple t F.Lifted <$> mapM normLifting es
+        F.LiftedN (Succ d)     -> do
+            e1' : es' <- mapM normLifting es
+            n         <- freshNameN
+            let v   = F.Var (typeOf e1') n
+                app = F.MkTuple (unliftTypeN d t) F.Lifted (P.forget d v : map (P.forget d) es')
+            return $ P.let_ n e1' $ P.imprint d v app
+
+normLifting (F.UnOp t op l e)      = 
+    case l of
+        F.LiftedN Zero         -> F.UnOp t op F.NotLifted <$> normLifting e
+        F.LiftedN (Succ Zero)  -> F.UnOp t op F.Lifted <$> normLifting e
+        F.LiftedN (Succ d)     -> do
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.UnOp t (F.Lifted op) (P.qconcat d v)
-            return $ P.let_ n e' $ P.unconcat d v app
+                app = F.UnOp (unliftTypeN d t) op F.Lifted (P.forget d v)
+            return $ P.let_ n e' $ P.imprint d v app
 
-normLifting (F.BinOp t lop e1 e2)  = 
-    case lop of
-        F.LiftedN Zero op          -> F.BinOp t (F.NotLifted op) 
-                                                  <$> normLifting e1
-                                                  <*> normLifting e2
-        F.LiftedN (Succ Zero) op -> F.BinOp t (F.Lifted op) 
-                                                  <$> normLifting e1
-                                                  <*> normLifting e2
-        F.LiftedN (Succ d) op      -> do
+normLifting (F.BinOp t op l e1 e2)  = 
+    case l of
+        F.LiftedN Zero         -> F.BinOp t op F.NotLifted
+                                            <$> normLifting e1
+                                            <*> normLifting e2
+        F.LiftedN (Succ Zero)  -> F.BinOp t op F.Lifted
+                                            <$> normLifting e1
+                                            <*> normLifting e2
+        F.LiftedN (Succ d)     -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.BinOp t (F.Lifted op) (P.qconcat d v) (P.qconcat d e2')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.BinOp (unliftTypeN d t) op F.Lifted (P.forget d v) (P.forget d e2')
+            return $ P.let_ n e1' $ P.imprint d v app
 
-normLifting (F.PApp1 t lp e)    = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp1 t (F.NotLifted p) <$> normLifting e
-        F.LiftedN (Succ Zero) p -> F.PApp1 t (F.Lifted p) <$> normLifting e
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp1 t p l e)    = 
+    case l of
+        F.LiftedN Zero         -> F.PApp1 t p F.NotLifted <$> normLifting e
+        F.LiftedN (Succ Zero)  -> F.PApp1 t p F.Lifted <$> normLifting e
+        F.LiftedN (Succ d)     -> do
             e' <- normLifting e
             n  <- freshNameN
             let v   = F.Var (typeOf e') n
-                app = F.PApp1 t (F.Lifted p) (P.qconcat d v)
-            return $ P.let_ n e' (P.unconcat d v app)
+                app = F.PApp1 (unliftTypeN d t) p F.Lifted (P.forget d v)
+            return $ P.let_ n e' (P.imprint d v app)
 
-normLifting (F.PApp2 t lp e1 e2)   = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp2 t (F.NotLifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-        F.LiftedN (Succ Zero) p -> F.PApp2 t (F.Lifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp2 t p l e1 e2)   = 
+    case l of
+        F.LiftedN Zero         -> F.PApp2 t p F.NotLifted
+                                              <$> normLifting e1
+                                              <*> normLifting e2
+        F.LiftedN (Succ Zero)  -> F.PApp2 t p F.Lifted
+                                              <$> normLifting e1
+                                              <*> normLifting e2
+        F.LiftedN (Succ d)     -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp2 t (F.Lifted p) (P.qconcat d v) (P.qconcat d e2')
-            return $ P.let_ n e1' $ P.unconcat d v app
+                app = F.PApp2 (unliftTypeN d t) p F.Lifted (P.forget d v) (P.forget d e2')
+            return $ P.let_ n e1' $ P.imprint d v app
 
-normLifting (F.PApp3 t lp e1 e2 e3)    = 
-    case lp of
-        F.LiftedN Zero p          -> F.PApp3 t (F.NotLifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-                                                 <*> normLifting e3
-        F.LiftedN (Succ Zero) p -> F.PApp3 t (F.Lifted p) 
-                                                 <$> normLifting e1
-                                                 <*> normLifting e2
-                                                 <*> normLifting e3
-        F.LiftedN (Succ d) p      -> do
+normLifting (F.PApp3 t p l e1 e2 e3)    = 
+    case l of
+        F.LiftedN Zero        -> F.PApp3 t p F.NotLifted
+                                             <$> normLifting e1
+                                             <*> normLifting e2
+                                             <*> normLifting e3
+        F.LiftedN (Succ Zero) -> F.PApp3 t p F.Lifted
+                                             <$> normLifting e1
+                                             <*> normLifting e2
+                                             <*> normLifting e3
+        F.LiftedN (Succ d)    -> do
             e1' <- normLifting e1
             e2' <- normLifting e2
             e3' <- normLifting e3
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp3 t (F.Lifted p) (P.qconcat d v) 
-                                             (P.qconcat d e2') 
-                                             (P.qconcat d e3')
-            return $ P.let_ n e1' $ P.unconcat d v app
-
+                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.forget d v) 
+                                                           (P.forget d e2') 
+                                                           (P.forget d e3')
+            return $ P.let_ n e1' $ P.imprint d v app

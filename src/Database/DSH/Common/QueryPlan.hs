@@ -16,7 +16,7 @@ import           Database.DSH.VL.Vector
 -- one particular query from a bundle.
 data Layout q = LCol Int
               | LNest q (Layout q)
-              | LPair (Layout q) (Layout q)
+              | LTuple [Layout q]
               deriving (Show, Read)
 
 -- | A Shape describes the structure of the result produced by a
@@ -33,9 +33,9 @@ $(deriveJSON defaultOptions ''Shape)
 
 -- | Extract all plan root nodes stored in the layout
 layoutNodes :: DagVector v => Layout v -> [AlgNode]
-layoutNodes (LCol _)          = []
-layoutNodes (LNest v lyt)     = vectorNodes v ++ layoutNodes lyt
-layoutNodes (LPair lyt1 lyt2) = (layoutNodes lyt1) ++ (layoutNodes lyt2)
+layoutNodes (LCol _)      = []
+layoutNodes (LNest v lyt) = vectorNodes v ++ layoutNodes lyt
+layoutNodes (LTuple lyts) = concatMap layoutNodes lyts
 
 -- | Extract all plan root nodes stored in the shape
 shapeNodes :: DagVector v => Shape v -> [AlgNode]
@@ -50,14 +50,14 @@ updateShape old new shape =
         SShape dbv lyt -> SShape (updateVector old new dbv) (updateLayout lyt)
 
   where
-    updateLayout (LNest dbv lyt)   = LNest (updateVector old new dbv) (updateLayout lyt)
-    updateLayout (LPair lyt1 lyt2) = LPair (updateLayout lyt1) (updateLayout lyt2)
-    updateLayout l                 = l
+    updateLayout (LNest dbv lyt) = LNest (updateVector old new dbv) (updateLayout lyt)
+    updateLayout (LTuple lyts)   = LTuple (map updateLayout lyts)
+    updateLayout l               = l
 
 columnsInLayout :: Layout q -> Int
 columnsInLayout (LCol _)      = 1
 columnsInLayout (LNest _ _)   = 0
-columnsInLayout (LPair p1 p2) = columnsInLayout p1 + columnsInLayout p2
+columnsInLayout (LTuple lyts) = sum $ map columnsInLayout lyts
 
 isOuterMost :: AlgNode -> Shape NDVec -> Bool
 isOuterMost n (VShape (ADVec n' _) _) = n == n'

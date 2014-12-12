@@ -1,23 +1,24 @@
-{-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Common.Lang where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import           Data.List
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
+import           Text.Printf
 
-import           Database.DSH.Impossible
 import           Database.DSH.Common.Type
+import           Database.DSH.Impossible
+
+import           Database.DSH.Common.Nat
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON (n N.:| nl) = toJSON (n, nl)
 
 instance FromJSON a => FromJSON (N.NonEmpty a) where
     parseJSON doc = parseJSON doc >>= \(n, nl) -> return $ n N.:| nl
-
 
 -----------------------------------------------------------------------------
 -- Common types for backend expressions
@@ -29,18 +30,9 @@ data Val where
     BoolV   :: Bool -> Val
     StringV :: String -> Val
     DoubleV :: Double -> Val
-    PairV   :: Val -> Val -> Val
+    TupleV  :: [Val] -> Val
     UnitV   :: Val
-    deriving (Eq, Ord)
-
-instance Show Val where
-  show (ListV vs)    = "[" ++ (intercalate ", " $ map show vs) ++ "]"
-  show (IntV i)      = show i
-  show (BoolV b)     = show b
-  show (StringV s)   = "\"" ++ show s ++ "\""
-  show (DoubleV d)   = show d
-  show (PairV v1 v2) = "(" ++ show v1 ++ ", " ++ show v2 ++ ")"
-  show UnitV         = "()"
+    deriving (Eq, Ord, Show)
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
@@ -72,6 +64,7 @@ $(deriveJSON defaultOptions ''TableHints)
 -- | Identifiers
 type Ident = String
 
+
 -----------------------------------------------------------------------------
 -- Scalar operators
 
@@ -98,9 +91,15 @@ data UnNumOp = Sin
 
 $(deriveJSON defaultOptions ''UnNumOp)
 
+data UnTextOp = SubString Integer Integer
+                deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnTextOp)
+
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
+                | SUTextOp UnTextOp
                 | SUDateOp
                 deriving (Show, Eq, Ord)
 
@@ -131,7 +130,7 @@ data BinBoolOp = Conj
 
 $(deriveJSON defaultOptions ''BinBoolOp)
 
-data BinStringOp = Like 
+data BinStringOp = Like
                    deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''BinStringOp)
@@ -176,21 +175,20 @@ data JoinBinOp = JBNumOp BinNumOp
 
 data JoinUnOp = JUNumOp UnNumOp
               | JUCastOp UnCastOp
+              | JUTextOp UnTextOp
               deriving (Show, Eq, Ord)
 
 data JoinExpr = JBinOp Type JoinBinOp JoinExpr JoinExpr
               | JUnOp Type JoinUnOp JoinExpr
-              | JFst Type JoinExpr
-              | JSnd Type JoinExpr
+              | JTupElem Type TupleIndex JoinExpr
               | JLit Type Val
               | JInput Type
-              deriving (Show, Eq, Ord)
+              deriving (Show, Eq)
 
 instance Typed JoinExpr where
     typeOf (JBinOp t _ _ _) = t
     typeOf (JUnOp t _ _)    = t
-    typeOf (JFst t _)       = t
-    typeOf (JSnd t _)       = t
+    typeOf (JTupElem t _ _) = t
     typeOf (JLit t _)       = t
     typeOf (JInput t)       = t
 
@@ -202,8 +200,7 @@ parenthize e =
     case e of
         JBinOp _ _ _ _ -> parens $ pretty e
         JUnOp _ _ _    -> parens $ pretty e
-        JFst _ _       -> parens $ pretty e
-        JSnd _ _       -> parens $ pretty e
+        JTupElem _ _ _ -> pretty e
         JLit  _ _      -> pretty e
         JInput _       -> pretty e
 
@@ -211,10 +208,10 @@ instance Pretty Val where
     pretty (ListV xs)    = list $ map pretty xs
     pretty (IntV i)      = int i
     pretty (BoolV b)     = bool b
-    pretty (StringV s)   = string s
+    pretty (StringV s)   = dquotes $ string s
     pretty (DoubleV d)   = double d
-    pretty (PairV v1 v2) = tupled $ [ pretty v1, pretty v2 ]
     pretty UnitV         = text "()"
+    pretty (TupleV vs)   = tupled $ map pretty vs
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="
@@ -255,6 +252,7 @@ instance Pretty UnCastOp where
 instance Pretty JoinUnOp where
     pretty (JUNumOp o)  = pretty o
     pretty (JUCastOp o) = pretty o
+    pretty (JUTextOp o) = pretty o
 
 instance Pretty JoinBinOp where
     pretty (JBNumOp o)    = pretty o
@@ -263,10 +261,10 @@ instance Pretty JoinBinOp where
 instance Pretty JoinExpr where
     pretty (JBinOp _ op e1 e2) = parenthize e1 <+> pretty op <+> parenthize e2
     pretty (JUnOp _ op e)      = pretty op <+> parenthize e
-    pretty (JFst _ e)          = text "fst" <+> parenthize e
-    pretty (JSnd _ e)          = text "snd" <+> parenthize e
     pretty (JLit _ v)          = pretty v
     pretty (JInput _)          = text "I"
+    pretty (JTupElem _ i e1)   =
+        parenthize e1 <> dot <> int (tupleIndex i)
 
 instance Pretty e => Pretty (JoinConjunct e) where
     pretty (JoinConjunct e1 op e2) = parens $ pretty e1 <+> pretty op <+> pretty e2
@@ -289,3 +287,7 @@ instance Pretty ScalarUnOp where
     pretty (SUBoolOp op) = pretty op
     pretty (SUCastOp op) = pretty op
     pretty SUDateOp      = $unimplemented
+    pretty (SUTextOp op) = pretty op
+
+instance Pretty UnTextOp where
+    pretty (SubString f t) = text $ printf "subString_%d,%d" f t

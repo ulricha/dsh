@@ -9,6 +9,7 @@ module Database.DSH.Translate.VL2Algebra
 import qualified Data.IntMap                          as IM
 import           Data.List
 import qualified Data.Map                             as M
+import           Data.Maybe
 
 import           Control.Applicative
 import           Control.Monad.State
@@ -77,10 +78,7 @@ refreshLyt (LNest (VLDVec n) lyt) = do
     Just n' <- fromDict n
     lyt'    <- refreshLyt lyt
     return $ LNest (toDVec n') lyt'
-refreshLyt (LPair l1 l2) = do
-    l1' <- refreshLyt l1
-    l2' <- refreshLyt l2
-    return $ LPair l1' l2'
+refreshLyt (LTuple lyts) = LTuple <$> mapM refreshLyt lyts
 
 refreshShape :: VectorAlgebra v a => Shape VLDVec -> VecBuild a v (Shape v)
 refreshShape (VShape (VLDVec n) lyt) = do
@@ -153,24 +151,8 @@ translateTerOp t c1 c2 c3 =
 
 translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
 translateBinOp b c1 c2 = case b of
-    V.Group -> do
-        (d, v, p) <- vecGroup (toDVec c1) (toDVec c2)
-        return $ RTriple (fromDVec d) (fromDVec v) (fromPVec p)
-
-    V.SortS -> do
-        (d, p) <- vecSortS (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec d) (fromPVec p)
-
-    V.DistPrim -> do
-        (v, p) <- vecDistPrim (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
-
-    V.DistDesc -> do
-        (v, p) <- vecDistDesc (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromPVec p)
-
-    V.Align -> do
-        (v, p) <- vecAlign (toDVec c1) (toDVec c2)
+    V.DistLift -> do
+        (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
 
     V.PropRename -> fromDVec <$> vecPropRename (toRVec c1) (toDVec c2)
@@ -183,9 +165,11 @@ translateBinOp b c1 c2 = case b of
         (v, p) <- vecPropReorder (toPVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromPVec p)
 
-    V.Unbox -> do
-        (v, r) <- vecUnbox (toRVec c1) (toDVec c2)
+    V.UnboxNested -> do
+        (v, r) <- vecUnboxNested (toRVec c1) (toDVec c2)
         return $ RLPair (fromDVec v) (fromRVec r)
+
+    V.UnboxScalar -> RDVec <$> vecUnboxScalar (toDVec c1) (toDVec c2)
 
     V.Append -> do
         (v, r1, r2) <- vecAppend (toDVec c1) (toDVec c2)
@@ -195,13 +179,8 @@ translateBinOp b c1 c2 = case b of
         (v, r1, r2) <- vecAppendS (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromRVec r1) (fromRVec r2)
 
-    V.Restrict e -> do
-        (v, r) <- vecRestrict e (toDVec c1) (toDVec c2)
-        return $ RLPair (fromDVec v) (fromRVec r)
-
     V.AggrS a -> fromDVec <$> vecAggrS a (toDVec c1) (toDVec c2)
 
-    V.AggrNonEmptyS a -> fromDVec <$> vecAggrNonEmptyS a (toDVec c1) (toDVec c2)
 
     V.SelectPos o -> do
         (v, r, ru) <- vecSelectPos (toDVec c1) o (toDVec c2)
@@ -212,6 +191,7 @@ translateBinOp b c1 c2 = case b of
         return $ RTriple (fromDVec v) (fromRVec rp) (fromRVec ru)
 
     V.Zip -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
+    V.Align -> fromDVec <$> vecZip (toDVec c1) (toDVec c2)
 
     V.ZipS -> do
         (v, r1 ,r2) <- vecZipS (toDVec c1) (toDVec c2)
@@ -231,6 +211,14 @@ translateBinOp b c1 c2 = case b of
 
     V.ThetaJoin p -> do
         (v, p1, p2) <- vecThetaJoin p (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+
+    V.NestProduct -> do
+        (v, p1, p2) <- vecNestProduct (toDVec c1) (toDVec c2)
+        return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
+
+    V.NestJoin p -> do
+        (v, p1, p2) <- vecNestJoin p (toDVec c1) (toDVec c2)
         return $ RTriple (fromDVec v) (fromPVec p1) (fromPVec p2)
 
     V.ThetaJoinS p -> do
@@ -263,6 +251,7 @@ translateBinOp b c1 c2 = case b of
 
 translateUnOp :: VectorAlgebra v a => V.UnOp -> Res v -> B.Build a (Res v)
 translateUnOp unop c = case unop of
+    V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
     V.Number           -> fromDVec <$> vecNumber (toDVec c)
     V.NumberS          -> fromDVec <$> vecNumberS (toDVec c)
@@ -275,11 +264,11 @@ translateUnOp unop c = case unop of
     V.Select e         -> do
         (d, r) <- vecSelect e (toDVec c)
         return $ RLPair (fromDVec d) (fromRVec r)
-    V.SortScalarS es -> do
-        (d, p) <- vecSortScalarS es (toDVec c)
+    V.SortS es         -> do
+        (d, p) <- vecSortS es (toDVec c)
         return $ RLPair (fromDVec d) (fromPVec p)
-    V.GroupScalarS es -> do
-        (qo, qi, p) <- vecGroupScalarS es (toDVec c)
+    V.GroupS es -> do
+        (qo, qi, p) <- vecGroupS es (toDVec c)
         return $ RTriple (fromDVec qo) (fromDVec qi) (fromPVec p)
     V.Project cols -> fromDVec <$> vecProject cols (toDVec c)
     V.Reverse      -> do
@@ -354,14 +343,11 @@ insertSerialize g = g >>= traverseShape
 
     traverseLayout :: (Layout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (Layout NDVec))
     traverseLayout (LCol _) = return Nothing
-    traverseLayout (LPair lyt1 lyt2) = do
-        mLyt1' <- traverseLayout lyt1
-        mLyt2' <- traverseLayout lyt2
-        case (mLyt1', mLyt2') of
-            (Just lyt1', Just lyt2') -> return $ Just $ LPair lyt1' lyt2'
-            (Just lyt1', Nothing)    -> return $ Just $ LPair lyt1' lyt2
-            (Nothing, Just lyt2')    -> return $ Just $ LPair lyt1 lyt2'
-            (Nothing, Nothing)       -> return Nothing
+    traverseLayout (LTuple lyts) = do
+        mLyts <- mapM traverseLayout lyts
+        if all isNothing mLyts
+            then return Nothing
+            else return $ Just $ LTuple $ zipWith (\l ml -> maybe l id ml) lyts mLyts
     traverseLayout (LNest dvec lyt) = do
         mLyt' <- traverseLayout lyt
         case mLyt' of

@@ -34,15 +34,15 @@ Description:
   paper entitled as "Algebraic Data Types for Language-Integrated
   Queries" [3].
   .
-  1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
+  1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
   .
-  2. <http://db.inf.uni-tuebingen.de/files/giorgidze/haskell2011.pdf>
+  2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
   .
-  3. <http://db.inf.uni-tuebingen.de/files/giorgidze/adtq.pdf>
+  3. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ddfp2013.pdf>
 
 License:             BSD3
 License-file:        LICENSE
-Author:              George Giorgidze, Alexander Ulrich, Tom Schreiber, Nils Schweinsberg and Jeroen Weijers
+Author:              George Giorgidze, Alexander Ulrich, Nils Schweinsberg and Jeroen Weijers
 Maintainer:          alexander.ulrich@uni-tuebingen.de
 Stability:           Experimental
 Category:            Database
@@ -56,7 +56,6 @@ Extra-source-files:  examples/Example01.hs
 		     tests/ComprehensionTests.hs
 		     tests/DSHComprehensions.hs
 		     tests/CombinatorTests.hs
-                     tests/Makefile
 
 Cabal-version:       >= 1.8
 
@@ -76,16 +75,17 @@ Library
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
+                     HDBC-postgresql    >= 2.3.2.2,
                      template-haskell   >= 2.8.0.0,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
                      TableAlgebra       >= 2.0.0,
                      kure               >= 2.16.1,
                      either             >= 4.0,
-                     semigroups,
-                     ansi-wl-pprint,
-                     set-monad,
-                     dlist
+                     semigroups         >= 0.16,
+                     ansi-wl-pprint     >= 0.6.7.1,
+                     set-monad          >= 0.1.0.0,
+                     dlist              >= 0.7.1
                      
   Hs-source-dirs:    src
 
@@ -95,7 +95,7 @@ Library
   if flag(debuggraph)
     CPP-Options:     -DDEBUGGRAPH
 
-  GHC-Options:       -Wall -auto-all -fno-warn-orphans
+  GHC-Options:       -Wall -fno-warn-orphans
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
@@ -104,19 +104,21 @@ Library
                      Database.DSH.Frontend.Schema
                      Database.DSH.Frontend.Externals
                      Database.DSH.Frontend.TH
+                     Database.DSH.Frontend.TupleTypes
+                     Database.DSH.Frontend.Funs
                      Database.DSH.Translate.Frontend2CL
+                     Database.DSH.Execute.TH
                      Database.DSH.Execute.Sql
+                     Database.DSH.Execute.Backend
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
                      Database.DSH.Common.Lang
                      Database.DSH.Common.QueryPlan
-                     Database.DSH.Common.DBCode
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
                      Database.DSH.Export
                      Database.DSH.CL.Lang
-                     Database.DSH.CL.Resugar
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
@@ -132,6 +134,7 @@ Library
                      Database.DSH.CL.Opt.SemiJoin
                      Database.DSH.CL.Opt.AntiJoin
                      Database.DSH.CL.Opt.NestJoin
+                     Database.DSH.CL.Opt.Resugar
                      Database.DSH.FKL.Lang
                      Database.DSH.FKL.Primitives
                      Database.DSH.FKL.Rewrite
@@ -197,60 +200,6 @@ Library
                      Database.DSH.Optimizer.VL.Rewrite.Aggregation
                      Database.DSH.Optimizer.VL.Rewrite.Window
                      Database.DSH.Optimizer.VL.Rewrite.Unused
--- 
--- executable vltox100
---   Main-is: Database/DSH/Tools/VLToX100.hs
---   GHC-Options:       -Wall -fno-warn-orphans -fno-warn-type-defaults -fno-warn-unused-do-bind
---   hs-source-dirs:   src
---   build-depends:    base >= 4.5,
---                     mtl >= 2.1,
---                     containers >= 0.4.0.0,
---                     template-haskell >= 2.7,
---                     TableAlgebra >= 2.0.0,
---                     aeson >= 0.6,
---                     bytestring >= 0.9.1.10,
---                     pretty >= 1.0.1.1
--- 
--- Executable x100opt
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/X100/Tools/Opt.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        pretty,
---                        mtl,
---                        bytestring,
---                        aeson
---   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
--- 
--- Executable vlopt
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Opt.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        template-haskell,
---                        pretty,
---                        bytestring,
---                        mtl,
---                        aeson,
---                        ansi-wl-pprint
---   GHC-Options: -rtsopts -fno-warn-orphans -fprof-auto -auto-all
--- 
--- Executable vlprop
---   Hs-Source-Dirs:   src
---   Main-Is: Database/DSH/Optimizer/VL/Tools/Prop.hs
---   Build-depends:       base,
---                        TableAlgebra >= 2.0.0,
---                        containers,
---                        mtl,
---                        bytestring,
---                        pretty,
---                        aeson,
---                        ansi-wl-pprint,
---                        template-haskell
---   GHC-Options: -rtsopts -auto-all -fno-warn-orphans -fprof-auto 
---                   
 
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
@@ -263,16 +212,16 @@ executable vldot
                       template-haskell    >= 2.8.0.0, 
                       pretty              >= 1.0.1.1, 
                       bytestring          >= 0.9,
-                      fgl, 
+                      fgl                 >= 5.5.0.1,
                       TableAlgebra,
-                      ansi-wl-pprint,
-                      semigroups
+                      ansi-wl-pprint      >= 0.6.7.1,
+                      semigroups          >= 0.16
     GHC-Options: -Wall -fno-warn-orphans
 
 executable manual
     hs-source-dirs: tests
     main-is:        Manual.hs
-    build-depends:  base, DSH, HDBC-postgresql
+    build-depends:  base, DSH, HDBC-postgresql, text
     ghc-options:    -Wall -fno-warn-orphans
 
 Test-Suite Flattening_TA
@@ -282,15 +231,13 @@ Test-Suite Flattening_TA
     Build-depends: base                       >= 4.2 && < 5,
                    QuickCheck                 >= 2.4,
                    DSH                        >= 0.7.8.1,
-                   containers,
+                   containers                 >= 0.5.5.1,
                    text                       >= 0.11,
                    HDBC-postgresql            >= 2.3,
                    HDBC                       >= 2.3,
-                   --derive                     >= 2.5,
                    test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework-hunit,
+                   test-framework-hunit       >= 0.3.0.1,
                    test-framework             >= 0.6,
-                   HUnit
-    cpp-options: -DisDBPH
+                   HUnit                      >= 1.2.5.2
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP

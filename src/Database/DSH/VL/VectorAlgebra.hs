@@ -13,7 +13,7 @@ class VectorAlgebra v a where
     singletonDescr :: Build a v
 
     -- | A vector representing a literal list.
-    vecLit :: [RowType] -> [[VLVal]] -> Build a v
+    vecLit :: [ScalarType] -> [[VLVal]] -> Build a v
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> [VLColumn] -> TableHints -> Build a v
@@ -43,7 +43,7 @@ class VectorAlgebra v a where
     vecAggr :: AggrFun -> v -> Build a v
     vecAggrS :: AggrFun -> v -> v -> Build a v
     vecAggrNonEmpty :: N.NonEmpty AggrFun -> v -> Build a v
-    vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> v -> Build a v
+    vecAggrNonEmptyS :: N.NonEmpty AggrFun -> v -> Build a v
 
     vecWinFun :: WinFun -> FrameSpec -> v -> Build a v
 
@@ -81,16 +81,10 @@ class VectorAlgebra v a where
     -- | Filter a vector by applying a scalar boolean predicate.
     vecSelect:: Expr -> v -> Build a (v, RVec)
 
-    -- | General vector sorting (segmented). The sorting key is
-    -- provided by the first input vector.
-    vecSortS :: v -> v -> Build a (v, PVec)
+    -- | Segmented sorting of a vector. 
+    vecSortS :: [Expr] -> v -> Build a (v, PVec)
 
-    -- | Specialized variant of sorting: The sorting key is provided
-    -- by a scalar expression.
-    vecSortScalarS :: [Expr] -> v -> Build a (v, PVec)
-
-    vecGroup :: v -> v -> Build a (v, v, PVec)
-    vecGroupScalarS :: [Expr] -> v -> Build a (v, v, PVec)
+    vecGroupS :: [Expr] -> v -> Build a (v, v, PVec)
 
     -- | The VL aggregation operator groups the input vector by the
     -- given columns and then performs the list of aggregations
@@ -99,6 +93,8 @@ class VectorAlgebra v a where
     -- operates segmented, i.e. always groups by descr first. This
     -- operator must be used with care: It does not determine the
     -- complete set of descr value to check for empty inner lists.
+    -- The output payload columns are the grouping columns followed by
+    -- the aggregation results.
     vecGroupAggr :: [Expr] -> N.NonEmpty AggrFun -> v -> Build a v
 
 
@@ -107,9 +103,8 @@ class VectorAlgebra v a where
     vecProject :: [Expr] -> v -> Build a v
 
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
-    vecDistPrim :: v -> v -> Build a (v, PVec)
     vecDistDesc :: v -> v -> Build a (v, PVec)
-    vecAlign    :: v -> v -> Build a (v, PVec)
+    vecDistLift :: v -> v -> Build a (v, PVec)
 
     -- | propRename uses a propagation vector to rename a vector (no
     -- filtering or reordering).
@@ -132,12 +127,18 @@ class VectorAlgebra v a where
     -- silently discarded.
     --
     -- Output: @(DVec r, RVec)@
-    vecUnbox :: RVec -> v -> Build a (v, RVec)
+    vecUnboxNested :: RVec -> v -> Build a (v, RVec)
+
+    vecUnboxScalar :: v -> v -> Build a v
 
     vecAppend :: v -> v -> Build a (v, RVec, RVec)
     vecAppendS :: v -> v -> Build a (v, RVec, RVec)
 
-    vecRestrict :: Expr -> v -> v -> Build a (v, RVec)
+    -- | Align two vectors positionally. However, in contrast to
+    -- 'vecZip', these are not arbitrary vectors, but vectors which
+    -- are guaranteed to have the same length because they are
+    -- operands to lifted operators.
+    vecAlign :: v -> v -> Build a v
 
     -- | Positionally align two vectors. Basically: @zip xs ys@
     vecZip :: v -> v -> Build a v
@@ -148,9 +149,13 @@ class VectorAlgebra v a where
 
     vecCartProduct :: v -> v -> Build a (v, PVec, PVec)
     vecCartProductS :: v -> v -> Build a (v, PVec, PVec)
+    vecNestProduct :: v -> v -> Build a (v, PVec, PVec)
+    -- FIXME inner result vector contains the outer values. Produce a
+    -- propagation vector to align the layout.
     vecNestProductS :: v -> v -> Build a (v, PVec)
 
     vecThetaJoin :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
+    vecNestJoin :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
     vecThetaJoinS :: JoinPredicate Expr -> v -> v -> Build a (v, PVec, PVec)
     vecNestJoinS :: JoinPredicate Expr -> v -> v -> Build a (v, PVec)
 

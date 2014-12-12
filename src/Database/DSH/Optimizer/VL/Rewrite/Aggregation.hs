@@ -19,8 +19,6 @@ aggregationRules = [ inlineAggrSProject
                    , inlineAggrNonEmptyProject
                    , inlineAggrSNonEmptyProject
                    , flatGrouping
-                   , simpleGrouping
-                   , simpleGroupingProject
                    , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
@@ -36,17 +34,18 @@ groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomU
                                                        , applyToAll noProps aggregationRules
                                                        ]
 
+-- FIXME this rewrite will no longer work: take the UnboxScalarS
+-- operator into account.
 mergeNonEmptyAggrs :: VLRule ()
 mergeNonEmptyAggrs q =
-  $(dagPatMatch 'q "((qo1) AggrNonEmptyS afuns1 (qi1)) Zip ((qo2) AggrNonEmptyS afuns2 (qi2))"
+  $(dagPatMatch 'q "(AggrNonEmptyS afuns1 (qi1)) Zip (AggrNonEmptyS afuns2 (qi2))"
     [| do
-        predicate $ $(v "qo1") == $(v "qo2")
         predicate $ $(v "qi1") == $(v "qi2")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.Merge" q
             let afuns  = $(v "afuns1") <> $(v "afuns2")
-            let aggrOp = BinOp (AggrNonEmptyS afuns) $(v "qo1") $(v "qi1")
+            let aggrOp = UnOp (AggrNonEmptyS afuns) $(v "qi1")
             void $ replaceWithNew q aggrOp |])
 
 -- | If we can infer that the vector is not empty, we can employ a
@@ -68,13 +67,13 @@ nonEmptyAggr q =
 -- that does not add default values for empty segments.
 nonEmptyAggrS :: VLRule BottomUpProps
 nonEmptyAggrS q =
-  $(dagPatMatch 'q "(q1) AggrS aggrFun (q2)"
+  $(dagPatMatch 'q "(_) AggrS aggrFun (q2)"
     [| do
         VProp True <- nonEmptyProp <$> properties $(v "q2")
 
         return $ do
             logRewrite "Aggregation.NonEmpty.AggrS" q
-            let aggrOp = BinOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q1") $(v "q2")
+            let aggrOp = UnOp (AggrNonEmptyS ($(v "aggrFun") N.:| [])) $(v "q2")
             void $ replaceWithNew q aggrOp |])
 
 -- | Merge a projection into a segmented aggregate operator.
@@ -122,62 +121,15 @@ inlineAggrNonEmptyProject q =
 -- merging of aggregate operators
 inlineAggrSNonEmptyProject :: VLRule ()
 inlineAggrSNonEmptyProject q =
-  $(dagPatMatch 'q "(qo) AggrNonEmptyS afuns (Project proj (qi))"
+  $(dagPatMatch 'q "AggrNonEmptyS afuns (Project proj (qi))"
     [| do
         let env = zip [1..] $(v "proj")
         let afuns' = fmap (mapAggrFun (mergeExpr env)) $(v "afuns")
 
         return $ do
             logRewrite "Aggregation.Normalize.AggrNonEmptyS.Project" q
-            let aggrOp = BinOp (AggrNonEmptyS afuns') $(v "qo") $(v "qi")
+            let aggrOp = UnOp (AggrNonEmptyS afuns') $(v "qi")
             void $ replaceWithNew q aggrOp |])
-
-
--- If grouping is performed by simple scalar expressions, we can
--- employ a simpler operator.
-simpleGrouping :: VLRule ()
-simpleGrouping q =
-  $(dagPatMatch 'q "(Project projs (q1)) Group (q2)"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Aggregation.Grouping.ScalarS" q
-          void $ replaceWithNew q $ UnOp (GroupScalarS $(v "projs")) $(v "q1") |])
-
--- If grouping is performed by simple scalar expressions, we can
--- employ a simpler operator. This dagPatMatch arises when the grouping
--- input projection (left) is merged with the common origin of left
--- and right groupby input.
-simpleGroupingProject :: VLRule ()
-simpleGroupingProject q =
-  $(dagPatMatch 'q "R2 (qg=(Project projs1 (q1)) Group (Project projs2 (q2)))"
-    [| do
-        predicate $ $(v "q1") == $(v "q2")
-
-        return $ do
-          logRewrite "Aggregation.Grouping.ScalarS.Project" q
-
-          -- Add the grouping columns to the group input projection
-          let projs = $(v "projs2") ++ $(v "projs1")
-          projectNode <- insert $ UnOp (Project projs) $(v "q1")
-
-          let groupExprs = [ Column $ i + length $(v "projs2")
-                           | i <- [1 .. length $(v "projs1")]
-                           ]
-
-          -- group by the columns that have been added to the input
-          -- projection.
-          groupNode <- insert $ UnOp (GroupScalarS groupExprs) projectNode
-
-          -- Remove the additional grouping columns from the inner vector
-          r2Node <- insert $ UnOp R2 groupNode
-          let origSchemaProj = map Column [1 .. length $(v "projs2")]
-          topProjectNode <- insert $ UnOp (Project origSchemaProj) r2Node
-          replace q topProjectNode
-
-          -- Re-wire R1 and R3 parents of the group operator
-          replace $(v "qg") groupNode |])
 
 -- We rewrite a combination of GroupBy and aggregation operators into a single
 -- VecAggr operator if the following conditions hold:
@@ -187,32 +139,20 @@ simpleGroupingProject q =
 -- 2. The grouping criteria is a simple column projection from the input vector
 flatGrouping :: VLRule ()
 flatGrouping q =
-  $(dagPatMatch 'q "(_) AggrNonEmptyS afuns (R2 (GroupScalarS groupExprs (q1)))"
+  $(dagPatMatch 'q "(R1 (qg)) UnboxScalar (AggrNonEmptyS afuns (R2 (qg1=GroupS groupExprs (q1))))"
     [| do
+
+        -- Ensure that the aggregate results are unboxed using the
+        -- outer vector of the grouping operator.
+        predicate $ $(v "qg") == $(v "qg1")
 
         return $ do
           logRewrite "Aggregation.Grouping.Aggr" q
-          -- The output format of the new VecAggr operator is
-          -- [p1, ..., pn, a1, ..., am] where p1, ..., pn are the
-          -- grouping columns and a1, ..., am are the aggregates
-          -- themselves.
-          -- For the moment, we keep only the aggregate output and discard the
-          -- grouping columns. They have to be added later on.
-
-          let gw = length $(v "groupExprs")
-              aw = N.length $(v "afuns")
-              proj = map Column [gw + 1.. aw + gw]
-
-          -- We obviously assume that the grouping columns are still present in
-          -- the right input of GroupBy at the same position. In combination
-          -- with rewrite pushExprThroughGroupBy, this is true since we only
-          -- add columns at the end.
-          groupNode <- insert $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1")
-          void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+          void $ replaceWithNew q $ UnOp (GroupAggr ($(v "groupExprs"), $(v "afuns"))) $(v "q1") |])
 
 mergeGroupAggr :: VLRule ()
 mergeGroupAggr q =
-  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Zip (GroupAggr args2 (q2))"
+  $(dagPatMatch 'q "(GroupAggr args1 (q1)) Align (GroupAggr args2 (q2))"
     [| do
         let (ges1, afuns1) = $(v "args1")
         let (ges2, afuns2) = $(v "args2")
@@ -250,7 +190,7 @@ mergeGroupAggr q =
 -- the effect is that only the grouping expressions are duplicated.
 mergeGroupWithGroupAggrLeft :: VLRule ()
 mergeGroupWithGroupAggrLeft q =
-  $(dagPatMatch 'q "(R1 (GroupScalarS ges (q1))) Zip (GroupAggr args (q2))"
+  $(dagPatMatch 'q "(R1 (GroupS ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
     

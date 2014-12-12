@@ -25,6 +25,7 @@ import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Pretty
@@ -93,14 +94,13 @@ appendNL (S a)     bs = a :* bs
 --------------------------------------------------------------------------------
 -- CL primitives
 
-data Prim1 = Length 
+data Prim1 = Singleton
+           | Length 
            | Concat
            | Null
            | Sum 
            | Avg 
            | The 
-           | Fst 
-           | Snd
            | Head 
            | Tail
            | Minimum 
@@ -115,17 +115,17 @@ data Prim1 = Length
            | Guard
            | Reshape Integer
            | Transpose
-           deriving (Eq, Ord)
+           | TupElem TupleIndex
+           deriving (Eq)
 
 instance Show Prim1 where
+  show Singleton       = "sng"
   show Length          = "length"
   show Concat          = "concat"
   show Null            = "null"
   show Sum             = "sum"
   show Avg             = "avg"
   show The             = "the"
-  show Fst             = "fst"
-  show Snd             = "snd"
   show Head            = "head"
   show Minimum         = "minimum"
   show Maximum         = "maximum"
@@ -140,36 +140,28 @@ instance Show Prim1 where
   show Guard           = "guard"
   show Transpose       = "transpose"
   show (Reshape n)     = printf "reshape(%d)" n
+  -- tuple access is pretty-printed in a special way
+  show TupElem{}       = $impossible
 
-data Prim2 = Map 
-           | ConcatMap 
-           | GroupWithKey
-           | SortWith 
-           | Pair
-           | Filter 
+data Prim2 = Sort
+           | Group
            | Append
            | Index
            | Zip 
-           | Cons
            | CartProduct
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.JoinExpr)
            | NestJoin (L.JoinPredicate L.JoinExpr)
            | SemiJoin (L.JoinPredicate L.JoinExpr)
            | AntiJoin (L.JoinPredicate L.JoinExpr)
-           deriving (Eq, Ord)
+           deriving (Eq)
 
 instance Show Prim2 where
-  show Map          = "map"
-  show ConcatMap    = "concatMap"
-  show GroupWithKey = "groupWithKey"
-  show SortWith     = "sortWith"
-  show Pair         = "pair"
-  show Filter       = "filter"
+  show Group        = "group"
+  show Sort         = "sort"
   show Append       = "append"
   show Index        = "index"
   show Zip          = "zip"
-  show Cons         = "cons"
   show CartProduct  = "⨯"
   show NestProduct  = "▽"
   show (ThetaJoin p) = printf "⨝_%s" (pp p)
@@ -182,7 +174,7 @@ instance Show Prim2 where
 
 data Qual = BindQ L.Ident Expr
           | GuardQ Expr
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Show)
 
 isGuard :: Qual -> Bool
 isGuard (GuardQ _)   = True
@@ -193,37 +185,36 @@ isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
 
 data Expr  = Table Type String [L.Column] L.TableHints
-           | App Type Expr Expr
            | AppE1 Type Prim1 Expr
            | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
            | UnOp Type L.ScalarUnOp Expr
-           | Lam Type L.Ident Expr
            | If Type Expr Expr Expr
            | Lit Type L.Val
            | Var Type L.Ident
            | Comp Type Expr (NL Qual)
+           | MkTuple Type [Expr]
+           | Let Type L.Ident Expr Expr
            deriving (Show)
 
-
 instance Pretty Expr where
-    pretty (Table _ n _ _)    = text "table" <+> text n
-    pretty (App _ e1 e2)      = (parenthize e1) <+> (parenthize e2)
+    pretty (AppE1 _ (TupElem n) e1) = 
+        parenthize e1 <> dot <> int (tupleIndex n)
+    pretty (MkTuple _ es)     = tupled $ map pretty es
+    pretty (Table _ n _ _)    = text "table" <> parens (text n)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
     pretty (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
     pretty (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
-    pretty (AppE2 _ p1 e1 e2) | isRelOp p1 = (text $ show p1) <$$> (indent 4 $ parenthize e1 <$$> parenthize e2)
     pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = pretty o <> parens (pretty e)
-    pretty (Lam _ v e)        = char '\\' <> text v <+> text "->" <+> pretty e
     pretty (If _ c t e)       = text "if"
                              <+> pretty c
                              <+> text "then"
                              <+> (parenthize t)
                              <+> text "else"
                              <+> (parenthize e)
-    pretty (Lit _ v)          = text $ show v
+    pretty (Lit _ v)          = pretty v
     pretty (Var _ s)          = text s
 
     pretty (Comp _ e qs) = encloseSep lbracket rbracket empty docs
@@ -234,15 +225,20 @@ instance Pretty Expr where
                                                : [ char ',' <+> pretty q' | q' <- toList qs' ]
 
                                    S q      -> [char '|' <+> pretty q]
+    pretty (Let _ x e1 e)     = 
+        align $ text "let" <+> text x <+> char '=' <+> pretty e1
+                </>
+                text "in" <+> pretty e
 
 parenthize :: Expr -> Doc
 parenthize e =
     case e of
-        Var _ _        -> pretty e
-        Lit _ _        -> pretty e
-        Table _ _ _ _  -> pretty e
-        Comp _ _ _     -> pretty e
-        _              -> parens $ pretty e
+        Var _ _               -> pretty e
+        Lit _ _               -> pretty e
+        Table _ _ _ _         -> pretty e
+        Comp _ _ _            -> pretty e
+        AppE1 _ (TupElem _) _ -> pretty e
+        _                     -> parens $ pretty e
 
 instance Pretty Qual where
     pretty (BindQ i e) = text i <+> text "<-" <+> pretty e
@@ -262,19 +258,18 @@ isRelOp o =
 
 
 deriving instance Eq Expr
-deriving instance Ord Expr
 
 instance Typed Expr where
-  typeOf (Table t _ _ _) = t
-  typeOf (App t _ _)     = t
-  typeOf (AppE1 t _ _)   = t
-  typeOf (AppE2 t _ _ _) = t
-  typeOf (Lam t _ _)     = t
-  typeOf (If t _ _ _)    = t
-  typeOf (BinOp t _ _ _) = t
-  typeOf (UnOp t _ _)    = t
-  typeOf (Lit t _)       = t
-  typeOf (Var t _)       = t
-  typeOf (Comp t _ _)    = t
+    typeOf (Table t _ _ _) = t
+    typeOf (AppE1 t _ _)   = t
+    typeOf (AppE2 t _ _ _) = t
+    typeOf (If t _ _ _)    = t
+    typeOf (BinOp t _ _ _) = t
+    typeOf (UnOp t _ _)    = t
+    typeOf (Lit t _)       = t
+    typeOf (Var t _)       = t
+    typeOf (Comp t _ _)    = t
+    typeOf (MkTuple t _)   = t
+    typeOf (Let t _ _ _)   = t
 
 

@@ -4,9 +4,7 @@
 
 module Database.DSH.VL.Primitives where
 
-import Debug.Trace
-import Database.DSH.Common.Pretty
-
+import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.VL.Vector
@@ -70,16 +68,15 @@ pVal (L.DoubleV d) = VLDouble d
 pVal L.UnitV       = VLUnit
 pVal _             = error "pVal: Not a supported value"
 
-typeToRowType :: Ty.Type -> RowType
-typeToRowType t = case t of
-  Ty.IntT        -> D.Int
-  Ty.BoolT       -> D.Bool
-  Ty.StringT     -> D.String
-  Ty.UnitT       -> D.Unit
-  Ty.DoubleT     -> D.Double
-  Ty.PairT t1 t2 -> D.Pair (typeToRowType t1) (typeToRowType t2)
-  Ty.ListT _     -> trace (pp t) $impossible
-  Ty.FunT _ _    -> $impossible
+typeToScalarType :: Ty.Type -> ScalarType
+typeToScalarType t = case t of
+  Ty.IntT      -> D.Int
+  Ty.BoolT     -> D.Bool
+  Ty.StringT   -> D.String
+  Ty.UnitT     -> D.Unit
+  Ty.DoubleT   -> D.Double
+  Ty.ListT _   -> $impossible
+  Ty.TupleT _  -> $impossible
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -93,8 +90,7 @@ recordWidth t =
         Ty.DoubleT     -> 1
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
-        Ty.FunT _ _    -> $impossible
-        Ty.PairT t1 t2 -> recordWidth t1 + recordWidth t2
+        Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
 data ColExpr = Offset Int | Expr Expr
@@ -116,6 +112,7 @@ toGeneralBinOp (L.JBStringOp o) = L.SBStringOp o
 toGeneralUnOp :: L.JoinUnOp -> L.ScalarUnOp
 toGeneralUnOp (L.JUNumOp o)  = L.SUNumOp o
 toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
+toGeneralUnOp (L.JUTextOp o) = L.SUTextOp o
 
 toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr
 toVLjoinConjunct (L.JoinConjunct e1 o e2) = 
@@ -124,8 +121,8 @@ toVLjoinConjunct (L.JoinConjunct e1 o e2) =
 toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr
 toVLJoinPred (L.JoinPred cs) = L.JoinPred $ fmap toVLjoinConjunct cs
 
--- Convert join expressions into VL expressions. The main challenge
--- here is convert sequences of tuple accessors (fst/snd) into VL
+-- | Convert join expressions into VL expressions. The main challenge
+-- here is to convert sequences of tuple accessors (fst/snd) into VL
 -- column indices.
 joinExpr :: L.JoinExpr -> Expr
 joinExpr expr = offsetExpr $ aux expr
@@ -140,11 +137,11 @@ joinExpr expr = offsetExpr $ aux expr
                                                (offsetExpr $ aux e1)
                                                (offsetExpr $ aux e2)
     aux (L.JUnOp _ op e)       = Expr $ UnApp (toGeneralUnOp op) (offsetExpr $ aux e)
-    aux (L.JFst _ e)           = aux e
-    aux (L.JSnd _ e)           =
+    aux (L.JTupElem _ i e)           =
         case Ty.typeOf e of
-            Ty.PairT t1 _ -> addOffset (recordWidth t1) (aux e)
-            _             -> $impossible
+            -- Compute the record width of all preceding tuple elements in the type
+            Ty.TupleT ts -> addOffset (sum $ map recordWidth $ take (tupleIndex i - 1) ts) (aux e)
+            _            -> $impossible
     aux (L.JLit _ v)           = Expr $ Constant $ pVal v
     aux (L.JInput _)           = Offset 0
 
@@ -161,11 +158,11 @@ vlNumber (VLDVec c) = vec (UnOp Number c) dvec
 vlNumberS :: VLDVec -> Build VL VLDVec
 vlNumberS (VLDVec c) = vec (UnOp NumberS c) dvec
 
-vlGroup :: VLDVec -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
-vlGroup (VLDVec c1) (VLDVec c2) = tripleVec (BinOp Group c1 c2) dvec dvec pvec
+vlGroupS :: [Expr] -> VLDVec -> Build VL (VLDVec, VLDVec, PVec)
+vlGroupS groupExprs (VLDVec c) = tripleVec (UnOp (GroupS groupExprs) c) dvec dvec pvec
 
-vlSort :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlSort (VLDVec c1) (VLDVec c2) = pairVec (BinOp SortS c1 c2) dvec pvec
+vlSortS :: [Expr] -> VLDVec -> Build VL (VLDVec, PVec)
+vlSortS sortExprs (VLDVec c1) = pairVec (UnOp (SortS sortExprs) c1) dvec pvec
 
 vlAggr :: AggrFun -> VLDVec -> Build VL VLDVec
 vlAggr aFun (VLDVec c) = vec (UnOp (Aggr aFun) c) dvec
@@ -176,20 +173,20 @@ vlAggrS aFun (VLDVec c1) (VLDVec c2) = vec (BinOp (AggrS aFun) c1 c2) dvec
 vlUnboxRename :: VLDVec -> Build VL RVec
 vlUnboxRename (VLDVec c) = vec (UnOp UnboxRename c) rvec
 
-vlDistPrim :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlDistPrim (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistPrim c1 c2) dvec pvec
+vlNestProduct :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlNestProduct (VLDVec c1) (VLDVec c2) = tripleVec (BinOp NestProduct c1 c2) dvec pvec pvec
 
-vlDistDesc :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlDistDesc (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistDesc c1 c2) dvec pvec
-
-vlAlign :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
-vlAlign (VLDVec c1) (VLDVec c2) = pairVec (BinOp Align c1 c2) dvec pvec
+vlDistLift :: VLDVec -> VLDVec -> Build VL (VLDVec, PVec)
+vlDistLift (VLDVec c1) (VLDVec c2) = pairVec (BinOp DistLift c1 c2) dvec pvec
 
 vlPropRename :: RVec -> VLDVec -> Build VL VLDVec
 vlPropRename (RVec c1) (VLDVec c2) = vec (BinOp PropRename c1 c2) dvec
 
-vlUnbox :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlUnbox (RVec c1) (VLDVec c2) = pairVec (BinOp Unbox c1 c2) dvec rvec
+vlUnboxNested :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
+vlUnboxNested (RVec c1) (VLDVec c2) = pairVec (BinOp UnboxNested c1 c2) dvec rvec
+
+vlUnboxScalar :: VLDVec -> VLDVec -> Build VL VLDVec
+vlUnboxScalar (VLDVec c1) (VLDVec c2) = vec (BinOp UnboxScalar c1 c2) dvec
 
 vlPropFilter :: RVec -> VLDVec -> Build VL (VLDVec, RVec)
 vlPropFilter (RVec c1) (VLDVec c2) = pairVec (BinOp PropFilter c1 c2) dvec rvec
@@ -212,15 +209,12 @@ vlSegment (VLDVec c) = vec (UnOp Segment c) dvec
 vlUnsegment :: VLDVec -> Build VL VLDVec
 vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
-vlRestrict :: Expr -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec)
-vlRestrict e (VLDVec c1) (VLDVec c2) = pairVec (BinOp (Restrict e) c1 c2) dvec rvec
-
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
 vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
-vlLit em tys vals = vec (NullaryOp $ Lit (em, (map typeToRowType tys), vals)) dvec
+vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
 
 vlTableRef :: String -> [VLColumn] -> L.TableHints -> Build VL VLDVec
 vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
@@ -230,9 +224,12 @@ vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec
 
 vlBinExpr :: L.ScalarBinOp -> VLDVec -> VLDVec -> Build VL VLDVec
 vlBinExpr o (VLDVec c1) (VLDVec c2) = do
-    z <- insert $ BinOp Zip c1 c2
+    z <- insert $ BinOp Align c1 c2
     r <- dvec $ insert $ UnOp (Project [BinApp o (Column 1) (Column 2)]) z
     return r
+
+vlSelect :: Expr -> VLDVec -> Build VL (VLDVec, RVec)
+vlSelect p (VLDVec c) = pairVec (UnOp (Select p) c) dvec rvec
 
 vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
@@ -249,11 +246,14 @@ vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
 vlSelectPos1S (VLDVec c1) op posConst = 
     tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
-vlProject :: VLDVec -> [Expr] -> Build VL VLDVec
-vlProject (VLDVec c) projs = dvec $ insert $ UnOp (Project projs) c
+vlProject :: [Expr] -> VLDVec -> Build VL VLDVec
+vlProject projs (VLDVec c) = dvec $ insert $ UnOp (Project projs) c
 
 vlZip :: VLDVec -> VLDVec -> Build VL VLDVec
 vlZip (VLDVec c1) (VLDVec c2) = vec (BinOp Zip c1 c2) dvec
+
+vlAlign :: VLDVec -> VLDVec -> Build VL VLDVec
+vlAlign (VLDVec c1) (VLDVec c2) = vec (BinOp Align c1 c2) dvec
 
 vlZipS :: VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
 vlZipS (VLDVec c1) (VLDVec c2) =
@@ -270,6 +270,12 @@ vlCartProductS (VLDVec c1) (VLDVec c2) =
 vlThetaJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
 vlThetaJoin joinPred (VLDVec c1) (VLDVec c2) =
     tripleVec (BinOp (ThetaJoin joinPred') c1 c2) dvec pvec pvec
+  where
+    joinPred' = toVLJoinPred joinPred
+
+vlNestJoin :: L.JoinPredicate L.JoinExpr -> VLDVec -> VLDVec -> Build VL (VLDVec, PVec, PVec)
+vlNestJoin joinPred (VLDVec c1) (VLDVec c2) =
+    tripleVec (BinOp (NestJoin joinPred') c1 c2) dvec pvec pvec
   where
     joinPred' = toVLJoinPred joinPred
 

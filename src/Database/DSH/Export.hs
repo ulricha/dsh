@@ -13,7 +13,7 @@ import           Database.Algebra.X100.Data
 import qualified Database.Algebra.X100.JSON         as X100JSON
 
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Lang               hiding (Pair)
+import           Database.DSH.VL.Lang
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Render.JSON        as VLJSON
 

@@ -6,6 +6,7 @@ import qualified Prelude as P
 import           Text.Printf
 
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
 import           Database.DSH.NKL.Lang
@@ -22,29 +23,28 @@ tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (
 --------------------------------------------------------------------------------
 -- Smart constructors
 
+tupElem :: TupleIndex -> Expr -> Expr
+tupElem f e = 
+    let t = tupleElemT (typeOf e) f
+    in AppE1 t (TupElem f) e
+
 fst :: Expr -> Expr
-fst e = let PairT t1 _ = typeOf e
-         in AppE1 t1 Fst e
+fst e = tupElem First e
 
 snd :: Expr -> Expr
-snd e = let PairT _ t2 = typeOf e
-         in AppE1 t2 Snd e
+snd e = tupElem (Next First) e
 
 pair :: Expr -> Expr -> Expr
-pair (Const t1 v1) (Const t2 v2) = Const (pairT t1 t2) (PairV v1 v2)
-pair e1 e2 = let t1 = typeOf e1
-                 t2 = typeOf e2
-              in AppE2 (pairT t1 t2) Pair e1 e2
+pair a b = tuple [a, b]
 
-cons :: Expr -> Expr -> Expr
-cons x xs = let xt  = typeOf x
-                xst = typeOf xs
-            in if elemT xst == xt
-               then AppE2 xst Cons x xs
-               else tyErr "cons"
+tuple :: [Expr] -> Expr
+tuple es =
+    let ts = P.map typeOf es
+        rt = TupleT ts
+    in MkTuple rt es
 
-singleton :: Expr -> Expr
-singleton e = let t = typeOf e in cons e (Const (listT t) (ListV []))
+sng :: Expr -> Expr
+sng x = AppE1 (listT $ typeOf x) Singleton x
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
@@ -57,12 +57,18 @@ restrict vs bs = let vst@(ListT _)     = typeOf vs
                  in AppE2 vst Restrict vs bs
 
 sort :: Expr -> Expr -> Expr
-sort ss vs = let vst@(ListT _) = typeOf vs
-             in AppE2 vst Sort ss vs
+sort vs ss = let vst@(ListT _) = typeOf vs
+             in AppE2 vst Sort vs ss
 
+-- FIXME type is not correct
 group :: Expr -> Expr -> Expr
-group gs vs = let vst@(ListT _) = typeOf vs
-              in AppE2 vst Group gs vs
+group vs gs = let vst@(ListT _) = typeOf vs
+              in AppE2 vst Group vs gs
 
 let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
+
+if_ :: Expr -> Expr -> Expr -> Expr
+if_ c t e = if BoolT == typeOf c
+            then If (typeOf t) c t e
+            else tyErr "if_"

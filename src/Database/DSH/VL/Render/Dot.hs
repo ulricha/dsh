@@ -54,7 +54,7 @@ renderWinFun (WinAll c)        = renderFun (text "all") [renderExpr c]
 renderWinFun (WinFirstValue c) = renderFun (text "first_value") [renderExpr c]
 renderWinFun WinCount          = renderFun (text "count") []
 
-renderColumnType :: RowType -> Doc
+renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
 
 renderData :: [[VLVal]] -> Doc
@@ -172,30 +172,30 @@ opDotLabel tm i (UnOp (Reshape n) _) =
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (BinOp (AggrNonEmptyS as) _ _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
-opDotLabel tm i (UnOp (SortScalarS cols) _) = labelToDoc i "SortScalarS" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (UnOp (GroupScalarS cols) _) = labelToDoc i "GroupScalarS" (bracketList renderExpr cols) (lookupTags i tm)
-opDotLabel tm i (BinOp Group _ _) = labelToDoc i "Group" empty (lookupTags i tm)
-opDotLabel tm i (BinOp SortS _ _) = labelToDoc i "SortS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp DistPrim _ _) = labelToDoc i "DistPrim" empty (lookupTags i tm)
-opDotLabel tm i (BinOp DistDesc _ _) = labelToDoc i "DistDesc" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
+opDotLabel tm i (UnOp (AggrNonEmptyS as) _) = labelToDoc i "AggrNonEmptyS" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
+opDotLabel tm i (UnOp (SortS cols) _) = labelToDoc i "Sort" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (UnOp (GroupS cols) _) = labelToDoc i "GroupS" (bracketList renderExpr cols) (lookupTags i tm)
+opDotLabel tm i (BinOp NestProduct _ _) = labelToDoc i "NestProduct" empty (lookupTags i tm)
+opDotLabel tm i (BinOp DistLift _ _) = labelToDoc i "DistLift" empty (lookupTags i tm)
 opDotLabel tm i (BinOp PropRename _ _) = labelToDoc i "PropRename" empty (lookupTags i tm)
-opDotLabel tm i (BinOp Unbox _ _) = labelToDoc i "Unbox" empty (lookupTags i tm)
+opDotLabel tm i (BinOp UnboxNested _ _) = labelToDoc i "UnboxNested" empty (lookupTags i tm)
+opDotLabel tm i (BinOp UnboxScalar _ _) = labelToDoc i "UnboxScalar" empty (lookupTags i tm)
 opDotLabel tm i (BinOp PropFilter _ _) = labelToDoc i "PropFilter" empty (lookupTags i tm)
 opDotLabel tm i (BinOp PropReorder _ _) = labelToDoc i "PropReorder" empty (lookupTags i tm)
 opDotLabel tm i (BinOp Append _ _) = labelToDoc i "Append" empty (lookupTags i tm)
 opDotLabel tm i (BinOp AppendS _ _) = labelToDoc i "AppendS" empty (lookupTags i tm)
-opDotLabel tm i (BinOp (Restrict e) _ _) = labelToDoc i "Restrict" (renderExpr e) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPos o) _ _) = labelToDoc i "SelectPos" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp (SelectPosS o) _ _) = labelToDoc i "SelectPosS" (text $ show o) (lookupTags i tm)
 opDotLabel tm i (BinOp Zip _ _) = labelToDoc i "Zip" empty (lookupTags i tm)
+opDotLabel tm i (BinOp Align _ _) = labelToDoc i "Align" empty (lookupTags i tm)
 opDotLabel tm i (BinOp ZipS _ _) = labelToDoc i "ZipS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProduct _ _) = labelToDoc i "CartProduct" empty (lookupTags i tm)
 opDotLabel tm i (BinOp CartProductS _ _) = labelToDoc i "CartProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp NestProductS _ _) = labelToDoc i "NestProductS" empty (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoin p) _ _) =
   labelToDoc i "ThetaJoin" (renderJoinPred p) (lookupTags i tm)
+opDotLabel tm i (BinOp (NestJoin p) _ _) =
+  labelToDoc i "NestJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (ThetaJoinS p) _ _) =
   labelToDoc i "ThetaJoinS" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (NestJoinS p) _ _) =
@@ -215,11 +215,12 @@ opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags
 opDotLabel tm i (BinOp TransposeS _ _) = labelToDoc i "TransposeS" empty (lookupTags i tm)
 
 opDotColor :: VL -> DotColor
-opDotColor (BinOp DistDesc _ _)          = DCRed
+opDotColor (BinOp NestProduct _ _)       = DCRed
 opDotColor (BinOp CartProduct _ _)       = DCRed
 opDotColor (BinOp CartProductS _ _)      = DCRed
 opDotColor (BinOp NestProductS _ _)      = DCRed
 opDotColor (BinOp (ThetaJoin _) _ _)     = DCGreen
+opDotColor (BinOp (NestJoin _) _ _)      = DCGreen
 opDotColor (BinOp (ThetaJoinS _) _ _)    = DCGreen
 opDotColor (BinOp (NestJoinS _) _ _)     = DCGreen
 opDotColor (BinOp (SemiJoin _) _ _)      = DCGreen
@@ -227,22 +228,21 @@ opDotColor (BinOp (SemiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp (AntiJoin _) _ _)      = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
-opDotColor (BinOp SortS _ _)             = DCTomato
-opDotColor (UnOp (SortScalarS _) _)      = DCTomato
-opDotColor (BinOp Group _ _)           = DCTomato
-opDotColor (UnOp (GroupScalarS _) _)     = DCTomato
+opDotColor (UnOp (SortS _) _)            = DCTomato
+opDotColor (UnOp (GroupS _) _)           = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan
-opDotColor (BinOp Unbox _ _)             = DCTan
+opDotColor (BinOp UnboxNested _ _)       = DCTan
+opDotColor (BinOp UnboxScalar _ _)       = DCTan
 opDotColor (BinOp PropReorder _ _)       = DCTan
+opDotColor (BinOp DistLift _ _)          = DCTan
 opDotColor (BinOp Align _ _)             = DCTan
-opDotColor (BinOp (Restrict _)_ _)       = DCDodgerBlue
 opDotColor (TerOp Combine _ _ _)         = DCDodgerBlue
 opDotColor (UnOp (Select _) _)           = DCLightSkyBlue
 opDotColor (UnOp (Aggr _) _)             = DCCrimson
 opDotColor (BinOp (AggrS _) _ _)         = DCCrimson
 opDotColor (UnOp (WinFun _) _)           = DCTomato
 opDotColor (UnOp (AggrNonEmpty _) _)     = DCCrimson
-opDotColor (BinOp (AggrNonEmptyS _) _ _) = DCCrimson
+opDotColor (UnOp (AggrNonEmptyS _) _)    = DCCrimson
 opDotColor (UnOp (GroupAggr (_, _)) _)   = DCTomato
 opDotColor (UnOp (Project _) _)          = DCLightSkyBlue
 opDotColor (UnOp Transpose _)            = DCHotPink
