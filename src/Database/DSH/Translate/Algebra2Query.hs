@@ -7,7 +7,6 @@ module Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Impossible
 
 import           Database.Algebra.Dag
-import           Database.Algebra.Dag.Common
 import           Database.Algebra.SQL.Compatibility
 import           Database.Algebra.SQL.Materialization.CTE
 import           Database.Algebra.SQL.Util
@@ -15,7 +14,6 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Execute.Sql
-import           Database.DSH.Execute.X100
 import           Database.DSH.VL.Vector
 
 -- | In a query shape, render each root node for the algebraic plan

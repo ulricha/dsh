@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.9.0
+Version:             0.10.0.0
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -30,20 +30,20 @@ Description:
   Supported Program Execution for Haskell" [1] is a recommended reading. The
   package includes a couple of examples that demonstrate how to use DSH.
   .
-  The latest release implements new features described in our work-in-progress
-  paper entitled as "Algebraic Data Types for Language-Integrated
-  Queries" [3].
+  In contrast to the DSH version described in [1], the current release does
+  not rely anymore on the loop-lifting compilation technique together with 
+  the Pathfinder optimizer. Instead, it brings a completely rewritten query 
+  compiler based on Guy Blelloch's flattening transformation. This approach
+  leads to a more robust compilation and produces more efficient query code.
   .
   1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
   .
   2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
-  .
-  3. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ddfp2013.pdf>
 
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Alexander Ulrich, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          alexander.ulrich@uni-tuebingen.de
+Maintainer:          alex@etc-network.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
@@ -64,28 +64,30 @@ Flag debugcomp
   Default:     False
 
 Flag debuggraph
-  Description: Print debugging information for graph rewrites (VL, TA, X100)
+  Description: Print debugging information for graph rewrites (VL, TA)
   Default:     False
 
 Library
   Extensions:        CPP
-  Build-depends:     base               >= 4.5 && < 5,
-                     containers         >= 0.4.0.0,
+  Build-depends:     base               >= 4.7 && < 5,
+                     template-haskell   >= 2.9,
+                     containers         >= 0.5,
                      mtl                >= 2.1,
-                     bytestring         >= 0.9.1.10,
-                     text               >= 0.11.0.6,
-                     HDBC               >= 2.3.1.0,
-                     HDBC-postgresql    >= 2.3.2.2,
-                     template-haskell   >= 2.8.0.0,
-                     pretty             >= 1.0.1.1,
-                     aeson              >= 0.6.0.0,
-                     TableAlgebra       >= 2.0.0,
-                     kure               >= 2.16.1,
+                     bytestring         >= 0.10,
+                     text               >= 1.1,
+                     HDBC               >= 2.3,
+                     HDBC-postgresql    >= 2.3,
+                     pretty             >= 1.1,
+                     aeson              >= 0.8,
+                     kure               >= 2.16,
                      either             >= 4.0,
                      semigroups         >= 0.16,
-                     ansi-wl-pprint     >= 0.6.7.1,
-                     set-monad          >= 0.1.0.0,
-                     dlist              >= 0.7.1
+                     ansi-wl-pprint     >= 0.6,
+                     set-monad          >= 0.1,
+                     dlist              >= 0.7,
+
+                     algebra-dag        >= 0.1,
+                     algebra-sql        >= 0.1
                      
   Hs-source-dirs:    src
 
@@ -155,7 +157,6 @@ Library
                      Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
                      Database.DSH.VL.VectorAlgebra.TA
-                     Database.DSH.VL.VectorAlgebra.X100
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives
 
@@ -205,17 +206,18 @@ executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base                >= 4.2 && < 5, 
-                      aeson               >= 0.6, 
-                      mtl                 >= 2.0.1.0, 
-                      containers          >= 0.3.0.0, 
-                      template-haskell    >= 2.8.0.0, 
-                      pretty              >= 1.0.1.1, 
-                      bytestring          >= 0.9,
-                      fgl                 >= 5.5.0.1,
-                      TableAlgebra,
-                      ansi-wl-pprint      >= 0.6.7.1,
-                      semigroups          >= 0.16
+    build-depends:    base                >= 4.7 && < 5, 
+                      mtl                 >= 2.1, 
+                      pretty              >= 1.1, 
+                      aeson               >= 0.8, 
+                      containers          >= 0.5,
+                      template-haskell    >= 2.9, 
+                      bytestring          >= 0.10,
+                      ansi-wl-pprint      >= 0.6,
+                      semigroups          >= 0.16,
+
+                      algebra-dag          >= 0.1,
+                      algebra-sql          >= 0.1
     GHC-Options: -Wall -fno-warn-orphans
 
 executable manual
@@ -228,17 +230,18 @@ Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
     Main-is:       Main.hs
-    Build-depends: base                       >= 4.2 && < 5,
+    Build-depends: base                       >= 4.7 && < 5,
                    QuickCheck                 >= 2.4,
-                   DSH                        >= 0.7.8.1,
-                   containers                 >= 0.5.5.1,
-                   text                       >= 0.11,
+                   containers                 >= 0.5,
+                   text                       >= 1.1,
                    HDBC-postgresql            >= 2.3,
                    HDBC                       >= 2.3,
-                   test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework-hunit       >= 0.3.0.1,
+                   test-framework-quickcheck2 >= 0.2,
+                   test-framework-hunit       >= 0.3,
                    test-framework             >= 0.6,
-                   HUnit                      >= 1.2.5.2
+                   HUnit                      >= 1.2,
+
+                   DSH                        >= 0.10
     cpp-options:   -DTESTSQL
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP
