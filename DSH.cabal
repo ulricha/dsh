@@ -245,7 +245,7 @@ Test-Suite Flattening_x100
                    test-framework-hunit       >= 0.3.0.1,
                    test-framework             >= 0.6,
                    HUnit                      >= 1.2.5.2
-    cpp-options: -DisX100
+    cpp-options: -DTESTX100
     GHC-Options: -Wall -fno-warn-orphans
     extensions: CPP
     
@@ -264,5 +264,6 @@ Test-Suite Flattening_TA
                    test-framework-hunit       >= 0.3.0.1,
                    test-framework             >= 0.6,
                    HUnit                      >= 1.2.5.2
+    cpp-options:   -DTESTSQL
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP

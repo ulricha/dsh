@@ -11,9 +11,9 @@ module Main where
 import           ComprehensionTests
 import           CombinatorTests
 
-#ifdef isX100
+#ifdef TESTX100
 import           Database.X100Client
-#else
+#elif TESTSQL
 import           Database.HDBC.PostgreSQL
 #endif
 
@@ -24,10 +24,10 @@ import           Test.QuickCheck
 import           Data.List
 
 
-#ifdef isX100
+#ifdef TESTX100
 getConn :: IO X100Info
 getConn = return $ x100Info "localhost" "48130" Nothing
-#else
+#elif TESTSQL
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' dbname = 'test'"
 #endif
