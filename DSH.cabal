@@ -34,11 +34,11 @@ Description:
   paper entitled as "Algebraic Data Types for Language-Integrated
   Queries" [3].
   .
-  1. <http://db.inf.uni-tuebingen.de/files/giorgidze/ifl2010.pdf>
+  1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
   .
-  2. <http://db.inf.uni-tuebingen.de/files/giorgidze/haskell2011.pdf>
+  2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
   .
-  3. <http://db.inf.uni-tuebingen.de/files/giorgidze/adtq.pdf>
+  3. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ddfp2013.pdf>
 
 License:             BSD3
 License-file:        LICENSE
