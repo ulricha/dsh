@@ -219,7 +219,6 @@ executable vldot
                       containers          >= 0.5,
                       template-haskell    >= 2.9, 
                       bytestring          >= 0.10,
-                      fgl                 >= 5.5,
                       ansi-wl-pprint      >= 0.6,
                       semigroups          >= 0.16,
 
