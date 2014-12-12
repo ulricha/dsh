@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.9.0
+Version:             0.10.0.0
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -30,20 +30,20 @@ Description:
   Supported Program Execution for Haskell" [1] is a recommended reading. The
   package includes a couple of examples that demonstrate how to use DSH.
   .
-  The latest release implements new features described in our work-in-progress
-  paper entitled as "Algebraic Data Types for Language-Integrated
-  Queries" [3].
+  In contrast to the DSH version described in [1], the current release does
+  not rely anymore on the loop-lifting compilation technique together with 
+  the Pathfinder optimizer. Instead, it brings a completely rewritten query 
+  compiler based on Guy Blelloch's flattening transformation. This approach
+  leads to a more robust compilation and produces more efficient query code.
   .
   1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
   .
   2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
-  .
-  3. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ddfp2013.pdf>
 
 License:             BSD3
 License-file:        LICENSE
 Author:              George Giorgidze, Alexander Ulrich, Nils Schweinsberg and Jeroen Weijers
-Maintainer:          alexander.ulrich@uni-tuebingen.de
+Maintainer:          alex@etc-network.de
 Stability:           Experimental
 Category:            Database
 Build-type:          Simple
@@ -86,7 +86,9 @@ Library
                      set-monad          >= 0.1,
                      dlist              >= 0.7,
 
-                     TableAlgebra       >= 2.0,
+                     algebra-dag        >= 0.1,
+                     algebra-sql        >= 0.1,
+                     algebra-x100       >= 0.1,
                      X100Client         >= 0.0
                      
   Hs-source-dirs:    src
@@ -222,7 +224,9 @@ executable vldot
                       ansi-wl-pprint      >= 0.6,
                       semigroups          >= 0.16,
 
-                      TableAlgebra
+                      algebra-dag          >= 0.1,
+                      algebra-sql          >= 0.1,
+                      algebra-x100         >= 0.1
     GHC-Options: -Wall -fno-warn-orphans
 
 executable manual
@@ -245,7 +249,7 @@ Test-Suite Flattening_x100
                    HUnit                      >= 1.2,
 
                    X100Client                 >= 0.0,
-                   DSH                        >= 0.7
+                   DSH                        >= 0.10
     cpp-options: -DTESTX100
     GHC-Options: -Wall -fno-warn-orphans
     extensions: CPP
@@ -265,7 +269,7 @@ Test-Suite Flattening_TA
                    test-framework             >= 0.6,
                    HUnit                      >= 1.2,
 
-                   DSH                        >= 0.7
+                   DSH                        >= 0.10
     cpp-options:   -DTESTSQL
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP

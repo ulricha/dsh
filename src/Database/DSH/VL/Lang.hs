@@ -9,7 +9,6 @@ module Database.DSH.VL.Lang where
 import qualified Data.List.NonEmpty as N
 import           Data.Aeson.TH
 
-import           Database.Algebra.Aux
 import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
 import           Database.Algebra.Dag.Common
 
@@ -177,6 +176,9 @@ $(deriveJSON defaultOptions ''TerOp)
 
 type VL = Algebra TerOp BinOp UnOp NullOp AlgNode
 
+checkRep :: Eq a => a -> a -> a -> a
+checkRep orig new x = if x == orig then new else x
+
 instance Operator VL where
     opChildren (TerOp _ c1 c2 c3) = [c1, c2, c3]
     opChildren (BinOp _ c1 c2) = [c1, c2]
@@ -186,7 +188,7 @@ instance Operator VL where
     replaceOpChild oper old new = replaceChild old new oper
      where
          replaceChild :: forall t b u n c. Eq c => c -> c -> Algebra t b u n c -> Algebra t b u n c
-         replaceChild o n (TerOp op c1 c2 c3) = TerOp op (replace o n c1) (replace o n c2) (replace o n c3)
-         replaceChild o n (BinOp op c1 c2) = BinOp op (replace o n c1) (replace o n c2)
-         replaceChild o n (UnOp op c) = UnOp op (replace o n c)
+         replaceChild o n (TerOp op c1 c2 c3) = TerOp op (checkRep o n c1) (checkRep o n c2) (checkRep o n c3)
+         replaceChild o n (BinOp op c1 c2) = BinOp op (checkRep o n c1) (checkRep o n c2)
+         replaceChild o n (UnOp op c) = UnOp op (checkRep o n c)
          replaceChild _ _ (NullaryOp op) = NullaryOp op
