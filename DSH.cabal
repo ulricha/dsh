@@ -69,14 +69,14 @@ Flag debuggraph
 
 Library
   Extensions:        CPP
-  Build-depends:     base               >= 4.5 && < 5,
+  Build-depends:     base               >= 4.7 && < 5,
                      containers         >= 0.4.0.0,
                      mtl                >= 2.1,
                      bytestring         >= 0.9.1.10,
                      text               >= 0.11.0.6,
                      HDBC               >= 2.3.1.0,
                      HDBC-postgresql    >= 2.3.2.2,
-                     template-haskell   >= 2.8.0.0,
+                     template-haskell   >= 2.9.0.0,
                      X100Client         >= 0.0.2,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
@@ -212,11 +212,11 @@ executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base                >= 4.2 && < 5, 
+    build-depends:    base                >= 4.7 && < 5, 
                       aeson               >= 0.6, 
                       mtl                 >= 2.0.1.0, 
                       containers          >= 0.3.0.0, 
-                      template-haskell    >= 2.8.0.0, 
+                      template-haskell    >= 2.9.0.0, 
                       pretty              >= 1.0.1.1, 
                       bytestring          >= 0.9,
                       fgl                 >= 5.5.0.1,
@@ -235,7 +235,7 @@ Test-Suite Flattening_x100
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs: tests
     Main-is:       Main.hs
-    Build-depends: base                       >= 4.2 && < 5,
+    Build-depends: base                       >= 4.7 && < 5,
                    containers                 >= 0.5.5.1,
                    QuickCheck                 >= 2.4,
                    DSH                        >= 0.7.8.1,
@@ -253,7 +253,7 @@ Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
     Main-is:       Main.hs
-    Build-depends: base                       >= 4.2 && < 5,
+    Build-depends: base                       >= 4.7 && < 5,
                    QuickCheck                 >= 2.4,
                    DSH                        >= 0.7.8.1,
                    containers                 >= 0.5.5.1,
