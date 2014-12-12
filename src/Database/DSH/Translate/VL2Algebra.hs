@@ -2,8 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Database.DSH.Translate.VL2Algebra
-    ( implementVectorOpsX100
-    , implementVectorOpsPF
+    ( implementVectorOpsPF
     ) where
 
 import qualified Data.IntMap                          as IM
@@ -18,7 +17,6 @@ import qualified Database.Algebra.Dag                 as D
 import qualified Database.Algebra.Dag.Build           as B
 import           Database.Algebra.Dag.Common
 import qualified Database.Algebra.Table.Lang          as TA
-import           Database.Algebra.X100.Data           (X100Algebra)
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
@@ -27,7 +25,6 @@ import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.VectorAlgebra
 import           Database.DSH.VL.VectorAlgebra.TA     ()
-import           Database.DSH.VL.VectorAlgebra.X100   ()
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
@@ -374,12 +371,6 @@ insertSerialize g = g >>= traverseShape
     needAbsPos = TA.AbsPos "pos"
     needRelPos = TA.RelPos ["pos"]
     noPos      = TA.NoPos
-
-implementVectorOpsX100 :: QueryPlan V.VL VLDVec -> QueryPlan X100Algebra NDVec
-implementVectorOpsX100 vlPlan = mkQueryPlan dag shape tagMap
-  where
-    x100Plan             = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
-    (dag, shape, tagMap) = runVecBuild x100Plan
 
 implementVectorOpsPF :: QueryPlan V.VL VLDVec -> QueryPlan TA.TableAlgebra NDVec
 implementVectorOpsPF vlPlan = mkQueryPlan dag shape tagMap

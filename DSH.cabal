@@ -64,7 +64,7 @@ Flag debugcomp
   Default:     False
 
 Flag debuggraph
-  Description: Print debugging information for graph rewrites (VL, TA, X100)
+  Description: Print debugging information for graph rewrites (VL, TA)
   Default:     False
 
 Library
@@ -77,10 +77,8 @@ Library
                      HDBC               >= 2.3.1.0,
                      HDBC-postgresql    >= 2.3.2.2,
                      template-haskell   >= 2.8.0.0,
-                     X100Client         >= 0.0.2,
                      pretty             >= 1.0.1.1,
                      aeson              >= 0.6.0.0,
-                     X100Client         >= 0.0.2,
                      TableAlgebra       >= 2.0.0,
                      kure               >= 2.16.1,
                      either             >= 4.0,
@@ -111,7 +109,6 @@ Library
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
                      Database.DSH.Execute.Sql
-                     Database.DSH.Execute.X100
                      Database.DSH.Execute.Backend
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
@@ -158,7 +155,6 @@ Library
                      Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
                      Database.DSH.VL.VectorAlgebra.TA
-                     Database.DSH.VL.VectorAlgebra.X100
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives
 
@@ -177,10 +173,6 @@ Library
                      Database.DSH.Optimizer.VL.Properties.TopDown
                      Database.DSH.Optimizer.VL.Properties.Types
                      Database.DSH.Optimizer.VL.Properties.VectorType
-
-                     Database.DSH.Optimizer.X100.OptimizeX100
-                     Database.DSH.Optimizer.X100.Rewrite.Common
-                     Database.DSH.Optimizer.X100.Rewrite.Project
 
                      Database.DSH.Optimizer.TA.Properties.BottomUp
                      Database.DSH.Optimizer.TA.Properties.TopDown
@@ -228,27 +220,9 @@ executable vldot
 executable manual
     hs-source-dirs: tests
     main-is:        Manual.hs
-    build-depends:  base, X100Client, DSH, HDBC-postgresql, text
+    build-depends:  base, DSH, HDBC-postgresql, text
     ghc-options:    -Wall -fno-warn-orphans
 
-Test-Suite Flattening_x100
-    type:       exitcode-stdio-1.0
-    Hs-Source-Dirs: tests
-    Main-is:       Main.hs
-    Build-depends: base                       >= 4.2 && < 5,
-                   containers                 >= 0.5.5.1,
-                   QuickCheck                 >= 2.4,
-                   DSH                        >= 0.7.8.1,
-                   text                       >= 0.11,
-                   X100Client                 >= 0.0.2,
-                   test-framework-quickcheck2 >= 0.2.12.1,
-                   test-framework-hunit       >= 0.3.0.1,
-                   test-framework             >= 0.6,
-                   HUnit                      >= 1.2.5.2
-    cpp-options: -DisX100
-    GHC-Options: -Wall -fno-warn-orphans
-    extensions: CPP
-    
 Test-Suite Flattening_TA
     type:       exitcode-stdio-1.0
     Hs-Source-Dirs : tests
@@ -264,5 +238,6 @@ Test-Suite Flattening_TA
                    test-framework-hunit       >= 0.3.0.1,
                    test-framework             >= 0.6,
                    HUnit                      >= 1.2.5.2
+    cpp-options:   -DTESTSQL
     GHC-Options: -Wall -fno-warn-orphans
     Extensions: CPP

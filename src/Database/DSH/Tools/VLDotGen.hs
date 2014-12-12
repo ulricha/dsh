@@ -47,20 +47,6 @@ options =
       "Show help"
   ]
   
-{-
-propertyTags :: [AlgNode] -> NodeMap X100Algebra -> NodeMap [Tag] -> NodeMap [Tag]
-propertyTags rs nm tags = 
-  let dag = normalizePlan $ mkDag nm rs
-      topsorted = topsort dag
-      bu = inferBottomUpProperties topsorted dag
-      td = inferTopDownProperties bu topsorted dag
-      buDocs = M.map renderBottomUpProps bu
-      tdDocs = M.map renderTopDownProps td
-      tagDocs = M.map (vcat . ((map text) . nub)) tags
-      propsRendered = M.map render $ M.unionWith ($$) tagDocs $ M.unionWith ($$) buDocs tdDocs
-      in M.map (\s -> [s]) propsRendered
--}
-         
 main :: IO ()
 main = do
     args <- getArgs 
@@ -74,10 +60,5 @@ main = do
     let (tags, rs, m) = deserializePlan $ pack plan
     
     let rs' = fromMaybe rs mRootNodes
-    {-
-        tags' = if printProperties
-                then propertyTags rs' m tags
-                else tags
--}
     
     putStr $ renderVLDot tags rs' m

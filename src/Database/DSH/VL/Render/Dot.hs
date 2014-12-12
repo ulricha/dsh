@@ -339,7 +339,7 @@ renderDot ns es = text "digraph" <> (braces $ preamble $$ nodeSection $$ edgeSec
     where nodeSection = vcat $ map renderDotNode ns
           edgeSection = vcat $ map renderDotEdge es
 
--- | Create an abstract Dot node from an X100 operator description
+-- | Create an abstract Dot node from a VL operator description
 constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, VL) -> DotNode
 constructDotNode rootNodes ts (n, op) =
     if elem n rootNodes then
