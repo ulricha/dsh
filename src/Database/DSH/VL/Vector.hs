@@ -37,7 +37,7 @@ data ADVec r = ADVec r [DBCol]
     deriving (Show, Read)
 
 -- | Data vectors that reference single nodes in an algebra graph
--- (used for table algebra with an n-ary storage model).
+-- (used for table algebra and X100 with an n-ary storage model).
 type NDVec = ADVec AlgNode
 
 instance DagVector NDVec where

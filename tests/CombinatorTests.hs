@@ -510,6 +510,7 @@ prop_map_cond_tuples = makeProp (Q.map (\b -> Q.cond b
 
 prop_concatmapcond :: [Integer] -> Property
 prop_concatmapcond l1 =
+        -- FIXME remove precondition as soon as X100 is fixed
     (not $ null l1)
     ==>
     makeProp q n l1

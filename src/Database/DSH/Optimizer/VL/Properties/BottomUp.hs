@@ -15,6 +15,7 @@ import Database.DSH.Optimizer.VL.Properties.NonEmpty
 import Database.DSH.Optimizer.VL.Properties.Types
 import Database.DSH.Optimizer.VL.Properties.VectorType
 
+-- FIXME this is (almost) identical to its X100 counterpart -> merge
 inferWorker :: NodeMap VL -> VL -> AlgNode -> NodeMap BottomUpProps -> BottomUpProps
 inferWorker d op node pm =
     case op of

@@ -16,6 +16,8 @@ import qualified Prelude as P
 import Database.DSH
 import Database.DSH.Compiler
 
+import Database.X100Client
+
 import Database.HDBC.PostgreSQL
 
 import qualified Data.Text as T
@@ -30,6 +32,9 @@ generateTableSelectors ''Foo
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'tpch'"
+
+x100Conn :: X100Info
+x100Conn = x100Info "localhost" "48130" Nothing
 
 bar :: Q [(Integer, Integer, Integer)]
 bar = [ triple a c 42 | (view -> (a, b, c)) <- toQ ([(1,2,3), (4,5,6), (7,8,9)] :: [(Integer, Integer, Integer)]) ]

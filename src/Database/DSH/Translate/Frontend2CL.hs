@@ -79,7 +79,7 @@ getTableInfoFun tableName = do
 -- | Translate a DSH frontend expression into the internal
 -- comprehension-based language. 'queryTableInfo' abstracts asking a
 -- database for information about tables, which might be performed
--- using one of the existing backends (SQL).
+-- using one of the existing backends (X100, SQL).
 toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
 toComprehensions queryTableInfo e = runCompile queryTableInfo $ translate e
 

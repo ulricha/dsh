@@ -4,6 +4,7 @@
 -- the schema of actual database tables.
 module Database.DSH.Frontend.Schema
     ( getTableInfo
+    , getX100TableInfo
     ) where
 
 import qualified Data.List                as L
@@ -11,7 +12,10 @@ import           GHC.Exts
 import           Text.Printf
 
 import qualified Database.HDBC            as H
+import           Database.X100Client      hiding (X100, tableName)
+import qualified Database.X100Client      as X
 
+import           Database.DSH.Impossible
 import qualified Database.DSH.Common.Type as T
 
 -- | Retrieve through the given database connection information on the
@@ -43,3 +47,39 @@ getTableInfo conn tableName = do
             T.DoubleT -> L.elem dbT [H.SqlDecimalT, H.SqlRealT, H.SqlFloatT, H.SqlDoubleT]
             t         -> error $ printf "Unsupported column type %s for table %s" (show t) (show tableName)
 
+getX100TableInfo :: X100Info -> String -> IO [(String, String, (T.Type -> Bool))]
+getX100TableInfo c n = do
+    t <- X.describeTable' c n
+    return [ (colName col, show lType, compatibleType lType)
+           | col <- sortWith colName $ columns t
+           , let lType = logicalType col
+           ]
+  where
+    compatibleType :: LType -> T.Type -> Bool
+    compatibleType lt t =
+        case lt of
+            LBool       -> t == T.BoolT || t == T.UnitT
+            LInt1       -> t == T.IntT  || t == T.UnitT
+            LUInt1      -> t == T.IntT  || t == T.UnitT
+            LInt2       -> t == T.IntT  || t == T.UnitT
+            LUInt2      -> t == T.IntT  || t == T.UnitT
+            LInt4       -> t == T.IntT  || t == T.UnitT
+            LUInt4      -> t == T.IntT  || t == T.UnitT
+            LInt8       -> t == T.IntT  || t == T.UnitT
+            LUInt8      -> t == T.IntT  || t == T.UnitT
+            LInt16      -> t == T.IntT  || t == T.UnitT
+            LDec        -> t == T.DoubleT
+            LFlt4       -> t == T.DoubleT
+            LFlt8       -> t == T.DoubleT
+            LMoney      -> t == T.DoubleT
+            LChar       -> t == T.StringT
+            LVChar      -> t == T.StringT
+            LDate       -> t == T.IntT
+            LTime       -> t == T.IntT
+            LTimeStamp  -> t == T.IntT
+            LIntervalDS -> t == T.IntT
+            LIntervalYM -> t == T.IntT
+            -- We use UIDX only for administrative columns, not for
+            -- payload.
+            LUIDX       -> $impossible
+            LUnknown s  -> error $ "Unknown DB type" ++ show s

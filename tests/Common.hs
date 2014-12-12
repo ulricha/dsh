@@ -3,11 +3,15 @@ module Common where
 import qualified Database.DSH as Q
 import           Database.DSH (Q, QA)
 
-#ifdef TESTSQL
+#ifdef isX100
+import           Database.DSH.Compiler (runQX100)
+#else
 import           Database.DSH.Compiler (runQ)
 #endif
 
-#ifdef TESTSQL
+#ifdef isX100
+import           Database.X100Client
+#else
 import qualified Database.HDBC as HDBC
 import           Database.HDBC.PostgreSQL
 #endif
@@ -19,7 +23,10 @@ import           Test.QuickCheck.Monadic
 import           Data.Text (Text)
 import qualified Data.Text as Text
 
-#ifdef TESTSQL
+#ifdef isX100
+getConn :: IO X100Info
+getConn = return $ x100Info "localhost" "48130" Nothing
+#else
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' dbname = 'test'"
 #endif
@@ -36,7 +43,10 @@ makeProp :: (Eq b, QA a, QA b, Show a, Show b)
             -> a
             -> Property
 makeProp f1 f2 arg = monadicIO $ do
-#ifdef TESTSQL
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
+#else
     c  <- run $ getConn
     db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
@@ -57,7 +67,10 @@ makePropDouble :: (QA a, Show a)
                   -> a
                   -> Property
 makePropDouble f1 f2 arg = monadicIO $ do
-#ifdef TESTSQL
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
+#else
     c  <- run $ getConn
     db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
@@ -72,7 +85,10 @@ makePropListDouble :: (QA a, Show a)
                   -> a
                   -> Property
 makePropListDouble f1 f2 arg = monadicIO $ do
-#ifdef TESTSQL
+#ifdef isX100
+    c  <- run $ getConn
+    db <- run $ runQX100 c $ f1 (Q.toQ arg)
+#else
     c  <- run $ getConn
     db <- run $ runQ c $ f1 (Q.toQ arg)
     run $ HDBC.disconnect c
@@ -90,7 +106,10 @@ uncurryQ f = uncurry f . Q.view
 -- | Equality HUnit assertion
 makeEqAssertion :: (Show a, Eq a, QA a) => String -> Q.Q a -> a -> Assertion
 makeEqAssertion msg q r = do
-#ifdef TESTSQL
+#ifdef isX100
+    c  <- getConn
+    r' <- runQX100 c $ q
+#else
     c  <- getConn
     r' <- runQ c q
     HDBC.disconnect c

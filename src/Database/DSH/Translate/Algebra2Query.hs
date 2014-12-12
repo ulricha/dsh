@@ -1,23 +1,45 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.Translate.Algebra2Query
-    ( generateSqlQueries
+    ( generateX100Queries
+    , generateSqlQueries
     ) where
 
 import           Database.DSH.Impossible
 
 import           Database.Algebra.Dag
+import           Database.Algebra.Dag.Common
 import           Database.Algebra.SQL.Compatibility
 import           Database.Algebra.SQL.Materialization.CTE
 import           Database.Algebra.SQL.Util
 import           Database.Algebra.Table.Lang
+import           Database.Algebra.X100.Data
+import           Database.Algebra.X100.Render
 
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Execute.Sql
+import           Database.DSH.Execute.X100
 import           Database.DSH.VL.Vector
+
+generateX100Queries :: QueryPlan X100Algebra NDVec -> Shape (BackendCode X100Backend)
+generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
+ where
+    m' :: NodeMap X100Algebra
+    m' = nodeMap $ queryDag x100Plan
+
+    convertQuery :: Shape NDVec -> Shape (BackendCode X100Backend)
+    convertQuery (SShape (ADVec r' _) l) = SShape (X100Code $ generateQuery m' r') $ convertLayout l
+    convertQuery (VShape (ADVec r' _) l) = VShape (X100Code $ generateQuery m' r') $ convertLayout l
+
+    convertLayout :: Layout NDVec -> Layout (BackendCode X100Backend)
+    convertLayout (LCol i)               = LCol i
+    convertLayout (LNest (ADVec r' _) l) = LNest (X100Code $ generateQuery m' r') $ convertLayout l
+    convertLayout (LTuple ps)            = LTuple $ map convertLayout ps
 
 -- | In a query shape, render each root node for the algebraic plan
 -- into a separate SQL query.
+
+-- FIXME use materialization "prelude"
 generateSqlQueries :: QueryPlan TableAlgebra NDVec -> Shape (BackendCode SqlBackend)
 generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
   where

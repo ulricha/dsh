@@ -3,11 +3,17 @@
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
   ( -- * Executing queries
-    runQ
+    runQX100
+  , runQ
     -- * Debug functions
   , debugQ
+  , debugQX100
   , debugVL
   , debugVLOpt
+  , debugX100VL
+  , debugX100VLOpt
+  , debugX100
+  , debugX100Opt
   , debugTA
   , debugTAOpt
   , runPrint
@@ -18,8 +24,12 @@ import           Control.Arrow
 
 import qualified Database.HDBC.PostgreSQL                 as H
 
+import           Database.X100Client                      hiding (X100, tableName)
+
 import           Database.DSH.Translate.Frontend2CL
 import           Database.DSH.Execute.Sql
+import           Database.DSH.Execute.X100
+
 import qualified Database.DSH.VL.Lang                     as VL
 import           Database.DSH.VL.Vector
 import           Database.DSH.NKL.Rewrite
@@ -30,6 +40,7 @@ import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Optimizer.TA.OptimizeTA
 import           Database.DSH.Optimizer.VL.OptimizeVL
+import           Database.DSH.Optimizer.X100.OptimizeX100
 import           Database.DSH.Frontend.Schema
 import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
@@ -49,6 +60,14 @@ commonPipeline =
     >>> flatTransform
     >>> specializeVectorOps
 
+nkl2X100Alg :: CL.Expr -> Shape (BackendCode X100Backend)
+nkl2X100Alg =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> optimizeX100Default
+    >>> generateX100Queries
+
 nkl2Sql :: CL.Expr -> Shape (BackendCode SqlBackend)
 nkl2Sql =
     commonPipeline
@@ -56,6 +75,21 @@ nkl2Sql =
     >>> implementVectorOpsPF
     >>> optimizeTA
     >>> generateSqlQueries
+
+nkl2X100File :: String -> CL.Expr -> IO ()
+nkl2X100File prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> (exportX100Plan prefix)
+
+nkl2X100FileOpt :: String -> CL.Expr -> IO ()
+nkl2X100FileOpt prefix =
+    commonPipeline
+    >>> optimizeVLDefault
+    >>> implementVectorOpsX100
+    >>> optimizeX100Default
+    >>> exportX100Plan prefix
 
 nkl2TAFile :: String -> CL.Expr -> IO ()
 nkl2TAFile prefix =
@@ -84,6 +118,14 @@ nkl2VLFileOpt prefix =
 --------------------------------------------------------------------------------
 -- Functions for executing and debugging DSH queries via the Flattening backend
 
+-- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
+runQX100 :: QA a => X100Info -> Q a -> IO a
+runQX100 conn (Q q) = do
+    let ty = reify (undefined :: a)
+    q' <- toComprehensions (getX100TableInfo conn) q
+    let x100QueryBundle = nkl2X100Alg q'
+    frExp <$> executeX100 (X100Backend conn) x100QueryBundle ty
+
 -- | Run a query on a SQL backend
 runQ :: QA a => H.Connection -> Q a -> IO a
 runQ conn (Q q) = do
@@ -91,6 +133,18 @@ runQ conn (Q q) = do
     q' <- toComprehensions (getTableInfo conn) q
     let sqlQueryBundle = nkl2Sql q'
     frExp <$> executeSql (SqlBackend conn) sqlQueryBundle ty
+
+-- | Debugging function: dump the X100 plan (DAG) to a file.
+debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100 prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
+    nkl2X100File prefix e'
+
+-- | Debugging function: dump the optimized X100 plan (DAG) to a file.
+debugX100Opt :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100Opt prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
+    nkl2X100FileOpt (prefix ++ "_opt") e'
 
 -- | Debugging function: dump the table algebra plan (JSON) to a file.
 debugTA :: QA a => String -> H.Connection -> Q a -> IO ()
@@ -118,6 +172,20 @@ debugVLOpt prefix c (Q e) = do
     e' <- toComprehensions (getTableInfo c) e
     nkl2VLFileOpt prefix e'
 
+-- | Debugging function: dump the optimized VL query plan (DAG) for a
+-- query to a file (X100 version).
+debugX100VLOpt :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100VLOpt prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
+    nkl2VLFileOpt prefix e'
+
+-- | Debugging function: dump the VL query plan (DAG) for a query to a
+-- file (X100 version).
+debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
+debugX100VL prefix c (Q e) = do
+    e' <- toComprehensions (getX100TableInfo c) e
+    nkl2VLFile prefix e'
+
 -- | Dump all intermediate algebra representations (VL, TA) to files.
 debugQ :: QA a => String -> H.Connection -> Q a -> IO ()
 debugQ prefix conn q = do
@@ -125,6 +193,14 @@ debugQ prefix conn q = do
     debugVLOpt prefix conn q
     debugTA prefix conn q
     debugTAOpt prefix conn q
+
+-- | Dump all intermediate algebra representations (VL, X100) to files
+debugQX100 :: QA a => String -> X100Info -> Q a -> IO ()
+debugQX100 prefix conn q = do
+    debugX100VL prefix conn q
+    debugX100VLOpt prefix conn q
+    debugX100 prefix conn q
+    debugX100Opt prefix conn q
 
 -- | Convenience function: execute a query on a SQL backend and print
 -- its result
