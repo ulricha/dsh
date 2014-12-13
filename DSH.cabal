@@ -36,6 +36,8 @@ Description:
   compiler based on Guy Blelloch's flattening transformation. This approach
   leads to a more robust compilation and produces more efficient query code.
   .
+  Please read the release notes in 'README.md'.
+  .
   1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
   .
   2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
@@ -51,7 +53,6 @@ Build-type:          Simple
 Extra-source-files:  examples/Example01.hs
                      examples/Example02.hs
                      examples/Example03.hs
-                     examples/Makefile
                      tests/Main.hs
 		     tests/ComprehensionTests.hs
 		     tests/DSHComprehensions.hs
