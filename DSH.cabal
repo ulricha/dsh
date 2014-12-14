@@ -53,6 +53,7 @@ Build-type:          Simple
 Extra-source-files:  examples/Example01.hs
                      examples/Example02.hs
                      examples/Example03.hs
+                     examples/dshify-tpch.sql
                      tests/Main.hs
 		     tests/ComprehensionTests.hs
 		     tests/DSHComprehensions.hs
