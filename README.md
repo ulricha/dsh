@@ -46,6 +46,10 @@ produces more efficient query code.
 * This is an experimental proof-of-concept implementation that most
   likely contains bugs. You have been warned. We are happy to receive
   bug reports.
+* For documentation, have a look at the examples included in directory
+  'examples' in the source distribution.
+* DSH works with a HDBC PostgreSQL connection. Other databases (*e.g.*
+  MySQL, Sqlite) are unlikely to work.
 * Support for general algebraic data types is currently broken. Flat
   record types do work.
 * Comprehension syntax for DSH queries is currently implemented using
