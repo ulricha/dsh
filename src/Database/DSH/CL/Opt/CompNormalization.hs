@@ -26,7 +26,7 @@ import qualified Data.Set                   as S
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang

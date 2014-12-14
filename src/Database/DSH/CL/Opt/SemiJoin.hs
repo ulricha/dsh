@@ -12,7 +12,7 @@ import qualified Data.List.NonEmpty as NL
 
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.Common.Lang
 import qualified Database.DSH.CL.Primitives as P
 

@@ -13,7 +13,7 @@ import           Database.Algebra.Dag.Common
 import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
-import           Database.DSH.Optimizer.Common.Aux
+import           Database.DSH.Optimizer.Common.Auxiliary
 import           Database.DSH.Optimizer.TA.Properties.ICols
 import           Database.DSH.Optimizer.TA.Properties.Types
 import           Database.DSH.Optimizer.TA.Properties.Use

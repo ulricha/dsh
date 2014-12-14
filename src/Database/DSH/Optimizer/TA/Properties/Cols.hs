@@ -10,7 +10,7 @@ import qualified Data.Set.Monad                             as S
 import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
-import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Auxiliary
 import           Database.DSH.Optimizer.TA.Properties.Types
 
 ----------------------------------------------------------------------------

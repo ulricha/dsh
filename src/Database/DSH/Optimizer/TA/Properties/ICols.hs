@@ -8,7 +8,7 @@ import qualified Data.Set.Monad                           as S
 
 import           Database.Algebra.Table.Lang
 
-import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Auxiliary
 
 inferIColsBinOp :: S.Set Attr  -- ^ columns that are required from us
                 -> S.Set Attr  -- ^ Columns required from the left child

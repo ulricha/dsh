@@ -18,7 +18,7 @@ import           Database.Algebra.Table.Lang                hiding (replace)
 
 import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Rewrite
-import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Auxiliary
 import           Database.DSH.Optimizer.TA.Properties.Types
 import           Database.DSH.Optimizer.TA.Properties.Const
 import           Database.DSH.Optimizer.TA.Rewrite.Common
