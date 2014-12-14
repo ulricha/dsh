@@ -19,7 +19,7 @@ import           Database.DSH.Common.Pretty
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure
 import qualified Database.DSH.CL.Primitives as P
-import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.Auxiliary
 
 -- | Extract complex loop-invariant expressions from comprehension
 -- heads and guards.

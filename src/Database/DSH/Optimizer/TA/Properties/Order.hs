@@ -11,7 +11,7 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
 
-import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Auxiliary
 import           Database.DSH.Optimizer.TA.Properties.Types
 
 -- | Column 'c' has been overwritten by the current operator. Remove

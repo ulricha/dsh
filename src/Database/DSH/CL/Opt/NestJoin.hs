@@ -29,7 +29,7 @@ import           Database.DSH.CL.Kure
                  
 import qualified Database.DSH.CL.Primitives as P
 
-import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.Auxiliary
 import           Database.DSH.CL.Opt.CompNormalization
 
 nestjoinR :: RewriteC CL

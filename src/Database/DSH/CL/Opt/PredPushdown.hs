@@ -17,7 +17,7 @@ import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
-import           Database.DSH.CL.Opt.Aux
+import           Database.DSH.CL.Opt.Auxiliary
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions

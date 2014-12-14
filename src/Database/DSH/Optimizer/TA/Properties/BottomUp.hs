@@ -10,7 +10,7 @@ import           Database.Algebra.Table.Lang
 
 import           Database.DSH.Impossible
 
-import           Database.DSH.Optimizer.Common.Aux
+import           Database.DSH.Optimizer.Common.Auxiliary
 import           Database.DSH.Optimizer.Common.Rewrite
 
 import           Database.DSH.Optimizer.TA.Properties.Card1

@@ -9,7 +9,7 @@ import qualified Data.Set.Monad                           as S
 
 import           Database.Algebra.Table.Lang
 
-import           Database.DSH.Optimizer.TA.Properties.Aux
+import           Database.DSH.Optimizer.TA.Properties.Auxiliary
 
 flatten :: S.Set (S.Set Attr) -> S.Set Attr
 flatten = S.foldl' (∪) S.empty

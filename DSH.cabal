@@ -129,7 +129,7 @@ Library
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
                      Database.DSH.CL.Opt
-                     Database.DSH.CL.Opt.Aux
+                     Database.DSH.CL.Opt.Auxiliary
                      Database.DSH.CL.Opt.PostProcess
                      Database.DSH.CL.Opt.LoopInvariant
                      Database.DSH.CL.Opt.PredPushdown
@@ -168,7 +168,7 @@ Library
 
                      Database.DSH.Impossible
 
-                     Database.DSH.Optimizer.Common.Aux
+                     Database.DSH.Optimizer.Common.Auxiliary
                      Database.DSH.Optimizer.Common.Rewrite
 
                      Database.DSH.Optimizer.VL.Properties.BottomUp
@@ -192,7 +192,7 @@ Library
                      Database.DSH.Optimizer.TA.Properties.Cols
                      Database.DSH.Optimizer.TA.Properties.ICols
                      Database.DSH.Optimizer.TA.Properties.Use
-                     Database.DSH.Optimizer.TA.Properties.Aux
+                     Database.DSH.Optimizer.TA.Properties.Auxiliary
                      Database.DSH.Optimizer.TA.Properties.Empty
                      Database.DSH.Optimizer.TA.Properties.Card1
                      Database.DSH.Optimizer.TA.Properties.Keys

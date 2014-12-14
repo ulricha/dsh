@@ -1,5 +1,5 @@
 -- | Some auxiliary functions for property inference.
-module Database.DSH.Optimizer.TA.Properties.Aux where
+module Database.DSH.Optimizer.TA.Properties.Auxiliary where
 
 import qualified Data.Set.Monad              as S
 

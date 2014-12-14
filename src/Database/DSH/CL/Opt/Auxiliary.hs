@@ -4,7 +4,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 -- | Common tools for rewrites
-module Database.DSH.CL.Opt.Aux
+module Database.DSH.CL.Opt.Auxiliary
     ( applyExpr
     , applyInjectable
       -- * Monad rewrites with additional state
