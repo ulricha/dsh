@@ -25,10 +25,10 @@ Description:
   resident data with Haskell.
   .
   Note that this package is flagged experimental and therefore is not suited
-  for production use. This is a proof of concept implementation only. To learn
-  more about DSH, our paper entitled as "Haskell Boards the Ferry: Database-
-  Supported Program Execution for Haskell" [1] is a recommended reading. The
-  package includes a couple of examples that demonstrate how to use DSH.
+  for production use (we mean it!). This is a proof of concept implementation 
+  only. To learn more about DSH, our paper entitled as "Haskell Boards the Ferry: 
+  Database-Supported Program Execution for Haskell" [1] is a recommended reading.
+  The package includes a couple of examples that demonstrate how to use DSH.
   .
   In contrast to the DSH version described in [1], the current release does
   not rely anymore on the loop-lifting compilation technique together with 
