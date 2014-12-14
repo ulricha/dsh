@@ -14,7 +14,7 @@ import           Data.Maybe
 import qualified Data.Set.Monad                             as S
 
 import           Database.Algebra.Dag.Common
-import           Database.Algebra.Table.Lang
+import           Database.Algebra.Table.Lang                hiding (replace)
 
 import           Database.DSH.Impossible
 import           Database.DSH.Optimizer.Common.Rewrite
