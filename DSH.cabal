@@ -1,5 +1,5 @@
 Name:                DSH
-Version:             0.10.0.0
+Version:             0.10.0.1
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program execution. Using
@@ -58,6 +58,7 @@ Extra-source-files:  examples/Example01.hs
 		     tests/ComprehensionTests.hs
 		     tests/DSHComprehensions.hs
 		     tests/CombinatorTests.hs
+                     README.md
 
 Cabal-version:       >= 1.8
 
