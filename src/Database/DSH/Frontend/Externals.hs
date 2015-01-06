@@ -3,23 +3,26 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE ViewPatterns          #-}
 
 module Database.DSH.Frontend.Externals where
-       
-import Database.DSH.Frontend.Internals
-import Database.DSH.Frontend.Funs
-import Database.DSH.Impossible
-import Database.DSH.Frontend.TupleTypes
 
-import Prelude ( Eq, Ord, Num(..), Fractional(..), Floating(..)
-               , Bool(..), Char, Integer, Double, Maybe(..), Either(..)
-               , id, ($), (.))
-import qualified Prelude as P
+import           Prelude                          (Bool (..), Char, Double,
+                                                   Either (..), Eq,
+                                                   Floating (..),
+                                                   Fractional (..), Integer,
+                                                   Maybe (..), Num (..), Ord,
+                                                   id, ($), (.))
+import qualified Prelude                          as P
 
-import Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Data.String
+import           Data.Text                        (Text)
+import qualified Data.Text                        as T
+
+import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.Internals
+import           Database.DSH.Frontend.TupleTypes
+import           Database.DSH.Impossible
+
 
 -- QA Instances
 
@@ -336,7 +339,7 @@ min a b = cond (a < b) a b
 
 max :: (QA a,Ord a,TA a) => Q a -> Q a -> Q a
 max a b = cond (a > b) a b
-    
+
 mod :: Q Integer -> Q Integer -> Q Integer
 mod (Q a) (Q b) = Q (AppE Mod (pairE a b))
 
@@ -549,18 +552,18 @@ splitAt i xs = pair (take i xs) (drop i xs)
 
 -- FIXME might be implemented using non-dense numbering!
 takeWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-takeWhile p xs = 
+takeWhile p xs =
     let ys            = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
         notQualifying = filter (\xposp -> not (snd xposp)) ys
         maxPos = minimum $ map (\xposp -> snd $ fst xposp) notQualifying
-     
-    in cond (null notQualifying) 
+
+    in cond (null notQualifying)
             xs
             (map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) < maxPos) ys)
 
 -- FIXME might be implemented using non-dense numbering!
 dropWhile :: (QA a) => (Q a -> Q Bool) -> Q [a] -> Q [a]
-dropWhile p xs = 
+dropWhile p xs =
     let ys  = map (\xpos -> pair xpos (p $ fst xpos)) $ number xs
         minPos = minimum $ map (\xposp -> snd $ fst xposp) $ filter (\xposp -> not (snd xposp)) ys
     in map (\xposp -> fst $ fst xposp) $ filter (\xposp -> (snd $ fst xposp) >= minPos) ys

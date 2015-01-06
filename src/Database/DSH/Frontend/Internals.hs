@@ -10,9 +10,9 @@ module Database.DSH.Frontend.Internals where
 import           Data.Text                        (Text)
 import           Text.PrettyPrint.ANSI.Leijen
 
-import           Database.DSH.Impossible
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.TupleTypes
+import           Database.DSH.Impossible
 
 --------------------------------------------------------------------------------
 -- Typed frontend ASTs
