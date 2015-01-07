@@ -7,6 +7,8 @@
 -- w.r.t. to query execution and result value construction.
 module Database.DSH.Execute.Backend where
 
+import Control.Applicative
+import Control.Monad.State
 import           Text.Printf
 import qualified Data.IntMap                     as IM
 import qualified Data.DList as D
@@ -51,6 +53,7 @@ data TabLayout a where
     TNest  :: (Reify a, Backend c, Row (BackendRow c)) => Type [a] -> [BackendRow c] -> TabLayout a -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
 
+
 -- Generate the definition for the 'SegTuple' type
 $(mkSegTupleType 16)
 
@@ -63,31 +66,65 @@ data SegLayout a where
     SNest  :: Reify a => Type [a] -> SegMap [a] -> SegLayout [a]
     STuple :: SegTuple a -> SegLayout a
 
+--------------------------------------------------------------------------------
+-- Turn layouts into layouts with explicit column position indexes
+
+data PosLayout q = PCol Int
+                 | PNest q (PosLayout q)
+                 | PTuple [PosLayout q]
+
+-- | Annotate every column reference with its column index in a flat
+-- column layout.
+columnIndexes :: Layout q -> PosLayout q
+columnIndexes lyt = evalState (numberCols lyt) 1
+
+numberCols :: Layout q -> State Int (PosLayout q)
+numberCols LCol          = currentCol >>= \i -> return (PCol i)
+numberCols (LTuple lyts) = PTuple <$> mapM numberCols lyts
+numberCols (LNest q lyt) = PNest q <$> posBracket (numberCols lyt)
+
+currentCol :: State Int Int
+currentCol = do
+    i <- get
+    put $ i + 1
+    return i
+
+posBracket :: State Int (PosLayout q) -> State Int (PosLayout q)
+posBracket ma = do
+    c <- get
+    put 1
+    a <- ma
+    put c
+    return a
+
+--------------------------------------------------------------------------------
+-- Execute flat queries and construct result values
+
 execQueryBundle :: (Backend c, Row (BackendRow c)) => c -> Shape (BackendCode c) -> Type a -> IO (Exp a)
 execQueryBundle conn shape ty = 
     case (shape, ty) of
         (VShape q lyt, ListT ety) -> do
             tab  <- execFlatQuery conn q
-            tlyt <- execNested conn lyt ety
+            tlyt <- execNested conn (columnIndexes lyt) ety
             return $ fromVector tab tlyt
         (SShape q lyt, _) -> do
             tab  <- execFlatQuery conn q
-            tlyt <- execNested conn lyt ty
+            tlyt <- execNested conn (columnIndexes lyt) ty
             return $ fromPrim tab tlyt
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execNested :: (Backend c, Row (BackendRow c)) => c -> Layout (BackendCode c) -> Type a -> IO (TabLayout a)
+execNested :: (Backend c, Row (BackendRow c)) => c -> PosLayout (BackendCode c) -> Type a -> IO (TabLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
-        (LCol i, t)             -> return $ TCol t (itemCol i)
-        (LNest q clyt, ListT t) -> do
+        (PCol i, t)             -> return $ TCol t (itemCol i)
+        (PNest q clyt, ListT t) -> do
             tab   <- execFlatQuery conn q
             clyt' <- execNested conn clyt t
             return $ TNest ty tab clyt'
-        (LTuple lyts, TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
+        (PTuple lyts, TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                        in execTuple lyts tupTy
-        (_, ty) -> error $ printf "Type does not match query structure: %s" (pp ty)
+        (_, _) -> error $ printf "Type does not match query structure: %s" (pp ty)
 
 ------------------------------------------------------------------------------
 -- Construct result value terms from raw tabular results

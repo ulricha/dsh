@@ -2,7 +2,7 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
-import Debug.Trace
+
 
 import           Control.Applicative
 import           Control.Monad

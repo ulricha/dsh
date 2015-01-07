@@ -22,7 +22,7 @@ import qualified Data.Map as M
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Kure
+
 
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure

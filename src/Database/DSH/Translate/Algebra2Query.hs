@@ -32,7 +32,7 @@ generateX100Queries x100Plan = convertQuery $ queryShape x100Plan
     convertQuery (VShape (ADVec r' _) l) = VShape (X100Code $ generateQuery m' r') $ convertLayout l
 
     convertLayout :: Layout NDVec -> Layout (BackendCode X100Backend)
-    convertLayout (LCol i)               = LCol i
+    convertLayout LCol                   = LCol
     convertLayout (LNest (ADVec r' _) l) = LNest (X100Code $ generateQuery m' r') $ convertLayout l
     convertLayout (LTuple ps)            = LTuple $ map convertLayout ps
 
@@ -57,6 +57,6 @@ generateSqlQueries taPlan = renderQueryCode $ queryShape taPlan
     convertLayout :: Layout NDVec -> Layout (BackendCode SqlBackend)
     convertLayout lyt =
         case lyt of
-            LCol i                 -> LCol i
+            LCol                   -> LCol
             LNest (ADVec r _) clyt -> LNest (lookupNode r) (convertLayout clyt)
             LTuple lyts            -> LTuple $ map convertLayout lyts

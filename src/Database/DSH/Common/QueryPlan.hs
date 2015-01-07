@@ -14,7 +14,7 @@ import           Database.DSH.VL.Vector
 
 -- | A Layout describes the tuple structure of values encoded by
 -- one particular query from a bundle.
-data Layout q = LCol Int
+data Layout q = LCol
               | LNest q (Layout q)
               | LTuple [Layout q]
               deriving (Show, Read)
@@ -33,7 +33,7 @@ $(deriveJSON defaultOptions ''Shape)
 
 -- | Extract all plan root nodes stored in the layout
 layoutNodes :: DagVector v => Layout v -> [AlgNode]
-layoutNodes (LCol _)      = []
+layoutNodes LCol          = []
 layoutNodes (LNest v lyt) = vectorNodes v ++ layoutNodes lyt
 layoutNodes (LTuple lyts) = concatMap layoutNodes lyts
 
@@ -55,7 +55,7 @@ updateShape old new shape =
     updateLayout l               = l
 
 columnsInLayout :: Layout q -> Int
-columnsInLayout (LCol _)      = 1
+columnsInLayout LCol          = 1
 columnsInLayout (LNest _ _)   = 0
 columnsInLayout (LTuple lyts) = sum $ map columnsInLayout lyts
 

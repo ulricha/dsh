@@ -196,7 +196,7 @@ insertTopProjections g = g >>= traverseShape
         insertProj lyt q VL.Project VLDVec SShape
 
     traverseLayout :: (Layout VLDVec) -> Build VL.VL (Layout VLDVec)
-    traverseLayout (LCol c)               = return $ LCol c
+    traverseLayout LCol                   = return LCol
     traverseLayout (LTuple lyts)          = LTuple <$> mapM traverseLayout lyts
     traverseLayout (LNest (VLDVec q) lyt) =
       insertProj lyt q VL.Project VLDVec LNest

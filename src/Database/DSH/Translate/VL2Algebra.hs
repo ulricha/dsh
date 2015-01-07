@@ -73,12 +73,12 @@ toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
 refreshLyt :: VectorAlgebra v a => Layout VLDVec -> VecBuild a v (Layout v)
-refreshLyt (LCol c) = return $ LCol c
+refreshLyt LCol                   = return LCol
 refreshLyt (LNest (VLDVec n) lyt) = do
     Just n' <- fromDict n
     lyt'    <- refreshLyt lyt
     return $ LNest (toDVec n') lyt'
-refreshLyt (LTuple lyts) = LTuple <$> mapM refreshLyt lyts
+refreshLyt (LTuple lyts)          = LTuple <$> mapM refreshLyt lyts
 
 refreshShape :: VectorAlgebra v a => Shape VLDVec -> VecBuild a v (Shape v)
 refreshShape (VShape (VLDVec n) lyt) = do
@@ -342,7 +342,7 @@ insertSerialize g = g >>= traverseShape
                 return $ SShape dvec' lyt
 
     traverseLayout :: (Layout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (Layout NDVec))
-    traverseLayout (LCol _) = return Nothing
+    traverseLayout LCol          = return Nothing
     traverseLayout (LTuple lyts) = do
         mLyts <- mapM traverseLayout lyts
         if all isNothing mLyts

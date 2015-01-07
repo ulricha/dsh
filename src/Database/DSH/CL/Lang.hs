@@ -244,16 +244,16 @@ instance Pretty Qual where
     pretty (BindQ i e) = text i <+> text "<-" <+> pretty e
     pretty (GuardQ e)  = pretty e
 
--- Binary relational operators are pretty-printed different from other
--- combinators
-isRelOp :: Prim2 -> Bool
-isRelOp o =
-    case o of
-        ThetaJoin _  -> True
-        NestJoin _   -> True
-        SemiJoin _   -> True
-        AntiJoin _   -> True
-        _            -> False
+-- -- Binary relational operators are pretty-printed different from other
+-- -- combinators
+-- isRelOp :: Prim2 -> Bool
+-- isRelOp o =
+--     case o of
+--         ThetaJoin _  -> True
+--         NestJoin _   -> True
+--         SemiJoin _   -> True
+--         AntiJoin _   -> True
+--         _            -> False
 
 
 
