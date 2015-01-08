@@ -30,7 +30,7 @@ import           Database.DSH.VL.Vector
 zip ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 zip (VShape q1 lyt1) (VShape q2 lyt2) = do
     q' <- vlZip q1 q2
-    return $ VShape q' $ zipLayout lyt1 lyt2
+    return $ VShape q' $ LTuple [lyt1, lyt2]
 zip _ _ = $impossible
 
 cartProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -38,7 +38,7 @@ cartProduct (VShape q1 lyt1) (VShape q2 lyt2) = do
     (q', p1, p2) <- vlCartProduct q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
-    return $ VShape q' $ zipLayout lyt1' lyt2'
+    return $ VShape q' $ LTuple [lyt1', lyt2']
 cartProduct _ _ = $impossible
 
 nestProduct :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -46,7 +46,7 @@ nestProduct (VShape q1 lyt1) (VShape q2 lyt2) = do
   (q', p1, p2) <- vlNestProduct q1 q2
   lyt1'        <- chainReorder p1 lyt1
   lyt2'        <- chainReorder p2 lyt2
-  return $ VShape q1 (LTuple [lyt1, LNest q' (zipLayout lyt1' lyt2')])
+  return $ VShape q1 (LTuple [lyt1, LNest q' (LTuple [lyt1', lyt2'])])
 nestProduct _ _ = $impossible
 
 thetaJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -54,7 +54,7 @@ thetaJoin joinPred (VShape q1 lyt1) (VShape q2 lyt2) = do
     (q', p1, p2) <- vlThetaJoin joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
-    return $ VShape q' $ zipLayout lyt1' lyt2'
+    return $ VShape q' $ LTuple [lyt1', lyt2']
 thetaJoin _ _ _ = $impossible
 
 nestJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -62,7 +62,7 @@ nestJoin joinPred (VShape q1 lyt1) (VShape q2 lyt2) = do
     (q', p1, p2) <- vlNestJoin joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
-    return $ VShape q1 (LTuple [lyt1, LNest q' (zipLayout lyt1' lyt2')])
+    return $ VShape q1 (LTuple [lyt1, LNest q' (LTuple [lyt1', lyt2'])])
 nestJoin _ _ _ = $impossible
 
 semiJoin :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -85,7 +85,7 @@ nub _ = $impossible
 
 number ::  Shape VLDVec -> Build VL (Shape VLDVec)
 number (VShape q lyt) =
-    VShape <$> vlNumber q <*> (pure $ zipLayout lyt LCol)
+    VShape <$> vlNumber q <*> (pure $ LTuple [lyt, LCol])
 number _ = $impossible
 
 init ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -137,7 +137,7 @@ append (VShape q1 lyt1) (VShape q2 lyt2) = do
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
     return $ VShape v lyt'
-appendVec _ _ = $impossible
+append _ _ = $impossible
 
 -- FIXME looks fishy, there should be an unboxing join.
 the ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -204,6 +204,7 @@ length_ ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length_ (VShape q _) = do
     v  <- vlAggr AggrCount q
     return $ SShape v LCol
+length_ _ = $impossible
 
 restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 restrict(VShape q1 lyt) (VShape q2 LCol) = do
@@ -309,16 +310,15 @@ ifList _ _ _ = $impossible
 
 tuple :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tuple shapes@(_ : _) = do
-    (q, lyts) <- tupleVectors shapes
-    let lyts' = zipLayouts lyts
-    return $ SShape q (LTuple lyts')
+    (q, lyts) <- boxVectors shapes
+    return $ SShape q (LTuple lyts)
 tuple _ = $impossible
 
 tupElem :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
 tupElem i (SShape q (LTuple lyts)) =
     case lyts !! (tupleIndex i - 1) of
         LNest qi lyt -> return $ VShape qi lyt
-        lyt          -> do
+        _            -> do
             let (lyt', cols) = projectColumns i lyts
             proj <- vlProject (map Column cols) q
             return $ SShape proj lyt'
@@ -364,7 +364,7 @@ zipL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', r1, r2) <- vlZipS q1 q2
     lyt1'        <- chainRenameFilter r1 lyt1
     lyt2'        <- chainRenameFilter r2 lyt2
-    return $ VShape d1 (LNest q' $ zipLayout lyt1' lyt2')
+    return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 zipL _ _ = $impossible
 
 cartProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -372,14 +372,14 @@ cartProductL (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', p1, p2) <- vlCartProductS q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
-    return $ VShape d1 (LNest q' $ zipLayout lyt1' lyt2')
+    return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 cartProductL _ _ = $impossible
 
 nestProductL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 nestProductL (VShape qd1 (LNest qv1 lyt1)) (VShape _qd2 (LNest qv2 lyt2)) = do
     (qj, qp2) <- vlNestProductS qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = zipLayout lyt1 lyt2'
+    let lytJ  = LTuple [lyt1, lyt2']
     return $ VShape qd1 (LNest qv1 (LTuple [lyt1, (LNest qj lytJ)]))
 nestProductL _ _ = $impossible
 
@@ -388,7 +388,7 @@ thetaJoinL joinPred (VShape d1 (LNest q1 lyt1)) (VShape _ (LNest q2 lyt2)) = do
     (q', p1, p2) <- vlThetaJoinS joinPred q1 q2
     lyt1'        <- chainReorder p1 lyt1
     lyt2'        <- chainReorder p2 lyt2
-    return $ VShape d1 (LNest q' $ zipLayout lyt1' lyt2')
+    return $ VShape d1 (LNest q' $ LTuple [lyt1', lyt2'])
 thetaJoinL _ _ _ = $impossible
 
 -- △^L :: [[a]] -> [[b]] -> [[(a, [(a, b)])]]
@@ -402,7 +402,7 @@ nestJoinL :: L.JoinPredicate L.JoinExpr -> Shape VLDVec -> Shape VLDVec -> Build
 nestJoinL joinPred (VShape qd1 (LNest qv1 lyt1)) (VShape _qd2 (LNest qv2 lyt2)) = do
     (qj, qp2) <- vlNestJoinS joinPred qv1 qv2
     lyt2'     <- chainReorder qp2 lyt2
-    let lytJ  = zipLayout lyt1 lyt2'
+    let lytJ  = LTuple [lyt1, lyt2']
     return $ VShape qd1 (LNest qv1 (LTuple [lyt1,(LNest qj lytJ)]))
 nestJoinL _ _ _ = $impossible
 
@@ -429,7 +429,7 @@ nubL _ = $impossible
 numberL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 numberL (VShape d (LNest q lyt)) =
     VShape d <$> (LNest <$> vlNumberS q
-                            <*> (pure $ zipLayout lyt LCol))
+                            <*> (pure $ LTuple [lyt, LCol]))
 numberL _ = $impossible
 
 initL ::  Shape VLDVec -> Build VL (Shape VLDVec)
@@ -541,16 +541,15 @@ distL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 distL (VShape q1 lyt1) (VShape d (LNest q2 lyt2)) = do
     (qa, p)             <- vlDistLift q1 q2
     lyt1'               <- chainReorder p lyt1
-    let lyt             = zipLayout lyt1' lyt2
+    let lyt             = LTuple [lyt1', lyt2]
     VShape qf lytf <- tupElemL First $ VShape qa lyt
     return $ VShape d (LNest qf lytf)
 distL _e1 _e2 = $impossible
 
 tupleL :: [Shape VLDVec] -> Build VL (Shape VLDVec)
 tupleL shapes@(_ : _) = do
-    (q, lyts) <- zipVectors shapes
-    let lyts' = zipLayouts lyts
-    return $ VShape q (LTuple lyts')
+    (q, lyts) <- alignVectors shapes
+    return $ VShape q (LTuple lyts)
 tupleL _ = $impossible
 
 tupElemL :: TupleIndex -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -695,48 +694,32 @@ mkDescriptor lengths =
 --------------------------------------------------------------------------------
 -- Helper functions for zipping/tuple construction
 
-zipLayout :: Layout VLDVec -> Layout VLDVec -> Layout VLDVec
-zipLayout l1 l2 = let offSet = columnsInLayout l1
-                      l2' = incrementPositions offSet l2
-                   in LTuple [l1, l2']
-
-incrementPositions :: Int -> Layout VLDVec -> Layout VLDVec
-incrementPositions i LCol           = LCol
-incrementPositions _i v@(LNest _ _) = v
-incrementPositions i (LTuple lyts)  = LTuple $ map (incrementPositions i) lyts
-
-zipLayouts :: [Layout VLDVec] -> [Layout VLDVec]
-zipLayouts layouts = go 0 layouts
-
-  where
-    go :: Int -> [Layout VLDVec] -> [Layout VLDVec]
-    go 0 (lyt : lyts) = lyt : go (columnsInLayout lyt) lyts
-    go o (lyt : lyts) = incrementPositions o lyt : go (o + columnsInLayout lyt) lyts
-    go _ []           = []
-
-zipVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
-zipVectors (VShape q1 lyt1 : [])     = return (q1, [lyt1])
-zipVectors (VShape q1 lyt1 : shapes) = do
-    (q, lyts) <- zipVectors shapes
+-- | Simply align a list of shapes and collect their layouts.
+alignVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
+alignVectors (VShape q1 lyt1 : [])     = return (q1, [lyt1])
+alignVectors (VShape q1 lyt1 : shapes) = do
+    (q, lyts) <- alignVectors shapes
     qz' <- vlAlign q1 q
     return (qz', lyt1 : lyts)
-zipVectors _ = $impossible
+alignVectors _ = $impossible
 
-tupleVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
-tupleVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
-tupleVectors (VShape q1 lyt1 : [])     = do
+-- | Align a list of shapes and nest vectors if necessary. This helper
+-- function covers tuple construction in the unlifted case.
+boxVectors :: [Shape VLDVec] -> Build VL (VLDVec, [Layout VLDVec])
+boxVectors (SShape q1 lyt1 : [])     = return (q1, [lyt1])
+boxVectors (VShape q1 lyt1 : [])     = do
     qo <- vlSingletonDescr
     qi <- vlUnsegment q1
     return (qo, [LNest qi lyt1])
-tupleVectors (SShape q1 lyt1 : shapes) = do
-    (q, lyts) <- tupleVectors shapes
+boxVectors (SShape q1 lyt1 : shapes) = do
+    (q, lyts) <- boxVectors shapes
     qz'       <- vlAlign q1 q
     return (qz', lyt1 : lyts)
-tupleVectors (VShape q1 lyt1 : shapes) = do
-    (q, lyts) <- tupleVectors shapes
+boxVectors (VShape q1 lyt1 : shapes) = do
+    (q, lyts) <- boxVectors shapes
     q1'       <- vlUnsegment q1
     return (q, LNest q1' lyt1 : lyts)
-tupleVectors s = error $ show s
+boxVectors s = error $ show s
 
 --------------------------------------------------------------------------------
 -- Compile-time operations that implement higher-lifted primitives.
