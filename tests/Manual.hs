@@ -20,7 +20,7 @@ import Database.X100Client
 
 import Database.HDBC.PostgreSQL
 
-import qualified Data.Text as T
+-- import qualified Data.Text as T
 
 import TPCH
 

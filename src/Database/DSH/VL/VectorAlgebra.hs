@@ -103,7 +103,6 @@ class VectorAlgebra v a where
     vecProject :: [Expr] -> v -> Build a v
 
     -- FIXME is distprim really necessary? could maybe be replaced by distdesc
-    vecDistDesc :: v -> v -> Build a (v, PVec)
     vecDistLift :: v -> v -> Build a (v, PVec)
 
     -- | propRename uses a propagation vector to rename a vector (no
