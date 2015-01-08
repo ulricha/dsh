@@ -230,8 +230,8 @@ instance VectorAlgebra NDVec TableAlgebra where
     return $ ADVec r cols'
 
   vecLit tys vs = do
-    qr <- flip litTable' ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
-                                 $ map (map algVal) vs
+    qr <- litTable' (map (map algVal) vs) 
+                    ((descr, natT):(pos, natT):[(itemi i, algTy t) | (i, t) <- zip [1..] tys])
     return $ ADVec qr [1..length tys]
 
   vecPropRename (RVec q1) (ADVec q2 cols) = do
@@ -242,7 +242,7 @@ instance VectorAlgebra NDVec TableAlgebra where
 
   vecPropFilter (RVec q1) (ADVec q2 cols) = do
     q <- rownumM pos' [posnew, pos] [] $ eqJoin posold descr q1 q2
-    qr1 <- flip ADVec cols <$> proj (itemProj cols [mP descr posnew, mP pos pos']) q
+    qr1 <- ADVec <$> proj (itemProj cols [mP descr posnew, mP pos pos']) q <*> pure cols
     qr2 <- RVec <$> proj [mP posold pos, mP posnew pos'] q
     return $ (qr1, qr2)
 
@@ -289,8 +289,7 @@ instance VectorAlgebra NDVec TableAlgebra where
     qp2 <- proj [mP posnew pos, mP posold pos'] d2
     return $ (ADVec qr cols, RVec qp1, RVec qp2)
 
-  vecSegment (ADVec q cols) = do
-    flip ADVec cols <$> proj (itemProj cols [mP descr pos, cP pos]) q
+  vecSegment (ADVec q cols) = ADVec <$> proj (itemProj cols [mP descr pos, cP pos]) q <*> pure cols
 
   vecUnsegment (ADVec q cols) = do
     qr <- proj (itemProj cols [cP pos, eP descr (ConstE $ nat 1)]) q
