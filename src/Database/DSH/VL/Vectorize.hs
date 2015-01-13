@@ -799,9 +799,12 @@ renameOuterLyt _ LCol          = return LCol
 renameOuterLyt r (LNest q lyt) = flip LNest lyt <$> vlPropRename r q
 renameOuterLyt r (LTuple lyts) = LTuple <$> mapM (renameOuterLyt r) lyts
 
--- | Append two inner vectors (segment-wise).
-appendInnerVec :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2) = do
+-- | Traverse a layout and append all nested vectors that are
+-- encountered.
+appendLayout :: Layout VLDVec -> Layout VLDVec -> Build VL (Layout VLDVec)
+appendLayout LCol LCol = return LCol
+-- Append two nested vectors
+appendLayout (LNest q1 lyt1) (LNest q2 lyt2) = do
     -- Append the current vectors
     (v, p1, p2) <- vlAppendS q1 q2
     -- Propagate position changes to descriptors of any inner vectors
@@ -809,19 +812,7 @@ appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2) = do
     lyt2'       <- renameOuterLyt p2 lyt2
     -- Append the layouts, i.e. actually append all inner vectors
     lyt'        <- appendLayout lyt1' lyt2'
-    return $ VShape v lyt'
-appendInnerVec _ _ = $impossible
-
--- | Traverse a layout and append all nested vectors that are
--- encountered.
-appendLayout :: Layout VLDVec -> Layout VLDVec -> Build VL (Layout VLDVec)
-appendLayout LCol LCol = return LCol
--- Append two nested vectors
-appendLayout (LNest q1 lyt1) (LNest q2 lyt2) = do
-    a <- appendInnerVec (VShape q1 lyt1) (VShape q2 lyt2)
-    case a of
-        VShape q lyt -> return $ LNest q lyt
-        _            -> $impossible
+    return $ LNest v lyt'
 appendLayout (LTuple lyts1) (LTuple lyts2) =
     LTuple <$> (sequence $ zipWith appendLayout lyts1 lyts2)
 appendLayout _ _ = $impossible
