@@ -168,18 +168,6 @@ ifR :: Monad m => Rewrite FlatCtx m (ExprTempl l e)
 ifR t1 t2 t3 = ifT t1 t2 t3 If               
 {-# INLINE ifR #-}                      
 
-{- FIXME will be needed again when let-bindings are added.
-varT :: Monad m => (Type -> Ident -> b) -> Transform FlatCtx m (Expr l) b
-varT f = contextfreeT $ \expr -> case expr of
-                    Var ty n -> return $ f ty n
-                    _        -> fail "not a variable"
-{-# INLINE varT #-}                      
-                    
-varR :: Monad m => Rewrite FlatCtx m (Expr l)
-varR = varT Var
-{-# INLINE varR #-}                      
--}
-
 binopT :: Monad m => Transform FlatCtx m (ExprTempl l e) a1
                   -> Transform FlatCtx m (ExprTempl l e) a2
                   -> (Type -> ScalarBinOp -> l -> a1 -> a2 -> b)
@@ -435,6 +423,8 @@ allRExpr r = readerT $ \e -> case e of
 
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
+
+instance
 
 (<$>) :: Monad m => (a -> b) -> m a -> m b
 (<$>) = liftM
