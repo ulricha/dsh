@@ -424,8 +424,6 @@ allRExpr r = readerT $ \e -> case e of
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
 
-instance
-
 (<$>) :: Monad m => (a -> b) -> m a -> m b
 (<$>) = liftM
 {-# INLINE (<$>) #-}

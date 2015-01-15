@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE InstanceSigs         #-}
 
+-- | The Rewrite monad for KURE-based rewriting systems in DSH.
 module Database.DSH.Common.RewriteM
     ( RewriteM
     , RewriteStateM
@@ -115,18 +116,3 @@ stateful s ma = RewriteM $ \i ->
 liftstate :: RewriteM Int a -> RewriteStateM s a
 liftstate ma = RewriteM $ \(i, s) -> let (i', a) = runRewriteM' i ma
                                   in ((i', s), a)
-                   
-
--- runRewriteM' (i, s) (ma :: RewriteM (Int, s) a) :: ((i', s'), 
-
-{-
-type FooM s = StateT s RewriteM
-
--- automatic due to StateT
--- instance Monad ...
-
-instance MonadCatch (FooM s) where
-    ma `catchM` f = StateT $ \s ->
-                        let (ka, s') = runStateT ma s
-                        in runRewriteM (return . return) undefined ka
--}                        
