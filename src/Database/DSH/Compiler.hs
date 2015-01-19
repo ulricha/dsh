@@ -126,6 +126,19 @@ runQX100 conn (Q q) = do
     let x100QueryBundle = nkl2X100Alg q'
     frExp <$> executeX100 (X100Backend conn) x100QueryBundle ty
 
+toComprehensions :: Backend c => c -> Q a -> IO CL.Expr
+toComprehensions = undefined
+
+CL.Expr -> Shape (BackendCode c)
+FKL.Expr -> Shape (BackendCode c)
+
+runQ :: (Backend c, QA) a => c -> Q a -> IO a
+runQ conn (Q q) = do
+    let ty = reify (undefined :: a)
+    q' <- toComprehensions conn q
+    let queryBundle = 
+    frExp <$> executeBundle conn queryBundle ty
+
 -- | Run a query on a SQL backend
 runQ :: QA a => H.Connection -> Q a -> IO a
 runQ conn (Q q) = do

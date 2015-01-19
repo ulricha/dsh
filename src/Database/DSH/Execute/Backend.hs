@@ -26,6 +26,7 @@ class Backend c where
     data BackendCode c
 
     execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
+    querySchema :: c -> Compile -> TableInfo
 
 -- | Abstraction over result rows for a specific backend.
 class Row r where
