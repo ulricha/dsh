@@ -42,7 +42,23 @@ xs = toQ [("a", [10, 20]), ("b", [30, 40])]
 q :: Q [[Integer]]
 q = map snd xs
 
+q1 :: Q [[Integer]]
+q1 = [ nub [ l_partkeyQ l | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ]
+     | o <- orders
+     ]
+
+q2 :: Q [Bool]
+q2 = [ and [ l_commitdateQ l > o_orderdateQ o | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ]
+     | o <- orders
+     ]
+
+q21 :: Q [(Bool,[Integer])]
+q21 = [ pair (and [ l_commitdateQ l > o_orderdateQ o | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ])
+             (nub [ l_partkeyQ l | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ])
+     | o <- orders
+     ]
+
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c q  P.>>= \r -> putStrLn (show r)
+main = getConn P.>>= \c -> debugQ "q" c q21  P.>>= \r -> putStrLn (show r)
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

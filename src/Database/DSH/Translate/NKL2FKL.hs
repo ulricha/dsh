@@ -22,7 +22,7 @@ import qualified Database.DSH.NKL.Lang       as N
 -- equivalent Flat Kernel Language expression by means of the
 -- flattening transformation.
 flatTransform :: N.Expr -> F.FExpr
-flatTransform expr = optimizeFKL "FKL" 
+flatTransform expr = optimizeNormFKL
                      $ normalize 
                      $ optimizeFKL "FKL Intermediate" 
                      $ runFlat initEnv (flatten expr)
