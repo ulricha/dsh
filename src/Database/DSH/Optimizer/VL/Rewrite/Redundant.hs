@@ -2,6 +2,8 @@
 
 module Database.DSH.Optimizer.VL.Rewrite.Redundant (removeRedundancy) where
 
+import Debug.Trace
+
 
 
 import           Control.Applicative
@@ -71,7 +73,7 @@ redundantRulesBottomUp = [ cartProdConstant
                          , zipUnboxScalarLeft
                          , alignCartProdRight
                          , propProductCard1Right
-                         , runningAggWin
+                         -- , runningAggWin
                          , inlineWinAggrProject
                          , pullProjectNumber
                          , constDistLift
@@ -87,6 +89,7 @@ redundantRulesAllProps :: VLRuleSet Properties
 redundantRulesAllProps = [ unreferencedDistLift
                          , firstValueWin
                          , notReqNumber
+                         , unboxNumber
                          ]
 
 --------------------------------------------------------------------------------
@@ -523,6 +526,40 @@ zipWinRightPush q =
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
 
+-- | If the right (outer) input of Unbox is a number operator and the
+-- number output is not required, eliminate it from the outer
+-- input. This is correct because Number does not change the vertical
+-- shape of the vector.
+-- 
+-- The motivation is to eliminate zip operators that align with the
+-- unboxed block. By removing Number from the Unbox input, we hope to
+-- achieve that the outer input is the same one as the zip input so
+-- that we can remove the zip.
+-- 
+-- For an example, see the bestProfit query (AQuery examples).
+-- 
+-- FIXME This could be extended to all operators that do not modify
+-- the vertical shape.
+unboxNumber :: VLRule Properties
+unboxNumber q =
+  $(dagPatMatch 'q "(Number (qo)) UnboxScalar (qi)"
+    [| do
+        VProp (Just reqCols)   <- reqColumnsProp <$> td <$> properties q
+        VProp (ValueVector wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
+        VProp (ValueVector wi) <- vectorTypeProp <$> bu <$> properties $(v "qi")
+        predicate $ (wo+1) `notElem` reqCols
+        
+        return $ do
+            logRewrite "Redundant.Unbox.Number" q
+            -- FIXME HACKHACKHACK We have to insert a dummy column in
+            -- place of the number column to avoid destroying column
+            -- indexes.
+            let proj = map Column [1..wo] 
+                     ++ [Constant $ VLInt 0xdeadbeef] 
+                     ++ map Column [wo+1..wi+wo]
+            unboxNode <- insert $ BinOp UnboxScalar $(v "qo") $(v "qi")
+            void $ replaceWithNew q $ UnOp (Project proj) unboxNode |])
+
 -- | If singleton scalar elements in an inner vector (with singleton
 -- segments) are unboxed using an outer vector and then zipped with
 -- the same outer vector, we can eliminate the zip, because the
@@ -532,7 +569,7 @@ zipWinRightPush q =
 -- both inputs.
 zipUnboxScalarRight :: VLRule BottomUpProps
 zipUnboxScalarRight q = 
-  $(dagPatMatch 'q "(q11) Align (qu=(q12) UnboxScalar (q2))"
+  $(dagPatMatch 'q "(q11) [Zip | Align] (qu=(q12) UnboxScalar (q2))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
 

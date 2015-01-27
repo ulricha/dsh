@@ -77,7 +77,7 @@ mergeExpr env expr =
         UnApp o e1     -> UnApp o (mergeExpr env e1)
         Column c       -> case lookup c env of
                                Just expr' -> expr'
-                               Nothing    -> $impossible
+                               Nothing    -> error $ show c ++ " " ++ show env
         If c t e       -> If (mergeExpr env c) (mergeExpr env t) (mergeExpr env e)
         Constant _     -> expr
 
