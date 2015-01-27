@@ -55,6 +55,7 @@ prim1 p =
         N.Last      -> P.last
         N.Nub       -> P.nub
         N.Number    -> P.number
+        N.Sort      -> P.sort
         N.Reshape n -> P.reshape n
         N.Transpose -> P.transpose
 
@@ -62,7 +63,6 @@ prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
     case p of
         N.Group        -> P.group
-        N.Sort         -> P.sort
         N.Restrict     -> P.restrict
         N.Append       -> P.append
         N.Index        -> P.index

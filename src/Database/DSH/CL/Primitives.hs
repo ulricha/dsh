@@ -150,8 +150,9 @@ group xs gs = let ListT xt  = typeOf xs
                   rt        = ListT (TupleT [grt, ListT xt])
               in AppE2 rt Group xs gs
 
-sort :: Expr -> Expr -> Expr
-sort xs ss = AppE2 (typeOf xs) Sort xs ss
+sort :: Expr -> Expr
+sort xs = let ListT (TupleT [xt, _]) = typeOf xs
+          in AppE1 (ListT xt) Sort xs
 
 pair :: Expr -> Expr -> Expr
 pair a b = tuple [a, b]

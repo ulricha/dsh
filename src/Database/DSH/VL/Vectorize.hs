@@ -166,22 +166,21 @@ tail (VShape d lyt) = do
     return $ VShape q' lyt'
 tail _ = $impossible
 
-sort :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-sort (VShape q1 lyt1) (VShape q2 lyt2) = do
-    let leftWidth  = columnsInLayout lyt1
-        rightWidth = columnsInLayout lyt2
+sort :: Shape VLDVec -> Build VL (Shape VLDVec)
+sort (VShape q1 (LTuple [xl, sl])) = do
+    let leftWidth  = columnsInLayout xl
+        rightWidth = columnsInLayout sl
 
         sortExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    -- Sort by all columns from the right vector
-    (sortedVec, propVec) <- vlSortS sortExprs =<< vlAlign q1 q2
+    -- Sort by all sorting columns from the right tuple component
+    (sortedVec, propVec) <- vlSortS sortExprs q1
 
-    -- After sorting, discard the sorting criteria columns from the
-    -- right vector
+    -- After sorting, discard the sorting criteria columns
     resVec               <- vlProject (map Column [1..leftWidth]) sortedVec
-    lyt1'  <- chainReorder propVec lyt1
-    return $ VShape resVec lyt1'
-sort _e1 _e2 = $impossible
+    xl'  <- chainReorder propVec xl
+    return $ VShape resVec xl'
+sort _e1 = $impossible
 
 -- | The right input contains the grouping columns.
 group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
@@ -499,11 +498,11 @@ tailL (VShape d (LNest q lyt)) = do
     return $ VShape d (LNest v lyt')
 tailL _ = $impossible
 
-sortL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-sortL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do
-    VShape innerVec lyt <- sort (VShape v1 lyt1) (VShape v2 lyt2)
-    return $ VShape d2 (LNest innerVec lyt)
-sortL _ _ = $impossible
+sortL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+sortL (VShape d (LNest v1 lyt1)) = do
+    VShape innerVec lyt <- sort (VShape v1 lyt1)
+    return $ VShape d (LNest innerVec lyt)
+sortL _ = $impossible
 
 groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 groupL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do

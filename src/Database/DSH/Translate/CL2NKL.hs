@@ -61,6 +61,7 @@ prim1 t p e = mkApp t <$> expr e
             (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
             CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
+            CL.Sort             -> mkPrim1 NKL.Sort
             CL.Guard            -> $impossible
     
     nklNull _ ne = NKL.BinOp boolT 
@@ -71,11 +72,7 @@ prim1 t p e = mkApp t <$> expr e
     mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
                                    
 
--- | Transform applications of binary primitives. Regular primitives
--- are mapped to their direct NKL equivalent. Higher-order primitives
--- (concatMap, map, filter, sortWith, groupWith) are mapped to their
--- first-order NKL equivalent combined with a single-generator
--- comprehension.
+-- | Transform applications of binary primitives. 
 prim2 :: Type -> CL.Prim2 -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
 prim2 t o e1 e2 = mkApp2
   where
@@ -90,7 +87,6 @@ prim2 t o e1 e2 = mkApp2
             CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
-            CL.Sort         -> mkPrim2 $ NKL.Sort
             CL.Group        -> mkPrim2 $ NKL.Group
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr

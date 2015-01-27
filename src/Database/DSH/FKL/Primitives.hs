@@ -37,11 +37,10 @@ group xs gs d =
         rt             = listT (pairT gt (listT xt))
     in PApp2 (liftTypeN d rt) Group (LiftedN d) xs gs
 
--- sort :: [a] -> [b] -> [a]
-sort :: LExpr -> LExpr -> Nat -> LExpr
-sort xs ss d =
-    let xst = unliftTypeN d $ typeOf xs
-    in PApp2 (liftTypeN d xst) Sort (LiftedN d) xs ss
+sort :: LExpr -> Nat -> LExpr
+sort xs d =
+    let ListT (TupleT [xt, _]) = unliftTypeN d $ typeOf xs
+    in PApp1 (liftTypeN d (ListT xt)) Sort (LiftedN d) xs
 
 sng :: LExpr -> Nat -> LExpr
 sng e d =

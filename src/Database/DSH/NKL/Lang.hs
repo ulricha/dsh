@@ -100,6 +100,7 @@ data Prim1 = Singleton
            | Last 
            | Nub
            | Number
+           | Sort
            | Reshape Integer
            | Transpose
            | TupElem TupleIndex
@@ -123,13 +124,13 @@ instance Show Prim1 where
     show Last            = "last"
     show Nub             = "nub"
     show Number          = "number"
+    show Sort            = "sort"
     show Transpose       = "transpose"
     show (Reshape n)     = printf "reshape(%d)" n
     -- tuple access is pretty-printed in a special way
     show TupElem{}       = $impossible
   
 data Prim2 = Group
-           | Sort
            | Restrict
            | Append
            | Index
@@ -144,7 +145,6 @@ data Prim2 = Group
 
 instance Show Prim2 where
     show Group        = "group"
-    show Sort         = "sort"
     show Restrict     = "restrict"
     show Append       = "append"
     show Index        = "index"

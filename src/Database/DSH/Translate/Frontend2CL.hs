@@ -230,17 +230,18 @@ translateApp f args =
                _ -> $impossible
                
        -- Map to a first-order combinator 'sort'
+       -- sortWith (\x -> f x) xs => sort [ (x, f x) | x <- xs ]
        SortWith     -> 
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
-                   xs'                 <- translate xs
-                   (boundVar, bodyExp) <- lamBody lam
-                   bodyExp'            <- translate bodyExp
-                   genName             <- prefixVar <$> freshVar
+                   xs'                  <- translate xs
+                   -- Get a FOAS representation of the lambda
+                   (boundName, sortExp) <- lamBody lam
+                   sortExp'             <- translate sortExp
 
-                   let genVar = CL.Var (T.typeOf xs') genName
-                       ss     = CP.singleGenComp bodyExp' boundVar genVar 
-                   return $ CP.let_ genName xs' (CP.sort genVar ss)
+                   let boundVar = CL.Var (T.elemT $ T.typeOf xs') boundName
+
+                   return $ CP.sort $ CP.singleGenComp (CP.pair boundVar sortExp') boundName xs'
                _ -> $impossible
 
        -- Map to a comprehension with a guard

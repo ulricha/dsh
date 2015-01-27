@@ -66,13 +66,13 @@ data Prim1 = Length
            | Last
            | Nub
            | Number
+           | Sort
            | Singleton
            | Transpose
            | Reshape Integer
     deriving (Show, Eq)
 
 data Prim2 = Group
-           | Sort
            | Restrict
            | Append
            | Index
@@ -146,6 +146,7 @@ instance Pretty Prim1 where
     pretty Last         = text "last"
     pretty Nub          = text "nub"
     pretty Number       = text "number"
+    pretty Sort         = text "sort"
     pretty Transpose    = text "transpose"
     pretty (Reshape n)  = text $ printf "reshape(%d)" n
     pretty Singleton    = text "sng"
@@ -153,7 +154,6 @@ instance Pretty Prim1 where
 
 instance Pretty Prim2 where
     pretty Group           = text "group"
-    pretty Sort            = text "sort"
     pretty Dist            = text "dist"
     pretty Restrict        = text "restrict"
     pretty Append          = text "append"

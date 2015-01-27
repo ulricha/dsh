@@ -56,9 +56,9 @@ restrict :: Expr -> Expr -> Expr
 restrict vs bs = let vst@(ListT _)     = typeOf vs
                  in AppE2 vst Restrict vs bs
 
-sort :: Expr -> Expr -> Expr
-sort vs ss = let vst@(ListT _) = typeOf vs
-             in AppE2 vst Sort vs ss
+sort :: Expr -> Expr
+sort xs = let ListT (TupleT [xt, st]) = typeOf xs
+          in AppE1 (ListT xt) Sort xs
 
 -- FIXME type is not correct
 group :: Expr -> Expr -> Expr
