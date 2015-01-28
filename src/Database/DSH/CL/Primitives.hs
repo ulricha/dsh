@@ -144,11 +144,10 @@ singleGenComp bodyExp v gen =
     let bodyTy = typeOf bodyExp
     in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
 
-group :: Expr -> Expr -> Expr
-group xs gs = let ListT xt  = typeOf xs
-                  ListT grt = typeOf gs
-                  rt        = ListT (TupleT [grt, ListT xt])
-              in AppE2 rt Group xs gs
+group :: Expr -> Expr
+group xs = let ListT (TupleT [xt, grt]) = typeOf xs
+               rt                       = ListT (TupleT [grt, ListT xt])
+           in AppE1 rt Group xs
 
 sort :: Expr -> Expr
 sort xs = let ListT (TupleT [xt, _]) = typeOf xs

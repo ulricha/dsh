@@ -183,21 +183,21 @@ sort (VShape q1 (LTuple [xl, sl])) = do
 sort _e1 = $impossible
 
 -- | The right input contains the grouping columns.
-group ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-group (VShape q1 lyt1) (VShape q2 lyt2) = do
+group ::  Shape VLDVec -> Build VL (Shape VLDVec)
+group (VShape q (LTuple [lyt1, lyt2])) = do
     let leftWidth  = columnsInLayout lyt1
         rightWidth = columnsInLayout lyt2
 
         groupExprs = map Column [leftWidth+1..leftWidth+rightWidth]
 
-    (outerVec, innerVec, propVec) <- vlGroupS groupExprs =<< vlAlign q1 q2
+    (outerVec, innerVec, propVec) <- vlGroupS groupExprs q
 
     -- Discard the grouping columns in the inner vector
     innerVec' <- vlProject (map Column [1..leftWidth]) innerVec
 
     lyt1'     <- chainReorder propVec lyt1
     return $ VShape outerVec (LTuple [lyt2, LNest innerVec' lyt1'])
-group _e1 _e2 = $impossible
+group _e1 = $impossible
 
 length_ ::  Shape VLDVec -> Build VL (Shape VLDVec)
 length_ (VShape q _) = do
@@ -205,24 +205,24 @@ length_ (VShape q _) = do
     return $ SShape v LCol
 length_ _ = $impossible
 
-restrict ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-restrict(VShape q1 lyt) (VShape q2 LCol) = do
+restrict ::  Shape VLDVec -> Build VL (Shape VLDVec)
+restrict (VShape q (LTuple [l, LCol])) = do
     -- The right input vector has only one boolean column which
     -- defines wether the tuple at the same position in the left input
     -- is preserved.
-    let leftWidth = columnsInLayout lyt
+    let leftWidth = columnsInLayout l
         predicate = Column $ leftWidth + 1
 
     -- Filter the vector according to the boolean column
-    (filteredVec, renameVec) <- vlSelect predicate =<< vlAlign q1 q2
+    (filteredVec, renameVec) <- vlSelect predicate q
 
     -- After the selection, discard the boolean column from the right
     resVec                   <- vlProject (map Column [1..leftWidth]) filteredVec
     
     -- Filter any inner vectors
-    lyt'                     <- chainRenameFilter renameVec lyt
-    return $ VShape resVec lyt'
-restrict _e1 _e2 = $impossible
+    l'                       <- chainRenameFilter renameVec l
+    return $ VShape resVec l'
+restrict _e1 = $impossible
 
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (VShape qb LCol) (VShape q1 lyt1) (VShape q2 lyt2) = do
@@ -343,12 +343,12 @@ concat _e                       = $impossible
 --------------------------------------------------------------------------------
 -- Construction of lifted primitives
 
-restrictL :: Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-restrictL (VShape qo (LNest qi lyt)) (VShape _ (LNest qb LCol)) = do
-    VShape qi' lyt' <- restrict (VShape qi lyt) (VShape qb LCol)
+restrictL :: Shape VLDVec -> Build VL (Shape VLDVec)
+restrictL (VShape qo (LNest qi lyt)) = do
+    VShape qi' lyt' <- restrict (VShape qi lyt)
     return $ VShape qo (LNest qi' lyt')
-restrictL l1                              l2                          =
-    trace (show l1 ++ " " ++ show l2) $ $impossible
+restrictL l1 =
+    trace (show l1) $ $impossible
 
 combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combineL (VShape qo (LNest qb LCol))
@@ -504,12 +504,12 @@ sortL (VShape d (LNest v1 lyt1)) = do
     return $ VShape d (LNest innerVec lyt)
 sortL _ = $impossible
 
-groupL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
-groupL (VShape _ (LNest v1 lyt1)) (VShape d2 (LNest v2 lyt2)) = do
-    let flatRes = group (VShape v1 lyt1) (VShape v2 lyt2)
+groupL ::  Shape VLDVec -> Build VL (Shape VLDVec)
+groupL (VShape qo (LNest v1 lyt1)) = do
+    let flatRes = group (VShape v1 lyt1)
     (VShape middleVec (LTuple [groupLyt, LNest innerVec innerLyt])) <- flatRes
-    return $ VShape d2 (LNest middleVec (LTuple [groupLyt, LNest innerVec innerLyt]))
-groupL _ _ = $impossible
+    return $ VShape qo (LNest middleVec (LTuple [groupLyt, LNest innerVec innerLyt]))
+groupL _ = $impossible
 
 concatL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 concatL (VShape d (LNest d' vs)) = do

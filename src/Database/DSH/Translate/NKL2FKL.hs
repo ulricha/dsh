@@ -56,14 +56,14 @@ prim1 p =
         N.Nub       -> P.nub
         N.Number    -> P.number
         N.Sort      -> P.sort
+        N.Group     -> P.group
+        N.Restrict  -> P.restrict
         N.Reshape n -> P.reshape n
         N.Transpose -> P.transpose
 
 prim2 :: N.Prim2 -> F.LExpr -> F.LExpr -> Nat -> F.LExpr
 prim2 p =
     case p of
-        N.Group        -> P.group
-        N.Restrict     -> P.restrict
         N.Append       -> P.append
         N.Index        -> P.index
         N.Zip          -> P.zip
@@ -121,11 +121,11 @@ restrictEnv env d1 bs branchExpr = mkRestrictLet env
     mkRestrictLet [] = $impossible
     mkRestrictLet (e : []) =
         P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
+               (P.restrict (P.tuple [envVar e, bs] d1) d1)
                branchExpr
     mkRestrictLet (e : (e2 : es)) = 
         P.let_ (fst e)
-               (P.restrict (envVar e) bs d1)
+               (P.restrict (P.tuple [envVar e, bs] d1) d1)
                (mkRestrictLet (e2 : es))
 
 -- | Lift all names bound in the environment: the value is replicated

@@ -67,14 +67,14 @@ data Prim1 = Length
            | Nub
            | Number
            | Sort
+           | Restrict
+           | Group
            | Singleton
            | Transpose
            | Reshape Integer
     deriving (Show, Eq)
 
-data Prim2 = Group
-           | Restrict
-           | Append
+data Prim2 = Append
            | Index
            | Zip
            | CartProduct
@@ -147,15 +147,15 @@ instance Pretty Prim1 where
     pretty Nub          = text "nub"
     pretty Number       = text "number"
     pretty Sort         = text "sort"
+    pretty Restrict     = text "restrict"
+    pretty Group        = text "group"
     pretty Transpose    = text "transpose"
     pretty (Reshape n)  = text $ printf "reshape(%d)" n
     pretty Singleton    = text "sng"
     pretty TupElem{}    = $impossible
 
 instance Pretty Prim2 where
-    pretty Group           = text "group"
     pretty Dist            = text "dist"
-    pretty Restrict        = text "restrict"
     pretty Append          = text "append"
     pretty Index           = text "index"
     pretty Zip             = text "zip"

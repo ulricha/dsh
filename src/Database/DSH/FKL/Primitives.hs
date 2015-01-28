@@ -29,13 +29,11 @@ reshape n e d =
     let t = unliftTypeN d $ typeOf e
     in PApp1 (liftTypeN d $ ListT t) (Reshape n) (LiftedN d) e
 
--- group :: [a] -> [b] -> [(b, [a])]
-group :: LExpr -> LExpr -> Nat -> LExpr
-group xs gs d =
-    let ListT xt = unliftTypeN d $ typeOf xs
-        ListT gt = unliftTypeN d $ typeOf gs
-        rt             = listT (pairT gt (listT xt))
-    in PApp2 (liftTypeN d rt) Group (LiftedN d) xs gs
+group :: LExpr -> Nat -> LExpr
+group xs d =
+    let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs
+        rt                      = listT (pairT gt (listT xt))
+    in PApp1 (liftTypeN d rt) Group (LiftedN d) xs
 
 sort :: LExpr -> Nat -> LExpr
 sort xs d =
@@ -185,10 +183,10 @@ dist e1 e2 d =
     let t1 = typeOf e1
     in PApp2 (listT t1) Dist (LiftedN d) e1 e2
 
-restrict :: LExpr -> LExpr -> Nat -> LExpr
-restrict xs bs d =
-    let xst = unliftTypeN d $ typeOf xs
-    in PApp2 (liftTypeN d xst) Restrict (LiftedN d) xs bs
+restrict :: LExpr -> Nat -> LExpr
+restrict xs d =
+    let ListT (TupleT [xt, BoolT]) = unliftTypeN d $ typeOf xs
+    in PApp1 (liftTypeN d (ListT xt)) Restrict (LiftedN d) xs
 
 -- combine :: [Bool] -> [a] -> [a] -> [a]
 combine :: LExpr -> LExpr -> LExpr -> Nat -> LExpr

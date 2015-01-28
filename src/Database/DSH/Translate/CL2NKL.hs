@@ -62,6 +62,7 @@ prim1 t p e = mkApp t <$> expr e
             CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
             CL.Sort             -> mkPrim1 NKL.Sort
+            CL.Group            -> mkPrim1 NKL.Group
             CL.Guard            -> $impossible
     
     nklNull _ ne = NKL.BinOp boolT 
@@ -87,7 +88,6 @@ prim2 t o e1 e2 = mkApp2
             CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
-            CL.Group        -> mkPrim2 $ NKL.Group
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2
@@ -298,10 +298,17 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     srcName      <- freshName
     let srcVar = NKL.Var (typeOf baseSrc) srcName
 
-    let elemType   = elemT $ typeOf baseSrc
-        filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
-        predComp   = NKL.Iterator (listT boolT) filterExpr filterName srcVar
-        filterSrc  = P.let_ srcName baseSrc (P.restrict srcVar predComp)
+    let elemTy        = elemT $ typeOf baseSrc
+        filterExpr    = substTupleAccesses visibleNames (filterName, elemTy) env p'
+
+        predTy        = listT (pairT elemTy boolT)
+        predPairConst = P.tuple [NKL.Var elemTy filterName, filterExpr]
+        -- Construct an iterator that pairs every input element with
+        -- the corresponding result of the predicate:
+        -- 
+        -- [ (x, p x) | x <- xs ]
+        predIter      = NKL.Iterator predTy predPairConst filterName srcVar
+        filterSrc     = P.restrict predIter
 
     desugarQualsRec env filterSrc qs
 
