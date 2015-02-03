@@ -23,41 +23,43 @@ import Database.HDBC.PostgreSQL
 
 -- import qualified Data.Text as T
 
--- import TPCH
-
--- data Foo = Foo { foo1 :: Integer, foo2 :: Text, foo3 :: Integer }
-
--- deriveDSH ''Foo
--- deriveTA ''Foo
--- generateTableSelectors ''Foo
+import TPCH
 
 getConn :: IO Connection
 getConn = connectPostgreSQL "user = 'au' password = 'foobar' host = 'localhost' port = '5432' dbname = 'trades'"
 
--- x100Conn :: X100Info
--- x100Conn = x100Info "localhost" "48130" Nothing
 
--- xs :: Q [(Text, [Integer])]
--- xs = toQ [("a", [10, 20]), ("b", [30, 40])]
+--------------------------------------------------------------------------------
 
--- q :: Q [[Integer]]
--- q = map snd xs
+hasNationality :: Q Customer -> Text -> Q Bool
+hasNationality c nn = 
+    or [ n_nameQ n == toQ nn && n_nationkeyQ n == c_nationkeyQ c
+       | n <- nations
+       ]
 
--- q1 :: Q [[Integer]]
--- q1 = [ nub [ l_partkeyQ l | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ]
---      | o <- orders
---      ]
+ordersOf :: Q Customer -> Q [Order]
+ordersOf c = [ o | o <- orders, o_custkeyQ o == c_custkeyQ c ]
 
--- q2 :: Q [Bool]
--- q2 = [ and [ l_commitdateQ l > o_orderdateQ o | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ]
---      | o <- orders
---      ]
+ordersWithStatus :: Text -> Q Customer -> Q [Order]
+ordersWithStatus status c =
+    [ o | o <- ordersOf c, o_orderstatusQ o == toQ status ]
 
--- q21 :: Q [(Bool,[Integer])]
--- q21 = [ pair (and [ l_commitdateQ l > o_orderdateQ o | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ])
---              (nub [ l_partkeyQ l | l <- lineitems, l_orderkeyQ l == o_orderkeyQ o ])
---      | o <- orders
---      ]
+revenue :: Q Order -> Q Double
+revenue o = sum [ l_extendedpriceQ l * (1 - l_discountQ l)
+                | l <- lineitems
+                , l_orderkeyQ l == o_orderkeyQ o
+                ]
+
+expectedRevenueFor :: Text -> Q [(Text, [(Integer, Double)])]
+expectedRevenueFor nation =
+    [ pair (c_nameQ c) [ pair (o_orderdateQ o) (revenue o)
+                       | o <- ordersWithStatus "P" c ]
+    | c <- customers
+    , c `hasNationality` nation
+    , or [ toQ True | _ <- ordersWithStatus "P" c ]
+    ]
+
+--------------------------------------------------------------------------------
 
 data Trade = Trade
     { t_amount    :: Double
@@ -105,8 +107,6 @@ bestProfit stock date trades =
            , t_tidQ t == toQ stock
            , t_tradeDateQ t == toQ date
            ]
-
----
 
 totalPrice :: Q Trade -> Q Double
 totalPrice t = t_priceQ t * t_amountQ t
