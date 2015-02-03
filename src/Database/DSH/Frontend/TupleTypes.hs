@@ -99,6 +99,14 @@ mkTupElemType maxWidth = do
 --------------------------------------------------------------------------------
 -- Translation of tuple accessors to CL
 
+-- \te e -> 
+--     case te of
+--         Tup{2}_{1} -> CP.tupElem (indIndex 1) <$> translate e
+--         Tup{2}_{k} -> CP.tupElem (indIndex k) <$> translate e
+--         Tup{3}_{1} -> CP.tupElem (indIndex 1) <$> translate e
+--         ...
+--         Tup{n}_{j} -> CP.tupElem (indIndex j) <$> translate e
+
 mkCompileMatch :: Name -> (Name, Int) -> Q Match
 mkCompileMatch exprName (con, elemIdx) = do
     let translateVar = return $ VarE $ mkName "translate"
