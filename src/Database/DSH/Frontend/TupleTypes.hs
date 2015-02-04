@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+
 -- | Generate AST types, functions and instances for tuples.
 module Database.DSH.Frontend.TupleTypes
     ( -- * Generate tuple types, functions and instances
@@ -99,6 +100,15 @@ mkTupElemType maxWidth = do
 --------------------------------------------------------------------------------
 -- Translation of tuple accessors to CL
 
+-- TupElem a b -> Exp a -> Compile CL.Expr
+-- \te e -> 
+--     case te of
+--         Tup{2}_{1} -> CP.tupElem (indIndex 1) <$> translate e
+--         Tup{2}_{k} -> CP.tupElem (indIndex k) <$> translate e
+--         Tup{3}_{1} -> CP.tupElem (indIndex 1) <$> translate e
+--         ...
+--         Tup{n}_{j} -> CP.tupElem (indIndex j) <$> translate e
+
 mkCompileMatch :: Name -> (Name, Int) -> Q Match
 mkCompileMatch exprName (con, elemIdx) = do
     let translateVar = return $ VarE $ mkName "translate"
@@ -134,7 +144,7 @@ mkReifyFun :: [Name] -> Dec
 mkReifyFun tyNames =
     let argTys         = map reifyType tyNames
         body           = AppE (ConE $ mkName "TupleT") 
-                         $ foldl' AppE (ConE $ tupTyConstName $ length tyNames) argTys
+                         $ foldl' AppE (ConE $ tupTyConstName "" $ length tyNames) argTys
     in FunD (mkName "reify") [Clause [WildP] (NormalB body) []]
 
 mkReifyInstance :: Int -> Dec
@@ -155,15 +165,15 @@ mkToExp :: Int -> [Name] -> Dec
 mkToExp width elemNames =
     let toExpVar   = VarE $ mkName "toExp"
         elemArgs   = map (\n -> AppE toExpVar (VarE n)) elemNames
-        body       = NormalB $ AppE (ConE outerConst) 
-                             $ foldl' AppE (ConE $ innerConst width) elemArgs
+        body       = NormalB $ AppE (ConE $ outerConst "") 
+                             $ foldl' AppE (ConE $ innerConst "" width) elemArgs
         tupClause  = Clause [TupP $ map VarP elemNames] body []
     in FunD (mkName "toExp") [tupClause]
 
 mkFrExp :: Int -> [Name] -> Q Dec
 mkFrExp width elemNames = do
     impossibleExpr <- [| error $(litE $ StringL $ printf "frExp %d" width) |]
-    let tupPattern       = ConP outerConst [ConP (innerConst width) (map VarP elemNames) ]
+    let tupPattern       = ConP (outerConst "") [ConP (innerConst "" width) (map VarP elemNames) ]
         tupleExpr        = TupE $ map (\n -> AppE (VarE $ mkName "frExp") (VarE n)) elemNames
         tupleClause      = Clause [tupPattern] (NormalB tupleExpr) []
         impossibleClause = Clause [WildP] (NormalB impossibleExpr) []
@@ -240,8 +250,8 @@ mkTupleConstructor width =
 
         -- Term stuff
         qPats     = map (\n -> ConP qName [VarP n]) tyNames 
-        tupConApp = foldl' AppE (ConE $ innerConst width) $ map VarE tyNames
-        bodyExp   = AppE (ConE qName) (AppE (ConE outerConst) tupConApp)
+        tupConApp = foldl' AppE (ConE $ innerConst "" width) $ map VarE tyNames
+        bodyExp   = AppE (ConE qName) (AppE (ConE $ outerConst "") tupConApp)
 
         sig       = SigD (tupConName width) funTy
         body      = FunD (tupConName width) [Clause qPats (NormalB bodyExp) []]
@@ -249,7 +259,7 @@ mkTupleConstructor width =
 
 -- | Construct smart constructors for tuple types according to the
 -- following template.
--- 
+--
 -- @
 -- tup<n> :: (QA t1, ...,QA tn) => Q t1 -> ... -> Q tn -> Q (t1, ..., tn)
 -- tup<n> (Q v1) ... (Q vn)= Q (TupleConstE (Tuple<n>E v1 ... vn))
@@ -281,12 +291,12 @@ mkTranslateTermMatch width = do
         subTermNames   = map mkName names
         transTermNames = map (mkName . (++ "'")) names
         transBinds     = zipWith mkTransBind subTermNames transTermNames
-        
+
         transTerms     = listE $ map varE transTermNames
     conStmt <- NoBindS <$> 
                [| return $ CL.MkTuple (T.TupleT $ map T.typeOf $transTerms) $transTerms |]
     let matchBody = DoE $ transBinds ++ [conStmt]
-        matchPat  = ConP (innerConst width) (map VarP subTermNames)
+        matchPat  = ConP (innerConst "" width) (map VarP subTermNames)
     return $ Match matchPat (NormalB matchBody) []
 
 -- | Generate the lambda expression that translates frontend tuple
@@ -311,7 +321,7 @@ mkTranslateTupleTerm maxWidth = do
 mkTranslateTypeMatch :: Int -> Q Match
 mkTranslateTypeMatch width = do
     let subTyNames   = map mkName $ map (\c -> [c]) $ take width ['a' .. 'z']
-        matchPat     = ConP (tupTyConstName width) (map VarP subTyNames)
+        matchPat     = ConP (tupTyConstName "" width) (map VarP subTyNames)
         transElemTys = ListE $ map (\n -> AppE (VarE $ mkName "translateType") (VarE n)) subTyNames
 
     let matchBody  = AppE (ConE 'T.TupleT) transElemTys
@@ -354,7 +364,7 @@ mkViewFun width = do
                                  [1..width] 
 
     let viewClause  = Clause [qPat] (NormalB viewBodyExp) []
-        
+
     return $ FunD (mkName "view") [viewClause]
 
 mkViewInstance :: Int -> Q Dec
@@ -388,7 +398,7 @@ mkTupleCons tupTyName conName elemTyCons width = do
         -- (t1, ..., t<n>)
         tupTy            = foldl' AppT (TupleT width)
                            $ map VarT tupElemTyNames
-    
+
         -- a ~ (t1, ..., t<n>)
         tupConstraint    = EqualP (VarT tupTyName) tupTy
 
@@ -401,7 +411,7 @@ mkTupleCons tupTyName conName elemTyCons width = do
         elemTys = [ (NotStrict, elemTyCons (VarT t))
                   | t <- tupElemTyNames
                   ]
-    
+
     return $ ForallC tyVarBinders constraints
            $ NormalC (conName width) elemTys
 
@@ -433,20 +443,20 @@ mkTupleASTTy :: Name -> (Type -> Type) -> (Int -> Name) -> Int -> Q [Dec]
 mkTupleASTTy tyName elemTyCons conName maxWidth = do
     tupTyName <- newName "a"
     cons      <- mapM (mkTupleCons tupTyName conName elemTyCons) [2..maxWidth]
-    
+
     return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
 
 -- | Generate the 'TupleConst' AST type for tuple term construction
 mkAstTupleConst :: Int -> Q [Dec]
 mkAstTupleConst maxWidth =
-    mkTupleASTTy (mkName "TupleConst") expCon innerConst maxWidth
+    mkTupleASTTy (mkName "TupleConst") expCon (innerConst "") maxWidth
   where
     expCon = AppT $ ConT $ mkName "Exp"
 
 -- | Generate the 'TupleConst' AST type for tuple term construction
 mkAstTupleType :: Int -> Q [Dec]
 mkAstTupleType maxWidth =
-    mkTupleASTTy (mkName "TupleType") expCon tupTyConstName maxWidth
+    mkTupleASTTy (mkName "TupleType") expCon (tupTyConstName "") maxWidth
   where
     expCon = AppT $ ConT $ mkName "Type"
 
@@ -460,12 +470,14 @@ mkTupleAstComponents maxWidth = (++) <$> mkAstTupleConst maxWidth <*> mkAstTuple
 
 -- | The name of the constructor that constructs a tuple construction
 -- term.
-outerConst :: Name
-outerConst = mkName "TupleConstE"
+outerConst :: String -> Name
+outerConst "" = mkName "TupleConstE"
+outerConst m  = mkName $ printf "%s.TupleConstE" m
 
 -- | The name of the constructor for a given tuple width.
-innerConst :: Int -> Name
-innerConst width = mkName $ printf "Tuple%dE" width
+innerConst :: String -> Int -> Name
+innerConst "" width = mkName $ printf "Tuple%dE" width
+innerConst m  width = mkName $ printf "%s.Tuple%dE" m width
 
 -- | The name of a tuple access constructor for a given tuple width
 -- and element index.
@@ -473,8 +485,9 @@ tupAccName :: Int -> Int -> Name
 tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
     
 -- | The name of the tuple type constructor for a given tuple width.
-tupTyConstName :: Int -> Name
-tupTyConstName width = mkName $ printf "Tuple%dT" width
+tupTyConstName :: String -> Int -> Name
+tupTyConstName "" width = mkName $ printf "Tuple%dT" width
+tupTyConstName m  width = mkName $ printf "%s.Tuple%dT" m width
 
 -- |
 tupleType :: [Type] -> Type
@@ -495,5 +508,5 @@ mkTupElemTerm width idx arg = do
 mkTupConstTerm :: [Exp] -> Q Exp
 mkTupConstTerm ts 
     | length ts <= 16 = return $ AppE (ConE $ mkName "TupleConstE") 
-                               $ foldl' AppE (ConE $ innerConst $ length ts) ts
+                               $ foldl' AppE (ConE $ innerConst "" $ length ts) ts
     | otherwise       = impossible

@@ -458,38 +458,40 @@ bQ :: Q R -> Q Text
 bQ (view -> (_, b)) = b
 
 -}
-  
+
 -- | Create lifted record selectors
 generateTableSelectors :: Name -> Q [Dec]
 generateTableSelectors name = do
   info <- reify name
   case info of
-    TyConI (DataD _ typName [] [RecC _ fields] _) -> concat <$> mapM instSelectors fields
+    TyConI (DataD _ typName [] [RecC _ fields] _) ->
+        concat <$> mapM instSelectors fields
       where fieldNames    = map (\(f, _, _) -> f) fields
             instSelectors = generateTableSelector typName fieldNames
     _ -> fail errMsgBaseRecCons
-    
+
 generateTableSelector :: Name -> [Name] -> VarStrictType -> Q [Dec]
 generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
   let selName = case fieldName of
                   Name (OccName n) _ -> mkName $ n ++ "Q"
-  
-  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName))) (AppT (ConT ''DSH.Q) typ)
+
+  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName))) 
+                     (AppT (ConT ''DSH.Q) typ)
       sigDec  = SigD selName selType
-  
+
   fieldVarName <- newName "x"
   let projectField f | f == fieldName = VarP fieldVarName
       projectField _                  = WildP
-  
+
       tupPat   = map projectField allFieldNames
 
       argPat   = ViewP (VarE 'DSH.view) (TupP tupPat)
-      
+
       bodyExp  = NormalB $ VarE fieldVarName
-      
+
       funDec   = FunD selName [Clause [argPat] bodyExp []]
-      
-  
+
+
   return [sigDec, funDec]
 
 -- Helper Functions
@@ -501,7 +503,8 @@ generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
 -- TupleE (Tuple3E a b) -> ...
 -- @
 mkTuplePat :: [Name] -> Pat
-mkTuplePat names = ConP 'DSH.TupleConstE [ConP (innerConst $ length names) (map VarP names)]
+mkTuplePat names = ConP 'DSH.TupleConstE 
+                        [ConP (innerConst "" $ length names) (map VarP names)]
 
 -- | Generate a (flat) tuple type from the list of element types.
 mkTupleType :: [Type] -> Type
@@ -533,10 +536,10 @@ conToPattern (InfixC st1 name st2) = do
 conToPattern (ForallC _tyVarBndr _cxt con) = conToPattern con
 
 conToName :: Con -> Name
-conToName (NormalC name _) = name
-conToName (RecC name _) = name
+conToName (NormalC name _)  = name
+conToName (RecC name _)     = name
 conToName (InfixC _ name _) = name
-conToName (ForallC _ _ con)	= conToName con
+conToName (ForallC _ _ con) = conToName con
 
 countConstructors :: Name -> Q Int
 countConstructors name = do

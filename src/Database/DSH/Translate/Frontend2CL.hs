@@ -5,7 +5,7 @@
 
 -- | Translate DSH frontend expressions (implicitly typed through
 -- GADT) into explicitly typed DSH backend expressions.
-module Database.DSH.Translate.Frontend2CL (toComprehensions) where
+module Database.DSH.Translate.Frontend2CL (toComprehensions, TableInfo) where
 
 import           Database.DSH.Impossible
 
@@ -18,6 +18,7 @@ import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
+import           Database.DSH.Execute.Backend
 
 import qualified Data.Map                        as M
 
@@ -29,40 +30,34 @@ import           Text.Printf
 
 import           GHC.Exts                        (sortWith)
 
--- | For each column, we need the name of the column, a string
--- description of the type for error messsages and a function to check
--- a DSH base type for compability with the column.
-type TableInfo = [(String, String, (T.Type -> Bool))]
-
 type TableInfoCache = M.Map String TableInfo
 
 type QueryTableInfo = String -> IO TableInfo
 
 -- In the state, we store a counter for fresh variable names, the
--- cache for table information and the backend-specific IO function
--- that retrieves not-yet-cached table information.
-type CompileState = (Integer, TableInfoCache, QueryTableInfo)
+-- cache for table information and the backend connection 'c'.
+type CompileState c = (Integer, TableInfoCache, c)
 
 -- | The Compile monad provides fresh variable names, allows to
 -- retrieve information about tables from the database backend and
 -- caches table information.
-type Compile = StateT  CompileState IO
+type Compile c = StateT (CompileState c) IO
 
 -- | Lookup information that describes a table. If the information is
 -- not present in the state then the connection is used to retrieve
 -- the table information from the Database.
-tableInfo :: String -> Compile TableInfo
+tableInfo :: Backend c => String -> Compile c TableInfo
 tableInfo tableName = do
-    (i, env, f) <- get
+    (i, env, conn) <- get
     case M.lookup tableName env of
         Nothing -> do
-            inf <- getTableInfoFun tableName
-            put (i, M.insert tableName inf env, f)
+            inf <- lift $ querySchema conn tableName
+            put (i, M.insert tableName inf env, conn)
             return inf
         Just v -> return v
 
 -- | Provide a fresh identifier name during compilation
-freshVar :: Compile Integer
+freshVar :: Compile c Integer
 freshVar = do
     (i, m, f) <- get
     put (i + 1, m, f)
@@ -71,32 +66,31 @@ freshVar = do
 prefixVar :: Integer -> String
 prefixVar i = "v" ++ show i
 
-getTableInfoFun :: String -> Compile TableInfo
-getTableInfoFun tableName = do
-    (_, _, queryTableInfo) <- get
-    lift $ queryTableInfo tableName
-
 -- | Translate a DSH frontend expression into the internal
 -- comprehension-based language. 'queryTableInfo' abstracts asking a
 -- database for information about tables, which might be performed
 -- using one of the existing backends (X100, SQL).
-toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
-toComprehensions queryTableInfo e = runCompile queryTableInfo $ translate e
+
+-- toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
+-- toComprehensions queryTableInfo e = runCompile queryTableInfo $ translate e
+
+toComprehensions :: Backend c => c -> Exp a -> IO CL.Expr
+toComprehensions = undefined
 
 -- | Execute the transformation computation. During compilation table
 -- information can be retrieved from the database, therefore the result
 -- is wrapped in the IO Monad.
-runCompile :: QueryTableInfo -> Compile a -> IO a
-runCompile f = liftM fst . flip runStateT (1, M.empty, f)
+runCompile :: Backend c => c -> Compile c a -> IO a
+runCompile conn = liftM fst . flip runStateT (1, M.empty, conn)
 
-lamBody :: forall a b.(Reify a, Reify b) => (Exp a -> Exp b) -> Compile (L.Ident, Exp b)
+lamBody :: forall a b c.(Reify a, Reify b) => (Exp a -> Exp b) -> Compile c (L.Ident, Exp b)
 lamBody f = do
     v <- freshVar
     return (prefixVar v, f (VarE v :: Exp a))
 
 -- | Translate a frontend HOAS AST to a FOAS AST in Comprehension
 -- Language (CL).
-translate :: forall a. Exp a -> Compile CL.Expr
+translate :: forall a c. Backend c => Exp a -> Compile c CL.Expr
 translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
                              in translateTupleConst tc
 translate UnitE = return $ CP.unit
@@ -130,7 +124,8 @@ translate (TableE (TableDB tableName hints)) = do
     -- order.
     tableDescr <- sortWith (\(n, _, _) -> n) <$> tableInfo tableName
 
-    let tableTypeError = printf "DSH type and type of table %s are incompatible:\nDSH: %s\nDatabase: %s"
+    let tableTypeError = printf ("DSH type and type of table %s are incompatible:"
+                                 ++ "\nDSH: %s\nDatabase: %s")
                                 tableName
                                 (show ts)
                                 (show $ map (\(n, t, _) -> (n, t)) tableDescr)
@@ -166,15 +161,23 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
     ne PossiblyEmpty = L.PossiblyEmpty
 
 
-translateApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b, c) -> Compile CL.Expr
-translateApp3 f (TupleConstE (Tuple3E e1 e2 e3)) = f <$> translate e1 <*> translate e2 <*> translate e3
+translateApp3 :: Backend d
+              => (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr)
+              -> Exp (a, b, c)
+              -> Compile d CL.Expr
+translateApp3 f (TupleConstE (Tuple3E e1 e2 e3)) =
+    f <$> translate e1 <*> translate e2 <*> translate e3
 translateApp3 _ _ = $impossible
 
-translateApp2 :: (CL.Expr -> CL.Expr -> CL.Expr) -> Exp (a, b) -> Compile CL.Expr
-translateApp2 f (TupleConstE (Tuple2E e1 e2)) = f <$> translate e1 <*> translate e2
+translateApp2 :: Backend c
+              => (CL.Expr -> CL.Expr -> CL.Expr)
+              -> Exp (a, b)
+              -> Compile c CL.Expr
+translateApp2 f (TupleConstE (Tuple2E e1 e2)) =
+    f <$> translate e1 <*> translate e2
 translateApp2 _ _ = $impossible
 
-translateApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
+translateApp1 :: Backend c => (CL.Expr -> CL.Expr) -> Exp a -> Compile c CL.Expr
 translateApp1 f e = f <$> translate e
 
 -- | Translate DSH frontend types into backend types.
@@ -188,17 +191,17 @@ translateType TextT          = T.stringT
 translateType (ListT t)      = T.listT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
-translateType (ArrowT t1 t2) = $impossible
+translateType (ArrowT _ _)   = $impossible
 
 -- | From the type of a table (a list of base records represented as
 -- right-deep nested tuples) extract the types of the individual
 -- fields.
 
-translateApp :: Fun a b -> Exp a -> Compile CL.Expr
+translateApp :: Backend c => Fun a b -> Exp a -> Compile c CL.Expr
 translateApp f args =
     case f of
        -- Builtin functions with arity three
-       Cond -> translateApp3 CP.cond args
+       Cond         -> translateApp3 CP.cond args
 
        -- Builtin functions with arity two
        Add          -> translateApp2 CP.add args
@@ -210,7 +213,7 @@ translateApp f args =
        Cons         -> translateApp2 CP.cons args
 
        -- Map to a comprehension
-       Map          -> 
+       Map          ->
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
@@ -220,7 +223,7 @@ translateApp f args =
                _ -> $impossible
 
        -- Map to a comprehension and concat
-       ConcatMap    -> 
+       ConcatMap    ->
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
@@ -228,9 +231,9 @@ translateApp f args =
                    bodyExp'            <- translate bodyExp
                    return $ CP.concat $ CP.singleGenComp bodyExp' boundVar xs'
                _ -> $impossible
-               
+
        -- Map to a first-order combinator 'sort'
-       SortWith     -> 
+       SortWith     ->
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs
@@ -244,7 +247,7 @@ translateApp f args =
                _ -> $impossible
 
        -- Map to a comprehension with a guard
-       Filter       -> 
+       Filter       ->
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                 <- translate xs

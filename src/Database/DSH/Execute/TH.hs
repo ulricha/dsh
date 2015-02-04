@@ -56,7 +56,7 @@ mkExecTupleMatch width = do
 
     -- '([lyt1, ..., lyt<n>], Tuple<n>T ty1 ... ty<n>)'
     let pat = TupP [ ListP $ map VarP lytNames
-                   , ConP (tupTyConstName width) (map VarP tyNames)
+                   , ConP (tupTyConstName "F" width) (map VarP tyNames)
                    ]
 
     -- 'return $ TTuple $ TTuple<n> ty lyt1 ... lyt<n>'
@@ -238,8 +238,8 @@ mkConstructTupleMatch rowName width = do
         resultElemExps = [ AppE (AppE constructFun (VarE l)) (VarE rowName)
                          | l <- lytNames
                          ]
-        resultValExp   = AppE (ConE outerConst) 
-                              (foldl' AppE (ConE $ innerConst width) resultElemExps)
+        resultValExp   = AppE (ConE $ mkName "F.TupleConstE") 
+                              (foldl' AppE (ConE $ innerConst "F" width) resultElemExps)
 
     return $ Match tuplePat (NormalB resultValExp) []
 

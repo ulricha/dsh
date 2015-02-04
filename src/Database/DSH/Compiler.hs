@@ -1,34 +1,38 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
   ( -- * Executing queries
-    runQX100
-  , runQ
-    -- * Debug functions
-  , debugQ
-  , debugQX100
-  , debugVL
-  , debugVLOpt
-  , debugX100VL
-  , debugX100VLOpt
-  , debugX100
-  , debugX100Opt
-  , debugTA
-  , debugTAOpt
-  , runPrint
+    runQ
+  --   runQX100
+  -- , runQ
+  --   -- * Debug functions
+  -- , debugQ
+  -- , debugQX100
+  -- , debugVL
+  -- , debugVLOpt
+  -- , debugX100VL
+  -- , debugX100VLOpt
+  -- , debugX100
+  -- , debugX100Opt
+  -- , debugTA
+  -- , debugTAOpt
+  -- , runPrint
   ) where
 
 import           Control.Applicative
 import           Control.Arrow
 
-import qualified Database.HDBC.PostgreSQL                 as H
+-- import qualified Database.HDBC.PostgreSQL                 as H
 
-import           Database.X100Client                      hiding (X100, tableName)
+-- import           Database.X100Client                      hiding (X100, tableName)
 
 import           Database.DSH.Translate.Frontend2CL
-import           Database.DSH.Execute.Sql
-import           Database.DSH.Execute.X100
+-- import           Database.DSH.Execute.Sql
+-- import           Database.DSH.Execute.X100
 
 import qualified Database.DSH.VL.Lang                     as VL
 import           Database.DSH.VL.Vector
@@ -36,21 +40,40 @@ import           Database.DSH.NKL.Rewrite
 import qualified Database.DSH.CL.Lang                     as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.Export
+-- import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
-import           Database.DSH.Optimizer.TA.OptimizeTA
-import           Database.DSH.Optimizer.VL.OptimizeVL
-import           Database.DSH.Optimizer.X100.OptimizeX100
-import           Database.DSH.Frontend.Schema
-import           Database.DSH.Translate.Algebra2Query
+-- import           Database.DSH.Optimizer.TA.OptimizeTA
+-- import           Database.DSH.Optimizer.VL.OptimizeVL
+-- import           Database.DSH.Optimizer.X100.OptimizeX100
+-- import           Database.DSH.Frontend.Schema
+-- import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
-import           Database.DSH.Translate.VL2Algebra
+-- import           Database.DSH.Translate.VL2Algebra
+import           Database.DSH.Execute.Backend
+
+--------------------------------------------------------------------------------
+
+runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
+runQ c (Q q) = do
+    let ty = reify (undefined :: Rep a)
+    cl <- toComprehensions c q
+    let vl = backendIndependent cl
+    let bc = generateCode vl
+    frExp <$> execQueryBundle c bc ty
+
+backendIndependent :: CL.Expr -> QueryPlan VL.VL VLDVec
+backendIndependent = optimizeComprehensions >>> 
+                     desugarComprehensions  >>> 
+                     optimizeNKL            >>> 
+                     flatTransform          >>> 
+                     specializeVectorOps
 
 --------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline
 
+{-
 -- | Backend-agnostic part of the pipeline.
 commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
 commonPipeline =
@@ -125,19 +148,6 @@ runQX100 conn (Q q) = do
     q' <- toComprehensions (getX100TableInfo conn) q
     let x100QueryBundle = nkl2X100Alg q'
     frExp <$> executeX100 (X100Backend conn) x100QueryBundle ty
-
-toComprehensions :: Backend c => c -> Q a -> IO CL.Expr
-toComprehensions = undefined
-
-CL.Expr -> Shape (BackendCode c)
-FKL.Expr -> Shape (BackendCode c)
-
-runQ :: (Backend c, QA) a => c -> Q a -> IO a
-runQ conn (Q q) = do
-    let ty = reify (undefined :: a)
-    q' <- toComprehensions conn q
-    let queryBundle = 
-    frExp <$> executeBundle conn queryBundle ty
 
 -- | Run a query on a SQL backend
 runQ :: QA a => H.Connection -> Q a -> IO a
@@ -220,3 +230,4 @@ debugQX100 prefix conn q = do
 runPrint :: (Show a, QA a) => H.Connection -> Q a -> IO ()
 runPrint conn q = (show <$> runQ conn q) >>= putStrLn
 
+-}

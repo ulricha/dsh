@@ -271,5 +271,3 @@ instance Typed Expr where
     typeOf (Comp t _ _)    = t
     typeOf (MkTuple t _)   = t
     typeOf (Let t _ _ _)   = t
-
-
