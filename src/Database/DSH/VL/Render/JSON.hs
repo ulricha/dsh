@@ -18,17 +18,22 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.VL.Lang
 
-data Plan = Plan { tags :: [(AlgNode, [Tag])]
-                 , roots :: [AlgNode]
-                 , graph :: [(AlgNode, VL)]
-                 }
+data Plan = Plan
+    { tags :: [(AlgNode, [Tag])]
+    , roots :: [AlgNode]
+    , graph :: [(AlgNode, VL)]
+    }
 
 $(deriveJSON defaultOptions ''Plan)
 
 serializePlan :: (NodeMap [Tag], [AlgNode], NodeMap VL) -> BL.ByteString
-serializePlan (ts, rs, g) = let tags' = M.toList ts
-                                graph' = M.toList g
-                             in encode $ Plan {tags = tags', roots = rs, graph = graph'}
+serializePlan (ts, rs, g) = encode $ Plan { tags = tags'
+                                          , roots = rs
+                                          , graph = graph'
+                                          }
+  where
+    tags' = M.toList ts
+    graph' = M.toList g
 
 deserializePlan :: BL.ByteString -> (NodeMap [Tag], [AlgNode], NodeMap VL)
 deserializePlan s = let Just (Plan ts rs g) = decode s

@@ -1,60 +1,37 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ExplicitForAll      #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 -- | Compilation, execution and introspection of queries
 module Database.DSH.Compiler
   ( -- * Executing queries
     runQ
-  --   runQX100
-  -- , runQ
-  --   -- * Debug functions
-  -- , debugQ
-  -- , debugQX100
-  -- , debugVL
-  -- , debugVLOpt
-  -- , debugX100VL
-  -- , debugX100VLOpt
-  -- , debugX100
-  -- , debugX100Opt
-  -- , debugTA
-  -- , debugTAOpt
-  -- , runPrint
+  , debugQ
   ) where
 
 import           Control.Applicative
 import           Control.Arrow
 
--- import qualified Database.HDBC.PostgreSQL                 as H
-
--- import           Database.X100Client                      hiding (X100, tableName)
-
 import           Database.DSH.Translate.Frontend2CL
--- import           Database.DSH.Execute.Sql
--- import           Database.DSH.Execute.X100
 
-import qualified Database.DSH.VL.Lang                     as VL
-import           Database.DSH.VL.Vector
-import           Database.DSH.NKL.Rewrite
-import qualified Database.DSH.CL.Lang                     as CL
+import           Database.DSH.Backend
+import qualified Database.DSH.CL.Lang               as CL
 import           Database.DSH.CL.Opt
 import           Database.DSH.Common.QueryPlan
--- import           Database.DSH.Export
+import           Database.DSH.Execute
 import           Database.DSH.Frontend.Internals
--- import           Database.DSH.Backend.Sql.Opt.OptimizeTA
-import           Database.DSH.VL.Opt.OptimizeVL
--- import           Database.DSH.Backend.X100.Opt.OptimizeX100
--- import           Database.DSH.Frontend.Schema
--- import           Database.DSH.Translate.Algebra2Query
+import           Database.DSH.NKL.Rewrite
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
--- import           Database.DSH.Translate.VL2Algebra
-import           Database.DSH.Backend
-import           Database.DSH.Execute
+import qualified Database.DSH.VL.Lang               as VL
+import           Database.DSH.VL.Opt.OptimizeVL
+import           Database.DSH.VL.Vector
 
 --------------------------------------------------------------------------------
+
+debugQ = undefined
 
 runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
 runQ c (Q q) = do

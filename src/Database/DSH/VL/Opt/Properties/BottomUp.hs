@@ -7,7 +7,7 @@ import Database.Algebra.Dag.Common
 
 import Database.DSH.VL.Lang
 import Database.DSH.Common.Opt
-import Database.DSH.Common.Opt
+
 import Database.DSH.VL.Opt.Properties.Card
 import Database.DSH.VL.Opt.Properties.Const
 import Database.DSH.VL.Opt.Properties.Empty
