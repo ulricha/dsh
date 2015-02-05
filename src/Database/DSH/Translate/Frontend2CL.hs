@@ -18,7 +18,7 @@ import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
-import           Database.DSH.Execute.Backend
+import           Database.DSH.Backend
 
 import qualified Data.Map                        as M
 

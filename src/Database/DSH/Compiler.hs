@@ -42,16 +42,17 @@ import           Database.DSH.CL.Opt
 import           Database.DSH.Common.QueryPlan
 -- import           Database.DSH.Export
 import           Database.DSH.Frontend.Internals
--- import           Database.DSH.Optimizer.TA.OptimizeTA
--- import           Database.DSH.Optimizer.VL.OptimizeVL
--- import           Database.DSH.Optimizer.X100.OptimizeX100
+-- import           Database.DSH.Backend.Sql.Opt.OptimizeTA
+import           Database.DSH.VL.Opt.OptimizeVL
+-- import           Database.DSH.Backend.X100.Opt.OptimizeX100
 -- import           Database.DSH.Frontend.Schema
 -- import           Database.DSH.Translate.Algebra2Query
 import           Database.DSH.Translate.CL2NKL
 import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 -- import           Database.DSH.Translate.VL2Algebra
-import           Database.DSH.Execute.Backend
+import           Database.DSH.Backend
+import           Database.DSH.Execute
 
 --------------------------------------------------------------------------------
 
@@ -59,16 +60,17 @@ runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
     cl <- toComprehensions c q
-    let vl = backendIndependent cl
+    let vl = compileQ cl
     let bc = generateCode vl
     frExp <$> execQueryBundle c bc ty
 
-backendIndependent :: CL.Expr -> QueryPlan VL.VL VLDVec
-backendIndependent = optimizeComprehensions >>> 
-                     desugarComprehensions  >>> 
-                     optimizeNKL            >>> 
-                     flatTransform          >>> 
-                     specializeVectorOps
+compileQ :: CL.Expr -> QueryPlan VL.VL VLDVec
+compileQ = optimizeComprehensions >>>
+           desugarComprehensions  >>>
+           optimizeNKL            >>>
+           flatTransform          >>>
+           specializeVectorOps    >>>
+           optimizeVLDefault
 
 --------------------------------------------------------------------------------
 -- Different versions of the flattening compiler pipeline

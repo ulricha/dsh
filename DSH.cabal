@@ -115,9 +115,11 @@ Library
                      Database.DSH.Frontend.Funs
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
-                     Database.DSH.Execute.Sql
-                     Database.DSH.Execute.X100
-                     Database.DSH.Execute.Backend
+                     Database.DSH.Backend.Sql
+                     Database.DSH.Backend.X100
+                     Database.DSH.Backend
+                     Database.DSH.Execute
+
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.Type
@@ -125,6 +127,8 @@ Library
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
+                     Database.DSH.Common.Opt
+
                      Database.DSH.Export
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure
@@ -151,7 +155,6 @@ Library
                      Database.DSH.NKL.Kure
                      Database.DSH.NKL.Rewrite
                      Database.DSH.NKL.Primitives
-                     Database.DSH.Translate.Algebra2Query
                      Database.DSH.Translate.CL2NKL
                      Database.DSH.Translate.FKL2VL
                      Database.DSH.Translate.NKL2FKL
@@ -162,67 +165,63 @@ Library
                      Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
-                     Database.DSH.VL.VectorAlgebra.TA
-                     Database.DSH.VL.VectorAlgebra.X100
+                     Database.DSH.Backend.Sql.VectorAlgebra
+                     Database.DSH.Backend.X100.VectorAlgebra
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives
 
                      Database.DSH.Impossible
 
-                     Database.DSH.Optimizer.Common.Auxiliary
-                     Database.DSH.Optimizer.Common.Rewrite
+                     Database.DSH.VL.Opt.Properties.BottomUp
+                     Database.DSH.VL.Opt.Properties.Card
+                     Database.DSH.VL.Opt.Properties.Common
+                     Database.DSH.VL.Opt.Properties.Const
+                     Database.DSH.VL.Opt.Properties.Empty
+                     Database.DSH.VL.Opt.Properties.NonEmpty
+                     Database.DSH.VL.Opt.Properties.ReqColumns
+                     Database.DSH.VL.Opt.Properties.TopDown
+                     Database.DSH.VL.Opt.Properties.Types
+                     Database.DSH.VL.Opt.Properties.VectorType
+                     Database.DSH.VL.Opt.OptimizeVL
+                     Database.DSH.VL.Opt.Rewrite.Common
+                     Database.DSH.VL.Opt.Rewrite.Expressions
+                     Database.DSH.VL.Opt.Rewrite.PruneEmpty
+                     Database.DSH.VL.Opt.Rewrite.Redundant
+                     Database.DSH.VL.Opt.Rewrite.Aggregation
+                     Database.DSH.VL.Opt.Rewrite.Window
+                     Database.DSH.VL.Opt.Rewrite.Unused
 
-                     Database.DSH.Optimizer.VL.Properties.BottomUp
-                     Database.DSH.Optimizer.VL.Properties.Card
-                     Database.DSH.Optimizer.VL.Properties.Common
-                     Database.DSH.Optimizer.VL.Properties.Const
-                     Database.DSH.Optimizer.VL.Properties.Empty
-                     Database.DSH.Optimizer.VL.Properties.NonEmpty
-                     Database.DSH.Optimizer.VL.Properties.ReqColumns
-                     Database.DSH.Optimizer.VL.Properties.TopDown
-                     Database.DSH.Optimizer.VL.Properties.Types
-                     Database.DSH.Optimizer.VL.Properties.VectorType
+                     Database.DSH.Backend.X100.Opt.OptimizeX100
+                     Database.DSH.Backend.X100.Opt.Rewrite.Common
+                     Database.DSH.Backend.X100.Opt.Rewrite.Project
 
-                     Database.DSH.Optimizer.X100.OptimizeX100
-                     Database.DSH.Optimizer.X100.Rewrite.Common
-                     Database.DSH.Optimizer.X100.Rewrite.Project
+                     Database.DSH.Backend.Sql.Opt.Properties.BottomUp
+                     Database.DSH.Backend.Sql.Opt.Properties.TopDown
+                     Database.DSH.Backend.Sql.Opt.Properties.Types
+                     Database.DSH.Backend.Sql.Opt.Properties.Cols
+                     Database.DSH.Backend.Sql.Opt.Properties.ICols
+                     Database.DSH.Backend.Sql.Opt.Properties.Use
+                     Database.DSH.Backend.Sql.Opt.Properties.Auxiliary
+                     Database.DSH.Backend.Sql.Opt.Properties.Empty
+                     Database.DSH.Backend.Sql.Opt.Properties.Card1
+                     Database.DSH.Backend.Sql.Opt.Properties.Keys
+                     Database.DSH.Backend.Sql.Opt.Properties.Order
+                     Database.DSH.Backend.Sql.Opt.Properties.Const
+                     Database.DSH.Backend.Sql.Opt.Rewrite.Basic
+                     Database.DSH.Backend.Sql.Opt.Rewrite.Common
+                     Database.DSH.Backend.Sql.Opt.OptimizeTA
 
-                     Database.DSH.Optimizer.TA.Properties.BottomUp
-                     Database.DSH.Optimizer.TA.Properties.TopDown
-                     Database.DSH.Optimizer.TA.Properties.Types
-                     Database.DSH.Optimizer.TA.Properties.Cols
-                     Database.DSH.Optimizer.TA.Properties.ICols
-                     Database.DSH.Optimizer.TA.Properties.Use
-                     Database.DSH.Optimizer.TA.Properties.Auxiliary
-                     Database.DSH.Optimizer.TA.Properties.Empty
-                     Database.DSH.Optimizer.TA.Properties.Card1
-                     Database.DSH.Optimizer.TA.Properties.Keys
-                     Database.DSH.Optimizer.TA.Properties.Order
-                     Database.DSH.Optimizer.TA.Properties.Const
-                     Database.DSH.Optimizer.TA.Rewrite.Basic
-                     Database.DSH.Optimizer.TA.Rewrite.Common
-                     Database.DSH.Optimizer.TA.OptimizeTA
-		     
-                     Database.DSH.Optimizer.Common.Rewrite
-                     Database.DSH.Optimizer.VL.OptimizeVL
-                     Database.DSH.Optimizer.VL.Rewrite.Common
-                     Database.DSH.Optimizer.VL.Rewrite.Expressions
-                     Database.DSH.Optimizer.VL.Rewrite.PruneEmpty
-                     Database.DSH.Optimizer.VL.Rewrite.Redundant
-                     Database.DSH.Optimizer.VL.Rewrite.Aggregation
-                     Database.DSH.Optimizer.VL.Rewrite.Window
-                     Database.DSH.Optimizer.VL.Rewrite.Unused
 
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base                >= 4.7 && < 5, 
-                      mtl                 >= 2.1, 
-                      pretty              >= 1.1, 
-                      aeson               >= 0.8, 
+    build-depends:    base                >= 4.7 && < 5,
+                      mtl                 >= 2.1,
+                      pretty              >= 1.1,
+                      aeson               >= 0.8,
                       containers          >= 0.5,
-                      template-haskell    >= 2.9, 
+                      template-haskell    >= 2.9,
                       bytestring          >= 0.10,
                       ansi-wl-pprint      >= 0.6,
                       semigroups          >= 0.16,

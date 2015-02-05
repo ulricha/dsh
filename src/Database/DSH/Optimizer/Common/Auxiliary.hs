@@ -1,4 +1,4 @@
-module Database.DSH.Optimizer.Common.Auxiliary where
+module Database.DSH.Common.Opt where
 
 import qualified Data.IntMap as M
 

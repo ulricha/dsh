@@ -1,4 +1,4 @@
-module Database.DSH.Optimizer.Common.Rewrite
+module Database.DSH.Common.Opt
   ( module Database.Algebra.Rewrite.Match
   , module Database.Algebra.Rewrite.PatternConstruction
   , module Database.Algebra.Rewrite.Properties

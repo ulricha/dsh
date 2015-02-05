@@ -2,14 +2,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Database.DSH.Translate.VL2Algebra
-    ( implementVectorOpsX100
-    , implementVectorOpsPF
+    ( VecBuild
+    , runVecBuild
+    , vl2Algebra
     ) where
 
 import qualified Data.IntMap                          as IM
 import           Data.List
 import qualified Data.Map                             as M
-import           Data.Maybe
 
 import           Control.Applicative
 import           Control.Monad.State
@@ -17,8 +17,6 @@ import           Control.Monad.State
 import qualified Database.Algebra.Dag                 as D
 import qualified Database.Algebra.Dag.Build           as B
 import           Database.Algebra.Dag.Common
-import qualified Database.Algebra.Table.Lang          as TA
-import           Database.Algebra.X100.Data           (X100Algebra)
 
 import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
@@ -26,8 +24,6 @@ import           Database.DSH.Translate.FKL2VL        ()
 import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.VectorAlgebra
-import           Database.DSH.VL.VectorAlgebra.TA     ()
-import           Database.DSH.VL.VectorAlgebra.X100   ()
 
 -- | A layer on top of the DAG builder monad that caches the
 -- translation result of VL nodes.
@@ -310,80 +306,3 @@ translateNullary :: VectorAlgebra v a => V.NullOp -> B.Build a (Res v)
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
-
--- | Insert SerializeRel operators in TA.TableAlgebra plans to define
--- descr and order columns as well as the required payload columns.
--- FIXME: once we are a bit more flexible wrt surrogates, determine the
--- surrogate (i.e. descr) columns from information in NDVec.
-insertSerialize :: VecBuild TA.TableAlgebra NDVec (Shape NDVec) 
-                -> VecBuild TA.TableAlgebra NDVec (Shape NDVec)
-insertSerialize g = g >>= traverseShape
-
-  where
-    traverseShape :: Shape NDVec -> VecBuild TA.TableAlgebra NDVec (Shape NDVec)
-    traverseShape (VShape dvec lyt) = do
-        mLyt' <- traverseLayout lyt
-        case mLyt' of
-            Just lyt' -> do
-                dvec' <- insertOp dvec noDescr needAbsPos
-                return $ VShape dvec' lyt'
-            Nothing   -> do
-                dvec' <- insertOp dvec noDescr needRelPos
-                return $ VShape dvec' lyt
-
-    traverseShape (SShape dvec lyt)     = do
-        mLyt' <- traverseLayout lyt
-        case mLyt' of
-            Just lyt' -> do
-                dvec' <- insertOp dvec noDescr needAbsPos
-                return $ SShape dvec' lyt'
-            Nothing   -> do
-                dvec' <- insertOp dvec noDescr noPos
-                return $ SShape dvec' lyt
-
-    traverseLayout :: (Layout NDVec) -> VecBuild TA.TableAlgebra NDVec (Maybe (Layout NDVec))
-    traverseLayout LCol          = return Nothing
-    traverseLayout (LTuple lyts) = do
-        mLyts <- mapM traverseLayout lyts
-        if all isNothing mLyts
-            then return Nothing
-            else return $ Just $ LTuple $ zipWith (\l ml -> maybe l id ml) lyts mLyts
-    traverseLayout (LNest dvec lyt) = do
-        mLyt' <- traverseLayout lyt
-        case mLyt' of
-            Just lyt' -> do
-                dvec' <- insertOp dvec needDescr needAbsPos
-                return $ Just $ LNest dvec' lyt'
-            Nothing   -> do
-                dvec' <- insertOp dvec needDescr needRelPos
-                return $ Just $ LNest dvec' lyt
-
-
-    -- | Insert a Serialize node for the given vector
-    insertOp :: NDVec -> Maybe TA.DescrCol -> TA.SerializeOrder -> VecBuild TA.TableAlgebra NDVec NDVec
-    insertOp (ADVec q cols) descr pos = do
-        let cs = map (TA.PayloadCol . ("item" ++) . show) cols
-            op = TA.Serialize (descr, pos, cs)
-
-        qp   <- lift $ B.insert $ UnOp op q
-        return $ ADVec qp cols
-
-    needDescr = Just (TA.DescrCol "descr")
-    noDescr   = Nothing
-
-    needAbsPos = TA.AbsPos "pos"
-    needRelPos = TA.RelPos ["pos"]
-    noPos      = TA.NoPos
-
-implementVectorOpsX100 :: QueryPlan V.VL VLDVec -> QueryPlan X100Algebra NDVec
-implementVectorOpsX100 vlPlan = mkQueryPlan dag shape tagMap
-  where
-    x100Plan             = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
-    (dag, shape, tagMap) = runVecBuild x100Plan
-
-implementVectorOpsPF :: QueryPlan V.VL VLDVec -> QueryPlan TA.TableAlgebra NDVec
-implementVectorOpsPF vlPlan = mkQueryPlan dag shape tagMap
-  where
-    taPlan               = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
-    serializedPlan       = insertSerialize taPlan
-    (dag, shape, tagMap) = runVecBuild serializedPlan

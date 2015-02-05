@@ -19,6 +19,11 @@ data Layout q = LCol
               | LTuple [Layout q]
               deriving (Show, Read)
 
+-- FIXME there propably should be Functor and Foldable instances for
+-- shapes
+
+-- FIXME Separate L and S tags from the shape structure.
+
 -- | A Shape describes the structure of the result produced by a
 -- bundle of nested queries. 'q' is the type of individual vectors,
 -- e.g. plan entry nodes or rendered database code. On the top level
