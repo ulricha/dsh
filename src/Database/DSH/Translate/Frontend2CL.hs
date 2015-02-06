@@ -35,8 +35,6 @@ import           GHC.Exts                        (sortWith)
 
 type TableInfoCache = M.Map String TableInfo
 
-type QueryTableInfo = String -> IO TableInfo
-
 -- In the state, we store a counter for fresh variable names, the
 -- cache for table information and the backend connection 'c'.
 type CompileState c = (Integer, TableInfoCache, c)
@@ -80,7 +78,9 @@ toComprehensions conn q = runCompile conn (translate q)
 runCompile :: Backend c => c -> Compile c a -> IO a
 runCompile conn = liftM fst . flip runStateT (1, M.empty, conn)
 
-lamBody :: forall a b c.(Reify a, Reify b) => (Exp a -> Exp b) -> Compile c (L.Ident, Exp b)
+lamBody :: forall a b c.(Reify a, Reify b)
+        => (Exp a -> Exp b)
+        -> Compile c (L.Ident, Exp b)
 lamBody f = do
     v <- freshVar
     return (prefixVar v, f (VarE v :: Exp a))
@@ -282,7 +282,7 @@ translateApp f args =
        Like         -> translateApp2 CP.like args
 
        -- Builtin functions with arity one
-       SubString f t   -> translateApp1 (CP.substring f t) args
+       SubString s e   -> translateApp1 (CP.substring s e) args
        IntegerToDouble -> translateApp1 CP.castDouble args
        Not             -> translateApp1 CP.not args
        Sin             -> translateApp1 CP.sin args

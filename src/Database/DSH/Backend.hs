@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- | This module provides an abstraction over flat relational backends
--- w.r.t. to code generation and query execution
+-- with respect to code generation and query execution.
 module Database.DSH.Backend
     ( TableInfo
     , Backend(..)
@@ -23,6 +23,7 @@ class Backend c where
     data BackendRow c
     data BackendCode c
     data BackendPlan c
+
     -- | Execute a flat query on the backend.
     execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
 
