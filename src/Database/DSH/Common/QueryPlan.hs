@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | A QueryPlan describes the computation of the top-level query
@@ -5,7 +6,10 @@
 -- result's structure is encoded by the individual queries.
 module Database.DSH.Common.QueryPlan where
 
+
 import           Data.Aeson.TH
+import           Data.Aeson
+import qualified Data.ByteString.Lazy.Char8    as BL
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
@@ -70,21 +74,29 @@ isOuterMost n (SShape (ADVec n' _) _) = n == n'
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.
-data QueryPlan a v =
-  QueryPlan { queryDag   :: AlgebraDag a
-            , queryShape :: Shape v
-            , queryTags  :: NodeMap [Tag]
-            }
+data QueryPlan a v = QueryPlan
+    { queryDag   :: AlgebraDag a
+    , queryShape :: Shape v
+    , queryTags  :: NodeMap [Tag]
+    }
 
 -- | Construct a query plan from the operator map and the description
 -- of the result shape.
-mkQueryPlan :: (Operator a, DagVector v) 
-            => AlgebraDag a 
-            -> Shape v 
-            -> NodeMap [Tag] 
+mkQueryPlan :: (Operator a, DagVector v)
+            => AlgebraDag a
+            -> Shape v
+            -> NodeMap [Tag]
             -> QueryPlan a v
 mkQueryPlan dag shape tagMap =
   QueryPlan { queryDag   = addRootNodes dag (shapeNodes shape)
             , queryShape = shape
             , queryTags  = tagMap 
             }
+
+-- | Export a query plan to two files. One file (.plan) contains the
+-- DAG for compability with algebra-* dot generators. The other file
+-- contains the shape information.
+exportPlan :: (ToJSON a, ToJSON v) => String -> QueryPlan a v -> IO ()
+exportPlan prefix plan = do
+    BL.writeFile (prefix ++ ".plan") (encode $ queryDag plan)
+    BL.writeFile (prefix ++ ".shape") (encode $ queryShape plan)

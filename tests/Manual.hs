@@ -15,6 +15,7 @@ module Main where
 import qualified Prelude as P
 import Database.DSH
 import Database.DSH.Compiler
+import Database.DSH.Backend.Sql
 
 import Database.X100Client
 
@@ -358,6 +359,6 @@ nj12 njxs njys njzs =
     ]
 
 main :: IO ()
-main = getConn P.>>= \c -> debugQ "q" c (nj12 njxs2 njys2 njzs2)  P.>>= \r -> putStrLn (show r)
+main = getConn P.>>= \c -> debugQ "q" (sqlBackend c) (nj12 njxs2 njys2 njzs2)  P.>>= \r -> putStrLn (show r)
 -- main = runQX100 x100Conn q P.>>= \r -> putStrLn $ show r
 --main = debugQX100 "q" x100Conn q

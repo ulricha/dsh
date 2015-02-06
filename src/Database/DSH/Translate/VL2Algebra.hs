@@ -29,7 +29,9 @@ import           Database.DSH.VL.VectorAlgebra
 -- translation result of VL nodes.
 type VecBuild a v = StateT (M.Map AlgNode (Res v)) (B.Build a)
 
-runVecBuild :: VectorAlgebra v a => VecBuild a v r -> (D.AlgebraDag a, r, NodeMap [Tag])
+runVecBuild :: VectorAlgebra a
+            => VecBuild a (DVec a) r
+            -> (D.AlgebraDag a, r, NodeMap [Tag])
 runVecBuild c = B.runBuild $ fst <$> runStateT c M.empty
 
 data Res v = Prop    AlgNode
@@ -39,12 +41,12 @@ data Res v = Prop    AlgNode
            | RTriple (Res v) (Res v) (Res v)
          deriving Show
 
-fromDict :: VectorAlgebra v a => AlgNode -> VecBuild a v (Maybe (Res v))
+fromDict :: VectorAlgebra a => AlgNode -> VecBuild a v (Maybe (Res v))
 fromDict n = do
     dict <- get
     return $ M.lookup n dict
 
-insertTranslation :: VectorAlgebra v a => AlgNode -> Res v -> VecBuild a v ()
+insertTranslation :: VectorAlgebra a => AlgNode -> Res v -> VecBuild a v ()
 insertTranslation n res = modify (M.insert n res)
 
 fromPVec :: PVec -> Res v
@@ -68,7 +70,7 @@ toDVec :: Res v -> v
 toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
-refreshLyt :: VectorAlgebra v a => Layout VLDVec -> VecBuild a v (Layout v)
+refreshLyt :: VectorAlgebra a => Layout VLDVec -> VecBuild a v (Layout v)
 refreshLyt LCol                   = return LCol
 refreshLyt (LNest (VLDVec n) lyt) = do
     Just n' <- fromDict n
@@ -76,7 +78,7 @@ refreshLyt (LNest (VLDVec n) lyt) = do
     return $ LNest (toDVec n') lyt'
 refreshLyt (LTuple lyts)          = LTuple <$> mapM refreshLyt lyts
 
-refreshShape :: VectorAlgebra v a => Shape VLDVec -> VecBuild a v (Shape v)
+refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a v (Shape v)
 refreshShape (VShape (VLDVec n) lyt) = do
     mv <- fromDict n
     case mv of
@@ -92,7 +94,10 @@ refreshShape (SShape (VLDVec n) lyt) = do
             return $ SShape v lyt'
         _ -> $impossible
 
-translate :: VectorAlgebra v a => NodeMap V.VL -> AlgNode -> VecBuild a v (Res v)
+translate :: VectorAlgebra a 
+          => NodeMap V.VL 
+          -> AlgNode 
+          -> VecBuild a (DVec a) (Res (DVec a))
 translate vlNodes n = do
     r <- fromDict n
 
@@ -129,7 +134,10 @@ getVL n vlNodes = case IM.lookup n vlNodes of
 pp :: NodeMap V.VL -> String
 pp m = intercalate ",\n" $ map show $ IM.toList m
 
-vl2Algebra :: VectorAlgebra v a => NodeMap V.VL -> Shape VLDVec -> VecBuild a v (Shape v)
+vl2Algebra :: VectorAlgebra a
+           => NodeMap V.VL
+           -> Shape VLDVec
+           -> VecBuild a (DVec a) (Shape (DVec a))
 vl2Algebra vlNodes plan = do
     mapM_ (translate vlNodes) roots
 
@@ -138,14 +146,23 @@ vl2Algebra vlNodes plan = do
     roots :: [AlgNode]
     roots = shapeNodes plan
 
-translateTerOp :: VectorAlgebra v a => V.TerOp -> Res v -> Res v -> Res v -> B.Build a (Res v)
+translateTerOp :: VectorAlgebra a
+               => V.TerOp
+               -> Res (DVec a)
+               -> Res (DVec a)
+               -> Res (DVec a)
+               -> B.Build a (Res (DVec a))
 translateTerOp t c1 c2 c3 =
     case t of
         V.Combine -> do
             (d, r1, r2) <- vecCombine (toDVec c1) (toDVec c2) (toDVec c3)
             return $ RTriple (fromDVec d) (fromRVec r1) (fromRVec r2)
 
-translateBinOp :: VectorAlgebra v a => V.BinOp -> Res v -> Res v -> B.Build a (Res v)
+translateBinOp :: VectorAlgebra a
+               => V.BinOp
+               -> Res (DVec a)
+               -> Res (DVec a)
+               -> B.Build a (Res (DVec a))
 translateBinOp b c1 c2 = case b of
     V.DistLift -> do
         (v, p) <- vecDistLift (toDVec c1) (toDVec c2)
@@ -245,7 +262,10 @@ translateBinOp b c1 c2 = case b of
         (qo, qi) <- vecTransposeS (toDVec c1) (toDVec c2)
         return $ RLPair (fromDVec qo) (fromDVec qi)
 
-translateUnOp :: VectorAlgebra v a => V.UnOp -> Res v -> B.Build a (Res v)
+translateUnOp :: VectorAlgebra a
+              => V.UnOp
+              -> Res (DVec a)
+              -> B.Build a (Res (DVec a))
 translateUnOp unop c = case unop of
     V.AggrNonEmptyS a  -> fromDVec <$> vecAggrNonEmptyS a (toDVec c)
     V.UniqueS          -> fromDVec <$> vecUniqueS (toDVec c)
@@ -302,7 +322,9 @@ translateUnOp unop c = case unop of
         (RTriple _ _ c3) -> return c3
         _                -> error "R3: Not a tuple"
 
-translateNullary :: VectorAlgebra v a => V.NullOp -> B.Build a (Res v)
+translateNullary :: VectorAlgebra a
+                 => V.NullOp
+                 -> B.Build a (Res (DVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
 translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs

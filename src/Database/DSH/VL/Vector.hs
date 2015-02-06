@@ -43,7 +43,7 @@ type NDVec = ADVec AlgNode
 instance DagVector NDVec where
     vectorNodes (ADVec q _) = [q]
 
-    updateVector n1 n2 (ADVec q cols) 
+    updateVector n1 n2 (ADVec q cols)
         | q == n1   = ADVec n2 cols
         | otherwise = ADVec q cols
 
@@ -70,3 +70,4 @@ data RVec = RVec AlgNode
 $(deriveJSON defaultOptions ''ADVec)
 $(deriveJSON defaultOptions ''PVec)
 $(deriveJSON defaultOptions ''RVec)
+$(deriveJSON defaultOptions ''VLDVec)

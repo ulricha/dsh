@@ -106,6 +106,9 @@ Library
 
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
+                     Database.DSH.Backend
+                     Database.DSH.Backend.Sql
+                     Database.DSH.Backend.X100
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Schema
@@ -115,9 +118,6 @@ Library
                      Database.DSH.Frontend.Funs
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
-                     Database.DSH.Backend.Sql
-                     Database.DSH.Backend.X100
-                     Database.DSH.Backend
                      Database.DSH.Execute
 
                      Database.DSH.Common.Nat
@@ -129,7 +129,6 @@ Library
                      Database.DSH.Common.Kure
                      Database.DSH.Common.Opt
 
-                     Database.DSH.Export
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure
                      Database.DSH.CL.Primitives
@@ -162,7 +161,6 @@ Library
 
                      Database.DSH.VL.Lang
                      Database.DSH.VL.Render.Dot
-                     Database.DSH.VL.Render.JSON
                      Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
                      Database.DSH.Backend.Sql.VectorAlgebra

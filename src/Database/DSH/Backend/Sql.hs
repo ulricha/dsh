@@ -7,8 +7,8 @@
 -- | This module implements the execution of SQL query bundles and the
 -- construction of nested values from the resulting vector bundle.
 module Database.DSH.Backend.Sql
-  ( SqlBackend(..)
-  , BackendCode(..)
+  ( SqlBackend
+  , sqlBackend
   ) where
 
 import           Text.Printf
@@ -34,6 +34,7 @@ import qualified Database.Algebra.Table.Lang              as TA
 
 import           Database.DSH.Backend
 import           Database.DSH.Backend.Sql.VectorAlgebra   ()
+import           Database.DSH.Backend.Sql.Opt.OptimizeTA
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Impossible
@@ -41,7 +42,14 @@ import           Database.DSH.Translate.VL2Algebra
 import qualified Database.DSH.VL.Lang                     as VL
 import           Database.DSH.VL.Vector
 
+--------------------------------------------------------------------------------
+
 newtype SqlBackend = SqlBackend Connection
+
+-- | Construct a PostgreSQL backend based on an HDBC PostgreSQL
+-- connection.
+sqlBackend :: Connection -> SqlBackend
+sqlBackend = SqlBackend
 
 --------------------------------------------------------------------------------
 
@@ -136,8 +144,8 @@ insertSerialize g = g >>= traverseShape
     needRelPos = TA.RelPos ["pos"]
     noPos      = TA.NoPos
 
-implementVectorOpsPF :: QueryPlan VL.VL VLDVec -> QueryPlan TA.TableAlgebra NDVec
-implementVectorOpsPF vlPlan = mkQueryPlan dag shape tagMap
+implementVectorOps :: QueryPlan VL.VL VLDVec -> QueryPlan TA.TableAlgebra NDVec
+implementVectorOps vlPlan = mkQueryPlan dag shape tagMap
   where
     taPlan               = vl2Algebra (D.nodeMap $ queryDag vlPlan) (queryShape vlPlan)
     serializedPlan       = insertSerialize taPlan
@@ -148,14 +156,23 @@ implementVectorOpsPF vlPlan = mkQueryPlan dag shape tagMap
 instance Backend SqlBackend where
     data BackendRow SqlBackend  = SqlRow (M.Map String SqlValue)
     data BackendCode SqlBackend = SqlCode String
+    data BackendPlan SqlBackend = QP (QueryPlan TA.TableAlgebra NDVec)
 
     execFlatQuery (SqlBackend conn) (SqlCode q) = do
         stmt  <- prepare conn q
         void $ execute stmt []
         map SqlRow <$> fetchAllRowsMap' stmt
 
-    generateCode :: QueryPlan VL.VL VLDVec -> Shape (BackendCode SqlBackend)
-    generateCode = generateSqlQueries . implementVectorOpsPF
+    generateCode :: BackendPlan SqlBackend -> Shape (BackendCode SqlBackend)
+    generateCode (QP plan) = generateSqlQueries plan
+
+    generatePlan :: QueryPlan VL.VL VLDVec -> BackendPlan SqlBackend
+    generatePlan = QP . implementVectorOps
+
+    dumpPlan :: String -> BackendPlan SqlBackend -> IO ()
+    dumpPlan prefix (QP plan) = do
+        exportPlan (prefix ++ "_ta") plan
+        exportPlan (prefix ++ "_opt_ta") $ optimizeTA plan
 
     querySchema = $unimplemented
 

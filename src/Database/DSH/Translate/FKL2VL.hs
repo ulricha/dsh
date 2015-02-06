@@ -3,7 +3,7 @@
 
 module Database.DSH.Translate.FKL2VL (specializeVectorOps) where
 
-import           Control.Applicative              hiding (Const)
+import           Control.Applicative           hiding (Const)
 
 import           Control.Monad.Reader
 
@@ -15,12 +15,10 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
 import           Database.DSH.Impossible
-import           Database.DSH.VL.Render.JSON      ()
-import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Lang          as VL
-import           Database.DSH.VL.Render.JSON   ()
-import qualified Database.DSH.VL.Vectorize     as V
 import           Database.DSH.VL.Primitives
+import           Database.DSH.VL.Vector
+import qualified Database.DSH.VL.Vectorize     as V
 
 --------------------------------------------------------------------------------
 -- Extend the DAG builder monad with an environment for compiled VL

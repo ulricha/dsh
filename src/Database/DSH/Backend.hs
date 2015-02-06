@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- | This module provides an abstraction over flat relational backends
--- w.r.t. to query execution and result value construction.
+-- w.r.t. to code generation and query execution
 module Database.DSH.Backend
     ( TableInfo
     , Backend(..)
@@ -17,14 +17,28 @@ import           Database.DSH.VL.Vector
 -- FIXME implement properly
 type TableInfo = [(String, String, (T.Type -> Bool))]
 
--- | An abstract backend on which flat queries can be executed.
+-- | An abstract backend for which we can generate code and on which
+-- flat queries can be executed.
 class Backend c where
     data BackendRow c
     data BackendCode c
-
+    data BackendPlan c
+    -- | Execute a flat query on the backend.
     execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
+
+    -- | Query the backend for schema information.
     querySchema   :: c -> String -> IO TableInfo
-    generateCode  :: QueryPlan VL.VL VLDVec -> Shape (BackendCode c)
+
+    -- | Implement vector operations using the backend-specific
+    -- algebra.
+    generatePlan  :: QueryPlan VL.VL VLDVec -> BackendPlan c
+
+    -- | Optimize the algebra plan and generate serialized backend
+    -- code
+    generateCode  :: BackendPlan c -> Shape (BackendCode c)
+
+    -- | Dump versions of the plan in JSON form to the specified file.
+    dumpPlan :: String -> BackendPlan c -> IO ()
 
 -- | Abstraction over result rows for a specific backend.
 class Row r where

@@ -31,182 +31,36 @@ import           Database.DSH.VL.Vector
 
 --------------------------------------------------------------------------------
 
-debugQ = undefined
-
-runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
-runQ c (Q q) = do
-    let ty = reify (undefined :: Rep a)
-    cl <- toComprehensions c q
-    let vl = compileQ cl
-    let bc = generateCode vl
-    frExp <$> execQueryBundle c bc ty
-
+-- | The backend-independent part of the compiler.
 compileQ :: CL.Expr -> QueryPlan VL.VL VLDVec
 compileQ = optimizeComprehensions >>>
            desugarComprehensions  >>>
            optimizeNKL            >>>
            flatTransform          >>>
-           specializeVectorOps    >>>
-           optimizeVLDefault
+           specializeVectorOps
 
---------------------------------------------------------------------------------
--- Different versions of the flattening compiler pipeline
+-- | Compile a query and execute it on a given backend connection.
+runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
+runQ c (Q q) = do
+    let ty = reify (undefined :: Rep a)
+    cl <- toComprehensions c q
+    let vl = compileQ cl
+    let bp = generatePlan $ optimizeVLDefault vl
+    let bc = generateCode bp
+    frExp <$> execQueryBundle c bc ty
 
-{-
--- | Backend-agnostic part of the pipeline.
-commonPipeline :: CL.Expr -> QueryPlan VL.VL VLDVec
-commonPipeline =
-    optimizeComprehensions
-    >>> desugarComprehensions
-    >>> optimizeNKL
-    >>> flatTransform
-    >>> specializeVectorOps
 
-nkl2X100Alg :: CL.Expr -> Shape (BackendCode X100Backend)
-nkl2X100Alg =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsX100
-    >>> optimizeX100Default
-    >>> generateX100Queries
-
-nkl2Sql :: CL.Expr -> Shape (BackendCode SqlBackend)
-nkl2Sql =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsPF
-    >>> optimizeTA
-    >>> generateSqlQueries
-
-nkl2X100File :: String -> CL.Expr -> IO ()
-nkl2X100File prefix =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsX100
-    >>> (exportX100Plan prefix)
-
-nkl2X100FileOpt :: String -> CL.Expr -> IO ()
-nkl2X100FileOpt prefix =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsX100
-    >>> optimizeX100Default
-    >>> exportX100Plan prefix
-
-nkl2TAFile :: String -> CL.Expr -> IO ()
-nkl2TAFile prefix =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsPF
-    >>> (exportTAPlan prefix)
-
-nkl2TAFileOpt :: String -> CL.Expr -> IO ()
-nkl2TAFileOpt prefix =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> implementVectorOpsPF
-    >>> optimizeTA
-    >>> exportTAPlan (prefix ++ "_opt")
-
-nkl2VLFile :: String -> CL.Expr -> IO ()
-nkl2VLFile prefix = commonPipeline >>> exportVLPlan prefix
-
-nkl2VLFileOpt :: String -> CL.Expr -> IO ()
-nkl2VLFileOpt prefix =
-    commonPipeline
-    >>> optimizeVLDefault
-    >>> exportVLPlan (prefix ++ "_opt")
-
---------------------------------------------------------------------------------
--- Functions for executing and debugging DSH queries via the Flattening backend
-
--- | Compile a DSH query to X100 algebra and run it on the X100 server given by 'c'.
-runQX100 :: QA a => X100Info -> Q a -> IO a
-runQX100 conn (Q q) = do
-    let ty = reify (undefined :: a)
-    q' <- toComprehensions (getX100TableInfo conn) q
-    let x100QueryBundle = nkl2X100Alg q'
-    frExp <$> executeX100 (X100Backend conn) x100QueryBundle ty
-
--- | Run a query on a SQL backend
-runQ :: QA a => H.Connection -> Q a -> IO a
-runQ conn (Q q) = do
-    let ty = reify (undefined :: a)
-    q' <- toComprehensions (getTableInfo conn) q
-    let sqlQueryBundle = nkl2Sql q'
-    frExp <$> executeSql (SqlBackend conn) sqlQueryBundle ty
-
--- | Debugging function: dump the X100 plan (DAG) to a file.
-debugX100 :: QA a => String -> X100Info -> Q a -> IO ()
-debugX100 prefix c (Q e) = do
-    e' <- toComprehensions (getX100TableInfo c) e
-    nkl2X100File prefix e'
-
--- | Debugging function: dump the optimized X100 plan (DAG) to a file.
-debugX100Opt :: QA a => String -> X100Info -> Q a -> IO ()
-debugX100Opt prefix c (Q e) = do
-    e' <- toComprehensions (getX100TableInfo c) e
-    nkl2X100FileOpt (prefix ++ "_opt") e'
-
--- | Debugging function: dump the table algebra plan (JSON) to a file.
-debugTA :: QA a => String -> H.Connection -> Q a -> IO ()
-debugTA prefix c (Q e) = do
-    e' <- toComprehensions (getTableInfo c) e
-    nkl2TAFile prefix e'
-
--- | Debugging function: dump the optimized table algebra plan (JSON) to a file.
-debugTAOpt :: QA a => String -> H.Connection -> Q a -> IO ()
-debugTAOpt prefix c (Q e) = do
-    e' <- toComprehensions (getTableInfo c) e
-    nkl2TAFileOpt prefix e'
-
--- | Debugging function: dump the VL query plan (DAG) for a query to a
--- file (SQL version).
-debugVL :: QA a => String -> H.Connection -> Q a -> IO ()
-debugVL prefix c (Q e) = do
-    e' <- toComprehensions (getTableInfo c) e
-    nkl2VLFile prefix e'
-
--- | Debugging function: dump the optimized VL query plan (DAG) for a
--- query to a file (SQL version).
-debugVLOpt :: QA a => String -> H.Connection -> Q a -> IO ()
-debugVLOpt prefix c (Q e) = do
-    e' <- toComprehensions (getTableInfo c) e
-    nkl2VLFileOpt prefix e'
-
--- | Debugging function: dump the optimized VL query plan (DAG) for a
--- query to a file (X100 version).
-debugX100VLOpt :: QA a => String -> X100Info -> Q a -> IO ()
-debugX100VLOpt prefix c (Q e) = do
-    e' <- toComprehensions (getX100TableInfo c) e
-    nkl2VLFileOpt prefix e'
-
--- | Debugging function: dump the VL query plan (DAG) for a query to a
--- file (X100 version).
-debugX100VL :: QA a => String -> X100Info -> Q a -> IO ()
-debugX100VL prefix c (Q e) = do
-    e' <- toComprehensions (getX100TableInfo c) e
-    nkl2VLFile prefix e'
-
--- | Dump all intermediate algebra representations (VL, TA) to files.
-debugQ :: QA a => String -> H.Connection -> Q a -> IO ()
-debugQ prefix conn q = do
-    debugVL prefix conn q
-    debugVLOpt prefix conn q
-    debugTA prefix conn q
-    debugTAOpt prefix conn q
-
--- | Dump all intermediate algebra representations (VL, X100) to files
-debugQX100 :: QA a => String -> X100Info -> Q a -> IO ()
-debugQX100 prefix conn q = do
-    debugX100VL prefix conn q
-    debugX100VLOpt prefix conn q
-    debugX100 prefix conn q
-    debugX100Opt prefix conn q
-
--- | Convenience function: execute a query on a SQL backend and print
--- its result
-runPrint :: (Show a, QA a) => H.Connection -> Q a -> IO ()
-runPrint conn q = (show <$> runQ conn q) >>= putStrLn
-
--}
+-- | Compile a query and dump intermediate plans to files.
+debugQ :: forall a c.(Backend c, Row (BackendRow c), QA a)
+       => String
+       -> c
+       -> Q a
+       -> IO ()
+debugQ prefix c (Q q) = do
+    cl <- toComprehensions c q
+    let vl = compileQ cl
+    let vlOpt = optimizeVLDefault vl
+    exportPlan (prefix ++ "_vl") vl
+    exportPlan (prefix ++ "_vl_opt") vlOpt
+    let bp = generatePlan vlOpt :: BackendPlan c
+    dumpPlan prefix bp

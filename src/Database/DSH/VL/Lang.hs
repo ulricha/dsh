@@ -14,10 +14,10 @@ import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang as L
 
-data ScalarType = Int 
-                | Bool 
+data ScalarType = Int
+                | Bool
                 | Double
-                | String 
+                | String
                 | Unit
              deriving (Eq, Ord, Show)
 
@@ -46,13 +46,13 @@ $(deriveJSON defaultOptions ''Expr)
 
 -- | Helper function: Shift all column indexes in an expression by a certain offset.
 shiftExprCols :: Int -> Expr -> Expr
-shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1) 
+shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1)
                                               (shiftExprCols o e2)
 shiftExprCols o (UnApp op e)      = UnApp op (shiftExprCols o e)
 shiftExprCols o (Column c)        = Column $ c + o
 shiftExprCols _ (Constant v)      = Constant v
-shiftExprCols o (If c t e)        = If (shiftExprCols o c) 
-                                       (shiftExprCols o t) 
+shiftExprCols o (If c t e)        = If (shiftExprCols o c)
+                                       (shiftExprCols o t)
                                        (shiftExprCols o e)
 
 data AggrFun = AggrSum ScalarType Expr
