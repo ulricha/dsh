@@ -1,5 +1,4 @@
--- |  
--- This module is intended to be imported @qualified@, to avoid name clashes
+-- | This module is intended to be imported @qualified@, to avoid name clashes
 -- with "Prelude" functions. For example:
 --
 -- > import qualified Database.DSH as Q
@@ -14,15 +13,13 @@
 -- by Database.DSH.
 
 module Database.DSH
-  ( module Database.DSH.Frontend.Externals
-  , Q, QA, TA, Elim, elim, View, view, Key(..), TableHints(..), Emptiness(..)
-  , module Database.DSH.Frontend.TH
-  , module Data.String
-  , module Data.Text
-  , module Database.HDBC
-  , module Prelude
-  )
-  where
+    ( module Database.DSH.Frontend.Externals
+    , Q, QA, TA, Elim, elim, View, view, Key(..), TableHints(..), Emptiness(..)
+    , module Database.DSH.Frontend.TH
+    , module Data.String
+    , module Data.Text
+    , module Prelude
+    ) where
 
 import Database.DSH.Frontend.Externals
 import Database.DSH.Frontend.Internals (Q,QA,TA,Elim,elim,View,view,Key(..),TableHints(..), Emptiness(..))
@@ -30,7 +27,6 @@ import Database.DSH.Frontend.TH
 
 import Data.String (IsString,fromString)
 import Data.Text (Text)
-import Database.HDBC
 import Prelude hiding (
     not
   , (&&)

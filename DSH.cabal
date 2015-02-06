@@ -1,50 +1,58 @@
 Name:                DSH
-Version:             0.10.0.1
+Version:             0.10.0.2
 Synopsis:            Database Supported Haskell
 Description:
-  This is a Haskell library for database-supported program execution. Using
-  this library a relational database management system (RDBMS) can be used as
-  a coprocessor for the Haskell programming language, especially for those
-  program fragments that carry out data-intensive and data-parallel
-  computations.
+  This is a Haskell library for database-supported program
+  execution. Using this library a relational database management
+  system (RDBMS) can be used as a coprocessor for the Haskell
+  programming language, especially for those program fragments that
+  carry out data-intensive and data-parallel computations.
   .
   Database executable program fragments can be written using the monad
-  comprehension notation [2] and list processing combinators from the Haskell
-  list prelude. Note that rather than embedding a relational language into
-  Haskell, we turn idiomatic Haskell programs into SQL queries.
+  comprehension notation [2] and list processing combinators from the
+  Haskell list prelude. Note that rather than embedding a relational
+  language into Haskell, we turn idiomatic Haskell programs into SQL
+  queries.
   .
-  DSH faithfully represents list order and nesting, and compiles the list
-  processing combinators into relational queries. The implementation avoids
-  unnecessary data transfer and context switching between the database
-  coprocessor and the Haskell runtime by ensuring that the number of generated
-  relational queries is only determined by the program fragment's type and not
-  by the database size.
+  DSH faithfully represents list order and nesting, and compiles the
+  list processing combinators into relational queries. The
+  implementation avoids unnecessary data transfer and context
+  switching between the database coprocessor and the Haskell runtime
+  by ensuring that the number of generated relational queries is only
+  determined by the program fragment's type and not by the database
+  size.
   .
-  DSH can be used to allow existing Haskell programs to operate on large scale
-  data (e.g., larger than the available heap) or query existing database
-  resident data with Haskell.
+  DSH can be used to allow existing Haskell programs to operate on
+  large scale data (e.g., larger than the available heap) or query
+  existing database resident data with Haskell.
   .
-  Note that this package is flagged experimental and therefore is not suited
-  for production use (we mean it!). This is a proof of concept implementation 
-  only. To learn more about DSH, our paper entitled as "Haskell Boards the Ferry: 
-  Database-Supported Program Execution for Haskell" [1] is a recommended reading.
-  The package includes a couple of examples that demonstrate how to use DSH.
+  Note that this package is flagged experimental and therefore is not
+  suited for production use (we mean it!). This is a proof of concept
+  implementation only. To learn more about DSH, our paper entitled as
+  "The Flatter, the Better — Query Compilation Based on the Flattening
+  Transformation." [1] is a recommended reading. The package includes
+  a couple of examples that demonstrate how to use DSH.
   .
-  In contrast to the DSH version described in [1], the current release does
-  not rely anymore on the loop-lifting compilation technique together with 
-  the Pathfinder optimizer. Instead, it brings a completely rewritten query 
-  compiler based on Guy Blelloch's flattening transformation. This approach
-  leads to a more robust compilation and produces more efficient query code.
+  The current release does not rely anymore on the loop-lifting
+  compilation technique and the Pathfinder optimizer. Instead, it
+  brings a completely rewritten query compiler based on Guy Blelloch's
+  flattening transformation. This approach leads to a more robust
+  compilation and produces more efficient query code.
+  .
+  To generate actual code for a relational backend, an additional
+  backend package needs to be installed. Currently, the package
+  'dsh-postgresql' on Hackage provides SQL code generation for
+  PostgreSQL.
   .
   Please read the release notes in 'README.md'.
   .
-  1. <http://db.inf.uni-tuebingen.de/staticfiles/publications/ferryhaskell.pdf>
+  1. <http://db.inf.uni-tuebingen.de/publications/TheFlatter-theBetter-QueryCompilationBasedontheFlatteningTransformation.html>
   .
   2. <http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf>
 
 License:             BSD3
 License-file:        LICENSE
-Author:              George Giorgidze, Alexander Ulrich, Nils Schweinsberg and Jeroen Weijers
+Author:              Alexander Ulrich, George Giorgidze, Jeroen Weijers, Nils Schweinsberg
 Maintainer:          alex@etc-network.de
 Stability:           Experimental
 Category:            Database
@@ -54,10 +62,6 @@ Extra-source-files:  examples/Example01.hs
                      examples/Example02.hs
                      examples/Example03.hs
                      examples/dshify-tpch.sql
-                     tests/Main.hs
-		     tests/ComprehensionTests.hs
-		     tests/DSHComprehensions.hs
-		     tests/CombinatorTests.hs
                      README.md
 
 Cabal-version:       >= 1.8
@@ -67,7 +71,7 @@ Flag debugcomp
   Default:     False
 
 Flag debuggraph
-  Description: Print debugging information for graph rewrites (VL, TA)
+  Description: Print debugging information for graph rewrites
   Default:     False
 
 Library
@@ -78,8 +82,6 @@ Library
                      mtl                >= 2.1,
                      bytestring         >= 0.10,
                      text               >= 1.1,
-                     HDBC               >= 2.3,
-                     HDBC-postgresql    >= 2.3,
                      pretty             >= 1.1,
                      aeson              >= 0.8,
                      kure               >= 2.16,
@@ -89,16 +91,13 @@ Library
                      set-monad          >= 0.1,
                      dlist              >= 0.7,
 
-                     algebra-dag        >= 0.1,
-                     algebra-sql        >= 0.1,
-                     algebra-x100       >= 0.1,
-                     X100Client         >= 0.0
-                     
+                     algebra-dag        >= 0.1.1
+
   Hs-source-dirs:    src
 
   if flag(debugcomp)
     CPP-Options:     -DDEBUGCOMP
-  
+
   if flag(debuggraph)
     CPP-Options:     -DDEBUGGRAPH
 
@@ -107,8 +106,6 @@ Library
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
                      Database.DSH.Backend
-                     Database.DSH.Backend.Sql
-                     Database.DSH.Backend.X100
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -162,8 +159,6 @@ Library
                      Database.DSH.VL.Render.Dot
                      Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
-                     Database.DSH.Backend.Sql.VectorAlgebra
-                     Database.DSH.Backend.X100.VectorAlgebra
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives
 
@@ -188,27 +183,6 @@ Library
                      Database.DSH.VL.Opt.Rewrite.Window
                      Database.DSH.VL.Opt.Rewrite.Unused
 
-                     Database.DSH.Backend.X100.Opt.OptimizeX100
-                     Database.DSH.Backend.X100.Opt.Rewrite.Common
-                     Database.DSH.Backend.X100.Opt.Rewrite.Project
-
-                     Database.DSH.Backend.Sql.Opt.Properties.BottomUp
-                     Database.DSH.Backend.Sql.Opt.Properties.TopDown
-                     Database.DSH.Backend.Sql.Opt.Properties.Types
-                     Database.DSH.Backend.Sql.Opt.Properties.Cols
-                     Database.DSH.Backend.Sql.Opt.Properties.ICols
-                     Database.DSH.Backend.Sql.Opt.Properties.Use
-                     Database.DSH.Backend.Sql.Opt.Properties.Auxiliary
-                     Database.DSH.Backend.Sql.Opt.Properties.Empty
-                     Database.DSH.Backend.Sql.Opt.Properties.Card1
-                     Database.DSH.Backend.Sql.Opt.Properties.Keys
-                     Database.DSH.Backend.Sql.Opt.Properties.Order
-                     Database.DSH.Backend.Sql.Opt.Properties.Const
-                     Database.DSH.Backend.Sql.Opt.Rewrite.Basic
-                     Database.DSH.Backend.Sql.Opt.Rewrite.Common
-                     Database.DSH.Backend.Sql.Opt.OptimizeTA
-
-
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
@@ -223,52 +197,5 @@ executable vldot
                       ansi-wl-pprint      >= 0.6,
                       semigroups          >= 0.16,
 
-                      algebra-dag          >= 0.1,
-                      algebra-sql          >= 0.1,
-                      algebra-x100         >= 0.1
+                      algebra-dag          >= 0.1
     GHC-Options: -Wall -fno-warn-orphans
-
-executable manual
-    hs-source-dirs: tests
-    main-is:        Manual.hs
-    build-depends:  base, X100Client, DSH, HDBC-postgresql, text
-    ghc-options:    -Wall -fno-warn-orphans
-
-Test-Suite Flattening_x100
-    type:       exitcode-stdio-1.0
-    Hs-Source-Dirs: tests
-    Main-is:       Main.hs
-    Build-depends: base                       >= 4.7 && < 5,
-                   containers                 >= 0.5,
-                   QuickCheck                 >= 2.4,
-                   text                       >= 1.1,
-                   test-framework-quickcheck2 >= 0.2,
-                   test-framework-hunit       >= 0.3,
-                   test-framework             >= 0.6,
-                   HUnit                      >= 1.2,
-
-                   X100Client                 >= 0.0,
-                   DSH                        >= 0.10
-    cpp-options: -DTESTX100
-    GHC-Options: -Wall -fno-warn-orphans
-    extensions: CPP
-    
-Test-Suite Flattening_TA
-    type:       exitcode-stdio-1.0
-    Hs-Source-Dirs : tests
-    Main-is:       Main.hs
-    Build-depends: base                       >= 4.7 && < 5,
-                   QuickCheck                 >= 2.4,
-                   containers                 >= 0.5,
-                   text                       >= 1.1,
-                   HDBC-postgresql            >= 2.3,
-                   HDBC                       >= 2.3,
-                   test-framework-quickcheck2 >= 0.2,
-                   test-framework-hunit       >= 0.3,
-                   test-framework             >= 0.6,
-                   HUnit                      >= 1.2,
-
-                   DSH                        >= 0.10
-    cpp-options:   -DTESTSQL
-    GHC-Options: -Wall -fno-warn-orphans
-    Extensions: CPP
