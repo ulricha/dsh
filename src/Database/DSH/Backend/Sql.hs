@@ -13,7 +13,7 @@ module Database.DSH.Backend.Sql
 
 import           Text.Printf
 
-import           Database.HDBC
+import qualified Database.HDBC                            as H
 import           Database.HDBC.PostgreSQL
 
 import           Control.Applicative
@@ -23,6 +23,7 @@ import qualified Data.Map                                 as M
 import           Data.Maybe
 import qualified Data.Text                                as Txt
 import qualified Data.Text.Encoding                       as Txt
+import           GHC.Exts
 
 import qualified Database.Algebra.Dag                     as D
 import qualified Database.Algebra.Dag.Build               as B
@@ -33,9 +34,10 @@ import           Database.Algebra.SQL.Util
 import qualified Database.Algebra.Table.Lang              as TA
 
 import           Database.DSH.Backend
-import           Database.DSH.Backend.Sql.VectorAlgebra   ()
 import           Database.DSH.Backend.Sql.Opt.OptimizeTA
+import           Database.DSH.Backend.Sql.VectorAlgebra   ()
 import           Database.DSH.Common.QueryPlan
+import qualified Database.DSH.Common.Type                 as T
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Impossible
 import           Database.DSH.Translate.VL2Algebra
@@ -152,16 +154,50 @@ implementVectorOps vlPlan = mkQueryPlan dag shape tagMap
     (dag, shape, tagMap) = runVecBuild serializedPlan
 
 --------------------------------------------------------------------------------
+-- Utility functions for schema queries
+
+-- | Translate an HDBC table description into the DSH schema format.
+toTableDescr :: String -> [(String, H.SqlColDesc)] -> TableInfo
+toTableDescr tableName cols = sortWith (\(n, _, _) -> n)
+                    [ (name, show colTy, compatibleType tableName colTy)
+                    | (name, props) <- cols
+                    , let colTy = H.colType props
+                    ]
+
+-- | Determine if the DSH type and the attribute type in the backend
+-- table are compatible.
+compatibleType :: String -> H.SqlTypeId -> T.Type -> Bool
+compatibleType tableName dbT hsT =
+    case hsT of
+        T.UnitT   -> True
+        T.BoolT   -> elem dbT [H.SqlSmallIntT, H.SqlIntegerT, H.SqlBitT]
+        T.StringT -> elem dbT [H.SqlCharT, H.SqlWCharT, H.SqlVarCharT]
+        T.IntT    -> elem dbT [ H.SqlSmallIntT
+                              , H.SqlIntegerT
+                              , H.SqlTinyIntT
+                              , H.SqlBigIntT
+                              , H.SqlNumericT
+                              ]
+        T.DoubleT -> elem dbT [ H.SqlDecimalT
+                              , H.SqlRealT
+                              , H.SqlFloatT
+                              , H.SqlDoubleT
+                              ]
+        t         -> error $ printf "Unsupported column type %s for table %s"
+                                    (show t)
+                                    (show tableName)
+
+--------------------------------------------------------------------------------
 
 instance Backend SqlBackend where
-    data BackendRow SqlBackend  = SqlRow (M.Map String SqlValue)
+    data BackendRow SqlBackend  = SqlRow (M.Map String H.SqlValue)
     data BackendCode SqlBackend = SqlCode String
     data BackendPlan SqlBackend = QP (QueryPlan TA.TableAlgebra NDVec)
 
     execFlatQuery (SqlBackend conn) (SqlCode q) = do
-        stmt  <- prepare conn q
-        void $ execute stmt []
-        map SqlRow <$> fetchAllRowsMap' stmt
+        stmt  <- H.prepare conn q
+        void $ H.execute stmt []
+        map SqlRow <$> H.fetchAllRowsMap' stmt
 
     generateCode :: BackendPlan SqlBackend -> Shape (BackendCode SqlBackend)
     generateCode (QP plan) = generateSqlQueries plan
@@ -174,45 +210,49 @@ instance Backend SqlBackend where
         exportPlan (prefix ++ "_ta") plan
         exportPlan (prefix ++ "_opt_ta") $ optimizeTA plan
 
-    querySchema = $unimplemented
+    querySchema (SqlBackend conn) tableName = do
+        info <- H.describeTable conn tableName
+        case info of
+            []    -> error $ printf "Unknown table %s" tableName
+            _ : _ -> return $ toTableDescr tableName info
 
 --------------------------------------------------------------------------------
 
 instance Row (BackendRow SqlBackend) where
-    data Scalar (BackendRow SqlBackend) = SqlScalar SqlValue
+    data Scalar (BackendRow SqlBackend) = SqlScalar H.SqlValue
 
     col c (SqlRow r) =
         case M.lookup c r of
             Just v  -> SqlScalar v
             Nothing -> error $ printf "col lookup %s failed in %s" c (show r)
 
-    descrVal (SqlScalar (SqlInt32 i))   = fromIntegral i
-    descrVal (SqlScalar (SqlInteger i)) = fromIntegral i
+    descrVal (SqlScalar (H.SqlInt32 i))   = fromIntegral i
+    descrVal (SqlScalar (H.SqlInteger i)) = fromIntegral i
     descrVal _                          = $impossible
 
-    scalarVal (SqlScalar SqlNull)           UnitT    = UnitE
-    scalarVal (SqlScalar (SqlInteger _))    UnitT    = UnitE
-    scalarVal (SqlScalar (SqlInteger i))    IntegerT = IntegerE i
-    scalarVal (SqlScalar (SqlInt32 i))      IntegerT = IntegerE $ fromIntegral i
-    scalarVal (SqlScalar (SqlInt64 i))      IntegerT = IntegerE $ fromIntegral i
-    scalarVal (SqlScalar (SqlWord32 i))     IntegerT = IntegerE $ fromIntegral i
-    scalarVal (SqlScalar (SqlWord64 i))     IntegerT = IntegerE $ fromIntegral i
-    scalarVal (SqlScalar (SqlDouble d))     DoubleT  = DoubleE d
-    scalarVal (SqlScalar (SqlRational d))   DoubleT  = DoubleE $ fromRational d
-    scalarVal (SqlScalar (SqlInteger d))    DoubleT  = DoubleE $ fromIntegral d
-    scalarVal (SqlScalar (SqlInt32 d))      DoubleT  = DoubleE $ fromIntegral d
-    scalarVal (SqlScalar (SqlInt64 d))      DoubleT  = DoubleE $ fromIntegral d
-    scalarVal (SqlScalar (SqlWord32 d))     DoubleT  = DoubleE $ fromIntegral d
-    scalarVal (SqlScalar (SqlWord64 d))     DoubleT  = DoubleE $ fromIntegral d
-    scalarVal (SqlScalar (SqlBool b))       BoolT    = BoolE b
-    scalarVal (SqlScalar (SqlInteger i))    BoolT    = BoolE (i /= 0)
-    scalarVal (SqlScalar (SqlInt32 i))      BoolT    = BoolE (i /= 0)
-    scalarVal (SqlScalar (SqlInt64 i))      BoolT    = BoolE (i /= 0)
-    scalarVal (SqlScalar (SqlWord32 i))     BoolT    = BoolE (i /= 0)
-    scalarVal (SqlScalar (SqlWord64 i))     BoolT    = BoolE (i /= 0)
-    scalarVal (SqlScalar (SqlChar c))       CharT    = CharE c
-    scalarVal (SqlScalar (SqlString (c:_))) CharT    = CharE c
-    scalarVal (SqlScalar (SqlByteString c)) CharT    = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
-    scalarVal (SqlScalar (SqlString t))     TextT    = TextE (Txt.pack t)
-    scalarVal (SqlScalar (SqlByteString s)) TextT    = TextE (Txt.decodeUtf8 s)
+    scalarVal (SqlScalar H.SqlNull)           UnitT    = UnitE
+    scalarVal (SqlScalar (H.SqlInteger _))    UnitT    = UnitE
+    scalarVal (SqlScalar (H.SqlInteger i))    IntegerT = IntegerE i
+    scalarVal (SqlScalar (H.SqlInt32 i))      IntegerT = IntegerE $ fromIntegral i
+    scalarVal (SqlScalar (H.SqlInt64 i))      IntegerT = IntegerE $ fromIntegral i
+    scalarVal (SqlScalar (H.SqlWord32 i))     IntegerT = IntegerE $ fromIntegral i
+    scalarVal (SqlScalar (H.SqlWord64 i))     IntegerT = IntegerE $ fromIntegral i
+    scalarVal (SqlScalar (H.SqlDouble d))     DoubleT  = DoubleE d
+    scalarVal (SqlScalar (H.SqlRational d))   DoubleT  = DoubleE $ fromRational d
+    scalarVal (SqlScalar (H.SqlInteger d))    DoubleT  = DoubleE $ fromIntegral d
+    scalarVal (SqlScalar (H.SqlInt32 d))      DoubleT  = DoubleE $ fromIntegral d
+    scalarVal (SqlScalar (H.SqlInt64 d))      DoubleT  = DoubleE $ fromIntegral d
+    scalarVal (SqlScalar (H.SqlWord32 d))     DoubleT  = DoubleE $ fromIntegral d
+    scalarVal (SqlScalar (H.SqlWord64 d))     DoubleT  = DoubleE $ fromIntegral d
+    scalarVal (SqlScalar (H.SqlBool b))       BoolT    = BoolE b
+    scalarVal (SqlScalar (H.SqlInteger i))    BoolT    = BoolE (i /= 0)
+    scalarVal (SqlScalar (H.SqlInt32 i))      BoolT    = BoolE (i /= 0)
+    scalarVal (SqlScalar (H.SqlInt64 i))      BoolT    = BoolE (i /= 0)
+    scalarVal (SqlScalar (H.SqlWord32 i))     BoolT    = BoolE (i /= 0)
+    scalarVal (SqlScalar (H.SqlWord64 i))     BoolT    = BoolE (i /= 0)
+    scalarVal (SqlScalar (H.SqlChar c))       CharT    = CharE c
+    scalarVal (SqlScalar (H.SqlString (c:_))) CharT    = CharE c
+    scalarVal (SqlScalar (H.SqlByteString c)) CharT    = CharE (head $ Txt.unpack $ Txt.decodeUtf8 c)
+    scalarVal (SqlScalar (H.SqlString t))     TextT    = TextE (Txt.pack t)
+    scalarVal (SqlScalar (H.SqlByteString s)) TextT    = TextE (Txt.decodeUtf8 s)
     scalarVal (SqlScalar sql)               _        = error $ "Unsupported SqlValue: "  ++ show sql

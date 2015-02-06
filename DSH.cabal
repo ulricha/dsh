@@ -111,7 +111,6 @@ Library
                      Database.DSH.Backend.X100
 
   Other-modules:     Database.DSH.Frontend.Internals
-                     Database.DSH.Frontend.Schema
                      Database.DSH.Frontend.Externals
                      Database.DSH.Frontend.TH
                      Database.DSH.Frontend.TupleTypes
