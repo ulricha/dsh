@@ -5,7 +5,10 @@
 
 -- | Translate DSH frontend expressions (implicitly typed through
 -- GADT) into explicitly typed DSH backend expressions.
-module Database.DSH.Translate.Frontend2CL (toComprehensions, TableInfo) where
+module Database.DSH.Translate.Frontend2CL
+    ( toComprehensions
+    , TableInfo
+    ) where
 
 import           Database.DSH.Impossible
 
@@ -67,15 +70,9 @@ prefixVar :: Integer -> String
 prefixVar i = "v" ++ show i
 
 -- | Translate a DSH frontend expression into the internal
--- comprehension-based language. 'queryTableInfo' abstracts asking a
--- database for information about tables, which might be performed
--- using one of the existing backends (X100, SQL).
-
--- toComprehensions :: QueryTableInfo -> Exp a -> IO CL.Expr
--- toComprehensions queryTableInfo e = runCompile queryTableInfo $ translate e
-
+-- comprehension-based language.
 toComprehensions :: Backend c => c -> Exp a -> IO CL.Expr
-toComprehensions = undefined
+toComprehensions conn q = runCompile conn (translate q)
 
 -- | Execute the transformation computation. During compilation table
 -- information can be retrieved from the database, therefore the result
