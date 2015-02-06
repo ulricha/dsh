@@ -115,6 +115,9 @@ papp1 t f Lifted =
         Last            -> V.lastL
         Nub             -> V.nubL
         Number          -> V.numberL
+        Sort            -> V.sortL
+        Group           -> V.groupL
+        Restrict        -> V.restrictL
         Transpose       -> V.transposeL
         Reshape n       -> V.reshapeL n
         And             -> V.aggrL VL.AggrAll
@@ -132,6 +135,9 @@ papp1 t f NotLifted =
         Reshape n        -> V.reshape n
         Transpose        -> V.transpose
         Number           -> V.number
+        Sort             -> V.sort
+        Group            -> V.group
+        Restrict         -> V.restrict
         Nub              -> V.nub
         Last             -> V.last
         Init             -> V.init
@@ -151,9 +157,6 @@ papp2 :: Prim2 -> Lifted -> Shape VLDVec -> Shape VLDVec -> Build VL.VL (Shape V
 papp2 f Lifted =
     case f of
         Dist           -> V.distL
-        Group          -> V.groupL
-        Sort           -> V.sortL
-        Restrict       -> V.restrictL
         Append         -> V.appendL
         Index          -> V.indexL
         Zip            -> V.zipL
@@ -167,9 +170,6 @@ papp2 f Lifted =
 papp2 f NotLifted =
     case f of
         Dist            -> V.dist
-        Group           -> V.group
-        Sort            -> V.sort
-        Restrict        -> V.restrict
         Append          -> V.append
         Index           -> V.index
         Zip             -> V.zip

@@ -100,6 +100,9 @@ data Prim1 = Singleton
            | Last 
            | Nub
            | Number
+           | Sort
+           | Group
+           | Restrict
            | Reshape Integer
            | Transpose
            | TupElem TupleIndex
@@ -123,15 +126,15 @@ instance Show Prim1 where
     show Last            = "last"
     show Nub             = "nub"
     show Number          = "number"
+    show Sort            = "sort"
+    show Restrict        = "restrict"
+    show Group           = "group"
     show Transpose       = "transpose"
     show (Reshape n)     = printf "reshape(%d)" n
     -- tuple access is pretty-printed in a special way
     show TupElem{}       = $impossible
   
-data Prim2 = Group
-           | Sort
-           | Restrict
-           | Append
+data Prim2 = Append
            | Index
            | Zip
            | CartProduct
@@ -143,14 +146,11 @@ data Prim2 = Group
            deriving (Eq)
 
 instance Show Prim2 where
-    show Group        = "group"
-    show Sort         = "sort"
-    show Restrict     = "restrict"
-    show Append       = "append"
-    show Index        = "index"
-    show Zip          = "zip"
-    show CartProduct  = "⨯"
-    show NestProduct  = "▽"
+    show Append        = "append"
+    show Index         = "index"
+    show Zip           = "zip"
+    show CartProduct   = "⨯"
+    show NestProduct   = "▽"
     show (ThetaJoin p) = printf "⨝_%s" (pp p)
     show (NestJoin p)  = printf "△_%s" (pp p)
     show (SemiJoin p)  = printf "⋉_%s" (pp p)

@@ -61,6 +61,8 @@ prim1 t p e = mkApp t <$> expr e
             (CL.Reshape n)      -> mkPrim1 $ NKL.Reshape n
             CL.Transpose        -> mkPrim1 NKL.Transpose
             CL.TupElem i        -> mkPrim1 $ NKL.TupElem i
+            CL.Sort             -> mkPrim1 NKL.Sort
+            CL.Group            -> mkPrim1 NKL.Group
             CL.Guard            -> $impossible
     
     nklNull _ ne = NKL.BinOp boolT 
@@ -71,11 +73,7 @@ prim1 t p e = mkApp t <$> expr e
     mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
                                    
 
--- | Transform applications of binary primitives. Regular primitives
--- are mapped to their direct NKL equivalent. Higher-order primitives
--- (concatMap, map, filter, sortWith, groupWith) are mapped to their
--- first-order NKL equivalent combined with a single-generator
--- comprehension.
+-- | Transform applications of binary primitives. 
 prim2 :: Type -> CL.Prim2 -> CL.Expr -> CL.Expr -> NameEnv NKL.Expr
 prim2 t o e1 e2 = mkApp2
   where
@@ -90,8 +88,6 @@ prim2 t o e1 e2 = mkApp2
             CL.NestJoin p   -> mkPrim2 $ NKL.NestJoin p
             CL.SemiJoin p   -> mkPrim2 $ NKL.SemiJoin p
             CL.AntiJoin p   -> mkPrim2 $ NKL.AntiJoin p
-            CL.Sort         -> mkPrim2 $ NKL.Sort
-            CL.Group        -> mkPrim2 $ NKL.Group
 
     mkPrim2 :: NKL.Prim2 -> NameEnv NKL.Expr
     mkPrim2 nop = NKL.AppE2 t nop <$> expr e1 <*> expr e2
@@ -302,10 +298,17 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     srcName      <- freshName
     let srcVar = NKL.Var (typeOf baseSrc) srcName
 
-    let elemType   = elemT $ typeOf baseSrc
-        filterExpr = substTupleAccesses visibleNames (filterName, elemType) env p'
-        predComp   = NKL.Iterator (listT boolT) filterExpr filterName srcVar
-        filterSrc  = P.let_ srcName baseSrc (P.restrict srcVar predComp)
+    let elemTy        = elemT $ typeOf baseSrc
+        filterExpr    = substTupleAccesses visibleNames (filterName, elemTy) env p'
+
+        predTy        = listT (pairT elemTy boolT)
+        predPairConst = P.tuple [NKL.Var elemTy filterName, filterExpr]
+        -- Construct an iterator that pairs every input element with
+        -- the corresponding result of the predicate:
+        -- 
+        -- [ (x, p x) | x <- xs ]
+        predIter      = NKL.Iterator predTy predPairConst filterName srcVar
+        filterSrc     = P.restrict predIter
 
     desugarQualsRec env filterSrc qs
 

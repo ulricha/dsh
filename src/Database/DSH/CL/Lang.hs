@@ -112,6 +112,8 @@ data Prim1 = Singleton
            | Last 
            | Nub
            | Number 
+           | Sort
+           | Group
            | Guard
            | Reshape Integer
            | Transpose
@@ -119,6 +121,8 @@ data Prim1 = Singleton
            deriving (Eq)
 
 instance Show Prim1 where
+  show Sort            = "sort"
+  show Group           = "group"
   show Singleton       = "sng"
   show Length          = "length"
   show Concat          = "concat"
@@ -143,9 +147,7 @@ instance Show Prim1 where
   -- tuple access is pretty-printed in a special way
   show TupElem{}       = $impossible
 
-data Prim2 = Sort
-           | Group
-           | Append
+data Prim2 = Append
            | Index
            | Zip 
            | CartProduct
@@ -157,8 +159,6 @@ data Prim2 = Sort
            deriving (Eq)
 
 instance Show Prim2 where
-  show Group        = "group"
-  show Sort         = "sort"
   show Append       = "append"
   show Index        = "index"
   show Zip          = "zip"

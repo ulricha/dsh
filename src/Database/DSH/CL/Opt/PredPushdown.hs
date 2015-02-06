@@ -10,14 +10,15 @@ module Database.DSH.CL.Opt.PredPushdown
 
 import           Control.Applicative
 import           Control.Arrow
-import qualified Data.List.NonEmpty       as N
-import qualified Data.Set                 as S
+import qualified Data.List.NonEmpty            as N
+import qualified Data.Set                      as S
 
-import           Database.DSH.Common.Lang
-import           Database.DSH.Common.Nat
 import           Database.DSH.CL.Kure
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Opt.Auxiliary
+import qualified Database.DSH.CL.Primitives    as P
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
 
 --------------------------------------------------------------------------------
 -- Auxiliary functions
@@ -163,20 +164,17 @@ mergePredIntoJoinR x p = do
 -- in its original form.
 pushSortInputR :: Ident -> Expr -> RewriteC CL
 pushSortInputR x p = do
-    AppE2 t Sort xs (Comp st se (S (BindQ x' xs'))) <- promoteT idR
+    AppE1 t Sort xs <- promoteT idR
 
-    -- FIXME this compares whole terms in an uncontrolled way and
-    -- could be too expensive.
-    guardM $ xs == xs'
-    guardM $ x == x'
+    let xst    = typeOf xs
+        xt     = elemT xt
+        genVar = Var xt x
 
-    let xst = typeOf xs
-        xt  = elemT xt
-        -- We reuse the generator variable for the filter comprehension
-        xsFiltered = Comp xst (Var xt x) (BindQ x xs :* S (GuardQ p))
-        ssFiltered = Comp st se (BindQ x' xs' :* S (GuardQ p))
+    ExprCL p' <- constT (return $ inject p) >>> substR x (P.fst genVar)
 
-    return $ inject $ AppE2 t Sort xsFiltered ssFiltered
+    let restrictedInput = Comp xst genVar (BindQ x xs :* S (GuardQ p'))
+
+    return $ inject $ AppE1 t Sort restrictedInput
 
 --------------------------------------------------------------------------
 -- Take remaining comprehension guards and try to push them into the
@@ -208,7 +206,7 @@ pushPredicateR x p = do
         ExprCL (AppE2 _ (AntiJoin _) _ _)  -> pushLeftR x p
 
         -- Sorting commutes with selection
-        ExprCL (AppE2 _ Sort _ _)          -> pushSortInputR x p
+        ExprCL (AppE1 _ Sort _)            -> pushSortInputR x p
         _                                  -> fail "expression does not allow predicate pushing"
 
 pushQualsR :: RewriteC CL

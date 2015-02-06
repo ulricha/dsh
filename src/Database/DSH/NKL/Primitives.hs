@@ -52,18 +52,17 @@ concat e = let t = typeOf e
                then AppE1 (unliftType t) Concat e
                else tyErrShow "concat" [t]
 
-restrict :: Expr -> Expr -> Expr
-restrict vs bs = let vst@(ListT _)     = typeOf vs
-                 in AppE2 vst Restrict vs bs
+restrict :: Expr -> Expr
+restrict xs = let ListT (TupleT [xt, BoolT]) = typeOf xs
+              in AppE1 (ListT xt) Restrict xs
 
-sort :: Expr -> Expr -> Expr
-sort vs ss = let vst@(ListT _) = typeOf vs
-             in AppE2 vst Sort vs ss
+sort :: Expr -> Expr
+sort xs = let ListT (TupleT [xt, _]) = typeOf xs
+          in AppE1 (ListT xt) Sort xs
 
--- FIXME type is not correct
-group :: Expr -> Expr -> Expr
-group vs gs = let vst@(ListT _) = typeOf vs
-              in AppE2 vst Group vs gs
+group :: Expr -> Expr
+group xs = let ListT (TupleT [xt, gt]) = typeOf xs
+           in AppE1 (ListT (TupleT [gt, ListT xt])) Group xs
 
 let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2

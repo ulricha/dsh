@@ -2,6 +2,7 @@
 
 module Database.DSH.FKL.Rewrite
     ( optimizeFKL
+    , optimizeNormFKL
     ) where
 
 import Data.Monoid
@@ -119,11 +120,30 @@ simpleBindingR = do
     guardM $ simpleExpr e1
     childT LetBody $ substR x e1
 
+
+-- | Remove sequences of forget and imprint calls that form a NOOP.
+imprintforgetR :: RewriteF (FKL Lifted ShapeExt)
+imprintforgetR = do
+    ExprFKL (Ext (Forget d _ (Ext (Imprint d' _ _ xs)))) <- idR
+    guardM $ d == d'
+    return $ ExprFKL xs
+
 fklOptimizations :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
                  => RewriteF (FKL l e)
 fklOptimizations = anybuR $ unusedBindingR 
                             <+ referencedOnceR
                             <+ simpleBindingR
+
+fklNormOptimizations :: RewriteF (FKL Lifted ShapeExt)
+fklNormOptimizations = anybuR $ unusedBindingR
+                                <+ referencedOnceR
+                                <+ simpleBindingR
+                                <+ imprintforgetR
+
+optimizeNormFKL :: FExpr -> FExpr
+optimizeNormFKL expr = debugOpt "FKL" expr expr'
+  where
+    expr' = applyExpr (fklNormOptimizations >>> projectT) expr
 
 optimizeFKL :: ( Injection (ExprTempl l e) (FKL l e)
                , Walker FlatCtx (FKL l e)
