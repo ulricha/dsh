@@ -76,20 +76,25 @@ Flag debuggraph
 
 Library
   Extensions:        CPP
-  Build-depends:     base               >= 4.7 && < 5,
-                     template-haskell   >= 2.9,
-                     containers         >= 0.5,
-                     mtl                >= 2.1,
-                     bytestring         >= 0.10,
-                     text               >= 1.1,
-                     pretty             >= 1.1,
-                     aeson              >= 0.8,
-                     kure               >= 2.16,
-                     either             >= 4.0,
-                     semigroups         >= 0.16,
-                     ansi-wl-pprint     >= 0.6,
-                     set-monad          >= 0.1,
-                     dlist              >= 0.7,
+  Build-depends:     base                         >= 4.7 && < 5,
+                     template-haskell             >= 2.9,
+                     containers                   >= 0.5,
+                     mtl                          >= 2.1,
+                     bytestring                   >= 0.10,
+                     text                         >= 1.1,
+                     pretty                       >= 1.1,
+                     aeson                        >= 0.8,
+                     kure                         >= 2.16,
+                     either                       >= 4.0,
+                     semigroups                   >= 0.16,
+                     ansi-wl-pprint               >= 0.6,
+                     set-monad                    >= 0.1,
+                     dlist                        >= 0.7,
+                     test-framework               >= 0.8,
+                     QuickCheck                   >= 2.7,
+                     HUnit                        >= 1.2,
+                     test-framework-quickcheck2   >= 0.3,
+                     test-framework-hunit         >= 0.3,
 
                      algebra-dag        >= 0.1.1
 
@@ -106,6 +111,7 @@ Library
   Exposed-modules:   Database.DSH
                      Database.DSH.Compiler
                      Database.DSH.Backend
+                     Database.DSH.Tests
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -182,6 +188,10 @@ Library
                      Database.DSH.VL.Opt.Rewrite.Aggregation
                      Database.DSH.VL.Opt.Rewrite.Window
                      Database.DSH.VL.Opt.Rewrite.Unused
+
+                     Database.DSH.Tests.ComprehensionTests
+                     Database.DSH.Tests.CombinatorTests
+                     Database.DSH.Tests.DSHComprehensions
 
 executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
