@@ -40,7 +40,7 @@ compileQ = optimizeComprehensions >>>
            specializeVectorOps
 
 -- | Compile a query and execute it on a given backend connection.
-runQ :: forall a c. (Backend c, Row (BackendRow c), QA a) => c -> Q a -> IO a
+runQ :: forall a c. (Backend c, QA a) => c -> Q a -> IO a
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
     cl <- toComprehensions c q
@@ -51,7 +51,7 @@ runQ c (Q q) = do
 
 
 -- | Compile a query and dump intermediate plans to files.
-debugQ :: forall a c.(Backend c, Row (BackendRow c), QA a)
+debugQ :: forall a c.(Backend c, QA a)
        => String
        -> c
        -> Q a

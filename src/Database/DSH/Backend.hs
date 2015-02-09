@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | This module provides an abstraction over flat relational backends
 -- with respect to code generation and query execution.
@@ -19,7 +20,7 @@ type TableInfo = [(String, String, (T.Type -> Bool))]
 
 -- | An abstract backend for which we can generate code and on which
 -- flat queries can be executed.
-class Backend c where
+class Row (BackendRow c) => Backend c where
     data BackendRow c
     data BackendCode c
     data BackendPlan c

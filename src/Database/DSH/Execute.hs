@@ -32,7 +32,7 @@ $(mkTabTupleType 16)
 -- | Row layout with nesting data in the form of raw tabular results
 data TabLayout a where
     TCol   :: F.Type a -> String -> TabLayout a
-    TNest  :: (F.Reify a, Backend c, Row (BackendRow c))
+    TNest  :: (F.Reify a, Backend c)
            => F.Type [a] -> [BackendRow c] -> TabLayout a -> TabLayout [a]
     TTuple :: TabTuple a -> TabLayout a
 
@@ -83,7 +83,11 @@ posBracket ma = do
 --------------------------------------------------------------------------------
 -- Execute flat queries and construct result values
 
-execQueryBundle :: (Backend c, Row (BackendRow c)) => c -> Shape (BackendCode c) -> F.Type a -> IO (F.Exp a)
+execQueryBundle :: Backend c
+                => c
+                -> Shape (BackendCode c)
+                -> F.Type a
+                -> IO (F.Exp a)
 execQueryBundle conn shape ty =
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
@@ -97,7 +101,10 @@ execQueryBundle conn shape ty =
         _ -> $impossible
 
 -- | Traverse the layout and execute all subqueries for nested vectors
-execNested :: (Backend c, Row (BackendRow c)) => c -> PosLayout (BackendCode c) -> F.Type a -> IO (TabLayout a)
+execNested :: Backend c
+           => c -> PosLayout (BackendCode c)
+           -> F.Type a
+           -> IO (TabLayout a)
 execNested conn lyt ty =
     case (lyt, ty) of
         (PCol i, t)                   -> return $ TCol t (itemCol i)
@@ -107,7 +114,8 @@ execNested conn lyt ty =
             return $ TNest ty tab clyt'
         (PTuple lyts, F.TupleT tupTy) -> let execTuple = $(mkExecTuple 16)
                                          in execTuple lyts tupTy
-        (_, _)                        -> error $ printf "Type does not match query structure: %s" (pp ty)
+        (_, _)                        ->
+            error $ printf "Type does not match query structure: %s" (pp ty)
 
 ------------------------------------------------------------------------------
 -- Construct result value terms from raw tabular results
