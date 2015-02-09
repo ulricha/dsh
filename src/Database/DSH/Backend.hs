@@ -5,9 +5,19 @@
 -- with respect to code generation and query execution.
 module Database.DSH.Backend
     ( TableInfo
+    -- * Backend Functionality Classes
     , Backend(..)
     , Row(..)
+    -- * Literal scalar value expressions
+    , doubleE
+    , unitE
+    , integerE
+    , boolE
+    , charE
+    , textE
     ) where
+
+import           Data.Text(Text)
 
 import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Type        as T
@@ -55,3 +65,25 @@ class Row r where
 
     -- | Convert an attribute value to a value term
     scalarVal :: Scalar r -> F.Type a -> F.Exp a
+
+--------------------------------------------------------------------------------
+-- Constructors for literal scalar type expressions. Backends need
+-- those to construct result expressions from rows.
+
+doubleE :: Double -> F.Exp Double
+doubleE = F.DoubleE
+
+unitE :: F.Exp ()
+unitE = F.UnitE
+
+integerE :: Integer -> F.Exp Integer
+integerE = F.IntegerE
+
+boolE :: Bool -> F.Exp Bool
+boolE = F.BoolE
+
+charE :: Char -> F.Exp Char
+charE = F.CharE
+
+textE :: Text -> F.Exp Text
+textE = F.TextE
