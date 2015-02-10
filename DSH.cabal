@@ -88,11 +88,10 @@ Library
                      either                       >= 4.0,
                      semigroups                   >= 0.16,
                      ansi-wl-pprint               >= 0.6,
-                     set-monad                    >= 0.1,
                      dlist                        >= 0.7,
-                     test-framework               >= 0.8,
                      QuickCheck                   >= 2.7,
                      HUnit                        >= 1.2,
+                     test-framework               >= 0.8,
                      test-framework-quickcheck2   >= 0.3,
                      test-framework-hunit         >= 0.3,
 
