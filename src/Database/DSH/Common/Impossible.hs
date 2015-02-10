@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Impossible (impossible, unimplemented) where
+module Database.DSH.Common.Impossible (impossible, unimplemented) where
 
 import qualified Language.Haskell.TH as TH
 

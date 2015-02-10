@@ -29,7 +29,7 @@ import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Pretty
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- A simple type of nonempty lists, used for comprehension

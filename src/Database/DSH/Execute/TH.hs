@@ -14,7 +14,7 @@ import           Data.List
 
 import           Text.Printf
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.TupleTypes
 import qualified Database.DSH.Frontend.Internals as DSH
 

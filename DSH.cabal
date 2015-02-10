@@ -117,6 +117,7 @@ Library
                      Database.DSH.Common.Type
                      Database.DSH.Common.Vector
                      Database.DSH.Common.Lang
+                     Database.DSH.Common.Impossible
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -167,8 +168,6 @@ Library
                      Database.DSH.VL.VectorAlgebra
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives
-
-                     Database.DSH.Impossible
 
                      Database.DSH.VL.Opt.Properties.BottomUp
                      Database.DSH.VL.Opt.Properties.Card

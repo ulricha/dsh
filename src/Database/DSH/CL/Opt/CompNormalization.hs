@@ -30,7 +30,7 @@ import           Database.DSH.CL.Opt.Auxiliary
 import qualified Database.DSH.CL.Primitives as P
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Lang
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 ------------------------------------------------------------------
 -- Classical Monad Comprehension Normalization rules (Grust)

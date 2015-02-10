@@ -15,7 +15,7 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
 import           Database.DSH.FKL.Lang
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import qualified Database.DSH.VL.Lang          as VL
 import           Database.DSH.VL.Primitives
 import qualified Database.DSH.VL.Vectorize     as V

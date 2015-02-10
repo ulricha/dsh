@@ -12,7 +12,7 @@ import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- Typed frontend ASTs

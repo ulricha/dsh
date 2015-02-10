@@ -8,7 +8,7 @@ import           Control.Monad
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Lang

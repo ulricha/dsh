@@ -21,7 +21,7 @@ import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Backend
 import           Database.DSH.Execute.TH
 import qualified Database.DSH.Frontend.Internals as F
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 ------------------------------------------------------------------------------
 -- Different kinds of layouts that contain results in various forms

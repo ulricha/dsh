@@ -17,7 +17,7 @@ import qualified Data.Foldable              as F
 import qualified Data.Traversable           as T
 import           Data.Monoid
        
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
 import           Database.DSH.CL.Kure

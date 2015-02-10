@@ -9,7 +9,7 @@ import qualified Database.DSH.Common.Lang      as L
 import qualified Database.DSH.Common.Type      as Ty
 import           Database.DSH.Common.Vector
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common

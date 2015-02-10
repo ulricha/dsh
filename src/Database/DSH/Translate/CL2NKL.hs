@@ -16,7 +16,7 @@ import qualified Data.Foldable               as F
 import           Control.Monad.Reader
 import           Control.Applicative
   
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
        
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Lang

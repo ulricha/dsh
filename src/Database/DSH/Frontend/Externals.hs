@@ -21,7 +21,7 @@ import qualified Data.Text                        as T
 import           Database.DSH.Frontend.Funs
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 
 -- QA Instances

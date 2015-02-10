@@ -10,7 +10,7 @@ module Database.DSH.Translate.Frontend2CL
     , TableInfo
     ) where
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 import qualified Database.DSH.CL.Lang            as CL
 import qualified Database.DSH.CL.Primitives      as CP

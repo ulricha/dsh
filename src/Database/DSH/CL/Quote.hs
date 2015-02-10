@@ -35,7 +35,7 @@ import qualified Text.Parsec.Token as P
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.PrettyPrint.HughesPJ((<+>), (<>))
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 import           Database.DSH.Common.Data.Op
 import           Database.DSH.Common.Data.Val

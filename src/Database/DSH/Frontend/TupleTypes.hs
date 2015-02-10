@@ -29,7 +29,7 @@ import           Text.Printf
 
 import           Language.Haskell.TH
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Nat
 import qualified Database.DSH.Common.Type   as T
 import qualified Database.DSH.CL.Primitives as CP

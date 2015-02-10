@@ -12,6 +12,6 @@ import qualified Data.Set as S
 
 import qualified Database.DSH.NKL.Lang as NKL
 import           Database.DSH.NKL.Quote
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
     

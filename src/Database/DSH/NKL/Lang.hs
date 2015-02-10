@@ -14,7 +14,7 @@ module Database.DSH.NKL.Lang
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang     as L
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Nat

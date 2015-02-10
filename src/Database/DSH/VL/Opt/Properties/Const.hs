@@ -12,7 +12,7 @@ import           Data.List
 import qualified Data.List.NonEmpty                          as N
 import           Data.Maybe
 
-import Database.DSH.Impossible
+import Database.DSH.Common.Impossible
 import           Database.DSH.VL.Opt.Properties.Common
 import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Lang

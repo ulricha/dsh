@@ -13,7 +13,7 @@ import Control.Arrow
 import Data.List
 import Data.Monoid
 
-import Database.DSH.Impossible
+import Database.DSH.Common.Impossible
 import Database.DSH.Common.Type
 import Database.DSH.Common.Lang
 import Database.DSH.Common.Kure

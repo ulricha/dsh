@@ -18,7 +18,7 @@ import qualified Database.Algebra.Dag                 as D
 import qualified Database.Algebra.Dag.Build           as B
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Translate.FKL2VL        ()
 import           Database.DSH.Common.Vector

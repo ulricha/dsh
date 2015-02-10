@@ -12,7 +12,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Type
 import           Database.DSH.FKL.Lang
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 --------------------------------------------------------------------------------
 -- Smart constructors for primitive combinators in the lifting FKL dialect

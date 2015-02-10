@@ -31,7 +31,7 @@ module Database.DSH.Common.Type
 
 import Text.PrettyPrint.ANSI.Leijen
 
-import Database.DSH.Impossible
+import Database.DSH.Common.Impossible
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Nat
 

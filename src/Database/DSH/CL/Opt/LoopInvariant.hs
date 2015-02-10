@@ -12,7 +12,7 @@ import           Control.Applicative
 import           Data.Maybe
 import           Data.List
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Kure
 import           Database.DSH.Common.Pretty

@@ -18,7 +18,7 @@ import qualified Database.DSH.Common.Lang      as L
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL (),
                                                 VLVal (..))
 import           Database.DSH.VL.Primitives

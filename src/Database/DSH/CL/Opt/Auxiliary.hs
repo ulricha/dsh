@@ -56,7 +56,7 @@ import           Database.DSH.CL.Lang
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.RewriteM
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 
 -- | A version of the CompM monad in which the state contains an additional
 -- rewrite. Use case: Returning a tuplify rewrite from a traversal over the

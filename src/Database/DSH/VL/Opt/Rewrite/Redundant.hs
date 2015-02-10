@@ -12,7 +12,7 @@ import           Control.Monad
 import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.Lang
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Opt.Properties.Types
 import           Database.DSH.VL.Opt.Properties.VectorType

@@ -9,7 +9,7 @@ import           Control.Monad.State
 import           Control.Monad.Reader
 import           Control.Applicative
 
-import           Database.DSH.Impossible
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Type
