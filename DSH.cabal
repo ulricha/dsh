@@ -209,3 +209,7 @@ executable vldot
 
                       algebra-dag          >= 0.1
     GHC-Options: -Wall -fno-warn-orphans
+
+source-repository head
+    type:     git
+    location: https://github.com/ulricha/dsh
