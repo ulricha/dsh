@@ -1,4 +1,4 @@
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs    #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | A QueryPlan describes the computation of the top-level query
@@ -6,10 +6,10 @@
 -- result's structure is encoded by the individual queries.
 module Database.DSH.Common.QueryPlan where
 
-
-import           Data.Aeson.TH
 import           Data.Aeson
-import qualified Data.ByteString.Lazy.Char8    as BL
+import           Data.Aeson.TH
+import qualified Data.ByteString.Lazy.Char8  as BL
+import qualified Data.Foldable               as F
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
@@ -23,10 +23,15 @@ data Layout q = LCol
               | LTuple [Layout q]
               deriving (Show, Read)
 
--- FIXME there propably should be Functor and Foldable instances for
--- shapes
+instance Functor Layout where
+    fmap _ LCol          = LCol
+    fmap f (LNest q lyt) = LNest (f q) (fmap f lyt)
+    fmap f (LTuple lyts) = LTuple (fmap (fmap f) lyts)
 
--- FIXME Separate L and S tags from the shape structure.
+instance F.Foldable Layout where
+    foldr _ z LCol          = z
+    foldr f z (LNest q lyt) = f q (F.foldr f z lyt)
+    foldr f z (LTuple lyts) = F.foldr (\l b -> F.foldr f b l) z lyts
 
 -- | A Shape describes the structure of the result produced by a
 -- bundle of nested queries. 'q' is the type of individual vectors,
@@ -37,40 +42,30 @@ data Shape q = VShape q (Layout q)  -- | A regular vector shape
              | SShape q (Layout q)  -- | A shape for a singleton vector
              deriving (Show, Read)
 
+instance Functor Shape where
+    fmap f (VShape q lyt) = VShape (f q) (fmap f lyt)
+    fmap f (SShape q lyt) = SShape (f q) (fmap f lyt)
+
+instance F.Foldable Shape where
+    foldr f z (VShape q lyt) = f q (F.foldr f z lyt)
+    foldr f z (SShape q lyt) = f q (F.foldr f z lyt)
+
 $(deriveJSON defaultOptions ''Layout)
 $(deriveJSON defaultOptions ''Shape)
 
--- | Extract all plan root nodes stored in the layout
-layoutNodes :: DagVector v => Layout v -> [AlgNode]
-layoutNodes LCol          = []
-layoutNodes (LNest v lyt) = vectorNodes v ++ layoutNodes lyt
-layoutNodes (LTuple lyts) = concatMap layoutNodes lyts
-
 -- | Extract all plan root nodes stored in the shape
 shapeNodes :: DagVector v => Shape v -> [AlgNode]
-shapeNodes (VShape v lyt) = vectorNodes v ++ layoutNodes lyt
-shapeNodes (SShape v lyt) = vectorNodes v ++ layoutNodes lyt
+shapeNodes shape = F.foldMap (\v -> vectorNodes v) shape
 
 -- | Replace a node in a top shape with another node.
 updateShape :: DagVector v => AlgNode -> AlgNode -> Shape v -> Shape v
-updateShape old new shape =
-    case shape of
-        VShape dbv lyt -> VShape (updateVector old new dbv) (updateLayout lyt)
-        SShape dbv lyt -> SShape (updateVector old new dbv) (updateLayout lyt)
+updateShape old new shape = fmap (updateVector old new) shape
 
-  where
-    updateLayout (LNest dbv lyt) = LNest (updateVector old new dbv) (updateLayout lyt)
-    updateLayout (LTuple lyts)   = LTuple (map updateLayout lyts)
-    updateLayout l               = l
-
+-- | Determine the number of relational attributes needed in a vector.
 columnsInLayout :: Layout q -> Int
 columnsInLayout LCol          = 1
 columnsInLayout (LNest _ _)   = 0
 columnsInLayout (LTuple lyts) = sum $ map columnsInLayout lyts
-
-isOuterMost :: AlgNode -> Shape NDVec -> Bool
-isOuterMost n (VShape (ADVec n' _) _) = n == n'
-isOuterMost n (SShape (ADVec n' _) _) = n == n'
 
 -- | A query plan consists of a DAG over some algebra and information about the
 -- shape of the query.
@@ -90,7 +85,7 @@ mkQueryPlan :: (Operator a, DagVector v)
 mkQueryPlan dag shape tagMap =
   QueryPlan { queryDag   = addRootNodes dag (shapeNodes shape)
             , queryShape = shape
-            , queryTags  = tagMap 
+            , queryTags  = tagMap
             }
 
 -- | Export a query plan to two files. One file (.plan) contains the
