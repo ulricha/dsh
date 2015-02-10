@@ -8,5 +8,5 @@ import           Database.DSH.Translate.VL2Algebra (VecBuild, runVecBuild, vl2Al
 import           Database.DSH.VL.Lang              (VL, AggrFun (..), DBCol,
                                                     Expr (..), FrameSpec (..),
                                                     ScalarType (..), VLVal (..),
-                                                    WinFun (..))
+                                                    WinFun (..), shiftExprCols)
 import           Database.DSH.VL.VectorAlgebra
