@@ -3,7 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
-module Database.DSH.Common.Type 
+-- | Types for backend languages.
+module Database.DSH.Common.Type
     ( isNum
     , isList
     , elemT
@@ -33,8 +34,8 @@ import Text.PrettyPrint.ANSI.Leijen
 import Database.DSH.Impossible
 import Database.DSH.Common.Pretty
 import Database.DSH.Common.Nat
-  
-instance Pretty Type where 
+
+instance Pretty Type where
     pretty IntT          = text "Int"
     pretty BoolT         = text "Bool"
     pretty DoubleT       = text "Double"
@@ -45,15 +46,16 @@ instance Pretty Type where
 
 -- | We use the following type language to type the various
 -- intermediate languages.
-data Type  = IntT 
-           | BoolT 
+data Type  = IntT
+           | BoolT
            | DoubleT
-           | StringT 
-           | UnitT 
+           | StringT
+           | UnitT
            | ListT Type
            | TupleT [Type]
            deriving (Show, Eq, Ord)
 
+-- | Is the (scalar) type numeric?
 isNum :: Type -> Bool
 isNum IntT        = True
 isNum DoubleT     = True
@@ -62,7 +64,10 @@ isNum StringT     = False
 isNum UnitT       = False
 isNum (ListT _)   = False
 isNum (TupleT _)  = False
-      
+
+--------------------------------------------------------------------------------
+-- Smart constructors and deconstructors.
+
 intT :: Type
 intT = IntT
 
@@ -121,7 +126,7 @@ liftTypeN Zero t     = t
 liftTypeN (Succ n) t = liftTypeN n $ liftType t
 
 liftType :: Type -> Type
-liftType t = listT t 
+liftType t = listT t
 
 unliftTypeN :: Nat -> Type -> Type
 unliftTypeN Zero t     = t
@@ -131,5 +136,8 @@ unliftType :: Type -> Type
 unliftType (ListT t1) = t1
 unliftType t          = error $ "Type: " ++ pp t ++ " cannot be unlifted."
 
+--------------------------------------------------------------------------------
+
+-- | Typed terms
 class Typed a where
   typeOf :: a -> Type

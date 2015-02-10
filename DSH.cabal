@@ -112,6 +112,9 @@ Library
                      Database.DSH.Compiler
                      Database.DSH.Backend
                      Database.DSH.Tests
+                     Database.DSH.Common.QueryPlan
+                     Database.DSH.Common.Opt
+                     Database.DSH.Common.Type
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -124,12 +127,9 @@ Library
 
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
-                     Database.DSH.Common.Type
                      Database.DSH.Common.Lang
-                     Database.DSH.Common.QueryPlan
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
-                     Database.DSH.Common.Opt
 
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure

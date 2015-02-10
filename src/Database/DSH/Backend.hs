@@ -1,5 +1,5 @@
-{-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
 
 -- | This module provides an abstraction over flat relational backends
 -- with respect to code generation and query execution.
@@ -8,6 +8,9 @@ module Database.DSH.Backend
     -- * Backend Functionality Classes
     , Backend(..)
     , Row(..)
+    -- * Re-exported vector types.
+    , module Database.DSH.VL.Lang
+    , module Database.DSH.VL.Vector
     -- * Literal scalar value expressions
     , doubleE
     , unitE
@@ -17,13 +20,13 @@ module Database.DSH.Backend
     , textE
     ) where
 
-import           Data.Text(Text)
+import           Data.Text                       (Text)
 
 import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Type        as T
 import qualified Database.DSH.Frontend.Internals as F
-import qualified Database.DSH.VL.Lang            as VL
-import           Database.DSH.VL.Vector
+import           Database.DSH.VL.Lang            (VL)
+import           Database.DSH.VL.Vector(VLDVec)
 
 -- FIXME implement properly
 type TableInfo = [(String, String, (T.Type -> Bool))]
@@ -43,7 +46,7 @@ class Row (BackendRow c) => Backend c where
 
     -- | Implement vector operations using the backend-specific
     -- algebra.
-    generatePlan  :: QueryPlan VL.VL VLDVec -> BackendPlan c
+    generatePlan  :: QueryPlan VL VLDVec -> BackendPlan c
 
     -- | Optimize the algebra plan and generate serialized backend
     -- code
