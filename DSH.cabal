@@ -3,7 +3,7 @@ Version:             0.10.0.2
 Synopsis:            Database Supported Haskell
 Description:
   This is a Haskell library for database-supported program
-  execution. Using this library a relational database management
+  execution. Using DSH, a relational database management
   system (RDBMS) can be used as a coprocessor for the Haskell
   programming language, especially for those program fragments that
   carry out data-intensive and data-parallel computations.
@@ -28,8 +28,8 @@ Description:
   .
   Note that this package is flagged experimental and therefore is not
   suited for production use (we mean it!). This is a proof of concept
-  implementation only. To learn more about DSH, our paper entitled as
-  "The Flatter, the Better — Query Compilation Based on the Flattening
+  implementation only. To learn more about DSH, our paper "The
+  Flatter, the Better — Query Compilation Based on the Flattening
   Transformation." [1] is a recommended reading. The package includes
   a couple of examples that demonstrate how to use DSH.
   .
