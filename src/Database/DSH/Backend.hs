@@ -10,7 +10,6 @@ module Database.DSH.Backend
     , Row(..)
     -- * Re-exported vector types.
     , module Database.DSH.VL.Lang
-    , module Database.DSH.VL.Vector
     -- * Literal scalar value expressions
     , doubleE
     , unitE
@@ -26,7 +25,7 @@ import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Type        as T
 import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.VL.Lang            (VL)
-import           Database.DSH.VL.Vector(VLDVec)
+import           Database.DSH.Common.Vector      (VLDVec)
 
 -- FIXME implement properly
 type TableInfo = [(String, String, (T.Type -> Bool))]

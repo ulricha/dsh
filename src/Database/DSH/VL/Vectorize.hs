@@ -22,7 +22,7 @@ import           Database.DSH.Impossible
 import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL (),
                                                 VLVal (..))
 import           Database.DSH.VL.Primitives
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 --------------------------------------------------------------------------------
 -- Construction of not-lifted primitives

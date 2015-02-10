@@ -14,7 +14,7 @@ import qualified Data.Foldable               as F
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
 
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 -- | A Layout describes the tuple structure of values encoded by
 -- one particular query from a bundle.

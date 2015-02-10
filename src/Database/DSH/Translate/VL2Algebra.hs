@@ -21,7 +21,7 @@ import           Database.Algebra.Dag.Common
 import           Database.DSH.Impossible
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Translate.FKL2VL        ()
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 import qualified Database.DSH.VL.Lang                 as V
 import           Database.DSH.VL.VectorAlgebra
 

@@ -42,7 +42,7 @@ import           Database.Algebra.Rewrite.Rule
 import           Database.Algebra.Rewrite.Traversal
 
 import           Database.DSH.Common.QueryPlan
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 --------------------------------------------------------------
 -- Versions of rewrite combinators that maintain the Shape

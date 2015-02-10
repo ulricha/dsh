@@ -13,11 +13,11 @@ import qualified Database.Algebra.Dag.Common   as Alg
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
+import           Database.DSH.Common.Vector
 import           Database.DSH.FKL.Lang
 import           Database.DSH.Impossible
 import qualified Database.DSH.VL.Lang          as VL
 import           Database.DSH.VL.Primitives
-import           Database.DSH.VL.Vector
 import qualified Database.DSH.VL.Vectorize     as V
 
 --------------------------------------------------------------------------------

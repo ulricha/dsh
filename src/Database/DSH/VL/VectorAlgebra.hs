@@ -5,7 +5,7 @@ module Database.DSH.VL.VectorAlgebra where
 
 import qualified Data.List.NonEmpty              as N
 import           Database.DSH.Common.Lang
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 import           Database.DSH.VL.Lang
 import           Database.Algebra.Dag.Build
 

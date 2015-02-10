@@ -27,7 +27,7 @@ import           Database.DSH.Translate.FKL2VL
 import           Database.DSH.Translate.NKL2FKL
 import qualified Database.DSH.VL.Lang               as VL
 import           Database.DSH.VL.Opt.OptimizeVL
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 --------------------------------------------------------------------------------
 

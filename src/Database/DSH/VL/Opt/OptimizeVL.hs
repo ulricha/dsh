@@ -7,7 +7,7 @@ import qualified Database.Algebra.Dag                                           
 import           Database.DSH.Common.QueryPlan
 
 import           Database.DSH.VL.Lang
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Opt.Rewrite.Expressions

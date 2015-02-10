@@ -115,6 +115,7 @@ Library
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.Opt
                      Database.DSH.Common.Type
+                     Database.DSH.Common.Vector
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -163,7 +164,6 @@ Library
 
                      Database.DSH.VL.Lang
                      Database.DSH.VL.Render.Dot
-                     Database.DSH.VL.Vector
                      Database.DSH.VL.VectorAlgebra
                      Database.DSH.VL.Vectorize
                      Database.DSH.VL.Primitives

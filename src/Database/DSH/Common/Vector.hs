@@ -4,7 +4,7 @@
 
 -- | This module defines the kinds of vectors that occur in VL
 -- programs.
-module Database.DSH.VL.Vector
+module Database.DSH.Common.Vector
     ( DBCol
     , DagVector
     , vectorNodes

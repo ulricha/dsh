@@ -12,7 +12,7 @@ import           Database.DSH.Impossible
 
 import           Database.DSH.Common.Opt
 import           Database.DSH.VL.Lang
-import           Database.DSH.VL.Vector
+import           Database.DSH.Common.Vector
 
 import           Database.DSH.VL.Opt.Properties.BottomUp
 import           Database.DSH.VL.Opt.Properties.TopDown
