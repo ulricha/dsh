@@ -8,8 +8,6 @@ module Database.DSH.Backend
     -- * Backend Functionality Classes
     , Backend(..)
     , Row(..)
-    -- * Re-exported vector types.
-    , module Database.DSH.VL.Lang
     -- * Literal scalar value expressions
     , doubleE
     , unitE
@@ -60,13 +58,17 @@ class Row r where
     data Scalar r
 
     -- | Look up an attribute in the row
-    col       :: String -> r -> (Scalar r)
+    col        :: String -> r -> (Scalar r)
 
     -- | Convert an attribute value to a segment descriptor value
-    descrVal  :: Scalar r -> Int
+    descrVal   :: Scalar r -> Int
 
-    -- | Convert an attribute value to a value term
-    scalarVal :: Scalar r -> F.Type a -> F.Exp a
+    boolVal    :: Scalar r -> F.Exp Bool
+    integerVal :: Scalar r -> F.Exp Integer
+    doubleVal  :: Scalar r -> F.Exp Double
+    charVal    :: Scalar r -> F.Exp Char
+    textVal    :: Scalar r -> F.Exp Text
+    unitVal    :: Scalar r -> F.Exp ()
 
 --------------------------------------------------------------------------------
 -- Constructors for literal scalar type expressions. Backends need

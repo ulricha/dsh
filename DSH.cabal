@@ -112,10 +112,12 @@ Library
                      Database.DSH.Compiler
                      Database.DSH.Backend
                      Database.DSH.Tests
+                     Database.DSH.VL
                      Database.DSH.Common.QueryPlan
                      Database.DSH.Common.Opt
                      Database.DSH.Common.Type
                      Database.DSH.Common.Vector
+                     Database.DSH.Common.Lang
 
   Other-modules:     Database.DSH.Frontend.Internals
                      Database.DSH.Frontend.Externals
@@ -128,7 +130,6 @@ Library
 
                      Database.DSH.Common.Nat
                      Database.DSH.Common.Pretty
-                     Database.DSH.Common.Lang
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
 
@@ -189,6 +190,7 @@ Library
                      Database.DSH.VL.Opt.Rewrite.Window
                      Database.DSH.VL.Opt.Rewrite.Unused
 
+                     Database.DSH.Tests.Common
                      Database.DSH.Tests.ComprehensionTests
                      Database.DSH.Tests.CombinatorTests
                      Database.DSH.Tests.DSHComprehensions

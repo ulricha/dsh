@@ -208,7 +208,13 @@ constructVal lyt row =
                               in case IM.lookup pos segmap of
                                   Just v  -> v
                                   Nothing -> F.ListE []
-        SCol ty c         -> scalarVal (col c row) ty
+        SCol F.DoubleT c  -> doubleVal (col c row)
+        SCol F.IntegerT c -> integerVal (col c row)
+        SCol F.BoolT c    -> boolVal (col c row)
+        SCol F.CharT c    -> charVal (col c row)
+        SCol F.TextT c    -> textVal (col c row)
+        SCol F.UnitT c    -> unitVal (col c row)
+        SCol _       _    -> $impossible
 
 --------------------------------------------------------------------------------
 
