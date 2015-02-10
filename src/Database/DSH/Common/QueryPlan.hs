@@ -45,8 +45,8 @@ instance T.Traversable Layout where
 -- e.g. plan entry nodes or rendered database code. On the top level
 -- we distinguish between a single value and a proper vector with more
 -- than one element.
-data Shape q = VShape q (Layout q)  -- | A regular vector shape
-             | SShape q (Layout q)  -- | A shape for a singleton vector
+data Shape q = VShape q (Layout q)  -- ^ A regular vector shape
+             | SShape q (Layout q)  -- ^ A shape for a singleton vector
              deriving (Show, Read)
 
 instance Functor Shape where
