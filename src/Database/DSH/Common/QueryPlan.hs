@@ -10,6 +10,8 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import qualified Data.ByteString.Lazy.Char8  as BL
 import qualified Data.Foldable               as F
+import qualified Data.Traversable            as T
+import           Control.Applicative
 
 import           Database.Algebra.Dag
 import           Database.Algebra.Dag.Common
@@ -33,6 +35,11 @@ instance F.Foldable Layout where
     foldr f z (LNest q lyt) = f q (F.foldr f z lyt)
     foldr f z (LTuple lyts) = F.foldr (\l b -> F.foldr f b l) z lyts
 
+instance T.Traversable Layout where
+    traverse _ LCol          = pure LCol
+    traverse f (LNest q lyt) = LNest <$> f q <*> T.traverse f lyt
+    traverse f (LTuple lyts) = LTuple <$> T.traverse (T.traverse f) lyts
+
 -- | A Shape describes the structure of the result produced by a
 -- bundle of nested queries. 'q' is the type of individual vectors,
 -- e.g. plan entry nodes or rendered database code. On the top level
@@ -49,6 +56,10 @@ instance Functor Shape where
 instance F.Foldable Shape where
     foldr f z (VShape q lyt) = f q (F.foldr f z lyt)
     foldr f z (SShape q lyt) = f q (F.foldr f z lyt)
+
+instance T.Traversable Shape where
+    traverse f (VShape q lyt) = VShape <$> f q <*> T.traverse f lyt
+    traverse f (SShape q lyt) = VShape <$> f q <*> T.traverse f lyt
 
 $(deriveJSON defaultOptions ''Layout)
 $(deriveJSON defaultOptions ''Shape)

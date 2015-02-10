@@ -10,6 +10,7 @@ module Database.DSH.Translate.VL2Algebra
 import qualified Data.IntMap                          as IM
 import           Data.List
 import qualified Data.Map                             as M
+import qualified Data.Traversable                     as T
 
 import           Control.Applicative
 import           Control.Monad.State
@@ -70,33 +71,19 @@ toDVec :: Res v -> v
 toDVec (RDVec v) = v
 toDVec _         = error "toDVec: Not a NDVec"
 
-refreshLyt :: VectorAlgebra a => Layout VLDVec -> VecBuild a v (Layout v)
-refreshLyt LCol                   = return LCol
-refreshLyt (LNest (VLDVec n) lyt) = do
-    Just n' <- fromDict n
-    lyt'    <- refreshLyt lyt
-    return $ LNest (toDVec n') lyt'
-refreshLyt (LTuple lyts)          = LTuple <$> mapM refreshLyt lyts
-
+-- | Refresh vectors in a shape from the cache.
 refreshShape :: VectorAlgebra a => Shape VLDVec -> VecBuild a v (Shape v)
-refreshShape (VShape (VLDVec n) lyt) = do
-    mv <- fromDict n
-    case mv of
-        Just v -> do
-            lyt' <- refreshLyt lyt
-            return $ VShape (toDVec v) lyt'
-        _ -> $impossible
-refreshShape (SShape (VLDVec n) lyt) = do
-    mv <- fromDict n
-    case mv of
-        Just (RDVec v) -> do
-            lyt'              <- refreshLyt lyt
-            return $ SShape v lyt'
-        _ -> $impossible
+refreshShape shape = T.mapM refreshVec shape
+  where
+    refreshVec (VLDVec n) = do
+        mv <- fromDict n
+        case mv of
+            Just v -> return $ toDVec v
+            Nothing -> $impossible
 
-translate :: VectorAlgebra a 
-          => NodeMap V.VL 
-          -> AlgNode 
+translate :: VectorAlgebra a
+          => NodeMap V.VL
+          -> AlgNode
           -> VecBuild a (DVec a) (Res (DVec a))
 translate vlNodes n = do
     r <- fromDict n
