@@ -41,9 +41,8 @@ backend package needs to be installed. Currently, the package
 `dsh-sql` on Hackage provides SQL code generation for PostgreSQL.
 
 
-1. [http://db.inf.uni-tuebingen.de/publications/TheFlatter-theBetter-QueryCompilationBasedontheFlatteningTransformation.html](Ulrich, Grust. The Flatter, the Better - Query Compilation Based on the Flattening Transformation. Proc. SIGMOD 2015).
-2. [http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf](Grust
-   et al. Bringing Back Monad Comprehensions. Haskell Symposium 2011).
+1. [Ulrich, Grust. The Flatter, the Better - Query Compilation Based on the Flattening Transformation. Proc. SIGMOD 2015](http://db.inf.uni-tuebingen.de/publications/TheFlatter-theBetter-QueryCompilationBasedontheFlatteningTransformation.html).
+2. [Grust et al. Bringing Back Monad Comprehensions. Haskell Symposium 2011](http://db.inf.uni-tuebingen.de/staticfiles/publications/haskell2011.pdf).
 
 # Release Notes
 
