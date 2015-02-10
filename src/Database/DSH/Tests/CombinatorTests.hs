@@ -825,8 +825,8 @@ prop_map_sortWith_nest = makePropEq (Q.map (Q.sortWith Q.fst)) (map (sortWith fs
 prop_map_sortWith_length :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_sortWith_length = makePropEq (Q.map (Q.sortWith Q.length)) (map (sortWith length))
 
-prop_map_groupWith_length :: Backend c => [[[Integer]]] -> c -> Property
-prop_map_groupWith_length = makePropEq (Q.map (Q.groupWith Q.length)) (map (groupWith length))
+-- prop_map_groupWith_length :: Backend c => [[[Integer]]] -> c -> Property
+-- prop_map_groupWith_length = makePropEq (Q.map (Q.groupWith Q.length)) (map (groupWith length))
 
 prop_map_groupWithKey_length :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_groupWithKey_length = makePropEq (Q.map (Q.groupWithKey Q.length)) (map (groupWithKey (fromIntegral . length)))
@@ -834,8 +834,8 @@ prop_map_groupWithKey_length = makePropEq (Q.map (Q.groupWithKey Q.length)) (map
 prop_sortWith_length_nest  :: Backend c => [[[Integer]]] -> c -> Property
 prop_sortWith_length_nest = makePropEq (Q.sortWith Q.length) (sortWith length)
 
-prop_groupWith_length_nest :: Backend c => [[[Integer]]] -> c -> Property
-prop_groupWith_length_nest = makePropEq (Q.groupWith Q.length) (groupWith length)
+-- prop_groupWith_length_nest :: Backend c => [[[Integer]]] -> c -> Property
+-- prop_groupWith_length_nest = makePropEq (Q.groupWith Q.length) (groupWith length)
 
 prop_groupWithKey_length_nest :: Backend c => [[[Integer]]] -> c -> Property
 prop_groupWithKey_length_nest = makePropEq (Q.groupWithKey Q.length) (groupWithKey (fromIntegral . length))
@@ -945,11 +945,11 @@ prop_map_avg is conn = (not $ any null is)
 prop_map_map_sum :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_map_sum = makePropEq (Q.map (Q.map Q.sum)) (map (map sum))
 
-prop_map_map_avg :: Backend c => [[[Integer]]] -> c -> Property
-prop_map_map_avg is conn =
-    (not $ any (any null) is)
-    ==>
-    makePropEq (Q.map (Q.map Q.avg)) (map (map avgInt)) is conn
+-- prop_map_map_avg :: Backend c => [[[Integer]]] -> c -> Property
+-- prop_map_map_avg is conn =
+--     (not $ any (any null) is)
+--     ==>
+--     makePropEq (Q.map (Q.map Q.avg)) (map (map avgInt)) is conn
 
 prop_sum_double :: Backend c => [Double] -> c -> Property
 prop_sum_double = makePropDouble Q.sum sum

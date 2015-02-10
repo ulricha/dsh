@@ -14,9 +14,7 @@ module Database.DSH.Tests.Common
 import qualified Data.Text                            as T
 
 import           Test.Framework
-import           Test.Framework.Providers.HUnit
 import           Test.Framework.Providers.QuickCheck2
-import           Test.HUnit                           (Assertion)
 import           Test.HUnit                           (Assertion, assertEqual)
 import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
