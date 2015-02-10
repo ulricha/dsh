@@ -189,29 +189,26 @@ insertTopProjections g = g >>= traverseShape
   where
     traverseShape :: Shape VLDVec -> Build VL.VL (Shape VLDVec)
     traverseShape (VShape (VLDVec q) lyt) =
-        insertProj lyt q VL.Project VLDVec VShape
+        insertProj lyt q VShape
     traverseShape (SShape (VLDVec q) lyt)     =
-        insertProj lyt q VL.Project VLDVec SShape
+        insertProj lyt q SShape
 
     traverseLayout :: (Layout VLDVec) -> Build VL.VL (Layout VLDVec)
     traverseLayout LCol                   = return LCol
     traverseLayout (LTuple lyts)          = LTuple <$> mapM traverseLayout lyts
     traverseLayout (LNest (VLDVec q) lyt) =
-      insertProj lyt q VL.Project VLDVec LNest
+      insertProj lyt q LNest
 
-    insertProj
-      :: Layout VLDVec               -- ^ The node's layout
-      -> Alg.AlgNode                    -- ^ The top node to consider
-      -> ([VL.Expr] -> VL.UnOp)         -- ^ Constructor for the projection op
-      -> (Alg.AlgNode -> v)             -- ^ Vector constructor
-      -> (v -> (Layout VLDVec) -> t) -- ^ Layout/Shape constructor
-      -> Build VL.VL t
-    insertProj lyt q project vector describe = do
+    insertProj :: Layout VLDVec                    -- ^ The node's layout
+               -> Alg.AlgNode                      -- ^ The top node to consider
+               -> (VLDVec -> (Layout VLDVec) -> t) -- ^ Layout/Shape constructor
+               -> Build VL.VL t
+    insertProj lyt q describe = do
         let width = columnsInLayout lyt
             cols  = [1 .. width]
-        qp   <- insert $ Alg.UnOp (project $ map VL.Column cols) q
+        qp   <- insert $ Alg.UnOp (VL.Project $ map VL.Column cols) q
         lyt' <- traverseLayout lyt
-        return $ describe (vector qp) lyt'
+        return $ describe (VLDVec qp) lyt'
 
 -- | Compile a FKL expression into a query plan of vector operators (VL)
 specializeVectorOps :: FExpr -> QueryPlan VL.VL VLDVec
