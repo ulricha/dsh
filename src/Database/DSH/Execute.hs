@@ -89,14 +89,15 @@ execQueryBundle :: Backend c
                 -> F.Type a
                 -> IO (F.Exp a)
 execQueryBundle conn shape ty =
+    transactionally conn $ \conn' ->
     case (shape, ty) of
         (VShape q lyt, F.ListT ety) -> do
-            tab  <- execFlatQuery conn q
-            tlyt <- execNested conn (columnIndexes lyt) ety
+            tab  <- execFlatQuery conn' q
+            tlyt <- execNested conn' (columnIndexes lyt) ety
             return $ fromVector tab tlyt
         (SShape q lyt, _) -> do
-            tab  <- execFlatQuery conn q
-            tlyt <- execNested conn (columnIndexes lyt) ty
+            tab  <- execFlatQuery conn' q
+            tlyt <- execNested conn' (columnIndexes lyt) ty
             return $ fromPrim tab tlyt
         _ -> $impossible
 

@@ -52,6 +52,8 @@ class Row (BackendRow c) => Backend c where
     -- | Dump versions of the plan in JSON form to the specified file.
     dumpPlan :: String -> BackendPlan c -> IO ()
 
+    transactionally :: c -> (c -> IO a) -> IO a
+
 -- | Abstraction over result rows for a specific backend.
 class Row r where
     -- | The type of single attribute values
