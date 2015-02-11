@@ -7,6 +7,9 @@ module Database.DSH.Tests
     , module Database.DSH.Tests.CombinatorTests
     ) where
 
+import qualified Data.List                             as L
+import           System.Environment
+
 import           Test.Framework
 
 import           Database.DSH.Backend
@@ -15,7 +18,12 @@ import           Database.DSH.Tests.ComprehensionTests
 
 -- | Convenience function for running tests
 runTests :: Backend c => c -> [c -> Test] -> IO ()
-runTests conn tests = defaultMain $ map (\t -> t conn) tests
+runTests conn tests = do
+    args <- getArgs
+    let args' = if or $ map (L.isPrefixOf "-s") args
+                then args
+                else "-s5":args
+    defaultMainWithArgs (map (\t -> t conn) tests) args'
 
 -- | All available tests in one package.
 defaultTests :: Backend c => [c -> Test]
