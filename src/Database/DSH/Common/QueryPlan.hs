@@ -59,7 +59,7 @@ instance F.Foldable Shape where
 
 instance T.Traversable Shape where
     traverse f (VShape q lyt) = VShape <$> f q <*> T.traverse f lyt
-    traverse f (SShape q lyt) = VShape <$> f q <*> T.traverse f lyt
+    traverse f (SShape q lyt) = SShape <$> f q <*> T.traverse f lyt
 
 $(deriveJSON defaultOptions ''Layout)
 $(deriveJSON defaultOptions ''Shape)
