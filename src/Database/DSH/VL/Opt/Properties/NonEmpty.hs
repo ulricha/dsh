@@ -117,6 +117,7 @@ inferNonEmptyBinOp e1 e2 op =
     NestProductS    -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropTriple p p p) (ue1 && ue2))
     ThetaJoin _     -> return $ VPropTriple False False False
     NestJoin _      -> return $ VPropTriple False False False
+    GroupJoin _ _   -> return $ VProp False
     NestProduct     -> return $ VPropTriple False False False
     ThetaJoinS _    -> return $ VPropTriple False False False
     NestJoinS _     -> return $ VPropTriple False False False

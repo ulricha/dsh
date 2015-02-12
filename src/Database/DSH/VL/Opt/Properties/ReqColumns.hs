@@ -39,12 +39,12 @@ reqExprCols (Constant _)     = []
 reqExprCols (If c t e)       = reqExprCols c `L.union` reqExprCols t `L.union` reqExprCols e
 
 reqLeftPredCols :: JoinPredicate Expr -> [DBCol]
-reqLeftPredCols (JoinPred cs) = L.nub 
+reqLeftPredCols (JoinPred cs) = L.nub
                                 $ concatMap (\(JoinConjunct le _ _) -> reqExprCols le) 
                                 $ N.toList cs
 
 reqRightPredCols :: JoinPredicate Expr -> [DBCol]
-reqRightPredCols (JoinPred cs) = L.nub 
+reqRightPredCols (JoinPred cs) = L.nub
                                 $ concatMap (\(JoinConjunct _ _ re) -> reqExprCols re) 
                                 $ N.toList cs
 
@@ -360,6 +360,25 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           leftReqCols'                <- (VProp $ Just $ reqLeftPredCols p) ∪ leftReqCols
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
+
+      GroupJoin p a -> do
+          cols <- fromProp ownReqColumns
+          let acols = Just $ aggrReqCols a
+          -- columns from the left required by the predicate
+          let plcols = VProp $ Just $ reqLeftPredCols p
+          -- columns from the right required by the predicate
+          let prcols = VProp $ Just $ reqRightPredCols p
+          -- Columns from left and right sides that are required for
+          -- the aggregate.
+          (alcols, arcols) <- partitionCols childBUProps1 childBUProps2 acols
+          -- columns from the left side that are required downstream
+          lcols            <- fst <$> partitionCols childBUProps1 childBUProps2 cols
+          -- left: plcols, alcols, lcols
+          -- right: prcols, arcols
+          leftReqCols  <- plcols ∪ alcols
+          leftReqCols' <- leftReqCols ∪ lcols
+          rightReqCols <- prcols ∪ arcols
+          return (leftReqCols', rightReqCols)
 
       ZipS -> do
           (cols, _, _) <- fromPropTriple ownReqColumns

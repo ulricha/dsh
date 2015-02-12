@@ -161,6 +161,8 @@ class VectorAlgebra a where
     vecThetaJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec, PVec)
     vecNestJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, PVec)
 
+    vecGroupJoin :: JoinPredicate Expr -> AggrFun -> DVec a -> DVec a -> Build a (DVec a)
+
     vecSemiJoin :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec)
     vecSemiJoinS :: JoinPredicate Expr -> DVec a -> DVec a -> Build a (DVec a, RVec)
 

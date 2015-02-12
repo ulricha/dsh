@@ -208,7 +208,9 @@ opDotLabel tm i (BinOp (AntiJoin p) _ _) =
   labelToDoc i "AntiJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (UnOp (ReshapeS n) _) = 
+opDotLabel tm i (BinOp (GroupJoin p a) _ _) =
+  labelToDoc i "GroupJoin" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
+opDotLabel tm i (UnOp (ReshapeS n) _) =
   labelToDoc i "ReshapeS" (integer n) (lookupTags i tm)
 opDotLabel tm i (UnOp Transpose _) = labelToDoc i "Transpose" empty (lookupTags i tm)
 opDotLabel tm i (TerOp Combine _ _ _) = labelToDoc i "Combine" empty (lookupTags i tm)

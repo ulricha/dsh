@@ -397,6 +397,11 @@ inferConstVecBinOp c1 c2 op =
       -- FIXME check propVec components for correctness/precision
       return $ VPropTriple (DBVConst NonConstDescr constCols) nonConstPVec nonConstPVec
 
+    GroupJoin _ _ -> do
+      (_, cols1) <- unp c1 >>= fromDBV
+      let constCols = cols1 ++ [NonConstPL]
+      return $ VProp (DBVConst NonConstDescr constCols)
+
     NestProduct -> do
       (_, cols1) <- unp c1 >>= fromDBV
       (_, cols2) <- unp c2 >>= fromDBV
