@@ -22,6 +22,7 @@ aggregationRules = [ inlineAggrSProject
                    , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
+                   , groupJoin
                    ]
 
 aggregationRulesBottomUp :: VLRuleSet BottomUpProps
@@ -216,3 +217,16 @@ mergeGroupWithGroupAggrLeft q =
             void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
                      
 
+-- | Merge nestjoin-based binary grouping and subsequent aggregation
+-- into one groupjoin operator.
+groupJoin :: VLRule ()
+groupJoin q =
+  $(dagPatMatch 'q "(qo) UnboxScalar ((qo1) AggrS a (R1 ((qo2) NestJoin p (qi))))"
+    [| do
+        predicate $ $(v "qo1") == $(v "qo")
+        predicate $ $(v "qo2") == $(v "qo")
+
+        return $ do
+            logRewrite "GroupJoin" q
+            void $ replaceWithNew q $ BinOp (GroupJoin $(v "p") $(v "a")) $(v "qo") $(v "qi")
+        |])
