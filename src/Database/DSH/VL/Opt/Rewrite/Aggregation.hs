@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Database.DSH.VL.Opt.Rewrite.Aggregation(groupingToAggregation) where
+module Database.DSH.VL.Opt.Rewrite.Aggregation
+    ( groupingToAggregation
+    ) where
 
 import           Control.Applicative
 import           Control.Monad
@@ -30,9 +32,11 @@ aggregationRulesBottomUp = [ nonEmptyAggr
                            ]
 
 groupingToAggregation :: VLRewrite Bool
-groupingToAggregation = iteratively $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
-                                                       , applyToAll noProps aggregationRules
-                                                       ]
+groupingToAggregation =
+    iteratively
+    $ sequenceRewrites [ applyToAll inferBottomUp aggregationRulesBottomUp
+                       , applyToAll noProps aggregationRules
+                       ]
 
 -- FIXME this rewrite will no longer work: take the UnboxScalarS
 -- operator into account.
@@ -193,21 +197,21 @@ mergeGroupWithGroupAggrLeft q =
   $(dagPatMatch 'q "(R1 (GroupS ges (q1))) Align (GroupAggr args (q2))"
     [| do
         let (ges', afuns) = $(v "args")
-    
+
         -- Input vectors and grouping expressions have to be the same.
         predicate $ $(v "q1") == $(v "q2")
         predicate $ $(v "ges") == ges'
 
         return $ do
             logRewrite "Aggregation.Normalize.MergeGroupScalars" q
-            
+
             -- To keep the schema, we have to duplicate the grouping
             -- columns.
             let groupWidth = length ges'
                 aggrWidth  = N.length afuns
                 groupCols  = [ Column c | c <- [1..groupWidth] ]
-                proj       = groupCols 
-                             ++ 
+                proj       = groupCols
+                             ++
                              groupCols
                              ++
                              [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
