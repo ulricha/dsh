@@ -228,5 +228,5 @@ groupJoin q =
 
         return $ do
             logRewrite "GroupJoin" q
-            void $ replaceWithNew q $ BinOp (GroupJoin $(v "p") $(v "a")) $(v "qo") $(v "qi")
+            void $ replaceWithNew q $ BinOp (GroupJoin ($(v "p"), $(v "a"))) $(v "qo") $(v "qi")
         |])

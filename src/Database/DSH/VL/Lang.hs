@@ -162,7 +162,7 @@ data BinOp = DistLift
            | AntiJoinS (L.JoinPredicate Expr)
            | NestJoin (L.JoinPredicate Expr)
            | NestJoinS (L.JoinPredicate Expr)
-           | GroupJoin (L.JoinPredicate Expr) AggrFun
+           | GroupJoin (L.JoinPredicate Expr, AggrFun)
            | NestProduct
            | NestProductS
            | TransposeS

@@ -68,6 +68,7 @@ redundantRulesBottomUp = [ cartProdConstant
                          , zipUnboxScalarRight
                          , zipUnboxScalarLeft
                          , alignCartProdRight
+                         , alignGroupJoin
                          , propProductCard1Right
                          -- , runningAggWin
                          , inlineWinAggrProject
@@ -521,6 +522,20 @@ zipWinRightPush q =
             let winFun' = mapWinFun (mapExprCols (\c -> c + w1)) winFun
                 args'   = (winFun', frameSpec)
             void $ replaceWithNew q $ UnOp (WinFun args') zipNode |])
+
+alignGroupJoin :: VLRule BottomUpProps
+alignGroupJoin q =
+  $(dagPatMatch 'q "(qo) Align (gj=(qo1) GroupJoin _ (_))"
+    [| do
+        predicate $ $(v "qo") == $(v "qo1")
+        w <- vectorWidth <$> vectorTypeProp <$> properties $(v "qo")
+
+        return $ do
+            logRewrite "Redundant.Align.GroupJoin" q
+            -- In the result, replicate the columns from the outer
+            -- vector to keep the schema intact.
+            let proj = map Column $ [1..w] ++ [1..w+1]
+            void $ replaceWithNew q $ UnOp (Project proj) $(v "gj") |])
 
 -- | If the right (outer) input of Unbox is a number operator and the
 -- number output is not required, eliminate it from the outer

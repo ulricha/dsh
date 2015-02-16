@@ -208,7 +208,7 @@ opDotLabel tm i (BinOp (AntiJoin p) _ _) =
   labelToDoc i "AntiJoin" (renderJoinPred p) (lookupTags i tm)
 opDotLabel tm i (BinOp (AntiJoinS p) _ _) =
   labelToDoc i "AntiJoinS" (renderJoinPred p) (lookupTags i tm)
-opDotLabel tm i (BinOp (GroupJoin p a) _ _) =
+opDotLabel tm i (BinOp (GroupJoin (p, a)) _ _) =
   labelToDoc i "GroupJoin" (renderJoinPred p <+> renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (ReshapeS n) _) =
   labelToDoc i "ReshapeS" (integer n) (lookupTags i tm)
@@ -229,7 +229,9 @@ opDotColor (BinOp (SemiJoin _) _ _)      = DCGreen
 opDotColor (BinOp (SemiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp (AntiJoin _) _ _)      = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)     = DCGreen
+opDotColor (BinOp (GroupJoin _) _ _)     = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
+opDotColor (BinOp (GroupJoin _) _ _)     = DCGreen
 opDotColor (UnOp (SortS _) _)            = DCTomato
 opDotColor (UnOp (GroupS _) _)           = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan

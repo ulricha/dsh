@@ -144,7 +144,7 @@ inferVectorTypeBinOp s1 s2 op =
     NestProduct -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestProduct"
     ThetaJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "ThetaJoinS"
     NestJoinS _ -> reqValVectors s1 s2 (\w1 w2 -> VPropTriple (ValueVector $ w1 + w2) PropVector PropVector) "NestJoinS"
-    GroupJoin _ _ -> do
+    GroupJoin _ -> do
         ValueVector w <- unpack s1
         return $ VProp $ ValueVector $ w + 1
     SemiJoin _ -> liftM2 VPropPair (unpack s1) (Right RenameVector)

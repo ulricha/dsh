@@ -361,7 +361,7 @@ inferReqColumnsBinOp childBUProps1 childBUProps2 ownReqColumns childReqColumns1 
           rightReqCols'               <- (VProp $ Just $ reqRightPredCols p) ∪ rightReqCols
           (,) <$> (childReqColumns1 ∪ leftReqCols') <*> (childReqColumns2 ∪ rightReqCols')
 
-      GroupJoin p a -> do
+      GroupJoin (p, a) -> do
           cols <- fromProp ownReqColumns
           let acols = Just $ aggrReqCols a
           -- columns from the left required by the predicate
