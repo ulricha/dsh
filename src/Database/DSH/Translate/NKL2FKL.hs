@@ -105,7 +105,7 @@ bindEnv n t e = e { inScope = (n, t) : inScope e }
 -- comprehension that binds the name 'x'. This involves binding 'x' in
 -- the current environment frame and increasing the frame depth.
 descendEnv :: (Ident, Type) -> Env -> Env
-descendEnv x env = env { inScope    = x : inScope env 
+descendEnv x env = env { inScope    = x : inScope env
                        , frameDepth = Succ $ frameDepth env
                        }
 
@@ -121,11 +121,11 @@ restrictEnv env d1 bs branchExpr = mkRestrictLet env
     mkRestrictLet [] = $impossible
     mkRestrictLet (e : []) =
         P.let_ (fst e)
-               (P.restrict (P.tuple [envVar e, bs] d1) d1)
+               (P.restrict (P.tuple [envVar e, bs] (Succ d1)) d1)
                branchExpr
-    mkRestrictLet (e : (e2 : es)) = 
+    mkRestrictLet (e : (e2 : es)) =
         P.let_ (fst e)
-               (P.restrict (P.tuple [envVar e, bs] d1) d1)
+               (P.restrict (P.tuple [envVar e, bs] (Succ d1)) d1)
                (mkRestrictLet (e2 : es))
 
 -- | Lift all names bound in the environment: the value is replicated
