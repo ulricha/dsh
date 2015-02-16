@@ -197,12 +197,19 @@ simpleBindingR = do
     Let _ x e1 _ <- idR
     guardM $ simpleExpr e1
     childT LetBody $ substR x e1
-    
+
+identityIteratorR :: RewriteN Expr
+identityIteratorR = do
+    Iterator _ (Var _ x) x' xs <- idR
+    guardM $ x == x'
+    return xs
+
 nklOptimizations :: RewriteN Expr
-nklOptimizations = anybuR $ singletonHeadR 
-                            <+ unusedBindingR 
+nklOptimizations = anybuR $ singletonHeadR
+                            <+ unusedBindingR
                             <+ referencedOnceR
                             <+ simpleBindingR
+                            <+ identityIteratorR
 
 optimizeNKL :: Expr -> Expr
 optimizeNKL expr = debugOpt "NKL" expr optimizedExpr
