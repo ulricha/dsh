@@ -48,8 +48,8 @@ debugMsg _ = return ()
 #endif
 
 debugOpt :: Pretty e => String -> e -> Either String e -> e
-debugOpt stage origExpr mExpr = 
 #ifdef DEBUGCOMP
+debugOpt stage origExpr mExpr =
     trace (showOrig origExpr)
     $ either (flip trace origExpr) (\e -> trace (showOpt e) e) mExpr
 
@@ -63,6 +63,7 @@ debugOpt stage origExpr mExpr =
     showOpt :: Pretty e => e -> String
     showOpt e = padSep (printf "Optimized Query (%s)" stage) ++ pp e ++ padSep ""
 #else
+debugOpt _stage origExpr mExpr =
     either (const origExpr) id mExpr
 #endif
 
