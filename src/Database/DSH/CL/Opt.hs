@@ -27,19 +27,13 @@ import           Database.DSH.CL.Opt.Resugar
 
 -- | Comprehension normalization rules 1 to 3.
 compNormEarlyR :: RewriteC CL
-compNormEarlyR = m_norm_1R 
+compNormEarlyR = m_norm_1R
                  <+ m_norm_2R
                  <+ m_norm_3R
                  -- Does not lead to good code. See lablog entry (24.11.2014)
                  -- <+ invariantguardR
                  <+ ifgeneratorR
                  <+ identityCompR
-
--- | Comprehension normalization rules 4 and 5. Beware: these rewrites
--- should propably occur late in the chain, as they might prohibit
--- semijoin/antijoin introduction
-compNormLateR :: RewriteC CL
-compNormLateR = m_norm_4R <+ m_norm_5R
 
 -- | Nestjoin/Nestproduct rewrites are applied bottom-up. Innermost
 -- nesting opportunities must be dealt with first in order to produce
