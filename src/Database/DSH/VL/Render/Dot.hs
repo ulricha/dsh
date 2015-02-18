@@ -107,12 +107,12 @@ renderProj :: Doc -> Expr -> Doc
 renderProj d e = d <> colon <> renderExpr e
 
 renderJoinConjunct :: JoinConjunct Expr -> Doc
-renderJoinConjunct (JoinConjunct e1 o e2) = 
-    parenthize1 e1 <+> (text $ show o) <+> (parenthize1 e2)
+renderJoinConjunct (JoinConjunct e1 o e2) =
+    parenthize1 e1 <+> text (pp o) <+> (parenthize1 e2)
 
 renderJoinPred :: JoinPredicate Expr -> Doc
 renderJoinPred (JoinPred conjs) = brackets
-                                  $ hsep 
+                                  $ hsep
                                   $ punctuate (text "&&")
                                   $ map renderJoinConjunct $ N.toList conjs
 
@@ -121,11 +121,11 @@ renderExpr (BinApp op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthi
 renderExpr (UnApp op e)      = (text $ pp op) <+> (parens $ renderExpr e)
 renderExpr (Constant val)    = renderTblVal val
 renderExpr (Column c)        = text "col" <> int c
-renderExpr (If c t e)        = text "if" 
-                                 <+> renderExpr c 
-                                 <+> text "then" 
-                                 <+> renderExpr t 
-                                 <+> text "else" 
+renderExpr (If c t e)        = text "if"
+                                 <+> renderExpr c
+                                 <+> text "then"
+                                 <+> renderExpr t
+                                 <+> text "else"
                                  <+> renderExpr e
 
 parenthize1 :: Expr -> Doc
@@ -168,7 +168,7 @@ opDotLabel tm i (UnOp (SelectPos1 (o, p)) _)  = labelToDoc i "SelectPos1" ((text
 opDotLabel tm i (UnOp (SelectPos1S (o, p)) _) = labelToDoc i "SelectPos1S" ((text $ show o) <+> int p) (lookupTags i tm)
 opDotLabel tm i (UnOp (GroupAggr (g, as)) _) = labelToDoc i "GroupAggr" (bracketList renderExpr g <+> bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
 opDotLabel tm i (UnOp (Aggr a) _) = labelToDoc i "Aggr" (renderAggrFun a) (lookupTags i tm)
-opDotLabel tm i (UnOp (Reshape n) _) = 
+opDotLabel tm i (UnOp (Reshape n) _) =
   labelToDoc i "Reshape" (integer n) (lookupTags i tm)
 opDotLabel tm i (BinOp (AggrS a) _ _) = labelToDoc i "AggrS" (renderAggrFun a) (lookupTags i tm)
 opDotLabel tm i (UnOp (AggrNonEmpty as) _) = labelToDoc i "AggrNonEmpty" (bracketList renderAggrFun (N.toList as)) (lookupTags i tm)
