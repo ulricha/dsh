@@ -159,16 +159,6 @@ forgetimprintlargerR = do
         Just dd -> return $ ExtFKL (Forget dd t xs)
         Nothing -> fail "depths are not compatible"
 
--- | If 'forget' removes /less/ nesting than the nested 'imprint'
--- adds, we can remove the 'forget' and only 'imprint' the difference.
-forgetimprintsmallerR :: RewriteF (FKL Lifted ShapeExt)
-forgetimprintsmallerR = do
-    ExtFKL (Forget d1 t (Ext (Imprint d2 _ e1 e2))) <- idR
-    guardM $ d1 < d2
-    case d2 .- d1 of
-        Just dd -> return $ ExtFKL (Imprint dd t e1 e2)
-        Nothing -> fail "depths are not compatible"
-
 -- | 'forget'/'imprint' combinations are often obscured by
 -- 'let'-bindings. This rewrite inlines a binding and succeeds if
 -- other rewrites succeed in the resulting term.
@@ -181,7 +171,6 @@ boundforgetimprintR = do
     rewrites = forgetimprintR
                <+ nestedimprintR
                <+ forgetimprintlargerR
-               <+ forgetimprintsmallerR
 
 --------------------------------------------------------------------------------
 
@@ -199,7 +188,6 @@ fklNormOptimizations = repeatR $ anybuR rewrites
                <+ simpleBindingR
                <+ forgetimprintR
                <+ forgetimprintlargerR
-               <+ forgetimprintsmallerR
                <+ boundforgetimprintR
                <+ nestedimprintR
 
