@@ -11,6 +11,7 @@ import Control.Arrow
 
 import Database.DSH.Common.RewriteM
 import Database.DSH.Common.Lang
+import Database.DSH.Common.Nat
 import Database.DSH.Common.Type
 import Database.DSH.Common.Kure
 import Database.DSH.Common.Pretty
@@ -140,20 +141,47 @@ nestedimprintR = do
     guardM $ d == d'
     return $ ExtFKL (Imprint d' t e1 e2)
 
--- | Remove sequences of forget and imprint calls that form a NOOP.
-imprintforgetR :: RewriteF (FKL Lifted ShapeExt)
-imprintforgetR = do
+-- | Remove combinations of forget and imprint that cancel each
+-- other out.
+forgetimprintR :: RewriteF (FKL Lifted ShapeExt)
+forgetimprintR = do
     ExprFKL (Ext (Forget d _ (Ext (Imprint d' _ _ xs)))) <- idR
     guardM $ d == d'
     return $ ExprFKL xs
 
+-- | If 'forget' removes /more/ nesting than the nested 'imprint' adds,
+-- we can remove the 'imprint' and 'forget' only the difference.
+forgetimprintlargerR :: RewriteF (FKL Lifted ShapeExt)
+forgetimprintlargerR = do
+    ExtFKL (Forget d1 t (Ext (Imprint d2 _ _ xs))) <- idR
+    guardM $ d1 > d2
+    case d1 .- d2 of
+        Just dd -> return $ ExtFKL (Forget dd t xs)
+        Nothing -> fail "depths are not compatible"
+
+-- | If 'forget' removes /less/ nesting than the nested 'imprint'
+-- adds, we can remove the 'forget' and only 'imprint' the difference.
+forgetimprintsmallerR :: RewriteF (FKL Lifted ShapeExt)
+forgetimprintsmallerR = do
+    ExtFKL (Forget d1 t (Ext (Imprint d2 _ e1 e2))) <- idR
+    guardM $ d1 < d2
+    case d2 .- d1 of
+        Just dd -> return $ ExtFKL (Imprint dd t e1 e2)
+        Nothing -> fail "depths are not compatible"
+
 -- | 'forget'/'imprint' combinations are often obscured by
 -- 'let'-bindings. This rewrite inlines a binding and succeeds if
--- 'imprintforgetR' succeeds in the resulting term.
-boundimprintforgetR :: RewriteF (FKL Lifted ShapeExt)
-boundimprintforgetR = do
+-- other rewrites succeed in the resulting term.
+boundforgetimprintR :: RewriteF (FKL Lifted ShapeExt)
+boundforgetimprintR = do
     ExprFKL (Let _ x e1 _) <- idR
-    childT LetBody $ substR x e1 >>> anybuR imprintforgetR
+    childT LetBody $ substR x e1 >>> anybuR rewrites
+
+  where
+    rewrites = forgetimprintR
+               <+ nestedimprintR
+               <+ forgetimprintlargerR
+               <+ forgetimprintsmallerR
 
 --------------------------------------------------------------------------------
 
@@ -169,8 +197,10 @@ fklNormOptimizations = repeatR $ anybuR rewrites
     rewrites = unusedBindingR
                <+ referencedOnceR
                <+ simpleBindingR
-               <+ imprintforgetR
-               <+ boundimprintforgetR
+               <+ forgetimprintR
+               <+ forgetimprintlargerR
+               <+ forgetimprintsmallerR
+               <+ boundforgetimprintR
                <+ nestedimprintR
 
 optimizeNormFKL :: FExpr -> FExpr
