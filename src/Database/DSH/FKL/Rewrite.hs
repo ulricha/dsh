@@ -120,6 +120,25 @@ simpleBindingR = do
     guardM $ simpleExpr e1
     childT LetBody $ substR x e1
 
+--------------------------------------------------------------------------------
+-- Rewrites that remove redundant combinations of shape operators
+-- (forget and imprint)
+
+-- | Remove nested occurences of 'imprint':
+--
+-- imprint_d (imprint_d e1 _) e2
+-- =>
+-- imprint_d e1 e2
+--
+-- The reasoning is simple: The inner 'imprint' attaches the outer 'd'
+-- layers of 'e1' onto 'e2'. The outer 'imprint' takes exactly these
+-- 'd' outer layers and attaches it to 'e2'. Therefore, we can use the
+-- outer 'd' layers of 'e1' directly without the inner 'imprint'.
+nestedimprintR :: RewriteF (FKL Lifted ShapeExt)
+nestedimprintR = do
+    ExtFKL (Imprint d t (Ext (Imprint d' _ e1 _)) e2) <- idR
+    guardM $ d == d'
+    return $ ExtFKL (Imprint d' t e1 e2)
 
 -- | Remove sequences of forget and imprint calls that form a NOOP.
 imprintforgetR :: RewriteF (FKL Lifted ShapeExt)
@@ -128,17 +147,31 @@ imprintforgetR = do
     guardM $ d == d'
     return $ ExprFKL xs
 
+-- | 'forget'/'imprint' combinations are often obscured by
+-- 'let'-bindings. This rewrite inlines a binding and succeeds if
+-- 'imprintforgetR' succeeds in the resulting term.
+boundimprintforgetR :: RewriteF (FKL Lifted ShapeExt)
+boundimprintforgetR = do
+    ExprFKL (Let _ x e1 _) <- idR
+    childT LetBody $ substR x e1 >>> anybuR imprintforgetR
+
+--------------------------------------------------------------------------------
+
 fklOptimizations :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
                  => RewriteF (FKL l e)
-fklOptimizations = anybuR $ unusedBindingR 
+fklOptimizations = anybuR $ unusedBindingR
                             <+ referencedOnceR
                             <+ simpleBindingR
 
 fklNormOptimizations :: RewriteF (FKL Lifted ShapeExt)
-fklNormOptimizations = anybuR $ unusedBindingR
-                                <+ referencedOnceR
-                                <+ simpleBindingR
-                                <+ imprintforgetR
+fklNormOptimizations = repeatR $ anybuR rewrites
+  where
+    rewrites = unusedBindingR
+               <+ referencedOnceR
+               <+ simpleBindingR
+               <+ imprintforgetR
+               <+ boundimprintforgetR
+               <+ nestedimprintR
 
 optimizeNormFKL :: FExpr -> FExpr
 optimizeNormFKL expr = debugOpt "FKL" expr expr'
@@ -148,7 +181,7 @@ optimizeNormFKL expr = debugOpt "FKL" expr expr'
 optimizeFKL :: ( Injection (ExprTempl l e) (FKL l e)
                , Walker FlatCtx (FKL l e)
                , Typed e, Pretty (ExprTempl l e)
-               ) 
+               )
             => String -> ExprTempl l e -> ExprTempl l e
 optimizeFKL stage expr = debugOpt stage expr expr'
   where
