@@ -26,10 +26,10 @@ applyExpr f e = runRewriteM $ applyT f initialCtx (inject e)
 --------------------------------------------------------------------------------
 -- Computation of free and bound variables
 
-freeVarsT :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e)) 
+freeVarsT :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e))
           => TransformF (FKL l e) [Ident]
-freeVarsT = fmap nub 
-            $ crushbuT 
+freeVarsT = fmap nub
+            $ crushbuT
             $ do (ctx, ExprFKL (Var _ v)) <- exposeT
                  guardM (v `freeIn` ctx)
                  return [v]
@@ -68,8 +68,8 @@ substR v s = readerT $ \expr -> case expr of
         else anyR $ substR v s
 
     -- A let binding which shadows v -> don't descend into the body
-    ExprFKL (Let _ x _ _) | v == x                      -> tryR $ childR LetBind (substR v s)
-    _                                                   -> anyR $ substR v s
+    ExprFKL (Let _ x _ _) | v == x -> tryR $ childR LetBind (substR v s)
+    _                              -> anyR $ substR v s
 
 --------------------------------------------------------------------------------
 -- Simple optimizations
@@ -91,7 +91,7 @@ countVarRefT v = readerT $ \expr -> case expr of
 
 
 -- | Remove a let-binding that is not referenced.
-unusedBindingR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e)) 
+unusedBindingR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e))
                => RewriteF (FKL l e)
 unusedBindingR = do
     ExprFKL (Let _ x _ e2) <- idR
@@ -100,7 +100,10 @@ unusedBindingR = do
 
 
 -- | Inline a let-binding that is only referenced once.
-referencedOnceR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
+referencedOnceR :: ( Injection (ExprTempl l e) (FKL l e)
+                   , Walker FlatCtx (FKL l e)
+                   , Typed e
+                   )
                 => RewriteF (FKL l e)
 referencedOnceR = do
     ExprFKL (Let _ x e1 _) <- idR
@@ -114,7 +117,10 @@ simpleExpr (PApp1 _ (TupElem _) _ e) = simpleExpr e
 simpleExpr _                         = False
 
 -- | Inline a let-binding that binds a simple expression.
-simpleBindingR :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
+simpleBindingR :: ( Injection (ExprTempl l e) (FKL l e)
+                  , Walker FlatCtx (FKL l e)
+                  , Typed e
+                  )
                => RewriteF (FKL l e)
 simpleBindingR = do
     ExprFKL (Let _ x e1 _) <- idR
@@ -174,7 +180,10 @@ boundforgetimprintR = do
 
 --------------------------------------------------------------------------------
 
-fklOptimizations :: (Injection (ExprTempl l e) (FKL l e), Walker FlatCtx (FKL l e), Typed e)
+fklOptimizations :: ( Injection (ExprTempl l e) (FKL l e)
+                    , Walker FlatCtx (FKL l e)
+                    , Typed e
+                    )
                  => RewriteF (FKL l e)
 fklOptimizations = anybuR $ unusedBindingR
                             <+ referencedOnceR
