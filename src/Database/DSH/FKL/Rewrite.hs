@@ -1,22 +1,28 @@
-{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module Database.DSH.FKL.Rewrite
     ( optimizeFKL
     , optimizeNormFKL
     ) where
 
-import Data.Monoid
-import Data.List
-import Control.Arrow
 
-import Database.DSH.Common.RewriteM
-import Database.DSH.Common.Lang
-import Database.DSH.Common.Nat
-import Database.DSH.Common.Type
-import Database.DSH.Common.Kure
-import Database.DSH.Common.Pretty
-import Database.DSH.FKL.Lang
-import Database.DSH.FKL.Kure
+
+import           Control.Arrow
+import           Data.List
+import           Data.Monoid
+
+import           Database.DSH.Common.Kure
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.RewriteM
+import           Database.DSH.Common.Type
+import           Database.DSH.FKL.Kure
+import           Database.DSH.FKL.Lang
+
+import qualified Database.DSH.FKL.Primitives  as P
 
 -- | Run a translate on an expression without context
 applyExpr :: (Injection (ExprTempl l e) (FKL l e))
@@ -131,6 +137,9 @@ simpleBindingR = do
 -- Rewrites that remove redundant combinations of shape operators
 -- (forget and imprint)
 
+pattern ImprintP d e1 e2 <- Ext (Imprint d _ e1 e2)
+pattern ForgetP d e <- Ext (Forget d _ e)
+
 -- | Remove nested occurences of 'imprint':
 --
 -- imprint_d (imprint_d e1 _) e2
@@ -165,18 +174,24 @@ forgetimprintlargerR = do
         Just dd -> return $ ExtFKL (Forget dd t xs)
         Nothing -> fail "depths are not compatible"
 
+peelofouterR :: RewriteF (FKL Lifted ShapeExt)
+peelofouterR = do
+    ExprFKL (ForgetP (Succ Zero) (ImprintP (Succ (Succ Zero)) e1 e2)) <- idR
+    return $ ExprFKL $ P.imprint (Succ Zero) (P.forget (Succ Zero) e1) e2
+
 -- | 'forget'/'imprint' combinations are often obscured by
 -- 'let'-bindings. This rewrite inlines a binding and succeeds if
 -- other rewrites succeed in the resulting term.
 boundforgetimprintR :: RewriteF (FKL Lifted ShapeExt)
 boundforgetimprintR = do
     ExprFKL (Let _ x e1 _) <- idR
-    childT LetBody $ substR x e1 >>> anybuR rewrites
+    childT LetBody (substR x e1 >>> anybuR rewrites)
 
   where
-    rewrites = forgetimprintR
+    rewrites =    forgetimprintR
                <+ nestedimprintR
                <+ forgetimprintlargerR
+               <+ peelofouterR
 
 --------------------------------------------------------------------------------
 
@@ -199,6 +214,7 @@ fklNormOptimizations = repeatR $ anybuR rewrites
                <+ forgetimprintlargerR
                <+ boundforgetimprintR
                <+ nestedimprintR
+               <+ peelofouterR
 
 optimizeNormFKL :: FExpr -> FExpr
 optimizeNormFKL expr = debugOpt "FKL" expr expr'
