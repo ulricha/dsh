@@ -152,15 +152,15 @@ pattern ForgetP d e <- Ext (Forget d _ e)
 -- outer 'd' layers of 'e1' directly without the inner 'imprint'.
 nestedimprintR :: RewriteF (FKL Lifted ShapeExt)
 nestedimprintR = do
-    ExtFKL (Imprint d t (Ext (Imprint d' _ e1 _)) e2) <- idR
+    ExprFKL (ImprintP d (ImprintP d' e1 _) e2) <- idR
     guardM $ d == d'
-    return $ ExtFKL (Imprint d' t e1 e2)
+    return $ ExprFKL (P.imprint d' e1 e2)
 
 -- | Remove combinations of forget and imprint that cancel each
 -- other out.
 forgetimprintR :: RewriteF (FKL Lifted ShapeExt)
 forgetimprintR = do
-    ExprFKL (Ext (Forget d _ (Ext (Imprint d' _ _ xs)))) <- idR
+    ExprFKL (ForgetP d (ImprintP d' _ xs)) <- idR
     guardM $ d == d'
     return $ ExprFKL xs
 
