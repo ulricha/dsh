@@ -164,7 +164,7 @@ forgetimprintR = do
     guardM $ d == d'
     return $ ExprFKL xs
 
--- | If 'forget' removes /more/ nesting than the nested 'imprint' adds,
+-- | If 'forget' removes /strictly more/ nesting than the nested 'imprint' adds,
 -- we can remove the 'imprint' and 'forget' only the difference.
 forgetimprintlargerR :: RewriteF (FKL Lifted ShapeExt)
 forgetimprintlargerR = do
@@ -174,10 +174,33 @@ forgetimprintlargerR = do
         Just dd -> return $ ExtFKL (Forget dd t xs)
         Nothing -> fail "depths are not compatible"
 
-peelofouterR :: RewriteF (FKL Lifted ShapeExt)
-peelofouterR = do
-    ExprFKL (ForgetP (Succ Zero) (ImprintP (Succ (Succ Zero)) e1 e2)) <- idR
-    return $ ExprFKL $ P.imprint (Succ Zero) (P.forget (Succ Zero) e1) e2
+-- | If 'forget' removes /strictly less/ nesting than the nested 'imprint'
+-- adds, we can not remove one of the shape combinators. However, we
+-- can decrease the depth of shape operations. 'imprint' adds the 'd2'
+-- outer layers of 'e1' to 'e2'. Of those 'd2' outer layers, 'forget'
+-- removes the outermost 'd1' (which are less than 'd2'). Effectively,
+-- only the vectors 'd1' to 'd2' of 'e1' are added to
+-- 'e2'. Consequentially, we can apply 'forget' first and only
+-- 'imprint' the inner vectors.
+--
+-- forget_d1 (imprint_d2 e1 e2)
+-- =>
+-- imprint_(d_2 - d_1) (forget_d1 e1) e2
+--
+-- This rewrite does not immediately lead to a reduction of term
+-- size. However, it decreases the depth of vectors that are
+-- applied/forgotten. That might be a good thing on its own (but
+-- propably irrelevant, because shape operations crucially do not have
+-- runtime cost). Additionally, it can expose other rewrite
+-- opportunities. This is very true e.g. in query 'expectedRevenueFor'
+-- (dsh-tpch-other).
+forgetimprintsmallerR :: RewriteF (FKL Lifted ShapeExt)
+forgetimprintsmallerR = do
+    ExprFKL (ForgetP d1 (ImprintP d2 e1 e2)) <- idR
+    guardM $ d2 > d1
+    case d2 .- d1 of
+        Just dd -> return $ ExprFKL $ P.imprint dd (P.forget d1 e1) e2
+        Nothing -> fail "depths are not compatible"
 
 -- | 'forget'/'imprint' combinations are often obscured by
 -- 'let'-bindings. This rewrite inlines a binding and succeeds if
@@ -191,7 +214,7 @@ boundforgetimprintR = do
     rewrites =    forgetimprintR
                <+ nestedimprintR
                <+ forgetimprintlargerR
-               <+ peelofouterR
+               <+ forgetimprintsmallerR
 
 --------------------------------------------------------------------------------
 
@@ -214,7 +237,7 @@ fklNormOptimizations = repeatR $ anybuR rewrites
                <+ forgetimprintlargerR
                <+ boundforgetimprintR
                <+ nestedimprintR
-               <+ peelofouterR
+               <+ forgetimprintsmallerR
 
 optimizeNormFKL :: FExpr -> FExpr
 optimizeNormFKL expr = debugOpt "FKL" expr expr'
