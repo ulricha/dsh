@@ -130,7 +130,7 @@ deriveToExpClause 1 _ con = do
   return (Clause [pat1] body1 [])
 -- FIXME adapt code for types with multiple constructors to new tuple
 -- regime.
-deriveToExpClause n i con = $unimplemented
+deriveToExpClause _n _i _con = $unimplemented
 {-
   (pat1,names1) <- conToPattern con
   let exp1 = deriveToExpMainExp names1
@@ -172,7 +172,7 @@ deriveFrExpClause 1 _ con = do
   return (Clause [pat1] body1 [])
 -- FIXME adapt code for types with multiple constructors to new tuple
 -- regime.
-deriveFrExpClause n i con = $unimplemented
+deriveFrExpClause _n _i _con = $unimplemented
 {-
   (_,names1) <- conToPattern con
   let pat1 = deriveFrExpMainPat names1

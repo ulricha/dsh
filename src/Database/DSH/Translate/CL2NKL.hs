@@ -130,18 +130,17 @@ addGensToEnv gens env = F.foldl' extendEnv env gens
 
 type NameEnv a = Reader [Ident] a
 
-freshName :: NameEnv Ident
-freshName = do
-    boundNames <- ask
-    return $ tryName 0 boundNames
-
+-- | Generate an identifier that does not occur in the list provided.
+freshIdent :: [Ident] -> NameEnv Ident
+freshIdent names = do
+    visibleNames <- ask
+    return $ checkCollision (0 :: Int) (names ++ visibleNames)
   where
-    tryName :: Int -> [Ident] -> Ident
-    tryName i ns = if mkName i `elem` ns
-                   then tryName (i + 1) ns
-                   else mkName i
+    checkCollision i ns = if mkName i `elem` ns
+                          then checkCollision (i + 1) ns
+                          else mkName i
 
-    mkName i = "f" ++ show i
+    mkName i = "v" ++ show i
 
 -- | Map a CL expression to its NKL equivalent by desugaring all
 -- comprehensions.
@@ -191,17 +190,6 @@ takeGens :: [CL.Qual] -> ([(Ident, CL.Expr)], [CL.Qual])
 takeGens (CL.BindQ x xs : qs) = let (binds, rest) = takeGens qs in ((x, xs) : binds, rest)
 takeGens qs                   = ([], qs)
 
--- | Generate an identifier that does not occur in the list provided.
-freshIdent :: [Ident] -> NameEnv Ident
-freshIdent names = do
-    visibleNames <- ask
-    return $ checkCollision (0 :: Int) (names ++ visibleNames)
-  where
-    checkCollision i ns = if mkName i `elem` ns
-                          then checkCollision (i + 1) ns
-                          else mkName i
-
-    mkName i = "v" ++ show i
 
 -- | Construct a left-deep tuple from a list of expressions
 mkTuple :: NonEmpty NKL.Expr -> NKL.Expr

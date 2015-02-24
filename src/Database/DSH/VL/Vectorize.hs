@@ -218,11 +218,11 @@ restrict (VShape q (LTuple [l, LCol])) = do
 
     -- After the selection, discard the boolean column from the right
     resVec                   <- vlProject (map Column [1..leftWidth]) filteredVec
-    
+
     -- Filter any inner vectors
     l'                       <- chainRenameFilter renameVec l
     return $ VShape resVec l'
-restrict _e1 = $impossible
+restrict e1 = trace (show e1) $ $impossible
 
 combine ::  Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combine (VShape qb LCol) (VShape q1 lyt1) (VShape q2 lyt2) = do
@@ -347,8 +347,7 @@ restrictL :: Shape VLDVec -> Build VL (Shape VLDVec)
 restrictL (VShape qo (LNest qi lyt)) = do
     VShape qi' lyt' <- restrict (VShape qi lyt)
     return $ VShape qo (LNest qi' lyt')
-restrictL l1 =
-    trace (show l1) $ $impossible
+restrictL l1 = trace (show l1) $ $impossible
 
 combineL :: Shape VLDVec -> Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 combineL (VShape qo (LNest qb LCol))

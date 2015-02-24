@@ -198,14 +198,14 @@ data Expr  = Table Type String [L.Column] L.TableHints
            deriving (Show)
 
 instance Pretty Expr where
-    pretty (AppE1 _ (TupElem n) e1) = 
+    pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (MkTuple _ es)     = tupled $ map pretty es
     pretty (Table _ n _ _)    = text "table" <> parens (text n)
     pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-    pretty (AppE2 _ p1 e1@(Comp _ _ _) e2) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
-    pretty (AppE2 _ p1 e1 e2@(Comp _ _ _)) = (text $ show p1) <+> (align $ (parenthize e1) PP.<$> (parenthize e2))
-    pretty (AppE2 _ p1 e1 e2) = (text $ show p1) <+> (align $ (parenthize e1) </> (parenthize e2))
+    pretty (AppE2 _ p1 e1 e2) = (text $ show p1)
+                                <+>
+                                (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
     pretty (UnOp _ o e)       = pretty o <> parens (pretty e)
     pretty (If _ c t e)       = text "if"
@@ -218,14 +218,14 @@ instance Pretty Expr where
     pretty (Var _ s)          = text s
 
     pretty (Comp _ e qs) = encloseSep lbracket rbracket empty docs
-                         where docs = (char ' ' <> pretty e <> char ' ') : qsDocs
-                               qsDocs =
-                                 case qs of
-                                   q :* qs' -> (char '|' <+> pretty q)
-                                               : [ char ',' <+> pretty q' | q' <- toList qs' ]
+      where
+        docs = (char ' ' <> pretty e <> char ' ') : qsDocs
+        qsDocs = case qs of
+                     q :* qs' -> (char '|' <+> pretty q)
+                                 : [ char ',' <+> pretty q' | q' <- toList qs' ]
 
-                                   S q      -> [char '|' <+> pretty q]
-    pretty (Let _ x e1 e)     = 
+                     S q      -> [char '|' <+> pretty q]
+    pretty (Let _ x e1 e)     =
         align $ text "let" <+> text x <+> char '=' <+> pretty e1
                 </>
                 text "in" <+> pretty e

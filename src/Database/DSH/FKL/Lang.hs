@@ -226,7 +226,7 @@ instance Pretty ShapeExt where
     
 instance Pretty BroadcastExt where
     pretty (Broadcast n _ e1 e2) = 
-        text "forget" 
+        text "broadcast" 
         <> (angles $ int $ intFromNat n)
         <+> (align $ (parenthize e1)
                      </> (parenthize e2))

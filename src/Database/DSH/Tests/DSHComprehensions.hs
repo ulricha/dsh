@@ -7,7 +7,6 @@
 -- Prelude.
 module Database.DSH.Tests.DSHComprehensions where
 
-import qualified Prelude as P
 import Database.DSH
 
 ---------------------------------------------------------------
