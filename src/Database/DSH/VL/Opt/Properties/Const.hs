@@ -56,35 +56,18 @@ evalNumOp op v1 v2 =
         Mod -> v1 `mod` v2
 
 evalBinOp :: ScalarBinOp -> VLVal -> VLVal -> Maybe VLVal
-evalBinOp op v1 v2 =
-    case (v1, v2) of
-        (VLInt i1, VLInt i2)       ->
-            case op of
-                SBNumOp nop  -> return $ VLInt $ evalNumOp nop i1 i2
-                SBRelOp _    -> mzero
-                SBBoolOp _   -> $impossible
-                SBStringOp _ -> $impossible
-                
-        (VLBool _, VLBool _)     ->
-            case op of
-                SBBoolOp _   -> mzero
-                SBRelOp _    -> mzero
-                SBNumOp _    -> $impossible
-                SBStringOp _ -> $impossible
-        (VLString _, VLString _) ->
-            case op of
-                SBRelOp _    -> mzero
-                SBStringOp _ -> mzero
-                SBBoolOp _   -> $impossible
-                SBNumOp _    -> $impossible
-        (VLDouble _, VLDouble _) ->
-            case op of
-                SBRelOp _    -> mzero
-                SBNumOp _    -> mzero
-                SBBoolOp _   -> $impossible
-                SBStringOp _ -> $impossible
-        (VLUnit, VLUnit)           -> mzero
-        _                          -> $impossible
+evalBinOp (SBNumOp nop)  (VLInt i1) (VLInt i2)     = return $ VLInt $ evalNumOp nop i1 i2
+evalBinOp (SBRelOp _)    (VLInt _)  (VLInt _)      = mzero
+evalBinOp _              (VLInt _)  (VLInt _)      = $impossible
+evalBinOp (SBBoolOp _)   (VLBool _) (VLBool _)     = mzero
+evalBinOp  _             (VLBool _) (VLBool _)     = $impossible
+evalBinOp (SBStringOp _) (VLString _) (VLString _) = mzero
+evalBinOp _              (VLString _) (VLString _) = $impossible
+evalBinOp (SBRelOp _)    (VLDouble _) (VLDouble _) = mzero
+evalBinOp (SBNumOp _)    (VLDouble _) (VLDouble _) = mzero
+evalBinOp _              (VLDouble _) (VLDouble _) = $impossible
+evalBinOp _              VLUnit       VLUnit       = $impossible
+evalBinOp _              _            _            = $impossible
 
 evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal
 evalUnOp _ _ = mzero
