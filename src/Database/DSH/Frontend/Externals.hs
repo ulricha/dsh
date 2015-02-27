@@ -657,6 +657,14 @@ transpose (Q ass) = Q (AppE Transpose ass)
 reshape :: QA a => Integer -> Q [a] -> Q [[a]]
 reshape n (Q e) = Q (AppE (Reshape n) e)
 
+-- * Date and Time Combinators
+
+addDays :: Q Integer -> Q Day -> Q Day
+addDays (Q i) (Q d) = Q (AppE AddDays (pairE i d))
+
+diffDays :: Q Day -> Q Day -> Q Integer
+diffDays (Q d1) (Q d2) = Q (AppE DiffDays (pairE d1 d2))
+
 -- * Rebind Monadic Combinators
 
 return :: (QA a) => Q a -> Q [a]
