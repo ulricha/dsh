@@ -67,6 +67,7 @@ evalBinOp (SBRelOp _)    (VLDouble _) (VLDouble _) = mzero
 evalBinOp (SBNumOp _)    (VLDouble _) (VLDouble _) = mzero
 evalBinOp _              (VLDouble _) (VLDouble _) = $impossible
 evalBinOp _              VLUnit       VLUnit       = $impossible
+evalBinOp (SBDateOp _)   _            _            = mzero
 evalBinOp _              _            _            = $impossible
 
 evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal

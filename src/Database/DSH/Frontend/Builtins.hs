@@ -1,5 +1,5 @@
-{-# LANGUAGE GADTs                     #-}
-{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Definition of (typed) DSH builtins
 module Database.DSH.Frontend.Builtins
@@ -7,9 +7,10 @@ module Database.DSH.Frontend.Builtins
     , TupElem(..)
     ) where
 
-import Data.Text (Text)
+import           Data.Text                        (Text)
+import           Data.Time.Calendar               (Day)
 
-import Database.DSH.Frontend.TupleTypes
+import           Database.DSH.Frontend.TupleTypes
 
 -- Splice in the type for tuple element accessors
 $(mkTupElemType 16)
@@ -72,4 +73,6 @@ data Fun a b where
     ASin            :: Fun Double Double
     ACos            :: Fun Double Double
     ATan            :: Fun Double Double
+    AddDays         :: Fun (Integer, Day) Day
+    DiffDays        :: Fun (Day, Day) Integer
     TupElem         :: TupElem a b -> Fun a b

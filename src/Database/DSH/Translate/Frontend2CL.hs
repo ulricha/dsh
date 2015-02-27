@@ -96,6 +96,7 @@ translate (CharE c) = return $ CP.string [c]
 translate (IntegerE i) = return $ CP.int (fromInteger i)
 translate (DoubleE d) = return $ CP.double d
 translate (TextE t) = return $ CP.string (unpack t)
+translate (DayE d) = return $ CP.day d
 translate (VarE i) = do
     let ty = reify (undefined :: a)
     return $ CP.var (translateType ty) (prefixVar i)
@@ -185,6 +186,7 @@ translateType CharT          = T.stringT
 translateType IntegerT       = T.intT
 translateType DoubleT        = T.doubleT
 translateType TextT          = T.stringT
+translateType DayT           = T.DayT
 translateType (ListT t)      = T.listT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
@@ -231,7 +233,7 @@ translateApp f args =
 
        -- Map to a first-order combinator 'sort'
        -- sortWith (\x -> f x) xs => sort [ (x, f x) | x <- xs ]
-       SortWith     -> 
+       SortWith     ->
            case args of
                TupleConstE (Tuple2E (LamE lam) xs) -> do
                    xs'                  <- translate xs
@@ -282,6 +284,8 @@ translateApp f args =
        Gte          -> translateApp2 CP.gte args
        Gt           -> translateApp2 CP.gt args
        Like         -> translateApp2 CP.like args
+       AddDays      -> translateApp2 CP.addDays args
+       DiffDays     -> translateApp2 CP.addDays args
 
        -- Builtin functions with arity one
        SubString s e   -> translateApp1 (CP.substring s e) args

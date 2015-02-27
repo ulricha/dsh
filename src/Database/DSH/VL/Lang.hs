@@ -1,24 +1,29 @@
-{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.Lang where
 
-import qualified Data.List.NonEmpty as N
+import           Control.Applicative
+import           Data.Aeson
 import           Data.Aeson.TH
+import qualified Data.List.NonEmpty          as N
+import qualified Data.Time.Calendar          as C
 
-import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
+import           Database.Algebra.Dag        (Operator, opChildren,
+                                              replaceOpChild)
 import           Database.Algebra.Dag.Common
 
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Lang    as L
 
 data ScalarType = Int
                 | Bool
                 | Double
                 | String
                 | Unit
+                | Day
              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''ScalarType)
@@ -26,11 +31,18 @@ $(deriveJSON defaultOptions ''ScalarType)
 type VLColumn = (L.ColName, ScalarType)
 type DBCol = Int
 
+instance FromJSON C.Day where
+    parseJSON o = (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
+
+instance ToJSON C.Day where
+    toJSON = toJSON . C.toGregorian
+
 data VLVal = VLInt Int
            | VLBool Bool
            | VLString String
            | VLDouble Double
            | VLUnit
+           | VLDay C.Day
            deriving (Eq, Ord, Show, Read)
 
 $(deriveJSON defaultOptions ''VLVal)

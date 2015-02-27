@@ -17,11 +17,12 @@ import qualified Prelude                          as P
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
+import           Data.Time.Calendar               (Day)
 
 import           Database.DSH.Frontend.Builtins
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Common.Impossible
 
 
 -- QA Instances
@@ -61,6 +62,12 @@ instance QA Text where
     toExp = TextE
     frExp (TextE t) = t
     frExp _ = $impossible
+
+instance QA Day where
+  type Rep Day = Day
+  toExp = DayE
+  frExp (DayE d) = d
+  frExp _ = $impossible
 
 instance (QA a) => QA [a] where
     type Rep [a] = [Rep a]
@@ -130,6 +137,7 @@ instance BasicType Char where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
+instance BasicType Day where
 
 -- TA instances
 
@@ -139,6 +147,7 @@ instance TA Char where
 instance TA Integer where
 instance TA Double where
 instance TA Text where
+instance TA Day where
 
 -- Num and Fractional instances
 

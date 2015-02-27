@@ -3,16 +3,17 @@
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
 
-import qualified Prelude                    as P
+import qualified Prelude                        as P
 
-import qualified Data.List                  as List
+import qualified Data.List                      as List
+import qualified Data.Time.Calendar             as C
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
-import qualified Database.DSH.Common.Lang   as L
+import           Database.DSH.Common.Impossible
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
-import           Database.DSH.Common.Impossible
 
 tyErr :: P.String -> a
 tyErr comb = P.error P.$ printf "CL.Primitives type error in %s" comb
@@ -249,6 +250,9 @@ string s = Lit stringT (L.StringV s)
 double :: P.Double -> Expr
 double d = Lit doubleT (L.DoubleV d)
 
+day :: C.Day -> Expr
+day d = Lit DayT (L.DayV d)
+
 nil :: Type -> Expr
 nil t = Lit t (L.ListV [])
 
@@ -310,20 +314,32 @@ exp = scalarUnOp (L.SUNumOp L.Exp)
 substring :: P.Integer -> P.Integer -> Expr -> Expr
 substring f t = scalarUnOp (L.SUTextOp P.$ L.SubString f t)
 
----------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 -- Smart constructors for scalar binary operators
 
+-- | Type checking for binary operators
 scalarBinOp :: L.ScalarBinOp -> Expr -> Expr -> Expr
 scalarBinOp op e1 e2 =
-    let t1 = typeOf e1
-        t2 = typeOf e2
-    in case (op, t1, t2) of
-           (L.SBNumOp _, _, _) | t1 P.== t2 P.&& isNum t1 P.&& isNum t2 -> BinOp t1 op e1 e2
-           (L.SBRelOp _, _, _) | t1 P.== t2                             -> BinOp BoolT op e1 e2
-           (L.SBBoolOp _, BoolT, BoolT)                                 -> BinOp BoolT op e1 e2
-           (L.SBStringOp L.Like, StringT, StringT)                      -> BinOp BoolT op e1 e2
-           _                                                            -> P.error err
-               where err = printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
+    case (op, t1, t2) of
+        (L.SBNumOp _, _, _)
+            | t1 P.== t2 P.&& isNum t1 P.&& isNum t2 -> BinOp t1 op e1 e2
+        (L.SBRelOp _, _, _)
+            | t1 P.== t2                             -> BinOp BoolT op e1 e2
+        (L.SBBoolOp _, BoolT, BoolT)                 -> BinOp BoolT op e1 e2
+        (L.SBStringOp L.Like, StringT, StringT)      -> BinOp BoolT op e1 e2
+        (L.SBDateOp L.AddDays, IntT, DayT)           -> BinOp DayT op e1 e2
+        (L.SBDateOp L.DiffDays, DayT, DayT)          -> BinOp IntT op e1 e2
+        _                                                            ->
+            P.error P.$ printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
+  where
+    t1 = typeOf e1
+    t2 = typeOf e2
+
+addDays :: Expr -> Expr -> Expr
+addDays = scalarBinOp (L.SBDateOp L.AddDays)
+
+diffDays :: Expr -> Expr -> Expr
+diffDays = scalarBinOp (L.SBDateOp L.DiffDays)
 
 add :: Expr -> Expr -> Expr
 add = scalarBinOp (L.SBNumOp L.Add)

@@ -8,6 +8,7 @@
 module Database.DSH.Frontend.Internals where
 
 import           Data.Text                        (Text)
+import           Data.Time.Calendar               (Day)
 import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.Frontend.Builtins
@@ -28,6 +29,7 @@ data Exp a where
     IntegerE    :: Integer -> Exp Integer
     DoubleE     :: Double  -> Exp Double
     TextE       :: Text    -> Exp Text
+    DayE        :: Day     -> Exp Day
     ListE       :: (Reify a)           => [Exp a] -> Exp [a]
     AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
     LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
@@ -42,6 +44,7 @@ data Type a where
     IntegerT  :: Type Integer
     DoubleT   :: Type Double
     TextT     :: Type Text
+    DayT      :: Type Day
     ListT     :: (Reify a)          => Type a -> Type [a]
     ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
     TupleT    :: TupleType a -> Type a
@@ -53,6 +56,7 @@ instance Pretty (Type a) where
     pretty IntegerT       = text "Integer"
     pretty DoubleT        = text "Double"
     pretty TextT          = text "Text"
+    pretty DayT           = text "Day"
     pretty (ListT t)      = brackets $ pretty t
     pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty (TupleT t)     = pretty t
@@ -128,6 +132,9 @@ instance Reify Double where
 
 instance Reify Text where
     reify _ = TextT
+
+instance Reify Day where
+  reify _ = DayT
 
 instance (Reify a) => Reify [a] where
     reify _ = ListT (reify (undefined :: a))

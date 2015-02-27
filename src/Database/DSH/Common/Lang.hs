@@ -8,6 +8,7 @@ import           Data.Aeson.TH
 import qualified Data.List.NonEmpty           as N
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
+import qualified Data.Time.Calendar           as C
 
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Impossible
@@ -29,6 +30,7 @@ data Val where
     IntV    :: Int -> Val
     BoolV   :: Bool -> Val
     StringV :: String -> Val
+    DayV    :: C.Day -> Val
     DoubleV :: Double -> Val
     TupleV  :: [Val] -> Val
     UnitV   :: Val
@@ -135,11 +137,18 @@ data BinStringOp = Like
 
 $(deriveJSON defaultOptions ''BinStringOp)
 
+data BinDateOp = AddDays
+               | DiffDays
+               deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinDateOp)
+
 -- FIXME this would be a good fit for PatternSynonyms
 data ScalarBinOp = SBNumOp BinNumOp
                  | SBRelOp BinRelOp
                  | SBBoolOp BinBoolOp
                  | SBStringOp BinStringOp
+                 | SBDateOp BinDateOp
                  deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''ScalarBinOp)
@@ -212,6 +221,7 @@ instance Pretty Val where
     pretty (DoubleV d)   = double d
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs
+    pretty (DayV d)      = text $ C.showGregorian d
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="
@@ -234,6 +244,11 @@ instance Pretty BinNumOp where
 instance Pretty BinBoolOp where
     pretty Conj = text "&&"
     pretty Disj = text "||"
+
+
+instance Pretty BinDateOp where
+    pretty AddDays  = text "addDays"
+    pretty DiffDays = text "diffDays"
 
 instance Pretty UnNumOp where
     pretty Sin  = text "sin"
@@ -278,6 +293,7 @@ instance Pretty ScalarBinOp where
     pretty (SBRelOp o)    = pretty o
     pretty (SBBoolOp o)   = pretty o
     pretty (SBStringOp o) = pretty o
+    pretty (SBDateOp o)   = pretty o
 
 instance Pretty UnBoolOp where
     pretty Not = text "not"
