@@ -25,7 +25,7 @@ import           Language.Haskell.TH.Syntax
 
 import qualified Database.DSH.Frontend.Internals  as DSH
 import           Database.DSH.Frontend.TupleTypes
-import qualified Database.DSH.Frontend.Funs       as F
+import qualified Database.DSH.Frontend.Builtins   as F
 import           Database.DSH.Common.Impossible
 
 

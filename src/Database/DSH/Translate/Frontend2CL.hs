@@ -18,7 +18,7 @@ import qualified Database.DSH.Common.Lang        as L
 import qualified Database.DSH.Common.Type        as T
 
 import           Data.Text                       (unpack)
-import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Backend

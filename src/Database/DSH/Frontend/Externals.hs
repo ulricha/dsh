@@ -18,7 +18,7 @@ import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
 
-import           Database.DSH.Frontend.Funs
+import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Common.Impossible
@@ -27,100 +27,100 @@ import           Database.DSH.Common.Impossible
 -- QA Instances
 
 instance QA () where
-  type Rep () = ()
-  toExp () = UnitE
-  frExp UnitE = ()
-  frExp _ = $impossible
+    type Rep () = ()
+    toExp () = UnitE
+    frExp UnitE = ()
+    frExp _ = $impossible
 
 instance QA Bool where
-  type Rep Bool = Bool
-  toExp = BoolE
-  frExp (BoolE b) = b
-  frExp _ = $impossible
+    type Rep Bool = Bool
+    toExp = BoolE
+    frExp (BoolE b) = b
+    frExp _ = $impossible
 
 instance QA Char where
-  type Rep Char = Char
-  toExp = CharE
-  frExp (CharE c) = c
-  frExp _ = $impossible
+    type Rep Char = Char
+    toExp = CharE
+    frExp (CharE c) = c
+    frExp _ = $impossible
 
 instance QA Integer where
-  type Rep Integer = Integer
-  toExp = IntegerE
-  frExp (IntegerE i) = i
-  frExp _ = $impossible
+    type Rep Integer = Integer
+    toExp = IntegerE
+    frExp (IntegerE i) = i
+    frExp _ = $impossible
 
 instance QA Double where
-  type Rep Double = Double
-  toExp = DoubleE
-  frExp (DoubleE d) = d
-  frExp _ = $impossible
+    type Rep Double = Double
+    toExp = DoubleE
+    frExp (DoubleE d) = d
+    frExp _ = $impossible
 
 instance QA Text where
-  type Rep Text = Text
-  toExp = TextE
-  frExp (TextE t) = t
-  frExp _ = $impossible
+    type Rep Text = Text
+    toExp = TextE
+    frExp (TextE t) = t
+    frExp _ = $impossible
 
 instance (QA a) => QA [a] where
-  type Rep [a] = [Rep a]
-  toExp as = ListE (P.map toExp as)
-  frExp (ListE as) = P.map frExp as
-  frExp _ = $impossible
+    type Rep [a] = [Rep a]
+    toExp as = ListE (P.map toExp as)
+    frExp (ListE as) = P.map frExp as
+    frExp _ = $impossible
 
 instance (QA a) => QA (Maybe a) where
-  type Rep (Maybe a) = [Rep a]
-  toExp Nothing = ListE []
-  toExp (Just a) = ListE [toExp a]
-  frExp (ListE []) = Nothing
-  frExp (ListE (a : _)) = Just (frExp a)
-  frExp _ = $impossible
+    type Rep (Maybe a) = [Rep a]
+    toExp Nothing = ListE []
+    toExp (Just a) = ListE [toExp a]
+    frExp (ListE []) = Nothing
+    frExp (ListE (a : _)) = Just (frExp a)
+    frExp _ = $impossible
 
 instance (QA a,QA b) => QA (Either a b) where
-  type Rep (Either a b) = ([Rep a],[Rep b])
-  toExp (Left a) = pairE (ListE [toExp a]) (ListE [])
-  toExp (Right b) = pairE (ListE []) (ListE [toExp b])
-  frExp (TupleConstE (Tuple2E (ListE (a : _)) _)) = Left (frExp a)
-  frExp (TupleConstE (Tuple2E _ (ListE (a : _)))) = Right (frExp a)
-  frExp _ = $impossible
+    type Rep (Either a b) = ([Rep a],[Rep b])
+    toExp (Left a) = pairE (ListE [toExp a]) (ListE [])
+    toExp (Right b) = pairE (ListE []) (ListE [toExp b])
+    frExp (TupleConstE (Tuple2E (ListE (a : _)) _)) = Left (frExp a)
+    frExp (TupleConstE (Tuple2E _ (ListE (a : _)))) = Right (frExp a)
+    frExp _ = $impossible
 
 -- Elim instances
 
 instance (QA r) => Elim () r where
-  type Eliminator () r = Q r -> Q r
-  elim _ r = r
+    type Eliminator () r = Q r -> Q r
+    elim _ r = r
 
 instance (QA r) => Elim Bool r where
-  type Eliminator Bool r = Q r -> Q r -> Q r
-  elim (Q e) (Q e1) (Q e2) = Q (AppE Cond (TupleConstE (Tuple3E e e1 e2)))
+    type Eliminator Bool r = Q r -> Q r -> Q r
+    elim (Q e) (Q e1) (Q e2) = Q (AppE Cond (TupleConstE (Tuple3E e e1 e2)))
 
 instance (QA r) => Elim Char r where
-  type Eliminator Char r = (Q Char -> Q r) -> Q r
-  elim q f = f q
+    type Eliminator Char r = (Q Char -> Q r) -> Q r
+    elim q f = f q
 
 instance (QA r) => Elim Integer r where
-  type Eliminator Integer r = (Q Integer -> Q r) -> Q r
-  elim q f = f q
+    type Eliminator Integer r = (Q Integer -> Q r) -> Q r
+    elim q f = f q
 
 instance (QA r) => Elim Double r where
-  type Eliminator Double r = (Q Double -> Q r) -> Q r
-  elim q f = f q
+    type Eliminator Double r = (Q Double -> Q r) -> Q r
+    elim q f = f q
 
 instance (QA r) => Elim Text r where
-  type Eliminator Text r = (Q Text -> Q r) -> Q r
-  elim q f = f q
+    type Eliminator Text r = (Q Text -> Q r) -> Q r
+    elim q f = f q
 
 instance (QA a,QA b,QA r) => Elim (a,b) r where
-  type Eliminator (a,b) r = (Q a -> Q b -> Q r) -> Q r
-  elim q f = f (fst q) (snd q)
+    type Eliminator (a,b) r = (Q a -> Q b -> Q r) -> Q r
+    elim q f = f (fst q) (snd q)
 
 instance (QA a,QA r) => Elim (Maybe a) r where
-  type Eliminator (Maybe a) r = Q r -> (Q a -> Q r) -> Q r
-  elim q r f = maybe r f q
+    type Eliminator (Maybe a) r = Q r -> (Q a -> Q r) -> Q r
+    elim q r f = maybe r f q
 
 instance (QA a,QA b,QA r) => Elim (Either a b) r where
-  type Eliminator (Either a b) r = (Q a -> Q r) -> (Q b -> Q r) -> Q r
-  elim q f g = either f g q
+    type Eliminator (Either a b) r = (Q a -> Q r) -> (Q b -> Q r) -> Q r
+    elim q f g = either f g q
 
 -- BasicType instances
 
@@ -143,123 +143,123 @@ instance TA Text where
 -- Num and Fractional instances
 
 instance Num (Exp Integer) where
-  (+) e1 e2 = AppE Add (pairE e1 e2)
-  (*) e1 e2 = AppE Mul (pairE e1 e2)
-  (-) e1 e2 = AppE Sub (pairE e1 e2)
+    (+) e1 e2 = AppE Add (pairE e1 e2)
+    (*) e1 e2 = AppE Mul (pairE e1 e2)
+    (-) e1 e2 = AppE Sub (pairE e1 e2)
 
-  fromInteger = IntegerE
+    fromInteger = IntegerE
 
-  abs e = let c = AppE Lt (pairE e 0)
-          in AppE Cond (tripleE c (negate e) e)
+    abs e = let c = AppE Lt (pairE e 0)
+            in AppE Cond (tripleE c (negate e) e)
 
-  signum e = let c1 = AppE Lt  (pairE e 0)
-                 c2 = AppE Equ (pairE e 0)
-                 e' = AppE Cond (tripleE c2 0 1)
-             in AppE Cond (tripleE c1 (-1) e')
+    signum e = let c1 = AppE Lt  (pairE e 0)
+                   c2 = AppE Equ (pairE e 0)
+                   e' = AppE Cond (tripleE c2 0 1)
+               in AppE Cond (tripleE c1 (-1) e')
 
 instance Num (Exp Double) where
-  (+) e1 e2 = AppE Add (pairE e1 e2)
-  (*) e1 e2 = AppE Mul (pairE e1 e2)
-  (-) e1 e2 = AppE Sub (pairE e1 e2)
+    (+) e1 e2 = AppE Add (pairE e1 e2)
+    (*) e1 e2 = AppE Mul (pairE e1 e2)
+    (-) e1 e2 = AppE Sub (pairE e1 e2)
 
-  fromInteger = DoubleE . fromInteger
+    fromInteger = DoubleE . fromInteger
 
-  abs e = let c = AppE Lt (pairE e 0)
-          in  AppE Cond (tripleE c (negate e) e)
+    abs e = let c = AppE Lt (pairE e 0)
+            in  AppE Cond (tripleE c (negate e) e)
 
-  signum e = let c1 = AppE Lt  (pairE e 0.0)
-                 c2 = AppE Equ (pairE e 0.0)
-                 e' = AppE Cond (tripleE c2 0 1)
-             in  AppE Cond (tripleE c1 (-1) e')
+    signum e = let c1 = AppE Lt  (pairE e 0.0)
+                   c2 = AppE Equ (pairE e 0.0)
+                   e' = AppE Cond (tripleE c2 0 1)
+               in  AppE Cond (tripleE c1 (-1) e')
 
 instance Fractional (Exp Double) where
-  (/) e1 e2    = AppE Div (pairE e1 e2)
-  fromRational = DoubleE . fromRational
+    (/) e1 e2    = AppE Div (pairE e1 e2)
+    fromRational = DoubleE . fromRational
 
 instance Floating (Exp Double) where
-  pi     = DoubleE 3.141592653589793
-  sin e  = AppE Sin e
-  cos e  = AppE Cos e
-  tan e  = AppE Tan e
-  sqrt e = AppE Sqrt e
-  exp e  = AppE Exp e
-  log e  = AppE Log e
-  asin e = AppE ASin e
-  acos e = AppE ACos e
-  atan e = AppE ATan e
-  sinh   = $unimplemented
-  cosh   = $unimplemented
-  asinh  = $unimplemented
-  atanh  = $unimplemented
-  acosh  = $unimplemented
+    pi     = DoubleE 3.141592653589793
+    sin e  = AppE Sin e
+    cos e  = AppE Cos e
+    tan e  = AppE Tan e
+    sqrt e = AppE Sqrt e
+    exp e  = AppE Exp e
+    log e  = AppE Log e
+    asin e = AppE ASin e
+    acos e = AppE ACos e
+    atan e = AppE ATan e
+    sinh   = $unimplemented
+    cosh   = $unimplemented
+    asinh  = $unimplemented
+    atanh  = $unimplemented
+    acosh  = $unimplemented
 
 instance Num (Q Integer) where
-  (+) (Q e1) (Q e2) = Q (e1 + e2)
-  (*) (Q e1) (Q e2) = Q (e1 * e2)
-  (-) (Q e1) (Q e2) = Q (e1 - e2)
-  fromInteger       = Q . IntegerE
-  abs (Q e)         = Q (abs e)
-  signum (Q e)      = Q (signum e)
+    (+) (Q e1) (Q e2) = Q (e1 + e2)
+    (*) (Q e1) (Q e2) = Q (e1 * e2)
+    (-) (Q e1) (Q e2) = Q (e1 - e2)
+    fromInteger       = Q . IntegerE
+    abs (Q e)         = Q (abs e)
+    signum (Q e)      = Q (signum e)
 
 instance Num (Q Double) where
-  (+) (Q e1) (Q e2) = Q (e1 + e2)
-  (*) (Q e1) (Q e2) = Q (e1 * e2)
-  (-) (Q e1) (Q e2) = Q (e1 - e2)
-  fromInteger       = Q . DoubleE . fromInteger
-  abs (Q e)         = Q (abs e)
-  signum (Q e)      = Q (signum e)
+    (+) (Q e1) (Q e2) = Q (e1 + e2)
+    (*) (Q e1) (Q e2) = Q (e1 * e2)
+    (-) (Q e1) (Q e2) = Q (e1 - e2)
+    fromInteger       = Q . DoubleE . fromInteger
+    abs (Q e)         = Q (abs e)
+    signum (Q e)      = Q (signum e)
 
 instance Fractional (Q Double) where
-  (/) (Q e1) (Q e2) = Q (e1 / e2)
-  fromRational = Q . DoubleE . fromRational
+    (/) (Q e1) (Q e2) = Q (e1 / e2)
+    fromRational = Q . DoubleE . fromRational
 
 instance Floating (Q Double) where
-  pi         = Q pi
-  sin (Q e)  = Q (sin e)
-  cos (Q e)  = Q (cos e)
-  tan (Q e)  = Q (tan e)
-  asin (Q e) = Q (asin e)
-  acos (Q e) = Q (acos e)
-  atan (Q e) = Q (atan e)
-  exp (Q e)  = Q (exp e)
-  log (Q e)  = Q (log e)
-  sqrt (Q e) = Q (sqrt e)
-  sinh   = $unimplemented
-  cosh   = $unimplemented
-  asinh  = $unimplemented
-  atanh  = $unimplemented
-  acosh  = $unimplemented
+    pi         = Q pi
+    sin (Q e)  = Q (sin e)
+    cos (Q e)  = Q (cos e)
+    tan (Q e)  = Q (tan e)
+    asin (Q e) = Q (asin e)
+    acos (Q e) = Q (acos e)
+    atan (Q e) = Q (atan e)
+    exp (Q e)  = Q (exp e)
+    log (Q e)  = Q (log e)
+    sqrt (Q e) = Q (sqrt e)
+    sinh   = $unimplemented
+    cosh   = $unimplemented
+    asinh  = $unimplemented
+    atanh  = $unimplemented
+    acosh  = $unimplemented
 
 -- View instances
 
 instance View (Q ()) where
-  type ToView (Q ()) = Q ()
-  view = id
+    type ToView (Q ()) = Q ()
+    view = id
 
 instance View (Q Bool) where
-  type ToView (Q Bool) = Q Bool
-  view = id
+    type ToView (Q Bool) = Q Bool
+    view = id
 
 instance View (Q Char) where
-  type ToView (Q Char) = Q Char
-  view = id
+    type ToView (Q Char) = Q Char
+    view = id
 
 instance View (Q Integer) where
-  type ToView (Q Integer) = Q Integer
-  view = id
+    type ToView (Q Integer) = Q Integer
+    view = id
 
 instance View (Q Double) where
-  type ToView (Q Double) = Q Double
-  view = id
+    type ToView (Q Double) = Q Double
+    view = id
 
 instance View (Q Text) where
-  type ToView (Q Text) = Q Text
-  view = id
+    type ToView (Q Text) = Q Text
+    view = id
 
 -- IsString instances
 
 instance IsString (Q Text) where
-  fromString = Q . TextE . T.pack
+    fromString = Q . TextE . T.pack
 
 -- * Referring to persistent tables
 
@@ -417,8 +417,8 @@ isRight = null . fst . eitherToPair
 
 either :: (QA a,QA b,QA c) => (Q a -> Q c) -> (Q b -> Q c) -> Q (Either a b) -> Q c
 either lf rf e =
-  let p = eitherToPair e
-  in  head (map lf (fst p) ++ map rf (snd p))
+    let p = eitherToPair e
+    in  head (map lf (fst p) ++ map rf (snd p))
 
 lefts :: (QA a,QA b) => Q [Either a b] -> Q [a]
 lefts = concatMap (fst . eitherToPair)

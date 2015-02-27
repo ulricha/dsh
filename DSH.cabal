@@ -123,7 +123,7 @@ Library
                      Database.DSH.Frontend.Externals
                      Database.DSH.Frontend.TH
                      Database.DSH.Frontend.TupleTypes
-                     Database.DSH.Frontend.Funs
+                     Database.DSH.Frontend.Builtins
                      Database.DSH.Translate.Frontend2CL
                      Database.DSH.Execute.TH
                      Database.DSH.Execute

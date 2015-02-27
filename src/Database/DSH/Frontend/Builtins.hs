@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE TemplateHaskell           #-}
 
-module Database.DSH.Frontend.Funs
+-- | Definition of (typed) DSH builtins
+module Database.DSH.Frontend.Builtins
     ( Fun(..)
     , TupElem(..)
     ) where
@@ -59,7 +60,7 @@ data Fun a b where
     SortWith        :: Fun (a -> b,[a]) [a]
     Cond            :: Fun (Bool,a,a) a
     Like            :: Fun (Text,Text) Bool
-    SubString       :: Integer -> Integer -> Fun Text Text 
+    SubString       :: Integer -> Integer -> Fun Text Text
     Transpose       :: Fun [[a]] [[a]]
     Reshape         :: Integer -> Fun [a] [[a]]
     Sin             :: Fun Double Double

@@ -231,7 +231,6 @@ opDotColor (BinOp (AntiJoin _) _ _)      = DCGreen
 opDotColor (BinOp (AntiJoinS _) _ _)     = DCGreen
 opDotColor (BinOp (GroupJoin _) _ _)     = DCGreen
 opDotColor (BinOp Zip _ _)               = DCYelloGreen
-opDotColor (BinOp (GroupJoin _) _ _)     = DCGreen
 opDotColor (UnOp (SortS _) _)            = DCTomato
 opDotColor (UnOp (GroupS _) _)           = DCTomato
 opDotColor (BinOp PropRename _ _)        = DCTan
