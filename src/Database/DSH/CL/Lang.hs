@@ -22,7 +22,6 @@ import qualified Data.Traversable             as T
 import           Data.List.NonEmpty           (NonEmpty((:|)))
 
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           Database.DSH.Common.Nat

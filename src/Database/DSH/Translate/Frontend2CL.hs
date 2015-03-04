@@ -96,6 +96,7 @@ translate (CharE c) = return $ CP.string [c]
 translate (IntegerE i) = return $ CP.int (fromInteger i)
 translate (DoubleE d) = return $ CP.double d
 translate (TextE t) = return $ CP.string (unpack t)
+translate (DecimalE d) = return $ CP.decimal d
 translate (VarE i) = do
     let ty = reify (undefined :: a)
     return $ CP.var (translateType ty) (prefixVar i)
@@ -184,6 +185,7 @@ translateType BoolT          = T.boolT
 translateType CharT          = T.stringT
 translateType IntegerT       = T.intT
 translateType DoubleT        = T.doubleT
+translateType DecimalT       = T.DecimalT
 translateType TextT          = T.stringT
 translateType (ListT t)      = T.listT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)

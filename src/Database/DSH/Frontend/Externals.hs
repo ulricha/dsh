@@ -17,6 +17,7 @@ import qualified Prelude                          as P
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
+import           Data.Decimal
 
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.Internals
@@ -60,6 +61,12 @@ instance QA Text where
     type Rep Text = Text
     toExp = TextE
     frExp (TextE t) = t
+    frExp _ = $impossible
+
+instance QA Decimal where
+    type Rep Decimal = Decimal
+    toExp = DecimalE
+    frExp (DecimalE d) = d
     frExp _ = $impossible
 
 instance (QA a) => QA [a] where
@@ -130,6 +137,7 @@ instance BasicType Char where
 instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
+instance BasicType Decimal where
 
 -- TA instances
 
@@ -139,6 +147,7 @@ instance TA Char where
 instance TA Integer where
 instance TA Double where
 instance TA Text where
+instance TA Decimal where
 
 -- Num and Fractional instances
 
@@ -169,6 +178,21 @@ instance Num (Exp Double) where
 
     signum e = let c1 = AppE Lt  (pairE e 0.0)
                    c2 = AppE Equ (pairE e 0.0)
+                   e' = AppE Cond (tripleE c2 0 1)
+               in  AppE Cond (tripleE c1 (-1) e')
+
+instance Num (Exp Decimal) where
+    (+) e1 e2 = AppE Add (pairE e1 e2)
+    (*) e1 e2 = AppE Mul (pairE e1 e2)
+    (-) e1 e2 = AppE Sub (pairE e1 e2)
+
+    fromInteger = DecimalE . fromInteger
+
+    abs e = let c = AppE Lt (pairE e 0)
+            in  AppE Cond (tripleE c (negate e) e)
+
+    signum e = let c1 = AppE Lt  (pairE e 0)
+                   c2 = AppE Equ (pairE e 0)
                    e' = AppE Cond (tripleE c2 0 1)
                in  AppE Cond (tripleE c1 (-1) e')
 
@@ -206,6 +230,14 @@ instance Num (Q Double) where
     (*) (Q e1) (Q e2) = Q (e1 * e2)
     (-) (Q e1) (Q e2) = Q (e1 - e2)
     fromInteger       = Q . DoubleE . fromInteger
+    abs (Q e)         = Q (abs e)
+    signum (Q e)      = Q (signum e)
+
+instance Num (Q Decimal) where
+    (+) (Q e1) (Q e2) = Q (e1 + e2)
+    (*) (Q e1) (Q e2) = Q (e1 * e2)
+    (-) (Q e1) (Q e2) = Q (e1 - e2)
+    fromInteger       = Q . DecimalE . fromInteger
     abs (Q e)         = Q (abs e)
     signum (Q e)      = Q (signum e)
 

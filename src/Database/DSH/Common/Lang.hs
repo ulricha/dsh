@@ -5,12 +5,13 @@ module Database.DSH.Common.Lang where
 
 import           Data.Aeson
 import           Data.Aeson.TH
-import qualified Data.List.NonEmpty           as N
+import           Data.Decimal
+import qualified Data.List.NonEmpty             as N
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.Impossible
+import           Database.DSH.Common.Type
 
 import           Database.DSH.Common.Nat
 
@@ -25,13 +26,14 @@ instance FromJSON a => FromJSON (N.NonEmpty a) where
 
 -- | Basic values in both FKL and NKL.
 data Val where
-    ListV   :: [Val] -> Val
-    IntV    :: Int -> Val
-    BoolV   :: Bool -> Val
-    StringV :: String -> Val
-    DoubleV :: Double -> Val
-    TupleV  :: [Val] -> Val
-    UnitV   :: Val
+    ListV    :: [Val] -> Val
+    IntV     :: Int -> Val
+    BoolV    :: Bool -> Val
+    StringV  :: String -> Val
+    DoubleV  :: Double -> Val
+    DecimalV :: Decimal -> Val
+    TupleV   :: [Val] -> Val
+    UnitV    :: Val
     deriving (Eq, Ord, Show)
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
@@ -210,6 +212,7 @@ instance Pretty Val where
     pretty (BoolV b)     = bool b
     pretty (StringV s)   = dquotes $ string s
     pretty (DoubleV d)   = double d
+    pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs
 

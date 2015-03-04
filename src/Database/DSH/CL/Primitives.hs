@@ -7,6 +7,7 @@ import qualified Prelude                    as P
 
 import qualified Data.List                  as List
 import           Text.Printf
+import           Data.Decimal
 
 import           Database.DSH.CL.Lang
 import qualified Database.DSH.Common.Lang   as L
@@ -248,6 +249,9 @@ string s = Lit stringT (L.StringV s)
 
 double :: P.Double -> Expr
 double d = Lit doubleT (L.DoubleV d)
+
+decimal :: Decimal -> Expr
+decimal d = Lit DecimalT (L.DecimalV d)
 
 nil :: Type -> Expr
 nil t = Lit t (L.ListV [])

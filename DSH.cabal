@@ -89,6 +89,7 @@ Library
                      semigroups                   >= 0.16,
                      ansi-wl-pprint               >= 0.6,
                      dlist                        >= 0.7,
+                     Decimal                      >= 0.4,
                      QuickCheck                   >= 2.7,
                      HUnit                        >= 1.2,
                      test-framework               >= 0.8,
@@ -204,6 +205,7 @@ executable vldot
                       containers          >= 0.5,
                       template-haskell    >= 2.9,
                       bytestring          >= 0.10,
+                      Decimal             >= 0.4,
                       ansi-wl-pprint      >= 0.6,
                       semigroups          >= 0.16,
 

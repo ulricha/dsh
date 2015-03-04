@@ -4,11 +4,14 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE FlexibleInstances     #-}
 
 module Database.DSH.Frontend.Internals where
 
 import           Data.Text                        (Text)
 import           Text.PrettyPrint.ANSI.Leijen
+import           Data.Decimal
 
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
@@ -28,6 +31,7 @@ data Exp a where
     IntegerE    :: Integer -> Exp Integer
     DoubleE     :: Double  -> Exp Double
     TextE       :: Text    -> Exp Text
+    DecimalE    :: Decimal -> Exp Decimal
     ListE       :: (Reify a)           => [Exp a] -> Exp [a]
     AppE        :: (Reify a, Reify b)  => Fun a b -> Exp a -> Exp b
     LamE        :: (Reify a, Reify b)  => (Exp a -> Exp b) -> Exp (a -> b)
@@ -42,6 +46,7 @@ data Type a where
     IntegerT  :: Type Integer
     DoubleT   :: Type Double
     TextT     :: Type Text
+    DecimalT  :: Type Decimal
     ListT     :: (Reify a)          => Type a -> Type [a]
     ArrowT    :: (Reify a,Reify b)  => Type a -> Type b -> Type (a -> b)
     TupleT    :: TupleType a -> Type a
@@ -53,6 +58,7 @@ instance Pretty (Type a) where
     pretty IntegerT       = text "Integer"
     pretty DoubleT        = text "Double"
     pretty TextT          = text "Text"
+    pretty DecimalT       = text "Decimal"
     pretty (ListT t)      = brackets $ pretty t
     pretty (ArrowT t1 t2) = parens $ pretty t1 <+> text "->" <+> pretty t2
     pretty (TupleT t)     = pretty t
@@ -125,6 +131,9 @@ instance Reify Integer where
 
 instance Reify Double where
     reify _ = DoubleT
+
+instance Reify Decimal where
+    reify _ = DecimalT
 
 instance Reify Text where
     reify _ = TextT

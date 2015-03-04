@@ -1,22 +1,27 @@
-{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.VL.Lang where
 
-import qualified Data.List.NonEmpty as N
+import           Control.Applicative
+import           Data.Aeson
 import           Data.Aeson.TH
+import           Data.Decimal
+import qualified Data.List.NonEmpty          as N
 
-import           Database.Algebra.Dag        (Operator, opChildren, replaceOpChild)
+import           Database.Algebra.Dag        (Operator, opChildren,
+                                              replaceOpChild)
 import           Database.Algebra.Dag.Common
 
-import qualified Database.DSH.Common.Lang as L
+import qualified Database.DSH.Common.Lang    as L
 
 data ScalarType = Int
                 | Bool
                 | Double
+                | Decimal
                 | String
                 | Unit
              deriving (Eq, Ord, Show)
@@ -26,10 +31,17 @@ $(deriveJSON defaultOptions ''ScalarType)
 type VLColumn = (L.ColName, ScalarType)
 type DBCol = Int
 
+instance ToJSON Decimal where
+    toJSON = toJSON . show
+
+instance FromJSON Decimal where
+    parseJSON s = read <$> parseJSON s
+
 data VLVal = VLInt Int
            | VLBool Bool
            | VLString String
            | VLDouble Double
+           | VLDecimal Decimal
            | VLUnit
            deriving (Eq, Ord, Show, Read)
 

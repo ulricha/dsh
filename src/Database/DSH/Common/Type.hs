@@ -37,6 +37,7 @@ import Database.DSH.Common.Nat
 
 instance Pretty Type where
     pretty IntT          = text "Int"
+    pretty DecimalT      = text "Decimal"
     pretty BoolT         = text "Bool"
     pretty DoubleT       = text "Double"
     pretty StringT       = text "String"
@@ -51,6 +52,7 @@ data Type  = IntT
            | DoubleT
            | StringT
            | UnitT
+           | DecimalT
            | ListT Type
            | TupleT [Type]
            deriving (Show, Eq, Ord)
@@ -59,6 +61,7 @@ data Type  = IntT
 isNum :: Type -> Bool
 isNum IntT        = True
 isNum DoubleT     = True
+isNum DecimalT    = True
 isNum BoolT       = False
 isNum StringT     = False
 isNum UnitT       = False
