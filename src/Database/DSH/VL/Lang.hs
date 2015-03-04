@@ -23,7 +23,7 @@ data ScalarType = Int
                 | Double
                 | String
                 | Unit
-                | Day
+                | Date
              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''ScalarType)
@@ -42,7 +42,7 @@ data VLVal = VLInt Int
            | VLString String
            | VLDouble Double
            | VLUnit
-           | VLDay C.Day
+           | VLDate C.Day
            deriving (Eq, Ord, Show, Read)
 
 $(deriveJSON defaultOptions ''VLVal)

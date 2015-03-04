@@ -186,7 +186,7 @@ translateType CharT          = T.stringT
 translateType IntegerT       = T.intT
 translateType DoubleT        = T.doubleT
 translateType TextT          = T.stringT
-translateType DayT           = T.DayT
+translateType DayT           = T.DateT
 translateType (ListT t)      = T.listT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy

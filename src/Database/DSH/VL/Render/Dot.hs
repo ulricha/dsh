@@ -71,7 +71,7 @@ renderTblVal (VLBool b)   = text $ show b
 renderTblVal (VLString s) = doubleQuotes $ text $ escape s
 renderTblVal (VLDouble d) = double d
 renderTblVal VLUnit       = text "()"
-renderTblVal (VLDay d)    = text $ C.showGregorian d
+renderTblVal (VLDate d)   = text $ C.showGregorian d
 
 escape :: String -> String
 escape (x@'\\':xs) = '\\':'\\':'\\':x:escape xs

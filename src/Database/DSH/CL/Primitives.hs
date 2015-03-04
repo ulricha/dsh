@@ -250,7 +250,7 @@ double :: P.Double -> Expr
 double d = Lit doubleT (L.DoubleV d)
 
 day :: C.Day -> Expr
-day d = Lit DayT (L.DayV d)
+day d = Lit DateT (L.DayV d)
 
 nil :: Type -> Expr
 nil t = Lit t (L.ListV [])
@@ -273,7 +273,7 @@ scalarUnOp op e =
            (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
            (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
            (L.SUTextOp L.SubString{}, StringT)    -> UnOp StringT op e
-           (L.SUDateOp _, DayT)                   -> UnOp IntT op e
+           (L.SUDateOp _, DateT)                   -> UnOp IntT op e
            (_, _)                                 -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
@@ -335,8 +335,8 @@ scalarBinOp op e1 e2 =
             | t1 P.== t2                             -> BinOp BoolT op e1 e2
         (L.SBBoolOp _, BoolT, BoolT)                 -> BinOp BoolT op e1 e2
         (L.SBStringOp L.Like, StringT, StringT)      -> BinOp BoolT op e1 e2
-        (L.SBDateOp L.AddDays, IntT, DayT)           -> BinOp DayT op e1 e2
-        (L.SBDateOp L.DiffDays, DayT, DayT)          -> BinOp IntT op e1 e2
+        (L.SBDateOp L.AddDays, IntT, DateT)          -> BinOp DateT op e1 e2
+        (L.SBDateOp L.DiffDays, DateT, DateT)        -> BinOp IntT op e1 e2
         _                                                            ->
             P.error P.$ printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
   where

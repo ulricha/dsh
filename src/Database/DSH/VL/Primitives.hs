@@ -75,7 +75,7 @@ typeToScalarType t = case t of
   Ty.StringT   -> D.String
   Ty.UnitT     -> D.Unit
   Ty.DoubleT   -> D.Double
-  Ty.DayT      -> D.Day
+  Ty.DateT     -> D.Date
   Ty.ListT _   -> $impossible
   Ty.TupleT _  -> $impossible
 
@@ -91,7 +91,7 @@ recordWidth t =
         Ty.DoubleT     -> 1
         Ty.StringT     -> 1
         Ty.UnitT       -> 1
-        Ty.DayT        -> 1
+        Ty.DateT       -> 1
         Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
