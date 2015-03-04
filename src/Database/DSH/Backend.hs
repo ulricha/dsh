@@ -15,15 +15,19 @@ module Database.DSH.Backend
     , boolE
     , charE
     , textE
+    , decimalE
+    , dayE
     ) where
 
+import           Data.Decimal
 import           Data.Text                       (Text)
+import qualified Data.Time.Calendar              as C
 
 import           Database.DSH.Common.QueryPlan
 import qualified Database.DSH.Common.Type        as T
+import           Database.DSH.Common.Vector      (VLDVec)
 import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.VL.Lang            (VL)
-import           Database.DSH.Common.Vector      (VLDVec)
 
 -- FIXME implement properly
 type TableInfo = [(String, String, (T.Type -> Bool))]
@@ -71,6 +75,8 @@ class Row r where
     charVal    :: Scalar r -> F.Exp Char
     textVal    :: Scalar r -> F.Exp Text
     unitVal    :: Scalar r -> F.Exp ()
+    decimalVal :: Scalar r -> F.Exp Decimal
+    dayVal     :: Scalar r -> F.Exp C.Day
 
 --------------------------------------------------------------------------------
 -- Constructors for literal scalar type expressions. Backends need
@@ -93,3 +99,9 @@ charE = F.CharE
 
 textE :: Text -> F.Exp Text
 textE = F.TextE
+
+dayE :: C.Day -> F.Exp C.Day
+dayE = F.DayE
+
+decimalE :: Decimal -> F.Exp Decimal
+decimalE = F.DecimalE

@@ -215,6 +215,8 @@ constructVal lyt row =
         SCol F.CharT c    -> charVal (col c row)
         SCol F.TextT c    -> textVal (col c row)
         SCol F.UnitT c    -> unitVal (col c row)
+        SCol F.DayT c     -> dayVal (col c row)
+        SCol F.DecimalT c -> decimalVal (col c row)
         SCol _       _    -> $impossible
 
 --------------------------------------------------------------------------------
