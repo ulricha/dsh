@@ -11,9 +11,7 @@ import qualified Data.Time.Calendar             as C
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
-import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Type
-
 import           Database.DSH.Common.Nat
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
