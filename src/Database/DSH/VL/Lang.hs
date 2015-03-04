@@ -11,6 +11,7 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Decimal
 import qualified Data.List.NonEmpty          as N
+import qualified Data.Time.Calendar          as C
 
 import           Database.Algebra.Dag        (Operator, opChildren,
                                               replaceOpChild)
@@ -24,6 +25,7 @@ data ScalarType = Int
                 | Decimal
                 | String
                 | Unit
+                | Date
              deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''ScalarType)
@@ -37,12 +39,19 @@ instance ToJSON Decimal where
 instance FromJSON Decimal where
     parseJSON s = read <$> parseJSON s
 
+instance FromJSON C.Day where
+    parseJSON o = (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
+
+instance ToJSON C.Day where
+    toJSON = toJSON . C.toGregorian
+
 data VLVal = VLInt Int
            | VLBool Bool
            | VLString String
            | VLDouble Double
            | VLDecimal Decimal
            | VLUnit
+           | VLDate C.Day
            deriving (Eq, Ord, Show, Read)
 
 $(deriveJSON defaultOptions ''VLVal)

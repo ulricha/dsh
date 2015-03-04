@@ -42,6 +42,7 @@ instance Pretty Type where
     pretty DoubleT       = text "Double"
     pretty StringT       = text "String"
     pretty UnitT         = text "()"
+    pretty DateT         = text "Date"
     pretty (ListT t)     = brackets $ pretty t
     pretty (TupleT ts)   = tupled $ map pretty ts
 
@@ -53,6 +54,7 @@ data Type  = IntT
            | StringT
            | UnitT
            | DecimalT
+           | DateT
            | ListT Type
            | TupleT [Type]
            deriving (Show, Eq, Ord)
@@ -65,6 +67,7 @@ isNum DecimalT    = True
 isNum BoolT       = False
 isNum StringT     = False
 isNum UnitT       = False
+isNum DateT       = False
 isNum (ListT _)   = False
 isNum (TupleT _)  = False
 

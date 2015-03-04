@@ -5,6 +5,7 @@ module Database.DSH.VL.Render.Dot(renderVLDot, renderTblVal) where
 import qualified Data.IntMap                 as Map
 import qualified Data.List.NonEmpty          as N
 import           Data.List
+import qualified Data.Time.Calendar          as C
 
 import           Text.PrettyPrint
 
@@ -65,12 +66,13 @@ renderRow :: [VLVal] -> Doc
 renderRow = hcat . punctuate comma . map renderTblVal
 
 renderTblVal :: VLVal -> Doc
-renderTblVal (VLInt i) = integer $ fromIntegral i
-renderTblVal (VLBool b) = text $ show b
-renderTblVal (VLString s) = doubleQuotes $ text $ escape s
-renderTblVal (VLDouble d) = double d
-renderTblVal VLUnit = text "()"
+renderTblVal (VLInt i)     = integer $ fromIntegral i
+renderTblVal (VLBool b)    = text $ show b
+renderTblVal (VLString s)  = doubleQuotes $ text $ escape s
+renderTblVal (VLDouble d)  = double d
 renderTblVal (VLDecimal d) = text $ show d
+renderTblVal VLUnit        = text "()"
+renderTblVal (VLDate d)    = text $ C.showGregorian d
 
 escape :: String -> String
 escape (x@'\\':xs) = '\\':'\\':'\\':x:escape xs

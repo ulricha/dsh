@@ -14,15 +14,16 @@ import           Prelude                          (Bool (..), Char, Double,
                                                    id, ($), (.))
 import qualified Prelude                          as P
 
+import           Data.Decimal
 import           Data.String
 import           Data.Text                        (Text)
 import qualified Data.Text                        as T
-import           Data.Decimal
+import           Data.Time.Calendar               (Day)
 
+import           Database.DSH.Common.Impossible
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Frontend.TupleTypes
-import           Database.DSH.Common.Impossible
 
 
 -- QA Instances
@@ -68,6 +69,12 @@ instance QA Decimal where
     toExp = DecimalE
     frExp (DecimalE d) = d
     frExp _ = $impossible
+
+instance QA Day where
+  type Rep Day = Day
+  toExp = DayE
+  frExp (DayE d) = d
+  frExp _ = $impossible
 
 instance (QA a) => QA [a] where
     type Rep [a] = [Rep a]
@@ -138,6 +145,7 @@ instance BasicType Integer where
 instance BasicType Double where
 instance BasicType Text where
 instance BasicType Decimal where
+instance BasicType Day where
 
 -- TA instances
 
@@ -148,6 +156,7 @@ instance TA Integer where
 instance TA Double where
 instance TA Text where
 instance TA Decimal where
+instance TA Day where
 
 -- Num and Fractional instances
 
@@ -661,8 +670,9 @@ integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 -- * Text Functions
 
 -- | 'like' matches a string (first argument) against a pattern (second
--- argument). The pattern must be a SQL LIKE pattern, that is use '_' for single
--- character wildcards and '_' for multi-character wildcards.
+-- argument). The pattern must be a SQL LIKE pattern, that is use '_'
+-- for single character wildcards and '_' for multi-character
+-- wildcards.
 like :: Q Text -> Q Text -> Q Bool
 like (Q t) (Q p) = Q (AppE Like (pairE t p))
 
@@ -679,6 +689,19 @@ transpose (Q ass) = Q (AppE Transpose ass)
 -- FIXME should propably have a constraint to flat types
 reshape :: QA a => Integer -> Q [a] -> Q [[a]]
 reshape n (Q e) = Q (AppE (Reshape n) e)
+
+-- * Date and Time Combinators
+
+addDays :: Q Integer -> Q Day -> Q Day
+addDays (Q i) (Q d) = Q (AppE AddDays (pairE i d))
+
+diffDays :: Q Day -> Q Day -> Q Integer
+diffDays (Q d1) (Q d2) = Q (AppE DiffDays (pairE d1 d2))
+
+toGregorian :: Q Day -> Q (Integer, Integer, Integer)
+toGregorian (Q d) = Q $ tripleE (AppE DayYear d)
+                                (AppE DayMonth d)
+                                (AppE DayDay d)
 
 -- * Rebind Monadic Combinators
 

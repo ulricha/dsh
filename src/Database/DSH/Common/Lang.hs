@@ -7,6 +7,7 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Decimal
 import qualified Data.List.NonEmpty             as N
+import qualified Data.Time.Calendar             as C
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
@@ -32,6 +33,7 @@ data Val where
     StringV  :: String -> Val
     DoubleV  :: Double -> Val
     DecimalV :: Decimal -> Val
+    DayV     :: C.Day -> Val
     TupleV   :: [Val] -> Val
     UnitV    :: Val
     deriving (Eq, Ord, Show)
@@ -98,11 +100,18 @@ data UnTextOp = SubString Integer Integer
 
 $(deriveJSON defaultOptions ''UnTextOp)
 
+data UnDateOp = DateDay
+              | DateMonth
+              | DateYear
+              deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnDateOp)
+
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
                 | SUTextOp UnTextOp
-                | SUDateOp
+                | SUDateOp UnDateOp
                 deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''ScalarUnOp)
@@ -137,11 +146,18 @@ data BinStringOp = Like
 
 $(deriveJSON defaultOptions ''BinStringOp)
 
+data BinDateOp = AddDays
+               | DiffDays
+               deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''BinDateOp)
+
 -- FIXME this would be a good fit for PatternSynonyms
 data ScalarBinOp = SBNumOp BinNumOp
                  | SBRelOp BinRelOp
                  | SBBoolOp BinBoolOp
                  | SBStringOp BinStringOp
+                 | SBDateOp BinDateOp
                  deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''ScalarBinOp)
@@ -215,6 +231,7 @@ instance Pretty Val where
     pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs
+    pretty (DayV d)      = text $ C.showGregorian d
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="
@@ -238,6 +255,11 @@ instance Pretty BinBoolOp where
     pretty Conj = text "&&"
     pretty Disj = text "||"
 
+
+instance Pretty BinDateOp where
+    pretty AddDays  = text "addDays"
+    pretty DiffDays = text "diffDays"
+
 instance Pretty UnNumOp where
     pretty Sin  = text "sin"
     pretty Cos  = text "cos"
@@ -251,6 +273,11 @@ instance Pretty UnNumOp where
 
 instance Pretty UnCastOp where
     pretty CastDouble = text "double"
+
+instance Pretty UnDateOp where
+    pretty DateDay   = text "dateDay"
+    pretty DateMonth = text "dateMonth"
+    pretty DateYear  = text "dateYear"
 
 instance Pretty JoinUnOp where
     pretty (JUNumOp o)  = pretty o
@@ -281,6 +308,7 @@ instance Pretty ScalarBinOp where
     pretty (SBRelOp o)    = pretty o
     pretty (SBBoolOp o)   = pretty o
     pretty (SBStringOp o) = pretty o
+    pretty (SBDateOp o)   = pretty o
 
 instance Pretty UnBoolOp where
     pretty Not = text "not"
@@ -289,7 +317,7 @@ instance Pretty ScalarUnOp where
     pretty (SUNumOp op)  = pretty op
     pretty (SUBoolOp op) = pretty op
     pretty (SUCastOp op) = pretty op
-    pretty SUDateOp      = $unimplemented
+    pretty (SUDateOp op) = pretty op
     pretty (SUTextOp op) = pretty op
 
 instance Pretty UnTextOp where

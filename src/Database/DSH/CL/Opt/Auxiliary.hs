@@ -80,13 +80,14 @@ toJoinBinOp (SBNumOp o)     = return $ JBNumOp o
 toJoinBinOp (SBStringOp o)  = return $ JBStringOp o
 toJoinBinOp (SBRelOp _)     = fail "toJoinBinOp: join expressions can't contain relational ops"
 toJoinBinOp (SBBoolOp _)    = fail "toJoinBinOp: join expressions can't contain boolean ops"
+toJoinBinOp (SBDateOp _)    = fail "toJoinBinOp: join expressions can't contain date ops"
 
 toJoinUnOp :: Monad m => ScalarUnOp -> m JoinUnOp
 toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
 toJoinUnOp (SUCastOp o) = return $ JUCastOp o
 toJoinUnOp (SUTextOp o) = return $ JUTextOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
-toJoinUnOp SUDateOp     = $unimplemented
+toJoinUnOp (SUDateOp _) = fail "toJoinUnOp: join expressions can't contain date ops"
 
 toJoinExpr :: Ident -> TransformC Expr JoinExpr
 toJoinExpr n = do
