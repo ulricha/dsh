@@ -300,6 +300,9 @@ translateApp f args =
        Sqrt            -> translateApp1 CP.sqrt args
        Log             -> translateApp1 CP.log args
        Exp             -> translateApp1 CP.exp args
+       DayDay          -> translateApp1 CP.dateDay args
+       DayMonth        -> translateApp1 CP.dateMonth args
+       DayYear         -> translateApp1 CP.dateYear args
        Fst             -> translateApp1 CP.fst args
        Snd             -> translateApp1 CP.snd args
        Head            -> translateApp1 CP.head args

@@ -75,4 +75,7 @@ data Fun a b where
     ATan            :: Fun Double Double
     AddDays         :: Fun (Integer, Day) Day
     DiffDays        :: Fun (Day, Day) Integer
+    DayDay          :: Fun Day Integer
+    DayMonth        :: Fun Day Integer
+    DayYear         :: Fun Day Integer
     TupElem         :: TupElem a b -> Fun a b

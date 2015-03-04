@@ -11,7 +11,6 @@ import           Text.Printf
 import qualified Data.Time.Calendar           as C
 
 import           Database.DSH.Common.Type
-import           Database.DSH.Common.Impossible
 
 import           Database.DSH.Common.Nat
 
@@ -98,11 +97,18 @@ data UnTextOp = SubString Integer Integer
 
 $(deriveJSON defaultOptions ''UnTextOp)
 
+data UnDateOp = DateDay
+              | DateMonth
+              | DateYear
+              deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''UnDateOp)
+
 data ScalarUnOp = SUNumOp UnNumOp
                 | SUBoolOp UnBoolOp
                 | SUCastOp UnCastOp
                 | SUTextOp UnTextOp
-                | SUDateOp
+                | SUDateOp UnDateOp
                 deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''ScalarUnOp)
@@ -264,6 +270,11 @@ instance Pretty UnNumOp where
 instance Pretty UnCastOp where
     pretty CastDouble = text "double"
 
+instance Pretty UnDateOp where
+    pretty DateDay   = text "dateDay"
+    pretty DateMonth = text "dateMonth"
+    pretty DateYear  = text "dateYear"
+
 instance Pretty JoinUnOp where
     pretty (JUNumOp o)  = pretty o
     pretty (JUCastOp o) = pretty o
@@ -302,7 +313,7 @@ instance Pretty ScalarUnOp where
     pretty (SUNumOp op)  = pretty op
     pretty (SUBoolOp op) = pretty op
     pretty (SUCastOp op) = pretty op
-    pretty SUDateOp      = $unimplemented
+    pretty (SUDateOp op) = pretty op
     pretty (SUTextOp op) = pretty op
 
 instance Pretty UnTextOp where

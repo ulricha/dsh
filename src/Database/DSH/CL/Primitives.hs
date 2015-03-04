@@ -10,7 +10,6 @@ import qualified Data.Time.Calendar             as C
 import           Text.Printf
 
 import           Database.DSH.CL.Lang
-import           Database.DSH.Common.Impossible
 import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Pretty
@@ -274,12 +273,21 @@ scalarUnOp op e =
            (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
            (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
            (L.SUTextOp L.SubString{}, StringT)    -> UnOp StringT op e
-           (L.SUDateOp, _)                        -> $unimplemented
+           (L.SUDateOp _, DayT)                   -> UnOp IntT op e
            (_, _)                                 -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
 castDouble :: Expr -> Expr
 castDouble = scalarUnOp (L.SUCastOp L.CastDouble)
+
+dateDay :: Expr -> Expr
+dateDay = scalarUnOp (L.SUDateOp L.DateDay)
+
+dateMonth :: Expr -> Expr
+dateMonth = scalarUnOp (L.SUDateOp L.DateMonth)
+
+dateYear :: Expr -> Expr
+dateYear = scalarUnOp (L.SUDateOp L.DateYear)
 
 not :: Expr -> Expr
 not = scalarUnOp (L.SUBoolOp L.Not)

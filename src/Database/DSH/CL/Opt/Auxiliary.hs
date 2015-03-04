@@ -87,7 +87,7 @@ toJoinUnOp (SUNumOp o)  = return $ JUNumOp o
 toJoinUnOp (SUCastOp o) = return $ JUCastOp o
 toJoinUnOp (SUTextOp o) = return $ JUTextOp o
 toJoinUnOp (SUBoolOp _) = fail "toJoinUnOp: join expressions can't contain boolean ops"
-toJoinUnOp SUDateOp     = $unimplemented
+toJoinUnOp (SUDateOp _) = fail "toJoinUnOp: join expressions can't contain date ops"
 
 toJoinExpr :: Ident -> TransformC Expr JoinExpr
 toJoinExpr n = do

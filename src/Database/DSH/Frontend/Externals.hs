@@ -638,8 +638,9 @@ integerToDouble (Q i) = Q (AppE IntegerToDouble i)
 -- * Text Functions
 
 -- | 'like' matches a string (first argument) against a pattern (second
--- argument). The pattern must be a SQL LIKE pattern, that is use '_' for single
--- character wildcards and '_' for multi-character wildcards.
+-- argument). The pattern must be a SQL LIKE pattern, that is use '_'
+-- for single character wildcards and '_' for multi-character
+-- wildcards.
 like :: Q Text -> Q Text -> Q Bool
 like (Q t) (Q p) = Q (AppE Like (pairE t p))
 
@@ -664,6 +665,11 @@ addDays (Q i) (Q d) = Q (AppE AddDays (pairE i d))
 
 diffDays :: Q Day -> Q Day -> Q Integer
 diffDays (Q d1) (Q d2) = Q (AppE DiffDays (pairE d1 d2))
+
+toGregorian :: Q Day -> Q (Integer, Integer, Integer)
+toGregorian (Q d) = Q $ tripleE (AppE DayYear d)
+                                (AppE DayMonth d)
+                                (AppE DayDay d)
 
 -- * Rebind Monadic Combinators
 
