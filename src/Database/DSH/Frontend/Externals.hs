@@ -158,7 +158,7 @@ instance TA Text where
 instance TA Decimal where
 instance TA Day where
 
--- Num and Fractional instances
+-- Numerical instances
 
 instance Num (Exp Integer) where
     (+) e1 e2 = AppE Add (pairE e1 e2)
@@ -208,6 +208,14 @@ instance Num (Exp Decimal) where
 instance Fractional (Exp Double) where
     (/) e1 e2    = AppE Div (pairE e1 e2)
     fromRational = DoubleE . fromRational
+
+instance Fractional (Exp Decimal) where
+    (/) e1 e2    = AppE Div (pairE e1 e2)
+    fromRational = DecimalE . fromRational
+
+instance Fractional (Q Decimal) where
+    (/) (Q e1) (Q e2) = Q (e1 / e2)
+    fromRational = Q . fromRational
 
 instance Floating (Exp Double) where
     pi     = DoubleE 3.141592653589793
@@ -386,10 +394,6 @@ mod (Q a) (Q b) = Q (AppE Mod (pairE a b))
 
 div :: Q Integer -> Q Integer -> Q Integer
 div (Q a) (Q b) = Q (AppE Div (pairE a b))
-
--- | Not-exactly-well-defined decimal division.
-(/.) :: Q Decimal -> Q Decimal -> Q Decimal
-(Q d1) /. Q d2 = Q (AppE Div (pairE d1 d2))
 
 -- * Conditionals
 
