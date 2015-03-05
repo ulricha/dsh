@@ -161,7 +161,10 @@ sum e1 d =
     in PApp1 (liftTypeN d t) Sum (LiftedN d) e1
 
 avg :: LExpr -> Nat -> LExpr
-avg e1 d = PApp1 (liftTypeN d DoubleT) Avg (LiftedN d) e1
+avg e1 d = case unliftTypeN d $ typeOf e1 of
+               ListT DoubleT  -> PApp1 (liftTypeN d DoubleT) Avg (LiftedN d) e1
+               ListT DecimalT -> PApp1 (liftTypeN d DecimalT) Avg (LiftedN d) e1
+               _              -> $impossible
 
 minimum :: LExpr -> Nat -> LExpr
 minimum e1 d =

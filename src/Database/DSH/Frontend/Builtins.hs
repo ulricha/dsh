@@ -35,7 +35,7 @@ data Fun a b where
     Fst              :: Fun (a,b) a
     Snd              :: Fun (a,b) b
     Sum              :: Fun [a] a
-    Avg              :: Fun [a] Double
+    Avg              :: Fun [a] a
     Maximum          :: Fun [a] a
     Minimum          :: Fun [a] a
     Nub              :: Fun [a] [a]

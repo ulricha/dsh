@@ -245,7 +245,6 @@ tests_lists conn = testGroup "Lists"
     , testPropertyConn conn "all_zero"                     prop_all_zero
     , testPropertyConn conn "sum_integer"                  prop_sum_integer
     , testPropertyConn conn "sum_double"                   prop_sum_double
-    , testPropertyConn conn "avg_integer"                  prop_avg_integer
     , testPropertyConn conn "avg_double"                   prop_avg_double
     , testPropertyConn conn "concat"                       prop_concat
     , testPropertyConn conn "concatMap"                    prop_concatMap
@@ -928,19 +927,13 @@ prop_map_all_zero = makePropEq (Q.map (Q.all (Q.== 0))) (map (all (== 0)))
 prop_sum_integer :: Backend c => [Integer] -> c -> Property
 prop_sum_integer = makePropEq Q.sum sum
 
-avgInt :: [Integer] -> Double
-avgInt is = (realToFrac $ sum is) / (fromIntegral $ length is)
-
-prop_avg_integer :: Backend c => [Integer] -> c -> Property
-prop_avg_integer is conn = (not $ null is) ==> makePropEq Q.avg avgInt is conn
-
 prop_map_sum :: Backend c => [[Integer]] -> c -> Property
 prop_map_sum = makePropEq (Q.map Q.sum) (map sum)
 
-prop_map_avg :: Backend c => [[Integer]] -> c -> Property
+prop_map_avg :: Backend c => [[Double]] -> c -> Property
 prop_map_avg is conn = (not $ any null is)
                        ==>
-                       makePropEq (Q.map Q.avg) (map avgInt) is conn
+                       makePropDoubles (Q.map Q.avg) (map avgDouble) is conn
 
 prop_map_map_sum :: Backend c => [[[Integer]]] -> c -> Property
 prop_map_map_sum = makePropEq (Q.map (Q.map Q.sum)) (map (map sum))
