@@ -71,6 +71,7 @@ type Ident = String
 -- Scalar operators
 
 data UnCastOp = CastDouble
+              | CastDecimal
                 deriving (Show, Eq, Ord)
 
 $(deriveJSON defaultOptions ''UnCastOp)
@@ -270,7 +271,8 @@ instance Pretty UnNumOp where
     pretty ATan = text "atan"
 
 instance Pretty UnCastOp where
-    pretty CastDouble = text "double"
+    pretty CastDouble  = text "double"
+    pretty CastDecimal = text "decimal"
 
 instance Pretty UnDateOp where
     pretty DateDay   = text "dateDay"

@@ -387,6 +387,10 @@ mod (Q a) (Q b) = Q (AppE Mod (pairE a b))
 div :: Q Integer -> Q Integer -> Q Integer
 div (Q a) (Q b) = Q (AppE Div (pairE a b))
 
+-- | Not-exactly-well-defined decimal division.
+(/.) :: Q Decimal -> Q Decimal -> Q Decimal
+(Q d1) /. Q d2 = Q (AppE Div (pairE d1 d2))
+
 -- * Conditionals
 
 bool :: (QA a) => Q a -> Q a -> Q Bool -> Q a
@@ -666,6 +670,9 @@ snd (Q e) = Q (AppE Snd e)
 
 integerToDouble :: Q Integer -> Q Double
 integerToDouble (Q i) = Q (AppE IntegerToDouble i)
+
+integerToDecimal :: Q Integer -> Q Decimal
+integerToDecimal (Q i) = Q (AppE IntegerToDecimal i)
 
 -- * Text Functions
 

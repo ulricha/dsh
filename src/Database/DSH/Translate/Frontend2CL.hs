@@ -290,41 +290,42 @@ translateApp f args =
        DiffDays     -> translateApp2 CP.addDays args
 
        -- Builtin functions with arity one
-       SubString s e   -> translateApp1 (CP.substring s e) args
-       IntegerToDouble -> translateApp1 CP.castDouble args
-       Not             -> translateApp1 CP.not args
-       Sin             -> translateApp1 CP.sin args
-       Cos             -> translateApp1 CP.cos args
-       Tan             -> translateApp1 CP.tan args
-       ASin            -> translateApp1 CP.asin args
-       ACos            -> translateApp1 CP.acos args
-       ATan            -> translateApp1 CP.atan args
-       Sqrt            -> translateApp1 CP.sqrt args
-       Log             -> translateApp1 CP.log args
-       Exp             -> translateApp1 CP.exp args
-       DayDay          -> translateApp1 CP.dateDay args
-       DayMonth        -> translateApp1 CP.dateMonth args
-       DayYear         -> translateApp1 CP.dateYear args
-       Fst             -> translateApp1 CP.fst args
-       Snd             -> translateApp1 CP.snd args
-       Head            -> translateApp1 CP.head args
-       Tail            -> translateApp1 CP.tail args
-       Minimum         -> translateApp1 CP.minimum args
-       Maximum         -> translateApp1 CP.maximum args
-       Concat          -> translateApp1 CP.concat args
-       Sum             -> translateApp1 CP.sum args
-       Avg             -> translateApp1 CP.avg args
-       And             -> translateApp1 CP.and args
-       Or              -> translateApp1 CP.or args
-       Reverse         -> translateApp1 CP.reverse args
-       Number          -> translateApp1 CP.number args
-       Length          -> translateApp1 CP.length args
-       Null            -> translateApp1 CP.null args
-       Init            -> translateApp1 CP.init args
-       Last            -> translateApp1 CP.last args
-       Nub             -> translateApp1 CP.nub args
-       Guard           -> translateApp1 CP.guard args
-       Transpose       -> translateApp1 CP.transpose args
-       Reshape n       -> translateApp1 (CP.reshape n) args
-       TupElem te      -> let compileTupElem = $(mkTupElemCompile 16)
-                          in compileTupElem te args
+       SubString s e    -> translateApp1 (CP.substring s e) args
+       IntegerToDouble  -> translateApp1 CP.castDouble args
+       IntegerToDecimal -> translateApp1 CP.castDecimal args
+       Not              -> translateApp1 CP.not args
+       Sin              -> translateApp1 CP.sin args
+       Cos              -> translateApp1 CP.cos args
+       Tan              -> translateApp1 CP.tan args
+       ASin             -> translateApp1 CP.asin args
+       ACos             -> translateApp1 CP.acos args
+       ATan             -> translateApp1 CP.atan args
+       Sqrt             -> translateApp1 CP.sqrt args
+       Log              -> translateApp1 CP.log args
+       Exp              -> translateApp1 CP.exp args
+       DayDay           -> translateApp1 CP.dateDay args
+       DayMonth         -> translateApp1 CP.dateMonth args
+       DayYear          -> translateApp1 CP.dateYear args
+       Fst              -> translateApp1 CP.fst args
+       Snd              -> translateApp1 CP.snd args
+       Head             -> translateApp1 CP.head args
+       Tail             -> translateApp1 CP.tail args
+       Minimum          -> translateApp1 CP.minimum args
+       Maximum          -> translateApp1 CP.maximum args
+       Concat           -> translateApp1 CP.concat args
+       Sum              -> translateApp1 CP.sum args
+       Avg              -> translateApp1 CP.avg args
+       And              -> translateApp1 CP.and args
+       Or               -> translateApp1 CP.or args
+       Reverse          -> translateApp1 CP.reverse args
+       Number           -> translateApp1 CP.number args
+       Length           -> translateApp1 CP.length args
+       Null             -> translateApp1 CP.null args
+       Init             -> translateApp1 CP.init args
+       Last             -> translateApp1 CP.last args
+       Nub              -> translateApp1 CP.nub args
+       Guard            -> translateApp1 CP.guard args
+       Transpose        -> translateApp1 CP.transpose args
+       Reshape n        -> translateApp1 (CP.reshape n) args
+       TupElem te       -> let compileTupElem = $(mkTupElemCompile 16)
+                           in compileTupElem te args

@@ -18,6 +18,7 @@ module Database.DSH
     , module Database.DSH.Frontend.TH
     , module Data.String
     , module Data.Text
+    , module Data.Decimal
     , module Prelude
     ) where
 
@@ -27,6 +28,7 @@ import Database.DSH.Frontend.TH
 
 import Data.String (IsString,fromString)
 import Data.Text (Text)
+import Data.Decimal (Decimal)
 import Prelude hiding (
     not
   , (&&)

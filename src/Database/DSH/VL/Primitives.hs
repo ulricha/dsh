@@ -29,7 +29,7 @@ pvec = fmap PVec
 
 rvec :: Build a AlgNode -> Build a RVec
 rvec = fmap RVec
-     
+
 --------------------------------------------------------------------------------
 -- Insert VL operators and appropriate R1/R2/R3 nodes
 
@@ -43,10 +43,10 @@ pairVec op mkVec1 mkVec2 = do
     r2 <- mkVec2 $ insert $ UnOp R2 r
     return (r1, r2)
 
-tripleVec :: VL 
-          -> VecConst r a 
-          -> VecConst r b 
-          -> VecConst r c 
+tripleVec :: VL
+          -> VecConst r a
+          -> VecConst r b
+          -> VecConst r c
           -> Build VL (a, b ,c)
 tripleVec op mkVec1 mkVec2 mkVec3 = do
     r <- insert op

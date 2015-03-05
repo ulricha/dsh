@@ -273,16 +273,20 @@ scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
 scalarUnOp op e =
     let t = typeOf e
     in case (op, t) of
-           (L.SUNumOp _, DoubleT)                 -> UnOp t op e
-           (L.SUBoolOp _, BoolT)                  -> UnOp BoolT op e
-           (L.SUCastOp L.CastDouble, _) | isNum t -> UnOp DoubleT op e
-           (L.SUTextOp L.SubString{}, StringT)    -> UnOp StringT op e
+           (L.SUNumOp _, DoubleT)                  -> UnOp t op e
+           (L.SUBoolOp _, BoolT)                   -> UnOp BoolT op e
+           (L.SUCastOp L.CastDouble, _) | isNum t  -> UnOp DoubleT op e
+           (L.SUCastOp L.CastDecimal, _) | isNum t -> UnOp DecimalT op e
+           (L.SUTextOp L.SubString{}, StringT)     -> UnOp StringT op e
            (L.SUDateOp _, DateT)                   -> UnOp IntT op e
-           (_, _)                                 -> P.error err
+           (_, _)                                  -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
 castDouble :: Expr -> Expr
 castDouble = scalarUnOp (L.SUCastOp L.CastDouble)
+
+castDecimal :: Expr -> Expr
+castDecimal = scalarUnOp (L.SUCastOp L.CastDecimal)
 
 dateDay :: Expr -> Expr
 dateDay = scalarUnOp (L.SUDateOp L.DateDay)
