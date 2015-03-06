@@ -61,12 +61,15 @@ mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
 pVal :: L.Val -> VLVal
-pVal (L.IntV i)    = VLInt i
-pVal (L.BoolV b)   = VLBool b
-pVal (L.StringV s) = VLString s
-pVal (L.DoubleV d) = VLDouble d
-pVal L.UnitV       = VLUnit
-pVal _             = error "pVal: Not a supported value"
+pVal (L.IntV i)     = VLInt i
+pVal (L.BoolV b)    = VLBool b
+pVal (L.StringV s)  = VLString s
+pVal (L.DoubleV d)  = VLDouble d
+pVal (L.DecimalV d) = VLDecimal d
+pVal (L.DateV d)    = VLDate d
+pVal L.UnitV        = VLUnit
+pVal L.ListV{}      = $impossible
+pVal L.TupleV{}     = $impossible
 
 typeToScalarType :: Ty.Type -> ScalarType
 typeToScalarType t = case t of

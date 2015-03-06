@@ -255,7 +255,7 @@ decimal :: Decimal -> Expr
 decimal d = Lit DecimalT (L.DecimalV d)
 
 day :: C.Day -> Expr
-day d = Lit DateT (L.DayV d)
+day d = Lit DateT (L.DateV d)
 
 nil :: Type -> Expr
 nil t = Lit t (L.ListV [])

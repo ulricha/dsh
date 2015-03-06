@@ -31,7 +31,7 @@ data Val where
     StringV  :: String -> Val
     DoubleV  :: Double -> Val
     DecimalV :: Decimal -> Val
-    DayV     :: C.Day -> Val
+    DateV    :: C.Day -> Val
     TupleV   :: [Val] -> Val
     UnitV    :: Val
     deriving (Eq, Ord, Show)
@@ -230,7 +230,7 @@ instance Pretty Val where
     pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"
     pretty (TupleV vs)   = tupled $ map pretty vs
-    pretty (DayV d)      = text $ C.showGregorian d
+    pretty (DateV d)     = text $ C.showGregorian d
 
 instance Pretty BinRelOp where
     pretty Eq  = text "=="
