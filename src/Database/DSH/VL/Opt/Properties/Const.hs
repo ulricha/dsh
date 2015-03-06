@@ -56,19 +56,20 @@ evalNumOp op v1 v2 =
         Mod -> v1 `mod` v2
 
 evalBinOp :: ScalarBinOp -> VLVal -> VLVal -> Maybe VLVal
-evalBinOp (SBNumOp nop)  (VLInt i1) (VLInt i2)     = return $ VLInt $ evalNumOp nop i1 i2
-evalBinOp (SBRelOp _)    (VLInt _)  (VLInt _)      = mzero
-evalBinOp _              (VLInt _)  (VLInt _)      = $impossible
-evalBinOp (SBBoolOp _)   (VLBool _) (VLBool _)     = mzero
-evalBinOp  _             (VLBool _) (VLBool _)     = $impossible
-evalBinOp (SBStringOp _) (VLString _) (VLString _) = mzero
-evalBinOp _              (VLString _) (VLString _) = $impossible
-evalBinOp (SBRelOp _)    (VLDouble _) (VLDouble _) = mzero
-evalBinOp (SBNumOp _)    (VLDouble _) (VLDouble _) = mzero
-evalBinOp _              (VLDouble _) (VLDouble _) = $impossible
-evalBinOp _              VLUnit       VLUnit       = $impossible
-evalBinOp (SBDateOp _)   _            _            = mzero
-evalBinOp _              _            _            = $impossible
+evalBinOp (SBNumOp nop)  (VLInt i1) (VLInt i2)       = return $ VLInt $ evalNumOp nop i1 i2
+evalBinOp (SBNumOp _)    (VLDouble _) (VLDouble _)   = mzero
+evalBinOp (SBNumOp _)    (VLDecimal _) (VLDecimal _) = mzero
+
+evalBinOp (SBRelOp _)    (VLInt _)  (VLInt _)        = mzero
+evalBinOp (SBRelOp _)    (VLDouble _) (VLDouble _)   = mzero
+evalBinOp (SBRelOp _)    (VLDecimal _) (VLDecimal _) = mzero
+evalBinOp (SBRelOp _)    (VLString _) (VLString _)   = mzero
+evalBinOp (SBRelOp _)    (VLDate _) (VLDate _)       = mzero
+
+evalBinOp (SBBoolOp _)   (VLBool _) (VLBool _)       = mzero
+evalBinOp (SBStringOp _) (VLString _) (VLString _)   = mzero
+evalBinOp (SBDateOp _)   (VLDate _) (VLDate _)       = mzero
+evalBinOp _              _            _              = $impossible
 
 evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal
 evalUnOp _ _ = mzero
