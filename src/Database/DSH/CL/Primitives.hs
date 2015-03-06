@@ -80,11 +80,12 @@ sum e = let (ListT t) = typeOf e
                 then AppE1 t Sum e
                 else tyErr "sum"
 
+
 avg :: Expr -> Expr
 avg e = case typeOf e of
-            DoubleT  -> AppE1 DoubleT Avg e
-            DecimalT -> AppE1 DecimalT Avg e
-            _        -> tyErr "avg"
+            ListT DoubleT  -> AppE1 DoubleT Avg e
+            ListT DecimalT -> AppE1 DecimalT Avg e
+            _              -> tyErr "avg"
 
 minimum :: Expr -> Expr
 minimum e = let (ListT t) = typeOf e

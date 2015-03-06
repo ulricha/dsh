@@ -19,6 +19,7 @@ module Database.DSH
     , module Data.String
     , module Data.Text
     , module Data.Decimal
+    , module Data.Time.Calendar
     , module Prelude
     ) where
 
@@ -29,6 +30,7 @@ import Database.DSH.Frontend.TH
 import Data.String (IsString,fromString)
 import Data.Text (Text)
 import Data.Decimal (Decimal)
+import Data.Time.Calendar (Day)
 import Prelude hiding (
     not
   , (&&)
