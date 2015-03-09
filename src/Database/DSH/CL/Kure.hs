@@ -149,7 +149,7 @@ liftstateT t = resultT liftstate t
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
 
-tableT :: Monad m => (Type -> String -> [L.Column] -> L.TableHints -> b)
+tableT :: Monad m => (Type -> String -> [L.ColName] -> L.TableHints -> b)
                   -> Transform CompCtx m Expr b
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs hs -> return $ f ty n cs hs

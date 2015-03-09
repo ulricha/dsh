@@ -29,6 +29,8 @@ module Database.DSH.Common.Type
     , Typed (..)
     ) where
 
+import Debug.Trace
+
 import Text.PrettyPrint.ANSI.Leijen
 
 import Database.DSH.Common.Impossible
@@ -109,7 +111,7 @@ tupleElemT _           _ = $impossible
 
 tupleElemTypes :: Type -> [Type]
 tupleElemTypes (TupleT ts) = ts
-tupleElemTypes _           = $impossible
+tupleElemTypes t           = trace (show t) $ $impossible
 
 listDepth :: Type -> Int
 listDepth (ListT t1) = 1 + listDepth t1

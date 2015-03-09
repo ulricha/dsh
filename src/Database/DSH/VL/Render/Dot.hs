@@ -87,7 +87,7 @@ bracketList f = brackets . hsep . punctuate comma . map f
 renderColName :: ColName -> Doc
 renderColName (ColName c) = text c
 
-renderTableType :: VLColumn -> Doc
+renderTableType :: (ColName, ScalarType) -> Doc
 renderTableType (c, t) = renderColName c <> text "::" <> renderColumnType t
 
 renderTableHints :: TableHints -> Doc

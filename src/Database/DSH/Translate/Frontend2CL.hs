@@ -33,35 +33,18 @@ import           Text.Printf
 
 import           GHC.Exts                        (sortWith)
 
-type TableInfoCache = M.Map String TableInfo
-
 -- In the state, we store a counter for fresh variable names, the
 -- cache for table information and the backend connection 'c'.
-type CompileState c = (Integer, TableInfoCache, c)
+type CompileState = Integer
 
--- | The Compile monad provides fresh variable names, allows to
--- retrieve information about tables from the database backend and
--- caches table information.
-type Compile c = StateT (CompileState c) IO
-
--- | Lookup information that describes a table. If the information is
--- not present in the state then the connection is used to retrieve
--- the table information from the Database.
-tableInfo :: Backend c => String -> Compile c TableInfo
-tableInfo tableName = do
-    (i, env, conn) <- get
-    case M.lookup tableName env of
-        Nothing -> do
-            inf <- lift $ querySchema conn tableName
-            put (i, M.insert tableName inf env, conn)
-            return inf
-        Just v -> return v
+-- | The Compile monad provides fresh variable names.
+type Compile = State CompileState
 
 -- | Provide a fresh identifier name during compilation
-freshVar :: Compile c Integer
+freshVar :: Compile Integer
 freshVar = do
-    (i, m, f) <- get
-    put (i + 1, m, f)
+    i <- get
+    put $ i + 1
     return i
 
 prefixVar :: Integer -> String
@@ -69,25 +52,25 @@ prefixVar i = "v" ++ show i
 
 -- | Translate a DSH frontend expression into the internal
 -- comprehension-based language.
-toComprehensions :: Backend c => c -> Exp a -> IO CL.Expr
-toComprehensions conn q = runCompile conn (translate q)
+toComprehensions :: Exp a -> CL.Expr
+toComprehensions q = runCompile (translate q)
 
 -- | Execute the transformation computation. During compilation table
 -- information can be retrieved from the database, therefore the result
 -- is wrapped in the IO Monad.
-runCompile :: Backend c => c -> Compile c a -> IO a
-runCompile conn = liftM fst . flip runStateT (1, M.empty, conn)
+runCompile :: Compile a -> a
+runCompile ma = evalState ma 1
 
-lamBody :: forall a b c.(Reify a, Reify b)
+lamBody :: forall a b.(Reify a, Reify b)
         => (Exp a -> Exp b)
-        -> Compile c (L.Ident, Exp b)
+        -> Compile (L.Ident, Exp b)
 lamBody f = do
     v <- freshVar
     return (prefixVar v, f (VarE v :: Exp a))
 
 -- | Translate a frontend HOAS AST to a FOAS AST in Comprehension
 -- Language (CL).
-translate :: forall a c. Backend c => Exp a -> Compile c CL.Expr
+translate :: forall a. Exp a -> Compile CL.Expr
 translate (TupleConstE tc) = let translateTupleConst = $(mkTranslateTupleTerm 16)
                              in translateTupleConst tc
 translate UnitE = return $ CP.unit
@@ -110,40 +93,12 @@ translate (ListE es) = do
 -- have not been eliminated by inlining in the frontend, additional
 -- normalization rules or defunctionalization should be employed.
 translate (LamE _) = $impossible
-translate (TableE (TableDB tableName hints)) = do
+translate (TableE (TableDB tableName colNames hints)) = do
     -- Reify the type of the table expression
     let ty = reify (undefined :: a)
+    let colNames' = map L.ColName colNames
 
-    -- Extract the column types from the frontend type
-    let ts = T.tupleElemTypes $ T.elemT $ translateType ty
-
-    -- Fetch the actual type of the table from the database
-    -- backend. Since we can't refer to columns by name from the
-    -- Haskell side, we sort the columns by name to get a canonical
-    -- order.
-    tableDescr <- sortWith (\(n, _, _) -> n) <$> tableInfo tableName
-
-    let tableTypeError = printf ("DSH type and type of table %s are incompatible:"
-                                 ++ "\nDSH: %s\nDatabase: %s")
-                                tableName
-                                (show ts)
-                                (show $ map (\(n, t, _) -> (n, t)) tableDescr)
-
-    -- The DSH record/tuple type must match the number of columns in
-    -- the database table
-    if length tableDescr == length ts
-        then return ()
-        else error tableTypeError
-
-    let matchTypes :: (String, String, T.Type -> Bool) -> T.Type -> (L.ColName, T.Type)
-        matchTypes (colName, _, typesCompatible) dshType =
-            if typesCompatible dshType
-            then (L.ColName colName, dshType)
-            else error tableTypeError
-
-    let cols = zipWith matchTypes tableDescr ts
-
-    return $ CP.table (translateType ty) tableName cols (compileHints hints)
+    return $ CP.table (translateType ty) tableName colNames' (compileHints hints)
 
 translate (AppE f args) = translateApp f args
 
@@ -160,23 +115,21 @@ compileHints hints = L.TableHints { L.keysHint = keys $ keysHint hints
     ne PossiblyEmpty = L.PossiblyEmpty
 
 
-translateApp3 :: Backend d
-              => (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr)
+translateApp3 :: (CL.Expr -> CL.Expr -> CL.Expr -> CL.Expr)
               -> Exp (a, b, c)
-              -> Compile d CL.Expr
+              -> Compile CL.Expr
 translateApp3 f (TupleConstE (Tuple3E e1 e2 e3)) =
     f <$> translate e1 <*> translate e2 <*> translate e3
 translateApp3 _ _ = $impossible
 
-translateApp2 :: Backend c
-              => (CL.Expr -> CL.Expr -> CL.Expr)
+translateApp2 :: (CL.Expr -> CL.Expr -> CL.Expr)
               -> Exp (a, b)
-              -> Compile c CL.Expr
+              -> Compile CL.Expr
 translateApp2 f (TupleConstE (Tuple2E e1 e2)) =
     f <$> translate e1 <*> translate e2
 translateApp2 _ _ = $impossible
 
-translateApp1 :: Backend c => (CL.Expr -> CL.Expr) -> Exp a -> Compile c CL.Expr
+translateApp1 :: (CL.Expr -> CL.Expr) -> Exp a -> Compile CL.Expr
 translateApp1 f e = f <$> translate e
 
 -- | Translate DSH frontend types into backend types.
@@ -194,11 +147,7 @@ translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
 translateType (ArrowT _ _)   = $impossible
 
--- | From the type of a table (a list of base records represented as
--- right-deep nested tuples) extract the types of the individual
--- fields.
-
-translateApp :: Backend c => Fun a b -> Exp a -> Compile c CL.Expr
+translateApp :: Fun a b -> Exp a -> Compile CL.Expr
 translateApp f args =
     case f of
        -- Builtin functions with arity three

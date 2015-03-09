@@ -47,7 +47,11 @@ fkl2VL expr =
         Let _ n e1 e -> do
             e1' <- fkl2VL e1
             local (bind n e1') $ fkl2VL e
-        Table _ n cs hs -> lift $ V.dbTable n cs hs
+        Table t n cs hs -> do
+            let cols = case elemT t of
+                           TupleT ts -> zip cs ts
+                           et        -> zip cs [et]
+            lift $ V.dbTable n cols hs
         Const t v -> lift $ V.mkLiteral t v
         BinOp _ o NotLifted e1 e2    -> do
             SShape p1 lyt <- fkl2VL e1

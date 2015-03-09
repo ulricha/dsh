@@ -189,7 +189,7 @@ zip e1 e2 = let ListT t1' = typeOf e1
 var :: Type -> P.String -> Expr
 var = Var
 
-table :: Type -> P.String -> [L.Column] -> L.TableHints -> Expr
+table :: Type -> P.String -> [L.ColName] -> L.TableHints -> Expr
 table = Table
 
 cond :: Expr -> Expr -> Expr -> Expr

@@ -103,6 +103,9 @@ pairE a b = TupleConstE (Tuple2E a b)
 tripleE :: (Reify a, Reify b, Reify c) => Exp a -> Exp b -> Exp c -> Exp (a, b, c)
 tripleE a b c = TupleConstE (Tuple3E a b c)
 
+--------------------------------------------------------------------------------
+-- Definition of database-resident tables
+
 -- | A combination of column names that form a candidate key
 newtype Key = Key [String] deriving (Eq, Ord, Show)
 
@@ -111,13 +114,15 @@ data Emptiness = NonEmpty
                | PossiblyEmpty
                deriving (Eq, Ord, Show)
 
+type ColName = String
+
 -- | Catalog information hints that users may give to DSH
 data TableHints = TableHints
     { keysHint     :: [Key]
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
 
-data Table = TableDB String TableHints
+data Table = TableDB String [ColName] TableHints
 
 -- Reify instances
 

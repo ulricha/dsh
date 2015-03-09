@@ -137,7 +137,7 @@ liftstateT t = resultT liftstate t
 --------------------------------------------------------------------------------
 -- Congruence combinators for FKL lexpressions
 
-tableT :: Monad m => (Type -> String -> [Column] -> TableHints -> b)
+tableT :: Monad m => (Type -> String -> [ColName] -> TableHints -> b)
                   -> Transform FlatCtx m (ExprTempl l e) b
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs ks -> return $ f ty n cs ks

@@ -183,7 +183,7 @@ isBind :: Qual -> Bool
 isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
 
-data Expr  = Table Type String [L.Column] L.TableHints
+data Expr  = Table Type String [L.ColName] L.TableHints
            | AppE1 Type Prim1 Expr
            | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr

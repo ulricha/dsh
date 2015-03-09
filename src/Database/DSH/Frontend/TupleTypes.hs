@@ -121,9 +121,9 @@ mkCompileMatch exprName (con, elemIdx) = do
 mkTupElemCompile :: Int -> Q Exp
 mkTupElemCompile maxWidth = do
     let cons = concat [ [ (tupAccName width idx, idx)
-                        | idx <- [1..width] 
-                        ] 
-                      | width <- [2..maxWidth] 
+                        | idx <- [1..width]
+                        ]
+                      | width <- [2..maxWidth]
                       ]
 
     exprName <- newName "e"

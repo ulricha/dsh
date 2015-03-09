@@ -23,7 +23,7 @@ data LiftedN = LiftedN Nat deriving (Show)
 data Lifted = Lifted | NotLifted deriving (Show)
 
 -- | 'FExpr' is the target language of the flattening transformation.
-data ExprTempl l e = Table Type String [L.Column] L.TableHints
+data ExprTempl l e = Table Type String [L.ColName] L.TableHints
                    | PApp1 Type Prim1 l (ExprTempl l e)
                    | PApp2 Type Prim2 l (ExprTempl l e) (ExprTempl l e)
                    | PApp3 Type Prim3 l (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)

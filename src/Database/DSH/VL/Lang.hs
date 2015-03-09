@@ -30,7 +30,6 @@ data ScalarType = Int
 
 $(deriveJSON defaultOptions ''ScalarType)
 
-type VLColumn = (L.ColName, ScalarType)
 type DBCol = Int
 
 instance ToJSON Decimal where
@@ -117,7 +116,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 
 data NullOp = SingletonDescr
             | Lit (L.Emptiness, [ScalarType], [[VLVal]])
-            | TableRef (String, [VLColumn], L.TableHints)
+            | TableRef (String, [(L.ColName, ScalarType)], L.TableHints)
             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''NullOp)

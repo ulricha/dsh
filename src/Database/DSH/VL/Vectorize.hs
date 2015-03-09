@@ -593,7 +593,7 @@ singletonL _ = $impossible
 -- Construction of base tables and literal tables
 
 -- | Create a VL reference to a base table.
-dbTable ::  String -> [L.Column] -> L.TableHints -> Build VL (Shape VLDVec)
+dbTable ::  String -> [(L.ColName, Type)] -> L.TableHints -> Build VL (Shape VLDVec)
 dbTable n cs ks = do
     t <- vlTableRef n (map (mapSnd typeToScalarType) cs) ks
     return $ VShape t (LTuple $ map (const LCol) cs)
