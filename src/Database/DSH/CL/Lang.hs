@@ -117,56 +117,56 @@ data Prim1 = Singleton
            | Reshape Integer
            | Transpose
            | TupElem TupleIndex
-           deriving (Eq)
+           deriving (Eq, Show)
 
-instance Show Prim1 where
-  show Sort            = "sort"
-  show Group           = "group"
-  show Singleton       = "sng"
-  show Length          = "length"
-  show Concat          = "concat"
-  show Null            = "null"
-  show Sum             = "sum"
-  show Avg             = "avg"
-  show The             = "the"
-  show Head            = "head"
-  show Minimum         = "minimum"
-  show Maximum         = "maximum"
-  show Tail            = "tail"
-  show Reverse         = "reverse"
-  show And             = "and"
-  show Or              = "or"
-  show Init            = "init"
-  show Last            = "last"
-  show Nub             = "nub"
-  show Number          = "number"
-  show Guard           = "guard"
-  show Transpose       = "transpose"
-  show (Reshape n)     = printf "reshape(%d)" n
+instance Pretty Prim1 where
+  pretty Sort            = text "sort"
+  pretty Group           = text "group"
+  pretty Singleton       = text "sng"
+  pretty Length          = text "length"
+  pretty Concat          = text "concat"
+  pretty Null            = text "null"
+  pretty Sum             = text "sum"
+  pretty Avg             = text "avg"
+  pretty The             = text "the"
+  pretty Head            = text "head"
+  pretty Minimum         = text "minimum"
+  pretty Maximum         = text "maximum"
+  pretty Tail            = text "tail"
+  pretty Reverse         = text "reverse"
+  pretty And             = text "and"
+  pretty Or              = text "or"
+  pretty Init            = text "init"
+  pretty Last            = text "last"
+  pretty Nub             = text "nub"
+  pretty Number          = text "number"
+  pretty Guard           = text "guard"
+  pretty Transpose       = text "transpose"
+  pretty (Reshape n)     = text $ printf "reshape(%d)" n
   -- tuple access is pretty-printed in a special way
-  show TupElem{}       = $impossible
+  pretty TupElem{}       = $impossible
 
 data Prim2 = Append
            | Index
-           | Zip 
+           | Zip
            | CartProduct
            | NestProduct
            | ThetaJoin (L.JoinPredicate L.JoinExpr)
            | NestJoin (L.JoinPredicate L.JoinExpr)
            | SemiJoin (L.JoinPredicate L.JoinExpr)
            | AntiJoin (L.JoinPredicate L.JoinExpr)
-           deriving (Eq)
+           deriving (Eq, Show)
 
-instance Show Prim2 where
-  show Append       = "append"
-  show Index        = "index"
-  show Zip          = "zip"
-  show CartProduct  = "⨯"
-  show NestProduct  = "▽"
-  show (ThetaJoin p) = printf "⨝_%s" (pp p)
-  show (NestJoin p)  = printf "△_%s" (pp p)
-  show (SemiJoin p)  = printf "⋉_%s" (pp p)
-  show (AntiJoin p)  = printf "▷_%s" (pp p)
+instance Pretty Prim2 where
+  pretty Append        = text "append"
+  pretty Index         = text "index"
+  pretty Zip           = text "zip"
+  pretty CartProduct   = text "⨯"
+  pretty NestProduct   = text "▽"
+  pretty (ThetaJoin p) = text $ printf "⨝_%s" (pp p)
+  pretty (NestJoin p)  = text $ printf "△_%s" (pp p)
+  pretty (SemiJoin p)  = text $ printf "⋉_%s" (pp p)
+  pretty (AntiJoin p)  = text $ printf "▷_%s" (pp p)
 
 --------------------------------------------------------------------------------
 -- CL expressions
@@ -201,8 +201,8 @@ instance Pretty Expr where
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (MkTuple _ es)     = tupled $ map pretty es
     pretty (Table _ n _ _)    = text "table" <> parens (text n)
-    pretty (AppE1 _ p1 e)     = (text $ show p1) <+> (parenthize e)
-    pretty (AppE2 _ p1 e1 e2) = (text $ show p1)
+    pretty (AppE1 _ p1 e)     = pretty p1 <+> (parenthize e)
+    pretty (AppE2 _ p2 e1 e2) = pretty p2
                                 <+>
                                 (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)  = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
