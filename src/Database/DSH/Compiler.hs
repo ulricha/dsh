@@ -43,12 +43,11 @@ compileQ = optimizeComprehensions >>>
 runQ :: forall a c. (Backend c, QA a) => c -> Q a -> IO a
 runQ c (Q q) = do
     let ty = reify (undefined :: Rep a)
-    cl <- toComprehensions c q
+    let cl = toComprehensions q
     let vl = compileQ cl
     let bp = generatePlan $ optimizeVLDefault vl
     let bc = generateCode bp
     frExp <$> execQueryBundle c bc ty
-
 
 -- | Compile a query and dump intermediate plans to files.
 debugQ :: forall a c.(Backend c, QA a)
@@ -56,8 +55,8 @@ debugQ :: forall a c.(Backend c, QA a)
        -> c
        -> Q a
        -> IO ()
-debugQ prefix c (Q q) = do
-    cl <- toComprehensions c q
+debugQ prefix _ (Q q) = do
+    let cl = toComprehensions q
     let vl = compileQ cl
     let vlOpt = optimizeVLDefault vl
     exportPlan (prefix ++ "_vl") vl

@@ -109,12 +109,14 @@ mkTupElemType maxWidth = do
 --         ...
 --         Tup{n}_{j} -> CP.tupElem (indIndex j) <$> translate e
 
-mkCompileMatch :: Name -> (Name, Int) -> Q Match
-mkCompileMatch exprName (con, elemIdx) = do
-    let translateVar = return $ VarE $ mkName "translate"
-        exprVar      = return $ VarE exprName
-        idxLit       = return $ LitE $ IntegerL $ fromIntegral elemIdx
-    bodyExp  <- [| CP.tupElem (intIndex $idxLit) <$> $translateVar $exprVar |]
+-- FIXME mkTupElemCompile does not depend on 'translate'
+-- anymore. Therefore, we could inject a regular global binding for
+-- the function instead of a lambda.
+
+mkCompileMatch :: (Name, Int) -> Q Match
+mkCompileMatch (con, elemIdx) = do
+    let idxLit       = return $ LitE $ IntegerL $ fromIntegral elemIdx
+    bodyExp  <- [| CP.tupElem (intIndex $idxLit)  |]
     let body = NormalB $ bodyExp
     return $ Match (ConP con []) body []
 
@@ -126,13 +128,11 @@ mkTupElemCompile maxWidth = do
                       | width <- [2..maxWidth]
                       ]
 
-    exprName <- newName "e"
     opName   <- newName "te"
-
-    matches  <- mapM (mkCompileMatch exprName) cons
+    matches  <- mapM mkCompileMatch cons
 
     let lamBody = CaseE (VarE opName) matches
-    return $ LamE [VarP opName, VarP exprName] lamBody
+    return $ LamE [VarP opName] lamBody
 
 --------------------------------------------------------------------------------
 -- Reify instances for tuple types

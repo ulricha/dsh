@@ -23,15 +23,8 @@ import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
 import           Database.DSH.Backend
 
-import qualified Data.Map                        as M
-
 import           Control.Applicative
-import           Control.Monad
 import           Control.Monad.State
-
-import           Text.Printf
-
-import           GHC.Exts                        (sortWith)
 
 -- In the state, we store a counter for fresh variable names, the
 -- cache for table information and the backend connection 'c'.
@@ -276,5 +269,7 @@ translateApp f args =
        Guard            -> translateApp1 CP.guard args
        Transpose        -> translateApp1 CP.transpose args
        Reshape n        -> translateApp1 (CP.reshape n) args
-       TupElem te       -> let compileTupElem = $(mkTupElemCompile 16)
-                           in compileTupElem te args
+       TupElem te       -> do
+           e' <- translate args
+           let tupAcc = $(mkTupElemCompile 16) te
+           return $ tupAcc e'
