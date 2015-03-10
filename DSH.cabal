@@ -83,7 +83,6 @@ Library
                      time                         >= 1.4,
                      bytestring                   >= 0.10,
                      text                         >= 1.1,
-                     pretty                       >= 1.1,
                      aeson                        >= 0.8,
                      kure                         >= 2.16,
                      either                       >= 4.0,
@@ -201,7 +200,6 @@ executable vldot
     hs-source-dirs:   src
     build-depends:    base                >= 4.7 && < 5,
                       mtl                 >= 2.1,
-                      pretty              >= 1.1,
                       aeson               >= 0.8,
                       time                >= 1.4,
                       containers          >= 0.5,

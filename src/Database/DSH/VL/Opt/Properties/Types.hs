@@ -1,8 +1,9 @@
 module Database.DSH.VL.Opt.Properties.Types where
 
-import           Text.PrettyPrint
+import           Text.PrettyPrint.ANSI.Leijen
 
 import           Database.DSH.VL.Lang
+import           Database.DSH.Common.Pretty
 import           Database.DSH.VL.Render.Dot
 
 data VectorProp a = VProp a
@@ -63,65 +64,49 @@ data Properties = Properties { bu :: BottomUpProps
                              , td :: TopDownProps
                              }
 
-class Renderable a where
-  renderProp :: a -> Doc
-
 insertComma :: Doc -> Doc -> Doc
 insertComma d1 d2 = d1 <> comma <+> d2
 
-instance Renderable a => Renderable (VectorProp a) where
-  renderProp (VProp p)              = renderProp p
-  renderProp (VPropPair p1 p2)      = parens $ (renderProp p1) `insertComma` (renderProp p2)
-  renderProp (VPropTriple p1 p2 p3) = parens $ (renderProp p1) `insertComma` (renderProp p2) `insertComma` (renderProp p3)
-
-instance Renderable a => Renderable (Maybe a) where
-  renderProp (Just x) = renderProp x
-  renderProp Nothing  = text "na"
-
-instance Renderable Bool where
-  renderProp = text . show
+instance Pretty a => Pretty (VectorProp a) where
+  pretty (VProp p)              = pretty p
+  pretty (VPropPair p1 p2)      = parens $ (pretty p1) `insertComma` (pretty p2)
+  pretty (VPropTriple p1 p2 p3) = parens $ (pretty p1) `insertComma` (pretty p2) `insertComma` (pretty p3)
 
 bracketList :: (a -> Doc) -> [a] -> Doc
 bracketList f = brackets . hsep . punctuate comma . map f
 
-instance Renderable Int where
-  renderProp = text . show
-
-instance Renderable a => Renderable [a] where
-  renderProp = bracketList renderProp
-
 instance Show ConstDescr where
-  show (ConstDescr v) = render $ int v
+  show (ConstDescr v) = pp $ int v
   show NonConstDescr  = "NC"
 
-instance Renderable ConstVec where
-  renderProp (DBVConst d ps) = (text $ show d) <+> payload
+instance Pretty ConstVec where
+  pretty (DBVConst d ps) = (text $ show d) <+> payload
     where payload = bracketList id $ map renderPL $ foldr isConst [] $ zip [1..] ps
           isConst (_, NonConstPL) vals   = vals
           isConst (i, (ConstPL v)) vals  = (i, v) : vals
 
           renderPL (i, v)  = int i <> colon <> renderTblVal v
 
-  renderProp (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
-  renderProp (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
+  pretty (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
+  pretty (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
 
-instance Renderable VectorType where
-  renderProp = text . show
+instance Pretty VectorType where
+  pretty = text . show
 
-instance Renderable BottomUpProps where
-  renderProp p = text "empty:" <+> (renderProp $ emptyProp p)
-                 $$ text "const:" <+> (renderProp $ constProp p)
-                 $$ text "schema:" <+> (renderProp $ vectorTypeProp p)
+instance Pretty BottomUpProps where
+  pretty p = text "empty:" <+> (pretty $ emptyProp p)
+                 <$> text "const:" <+> (pretty $ constProp p)
+                 <$> text "schema:" <+> (pretty $ vectorTypeProp p)
 
-instance Renderable TopDownProps where
-  renderProp p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)
+instance Pretty TopDownProps where
+  pretty p = text "reqCols:" <+> (text $ show $ reqColumnsProp p)
 
 -- | Rendering function for the bottom-up properties container.
 renderBottomUpProps :: BottomUpProps -> [String]
-renderBottomUpProps ps = [render $ renderProp ps]
+renderBottomUpProps ps = [pp $ pretty ps]
 
 renderTopDownProps :: TopDownProps -> [String]
-renderTopDownProps ps = [render $ renderProp ps]
+renderTopDownProps ps = [pp $ pretty ps]
 
-renderProperties  :: Properties -> [String]
-renderProperties ps = (renderBottomUpProps $ bu ps) ++ (renderTopDownProps $ td ps)
+prettyerties  :: Properties -> [String]
+prettyerties ps = (renderBottomUpProps $ bu ps) ++ (renderTopDownProps $ td ps)

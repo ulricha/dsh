@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty          as N
 import           Data.List
 import qualified Data.Time.Calendar          as C
 
-import           Text.PrettyPrint
+import           Text.PrettyPrint.ANSI.Leijen
 
 import qualified Database.Algebra.Dag        as Dag
 import           Database.Algebra.Dag.Common as C
@@ -23,7 +23,7 @@ tagsToDoc :: [Tag] -> Doc
 tagsToDoc ts = vcat $ map text ts
 
 labelToDoc :: AlgNode -> String -> Doc -> [Tag] -> Doc
-labelToDoc n s as ts = (nodeToDoc n) $$ ((text s) <> (parens as)) $$ (tagsToDoc $ nub ts)
+labelToDoc n s as ts = (nodeToDoc n) <$> ((text s) <> (parens as)) <$> (tagsToDoc $ nub ts)
 
 lookupTags :: AlgNode -> NodeMap [Tag] -> [Tag]
 lookupTags n m = Map.findWithDefault [] n m
@@ -68,7 +68,7 @@ renderRow = hcat . punctuate comma . map renderTblVal
 renderTblVal :: VLVal -> Doc
 renderTblVal (VLInt i)     = integer $ fromIntegral i
 renderTblVal (VLBool b)    = text $ show b
-renderTblVal (VLString s)  = doubleQuotes $ text $ escape s
+renderTblVal (VLString s)  = dquotes $ text $ escape s
 renderTblVal (VLDouble d)  = double d
 renderTblVal (VLDecimal d) = text $ show d
 renderTblVal VLUnit        = text "()"
@@ -99,7 +99,7 @@ renderEmptiness PossiblyEmpty = empty
 
 renderTableKeys :: [Key] -> Doc
 renderTableKeys [x]    = renderTableKey x
-renderTableKeys (x:xs) = renderTableKey x $$ renderTableKeys xs
+renderTableKeys (x:xs) = renderTableKey x <$> renderTableKeys xs
 renderTableKeys []     = empty
 
 
@@ -146,9 +146,9 @@ opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
 opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
         (renderEmptiness em <+> bracketList renderColumnType tys <> comma
-        $$ renderData vals) (lookupTags i tm)
+        <$> renderData vals) (lookupTags i tm)
 opDotLabel tm i (NullaryOp (TableRef (n, tys, hs))) = labelToDoc i "TableRef"
-        (quotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma $$ renderTableHints hs)
+        (squotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma <$> renderTableHints hs)
         (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
@@ -319,14 +319,14 @@ data DotEdge = DotEdge DotNodeID DotNodeID
 
 -- Generate the preamble of a Dot file
 preamble :: Doc
-preamble = graphAttributes $$ nodeAttributes
+preamble = graphAttributes <$> nodeAttributes
     where nodeAttributes = text "node" <+> (brackets $ text "style=filled" <> comma <+> text "shape=box") <> semi
           graphAttributes = text "ordering=out;"
 
 renderDotNode :: DotNode -> Doc
 renderDotNode (DotNode n l c s) =
     int n
-    <+> (brackets $ (((text "label=") <> (doubleQuotes $ text l))
+    <+> (brackets $ (((text "label=") <> (dquotes $ text l))
                      <> comma
                      <+> (text "color=") <> (renderColor c)
                      <> styleDoc))
@@ -341,7 +341,7 @@ renderDotEdge (DotEdge u v) = int u <+> text "->" <+> int v <> semi
 
 -- | Render a Dot document from the preamble, nodes and edges
 renderDot :: [DotNode] -> [DotEdge] -> Doc
-renderDot ns es = text "digraph" <> (braces $ preamble $$ nodeSection $$ edgeSection)
+renderDot ns es = text "digraph" <> (braces $ preamble <$> nodeSection <$> edgeSection)
     where nodeSection = vcat $ map renderDotNode ns
           edgeSection = vcat $ map renderDotEdge es
 
@@ -352,7 +352,7 @@ constructDotNode rootNodes ts (n, op) =
         DotNode n l c (Just Dashed)
     else
         DotNode n l c Nothing
-    where l = escapeLabel $ render $ opDotLabel ts n op
+    where l = escapeLabel $ pp $ opDotLabel ts n op
           c = opDotColor op
 
 -- | Create an abstract Dot edge
@@ -370,7 +370,7 @@ extractGraphStructure d = (operators, childs)
 
 -- | Render an VL plan into a dot file (GraphViz).
 renderVLDot :: NodeMap [Tag] -> [AlgNode] -> NodeMap VL -> String
-renderVLDot ts roots m = render $ renderDot dotNodes dotEdges
+renderVLDot ts roots m = pp $ renderDot dotNodes dotEdges
     where (opLabels, edges) = extractGraphStructure d
           d = Dag.mkDag m roots
           dotNodes = map (constructDotNode roots ts) opLabels
