@@ -23,8 +23,8 @@ import qualified Database.DSH.NKL.Lang       as N
 -- flattening transformation.
 flatTransform :: N.Expr -> F.FExpr
 flatTransform expr = optimizeNormFKL
-                     $ normalize 
-                     $ optimizeFKL "FKL Intermediate" 
+                     $ normalize
+                     $ optimizeFKL "FKL Intermediate"
                      $ runFlat initEnv (flatten expr)
 
 --------------------------------------------------------------------------------
@@ -165,7 +165,7 @@ flatten (N.Iterator _ h x xs)    = do
     -- Prepare an environment in which the current generator is the
     -- context
     let initCtx    = (x, typeOf xs)
-    
+
     -- In this environment, transform the iterator head
     flatHead <- local (descendEnv initCtx) (deepFlatten initCtx h)
 
@@ -184,15 +184,15 @@ deepFlatten ctx (N.MkTuple _ es)     = frameDepthM >>= \d -> P.tuple <$> mapM (d
 deepFlatten ctx (N.AppE1 _ p e)      = prim1 p <$> deepFlatten ctx e <*> frameDepthM
 deepFlatten ctx (N.AppE2 _ p e1 e2)  = prim2 p <$> deepFlatten ctx e1 <*> deepFlatten ctx e2 <*> frameDepthM
 
-deepFlatten ctx (N.Let _ x xs e)     = P.let_ x <$> deepFlatten ctx xs 
+deepFlatten ctx (N.Let _ x xs e)     = P.let_ x <$> deepFlatten ctx xs
                                                 <*> local (bindEnv x (typeOf xs)) (deepFlatten ctx e)
 
 deepFlatten ctx (N.If _ ce te ee)    = do
     Succ d1      <- frameDepthM
-    
+
     -- Lift the condition
     bs           <- deepFlatten ctx ce
-    
+
     -- Lift the THEN branch. Note that although the environment record
     -- does not change, all environment variables are re-bound to a
     -- restricted environment by 'restrictEnv'.
@@ -205,8 +205,8 @@ deepFlatten ctx (N.If _ ce te ee)    = do
 
     -- Construct the restricted environments in which the THEN and
     -- ELSE branches are evaluated.
-    let notL xs = P.un boolT (SUBoolOp Not) xs (Succ d1) 
-    
+    let notL xs = P.un PBoolT (SUBoolOp Not) xs (Succ d1)
+
         thenRes = restrictEnv env d1 bs thenExpr
 
         elseRes = restrictEnv env d1 (notL bs) elseExpr
@@ -218,7 +218,7 @@ deepFlatten ctx (N.Iterator _ h x xs)    = do
     d           <- frameDepthM
     env         <- asks inScope
     let ctx' = (x, liftTypeN (Succ d) (typeOf xs))
-    headExpr    <- local (descendEnv ctx') $ deepFlatten ctx' h 
+    headExpr    <- local (descendEnv ctx') $ deepFlatten ctx' h
 
     xs'         <- deepFlatten ctx xs
 
@@ -274,7 +274,7 @@ normLifting (F.MkTuple t l es)     =
                 app = F.MkTuple (unliftTypeN d t) F.Lifted (P.forget d v : map (P.forget d) es')
             return $ P.let_ n e1' $ P.imprint d v app
 
-normLifting (F.UnOp t op l e)      = 
+normLifting (F.UnOp t op l e)      =
     case l of
         F.LiftedN Zero         -> F.UnOp t op F.NotLifted <$> normLifting e
         F.LiftedN (Succ Zero)  -> F.UnOp t op F.Lifted <$> normLifting e
@@ -285,7 +285,7 @@ normLifting (F.UnOp t op l e)      =
                 app = F.UnOp (unliftTypeN d t) op F.Lifted (P.forget d v)
             return $ P.let_ n e' $ P.imprint d v app
 
-normLifting (F.BinOp t op l e1 e2)  = 
+normLifting (F.BinOp t op l e1 e2)  =
     case l of
         F.LiftedN Zero         -> F.BinOp t op F.NotLifted
                                             <$> normLifting e1
@@ -301,7 +301,7 @@ normLifting (F.BinOp t op l e1 e2)  =
                 app = F.BinOp (unliftTypeN d t) op F.Lifted (P.forget d v) (P.forget d e2')
             return $ P.let_ n e1' $ P.imprint d v app
 
-normLifting (F.PApp1 t p l e)    = 
+normLifting (F.PApp1 t p l e)    =
     case l of
         F.LiftedN Zero         -> F.PApp1 t p F.NotLifted <$> normLifting e
         F.LiftedN (Succ Zero)  -> F.PApp1 t p F.Lifted <$> normLifting e
@@ -312,7 +312,7 @@ normLifting (F.PApp1 t p l e)    =
                 app = F.PApp1 (unliftTypeN d t) p F.Lifted (P.forget d v)
             return $ P.let_ n e' (P.imprint d v app)
 
-normLifting (F.PApp2 t p l e1 e2)   = 
+normLifting (F.PApp2 t p l e1 e2)   =
     case l of
         F.LiftedN Zero         -> F.PApp2 t p F.NotLifted
                                               <$> normLifting e1
@@ -328,7 +328,7 @@ normLifting (F.PApp2 t p l e1 e2)   =
                 app = F.PApp2 (unliftTypeN d t) p F.Lifted (P.forget d v) (P.forget d e2')
             return $ P.let_ n e1' $ P.imprint d v app
 
-normLifting (F.PApp3 t p l e1 e2 e3)    = 
+normLifting (F.PApp3 t p l e1 e2 e3)    =
     case l of
         F.LiftedN Zero        -> F.PApp3 t p F.NotLifted
                                              <$> normLifting e1
@@ -344,7 +344,7 @@ normLifting (F.PApp3 t p l e1 e2 e3)    =
             e3' <- normLifting e3
             n   <- freshNameN
             let v   = F.Var (typeOf e1') n
-                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.forget d v) 
-                                                           (P.forget d e2') 
+                app = F.PApp3 (unliftTypeN d t) p F.Lifted (P.forget d v)
+                                                           (P.forget d e2')
                                                            (P.forget d e3')
             return $ P.let_ n e1' $ P.imprint d v app

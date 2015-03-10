@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | Smart constructors for CL primitives
 module Database.DSH.CL.Primitives where
@@ -22,7 +23,7 @@ tyErrShow :: P.String -> [Type] -> a
 tyErrShow comb ts = P.error (printf "CL.Primitives type error in %s: %s" comb (P.show P.$ P.map pp ts))
 
 if_ :: Expr -> Expr -> Expr -> Expr
-if_ c t e = if BoolT P.== typeOf c
+if_ c t e = if PBoolT P.== typeOf c
             then If (typeOf t) c t e
             else tyErr "if_"
 
@@ -33,27 +34,27 @@ reverse e = let t@(ListT _) = typeOf e
 length :: Expr -> Expr
 length e = let t = typeOf e
            in if isList t
-              then AppE1 intT Length e
+              then AppE1 PIntT Length e
               else tyErr "length"
 
 null :: Expr -> Expr
 null e =
     if isList t
-    then AppE1 boolT Null e
+    then AppE1 PBoolT Null e
     else tyErr "null"
 
   where t = typeOf e
 
 and :: Expr -> Expr
 and e = let t = typeOf e
-         in if listT boolT P.== t
-            then AppE1 boolT And e
+         in if ListT PBoolT P.== t
+            then AppE1 PBoolT And e
             else tyErrShow "and" [t]
 
 or :: Expr -> Expr
 or e = let t = typeOf e
-         in if listT boolT P.== t
-            then AppE1 boolT Or e
+         in if ListT PBoolT P.== t
+            then AppE1 PBoolT Or e
             else tyErr "or"
 
 concat :: Expr -> Expr
@@ -83,8 +84,8 @@ sum e = let (ListT t) = typeOf e
 
 avg :: Expr -> Expr
 avg e = case typeOf e of
-            ListT DoubleT  -> AppE1 DoubleT Avg e
-            ListT DecimalT -> AppE1 DecimalT Avg e
+            ListT PDoubleT  -> AppE1 PDoubleT Avg e
+            ListT PDecimalT -> AppE1 PDecimalT Avg e
             _              -> tyErr "avg"
 
 minimum :: Expr -> Expr
@@ -121,10 +122,10 @@ nub e = let (ListT t) = typeOf e
 
 number :: Expr -> Expr
 number e = let (ListT t) = typeOf e
-           in AppE1 (ListT (pairT t IntT )) Number e
+           in AppE1 (ListT (PPairT t PIntT )) Number e
 
 guard :: Expr -> Expr
-guard e = AppE1 (listT UnitT) Guard e
+guard e = AppE1 (ListT PUnitT) Guard e
 
 init :: Expr -> Expr
 init e = let (ListT t) = typeOf e
@@ -144,7 +145,7 @@ snd e = tupElem (Next First) e
 singleGenComp :: Expr -> L.Ident -> Expr -> Expr
 singleGenComp bodyExp v gen =
     let bodyTy = typeOf bodyExp
-    in Comp (listT bodyTy) bodyExp (S P.$ BindQ v gen)
+    in Comp (ListT bodyTy) bodyExp (S P.$ BindQ v gen)
 
 group :: Expr -> Expr
 group xs = let ListT (TupleT [xt, grt]) = typeOf xs
@@ -174,17 +175,17 @@ append e1 e2 = let t1@(ListT _) = typeOf e1
 index :: Expr -> Expr -> Expr
 index e1 e2 = let ListT t = typeOf e1
                   t2 = typeOf e2
-                in if intT P.== t2
+                in if PIntT P.== t2
                     then AppE2 t Index e1 e2
                     else tyErr "index"
 
 sng :: Expr -> Expr
-sng e = AppE1 (listT P.$ typeOf e) Singleton e
+sng e = AppE1 (ListT P.$ typeOf e) Singleton e
 
 zip :: Expr -> Expr -> Expr
 zip e1 e2 = let ListT t1' = typeOf e1
                 ListT t2' = typeOf e2
-             in AppE2 (listT P.$ pairT t1' t2') Zip e1 e2
+             in AppE2 (ListT P.$ PPairT t1' t2') Zip e1 e2
 
 var :: Type -> P.String -> Expr
 var = Var
@@ -196,7 +197,7 @@ cond :: Expr -> Expr -> Expr -> Expr
 cond eb et ee = let tb = typeOf eb
                     tt = typeOf et
                     te = typeOf ee
-                 in if tb P.== boolT P.&& tt P.== te
+                 in if tb P.== PBoolT P.&& tt P.== te
                       then If te eb et ee
                       else tyErr "cond"
 
@@ -209,19 +210,19 @@ let_ x e1 e2 = let t = typeOf e2 in Let t x e1 e2
 cartproduct :: Expr -> Expr -> Expr
 cartproduct xs ys = AppE2 resType CartProduct xs ys
   where
-    resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
+    resType  = ListT P.$ PPairT (elemT P.$ typeOf xs) (typeOf ys)
 
 nestjoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 nestjoin xs ys p = AppE2 resType (NestJoin p) xs ys
   where
-    resType  = listT P.$ pairT (elemT P.$ typeOf xs) (typeOf ys)
+    resType  = ListT P.$ PPairT (elemT P.$ typeOf xs) (typeOf ys)
 
 thetajoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 thetajoin xs ys p = AppE2 rt (ThetaJoin p) xs ys
   where
     xst = typeOf xs
     yst = typeOf ys
-    rt  = listT (pairT (elemT xst) (elemT yst))
+    rt  = ListT (PPairT (elemT xst) (elemT yst))
 
 semijoin :: Expr -> Expr -> L.JoinPredicate L.JoinExpr -> Expr
 semijoin xs ys p = AppE2 xst (SemiJoin p) xs ys
@@ -237,25 +238,25 @@ antijoin xs ys p = AppE2 xst (AntiJoin p) xs ys
 -- Literal value constructors
 
 unit :: Expr
-unit = Lit unitT L.UnitV
+unit = Lit PUnitT (L.ScalarV L.UnitV)
 
 int :: P.Int -> Expr
-int i = Lit intT (L.IntV i)
+int i = Lit PIntT (L.ScalarV (L.IntV i))
 
 bool :: P.Bool -> Expr
-bool b = Lit boolT (L.BoolV b)
+bool b = Lit PBoolT (L.ScalarV (L.BoolV b))
 
 string :: P.String -> Expr
-string s = Lit stringT (L.StringV s)
+string s = Lit PStringT (L.ScalarV (L.StringV s))
 
 double :: P.Double -> Expr
-double d = Lit doubleT (L.DoubleV d)
+double d = Lit PDoubleT (L.ScalarV (L.DoubleV d))
 
 decimal :: Decimal -> Expr
-decimal d = Lit DecimalT (L.DecimalV d)
+decimal d = Lit PDecimalT (L.ScalarV (L.DecimalV d))
 
 day :: C.Day -> Expr
-day d = Lit DateT (L.DateV d)
+day d = Lit PDateT (L.ScalarV (L.DateV d))
 
 nil :: Type -> Expr
 nil t = Lit t (L.ListV [])
@@ -274,12 +275,12 @@ scalarUnOp :: L.ScalarUnOp -> Expr -> Expr
 scalarUnOp op e =
     let t = typeOf e
     in case (op, t) of
-           (L.SUNumOp _, DoubleT)                  -> UnOp t op e
-           (L.SUBoolOp _, BoolT)                   -> UnOp BoolT op e
-           (L.SUCastOp L.CastDouble, _) | isNum t  -> UnOp DoubleT op e
-           (L.SUCastOp L.CastDecimal, _) | isNum t -> UnOp DecimalT op e
-           (L.SUTextOp L.SubString{}, StringT)     -> UnOp StringT op e
-           (L.SUDateOp _, DateT)                   -> UnOp IntT op e
+           (L.SUNumOp _, PDoubleT)                  -> UnOp t op e
+           (L.SUBoolOp _, PBoolT)                   -> UnOp PBoolT op e
+           (L.SUCastOp L.CastDouble, _) | isNum t  -> UnOp PDoubleT op e
+           (L.SUCastOp L.CastDecimal, _) | isNum t -> UnOp PDecimalT op e
+           (L.SUTextOp L.SubString{}, PStringT)     -> UnOp PStringT op e
+           (L.SUDateOp _, PDateT)                   -> UnOp PIntT op e
            (_, _)                                  -> P.error err
                where err = printf "CL.Primitives.scalarUnOp: %s" (P.show (op, t))
 
@@ -341,12 +342,12 @@ scalarBinOp op e1 e2 =
         (L.SBNumOp _, _, _)
             | t1 P.== t2 P.&& isNum t1 P.&& isNum t2 -> BinOp t1 op e1 e2
         (L.SBRelOp _, _, _)
-            | t1 P.== t2                             -> BinOp BoolT op e1 e2
-        (L.SBBoolOp _, BoolT, BoolT)                 -> BinOp BoolT op e1 e2
-        (L.SBStringOp L.Like, StringT, StringT)      -> BinOp BoolT op e1 e2
-        (L.SBDateOp L.AddDays, IntT, DateT)          -> BinOp DateT op e1 e2
-        (L.SBDateOp L.DiffDays, DateT, DateT)        -> BinOp IntT op e1 e2
-        _                                                            ->
+            | t1 P.== t2                             -> BinOp PBoolT op e1 e2
+        (L.SBBoolOp _, PBoolT, PBoolT)               -> BinOp PBoolT op e1 e2
+        (L.SBStringOp L.Like, PStringT, PStringT)    -> BinOp PBoolT op e1 e2
+        (L.SBDateOp L.AddDays, PIntT, PDateT)         -> BinOp PDateT op e1 e2
+        (L.SBDateOp L.DiffDays, PDateT, PDateT)      -> BinOp PIntT op e1 e2
+        _                                            ->
             P.error P.$ printf "CL.Primitives.scalarBinOp: %s" (P.show (op, t1, t2))
   where
     t1 = typeOf e1

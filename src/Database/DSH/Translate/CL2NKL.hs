@@ -65,10 +65,10 @@ prim1 t p e = mkApp t <$> expr e
             CL.Group            -> mkPrim1 NKL.Group
             CL.Guard            -> $impossible
 
-    nklNull _ ne = NKL.BinOp boolT
+    nklNull _ ne = NKL.BinOp PBoolT
                              (SBRelOp Eq)
-                             (NKL.Const intT $ IntV 0)
-                             (NKL.AppE1 intT NKL.Length ne)
+                             (NKL.Const PIntT $ ScalarV $ IntV 0)
+                             (NKL.AppE1 PIntT NKL.Length ne)
 
     mkPrim1 nop nt ne = NKL.AppE1 nt nop ne
 
@@ -203,7 +203,7 @@ mkTuple xs = F.foldl1 P.pair xs
 -- concatMap (\x -> concatMap (\y -> concatMap (\z -> (((t, x), y), z)) zs) ys) xs
 -- where t is the binding variable for the base expression.
 nestQualifiers :: NKL.Expr -> [(Ident, NKL.Expr)] -> NKL.Expr
-nestQualifiers tupConst ((x, xs) : qs) = P.concat $ NKL.Iterator (listT bodyType) compHead x xs
+nestQualifiers tupConst ((x, xs) : qs) = P.concat $ NKL.Iterator (ListT bodyType) compHead x xs
   where
     compHead  = nestQualifiers tupConst qs
     bodyType = typeOf compHead
@@ -237,7 +237,7 @@ desugarGens env baseExpr qs = do
         tupConst       = P.sng $ mkTuple $ fmap mkVar ((outerName, baseExpr) N.<| qs')
         mkVar (x, xs)  = NKL.Var (elemT $ typeOf xs) x
         gensExpr       = nestQualifiers tupConst (N.toList qs')
-        compTy         = (listT $ typeOf tupConst)
+        compTy         = (ListT $ typeOf tupConst)
     return $ P.concat $ NKL.Iterator compTy gensExpr outerName baseExpr
 
 -- | Replace every occurence of a generator variable with the
@@ -289,7 +289,7 @@ desugarQualsRec env baseSrc (CL.GuardQ p : qs)    = do
     let elemTy        = elemT $ typeOf baseSrc
         filterExpr    = substTupleAccesses visibleNames (filterName, elemTy) env p'
 
-        predTy        = listT (pairT elemTy boolT)
+        predTy        = ListT (PPairT elemTy PBoolT)
         predPairConst = P.tuple [NKL.Var elemTy filterName, filterExpr]
         -- Construct an iterator that pairs every input element with
         -- the corresponding result of the predicate:
@@ -351,7 +351,7 @@ desugarComprehension _ e qs = do
         -- on lambdas during substitution.
         e''      = substTupleAccesses visibleNames (n, t) env e'
 
-    return $ wrapHead $ NKL.Iterator (listT $ typeOf e') e'' n genExpr
+    return $ wrapHead $ NKL.Iterator (ListT $ typeOf e') e'' n genExpr
 
 -- | Express comprehensions through NKL iteration constructs map and
 -- concatMap and filter.

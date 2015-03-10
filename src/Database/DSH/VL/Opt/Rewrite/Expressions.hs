@@ -1,21 +1,22 @@
-{-# LANGUAGE TemplateHaskell  #-}
 {-# LANGUAGE ParallelListComp #-}
+{-# LANGUAGE TemplateHaskell  #-}
 
 module Database.DSH.VL.Opt.Rewrite.Expressions where
 
 -- This module contains rewrites which aim to simplify and merge complex expressions
 -- which are expressed through multiple operators.
 
-import Control.Monad
-import Control.Applicative
-import Data.Maybe
+import           Control.Applicative
+import           Control.Monad
+import           Data.Maybe
 
-import Database.Algebra.Dag.Common
+import           Database.Algebra.Dag.Common
 
-import Database.DSH.VL.Lang
-import Database.DSH.Common.Opt
-import Database.DSH.VL.Opt.Properties.Types
-import Database.DSH.VL.Opt.Rewrite.Common
+import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Opt
+import           Database.DSH.VL.Lang
+import           Database.DSH.VL.Opt.Properties.Types
+import           Database.DSH.VL.Opt.Rewrite.Common
 
 optExpressions :: VLRewrite Bool
 optExpressions = iteratively $ applyToAll inferBottomUp expressionRules
@@ -88,7 +89,7 @@ liftPairRight (a, mb) = mb >>= \b -> return (a, b)
 mapPair :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
 mapPair f g (a, b) = (f a, g b)
 
-insertConstants :: [(DBCol, VLVal)] -> Expr -> Expr
+insertConstants :: [(DBCol, ScalarVal)] -> Expr -> Expr
 insertConstants env expr =
     case expr of
         BinApp o e1 e2 -> BinApp o (insertConstants env e1) (insertConstants env e2)

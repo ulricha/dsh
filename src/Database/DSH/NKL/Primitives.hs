@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 -- | Smart constructors for NKL combinators
 module Database.DSH.NKL.Primitives where
 
@@ -44,7 +46,7 @@ tuple es =
     in MkTuple rt es
 
 sng :: Expr -> Expr
-sng x = AppE1 (listT $ typeOf x) Singleton x
+sng x = AppE1 (ListT $ typeOf x) Singleton x
 
 concat :: Expr -> Expr
 concat e = let t = typeOf e
@@ -53,7 +55,7 @@ concat e = let t = typeOf e
                else tyErrShow "concat" [t]
 
 restrict :: Expr -> Expr
-restrict xs = let ListT (TupleT [xt, BoolT]) = typeOf xs
+restrict xs = let ListT (TupleT [xt, PBoolT]) = typeOf xs
               in AppE1 (ListT xt) Restrict xs
 
 sort :: Expr -> Expr
@@ -68,6 +70,6 @@ let_ :: Ident -> Expr -> Expr -> Expr
 let_ x e1 e2 = let t = typeOf e1 in Let t x e1 e2
 
 if_ :: Expr -> Expr -> Expr -> Expr
-if_ c t e = if BoolT == typeOf c
+if_ c t e = if PBoolT == typeOf c
             then If (typeOf t) c t e
             else tyErr "if_"

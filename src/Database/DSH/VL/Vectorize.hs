@@ -19,8 +19,7 @@ import           Database.DSH.Common.Nat
 import           Database.DSH.Common.QueryPlan
 import           Database.DSH.Common.Type
 import           Database.DSH.Common.Impossible
-import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL (),
-                                                VLVal (..))
+import           Database.DSH.VL.Lang          (AggrFun (..), Expr (..), VL ())
 import           Database.DSH.VL.Primitives
 import           Database.DSH.Common.Vector
 
@@ -112,7 +111,7 @@ last _ = $impossible
 
 index ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 index (VShape qs (LNest qi lyti)) (SShape i _) = do
-    one       <- literal intT (VLInt 1)
+    one       <- literal PIntT (L.IntV 1)
     i'        <- vlBinExpr (L.SBNumOp L.Add) i one
     -- Use the unboxing rename vector
     (_, _, r) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
@@ -120,7 +119,7 @@ index (VShape qs (LNest qi lyti)) (SShape i _) = do
     lyti'     <- chainRenameFilter ri lyti
     return $ VShape qu lyti'
 index (VShape qs lyt) (SShape i _) = do
-    one       <- literal intT (VLInt 1)
+    one       <- literal PIntT (L.IntV 1)
     i'        <- vlBinExpr (L.SBNumOp L.Add) i one
     (q, r, _) <- vlSelectPos qs (L.SBRelOp L.Eq) i'
     lyt'      <- chainRenameFilter r lyt
@@ -160,7 +159,7 @@ reverse _ = $impossible
 
 tail ::  Shape VLDVec -> Build VL (Shape VLDVec)
 tail (VShape d lyt) = do
-    p          <- literal intT (VLInt 1)
+    p          <- literal PIntT (L.IntV 1)
     (q', r, _) <- vlSelectPos d (L.SBRelOp L.Gt) p
     lyt'       <- chainRenameFilter r lyt
     return $ VShape q' lyt'
@@ -455,13 +454,13 @@ lastL _ = $impossible
 
 indexL ::  Shape VLDVec -> Shape VLDVec -> Build VL (Shape VLDVec)
 indexL (VShape d (LNest qs (LNest qi lyti))) (VShape idxs LCol) = do
-    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ VLInt 1)] idxs
+    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
     (_, _, u)      <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
     (qu, ri)       <- vlUnboxNested u qi
     lyti'          <- chainRenameFilter ri lyti
     return $ VShape d (LNest qu lyti')
 indexL (VShape d (LNest qs lyt)) (VShape idxs LCol) = do
-    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ VLInt 1)] idxs
+    idxs'          <- vlProject [BinApp (L.SBNumOp L.Add) (Column 1) (Constant $ L.IntV 1)] idxs
     (qs', r, _)    <- vlSelectPosS qs (L.SBRelOp L.Eq) idxs'
     lyt'           <- chainRenameFilter r lyt
     re             <- vlUnboxRename d
@@ -491,7 +490,7 @@ theL _ = $impossible
 
 tailL ::  Shape VLDVec -> Build VL (Shape VLDVec)
 tailL (VShape d (LNest q lyt)) = do
-    p              <- vlProject [Constant $ VLInt 1] d
+    p              <- vlProject [Constant $ L.IntV 1] d
     (v, p2, _)     <- vlSelectPosS q (L.SBRelOp L.Gt) p
     lyt'           <- chainRenameFilter p2 lyt
     return $ VShape d (LNest v lyt')
@@ -615,7 +614,7 @@ mkLiteral t e           = do
     litNode <- vlLit L.NonEmpty (P.reverse tabTys) [(P.reverse tabCols)]
     return $ SShape litNode layout
 
-type Table = ([Type], [[VLVal]])
+type Table = ([Type], [[L.ScalarVal]])
 
 -- | Add values to a vector. If necessary (i.e. inner lists are
 -- encountered), create new inner vectors. 'toPlan' receives a
@@ -666,8 +665,8 @@ mkTupleTable tab nextCol lyts []                   []       = do
     return $ (tab, LTuple $ P.reverse lyts, nextCol)
 mkTupleTable _   _       _    _                    _        = $impossible
 
-literal :: Type -> VLVal -> Build VL VLDVec
-literal t v = vlLit L.NonEmpty [t] [[VLInt 1, VLInt 1, v]]
+literal :: Type -> L.ScalarVal -> Build VL VLDVec
+literal t v = vlLit L.NonEmpty [t] [[L.IntV 1, L.IntV 1, v]]
 
 listElems :: L.Val -> [L.Val]
 listElems (L.ListV es) = es
@@ -677,13 +676,13 @@ tupleElems :: L.Val -> [L.Val]
 tupleElems (L.TupleV es) = es
 tupleElems _             = $impossible
 
-mkColumn :: Type -> [L.Val] -> (Type, [VLVal])
+mkColumn :: Type -> [L.Val] -> (Type, [L.ScalarVal])
 mkColumn t vs = (t, [pVal v | v <- vs])
 
 mkDescriptor :: [Int] -> Table
 mkDescriptor lengths =
     let header = []
-        body   = [ [VLInt $ fromInteger p, VLInt $ fromInteger d]
+        body   = [ [L.IntV $ fromInteger p, L.IntV $ fromInteger d]
                  | d <- P.concat [ replicate l p | p <- [1..] | l <- lengths ]  
                  | p <- [1..]
                  ]

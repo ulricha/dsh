@@ -112,7 +112,7 @@ cartProdConstant q =
           logRewrite "Redundant.CartProduct.Constant" q
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
-unwrapConstVal :: ConstPayload -> VLMatch p VLVal
+unwrapConstVal :: ConstPayload -> VLMatch p ScalarVal
 unwrapConstVal (ConstPL val) = return val
 unwrapConstVal  NonConstPL   = fail "not a constant"
 
@@ -151,7 +151,7 @@ unreferencedDistLift q =
           logRewrite "Redundant.Unreferenced.DistLift" q
 
           -- FIXME HACKHACKHACK
-          let padProj = [ Constant $ VLInt 0xdeadbeef | _ <- [1..w1] ]
+          let padProj = [ Constant $ IntV 0xdeadbeef | _ <- [1..w1] ]
                         ++
                         [ Column i | i <- [1..w2] ]
 
@@ -372,7 +372,7 @@ zipProjectRight q =
           zipNode <- insert $ BinOp $(v "op") $(v "q1") $(v "q2")
           void $ replaceWithNew q $ UnOp (Project proj) zipNode |])
 
-fromConst :: Monad m => ConstPayload -> m VLVal
+fromConst :: Monad m => ConstPayload -> m ScalarVal
 fromConst (ConstPL val) = return val
 fromConst NonConstPL    = fail "not a constant"
 
@@ -566,7 +566,7 @@ unboxNumber q =
             -- place of the number column to avoid destroying column
             -- indexes.
             let proj = map Column [1..wo] 
-                     ++ [Constant $ VLInt 0xdeadbeef] 
+                     ++ [Constant $ IntV 0xdeadbeef] 
                      ++ map Column [wo+1..wi+wo]
             unboxNode <- insert $ BinOp UnboxScalar $(v "qo") $(v "qi")
             void $ replaceWithNew q $ UnOp (Project proj) unboxNode |])
@@ -861,9 +861,9 @@ selectConstPos q =
     [| do
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
-                    [ConstPL (VLInt p)] -> return p
-                    [NonConstPL]        -> fail "no match"
-                    _                   -> $impossible
+                    [ConstPL (IntV p)] -> return p
+                    [NonConstPL]       -> fail "no match"
+                    _                  -> $impossible
 
          return $ do
            logRewrite "Redundant.SelectPos.Constant" q
@@ -875,9 +875,9 @@ selectConstPosS q =
     [| do
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "qp")
          pos <- case constCols of
-                    [ConstPL (VLInt p)] -> return p
-                    [NonConstPL]        -> fail "no match"
-                    _                   -> $impossible
+                    [ConstPL (IntV p)] -> return p
+                    [NonConstPL]       -> fail "no match"
+                    _                  -> $impossible
 
          return $ do
            logRewrite "Redundant.SelectPosS.Constant" q
@@ -986,7 +986,7 @@ notReqNumber q =
           logRewrite "Redundant.Req.Number" q
           -- Add a dummy column instead of the number output to keep
           -- column references intact.
-          let proj = map Column [1..w] ++ [Constant $ VLInt 0xdeadbeef]
+          let proj = map Column [1..w] ++ [Constant $ IntV 0xdeadbeef]
           void $ replaceWithNew q $ UnOp (Project proj) $(v "q1") |])
 
 --------------------------------------------------------------------------------

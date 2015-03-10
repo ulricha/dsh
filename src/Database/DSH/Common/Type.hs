@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE PatternSynonyms        #-}
 
 -- | Types for backend languages.
 module Database.DSH.Common.Type
@@ -19,17 +20,21 @@ module Database.DSH.Common.Type
     , liftType
     , liftTypeN
     , Type(..)
-    , intT
-    , boolT
-    , unitT
-    , stringT
-    , doubleT
-    , listT
-    , pairT
+    , ScalarType(..)
+    , pattern PIntT
+    , pattern PBoolT
+    , pattern PUnitT
+    , pattern PStringT
+    , pattern PDoubleT
+    , pattern PDecimalT
+    , pattern PDateT
+    , pattern PPairT
     , Typed (..)
     ) where
 
 import Debug.Trace
+
+import Data.Aeson.TH
 
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -38,6 +43,11 @@ import Database.DSH.Common.Pretty
 import Database.DSH.Common.Nat
 
 instance Pretty Type where
+    pretty (ListT t)     = brackets $ pretty t
+    pretty (TupleT ts)   = tupled $ map pretty ts
+    pretty (ScalarT t)   = pretty t
+
+instance Pretty ScalarType where
     pretty IntT          = text "Int"
     pretty DecimalT      = text "Decimal"
     pretty BoolT         = text "Bool"
@@ -45,61 +55,53 @@ instance Pretty Type where
     pretty StringT       = text "String"
     pretty UnitT         = text "()"
     pretty DateT         = text "Date"
-    pretty (ListT t)     = brackets $ pretty t
-    pretty (TupleT ts)   = tupled $ map pretty ts
 
 -- | We use the following type language to type the various
 -- intermediate languages.
-data Type  = IntT
-           | BoolT
-           | DoubleT
-           | StringT
-           | UnitT
-           | DecimalT
-           | DateT
-           | ListT Type
+data Type  = ListT Type
            | TupleT [Type]
+           | ScalarT ScalarType
            deriving (Show, Eq, Ord)
+
+data ScalarType  = IntT
+                 | BoolT
+                 | DoubleT
+                 | StringT
+                 | UnitT
+                 | DecimalT
+                 | DateT
+                 deriving (Show, Eq, Ord)
+
+$(deriveJSON defaultOptions ''ScalarType)
 
 -- | Is the (scalar) type numeric?
 isNum :: Type -> Bool
-isNum IntT        = True
-isNum DoubleT     = True
-isNum DecimalT    = True
-isNum BoolT       = False
-isNum StringT     = False
-isNum UnitT       = False
-isNum DateT       = False
 isNum (ListT _)   = False
 isNum (TupleT _)  = False
+isNum (ScalarT IntT)        = True
+isNum (ScalarT DoubleT)     = True
+isNum (ScalarT DecimalT)    = True
+isNum (ScalarT BoolT)       = False
+isNum (ScalarT StringT)     = False
+isNum (ScalarT UnitT)       = False
+isNum (ScalarT DateT)       = False
 
 --------------------------------------------------------------------------------
 -- Smart constructors and deconstructors.
 
-intT :: Type
-intT = IntT
+pattern PIntT     = ScalarT IntT
+pattern PStringT  = ScalarT StringT
+pattern PDoubleT  = ScalarT DoubleT
+pattern PDecimalT = ScalarT DecimalT
+pattern PBoolT    = ScalarT BoolT
+pattern PDateT    = ScalarT BoolT
+pattern PUnitT    = ScalarT BoolT
 
-stringT :: Type
-stringT = StringT
-
-doubleT :: Type
-doubleT = DoubleT
-
-boolT :: Type
-boolT = BoolT
-
-unitT :: Type
-unitT = UnitT
-
-listT :: Type -> Type
-listT = ListT
-
-pairT :: Type -> Type -> Type
-pairT t1 t2 = TupleT [t1, t2]
+pattern PPairT t1 t2 = TupleT [t1, t2]
 
 isList :: Type -> Bool
 isList (ListT _) = True
-isList _        = False
+isList _         = False
 
 elemT :: Type -> Type
 elemT (ListT t) = t
@@ -126,7 +128,7 @@ sndT (TupleT [_, t2]) = t2
 sndT _                = error "Type is not a pair type"
 
 extractShape :: Type -> Type -> Type
-extractShape (ListT t1) = \x -> listT $ extractShape t1 x
+extractShape (ListT t1) = \x -> ListT $ extractShape t1 x
 extractShape _          = \x -> x
 
 liftTypeN :: Nat -> Type -> Type
@@ -134,7 +136,7 @@ liftTypeN Zero t     = t
 liftTypeN (Succ n) t = liftTypeN n $ liftType t
 
 liftType :: Type -> Type
-liftType t = listT t
+liftType t = ListT t
 
 unliftTypeN :: Nat -> Type -> Type
 unliftTypeN Zero t     = t

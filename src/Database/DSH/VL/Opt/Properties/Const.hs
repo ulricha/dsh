@@ -39,10 +39,10 @@ fromPVec _                   = Left "Properties.Const fromPVec"
 -- FIXME finish remaining cases, only integer numeric operations so
 -- far.
 
-mkEnv :: [ConstPayload] -> [(DBCol, VLVal)]
+mkEnv :: [ConstPayload] -> [(DBCol, ScalarVal)]
 mkEnv constCols = mapMaybe envEntry $ zip [1..] constCols
   where
-    envEntry :: (DBCol, ConstPayload) -> Maybe (DBCol, VLVal)
+    envEntry :: (DBCol, ConstPayload) -> Maybe (DBCol, ScalarVal)
     envEntry (_, NonConstPL) = mzero
     envEntry (c, ConstPL v)  = return (c, v)
 
@@ -55,23 +55,23 @@ evalNumOp op v1 v2 =
         Mul -> v1 * v2
         Mod -> v1 `mod` v2
 
-evalBinOp :: ScalarBinOp -> VLVal -> VLVal -> Maybe VLVal
-evalBinOp (SBNumOp nop)  (VLInt i1) (VLInt i2)       = return $ VLInt $ evalNumOp nop i1 i2
-evalBinOp (SBNumOp _)    (VLDouble _) (VLDouble _)   = mzero
-evalBinOp (SBNumOp _)    (VLDecimal _) (VLDecimal _) = mzero
+evalBinOp :: ScalarBinOp -> ScalarVal -> ScalarVal -> Maybe ScalarVal
+evalBinOp (SBNumOp nop)  (IntV i1)    (IntV i2)    = return $ IntV $ evalNumOp nop i1 i2
+evalBinOp (SBNumOp _)    (DoubleV _)  (DoubleV _)  = mzero
+evalBinOp (SBNumOp _)    (DecimalV _) (DecimalV _) = mzero
 
-evalBinOp (SBRelOp _)    (VLInt _)  (VLInt _)        = mzero
-evalBinOp (SBRelOp _)    (VLDouble _) (VLDouble _)   = mzero
-evalBinOp (SBRelOp _)    (VLDecimal _) (VLDecimal _) = mzero
-evalBinOp (SBRelOp _)    (VLString _) (VLString _)   = mzero
-evalBinOp (SBRelOp _)    (VLDate _) (VLDate _)       = mzero
+evalBinOp (SBRelOp _)    (IntV _)     (IntV _)     = mzero
+evalBinOp (SBRelOp _)    (DoubleV _)  (DoubleV _)  = mzero
+evalBinOp (SBRelOp _)    (DecimalV _) (DecimalV _) = mzero
+evalBinOp (SBRelOp _)    (StringV _)  (StringV _)  = mzero
+evalBinOp (SBRelOp _)    (DateV _)    (DateV _)    = mzero
 
-evalBinOp (SBBoolOp _)   (VLBool _) (VLBool _)       = mzero
-evalBinOp (SBStringOp _) (VLString _) (VLString _)   = mzero
-evalBinOp (SBDateOp _)   (VLDate _) (VLDate _)       = mzero
-evalBinOp _              _            _              = $impossible
+evalBinOp (SBBoolOp _)   (BoolV _)    (BoolV _)    = mzero
+evalBinOp (SBStringOp _) (StringV _)  (StringV _)  = mzero
+evalBinOp (SBDateOp _)   (DateV _)    (DateV _)    = mzero
+evalBinOp _              _            _            = $impossible
 
-evalUnOp :: ScalarUnOp -> VLVal -> Maybe VLVal
+evalUnOp :: ScalarUnOp -> ScalarVal -> Maybe ScalarVal
 evalUnOp _ _ = mzero
 
 constExpr :: [ConstPayload] -> Expr -> Either String ConstPayload
@@ -81,10 +81,10 @@ constExpr constCols expr =
         Nothing -> return NonConstPL
 
   where
-    env :: [(DBCol, VLVal)]
+    env :: [(DBCol, ScalarVal)]
     env = mkEnv constCols
 
-    eval :: Expr -> Maybe VLVal
+    eval :: Expr -> Maybe ScalarVal
     eval (Constant v)      = return v
     eval (Column i)        = lookup i env
     eval (BinApp op e1 e2) = do
@@ -97,9 +97,9 @@ constExpr constCols expr =
     eval (If c t e)        = do
         cv <- eval c
         case cv of
-            VLBool True  -> eval t
-            VLBool False -> eval e
-            _            -> mzero
+            BoolV True  -> eval t
+            BoolV False -> eval e
+            _           -> mzero
 
 --------------------------------------------------------------------------------
 -- Stuff

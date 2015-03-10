@@ -1,11 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.VL.Render.Dot(renderVLDot, renderTblVal) where
+module Database.DSH.VL.Render.Dot(renderVLDot) where
 
 import qualified Data.IntMap                 as Map
 import qualified Data.List.NonEmpty          as N
 import           Data.List
-import qualified Data.Time.Calendar          as C
 
 import           Text.PrettyPrint.ANSI.Leijen
 
@@ -14,6 +13,7 @@ import           Database.Algebra.Dag.Common as C
 
 import           Database.DSH.Common.Pretty
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Type
 import           Database.DSH.VL.Lang
 
 nodeToDoc :: AlgNode -> Doc
@@ -58,21 +58,12 @@ renderWinFun WinCount          = renderFun (text "count") []
 renderColumnType :: ScalarType -> Doc
 renderColumnType = text . show
 
-renderData :: [[VLVal]] -> Doc
+renderData :: [[ScalarVal]] -> Doc
 renderData [] = brackets empty
 renderData xs = (flip (<>) semi . sep . punctuate semi . map renderRow) xs
 
-renderRow :: [VLVal] -> Doc
-renderRow = hcat . punctuate comma . map renderTblVal
-
-renderTblVal :: VLVal -> Doc
-renderTblVal (VLInt i)     = integer $ fromIntegral i
-renderTblVal (VLBool b)    = text $ show b
-renderTblVal (VLString s)  = dquotes $ text $ escape s
-renderTblVal (VLDouble d)  = double d
-renderTblVal (VLDecimal d) = text $ show d
-renderTblVal VLUnit        = text "()"
-renderTblVal (VLDate d)    = text $ C.showGregorian d
+renderRow :: [ScalarVal] -> Doc
+renderRow = hcat . punctuate comma . map pretty
 
 escape :: String -> String
 escape (x@'\\':xs) = '\\':'\\':'\\':x:escape xs
@@ -122,7 +113,7 @@ renderJoinPred (JoinPred conjs) = brackets
 renderExpr :: Expr -> Doc
 renderExpr (BinApp op e1 e2) = (parenthize1 e1) <+> (text $ pp op) <+> (parenthize1 e2)
 renderExpr (UnApp op e)      = (text $ pp op) <+> (parens $ renderExpr e)
-renderExpr (Constant val)    = renderTblVal val
+renderExpr (Constant val)    = pretty val
 renderExpr (Column c)        = text "col" <> int c
 renderExpr (If c t e)        = text "if"
                                  <+> renderExpr c
@@ -276,20 +267,20 @@ data DotColor = DCTomato
               | DCHotPink
 
 renderColor :: DotColor -> Doc
-renderColor DCTomato = text "tomato"
-renderColor DCSalmon = text "salmon"
-renderColor DCGray = text "gray"
-renderColor DimDCGray = text "dimgray"
-renderColor DCGold = text "gold"
-renderColor DCTan = text "tan"
-renderColor DCRed = text "red"
-renderColor DCCrimson = text "crimson"
-renderColor DCGreen = text "green"
-renderColor DCSeaGreen = text "seagreen"
-renderColor DCYelloGreen = text "yellowgreen"
-renderColor DCSienna = text "sienna"
-renderColor DCBeige = text "beige"
-renderColor DCDodgerBlue = text "dodgerblue"
+renderColor DCTomato       = text "tomato"
+renderColor DCSalmon       = text "salmon"
+renderColor DCGray         = text "gray"
+renderColor DimDCGray      = text "dimgray"
+renderColor DCGold         = text "gold"
+renderColor DCTan          = text "tan"
+renderColor DCRed          = text "red"
+renderColor DCCrimson      = text "crimson"
+renderColor DCGreen        = text "green"
+renderColor DCSeaGreen     = text "seagreen"
+renderColor DCYelloGreen   = text "yellowgreen"
+renderColor DCSienna       = text "sienna"
+renderColor DCBeige        = text "beige"
+renderColor DCDodgerBlue   = text "dodgerblue"
 renderColor DCLightSkyBlue = text "lightskyblue"
 renderColor DCHotPink      = text "hotpink"
 
@@ -331,8 +322,8 @@ renderDotNode (DotNode n l c s) =
                      <+> (text "color=") <> (renderColor c)
                      <> styleDoc))
     <> semi
-    where styleDoc =
-              case s of
+  where
+    styleDoc = case s of
                   Just Dashed -> comma <+> text "style=dashed"
                   Nothing     -> empty
 
@@ -342,8 +333,9 @@ renderDotEdge (DotEdge u v) = int u <+> text "->" <+> int v <> semi
 -- | Render a Dot document from the preamble, nodes and edges
 renderDot :: [DotNode] -> [DotEdge] -> Doc
 renderDot ns es = text "digraph" <> (braces $ preamble <$> nodeSection <$> edgeSection)
-    where nodeSection = vcat $ map renderDotNode ns
-          edgeSection = vcat $ map renderDotEdge es
+  where
+    nodeSection = vcat $ map renderDotNode ns
+    edgeSection = vcat $ map renderDotEdge es
 
 -- | Create an abstract Dot node from an X100 operator description
 constructDotNode :: [AlgNode] -> NodeMap [Tag] -> (AlgNode, VL) -> DotNode
@@ -352,8 +344,9 @@ constructDotNode rootNodes ts (n, op) =
         DotNode n l c (Just Dashed)
     else
         DotNode n l c Nothing
-    where l = escapeLabel $ pp $ opDotLabel ts n op
-          c = opDotColor op
+  where
+    l = escapeLabel $ pp $ opDotLabel ts n op
+    c = opDotColor op
 
 -- | Create an abstract Dot edge
 constructDotEdge :: (AlgNode, AlgNode) -> DotEdge
@@ -364,14 +357,16 @@ constructDotEdge = uncurry DotEdge
 extractGraphStructure :: Dag.AlgebraDag VL
                      -> ([(AlgNode, VL)], [(AlgNode, AlgNode)])
 extractGraphStructure d = (operators, childs)
-    where nodes = Dag.topsort d
-          operators = zip nodes $ map (flip Dag.operator d) nodes
-          childs = concat $ map (\(n, op) -> zip (repeat n) (Dag.opChildren op)) operators
+  where
+    nodes = Dag.topsort d
+    operators = zip nodes $ map (flip Dag.operator d) nodes
+    childs = concat $ map (\(n, op) -> zip (repeat n) (Dag.opChildren op)) operators
 
 -- | Render an VL plan into a dot file (GraphViz).
 renderVLDot :: NodeMap [Tag] -> [AlgNode] -> NodeMap VL -> String
 renderVLDot ts roots m = pp $ renderDot dotNodes dotEdges
-    where (opLabels, edges) = extractGraphStructure d
-          d = Dag.mkDag m roots
-          dotNodes = map (constructDotNode roots ts) opLabels
-          dotEdges = map constructDotEdge edges
+  where
+    (opLabels, edges) = extractGraphStructure d
+    d = Dag.mkDag m roots
+    dotNodes = map (constructDotNode roots ts) opLabels
+    dotEdges = map constructDotEdge edges

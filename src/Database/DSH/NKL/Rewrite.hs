@@ -220,7 +220,7 @@ mergeSortIteratorR = do
     Iterator _ f x (AppE1 _ Sort (Iterator _ (MkTuple _ [g, h]) y ys)) <- idR
     g' <- constT (return f) >>> substR x g
     let ft = typeOf f
-        pt = TupleT [ft, BoolT]
+        pt = TupleT [ft, PBoolT]
     return $ AppE1 (ListT ft) Sort (Iterator (ListT pt) (MkTuple pt [g', h]) y ys)
 
 -- | Merge two adjacent restricts into one.
@@ -240,7 +240,7 @@ mergeRestrictR = do
     let yt  = elemT $ typeOf ys
         yst = ListT yt
     p1' <- constT (return p1) >>> substR x (Var yt y)
-    let p = BinOp BoolT (SBBoolOp Conj) p1' p2
+    let p = BinOp PBoolT (SBBoolOp Conj) p1' p2
     return $ P.restrict (Iterator yst (P.tuple [Var yt y, p]) y ys)
 
 nklOptimizations :: RewriteN Expr

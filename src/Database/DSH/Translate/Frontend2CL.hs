@@ -24,8 +24,7 @@ import           Database.DSH.Frontend.Internals
 import           Control.Applicative
 import           Control.Monad.State
 
--- In the state, we store a counter for fresh variable names, the
--- cache for table information and the backend connection 'c'.
+-- In the state, we store a counter for fresh variable names.
 type CompileState = Integer
 
 -- | The Compile monad provides fresh variable names.
@@ -125,15 +124,15 @@ translateApp1 f e = f <$> translate e
 
 -- | Translate DSH frontend types into backend types.
 translateType :: Type a -> T.Type
-translateType UnitT          = T.unitT
-translateType BoolT          = T.boolT
-translateType CharT          = T.stringT
-translateType IntegerT       = T.intT
-translateType DoubleT        = T.doubleT
-translateType DecimalT       = T.DecimalT
-translateType TextT          = T.stringT
-translateType DayT           = T.DateT
-translateType (ListT t)      = T.listT (translateType t)
+translateType UnitT          = T.PUnitT
+translateType BoolT          = T.PBoolT
+translateType CharT          = T.PStringT
+translateType IntegerT       = T.PIntT
+translateType DoubleT        = T.PDoubleT
+translateType DecimalT       = T.PDecimalT
+translateType TextT          = T.PStringT
+translateType DayT           = T.PDateT
+translateType (ListT t)      = T.ListT (translateType t)
 translateType (TupleT tupTy) = let translateTupleType = $(mkTranslateType 16)
                                in translateTupleType tupTy
 translateType (ArrowT _ _)   = $impossible

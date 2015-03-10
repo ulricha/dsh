@@ -5,6 +5,7 @@ module Database.DSH.VL.VectorAlgebra where
 
 import qualified Data.List.NonEmpty              as N
 import           Database.DSH.Common.Lang
+import           Database.DSH.Common.Type
 import           Database.DSH.Common.Vector
 import           Database.DSH.VL.Lang
 import           Database.Algebra.Dag.Build
@@ -16,7 +17,7 @@ class VectorAlgebra a where
     singletonDescr :: Build a (DVec a)
 
     -- | A vector representing a literal list.
-    vecLit :: [ScalarType] -> [[VLVal]] -> Build a (DVec a)
+    vecLit :: [ScalarType] -> [[ScalarVal]] -> Build a (DVec a)
 
     -- | A reference to a database-resident table.
     vecTableRef :: String -> [(ColName, ScalarType)] -> TableHints -> Build a (DVec a)

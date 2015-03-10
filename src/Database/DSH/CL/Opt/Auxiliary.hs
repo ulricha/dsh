@@ -272,7 +272,7 @@ tuplifyR v (v1, t1) (v2, t2) = substR v1 v1Rep >+> substR v2 v2Rep
 tupleVars :: Ident -> Type -> Type -> (Expr, Expr)
 tupleVars n t1 t2 = (v1Rep, v2Rep)
   where v     = Var pt n
-        pt    = pairT t1 t2
+        pt    = PPairT t1 t2
         v1Rep = AppE1 t1 (TupElem First) v
         v2Rep = AppE1 t2 (TupElem (Next First)) v
 

@@ -14,7 +14,6 @@ import           Database.DSH.Common.Impossible
 import           Database.Algebra.Dag.Build
 import           Database.Algebra.Dag.Common
 import           Database.DSH.VL.Lang          hiding (DBCol)
-import qualified Database.DSH.VL.Lang          as D
 
 --------------------------------------------------------------------------------
 -- Construct different types of vectors from algebraic nodes
@@ -60,28 +59,15 @@ tripleVec op mkVec1 mkVec2 mkVec3 = do
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
 
-pVal :: L.Val -> VLVal
-pVal (L.IntV i)     = VLInt i
-pVal (L.BoolV b)    = VLBool b
-pVal (L.StringV s)  = VLString s
-pVal (L.DoubleV d)  = VLDouble d
-pVal (L.DecimalV d) = VLDecimal d
-pVal (L.DateV d)    = VLDate d
-pVal L.UnitV        = VLUnit
-pVal L.ListV{}      = $impossible
-pVal L.TupleV{}     = $impossible
+pVal :: L.Val -> L.ScalarVal
+pVal (L.ScalarV v) = v
+pVal L.ListV{}     = $impossible
+pVal L.TupleV{}    = $impossible
 
-typeToScalarType :: Ty.Type -> ScalarType
-typeToScalarType t = case t of
-  Ty.IntT      -> D.Int
-  Ty.BoolT     -> D.Bool
-  Ty.StringT   -> D.String
-  Ty.UnitT     -> D.Unit
-  Ty.DoubleT   -> D.Double
-  Ty.DecimalT  -> D.Decimal
-  Ty.DateT     -> D.Date
-  Ty.ListT _   -> $impossible
-  Ty.TupleT _  -> $impossible
+typeToScalarType :: Ty.Type -> Ty.ScalarType
+typeToScalarType Ty.ListT{}     = $impossible
+typeToScalarType Ty.TupleT{}    = $impossible
+typeToScalarType (Ty.ScalarT t) = t
 
 ----------------------------------------------------------------------------------
 -- Convert join expressions into regular VL expressions
@@ -90,13 +76,7 @@ typeToScalarType t = case t of
 recordWidth :: Ty.Type -> Int
 recordWidth t =
     case t of
-        Ty.IntT        -> 1
-        Ty.BoolT       -> 1
-        Ty.DoubleT     -> 1
-        Ty.StringT     -> 1
-        Ty.UnitT       -> 1
-        Ty.DecimalT    -> 1
-        Ty.DateT       -> 1
+        Ty.ScalarT _   -> 1
         Ty.TupleT ts   -> sum $ map recordWidth ts
         Ty.ListT _     -> 0
 
@@ -217,13 +197,13 @@ vlUnsegment :: VLDVec -> Build VL VLDVec
 vlUnsegment (VLDVec c) = vec (UnOp Unsegment c) dvec
 
 vlCombine :: VLDVec -> VLDVec -> VLDVec -> Build VL (VLDVec, RVec, RVec)
-vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) = 
+vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
     tripleVec (TerOp Combine c1 c2 c3) dvec rvec rvec
 
-vlLit :: L.Emptiness -> [Ty.Type] -> [[VLVal]] -> Build VL VLDVec
+vlLit :: L.Emptiness -> [Ty.Type] -> [[L.ScalarVal]] -> Build VL VLDVec
 vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
 
-vlTableRef :: String -> [(L.ColName, ScalarType)] -> L.TableHints -> Build VL VLDVec
+vlTableRef :: String -> [(L.ColName, Ty.ScalarType)] -> L.TableHints -> Build VL VLDVec
 vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
 
 vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec

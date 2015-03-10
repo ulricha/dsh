@@ -1,18 +1,21 @@
-{-# LANGUAGE GADTs           #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Database.DSH.Common.Lang where
 
+import           Control.Applicative
 import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Decimal
-import qualified Data.List.NonEmpty             as N
-import qualified Data.Time.Calendar             as C
-import           Text.PrettyPrint.ANSI.Leijen
+import qualified Data.List.NonEmpty           as N
+import qualified Data.Time.Calendar           as C
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import           Text.Printf
 
-import           Database.DSH.Common.Type
 import           Database.DSH.Common.Nat
+import           Database.DSH.Common.Type
 
 instance ToJSON a => ToJSON (N.NonEmpty a) where
     toJSON (n N.:| nl) = toJSON (n, nl)
@@ -24,17 +27,33 @@ instance FromJSON a => FromJSON (N.NonEmpty a) where
 -- Common types for backend expressions
 
 -- | Basic values in both FKL and NKL.
-data Val where
-    ListV    :: [Val] -> Val
-    IntV     :: Int -> Val
-    BoolV    :: Bool -> Val
-    StringV  :: String -> Val
-    DoubleV  :: Double -> Val
-    DecimalV :: Decimal -> Val
-    DateV    :: C.Day -> Val
-    TupleV   :: [Val] -> Val
-    UnitV    :: Val
-    deriving (Eq, Ord, Show)
+data Val = ListV    [Val]
+         | TupleV   [Val]
+         | ScalarV  ScalarVal
+         deriving (Eq, Ord, Show)
+
+instance ToJSON Decimal where
+    toJSON = toJSON . show
+
+instance FromJSON Decimal where
+    parseJSON s = read <$> parseJSON s
+
+instance FromJSON C.Day where
+    parseJSON o = (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
+
+instance ToJSON C.Day where
+    toJSON = toJSON . C.toGregorian
+
+data ScalarVal = IntV      Int
+               | BoolV     Bool
+               | StringV   String
+               | DoubleV   Double
+               | DecimalV  Decimal
+               | DateV     C.Day
+               | UnitV
+               deriving (Eq, Ord, Show)
+
+$(deriveJSON defaultOptions ''ScalarVal)
 
 newtype ColName = ColName String deriving (Eq, Ord, Show)
 
@@ -223,13 +242,16 @@ parenthize e =
 
 instance Pretty Val where
     pretty (ListV xs)    = list $ map pretty xs
+    pretty (TupleV vs)   = tupled $ map pretty vs
+    pretty (ScalarV v)   = pretty v
+
+instance Pretty ScalarVal where
     pretty (IntV i)      = int i
     pretty (BoolV b)     = bool b
     pretty (StringV s)   = dquotes $ string s
     pretty (DoubleV d)   = double d
     pretty (DecimalV d)  = text $ show d
     pretty UnitV         = text "()"
-    pretty (TupleV vs)   = tupled $ map pretty vs
     pretty (DateV d)     = text $ C.showGregorian d
 
 instance Pretty BinRelOp where

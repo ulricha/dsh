@@ -2,9 +2,9 @@ module Database.DSH.VL.Opt.Properties.Types where
 
 import           Text.PrettyPrint.ANSI.Leijen
 
-import           Database.DSH.VL.Lang
+import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Pretty
-import           Database.DSH.VL.Render.Dot
+import           Database.DSH.VL.Lang
 
 data VectorProp a = VProp a
                   | VPropPair a a
@@ -20,14 +20,14 @@ data VectorType = ValueVector Int
                 | PropVector
                 deriving Show
 
-data Const = Const VLVal
+data Const = Const ScalarVal
            | NoConst
             deriving Show
 
 data ConstDescr = ConstDescr Int
                 | NonConstDescr
 
-data ConstPayload = ConstPL VLVal
+data ConstPayload = ConstPL ScalarVal
                   | NonConstPL
                   deriving Show
 
@@ -39,7 +39,7 @@ data ConstVec = DBVConst ConstDescr [ConstPayload]
 newtype SourceConstDescr = SC ConstDescr deriving Show
 newtype TargetConstDescr = TC ConstDescr deriving Show
 
-data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
+data BottomUpProps = BUProps { emptyProp      :: VectorProp Bool
                              -- Documents wether a vector is
                              -- statically known to be not empty. For
                              -- a flat vector (i.e. a vector with only
@@ -49,10 +49,10 @@ data BottomUpProps = BUProps { emptyProp            :: VectorProp Bool
                              -- vector, i.e. a vector with multiple
                              -- segments, it is true if *every*
                              -- segment is non-empty.
-                             , nonEmptyProp         :: VectorProp Bool
-                             , constProp            :: VectorProp ConstVec
-                             , card1Prop            :: VectorProp Bool
-                             , vectorTypeProp       :: VectorProp VectorType
+                             , nonEmptyProp   :: VectorProp Bool
+                             , constProp      :: VectorProp ConstVec
+                             , card1Prop      :: VectorProp Bool
+                             , vectorTypeProp :: VectorProp VectorType
                              } deriving (Show)
 
 
@@ -85,7 +85,7 @@ instance Pretty ConstVec where
           isConst (_, NonConstPL) vals   = vals
           isConst (i, (ConstPL v)) vals  = (i, v) : vals
 
-          renderPL (i, v)  = int i <> colon <> renderTblVal v
+          renderPL (i, v)  = int i <> colon <> pretty v
 
   pretty (RenameVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)
   pretty (PropVecConst (SC ds) (TC ts)) = (text $ show ds) <> text " -> " <> (text $ show ts)

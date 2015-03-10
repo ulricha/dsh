@@ -59,12 +59,12 @@ runningAggWin q =
             -- Shift column references in aggregate functions so that
             -- they are applied to partition columns.
             let afun' = aggrToWinFun $ mapAggrFun (mapExprCols (\c -> c - (w + 1))) $(v "afun")
-                
+
             void $ replaceWithNew q $ UnOp (WinFun (afun', FAllPreceding)) $(v "qn") |])
 
 -- | Employ a window function that maps to SQL's first_value when the
 -- 'head' combinator is employed on a nestjoin-generated window.
--- 
+--
 -- FIXME this rewrite is currently extremely ugly and fragile: We map
 -- directly to first_value which produces only one value, but start
 -- with head one potentially broader inputs. To bring them into sync,
@@ -89,21 +89,21 @@ firstValueWin q =
         -- numbering column.
         predicate $ resCol > inputWidth + 1
         predicate $ resCol < 2 * inputWidth + 2
-       
+
         -- The evaluation of first_value produces only a single value
         -- for each input column. To employ first_value, the input has
         -- to consist of a single column.
 
         -- We expect the VL representation of 'head'
         (SBRelOp Eq, 1) <- return $(v "selectArgs")
-  
+
         -- We expect a window specification that for each element
         -- includes its predecessor (if there is one) and the element
         -- itself.
         DoubleJoinPred e11 op1 e12 e21 op2 e22                   <- return $(v "joinPred")
         (SubExpr (Column nrCol) frameOffset, LtE, Column nrCol') <- return (e11, op1, e12)
         (Column nrCol'', GtE, Column nrCol''')                   <- return (e21, op2, e22)
-        Constant (VLInt offset)                                  <- return frameOffset
+        Constant (IntV offset)                                   <- return frameOffset
 
         -- Check that all (assumed) numbering columns are actually the
         -- column added by the Number operator.
@@ -116,15 +116,15 @@ firstValueWin q =
                 -- layout.
                 inputCol     = resCol - (inputWidth + 1)
                 winArgs      = (WinFirstValue $ Column inputCol, (FNPreceding offset))
-                placeHolders = repeat $ Constant $ VLInt 0xdeadbeef
-  
+                placeHolders = repeat $ Constant $ IntV 0xdeadbeef
+
                 -- Now comes the ugly stuff: to keep the schema intact
                 -- (since columns are referred to by offset), we have
                 -- to keep columns that are not required in place and
                 -- replace them with placeholders.
                 proj         = -- Unreferenced columns in front of the
                                -- required column
-                               take (resCol - 1) placeHolders 
+                               take (resCol - 1) placeHolders
                                -- The required column (which is added
                                -- by WinFun to the input columns
                                ++ [Column (inputWidth + 1)]

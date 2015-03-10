@@ -3,11 +3,11 @@
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE PatternSynonyms     #-}
-    
+
 -- | Normalize patterns from source programs (not to be confused with
 -- comprehension normalization)
 module Database.DSH.CL.Opt.Normalize
-  ( normalizeOnceR 
+  ( normalizeOnceR
   , normalizeExprR
   ) where
 
@@ -16,7 +16,7 @@ import           Control.Arrow
 import qualified Data.Foldable              as F
 import qualified Data.Traversable           as T
 import           Data.Monoid
-       
+
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
@@ -39,15 +39,15 @@ splitConjunctsR = splitR <+ splitEndR
     splitR = do
         (GuardQ (BinOp _ (SBBoolOp Conj) p1 p2)) :* qs <- idR
         return $ GuardQ p1 :* GuardQ p2 :* qs
-    
+
     splitEndR :: RewriteC (NL Qual)
     splitEndR = do
         (S (GuardQ (BinOp _ (SBBoolOp Conj) p1 p2))) <- idR
         return $ GuardQ p1 :* (S $ GuardQ p2)
-        
+
 normalizeOnceR :: RewriteC CL
 normalizeOnceR = repeatR $ anytdR $ promoteR splitConjunctsR
-    
+
 --------------------------------------------------------------------------------
 -- Simple normalization rewrites that are interleaved with other rewrites.
 
@@ -77,7 +77,7 @@ notExistsR :: RewriteC CL
 notExistsR = promoteT $ readerT $ \e -> case e of
     -- With range predicates
     PNot (POr (Comp t q (BindQ y ys :* ps))) -> do
-    
+
         -- All remaining qualifiers have to be guards.
         void $ constT $ T.mapM fromGuard ps
 
@@ -94,22 +94,22 @@ notExistsR = promoteT $ readerT $ \e -> case e of
 -- 0 == length xs => null xs
 zeroLengthR :: RewriteC CL
 zeroLengthR = promoteT $ readerT $ \e -> case e of
-    PEq (PLength xs) (Lit _ (IntV 0)) -> return $ inject $ P.null xs
-    PEq (Lit _ (IntV 0)) (PLength xs) -> return $ inject $ P.null xs
+    PEq (PLength xs) (Lit _ (ScalarV (IntV 0))) -> return $ inject $ P.null xs
+    PEq (Lit _ (ScalarV (IntV 0))) (PLength xs) -> return $ inject $ P.null xs
     _                                 -> fail "no match"
 
--- null [ _ | x <- xs, p1, p2, ... ] 
+-- null [ _ | x <- xs, p1, p2, ... ]
 -- => and [ not (p1 && p2 && ...) | x <- xs ]
 comprehensionNullR :: RewriteC CL
 comprehensionNullR = do
     PNull (Comp _ _ (BindQ x xs :* guards)) <- promoteT idR
-    
+
     -- We need exactly one generator and at least one guard.
     guardExprs           <- constT $ T.mapM fromGuard guards
 
     -- Merge all guards into a conjunctive form
     let conjPred = P.not $ F.foldl1 P.conj guardExprs
-    return $ inject $ P.and $ Comp (listT boolT) conjPred (S $ BindQ x xs)
+    return $ inject $ P.and $ Comp (ListT PBoolT) conjPred (S $ BindQ x xs)
 
 -- not $ null [ _ | x <- xs, ps ]
 -- =>
@@ -119,7 +119,7 @@ comprehensionNullR = do
 notNullR :: RewriteC CL
 notNullR = do
     PNot (PAnd (Comp _ (PNot p) (S (BindQ x xs)))) <- promoteT idR
-    return $ inject $ P.or (Comp (listT boolT) p (S (BindQ x xs)))
+    return $ inject $ P.or (Comp (ListT PBoolT) p (S (BindQ x xs)))
 
 --------------------------------------------------------------------------------
 -- Inline let bindings

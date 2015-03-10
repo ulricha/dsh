@@ -20,7 +20,7 @@ import qualified Database.DSH.CL.Primitives as P
 -- Introduce semi joins (existential quantification)
 
 pattern POr xs <- AppE1 _ Or xs
-pattern PTrue = Lit BoolT (BoolV True)
+pattern PTrue = Lit PBoolT (ScalarV (BoolV True))
 
 existentialQualR :: RewriteC (NL Qual)
 existentialQualR = readerT $ \quals -> case quals of
@@ -59,7 +59,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
         semijoinGen <- mkExistentialSemiJoinT (x, xs) (y, ys) (Just q) Nothing
         return $ S semijoinGen
-    
+
     -- Existential quantifier with range and quantifier predicates
     -- [ ... | ..., x <- xs, or [ True | y <- ys, ps ], ... ]
     BindQ x xs :* (GuardQ (POr (Comp _ q (BindQ y ys :* ps)))) :* qs -> do
@@ -80,7 +80,7 @@ existentialQualR = readerT $ \quals -> case quals of
 
     _ -> fail "no match"
 
-mkExistentialSemiJoinT :: (Ident, Expr) 
+mkExistentialSemiJoinT :: (Ident, Expr)
                        -> (Ident, Expr)
                        -> Maybe Expr
                        -> Maybe (NL Qual)

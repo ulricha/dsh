@@ -6,59 +6,23 @@
 
 module Database.DSH.VL.Lang where
 
-import           Control.Applicative
-import           Data.Aeson
 import           Data.Aeson.TH
-import           Data.Decimal
 import qualified Data.List.NonEmpty          as N
-import qualified Data.Time.Calendar          as C
 
 import           Database.Algebra.Dag        (Operator, opChildren,
                                               replaceOpChild)
 import           Database.Algebra.Dag.Common
 
 import qualified Database.DSH.Common.Lang    as L
+import           Database.DSH.Common.Type
 
-data ScalarType = Int
-                | Bool
-                | Double
-                | Decimal
-                | String
-                | Unit
-                | Date
-             deriving (Eq, Ord, Show)
-
-$(deriveJSON defaultOptions ''ScalarType)
 
 type DBCol = Int
-
-instance ToJSON Decimal where
-    toJSON = toJSON . show
-
-instance FromJSON Decimal where
-    parseJSON s = read <$> parseJSON s
-
-instance FromJSON C.Day where
-    parseJSON o = (\(y, m, d) -> C.fromGregorian y m d) <$> parseJSON o
-
-instance ToJSON C.Day where
-    toJSON = toJSON . C.toGregorian
-
-data VLVal = VLInt Int
-           | VLBool Bool
-           | VLString String
-           | VLDouble Double
-           | VLDecimal Decimal
-           | VLUnit
-           | VLDate C.Day
-           deriving (Eq, Ord, Show, Read)
-
-$(deriveJSON defaultOptions ''VLVal)
 
 data Expr = BinApp L.ScalarBinOp Expr Expr
           | UnApp L.ScalarUnOp Expr
           | Column DBCol
-          | Constant VLVal
+          | Constant L.ScalarVal
           | If Expr Expr Expr
           deriving (Eq, Ord, Show)
 
@@ -66,8 +30,7 @@ $(deriveJSON defaultOptions ''Expr)
 
 -- | Helper function: Shift all column indexes in an expression by a certain offset.
 shiftExprCols :: Int -> Expr -> Expr
-shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1)
-                                              (shiftExprCols o e2)
+shiftExprCols o (BinApp op e1 e2) = BinApp op (shiftExprCols o e1) (shiftExprCols o e2)
 shiftExprCols o (UnApp op e)      = UnApp op (shiftExprCols o e)
 shiftExprCols o (Column c)        = Column $ c + o
 shiftExprCols _ (Constant v)      = Constant v
@@ -115,7 +78,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 -- VectorPrimitives.
 
 data NullOp = SingletonDescr
-            | Lit (L.Emptiness, [ScalarType], [[VLVal]])
+            | Lit (L.Emptiness, [ScalarType], [[L.ScalarVal]])
             | TableRef (String, [(L.ColName, ScalarType)], L.TableHints)
             deriving (Eq, Ord, Show)
 

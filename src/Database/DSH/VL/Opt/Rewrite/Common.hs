@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Database.DSH.VL.Opt.Rewrite.Common where
 
-import qualified Data.IntMap                                   as M
+import qualified Data.IntMap                             as M
 
 import           Control.Monad
 
@@ -9,9 +9,10 @@ import           Database.Algebra.Dag.Common
 
 import           Database.DSH.Common.QueryPlan
 
+import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Opt
-import           Database.DSH.VL.Lang
 import           Database.DSH.Common.Vector
+import           Database.DSH.VL.Lang
 
 import           Database.DSH.VL.Opt.Properties.BottomUp
 import           Database.DSH.VL.Opt.Properties.TopDown
@@ -81,7 +82,7 @@ mergeExpr env expr =
         Constant _     -> expr
 
 -- | Unwrap a constant value
-constVal :: Monad m => (VLVal -> a) -> ConstPayload -> m a
+constVal :: Monad m => (ScalarVal -> a) -> ConstPayload -> m a
 constVal wrap (ConstPL val) = return $ wrap val
 constVal _             _    = fail "no match"
 
@@ -109,6 +110,6 @@ mapExprCols f (BinApp op e1 e2) = BinApp op (mapExprCols f e1) (mapExprCols f e2
 mapExprCols f (UnApp op e)      = UnApp op (mapExprCols f e)
 mapExprCols f (Column c)        = Column $ f c
 mapExprCols _ (Constant val)    = Constant val
-mapExprCols f (If c t e)        = If (mapExprCols f c) 
-                                     (mapExprCols f t) 
+mapExprCols f (If c t e)        = If (mapExprCols f c)
+                                     (mapExprCols f t)
                                      (mapExprCols f e)

@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | Smart constructors for FKL functions and operators
 module Database.DSH.FKL.Primitives where
@@ -32,7 +33,7 @@ reshape n e d =
 group :: LExpr -> Nat -> LExpr
 group xs d =
     let ListT (TupleT [xt, gt]) = unliftTypeN d $ typeOf xs
-        rt                      = listT (pairT gt (listT xt))
+        rt                      = ListT (PPairT gt (ListT xt))
     in PApp1 (liftTypeN d rt) Group (LiftedN d) xs
 
 sort :: LExpr -> Nat -> LExpr
@@ -56,33 +57,33 @@ zip :: LExpr -> LExpr -> Nat -> LExpr
 zip xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) Zip (LiftedN d) xs ys
+    in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) Zip (LiftedN d) xs ys
 
 cartProduct :: LExpr -> LExpr -> Nat -> LExpr
 cartProduct xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) CartProduct (LiftedN d) xs ys
+    in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) CartProduct (LiftedN d) xs ys
 
 -- nestProduct :: [a] -> [b] -> [(a, [(a, b)])]
 nestProduct :: LExpr -> LExpr -> Nat -> LExpr
 nestProduct xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-        rt       = listT (pairT xt (listT (pairT xt yt)))
+        rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) NestProduct (LiftedN d) xs ys
 
 thetaJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 thetaJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-    in PApp2 (liftTypeN d $ listT (pairT xt yt)) (ThetaJoin p) (LiftedN d) xs ys
+    in PApp2 (liftTypeN d $ ListT (PPairT xt yt)) (ThetaJoin p) (LiftedN d) xs ys
 
 nestJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
 nestJoin p xs ys d =
     let ListT xt = unliftTypeN d $ typeOf xs
         ListT yt = unliftTypeN d $ typeOf ys
-        rt       = listT (pairT xt (listT (pairT xt yt)))
+        rt       = ListT (PPairT xt (ListT (PPairT xt yt)))
     in PApp2 (liftTypeN d rt) (NestJoin p) (LiftedN d) xs ys
 
 semiJoin :: JoinPredicate JoinExpr  -> LExpr -> LExpr -> Nat -> LExpr
@@ -106,7 +107,7 @@ index e1 e2 d =
     in PApp2 (liftTypeN d t) Index (LiftedN d) e1 e2
 
 length :: LExpr -> Nat -> LExpr
-length e1 d = PApp1 (liftTypeN d intT) Length (LiftedN d) e1
+length e1 d = PApp1 (liftTypeN d PIntT) Length (LiftedN d) e1
 
 -- FIXME this is not the right place to perform this step. If at all,
 -- do it during compilation to VL.
@@ -136,7 +137,7 @@ nub e1 d =
 number :: LExpr -> Nat -> LExpr
 number e1 d =
     let ListT t = unliftTypeN d $ typeOf e1
-        rt      = (ListT (pairT t IntT ))
+        rt      = (ListT (PPairT t PIntT ))
     in PApp1 (liftTypeN d rt) Number (LiftedN d) e1
 
 init :: LExpr -> Nat -> LExpr
@@ -150,10 +151,10 @@ reverse e1 d =
     in PApp1 (liftTypeN d t1) Reverse (LiftedN d) e1
 
 and :: LExpr -> Nat -> LExpr
-and e1 d = PApp1 (liftTypeN d BoolT) And (LiftedN d) e1
+and e1 d = PApp1 (liftTypeN d PBoolT) And (LiftedN d) e1
 
 or :: LExpr -> Nat -> LExpr
-or e1 d = PApp1 (liftTypeN d BoolT) Or (LiftedN d) e1
+or e1 d = PApp1 (liftTypeN d PBoolT) Or (LiftedN d) e1
 
 sum :: LExpr -> Nat -> LExpr
 sum e1 d =
@@ -162,8 +163,8 @@ sum e1 d =
 
 avg :: LExpr -> Nat -> LExpr
 avg e1 d = case unliftTypeN d $ typeOf e1 of
-               ListT DoubleT  -> PApp1 (liftTypeN d DoubleT) Avg (LiftedN d) e1
-               ListT DecimalT -> PApp1 (liftTypeN d DecimalT) Avg (LiftedN d) e1
+               ListT PDoubleT  -> PApp1 (liftTypeN d PDoubleT) Avg (LiftedN d) e1
+               ListT PDecimalT -> PApp1 (liftTypeN d PDecimalT) Avg (LiftedN d) e1
                _              -> $impossible
 
 minimum :: LExpr -> Nat -> LExpr
@@ -184,11 +185,11 @@ concat e d =
 dist :: LExpr -> LExpr -> Nat -> LExpr
 dist e1 e2 d =
     let t1 = typeOf e1
-    in PApp2 (listT t1) Dist (LiftedN d) e1 e2
+    in PApp2 (ListT t1) Dist (LiftedN d) e1 e2
 
 restrict :: LExpr -> Nat -> LExpr
 restrict xs d =
-    let ListT (TupleT [xt, BoolT]) = unliftTypeN d $ typeOf xs
+    let ListT (TupleT [xt, PBoolT]) = unliftTypeN d $ typeOf xs
     in PApp1 (liftTypeN d (ListT xt)) Restrict (LiftedN d) xs
 
 -- combine :: [Bool] -> [a] -> [a] -> [a]
@@ -204,7 +205,7 @@ tupElem f e d =
 
 if_ :: Typed e => ExprTempl l e -> ExprTempl l e -> ExprTempl l e -> ExprTempl l e
 if_ eb et ee =
-    let (BoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
+    let (PBoolT, tt, te) = (typeOf eb, typeOf et, typeOf ee)
     in if tt == te
        then If tt eb et ee
        else error $ printf "FKL.if: incompatible types: %s %s" (pp tt) (pp te)
@@ -243,11 +244,11 @@ imprint n shape bottom = Ext $ Imprint n (wrapListType n bt) shape bottom
 
 wrapListType :: Nat -> Type -> Type
 wrapListType Zero t     = t
-wrapListType (Succ n') t = wrapListType n' (listT t)
+wrapListType (Succ n') t = wrapListType n' (ListT t)
 
 -- | A regular single 'dist' in the normalized FKL dialect
 fdist :: FExpr -> FExpr -> FExpr
-fdist e1 e2 = PApp2 (listT $ typeOf e1) Dist NotLifted e1 e2
+fdist e1 e2 = PApp2 (ListT $ typeOf e1) Dist NotLifted e1 e2
 
 --------------------------------------------------------------------------------
 -- Smart constructors for special forms in the flat FKL dialect

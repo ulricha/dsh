@@ -132,18 +132,18 @@ unnestWorkerT headComp (x, xs) = do
   
     let xt       = elemT $ typeOf xs
         yt       = elemT $ typeOf ys
-        tupType  = pairT xt (listT (pairT xt yt))
+        tupType  = PPairT xt (ListT (PPairT xt yt))
         joinVar  = Var tupType x
         
     -- If there are inner predicates which only refer to y,
     -- evaluate them on the right (ys) nestjoin input.
     let ys' = case fromList yPreds of
-                  Just ps -> Comp (listT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
+                  Just ps -> Comp (ListT yt) (Var yt y) (BindQ y ys :* fmap GuardQ ps)
                   Nothing -> ys
 
     -- the nesting operator combining xs and ys: 
     -- xs nj(p) ys
-    let xs'        = AppE2 (listT tupType) nestOp xs ys'
+    let xs'        = AppE2 (ListT tupType) nestOp xs ys'
 
     innerVar <- freshNameT []
 
@@ -440,7 +440,7 @@ zipCorrelatedR = do
 
     z <- freshNameT [y]
 
-    let genComp = Comp (listT $ typeOf f) f (S $ BindQ x xs)
+    let genComp = Comp (ListT $ typeOf f) f (S $ BindQ x xs)
         zipGen  = P.zip xs genComp
         zt      = elemT $ typeOf zipGen 
         zv      = Var zt z
@@ -489,7 +489,7 @@ nestingGenR = do
     let gty = typeOf g
 
     let innerComp = Comp ti e (S (BindQ y (Var gty z)))
-        genComp   = Comp (listT gty) g (S (BindQ x xs))
+        genComp   = Comp (ListT gty) g (S (BindQ x xs))
         outerComp = Comp to innerComp (S (BindQ z genComp))
 
     return $ inject outerComp
