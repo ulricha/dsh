@@ -173,26 +173,26 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (MkTuple _ l es) = (tupled $ map pretty es) <> pretty l
 
     pretty (Var _ n) = text n
-    pretty (Let _ x e1 e) = 
+    pretty (Let _ x e1 e) =
         align $ text "let" <+> text x {- <> colon <> colon <> pretty (typeOf e1) -} <+> char '=' <+> pretty e1
                 <$>
                 text "in" <+> pretty e
 
     pretty (Table _ n _c _k) = text "table" <> parens (text n)
 
-    pretty (PApp1 _ (TupElem n) l e1) = 
+    pretty (PApp1 _ (TupElem n) l e1) =
         parenthize e1 <> dot <> int (tupleIndex n) <> pretty l
 
     pretty (PApp1 _ f l e1) =
-        pretty f <> pretty l <+> (parenthize e1)
+        pretty f <> pretty l <+> parenthize e1
 
     pretty (PApp2 _ f l e1 e2) =
         pretty f <> pretty l <+> (align $ (parenthize e1) </> (parenthize e2))
 
     pretty (PApp3 _ f l e1 e2 e3) =
         pretty f <> pretty l
-        <+> (align $ (parenthize e1) 
-                     </> (parenthize e2) 
+        <+> (align $ (parenthize e1)
+                     </> (parenthize e2)
                      </> (parenthize e3))
     pretty (If _ e1 e2 e3) =
         let e1' = pretty e1
@@ -213,20 +213,20 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
     pretty (Ext o) = pretty o
 
 instance Pretty ShapeExt where
-    pretty (Forget n _ e) = 
-        text "forget" 
+    pretty (Forget n _ e) =
+        text "forget"
         <> (angles $ int $ intFromNat n)
         <+> (parenthize e)
 
-    pretty (Imprint n _ e1 e2) = 
-        text "imprint" 
-        <> (angles $ int $ intFromNat n) 
-        <+> (align $ (parenthize e1) 
+    pretty (Imprint n _ e1 e2) =
+        text "imprint"
+        <> (angles $ int $ intFromNat n)
+        <+> (align $ (parenthize e1)
                      </> (parenthize e2))
-    
+
 instance Pretty BroadcastExt where
-    pretty (Broadcast n _ e1 e2) = 
-        text "broadcast" 
+    pretty (Broadcast n _ e1 e2) =
+        text "broadcast"
         <> (angles $ int $ intFromNat n)
         <+> (align $ (parenthize e1)
                      </> (parenthize e2))

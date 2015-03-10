@@ -94,23 +94,23 @@ appendNL (S a)     bs = a :* bs
 -- CL primitives
 
 data Prim1 = Singleton
-           | Length 
+           | Length
            | Concat
            | Null
-           | Sum 
-           | Avg 
-           | The 
-           | Head 
+           | Sum
+           | Avg
+           | The
+           | Head
            | Tail
-           | Minimum 
+           | Minimum
            | Maximum
-           | Reverse 
-           | And 
+           | Reverse
+           | And
            | Or
-           | Init 
-           | Last 
+           | Init
+           | Last
            | Nub
-           | Number 
+           | Number
            | Sort
            | Group
            | Guard

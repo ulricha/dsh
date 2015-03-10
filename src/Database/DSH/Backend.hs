@@ -4,9 +4,9 @@
 -- | This module provides an abstraction over flat relational backends
 -- with respect to code generation and query execution.
 module Database.DSH.Backend
-    ( TableInfo
+    (
     -- * Backend Functionality Classes
-    , Backend(..)
+      Backend(..)
     , Row(..)
     -- * Literal scalar value expressions
     , doubleE
@@ -24,13 +24,9 @@ import           Data.Text                       (Text)
 import qualified Data.Time.Calendar              as C
 
 import           Database.DSH.Common.QueryPlan
-import qualified Database.DSH.Common.Type        as T
 import           Database.DSH.Common.Vector      (VLDVec)
 import qualified Database.DSH.Frontend.Internals as F
 import           Database.DSH.VL.Lang            (VL)
-
--- FIXME implement properly
-type TableInfo = [(String, String, (T.Type -> Bool))]
 
 -- | An abstract backend for which we can generate code and on which
 -- flat queries can be executed.
@@ -41,9 +37,6 @@ class Row (BackendRow c) => Backend c where
 
     -- | Execute a flat query on the backend.
     execFlatQuery :: c -> BackendCode c -> IO [BackendRow c]
-
-    -- | Query the backend for schema information.
-    querySchema   :: c -> String -> IO TableInfo
 
     -- | Implement vector operations using the backend-specific
     -- algebra.

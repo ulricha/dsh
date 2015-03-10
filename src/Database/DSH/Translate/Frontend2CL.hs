@@ -7,7 +7,6 @@
 -- GADT) into explicitly typed DSH backend expressions.
 module Database.DSH.Translate.Frontend2CL
     ( toComprehensions
-    , TableInfo
     ) where
 
 import           Database.DSH.Common.Impossible
@@ -21,7 +20,6 @@ import           Data.Text                       (unpack)
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
-import           Database.DSH.Backend
 
 import           Control.Applicative
 import           Control.Monad.State
