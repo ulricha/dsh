@@ -65,6 +65,30 @@ nestedCompT x = do
     p <- snocPathToPath <$> absPathT
     return (p, NestedComp t h (y, ys) guards)
 
+-- | Search through the qualifiers of a comprehension that itself was
+-- not fit for unnesting. This traversal takes care not to touch any
+-- generator expressions that depend on preceding generators.
+searchCompQuals :: Ident -> [Ident] -> TransformC CL (PathC, NestedComp)
+searchCompQuals x qualBoundVars =
+    readerT $ \qs -> case qs of
+        QualsCL ((BindQ y ys) :* _) ->
+            (guardM (null $ (freeVars ys) `intersect` qualBoundVars)
+             >>
+             pathT [QualsHead, BindQualExpr] (searchNestedCompT x))
+            <+
+            childT QualsTail (searchCompQuals x (y : qualBoundVars))
+        QualsCL (S (BindQ _ _))    ->
+            pathT [QualsSingleton, BindQualExpr]
+                  (searchNestedCompT x)
+        -- We don't traverse into guard expressions for now. In
+        -- principle we could, but the guard would have to be
+        -- loop-invariant (i.e. do not depend on any local generators)
+        -- and that's rather unlikely.
+        QualsCL ((GuardQ _) :* _)  ->
+            childT QualsTail (searchCompQuals x qualBoundVars)
+        QualsCL (S (GuardQ _))     -> fail "don't search in guard expressions"
+        _                          -> fail "only consider qualifier lists here"
+
 -- | Traverse though an expression and search for a comprehension that
 -- is eligible for unnesting.
 searchNestedCompT :: Ident -> TransformC CL (PathC, NestedComp)
@@ -74,7 +98,9 @@ searchNestedCompT x =
         -- qualifiers. This might not be the case if a loop-invariant
         -- guard is present and preceeds the generator. Therefore, we
         -- pre-process by pushing all guards to the back.
-        ExprCL Comp{} -> tryR guardpushbackR >>> nestedCompT x
+        ExprCL Comp{} -> (tryR guardpushbackR >>> nestedCompT x)
+                         <+
+                         childT CompQuals (searchCompQuals x [])
         ExprCL _      -> oneT $ searchNestedCompT x
         _             -> fail "only traverse through expressions"
 
