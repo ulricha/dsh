@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
-    
+
 -- | Extract loop-invariant "complex" expressions from comprehensions
 module Database.DSH.CL.Opt.LoopInvariant
   ( loopInvariantR
@@ -32,8 +32,8 @@ loopInvariantR = loopInvariantGuardR <+ loopInvariantHeadR
 traverseT :: [Ident] -> TransformC CL (Expr, PathC)
 traverseT localVars = readerT $ \expr -> case expr of
     -- We do not traverse into lambdas and comprehensions which are
-    -- nested in our current comprehension.  
-    -- 
+    -- nested in our current comprehension.
+    --
     -- FIXME technically, we could consider the generators of the
     -- nested comprehension.
     ExprCL (Comp _ _ _) -> fail "we don't traverse into comprehensions"
@@ -47,7 +47,7 @@ complexPathT localVars = do
     ExprCL e <- idR
     -- debugPretty "complexPathT" e
     path <- snocPathToPath <$> absPathT
-    
+
     -- We are only interested in constant expressions that do not
     -- depend on variables bound by generators in the enclosing
     -- comprehension.

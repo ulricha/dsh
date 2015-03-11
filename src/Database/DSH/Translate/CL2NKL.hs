@@ -164,7 +164,7 @@ expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> local (x :) (expr
 -- but deal only with list comprehensions. The motivation for now is
 -- to avoid inefficient patterns (e.g. the handling of guards via
 -- 'if') already by construction.
--- 
+--
 -- In the current qualifier list, we consider the longest prefix of
 -- generators. The cartesian product of those generators is
 -- computed. We compute the cartesian product using nested
@@ -174,7 +174,7 @@ expr (CL.Let t x e1 e2)          = NKL.Let t x <$> expr e1 <*> local (x :) (expr
 -- cartesian product of all preceding generators.
 --
 -- Example:
--- 
+--
 -- [ e x y z | x <- xs, y <- ys, p1 x y, z <- zs, p2 y z ]
 -- =>
 -- map (\t -> e [x/fst (fst t)] [y/snd (fst t)] [z/snd t])

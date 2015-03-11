@@ -18,7 +18,7 @@ optCard = postOrder inferBottomUp cardRules
 
 cardRules :: RuleSet VL BottomUpProps
 cardRules = [ distDescCardOneRight ]
-            
+
 distDescCardOneRight :: Rule VL BottomUpProps
 distDescCardOneRight q =
   $(pattern 'q "R1 ((q1) DistDesc (q2))"

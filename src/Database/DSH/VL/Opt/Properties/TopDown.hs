@@ -170,7 +170,7 @@ inferChildProperties buPropMap d n = do
             cp2 <- lookupProps c2
             let buProps1 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c1
                 buProps2 = lookupUnsafe buPropMap "TopDown.inferChildProperties" c2
-            let (cp1', cp2') = checkError n [cp1, cp2] d 
+            let (cp1', cp2') = checkError n [cp1, cp2] d
                                $ inferBinOp buProps1 buProps2 ownProps cp1 cp2 op
             replaceProps c1 cp1'
             replaceProps c2 cp2'
@@ -178,7 +178,7 @@ inferChildProperties buPropMap d n = do
           cp1 <- lookupProps c1
           cp2 <- lookupProps c2
           cp3 <- lookupProps c3
-          let (cp1', cp2', cp3') = checkError n [cp1, cp2, cp3] d 
+          let (cp1', cp2', cp3') = checkError n [cp1, cp2, cp3] d
                                    $ inferTerOp ownProps cp1 cp2 cp3 op
           replaceProps c1 cp1'
           replaceProps c2 cp2'

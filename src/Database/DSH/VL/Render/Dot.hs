@@ -36,7 +36,7 @@ renderFrameSpec FAllPreceding   = text "allprec"
 renderFrameSpec (FNPreceding n) = int n <+> text "prec"
 
 renderAggrFun :: AggrFun -> Doc
-renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t) 
+renderAggrFun (AggrSum t c) = renderFun (text "sum" <> char '_' <> renderColumnType t)
                                         [renderExpr c]
 renderAggrFun (AggrMin c)   = renderFun (text "min") [renderExpr c]
 renderAggrFun (AggrMax c)   = renderFun (text "max") [renderExpr c]

@@ -20,16 +20,16 @@ cartprod (view -> (xs, ys)) =
   ]
 
 eqjoin :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
-eqjoin (view -> (xs, ys)) = 
+eqjoin (view -> (xs, ys)) =
   [ tup2 x y
   | x <- xs
   , y <- ys
   , x == y
   ]
 
-  
+
 eqjoinproj :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
-eqjoinproj (view -> (xs, ys)) = 
+eqjoinproj (view -> (xs, ys)) =
   [ tup2 x y
   | x <- xs
   , y <- ys
@@ -37,7 +37,7 @@ eqjoinproj (view -> (xs, ys)) =
   ]
 
 eqjoinpred :: Q (Integer, [Integer], [Integer]) -> Q [(Integer, Integer)]
-eqjoinpred (view -> (x', xs, ys)) = 
+eqjoinpred (view -> (x', xs, ys)) =
   [ tup2 x y
   | x <- xs
   , y <- ys
@@ -72,7 +72,7 @@ thetajoin_neq (view -> (xs, ys)) =
   ]
 
 eqjoin3 :: Q ([Integer], [Integer], [Integer]) -> Q [(Integer, Integer, Integer)]
-eqjoin3 (view -> (xs, ys, zs)) = 
+eqjoin3 (view -> (xs, ys, zs)) =
   [ tup3 x y z
   | x <- xs
   , y <- ys
@@ -80,7 +80,7 @@ eqjoin3 (view -> (xs, ys, zs)) =
   , x == y
   , y == z
   ]
-  
+
 eqjoin_nested_left :: Q ([(Integer, [Integer])], [Integer]) -> Q [((Integer, [Integer]), Integer)]
 eqjoin_nested_left args =
   [ pair x y
@@ -97,7 +97,7 @@ eqjoin_nested_right args =
   , x == fst y
   ]
 
-eqjoin_nested_both :: Q ([(Integer, [Integer])], [(Integer, [Integer])]) 
+eqjoin_nested_both :: Q ([(Integer, [Integer])], [(Integer, [Integer])])
                    -> Q [((Integer, [Integer]), (Integer, [Integer]))]
 eqjoin_nested_both args =
   [ pair x y
@@ -120,7 +120,7 @@ nestjoin3 (view -> (xs, ys, zs)) =
       ]
     | x <- xs
     ]
-  
+
 --------------------------------------------------------------
 -- Comprehensions for HUnit tests
 
@@ -133,19 +133,19 @@ eqjoin_nested1 =
     ]
 
 semijoin :: Q [Integer]
-semijoin = 
+semijoin =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs , x `elem` ys ]
 
 semijoin_range :: Q [Integer]
-semijoin_range = 
+semijoin_range =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6] :: Q [Integer])
     in [ x | x <- xs , x `elem` [ y | y <- ys, y < 6 ] ]
 
 semijoin_quant :: Q [Integer]
-semijoin_quant = 
+semijoin_quant =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs, or [ y > 5 | y <- ys, x == y ] ]
@@ -155,7 +155,7 @@ semijoin_not_null =
     let xs = (toQ [1, 2, 3, 4, 5, 6, 7] :: Q [Integer])
         ys = (toQ [2, 4, 6, 7] :: Q [Integer])
     in [ x | x <- xs, not $ null [ y | y <- ys, x == y] ]
-    
+
 
 antijoin :: Q [Integer]
 antijoin =
@@ -203,44 +203,44 @@ frontguard =
 -- Comprehensions for HUnit NestJoin/NestProduct tests
 
 nj1 :: [Integer] -> [Integer] -> Q [[Integer]]
-nj1 njxs njys = 
+nj1 njxs njys =
     [ [ y | y <- toQ njys, x == y ]
     | x <- toQ njxs
     ]
 
 nj2 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
-nj2 njxs njys = 
+nj2 njxs njys =
     [ pair x [ y | y <- toQ njys, x == y ]
     | x <- toQ njxs
     ]
 
 nj3 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
-nj3 njxs njys = 
+nj3 njxs njys =
     [ pair x ([ y | y <- toQ njys, x == y ] ++ (toQ [100, 200, 300]))
     | x <- toQ njxs
     ]
 
 nj4 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
-nj4 njxs njys = 
+nj4 njxs njys =
       [ pair x ([ y | y <- toQ njys, x == y ] ++ [ z | z <- toQ njys, x == z ])
       | x <- toQ njxs
       ]
 
 -- Code incurs DistSeg for the literal 15.
 nj5 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
-nj5 njxs njys = 
+nj5 njxs njys =
       [ pair x [ y | y <- toQ njys, x + y > 15 ]
       | x <- toQ njxs
       ]
 
 nj6 :: [Integer] -> [Integer] -> Q [(Integer, [Integer])]
-nj6 njxs njys = 
+nj6 njxs njys =
       [ pair x [ y | y <- toQ njys, x + y > 10, y < 7 ]
       | x <- toQ njxs
       ]
 
 nj7 :: [Integer] -> [Integer] -> Q [[Integer]]
-nj7 njxs njys = 
+nj7 njxs njys =
     [ [ x + y | y <- toQ njys, x + 2 == y ] | x <- toQ njxs ]
 
 nj8 :: [Integer] -> [Integer] -> Q [[Integer]]
@@ -305,7 +305,7 @@ njg4 :: [Integer] -> [Integer] -> [(Integer, Integer)] -> Q [Integer]
 njg4 njgxs njgys njgzs =
   [ x
   | x <- toQ njgxs
-  , length [ toQ () | y <- toQ njgys, x == y ] 
+  , length [ toQ () | y <- toQ njgys, x == y ]
     > length [ toQ () | z <- toQ njgzs, fst z == x ]
   ]
 
@@ -320,22 +320,22 @@ njg5 njgxs njgys =
 -- Comprehensions for QuickCheck antijoin/semijoin tests
 
 aj_class12 :: Q ([Integer], [Integer]) -> Q [Integer]
-aj_class12 (view -> (xs, ys)) = 
-  [ x 
+aj_class12 (view -> (xs, ys)) =
+  [ x
   | x <- xs
   , and [ x == y | y <- ys, y > 10 ]
   ]
 
 aj_class15 :: Q ([Integer], [Integer]) -> Q [Integer]
-aj_class15 (view -> (xs, ys)) = 
-  [ x 
+aj_class15 (view -> (xs, ys)) =
+  [ x
   | x <- xs
   , and [ y `mod` 4 == 0 | y <- ys, x < y ]
   ]
 
 aj_class16 :: Q ([Integer], [Integer]) -> Q [Integer]
-aj_class16 (view -> (xs, ys)) = 
-  [ x 
+aj_class16 (view -> (xs, ys)) =
+  [ x
   | x <- xs
   , and [ y <= 2 * x | y <- ys, x < y ]
   ]
@@ -343,7 +343,7 @@ aj_class16 (view -> (xs, ys)) =
 
 
 --------------------------------------------------------------------------------
--- Comprehensions for 
+-- Comprehensions for
 
 backdep :: Q [[Integer]] -> Q [Integer]
 backdep xss = [ x | xs <- xss, x <- xs ]
@@ -370,7 +370,7 @@ backdep5 :: Q [[Integer]] -> Q [[Integer]]
 backdep5 xss = [ [ x + length xs | x <- take (length xs - 3) xs ] | xs <- xss ]
 
 deep_iter :: Q ([Integer], [Integer], [Integer], [Integer], [Integer]) -> Q [[[[Integer]]]]
-deep_iter (view -> (ws1, ws2, xs, ys, zs)) = 
+deep_iter (view -> (ws1, ws2, xs, ys, zs)) =
   [ [ [ [ w1 * 23 - y | w1 <- ws1 ]
         ++
         [ w2 + 42 - y | w2 <- ws2 ]

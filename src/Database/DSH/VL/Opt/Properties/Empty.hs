@@ -3,20 +3,20 @@
 module Database.DSH.VL.Opt.Properties.Empty where
 
 import Control.Monad
-  
+
 import Database.DSH.VL.Lang
 
 import Database.DSH.VL.Opt.Properties.Types
 import Database.DSH.VL.Opt.Properties.Common
-  
+
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.Empty"
-                   
+
 mapUnp :: Show a => VectorProp a
-          -> VectorProp a 
-          -> (a -> a -> VectorProp a) 
+          -> VectorProp a
+          -> (a -> a -> VectorProp a)
           -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.Empty"  
+mapUnp = mapUnpack "Properties.Empty"
 
 inferEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferEmptyNullOp op =
@@ -25,7 +25,7 @@ inferEmptyNullOp op =
     Lit (_, _, [])     -> Right $ VProp True
     Lit (_, _, _)      -> Right $ VProp False
     TableRef (_, _, _) -> Right $ VProp False
-    
+
 inferEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferEmptyUnOp e op =
   case op of
@@ -56,8 +56,8 @@ inferEmptyUnOp e op =
     Number -> Right e
     NumberS -> Right e
     AggrNonEmptyS _ -> return $ VProp False
-  
-    R1 -> 
+
+    R1 ->
       case e of
         VProp _           -> Left "Properties.Empty: not a pair/triple"
         VPropPair b _     -> Right $ VProp b
@@ -72,7 +72,7 @@ inferEmptyUnOp e op =
         VPropTriple _ _ b -> Right $ VProp b
         p                 -> Left ("Properties.Empty: not a triple" ++ show p)
 
-    
+
 inferEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferEmptyBinOp e1 e2 op =
   case op of
@@ -106,11 +106,11 @@ inferEmptyBinOp e1 e2 op =
     -- FIXME This documents the current behaviour of the algebraic
     -- implementations, not what _should_ happen!
     TransposeS -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    
+
 inferEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferEmptyTerOp _ e2 e3 op =
   case op of
     Combine -> let ue2 = unp e2
                    ue3 = unp e3
                in liftM3 VPropTriple (liftM2 (&&) ue2 ue3) ue2 ue3
-    
+

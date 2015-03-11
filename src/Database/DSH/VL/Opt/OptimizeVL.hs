@@ -27,10 +27,10 @@ defaultPipeline = case assemblePipeline "ER" of
   Just p -> p
   Nothing -> error "invalid default pipeline"
 
-runPipeline 
-  :: Dag.AlgebraDag VL 
-  -> (Shape VLDVec) 
-  -> [RewriteClass] 
+runPipeline
+  :: Dag.AlgebraDag VL
+  -> (Shape VLDVec)
+  -> [RewriteClass]
   -> Bool -> (Dag.AlgebraDag VL, Log, Shape VLDVec)
 runPipeline d sh pipeline debug = (d', rewriteLog, sh')
   where (d', sh', _, rewriteLog) = runRewrite (sequence_ pipeline) d sh debug

@@ -35,12 +35,12 @@ unusedProject q =
       predicate =<< not <$> elem q <$> getRootNodes
 
       reqColumns <- reqColumnsProp <$> properties q
-      
+
       case reqColumns of
         VProp (Just []) -> return ()
         VProp (Just _)  -> fail "no match"
         p               -> error ("Unused.Project: " ++ show p)
-        
+
 
       return $ do
         logRewrite "Unused.Project" q

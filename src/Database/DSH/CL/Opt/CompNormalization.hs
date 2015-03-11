@@ -186,7 +186,7 @@ qualsguardpushbackR = innermostR $ readerT $ \quals -> case quals of
     GuardQ p :* BindQ x xs :* qs -> return $ BindQ x xs :* GuardQ p :* qs
     GuardQ p :* (S (BindQ x xs)) -> return $ BindQ x xs :* (S (GuardQ p))
     _                            -> fail "no pushable guard"
-                    
+
 
 -- | Push all guards to the end of the qualifier list to bring
 -- generators closer together.
@@ -202,9 +202,9 @@ guardpushbackR = do
 -- preparation, we push guards towards the front of the qualifier
 -- list.
 invariantguardR :: RewriteC CL
-invariantguardR = 
-    tryR guardpushfrontR 
-    >>> 
+invariantguardR =
+    tryR guardpushfrontR
+    >>>
     (promoteR $ readerT $ \expr -> case expr of
         Comp t h (GuardQ g :* qs) -> return $ inject $ P.if_ g (Comp t h qs) (P.nil t)
         Comp t h (S (GuardQ p))   -> return $ inject $ P.if_ p (P.sng h) (P.nil t)

@@ -155,5 +155,5 @@ inlineWinAggrProject q =
                 -- output is added.
                 proj' = $(v "proj") ++ [Column $ w + 1]
 
-            winNode <- insert $ UnOp (WinFun (afun', frameSpec)) $(v "q1") 
+            winNode <- insert $ UnOp (WinFun (afun', frameSpec)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj') winNode |])

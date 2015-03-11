@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.DSH.Frontend.TH 
+module Database.DSH.Frontend.TH
     ( deriveDSH
     , deriveQA
     , deriveTA
@@ -408,7 +408,7 @@ deriveSmartConstructor typConName tyVarBndrs n i con = do
   -- FIXME PairE -> TupleE
   smartConExp <- if null es
                  then return $ ConE 'DSH.UnitE
-                 else mkTupConstTerm es 
+                 else mkTupConstTerm es
   smartConBody <- deriveSmartConBody n i smartConExp
   let smartConClause = Clause smartConPat (NormalB smartConBody) []
 
@@ -438,11 +438,11 @@ toSmartConName name1 = case nameBase name1 of
   '(' : cs            -> mkName ("tuple" ++ show (length (filter (== ',') cs) + 1))
   c : cs | isAlpha c  -> mkName (toLower c : cs)
   cs                  -> mkName (':' : cs)
-  
+
 ----------------------------------------
 -- Generating lifted record selectors --
 ----------------------------------------
-   
+
 {-
 
 For a record declaration like
@@ -475,7 +475,7 @@ generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
   let selName = case fieldName of
                   Name (OccName n) _ -> mkName $ n ++ "Q"
 
-  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName))) 
+  let selType = AppT (AppT ArrowT (AppT (ConT ''DSH.Q) (ConT typeName)))
                      (AppT (ConT ''DSH.Q) typ)
       sigDec  = SigD selName selType
 
@@ -503,7 +503,7 @@ generateTableSelector typeName allFieldNames (fieldName, _strict, typ) = do
 -- TupleE (Tuple3E a b) -> ...
 -- @
 mkTuplePat :: [Name] -> Pat
-mkTuplePat names = ConP 'DSH.TupleConstE 
+mkTuplePat names = ConP 'DSH.TupleConstE
                         [ConP (innerConst "" $ length names) (map VarP names)]
 
 -- | Generate a (flat) tuple type from the list of element types.

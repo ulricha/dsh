@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Database.DSH.NKL.Quote 
+module Database.DSH.NKL.Quote
   ( nkl
   , ty
   , Var
@@ -19,7 +19,7 @@ module Database.DSH.NKL.Quote
 
 import           Control.Monad
 import           Data.Functor
-                 
+
 import qualified Data.Set as S
 
 import           Data.Data(Data)
@@ -31,7 +31,7 @@ import           Language.Haskell.TH.Quote
 import           Text.Parsec hiding (Column)
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token as P
-       
+
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.PrettyPrint.HughesPJ((<+>), (<>))
 
@@ -48,7 +48,7 @@ data Var = VarLit String
          | VarAntiBind String
          | VarAntiWild
          deriving (Eq, Ord, Show, Data, Typeable)
-         
+
 type Column = (String, TypeQ)
 
 data ExprQ = Table TypeQ String [Column] [NKL.Key]
@@ -65,31 +65,31 @@ data ExprQ = Table TypeQ String [Column] [NKL.Key]
            deriving (Data, Typeable)
 
 data TypeQ = FunT TypeQ TypeQ
-           | NatT 
-           | IntT 
-           | BoolT 
+           | NatT
+           | IntT
+           | BoolT
            | DoubleT
-           | StringT 
-           | UnitT 
+           | StringT
+           | UnitT
            | VarT String
-           | PairT TypeQ TypeQ 
+           | PairT TypeQ TypeQ
            | ListT TypeQ
            -- Antiquotation node
            | AntiT Anti
            deriving (Show, Typeable, Data)
-           
+
 deriving instance Typeable NKL.Prim2Op
 deriving instance Data NKL.Prim2Op
 
 deriving instance Typeable NKL.Prim1Op
 deriving instance Data NKL.Prim1Op
-           
+
 deriving instance Typeable1 NKL.Prim2
 deriving instance Data t => Data (NKL.Prim2 t)
 
 deriving instance Typeable1 NKL.Prim1
 deriving instance Data t => Data (NKL.Prim1 t)
-           
+
 --------------------------------------------------------------------------
 -- Conversion to and from quotation types
 
@@ -161,7 +161,7 @@ toPrim2Q :: NKL.Prim2 T.Type -> NKL.Prim2 TypeQ
 toPrim2Q (NKL.Prim2 o t) = NKL.Prim2 o (toTypeQ t)
 
 --------------------------------------------------------------------------
--- Some helper functions on quotable types and expressions, analogous to 
+-- Some helper functions on quotable types and expressions, analogous to
 -- those in NKL and Type.
 
 -- | Extract the type annotation from an expression
@@ -198,7 +198,7 @@ freeVars (AntiE _)         = $impossible
 
 instance Show ExprQ where
   show e = PP.render $ pp e
-  
+
 pp :: ExprQ -> PP.Doc
 pp (Table _ n _ _)    = PP.text "table" <+> PP.text n
 pp (App _ e1 e2)      = (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
@@ -206,11 +206,11 @@ pp (AppE1 _ p1 e)     = (PP.text $ show p1) <+> (PP.parens $ pp e)
 pp (AppE2 _ p1 e1 e2) = (PP.text $ show p1) <+> (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
 pp (BinOp _ o e1 e2)  = (PP.parens $ pp e1) <+> (PP.text $ show o) <+> (PP.parens $ pp e2)
 pp (Lam _ v e)        = PP.char '\\' <> PP.text (varName v) <+> PP.text "->" <+> pp e
-pp (If _ c t e)       = PP.text "if" 
-                        <+> pp c 
-                        <+> PP.text "then" 
-                        <+> (PP.parens $ pp t) 
-                        <+> PP.text "else" 
+pp (If _ c t e)       = PP.text "if"
+                        <+> pp c
+                        <+> PP.text "then"
+                        <+> (PP.parens $ pp t)
+                        <+> PP.text "else"
                         <+> (PP.parens $ pp e)
 pp (Const _ v)        = PP.text $ show v
 pp (Var _ s)          = PP.text $ varName s
@@ -278,7 +278,7 @@ typ = do { void $ char '\''; AntiT <$> AntiBind <$> identifier }
                         ; return $ PairT t1 t2
                         } )
       *<|> do { t <- brackets typ; return $ ListT t }
-      
+
 prim1s :: [Parse (TypeQ -> NKL.Prim1 TypeQ)]
 prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
          , reserved "concat" >> return (NKL.Prim1 NKL.Concat)
@@ -298,14 +298,14 @@ prim1s = [ reserved "length" >> return (NKL.Prim1 NKL.Length)
          , reserved "last" >> return (NKL.Prim1 NKL.Last)
          , reserved "nub" >> return (NKL.Prim1 NKL.Nub)
          ]
-      
+
 prim1 :: Parse (NKL.Prim1 TypeQ)
 prim1 = do { p <- choice prim1s
            ; reservedOp "::"
            ; t <- typ
            ; return $ p t
            }
-           
+
 prim2s :: [Parse (TypeQ -> NKL.Prim2 TypeQ)]
 prim2s = [ reserved "map" >> return (NKL.Prim2 NKL.Map)
          , reserved "groupWithKey" >> return (NKL.Prim2 NKL.GroupWithKey)
@@ -324,7 +324,7 @@ prim2 = do { p <- choice prim2s
            ; t <- typ
            ; return $ p t
            }
-           
+
 val :: Parse Val
 val = (IntV <$> natural)
       <|> (StringV <$> stringLiteral)
@@ -338,7 +338,7 @@ val = (IntV <$> natural)
                        ; v2 <- val
                        ; return $ PairV v1 v2
                        } )
-                       
+
 op :: Parse ScalarBinOp
 op = choice [ reservedOp "+" >> return Add
             , reservedOp "-" >> return Sub
@@ -354,7 +354,7 @@ op = choice [ reservedOp "+" >> return Add
             , reservedOp "||" >> return Disj
             , reservedOp "LIKE" >> return Like
             ]
-            
+
 infixr 1 *<|>
 (*<|>) :: ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m a
 a *<|> b = try a <|> b
@@ -391,22 +391,22 @@ expr = do { v <- val
                ; i <- identifier
                ; return $ AntiE $ AntiBind i
                }
-               
+
 var :: Parse Var
 var = do { void $ char '\''; VarAntiBind <$> identifier }
       *<|> do { void $ char '_'; return VarAntiWild }
       *<|> do { VarLit <$> identifier }
-      
+
 keys :: Parse [NKL.Key]
 keys = brackets $ commaSep $ brackets $ commaSep1 identifier
 
 columns :: Parse [Column]
 columns = brackets $ commaSep1 $ parens $ do
   c <- identifier
-  void comma 
+  void comma
   t <- typ
   return (c, t)
-  
+
 
 cexpr :: Parse (TypeQ -> ExprQ)
 cexpr = do { reserved "table"
@@ -447,7 +447,7 @@ cexpr = do { reserved "table"
                 ; e <- expr
                 ; return $ \t -> Lam t v e
                 }
-            
+
 
 parseType :: String -> TypeQ
 parseType i = case parse typ "" i of
@@ -461,7 +461,7 @@ parseExpr i = case parse expr "" i of
 
 --------------------------------------------------------------------------
 -- Quasi-Quoting
-                
+
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
 antiExprExp (AntiE (AntiBind s)) = Just $ TH.varE (TH.mkName s)
 antiExprExp (AntiE AntiWild)     = error "NKL.Quote: wildcard pattern (expr) used in expression quote"
@@ -486,7 +486,7 @@ antiVarExp :: Var -> Maybe (TH.Q TH.Exp)
 antiVarExp (VarAntiBind s) = Just $ TH.varE (TH.mkName s)
 antiVarExp VarAntiWild     = error "NKL.Quote: wildcard pattern (variable) used in expression quote"
 antiVarExp (VarLit _)      = Nothing
-            
+
 antiVarPat :: Var -> Maybe (TH.Q TH.Pat)
 antiVarPat (VarAntiBind s) = Just $ TH.varP (TH.mkName s)
 antiVarPat VarAntiWild     = Just TH.wildP
@@ -501,13 +501,13 @@ quoteExprPat :: String -> TH.PatQ
 quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat
                                            `extQ` antiTypePat
                                            `extQ` antiVarPat) $ parseExpr s
-                                           
+
 quoteTypeExp :: String -> TH.ExpQ
 quoteTypeExp s = dataToExpQ (const Nothing `extQ` antiTypeExp) $ parseType s
 
 quoteTypePat :: String -> TH.PatQ
 quoteTypePat s = dataToPatQ (const Nothing `extQ` antiTypePat) $ parseType s
-                                           
+
 -- | A quasi quoter for the Flattening type language
 ty :: QuasiQuoter
 ty = QuasiQuoter { quoteExp = quoteTypeExp

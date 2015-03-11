@@ -54,7 +54,7 @@ newtype VLDVec = VLDVec AlgNode
 instance DagVector VLDVec where
     vectorNodes (VLDVec q) = [q]
 
-    updateVector n1 n2 (VLDVec q) 
+    updateVector n1 n2 (VLDVec q)
         | q == n1   = VLDVec n2
         | otherwise = VLDVec q
 

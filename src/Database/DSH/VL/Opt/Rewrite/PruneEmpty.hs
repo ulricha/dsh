@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.DSH.VL.Opt.Rewrite.PruneEmpty(pruneEmpty) where
-       
+
 import           Control.Applicative
 import           Control.Monad
 
@@ -43,7 +43,7 @@ emptyAppendLeftR1 q =
           logRewrite "Empty.Append.Left.R1" q
           replace q $(v "q2") |])
 
--- FIXME re-add rules when 
+-- FIXME re-add rules when
 {-
 -- If the left input is empty, renaming will make the inner vector
 -- empty as well.
@@ -62,9 +62,9 @@ emptyAppendLeftR2 q =
 -- If the left input is empty, the rename vector for the right inner
 -- vectors is simply identity
 emptyAppendLeftR3 :: VLRule BottomUpProps
-emptyAppendLeftR3 q = 
-  $(dagPatMatch 'q "(R3 ((q1) Append (q2))) PropRename (qv)" 
-    [| do 
+emptyAppendLeftR3 q =
+  $(dagPatMatch 'q "(R3 ((q1) Append (q2))) PropRename (qv)"
+    [| do
         predicate =<< ((&&) <$> (isEmpty $(v "q1")) <*> (not <$> isEmpty $(v "q2")))
 
         return $ do

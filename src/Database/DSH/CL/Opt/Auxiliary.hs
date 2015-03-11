@@ -294,7 +294,7 @@ insertGuard guardExpr initialEnv quals = go initialEnv quals
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* q :* qs
         else q :* go (S.insert x env) qs
-    go env (GuardQ p :* qs)      = 
+    go env (GuardQ p :* qs)      =
         if all (\v -> S.member v env) fvs
         then GuardQ guardExpr :* GuardQ p :* qs
         else GuardQ p :* go env qs

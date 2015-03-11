@@ -43,7 +43,7 @@ elemLytName i = (,) <$> newName (printf "lyt%d" i)
 mkExecNestedStmt :: Name -> Name -> Name -> Stmt
 mkExecNestedStmt tyName lytName resLytName =
     let execNested = VarE $ mkName "execNested"
-        conn       = VarE $ mkName "conn"      
+        conn       = VarE $ mkName "conn"
         callE      = AppE (AppE (AppE execNested conn) (VarE lytName)) (VarE tyName)
 
     in BindS (VarP resLytName) callE
@@ -63,10 +63,10 @@ mkExecTupleMatch width = do
     let execNestedStmts = zipWith3 mkExecNestedStmt tyNames lytNames lytNames'
         returnStmt      = NoBindS $ AppE (VarE 'return)
                                   $ AppE (ConE $ mkName "TTuple")
-                                  $ foldl' AppE 
+                                  $ foldl' AppE
                                            (AppE (ConE $ tabTupleConsName width) (VarE $ mkName "ty"))
                                            (map VarE lytNames')
-                                                
+
 
     return $ Match pat (NormalB $ DoE $ execNestedStmts ++ [returnStmt]) []
 
@@ -81,7 +81,7 @@ mkExecTupleMatch width = do
 --          lyt<n>' <- execNested conn lyt<n> ty<n>
 --          return $ TTuple $ TTuple<n> ty lyt1 ... lyt<n>
 -- @
--- 
+--
 -- The lambda expression is /not/ closed: The names 'conn' and 'ty' must be in
 -- scope where 'conn' is the database connection and 'ty' is the tuple type being
 -- dissected.
@@ -116,14 +116,14 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
         -- (t1, ..., t<n>)
         tupTy            = foldl' AppT (TupleT width)
                            $ map VarT tupElemTyNames
-    
+
         -- a ~ (t1, ..., t<n>)
         tupConstraint    = EqualP (VarT tupTyName) tupTy
 
         -- Reify t1, ..., Reify t<n>
         reifyConstraints = map (\n -> ClassP ''DSH.Reify [VarT n]) tupElemTyNames
 
-        constraints      = tupConstraint : reifyConstraints 
+        constraints      = tupConstraint : reifyConstraints
 
     let -- 'Type a'
         dshTypeTy  = (NotStrict, AppT (ConT ''DSH.Type) (VarT tupTyName))
@@ -131,8 +131,8 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
         elemLytTys = [ (NotStrict, lytTyCons (VarT t)) -- AppT (ConT $ mkName "TabLayout") (VarT t))
                      | t <- tupElemTyNames
                      ]
-        argTys     = dshTypeTy : elemLytTys 
-    
+        argTys     = dshTypeTy : elemLytTys
+
     return $ ForallC tyVarBinders constraints
            $ NormalC (conName width) {- (tabTupleConsName width) -} argTys
 
@@ -140,16 +140,16 @@ mkTupleLytCons tupTyName lytTyCons conName width = do
 -- tabular query results.
 -- @
 -- data TabTuple a where
---     TTuple3 :: (Reify t1, ..., Reify t<n>) => Type (t1, ..., t<n>) 
---                                            -> TabLayout t1 
---                                            -> ... 
---                                            -> TabLayout t<n> 
+--     TTuple3 :: (Reify t1, ..., Reify t<n>) => Type (t1, ..., t<n>)
+--                                            -> TabLayout t1
+--                                            -> ...
+--                                            -> TabLayout t<n>
 --                                            -> TabTuple (t1, ..., t<n>)
 -- @
--- 
+--
 -- Because TH does not directly support GADT syntax, we have to
 -- emulate it using explicit universal quantification:
--- 
+--
 -- @
 -- data TabTuple a =
 --     forall t1, ..., t<n>. a ~ (t1, ..., t<n>),
@@ -162,7 +162,7 @@ mkTupleLyt :: Name -> (Type -> Type) -> (Int -> Name) -> Int -> Q [Dec]
 mkTupleLyt tyName lytTyCons conName maxWidth = do
     tupTyName <- newName "a"
     cons      <- mapM (mkTupleLytCons tupTyName lytTyCons conName) [2..maxWidth]
-    
+
     return $ [DataD [] tyName  [PlainTV tupTyName] cons []]
 
 --------------------------------------------------------------------------------
@@ -201,18 +201,18 @@ mkSegmentTupleMatch width = do
     let segFun  = VarE $ mkName "segmentLayout"
         segLyts = map ((AppE segFun) . VarE) lytNames
 
-    let bodyExp = foldl' AppE (ConE $ segTupleConsName width) 
+    let bodyExp = foldl' AppE (ConE $ segTupleConsName width)
                               (VarE tyName : segLyts)
     return $ Match tuplePat (NormalB bodyExp) []
 
 -- | Generate the definition for the 'segmentTuple' function that maps
 -- layouts with tabular SQL results to layouts with segment maps.
 -- @
--- 
--- \lyt -> 
+--
+-- \lyt ->
 --   case lyt of
 --   ...
---   (TTuple<n> ty tlyt1 ... tlyt<n>) = STuple<n> ty (segmentLayout tlyt1) 
+--   (TTuple<n> ty tlyt1 ... tlyt<n>) = STuple<n> ty (segmentLayout tlyt1)
 --                                                   ...
 --                                                   (segmentLayout tlyt<n>)
 -- @
@@ -238,7 +238,7 @@ mkConstructTupleMatch rowName width = do
         resultElemExps = [ AppE (AppE constructFun (VarE l)) (VarE rowName)
                          | l <- lytNames
                          ]
-        resultValExp   = AppE (ConE $ mkName "F.TupleConstE") 
+        resultValExp   = AppE (ConE $ mkName "F.TupleConstE")
                               (foldl' AppE (ConE $ innerConst "F" width) resultElemExps)
 
     return $ Match tuplePat (NormalB resultValExp) []

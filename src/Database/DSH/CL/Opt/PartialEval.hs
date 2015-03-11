@@ -2,12 +2,12 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE TemplateHaskell     #-}
-    
+
 -- | Support rewrites (partial evaluation, house cleaning)
 module Database.DSH.CL.Opt.PartialEval
   ( partialEvalR
   ) where
-  
+
 import           Database.DSH.Common.Nat
 import           Database.DSH.Common.Lang
 import           Database.DSH.CL.Lang
@@ -21,7 +21,7 @@ import           Database.DSH.CL.Kure
 -- pair (fst x) (snd x) => x
 identityPairR :: RewriteC CL
 identityPairR = do
-    MkTuple _ [ AppE1 _ (TupElem First)  v@(Var tupleTy x) 
+    MkTuple _ [ AppE1 _ (TupElem First)  v@(Var tupleTy x)
               , AppE1 _ (TupElem (Next First)) (Var _ x')
               ] <- promoteT idR
 
@@ -71,7 +71,7 @@ appendEmptyRightR = do
     return $ inject xs
 
 partialEvalR :: RewriteC CL
-partialEvalR = 
+partialEvalR =
     readerT $ \cl -> case cl of
         ExprCL AppE1{}   -> tupleElemR <+ literalSingletonR
         ExprCL MkTuple{} -> identityPairR <+ literalTupleR

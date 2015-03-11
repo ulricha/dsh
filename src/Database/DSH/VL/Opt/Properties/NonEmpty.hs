@@ -21,21 +21,21 @@ segmented aggregates.
 module Database.DSH.VL.Opt.Properties.NonEmpty where
 
 import Control.Monad
-  
+
 import Database.DSH.Common.Lang(nonEmptyHint, Emptiness(..))
 import Database.DSH.VL.Lang
 
 import Database.DSH.VL.Opt.Properties.Types
 import Database.DSH.VL.Opt.Properties.Common
-  
+
 unp :: Show a => VectorProp a -> Either String a
 unp = unpack "Properties.NonEmpty"
-                   
+
 mapUnp :: Show a => VectorProp a
-          -> VectorProp a 
-          -> (a -> a -> VectorProp a) 
+          -> VectorProp a
+          -> (a -> a -> VectorProp a)
           -> Either String (VectorProp a)
-mapUnp = mapUnpack "Properties.NonEmpty"  
+mapUnp = mapUnpack "Properties.NonEmpty"
 
 inferNonEmptyNullOp :: NullOp -> Either String (VectorProp Bool)
 inferNonEmptyNullOp op =
@@ -44,7 +44,7 @@ inferNonEmptyNullOp op =
     Lit (NonEmpty, _, _)      -> Right $ VProp True
     Lit (PossiblyEmpty, _, _) -> Right $ VProp False
     TableRef (_, _, hs)       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
-    
+
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
   case op of
@@ -78,8 +78,8 @@ inferNonEmptyUnOp e op =
     Number -> Right e
     NumberS -> Right e
     AggrNonEmptyS _ -> return $ VProp True
-  
-    R1 -> 
+
+    R1 ->
       case e of
         VProp _           -> Left "Properties.NonEmpty: not a pair/triple"
         VPropPair b _     -> Right $ VProp b
@@ -94,7 +94,7 @@ inferNonEmptyUnOp e op =
         VPropTriple _ _ b -> Right $ VProp b
         _                 -> Left "Properties.NonEmpty: not a triple"
 
-    
+
 inferNonEmptyBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferNonEmptyBinOp e1 e2 op =
   case op of
@@ -128,7 +128,7 @@ inferNonEmptyBinOp e1 e2 op =
     -- FIXME This documents the current behaviour of the algebraic
     -- implementations, not what _should_ happen!
     TransposeS      -> mapUnp e1 e2 (\ue1 ue2 -> (\p -> VPropPair p p) (ue1 || ue2))
-    
+
 inferNonEmptyTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferNonEmptyTerOp e1 e2 e3 op =
   case op of
@@ -137,4 +137,4 @@ inferNonEmptyTerOp e1 e2 e3 op =
         ue2 <- unp e2
         ue3 <- unp e3
         return $ VPropTriple ue1 ue2 ue3
-    
+

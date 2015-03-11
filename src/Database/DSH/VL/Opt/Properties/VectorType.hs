@@ -6,11 +6,11 @@ module Database.DSH.VL.Opt.Properties.VectorType where
 import           Control.Monad
 import           Control.Applicative
 import qualified Data.List.NonEmpty as N
-       
+
 import           Database.DSH.VL.Opt.Properties.Types
-  
+
 import           Database.DSH.VL.Lang
-  
+
 {- Implement more checks: check the input types for correctness -}
 
 vectorWidth :: VectorProp VectorType -> Int
@@ -23,13 +23,13 @@ inferVectorTypeNullOp op =
     SingletonDescr      -> Right $ VProp $ ValueVector 0
     Lit (_, t, _)       -> Right $ VProp $ ValueVector $ length t
     TableRef (_, cs, _) -> Right $ VProp $ ValueVector $ length cs
-  
+
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s
-unpack _         = Left "Input is not a single vector property" 
+unpack _         = Left "Input is not a single vector property"
 
 inferVectorTypeUnOp :: VectorProp VectorType -> UnOp -> Either String (VectorProp VectorType)
-inferVectorTypeUnOp s op = 
+inferVectorTypeUnOp s op =
   case op of
     WinFun _ -> do
         ValueVector w <- unpack s
@@ -44,17 +44,17 @@ inferVectorTypeUnOp s op =
     ReverseS -> liftM2 VPropPair (unpack s) (Right PropVector)
     SelectPos1{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
     SelectPos1S{} -> liftM3 VPropTriple (unpack s) (Right RenameVector) (Right RenameVector)
-    R1 -> 
+    R1 ->
       case s of
         VPropPair s1 _ -> Right $ VProp s1
         VPropTriple s1 _ _ -> Right $ VProp s1
         _ -> Left "Input of R1 is not a tuple"
-    R2 -> 
+    R2 ->
       case s of
         VPropPair _ s2 -> Right $ VProp s2
         VPropTriple _ s2 _ -> Right $ VProp s2
         _ -> Left "Input of R2 is not a tuple"
-    R3 -> 
+    R3 ->
       case s of
         VPropTriple s3 _ _ -> Right $ VProp s3
         _ -> Left "Input of R3 is not a tuple"
@@ -65,11 +65,11 @@ inferVectorTypeUnOp s op =
     SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
-    GroupS es -> 
+    GroupS es ->
       case s of
-        VProp t@(ValueVector _) -> 
+        VProp t@(ValueVector _) ->
           Right $ VPropTriple (ValueVector $ length es) t PropVector
-        _                                                    -> 
+        _                                                    ->
           Left "Input of GroupSimple is not a value vector"
     GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
@@ -82,19 +82,19 @@ inferVectorTypeUnOp s op =
     Reshape _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
     ReshapeS _ -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
     Transpose -> liftM2 VPropPair (return $ ValueVector 0) (unpack s)
-  
-reqValVectors :: VectorProp VectorType 
-                 -> VectorProp VectorType 
+
+reqValVectors :: VectorProp VectorType
+                 -> VectorProp VectorType
                  -> (Int -> Int -> VectorProp VectorType)
-                 -> String 
+                 -> String
                  -> Either String (VectorProp VectorType)
 reqValVectors (VProp (ValueVector w1)) (VProp (ValueVector w2)) f _ =
   Right $ f w1 w2
 reqValVectors _ _ _ e =
   Left $ "Inputs of " ++ e ++ " are not ValueVectors"
-      
+
 inferVectorTypeBinOp :: VectorProp VectorType -> VectorProp VectorType -> BinOp -> Either String (VectorProp VectorType)
-inferVectorTypeBinOp s1 s2 op = 
+inferVectorTypeBinOp s1 s2 op =
   case op of
     AggrS _ -> return $ VProp $ ValueVector 1
 
@@ -107,21 +107,21 @@ inferVectorTypeBinOp s1 s2 op =
     PropFilter -> liftM2 VPropPair (unpack s2) (Right RenameVector)
     PropReorder -> liftM2 VPropPair (unpack s2) (Right PropVector)
     UnboxNested -> liftM2 VPropPair (unpack s2) (Right RenameVector)
-    Append -> 
+    Append ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
+        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
+        (VProp (ValueVector w1), VProp (ValueVector w2)) ->
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
-        v -> 
+        v ->
           Left $ "Input of Append is not a ValueVector " ++ (show v)
-    AppendS -> 
+    AppendS ->
       case (s1, s2) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
+        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector w1), VProp (ValueVector w2)) -> 
+        (VProp (ValueVector w1), VProp (ValueVector w2)) ->
           Left $ "Inputs of Append do not have the same width " ++ (show w1) ++ " " ++ (show w2)
-        v -> 
+        v ->
           Left $ "Input of Append is not a ValueVector " ++ (show v)
 
     SelectPos _ -> liftM3 VPropTriple (unpack s1) (Right RenameVector) (Right RenameVector)
@@ -155,13 +155,13 @@ inferVectorTypeBinOp s1 s2 op =
     TransposeS -> liftM2 VPropPair (return $ ValueVector 0) (unpack s2)
 
 inferVectorTypeTerOp :: VectorProp VectorType -> VectorProp VectorType -> VectorProp VectorType -> TerOp -> Either String (VectorProp VectorType)
-inferVectorTypeTerOp _ s2 s3 op = 
+inferVectorTypeTerOp _ s2 s3 op =
   case op of
-    Combine -> 
+    Combine ->
       case (s2, s3) of
-        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 -> 
+        (VProp (ValueVector w1), VProp (ValueVector w2)) | w1 == w2 ->
           Right $ VPropTriple (ValueVector w1) RenameVector RenameVector
-        (VProp (ValueVector _), VProp (ValueVector _))              -> 
+        (VProp (ValueVector _), VProp (ValueVector _))              ->
           Left $ "Inputs of CombineVec do not have the same width"
-        _                                                           -> 
+        _                                                           ->
           Left $ "Inputs of CombineVec are not ValueVectors/DescrVectors " ++ (show (s2, s3))

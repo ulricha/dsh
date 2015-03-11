@@ -45,8 +45,8 @@ negateRelOp op = case op of
 -- quantifier predicate. In addition, it returns a (possibly empty)
 -- list of conjuncts that only reference the inner variable and can be
 -- evaluated on the inner source.
-quantifierPredicateT :: Ident 
-                     -> Ident 
+quantifierPredicateT :: Ident
+                     -> Ident
                      -> TransformC CL (NonEmpty (JoinConjunct JoinExpr), [Expr])
 quantifierPredicateT x y = readerT $ \q -> case q of
     -- If the quantifier predicate is already negated, take its
@@ -76,16 +76,16 @@ quantifierPredicateT x y = readerT $ \q -> case q of
         let e' = BinOp t (SBRelOp $ negateRelOp op) e1 e2
         q' <- constT (return e') >>> splitJoinPredT x y
         return (q' :| [], [])
-        
+
     _                          -> fail "can't handle predicate"
 
-mkUniversalQuantOnlyAntiJoinT :: (Ident, Expr) 
-                              -> (Ident, Expr) 
-                              -> Expr 
+mkUniversalQuantOnlyAntiJoinT :: (Ident, Expr)
+                              -> (Ident, Expr)
+                              -> Expr
                               -> TransformC (NL Qual) Qual
 mkUniversalQuantOnlyAntiJoinT (x, xs) (y, ys) q = do
     (qPred, nonCorrPreds) <- constT (return q) >>> injectT >>> quantifierPredicateT x y
-    
+
     let yst = typeOf ys
         yt  = elemT yst
 
@@ -138,7 +138,7 @@ universalQualR = readerT $ \quals -> case quals of
         return $ S $ antijoinGen
     _ -> fail "no and pattern"
 
-mkUniversalRangeAntiJoinT :: (Ident, Expr) 
+mkUniversalRangeAntiJoinT :: (Ident, Expr)
                      -> (Ident, Expr)
                      -> NL Qual
                      -> Expr
@@ -192,7 +192,7 @@ mkClass12AntiJoinT (x, xs) (y, ys) ps qs nonCorrPreds = do
 
     -- Filter the inner source with the range
     -- predicates. Additionally, filter it with the non-correlated
-    -- predicates extracted from the quantifier predicate.  
+    -- predicates extracted from the quantifier predicate.
     -- [ y | y <- ys, ps ++ nonCorrPreds ]
     let innerPreds = case nonCorrPreds of
                          c : cs -> appendNL ps (fromListSafe c cs)
@@ -226,7 +226,7 @@ mkClass15AntiJoinT (x, xs) (y, ys) ps qs = do
 
 mkClass16AntiJoinT :: (Ident, Expr)
                    -> (Ident, Expr)
-                   -> NonEmpty (JoinConjunct JoinExpr) 
+                   -> NonEmpty (JoinConjunct JoinExpr)
                    -> NonEmpty (JoinConjunct JoinExpr)
                    -> [Expr]
                    -> TransformC (NL Qual) (Qual)

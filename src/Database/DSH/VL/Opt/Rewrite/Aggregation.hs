@@ -166,7 +166,7 @@ mergeGroupAggr q =
         -- according to the same grouping expressions.
         predicate $ ges1 == ges2
         predicate $ $(v "q1") == $(v "q2")
-    
+
         return $ do
           logRewrite "Aggregation.Normalize.MergeGroupAggr" q
           groupNode <- insert $ UnOp (GroupAggr ($(v "ges1"), ($(v "afuns1") <> $(v "afuns2")))) $(v "q1")
@@ -219,7 +219,7 @@ mergeGroupWithGroupAggrLeft q =
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
-                     
+
 
 -- | Merge nestjoin-based binary grouping and subsequent aggregation
 -- into one groupjoin operator.

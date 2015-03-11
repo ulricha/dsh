@@ -90,7 +90,7 @@ redundantRulesAllProps = [ unreferencedDistLift
                          ]
 
 --------------------------------------------------------------------------------
--- 
+--
 
 -- | Replace a 'CartProduct' operator with a projection if its right
 -- input is constant and has cardinality one.
@@ -122,16 +122,16 @@ unwrapConstVal  NonConstPL   = fail "not a constant"
 constDistLift :: VLRule BottomUpProps
 constDistLift q =
   $(dagPatMatch 'q "R1 ((q1) DistLift (q2))"
-    [| do 
+    [| do
          VProp (DBVConst _ constCols) <- constProp <$> properties $(v "q1")
          VProp (ValueVector w)        <- vectorTypeProp <$> properties $(v "q2")
          constVals                    <- mapM unwrapConstVal constCols
-         
-         return $ do 
+
+         return $ do
               logRewrite "Redundant.Const.DistLift" q
               let proj = map Constant constVals ++ map Column [1..w]
               void $ replaceWithNew q $ UnOp (Project proj) $(v "q2") |])
-       
+
 -- | If a vector is distributed over an inner vector in a segmented
 -- way, check if the vector's columns are actually referenced/required
 -- downstream. If not, we can remove the DistLift altogether, as the
@@ -275,7 +275,7 @@ alignedDistLift q =
         predicate $ $(v "q21") == $(v "q22")
         w1 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q1")
         w2 <- liftM (vectorWidth . vectorTypeProp) $ properties $(v "q21")
-        
+
         return $ do
             logRewrite "Redundant.DistLift.Align" q
             let proj = map Column $
@@ -287,7 +287,7 @@ alignedDistLift q =
             void $ replaceWithNew q $ UnOp (Project proj) $(v "qr1") |])
 
 --------------------------------------------------------------------------------
--- Zip and Align rewrites. 
+-- Zip and Align rewrites.
 
 -- Note that the rewrites valid for Zip are a subset of the rewrites
 -- valid for Align. In the case of Align, we statically know that both
@@ -463,7 +463,7 @@ zipZipLeft q =
 
          w1 <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
          wz <- vectorWidth <$> vectorTypeProp <$> properties $(v "qz")
-        
+
          return $ do
              logRewrite "Redundant.Zip/Align.Zip.Left" q
              let proj = map Column $ [1..w1] ++ [1..wz]
@@ -474,9 +474,9 @@ zipWinRight q =
   $(dagPatMatch 'q "(q1) [Zip | Align] (qw=WinFun _ (q2))"
      [| do
          predicate $ $(v "q1") == $(v "q2")
-         
+
          w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         
+
          return $ do
              logRewrite "Redundant.Zip.Self.Win.Right" q
              -- We get all columns from the left input. The WinAggr
@@ -491,9 +491,9 @@ zipWinLeft q =
   $(dagPatMatch 'q "(qw=WinFun _ (q1)) [Zip | Align] (q2)"
      [| do
          predicate $ $(v "q1") == $(v "q2")
-         
+
          w <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
-         
+
          return $ do
              logRewrite "Redundant.Zip.Self.Win.Left" q
              -- We get all input columns plus the window function
@@ -541,14 +541,14 @@ alignGroupJoin q =
 -- number output is not required, eliminate it from the outer
 -- input. This is correct because Number does not change the vertical
 -- shape of the vector.
--- 
+--
 -- The motivation is to eliminate zip operators that align with the
 -- unboxed block. By removing Number from the Unbox input, we hope to
 -- achieve that the outer input is the same one as the zip input so
 -- that we can remove the zip.
--- 
+--
 -- For an example, see the bestProfit query (AQuery examples).
--- 
+--
 -- FIXME This could be extended to all operators that do not modify
 -- the vertical shape.
 unboxNumber :: VLRule Properties
@@ -559,14 +559,14 @@ unboxNumber q =
         VProp (ValueVector wo) <- vectorTypeProp <$> bu <$> properties $(v "qo")
         VProp (ValueVector wi) <- vectorTypeProp <$> bu <$> properties $(v "qi")
         predicate $ (wo+1) `notElem` reqCols
-        
+
         return $ do
             logRewrite "Redundant.Unbox.Number" q
             -- FIXME HACKHACKHACK We have to insert a dummy column in
             -- place of the number column to avoid destroying column
             -- indexes.
-            let proj = map Column [1..wo] 
-                     ++ [Constant $ IntV 0xdeadbeef] 
+            let proj = map Column [1..wo]
+                     ++ [Constant $ IntV 0xdeadbeef]
                      ++ map Column [wo+1..wi+wo]
             unboxNode <- insert $ BinOp UnboxScalar $(v "qo") $(v "qi")
             void $ replaceWithNew q $ UnOp (Project proj) unboxNode |])
@@ -579,7 +579,7 @@ unboxNumber q =
 -- specialized join which nevertheless produces payload columns from
 -- both inputs.
 zipUnboxScalarRight :: VLRule BottomUpProps
-zipUnboxScalarRight q = 
+zipUnboxScalarRight q =
   $(dagPatMatch 'q "(q11) [Zip | Align] (qu=(q12) UnboxScalar (q2))"
      [| do
          predicate $ $(v "q11") == $(v "q12")
@@ -589,13 +589,13 @@ zipUnboxScalarRight q =
 
          return $ do
              logRewrite "Redundant.Align.UnboxScalar.Right" q
-             
+
 
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxScalar produces columns from
              -- its left and right inputs).
              let outputCols = -- Two times the left input columns
-                              [1..leftWidth] ++ [1..leftWidth] 
+                              [1..leftWidth] ++ [1..leftWidth]
                               -- Followed by the right input columns
                               ++ [ leftWidth+1..rightWidth+leftWidth ]
                  proj       = map Column outputCols
@@ -607,7 +607,7 @@ zipUnboxScalarRight q =
 
 -- | See Align.UnboxScalar.Right
 zipUnboxScalarLeft :: VLRule BottomUpProps
-zipUnboxScalarLeft q = 
+zipUnboxScalarLeft q =
   $(dagPatMatch 'q "(qu=(q11) UnboxScalar (q2)) Align (q12)"
      [| do
          predicate $ $(v "q11") == $(v "q12")
@@ -617,7 +617,7 @@ zipUnboxScalarLeft q =
 
          return $ do
              logRewrite "Redundant.Align.UnboxScalar.Left" q
-             
+
 
              -- Keep the original schema intact by duplicating columns
              -- from the left input (UnboxScalar produces columns from
@@ -715,7 +715,7 @@ pullProjectNestJoinLeft q =
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
-            -- FIXME relink R2 and R3 parents 
+            -- FIXME relink R2 and R3 parents
             |])
 
 pullProjectNestJoinRight :: VLRule BottomUpProps
@@ -733,9 +733,9 @@ pullProjectNestJoinRight q =
             r1Node   <- insert $ UnOp R1 joinNode
             void $ replaceWithNew q $ UnOp (Project proj') r1Node
 
-            -- FIXME relink R2 and R3 parents 
+            -- FIXME relink R2 and R3 parents
             |])
-        
+
 
 pullProjectNumber :: VLRule BottomUpProps
 pullProjectNumber q =
@@ -770,7 +770,7 @@ pullProjectPropRename q =
 pullProjectUnboxScalarLeft :: VLRule BottomUpProps
 pullProjectUnboxScalarLeft q =
   $(dagPatMatch 'q "(Project proj (q1)) UnboxScalar (q2)"
-    [| do 
+    [| do
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
          rightWidth <- vectorWidth <$> vectorTypeProp <$> properties $(v "q2")
 
@@ -787,7 +787,7 @@ pullProjectUnboxScalarLeft q =
 pullProjectUnboxScalarRight :: VLRule BottomUpProps
 pullProjectUnboxScalarRight q =
   $(dagPatMatch 'q "(q1) UnboxScalar (Project proj (q2))"
-    [| do 
+    [| do
          leftWidth  <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
 
          return $ do
@@ -803,7 +803,7 @@ pullProjectUnboxScalarRight q =
            unboxNode <- insert $ BinOp UnboxScalar $(v "q1") $(v "q2")
 
            void $ replaceWithNew q $ UnOp (Project proj') unboxNode |])
-    
+
 pullProjectPropReorder :: VLRule ()
 pullProjectPropReorder q =
   $(dagPatMatch 'q "R1 ((qp) PropReorder (Project proj (qv)))"
@@ -894,13 +894,13 @@ propProductCard1Right q =
   $(dagPatMatch 'q "R1 ((R2 ((_) CartProduct (q2))) PropReorder (qi))"
     [| do
         VProp True <- card1Prop <$> properties $(v "q2")
-        
+
         return $ do
           logRewrite "Redundant.Prop.CartProduct.Card1.Right" q
           void $ replace q $(v "qi") |])
 
 -- | Turn a right-deep nestjoin tree into a left-deep one.
--- 
+--
 -- A comprehension of the form
 -- @
 -- [ [ [ e x y z | z <- zs, p2 y z ]
@@ -910,28 +910,28 @@ propProductCard1Right q =
 -- | x <- xs
 -- ]
 -- @
--- 
--- is first rewritten into a right-deep chain of nestjoins: 'xs △ (ys △ zs)'. 
--- Bottom-up compilation of this expression to VL (vectorization) results in 
+--
+-- is first rewritten into a right-deep chain of nestjoins: 'xs △ (ys △ zs)'.
+-- Bottom-up compilation of this expression to VL (vectorization) results in
 -- a rather awkward plan, though: The inner nestjoin is computed independent
 -- of values of 'x'. The join result is then re-shaped using the propagation
 -- vector from the nestjoin of the outer relations 'xs' and 'ys'. This pattern
--- is problematic for multiple reasons: PropReorder is an expensive operation as 
+-- is problematic for multiple reasons: PropReorder is an expensive operation as
 -- it involves re-ordering semantically, leading to a hard-to-eliminate rownum.
 -- On the plan level, we do not get a left- or right-deep join tree of thetajoins,
 -- but two independent joins between the two pairs of input relations whose results
 -- are connected using an additional join (PropReorder). This means that the two
 -- base joins will be executed on the full base tables, without being able to profit
 -- from a reduced cardinality in one of the join results.
--- 
+--
 -- NestJoin does not exhibit useful algebraic properties, most notably it is neither
 -- associate nor commutative. It turns out however that we can turn the pattern
 -- described above into a proper left-deep sequence of nestjoins if we consider
 -- the flat (vectorized) representation. The output of 'xs △ ys' is nestjoined
 -- with the innermost input 'zs'. This gives us exactly the representation of
 -- the nested output that we need. Semantically, 'zs' is not joined with all
--- tuples in 'ys', but only with those that survive the (outer) join with 'xs'. 
--- As usual, a proper join tree should give the engine the freedom to re-arrange 
+-- tuples in 'ys', but only with those that survive the (outer) join with 'xs'.
+-- As usual, a proper join tree should give the engine the freedom to re-arrange
 -- the joins and drive them in a pipelined manner.
 nestJoinChain :: VLRule BottomUpProps
 nestJoinChain q =
@@ -947,7 +947,7 @@ nestJoinChain q =
 
 
          let innermostCols = map Column [ xsWidth + 1 .. xsWidth + ysWidth + zsWidth ]
-  
+
              -- As the left input of the top nestjoin now includes the
              -- columns from xs, we have to shift column references in
              -- the left predicate side.
@@ -959,7 +959,7 @@ nestJoinChain q =
          leftJoinR1  <- insert $ UnOp R1 $(v "lj")
          rightJoin   <- insert $ BinOp (NestJoin p') leftJoinR1 $(v "zs")
          rightJoinR1 <- insert $ UnOp R1 rightJoin
-  
+
          -- Because the original produced only the columns of ys and
          -- zs in the PropReorder output, we have to remove the xs
          -- columns from the top NestJoin.
@@ -1000,7 +1000,7 @@ selectCartProd q =
     [| do
         wl <- vectorWidth <$> vectorTypeProp <$> properties $(v "q1")
         BinApp (SBRelOp op) (Column lc) (Column rc)  <- return $(v "p")
-  
+
         -- The left operand column has to be from the left input, the
         -- right operand from the right input.
         predicate $ lc <= wl

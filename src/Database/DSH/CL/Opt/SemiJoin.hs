@@ -102,10 +102,10 @@ mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
 
     -- We demand at least one predicate expression
     guardM $ not $ null allExprs
-        
+
     -- Separate those guards that can be evaluated just on the
     -- inner generator
-    let (innerGuards, corrGuards) = partition (\e -> freeVars e == [y]) 
+    let (innerGuards, corrGuards) = partition (\e -> freeVars e == [y])
                                               allExprs
 
     let ys' = case innerGuards of
@@ -118,7 +118,7 @@ mkExistentialSemiJoinT (x, xs) (y, ys) mq mps = do
     case corrPreds of
         cp : cps -> return $ BindQ x $ P.semijoin xs ys' (JoinPred $ cp :| cps)
         _        -> fail "there have to be correlation predicates for a semijoin"
- 
+
 
 
 existentialQualsR :: RewriteC (NL Qual)

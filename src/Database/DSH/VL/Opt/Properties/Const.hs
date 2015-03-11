@@ -157,13 +157,13 @@ inferConstVecUnOp c op =
 
     SelectPos1{}  -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d cols) 
+      return $ VPropTriple (DBVConst d cols)
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPos1S{} -> do
       (d, cols) <- unp c >>= fromDBV
-      return $ VPropTriple (DBVConst d cols) 
+      return $ VPropTriple (DBVConst d cols)
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
@@ -309,14 +309,14 @@ inferConstVecBinOp c1 c2 op =
     SelectPos _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
 
-      return $ VPropTriple (DBVConst d1 cols1) 
+      return $ VPropTriple (DBVConst d1 cols1)
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 
     SelectPosS _ -> do
       (d1, cols1) <- unp c1 >>= fromDBV
 
-      return $ VPropTriple (DBVConst d1 cols1) 
+      return $ VPropTriple (DBVConst d1 cols1)
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
                            (RenameVecConst (SC NonConstDescr) (TC NonConstDescr))
 

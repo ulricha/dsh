@@ -199,7 +199,7 @@ combine e1 e2 e3 d =
     in PApp3 (liftTypeN d xst) Combine (LiftedN d) e1 e2 e3
 
 tupElem :: TupleIndex -> LExpr -> Nat -> LExpr
-tupElem f e d = 
+tupElem f e d =
     let t = tupleElemT (unliftTypeN d $ typeOf e) f
     in PApp1 (liftTypeN d t) (TupElem f) (LiftedN d) e
 

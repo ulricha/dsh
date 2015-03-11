@@ -26,7 +26,7 @@ tyErrShow comb ts = P.error (printf "NKL.Primitives type error in %s: %s" comb (
 -- Smart constructors
 
 tupElem :: TupleIndex -> Expr -> Expr
-tupElem f e = 
+tupElem f e =
     let t = tupleElemT (typeOf e) f
     in AppE1 t (TupElem f) e
 

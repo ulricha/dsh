@@ -34,7 +34,7 @@ inferWorker d op node pm =
          NullaryOp vl -> checkError d node [] pm $ inferNullOp vl
 
 checkError :: NodeMap VL -> AlgNode -> [BottomUpProps] -> NodeMap BottomUpProps -> Either String BottomUpProps -> BottomUpProps
-checkError d n childProps propMap (Left msg) = 
+checkError d n childProps propMap (Left msg) =
     let childPropsMsg = concatMap ((++) "\n" . show) childProps
         completeMsg   = printf "Inference failed at node %d\n%s\n%s\n%s\n%s" n msg childPropsMsg (show propMap) (show d)
     in error completeMsg

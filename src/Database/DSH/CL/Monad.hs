@@ -17,7 +17,7 @@ module Database.DSH.CL.Monad
 
 import Control.Applicative
 import Control.Monad
-       
+
 import Language.KURE
 
 import Database.DSH.Common.Lang(Ident)
@@ -46,17 +46,17 @@ instance Functor (CompM s) where
 instance Applicative (CompM s) where
     pure  = return
     (<*>) = ap
-  
+
 returnM :: a -> CompM s a
 returnM a = CompM (\n -> (n, Right a))
 {-# INLINE returnM #-}
-  
+
 bindM :: CompM s a -> (a -> CompM s b) -> CompM s b
 bindM (CompM f) gg = CompM $ \ n -> case f n of
                                     (n', Left msg) -> (n', Left msg)
                                     (n', Right a)  -> compM (gg a) n'
-{-# INLINE bindM #-}                                    
-                                    
+{-# INLINE bindM #-}
+
 failM :: String -> CompM s a
 failM msg = CompM (\n -> (n, Left msg))
 {-# INLINE failM #-}
@@ -68,7 +68,7 @@ catchCompM :: CompM s a -> (String -> CompM s a) -> CompM s a
 catchCompM (CompM st) f = CompM $ \ n -> case st n of
                                         (n', Left msg) -> compM (f msg) n'
                                         (n', Right a)  -> (n', Right a)
-{-# INLINE catchCompM #-}                                        
+{-# INLINE catchCompM #-}
 
 suggestName :: CompM Int Ident
 suggestName = CompM (\n -> ((n+1), Right ("v" ++ show n)))
@@ -81,7 +81,7 @@ freshName vs = do v <- suggestName
                   if v `elem` vs
                     then freshName vs
                     else return v
-                    
+
 suggestName' :: CompSM s Ident
 suggestName' = CompM (\(n, s) -> ((n+1, s), Right ("v" ++ show n)))
 
@@ -104,17 +104,17 @@ modify f = CompM $ \(i, s) -> ((i, f s), Right ())
 {-# INLINE modify #-}
 
 stateful :: s -> CompSM s a -> CompM Int (s, a)
-stateful s ma = CompM $ \i -> 
+stateful s ma = CompM $ \i ->
                case runCompM' (i, s) ma of
                    ((i', _), Left msg) -> (i', Left msg)
                    ((i', s'), Right a) -> (i', Right (s', a))
-                   
+
 liftstate :: CompM Int a -> CompSM s a
 liftstate ma = CompM $ \(i, s) -> let (i', a) = runCompM' i ma
                                   in ((i', s), a)
-                   
 
--- runCompM' (i, s) (ma :: CompM (Int, s) a) :: ((i', s'), 
+
+-- runCompM' (i, s) (ma :: CompM (Int, s) a) :: ((i', s'),
 
 {-
 type FooM s = StateT s KureM
@@ -126,4 +126,4 @@ instance MonadCatch (FooM s) where
     ma `catchM` f = StateT $ \s ->
                         let (ka, s') = runStateT ma s
                         in runKureM (return . return) undefined ka
--}                        
+-}

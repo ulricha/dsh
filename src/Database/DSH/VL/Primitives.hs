@@ -102,7 +102,7 @@ toGeneralUnOp (L.JUCastOp o) = L.SUCastOp o
 toGeneralUnOp (L.JUTextOp o) = L.SUTextOp o
 
 toVLjoinConjunct :: L.JoinConjunct L.JoinExpr -> L.JoinConjunct Expr
-toVLjoinConjunct (L.JoinConjunct e1 o e2) = 
+toVLjoinConjunct (L.JoinConjunct e1 o e2) =
     L.JoinConjunct (joinExpr e1) o (joinExpr e2)
 
 toVLJoinPred :: L.JoinPredicate L.JoinExpr -> L.JoinPredicate Expr
@@ -222,7 +222,7 @@ vlSelectPos :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec
 vlSelectPos (VLDVec c1) op (VLDVec c2) = tripleVec (BinOp (SelectPos op) c1 c2) dvec rvec rvec
 
 vlSelectPos1 :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
-vlSelectPos1 (VLDVec c1) op posConst = 
+vlSelectPos1 (VLDVec c1) op posConst =
     tripleVec (UnOp (SelectPos1 (op, posConst)) c1) dvec rvec rvec
 
 vlSelectPosS :: VLDVec -> L.ScalarBinOp -> VLDVec -> Build VL (VLDVec, RVec, RVec)
@@ -230,7 +230,7 @@ vlSelectPosS (VLDVec c1) op (VLDVec c2) = do
     tripleVec (BinOp (SelectPosS op) c1 c2) dvec rvec rvec
 
 vlSelectPos1S :: VLDVec -> L.ScalarBinOp -> Int -> Build VL (VLDVec, RVec, RVec)
-vlSelectPos1S (VLDVec c1) op posConst = 
+vlSelectPos1S (VLDVec c1) op posConst =
     tripleVec (UnOp (SelectPos1S (op, posConst)) c1) dvec rvec rvec
 
 vlProject :: [Expr] -> VLDVec -> Build VL VLDVec

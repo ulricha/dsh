@@ -265,7 +265,7 @@ dist (VShape q lyt) (VShape qo lyto) = do
     -- The outer vector does not have columns, it only describes the
     -- shape.
     outerVec              <- vlProject [] qo
-    
+
     -- Replicate any inner vectors
     lyt'                  <- chainReorder propVec lyt
 
@@ -283,14 +283,14 @@ ifList (SShape qb lytb) (VShape q1 lyt1) (VShape q2 lyt2) = do
         predicate = Column $ leftWidth + 1
 
     VShape trueSelVec _        <- distSingleton (VShape q1 lyt1) qb lytb
-    (trueVec, trueRenameVec)   <- vlSelect predicate 
+    (trueVec, trueRenameVec)   <- vlSelect predicate
                                   =<< vlAlign q1 trueSelVec
     trueVec'                   <- vlProject (map Column [1..leftWidth]) trueVec
 
     let predicate' = UnApp (L.SUBoolOp L.Not) predicate
 
     VShape falseSelVec _       <- distSingleton (VShape q2 lyt2) qb lytb
-    (falseVec, falseRenameVec) <- vlSelect predicate' 
+    (falseVec, falseRenameVec) <- vlSelect predicate'
                                   =<< vlAlign q2 falseSelVec
     falseVec'                  <- vlProject (map Column [1..leftWidth]) falseVec
 
@@ -622,7 +622,7 @@ type Table = ([Type], [[L.ScalarVal]])
 -- are currently encoded.
 
 -- FIXME Check if inner list literals are nonempty and flag VL
--- literals appropriately.  
+-- literals appropriately.
 toPlan ::  Table -> Type -> Int -> [L.Val] -> Build VL (Table, Layout VLDVec, Int)
 toPlan (tabTys, tabCols) (ListT t) nextCol es =
     -- Inspect the element type of the list to be encoded
@@ -683,7 +683,7 @@ mkDescriptor :: [Int] -> Table
 mkDescriptor lengths =
     let header = []
         body   = [ [L.IntV $ fromInteger p, L.IntV $ fromInteger d]
-                 | d <- P.concat [ replicate l p | p <- [1..] | l <- lengths ]  
+                 | d <- P.concat [ replicate l p | p <- [1..] | l <- lengths ]
                  | p <- [1..]
                  ]
     in (header, body)

@@ -11,10 +11,10 @@ module Database.DSH.NKL.Kure
 
       -- * The KURE monad
     , RewriteM, RewriteStateM, TransformN, RewriteN, LensN, freshNameT
-    
+
       -- * Setters and getters for the translation state
     , get, put, modify
-    
+
       -- * Changing between stateful and non-stateful transforms
     , statefulT, liftstateT
 
@@ -25,21 +25,21 @@ module Database.DSH.NKL.Kure
       -- * Congruence combinators
     , tableT, appe1T, appe2T, binopT, ifT, constExprT, varT, iteratorT, letT
     , tableR, appe1R, appe2R, binopR, ifR, litR, varR, iteratorR, letR
-    
+
     ) where
-    
-       
+
+
 import           Control.Monad
 import           Data.Monoid
 
 import           Language.KURE
 import           Language.KURE.Lens
-       
+
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.Common.Lang
 import           Database.DSH.Common.Type
 import           Database.DSH.NKL.Lang
-                 
+
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
@@ -74,10 +74,10 @@ type PathN = Path CrumbN
 data NestedCtx = NestedCtx { nkl_bindings :: [Ident]
                            , nkl_path     :: AbsPathN
                            }
-                       
+
 instance ExtendPath NestedCtx CrumbN where
     c@@n = c { nkl_path = nkl_path c @@ n }
-    
+
 instance ReadPath NestedCtx CrumbN where
     absPath c = nkl_path c
 
@@ -123,8 +123,8 @@ tableT :: Monad m => (Type -> String -> [ColName] -> TableHints -> b)
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs ks -> return $ f ty n cs ks
                       _                -> fail "not a table node"
-{-# INLINE tableT #-}                      
-                      
+{-# INLINE tableT #-}
+
 tableR :: Monad m => Rewrite NestedCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
@@ -134,8 +134,8 @@ iteratorT :: Monad m => Transform NestedCtx m Expr a1
                      -> (Type -> a1 -> Ident -> a2 -> b)
                      -> Transform NestedCtx m Expr b
 iteratorT t1 t2 f = transform $ \c expr -> case expr of
-                     Iterator ty h x xs -> f ty <$> applyT t1 (c@@IteratorHead) h 
-                                                <*> return x 
+                     Iterator ty h x xs -> f ty <$> applyT t1 (c@@IteratorHead) h
+                                                <*> return x
                                                 <*> applyT t2 (c@@IteratorSource) xs
                      _              -> fail "not an iterator node"
 {-# INLINE iteratorT #-}
@@ -143,46 +143,46 @@ iteratorT t1 t2 f = transform $ \c expr -> case expr of
 iteratorR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 iteratorR t1 t2 = iteratorT t1 t2 Iterator
 {-# INLINE iteratorR #-}
-                                       
+
 appe1T :: Monad m => Transform NestedCtx m Expr a
                   -> (Type -> Prim1 -> a -> b)
                   -> Transform NestedCtx m Expr b
 appe1T t f = transform $ \c expr -> case expr of
-                      AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e                  
+                      AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e
                       _            -> fail "not a unary primitive application"
-{-# INLINE appe1T #-}                      
-                      
+{-# INLINE appe1T #-}
+
 appe1R :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 appe1R t = appe1T t AppE1
-{-# INLINE appe1R #-}                      
-                      
+{-# INLINE appe1R #-}
+
 appe2T :: Monad m => Transform NestedCtx m Expr a1
                   -> Transform NestedCtx m Expr a2
                   -> (Type -> Prim2 -> a1 -> a2 -> b)
                   -> Transform NestedCtx m Expr b
 appe2T t1 t2 f = transform $ \c expr -> case expr of
-                     AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1 
+                     AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1
                                                 <*> applyT t2 (c@@AppE2Arg2) e2
                      _                -> fail "not a binary primitive application"
-{-# INLINE appe2T #-}                      
+{-# INLINE appe2T #-}
 
 appe2R :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 appe2R t1 t2 = appe2T t1 t2 AppE2
-{-# INLINE appe2R #-}                      
-                     
+{-# INLINE appe2R #-}
+
 binopT :: Monad m => Transform NestedCtx m Expr a1
                   -> Transform NestedCtx m Expr a2
                   -> (Type -> ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform NestedCtx m Expr b
 binopT t1 t2 f = transform $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1 
+                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1
                                                   <*> applyT t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
-{-# INLINE binopT #-}                      
+{-# INLINE binopT #-}
 
 binopR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 binopR t1 t2 = binopT t1 t2 BinOp
-{-# INLINE binopR #-}                      
+{-# INLINE binopR #-}
 
 unopT :: Monad m => Transform NestedCtx m Expr a
                  -> (Type -> ScalarUnOp -> a -> b)
@@ -195,57 +195,57 @@ unopT t f = transform $ \ctx expr -> case expr of
 unopR :: Monad m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
-                     
+
 ifT :: Monad m => Transform NestedCtx m Expr a1
                -> Transform NestedCtx m Expr a2
                -> Transform NestedCtx m Expr a3
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Transform NestedCtx m Expr b
 ifT t1 t2 t3 f = transform $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1               
+                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1
                                            <*> applyT t2 (c@@IfThen) e2
                                            <*> applyT t3 (c@@IfElse) e3
                     _              -> fail "not an if expression"
-{-# INLINE ifT #-}                      
-                    
+{-# INLINE ifT #-}
+
 ifR :: Monad m => Rewrite NestedCtx m Expr
                -> Rewrite NestedCtx m Expr
                -> Rewrite NestedCtx m Expr
                -> Rewrite NestedCtx m Expr
-ifR t1 t2 t3 = ifT t1 t2 t3 If               
-{-# INLINE ifR #-}                      
-                    
+ifR t1 t2 t3 = ifT t1 t2 t3 If
+{-# INLINE ifR #-}
+
 constExprT :: Monad m => (Type -> Val -> b) -> Transform NestedCtx m Expr b
 constExprT f = contextfreeT $ \expr -> case expr of
                     Const ty v -> return $ f ty v
                     _          -> fail "not a constant"
-{-# INLINE constExprT #-}                      
-                    
+{-# INLINE constExprT #-}
+
 litR :: Monad m => Rewrite NestedCtx m Expr
 litR = constExprT Const
-{-# INLINE litR #-}                      
-                    
+{-# INLINE litR #-}
+
 varT :: Monad m => (Type -> Ident -> b) -> Transform NestedCtx m Expr b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
                     _        -> fail "not a variable"
-{-# INLINE varT #-}                      
-                    
+{-# INLINE varT #-}
+
 varR :: Monad m => Rewrite NestedCtx m Expr
 varR = varT Var
-{-# INLINE varR #-}                      
+{-# INLINE varR #-}
 
 letT :: Monad m => Transform NestedCtx m Expr a1
                 -> Transform NestedCtx m Expr a2
-                -> (Type -> Ident -> a1 -> a2 -> b) 
+                -> (Type -> Ident -> a1 -> a2 -> b)
                 -> Transform NestedCtx m Expr b
 letT t1 t2 f = transform $ \c expr -> case expr of
-                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs
                                          <*> applyT t2 (bindVar x $ c@@LetBody) e
                  _             -> fail "not a let expression"
 
-letR :: Monad m => Rewrite NestedCtx m Expr 
-                -> Rewrite NestedCtx m Expr 
+letR :: Monad m => Rewrite NestedCtx m Expr
+                -> Rewrite NestedCtx m Expr
                 -> Rewrite NestedCtx m Expr
 letR r1 r2 = letT r1 r2 Let
 
@@ -262,7 +262,7 @@ mkTupleR r = mkTupleT r MkTuple
 
 
 --------------------------------------------------------------------------------
-       
+
 instance Walker NestedCtx Expr where
     allR :: forall m. MonadCatch m => Rewrite NestedCtx m Expr -> Rewrite NestedCtx m Expr
     allR r = readerT $ \e -> case e of
@@ -277,7 +277,7 @@ instance Walker NestedCtx Expr where
             Var{}      -> idR
             Let{}      -> letR (extractR r) (extractR r)
             MkTuple{}  -> mkTupleR (extractR r)
-            
+
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
 

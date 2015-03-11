@@ -156,7 +156,7 @@ countVarRefT v = readerT $ \expr -> case expr of
     ExprCL (Var _ n) | n == v          -> return 1
     ExprCL (Var _ _) | otherwise       -> return 0
 
-    ExprCL (Let _ n _ _) | n == v      -> promoteT $ letT (constT $ return 0) 
+    ExprCL (Let _ n _ _) | n == v      -> promoteT $ letT (constT $ return 0)
                                                           (extractT $ countVarRefT v)
                                                           (\_ _ c1 c2 -> c1 + c2)
     ExprCL (Let _ _ _ _) | otherwise   -> promoteT $ letT (extractT $ countVarRefT v)

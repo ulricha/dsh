@@ -1,4 +1,4 @@
-module Database.DSH.Common.Pretty 
+module Database.DSH.Common.Pretty
   ( pp
   , Pretty, pretty
   ) where

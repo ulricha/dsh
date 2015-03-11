@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Database.DSH.CL.Quote 
+module Database.DSH.CL.Quote
   ( nkl
   , ty
   , Var
@@ -19,7 +19,7 @@ module Database.DSH.CL.Quote
 
 import           Control.Monad
 import           Data.Functor
-                 
+
 import qualified Data.Set as S
 
 import           Data.Data(Data)
@@ -31,7 +31,7 @@ import           Language.Haskell.TH.Quote
 import           Text.Parsec hiding (Column)
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token as P
-       
+
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.PrettyPrint.HughesPJ((<+>), (<>))
 
@@ -49,7 +49,7 @@ data Var = VarLit String
          | VarAntiBind String
          | VarAntiWild
          deriving (Eq, Ord, Show, Data, Typeable)
-         
+
 type ColumnQ = (String, TypeQ)
 
 data ExprQ = Table TypeQ String [ColumnQ] [Key]
@@ -70,44 +70,44 @@ data Qualifier = AntiQ Anti
                | BindQ Var ExprQ
                | GuardQ ExprQ
                deriving (Data, Typeable)
-               
+
 data Qualifiers = AllQs Var              -- Bind the complete list of qualifiers
                 | OpenQs [Qualifier]     -- Match the front of the qualifier list
                 | ClosedQs [Qualifier]   -- Match the complete qualifier list
                 deriving (Data, Typeable)
-               
+
 deriving instance Typeable Val
 deriving instance Data Val
 
 deriving instance Typeable Oper
 deriving instance Data Oper
-           
+
 data TypeQ = FunT TypeQ TypeQ
-           | NatT 
-           | IntT 
-           | BoolT 
+           | NatT
+           | IntT
+           | BoolT
            | DoubleT
-           | StringT 
-           | UnitT 
+           | StringT
+           | UnitT
            | VarT String
-           | PairT TypeQ TypeQ 
+           | PairT TypeQ TypeQ
            | ListT TypeQ
            -- Antiquotation node
            | AntiT Anti
            deriving (Show, Typeable, Data)
-           
+
 deriving instance Typeable CL.Prim2Op
 deriving instance Data CL.Prim2Op
 
 deriving instance Typeable CL.Prim1Op
 deriving instance Data CL.Prim1Op
-           
+
 deriving instance Typeable1 CL.Prim2
 deriving instance Data t => Data (CL.Prim2 t)
 
 deriving instance Typeable1 CL.Prim1
 deriving instance Data t => Data (CL.Prim1 t)
-           
+
 --------------------------------------------------------------------------
 -- Conversion to and from quotation types
 
@@ -192,7 +192,7 @@ toPrim2Q :: CL.Prim2 T.Type -> CL.Prim2 TypeQ
 toPrim2Q (CL.Prim2 o t) = CL.Prim2 o (toTypeQ t)
 
 --------------------------------------------------------------------------
--- Some helper functions on quotable types and expressions, analogous to 
+-- Some helper functions on quotable types and expressions, analogous to
 -- those in CL and Type.
 
 -- | Extract the type annotation from an expression
@@ -238,7 +238,7 @@ freeVarsQuals (OpenQs _)    = $impossible
 
 instance Show ExprQ where
   show e = PP.render $ pp e
-  
+
 pp :: ExprQ -> PP.Doc
 pp (Table _ n _ _)    = PP.text "table" <+> PP.text n
 pp (App _ e1 e2)      = (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
@@ -246,11 +246,11 @@ pp (AppE1 _ p1 e)     = (PP.text $ show p1) <+> (PP.parens $ pp e)
 pp (AppE2 _ p1 e1 e2) = (PP.text $ show p1) <+> (PP.parens $ pp e1) <+> (PP.parens $ pp e2)
 pp (BinOp _ o e1 e2)  = (PP.parens $ pp e1) <+> (PP.text $ show o) <+> (PP.parens $ pp e2)
 pp (Lam _ v e)        = PP.char '\\' <> PP.text (varName v) <+> PP.text "->" <+> pp e
-pp (If _ c t e)       = PP.text "if" 
-                        <+> pp c 
-                        <+> PP.text "then" 
-                        <+> (PP.parens $ pp t) 
-                        <+> PP.text "else" 
+pp (If _ c t e)       = PP.text "if"
+                        <+> pp c
+                        <+> PP.text "then"
+                        <+> (PP.parens $ pp t)
+                        <+> PP.text "else"
                         <+> (PP.parens $ pp e)
 pp (Const _ v)        = PP.text $ show v
 pp (Var _ s)          = PP.text $ varName s
@@ -322,7 +322,7 @@ typ = do { void $ char '\''; AntiT <$> AntiBind <$> identifier }
                         ; return $ PairT t1 t2
                         } )
       *<|> do { t <- brackets typ; return $ ListT t }
-      
+
 prim1s :: [Parse (TypeQ -> CL.Prim1 TypeQ)]
 prim1s = [ reserved "length" >> return (CL.Prim1 CL.Length)
          , reserved "not" >> return (CL.Prim1 CL.Not)
@@ -345,14 +345,14 @@ prim1s = [ reserved "length" >> return (CL.Prim1 CL.Length)
          , reserved "nub" >> return (CL.Prim1 CL.Nub)
          , reserved "guard" >> return (CL.Prim1 CL.Guard)
          ]
-      
+
 prim1 :: Parse (CL.Prim1 TypeQ)
 prim1 = do { p <- choice prim1s
            ; reservedOp "::"
            ; t <- typ
            ; return $ p t
            }
-           
+
 prim2s :: [Parse (TypeQ -> CL.Prim2 TypeQ)]
 prim2s = [ reserved "map" >> return (CL.Prim2 CL.Map)
          , reserved "concatMap" >> return (CL.Prim2 CL.ConcatMap)
@@ -372,7 +372,7 @@ prim2 = do { p <- choice prim2s
            ; t <- typ
            ; return $ p t
            }
-           
+
 val :: Parse Val
 val = (IntV <$> natural)
       <|> (StringV <$> stringLiteral)
@@ -386,7 +386,7 @@ val = (IntV <$> natural)
                        ; v2 <- val
                        ; return $ PairV v1 v2
                        } )
-                       
+
 op :: Parse Oper
 op = choice [ reservedOp "+" >> return Add
             , reservedOp "-" >> return Sub
@@ -403,7 +403,7 @@ op = choice [ reservedOp "+" >> return Add
             , reservedOp "||" >> return Disj
             , reservedOp "LIKE" >> return Like
             ]
-            
+
 infixr 1 *<|>
 (*<|>) :: ParsecT s u m a -> ParsecT s u m a -> ParsecT s u m a
 a *<|> b = try a <|> b
@@ -440,19 +440,19 @@ expr = do { v <- val
                ; reservedOp "::"
                ; t <- typ
                ; return $ Comp t e qs
-               } 
+               }
        *<|> do { void $ char '\''
                ; i <- identifier
                ; return $ AntiE $ AntiBind i
                }
-               
+
 comprehension :: Parse (ExprQ, Qualifiers)
 comprehension = brackets $ do { e <- expr
                               ; reservedOp "|"
                               ; qs <- qualifiers
                               ; return (e, qs)
                               }
-               
+
 qualifier :: Parse Qualifier
 qualifier = do { v <- var
                ; return undefined
@@ -465,7 +465,7 @@ qualifier = do { v <- var
                     ; e <- expr
                     ; return undefined
                     }
-            
+
 qualifiers :: Parse Qualifiers
 qualifiers = do { v <- var
                 ; return undefined
@@ -479,22 +479,22 @@ qualifiers = do { v <- var
                      ; qs <- commaSep1 qualifier
                      ; return undefined
                      }
-               
+
 var :: Parse Var
 var = do { void $ char '\''; VarAntiBind <$> identifier }
       *<|> do { void $ char '_'; return VarAntiWild }
       *<|> do { VarLit <$> identifier }
-      
+
 keys :: Parse [Key]
 keys = brackets $ commaSep $ brackets $ commaSep1 identifier
 
 columns :: Parse [ColumnQ]
 columns = brackets $ commaSep1 $ parens $ do
   c <- identifier
-  void comma 
+  void comma
   t <- typ
   return (c, t)
-  
+
 
 cexpr :: Parse (TypeQ -> ExprQ)
 cexpr = do { reserved "table"
@@ -535,7 +535,7 @@ cexpr = do { reserved "table"
                 ; e <- expr
                 ; return $ \t -> Lam t v e
                 }
-            
+
 
 parseType :: String -> TypeQ
 parseType i = case parse typ "" i of
@@ -549,7 +549,7 @@ parseExpr i = case parse expr "" i of
 
 --------------------------------------------------------------------------
 -- Quasi-Quoting
-                
+
 antiExprExp :: ExprQ -> Maybe (TH.Q TH.Exp)
 antiExprExp (AntiE (AntiBind s)) = Just $ TH.varE (TH.mkName s)
 antiExprExp (AntiE AntiWild)     = error "CL.Quote: wildcard pattern (expr) used in expression quote"
@@ -574,7 +574,7 @@ antiVarExp :: Var -> Maybe (TH.Q TH.Exp)
 antiVarExp (VarAntiBind s) = Just $ TH.varE (TH.mkName s)
 antiVarExp VarAntiWild     = error "CL.Quote: wildcard pattern (variable) used in expression quote"
 antiVarExp (VarLit _)      = Nothing
-            
+
 antiVarPat :: Var -> Maybe (TH.Q TH.Pat)
 antiVarPat (VarAntiBind s) = Just $ TH.varP (TH.mkName s)
 antiVarPat VarAntiWild     = Just TH.wildP
@@ -589,13 +589,13 @@ quoteExprPat :: String -> TH.PatQ
 quoteExprPat s = dataToPatQ (const Nothing `extQ` antiExprPat
                                            `extQ` antiTypePat
                                            `extQ` antiVarPat) $ parseExpr s
-                                           
+
 quoteTypeExp :: String -> TH.ExpQ
 quoteTypeExp s = dataToExpQ (const Nothing `extQ` antiTypeExp) $ parseType s
 
 quoteTypePat :: String -> TH.PatQ
 quoteTypePat s = dataToPatQ (const Nothing `extQ` antiTypePat) $ parseType s
-                                           
+
 -- | A quasi quoter for the Flattening type language
 ty :: QuasiQuoter
 ty = QuasiQuoter { quoteExp = quoteTypeExp

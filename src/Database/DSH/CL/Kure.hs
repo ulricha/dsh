@@ -4,7 +4,7 @@
 {-# LANGUAGE InstanceSigs          #-}
 
 -- | Infrastructure for KURE-based rewrites on CL expressions
-   
+
 module Database.DSH.CL.Kure
     ( -- * Re-export relevant KURE modules
       module Language.KURE
@@ -12,10 +12,10 @@ module Database.DSH.CL.Kure
 
       -- * The KURE monad
     , RewriteM, RewriteStateM, TransformC, RewriteC, LensC, freshName, freshNameT
-    
+
       -- * Setters and getters for the translation state
     , get, put, modify
-    
+
       -- * Changing between stateful and non-stateful transforms
     , statefulT, liftstateT
 
@@ -29,12 +29,12 @@ module Database.DSH.CL.Kure
     , unopR, unopT
     , bindQualT, guardQualT, bindQualR, guardQualR
     , qualsT, qualsR, qualsemptyT, qualsemptyR
-    
+
       -- * The sum type
     , CL(..)
     ) where
-    
-       
+
+
 import           Control.Monad
 import           Data.Monoid
 import qualified Data.Map as M
@@ -43,12 +43,12 @@ import           Text.PrettyPrint.ANSI.Leijen(text)
 
 import           Language.KURE
 import           Language.KURE.Lens
-       
+
 import           Database.DSH.Common.Pretty
 import qualified Database.DSH.Common.Lang as L
 import           Database.DSH.Common.RewriteM
 import           Database.DSH.CL.Lang
-                 
+
 --------------------------------------------------------------------------------
 -- Convenience type aliases
 
@@ -92,13 +92,13 @@ type AbsPathC = AbsolutePath CrumbC
 type PathC = Path CrumbC
 
 -- | The context for KURE-based CL rewrites
-data CompCtx = CompCtx { cl_bindings :: M.Map L.Ident Type 
+data CompCtx = CompCtx { cl_bindings :: M.Map L.Ident Type
                        , cl_path     :: AbsPathC
                        }
-                       
+
 instance ExtendPath CompCtx CrumbC where
     c@@n = c { cl_path = cl_path c @@ n }
-    
+
 instance ReadPath CompCtx CrumbC where
     absPath c = cl_path c
 
@@ -113,7 +113,7 @@ bindVar n ty ctx = ctx { cl_bindings = M.insert n ty (cl_bindings ctx) }
 bindQual :: CompCtx -> Qual -> CompCtx
 bindQual ctx (BindQ n e) = bindVar n (elemT $ typeOf e) ctx
 bindQual ctx _           = ctx
-         
+
 inScopeNames :: CompCtx -> [L.Ident]
 inScopeNames = M.keys . cl_bindings
 
@@ -154,51 +154,51 @@ tableT :: Monad m => (Type -> String -> [L.ColName] -> L.TableHints -> b)
 tableT f = contextfreeT $ \expr -> case expr of
                       Table ty n cs hs -> return $ f ty n cs hs
                       _                -> fail "not a table node"
-{-# INLINE tableT #-}                      
-                      
+{-# INLINE tableT #-}
+
 tableR :: Monad m => Rewrite CompCtx m Expr
 tableR = tableT Table
 {-# INLINE tableR #-}
-                                       
+
 appe1T :: Monad m => Transform CompCtx m Expr a
                   -> (Type -> Prim1 -> a -> b)
                   -> Transform CompCtx m Expr b
 appe1T t f = transform $ \c expr -> case expr of
-                      AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e                  
+                      AppE1 ty p e -> f ty p <$> applyT t (c@@AppE1Arg) e
                       _            -> fail "not a unary primitive application"
-{-# INLINE appe1T #-}                      
-                      
+{-# INLINE appe1T #-}
+
 appe1R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 appe1R t = appe1T t AppE1
-{-# INLINE appe1R #-}                      
-                      
+{-# INLINE appe1R #-}
+
 appe2T :: Monad m => Transform CompCtx m Expr a1
                   -> Transform CompCtx m Expr a2
                   -> (Type -> Prim2 -> a1 -> a2 -> b)
                   -> Transform CompCtx m Expr b
 appe2T t1 t2 f = transform $ \c expr -> case expr of
-                     AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1 
+                     AppE2 ty p e1 e2 -> f ty p <$> applyT t1 (c@@AppE2Arg1) e1
                                                 <*> applyT t2 (c@@AppE2Arg2) e2
                      _                -> fail "not a binary primitive application"
-{-# INLINE appe2T #-}                      
+{-# INLINE appe2T #-}
 
 appe2R :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 appe2R t1 t2 = appe2T t1 t2 AppE2
-{-# INLINE appe2R #-}                      
-                     
+{-# INLINE appe2R #-}
+
 binopT :: Monad m => Transform CompCtx m Expr a1
                   -> Transform CompCtx m Expr a2
                   -> (Type -> L.ScalarBinOp -> a1 -> a2 -> b)
                   -> Transform CompCtx m Expr b
 binopT t1 t2 f = transform $ \c expr -> case expr of
-                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1 
+                     BinOp ty op e1 e2 -> f ty op <$> applyT t1 (c@@BinOpArg1) e1
                                                   <*> applyT t2 (c@@BinOpArg2) e2
                      _                 -> fail "not a binary operator application"
-{-# INLINE binopT #-}                      
+{-# INLINE binopT #-}
 
 binopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 binopR t1 t2 = binopT t1 t2 BinOp
-{-# INLINE binopR #-}                      
+{-# INLINE binopR #-}
 
 unopT :: Monad m => Transform CompCtx m Expr a
                  -> (Type -> L.ScalarUnOp -> a -> b)
@@ -211,61 +211,61 @@ unopT t f = transform $ \ctx expr -> case expr of
 unopR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Expr
 unopR t = unopT t UnOp
 {-# INLINE unopR #-}
-                     
+
 ifT :: Monad m => Transform CompCtx m Expr a1
                -> Transform CompCtx m Expr a2
                -> Transform CompCtx m Expr a3
                -> (Type -> a1 -> a2 -> a3 -> b)
                -> Transform CompCtx m Expr b
 ifT t1 t2 t3 f = transform $ \c expr -> case expr of
-                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1               
+                    If ty e1 e2 e3 -> f ty <$> applyT t1 (c@@IfCond) e1
                                            <*> applyT t2 (c@@IfThen) e2
                                            <*> applyT t3 (c@@IfElse) e3
                     _              -> fail "not an if expression"
-{-# INLINE ifT #-}                      
-                    
+{-# INLINE ifT #-}
+
 ifR :: Monad m => Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
                -> Rewrite CompCtx m Expr
-ifR t1 t2 t3 = ifT t1 t2 t3 If               
-{-# INLINE ifR #-}                      
-                    
+ifR t1 t2 t3 = ifT t1 t2 t3 If
+{-# INLINE ifR #-}
+
 litT :: Monad m => (Type -> L.Val -> b) -> Transform CompCtx m Expr b
 litT f = contextfreeT $ \expr -> case expr of
                     Lit ty v -> return $ f ty v
                     _          -> fail "not a constant"
-{-# INLINE litT #-}                      
-                    
+{-# INLINE litT #-}
+
 litR :: Monad m => Rewrite CompCtx m Expr
 litR = litT Lit
-{-# INLINE litR #-}                      
-                    
+{-# INLINE litR #-}
+
 varT :: Monad m => (Type -> L.Ident -> b) -> Transform CompCtx m Expr b
 varT f = contextfreeT $ \expr -> case expr of
                     Var ty n -> return $ f ty n
                     _        -> fail "not a variable"
-{-# INLINE varT #-}                      
-                    
+{-# INLINE varT #-}
+
 varR :: Monad m => Rewrite CompCtx m Expr
 varR = varT Var
-{-# INLINE varR #-}                      
+{-# INLINE varR #-}
 
 compT :: Monad m => Transform CompCtx m Expr a1
                  -> Transform CompCtx m (NL Qual) a2
                  -> (Type -> a1 -> a2 -> b)
                  -> Transform CompCtx m Expr b
 compT t1 t2 f = transform $ \ctx expr -> case expr of
-                    Comp ty e qs -> f ty <$> applyT t1 (F.foldl' bindQual (ctx@@CompHead) qs) e 
+                    Comp ty e qs -> f ty <$> applyT t1 (F.foldl' bindQual (ctx@@CompHead) qs) e
                                          <*> applyT t2 (ctx@@CompQuals) qs
                     _            -> fail "not a comprehension"
-{-# INLINE compT #-}                      
-                    
+{-# INLINE compT #-}
+
 compR :: Monad m => Rewrite CompCtx m Expr
                  -> Rewrite CompCtx m (NL Qual)
                  -> Rewrite CompCtx m Expr
-compR t1 t2 = compT t1 t2 Comp                 
-{-# INLINE compR #-}                      
+compR t1 t2 = compT t1 t2 Comp
+{-# INLINE compR #-}
 
 mkTupleT :: Monad m => Transform CompCtx m Expr a
                     -> (Type -> [a] -> b)
@@ -280,119 +280,119 @@ mkTupleR r = mkTupleT r MkTuple
 
 letT :: Monad m => Transform CompCtx m Expr a1
                 -> Transform CompCtx m Expr a2
-                -> (Type -> L.Ident -> a1 -> a2 -> b) 
+                -> (Type -> L.Ident -> a1 -> a2 -> b)
                 -> Transform CompCtx m Expr b
 letT t1 t2 f = transform $ \c expr -> case expr of
-                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs 
+                 Let ty x xs e -> f ty x <$> applyT t1 (c@@LetBind) xs
                                          <*> applyT t2 (bindVar x (typeOf xs) $ c@@LetBody) e
                  _             -> fail "not a let expression"
 
-letR :: Monad m => Rewrite CompCtx m Expr 
-                -> Rewrite CompCtx m Expr 
+letR :: Monad m => Rewrite CompCtx m Expr
+                -> Rewrite CompCtx m Expr
                 -> Rewrite CompCtx m Expr
 letR r1 r2 = letT r1 r2 Let
 
 --------------------------------------------------------------------------------
 -- Congruence combinators for qualifiers
 
-bindQualT :: Monad m => Transform CompCtx m Expr a 
-                     -> (L.Ident -> a -> b) 
+bindQualT :: Monad m => Transform CompCtx m Expr a
+                     -> (L.Ident -> a -> b)
                      -> Transform CompCtx m Qual b
 bindQualT t f = transform $ \ctx expr -> case expr of
                 BindQ n e -> f n <$> applyT t (ctx@@BindQualExpr) e
                 _         -> fail "not a generator"
-{-# INLINE bindQualT #-}                      
-                
+{-# INLINE bindQualT #-}
+
 bindQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
 bindQualR t = bindQualT t BindQ
-{-# INLINE bindQualR #-}                      
+{-# INLINE bindQualR #-}
 
-guardQualT :: Monad m => Transform CompCtx m Expr a 
-                      -> (a -> b) 
+guardQualT :: Monad m => Transform CompCtx m Expr a
+                      -> (a -> b)
                       -> Transform CompCtx m Qual b
 guardQualT t f = transform $ \ctx expr -> case expr of
                 GuardQ e -> f <$> applyT t (ctx@@GuardQualExpr) e
                 _        -> fail "not a guard"
-{-# INLINE guardQualT #-}                      
-                
+{-# INLINE guardQualT #-}
+
 guardQualR :: Monad m => Rewrite CompCtx m Expr -> Rewrite CompCtx m Qual
 guardQualR t = guardQualT t GuardQ
-{-# INLINE guardQualR #-}                      
+{-# INLINE guardQualR #-}
 
 --------------------------------------------------------------------------------
 -- Congruence combinator for a qualifier list
 
 qualsT :: Monad m => Transform CompCtx m Qual a1
                   -> Transform CompCtx m (NL Qual) a2
-                  -> (a1 -> a2 -> b) 
+                  -> (a1 -> a2 -> b)
                   -> Transform CompCtx m (NL Qual) b
 qualsT t1 t2 f = transform $ \ctx quals -> case quals of
-                   q :* qs -> f <$> applyT t1 (ctx@@QualsHead) q 
+                   q :* qs -> f <$> applyT t1 (ctx@@QualsHead) q
                                 <*> applyT t2 (bindQual (ctx@@QualsTail) q) qs
                    S _     -> fail "not a nonempty cons"
-{-# INLINE qualsT #-}                      
-                   
+{-# INLINE qualsT #-}
+
 qualsR :: Monad m => Rewrite CompCtx m Qual
                   -> Rewrite CompCtx m (NL Qual)
                   -> Rewrite CompCtx m (NL Qual)
-qualsR t1 t2 = qualsT t1 t2 (:*)                  
-{-# INLINE qualsR #-}                      
+qualsR t1 t2 = qualsT t1 t2 (:*)
+{-# INLINE qualsR #-}
 
-                   
+
 qualsemptyT :: Monad m => Transform CompCtx m Qual a
                        -> (a -> b)
                        -> Transform CompCtx m (NL Qual) b
 qualsemptyT t f = transform $ \ctx quals -> case quals of
                       S q -> f <$> applyT t (ctx@@QualsSingleton) q
                       _   -> fail "not a nonempty singleton"
-{-# INLINE qualsemptyT #-}                      
-                      
+{-# INLINE qualsemptyT #-}
+
 qualsemptyR :: Monad m => Rewrite CompCtx m Qual
                        -> Rewrite CompCtx m (NL Qual)
-qualsemptyR t = qualsemptyT t S                       
-{-# INLINE qualsemptyR #-}                      
+qualsemptyR t = qualsemptyT t S
+{-# INLINE qualsemptyR #-}
 
 --------------------------------------------------------------------------------
-       
+
 -- | The sum type of *nodes* considered for KURE traversals
 data CL = ExprCL Expr
         | QualCL Qual
         | QualsCL (NL Qual)
-        
+
 instance Pretty CL where
     pretty (ExprCL e)   = pretty e
     pretty (QualCL q)   = pretty q
     pretty (QualsCL qs) = pretty qs
-        
+
 instance Injection Expr CL where
     inject                = ExprCL
-    
+
     project (ExprCL expr) = Just expr
     project _             = Nothing
 
 instance Injection Qual CL where
     inject             = QualCL
-    
+
     project (QualCL q) = Just q
     project _          = Nothing
-    
+
 instance Injection (NL Qual) CL where
     inject               = QualsCL
-    
+
     project (QualsCL qs) = Just qs
     project _            = Nothing
 
-    
+
 -- FIXME putting an INLINE pragma on allR would propably lead to good
 -- things. However, with 7.6.3 it triggers a GHC panic.
 instance Walker CompCtx CL where
     allR :: forall m. MonadCatch m => Rewrite CompCtx m CL -> Rewrite CompCtx m CL
-    allR r = 
+    allR r =
         rewrite $ \c cl -> case cl of
             ExprCL expr -> inject <$> applyT allRexpr c expr
             QualCL q    -> inject <$> applyT allRqual c q
             QualsCL qs  -> inject <$> applyT allRquals c qs
-    
+
       where
         allRquals = readerT $ \qs -> case qs of
             S{}    -> qualsemptyR (extractR r)
@@ -417,38 +417,38 @@ instance Walker CompCtx CL where
             MkTuple{} -> mkTupleR (extractR r)
             Let{}     -> letR (extractR r) (extractR r)
         {-# INLINE allRexpr #-}
-            
+
 --------------------------------------------------------------------------------
 -- A Walker instance for qualifier lists so that we can use the
 -- traversal infrastructure on lists.
-   
+
 consT :: Monad m => Transform CompCtx m (NL Qual) b
                  -> (Qual -> b -> c)
                  -> Transform CompCtx m (NL Qual) c
 consT t f = transform $ \ctx nl -> case nl of
                 a :* as -> f a <$> applyT t (bindQual (ctx@@NLConsTail) a) as
                 S _     -> fail "not a nonempty cons"
-{-# INLINE consT #-}                      
-                    
-consR :: Monad m => Rewrite CompCtx m (NL Qual) 
+{-# INLINE consT #-}
+
+consR :: Monad m => Rewrite CompCtx m (NL Qual)
                  -> Rewrite CompCtx m (NL Qual)
-consR t = consT t (:*)                 
-{-# INLINE consR #-}                      
+consR t = consT t (:*)
+{-# INLINE consR #-}
 
 singletonT :: Monad m => (Qual -> c)
                       -> Transform CompCtx m (NL Qual) c
 singletonT f = contextfreeT $ \nl -> case nl of
                    S a    -> return $ f a
                    _ :* _ -> fail "not a nonempty singleton"
-{-# INLINE singletonT #-}                      
-               
+{-# INLINE singletonT #-}
+
 singletonR :: Monad m => Rewrite CompCtx m (NL Qual)
-singletonR = singletonT S                      
-{-# INLINE singletonR #-}                      
-                   
+singletonR = singletonT S
+{-# INLINE singletonR #-}
+
 instance Walker CompCtx (NL Qual) where
     allR r = consR r <+ singletonR
-    
+
 --------------------------------------------------------------------------------
 -- I find it annoying that Applicative is not a superclass of Monad.
 

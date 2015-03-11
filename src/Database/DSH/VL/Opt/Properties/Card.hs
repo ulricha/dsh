@@ -21,7 +21,7 @@ inferCardOneNullOp op =
     TableRef _       -> Right $ VProp False
 
 inferCardOneUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
-inferCardOneUnOp c op = 
+inferCardOneUnOp c op =
   case op of
     UniqueS -> Right c
     Aggr _ -> Right $ VProp True
@@ -38,7 +38,7 @@ inferCardOneUnOp c op =
     Select _ -> Right $ VPropPair False False
     SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
-    R1 -> 
+    R1 ->
       case c of
         VProp _           -> Left "Properties.Card: not a pair/triple"
         VPropPair b _     -> Right $ VProp b
@@ -60,7 +60,7 @@ inferCardOneUnOp c op =
     ReshapeS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     Transpose -> unp c >>= (\uc -> return $ VPropPair uc uc)
     AggrNonEmptyS _ -> return $ VProp False
-    
+
 
 inferCardOneBinOp :: VectorProp Bool -> VectorProp Bool -> BinOp -> Either String (VectorProp Bool)
 inferCardOneBinOp c1 c2 op =
@@ -96,7 +96,7 @@ inferCardOneBinOp c1 c2 op =
     ZipS -> do
       c <- (||) <$> unp c1 <*> unp c2
       return $ VPropTriple c c c
-      
+
 inferCardOneTerOp :: VectorProp Bool -> VectorProp Bool -> VectorProp Bool -> TerOp -> Either String (VectorProp Bool)
 inferCardOneTerOp _ _ _ op =
   case op of

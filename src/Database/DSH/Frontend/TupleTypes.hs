@@ -46,8 +46,8 @@ mkTupElemCons aTyVar bTyVar width = do
 
 mkTupType :: Int -> Int -> [Name] -> Name -> Type
 mkTupType elemIdx width boundTyVars bTyVar =
-    let elemTys = map VarT $ take (elemIdx - 1) boundTyVars 
-                             ++ [bTyVar] 
+    let elemTys = map VarT $ take (elemIdx - 1) boundTyVars
+                             ++ [bTyVar]
                              ++ drop (elemIdx - 1) boundTyVars
     in foldl' AppT (TupleT width) elemTys
 
@@ -61,25 +61,25 @@ mkTupElemCon aTyVar bTyVar boundTyVars width elemIdx = do
 
 -- | Generate the complete type of tuple acccessors for all tuple
 -- widths.
--- 
+--
 -- @
--- data TupElem a b where 
---     Tup2_1 :: TupElem (a, b) a 
---     Tup2_2 :: TupElem (a, b) b 
---     Tup3_1 :: TupElem (a, b, c) a 
---     Tup3_2 :: TupElem (a, b, c) b 
---     Tup3_3 :: TupElem (a, b, c) c 
+-- data TupElem a b where
+--     Tup2_1 :: TupElem (a, b) a
+--     Tup2_2 :: TupElem (a, b) b
+--     Tup3_1 :: TupElem (a, b, c) a
+--     Tup3_2 :: TupElem (a, b, c) b
+--     Tup3_3 :: TupElem (a, b, c) c
 --     ...
 -- @
--- 
+--
 -- Due to the lack of support for proper GADT syntax in TH, we have
 -- to work with explicit universal quantification:
--- 
+--
 -- @
 -- data TupElem a b =
 --     | forall d. a ~ (b, d) => Tup2_1
 --     | forall d. a ~ (d, b) => Tup2_2
--- 
+--
 --     | forall d e. a ~ (b, d, e) => Tup3_1
 --     | forall d e. a ~ (d, b, e) => Tup3_2
 --     | forall d e. a ~ (d, e, b) => Tup3_3
@@ -96,12 +96,12 @@ mkTupElemType maxWidth = do
     cons   <- concat <$> mapM (mkTupElemCons aTyVar bTyVar) [2..maxWidth]
 
     return $ [DataD [] tyName tyVars cons []]
- 
+
 --------------------------------------------------------------------------------
 -- Translation of tuple accessors to CL
 
 -- TupElem a b -> Exp a -> Compile CL.Expr
--- \te e -> 
+-- \te e ->
 --     case te of
 --         Tup{2}_{1} -> CP.tupElem (indIndex 1) <$> translate e
 --         Tup{2}_{k} -> CP.tupElem (indIndex k) <$> translate e
@@ -143,7 +143,7 @@ reifyType tyName = AppE (VarE $ mkName "reify") (SigE (VarE 'undefined) (VarT ty
 mkReifyFun :: [Name] -> Dec
 mkReifyFun tyNames =
     let argTys         = map reifyType tyNames
-        body           = AppE (ConE $ mkName "TupleT") 
+        body           = AppE (ConE $ mkName "TupleT")
                          $ foldl' AppE (ConE $ tupTyConstName "" $ length tyNames) argTys
     in FunD (mkName "reify") [Clause [WildP] (NormalB body) []]
 
@@ -152,7 +152,7 @@ mkReifyInstance width =
     let tyNames  = map (\i -> mkName $ "t" ++ show i) [1..width]
         instTy   = AppT (ConT $ mkName "Reify") $ tupleType $ map VarT tyNames
         reifyCxt = map (\tyName -> ClassP (mkName "Reify") [VarT tyName]) tyNames
-        
+
     in InstanceD reifyCxt instTy [mkReifyFun tyNames]
 
 mkReifyInstances :: Int -> Q [Dec]
@@ -165,7 +165,7 @@ mkToExp :: Int -> [Name] -> Dec
 mkToExp width elemNames =
     let toExpVar   = VarE $ mkName "toExp"
         elemArgs   = map (\n -> AppE toExpVar (VarE n)) elemNames
-        body       = NormalB $ AppE (ConE $ outerConst "") 
+        body       = NormalB $ AppE (ConE $ outerConst "")
                              $ foldl' AppE (ConE $ innerConst "" width) elemArgs
         tupClause  = Clause [TupP $ map VarP elemNames] body []
     in FunD (mkName "toExp") [tupClause]
@@ -182,7 +182,7 @@ mkFrExp width elemNames = do
 mkRep :: Int -> [Name] -> Type -> Dec
 mkRep width tyNames tupTyPat =
     let resTy    = foldl' AppT (TupleT width)
-                   $ map (AppT $ ConT $ mkName "Rep") 
+                   $ map (AppT $ ConT $ mkName "Rep")
                    $ map VarT tyNames
     in TySynInstD (mkName "Rep") (TySynEqn [tupTyPat] resTy)
 
@@ -198,7 +198,7 @@ mkQAInstance width = do
     return $ InstanceD qaCxt instTy [rep, toExp, frExp]
 
 -- | Generate QA instances for tuple types according to the following template:
--- 
+--
 -- @
 -- instance (QA t1, ..., QA tn) => QA (t1, ..., tn) where
 --   type Rep (t1, ..., tn) = (Rep t1, ..., Rep tn)
@@ -221,7 +221,7 @@ mkTAInstance width =
     in InstanceD taCxt instTy []
 
 -- | Generate TA instances for tuple types according to the following template:
--- 
+--
 -- @
 -- instance (BasicType t1, ..., BasicType tn) => TA (t1, ..., tn) where
 -- @
@@ -249,7 +249,7 @@ mkTupleConstructor width =
         funTy     = ForallT (map PlainTV tyNames) qaConstr arrowTy
 
         -- Term stuff
-        qPats     = map (\n -> ConP qName [VarP n]) tyNames 
+        qPats     = map (\n -> ConP qName [VarP n]) tyNames
         tupConApp = foldl' AppE (ConE $ innerConst "" width) $ map VarE tyNames
         bodyExp   = AppE (ConE qName) (AppE (ConE $ outerConst "") tupConApp)
 
@@ -293,7 +293,7 @@ mkTranslateTermMatch width = do
         transBinds     = zipWith mkTransBind subTermNames transTermNames
 
         transTerms     = listE $ map varE transTermNames
-    conStmt <- NoBindS <$> 
+    conStmt <- NoBindS <$>
                [| return $ CL.MkTuple (T.TupleT $ map T.typeOf $transTerms) $transTerms |]
     let matchBody = DoE $ transBinds ++ [conStmt]
         matchPat  = ConP (innerConst "" width) (map VarP subTermNames)
@@ -325,7 +325,7 @@ mkTranslateTypeMatch width = do
         transElemTys = ListE $ map (\n -> AppE (VarE $ mkName "translateType") (VarE n)) subTyNames
 
     let matchBody  = AppE (ConE 'T.TupleT) transElemTys
-        
+
     return $ Match matchPat (NormalB matchBody) []
 
 mkTranslateType :: Int -> Q Exp
@@ -361,7 +361,7 @@ mkViewFun width = do
         qPat        = ConP qName [VarP expName]
 
     viewBodyExp <- TupE <$> mapM (\idx -> appE (conE qName) $ mkTupElemTerm width idx expVar)
-                                 [1..width] 
+                                 [1..width]
 
     let viewClause  = Clause [qPat] (NormalB viewBodyExp) []
 
@@ -405,7 +405,7 @@ mkTupleCons tupTyName conName elemTyCons width = do
         -- Reify t1, ..., Reify t<n>
         reifyConstraints = map (\n -> ClassP (mkName "Reify") [VarT n]) tupElemTyNames
 
-        constraints      = tupConstraint : reifyConstraints 
+        constraints      = tupConstraint : reifyConstraints
 
     let -- '(Exp/Type t1) ... (Exp/Type t<n>)'
         elemTys = [ (NotStrict, elemTyCons (VarT t))
@@ -415,22 +415,22 @@ mkTupleCons tupTyName conName elemTyCons width = do
     return $ ForallC tyVarBinders constraints
            $ NormalC (conName width) elemTys
 
--- | Generate the types for AST type and term tuple constructors: 'TupleConst' and 
+-- | Generate the types for AST type and term tuple constructors: 'TupleConst' and
 -- 'TupleType'. The first parameter is the name of the type. The second parameter
 -- is the type constructor for element fields and the third parameter generates
 -- the constructor name for a given tuple width.
--- 
+--
 -- @
 -- data TupleConst a where
---     Tuple<n>E :: (Reify t1, ..., Reify t<n>) => Exp t1 
---                                              -> ... 
---                                              -> Exp t<n> 
+--     Tuple<n>E :: (Reify t1, ..., Reify t<n>) => Exp t1
+--                                              -> ...
+--                                              -> Exp t<n>
 --                                              -> TupleConst (t1, ..., t<n>)
 -- @
--- 
+--
 -- Because TH does not directly support GADT syntax, we have to
 -- emulate it using explicit universal quantification:
--- 
+--
 -- @
 -- data TupleConst a =
 --     forall t1, ..., t<n>. a ~ (t1, ..., t<n>),
@@ -483,7 +483,7 @@ innerConst m  width = mkName $ printf "%s.Tuple%dE" m width
 -- and element index.
 tupAccName :: Int -> Int -> Name
 tupAccName width elemIdx = mkName $ printf "Tup%d_%d" width elemIdx
-    
+
 -- | The name of the tuple type constructor for a given tuple width.
 tupTyConstName :: String -> Int -> Name
 tupTyConstName "" width = mkName $ printf "Tuple%dT" width
@@ -506,7 +506,7 @@ mkTupElemTerm width idx arg = do
 
 -- | From a list of operand terms, construct a DSH tuple term.
 mkTupConstTerm :: [Exp] -> Q Exp
-mkTupConstTerm ts 
-    | length ts <= 16 = return $ AppE (ConE $ mkName "TupleConstE") 
+mkTupConstTerm ts
+    | length ts <= 16 = return $ AppE (ConE $ mkName "TupleConstE")
                                $ foldl' AppE (ConE $ innerConst "" $ length ts) ts
     | otherwise       = impossible

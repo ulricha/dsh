@@ -40,12 +40,12 @@ reqExprCols (If c t e)       = reqExprCols c `L.union` reqExprCols t `L.union` r
 
 reqLeftPredCols :: JoinPredicate Expr -> [DBCol]
 reqLeftPredCols (JoinPred cs) = L.nub
-                                $ concatMap (\(JoinConjunct le _ _) -> reqExprCols le) 
+                                $ concatMap (\(JoinConjunct le _ _) -> reqExprCols le)
                                 $ N.toList cs
 
 reqRightPredCols :: JoinPredicate Expr -> [DBCol]
 reqRightPredCols (JoinPred cs) = L.nub
-                                $ concatMap (\(JoinConjunct _ _ re) -> reqExprCols re) 
+                                $ concatMap (\(JoinConjunct _ _ re) -> reqExprCols re)
                                 $ N.toList cs
 
 aggrReqCols :: AggrFun -> [DBCol]

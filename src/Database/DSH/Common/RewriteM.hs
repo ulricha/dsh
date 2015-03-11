@@ -18,7 +18,7 @@ module Database.DSH.Common.RewriteM
 
 import Control.Applicative
 import Control.Monad
-       
+
 import Language.KURE
 
 import Database.DSH.Common.Lang
@@ -42,17 +42,17 @@ instance Monad (RewriteM s) where
   return = returnM
   (>>=)  = bindM
   fail   = failM
-  
+
 returnM :: a -> RewriteM s a
 returnM a = RewriteM (\n -> (n, Right a))
 {-# INLINE returnM #-}
-  
+
 bindM :: RewriteM s a -> (a -> RewriteM s b) -> RewriteM s b
 bindM (RewriteM f) gg = RewriteM $ \ n -> case f n of
                                     (n', Left msg) -> (n', Left msg)
                                     (n', Right a)  -> compM (gg a) n'
-{-# INLINE bindM #-}                                    
-                                    
+{-# INLINE bindM #-}
+
 failM :: String -> RewriteM s a
 failM msg = RewriteM (\n -> (n, Left msg))
 {-# INLINE failM #-}
@@ -64,7 +64,7 @@ catchRewriteM :: RewriteM s a -> (String -> RewriteM s a) -> RewriteM s a
 catchRewriteM (RewriteM st) f = RewriteM $ \ n -> case st n of
                                         (n', Left msg) -> compM (f msg) n'
                                         (n', Right a)  -> (n', Right a)
-{-# INLINE catchRewriteM #-}                                        
+{-# INLINE catchRewriteM #-}
 
 
 instance Functor (RewriteM s) where
@@ -85,7 +85,7 @@ freshName vs = do v <- suggestName
                   if v `elem` vs
                     then freshName vs
                     else return v
-                    
+
 suggestName' :: RewriteStateM s Ident
 suggestName' = RewriteM (\(n, s) -> ((n+1, s), Right ("v" ++ show n)))
 
@@ -94,7 +94,7 @@ freshNameS vs = do v <- suggestName'
                    if v `elem` vs
                      then freshNameS vs
                      else return v
-                     
+
 get :: RewriteStateM s s
 get = RewriteM $ \(i, s) -> ((i, s), Right s)
 {-# INLINE get #-}
@@ -108,11 +108,11 @@ modify f = RewriteM $ \(i, s) -> ((i, f s), Right ())
 {-# INLINE modify #-}
 
 stateful :: s -> RewriteStateM s a -> RewriteM Int (s, a)
-stateful s ma = RewriteM $ \i -> 
+stateful s ma = RewriteM $ \i ->
                case runRewriteM' (i, s) ma of
                    ((i', _), Left msg) -> (i', Left msg)
                    ((i', s'), Right a) -> (i', Right (s', a))
-                   
+
 liftstate :: RewriteM Int a -> RewriteStateM s a
 liftstate ma = RewriteM $ \(i, s) -> let (i', a) = runRewriteM' i ma
                                   in ((i', s), a)
