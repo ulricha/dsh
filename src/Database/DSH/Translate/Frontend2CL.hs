@@ -226,7 +226,7 @@ translateApp f args =
        Gt           -> translateApp2 CP.gt args
        Like         -> translateApp2 CP.like args
        AddDays      -> translateApp2 CP.addDays args
-       DiffDays     -> translateApp2 CP.addDays args
+       DiffDays     -> translateApp2 CP.diffDays args
 
        -- Builtin functions with arity one
        SubString s e    -> translateApp1 (CP.substring s e) args
