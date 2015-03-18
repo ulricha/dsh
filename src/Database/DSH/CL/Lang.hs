@@ -15,8 +15,6 @@ module Database.DSH.CL.Lang
     , Prim2(..)
     ) where
 
-import           Control.Applicative          hiding (empty)
-
 import qualified Data.Foldable                as F
 import qualified Data.Traversable             as T
 import           Data.List.NonEmpty           (NonEmpty((:|)))

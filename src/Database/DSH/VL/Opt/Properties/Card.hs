@@ -3,8 +3,6 @@
 
 module Database.DSH.VL.Opt.Properties.Card where
 
-import Control.Applicative
-
 import Database.DSH.VL.Lang
 
 import Database.DSH.VL.Opt.Properties.Types

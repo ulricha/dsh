@@ -2,7 +2,6 @@
 
 module Database.DSH.VL.Opt.Properties.ReqColumns where
 
-import           Control.Applicative
 import qualified Data.List                                  as L
 import qualified Data.List.NonEmpty                         as N
 

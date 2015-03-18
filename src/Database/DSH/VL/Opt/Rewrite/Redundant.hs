@@ -2,7 +2,6 @@
 
 module Database.DSH.VL.Opt.Rewrite.Redundant (removeRedundancy) where
 
-import           Control.Applicative
 import           Control.Monad
 
 import           Database.Algebra.Dag.Common

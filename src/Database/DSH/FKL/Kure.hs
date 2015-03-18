@@ -38,7 +38,6 @@ module Database.DSH.FKL.Kure
 
 
 import           Control.Monad
-import           Data.Monoid
 
 import           Language.KURE
 import           Language.KURE.Lens
@@ -419,16 +418,3 @@ allRExpr r = readerT $ \e -> case e of
         Var{}         -> idR
         MkTuple{}     -> mkTupleR (extractR r)
         Ext{}         -> extR (extractR r)
-
-
---------------------------------------------------------------------------------
--- I find it annoying that Applicative is not a superclass of Monad.
-
-(<$>) :: Monad m => (a -> b) -> m a -> m b
-(<$>) = liftM
-{-# INLINE (<$>) #-}
-
-(<*>) :: Monad m => m (a -> b) -> m a -> m b
-(<*>) = ap
-{-# INLINE (<*>) #-}
-

@@ -76,7 +76,7 @@ Flag debuggraph
 
 Library
   Extensions:        CPP
-  Build-depends:     base                         >= 4.7 && < 5,
+  Build-depends:     base                         >= 4.8 && < 5,
                      template-haskell             >= 2.9,
                      containers                   >= 0.5,
                      mtl                          >= 2.1,
@@ -133,6 +133,7 @@ Library
                      Database.DSH.Common.Pretty
                      Database.DSH.Common.RewriteM
                      Database.DSH.Common.Kure
+                     Database.DSH.Common.TH
 
                      Database.DSH.CL.Lang
                      Database.DSH.CL.Kure
@@ -198,7 +199,7 @@ executable vldot
     Main-is: Database/DSH/Tools/VLDotGen.hs
     GHC-Options:      -Wall -fno-warn-orphans
     hs-source-dirs:   src
-    build-depends:    base                >= 4.7 && < 5,
+    build-depends:    base                >= 4.8 && < 5,
                       mtl                 >= 2.1,
                       aeson               >= 0.8,
                       time                >= 1.4,

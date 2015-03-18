@@ -12,7 +12,6 @@ module Database.DSH.CL.Opt.NestJoin
   , nestingGenR
   ) where
 
-import           Control.Applicative((<$>))
 import           Control.Arrow
 import           Control.Monad
 

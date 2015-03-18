@@ -9,20 +9,17 @@ module Database.DSH.Translate.Frontend2CL
     ( toComprehensions
     ) where
 
-import           Database.DSH.Common.Impossible
-
-import qualified Database.DSH.CL.Lang            as CL
-import qualified Database.DSH.CL.Primitives      as CP
-import qualified Database.DSH.Common.Lang        as L
-import qualified Database.DSH.Common.Type        as T
-
+import           Control.Monad.State
 import           Data.Text                       (unpack)
+
 import           Database.DSH.Frontend.Builtins
 import           Database.DSH.Frontend.TupleTypes
 import           Database.DSH.Frontend.Internals
-
-import           Control.Applicative
-import           Control.Monad.State
+import qualified Database.DSH.CL.Lang            as CL
+import qualified Database.DSH.CL.Primitives      as CP
+import           Database.DSH.Common.Impossible
+import qualified Database.DSH.Common.Lang        as L
+import qualified Database.DSH.Common.Type        as T
 
 -- In the state, we store a counter for fresh variable names.
 type CompileState = Integer

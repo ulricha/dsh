@@ -10,7 +10,6 @@ module Database.DSH.Compiler
   , debugQ
   ) where
 
-import           Control.Applicative
 import           Control.Arrow
 
 import           Database.DSH.Translate.Frontend2CL

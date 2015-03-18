@@ -16,9 +16,7 @@ module Database.DSH.Common.RewriteM
     , liftstate
     ) where
 
-import Control.Applicative
 import Control.Monad
-
 import Language.KURE
 
 import Database.DSH.Common.Lang

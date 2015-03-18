@@ -2,7 +2,6 @@
 
 module Database.DSH.VL.Opt.Rewrite.PruneEmpty(pruneEmpty) where
 
-import           Control.Applicative
 import           Control.Monad
 
 import           Database.DSH.Common.Opt

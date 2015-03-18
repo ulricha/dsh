@@ -7,7 +7,6 @@ module Database.DSH.Translate.NKL2FKL (flatTransform) where
 
 import           Control.Monad.State
 import           Control.Monad.Reader
-import           Control.Applicative
 
 import           Database.DSH.Common.Impossible
 import           Database.DSH.Common.Lang

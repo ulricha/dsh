@@ -18,7 +18,6 @@ module Database.DSH.CL.Opt.CompNormalization
     , identityCompR
     ) where
 
-import           Control.Applicative
 import           Control.Arrow
 import           Data.Either
 import qualified Data.Map                   as M
