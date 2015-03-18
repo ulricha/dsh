@@ -121,6 +121,10 @@ nestjoin3 (view -> (xs, ys, zs)) =
     | x <- xs
     ]
 
+groupjoin_length :: Q ([Integer], [Integer]) -> Q [(Integer, Integer)]
+groupjoin_length (view -> (xs, ys)) =
+    [ tup2 x (length [ y | y <- ys, x == y ]) | x <- xs ]
+
 --------------------------------------------------------------
 -- Comprehensions for HUnit tests
 
