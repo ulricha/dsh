@@ -24,6 +24,7 @@ aggregationRules = [ inlineAggrSProject
                    , mergeNonEmptyAggrs
                    , mergeGroupAggr
                    , mergeGroupWithGroupAggrLeft
+                   , mergeGroupWithGroupAggrRight
                    , groupJoin
                    ]
 
@@ -215,6 +216,35 @@ mergeGroupWithGroupAggrLeft q =
                              groupCols
                              ++
                              [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
+
+            groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
+            void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
+
+-- | The mirrored dual of rewrite
+-- 'Aggregation.Normalize.MergeGroup.Left'.
+mergeGroupWithGroupAggrRight :: VLRule ()
+mergeGroupWithGroupAggrRight q =
+  $(dagPatMatch 'q "(GroupAggr args (q1)) Align (R1 (Group ges (q2)))"
+    [| do
+        let (ges', afuns) = $(v "args")
+
+        -- Input vectors and grouping expressions have to be the same.
+        predicate $ $(v "q1") == $(v "q2")
+        predicate $ $(v "ges") == ges'
+
+        return $ do
+            logRewrite "Aggregation.Normalize.MergeGroup.Right" q
+
+            -- To keep the schema, we have to duplicate the grouping
+            -- columns.
+            let groupWidth = length ges'
+                aggrWidth  = N.length afuns
+                groupCols  = [ Column c | c <- [1..groupWidth] ]
+                proj       = groupCols
+                             ++
+                             [ Column $ c + groupWidth | c <- [1..aggrWidth] ]
+                             ++
+                             groupCols
 
             groupNode <- insert $ UnOp (GroupAggr (ges', afuns)) $(v "q1")
             void $ replaceWithNew q $ UnOp (Project proj) groupNode |])
