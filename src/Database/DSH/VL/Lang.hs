@@ -107,7 +107,9 @@ data UnOp = UnboxRename
           | ReverseS
           | SelectPos1 (L.ScalarBinOp, Int)
           | SelectPos1S (L.ScalarBinOp, Int)
+          | Sort [Expr]
           | SortS [Expr]
+          | Group [Expr]
           | GroupS [Expr]
           | WinFun (WinFun, FrameSpec)
 

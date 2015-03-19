@@ -59,7 +59,9 @@ inferNonEmptyUnOp e op =
     ReverseS        -> let ue = unp e in liftM2 VPropPair ue ue
     Project _       -> Right e
     Select _        -> Right $ VPropPair False False
+    Sort _          -> let ue = unp e in liftM2 VPropPair ue ue
     SortS _         -> let ue = unp e in liftM2 VPropPair ue ue
+    Group _         -> let ue = unp e in liftM3 VPropTriple ue (return True) ue
     -- If the input is not completely empty (that is, segments exist),
     -- grouping leads to a nested vector in which every inner segment
     -- is not empty.

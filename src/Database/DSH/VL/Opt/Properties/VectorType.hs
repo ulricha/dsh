@@ -62,15 +62,22 @@ inferVectorTypeUnOp s op =
     Project valProjs -> Right $ VProp $ ValueVector $ length valProjs
 
     Select _ -> VPropPair <$> unpack s <*> (Right RenameVector)
+    Sort _   -> liftM2 VPropPair (unpack s) (Right PropVector)
     SortS _  -> liftM2 VPropPair (unpack s) (Right PropVector)
     AggrNonEmptyS as -> Right $ VProp $ ValueVector $ N.length as
 
+    Group es ->
+      case s of
+        VProp t@(ValueVector _) ->
+          Right $ VPropTriple (ValueVector $ length es) t PropVector
+        _                                                    ->
+          Left "Input of Group is not a value vector"
     GroupS es ->
       case s of
         VProp t@(ValueVector _) ->
           Right $ VPropTriple (ValueVector $ length es) t PropVector
         _                                                    ->
-          Left "Input of GroupSimple is not a value vector"
+          Left "Input of GroupS is not a value vector"
     GroupAggr (g, as) -> Right $ VProp $ ValueVector (length g + N.length as)
     Number -> do
         ValueVector w <- unpack s

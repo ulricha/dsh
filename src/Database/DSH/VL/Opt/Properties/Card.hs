@@ -36,7 +36,9 @@ inferCardOneUnOp c op =
     SelectPos1{}  -> Right $ VPropTriple False False False
     SelectPos1S{} -> Right $ VPropTriple False False False
     Select _ -> Right $ VPropPair False False
+    Sort _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
     SortS _ -> unp c >>= (\uc -> return $ VPropPair uc uc)
+    Group _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     GroupS _ -> unp c >>= (\uc -> return $ VPropTriple uc uc uc)
     R1 ->
       case c of
