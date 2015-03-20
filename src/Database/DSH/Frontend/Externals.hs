@@ -706,6 +706,9 @@ reshape n (Q e) = Q (AppE (Reshape n) e)
 addDays :: Q Integer -> Q Day -> Q Day
 addDays (Q i) (Q d) = Q (AppE AddDays (pairE i d))
 
+subDays :: Q Integer -> Q Day -> Q Day
+subDays (Q i) (Q d) = Q (AppE SubDays (pairE i d))
+
 diffDays :: Q Day -> Q Day -> Q Integer
 diffDays (Q d1) (Q d2) = Q (AppE DiffDays (pairE d1 d2))
 

@@ -165,6 +165,7 @@ data BinStringOp = Like
 $(deriveJSON defaultOptions ''BinStringOp)
 
 data BinDateOp = AddDays
+               | SubDays
                | DiffDays
                deriving (Show, Eq, Ord)
 
@@ -279,6 +280,7 @@ instance Pretty BinBoolOp where
 
 instance Pretty BinDateOp where
     pretty AddDays  = text "addDays"
+    pretty SubDays  = text "subDays"
     pretty DiffDays = text "diffDays"
 
 instance Pretty UnNumOp where

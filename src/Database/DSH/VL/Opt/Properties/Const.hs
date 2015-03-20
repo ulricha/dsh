@@ -68,6 +68,7 @@ evalBinOp (SBRelOp _)    (DateV _)    (DateV _)    = mzero
 
 evalBinOp (SBBoolOp _)   (BoolV _)    (BoolV _)    = mzero
 evalBinOp (SBStringOp _) (StringV _)  (StringV _)  = mzero
+evalBinOp (SBDateOp _)   (IntV _)     (DateV _)    = mzero
 evalBinOp (SBDateOp _)   (DateV _)    (DateV _)    = mzero
 evalBinOp _              _            _            = $impossible
 
