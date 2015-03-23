@@ -119,7 +119,7 @@ schema tableName cols ty hints =
     errMsgScalar = printf "Non-scalar types in table %s" tableName
 
     keys :: N.NonEmpty Key -> N.NonEmpty L.Key
-    keys = fmap (\(Key k) -> L.Key $ map L.ColName k)
+    keys = fmap (\(Key k) -> L.Key $ fmap L.ColName k)
 
     ne :: Emptiness -> L.Emptiness
     ne NonEmpty      = L.NonEmpty

@@ -63,7 +63,7 @@ $(deriveJSON defaultOptions ''ColName)
 type Column = (ColName, ScalarType)
 
 -- | Table keys
-newtype Key = Key [ColName] deriving (Eq, Ord, Show)
+newtype Key = Key (N.NonEmpty ColName) deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''Key)
 

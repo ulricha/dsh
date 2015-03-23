@@ -108,7 +108,7 @@ tripleE a b c = TupleConstE (Tuple3E a b c)
 -- Definition of database-resident tables
 
 -- | A combination of column names that form a candidate key
-newtype Key = Key [String] deriving (Eq, Ord, Show)
+newtype Key = Key (NonEmpty String) deriving (Eq, Ord, Show)
 
 -- | Is the table guaranteed to be not empty?
 data Emptiness = NonEmpty
