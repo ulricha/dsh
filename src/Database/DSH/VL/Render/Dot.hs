@@ -71,21 +71,8 @@ bracketList f = brackets . hsep . punctuate comma . map f
 renderColName :: ColName -> Doc
 renderColName (ColName c) = text c
 
-renderTableType :: (ColName, ScalarType) -> Doc
-renderTableType (c, t) = renderColName c <> text "::" <> renderColumnType t
-
-renderTableHints :: TableHints -> Doc
-renderTableHints hs = renderTableKeys (keysHint hs) <> renderEmptiness (nonEmptyHint hs)
-
-renderEmptiness :: Emptiness -> Doc
-renderEmptiness NonEmpty      = text " NONEMPTY"
-renderEmptiness PossiblyEmpty = empty
-
-renderTableKeys :: N.NonEmpty Key -> Doc
-renderTableKeys = list . map renderTableKey . N.toList
-
-renderTableKey :: Key -> Doc
-renderTableKey (Key ks) = list $ map renderColName ks
+renderCol :: (ColName, ScalarType) -> Doc
+renderCol (c, t) = renderColName c <> text "::" <> renderColumnType t
 
 renderProj :: Doc -> Expr -> Doc
 renderProj d e = d <> colon <> renderExpr e
@@ -125,12 +112,15 @@ opDotLabel tm i (UnOp (WinFun (wfun, wspec)) _) = labelToDoc i "WinAggr"
     (renderWinFun wfun <> comma <+> renderFrameSpec wspec)
     (lookupTags i tm)
 opDotLabel tm i (NullaryOp (SingletonDescr)) = labelToDoc i "SingletonDescr" empty (lookupTags i tm)
-opDotLabel tm i (NullaryOp (Lit (em, tys, vals))) = labelToDoc i "LIT"
-        (renderEmptiness em <+> bracketList renderColumnType tys <> comma
+opDotLabel tm i (NullaryOp (Lit (_, tys, vals))) = labelToDoc i "LIT"
+        (bracketList renderColumnType tys <> comma
         <$> renderData vals) (lookupTags i tm)
-opDotLabel tm i (NullaryOp (TableRef (n, tys, hs))) = labelToDoc i "TableRef"
-        (squotes (text n) <> comma <+> bracketList (\t -> renderTableType t <> text "\n") tys <> comma <$> renderTableHints hs)
-        (lookupTags i tm)
+opDotLabel tm i (NullaryOp (TableRef (n, schema))) =
+    labelToDoc i "TableScan"
+                 (text n <> text "\n"
+                  <> align (bracketList (\c -> renderCol c <> text "\n")
+                                        (N.toList $ tableCols schema)))
+                 (lookupTags i tm)
 opDotLabel tm i (UnOp UniqueS _) = labelToDoc i "UniqueS" empty (lookupTags i tm)
 opDotLabel tm i (UnOp Number _) = labelToDoc i "Number" empty (lookupTags i tm)
 opDotLabel tm i (UnOp NumberS _) = labelToDoc i "NumberS" empty (lookupTags i tm)

@@ -127,7 +127,11 @@ inferConstVecNullOp op =
                                            else NonConstPL
               toConstPayload []          = NonConstPL
 
-    TableRef              (_, cols, _)    -> return $ VProp $ DBVConst (ConstDescr 1) $ map (const NonConstPL) cols
+    TableRef (_, schema)    -> return $ VProp
+                                      $ DBVConst (ConstDescr 1)
+                                      $ map (const NonConstPL)
+                                      $ N.toList
+                                      $ tableCols schema
 
 inferConstVecUnOp :: (VectorProp ConstVec) -> UnOp -> Either String (VectorProp ConstVec)
 inferConstVecUnOp c op =

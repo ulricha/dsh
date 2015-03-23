@@ -23,7 +23,7 @@ data LiftedN = LiftedN Nat deriving (Show)
 data Lifted = Lifted | NotLifted deriving (Show)
 
 -- | 'FExpr' is the target language of the flattening transformation.
-data ExprTempl l e = Table Type String [L.ColName] L.TableHints
+data ExprTempl l e = Table Type String L.BaseTableSchema
                    | PApp1 Type Prim1 l (ExprTempl l e)
                    | PApp2 Type Prim2 l (ExprTempl l e) (ExprTempl l e)
                    | PApp3 Type Prim3 l (ExprTempl l e) (ExprTempl l e) (ExprTempl l e)
@@ -92,7 +92,7 @@ data Prim3 = Combine
 instance Typed e => Typed (ExprTempl l e) where
     typeOf (Var t _)           = t
     typeOf (Let t _ _ _)       = t
-    typeOf (Table t _ _ _)     = t
+    typeOf (Table t _ _)       = t
     typeOf (PApp1 t _ _ _)     = t
     typeOf (PApp2 t _ _ _ _)   = t
     typeOf (PApp3 t _ _ _ _ _) = t
@@ -178,7 +178,7 @@ instance (Pretty l, Pretty e) => Pretty (ExprTempl l e) where
                 <$>
                 text "in" <+> pretty e
 
-    pretty (Table _ n _c _k) = text "table" <> parens (text n)
+    pretty (Table _ n _) = text "table" <> parens (text n)
 
     pretty (PApp1 _ (TupElem n) l e1) =
         parenthize e1 <> dot <> int (tupleIndex n) <> pretty l

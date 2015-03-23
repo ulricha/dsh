@@ -183,7 +183,7 @@ isBind :: Qual -> Bool
 isBind (GuardQ _)   = False
 isBind (BindQ _ _)  = True
 
-data Expr  = Table Type String [L.ColName] L.TableHints
+data Expr  = Table Type String L.BaseTableSchema
            | AppE1 Type Prim1 Expr
            | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
@@ -200,7 +200,7 @@ instance Pretty Expr where
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
     pretty (MkTuple _ es)     = tupled $ map pretty es
-    pretty (Table _ n _ _)    = text "table" <> parens (text n)
+    pretty (Table _ n _)      = text "table" <> parens (text n)
     pretty (AppE1 _ p1 e)     = pretty p1 <+> (parenthize e)
     pretty (AppE2 _ p2 e1 e2) = pretty p2
                                 <+>
@@ -234,7 +234,7 @@ parenthize e =
     case e of
         Var _ _               -> pretty e
         Lit _ _               -> pretty e
-        Table _ _ _ _         -> pretty e
+        Table _ _ _           -> pretty e
         Comp _ _ _            -> pretty e
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e
@@ -259,7 +259,7 @@ instance Pretty Qual where
 deriving instance Eq Expr
 
 instance Typed Expr where
-    typeOf (Table t _ _ _) = t
+    typeOf (Table t _ _)   = t
     typeOf (AppE1 t _ _)   = t
     typeOf (AppE2 t _ _ _) = t
     typeOf (If t _ _ _)    = t

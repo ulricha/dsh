@@ -209,8 +209,8 @@ vlCombine (VLDVec c1) (VLDVec c2) (VLDVec c3) =
 vlLit :: L.Emptiness -> [Ty.Type] -> [[L.ScalarVal]] -> Build VL VLDVec
 vlLit em tys vals = vec (NullaryOp $ Lit (em, map typeToScalarType tys, vals)) dvec
 
-vlTableRef :: String -> [(L.ColName, Ty.ScalarType)] -> L.TableHints -> Build VL VLDVec
-vlTableRef n tys hs = vec (NullaryOp $ TableRef (n, tys, hs)) dvec
+vlTableRef :: String -> L.BaseTableSchema -> Build VL VLDVec
+vlTableRef n schema = vec (NullaryOp $ TableRef (n, schema)) dvec
 
 vlUnExpr :: L.ScalarUnOp -> VLDVec -> Build VL VLDVec
 vlUnExpr o (VLDVec c) = vec (UnOp (Project [UnApp o (Column 1)]) c) dvec

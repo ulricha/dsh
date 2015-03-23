@@ -79,7 +79,7 @@ $(deriveJSON defaultOptions ''FrameSpec)
 
 data NullOp = SingletonDescr
             | Lit (L.Emptiness, [ScalarType], [[L.ScalarVal]])
-            | TableRef (String, [(L.ColName, ScalarType)], L.TableHints)
+            | TableRef (String, L.BaseTableSchema)
             deriving (Eq, Ord, Show)
 
 $(deriveJSON defaultOptions ''NullOp)

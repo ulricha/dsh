@@ -317,7 +317,7 @@ instance IsString (Q Text) where
 defaultHints :: NonEmpty Key -> TableHints
 defaultHints keys = TableHints keys PossiblyEmpty
 
-table :: (QA a, TA a) => String -> [ColName] -> TableHints -> Q [a]
+table :: (QA a, TA a) => String -> NonEmpty ColName -> TableHints -> Q [a]
 table name schema hints = Q (TableE (TableDB name schema hints))
 
 -- * toQ

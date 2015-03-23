@@ -9,6 +9,7 @@ import           Debug.Trace
 
 import           Control.Applicative
 import qualified Data.List                     as List
+import qualified Data.List.NonEmpty            as N
 import           Prelude                       hiding (reverse, zip)
 import qualified Prelude                       as P
 
@@ -611,10 +612,11 @@ singletonL _ = $impossible
 -- Construction of base tables and literal tables
 
 -- | Create a VL reference to a base table.
-dbTable ::  String -> [(L.ColName, Type)] -> L.TableHints -> Build VL (Shape VLDVec)
-dbTable n cs ks = do
-    t <- vlTableRef n (map (mapSnd typeToScalarType) cs) ks
-    return $ VShape t (LTuple $ map (const LCol) cs)
+dbTable ::  String -> L.BaseTableSchema -> Build VL (Shape VLDVec)
+dbTable n schema = do
+    tab <- vlTableRef n schema
+    let tupLyt = LTuple $ map (const LCol) $ N.toList $ L.tableCols schema
+    return $ VShape tab tupLyt
 
 -- | Create a VL representation of a literal value.
 mkLiteral ::  Type -> L.Val -> Build VL (Shape VLDVec)

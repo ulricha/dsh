@@ -8,6 +8,7 @@ import           Control.Applicative
 import qualified Data.List.NonEmpty as N
 
 import           Database.DSH.VL.Opt.Properties.Types
+import           Database.DSH.Common.Lang
 
 import           Database.DSH.VL.Lang
 
@@ -20,9 +21,9 @@ vectorWidth _                        = error "vectorWidth: non-ValueVector input
 inferVectorTypeNullOp :: NullOp -> Either String (VectorProp VectorType)
 inferVectorTypeNullOp op =
   case op of
-    SingletonDescr      -> Right $ VProp $ ValueVector 0
-    Lit (_, t, _)       -> Right $ VProp $ ValueVector $ length t
-    TableRef (_, cs, _) -> Right $ VProp $ ValueVector $ length cs
+    SingletonDescr       -> Right $ VProp $ ValueVector 0
+    Lit (_, t, _)        -> Right $ VProp $ ValueVector $ length t
+    TableRef (_, schema) -> Right $ VProp $ ValueVector $ N.length (tableCols schema)
 
 unpack :: VectorProp VectorType -> Either String VectorType
 unpack (VProp s) = Right s

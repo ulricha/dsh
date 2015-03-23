@@ -322,4 +322,4 @@ translateNullary :: VectorAlgebra a
                  -> B.Build a (Res (DVec a))
 translateNullary V.SingletonDescr          = fromDVec <$> singletonDescr
 translateNullary (V.Lit (_, tys, vals))    = fromDVec <$> vecLit tys vals
-translateNullary (V.TableRef (n, tys, hs)) = fromDVec <$> vecTableRef n tys hs
+translateNullary (V.TableRef (n, schema))  = fromDVec <$> vecTableRef n schema

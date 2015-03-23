@@ -123,7 +123,7 @@ data TableHints = TableHints
     , nonEmptyHint :: Emptiness
     } deriving (Eq, Ord, Show)
 
-data Table = TableDB String [ColName] TableHints
+data Table = TableDB String (NonEmpty ColName) TableHints
 
 -- Reify instances
 

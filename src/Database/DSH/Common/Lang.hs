@@ -60,7 +60,7 @@ newtype ColName = ColName String deriving (Eq, Ord, Show)
 $(deriveJSON defaultOptions ''ColName)
 
 -- | Typed table columns
-type Column = (ColName, Type)
+type Column = (ColName, ScalarType)
 
 -- | Table keys
 newtype Key = Key [ColName] deriving (Eq, Ord, Show)
@@ -74,13 +74,14 @@ data Emptiness = NonEmpty
 
 $(deriveJSON defaultOptions ''Emptiness)
 
--- | Catalog information hints that users may give to DSH
-data TableHints = TableHints
-    { keysHint     :: (N.NonEmpty Key)
-    , nonEmptyHint :: Emptiness
+-- | Information about base tables
+data BaseTableSchema = BaseTableSchema
+    { tableCols     :: N.NonEmpty Column
+    , tableKeys     :: N.NonEmpty Key
+    , tableNonEmpty :: Emptiness
     } deriving (Eq, Ord, Show)
 
-$(deriveJSON defaultOptions ''TableHints)
+$(deriveJSON defaultOptions ''BaseTableSchema)
 
 -- | Identifiers
 type Ident = String

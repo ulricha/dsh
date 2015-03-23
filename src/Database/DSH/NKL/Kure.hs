@@ -118,11 +118,11 @@ liftstateT t = resultT liftstate t
 --------------------------------------------------------------------------------
 -- Congruence combinators for CL expressions
 
-tableT :: Monad m => (Type -> String -> [ColName] -> TableHints -> b)
+tableT :: Monad m => (Type -> String -> BaseTableSchema -> b)
                   -> Transform NestedCtx m Expr b
 tableT f = contextfreeT $ \expr -> case expr of
-                      Table ty n cs ks -> return $ f ty n cs ks
-                      _                -> fail "not a table node"
+                      Table ty n schema -> return $ f ty n schema
+                      _                 -> fail "not a table node"
 {-# INLINE tableT #-}
 
 tableR :: Monad m => Rewrite NestedCtx m Expr

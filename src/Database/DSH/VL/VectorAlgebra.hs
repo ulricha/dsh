@@ -20,7 +20,7 @@ class VectorAlgebra a where
     vecLit :: [ScalarType] -> [[ScalarVal]] -> Build a (DVec a)
 
     -- | A reference to a database-resident table.
-    vecTableRef :: String -> [(ColName, ScalarType)] -> TableHints -> Build a (DVec a)
+    vecTableRef :: String -> BaseTableSchema -> Build a (DVec a)
 
     -- | Perform duplicate elimination per segment.
     vecUniqueS :: DVec a -> Build a (DVec a)

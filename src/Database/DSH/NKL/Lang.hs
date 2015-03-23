@@ -15,13 +15,13 @@ import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 
 import           Database.DSH.Common.Impossible
-import qualified Database.DSH.Common.Lang     as L
-import           Database.DSH.Common.Pretty
+import qualified Database.DSH.Common.Lang       as L
 import           Database.DSH.Common.Nat
-import           Database.DSH.Common.Type     (Type, Typed, typeOf)
+import           Database.DSH.Common.Pretty
+import           Database.DSH.Common.Type       (Type, Typed, typeOf)
 
 -- | Nested Kernel Language (NKL) expressions
-data Expr  = Table Type String [L.ColName] L.TableHints
+data Expr  = Table Type String L.BaseTableSchema
            | AppE1 Type Prim1 Expr
            | AppE2 Type Prim2 Expr Expr
            | BinOp Type L.ScalarBinOp Expr Expr
@@ -35,7 +35,7 @@ data Expr  = Table Type String [L.ColName] L.TableHints
            deriving (Show)
 
 instance Typed Expr where
-    typeOf (Table t _ _ _)    = t
+    typeOf (Table t _ _)      = t
     typeOf (AppE1 t _ _)      = t
     typeOf (AppE2 t _ _ _)    = t
     typeOf (If t _ _ _)       = t
@@ -51,7 +51,7 @@ instance Pretty Expr where
     pretty (MkTuple _ es)      = tupled $ map pretty es
     pretty (AppE1 _ (TupElem n) e1) =
         parenthize e1 <> dot <> int (tupleIndex n)
-    pretty (Table _ n _ _)     = text "table" <> parens (text n)
+    pretty (Table _ n _)       = text "table" <> parens (text n)
     pretty (AppE1 _ p1 e)      = pretty p1 <+> (parenthize e)
     pretty (AppE2 _ p2 e1 e2)  = pretty p2 <+> (align $ (parenthize e1) </> (parenthize e2))
     pretty (BinOp _ o e1 e2)   = (parenthize e1) <+> (pretty o) <+> (parenthize e2)
@@ -78,7 +78,7 @@ parenthize e =
     case e of
         Var _ _               -> pretty e
         Const _ _             -> pretty e
-        Table _ _ _ _         -> pretty e
+        Table _ _ _           -> pretty e
         Iterator _ _ _ _      -> pretty e
         AppE1 _ (TupElem _) _ -> pretty e
         _                     -> parens $ pretty e

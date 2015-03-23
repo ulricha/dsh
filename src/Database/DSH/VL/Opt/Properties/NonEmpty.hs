@@ -22,7 +22,7 @@ module Database.DSH.VL.Opt.Properties.NonEmpty where
 
 import Control.Monad
 
-import Database.DSH.Common.Lang(nonEmptyHint, Emptiness(..))
+import Database.DSH.Common.Lang
 import Database.DSH.VL.Lang
 
 import Database.DSH.VL.Opt.Properties.Types
@@ -43,7 +43,7 @@ inferNonEmptyNullOp op =
     SingletonDescr            -> Right $ VProp False
     Lit (NonEmpty, _, _)      -> Right $ VProp True
     Lit (PossiblyEmpty, _, _) -> Right $ VProp False
-    TableRef (_, _, hs)       -> return $ VProp $ (nonEmptyHint hs) == NonEmpty
+    TableRef (_, schema)      -> return $ VProp $ (tableNonEmpty schema) == NonEmpty
 
 inferNonEmptyUnOp :: VectorProp Bool -> UnOp -> Either String (VectorProp Bool)
 inferNonEmptyUnOp e op =
